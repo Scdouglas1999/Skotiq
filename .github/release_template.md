@@ -24,4 +24,4 @@
 
 ### Full changelog
 
-See [CHANGELOG.md](https://github.com/Scdouglas1999/Skotiq/blob/main/docs/CHANGELOG.md) and `docs/releases/` for detailed release notes.
+See [CHANGELOG.md](https://github.com/Scdouglas1999/Nightshade/blob/main/docs/CHANGELOG.md) and `docs/releases/` for detailed release notes.

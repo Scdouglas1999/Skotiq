@@ -346,8 +346,8 @@ Application:
 ### Community and Support
 
 - **Documentation**: You're reading it!
-- **GitHub**: https://github.com/Scdouglas1999/Skotiq
-- **Issues**: https://github.com/Scdouglas1999/Skotiq/issues
+- **GitHub**: https://github.com/Scdouglas1999/Nightshade
+- **Issues**: https://github.com/Scdouglas1999/Nightshade/issues
 
 ### Developer Resources
 

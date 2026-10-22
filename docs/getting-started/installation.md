@@ -15,7 +15,7 @@ artifact is not promoted without passing its recorded `runtimeSmokeChecks`.
 ## Downloads
 
 Open the [Skotiq releases
-page](https://github.com/Scdouglas1999/Skotiq/releases) and download the
+page](https://github.com/Scdouglas1999/Nightshade/releases) and download the
 artifact for your platform:
 
 | Platform | 5.0.0 artifact | Distribution status |
@@ -179,4 +179,4 @@ v55 on a copied database. Your own backup remains the rollback path.
 Continue with [Connecting Your First Device](first-connection.md) and
 [Capturing Your First Image](first-image.md). For help, use the
 [troubleshooting guide](../troubleshooting/common-issues.md) or
-[GitHub Issues](https://github.com/Scdouglas1999/Skotiq/issues).
+[GitHub Issues](https://github.com/Scdouglas1999/Nightshade/issues).

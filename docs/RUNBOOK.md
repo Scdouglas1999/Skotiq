@@ -146,7 +146,7 @@ present beside the executable; reinstall if missing.
 
 **Escalation**
 
-File an issue at https://github.com/Scdouglas1999/Skotiq/issues with:
+File an issue at https://github.com/Scdouglas1999/Nightshade/issues with:
 
 1. Full log file (`$env:APPDATA\Skotiq\logs\skotiq.log`).
 2. Last successful launch date.
@@ -764,7 +764,7 @@ curl -s http://127.0.0.1:8080/api/info > "$out/api-info.json"
 tar czf "$out.tar.gz" -C "$out" .
 ```
 
-Open https://github.com/Scdouglas1999/Skotiq/issues and attach the
+Open https://github.com/Scdouglas1999/Nightshade/issues and attach the
 archive.
 
 ## Appendix B — See also

@@ -352,6 +352,6 @@ Now that you've captured your first images:
 Questions about imaging?
 - [Imaging Features Guide](../features/imaging.md) - Detailed feature documentation
 - [Troubleshooting Guide](../troubleshooting/common-issues.md) - Common problems and solutions
-- [GitHub Issues](https://github.com/Scdouglas1999/Skotiq/issues) - Report bugs or ask for help
+- [GitHub Issues](https://github.com/Scdouglas1999/Nightshade/issues) - Report bugs or ask for help
 
 Clear skies and happy imaging!

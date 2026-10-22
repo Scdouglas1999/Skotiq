@@ -32,7 +32,7 @@ maintainer can still push directly to `main`. Pull-request reviews are not
 required (solo maintainer). Verify the live configuration with:
 
 ```bash
-gh api repos/Scdouglas1999/Skotiq/branches/main/protection \
+gh api repos/Scdouglas1999/Nightshade/branches/main/protection \
   --jq '{checks: .required_status_checks.contexts, enforce_admins: .enforce_admins.enabled}'
 ```
 

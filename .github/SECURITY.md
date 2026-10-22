@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to the current **beta** and **stable** release channels published on [GitHub Releases](https://github.com/Scdouglas1999/Skotiq/releases). Older versions may not receive patches.
+Security fixes are applied to the current **beta** and **stable** release channels published on [GitHub Releases](https://github.com/Scdouglas1999/Nightshade/releases). Older versions may not receive patches.
 
 | Channel | Typical support |
 |--------|------------------|

@@ -10,15 +10,15 @@
 
 **Astrophotography capture software that runs the whole night from one app.**
 
-[![Latest release](https://img.shields.io/github/v/release/Scdouglas1999/Skotiq?label=latest&color=2ea44f)](https://github.com/Scdouglas1999/Skotiq/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Scdouglas1999/Nightshade?label=latest&color=2ea44f)](https://github.com/Scdouglas1999/Nightshade/releases/latest)
 [![Public beta](https://img.shields.io/badge/status-public_beta-f59e0b)](#whats-missing)
 [![Desktop](https://img.shields.io/badge/desktop-Windows_%7C_Linux-2563eb)](#downloads)
 [![Companion](https://img.shields.io/badge/companion-Android-7c3aed)](#running-it-from-somewhere-else)
 [![License](https://img.shields.io/badge/license-source_available-64748b)](LICENSE)
 
-[**Download**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [7.1.0 release notes](docs/release/v7.1.0.md) · [What's missing](docs/known-limitations.md) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
+[**Download**](https://github.com/Scdouglas1999/Nightshade/releases/latest) · [Documentation](docs/index.md) · [7.1.0 release notes](docs/release/v7.1.0.md) · [What's missing](docs/known-limitations.md) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
 
-<img src="assets/screenshots/planetarium.png" width="900" alt="Skotiq planetarium drawing the sky over the observing site: constellation figures and named stars, Messier and NGC objects labelled, Mars and Jupiter placed, with a compass rose and the field of view, centre coordinates and Bortle class along the bottom">
+<img src="assets/screenshots/planetarium.png" width="900" alt="Skotiq planetarium drawing the live sky over the observing site: constellation figures, named deep-sky objects and planets, with a compass rose and the field center coordinates and Bortle class along the bottom">
 
 </div>
 
@@ -50,22 +50,22 @@ or the [N.I.N.A. Fujifilm plugin](https://github.com/Scdouglas1999/NINA-Fujifilm
 
 <div align="center">
 
-<img src="assets/screenshots/desktop-dashboard.png" width="900" alt="Skotiq Tonight during a run on IC 434: the latest captured frame, the guide trace, per-filter progress against the night's goal, and live camera, mount, focuser, filter wheel and guider readouts">
+<img src="assets/screenshots/desktop-dashboard.png" width="900" alt="Skotiq Tonight on a real imaging laptop, with the NGC 891 plan staged for the night: the target's altitude curve against the Moon at 85%, each step's clock time through the meridian flip and camera warm-up, and a before-you-start checklist showing the camera cooling, mount unparked and guider connected">
 
-<sub>The target you're on, the frame that just came down, the guide trace, and every device on the rig — one screen.</sub>
+<sub>The target, the plan with its clock times, the gear's live state and the night's weather call — one screen. (Captured from a real rig the morning after a night's imaging.)</sub>
 
 </div>
 
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshots/plan-tonight.png" width="100%" alt="Skotiq Plan scoring 1255 catalogue targets for tonight: each with its transit time and altitude and how long it stays above 30 degrees, beside a detail pane giving NGC7788's altitude curve, object type, magnitude, suggested filter and exposure">
+<img src="assets/screenshots/plan-tonight.png" width="100%" alt="Skotiq Plan scoring 1446 catalogue targets for tonight, each with its transit time, altitude and time above the horizon, beside a detail pane giving IC 356's altitude curve, object type, magnitude, suggested filter and its distance from the Moon">
 <p><b>Work out what to shoot.</b> Everything in the catalogue, scored for tonight against
 how high it gets, when it transits, how long it stays up, where the Moon is and what your
 horizon blocks. Click one and you get its altitude curve and a suggested exposure.</p>
 </td>
 <td width="50%" valign="top">
-<img src="assets/screenshots/framing.png" width="100%" alt="Skotiq framing: the camera's field of view and rotation over DSS2 Red survey imagery, with the sensor size, field of view and image scale for the active equipment profile">
+<img src="assets/screenshots/framing.png" width="100%" alt="Skotiq framing for NGC 891: the camera's 1.00 by 0.75 degree field of view drawn over real DSS2 Red survey imagery of the galaxy, with the sensor size and image scale from the active equipment profile">
 <p><b>Frame it before you waste the clear sky.</b> Your actual sensor and focal length over
 real survey imagery, so you can see whether it fits and which way to rotate. Mosaic panels
 get laid out here too.</p>
@@ -73,12 +73,12 @@ get laid out here too.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq equipment profiles: the active rig's optical train and device assignments, with focal length, aperture and focal ratio">
+<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq equipment screen on a live rig: a ZWO ASI1600MM-Cool camera cooled to 7.1°C, a Pegasus NYX-101 mount, a ZWO EAF focuser at position 45459, an eight-slot filter wheel on DARK and PHD2 guiding all connected at once, with the startup auto-connect log reporting five of five devices succeeded">
 <p><b>Connect once.</b> Save the rig as a profile — camera, mount, focuser, filter wheel,
 guider and the optics in front of them — and it brings the lot back next time.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/sequencer.png" width="100%" alt="Skotiq sequencer part-way through a run: the IC 434 narrowband sequence as a table of steps with filter, count, duration and finish-time columns, the step currently exposing highlighted, and its settings alongside">
+<img src="assets/screenshots/sequencer.png" width="100%" alt="Skotiq sequencer with the real NGC 891 plan loaded: acquire target, a smart-exposure loop through L R G and B filters, a meridian flip with watchdog, and the dawn teardown steps, as a table with counts and clock times">
 <p><b>Build the run.</b> Steps you drag together: cool the camera, autofocus, loop through
 filters, dither, flip, park. A twelve-hour run reads as a table with counts and finish
 times rather than a tree you scroll through.</p>
@@ -86,33 +86,39 @@ times rather than a tree you scroll through.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/imaging.png" width="100%" alt="Skotiq imaging: a captured frame of IC 434 in the viewer with HFR, eccentricity, star count and image statistics measured from it, beside the capture settings and session totals">
+<img src="assets/screenshots/imaging.png" width="100%" alt="Skotiq imaging on the live rig between sessions: FITS 16-bit capture settings, free disk space and the cooled camera readout, with the frame viewer and session panel waiting for the next run">
 <p><b>Watch the frames come in.</b> Star count, HFR and eccentricity measured off each frame
 as it lands, so you find out focus has drifted before you've lost an hour to it.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/guiding.png" width="100%" alt="Skotiq guiding: the RA and Dec error trace over five minutes with RMS and star statistics, PHD2 connected and the mount calibrated">
+<img src="assets/screenshots/guiding.png" width="100%" alt="Skotiq guiding with PHD2 connected to the live rig: the guide trace, RMS and star statistics, and the dither and calibration controls alongside">
 <p><b>Guide without alt-tabbing.</b> Drive PHD2 from here, or use the built-in multi-star
 guider. Capture waits for the dither to settle either way.</p>
 </td>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/weather.png" width="100%" alt="Skotiq Weather showing live GOES satellite cloud imagery over the observing site, the site marked with its 30 km alert radius, and a critical verdict reading 100 percent cloud cover overhead">
+<img src="assets/screenshots/weather.png" width="100%" alt="Skotiq Weather showing live GOES satellite cloud imagery over the observing site with the alert radius marked, reporting zero percent cloud cover overhead and a clear verdict">
 <p><b>See the clouds coming.</b> Live satellite imagery over your site, with an alert radius
 you set. Weather, your safety monitor, twilight and free disk space all feed one answer
 about whether it's safe to carry on.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/flat-wizard.png" width="100%" alt="Skotiq flat wizard converging on a flat exposure from measured ADU samples">
+<img src="assets/screenshots/flat-wizard.png" width="100%" alt="Skotiq flat wizard part-way through a real flat run on the Ha filter: a test exposure converging toward the 32768 ADU histogram target on the chart, with per-filter calibration status cards beside it">
 <p><b>Take flats without guessing.</b> The wizard measures the level and works out the
 exposure. If it can't land inside your tolerance it tells you, instead of handing you a bad
 flat.</p>
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top">
-<img src="assets/screenshots/analytics.png" width="100%" alt="Skotiq analytics history: past imaging sessions listed with elapsed time, frames returned, integration and average HFR">
+<td valign="top">
+<img src="assets/screenshots/darkroom-draft.png" width="100%" alt="Skotiq darkroom showing a real L-filter master of NGC 891 from the previous night's run, edge-on galaxy visible, with the processing recipe listing background extraction and denoise stages beside it">
+<p><b>Process what you shot.</b> The Darkroom stacks each filter's frames into masters and
+drafts the color composite for you at dawn — the L master of NGC 891 above came out of the
+night pictured throughout this page.</p>
+</td>
+<td valign="top">
+<img src="assets/screenshots/analytics.png" width="100%" alt="Skotiq analytics history on the live rig: the October 21 and 22 NGC 891 sessions listed with elapsed time, frames returned, integration and median HFR, beside a completed ninety-frame darks and bias run">
 <p><b>Look back at it.</b> Every session with its frame count, integration time and average
 HFR, the guiding history, and what the automation decided and why. Frames get labelled,
 never deleted or thrown out for you.</p>
@@ -219,9 +225,14 @@ profile.
 
 | File | Platform | Notes |
 |---|---|---|
-| `skotiq-7.1.0-windows-x64.zip` | Windows x64 | Portable — extract and run. Only code-signed once a certificate has been set up |
-| `skotiq-7.1.0-linux-x64.tar.gz` | Linux x64 | Portable bundle, needs glibc 2.35 or newer. Early days |
-| `skotiq-7.1.0-android-arm64-v8a.apk` | Android | The companion app. Also built for `armeabi-v7a` and `x86_64` |
+| `skotiq-<version>-windows-x64.zip` | Windows x64 | Portable — extract and run. Only code-signed once a certificate has been set up |
+| `skotiq-<version>-linux-x64.tar.gz` | Linux x64 | Portable bundle, needs glibc 2.35 or newer. Early days |
+| `skotiq-<version>-android-arm64-v8a.apk` | Android | The companion app. Also built for `armeabi-v7a` and `x86_64` |
+
+The last published release, 7.1.0, still ships its files under the old
+`nightshade-7.1.0-*` names — the `skotiq-*` names start with the first release
+cut after the rename. The Android file is a fresh install (`com.skotiq.mobile`),
+not an upgrade of the old app.
 
 **There's no macOS or iOS build.** The Mac version compiles, but nothing is packaged and
 neither has ever been run against hardware. Treat them as source only.
@@ -250,9 +261,11 @@ membership. Allow about 500 MB for the app, plus room for your catalogues and fr
 > copy by hand.
 
 1. Download the file for your platform from
-   [Releases](https://github.com/Scdouglas1999/Skotiq/releases/latest), and check the
+   [Releases](https://github.com/Scdouglas1999/Nightshade/releases/latest), and check the
    `.sha256` if you want to be careful.
 2. Extract the whole thing somewhere you can write to. Don't run it from inside the zip.
+   (Release 7.1.0's archives still contain `nightshade.exe` / `./nightshade` —
+   start whatever executable is in there.)
 3. Start it — `skotiq.exe` on Windows, `./skotiq` on Linux. Windows may warn
    about an unsigned program; check the hash first if that bothers you.
 4. **Download the sky catalogues on first run.** They aren't bundled, because they're large.
@@ -357,6 +370,6 @@ it or building something on top of it.
 
 <div align="center">
 
-[Download](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Docs](docs/index.md) · [Issues](https://github.com/Scdouglas1999/Skotiq/issues) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
+[Download](https://github.com/Scdouglas1999/Nightshade/releases/latest) · [Docs](docs/index.md) · [Issues](https://github.com/Scdouglas1999/Nightshade/issues) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
 
 </div>
