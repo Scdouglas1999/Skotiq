@@ -28,7 +28,8 @@ import '../services/sequence_file_service.dart'
 import '../utils/utc_timestamp.dart';
 import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';
-import 'host_settings/host_settings_providers.dart' show hostSettingsStoreProvider;
+import 'host_settings/host_settings_providers.dart'
+    show hostSettingsStoreProvider;
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;

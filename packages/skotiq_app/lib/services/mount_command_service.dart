@@ -29,8 +29,8 @@ class MountCommandService {
     this._ref, {
     DeviceBackend? backend,
     DeviceService? deviceService,
-  }) : _backend = backend ?? _ref.read(deviceBackendProvider),
-       _deviceService = deviceService ?? _ref.read(deviceServiceProvider);
+  })  : _backend = backend ?? _ref.read(deviceBackendProvider),
+        _deviceService = deviceService ?? _ref.read(deviceServiceProvider);
 
   MountState get _mountState => _ref.read(mountStateProvider);
 
@@ -384,11 +384,11 @@ class MountCommandService {
         final outcome = await _deviceService.findMountHome();
         return switch (outcome) {
           MountHomeOutcome.confirmed => const CommandActionResult.success(
-            message: 'Mount is at home',
-          ),
+              message: 'Mount is at home',
+            ),
           MountHomeOutcome.unconfirmed => const CommandActionResult.success(
-            message: homeUnconfirmedMessage,
-          ),
+              message: homeUnconfirmedMessage,
+            ),
         };
       } on MountHomeException catch (e) {
         return CommandActionResult.failure(e.message);

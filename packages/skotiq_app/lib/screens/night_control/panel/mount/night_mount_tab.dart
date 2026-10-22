@@ -84,9 +84,8 @@ NightMountFacts watchNightMountFacts(WidgetRef ref) {
   final mount = ref.watch(mountStateProvider);
   final deviceId = mount.deviceId;
   // No mount, no capabilities to ask about.
-  final caps = deviceId == null
-      ? null
-      : ref.watch(mountCapabilitiesProvider(deviceId));
+  final caps =
+      deviceId == null ? null : ref.watch(mountCapabilitiesProvider(deviceId));
   return NightMountFacts(
     mount: mount,
     inputs: ref.watch(nightActionInputsProvider),
@@ -189,9 +188,8 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final lst = site == null
         ? null
         : computeLocalSiderealTimeHours(now, site.longitude);
-    final hourAngle = lst == null || ra == null
-        ? null
-        : computeHourAngleHours(ra, lst);
+    final hourAngle =
+        lst == null || ra == null ? null : computeHourAngleHours(ra, lst);
     final toFlip = countdown.isArmed ? countdown.timeToFlip : null;
     final pierKey = switch (mount.sideOfPier?.trim().toLowerCase()) {
       'east' || 'pierside_east' => 'nightScopePierEast',
@@ -202,28 +200,30 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final (status, statusColor) = !connected
         ? (l10n.text('nightScopeNotConnected'), colors.textMuted)
         : slewing
-        ? (
-            slew == null
-                ? l10n.text('nightScopeSlewing')
-                : l10n.text(
-                    'nightScopeSlewingRemaining',
-                    params: {
-                      'distance': formatSlewDistance(slew.remainingDegrees),
-                    },
-                  ),
-            colors.warning,
-          )
-        : mount.isParked
-        ? (l10n.text('nightScopeParked'), colors.textMuted)
-        : mount.isTracking
-        ? (
-            l10n.text(
-              'nightScopeTrackingAt',
-              params: {'rate': l10n.text(_rateKey(mount.trackingRate))},
-            ),
-            colors.success,
-          )
-        : (l10n.text('nightScopeNotTracking'), colors.warning);
+            ? (
+                slew == null
+                    ? l10n.text('nightScopeSlewing')
+                    : l10n.text(
+                        'nightScopeSlewingRemaining',
+                        params: {
+                          'distance': formatSlewDistance(slew.remainingDegrees),
+                        },
+                      ),
+                colors.warning,
+              )
+            : mount.isParked
+                ? (l10n.text('nightScopeParked'), colors.textMuted)
+                : mount.isTracking
+                    ? (
+                        l10n.text(
+                          'nightScopeTrackingAt',
+                          params: {
+                            'rate': l10n.text(_rateKey(mount.trackingRate))
+                          },
+                        ),
+                        colors.success,
+                      )
+                    : (l10n.text('nightScopeNotTracking'), colors.warning);
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),
@@ -317,8 +317,7 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
   ) {
     final mount = facts.mount;
     final caps = facts.capabilities;
-    final selected =
-        facts.connected &&
+    final selected = facts.connected &&
         mount.isTracking &&
         !mount.isParked &&
         mount.trackingRate == rate;
@@ -368,9 +367,9 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
       onPressed: reason != null || _busy != null
           ? null
           : () => _run(
-              id,
-              () => ref.read(mountCommandServiceProvider).setTracking(false),
-            ),
+                id,
+                () => ref.read(mountCommandServiceProvider).setTracking(false),
+              ),
     );
   }
 
@@ -400,12 +399,12 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
 }
 
 String _rateKey(TrackingRate rate) => switch (rate) {
-  TrackingRate.sidereal => 'nightScopeSidereal',
-  TrackingRate.lunar => 'nightScopeLunar',
-  TrackingRate.solar => 'nightScopeSolar',
-  TrackingRate.king => 'nightScopeKing',
-  TrackingRate.custom => 'nightScopeCustomRate',
-};
+      TrackingRate.sidereal => 'nightScopeSidereal',
+      TrackingRate.lunar => 'nightScopeLunar',
+      TrackingRate.solar => 'nightScopeSolar',
+      TrackingRate.king => 'nightScopeKing',
+      TrackingRate.custom => 'nightScopeCustomRate',
+    };
 
 String? _degrees(double? value) =>
     value == null || !value.isFinite ? null : '${value.toStringAsFixed(1)}°';

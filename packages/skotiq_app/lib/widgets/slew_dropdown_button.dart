@@ -120,14 +120,14 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     final slew = ref.watch(mountSlewProgressProvider);
     final visibleLabel = _operationInFlight
         ? slew == null
-              ? 'Working...'
-              : 'Slewing · ${formatSlewDistance(slew.remainingDegrees)}'
+            ? 'Working...'
+            : 'Slewing · ${formatSlewDistance(slew.remainingDegrees)}'
         : widget.label ??
-              switch (widget.defaultMode) {
-                SlewMode.slew => 'Slew',
-                SlewMode.slewAndCenter => 'Slew & Center',
-                SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
-              };
+            switch (widget.defaultMode) {
+              SlewMode.slew => 'Slew',
+              SlewMode.slewAndCenter => 'Slew & Center',
+              SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
+            };
 
     // The filled half runs the default action; the chevron opens alternatives.
     return Row(
@@ -140,9 +140,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             label: visibleLabel,
             icon: widget.icon ?? LucideIcons.move,
             variant: widget.variant,
-            onPressed: enabled
-                ? () => _handleSlewMode(widget.defaultMode)
-                : null,
+            onPressed:
+                enabled ? () => _handleSlewMode(widget.defaultMode) : null,
           ),
         ),
         const SizedBox(width: 4),
@@ -418,15 +417,14 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
     // Same alt/az model the scheduler uses to decide what is worth imaging, so
     // the slew gate and the planner never disagree about where a target is.
-    final (altitudeDeg, azimuthDeg) = ref
-        .read(schedulerServiceProvider)
-        .calculateAltAz(
-          raHours: widget.ra,
-          decDegrees: widget.dec,
-          time: DateTime.now().toUtc(),
-          latitudeDegrees: site.latitude,
-          longitudeDegrees: site.longitude,
-        );
+    final (altitudeDeg, azimuthDeg) =
+        ref.read(schedulerServiceProvider).calculateAltAz(
+              raHours: widget.ra,
+              decDegrees: widget.dec,
+              time: DateTime.now().toUtc(),
+              latitudeDegrees: site.latitude,
+              longitudeDegrees: site.longitude,
+            );
 
     // Settings → Location → effective horizon. 0° (the mathematical horizon)
     // is the default and the floor: a site cannot opt out of the ground.
@@ -441,8 +439,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return ConfirmDialog.show(
         context: context,
         title: 'Target is below the horizon',
-        message:
-            '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
+        message: '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
             'horizon right now ($where) — it is under the ground. Slewing '
             'there can drive the telescope into the pier, a tripod leg or the '
             'ground. Check the coordinates, and check your site in '
@@ -455,8 +452,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     return ConfirmDialog.show(
       context: context,
       title: 'Target is below your horizon limit',
-      message:
-          '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
+      message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
           'horizon ($where), under the ${floorDeg.toStringAsFixed(0)}° '
           'effective horizon set in Settings → Location. It may be behind '
           'trees or a roof, and it will be looking through a lot of air.',

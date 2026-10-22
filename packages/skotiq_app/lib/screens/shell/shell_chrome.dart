@@ -51,7 +51,8 @@ abstract final class ShellChrome {
   static bool usesSystemDecorationsFor({
     required bool isLinux,
     required Map<String, String> environment,
-  }) => isLinux && environment['SKOTIQ_SYSTEM_DECORATIONS'] == '1';
+  }) =>
+      isLinux && environment['SKOTIQ_SYSTEM_DECORATIONS'] == '1';
 
   /// Whether the shell should render [SkotiqBottomNavigation].
   static bool useBottomNavigation(double width) {

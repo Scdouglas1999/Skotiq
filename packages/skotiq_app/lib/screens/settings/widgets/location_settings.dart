@@ -157,8 +157,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         final isRemoteMode = ref.watch(isRemoteModeProvider);
         // A host that serves its key/value settings takes horizon mask edits;
         // an older one does not store them, so the mask stays read-only there.
-        final horizonEditable =
-            !isRemoteMode ||
+        final horizonEditable = !isRemoteMode ||
             ref.watch(hostSettingsStoreSupportProvider).valueOrNull ==
                 HostSettingsStoreSupport.full;
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;

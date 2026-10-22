@@ -151,7 +151,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       final segment = find
-          .ancestor(of: find.text('5 min'), matching: find.byType(AnimatedContainer))
+          .ancestor(
+            of: find.text('5 min'),
+            matching: find.byType(AnimatedContainer),
+          )
           .first;
       expect(
         tester.getSize(segment).height,

@@ -71,9 +71,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   Future<void> _hydrateGlobalSettings() async {
     final revisionAtStart = _settingsRevision;
     try {
-      final raw = await ref.read(settingsDaoProvider).getSetting(
-        FlatWizardNotifier._globalSettingsKey,
-      );
+      final raw = await ref
+          .read(settingsDaoProvider)
+          .getSetting(FlatWizardNotifier._globalSettingsKey);
       if (raw == null || raw.isEmpty) return;
       // A run in flight or an eager user edit owns the live settings — never
       // clobber it with the stale on-disk value.
