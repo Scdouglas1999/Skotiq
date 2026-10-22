@@ -17,6 +17,8 @@ final cameraPresetsProvider =
       CameraPresetsNotifier,
       AsyncValue<List<CameraPreset>>
     >((ref) {
+      // Reload when the settings rows change underneath, e.g. on the host.
+      ref.watch(settingsDaoProvider);
       return CameraPresetsNotifier(ref);
     });
 

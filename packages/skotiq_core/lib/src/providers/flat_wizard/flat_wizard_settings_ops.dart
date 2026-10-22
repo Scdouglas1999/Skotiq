@@ -71,8 +71,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   Future<void> _hydrateGlobalSettings() async {
     final revisionAtStart = _settingsRevision;
     try {
-      final db = ref.read(databaseProvider);
-      final raw = await db.settingsDao.getSetting(
+      final raw = await ref.read(settingsDaoProvider).getSetting(
         FlatWizardNotifier._globalSettingsKey,
       );
       if (raw == null || raw.isEmpty) return;
@@ -131,8 +130,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     });
     unawaited(
       ref
-          .read(databaseProvider)
-          .settingsDao
+          .read(settingsDaoProvider)
           .setSetting(FlatWizardNotifier._globalSettingsKey, payload)
           .catchError((Object e) {
             developer.log(

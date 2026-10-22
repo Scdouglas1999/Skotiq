@@ -19,6 +19,7 @@ import '../database/daos/narrator_events_dao.dart';
 import '../services/imaging_records_repository.dart';
 import '../utils/resilient_poll_stream.dart';
 import 'backend_provider.dart';
+import 'host_settings/host_settings_providers.dart';
 
 export 'project_tracking_provider.dart';
 
@@ -55,8 +56,17 @@ final sequencesDaoProvider = Provider<SequencesDao>((ref) {
 });
 
 /// Settings DAO provider
+///
+/// On a linked client this reads and writes the imaging host's rows (see
+/// [RemoteSettingsDao]); on the machine that owns the hardware it is this
+/// computer's database. Rebuilt when [settingsStoreRevisionProvider] says the
+/// rows changed underneath it, so providers that watch it re-read them.
 final settingsDaoProvider = Provider<SettingsDao>((ref) {
-  return SettingsDao(ref.watch(databaseProvider));
+  final database = ref.watch(databaseProvider);
+  ref.watch(settingsStoreRevisionProvider);
+  final store = ref.watch(hostSettingsStoreProvider);
+  if (store == null) return SettingsDao(database);
+  return buildRemoteSettingsDao(ref, store, database);
 });
 
 /// Science DAO provider

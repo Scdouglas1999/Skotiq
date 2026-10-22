@@ -155,7 +155,9 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
 
   @override
   Future<Set<String>> build() async {
-    final raw = await _dao.getSetting(kPluginEnablementSettingKey);
+    final raw = await ref
+        .watch(settingsDaoProvider)
+        .getSetting(kPluginEnablementSettingKey);
     final choices = _decodeEnablementMap(raw);
     return _enabledSetFor(choices, _managedIds);
   }

@@ -155,6 +155,12 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       data: (settings) {
         final authority = ref.watch(backendProvider);
         final isRemoteMode = ref.watch(isRemoteModeProvider);
+        // A host that serves its key/value settings takes horizon mask edits;
+        // an older one does not store them, so the mask stays read-only there.
+        final horizonEditable =
+            !isRemoteMode ||
+            ref.watch(hostSettingsStoreSupportProvider).valueOrNull ==
+                HostSettingsStoreSupport.full;
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;
         if (storedGoogleKey != null) _seedGoogleKey(storedGoogleKey);
         final horizonProfile =
@@ -564,10 +570,10 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     ),
                   ),
                 ),
-                // The horizon mask (`horizon_profile_json`) is intentionally
-                // non-remotable \u2014 editing it over NetworkBackend throws. Show a
-                // host-only notice instead of editors that can't persist.
-                if (isRemoteMode)
+                // An imaging host too old to serve its key/value settings cannot
+                // store a horizon mask edit, so show a host-only notice instead
+                // of editors that cannot persist.
+                if (!horizonEditable)
                   Padding(
                     padding:
                         const EdgeInsets.only(left: 16, right: 16, bottom: 8),

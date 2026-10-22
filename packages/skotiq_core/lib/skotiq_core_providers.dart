@@ -11,6 +11,7 @@ export 'src/providers/target_progress_provider.dart';
 // Providers
 export 'src/providers/app_version_provider.dart';
 export 'src/providers/database_provider.dart';
+export 'src/providers/host_settings/host_settings_providers.dart';
 export 'src/providers/equipment_provider.dart';
 export 'src/providers/unified_discovery_provider.dart';
 export 'src/providers/device_backend_selection_provider.dart';

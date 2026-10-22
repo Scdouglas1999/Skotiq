@@ -10,6 +10,8 @@ const Object _sentinel = Object();
 /// Provider for sequencer default settings (persisted via settings DAO)
 final sequencerDefaultsProvider =
     StateNotifierProvider<SequencerDefaultsNotifier, SequencerDefaults>((ref) {
+      // Reload when the settings rows change underneath, e.g. on the host.
+      ref.watch(settingsDaoProvider);
       return SequencerDefaultsNotifier(ref);
     });
 

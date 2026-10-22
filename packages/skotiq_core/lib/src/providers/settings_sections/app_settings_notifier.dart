@@ -42,6 +42,92 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _focuserBacklashCalibrationWriteTail = Future<void>.value();
   int _backendGeneration = 0;
   bool _disposeHookRegistered = false;
+  StreamSubscription<Set<String>>? _hostStoreSub;
+
+  /// Rows the notifier owns that the host's typed settings model does not
+  /// carry. A linked client reads and writes them through the host's key/value
+  /// store, and the host applies them through this notifier so its own copy
+  /// stays current.
+  static const Set<String> hostStoreKeys = {
+    'mount_site_sync_mode',
+    'focuser_backlash_offer_mode',
+    'horizon_profile_json',
+  };
+
+  /// Every `app_settings` key this notifier reads and writes.
+  static final Set<String> storedKeys = Set.unmodifiable(
+    AppSettingsNotifier()
+        ._storedMapFromState(const AppSettingsState())
+        .keys
+        .toSet(),
+  );
+
+  /// [settings] as the stored rows would hold them.
+  Map<String, String> storedRowsOf(AppSettingsState settings) =>
+      _storedMapFromState(settings);
+
+  /// Save stored rows through the same path as the section setters: the host
+  /// on a linked client, this computer's database otherwise. On the local path
+  /// the state is rebuilt from the merged rows, since no section setter is
+  /// there to patch it.
+  Future<void> saveRows(Map<String, String> rows) async {
+    if (rows.isEmpty) return;
+    final unknown = rows.keys.where((k) => !storedKeys.contains(k)).toList();
+    if (unknown.isNotEmpty) {
+      throw ArgumentError.value(
+        unknown,
+        'rows',
+        'not settings this notifier stores',
+      );
+    }
+    await _saveSettings(rows);
+    if (ref.read(backendProvider) is! NetworkBackend) {
+      _patchState(
+        (current) =>
+            _settingsFromStoredMap({..._storedMapFromState(current), ...rows}),
+      );
+    }
+  }
+
+  /// On a linked client, replace the [hostStoreKeys] in [fromHost] with the
+  /// host's own rows and follow later changes to them. A host too old to serve
+  /// its key/value store leaves the typed model's values in place.
+  Future<AppSettingsState> _overlayHostStoreRows(
+    AppSettingsState fromHost,
+    int generation,
+  ) async {
+    final store = ref.read(hostSettingsStoreProvider);
+    if (store == null) return fromHost;
+    try {
+      await store.ensureLoaded();
+    } catch (e) {
+      developer.log(
+        'Host key/value settings unavailable; keeping the typed values for '
+        '${hostStoreKeys.join(', ')}: $e',
+        name: 'AppSettingsNotifier',
+        level: 900,
+      );
+      return fromHost;
+    }
+    if (generation != _backendGeneration) return fromHost;
+    _hostStoreSub = store.changes.listen((keys) {
+      if (generation != _backendGeneration) return;
+      if (!keys.any(hostStoreKeys.contains)) return;
+      _patchState((current) => _applyHostStoreRows(current, store.values));
+    });
+    return _applyHostStoreRows(fromHost, store.values);
+  }
+
+  AppSettingsState _applyHostStoreRows(
+    AppSettingsState current,
+    Map<String, String> rows,
+  ) {
+    return current.copyWith(
+      mountSiteSyncMode: rows['mount_site_sync_mode'],
+      focuserBacklashOfferMode: rows['focuser_backlash_offer_mode'],
+      horizonProfileJson: rows['horizon_profile_json'],
+    );
+  }
 
   Future<void> _writeRemoteSettings(
     AppSettingsState settings, {
@@ -83,6 +169,25 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       );
     }
     _remoteSettingsSnapshot = remote;
+  }
+
+  Future<void> _writeHostStoreRows(
+    Map<String, String> rows,
+    NetworkBackend backend,
+    int generation,
+  ) async {
+    final store = ref.read(hostSettingsStoreProvider);
+    if (store == null) {
+      throw HostSettingUnavailableError(rows.keys.toList());
+    }
+    await store.write(rows);
+    if (generation != _backendGeneration ||
+        !identical(ref.read(backendProvider), backend)) {
+      throw StateError(
+        'The settings host changed while saving. Verify the value on the new host.',
+      );
+    }
+    _patchState((latest) => _applyHostStoreRows(latest, rows));
   }
 
   /// Bounded FIFO insertion so the echo-suppression list doesn't grow
@@ -195,6 +300,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     // never mutate the newly selected host's settings.
     await _settingsEventSub?.cancel();
     _settingsEventSub = null;
+    await _hostStoreSub?.cancel();
+    _hostStoreSub = null;
     if (generation != _backendGeneration) {
       throw StateError('Settings backend changed while reloading.');
     }
@@ -204,6 +311,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       ref.onDispose(() {
         unawaited(_settingsEventSub?.cancel());
         _settingsEventSub = null;
+        unawaited(_hostStoreSub?.cancel());
+        _hostStoreSub = null;
       });
     }
 
@@ -242,9 +351,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // Overlay this device's own display prefs on top of the host's —
         // theme/accent/font/UI-scale are per-device and were saved locally,
         // so a reconnect must not snap the phone back to the desktop's look.
-        return _overlayDeviceLocalDisplayPrefs(
+        final fromHost = await _overlayHostStoreRows(
           _fromRemoteSettings(remoteSettings),
+          generation,
         );
+        return _overlayDeviceLocalDisplayPrefs(fromHost);
       } catch (e, stackTrace) {
         developer.log(
           'Remote settings fetch failed: $e\n$stackTrace',
@@ -329,6 +440,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         throw StateError('The settings host changed before saving $key.');
       }
       _requireLoadedSettings('saving $key');
+      if (backend is NetworkBackend && hostStoreKeys.contains(key)) {
+        await _writeHostStoreRows({key: value}, backend, generation);
+        return;
+      }
       if (backend is NetworkBackend && !isDeviceLocalDisplay) {
         final current = _requireLoadedSettings('saving $key');
         final updated = _applySettingsMap(current, {key: value});
@@ -409,16 +524,28 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         }
         _requireLoadedSettings('saving ${settings.keys.join(', ')}');
         if (backend is NetworkBackend) {
+          final storeRows = {
+            for (final entry in settings.entries)
+              if (hostStoreKeys.contains(entry.key)) entry.key: entry.value,
+          };
+          final typed = {
+            for (final entry in settings.entries)
+              if (!hostStoreKeys.contains(entry.key)) entry.key: entry.value,
+          };
+          if (storeRows.isNotEmpty) {
+            await _writeHostStoreRows(storeRows, backend, generation);
+          }
+          if (typed.isEmpty) return;
           final current = _requireLoadedSettings(
-            'saving ${settings.keys.join(', ')}',
+            'saving ${typed.keys.join(', ')}',
           );
-          final updated = _applySettingsMap(current, settings);
+          final updated = _applySettingsMap(current, typed);
           await _writeRemoteSettings(
             updated,
             backend: backend,
             generation: generation,
           );
-          _patchState((latest) => _applySettingsMap(latest, settings));
+          _patchState((latest) => _applySettingsMap(latest, typed));
           return;
         }
         await dao!.setSettings(settings);

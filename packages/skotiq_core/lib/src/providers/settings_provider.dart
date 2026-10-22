@@ -9,6 +9,7 @@ import '../models/backend/event_types.dart'
     show EventCategory, SkotiqEvent, settingsChangedEventType;
 import 'database_provider.dart';
 import 'backend_provider.dart';
+import 'host_settings/host_settings_providers.dart';
 import '../models/plate_solver.dart';
 import '../services/plate_solve_service.dart';
 import '../models/settings/app_settings.dart' as models;
