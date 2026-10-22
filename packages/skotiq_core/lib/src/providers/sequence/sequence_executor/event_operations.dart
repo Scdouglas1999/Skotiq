@@ -960,6 +960,13 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // are additionally guarded on _disposed (a captured logger stays
     // usable, but a DAO read is not).
     final logger = _logger;
+    final frameType = capture.frameType?.toLowerCase() ?? attribution.frameType;
+    // A captured dark or bias belongs in the dark library, where the master
+    // builders and the calibration matcher find it. Read the service now: the
+    // registration below outlives this handler.
+    final darkLibrary = frameType == 'dark' || frameType == 'bias'
+        ? _ref.read(darkLibraryServiceProvider)
+        : null;
     final registration = () async {
       try {
         final rowId = await dao.insertSequenceFrame(
@@ -982,7 +989,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
           // Frame type as captured (FITS `IMAGETYP`), lowercased to the images
           // DB's spelling. Falls back to the tree walk for a host that does
           // not send the capture payload.
-          frameType: capture.frameType?.toLowerCase() ?? attribution.frameType,
+          frameType: frameType,
           // Capture settings as the camera actually reported them for this
           // exposure — the same values stamped into the FITS header. The node
           // config only says what the sequence ASKED for, so a camera that
@@ -1050,6 +1057,26 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
             logger.warning(
               'Registered sequence frame $rowId but could not add it to the '
               'live session list: $e',
+              source: 'SequenceExecutor',
+            );
+          }
+        }
+        if (darkLibrary != null) {
+          try {
+            await darkLibrary.addDarkFrame(
+              filePath: filePath,
+              exposureTime: exposureSecs ?? 0.0,
+              frameType: frameType,
+              temperature: capture.sensorTempC,
+              gain: capture.gain ?? attribution.gain ?? 0,
+              offset: capture.offset ?? attribution.offset ?? 0,
+              binX: capture.binX ?? attribution.binX,
+              binY: capture.binY ?? attribution.binY,
+            );
+          } catch (e) {
+            logger.warning(
+              'Recorded $frameType frame $filePath but could not add it to the '
+              'dark library: $e',
               source: 'SequenceExecutor',
             );
           }

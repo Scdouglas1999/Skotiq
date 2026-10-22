@@ -398,4 +398,53 @@ void main() {
     expect(row.exposureDuration, closeTo(300.0, 1e-9));
     expect(row.frameType, 'light');
   });
+
+  test(
+    'a captured dark lands in the dark library; a light frame does not',
+    () async {
+      final container = buildContainer();
+      final executor = container.read(sequenceExecutorProvider);
+      void send(String nodeId, String frameType, String path) {
+        executor.handleSequencerEventForTest(
+          bridge_event.SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: bridge_event.EventSeverity.info,
+            category: bridge_event.EventCategory.sequencer,
+            eventType: 'FrameAccepted',
+            data: {
+              'node_id': nodeId,
+              'frame': 1,
+              'total': 1,
+              'accepted_total': 1,
+              'rejected_total': 0,
+              'save_path': path,
+              ..._captureData(),
+              FrameCaptureKeys.frameType: frameType,
+            },
+          ),
+        );
+      }
+
+      send('dark-node', 'Dark', '/captures/Dark/Dark_DARK_0001.fits');
+      send('light-node', 'Light', '/captures/M42/M42_L_0001.fits');
+      await awaitRow('dark-node');
+      await awaitRow('light-node');
+      List<DarkLibraryEntry> entries = const [];
+      for (var i = 0; i < 40 && entries.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        entries = await db.darkLibraryDao.getAllEntries();
+      }
+
+      expect(entries, hasLength(1));
+      final dark = entries.single;
+      expect(dark.filePath, '/captures/Dark/Dark_DARK_0001.fits');
+      expect(dark.frameType, 'dark');
+      expect(dark.exposureTime, closeTo(120.0, 1e-9));
+      expect(dark.gain, 139);
+      expect(dark.offset, 21);
+      expect(dark.binX, 2);
+      expect(dark.temperature, closeTo(-9.5, 1e-9));
+      expect(dark.masterDarkPath, isNull);
+    },
+  );
 }

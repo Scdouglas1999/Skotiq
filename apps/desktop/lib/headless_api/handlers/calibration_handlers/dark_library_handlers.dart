@@ -198,6 +198,16 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       );
     }
     final service = container.read(darkLibraryServiceProvider);
+    final rawPaths = payload['framePaths'];
+    if (rawPaths != null) {
+      if (rawPaths is! List || rawPaths.any((p) => p is! String)) {
+        throw BadRequestError(
+          field: 'framePaths',
+          expected: 'array_of_strings',
+        );
+      }
+      return _createMasterFromPaths(group, rawPaths.cast<String>(), outputPath);
+    }
     final frames = await service.getEntriesForGroup(group);
     final rawFrames = frames
         .where((entry) => entry.masterDarkPath == null)
@@ -215,6 +225,50 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       outputPath: outputPath,
     );
     return jsonOk({'id': id, 'frameCount': rawFrames.length});
+  }
+
+  /// Build a master from an explicit list of frames on the host, without
+  /// registering each raw frame first. The frames must belong to [group]; the
+  /// builder refuses a set whose headers disagree on exposure, gain, offset or
+  /// binning.
+  Future<Response> _createMasterFromPaths(
+    DarkGroupKey group,
+    List<String> framePaths,
+    String outputPath,
+  ) async {
+    if (framePaths.length < 2) {
+      throw BadRequestError(
+        field: 'framePaths',
+        expected: 'at_least_two_paths',
+        message: 'A master needs at least 2 frames; got ${framePaths.length}',
+      );
+    }
+    for (final path in framePaths) {
+      if (!p.isAbsolute(path) || !File(path).existsSync()) {
+        throw BadRequestError(
+          field: 'framePaths',
+          expected: 'existing_absolute_host_paths',
+          message: 'No frame exists at $path',
+        );
+      }
+    }
+    final build = container.read(calibrationMasterBuildProvider);
+    final built = await build(
+      CalibrationMasterBuildRequest(
+        kind: group.frameType,
+        framePaths: framePaths,
+        outputPath: outputPath,
+      ),
+    );
+    final id = await container
+        .read(darkLibraryServiceProvider)
+        .registerMaster(built, frameType: group.frameType);
+    return jsonOk({
+      'id': id,
+      'frameCount': built.frameCount,
+      'leakingFrames': built.leakingFrames,
+      'masterMean': built.masterMean,
+    });
   }
 
   Future<Response> handleCleanDarkOrphans(Request request) async {

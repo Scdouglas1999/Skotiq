@@ -33,6 +33,7 @@ import '../thumbnail_sidecar_provider.dart';
 import '../backend_provider.dart';
 import '../database_provider.dart'
     show guideRmsHistoryDaoProvider, imagesDaoProvider, targetsDaoProvider;
+import '../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../defect_map_provider.dart' show seedDefectMapRuntimeForSequence;
 import '../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
 import '../../database/daos/targets_dao.dart' show TargetsDao;

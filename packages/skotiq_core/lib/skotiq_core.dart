@@ -644,6 +644,7 @@ export 'src/services/science/mpc_export_service.dart';
 export 'src/services/science/period_analysis_service.dart';
 export 'src/services/science/science_camera_auto_config.dart';
 export 'src/services/science/photometric_catalog_service.dart';
+export 'src/services/calibration_master_builder.dart';
 export 'src/services/dark_library_service.dart';
 export 'src/services/dark_library_coverage_service.dart';
 export 'src/services/live_stacking_service.dart';
