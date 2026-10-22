@@ -259,6 +259,24 @@ void main() {
       expect(after['maxWindSpeedKph'], 51.0);
     });
 
+    test('the forecast policy is readable and writable', () async {
+      final before = await readSettings();
+      // A fresh install with weather safety off only warns on forecasts.
+      expect(before['forecastHoldsRun'], isFalse);
+      expect(before['starEvidenceOverridesForecast'], isTrue);
+      expect(before['requiredSafeDurationSeconds'], 300);
+
+      final response = await post({
+        'forecastHoldsRun': true,
+        'starEvidenceOverridesForecast': false,
+      });
+      expect(response.statusCode, HttpStatus.ok);
+
+      final after = await readSettings();
+      expect(after['forecastHoldsRun'], isTrue);
+      expect(after['starEvidenceOverridesForecast'], isFalse);
+    });
+
     test('the flat body older clients send still works', () async {
       final response = await post({
         'maxWindSpeedKph': 55.5,

@@ -114,6 +114,34 @@ class SafetyConfig {
   bool get autoParkOnUnsafe => parkOnUnsafeWeather && autoParkEnabled;
 }
 
+/// How weather verdicts act on a run, by where they come from.
+///
+/// An internet forecast is a model of the sky over the site, not a reading of
+/// it, so it never parks the mount or ends a run. By default it only warns;
+/// with [forecastHoldsRun] it may hold the run, which resumes on its own once
+/// the sky has read safe for [requiredSafeDurationSeconds]. Parking stays with
+/// a sensor at the site (a weather device or safety monitor) and the
+/// "Auto-park" settings.
+class WeatherDecisionPolicy {
+  /// A forecast that says cloudy holds the run (exposures stop, the mount
+  /// keeps tracking) instead of only warning.
+  final bool forecastHoldsRun;
+
+  /// Recent frames full of stars outweigh a forecast that says cloudy.
+  final bool starEvidenceOverridesForecast;
+
+  /// How long the sky must read safe before a held run images again.
+  final int requiredSafeDurationSeconds;
+
+  const WeatherDecisionPolicy({
+    this.forecastHoldsRun = false,
+    this.starEvidenceOverridesForecast = true,
+    this.requiredSafeDurationSeconds = 300,
+  });
+
+  static const defaults = WeatherDecisionPolicy();
+}
+
 /// The ONE read/write path for [SafetyConfig].
 ///
 /// Read: [load] aggregates the three stores into a single [SafetyConfig].
@@ -139,6 +167,47 @@ class SafetyConfigStore {
       'safety_required_safe_duration_seconds';
   static const String kAutoStopKey = 'safety_auto_stop_on_unsafe';
   static const String kAutoCloseRoofKey = 'safety_auto_close_roof_on_unsafe';
+  static const String kForecastHoldsRunKey = 'weather_forecast_holds_run';
+  static const String kStarEvidenceKey =
+      'weather_star_evidence_overrides_forecast';
+
+  /// Read the [WeatherDecisionPolicy].
+  ///
+  /// An install that predates the setting has no row. It turned weather
+  /// safety on to have the weather act on the run, so it starts with the
+  /// forecast holding the run (never parking it); an install with weather
+  /// safety off starts with warnings only. The resolved value is written back
+  /// so a later change to the master switch does not move it.
+  Future<WeatherDecisionPolicy> loadDecisionPolicy() async {
+    final stored = await _db.settingsDao.getAllSettings();
+    var holdsRaw = stored[kForecastHoldsRunKey];
+    if (holdsRaw == null) {
+      final weatherRow = await _db.weatherSettingsDao.getOrCreateSettings();
+      holdsRaw = weatherRow.weatherSafetyEnabled.toString();
+      await _db.settingsDao.setSetting(kForecastHoldsRunKey, holdsRaw);
+    }
+    return WeatherDecisionPolicy(
+      forecastHoldsRun: _parseBoolSetting({'v': holdsRaw}, 'v', false),
+      starEvidenceOverridesForecast: _parseBoolSetting(
+        stored,
+        kStarEvidenceKey,
+        true,
+      ),
+      requiredSafeDurationSeconds: _parseIntSetting(
+        stored,
+        kRequiredSafeDurationKey,
+        300,
+      ),
+    );
+  }
+
+  Future<void> setForecastHoldsRun(bool value) async {
+    await _db.settingsDao.setSetting(kForecastHoldsRunKey, value.toString());
+  }
+
+  Future<void> setStarEvidenceOverridesForecast(bool value) async {
+    await _db.settingsDao.setSetting(kStarEvidenceKey, value.toString());
+  }
 
   static int _parseIntSetting(
     Map<String, String> settings,

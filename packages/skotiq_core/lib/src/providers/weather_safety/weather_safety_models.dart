@@ -85,15 +85,43 @@ class WeatherSafetyActions {
   final String? reason;
   final DateTime? resumeCheckTime;
 
+  /// The unsafe verdict rests only on a forecast. The sequencer holds a run
+  /// for it (when the operator chose that) and resumes it by itself; the app
+  /// sends no pause, park or close of its own.
+  final bool advisoryOnly;
+
   const WeatherSafetyActions({
     this.shouldPause = false,
     this.shouldPark = false,
     this.shouldCloseDome = false,
     this.reason,
     this.resumeCheckTime,
+    this.advisoryOnly = false,
   });
 
   static const safe = WeatherSafetyActions();
+}
+
+/// Which input is deciding the weather verdict right now.
+enum WeatherDecisionSource {
+  /// Nothing says unsafe.
+  none,
+
+  /// An internet forecast or cloud model. Advisory: it warns or holds the
+  /// run, never parks it or ends it.
+  forecast,
+
+  /// A weather device at the site, judged against the configured limits.
+  weatherDevice,
+
+  /// A safety monitor at the site.
+  safetyMonitor,
+
+  /// Astronomical dawn is near.
+  dawn,
+
+  /// No usable weather data; the fail mode decides.
+  noData,
 }
 
 /// Source of safety data
@@ -153,6 +181,24 @@ class WeatherSafetyState {
   /// Whether auto-resume would actually run (needs the master switch too).
   final bool autoResumeArmed;
 
+  /// Which input decides the verdict.
+  final WeatherDecisionSource decisionSource;
+
+  /// The forecast says cloudy, whether or not that is acted on.
+  final bool forecastUnsafe;
+
+  /// A forecast that says cloudy holds the run rather than only warning.
+  final bool forecastHoldsRun;
+
+  /// What the run's own recent frames say about the sky, when they can say.
+  final SkyStarEvidence? starEvidence;
+
+  /// The forecast says cloudy but recent frames full of stars outweigh it.
+  final bool starEvidenceOverridesForecast;
+
+  /// Why the operator set the verdict aside (the "sky is clear" override).
+  final String? snoozeReason;
+
   const WeatherSafetyState({
     required this.status,
     required this.actions,
@@ -169,6 +215,12 @@ class WeatherSafetyState {
     this.monitoringEnabled = true,
     this.autoParkArmed = false,
     this.autoResumeArmed = false,
+    this.decisionSource = WeatherDecisionSource.none,
+    this.forecastUnsafe = false,
+    this.forecastHoldsRun = false,
+    this.starEvidence,
+    this.starEvidenceOverridesForecast = false,
+    this.snoozeReason,
   });
 
   factory WeatherSafetyState.initial() => const WeatherSafetyState(
@@ -189,6 +241,11 @@ class WeatherSafetyState {
   /// Check if conditions are safe for imaging
   bool get isSafe => status == WeatherSafetyStatus.safe;
 
+  /// The unsafe verdict rests only on a forecast: it warns, or holds the run
+  /// when [forecastHoldsRun], and never parks or ends it.
+  bool get advisoryOnly =>
+      status == WeatherSafetyStatus.unsafe && actions.advisoryOnly;
+
   WeatherSafetyState copyWith({
     WeatherSafetyStatus? status,
     WeatherSafetyActions? actions,
@@ -207,6 +264,13 @@ class WeatherSafetyState {
     bool? monitoringEnabled,
     bool? autoParkArmed,
     bool? autoResumeArmed,
+    WeatherDecisionSource? decisionSource,
+    bool? forecastUnsafe,
+    bool? forecastHoldsRun,
+    SkyStarEvidence? starEvidence,
+    bool clearStarEvidence = false,
+    bool? starEvidenceOverridesForecast,
+    String? snoozeReason,
   }) {
     return WeatherSafetyState(
       status: status ?? this.status,
@@ -227,6 +291,15 @@ class WeatherSafetyState {
       monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
       autoParkArmed: autoParkArmed ?? this.autoParkArmed,
       autoResumeArmed: autoResumeArmed ?? this.autoResumeArmed,
+      decisionSource: decisionSource ?? this.decisionSource,
+      forecastUnsafe: forecastUnsafe ?? this.forecastUnsafe,
+      forecastHoldsRun: forecastHoldsRun ?? this.forecastHoldsRun,
+      starEvidence: clearStarEvidence
+          ? null
+          : (starEvidence ?? this.starEvidence),
+      starEvidenceOverridesForecast:
+          starEvidenceOverridesForecast ?? this.starEvidenceOverridesForecast,
+      snoozeReason: clearSnooze ? null : (snoozeReason ?? this.snoozeReason),
     );
   }
 }

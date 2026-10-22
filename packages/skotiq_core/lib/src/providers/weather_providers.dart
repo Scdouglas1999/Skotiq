@@ -10,6 +10,7 @@ import '../services/weather/cloud_motion_analyzer.dart';
 import '../services/weather/weather_alert_service.dart';
 import '../database/database.dart' as db;
 import '../backend/network_backend.dart';
+import '../services/safety_config_service.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
@@ -67,6 +68,33 @@ final weatherSettingsDataProvider = StreamProvider<WeatherSettings>((ref) {
         ? WeatherSettings.defaultSettings
         : _weatherSettingsFromRow(row),
   );
+});
+
+/// How weather verdicts act on a run (see [WeatherDecisionPolicy]). Read from
+/// the host's settings; a linked client reads the host's through the weather
+/// settings endpoint.
+final weatherDecisionPolicyProvider = FutureProvider<WeatherDecisionPolicy>((
+  ref,
+) async {
+  final backend = ref.watch(backendProvider);
+  if (backend is NetworkBackend) {
+    final wire = await backend.getWeatherSettings();
+    const defaults = WeatherDecisionPolicy.defaults;
+    final safeSecs = wire['requiredSafeDurationSeconds'];
+    return WeatherDecisionPolicy(
+      forecastHoldsRun: wire['forecastHoldsRun'] is bool
+          ? wire['forecastHoldsRun'] as bool
+          : defaults.forecastHoldsRun,
+      starEvidenceOverridesForecast:
+          wire['starEvidenceOverridesForecast'] is bool
+          ? wire['starEvidenceOverridesForecast'] as bool
+          : defaults.starEvidenceOverridesForecast,
+      requiredSafeDurationSeconds: safeSecs is int
+          ? safeSecs
+          : defaults.requiredSafeDurationSeconds,
+    );
+  }
+  return SafetyConfigStore(ref.watch(databaseProvider)).loadDecisionPolicy();
 });
 
 final weatherSettingsProvider = Provider<WeatherSettings>((ref) {
@@ -223,6 +251,33 @@ class WeatherSettingsActions {
   /// the other page kept showing a confident "Enabled". Every UI writer goes
   /// through here — the headless `/api/safety/config` handler already wrote both
   /// for one logical request, so this makes the GUI match the API.
+  /// Write the [WeatherDecisionPolicy] switches. Each is a host setting; a
+  /// linked client writes the host's.
+  Future<void> setDecisionPolicy({
+    bool? forecastHoldsRun,
+    bool? starEvidenceOverridesForecast,
+  }) async {
+    final backend = _ref.read(backendProvider);
+    if (backend is NetworkBackend) {
+      await backend.updateWeatherSettings({
+        if (forecastHoldsRun != null) 'forecastHoldsRun': forecastHoldsRun,
+        if (starEvidenceOverridesForecast != null)
+          'starEvidenceOverridesForecast': starEvidenceOverridesForecast,
+      });
+    } else {
+      final store = SafetyConfigStore(_ref.read(databaseProvider));
+      if (forecastHoldsRun != null) {
+        await store.setForecastHoldsRun(forecastHoldsRun);
+      }
+      if (starEvidenceOverridesForecast != null) {
+        await store.setStarEvidenceOverridesForecast(
+          starEvidenceOverridesForecast,
+        );
+      }
+    }
+    _ref.invalidate(weatherDecisionPolicyProvider);
+  }
+
   Future<void> setAutoParkOnUnsafe(bool value) async {
     await updateSettings(autoParkEnabled: value);
     await _ref.read(appSettingsProvider.notifier).setParkOnUnsafeWeather(value);

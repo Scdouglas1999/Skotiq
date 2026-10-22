@@ -271,6 +271,16 @@ List<HeadlessRoute> buildSequencerRoutes(
   ),
   HeadlessRoute(
     HttpMethod.post,
+    '/api/sequencer/weather-operator-clear',
+    h.handleSequencerWeatherOperatorClear,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/sequencer/weather-resume-after',
+    h.handleSequencerWeatherResumeAfter,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
     '/api/sequencer/update-conditions-score',
     h.handleSequencerUpdateConditionsScore,
   ),

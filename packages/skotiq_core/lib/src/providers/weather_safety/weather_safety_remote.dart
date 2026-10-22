@@ -89,6 +89,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
               actionText('reason') ??
               (status == WeatherSafetyStatus.unsafe ? failModeWarning : null),
           resumeCheckTime: wireDate(actionText('resumeCheckTime')),
+          advisoryOnly: actionFlag('advisoryOnly', false),
         ),
         snoozeUntil: wireDate(snoozeUntilRaw),
         currentAlertLevel: alertLevel,
@@ -113,6 +114,16 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
         monitoringEnabled: response['monitoringEnabled'] as bool? ?? true,
         autoParkArmed: response['autoParkArmed'] as bool? ?? false,
         autoResumeArmed: response['autoResumeArmed'] as bool? ?? false,
+        decisionSource: WeatherDecisionSource.values.firstWhere(
+          (candidate) => candidate.name == response['decisionSource'],
+          orElse: () => WeatherDecisionSource.none,
+        ),
+        forecastUnsafe: response['forecastUnsafe'] as bool? ?? false,
+        forecastHoldsRun: response['forecastHoldsRun'] as bool? ?? false,
+        starEvidence: _starEvidenceFromWire(response['starEvidence']),
+        starEvidenceOverridesForecast:
+            response['starEvidenceOverridesForecast'] as bool? ?? false,
+        snoozeReason: response['snoozeReason'] as String?,
       );
     } catch (error) {
       if (!mounted) return;
@@ -129,6 +140,25 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
 const _authRejectedSafetyWarning =
     'Imaging host safety status unavailable: the host rejected this '
     "device's access token";
+
+SkyStarEvidence? _starEvidenceFromWire(Object? raw) {
+  if (raw is! Map) return null;
+  final latest = raw['latestStars'];
+  final typical = raw['typicalStars'];
+  final at = raw['latestAt'] is String
+      ? DateTime.tryParse(raw['latestAt'] as String)
+      : null;
+  final clear = raw['clear'];
+  if (latest is! int || typical is! int || at == null || clear is! bool) {
+    return null;
+  }
+  return SkyStarEvidence(
+    latestStars: latest,
+    typicalStars: typical,
+    latestAt: at,
+    clear: clear,
+  );
+}
 
 /// Pre-parity hosts do not send the per-source reading, so fall back to the
 /// boolean they do send.
