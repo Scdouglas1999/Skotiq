@@ -173,6 +173,12 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   SessionStateNotifier(this._ref) : super(const SessionState());
 
+  /// Show the imaging host's session on a linked client, which runs no session
+  /// of its own while it watches the host's run.
+  void mirrorHostSession(SessionState hostState) {
+    state = hostState;
+  }
+
   /// Start a new imaging session.
   ///
   /// [profileId] and [sequenceId] are persisted on the imaging_sessions row.

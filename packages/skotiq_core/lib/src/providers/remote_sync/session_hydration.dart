@@ -61,6 +61,28 @@ Future<void> hydrateRemoteSessionState(
   await _hydratePhd2GuiderState(reader, backend);
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
+  // Runtime results only the host's GUI computes (plate solve, centering,
+  // autofocus, the frame on screen). Live changes arrive as HostRuntimeState
+  // events; this fills a client that connected or reconnected after them.
+  try {
+    await hydrateHostRuntimeState(reader, backend);
+  } catch (e) {
+    // An unreachable endpoint leaves the values the events already applied.
+    developer.log(
+      'Runtime state hydration failed: $e',
+      name: 'RemoteSessionSync',
+      level: 900,
+    );
+  }
+  if (!_isCurrentRemoteBackend(reader, backend)) return;
+
+  // The night so far: a client that connects mid-session opens on the host's
+  // event log rather than an empty one. Not on the periodic re-hydrate; a
+  // reconnect's missed events come from the WebSocket replay.
+  if (refreshCurrentFrame) {
+    await seedEventLogFromHost(reader, backend);
+  }
+
   // Active-profile + populated cards parity at first connect: refetch the
   // profile providers from the (now SQLite-backed) host /api/profiles so the
   // slave's equipment screen reflects the master's real active profile
@@ -350,5 +372,26 @@ Future<void> _hydrateDeviceTelemetry(
       mechanicalPosition: rotator.mechanicalPosition,
     );
     notifier.setMoving(rotator.moving || rotator.isMoving);
+  }
+}
+
+/// Fill an empty event log with the host's recent events. Only into an empty
+/// history, so nothing is added twice.
+Future<void> seedEventLogFromHost(Object reader, NetworkBackend backend) async {
+  if (_read(reader, eventHistoryProvider).isNotEmpty) return;
+  try {
+    final events = await backend.getHostRecentEvents();
+    if (!_isCurrentRemoteBackend(reader, backend)) return;
+    final typed = [
+      for (final event in events.reversed) ?tryBridgeEventFromCoreEvent(event),
+    ];
+    _read(reader, eventHistoryProvider.notifier).seedEarlier(typed);
+  } catch (e) {
+    // The log then starts with the first live event, as before.
+    developer.log(
+      'Event log seeding failed: $e',
+      name: 'RemoteSessionSync',
+      level: 900,
+    );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../models/backend/event_types.dart' as core;
+import 'frame_capture_metadata.dart' show FrameCapture;
 
 /// Reconstructs a typed [bridge.SkotiqEvent] from the collapsed
 /// [core.SkotiqEvent] envelope that [FfiBackend] emits onto
@@ -18,6 +19,156 @@ bridge.SkotiqEvent bridgeEventFromCoreEvent(core.SkotiqEvent event) {
     category: _bridgeCategory(event.category),
     payload: payload,
   );
+}
+
+/// The event types [bridgeEventFromCoreEvent] rebuilds as the variant the
+/// host emitted, per category. Everything else falls to a per-family
+/// placeholder there (an error, "weather unsafe", "looping"), which is a
+/// statement the host never made.
+const Map<core.EventCategory, Set<String>> _faithfulCoreEventTypes = {
+  core.EventCategory.sequencer: {
+    'Started',
+    'Paused',
+    'SequencePaused',
+    'Resumed',
+    'SequenceResumed',
+    'Stopped',
+    'SequenceStopped',
+    'Completed',
+    'SequenceCompleted',
+    'SequenceFailed',
+    'NodeStarted',
+    'NodeCompleted',
+    'ProgressUpdated',
+    'Progress',
+    'InstructionProgress',
+    'InstructionProgressStructured',
+    'TargetChanged',
+    'TargetCompleted',
+    'ExposureStarted',
+    'ExposureCompleted',
+    'Error',
+    'MeridianFlipOutcome',
+    'TriggerFired',
+    'FrameAccepted',
+    'FrameRejected',
+    'SchedulerDecision',
+    'IntegrationBudget',
+    'ExposureAdjusted',
+    'DepthGoalCompleted',
+    'PluginNodeRequested',
+    'PluginNodeProgress',
+    'DecisionLogged',
+    'PhotometryFrame',
+    'PhotometryCadenceBroken',
+    'PhotometrySummary',
+    'RecoveryStarted',
+    'RecoveryProgress',
+    'RecoveryCompleted',
+    'RecoveryGaveUp',
+  },
+  core.EventCategory.guiding: {
+    'GuidingStarted',
+    'GuidingStopped',
+    'StarLost',
+    'SettleDone',
+    'GuideStep',
+    'Connected',
+    'Disconnected',
+    'Paused',
+    'Resumed',
+    'DitherStarted',
+    'DitherCompleted',
+    'LoopingExposures',
+    'Settling',
+    'Calibrating',
+    'CalibrationComplete',
+    'StarSelected',
+    'AppState',
+    'GuideStats',
+  },
+  core.EventCategory.equipment: {
+    'Connecting',
+    'Connected',
+    'Disconnected',
+    'PropertyChanged',
+    'AutofocusProgress',
+    'FocuserBacklashCalibrationProgress',
+    'Error',
+    'MountSlewStarted',
+    'MountSlewCompleted',
+    'MountTrackingStarted',
+    'MountTrackingStopped',
+    'MountParkStarted',
+    'MountParkCompleted',
+    'MountUnparked',
+    'FocuserMoveStarted',
+    'FocuserMoveCompleted',
+    'FocuserTemperatureChanged',
+    'FilterChanging',
+    'FilterChanged',
+    'RotatorMoveStarted',
+    'RotatorMoveCompleted',
+    'CameraCoolingStarted',
+    'CameraCoolingReached',
+    'CameraWarmingStarted',
+    'CameraWarmingCompleted',
+    'HeartbeatStarted',
+    'HeartbeatStopped',
+    'HeartbeatStatusChanged',
+    'HeartbeatReconnecting',
+    'HeartbeatReconnected',
+    'DeviceDiscovered',
+    'DeviceLost',
+  },
+  core.EventCategory.safety: {
+    'WeatherUnsafe',
+    'WeatherSafe',
+    'EmergencyStop',
+    'ParkInitiated',
+    'ParkCompleted',
+  },
+  core.EventCategory.system: {
+    'BackendReconnected',
+    'DiskSpaceLow',
+    'Initialized',
+    'ShuttingDown',
+    'Error',
+    'Notification',
+    'EventsDropped',
+  },
+  core.EventCategory.imaging: {
+    'ExposureStarted',
+    'ExposureProgress',
+    'ExposureCompleted',
+    'ExposureComplete',
+    'ExposureCancelled',
+    'ExposureFailed',
+    'DownloadStarted',
+    'DownloadCompleted',
+    'ImageReady',
+    'ImageSaved',
+    'TemperatureChanged',
+    'DepthLockGoalUpdated',
+    'DepthLockEvidenceRejected',
+    'DepthLockAnalysisDropped',
+    'DepthLockGoalChanged',
+  },
+  core.EventCategory.polarAlignment: {'PolarAlignment'},
+};
+
+/// The typed event a host emitted, or null when this build cannot rebuild it
+/// faithfully: an event type it has no reading for, or a payload missing a
+/// required field. A linked client drops such an event from its typed stream
+/// instead of reporting something the host never said.
+bridge.SkotiqEvent? tryBridgeEventFromCoreEvent(core.SkotiqEvent event) {
+  final known = _faithfulCoreEventTypes[event.category];
+  if (known == null || !known.contains(event.eventType)) return null;
+  try {
+    return bridgeEventFromCoreEvent(event);
+  } on FormatException {
+    return null;
+  }
 }
 
 bridge.EventSeverity _bridgeSeverity(core.EventSeverity severity) {
@@ -236,7 +387,9 @@ bridge.SequencerEvent _sequencerEventFromCore(
       return const bridge.SequencerEvent.resumed();
     case 'Stopped':
     case 'SequenceStopped':
-      return const bridge.SequencerEvent.stopped();
+      return bridge.SequencerEvent.stopped(
+        sequenceRunId: _optionalInt(data, 'sequence_run_id'),
+      );
     case 'Completed':
     case 'SequenceCompleted':
       return const bridge.SequencerEvent.completed();
@@ -252,10 +405,173 @@ bridge.SequencerEvent _sequencerEventFromCore(
       );
     case 'ProgressUpdated':
     case 'Progress':
-    case 'InstructionProgress':
       return bridge.SequencerEvent.progress(
         current: _intField(data, 'current'),
         total: _intField(data, 'total'),
+      );
+    case 'InstructionProgress':
+      return bridge.SequencerEvent.instructionProgress(
+        nodeId: data['node_id'] as String? ?? '',
+        instruction: data['instruction'] as String? ?? '',
+        progressPercent: _doubleField(data, 'progress_percent'),
+        detail: data['detail'] as String? ?? '',
+      );
+    case 'InstructionProgressStructured':
+      return bridge.SequencerEvent.instructionProgressStructured(
+        nodeId: data['node_id'] as String? ?? '',
+        instruction: data['instruction'] as String? ?? '',
+        progressPercent: _doubleField(data, 'progress_percent'),
+        detailKind: data['detail_kind'] as String? ?? '',
+        detailJson: data['detail_json'] as String? ?? '',
+      );
+    case 'SequenceFailed':
+      return bridge.SequencerEvent.failed(
+        error: data['error'] as String? ?? 'Sequence failed',
+      );
+    case 'TargetChanged':
+      return bridge.SequencerEvent.targetChanged(
+        targetName: data['target_name'] as String? ?? '',
+        ra: _optionalDouble(data, 'ra'),
+        dec: _optionalDouble(data, 'dec'),
+      );
+    case 'TargetCompleted':
+      return bridge.SequencerEvent.targetCompleted(
+        targetName: data['target_name'] as String? ?? '',
+      );
+    case 'ExposureStarted':
+      return bridge.SequencerEvent.exposureStarted(
+        frame: _optionalInt(data, 'frame') ?? 0,
+        total: _optionalInt(data, 'total') ?? 0,
+        filter: _optionalString(data, 'filter'),
+        durationSecs: _doubleField(data, 'duration_secs'),
+      );
+    case 'ExposureCompleted':
+      return bridge.SequencerEvent.exposureCompleted(
+        frame: _optionalInt(data, 'frame') ?? 0,
+        total: _optionalInt(data, 'total') ?? 0,
+        durationSecs: _doubleField(data, 'duration_secs'),
+      );
+    case 'Error':
+      return bridge.SequencerEvent.error(
+        message: data['message'] as String? ?? 'Sequencer error',
+      );
+    case 'MeridianFlipOutcome':
+      return bridge.SequencerEvent.meridianFlipOutcome(
+        outcome: data['outcome'] as String? ?? '',
+        targetName: data['target_name'] as String? ?? '',
+        newPierSide: data['new_pier_side'] as String? ?? '',
+        durationSecs: _doubleField(data, 'duration_secs'),
+        attempts: _optionalInt(data, 'attempts') ?? 0,
+        failedSteps: _stringList(data, 'failed_steps'),
+        error: _optionalString(data, 'error'),
+        actionTaken: _optionalString(data, 'action_taken'),
+      );
+    case 'TriggerFired':
+      return bridge.SequencerEvent.triggerFired(
+        triggerId: data['trigger_id'] as String? ?? '',
+        triggerName: data['trigger_name'] as String? ?? '',
+        action: data['action'] as String? ?? '',
+      );
+    case 'FrameAccepted':
+      return bridge.SequencerEvent.frameAccepted(
+        nodeId: data['node_id'] as String? ?? '',
+        frame: _optionalInt(data, 'frame') ?? 0,
+        total: _optionalInt(data, 'total') ?? 0,
+        hfr: _optionalDouble(data, 'hfr'),
+        eccentricity: _optionalDouble(data, 'eccentricity'),
+        starCount: _optionalInt(data, 'star_count'),
+        acceptedTotal: _optionalInt(data, 'accepted_total') ?? 0,
+        rejectedTotal: _optionalInt(data, 'rejected_total') ?? 0,
+        savePath: _optionalString(data, 'save_path'),
+        capture: _frameCaptureFromData(data),
+      );
+    case 'FrameRejected':
+      return bridge.SequencerEvent.frameRejected(
+        nodeId: data['node_id'] as String? ?? '',
+        frame: _optionalInt(data, 'frame') ?? 0,
+        total: _optionalInt(data, 'total') ?? 0,
+        reason: data['reason'] as String? ?? '',
+        hfr: _optionalDouble(data, 'hfr'),
+        eccentricity: _optionalDouble(data, 'eccentricity'),
+        starCount: _optionalInt(data, 'star_count'),
+        rejectPath: data['reject_path'] as String? ?? '',
+        consecutiveRejects: _optionalInt(data, 'consecutive_rejects') ?? 0,
+        acceptedTotal: _optionalInt(data, 'accepted_total') ?? 0,
+        rejectedTotal: _optionalInt(data, 'rejected_total') ?? 0,
+        likelyCauseLabel: _optionalString(data, 'likely_cause_label'),
+        evidence: _stringList(data, 'evidence'),
+        skyBrightnessAtCapture: _optionalDouble(
+          data,
+          'sky_brightness_at_capture',
+        ),
+        cloudCoverAtCapture: _optionalDouble(data, 'cloud_cover_at_capture'),
+        windAtCapture: _optionalDouble(data, 'wind_at_capture'),
+        guideRmsAtCapture: _optionalDouble(data, 'guide_rms_at_capture'),
+        sensorTempAtCapture: _optionalDouble(data, 'sensor_temp_at_capture'),
+        capture: _frameCaptureFromData(data),
+      );
+    case 'SchedulerDecision':
+      final scores = data['scores'];
+      return bridge.SequencerEvent.schedulerDecision(
+        nodeId: data['node_id'] as String? ?? '',
+        decisionCounter: _optionalInt(data, 'decision_counter') ?? 0,
+        pickedTargetId: _optionalString(data, 'picked_target_id'),
+        pickedTargetName: _optionalString(data, 'picked_target_name'),
+        pickedScore: _optionalDouble(data, 'picked_score'),
+        scores: [
+          if (scores is List)
+            for (final entry in scores.whereType<Map>())
+              bridge.SchedulerScoreEntry(
+                targetId: entry['target_id'] as String? ?? '',
+                targetName: entry['target_name'] as String? ?? '',
+                totalScore: (entry['total_score'] as num?)?.toDouble() ?? 0,
+                runnable: entry['runnable'] as bool? ?? false,
+                reason: entry['reason'] as String?,
+              ),
+        ],
+      );
+    case 'IntegrationBudget':
+      return bridge.SequencerEvent.integrationBudget(
+        targetId: data['target_id'] as String? ?? '',
+        filter: data['filter'] as String? ?? '',
+        completedSecs: _doubleField(data, 'completed_secs'),
+        budgetSecs: _doubleField(data, 'budget_secs'),
+        fraction: _doubleField(data, 'fraction'),
+        budgetMet: data['budget_met'] as bool? ?? false,
+      );
+    case 'ExposureAdjusted':
+      return bridge.SequencerEvent.exposureAdjusted(
+        nodeId: data['node_id'] as String? ?? '',
+        adaptedSecs: _doubleField(data, 'adapted_secs'),
+        nominalSecs: _doubleField(data, 'nominal_secs'),
+        skyBrightnessMag: _optionalDouble(data, 'sky_brightness_mag'),
+        filter: _optionalString(data, 'filter'),
+        reason: data['reason'] as String? ?? '',
+      );
+    case 'PluginNodeRequested':
+      return bridge.SequencerEvent.pluginNodeRequested(
+        nodeId: data['node_id'] as String? ?? '',
+        pluginId: data['plugin_id'] as String? ?? '',
+        nodeTypeId: data['node_type_id'] as String? ?? '',
+        configJson: data['config_json'] as String? ?? '',
+        displayName: _optionalString(data, 'display_name'),
+        timeoutSecs: _optionalInt(data, 'timeout_secs') ?? 0,
+      );
+    case 'PluginNodeProgress':
+      return bridge.SequencerEvent.pluginNodeProgress(
+        nodeId: data['node_id'] as String? ?? '',
+        pluginId: data['plugin_id'] as String? ?? '',
+        nodeTypeId: data['node_type_id'] as String? ?? '',
+        detailJson: data['detail_json'] as String? ?? '',
+      );
+    case 'DecisionLogged':
+      return bridge.SequencerEvent.decisionLogged(
+        timestampIso: data['timestamp_iso'] as String? ?? '',
+        category: data['category'] as String? ?? '',
+        summary: data['summary'] as String? ?? '',
+        detailsJson: data['details_json'] as String? ?? '',
+        nodeId: _optionalString(data, 'node_id'),
+        sequenceRunId: _optionalInt(data, 'sequence_run_id'),
       );
     case 'DepthGoalCompleted':
       return bridge.SequencerEvent.depthGoalCompleted(
@@ -365,6 +681,28 @@ bridge.GuidingEvent _guidingEventFromCore(
       );
     case 'DitherCompleted':
       return const bridge.GuidingEvent.ditherCompleted();
+    case 'LoopingExposures':
+      return const bridge.GuidingEvent.looping();
+    case 'Settling':
+      return const bridge.GuidingEvent.settling();
+    case 'Calibrating':
+      return const bridge.GuidingEvent.calibrating();
+    case 'CalibrationComplete':
+      return const bridge.GuidingEvent.calibrationComplete();
+    case 'StarSelected':
+      return bridge.GuidingEvent.starSelected(
+        x: (data['X'] as num?)?.toDouble() ?? 0.0,
+        y: (data['Y'] as num?)?.toDouble() ?? 0.0,
+      );
+    case 'AppState':
+      return bridge.GuidingEvent.appState(
+        state: data['State'] as String? ?? '',
+      );
+    case 'GuideStats':
+      return bridge.GuidingEvent.guideStats(
+        snr: (data['SNR'] as num?)?.toDouble() ?? 0.0,
+        starMass: (data['StarMass'] as num?)?.toDouble() ?? 0.0,
+      );
     default:
       return const bridge.GuidingEvent.looping();
   }
@@ -385,6 +723,111 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       return const bridge.EquipmentEvent.mountTrackingStarted();
     case 'MountTrackingStopped':
       return const bridge.EquipmentEvent.mountTrackingStopped();
+    case 'MountSlewStarted':
+      return bridge.EquipmentEvent.mountSlewStarted(
+        ra: _doubleField(data, 'ra'),
+        dec: _doubleField(data, 'dec'),
+      );
+    case 'MountSlewCompleted':
+      return bridge.EquipmentEvent.mountSlewCompleted(
+        ra: _doubleField(data, 'ra'),
+        dec: _doubleField(data, 'dec'),
+      );
+    case 'FocuserMoveStarted':
+      return bridge.EquipmentEvent.focuserMoveStarted(
+        targetPosition: _optionalInt(data, 'target_position') ?? 0,
+      );
+    case 'FocuserMoveCompleted':
+      return bridge.EquipmentEvent.focuserMoveCompleted(
+        position: _optionalInt(data, 'position') ?? 0,
+      );
+    case 'FocuserTemperatureChanged':
+      return bridge.EquipmentEvent.focuserTemperatureChanged(
+        temperature: _doubleField(data, 'temperature'),
+      );
+    case 'FilterChanging':
+      return bridge.EquipmentEvent.filterChanging(
+        fromPosition: _optionalInt(data, 'from_position') ?? 0,
+        toPosition: _optionalInt(data, 'to_position') ?? 0,
+        filterName: _optionalString(data, 'filter_name'),
+      );
+    case 'FilterChanged':
+      return bridge.EquipmentEvent.filterChanged(
+        position: _optionalInt(data, 'position') ?? 0,
+        filterName: _optionalString(data, 'filter_name'),
+      );
+    case 'RotatorMoveStarted':
+      return bridge.EquipmentEvent.rotatorMoveStarted(
+        targetAngle: _doubleField(data, 'target_angle'),
+      );
+    case 'RotatorMoveCompleted':
+      return bridge.EquipmentEvent.rotatorMoveCompleted(
+        angle: _doubleField(data, 'angle'),
+      );
+    case 'CameraCoolingStarted':
+      return bridge.EquipmentEvent.cameraCoolingStarted(
+        targetTemp: _doubleField(data, 'target_temp'),
+      );
+    case 'CameraCoolingReached':
+      return bridge.EquipmentEvent.cameraCoolingReached(
+        temperature: _doubleField(data, 'temperature'),
+      );
+    case 'CameraWarmingStarted':
+      return const bridge.EquipmentEvent.cameraWarmingStarted();
+    case 'CameraWarmingCompleted':
+      return const bridge.EquipmentEvent.cameraWarmingCompleted();
+    case 'Connecting':
+      return bridge.EquipmentEvent.connecting(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+      );
+    case 'AutofocusProgress':
+    case 'FocuserBacklashCalibrationProgress':
+      // The host flattens these two PropertyChanged properties into their own
+      // event types; the property name is the event type and the value is the
+      // detail.
+      return bridge.EquipmentEvent.propertyChanged(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+        property: eventType,
+        value: data['detail'] as String? ?? '',
+      );
+    case 'HeartbeatStarted':
+      return bridge.EquipmentEvent.heartbeatStarted(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+        intervalSecs: BigInt.from(_optionalInt(data, 'interval_secs') ?? 0),
+      );
+    case 'HeartbeatStopped':
+      return bridge.EquipmentEvent.heartbeatStopped(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+      );
+    case 'HeartbeatStatusChanged':
+      final rtt = _optionalInt(data, 'last_rtt_ms');
+      return bridge.EquipmentEvent.heartbeatStatusChanged(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+        status: bridge.HeartbeatStatus.values.firstWhere(
+          (s) => s.name == data['status'],
+          orElse: () => bridge.HeartbeatStatus.degraded,
+        ),
+        consecutiveFailures: _optionalInt(data, 'consecutive_failures') ?? 0,
+        lastRttMs: rtt == null ? null : BigInt.from(rtt),
+      );
+    case 'HeartbeatReconnecting':
+      return bridge.EquipmentEvent.heartbeatReconnecting(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+        attempt: _optionalInt(data, 'attempt') ?? 0,
+        maxAttempts: _optionalInt(data, 'max_attempts') ?? 0,
+      );
+    case 'HeartbeatReconnected':
+      return bridge.EquipmentEvent.heartbeatReconnected(
+        deviceType: _stringField(data, 'device_type'),
+        deviceId: _stringField(data, 'device_id'),
+        afterAttempts: _optionalInt(data, 'after_attempts') ?? 0,
+      );
     case 'Connected':
       return bridge.EquipmentEvent.connected(
         deviceType: _stringField(data, 'device_type'),
@@ -444,6 +887,12 @@ bridge.SafetyEvent _safetyEventFromCore(
       return bridge.SafetyEvent.emergencyStop(
         reason: data['reason'] as String? ?? 'Emergency stop',
       );
+    case 'ParkInitiated':
+      return bridge.SafetyEvent.parkInitiated(
+        reason: data['reason'] as String? ?? '',
+      );
+    case 'ParkCompleted':
+      return const bridge.SafetyEvent.parkCompleted();
     default:
       return bridge.SafetyEvent.weatherUnsafe(
         reason:
@@ -465,6 +914,29 @@ bridge.SystemEvent _systemEventFromCore(
       return bridge.SystemEvent.diskSpaceLow(
         availableGb: (data['available_gb'] as num?)?.toDouble() ?? 0.0,
       );
+    case 'Initialized':
+      return const bridge.SystemEvent.initialized();
+    case 'ShuttingDown':
+      return const bridge.SystemEvent.shuttingDown();
+    case 'Error':
+      return bridge.SystemEvent.error(
+        message: data['message'] as String? ?? 'System error',
+      );
+    case 'Notification':
+      final transports = data['explicit_transports'];
+      return bridge.SystemEvent.notification(
+        title: data['title'] as String? ?? '',
+        message: data['message'] as String? ?? '',
+        level: data['level'] as String? ?? 'info',
+        explicitTransports: transports is List
+            ? transports.whereType<String>().toList()
+            : null,
+      );
+    case 'EventsDropped':
+      return bridge.SystemEvent.eventsDropped(
+        droppedCount: BigInt.from(_optionalInt(data, 'dropped_count') ?? 0),
+        totalDropped: BigInt.from(_optionalInt(data, 'total_dropped') ?? 0),
+      );
     default:
       return bridge.SystemEvent.error(
         message: data['message'] as String? ?? eventType,
@@ -476,8 +948,78 @@ bridge.ImagingEvent _imagingEventFromCore(
   String eventType,
   Map<String, dynamic> data,
 ) {
+  // The inverse of `FfiBackend._extractImagingEventInfo`, so a linked client's
+  // typed stream (event log, run feed) names each host imaging event as the
+  // host's own stream does instead of reading every one as a completion.
   switch (eventType) {
+    case 'ExposureStarted':
+      final frameType = bridge.FrameType.values.firstWhere(
+        (t) => t.name == data['frame_type'],
+        orElse: () => bridge.FrameType.light,
+      );
+      final frame = data['frame'];
+      if (frame is num) {
+        final total = data['total'];
+        return bridge.ImagingEvent.exposureStartedWithFrame(
+          durationSecs: _doubleField(data, 'duration_secs'),
+          frameType: frameType,
+          frameNumber: frame.toInt(),
+          totalFrames: total is num ? total.toInt() : null,
+        );
+      }
+      return bridge.ImagingEvent.exposureStarted(
+        durationSecs: _doubleField(data, 'duration_secs'),
+        frameType: frameType,
+      );
+    case 'ExposureProgress':
+      return bridge.ImagingEvent.exposureProgress(
+        progress: _doubleField(data, 'progress'),
+        remainingSecs: _doubleField(data, 'remainingSecs'),
+      );
+    case 'ExposureCompleted':
+      final frame = data['frame'];
+      final stars = data['stars_detected'];
+      if (frame is num) {
+        final total = data['total'];
+        return bridge.ImagingEvent.exposureCompletedWithFrame(
+          frameNumber: frame.toInt(),
+          totalFrames: total is num ? total.toInt() : null,
+          hfr: _doubleField(data, 'hfr'),
+          starsDetected: stars is num ? stars.toInt() : 0,
+        );
+      }
+      return bridge.ImagingEvent.exposureCompleted(
+        filePath: _optionalString(data, 'file_path'),
+        hfr: _doubleField(data, 'hfr'),
+        starsDetected: stars is num ? stars.toInt() : 0,
+      );
+    case 'ExposureCancelled':
+      return const bridge.ImagingEvent.exposureCancelled();
+    case 'DownloadStarted':
+      return const bridge.ImagingEvent.downloadStarted();
+    case 'DownloadCompleted':
+      return const bridge.ImagingEvent.downloadCompleted();
+    case 'ImageReady':
+      final width = data['width'];
+      final height = data['height'];
+      return bridge.ImagingEvent.imageReady(
+        width: width is num ? width.toInt() : 0,
+        height: height is num ? height.toInt() : 0,
+      );
+    case 'ImageSaved':
+      return bridge.ImagingEvent.imageSaved(
+        filePath: _optionalString(data, 'file_path') ?? '',
+      );
+    case 'TemperatureChanged':
+      return bridge.ImagingEvent.temperatureChanged(
+        tempCelsius: _doubleField(data, 'temp_celsius'),
+        coolerPower: _doubleField(data, 'cooler_power'),
+      );
     case 'ExposureFailed':
+      final error = _optionalString(data, 'error');
+      if (error != null) {
+        return bridge.ImagingEvent.exposureFailed(error: error);
+      }
       return bridge.ImagingEvent.exposureFailedOld(
         reason: data['reason'] as String? ?? 'Exposure failed',
       );
@@ -513,6 +1055,38 @@ double _doubleField(Map<String, dynamic> data, String key) {
   if (value is double) return value;
   if (value is num) return value.toDouble();
   return 0.0;
+}
+
+int? _optionalInt(Map<String, dynamic> data, String key) {
+  final value = data[key];
+  if (value is num) return value.toInt();
+  // In process the host's map can still hold the bridge's BigInt; the wire
+  // encoder turns it into a number.
+  if (value is BigInt) return value.toInt();
+  return null;
+}
+
+bridge.FrameCaptureMetadata _frameCaptureFromData(Map<String, dynamic> data) {
+  final c = FrameCapture.fromEventData(data);
+  return bridge.FrameCaptureMetadata(
+    gain: c.gain,
+    offset: c.offset,
+    sensorTempC: c.sensorTempC,
+    coolerPowerPercent: c.coolerPowerPercent,
+    mountRaHours: c.mountRaHours,
+    mountDecDegrees: c.mountDecDegrees,
+    mountAltitudeDeg: c.mountAltitudeDeg,
+    mountAzimuthDeg: c.mountAzimuthDeg,
+    pierSide: c.pierSide,
+    focuserPosition: c.focuserPosition,
+    focuserTemperatureC: c.focuserTemperatureC,
+    rotatorAngleDeg: c.rotatorAngleDeg,
+    exposureSecs: c.exposureSecs ?? 0,
+    binX: c.binX ?? 1,
+    binY: c.binY ?? 1,
+    frameType: c.frameType ?? 'light',
+    targetId: c.targetId,
+  );
 }
 
 double? _optionalDouble(Map<String, dynamic> data, String key) {

@@ -62,6 +62,22 @@ export 'src/providers/remote_sync_events.dart';
 export 'src/providers/remote_sync_handler.dart';
 export 'src/providers/host_mutation_event_provider.dart';
 export 'src/providers/host_local_sync_provider.dart';
+// Runtime state the imaging host shares with linked clients.
+export 'src/providers/runtime_mirror/runtime_mirror_channel.dart';
+export 'src/providers/runtime_mirror/runtime_mirror_channels.dart';
+export 'src/providers/runtime_mirror/host_runtime_mirror.dart';
+export 'src/providers/runtime_mirror/client_runtime_mirror.dart';
+export 'src/providers/runtime_mirror/channels/autofocus_result_channel.dart';
+export 'src/providers/runtime_mirror/channels/autofocus_run_channel.dart';
+export 'src/providers/runtime_mirror/channels/centering_channels.dart';
+export 'src/providers/runtime_mirror/channels/cooler_reading_channel.dart';
+export 'src/providers/runtime_mirror/channels/current_frame_channel.dart';
+export 'src/providers/runtime_mirror/channels/environment_channel.dart';
+export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
+export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
+export 'src/providers/runtime_mirror/channels/meridian_flip_channel.dart';
+export 'src/providers/runtime_mirror/channels/plate_solve_channel.dart';
+export 'src/providers/runtime_mirror/channels/sequence_run_channel.dart';
 // Hot-plug device-detection event bridge.
 export 'src/providers/hotplug_event_bridge_provider.dart';
 export 'src/providers/simbad_provider.dart';

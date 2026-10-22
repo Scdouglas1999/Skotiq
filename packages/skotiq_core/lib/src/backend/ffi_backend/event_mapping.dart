@@ -661,6 +661,13 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
           'consecutive_rejects': sequencerEvent.consecutiveRejects,
           'accepted_total': sequencerEvent.acceptedTotal,
           'rejected_total': sequencerEvent.rejectedTotal,
+          'likely_cause_label': sequencerEvent.likelyCauseLabel,
+          'evidence': sequencerEvent.evidence,
+          'sky_brightness_at_capture': sequencerEvent.skyBrightnessAtCapture,
+          'cloud_cover_at_capture': sequencerEvent.cloudCoverAtCapture,
+          'wind_at_capture': sequencerEvent.windAtCapture,
+          'guide_rms_at_capture': sequencerEvent.guideRmsAtCapture,
+          'sensor_temp_at_capture': sequencerEvent.sensorTempAtCapture,
           ...frameCaptureToEventData(sequencerEvent.capture),
         },
       );
@@ -699,6 +706,18 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
           'budget_secs': sequencerEvent.budgetSecs,
           'fraction': sequencerEvent.fraction,
           'budget_met': sequencerEvent.budgetMet,
+        },
+      );
+    } else if (sequencerEvent is bridge.SequencerEvent_ExposureAdjusted) {
+      return (
+        'ExposureAdjusted',
+        {
+          'node_id': sequencerEvent.nodeId,
+          'adapted_secs': sequencerEvent.adaptedSecs,
+          'nominal_secs': sequencerEvent.nominalSecs,
+          'sky_brightness_mag': sequencerEvent.skyBrightnessMag,
+          'filter': sequencerEvent.filter,
+          'reason': sequencerEvent.reason,
         },
       );
     } else if (sequencerEvent is bridge.SequencerEvent_DepthGoalCompleted) {

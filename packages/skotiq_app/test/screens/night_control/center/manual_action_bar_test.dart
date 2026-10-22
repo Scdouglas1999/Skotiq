@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/skotiq_core.dart'
+    show LinkedManualAction, linkedManualActionProvider;
 import 'package:skotiq_app/screens/night_control/center/manual_action_bar.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 
@@ -146,5 +148,49 @@ void main() {
     // Tracking and the cooler live in the Mount and Camera tabs.
     expect(find.text('Track'), findsNothing);
     expect(find.text('Cooler'), findsNothing);
+  });
+
+  testWidgets('an action running in the linked window is named in the hint',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      [
+        ...centerOverrides(NightFixtures.ready()),
+        linkedManualActionProvider.overrideWith(
+          (ref) => LinkedManualAction(
+            action: 'autofocus',
+            since: DateTime.now(),
+          ),
+        ),
+      ],
+      child: const ManualActionBar(),
+      size: const Size(1000, ManualActionBar.height),
+    );
+    expect(
+      find.text('Autofocus is running · started in another window'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a linked action with no word for too long is not shown',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      [
+        ...centerOverrides(NightFixtures.ready()),
+        linkedManualActionProvider.overrideWith(
+          (ref) => LinkedManualAction(
+            action: 'autofocus',
+            since: DateTime.now().subtract(const Duration(hours: 1)),
+          ),
+        ),
+      ],
+      child: const ManualActionBar(),
+      size: const Size(1000, ManualActionBar.height),
+    );
+    expect(
+      find.text('Nothing is running · actions run right away'),
+      findsOneWidget,
+    );
   });
 }

@@ -7,8 +7,7 @@ import '../backend/bridge_event_mapper.dart';
 import '../backend/ffi_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/backend/event_types.dart' as core;
-import '../models/backend/host_mutation_event.dart'
-    show hostStateChangedEventType;
+import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -34,8 +33,10 @@ final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
     // constantly (the mirror mechanism), that produced a flood of bogus
     // critical errors on the slave. Drop it from the typed/telemetry stream.
     return backend.eventStream
-        .where((event) => event.eventType != hostStateChangedEventType)
-        .map(bridgeEventFromCoreEvent);
+        .where((event) => !isHostSyncEnvelope(event))
+        .map(tryBridgeEventFromCoreEvent)
+        .where((event) => event != null)
+        .cast<SkotiqEvent>();
   }
 
   // Local desktop/headless: FRB stream plus host REST mutation events so the
@@ -56,7 +57,7 @@ final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
   // this fired constantly).
   final mutationStream = ref
       .watch(hostMutationEventStreamProvider)
-      .where((event) => event.eventType != hostStateChangedEventType)
+      .where((event) => !isHostSyncEnvelope(event))
       .map(bridgeEventFromCoreEvent);
   return _mergeEventStreams(nativeStream, mutationStream);
 });
@@ -128,6 +129,13 @@ class EventHistoryNotifier extends StateNotifier<List<SkotiqEvent>> {
   void addEvent(SkotiqEvent event) {
     if (!mounted) return;
     state = [event, ...state].take(maxHistorySize).toList();
+  }
+
+  /// Fill an empty history with events that happened before this window was
+  /// listening (a linked client's first connect), newest first.
+  void seedEarlier(List<SkotiqEvent> newestFirst) {
+    if (!mounted || state.isNotEmpty) return;
+    state = newestFirst.take(maxHistorySize).toList();
   }
 
   /// Clear the event history

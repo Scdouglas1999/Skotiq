@@ -40,7 +40,12 @@ class _NoOpScienceProcessingService extends ScienceProcessingService {
 
 class _NoOpCapturePreviewPublisher extends CapturePreviewPublisher {
   @override
-  void publish(dynamic ref, CapturedImageData preview, String deviceId) {}
+  void publish(
+    dynamic ref,
+    CapturedImageData preview,
+    String deviceId, {
+    bool loadRaw = true,
+  }) {}
 }
 
 class _FakeAppSettings extends AppSettingsNotifier {

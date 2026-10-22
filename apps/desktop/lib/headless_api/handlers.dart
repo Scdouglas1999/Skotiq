@@ -29,6 +29,7 @@ export 'handlers/first_light_handlers.dart';
 export 'handlers/atlas_handlers.dart';
 export 'handlers/backup_handlers.dart';
 export 'handlers/sync_handlers.dart';
+export 'handlers/runtime_state_handlers.dart';
 export 'handlers/framing_handlers.dart';
 export 'handlers/filesystem_handlers.dart';
 export 'handlers/science_handlers.dart';

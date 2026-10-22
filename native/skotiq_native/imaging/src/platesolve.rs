@@ -38,9 +38,50 @@ use std::fs;
 use std::io::Read;
 use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::time::{Duration, Instant};
 use thiserror::Error;
-use wait_timeout::ChildExt;
+
+/// Wait for a solver process to exit, giving up after `timeout`.
+///
+/// Polls `try_wait` instead of using a SIGCHLD-driven wait: the Dart VM that
+/// hosts this library reaps its own subprocesses with `waitpid(-1)`, so on
+/// Unix it can collect the solver before this code does. A SIGCHLD waiter
+/// panics on that and takes the whole app down; here the solver is then
+/// treated as exited, and the files it wrote decide the result.
+fn wait_child_with_timeout(
+    child: &mut Child,
+    timeout: Duration,
+) -> std::io::Result<Option<ExitStatus>> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(Some(status)),
+            Ok(None) => {}
+            #[cfg(unix)]
+            Err(error) if error.raw_os_error() == Some(libc_echild()) => {
+                use std::os::unix::process::ExitStatusExt;
+                tracing::warn!(
+                    "Solver pid {} was reaped by another part of the process; \
+                     reading its output files for the result",
+                    child.id()
+                );
+                return Ok(Some(ExitStatus::from_raw(0)));
+            }
+            Err(error) => return Err(error),
+        }
+        if Instant::now() >= deadline {
+            return Ok(None);
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+}
+
+/// `ECHILD`: the child has already been reaped.
+#[cfg(unix)]
+const fn libc_echild() -> i32 {
+    10
+}
 
 /// Structured errors emitted while parsing solver-produced WCS / INI files.
 ///
@@ -1060,7 +1101,7 @@ impl AstapSolver {
             bytes
         });
 
-        let status = match child.wait_timeout(timeout) {
+        let status = match wait_child_with_timeout(&mut child, timeout) {
             Ok(Some(status)) => status,
             Ok(None) => {
                 tracing::error!(
@@ -1882,7 +1923,7 @@ fn run_solver_command(
     });
 
     let timeout = std::time::Duration::from_secs(u64::from(timeout_secs));
-    let status = match child.wait_timeout(timeout) {
+    let status = match wait_child_with_timeout(&mut child, timeout) {
         Ok(Some(status)) => status,
         Ok(None) => {
             tracing::error!(
@@ -2053,6 +2094,42 @@ pub fn get_solver_path() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A solver another part of the process already reaped reads as exited,
+    /// so the solve goes on to its output files instead of aborting the app.
+    #[cfg(unix)]
+    #[test]
+    fn wait_treats_a_child_reaped_elsewhere_as_exited() {
+        extern "C" {
+            fn waitpid(pid: i32, status: *mut i32, options: i32) -> i32;
+        }
+        let mut child = std::process::Command::new("true").spawn().expect("spawn");
+        let mut status = 0;
+        // What the Dart VM does with `waitpid(-1)`: collect the child first.
+        let reaped = unsafe { waitpid(child.id() as i32, &mut status, 0) };
+        assert_eq!(reaped, child.id() as i32);
+
+        let result = super::wait_child_with_timeout(&mut child, std::time::Duration::from_secs(5));
+
+        assert!(matches!(result, Ok(Some(status)) if status.success()));
+    }
+
+    #[test]
+    fn wait_gives_up_on_a_solver_that_outlives_the_timeout() {
+        let mut child = std::process::Command::new("sleep")
+            .arg("5")
+            .spawn()
+            .expect("spawn");
+        let started = std::time::Instant::now();
+
+        let result =
+            super::wait_child_with_timeout(&mut child, std::time::Duration::from_millis(200));
+
+        assert!(matches!(result, Ok(None)));
+        assert!(started.elapsed() < std::time::Duration::from_secs(2));
+        let _ = child.kill();
+        let _ = child.wait();
+    }
     use super::{
         external_solver_unavailable, parse_astap_ini_inner, parse_wcs_file_inner, PlateSolveError,
     };

@@ -54,6 +54,12 @@ class HostMutationEventHub {
     wsBroadcast?.call(event);
   }
 
+  /// Send a prepared event to remote WebSocket clients only. Used for runtime
+  /// state the host's own providers already hold.
+  void broadcastRemote(SkotiqEvent event) {
+    wsBroadcast?.call(event);
+  }
+
   void dispose() {
     wsBroadcast = null;
     if (!_controller.isClosed) {

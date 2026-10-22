@@ -103,6 +103,10 @@ class SkotiqApp extends ConsumerWidget {
     // MASTER -> SLAVE: push the master's open sequencer canvas to slaves live.
     // Self-gates to a no-op unless this instance is a serving FfiBackend master.
     ref.watch(masterSequenceEditorMirrorProvider);
+    // Runtime results (solves, centering, autofocus, the frame on screen):
+    // published by a hardware-owning host, reported up by a linked client.
+    ref.watch(hostRuntimeMirrorProvider);
+    ref.watch(clientRuntimeReporterProvider);
     // Keep science.camera.* (read noise / gain / saturation) in sync with
     // the connected camera or active profile so photometry works without
     // manual sensor-spec entry.

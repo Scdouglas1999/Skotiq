@@ -369,9 +369,18 @@ class PlateSolveService {
   /// a log line so the result is visible app-wide (activity log) even when the
   /// caller is an unattended sequence with no inline UI of its own.
   void _announceSolveResult(String imagePath, PlateSolveResult result) {
-    _ref.read(plateSolveStateProvider.notifier).state = _ref
-        .read(plateSolveStateProvider)
-        .copyWith(isSolving: false, lastResult: result);
+    final state = _ref.read(plateSolveStateProvider);
+    // A linked client can already hold this outcome from the host's broadcast
+    // of the same solve; keeping that object stops identity-keyed listeners
+    // from recording one solve twice.
+    final previous = state.lastResult;
+    final kept = previous != null && samePlateSolveOutcome(previous, result)
+        ? previous
+        : result;
+    _ref.read(plateSolveStateProvider.notifier).state = state.copyWith(
+      isSolving: false,
+      lastResult: kept,
+    );
     _logSolveResult(result);
   }
 
@@ -968,6 +977,20 @@ final plateSolveServiceProvider = Provider<PlateSolveService>((ref) {
   ref.onDispose(service.retire);
   return service;
 });
+
+/// Whether two results describe the same solve outcome.
+///
+/// `PlateSolveResult ==` compares its SIP coefficient lists by identity, so a
+/// result that crossed the wire never equals the original; this compares the
+/// fields a solve is identified by instead.
+bool samePlateSolveOutcome(PlateSolveResult a, PlateSolveResult b) =>
+    a.success == b.success &&
+    a.ra == b.ra &&
+    a.dec == b.dec &&
+    a.pixelScale == b.pixelScale &&
+    a.rotation == b.rotation &&
+    a.solveTimeSecs == b.solveTimeSecs &&
+    a.error == b.error;
 
 /// Active plate solve state
 class PlateSolveState {

@@ -1487,6 +1487,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrStarsNoFile': 'No saved file to find stars in',
     'nightCtrActionsLabel': 'Manual actions',
     'nightCtrHintIdle': 'Nothing is running · actions run right away',
+    'nightActOtherWindow': 'started in another window',
     'nightCtrStripLabel': 'Frames this session',
     'nightCtrStripEmpty': 'Frames from tonight\'s run land here.',
     'nightCtrStripFrame': 'Frame {frame}',
@@ -3091,6 +3092,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrActionsLabel': 'Acciones manuales',
     'nightCtrHintIdle':
         'No hay nada en marcha · las acciones se ejecutan al momento',
+    'nightActOtherWindow': 'iniciado en otra ventana',
     'nightCtrStripLabel': 'Tomas de esta sesión',
     'nightCtrStripEmpty': 'Las tomas de la sesión de esta noche aparecen aquí.',
     'nightCtrStripFrame': 'Toma {frame}',

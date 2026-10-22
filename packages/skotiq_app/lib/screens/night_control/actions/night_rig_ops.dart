@@ -247,7 +247,7 @@ class ServiceNightRigOps implements NightRigOps {
   @override
   Future<CenteringResult> center(NightCenterTarget target) async {
     final settings = await _ref.read(appSettingsProvider.future);
-    return _ref.read(centeringServiceProvider).centerOnTarget(
+    final result = await _ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: target.raHours,
           targetDec: target.decDegrees,
           solverConfig: PlateSolverConfig(
@@ -263,6 +263,19 @@ class ServiceNightRigOps implements NightRigOps {
           onStatusUpdate: (status) =>
               _ref.read(centeringStatusProvider.notifier).state = status,
         );
+    // The loop's last status update is its last move, not its outcome: the
+    // run ends on the result, which the recent-solves list and every linked
+    // window read from these two providers.
+    final last = _ref.read(centeringStatusProvider);
+    _ref.read(centeringStatusProvider.notifier).state = last.copyWith(
+      state: result.success ? CenteringState.completed : CenteringState.error,
+      currentIteration: result.iterations,
+      currentOffsetArcsec: result.finalOffsetArcsec,
+      message: result.success ? 'Centered' : result.errorMessage,
+      iterationHistory: result.iterationHistory,
+    );
+    _ref.read(lastCenteringResultProvider.notifier).state = result;
+    return result;
   }
 
   @override

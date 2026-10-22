@@ -706,6 +706,10 @@ List<String> availableHeadlessEndpoints() {
     // Cloud sync
     'GET /api/sync/status',
     'POST /api/sync/push',
+    // Runtime state shared with linked clients
+    'GET /api/runtime/state',
+    'POST /api/runtime/state',
+    'GET /api/runtime/recent-events',
     // Catalog management (download / upload / verify / etc.)
     'GET /api/catalog/status',
     'GET /api/catalog/available',

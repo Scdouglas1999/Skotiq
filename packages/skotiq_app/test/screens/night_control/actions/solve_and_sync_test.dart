@@ -47,6 +47,34 @@ class _FixedStopwatch extends Stopwatch {
 
 class _MockPhd2 extends Mock implements Phd2Controller {}
 
+/// A centering run that reports one slew and then gives up.
+class _GivingUpCentering extends Mock implements CenteringService {
+  @override
+  Future<CenteringResult> centerOnTarget({
+    required double targetRa,
+    required double targetDec,
+    required PlateSolverConfig solverConfig,
+    CenteringConfig config = const CenteringConfig(),
+    void Function(CenteringStatus)? onStatusUpdate,
+  }) async {
+    onStatusUpdate?.call(
+      const CenteringStatus(
+        state: CenteringState.slewing,
+        currentIteration: 5,
+        maxIterations: 5,
+        currentOffsetArcsec: 964,
+        message: 'Slewing to target...',
+        iterationHistory: [],
+      ),
+    );
+    return CenteringResult.failure(
+      errorMessage: 'Maximum iterations (5) reached',
+      iterations: 5,
+      iterationHistory: const [],
+    );
+  }
+}
+
 class _StaticAppSettings extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() async => const AppSettingsState();
@@ -227,5 +255,25 @@ void main() {
       data: {},
     ));
     await expectation;
+  });
+
+  test('Center ends on its outcome and records the result', () async {
+    final backend = mockBackend();
+    final container = ProviderContainer(overrides: [
+      backendProvider.overrideWith((ref) => TestBackendNotifier(ref, backend)),
+      phd2ControllerProvider.overrideWithValue(_MockPhd2()),
+      appSettingsProvider.overrideWith(_StaticAppSettings.new),
+      centeringServiceProvider.overrideWithValue(_GivingUpCentering()),
+    ]);
+    addTearDown(container.dispose);
+
+    final result = await container.read(nightRigOpsProvider).center(
+        const NightCenterTarget(name: 'M31', raHours: 0.7, decDegrees: 41));
+
+    expect(result.success, isFalse);
+    final status = container.read(centeringStatusProvider);
+    expect(status.state, CenteringState.error);
+    expect(status.message, 'Maximum iterations (5) reached');
+    expect(container.read(lastCenteringResultProvider), same(result));
   });
 }

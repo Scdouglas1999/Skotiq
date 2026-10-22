@@ -60,6 +60,16 @@ final sequenceProgressProvider =
 class SequenceProgressNotifier extends StateNotifier<SequenceProgress> {
   SequenceProgressNotifier() : super(const SequenceProgress());
 
+  /// Show the imaging host's run progress on a linked client that does not
+  /// own the run. The client's own lifecycle state is kept: that one is
+  /// driven by the run's lifecycle events.
+  void mirrorHostProgress(SequenceProgress hostProgress) {
+    state = hostProgress.copyWith(
+      state: state.state,
+      nodeProgressStructuredDetail: state.nodeProgressStructuredDetail,
+    );
+  }
+
   void updateState(SequenceExecutionState executionState) {
     state = state.copyWith(state: executionState);
   }
