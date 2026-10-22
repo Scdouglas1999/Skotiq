@@ -86,4 +86,63 @@ void main() {
       );
     },
   );
+
+  test(
+    'a Windows host frame gets its _cal sibling in the host path style',
+    () async {
+      final backend = _MockNetworkBackend();
+      when(
+        () => backend.matchDarkFromLibrary(
+          exposureTime: any(named: 'exposureTime'),
+          gain: any(named: 'gain'),
+          offset: any(named: 'offset'),
+          binX: any(named: 'binX'),
+          binY: any(named: 'binY'),
+          temperature: any(named: 'temperature'),
+        ),
+      ).thenAnswer((_) async => r'C:\Users\scdou\Documents\Darks\master.fits');
+      when(
+        () => backend.calibrateImageFile(
+          lightPath: any(named: 'lightPath'),
+          darkPath: any(named: 'darkPath'),
+          flatPath: any(named: 'flatPath'),
+          biasPath: any(named: 'biasPath'),
+          outputPath: any(named: 'outputPath'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _ReplaceableBackendNotifier(ref, backend),
+          ),
+          loggingServiceProvider.overrideWithValue(LoggingService()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      const light = r'C:\Users\scdou\Documents\NGC7380\NGC0891_L_0001.fits';
+      final result = await container
+          .read(calibrationServiceProvider)
+          .calibrateFile(
+            lightPath: light,
+            settings: const CalibrationSettings(),
+            exposureTime: 120,
+            gain: 100,
+          );
+
+      const expected =
+          r'C:\Users\scdou\Documents\NGC7380\NGC0891_L_0001_cal.fits';
+      expect(result.outputPath, expected);
+      verify(
+        () => backend.calibrateImageFile(
+          lightPath: light,
+          darkPath: any(named: 'darkPath'),
+          flatPath: any(named: 'flatPath'),
+          biasPath: any(named: 'biasPath'),
+          outputPath: expected,
+        ),
+      ).called(1);
+    },
+  );
 }

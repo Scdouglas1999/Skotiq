@@ -395,6 +395,11 @@ export 'src/services/imaging_records_repository.dart'
         SolvedFrameFoldHook,
         applyAtlasFoldDedup;
 export 'src/services/imaging_service.dart';
+export 'src/services/capture_preview_loader.dart'
+    show
+        CapturePreviewPublisher,
+        capturePreviewPublisherProvider,
+        capturedImageDataFromResult;
 export 'src/services/stretch_pipeline_service.dart';
 export 'src/services/thumbnail_sidecar_service.dart';
 export 'src/providers/thumbnail_sidecar_provider.dart';

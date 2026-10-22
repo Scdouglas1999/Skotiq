@@ -190,6 +190,12 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     }
   }
 
+  /// Every image row the host has recorded.
+  Future<List<Map<String, dynamic>>> getAllImages() async {
+    final response = await _get('images');
+    return _sessionScienceObjectList(response, 'images', 'GET /api/images');
+  }
+
   /// Images for a target.
   Future<List<Map<String, dynamic>>> getImagesForTarget(int targetId) async {
     final response = await _get('images', {'targetId': targetId.toString()});

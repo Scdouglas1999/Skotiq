@@ -46,6 +46,28 @@ extension _ImagingServiceFilePaths on ImagingService {
       timestamp: timestamp,
     );
 
+    final backend = _ref.read(backendProvider);
+    if (backend is NetworkBackend) {
+      // The host writes the keeper and creates its folder, so the path is
+      // built in the host's style and only the host can say what is taken.
+      final hostPaths = hostPathContext(basePath);
+      final fullPath = ImagingService.buildImageFilePath(
+        pattern: namingPattern.pattern,
+        basePath: basePath,
+        extension: namingPattern.format.extension,
+        substitutions: substitutions,
+        pathContext: hostPaths,
+      );
+      final taken = await _hostTakenKeeperPaths(backend, hostPaths);
+      final unique = await ImagingService.uniqueFilePath(
+        fullPath,
+        hostPaths,
+        (candidate) async => taken.contains(_hostPathKey(hostPaths, candidate)),
+      );
+      _hostReservedKeeperPaths.add(_hostPathKey(hostPaths, unique));
+      return unique;
+    }
+
     final fullPath = ImagingService.buildImageFilePath(
       pattern: namingPattern.pattern,
       basePath: basePath,
@@ -59,7 +81,47 @@ extension _ImagingServiceFilePaths on ImagingService {
       await directory.create(recursive: true);
     }
 
-    return _ensureUniqueFilePath(fullPath);
+    return ImagingService.uniqueFilePath(
+      fullPath,
+      path.context,
+      (candidate) => File(candidate).exists(),
+    );
+  }
+
+  /// Comparison key for a host path: normalized in the host's style, and
+  /// case-folded on a Windows host whose filesystem ignores case.
+  String _hostPathKey(path.Context hostPaths, String hostPath) {
+    final normalized = hostPaths.normalize(hostPath);
+    return hostPaths.style == path.Style.windows
+        ? normalized.toLowerCase()
+        : normalized;
+  }
+
+  /// Keeper paths that already exist on a linked host: every image the host
+  /// has recorded plus every path this service handed out. The host's save
+  /// endpoint overwrites an existing file and offers no way to test for one,
+  /// so its image records are the only listing a client can read.
+  Future<Set<String>> _hostTakenKeeperPaths(
+    NetworkBackend backend,
+    path.Context hostPaths,
+  ) async {
+    final taken = <String>{..._hostReservedKeeperPaths};
+    try {
+      final rows = await backend.getAllImages();
+      for (final row in rows) {
+        final filePath = row['filePath'];
+        if (filePath is String && filePath.isNotEmpty) {
+          taken.add(_hostPathKey(hostPaths, filePath));
+        }
+      }
+    } catch (e) {
+      _logger.warning(
+        'Could not list the frames the imaging host has recorded ($e) — '
+        'only frames saved from this window are avoided',
+        source: 'ImagingService',
+      );
+    }
+    return taken;
   }
 
   /// The `$SEQ`/`$FRAMENUM` value to stamp on the next KEEPER, given that
@@ -70,7 +132,7 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// switch or reconnect. The counter therefore returned to 0 several times a
   /// night while the shipped pattern `$TARGET_$FILTER_$DATE_$SEQ` still
   /// resolved to the same folder and the same UTC date: the next Snapshot
-  /// asked for `0001` with `0001` already on disk. [_ensureUniqueFilePath] kept
+  /// asked for `0001` with `0001` already on disk. [ImagingService.uniqueFilePath] kept
   /// the data safe by appending `_001`, but the operator was left with two
   /// files whose sequence number both read 0001 and a suffix no pattern asked
   /// for — which sorts wrong in every stacker.
@@ -94,6 +156,10 @@ extension _ImagingServiceFilePaths on ImagingService {
           ?.imageOutputPath;
       if (basePath == null || basePath.isEmpty) return fallback;
 
+      final backend = _ref.read(backendProvider);
+      final hostPaths = backend is NetworkBackend
+          ? hostPathContext(basePath)
+          : null;
       final namingPattern = _ref.read(namingPatternProvider);
       // `nowUtc()`, not `now().toUtc()`: the latter re-converts an already
       // zone-shifted rendering and lands offset+hostOffset away, so the
@@ -110,16 +176,28 @@ extension _ImagingServiceFilePaths on ImagingService {
           frameNumber: frameNumber,
           timestamp: timestamp,
         ),
+        pathContext: hostPaths,
       );
 
       // A pattern that renders no frame number (e.g. `$TARGET_$DATETIME`)
       // gives the same path for every candidate: probing it would never
-      // terminate, and there uniqueness is _ensureUniqueFilePath's job.
+      // terminate, and there uniqueness is ImagingService.uniqueFilePath's job.
       if (renderFor(fallback) == renderFor(fallback + 1)) return fallback;
+
+      final Future<bool> Function(String) exists;
+      if (hostPaths != null) {
+        final taken = await _hostTakenKeeperPaths(
+          backend as NetworkBackend,
+          hostPaths,
+        );
+        exists = (p) async => taken.contains(_hostPathKey(hostPaths, p));
+      } else {
+        exists = (p) => File(p).exists();
+      }
 
       var candidate = fallback;
       final ceiling = fallback + ImagingService._keeperProbeLimit;
-      while (candidate < ceiling && await File(renderFor(candidate)).exists()) {
+      while (candidate < ceiling && await exists(renderFor(candidate))) {
         candidate++;
       }
       return candidate;
@@ -131,24 +209,6 @@ extension _ImagingServiceFilePaths on ImagingService {
       );
       return fallback;
     }
-  }
-
-  Future<String> _ensureUniqueFilePath(String desiredPath) async {
-    var candidate = desiredPath;
-    var suffix = 1;
-
-    while (await File(candidate).exists()) {
-      final directory = path.dirname(desiredPath);
-      final baseName = path.basenameWithoutExtension(desiredPath);
-      final extension = path.extension(desiredPath);
-      candidate = path.join(
-        directory,
-        '${baseName}_${suffix.toString().padLeft(3, '0')}$extension',
-      );
-      suffix++;
-    }
-
-    return candidate;
   }
 
   /// Save FITS file via Rust backend
