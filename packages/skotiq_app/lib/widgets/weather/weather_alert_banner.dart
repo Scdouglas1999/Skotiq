@@ -52,17 +52,23 @@ class _WeatherAlertBannerState extends ConsumerState<WeatherAlertBanner>
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final safetyState = ref.watch(weatherSafetyProvider);
-    final alertLevel = safetyState.currentAlertLevel;
     final status = safetyState.status;
+    // A forecast is advisory: it is shown as a warning, never as critical.
+    final alertLevel = safetyState.advisoryOnly &&
+            safetyState.currentAlertLevel == AlertLevel.critical
+        ? AlertLevel.warning
+        : safetyState.currentAlertLevel;
 
-    // Only show the banner for warning or critical levels when not snoozed,
-    // and only while weather safety is actually monitoring: with the switch
-    // off there is no verdict to raise a global alert with (the Weather
-    // screen's own chip already says "Not monitored").
+    // Only show the banner for warning or critical levels while the verdict
+    // is unsafe, and only while weather safety is actually monitoring: with
+    // the switch off there is no verdict to raise a global alert with (the
+    // Weather screen's own chip already says "Not monitored"), and a cloudy
+    // forecast outweighed by frames full of stars or set aside by the
+    // operator is not an alert.
     final shouldShow = safetyState.monitoringEnabled &&
         (alertLevel == AlertLevel.warning ||
             alertLevel == AlertLevel.critical) &&
-        status != WeatherSafetyStatus.snoozed;
+        status == WeatherSafetyStatus.unsafe;
 
     // Animate in/out
     if (shouldShow) {
@@ -90,9 +96,10 @@ class _WeatherAlertBannerState extends ConsumerState<WeatherAlertBanner>
                 alertLevel: alertLevel,
                 actions: safetyState.actions,
                 onSnooze: () {
-                  ref
-                      .read(weatherSafetyProvider.notifier)
-                      .snooze(const Duration(minutes: 15));
+                  ref.read(weatherSafetyProvider.notifier).snooze(
+                        const Duration(minutes: 15),
+                        reason: 'Operator snoozed the weather banner',
+                      );
                 },
                 onTap: () => context.go('/weather'),
               ),
@@ -143,6 +150,7 @@ class _BannerContent extends StatelessWidget {
   }
 
   String _getTitle() {
+    if (actions.advisoryOnly) return 'Weather forecast';
     switch (alertLevel) {
       case AlertLevel.warning:
         return 'Weather Warning';

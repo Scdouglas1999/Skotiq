@@ -108,6 +108,38 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Recovery typed-event end-to-end', () {
+    // Nothing else in the app watches the bridge: the banner itself must keep
+    // it running, or a recovery never reaches the screen.
+    testWidgets('the banner alone shows a recovery from the event stream',
+        (tester) async {
+      final backend = _SpyBackend();
+      final controller = StreamController<bridge_event.SkotiqEvent>.broadcast();
+      addTearDown(controller.close);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider
+                .overrideWith((ref) => _StubBackendNotifier(ref, backend)),
+            skotiqEventsProvider.overrideWith((ref) => controller.stream),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark()
+                .copyWith(extensions: const [SkotiqColors.dark]),
+            home: const Scaffold(body: RunDashboardRecoveryBanner()),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('WEATHER HOLD'), findsNothing);
+
+      controller.add(_recoveryStartedEvent(id: 1, causeKind: 'WeatherUnsafe'));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('WEATHER HOLD'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
     test(
         'RecoveryStarted typed event populates currentRecoveryProvider and '
         'progress notifier; Try Now reaches backend; Completed clears it',

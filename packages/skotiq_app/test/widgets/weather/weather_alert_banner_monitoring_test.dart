@@ -25,9 +25,12 @@ class _FixedSafetyNotifier extends WeatherSafetyNotifier {
   }
 }
 
-WeatherSafetyState _critical({required bool monitoringEnabled}) =>
+WeatherSafetyState _critical({
+  required bool monitoringEnabled,
+  WeatherSafetyStatus status = WeatherSafetyStatus.unsafe,
+}) =>
     WeatherSafetyState(
-      status: WeatherSafetyStatus.safe,
+      status: status,
       actions: const WeatherSafetyActions(
         reason: 'Weather safety is off — conditions are not being checked',
       ),
@@ -73,6 +76,36 @@ void main() {
       (tester) async {
     final handle = await pumpBanner(tester, _critical(monitoringEnabled: true));
     expect(find.text('Weather Critical'), findsOneWidget);
+    await dispose(tester, handle);
+  });
+
+  // A cloudy forecast outweighed by frames full of stars leaves the verdict
+  // safe; the forecast's own alert level is not an alert then.
+  testWidgets('a safe verdict hides a critical forecast', (tester) async {
+    final handle = await pumpBanner(
+      tester,
+      _critical(monitoringEnabled: true, status: WeatherSafetyStatus.safe),
+    );
+    expect(find.text('Weather Critical'), findsNothing);
+    await dispose(tester, handle);
+  });
+
+  testWidgets('a forecast-only verdict is a forecast warning, not critical',
+      (tester) async {
+    final handle = await pumpBanner(
+      tester,
+      const WeatherSafetyState(
+        status: WeatherSafetyStatus.unsafe,
+        actions: WeatherSafetyActions(
+          shouldPause: true,
+          advisoryOnly: true,
+          reason: 'Heavy cloud cover overhead (100% density)',
+        ),
+        currentAlertLevel: AlertLevel.critical,
+      ),
+    );
+    expect(find.text('Weather Critical'), findsNothing);
+    expect(find.text('Weather forecast'), findsOneWidget);
     await dispose(tester, handle);
   });
 }

@@ -83,6 +83,11 @@ class _RunDashboardRecoveryBannerState
 
   @override
   Widget build(BuildContext context) {
+    // The bridge feeds currentRecoveryProvider from the executor's recovery
+    // events and only runs while something watches it. The banner is where
+    // the state is shown, so the banner keeps it running; nothing else in the
+    // app did, and a recovery (a weather hold included) never appeared.
+    ref.watch(recoveryEventBridgeProvider);
     final ctx = ref.watch(currentRecoveryProvider);
     // Only run the countdown ticker while a recovery is waiting for its next
     // retry; otherwise the 500ms setState loop runs for nothing.
