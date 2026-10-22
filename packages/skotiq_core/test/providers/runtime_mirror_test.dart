@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/src/services/capture_preview_loader.dart'
+    show capturePreviewPublisherProvider;
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -756,5 +758,47 @@ void main() {
     expect(solve?.status, FrameSolveStatus.solved);
     expect(solve?.raDegrees, 339.0);
     expect(solves, 0);
+  });
+
+  test('a frame followed from the host is shown without its raw pixels', () {
+    final backend = _clientBackend();
+    final client = _client(backend);
+    addTearDown(client.dispose);
+
+    client
+        .read(capturePreviewPublisherProvider)
+        .publish(
+          client,
+          CapturedImageData(
+            width: 10,
+            height: 8,
+            displayData: Uint8List(320),
+            histogram: const [],
+            stats: const ImageStats(
+              min: 0,
+              max: 0,
+              mean: 0,
+              median: 0,
+              stdDev: 0,
+            ),
+            capturedAt: DateTime.utc(2026, 10, 21, 22, 50),
+            settings: const ExposureSettings(
+              exposureTime: 2,
+              gain: 100,
+              offset: 50,
+              binningX: 1,
+              binningY: 1,
+              frameType: FrameType.light,
+            ),
+          ),
+          'sim_camera_1',
+          loadRaw: false,
+        );
+
+    expect(
+      client.read(currentImageProvider)?.rawLoadStatus,
+      RawLoadStatus.idle,
+    );
+    verifyNever(() => backend.getLastRawImageData(any()));
   });
 }

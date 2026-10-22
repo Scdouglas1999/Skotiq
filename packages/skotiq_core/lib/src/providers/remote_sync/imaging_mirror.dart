@@ -196,7 +196,7 @@ Future<void> _publishRemoteCurrentFrame(
     _read(
       reader,
       capturePreviewPublisherProvider,
-    ).publish(reader, imageData, deviceId);
+    ).publish(reader, imageData, deviceId, loadRaw: !hinted);
   } catch (_) {
     // Degrade gracefully: a failed/aborted fetch must never crash the event
     // pump or spam logs. The tile simply keeps its previous frame; the next

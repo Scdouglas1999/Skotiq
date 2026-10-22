@@ -19,26 +19,34 @@ class CapturePreviewPublisher {
 
   /// Show [preview] immediately, then fetch raw pixels when supported.
   ///
+  /// [loadRaw] false keeps the preview to its JPEG: a linked client following
+  /// the imaging host's frames does not download every frame's full raw
+  /// pixels over the link.
+  ///
   /// Accepts a Riverpod [Ref] or a test [ProviderContainer] (both expose `.read`).
-  void publish(dynamic ref, CapturedImageData preview, String deviceId) {
+  void publish(
+    dynamic ref,
+    CapturedImageData preview,
+    String deviceId, {
+    bool loadRaw = true,
+  }) {
     final generation = ++_generation;
     final backend = _read(ref, backendProvider);
     final source = backend is NetworkBackend
         ? CapturePreviewSource.remote
         : CapturePreviewSource.local;
+    final scheduleRaw = loadRaw && _shouldScheduleRawLoad(backend);
 
     final withSource = preview.copyWith(
       previewSource: source,
-      rawLoadStatus: _shouldScheduleRawLoad(backend)
-          ? RawLoadStatus.loading
-          : RawLoadStatus.idle,
+      rawLoadStatus: scheduleRaw ? RawLoadStatus.loading : RawLoadStatus.idle,
       clearRawU16: true,
     );
 
     _read(ref, currentImageProvider.notifier).state = withSource;
     _read(ref, lastImageStatsProvider.notifier).state = withSource.stats;
 
-    if (!_shouldScheduleRawLoad(backend)) {
+    if (!scheduleRaw) {
       return;
     }
 

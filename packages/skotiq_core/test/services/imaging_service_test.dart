@@ -59,7 +59,12 @@ void _stubHostRoots(_MockNetworkBackend backend) {
 
 class _NoOpCapturePreviewPublisher extends CapturePreviewPublisher {
   @override
-  void publish(dynamic ref, CapturedImageData preview, String deviceId) {}
+  void publish(
+    dynamic ref,
+    CapturedImageData preview,
+    String deviceId, {
+    bool loadRaw = true,
+  }) {}
 }
 
 /// TestBackendNotifier that injects a mock backend into the provider.
