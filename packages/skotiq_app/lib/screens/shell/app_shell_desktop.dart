@@ -40,7 +40,11 @@ void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
       // Prevent default close behavior so we can intercept it
       windowManager.setPreventClose(true);
 
-      // Create and add the listener
+      // Create and add the listener, replacing the plain one a previous
+      // shell left behind.
+      if (_closeListener != null) {
+        windowManager.removeListener(_closeListener!);
+      }
       _closeListener = _WindowCloseListener(onCloseRequested: onCloseRequested);
       windowManager.addListener(_closeListener!);
 
@@ -55,13 +59,20 @@ void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
   }
 }
 
-/// Dispose window manager
+/// Dispose window manager.
+///
+/// The close stays intercepted after the shell is gone (routes outside it,
+/// such as onboarding, still own a frameless window), so the shell's listener
+/// is swapped for one that closes without the shell's confirmation rather
+/// than removed: a prevented close with no listener ignores every close
+/// request, from the app's own button and from the desktop alike.
 void disposeWindowManager(State state) {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     try {
       if (_closeListener != null) {
         windowManager.removeListener(_closeListener!);
-        _closeListener = null;
+        _closeListener = _WindowCloseListener();
+        windowManager.addListener(_closeListener!);
       }
     } catch (e) {
       developer.log('[AppShell] Error disposing window manager: $e',
