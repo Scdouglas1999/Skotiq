@@ -1966,16 +1966,15 @@ async fn a_pause_placed_during_recovery_survives_the_recovery() {
 }
 
 /// When recovery runs out under the default hold-for-operator policy, what it
-/// tells the operator must match what it did to the rig. The ladder switched
-/// tracking off before its first attempt and nothing switches it back on for a
-/// run that has ended, so the give-up message must say tracking is off, not
-/// leave him believing the mount is as he left it.
+/// tells the operator must match what it did to the rig. A lost guide star
+/// never switches tracking off (it is mostly cloud, and the mount must stay on
+/// the target), so the give-up message must not say tracking was left off.
 ///
 /// A lost guide star ends the run when recovery runs out only for the operator
 /// who turned on "Stop the run for quality problems"; by default the run
 /// images on unguided (owner decision 2026-10-06), so this test turns it on.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_recovery_give_up_says_that_tracking_was_left_off() {
+async fn a_guide_star_give_up_leaves_tracking_on_and_says_nothing_about_it() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
@@ -2013,29 +2012,25 @@ async fn a_recovery_give_up_says_that_tracking_was_left_off() {
     }
     assert_eq!(state, super::ExecutorState::Failed, "calls={calls:?}");
     assert!(
-        calls
+        !calls
             .iter()
             .any(|c| c == "mount_set_tracking:mount-1:false"),
-        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+        "a lost guide star must not stop tracking; calls={calls:?}"
     );
-    assert!(
-        !ops.mount_tracking.load(Ordering::SeqCst),
-        "tracking came back on; the message question does not arise"
-    );
+    assert!(ops.mount_tracking.load(Ordering::SeqCst));
     let give_up = messages
         .iter()
         .find(|m| m.contains("Recovery could not fix"))
         .unwrap_or_else(|| panic!("no give-up message; messages={messages:?}"));
     assert!(
-        give_up.to_lowercase().contains("tracking"),
-        "the give-up message does not say that tracking was left off: {give_up}"
+        !give_up.to_lowercase().contains("tracking"),
+        "the give-up message claims something about tracking it did not do: {give_up}"
     );
 }
 
 /// The default ending of the same night: the guide star never comes back, the
-/// run images on unguided (owner decision 2026-10-06), and the tracking the
-/// ladder switched off is switched back on, or every frame after it trails
-/// for a second reason.
+/// run images on unguided (owner decision 2026-10-06), and tracking was never
+/// switched off, so no frame after it trails for a second reason.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
     let ops = Arc::new(ScriptedDeviceOps::new());
@@ -2080,10 +2075,10 @@ async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
     assert!(recovered, "the run must not give up; calls={calls:?}");
     assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
     assert!(
-        calls
+        !calls
             .iter()
             .any(|c| c == "mount_set_tracking:mount-1:false"),
-        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+        "a lost guide star must not stop tracking; calls={calls:?}"
     );
     assert!(
         ops.mount_tracking.load(Ordering::SeqCst),
@@ -2830,4 +2825,64 @@ fn only_fail_closed_keeps_holding_on_a_stale_verdict() {
     ));
     assert!(!super::stale_unsafe_verdict_holds(SafetyFailMode::FailOpen));
     assert!(!super::stale_unsafe_verdict_holds(SafetyFailMode::WarnOnly));
+}
+
+/// A passing cloud: the guide star is lost, the run holds with the mount still
+/// tracking and nothing reads the hold as lost tracking, and once the stars are
+/// back the guider holds a star again and the run resumes by itself.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars_return() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The shipped interval is 10 min; the hold looks for the star at least
+    // every GUIDE_STAR_RECHECK_SECS. A short interval keeps the test short.
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 3.0,
+            max_duration_secs: 600.0,
+            // Even an operator who asked for tracking to stop during
+            // recovery keeps it for a lost guide star.
+            stop_tracking_during_recovery: true,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    // Cloud: no guide star, no star to pick.
+    ops.no_guide_star.store(true, Ordering::SeqCst);
+    ops.guiding.store(false, Ordering::SeqCst);
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+    let during = executor.get_state().await;
+
+    // The cloud passes: PHD2 holds a star again.
+    ops.no_guide_star.store(false, Ordering::SeqCst);
+    ops.guiding.store(true, Ordering::SeqCst);
+    let after = wait_for_state(&executor, std::time::Duration::from_secs(20), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let (fired, _) = drain_fired_and_errors(&mut events);
+
+    assert_eq!(held, super::ExecutorState::Recovering, "fired={fired:?}");
+    assert_eq!(during, super::ExecutorState::Recovering);
+    assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "a lost guide star must not stop tracking; calls={calls:?}"
+    );
+    assert!(
+        !fired.iter().any(|(id, _)| id == "mount_tracking_lost"),
+        "fired={fired:?}"
+    );
 }

@@ -181,9 +181,10 @@ abstract class AppSettings with _$AppSettings {
     /// DB key `recovery_default_max_duration_mins`.
     @Default(90.0) double recoveryDefaultMaxDurationMins,
 
-    /// Recovery: stop tracking while recovering (dew/cloud wait).
-    /// DB key `recovery_stop_tracking_during_recovery`.
-    @Default(true) bool recoveryStopTrackingDuringRecovery,
+    /// Recovery: stop tracking while recovering; never for a lost guide star
+    /// or a weather hold.
+    /// DB key `recovery_stop_tracking_during_recovery_v2`.
+    @Default(false) bool recoveryStopTrackingDuringRecovery,
 
     /// Recovery: abort the recovery loop if a meridian crossing falls inside
     /// the recovery window. DB key `recovery_abort_on_meridian`.

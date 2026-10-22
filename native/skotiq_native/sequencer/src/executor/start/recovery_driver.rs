@@ -83,10 +83,20 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // not end the run, and a held mount that keeps tracking can image
         // again the moment the sky clears.
         let weather_hold = cause == crate::recovery::RecoveryCause::WeatherUnsafe;
+        // A lost guide star is most often cloud too: the mount keeps tracking
+        // so it is still on the target when the stars return, and the star is
+        // looked for often enough that the run resumes soon after they do.
+        let guide_star_hold = cause == crate::recovery::RecoveryCause::GuideStarLost;
         let (interval_secs, max_duration_secs, stop_tracking) = if weather_hold {
             (
                 WEATHER_HOLD_CHECK_SECS,
                 WEATHER_HOLD_NOMINAL_SPAN_SECS,
+                false,
+            )
+        } else if guide_star_hold {
+            (
+                interval_secs.min(GUIDE_STAR_RECHECK_SECS),
+                max_duration_secs,
                 false,
             )
         } else {
@@ -187,6 +197,11 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     "[RECOVERY] Stopping mount tracking on '{}' for the recovery loop",
                     mount_id
                 );
+                // The run's own stop is not a lost-tracking event.
+                {
+                    let manager = recovery_driver_trigger_mgr.read().await;
+                    manager.state().write().await.mount_tracking_held_by_run = true;
+                }
                 if let Err(e) = recovery_driver_device_ops
                     .mount_set_tracking(mount_id, false)
                     .await
@@ -714,6 +729,13 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // Loop body exit — the outer trigger_monitor
             // task observed Cancelled and will end the
             // sequence on its next tick.
+        }
+
+        // Tracking is restored (or the run has ended); from here a tracking
+        // change is the mount's own again.
+        if stop_tracking && recovery_driver_mount_id.is_some() {
+            let manager = recovery_driver_trigger_mgr.read().await;
+            manager.state().write().await.mount_tracking_held_by_run = false;
         }
     }
 }

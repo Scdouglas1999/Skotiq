@@ -82,7 +82,7 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     'dither_scale',
     'recovery_default_retry_interval_mins',
     'recovery_default_max_duration_mins',
-    'recovery_stop_tracking_during_recovery',
+    'recovery_stop_tracking_during_recovery_v2',
     'recovery_abort_on_meridian',
     'recovery_audible_alert_when_entered',
     // Weather-safety / dawn.
@@ -506,9 +506,9 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
             )
           : null,
       recoveryStopTrackingDuringRecovery:
-          settings.containsKey('recovery_stop_tracking_during_recovery')
+          settings.containsKey('recovery_stop_tracking_during_recovery_v2')
           ? _parseBool(
-              settings['recovery_stop_tracking_during_recovery'],
+              settings['recovery_stop_tracking_during_recovery_v2'],
               current.recoveryStopTrackingDuringRecovery,
             )
           : null,

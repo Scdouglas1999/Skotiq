@@ -83,6 +83,10 @@ pub const DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS: u64 = 300;
 /// How often a weather hold checks the sky.
 pub const WEATHER_HOLD_CHECK_SECS: f64 = 15.0;
 
+/// How often a guide-star hold looks for the star again, at most: soon enough
+/// that the run resumes shortly after a cloud passes.
+pub const GUIDE_STAR_RECHECK_SECS: f64 = 60.0;
+
 /// The span a weather hold reports as its budget. A hold has no budget and
 /// never runs out; this only keeps the attempt counters the recovery events
 /// carry finite.

@@ -536,6 +536,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Map<String, String> debugStoredMapFromState(AppSettingsState s) =>
       _storedMapFromState(s);
 
+  /// Test-only: the state a stored DB-key snapshot loads as.
+  @visibleForTesting
+  AppSettingsState debugSettingsFromStoredMap(Map<String, String> stored) =>
+      _settingsFromStoredMap(stored);
+
   /// Apply a full remote [models.AppSettings] on the HOST and persist EVERY
   /// field to the database — the same store the desktop reads and writes.
   ///
