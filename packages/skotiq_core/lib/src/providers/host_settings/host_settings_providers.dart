@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/network_backend.dart';
 import '../../database/database.dart' show SkotiqDatabase;
+import '../../models/backend/host_mutation_event.dart';
 import '../backend_provider.dart';
+import '../host_mutation_event_provider.dart';
 import '../settings_provider.dart';
 import 'host_settings_store.dart';
+import 'publishing_settings_dao.dart';
 import 'remote_settings_dao.dart';
 
 export 'host_settings_store.dart'
@@ -62,6 +65,24 @@ final hostSettingsUnsharedKeysProvider = StreamProvider<Set<String>>((
   yield store.unsharedKeys;
   yield* store.unsharedKeyChanges;
 });
+
+/// The DAO the machine that owns the hardware reads `app_settings` through:
+/// its own database, announcing host-owned writes to linked clients.
+PublishingSettingsDao buildHostSettingsDao(Ref ref, SkotiqDatabase database) {
+  final container = ref.container;
+  return PublishingSettingsDao(
+    database,
+    onHostRowsWritten: (keys) {
+      container
+          .read(hostMutationEventHubProvider)
+          .publishRemoteOnly(
+            entityType: HostMutationEntity.settings,
+            action: HostMutationAction.updated,
+            extra: {'namespace': 'store', 'keys': keys},
+          );
+    },
+  );
+}
 
 /// The DAO a linked client reads `app_settings` through.
 RemoteSettingsDao buildRemoteSettingsDao(

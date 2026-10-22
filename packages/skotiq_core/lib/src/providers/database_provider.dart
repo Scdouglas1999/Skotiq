@@ -65,7 +65,7 @@ final settingsDaoProvider = Provider<SettingsDao>((ref) {
   final database = ref.watch(databaseProvider);
   ref.watch(settingsStoreRevisionProvider);
   final store = ref.watch(hostSettingsStoreProvider);
-  if (store == null) return SettingsDao(database);
+  if (store == null) return buildHostSettingsDao(ref, database);
   return buildRemoteSettingsDao(ref, store, database);
 });
 

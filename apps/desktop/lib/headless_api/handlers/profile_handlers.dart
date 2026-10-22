@@ -347,6 +347,130 @@ class ProfileHandlers {
     return jsonOk({"settings": settings});
   }
 
+  /// The host's `app_settings` key/value rows that linked clients mirror:
+  /// every row except the presentation preferences of this computer's own
+  /// screen. The rows the settings notifier owns are served from its state, so
+  /// a value it holds but has not persisted yet is not reported as missing.
+  Future<Response> handleGetSettingsStore(Request request) async {
+    final rows = await container.read(settingsDaoProvider).getAllSettings();
+    final current = await container.read(appSettingsProvider.future);
+    final owned = container
+        .read(appSettingsProvider.notifier)
+        .storedRowsOf(current);
+    final settings = <String, String>{
+      for (final entry in rows.entries)
+        if (!isDeviceLocalSettingKey(entry.key)) entry.key: entry.value,
+      for (final key in AppSettingsNotifier.hostStoreKeys)
+        if (owned[key] != null) key: owned[key]!,
+    };
+    return jsonOk({'settings': settings});
+  }
+
+  /// Write host-owned key/value rows for a linked client.
+  ///
+  /// Body: `{"settings": {key: value}, "remove": [key]}`. Rows the settings
+  /// notifier models are refused with a pointer to `POST /api/settings`, except
+  /// [AppSettingsNotifier.hostStoreKeys], which the notifier applies itself;
+  /// writing either kind straight to the database would leave the host's
+  /// in-memory copy stale and the next settings save would revert it.
+  /// Presentation preferences of this computer's screen are refused too.
+  Future<Response> handleUpdateSettingsStore(Request request) async {
+    _logInfo('[API] POST /api/settings/store');
+    final payload = await readJsonObject(request);
+    final rawSettings = optionalObject(payload, 'settings') ?? const {};
+    final rawRemove = payload['remove'];
+    if (rawRemove != null && rawRemove is! List) {
+      throw BadRequestError(field: 'remove', expected: 'array of keys');
+    }
+    final remove = <String>[
+      for (final key in (rawRemove as List?) ?? const [])
+        if (key is String && key.isNotEmpty)
+          key
+        else
+          throw BadRequestError(field: 'remove', expected: 'array of keys'),
+    ];
+
+    final settings = <String, String>{};
+    for (final entry in rawSettings.entries) {
+      final value = entry.value;
+      if (value == null || value is Map || value is List) {
+        throw BadRequestError(
+          field: 'settings.${entry.key}',
+          expected: 'string|number|boolean',
+        );
+      }
+      settings[entry.key] = value.toString();
+    }
+    if (settings.isEmpty && remove.isEmpty) {
+      throw BadRequestError(
+        field: 'settings',
+        expected: 'at least one setting to change or remove',
+      );
+    }
+
+    for (final key in {...settings.keys, ...remove}) {
+      if (key.isEmpty) {
+        throw BadRequestError(field: 'settings', expected: 'non-empty keys');
+      }
+      if (isDeviceLocalSettingKey(key)) {
+        throw BadRequestError(
+          field: 'settings.$key',
+          expected: 'a setting of the imaging host',
+          message:
+              '$key belongs to the computer showing the app and is not shared',
+        );
+      }
+      final ownedByNotifier =
+          AppSettingsNotifier.storedKeys.contains(key) &&
+          !AppSettingsNotifier.hostStoreKeys.contains(key);
+      if (ownedByNotifier) {
+        throw BadRequestError(
+          field: 'settings.$key',
+          expected: 'a key/value setting',
+          message: '$key is changed through POST /api/settings',
+        );
+      }
+      if (AppSettingsNotifier.hostStoreKeys.contains(key) &&
+          remove.contains(key)) {
+        throw BadRequestError(
+          field: 'remove',
+          expected: 'a key/value setting',
+          message: '$key cannot be removed, only changed',
+        );
+      }
+    }
+
+    final notifierRows = {
+      for (final entry in settings.entries)
+        if (AppSettingsNotifier.hostStoreKeys.contains(entry.key))
+          entry.key: entry.value,
+    };
+    final rows = {
+      for (final entry in settings.entries)
+        if (!AppSettingsNotifier.hostStoreKeys.contains(entry.key))
+          entry.key: entry.value,
+    };
+    if (notifierRows.isNotEmpty) {
+      await container.read(appSettingsProvider.future);
+      await container
+          .read(appSettingsProvider.notifier)
+          .applyHostStoreRows(notifierRows);
+    }
+    final dao = container.read(settingsDaoProvider);
+    if (rows.isNotEmpty) await dao.setSettings(rows);
+    for (final key in remove) {
+      await dao.deleteSetting(key);
+    }
+    // Providers on this machine that read these rows reload them.
+    container.read(settingsStoreRevisionProvider.notifier).state++;
+
+    return jsonOk({
+      'status': 'updated',
+      'applied': settings.keys.toList(),
+      'removed': remove,
+    });
+  }
+
   /// Global meridian-flip defaults are stored separately from the generated
   /// AppSettings wire model, but they still belong to the imaging host because
   /// they control unattended mount/guiding/focus behavior.

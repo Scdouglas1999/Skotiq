@@ -129,6 +129,23 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     );
   }
 
+  /// Host side of `POST /api/settings/store` for [hostStoreKeys]: persist the
+  /// rows locally and patch the state, so the host's in-memory settings and
+  /// its database agree.
+  Future<void> applyHostStoreRows(Map<String, String> rows) async {
+    final backend = ref.read(backendProvider);
+    if (backend is NetworkBackend) {
+      throw StateError('applyHostStoreRows is host-only.');
+    }
+    final unknown = rows.keys.where((k) => !hostStoreKeys.contains(k));
+    if (unknown.isNotEmpty) {
+      throw ArgumentError.value(unknown.toList(), 'rows');
+    }
+    await future;
+    await _saveSettings(rows);
+    _patchState((current) => _applyHostStoreRows(current, rows));
+  }
+
   Future<void> _writeRemoteSettings(
     AppSettingsState settings, {
     required NetworkBackend backend,
