@@ -15,10 +15,10 @@
 use skotiq_imaging::calibration::calibrate_frame;
 use skotiq_imaging::registration::{solve_registration, RegistrationConfig};
 use skotiq_imaging::{read_fits, ImageData};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-fn load(path: &PathBuf, dark: Option<&ImageData>) -> ImageData {
+fn load(path: &Path, dark: Option<&ImageData>) -> ImageData {
     let (image, _) = read_fits(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     match dark {
         Some(d) => calibrate_frame(&image, Some(d), None, None)

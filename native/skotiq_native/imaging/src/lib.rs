@@ -28,6 +28,7 @@ pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integrat
 mod camera;
 mod debayer;
 mod fits;
+pub mod fits_layout;
 mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
 pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection

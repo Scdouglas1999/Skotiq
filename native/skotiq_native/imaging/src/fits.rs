@@ -672,6 +672,28 @@ fn read_fits_from_reader<R: Read>(reader: &mut R) -> Result<(ImageData, FitsHead
         other => return Err(FitsError::UnsupportedBitpix(other)),
     };
 
+    let data = if depth > 1 {
+        let channels = depth as usize;
+        let pixels = (width as usize) * (height as usize);
+        let layout = crate::fits_layout::layout_from_header(&header).unwrap_or_else(|| {
+            crate::fits_layout::detect_layout(width as usize, height as usize, channels, |k| {
+                crate::fits_layout::le_sample(&data, pixel_type, k)
+            })
+        });
+        match layout {
+            crate::fits_layout::PlaneLayout::Planar => crate::fits_layout::planar_to_interleaved(
+                &data,
+                pixels,
+                channels,
+                pixel_type.byte_size(),
+            ),
+            crate::fits_layout::PlaneLayout::Interleaved => data,
+        }
+    } else {
+        data
+    };
+    header.remove(crate::fits_layout::LAYOUT_KEYWORD);
+
     let image = ImageData {
         width,
         height,
@@ -1057,12 +1079,29 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         write_value_card(&mut writer, "BZERO", "2147483648", None)?;
         write_value_card(&mut writer, "BSCALE", "1", None)?;
     }
+    if image.channels > 1 {
+        write_value_card(
+            &mut writer,
+            crate::fits_layout::LAYOUT_KEYWORD,
+            &format_fits_string_value(crate::fits_layout::PlaneLayout::Planar.as_card()),
+            Some("samples stored plane by plane"),
+        )?;
+    }
 
     // Write additional header keywords. SIMPLE/BITPIX/NAXIS*/BZERO/BSCALE/END are
     // skipped because they are owned by this writer.
     for key in &header.keyword_order {
         if [
-            "SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "BZERO", "BSCALE", "END",
+            "SIMPLE",
+            "BITPIX",
+            "NAXIS",
+            "NAXIS1",
+            "NAXIS2",
+            "NAXIS3",
+            "BZERO",
+            "BSCALE",
+            "END",
+            crate::fits_layout::LAYOUT_KEYWORD,
         ]
         .contains(&key.as_str())
         {
@@ -1113,36 +1152,40 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
     let padding = (2880 - (pos % 2880)) % 2880;
     writer.write_all(&[b' '; FITS_RECORD_LEN][..padding])?;
 
-    // Write image data
-    match image.pixel_type {
-        PixelType::U8 => {
-            writer.write_all(&image.data)?;
-        }
-        PixelType::U16 => {
-            // Convert from little-endian u16 to big-endian i16 with BZERO offset
-            write_be_samples::<_, 2>(&mut writer, &image.data, |raw| {
-                let signed = (u16::from_le_bytes(raw) as i32 - 32768) as i16;
-                signed.to_be_bytes()
-            })?;
-        }
-        PixelType::U32 => {
-            // Apply the BZERO=2147483648 offset written above: physical value
-            // v maps to stored signed s = v - 2^31, recovered on read as
-            // s + 2^31. This keeps the full unsigned range representable.
-            write_be_samples::<_, 4>(&mut writer, &image.data, |raw| {
-                let signed = (u32::from_le_bytes(raw) as i64 - 2_147_483_648) as i32;
-                signed.to_be_bytes()
-            })?;
-        }
-        PixelType::F32 => {
-            write_be_samples::<_, 4>(&mut writer, &image.data, |raw| {
-                f32::from_le_bytes(raw).to_be_bytes()
-            })?;
-        }
-        PixelType::F64 => {
-            write_be_samples::<_, 8>(&mut writer, &image.data, |raw| {
-                f64::from_le_bytes(raw).to_be_bytes()
-            })?;
+    // Write image data, one plane after another: FITS orders a NAXIS3 cube
+    // by plane, while `ImageData` interleaves its channels.
+    let channels = image.channels.max(1) as usize;
+    for channel in 0..channels {
+        match image.pixel_type {
+            PixelType::U8 => {
+                write_be_samples::<_, 1>(&mut writer, &image.data, channels, channel, |raw| raw)?;
+            }
+            PixelType::U16 => {
+                // Convert from little-endian u16 to big-endian i16 with BZERO offset
+                write_be_samples::<_, 2>(&mut writer, &image.data, channels, channel, |raw| {
+                    let signed = (u16::from_le_bytes(raw) as i32 - 32768) as i16;
+                    signed.to_be_bytes()
+                })?;
+            }
+            PixelType::U32 => {
+                // Apply the BZERO=2147483648 offset written above: physical value
+                // v maps to stored signed s = v - 2^31, recovered on read as
+                // s + 2^31. This keeps the full unsigned range representable.
+                write_be_samples::<_, 4>(&mut writer, &image.data, channels, channel, |raw| {
+                    let signed = (u32::from_le_bytes(raw) as i64 - 2_147_483_648) as i32;
+                    signed.to_be_bytes()
+                })?;
+            }
+            PixelType::F32 => {
+                write_be_samples::<_, 4>(&mut writer, &image.data, channels, channel, |raw| {
+                    f32::from_le_bytes(raw).to_be_bytes()
+                })?;
+            }
+            PixelType::F64 => {
+                write_be_samples::<_, 8>(&mut writer, &image.data, channels, channel, |raw| {
+                    f64::from_le_bytes(raw).to_be_bytes()
+                })?;
+            }
         }
     }
 
@@ -1164,25 +1207,28 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
 /// three orders of magnitude.
 const WRITE_BLOCK_BYTES: usize = 64 * 1024;
 
-/// Transcode a little-endian pixel buffer to big-endian FITS order one block at
-/// a time. Trailing bytes that do not form a whole `N`-byte sample are dropped,
-/// matching `chunks_exact`.
+/// Transcode one channel of a little-endian, channel-interleaved pixel buffer
+/// to big-endian FITS order one block at a time. Trailing bytes that do not
+/// form a whole pixel are dropped, matching `chunks_exact`.
 fn write_be_samples<W: Write, const N: usize>(
     writer: &mut W,
     data: &[u8],
+    channels: usize,
+    channel: usize,
     convert: impl Fn([u8; N]) -> [u8; N],
 ) -> Result<(), FitsError> {
     let block_bytes = (WRITE_BLOCK_BYTES / N) * N;
     let mut block = Vec::with_capacity(block_bytes);
-    for span in data.chunks(block_bytes) {
-        block.clear();
-        for sample in span.as_chunks::<N>().0 {
-            let mut raw = [0u8; N];
-            raw.copy_from_slice(sample);
-            block.extend_from_slice(&convert(raw));
+    let samples = data.as_chunks::<N>().0;
+    let pixels = samples.len() / channels;
+    for sample in samples.iter().skip(channel).step_by(channels).take(pixels) {
+        block.extend_from_slice(&convert(*sample));
+        if block.len() >= block_bytes {
+            writer.write_all(&block)?;
+            block.clear();
         }
-        writer.write_all(&block)?;
     }
+    writer.write_all(&block)?;
     Ok(())
 }
 
