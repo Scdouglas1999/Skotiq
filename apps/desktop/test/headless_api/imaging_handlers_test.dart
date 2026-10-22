@@ -357,6 +357,11 @@ void main() {
         expect(publisher.published, hasLength(1));
         final (image, deviceId) = publisher.published.single;
         expect(deviceId, 'camera-1');
+        expect(
+          publisher.loadRawFlags.single,
+          isTrue,
+          reason: 'the host has the pixels on disk, so it loads them',
+        );
         expect(image.filePath, backend.filePath);
         expect(image.width, 4);
         expect(image.capturedAt, DateTime.utc(2026, 10, 21, 23, 50, 25));
@@ -594,9 +599,16 @@ class _TestSettingsWithOutputPath extends AppSettingsNotifier {
 
 class _RecordingPublisher extends CapturePreviewPublisher {
   final List<(CapturedImageData, String)> published = [];
+  final List<bool> loadRawFlags = [];
 
   @override
-  void publish(dynamic ref, CapturedImageData preview, String deviceId) {
+  void publish(
+    dynamic ref,
+    CapturedImageData preview,
+    String deviceId, {
+    bool loadRaw = true,
+  }) {
     published.add((preview, deviceId));
+    loadRawFlags.add(loadRaw);
   }
 }

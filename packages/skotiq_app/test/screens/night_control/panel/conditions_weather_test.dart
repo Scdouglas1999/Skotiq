@@ -1,7 +1,6 @@
 // The Conditions block names what decides the weather verdict, reports what
 // the run's own frames say, and offers "the sky is clear" when a forecast or a
 // weather device holds or warns.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
