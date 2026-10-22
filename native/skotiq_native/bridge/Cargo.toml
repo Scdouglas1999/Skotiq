@@ -20,7 +20,7 @@ anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
-flutter_rust_bridge = "=2.11.1"
+flutter_rust_bridge = "=2.13.0"
 chrono.workspace = true
 async-stream.workspace = true
 base64.workspace = true
