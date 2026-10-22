@@ -118,7 +118,11 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
     // [settings sync] inject `broadcastEvent` so handleUpdateSettings
     // can fan settings.changed events out to every connected WS client.
     _profileHandlers = ProfileHandlers(container, emitEvent: broadcastEvent);
-    _imagingHandlers = ImagingHandlers(container, jobManager: _jobManager);
+    _imagingHandlers = ImagingHandlers(
+      container,
+      jobManager: _jobManager,
+      showApiCapturesInPreview: showApiCapturesInPreview,
+    );
     _sessionHandlers = SessionHandlers(container, jobManager: _jobManager);
 
     // Initialize new feature parity handlers

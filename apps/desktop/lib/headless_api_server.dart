@@ -77,6 +77,10 @@ class HeadlessApiServer {
   final bool bindLocalOnly;
   final bool dispatchPluginNodes;
 
+  /// Whether a frame a remote client saves is also shown in this process's
+  /// own image view (a desktop host with a window).
+  final bool showApiCapturesInPreview;
+
   /// Optional authentication token. If set, all API requests must include
   /// this token as a Bearer token in the Authorization header.
   /// Example: `Authorization: Bearer your-secret-token`
@@ -504,6 +508,7 @@ class HeadlessApiServer {
     required this.container,
     this.bindLocalOnly = true,
     this.dispatchPluginNodes = true,
+    this.showApiCapturesInPreview = false,
     this.authToken,
     this.requireAuth = false,
     this.allowUnauthenticated = false,

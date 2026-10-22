@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -23,7 +24,16 @@ class ImagingHandlers {
   /// blocking shape.
   final JobManager? jobManager;
 
-  ImagingHandlers(this.container, {this.jobManager});
+  /// Whether a frame a remote client saves here is also shown in this
+  /// process's own image view. Only a desktop host has one; a headless host
+  /// would decode and analyze every frame for no viewer.
+  final bool showApiCapturesInPreview;
+
+  ImagingHandlers(
+    this.container, {
+    this.jobManager,
+    this.showApiCapturesInPreview = false,
+  });
 
   /// Upper bound for `/api/imaging/star-crops` `maxCrops`. Crops are the top-N
   /// stars by SNR, each carrying base64 pixels; the value is encoded to a native
@@ -35,6 +45,9 @@ class ImagingHandlers {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'ImagingHandlers');
+
+  void _logWarning(String message) =>
+      _logger.warning(message, source: 'ImagingHandlers');
 
   /// Remote clients must not upload full-frame pixel arrays for host processing.
   static const Map<String, Object> _hostOnlyProcessingBody = {
@@ -382,7 +395,67 @@ class ImagingHandlers {
       filePath: canonicalFilePath,
       headerData: headerData,
     );
+    if (showApiCapturesInPreview) {
+      unawaited(
+        _showSavedCaptureInPreview(deviceId, canonicalFilePath, headerData),
+      );
+    }
     return jsonOk({'status': 'saved'});
+  }
+
+  /// Every remote capture, keeper or scratch, ends with this save, so it is
+  /// where the host's own image view learns of a frame it did not expose. The
+  /// frame is published exactly as the host's own captures are; nothing is
+  /// saved again.
+  Future<void> _showSavedCaptureInPreview(
+    String deviceId,
+    String filePath,
+    FitsWriteHeader header,
+  ) async {
+    try {
+      final result = await container
+          .read(backendProvider)
+          .cameraGetLastImage(deviceId);
+      if (result == null) return;
+      final frameType = FrameType.values.firstWhere(
+        (type) =>
+            type.displayName.toLowerCase() == header.frameType.toLowerCase() ||
+            type.name.toLowerCase() == header.frameType.toLowerCase(),
+        orElse: () => FrameType.light,
+      );
+      final DateTime capturedAt;
+      try {
+        capturedAt = parseUtcTimestamp(header.captureTimestamp);
+      } on FormatException {
+        _logWarning(
+          '[API] Saved capture has an unreadable DATE-OBS '
+          '"${header.captureTimestamp}"; not shown in the image view',
+        );
+        return;
+      }
+      final imageData = capturedImageDataFromResult(
+        capturedImage: result,
+        settings: ExposureSettings(
+          exposureTime: header.exposureTime,
+          gain: header.gain ?? 0,
+          offset: header.offset ?? 0,
+          binningX: header.binX ?? 1,
+          binningY: header.binY ?? 1,
+          filter: header.filter,
+          frameType: frameType,
+        ),
+        capturedAt: capturedAt,
+        targetName: header.objectName,
+        filePath: filePath,
+      );
+      container
+          .read(capturePreviewPublisherProvider)
+          .publish(container, imageData, deviceId);
+    } on Object catch (e) {
+      _logWarning(
+        '[API] Could not show a remote capture in the image view: $e',
+      );
+    }
   }
 
   Future<Response> handleClearDeviceImage(

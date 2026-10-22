@@ -293,6 +293,81 @@ void main() {
       expect(backend.parentExistedAtSave, isTrue);
     });
 
+    test(
+      'a desktop host shows a remote client capture in its own image view',
+      () async {
+        final backend = _SaveFitsBackend();
+        final publisher = _RecordingPublisher();
+        final root = await Directory.systemTemp.createTemp('skotiq-save-fits-');
+        addTearDown(() => root.delete(recursive: true));
+        ProviderContainer hostContainer() {
+          final c = ProviderContainer(
+            overrides: [
+              backendProvider.overrideWith(
+                (ref) => _TestBackendNotifier(ref, backend),
+              ),
+              appSettingsProvider.overrideWith(
+                () => _TestSettingsWithOutputPath(root.path),
+              ),
+              capturePreviewPublisherProvider.overrideWithValue(publisher),
+            ],
+          );
+          addTearDown(c.dispose);
+          return c;
+        }
+
+        Request saveRequest() => Request(
+          'POST',
+          Uri.parse('http://localhost/api/imaging/save-fits-from-capture'),
+          body: jsonEncode({
+            'deviceId': 'camera-1',
+            'filePath': '${root.path}/NGC0891_L_0001.fits',
+            'headerData': {
+              'objectName': 'NGC0891',
+              'frameType': 'Light',
+              'filter': 'L',
+              'gain': 139,
+              'offset': 21,
+              'exposureTime': 120.0,
+              'captureTimestamp': '2026-10-21T23:50:25.000Z',
+            },
+          }),
+        );
+
+        // A headless host has no image view to feed.
+        final headless = hostContainer();
+        await headless.read(appSettingsProvider.future);
+        await ImagingHandlers(
+          headless,
+        ).handleSaveFitsFromLastCapture(saveRequest());
+        await Future<void>.delayed(Duration.zero);
+        expect(publisher.published, isEmpty);
+
+        final desktop = hostContainer();
+        await desktop.read(appSettingsProvider.future);
+        final response = await ImagingHandlers(
+          desktop,
+          showApiCapturesInPreview: true,
+        ).handleSaveFitsFromLastCapture(saveRequest());
+        expect(response.statusCode, HttpStatus.ok);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(backend.calls, 2, reason: 'the frame is saved once per call');
+        expect(publisher.published, hasLength(1));
+        final (image, deviceId) = publisher.published.single;
+        expect(deviceId, 'camera-1');
+        expect(image.filePath, backend.filePath);
+        expect(image.width, 4);
+        expect(image.capturedAt, DateTime.utc(2026, 10, 21, 23, 50, 25));
+        expect(image.targetName, 'NGC0891');
+        expect(image.settings.exposureTime, 120.0);
+        expect(image.settings.filter, 'L');
+        expect(image.settings.gain, 139);
+        expect(image.settings.frameType, FrameType.light);
+      },
+    );
+
     test('save from capture rejects paths outside configured roots', () async {
       final backend = _SaveFitsBackend();
       final allowedRoot = await Directory.systemTemp.createTemp(
@@ -466,6 +541,25 @@ class _SaveFitsBackend extends DisconnectedBackend {
   int calls = 0;
 
   @override
+  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async =>
+      const CapturedImageResult(
+        width: 4,
+        height: 2,
+        displayData: [0, 1, 2, 3, 4, 5, 6, 7],
+        histogram: [8],
+        stats: ImageStatsResult(
+          min: 0,
+          max: 7,
+          mean: 3.5,
+          median: 3.5,
+          stdDev: 2,
+          starCount: 0,
+        ),
+        exposureTime: 120,
+        timestamp: '2026-10-21T23:50:25.000Z',
+      );
+
+  @override
   Future<void> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
@@ -496,4 +590,13 @@ class _TestSettingsWithOutputPath extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() async =>
       AppSettingsState(imageOutputPath: outputPath);
+}
+
+class _RecordingPublisher extends CapturePreviewPublisher {
+  final List<(CapturedImageData, String)> published = [];
+
+  @override
+  void publish(dynamic ref, CapturedImageData preview, String deviceId) {
+    published.add((preview, deviceId));
+  }
 }

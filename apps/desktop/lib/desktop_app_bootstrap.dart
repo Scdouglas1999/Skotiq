@@ -352,6 +352,8 @@ class _ApiServerLifecycle {
       // GUI mode is always LAN-accessible (the operator opted in via the
       // remote access toggle); pairing/scoped tokens still gate writes.
       bindLocalOnly: false,
+      // A client's captures appear in this window's image view too.
+      showApiCapturesInPreview: true,
       authToken: persistentToken,
       requireAuth: true,
     );
