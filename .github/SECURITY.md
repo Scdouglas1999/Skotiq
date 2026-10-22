@@ -14,7 +14,8 @@ Security fixes are applied to the current **beta** and **stable** release channe
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report sensitive issues privately by emailing the maintainer (use the contact address on your GitHub profile or the address listed on the project website when available). Include:
+Report sensitive issues privately to the maintainer at
+[scdouglas1999@gmail.com](mailto:scdouglas1999@gmail.com). Include:
 
 - A description of the issue and impact
 - Steps to reproduce

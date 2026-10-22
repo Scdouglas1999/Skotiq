@@ -1,7 +1,7 @@
 # Installation Guide
 
-This guide matches the official Skotiq 5.0.0 artifacts. Read the
-[5.0.0 release notes](../release/v5.0.0.md),
+This guide matches the official Skotiq 8.0.0 artifacts. Read the
+[8.0.0 release notes](../release/v8.0.0.md),
 [supported-hardware matrix](../supported-hardware-by-platform.md), and
 [known limitations](../known-limitations.md) before connecting equipment.
 
@@ -18,11 +18,11 @@ Open the [Skotiq releases
 page](https://github.com/Scdouglas1999/Skotiq/releases) and download the
 artifact for your platform:
 
-| Platform | 5.0.0 artifact | Distribution status |
+| Platform | 8.0.0 artifact | Distribution status |
 | --- | --- | --- |
-| Windows x64 | `skotiq-5.0.0-windows-x64.zip` | Unsigned portable beta |
-| Linux x64 | `skotiq-5.0.0-linux-x64.tar.gz` | Portable tar bundle; early testing |
-| Android | `skotiq-5.0.0-android-universal.apk` | Debug-signed sideload companion beta |
+| Windows x64 | `skotiq-8.0.0-windows-x64.zip` | Portable; executable not code-signed |
+| Linux x64 | `skotiq-8.0.0-linux-x64.tar.gz` | Portable tar bundle |
+| Android | `skotiq-8.0.0-android-arm64-v8a.apk` | Signed sideload companion; other ABIs also available |
 | macOS | None | Build from source for development |
 | iOS | None | Build from source with your Apple signing identity |
 
@@ -50,23 +50,23 @@ used to build each desktop archive.
 - GTK 3, libsecret, libusb, libudev, and OpenSSL runtime libraries
 - A reachable INDI server for INDI equipment control
 
-Linux is an early-testing path. Vendor-native USB devices may also require
+Vendor-native USB devices may require
 vendor udev rules, libraries, and group membership.
 
 ## Windows installation
 
-1. Download `skotiq-5.0.0-windows-x64.zip` and its checksum.
+1. Download `skotiq-8.0.0-windows-x64.zip` and its checksum.
 2. Optionally verify it in PowerShell:
 
    ```powershell
-   Get-FileHash .\skotiq-5.0.0-windows-x64.zip -Algorithm SHA256
+   Get-FileHash .\skotiq-8.0.0-windows-x64.zip -Algorithm SHA256
    ```
 
    Compare the result with the first value in the `.sha256` file.
 3. Extract the entire archive to a writable folder. Do not run the executable
    from inside the ZIP.
 4. Run `skotiq.exe`.
-5. Windows SmartScreen may show “Windows protected your PC” because the beta is
+5. Windows SmartScreen may show “Windows protected your PC” because the executable is
    not code-signed. Confirm the file hash and GitHub release source before using
    “More info” → “Run anyway.”
 6. Install ASCOM Platform and the matching device drivers before configuring
@@ -78,17 +78,17 @@ a compatible vendor library yourself or use ASCOM/Alpaca.
 
 ## Linux installation
 
-1. Download `skotiq-5.0.0-linux-x64.tar.gz` and its checksum.
+1. Download `skotiq-8.0.0-linux-x64.tar.gz` and its checksum.
 2. Verify and extract it:
 
    ```bash
-   sha256sum -c skotiq-5.0.0-linux-x64.tar.gz.sha256
-   tar -xzf skotiq-5.0.0-linux-x64.tar.gz
-   cd skotiq-5.0.0-linux-x64
+   sha256sum -c skotiq-8.0.0-linux-x64.tar.gz.sha256
+   tar -xzf skotiq-8.0.0-linux-x64.tar.gz
+   cd skotiq-8.0.0-linux-x64
    ./skotiq
    ```
 
-Use the `./skotiq` launcher, not `skotiq_desktop` directly; the launcher
+Use the `./skotiq` launcher, not `skotiq.bin` directly; the launcher
 loads the archive's ABI-matched LibRaw first (and the hermetic `libsqlite3.so`
 native asset from `package:sqlite3`).
 
@@ -117,12 +117,13 @@ device SDKs.
 
 ## Android companion installation
 
-1. Download `skotiq-5.0.0-android-universal.apk` to the Android device.
+1. Download `skotiq-8.0.0-android-arm64-v8a.apk` to the Android device.
 2. Verify the SHA-256 if your download tool supports it.
 3. Allow “Install unknown apps” for the browser/file manager you used, then
    open the APK.
-4. Android will warn because this is a debug-signed sideload build, not a Play
-   Store / production-signed package.
+4. This is a signed sideload package distributed through GitHub, rather than
+   the Play Store. Most current phones use `arm64-v8a`; choose `armeabi-v7a`
+   for older 32-bit devices or `x86_64` for an emulator.
 5. Pair it with a running Skotiq desktop/headless host over the LAN.
 
 The mobile app is a companion for monitoring and light control; the desktop is
@@ -143,16 +144,16 @@ carry over without manual copying.
 5. Run at least one complete supervised session on your exact rig before using
    unattended automation.
 
-Skotiq data is stored under:
-
-- Windows: `%APPDATA%\Skotiq\`
-- Linux: `~/.local/share/com.skotiq.desktop/`
-- macOS development builds: `~/Library/Application Support/Skotiq/`
+Check Settings → File Paths for the resolved database, log and capture locations.
+Application settings and the database can live in different directories, and
+`SKOTIQ_DATA_DIR` / `SKOTIQ_DATABASE_DIR` can relocate them. Use the built-in
+backup and restore workflow when moving an installation.
 
 ## Updating
 
-Official 5.0.0 artifacts are manual-update-only: no updater executable, trusted
-update public key, or update server is shipped.
+Desktop and Android builds check GitHub Releases for updates and verify signed
+platform manifests against the trusted public key embedded in the app. The
+desktop bundle includes its updater. Manual installation remains available:
 
 1. Create a backup from Settings → Backup & Restore.
 2. Read the target release notes and known limitations.
@@ -162,8 +163,10 @@ update public key, or update server is shipped.
 5. Replace/extract the new bundle, launch it, and confirm your equipment profile
    before connecting hardware.
 
-The 5.0 release gate verifies schema v51 (created by tagged v4.3.0 code) through
-v55 on a copied database. Your own backup remains the rollback path.
+The 8.0 release checks include migration from a schema v51 profile (created by
+tagged v4.3.0 code) to v62 on a copied database. Your own backup remains the
+rollback path. Android uses a new application identity after the rename, so
+install Skotiq separately and pair it with your host again.
 
 ## Troubleshooting
 
@@ -171,7 +174,7 @@ v55 on a copied database. Your own backup remains the rollback path.
   info” → “Run anyway.”
 - Missing Windows device: install ASCOM/vendor drivers; official artifacts do
   not include vendor SDK DLLs.
-- Linux startup/library error: run `ldd ./skotiq_desktop` from the extracted
+- Linux startup/library error: run `ldd ./skotiq.bin` from the extracted
   directory and install the missing system library. Start via `./skotiq`.
 - Pairing failure: keep both devices on the same LAN, allow Skotiq through
   the host firewall, and retry QR/manual pairing.
