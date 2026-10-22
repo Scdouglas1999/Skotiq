@@ -186,6 +186,16 @@ pub trait DeviceOps: Send + Sync {
     /// Check if mount is slewing
     async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool>;
 
+    /// One read of a slewing mount for [`crate::slew_arrival`]: its `Slewing`
+    /// flag and its position in the mount's frame, each `None` when its read
+    /// failed. The device layer answers both from one status read.
+    async fn mount_slew_state(&self, mount_id: &str) -> crate::slew_arrival::SlewSample {
+        crate::slew_arrival::SlewSample {
+            slewing: self.mount_is_slewing(mount_id).await.ok(),
+            position: self.mount_get_coordinates(mount_id).await.ok(),
+        }
+    }
+
     /// Check if mount is parked
     async fn mount_is_parked(&self, mount_id: &str) -> DeviceResult<bool>;
 

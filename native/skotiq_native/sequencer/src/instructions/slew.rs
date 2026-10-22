@@ -181,6 +181,10 @@ async fn slew_mount(
         }
     }
 
+    // The target in the frame the mount reports, for watching the slew and
+    // validating where it stopped. See `mount_readback_frame` below.
+    let readback_frame = ctx.device_ops.mount_readback_frame(mount_id, ra, dec).await;
+
     tokio::select! {
         result = ctx.device_ops.mount_slew_to_coordinates(mount_id, ra, dec) => {
             match result {
@@ -188,7 +192,15 @@ async fn slew_mount(
                     // 1800 s = 30 min handles the longest realistic slew on
                     // weight-belt direct-drives doing a full-sky move; tighter
                     // would false-alarm on heavily loaded mounts.
-                    match wait_for_mount_idle_with_progress(mount_id, ctx, Duration::from_secs(1800), progress_callback).await {
+                    match wait_for_mount_arrival(
+                        mount_id,
+                        ctx,
+                        readback_frame.as_ref().ok().copied(),
+                        Duration::from_secs(1800),
+                        progress_callback,
+                    )
+                    .await
+                    {
                         Ok(_) => {
                             // The mount reports "not slewing" before its
                             // axes have fully settled on some drivers, so we
@@ -213,12 +225,8 @@ async fn slew_mount(
                                     // against a 1' tolerance, on a slew that had
                                     // in fact landed within 0.4". Every sequence
                                     // with a target node died on its first slew.
-                                    let (expect_ra, expect_dec) = match ctx
-                                        .device_ops
-                                        .mount_readback_frame(mount_id, ra, dec)
-                                        .await
-                                    {
-                                        Ok(pair) => pair,
+                                    let (expect_ra, expect_dec) = match &readback_frame {
+                                        Ok(pair) => *pair,
                                         // Without the mount's frame there is no
                                         // sound comparison to make. Say so
                                         // rather than validating against the

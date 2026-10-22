@@ -56,19 +56,35 @@ impl DeviceOps for UnifiedDeviceOps {
             .await
             .map_err(|e| format!("Slew failed: {}", e));
 
-        // Emit slew completed event on success
+        // The driver returning means the slew has started, not finished: the
+        // completion event waits for the mount to arrive.
         if result.is_ok() {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::MountSlewCompleted {
-                    ra: ra_hours,
-                    dec: dec_degrees,
-                }),
-            ));
+            spawn_slew_completion_watch(
+                self.app_state.clone(),
+                mount_id.to_string(),
+                ra_hours,
+                dec_degrees,
+            )
+            .await;
         }
 
         result
+    }
+
+    async fn mount_slew_state(&self, mount_id: &str) -> skotiq_sequencer::slew_arrival::SlewSample {
+        match get_device_manager().mount_get_status(mount_id).await {
+            Ok(status) => skotiq_sequencer::slew_arrival::SlewSample {
+                slewing: Some(status.slewing),
+                position: Some((status.right_ascension, status.declination)),
+            },
+            Err(e) => {
+                tracing::debug!("Slew status read for {} failed: {}", mount_id, e);
+                skotiq_sequencer::slew_arrival::SlewSample {
+                    slewing: None,
+                    position: None,
+                }
+            }
+        }
     }
 
     async fn mount_abort_slew(&self, mount_id: &str) -> DeviceResult<()> {
@@ -1785,4 +1801,78 @@ mod guider_state_tests {
             assert!(!guider_state_may_move_mount(state), "{state}");
         }
     }
+}
+
+/// Publish `MountSlewCompleted` once a slew the sequencer commanded has
+/// actually arrived, watched in the background so the instruction's own wait
+/// is not held up. A slew that stops short, is aborted or times out publishes
+/// nothing: the mount's status events already say it stopped.
+async fn spawn_slew_completion_watch(
+    app_state: SharedAppState,
+    mount_id: String,
+    ra_hours: f64,
+    dec_degrees: f64,
+) {
+    use skotiq_sequencer::slew_arrival::{wait_for_slew_arrival, SlewArrivalTimings, SlewSample};
+
+    let Some(device) = get_device_manager().get_device(&mount_id).await else {
+        return;
+    };
+    let target = crate::device_manager::epoch::j2000_to_mount_frame(
+        device.info.driver_type,
+        ra_hours,
+        dec_degrees,
+    );
+    tokio::spawn(async move {
+        // Once a second: this runs beside the instruction's own watch and
+        // every read is a driver round trip.
+        let timings = SlewArrivalTimings {
+            poll_interval: std::time::Duration::from_secs(1),
+            max_consecutive_failures: 10,
+            ..SlewArrivalTimings::goto(crate::timeout_ops::Timeouts::long_slew())
+        };
+        let result = wait_for_slew_arrival(
+            Some(target),
+            &timings,
+            || {
+                let mount_id = mount_id.clone();
+                async move {
+                    match get_device_manager().mount_get_status(&mount_id).await {
+                        Ok(status) => SlewSample {
+                            slewing: Some(status.slewing),
+                            position: Some((status.right_ascension, status.declination)),
+                        },
+                        Err(_) => SlewSample {
+                            slewing: None,
+                            position: None,
+                        },
+                    }
+                }
+            },
+            || false,
+            |_| {},
+        )
+        .await;
+        match result {
+            Ok(progress) if progress.near_target => {
+                app_state.publish_event(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Equipment,
+                    EventPayload::Equipment(EquipmentEvent::MountSlewCompleted {
+                        ra: ra_hours,
+                        dec: dec_degrees,
+                    }),
+                ));
+            }
+            Ok(progress) => tracing::info!(
+                "Mount {} stopped {} from the slew target",
+                mount_id,
+                progress.remaining_deg.map_or_else(
+                    || "an unknown distance".to_string(),
+                    skotiq_sequencer::slew_arrival::format_arc
+                )
+            ),
+            Err(e) => tracing::info!("Mount {} slew did not complete: {}", mount_id, e),
+        }
+    });
 }

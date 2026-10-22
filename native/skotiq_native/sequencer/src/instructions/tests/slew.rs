@@ -178,7 +178,7 @@ mod slew_arrival {
         (execute_slew(&cfg, &ctx, None).await, ops)
     }
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_slew_that_landed_is_verified_in_the_mounts_own_frame() {
         let (result, ops) = slew_with(
             ScriptedDomeRotatorOps::new()
@@ -205,10 +205,11 @@ mod slew_arrival {
         assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 1);
     }
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_mount_that_stopped_short_fails_with_a_position_mismatch() {
         let (result, _) = slew_with(
             ScriptedDomeRotatorOps::new()
+                .with_mount_slewing_states(vec![true, false])
                 .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.2, TARGET_JNOW.1)
                 .with_scripted_readback_frame(Ok(TARGET_JNOW)),
         )
@@ -219,6 +220,41 @@ mod slew_arrival {
             recovery_code_of(&result).as_deref(),
             Some("SLEW_POSITION_MISMATCH")
         );
+    }
+
+    /// ASCOM drivers return from `SlewToCoordinatesAsync` before `Slewing`
+    /// turns true. The idle reads straight after the command are not the end
+    /// of the slew.
+    #[tokio::test(start_paused = true)]
+    async fn a_slewing_flag_that_lags_the_command_is_waited_out() {
+        let (result, ops) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_mount_slewing_states(vec![false, false, false, true, true, false])
+                .with_scripted_mount_coordinates(MOUNT_REPORTED.0, MOUNT_REPORTED.1)
+                .with_scripted_readback_frame(Ok(TARGET_JNOW)),
+        )
+        .await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert!(
+            ops.mount_slew_state_calls.load(Ordering::SeqCst) >= 7,
+            "the slew ended after {} reads, before the mount had moved and stopped",
+            ops.mount_slew_state_calls.load(Ordering::SeqCst)
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_mount_that_never_moves_fails_the_slew() {
+        let (result, _) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.2, TARGET_JNOW.1)
+                .with_scripted_readback_frame(Ok(TARGET_JNOW)),
+        )
+        .await;
+
+        assert_eq!(result.status, NodeStatus::Failure);
+        let message = result.message.unwrap_or_default();
+        assert!(message.contains("didn't move"), "{message}");
     }
 
     #[tokio::test]

@@ -266,48 +266,56 @@ impl WizardCheckpointSink for MemoryCheckpointSink {
 }
 
 /// Shared "wait until mount finishes slewing" helper used by every
-/// wizard that issues a slew. Polls `mount_is_slewing` once per second
-/// until it returns `Ok(false)` (or transiently errors), then returns.
-/// Errors out on cancellation or after
-/// `timeout_secs`.
+/// wizard that issues a slew. Polls once per second until the mount has
+/// stopped (see [`crate::slew_arrival`]: an idle `Slewing` flag read straight
+/// after the command is not taken as the end of the slew). Errors out on
+/// cancellation or after `timeout_secs`.
 ///
-/// Why this lives here: the slew-completion wait is identical across
-/// flat_wizard.rs and polar_align.rs (the load-bearing safety
-/// guarantee is the deadline; transient `Err` from `mount_is_slewing`
-/// is treated as "not slewing" so the loop exits and the next call —
-/// here, the deadline check — surfaces a stuck mount).
+/// A failed `mount_is_slewing` read counts as "not slewing", so a mount that
+/// stops answering ends the wait instead of holding it to the deadline.
 pub async fn wait_for_slew_complete(
     ctx: &InstructionContext,
     mount_id: &str,
     timeout_secs: u64,
     timeout_label: &str,
 ) -> Result<(), String> {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
-    loop {
-        if ctx
-            .cancellation_token
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
-            return Err("Operation cancelled during slew".to_string());
-        }
-        if !ctx
-            .device_ops
-            .mount_is_slewing(mount_id)
-            .await
-            // Why: Err treated as "not slewing" so the loop
-            // exits and the deadline check below surfaces a stuck mount. The
-            // deadline is the load-bearing safety guard, not this probe.
-            .unwrap_or(false)
-        {
-            return Ok(());
-        }
-        if tokio::time::Instant::now() > deadline {
-            return Err(format!(
-                "{} timed out after {} seconds",
-                timeout_label, timeout_secs
-            ));
-        }
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    use crate::slew_arrival::{
+        wait_for_slew_arrival, SlewArrivalTimings, SlewSample, SlewWaitError,
+    };
+
+    let timings = SlewArrivalTimings {
+        poll_interval: std::time::Duration::from_secs(1),
+        ..SlewArrivalTimings::goto(std::time::Duration::from_secs(timeout_secs))
+    };
+    let result = wait_for_slew_arrival(
+        None,
+        &timings,
+        || async {
+            SlewSample {
+                slewing: Some(
+                    ctx.device_ops
+                        .mount_is_slewing(mount_id)
+                        .await
+                        .unwrap_or(false),
+                ),
+                position: None,
+            }
+        },
+        || {
+            ctx.cancellation_token
+                .load(std::sync::atomic::Ordering::Relaxed)
+        },
+        |_| {},
+    )
+    .await;
+    match result {
+        Ok(_) => Ok(()),
+        Err(SlewWaitError::Cancelled) => Err("Operation cancelled during slew".to_string()),
+        Err(SlewWaitError::TimedOut(_)) => Err(format!(
+            "{} timed out after {} seconds",
+            timeout_label, timeout_secs
+        )),
+        Err(other) => Err(format!("{timeout_label}: {other}")),
     }
 }
 

@@ -5,69 +5,57 @@
 
 use super::*;
 
-/// Wait for mount to stop slewing with timeout and progress updates
-pub(crate) async fn wait_for_mount_idle_with_progress(
+/// Wait for a slew the mount has accepted to finish, reporting the distance
+/// still to go. `target` is in the mount's read-back frame; without one the
+/// wait still refuses to take an idle `Slewing` flag read straight after the
+/// command as the end of the slew (see [`crate::slew_arrival`]).
+///
+/// Cancellation aborts the slew.
+pub(crate) async fn wait_for_mount_arrival(
     mount_id: &str,
     ctx: &InstructionContext,
+    target: Option<(f64, f64)>,
     timeout: Duration,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
-) -> Result<(), String> {
-    let start = std::time::Instant::now();
-    let mut poll_count = 0u32;
+) -> Result<crate::slew_arrival::SlewProgress, String> {
+    use crate::slew_arrival::{wait_for_slew_arrival, SlewArrivalTimings, SlewWaitError};
 
-    loop {
-        if ctx.cancellation_token.load(Ordering::Relaxed) {
-            if let Err(error) = ctx.device_ops.mount_abort_slew(mount_id).await {
-                tracing::warn!(
-                    "Wait-for-slew: abort-slew failed on cancel ({}); the mount may still be \
-                     moving",
-                    error
-                );
+    let mut polls = 0u32;
+    let result = wait_for_slew_arrival(
+        target,
+        &SlewArrivalTimings::goto(timeout),
+        || ctx.device_ops.mount_slew_state(mount_id),
+        || ctx.cancellation_token.load(Ordering::Relaxed),
+        |progress| {
+            polls += 1;
+            // Every other read: once a second is enough for a readout.
+            if !polls.is_multiple_of(2) {
+                return;
             }
-            return Err("Operation cancelled".to_string());
-        }
-
-        match ctx.device_ops.mount_is_slewing(mount_id).await {
-            Ok(is_slewing) => {
-                if !is_slewing {
-                    tracing::debug!("Mount reached target position");
-                    return Ok(());
-                }
-            }
-            Err(e) => {
-                // Transient query failures are common during slews on serial
-                // mounts; we keep polling so a one-off error does not abort
-                // an otherwise healthy slew.
-                tracing::warn!("Error checking slew status: {}", e);
-            }
-        }
-
-        // Slew progress lacks a real percentage from drivers, so we synthesize
-        // a 0–95% estimate from elapsed time using the typical 30–60 s slew
-        // duration. Capped at 95% so the user does not see "100%" before the
-        // mount actually reports idle.
-        poll_count += 1;
-        if poll_count.is_multiple_of(4) {
-            let elapsed_secs = start.elapsed().as_secs();
-            // Why: elapsed_secs is a u64 wall-clock; even months of elapsed time fit
-            // in f64's 53-bit mantissa. Lossless for any plausible slew duration.
-            let progress = ((elapsed_secs as f64 / 60.0) * 100.0).min(95.0);
             if let Some(cb) = progress_callback {
-                cb(progress, format!("Slewing... ({:.0}s)", elapsed_secs));
+                // Held below 100 until the mount has stopped.
+                let percent = progress.fraction().map_or_else(
+                    || (progress.elapsed.as_secs_f64() / 60.0 * 100.0).min(95.0),
+                    |f| (f * 100.0).min(95.0),
+                );
+                cb(percent, progress.describe());
             }
-        }
+        },
+    )
+    .await;
 
-        if start.elapsed() > timeout {
-            return Err(format!(
-                "Mount slew timed out after {} seconds",
-                timeout.as_secs()
-            ));
+    if matches!(
+        result,
+        Err(SlewWaitError::Cancelled) | Err(SlewWaitError::TimedOut(_))
+    ) {
+        if let Err(error) = ctx.device_ops.mount_abort_slew(mount_id).await {
+            tracing::warn!(
+                "Wait-for-slew: abort-slew failed ({}); the mount may still be moving",
+                error
+            );
         }
-
-        // 500 ms balances responsiveness against driver query cost on serial
-        // mounts (where each poll round-trips through USB-to-serial).
-        sleep(Duration::from_millis(500)).await;
     }
+    result.map_err(|e| e.to_string())
 }
 
 /// Wait for focuser to stop moving with timeout
