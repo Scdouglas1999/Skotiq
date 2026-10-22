@@ -18,7 +18,6 @@ image.workspace = true
 chrono.workspace = true
 async-trait.workspace = true
 quick-xml.workspace = true
-wait-timeout = "0.2"
 
 # Rayon for data parallelism
 rayon = "1.10"
