@@ -457,3 +457,65 @@ async fn a_new_run_starts_with_no_trigger_in_cooldown() {
     assert!(!trigger.is_in_cooldown());
     assert!(!trigger.was_firing);
 }
+
+#[tokio::test]
+async fn tracking_limit_recovery_keeps_the_scheduled_flip_armed() {
+    // Oct 23: NYX tracking stopped before transit; once the configured
+    // 20-minute window opened the mount was still stopped on the west side.
+    let config = crate::MeridianFlipConfig {
+        trigger_method: crate::MeridianTriggerMethod::MinutesPastMeridian,
+        minutes_past_meridian: 20.0,
+        ..Default::default()
+    };
+    let mut state = TriggerState::new();
+    state.set_target(35.64, 42.35);
+    state.current_hour_angle = Some(0.4);
+    state.pier_side = Some(PierSide::West);
+    state.mount_is_tracking = Some(false);
+    state.mount_slewing = Some(false);
+    state.mount_parked = Some(false);
+    state
+        .tracking
+        .restore(true, true, Some(chrono::Utc::now().timestamp() - 3600));
+    assert!(
+        meridian_trigger(config).check(&state).await,
+        "a tracking-limit stop must not permanently disable the scheduled flip"
+    );
+}
+
+#[test]
+fn tracking_limit_recovery_requires_a_real_pre_flip_tracking_loss() {
+    let mut s = TriggerState::new();
+    s.set_target(35.64, 42.35);
+    s.current_hour_angle = Some(-0.55);
+    s.pier_side = Some(PierSide::West);
+    s.mount_is_tracking = Some(false);
+    s.mount_parked = Some(false);
+    s.mount_slewing = Some(false);
+    s.tracking.restore(true, true, Some(1));
+    assert!(tracking_limit_recovery_candidate(&s));
+    let original = s.clone();
+    s.mount_parked = Some(true);
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original.clone();
+    s.mount_slewing = Some(true);
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original.clone();
+    s.mount_status_query_failed = true;
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original.clone();
+    s.pier_side = Some(PierSide::East);
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original.clone();
+    s.pier_side = None;
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original.clone();
+    s.tracking.set_expected(false);
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original.clone();
+    s.current_hour_angle = Some(-6.0);
+    assert!(!tracking_limit_recovery_candidate(&s));
+    s = original;
+    s.current_hour_angle = Some(f64::NAN);
+    assert!(!tracking_limit_recovery_candidate(&s));
+}

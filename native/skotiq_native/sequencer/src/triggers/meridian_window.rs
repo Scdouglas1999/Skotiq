@@ -92,6 +92,17 @@ pub fn flip_still_due(
     hour_angle_hours.is_some_and(|ha| flip_window_open(ha, pier_side, threshold_hours))
 }
 
+/// A limit stop must not move the user's scheduled flip earlier. Limit-based
+/// modes have no hour-angle threshold, but still wait until after transit.
+pub(crate) fn tracking_limit_flip_threshold(config: &crate::MeridianFlipConfig) -> f64 {
+    match config.trigger_method {
+        crate::MeridianTriggerMethod::MinutesPastMeridian => config.minutes_past_meridian / 60.0,
+        crate::MeridianTriggerMethod::HourAngleThreshold => config.hour_angle_threshold,
+        _ => 0.0,
+    }
+    .max(0.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

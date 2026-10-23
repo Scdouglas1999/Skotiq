@@ -164,9 +164,9 @@ impl TriggerState {
     /// The meridian trigger's preconditions for `method`, or `None` when the
     /// trigger may fire if its window is open.
     ///
-    /// Only a definite parked or not-tracking reading blocks; a mount that
-    /// never reports either keeps its flips. `OnTrackingLimitHit` is exempt
-    /// from both, since tracking having stopped is its premise.
+    /// A parked mount never starts a scheduled flip. A stopped mount can
+    /// still flip when it lost tracking on the pre-flip side; ordinary idle
+    /// mounts remain blocked. The limit-hit method checks its own telemetry.
     pub fn flip_blocked(&self, method: MeridianTriggerMethod) -> Option<FlipBlocked> {
         if self.target_ra.is_none() || self.target_dec.is_none() {
             return Some(FlipBlocked::NoTarget);
@@ -180,7 +180,10 @@ impl TriggerState {
         if self.mount_parked == Some(true) {
             return Some(FlipBlocked::MountParked);
         }
-        if self.mount_is_tracking == Some(false) {
+        if self.mount_is_tracking == Some(false)
+            && self.run.hold() != Some(super::RunHold::TrackingLimit)
+            && !super::tracking_limit_recovery_candidate(self)
+        {
             return Some(FlipBlocked::MountNotTracking);
         }
         None

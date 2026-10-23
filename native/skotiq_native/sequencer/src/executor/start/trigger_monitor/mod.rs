@@ -16,6 +16,7 @@ mod actions;
 mod dispatch;
 mod policy;
 mod polling;
+mod tracking_limit;
 
 use dispatch::{Dispatcher, Flow};
 use policy::{select_dispatches, DispatchPolicy};
@@ -108,6 +109,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         }
 
         poller.poll(tick_state).await;
+
+        dispatcher.update_tracking_limit_hold(calibration_run).await;
+        let tick_state = *executor_state.read().await;
 
         // The action handlers take the trigger-state lock themselves, so the
         // manager lock is released before they run.

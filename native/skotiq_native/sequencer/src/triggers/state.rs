@@ -61,6 +61,26 @@ pub struct ImagingTrainHold {
     pub max_remaining_secs: f64,
 }
 
+/// A stopped mount that had been tracking this target on the pre-flip side.
+/// Some mounts stop before transit and do not advertise a limit timestamp.
+/// In that case, only adopt stops within an hour before transit; the hold
+/// still waits for the configured flip window and never restarts tracking
+/// into the limit. Unknown mount state is not evidence of a limit stop.
+pub(crate) fn tracking_limit_recovery_candidate(state: &TriggerState) -> bool {
+    state.target_ra.is_some()
+        && state.target_dec.is_some()
+        && !state.meridian.has_flipped()
+        && state.tracking.expected_and_lost()
+        && !state.mount_status_query_failed
+        && state.mount_is_tracking == Some(false)
+        && state.mount_slewing == Some(false)
+        && state.mount_parked == Some(false)
+        && state.pier_side == Some(PierSide::West)
+        && state
+            .current_hour_angle
+            .is_some_and(|ha| ha.is_finite() && (-1.0..12.0).contains(&ha))
+}
+
 pub(super) fn looks_like_tracking_limit_hit(state: &TriggerState) -> bool {
     if !state.tracking.expected_and_lost() {
         return false;

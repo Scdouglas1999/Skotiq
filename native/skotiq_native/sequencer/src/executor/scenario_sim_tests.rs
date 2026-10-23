@@ -90,6 +90,9 @@ pub(crate) struct ScriptedDeviceOps {
     pub(crate) no_guide_star: Arc<AtomicBool>,
     /// What `mount_is_slewing` answers.
     pub(crate) mount_slewing: Arc<AtomicBool>,
+    /// Test mount changes pier side when slewed, as a successful flip does.
+    pub(crate) flip_on_slew: Arc<AtomicBool>,
+    flipped: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
     camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,
@@ -123,6 +126,8 @@ impl ScriptedDeviceOps {
             guider_start_fails: Arc::new(AtomicBool::new(false)),
             no_guide_star: Arc::new(AtomicBool::new(false)),
             mount_slewing: Arc::new(AtomicBool::new(false)),
+            flip_on_slew: Arc::new(AtomicBool::new(false)),
+            flipped: Arc::new(AtomicBool::new(false)),
             camera_failures: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             exposure_calls: Arc::new(AtomicU32::new(0)),
             saved_frames: Arc::new(Mutex::new(Vec::new())),
@@ -295,6 +300,10 @@ impl DeviceOps for ScriptedDeviceOps {
     // Delegating methods (kept minimal; only those a scenario might hit)
 
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
+        self.record(format!("mount_slew:{id}"));
+        if self.flip_on_slew.load(Ordering::SeqCst) {
+            self.flipped.store(true, Ordering::SeqCst);
+        }
         self.inner.mount_slew_to_coordinates(id, ra, dec).await
     }
     async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
@@ -319,6 +328,13 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.mount_can_flip(id).await
     }
     async fn mount_side_of_pier(&self, id: &str) -> DeviceResult<crate::meridian::PierSide> {
+        if self.flip_on_slew.load(Ordering::SeqCst) {
+            return Ok(if self.flipped.load(Ordering::SeqCst) {
+                crate::meridian::PierSide::East
+            } else {
+                crate::meridian::PierSide::West
+            });
+        }
         self.inner.mount_side_of_pier(id).await
     }
     async fn camera_start_exposure(
@@ -404,6 +420,7 @@ impl DeviceOps for ScriptedDeviceOps {
         dec: Option<f64>,
         s: Option<f64>,
     ) -> DeviceResult<PlateSolveResult> {
+        self.record("plate_solve");
         if self.plate_solve_fails.load(Ordering::SeqCst) {
             return Err("no solution: too few stars".to_string());
         }

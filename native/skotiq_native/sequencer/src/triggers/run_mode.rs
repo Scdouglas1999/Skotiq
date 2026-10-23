@@ -4,7 +4,8 @@
 //! The trigger monitor keeps evaluating while the run is held, because a held
 //! run still has a telescope under the open sky. Whether a firing may act is
 //! one function of the [`RunMode`]: running, everything acts; held for any
-//! reason, only a safety-class trigger whose action parks the rig.
+//! reason, only a safety-class trigger whose action parks the rig. A tracking
+//! limit hold also permits the flip that resolves that hold.
 
 use crate::ExecutorState;
 use crate::{RecoveryAction, TriggerType};
@@ -17,6 +18,8 @@ pub enum RunHold {
     PreMeridian,
     /// Recovery deliberately stopped tracking until its attempt finishes.
     RecoveryTracking,
+    /// An unexpected tracking stop near transit is waiting for its flip.
+    TrackingLimit,
 }
 
 /// The run as the trigger monitor sees it on one tick.
@@ -77,8 +80,14 @@ impl RunMode {
     ///
     /// Held, only a trigger that protects the rig may act, and only by parking:
     /// every other action either drives hardware under the hold or lifts it.
+    /// A tracking-limit hold belongs to the flip controller, so its own flip
+    /// is permitted while operator pauses and other recoveries remain absolute.
     pub fn may_act(self, trigger_type: &TriggerType, action: &RecoveryAction) -> bool {
-        self.is_running() || (is_safety_class_trigger(trigger_type) && may_act_during_hold(action))
+        self.is_running()
+            || (matches!(self, Self::HeldByRun(RunHold::TrackingLimit))
+                && matches!(trigger_type, TriggerType::MeridianFlip { .. })
+                && matches!(action, RecoveryAction::MeridianFlip(_)))
+            || (is_safety_class_trigger(trigger_type) && may_act_during_hold(action))
     }
 
     /// Whether the mount tracking poll may consume a tracking-loss edge.
@@ -217,6 +226,7 @@ mod tests {
                 None,
                 Some(RunHold::PreMeridian),
                 Some(RunHold::RecoveryTracking),
+                Some(RunHold::TrackingLimit),
             ] {
                 let live = matches!(
                     executor,

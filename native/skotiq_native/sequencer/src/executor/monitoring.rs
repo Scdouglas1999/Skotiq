@@ -240,7 +240,14 @@ pub(crate) fn apply_mount_tracking_poll(
         state.mount_is_tracking,
         state.tracking.is_lost(),
     );
-    state.set_mount_tracking_expected(expected);
+    // Repeated stopped readings must preserve the loss until tracking
+    // actually resumes. Re-arming on every tick cleared the unresolved loss.
+    if expected != state.tracking.is_expected() {
+        state.set_mount_tracking_expected(expected);
+    }
+    if currently_tracking {
+        state.tracking.clear_lost();
+    }
     just_lost
 }
 

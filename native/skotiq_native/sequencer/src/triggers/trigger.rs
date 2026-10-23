@@ -319,6 +319,25 @@ impl Trigger {
                     return false;
                 }
 
+                if state.run.hold() == Some(super::RunHold::TrackingLimit) {
+                    if config.trigger_method == crate::MeridianTriggerMethod::OnTrackingLimitHit
+                        && config.tracking_limit_wait_minutes > 0.0
+                        && state.tracking.limit_detected_at().is_some_and(|at| {
+                            ((chrono::Utc::now().timestamp() - at) as f64)
+                                < config.tracking_limit_wait_minutes * 60.0
+                        })
+                    {
+                        return false;
+                    }
+                    return state.current_hour_angle.is_some_and(|ha| {
+                        super::flip_window_open(
+                            ha,
+                            state.pier_side,
+                            super::tracking_limit_flip_threshold(config),
+                        )
+                    });
+                }
+
                 match config.trigger_method {
                     crate::MeridianTriggerMethod::MinutesPastMeridian => {
                         // `current_hour_angle` is the TARGET's hour angle

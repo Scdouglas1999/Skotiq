@@ -416,6 +416,7 @@ String _sequencerTitle(SequencerEvent v) {
     // generic Object.toString().
     SequencerEvent_RecoveryStarted() => 'Recovery started',
     SequencerEvent_RecoveryProgress() => 'Recovery in progress',
+    SequencerEvent_RecoveryCompleted(phase: 'Waiting') => 'Recovery handed off',
     SequencerEvent_RecoveryCompleted() => 'Recovery complete',
     SequencerEvent_RecoveryGaveUp(abortedByUser: final aborted) =>
       aborted ? 'Recovery aborted' : 'Recovery exhausted',
@@ -560,6 +561,11 @@ String _sequencerDetail(SequencerEvent v) {
     ) =>
       '${custom?.isNotEmpty == true ? custom! : kind} · $ph '
           '(${a == 0 ? "1st" : "${a + 1}th"} of $maxA)',
+    SequencerEvent_RecoveryCompleted(
+      phase: 'Waiting',
+      lastError: final reason,
+    ) =>
+      reason ?? 'Recovery handed to the meridian flip controller',
     SequencerEvent_RecoveryCompleted(
       causeKind: final kind,
       causeCustomLabel: final custom,

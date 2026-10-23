@@ -156,6 +156,24 @@ impl TriggerManager {
         disarmed
     }
 
+    /// The enabled flip controller, including the manager's master switch.
+    pub(crate) fn active_meridian_flip_config(&self) -> Option<crate::MeridianFlipConfig> {
+        if !self.enabled {
+            return None;
+        }
+        self.triggers.iter().find_map(|trigger| {
+            if !trigger.enabled {
+                return None;
+            }
+            match (&trigger.trigger_type, &trigger.recovery_action) {
+                (TriggerType::MeridianFlip { config }, RecoveryAction::MeridianFlip(_)) => {
+                    Some(config.clone())
+                }
+                _ => None,
+            }
+        })
+    }
+
     /// Get all triggers
     pub fn triggers(&self) -> &[Trigger] {
         &self.triggers

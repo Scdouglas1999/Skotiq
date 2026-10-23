@@ -64,6 +64,25 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             continue;
         }
 
+        // Requests already queued before the tracking-limit hold was adopted
+        // must not steal the mount back from its flip controller.
+        if matches!(
+            cause,
+            crate::recovery::RecoveryCause::GuideStarLost
+                | crate::recovery::RecoveryCause::MountTrackingLost
+        ) && recovery_driver_trigger_mgr
+            .read()
+            .await
+            .state()
+            .read()
+            .await
+            .run
+            .hold()
+            == Some(crate::triggers::RunHold::TrackingLimit)
+        {
+            continue;
+        }
+
         // Build the context from the live runtime config.
         // Reading once and capturing into the context locks
         // the cadence for this loop; a mid-loop
@@ -233,6 +252,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // safety trigger's park-and-abort). That is not recovery running out,
         // and whoever cancelled owns how the run ends.
         let mut cancelled_under_recovery = false;
+        let mut handed_to_flip = false;
         loop {
             if recovery_driver_is_cancelled.load(Ordering::Relaxed) {
                 tracing::info!("[RECOVERY] Sequence cancelled mid-recovery — exiting loop");
@@ -252,6 +272,22 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 aborted_by_user = true;
                 recovered = false;
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
+                break;
+            }
+            if guide_star_hold
+                && hand_off_tracking_limit(
+                    &recovery_driver_device_ops,
+                    recovery_driver_mount_id.as_deref(),
+                    &recovery_driver_trigger_mgr,
+                )
+                .await
+            {
+                handed_to_flip = true;
+                aborted_by_user = false;
+                recovered = false;
+                ctx.phase = crate::recovery::RecoveryPhase::Waiting;
+                ctx.last_error =
+                    Some("Guiding recovery handed to tracking-limit flip controller".into());
                 break;
             }
             if !weather_hold && ctx.is_exhausted(chrono::Utc::now()) {
@@ -421,9 +457,9 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             }
         }
 
-        // Record the history entry regardless of outcome.
+        // A handoff is still in progress, not a recovered or failed attempt.
         let ended_at = chrono::Utc::now();
-        {
+        if !handed_to_flip {
             let mut history = recovery_driver_history.write();
             history.push(crate::recovery::RecoveryHistoryEntry {
                 started_at: ctx.started_at,
@@ -436,7 +472,31 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             });
         }
 
-        if cancelled_under_recovery && !recovered && paused_for_operator.is_none() {
+        if handed_to_flip {
+            // End this retry ladder without claiming recovery or releasing
+            // exposures. The monitor owns the newly latched hold and keeps
+            // polling safety while it waits for the configured flip window.
+            *recovery_driver_current.write() = None;
+            let message = "Mount tracking stopped near the meridian; guiding recovery is yielding to the flip controller.";
+            let mut state = recovery_driver_state.write().await;
+            if *state == ExecutorState::Recovering
+                && !recovery_driver_is_cancelled.load(Ordering::Relaxed)
+            {
+                *state = ExecutorState::Running;
+                let mut progress = recovery_driver_progress.write();
+                progress.state = ExecutorState::Running;
+                progress.message = Some(message.into());
+                let _ = recovery_driver_event_tx
+                    .send(ExecutorEvent::StateChanged(ExecutorState::Running));
+            }
+            tracing::warn!("[RECOVERY] {}", message);
+            let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                message: message.into(),
+            });
+            let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
+                context: Box::new(ctx.clone()),
+            });
+        } else if cancelled_under_recovery && !recovered && paused_for_operator.is_none() {
             // No give-up message, no give-up sweep, no Failed stamp: reporting
             // "Recovery could not fix" for a run that was stopped, or parked
             // by the weather rule, would blame the wrong thing, and under the
@@ -1188,7 +1248,11 @@ mod tests {
 
     /// Run a guide-star-lost recovery whose one attempt fails (the guider
     /// cannot start: no star) through the driver to its end.
-    async fn guide_star_give_up(stop_on_quality: bool, park_and_close: bool) -> GuideStarGiveUp {
+    async fn guide_star_give_up(
+        stop_on_quality: bool,
+        park_and_close: bool,
+        tracking_limit: bool,
+    ) -> GuideStarGiveUp {
         let ops = Arc::new(ScriptedDeviceOps::new());
         ops.guiding.store(false, Ordering::SeqCst);
         ops.guider_start_fails.store(true, Ordering::SeqCst);
@@ -1204,6 +1268,22 @@ mod tests {
             ..Default::default()
         };
         let trigger_mgr = Arc::new(RwLock::new(TriggerManager::new()));
+        if tracking_limit {
+            use crate::device_ops::DeviceOps;
+            ops.flip_on_slew.store(true, Ordering::Relaxed);
+            ops.mount_set_tracking("mount-1", false).await.unwrap();
+            let mut manager = trigger_mgr.write().await;
+            manager.create_standard_triggers();
+            manager.sync_state_from_config().await;
+            let lock = manager.state();
+            let mut state = lock.write().await;
+            state.set_target(180.0, 45.0);
+            state.current_hour_angle = Some(-0.55);
+            // The driver must detect the stopped mount even before the
+            // ordinary poll has consumed its falling edge.
+            state.mount_is_tracking = Some(true);
+            state.set_mount_tracking_expected(true);
+        }
         {
             let manager = trigger_mgr.read().await;
             let state_lock = manager.state();
@@ -1296,7 +1376,7 @@ mod tests {
     /// is told once.
     #[tokio::test]
     async fn a_guide_star_never_reacquired_resumes_imaging_unguided_and_notifies() {
-        let r = guide_star_give_up(false, false).await;
+        let r = guide_star_give_up(false, false, false).await;
 
         assert_eq!(r.state, ExecutorState::Running);
         assert!(!r.is_paused, "the node tree must be released");
@@ -1329,7 +1409,7 @@ mod tests {
     #[tokio::test]
     async fn unguided_imaging_never_parks_even_with_park_and_close_on() {
         // The run is not ending, so the give-up opt-in has nothing to act on.
-        let r = guide_star_give_up(false, true).await;
+        let r = guide_star_give_up(false, true, false).await;
 
         assert!(moved_hardware(&r.calls).is_empty(), "{:?}", r.calls);
         assert_eq!(r.state, ExecutorState::Running);
@@ -1337,7 +1417,7 @@ mod tests {
 
     #[tokio::test]
     async fn with_stop_for_quality_problems_on_a_lost_guide_star_still_ends_the_run() {
-        let r = guide_star_give_up(true, false).await;
+        let r = guide_star_give_up(true, false, false).await;
 
         assert_eq!(r.state, ExecutorState::Failed);
         assert!(r.is_cancelled);
@@ -1355,7 +1435,7 @@ mod tests {
 
     #[tokio::test]
     async fn with_stop_for_quality_problems_on_and_park_and_close_a_lost_guide_star_parks() {
-        let r = guide_star_give_up(true, true).await;
+        let r = guide_star_give_up(true, true, false).await;
 
         assert_eq!(r.state, ExecutorState::Failed);
         assert_eq!(
@@ -1365,6 +1445,26 @@ mod tests {
                 "cover_close:cover-1",
                 "dome_close:dome-1"
             ],
+            "{:?}",
+            r.calls
+        );
+    }
+    #[tokio::test(start_paused = true)]
+    async fn tracking_limit_recovery_takes_over_an_active_guide_retry() {
+        let r = guide_star_give_up(false, false, true).await;
+        assert_eq!(r.state, ExecutorState::Running);
+        assert!(r.is_paused, "exposures must stay held until the flip");
+        assert!(!r.is_cancelled);
+        assert!(!r.gave_up);
+        assert_eq!(
+            r.trigger_state.run.hold(),
+            Some(crate::triggers::RunHold::TrackingLimit)
+        );
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert!(
+            !r.calls
+                .iter()
+                .any(|c| c == "guider_start" || c == "mount_set_tracking:mount-1:true"),
             "{:?}",
             r.calls
         );

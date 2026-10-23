@@ -458,3 +458,56 @@ pub(crate) async fn run_recovery_attempt(
         }
     }
 }
+
+/// A guide-star retry cannot repair a mount stopped at its tracking limit.
+/// Publish a hold for the monitor to adopt, using fresh driver telemetry even
+/// when the ordinary tracking poll is deferring edges under recovery.
+pub(crate) async fn hand_off_tracking_limit(
+    device_ops: &SharedDeviceOps,
+    mount_id: Option<&str>,
+    manager: &Arc<RwLock<TriggerManager>>,
+) -> bool {
+    let Some(id) = mount_id else {
+        return false;
+    };
+    if manager.read().await.active_meridian_flip_config().is_none() {
+        return false;
+    }
+    if !matches!(
+        bounded_poll("mount_is_tracking", device_ops.mount_is_tracking(id)).await,
+        Ok(false)
+    ) {
+        return false;
+    }
+    let (Ok(false), Ok(false), Ok(crate::meridian::PierSide::West)) = (
+        bounded_poll("mount_is_slewing", device_ops.mount_is_slewing(id)).await,
+        bounded_poll("mount_is_parked", device_ops.mount_is_parked(id)).await,
+        bounded_poll("mount_side_of_pier", device_ops.mount_side_of_pier(id)).await,
+    ) else {
+        return false;
+    };
+    let manager = manager.read().await;
+    let lock = manager.state();
+    let mut state = lock.write().await;
+    // Never reinterpret tracking the run intentionally stopped as a limit.
+    if state.run.is_held_by_run() || state.guiding.in_motion() {
+        return false;
+    }
+    let mut candidate = state.clone();
+    candidate.mount_is_tracking = Some(false);
+    candidate.mount_slewing = Some(false);
+    candidate.mount_parked = Some(false);
+    candidate.pier_side = Some(crate::PierSide::West);
+    candidate.mount_status_query_failed = false;
+    candidate
+        .tracking
+        .record_loss(chrono::Utc::now().timestamp());
+    if !crate::triggers::tracking_limit_recovery_candidate(&candidate) {
+        return false;
+    }
+    *state = candidate;
+    state
+        .run
+        .begin_hold(crate::triggers::RunHold::TrackingLimit);
+    true
+}

@@ -80,6 +80,14 @@ pub(super) fn select_dispatches(
             cooldown_secs,
         });
     }
+    // If the sky turns unsafe on the very tick the limit hold's flip comes
+    // due, park first. A terminating safety action must never wait for a slew.
+    if matches!(
+        mode,
+        RunMode::HeldByRun(crate::triggers::RunHold::TrackingLimit)
+    ) {
+        dispatches.sort_by_key(|d| !matches!(d.fired.action, RecoveryAction::ParkAndAbort));
+    }
     dispatches
 }
 

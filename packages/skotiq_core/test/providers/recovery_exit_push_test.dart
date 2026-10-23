@@ -85,7 +85,11 @@ PushNotificationFrame _frameFor(PushNotification n) {
   );
 }
 
-RecoveryStatus _status(RecoveryCause cause, {int attemptCount = 2}) {
+RecoveryStatus _status(
+  RecoveryCause cause, {
+  int attemptCount = 2,
+  RecoveryPhase phase = RecoveryPhase.attempting,
+}) {
   return RecoveryStatus(
     startedAt: DateTime.utc(2026, 6, 8, 2),
     cause: cause,
@@ -94,7 +98,7 @@ RecoveryStatus _status(RecoveryCause cause, {int attemptCount = 2}) {
     maxAttempts: 5,
     retryIntervalSecs: 300.0,
     maxDurationSecs: 1800.0,
-    phase: RecoveryPhase.attempting,
+    phase: phase,
     lastError: null,
   );
 }
@@ -177,6 +181,33 @@ void main() {
       );
       return mock.delivered.last;
     }
+
+    test(
+      'a tracking-limit handoff clears retries without a false recovery push',
+      () async {
+        final status = _status(
+          RecoveryCause.guideStarLost(),
+          phase: RecoveryPhase.waiting,
+        );
+        container.read(currentRecoveryProvider.notifier).update(status);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        mock.delivered.clear(); // Ignore the earlier recovery-entry alert.
+        applyRecoveryEventForTest(
+          ref,
+          RecoveryEventEnvelope(
+            kind: RecoveryEventKind.completed,
+            context: status,
+            abortedByUser: null,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(container.read(currentRecoveryProvider), isNull);
+        expect(container.read(recoveryHistoryProvider), isEmpty);
+        expect(mock.delivered, isEmpty);
+      },
+    );
 
     test('guiding-lost recovered -> critical "re-acquired" frame', () async {
       final frame = await fireExit(

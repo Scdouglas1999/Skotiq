@@ -39,6 +39,14 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
         park,
         camera_claim,
     } = request;
+    // The imaging-train claim may have waited through an operator pause.
+    // Only the running monitor may advance an automatic tracking-limit hold.
+    if rig.trigger_state.read().await.run.hold() == Some(crate::triggers::RunHold::TrackingLimit)
+        && (*run.executor_state.read().await != ExecutorState::Running || run.is_cancelled())
+    {
+        camera_claim.release().await;
+        return ActionFlow::NotRun;
+    }
     // An operator's request is consumed whatever happens next: it asked for
     // this flip, not for every later one.
     let requested = rig.trigger_state.write().await.meridian.take_request();
@@ -186,7 +194,17 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
         ts.current_hour_angle
     };
     let pier_now = fresh_pier.or(rig.trigger_state.read().await.pier_side);
-    let due = if requested {
+    let tracking_limit_hold =
+        rig.trigger_state.read().await.run.hold() == Some(crate::triggers::RunHold::TrackingLimit);
+    let due = if tracking_limit_hold {
+        hour_angle.is_some_and(|ha| {
+            crate::triggers::flip_window_open(
+                ha,
+                pier_now,
+                crate::triggers::tracking_limit_flip_threshold(config),
+            )
+        })
+    } else if requested {
         hour_angle.is_some_and(|ha| crate::triggers::on_pre_flip_side(ha, pier_now))
     } else {
         crate::triggers::flip_still_due(config, hour_angle, pier_now)

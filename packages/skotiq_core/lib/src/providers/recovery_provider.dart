@@ -406,6 +406,10 @@ void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
       break;
     case RecoveryEventKind.completed:
       currentNotifier.clear();
+      // The retry ladder can finish by handing a tracking-limit stop to
+      // the flip controller. It is still waiting, not recovered or failed.
+      // State events own that transition and preserve an operator pause.
+      if (envelope.context.isWaiting) break;
       historyNotifier.append(
         RecoveryHistoryEntry(
           startedAt: envelope.context.startedAt,

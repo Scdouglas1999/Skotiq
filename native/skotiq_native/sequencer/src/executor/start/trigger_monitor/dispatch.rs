@@ -19,13 +19,14 @@ pub(super) enum Flow {
 /// Runs dispatched actions. Owns the handles the handlers are given and the
 /// run-long bookkeeping a handler keeps between firings.
 pub(super) struct Dispatcher {
-    run: RunControl,
-    rig: Rig,
+    pub(super) run: RunControl,
+    pub(super) rig: Rig,
     decisions: DecisionLog,
     park: ParkSignals,
     flip_failure: FlipFailureLatch,
     custom: CustomBranches,
-    trigger_manager: Arc<RwLock<TriggerManager>>,
+    pub(super) trigger_manager: Arc<RwLock<TriggerManager>>,
+    pub(super) tracking_limit_hold: Option<super::tracking_limit::TrackingLimitHold>,
     recovery_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
     action_in_flight: Arc<AtomicBool>,
     skip_to_next_target: Arc<AtomicBool>,
@@ -76,6 +77,7 @@ impl Dispatcher {
                 context: args.custom_recovery_context_for_triggers,
             },
             trigger_manager: args.trigger_manager,
+            tracking_limit_hold: None,
             recovery_tx: args.recovery_request_tx,
             action_in_flight: args.trigger_action_in_flight_for_triggers,
             skip_to_next_target: args.skip_to_next_target_for_triggers,
@@ -110,6 +112,9 @@ impl Dispatcher {
             .record_evaluation(mode, flip_dispatching);
 
         for dispatch in dispatches {
+            if self.run.is_cancelled() {
+                break;
+            }
             if let Flow::Terminate(fired) = self.dispatch(dispatch).await {
                 return Flow::Terminate(fired);
             }
