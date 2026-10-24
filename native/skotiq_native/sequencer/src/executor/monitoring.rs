@@ -234,14 +234,20 @@ pub(crate) fn apply_mount_tracking_poll(
         state.set_mount_tracking_expected(false);
         return false;
     }
-    let (expected, just_lost) = mount_tracking_poll_verdict(
+    let (mut expected, just_lost) = mount_tracking_poll_verdict(
         state.tracking.is_expected(),
         currently_tracking,
         state.mount_is_tracking,
         state.tracking.is_lost(),
     );
-    // Repeated stopped readings must preserve the loss until tracking
-    // actually resumes. Re-arming on every tick cleared the unresolved loss.
+    // A reading taken while the run moves the mount does not arm the
+    // baseline: a park or home turns tracking off at its end, and that stop is
+    // the run's own.
+    if state.guiding.in_motion() {
+        expected = state.tracking.is_expected();
+    }
+    // A loss stays recorded across repeated stopped readings until tracking
+    // actually resumes; re-arming here would forget it.
     if expected != state.tracking.is_expected() {
         state.set_mount_tracking_expected(expected);
     }

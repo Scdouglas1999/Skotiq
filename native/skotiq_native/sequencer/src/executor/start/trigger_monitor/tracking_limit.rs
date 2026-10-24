@@ -723,6 +723,24 @@ mod tests {
         assert!(!state.tracking.is_lost());
     }
 
+    #[test]
+    fn a_reading_during_the_runs_own_move_does_not_arm_the_loss_baseline() {
+        let mut state = crate::triggers::TriggerState::default();
+        let _ = state.guiding.begin_motion();
+        assert!(!apply_mount_tracking_poll(&mut state, true));
+        state.mount_is_tracking = Some(true);
+        assert!(!state.tracking.is_expected());
+        state.guiding.end_motion();
+        // The move left tracking off: the run's own stop, not a loss.
+        assert!(!apply_mount_tracking_poll(&mut state, false));
+        state.mount_is_tracking = Some(false);
+        assert!(!state.tracking.is_lost());
+        // Once seen tracking after the move, a stop is a loss again.
+        assert!(!apply_mount_tracking_poll(&mut state, true));
+        state.mount_is_tracking = Some(true);
+        assert!(apply_mount_tracking_poll(&mut state, false));
+    }
+
     #[tokio::test(start_paused = true)]
     async fn a_failed_post_flip_guider_neither_wedges_the_hold_nor_flips_twice() {
         let mut h = Harness::new().await;

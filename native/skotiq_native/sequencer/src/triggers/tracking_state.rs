@@ -16,6 +16,9 @@ pub struct TrackingLossState {
     /// Unix seconds when a tracking loss was first seen, which the
     /// tracking-limit wait is measured from.
     limit_detected_at: Option<i64>,
+    /// Unix seconds of the most recent loss, kept after tracking resumes so a
+    /// frame that was exposing at the time can be told it was untracked.
+    last_loss_at: Option<i64>,
 }
 
 impl TrackingLossState {
@@ -36,6 +39,11 @@ impl TrackingLossState {
         self.limit_detected_at
     }
 
+    /// Unix seconds of the most recent loss this run, if any.
+    pub fn last_loss_at(&self) -> Option<i64> {
+        self.last_loss_at
+    }
+
     /// Arm or disarm the baseline. Either way a recorded loss is forgotten.
     pub fn set_expected(&mut self, expected: bool) {
         self.expected = expected;
@@ -47,6 +55,7 @@ impl TrackingLossState {
     /// its own start.
     pub fn record_loss(&mut self, now: i64) -> bool {
         self.lost = true;
+        self.last_loss_at = Some(now);
         if self.limit_detected_at.is_some() {
             return false;
         }
@@ -87,6 +96,7 @@ impl TrackingLossState {
             expected,
             lost,
             limit_detected_at,
+            last_loss_at: self.last_loss_at,
         };
     }
 }
