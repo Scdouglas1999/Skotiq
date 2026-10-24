@@ -501,6 +501,7 @@ pub struct Phd2Client {
     /// Tracks the in-flight settle so `dither`/`wait_for_settle` can block on
     /// PHD2's asynchronous `SettleDone` event and fail closed on failure.
     settle_tracker: Arc<Mutex<SettleTracker>>,
+    looping_frames: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl Phd2Client {
@@ -520,6 +521,7 @@ impl Phd2Client {
             response_registry: Arc::new(Mutex::new(HashMap::new())),
             suppress_disconnect_events: Arc::new(AtomicBool::new(false)),
             settle_tracker: Arc::new(Mutex::new(SettleTracker::default())),
+            looping_frames: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
     }
 
@@ -539,6 +541,7 @@ impl Phd2Client {
             response_registry: Arc::new(Mutex::new(HashMap::new())),
             suppress_disconnect_events: Arc::new(AtomicBool::new(false)),
             settle_tracker: Arc::new(Mutex::new(SettleTracker::default())),
+            looping_frames: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
     }
 
@@ -750,6 +753,7 @@ impl Phd2Client {
         let response_registry = Arc::clone(&self.response_registry);
         let suppress_disconnect_events = Arc::clone(&self.suppress_disconnect_events);
         let settle_tracker = Arc::clone(&self.settle_tracker);
+        let looping_frames = Arc::clone(&self.looping_frames);
 
         thread::spawn(move || {
             tracing::info!("PHD2: Reader thread started");
@@ -806,6 +810,7 @@ impl Phd2Client {
                             &state,
                             &callback,
                             &settle_tracker,
+                            &looping_frames,
                         );
 
                         // Clear buffer for next line
@@ -859,6 +864,7 @@ impl Phd2Client {
         state: &Arc<Mutex<Phd2State>>,
         callback: &Option<Phd2EventCallback>,
         settle_tracker: &Arc<Mutex<SettleTracker>>,
+        looping_frames: &std::sync::atomic::AtomicU64,
     ) {
         // Parse JSON
         let parsed: serde_json::Value = match serde_json::from_str(json) {
@@ -894,6 +900,15 @@ impl Phd2Client {
         // Otherwise treat as event message
         match serde_json::from_str::<Phd2EventMessage>(json) {
             Ok(event_msg) => {
+                if event_msg.event == "LoopingExposures"
+                    && event_msg
+                        .extra
+                        .get("Frame")
+                        .and_then(|v| v.as_u64())
+                        .is_some()
+                {
+                    looping_frames.fetch_add(1, Ordering::SeqCst);
+                }
                 // Every looping/guide frame is an event (~1 Hz); trace, don't info.
                 tracing::debug!("PHD2: Received event: {}", event_msg.event);
                 // A new guiding session starts a new RMS window. Samples from
@@ -1110,6 +1125,24 @@ impl Phd2Client {
         });
         self.send_request("guide", Some(params))?;
         Ok(())
+    }
+
+    /// Start guiding and track the asynchronous settle result.
+    pub fn guide_arm(
+        &mut self,
+        pixels: f64,
+        time: f64,
+        timeout: f64,
+    ) -> Result<SettleWaiter, String> {
+        let waiter = self.arm_settle();
+        self.guide(pixels, time, timeout)?;
+        Ok(waiter)
+    }
+
+    /// Number of completed looping frames received on this connection.
+    /// Unlike PHD2's frame IDs, this does not reset when capture restarts.
+    pub fn looping_frame_count(&self) -> u64 {
+        self.looping_frames.load(Ordering::SeqCst)
     }
 
     /// Stop guiding
@@ -1988,7 +2021,15 @@ mod tests {
         let state = Arc::new(Mutex::new(Phd2State::Connected));
         let settle = Arc::new(Mutex::new(SettleTracker::default()));
         for line in lines {
-            Phd2Client::process_line(line, &registry, &stats, &state, &None, &settle);
+            Phd2Client::process_line(
+                line,
+                &registry,
+                &stats,
+                &state,
+                &None,
+                &settle,
+                &std::sync::atomic::AtomicU64::new(0),
+            );
         }
         let result = stats.lock().unwrap().get_stats();
         result

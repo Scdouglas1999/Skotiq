@@ -421,9 +421,26 @@ pub async fn api_phd2_start_guiding(
 ) -> Result<(), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client
-        .guide(settle_pixels, settle_time, settle_timeout)
+    let waiter = client
+        .guide_arm(settle_pixels, settle_time, settle_timeout)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start guiding: {}", e)))?;
+    drop(client);
+    let timeout = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
+    let result = tokio::task::spawn_blocking(move || waiter.wait(timeout))
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Guiding settle task failed: {e}")))?;
+    if let Err(error) = result {
+        // A failed lock must not keep issuing corrections while the run retries.
+        let mut client = phd2_client().await?;
+        client.stop_capture().map_err(|stop| {
+            SkotiqError::OperationFailed(format!(
+                "Guiding did not settle: {error}; stopping guiding also failed: {stop}"
+            ))
+        })?;
+        return Err(SkotiqError::OperationFailed(format!(
+            "Guiding did not settle: {error}"
+        )));
+    }
 
     get_state().publish_guiding_event(GuidingEvent::GuidingStarted, EventSeverity::Info);
 
@@ -880,7 +897,7 @@ pub async fn select_fresh_guide_star(device_id: &str) -> Result<(f64, f64), Skot
     if matches!(resolve_guider_backend(device_id)?, GuiderBackend::Builtin) {
         return Ok((0.0, 0.0));
     }
-    let exposure = {
+    let (exposure, mut last_frame) = {
         let mut client = phd2_client().await?;
         // PHD2 can take longer than one request timeout to stop a capture it
         // is waiting on (a long guide exposure under cloud). One more try
@@ -897,23 +914,38 @@ pub async fn select_fresh_guide_star(device_id: &str) -> Result<(f64, f64), Skot
         client.loop_exposures().map_err(|e| {
             SkotiqError::OperationFailed(format!("Failed to start PHD2 looping: {}", e))
         })?;
-        // Why: a PHD2 that cannot report its exposure still loops; one second
-        // per attempt covers the common guide exposures and the retries below
-        // cover the rest.
-        client
+        // The exposure length sets a timeout, never proof that a frame arrived.
+        let exposure = client
             .get_exposure()
-            .map(|ms| std::time::Duration::from_millis(u64::from(ms)))
-            .unwrap_or(std::time::Duration::from_secs(1))
+            .map(|ms| Duration::from_millis(u64::from(ms)))
+            .map_err(|e| {
+                SkotiqError::OperationFailed(format!("Cannot read guide exposure: {e}"))
+            })?;
+        (exposure, client.looping_frame_count())
     };
-    tracing::info!(
-        "[GUIDING] Selecting a fresh guide star: PHD2 looping, waiting for a {:.1} s frame",
-        exposure.as_secs_f64()
-    );
     let mut last_error = String::new();
     for attempt in 1..=FRESH_STAR_ATTEMPTS {
-        // Give PHD2 a whole new frame (plus download time) before asking it to
-        // find a star in it; the client lock is not held while waiting.
-        tokio::time::sleep(exposure + std::time::Duration::from_millis(500)).await;
+        // Exposure time does not include USB download. Wait for PHD2's actual
+        // frame event, otherwise find_star can succeed on the pre-slew image.
+        let deadline = tokio::time::Instant::now() + exposure + Duration::from_secs(15);
+        loop {
+            let client = phd2_client().await?;
+            if !client.is_connected() {
+                return Err(SkotiqError::NotConnected("PHD2".into()));
+            }
+            let frame = client.looping_frame_count();
+            drop(client);
+            if frame != last_frame {
+                last_frame = frame;
+                break;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(SkotiqError::OperationFailed(
+                    "PHD2 did not deliver a fresh guide frame".into(),
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
         let found = phd2_client().await?.find_star();
         match found {
             Ok((x, y)) => {
@@ -1407,6 +1439,23 @@ mod fresh_guide_star_tests {
                         "jsonrpc": "2.0", "result": "Stopped", "id": request["id"],
                     }),
                 };
+                if method == "loop" {
+                    let mut events = writer.try_clone().unwrap();
+                    std::thread::spawn(move || {
+                        for frame in 1..=50 {
+                            std::thread::sleep(Duration::from_millis(100));
+                            if writeln!(
+                                events,
+                                "{}",
+                                serde_json::json!({"Event":"LoopingExposures", "Frame":frame})
+                            )
+                            .is_err()
+                            {
+                                break;
+                            }
+                        }
+                    });
+                }
                 if writeln!(writer, "{}", response).is_err() || writer.flush().is_err() {
                     break;
                 }
@@ -1453,5 +1502,125 @@ mod fresh_guide_star_tests {
             !methods.iter().any(|m| m == "guide"),
             "selecting a star must not start guiding: {methods:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod post_flip_protocol_tests {
+    use super::*;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+
+    fn server(settle_status: i32, deliver_frame: bool) -> (u16, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let task = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let reader = BufReader::new(stream.try_clone().unwrap());
+            let writer = Arc::new(std::sync::Mutex::new(stream));
+            let fresh = Arc::new(AtomicBool::new(false));
+            for line in reader.lines() {
+                let Ok(line) = line else { break };
+                let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+                let method = request["method"].as_str().unwrap();
+                let result = match method {
+                    "get_app_state" => serde_json::json!("Stopped"),
+                    "get_exposure" => serde_json::json!(10),
+                    "find_star" if fresh.load(Ordering::SeqCst) => serde_json::json!([12.5, 34.0]),
+                    "find_star" => serde_json::json!([315.5, 1201.9]),
+                    _ => serde_json::json!(0),
+                };
+                writeln!(
+                    writer.lock().unwrap(),
+                    "{}",
+                    serde_json::json!({"result": result, "id": request["id"]})
+                )
+                .unwrap();
+                if method == "loop" && deliver_frame {
+                    let writer = writer.clone();
+                    let fresh = fresh.clone();
+                    std::thread::spawn(move || {
+                        // The old image remains selectable throughout the download.
+                        std::thread::sleep(Duration::from_millis(1200));
+                        fresh.store(true, Ordering::SeqCst);
+                        let _ = writeln!(
+                            writer.lock().unwrap(),
+                            "{}",
+                            serde_json::json!({"Event":"LoopingExposures", "Frame":1})
+                        );
+                    });
+                }
+                if method == "loop" && !deliver_frame {
+                    break;
+                }
+                if method == "guide" {
+                    writeln!(
+                        writer.lock().unwrap(),
+                        "{}",
+                        serde_json::json!({"Event":"SettleDone", "Status":settle_status,"Error":"timed out"})
+                    )
+                    .unwrap();
+                }
+            }
+        });
+        (port, task)
+    }
+
+    #[tokio::test]
+    async fn post_flip_selection_waits_for_download_even_when_old_star_is_selectable() {
+        let _slot = PHD2_TEST_SLOT.lock().await;
+        let (port, task) = server(1, true);
+        api_phd2_connect(Some("127.0.0.1".into()), Some(port))
+            .await
+            .unwrap();
+        let selected = select_fresh_guide_star(PHD2_DEVICE_ID).await;
+        api_phd2_disconnect().await.unwrap();
+        task.join().unwrap();
+        assert_eq!(
+            selected.unwrap(),
+            (12.5, 34.0),
+            "must not select the pre-flip star"
+        );
+    }
+
+    #[tokio::test]
+    async fn guide_rpc_accepted_but_settle_failed_is_not_success() {
+        let _slot = PHD2_TEST_SLOT.lock().await;
+        let (port, task) = server(1, true);
+        api_phd2_connect(Some("127.0.0.1".into()), Some(port))
+            .await
+            .unwrap();
+        let result = api_phd2_start_guiding(0.5, 0.1, 1.0).await;
+        api_phd2_disconnect().await.unwrap();
+        task.join().unwrap();
+        assert!(
+            result.is_err(),
+            "an accepted guide command is not a settled guider"
+        );
+    }
+    #[tokio::test]
+    async fn successful_settle_allows_guiding_to_start() {
+        let _slot = PHD2_TEST_SLOT.lock().await;
+        let (port, task) = server(0, true);
+        api_phd2_connect(Some("127.0.0.1".into()), Some(port))
+            .await
+            .unwrap();
+        let result = api_phd2_start_guiding(0.5, 0.1, 1.0).await;
+        api_phd2_disconnect().await.unwrap();
+        task.join().unwrap();
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn disconnect_before_new_frame_cannot_select_the_old_star() {
+        let _slot = PHD2_TEST_SLOT.lock().await;
+        let (port, task) = server(0, false);
+        api_phd2_connect(Some("127.0.0.1".into()), Some(port))
+            .await
+            .unwrap();
+        let result = select_fresh_guide_star(PHD2_DEVICE_ID).await;
+        api_phd2_disconnect().await.unwrap();
+        task.join().unwrap();
+        assert!(result.is_err());
     }
 }

@@ -188,14 +188,6 @@ pub async fn execute_exposure_with_renderer(
         }
     }
 
-    // A move stopped the guiding this run had started; pick it up again on a
-    // fresh star before the first light frame after it.
-    if frame_type_requires_darkness(&config.frame_type) {
-        if let Some(result) = resume_guiding_after_motion(ctx).await {
-            return result;
-        }
-    }
-
     if let Err(error) = validate_exposure_filter_request(
         config.filter.as_deref(),
         config.filter_index,
@@ -394,6 +386,15 @@ pub async fn execute_exposure_with_renderer(
                     return InstructionResult::cancelled("Exposure cancelled while paused");
                 }
             };
+
+            // Resume only after the hold and imaging-train gates. Otherwise a
+            // pending restart can turn guiding back on during a tracking-limit hold.
+            if frame_type_requires_darkness(&config.frame_type) {
+                if let Some(result) = resume_guiding_after_motion(ctx).await {
+                    frame_claim.release(ctx).await;
+                    return result;
+                }
+            }
 
             // The instant the shutter opens. FITS DATE-OBS means START of
             // observation, so it is captured here, immediately before the exposure

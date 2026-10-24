@@ -572,3 +572,37 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
         "the operator was already told the run is unguided"
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("held-light".into());
+    ec.device_ops = ops.clone();
+    ec.camera_id = Some("camera-1".into());
+    ec.is_paused.store(true, Ordering::SeqCst);
+    let mut state = crate::triggers::TriggerState::new();
+    state.guiding.set_resume_pending(true);
+    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    let ctx = ec.to_instruction_context("held-light").await;
+    let control = BurstControl {
+        pause: ec.pause_gate(),
+        status: None,
+    };
+    let config = ExposureConfig {
+        count: 1,
+        duration_secs: 0.0,
+        ..Default::default()
+    };
+    let result = tokio::time::timeout(
+        Duration::from_secs(1),
+        execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
+    )
+    .await;
+    assert!(result.is_err(), "the exposure must remain held");
+    assert_eq!(
+        ops.guider_start_calls.load(Ordering::SeqCst),
+        0,
+        "a pending guide restart cannot bypass the tracking-limit hold"
+    );
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 0);
+}
