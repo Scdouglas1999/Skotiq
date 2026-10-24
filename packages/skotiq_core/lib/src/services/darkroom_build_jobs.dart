@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -156,8 +157,12 @@ Future<Map<String, List<CapturedImage>>> loadDarkroomTargets(
     if (name == null) {
       try {
         name = FitsHeaderReader.stringValue(await read(f.filePath), 'OBJECT');
-      } catch (_) {
+      } catch (e) {
         // Unreadable files stay listed under their session.
+        developer.log(
+          'Darkroom: no OBJECT for ${f.filePath}: $e',
+          name: 'darkroom',
+        );
       }
     }
     name ??= 'Session ${f.sessionId ?? 'unassigned'}';
@@ -625,8 +630,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
             message: message,
             routeAs: NotificationCategory.darkroomDraftReady,
           );
-    } catch (_) {
+    } catch (e) {
       // The job's own state still shows the outcome.
+      developer.log('Darkroom: notification not sent: $e', name: 'darkroom');
     }
   }
 }
