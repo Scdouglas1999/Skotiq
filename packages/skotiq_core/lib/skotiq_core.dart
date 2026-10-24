@@ -663,6 +663,7 @@ export 'src/services/stack_share_export_service.dart';
 // Post-session (offline/batch) integration: archival masters + multi-night
 // accumulation + master-flat library.
 export 'src/services/post_session_seam.dart';
+export 'src/services/darkroom_build_service.dart';
 export 'src/services/post_session_integration_service.dart';
 export 'src/services/master_accumulation_service.dart';
 export 'src/services/flat_library_service.dart';

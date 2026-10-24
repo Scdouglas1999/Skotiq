@@ -227,7 +227,7 @@ Mosaic, Session review, Catalogs — is reachable from any screen with the comma
 
 **Review**
 
-- **Darkroom** — recipes, sessions and masters; non-destructive processing of what you captured.
+- **[Darkroom](features/darkroom.md)** — build aligned masters across nights, review calibration and framing, resume interrupted builds, and export linear FITS files.
 - **Analytics** — session statistics, image history, guiding performance, diagnostics.
 
 The bottom bar is the instrument bar: run state, device pills and the clock, on every screen. Below

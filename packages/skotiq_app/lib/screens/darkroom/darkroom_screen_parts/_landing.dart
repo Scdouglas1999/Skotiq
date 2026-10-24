@@ -171,6 +171,16 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
             onSelected: (index) => _choose(_DarkroomLandingTab.values[index]),
           ),
           actions: [
+            SkotiqButton(
+              label: 'Build masters',
+              onPressed: () async {
+                await showDialog<void>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const BuildMastersDialog());
+                if (mounted) ref.invalidate(_darkroomLandingProvider);
+              },
+            ),
             SkotiqIconButton(
               icon: SkotiqIcons.refresh,
               tooltip: 'Reload the masters, recipes and sessions on this host',

@@ -80,6 +80,7 @@ pub(crate) use masters::*;
 mod multi_night;
 pub(crate) use multi_night::*;
 mod delivery;
+mod uniform_delivery;
 pub(crate) use delivery::*;
 mod telemetry;
 pub(crate) use telemetry::*;

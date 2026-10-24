@@ -482,6 +482,54 @@ fn accumulate_weights_better_night_more_than_worse_night() {
     );
 }
 
+#[test]
+fn flat_build_preserves_identity_and_rejects_mismatched_inputs() {
+    let dir = temp_dir("flat_metadata");
+    let image = ImageData::from_u16(48, 48, 1, &vec![20000; 48 * 48]);
+    let pedestal = ImageData::from_u16(48, 48, 1, &vec![100; 48 * 48]);
+    let mut header = FitsHeader::new();
+    header.set_string("INSTRUME", "Camera A");
+    header.set_string("FILTER", "L");
+    header.set_string("IMAGETYP", "FLAT");
+    header.set_float("GAIN", 100.0);
+    header.set_float("EXPTIME", 2.0);
+    let first = dir.join("flat1.fits");
+    let second = dir.join("flat2.fits");
+    let bias = dir.join("bias.fits");
+    let out = dir.join("master.fits");
+    write_fits(&first, &image, &header).unwrap();
+    write_fits(&second, &image, &header).unwrap();
+    let mut bias_header = header.clone();
+    bias_header.set_string("IMAGETYP", "BIAS");
+    bias_header.set_float("EXPTIME", 0.001);
+    write_fits(&bias, &pedestal, &bias_header).unwrap();
+    let args =
+        serde_json::json!({"flatPaths":[first,second],"biasOrDarkFlat":bias,"outputPath":out});
+    api_build_master_flat(args.to_string()).unwrap();
+    let result = read_fits_header(&out).unwrap();
+    assert_eq!(result.get_string("INSTRUME"), Some("Camera A"));
+    assert_eq!(result.get_string("FILTER"), Some("L"));
+    header.set_string("FILTER", "B");
+    write_fits(&second, &image, &header).unwrap();
+    assert!(api_build_master_flat(args.to_string())
+        .unwrap_err()
+        .contains("different FILTER"));
+    header.set_string("FILTER", "L");
+    write_fits(&second, &image, &header).unwrap();
+    bias_header.set_string("INSTRUME", "Camera B");
+    write_fits(&bias, &pedestal, &bias_header).unwrap();
+    assert!(api_build_master_flat(args.to_string())
+        .unwrap_err()
+        .contains("cameras differ"));
+    bias_header.set_string("INSTRUME", "Camera A");
+    bias_header.set_string("IMAGETYP", "DARK");
+    bias_header.set_float("EXPTIME", 90.0);
+    write_fits(&bias, &pedestal, &bias_header).unwrap();
+    assert!(api_build_master_flat(args.to_string())
+        .unwrap_err()
+        .contains("exposure must match"));
+}
+
 /// Master-flat build normalizes to unit mean and writes a readable FITS.
 #[test]
 fn build_master_flat_unit_mean() {

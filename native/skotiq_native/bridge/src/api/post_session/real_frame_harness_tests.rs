@@ -71,3 +71,16 @@ fn normfix_stack_real_frames() {
         }
     }
 }
+
+#[test]
+#[ignore = "needs real files; SKOTIQ_BUILD_REQUEST and SKOTIQ_BUILD_RESULT"]
+fn guided_build_request() {
+    let request = std::fs::read_to_string(std::env::var("SKOTIQ_BUILD_REQUEST").unwrap()).unwrap();
+    let result = api_master_accumulate(request);
+    std::fs::write(
+        std::env::var("SKOTIQ_BUILD_RESULT").unwrap(),
+        serde_json::to_string_pretty(&result).unwrap(),
+    )
+    .unwrap();
+    assert!(result.is_ok(), "{result:?}");
+}

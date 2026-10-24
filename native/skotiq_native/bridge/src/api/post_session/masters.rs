@@ -600,6 +600,55 @@ pub(crate) struct BuildMasterFlatResult {
     pub(crate) output_bit_depth: String,
 }
 
+// Keep non-FITS inputs supported by the existing image reader. Metadata
+// validation is possible only when the input supplies typed FITS cards.
+fn flat_metadata(path: &str) -> Result<FitsHeader, String> {
+    let path = Path::new(path);
+    match path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "fits" | "fit" | "fts" => read_fits_header(path).map_err(|e| {
+            format!(
+                "failed to read calibration metadata '{}': {e}",
+                path.display()
+            )
+        }),
+        _ => Ok(FitsHeader::new()),
+    }
+}
+
+fn validate_flat_pedestal(flat: &FitsHeader, pedestal: &FitsHeader) -> Result<(), String> {
+    if let (Some(a), Some(b)) = (flat.get_string("INSTRUME"), pedestal.get_string("INSTRUME")) {
+        if a != b {
+            return Err("Flat and bias/dark-flat cameras differ (INSTRUME)".into());
+        }
+    }
+    for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
+        if let (Some(a), Some(b)) = (flat.get_float(key), pedestal.get_float(key)) {
+            if (a - b).abs() > 1e-6 {
+                return Err(format!("Flat and bias/dark-flat {key} differ"));
+            }
+        }
+    }
+    let kind = pedestal
+        .get_string("IMAGETYP")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let is_bias = kind.contains("bias") || kind.contains("offset");
+    if !is_bias {
+        if let (Some(a), Some(b)) = (flat.get_float("EXPTIME"), pedestal.get_float("EXPTIME")) {
+            if b > 0.1 && (a - b).abs() > 1e-6 {
+                return Err("Dark-flat exposure must match the raw flats; select a matching dark-flat or master bias".into());
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn build_master_flat_impl(
     args: BuildMasterFlatArgs,
 ) -> Result<BuildMasterFlatResult, String> {
@@ -608,6 +657,36 @@ pub(crate) fn build_master_flat_impl(
     }
     if args.output_path.trim().is_empty() {
         return Err("output_path is required".to_string());
+    }
+
+    let source_headers = args
+        .flat_paths
+        .iter()
+        .map(|path| flat_metadata(path))
+        .collect::<Result<Vec<_>, _>>()?;
+    for header in &source_headers[1..] {
+        for key in ["INSTRUME", "FILTER"] {
+            if let (Some(first), Some(next)) =
+                (source_headers[0].get_string(key), header.get_string(key))
+            {
+                if first != next {
+                    return Err(format!(
+                        "Raw flats have different {key}; build each calibration group separately"
+                    ));
+                }
+            }
+        }
+        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING", "EXPTIME"] {
+            if let (Some(first), Some(next)) =
+                (source_headers[0].get_float(key), header.get_float(key))
+            {
+                if (first - next).abs() > 1e-6 {
+                    return Err(format!(
+                        "Raw flats have different {key}; build each calibration group separately"
+                    ));
+                }
+            }
+        }
     }
 
     let flats: Vec<ImageData> = args
@@ -620,6 +699,10 @@ pub(crate) fn build_master_flat_impl(
         })
         .collect::<Result<_, _>>()?;
 
+    if let Some(path) = &args.bias_or_dark_flat {
+        let pedestal_header = flat_metadata(path)?;
+        validate_flat_pedestal(&source_headers[0], &pedestal_header)?;
+    }
     let pedestal = load_optional_master(&args.bias_or_dark_flat, "bias/dark-flat")?;
 
     let output_type = match args.output_bit_depth.trim().to_ascii_lowercase().as_str() {
@@ -654,7 +737,7 @@ pub(crate) fn build_master_flat_impl(
 
     let out_path = Path::new(&args.output_path);
     ensure_parent_dir(out_path)?;
-    let mut header = FitsHeader::new();
+    let mut header = source_headers[0].clone();
     header.set_string("IMAGETYP", "FLAT");
     header.set_string("FRAMETYP", "MASTER");
     header.set_string("CALSTAT", "Skotiq master flat");

@@ -378,3 +378,92 @@ fn multi_night_request_from_file() {
         Err(e) => panic!("[mn] failed: {e}"),
     }
 }
+
+#[test]
+fn guided_build_handles_bias_float_flat_bad_first_frame_and_common_export() {
+    let dir = scratch("guided_reference_path_longer_than_one_fits_header_card");
+    let grid = write_u16(
+        &dir.join("L.fits"),
+        &render(1.0, 900.0, (0.0, 0.0), false, 70),
+    );
+    let red = write_u16(
+        &dir.join("R.fits"),
+        &render(0.6, 700.0, (2.0, 1.0), false, 71),
+    );
+    let shifted = write_u16(
+        &dir.join("shifted.fits"),
+        &render(0.6, 700.0, (60.0, 0.0), false, 72),
+    );
+    let bias = write_u16(&dir.join("bias.fits"), &vec![100.0; (W * H) as usize]);
+    let flat = dir.join("flat.fits");
+    write_fits(
+        &flat,
+        &ImageData::from_f32(W, H, 1, &vec![1.0; (W * H) as usize]),
+        &FitsHeader::new(),
+    )
+    .unwrap();
+    let calibration = serde_json::json!({"bias":bias,"flat":flat});
+    let checked = api_master_accumulate(
+        serde_json::json!({"op":"checkCalibration","path":grid,"calibration":calibration})
+            .to_string(),
+    );
+    assert!(checked.is_ok(), "{checked:?}");
+    let mut outputs = Vec::new();
+    for (filter, good) in [("L", &grid), ("R", &red)] {
+        let result: serde_json::Value = serde_json::from_str(&api_master_accumulate(serde_json::json!({
+            "op":"build","filter":filter,"target":"Test","gridReference":{"path":grid,"calibration":calibration},
+            "normalizationReference":{"path":shifted,"calibration":calibration},
+            "groups":[{"label":"night","calibration":calibration,"lights":[{"path":shifted,"exposureSec":90},{"path":good,"exposureSec":90}]}],
+            "minOverlap":0.95,"maxEccentricity":0.7,"validateFlats":true,
+            "masterFitsPath":dir.join(format!("{filter}.master.fits")),"coverageFitsPath":dir.join(format!("{filter}.coverage.fits"))
+        }).to_string()).unwrap()).unwrap();
+        assert_eq!(result["frameCount"], 1, "{result}");
+        assert_eq!(result["skipped"][0]["stage"], "framing", "{result}");
+        outputs.push(serde_json::json!({"filter":filter,"path":result["masterPath"],"coveragePath":result["coveragePath"]}));
+    }
+    let exported: serde_json::Value = serde_json::from_str(&api_master_accumulate(serde_json::json!({"op":"deliverUniform","masters":outputs,"outputDir":dir.join("export")}).to_string()).unwrap()).unwrap();
+    let width = exported["width"].as_u64().unwrap();
+    assert!(width < W as u64 && width > W as u64 * 9 / 10);
+    assert_eq!(exported["masters"].as_array().unwrap().len(), 2);
+    for master in exported["masters"].as_array().unwrap() {
+        let (image, _) = read_fits(Path::new(master["path"].as_str().unwrap())).unwrap();
+        assert_eq!(image.width as u64, width);
+        assert!(image_to_f64(&image)
+            .iter()
+            .all(|v| v.is_finite() && (0.0..=1.0).contains(v)));
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn guided_preflight_blocks_obstructed_flat_but_accepts_advisory_gain() {
+    let dir = scratch("flat_check");
+    let light = dir.join("light.fits");
+    let flat = dir.join("flat.fits");
+    let mut h = FitsHeader::new();
+    h.set_int("GAIN", 76);
+    write_fits(
+        &light,
+        &ImageData::from_u16(W, H, 1, &vec![1000; (W * H) as usize]),
+        &h,
+    )
+    .unwrap();
+    h.set_int("GAIN", 100);
+    write_fits(
+        &flat,
+        &ImageData::from_f32(W, H, 1, &vec![1.0; (W * H) as usize]),
+        &h,
+    )
+    .unwrap();
+    let args =
+        serde_json::json!({"op":"checkCalibration","path":light,"calibration":{"flat":flat}})
+            .to_string();
+    assert!(api_master_accumulate(args.clone()).is_ok());
+    let mut pixels = vec![1.0; (W * H) as usize];
+    pixels[..(W * H / 10) as usize].fill(0.01);
+    write_fits(&flat, &ImageData::from_f32(W, H, 1, &pixels), &h).unwrap();
+    assert!(api_master_accumulate(args)
+        .unwrap_err()
+        .contains("possible obstruction"));
+    std::fs::remove_dir_all(dir).unwrap();
+}

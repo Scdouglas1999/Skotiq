@@ -65,10 +65,12 @@ pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
         "finalize" => serde_json::to_string(&master_finalize(&args_json)?),
         "info" => serde_json::to_string(&master_info(&args_json)?),
         "build" => serde_json::to_string(&master_build(&args_json)?),
+        "checkCalibration" => serde_json::to_string(&check_build_calibration(&args_json)?),
+        "deliverUniform" => serde_json::to_string(&super::uniform_delivery::deliver(&args_json)?),
         "deliver" => serde_json::to_string(&master_deliver(&args_json)?),
         other => {
             return Err(format!(
-                "unknown master op '{other}'; expected create/add/finalize/info/build/deliver"
+                "unknown master op '{other}'; expected create/add/finalize/info/build/checkCalibration/deliver/deliverUniform"
             ))
         }
     };
