@@ -73,4 +73,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Stop tracking before meridian'), findsNothing);
   });
+
+  testWidgets('the tracking-limit choice defaults to flipping right away',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const SequencerSettings(),
+      size: const Size(1400, 1000),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('When the mount stops at its limit'), findsOneWidget);
+    expect(find.text('Flip right away'), findsOneWidget);
+    expect(
+      find.text(TrackingLimitPolicy.flipEarly.description),
+      findsOneWidget,
+    );
+
+    await handle.container
+        .read(globalMeridianFlipSettingsProvider.notifier)
+        .setTrackingLimitPolicy(TrackingLimitPolicy.waitForFlipWindow);
+    await tester.pumpAndSettle();
+    expect(find.text('Wait for the flip window'), findsOneWidget);
+    expect(
+      find.text(TrackingLimitPolicy.waitForFlipWindow.description),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the tracking-limit row fits a phone-width settings page',
+      (tester) async {
+    await pumpAppScreen(
+      tester,
+      const SequencerSettings(isMobile: true),
+      size: const Size(360, 2400),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('When the mount stops at its limit'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

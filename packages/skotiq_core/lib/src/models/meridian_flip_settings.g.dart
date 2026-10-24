@@ -24,6 +24,12 @@ _MeridianFlipSettings _$MeridianFlipSettingsFromJson(
       (json['trackingLimitWaitMinutes'] as num?)?.toDouble() ?? 0.0,
   pauseBeforeMeridianMinutes:
       (json['pauseBeforeMeridianMinutes'] as num?)?.toDouble() ?? 0.0,
+  trackingLimitPolicy:
+      $enumDecodeNullable(
+        _$TrackingLimitPolicyEnumMap,
+        json['trackingLimitPolicy'],
+      ) ??
+      TrackingLimitPolicy.flipEarly,
   pauseGuidingBeforeFlip: json['pauseGuidingBeforeFlip'] as bool? ?? true,
   recenterAfterFlip: json['recenterAfterFlip'] as bool? ?? true,
   refocusAfterFlip: json['refocusAfterFlip'] as bool? ?? false,
@@ -52,6 +58,8 @@ Map<String, dynamic> _$MeridianFlipSettingsToJson(
   'hourAngleThreshold': instance.hourAngleThreshold,
   'trackingLimitWaitMinutes': instance.trackingLimitWaitMinutes,
   'pauseBeforeMeridianMinutes': instance.pauseBeforeMeridianMinutes,
+  'trackingLimitPolicy':
+      _$TrackingLimitPolicyEnumMap[instance.trackingLimitPolicy]!,
   'pauseGuidingBeforeFlip': instance.pauseGuidingBeforeFlip,
   'recenterAfterFlip': instance.recenterAfterFlip,
   'refocusAfterFlip': instance.refocusAfterFlip,
@@ -69,6 +77,11 @@ const _$MeridianTriggerMethodEnumMap = {
   MeridianTriggerMethod.minutesBeforeLimit: 'minutesBeforeLimit',
   MeridianTriggerMethod.hourAngleThreshold: 'hourAngleThreshold',
   MeridianTriggerMethod.onTrackingLimitHit: 'onTrackingLimitHit',
+};
+
+const _$TrackingLimitPolicyEnumMap = {
+  TrackingLimitPolicy.flipEarly: 'flipEarly',
+  TrackingLimitPolicy.waitForFlipWindow: 'waitForFlipWindow',
 };
 
 const _$FlipFailureActionEnumMap = {

@@ -231,6 +231,39 @@ void main() {
     );
 
     test(
+      'a tracking-limit stop flips early unless the operator chose to wait',
+      () async {
+        final notifier = container.read(
+          globalMeridianFlipSettingsProvider.notifier,
+        );
+        final serializer = Provider(
+          (ref) => SequenceSerializer(ref: ref, warn: (_) {}),
+        );
+        expect(
+          container
+              .read(globalMeridianFlipSettingsProvider)
+              .trackingLimitPolicy,
+          TrackingLimitPolicy.flipEarly,
+        );
+        expect(
+          container
+              .read(serializer)
+              .buildGlobalMeridianFlipConfigJson()['tracking_limit_policy'],
+          'FlipEarly',
+        );
+        await notifier.setTrackingLimitPolicy(
+          TrackingLimitPolicy.waitForFlipWindow,
+        );
+        expect(
+          container
+              .read(serializer)
+              .buildGlobalMeridianFlipConfigJson()['tracking_limit_policy'],
+          'WaitForFlipWindow',
+        );
+      },
+    );
+
+    test(
       'the stop-tracking-before-meridian minutes reach the native flip config',
       () async {
         final notifier = container.read(

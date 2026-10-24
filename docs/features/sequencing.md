@@ -460,6 +460,38 @@ Handles automatic meridian flips.
 - Recenter and refocus after flip
 - Continue sequence seamlessly
 
+**When the mount stops at its own tracking limit**
+
+Some mounts stop tracking on their own before the target reaches the
+meridian, because the tube would hit the pier or tripod. When tracking stops
+during a run while the mount is on the west side of the pier, from an hour
+before transit on, Skotiq treats the stop as the mount's limit. It holds
+exposures and guiding, marks the frame that was exposing as rejected, and
+then does what the setting **When the mount stops at its limit**
+(Settings > Sequencer > Meridian flip) says:
+
+- **Flip right away** (the default): the mount flips to the east side at
+  once and imaging resumes within minutes. Many mounts accept an east-side
+  pointing a little before the meridian. If the mount will not take the east
+  side yet (it stays on the west side after the slew), the run waits for the
+  flip window instead.
+- **Wait for the flip window**: tracking stays off until the target is past
+  the configured flip point, then the flip runs.
+
+Tracking is never switched back on into the limit. Stops that Skotiq made
+itself (a park, a home, a slew, the pre-meridian hold) are never treated as
+a limit. A stop made at the hand controller or by another program looks the
+same to the driver as a limit stop, so the notice says how the stop was read;
+pause or stop the run if you stopped tracking yourself.
+
+After any flip, the run continues once the mount is verified on its new side.
+A recenter that finds no solution, a guider that will not restart, or high
+guiding RMS is reported and the run goes on (unless **Stop the run for
+quality problems** is on). The flip slews with tracking on, and frames are
+released only after the mount's position shows it is tracking. A mount that
+reports tracking but does not move is caught the same way; tracking recovery
+then keeps trying, with growing waits, and says so each time.
+
 ## Building Common Sequences
 
 ### Basic Single Target Sequence

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/imaging/imaging_models.dart';
+import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
@@ -835,6 +836,10 @@ class SequenceSerializer {
       // runs its flip where it sits in the tree, so only the global settings
       // carry it.
       'pause_before_meridian_minutes': global.pauseBeforeMeridianMinutes,
+      'tracking_limit_policy': switch (global.trackingLimitPolicy) {
+        TrackingLimitPolicy.flipEarly => 'FlipEarly',
+        TrackingLimitPolicy.waitForFlipWindow => 'WaitForFlipWindow',
+      },
       'pause_guiding': pauseGuiding,
       'auto_center': autoCenter,
       'refocus_after': refocusAfter,
