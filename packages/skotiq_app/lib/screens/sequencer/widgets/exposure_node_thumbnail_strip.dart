@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    show ProducingNodeThumbnail, exposureNodeThumbnailsProvider;
+    show
+        ProducingNodeThumbnail,
+        exposureNodeThumbnailsProvider,
+        FrameExclusionKind,
+        frameExclusionKindOf;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'thumbnail_strip_prefs.dart';
 import '../../../utils/filter_label.dart';
+import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 
 /// Inline frame strip rendered beneath each
@@ -350,11 +355,23 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
                 ),
               ),
               clipBehavior: Clip.antiAlias,
-              child: FrameThumbnail(
-                iconSize: 14,
-                bytesFuture: _bytesFuture,
-                fallbackFilePath: widget.thumbnail.filePath,
-                colors: widget.colors,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  FrameThumbnail(
+                    iconSize: 14,
+                    bytesFuture: _bytesFuture,
+                    fallbackFilePath: widget.thumbnail.filePath,
+                    colors: widget.colors,
+                  ),
+                  if (frameExclusionKindOf(widget.thumbnail.rejectionReason)
+                      case final kind?)
+                    Positioned(
+                      top: SkotiqTokens.spaceXs,
+                      left: SkotiqTokens.spaceXs,
+                      child: FrameExclusionBadge(kind: kind, compact: true),
+                    ),
+                ],
               ),
             ),
             SizedBox(
@@ -517,7 +534,13 @@ class _FrameMetadata extends StatelessWidget {
         chip('Stars', thumb.starCount?.toString() ?? '—'),
         chip(
           'Grade',
-          thumb.isAccepted ? (thumb.runtimeGrade ?? 'accepted') : 'REJECTED',
+          thumb.isAccepted
+              ? (thumb.runtimeGrade ?? 'accepted')
+              : switch (frameExclusionKindOf(thumb.rejectionReason)) {
+                  FrameExclusionKind.offTarget => 'OFF TARGET',
+                  FrameExclusionKind.obstructed => 'OBSTRUCTED',
+                  null => 'REJECTED',
+                },
         ),
         chip(
           'Captured',

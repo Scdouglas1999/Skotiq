@@ -14,6 +14,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 import '../data/session/session_format.dart';
 import '../data/session/session_frames_provider.dart';
@@ -62,13 +63,13 @@ final nightLastSessionProvider = Provider<NightLastSessionVm?>((ref) {
   NightLastSessionVm? last;
   for (final session in sessions) {
     if (session.id == activeId || session.endTime == null) continue;
-    if (session.successfulExposures <= 0) continue;
+    if (session.totalExposures <= 0) continue;
     if (last != null && !session.startTime.isAfter(last.startedAt)) continue;
     final name = session.name?.trim();
     last = NightLastSessionVm(
       startedAt: session.startTime,
       name: name == null || name.isEmpty ? null : name,
-      frames: session.successfulExposures,
+      frames: session.totalExposures,
       integrationSecs: session.totalIntegrationSecs > 0
           ? session.totalIntegrationSecs
           : null,
@@ -274,7 +275,10 @@ class _StripTileState extends ConsumerState<_StripTile> {
           'nightCtrHfrValue',
           params: <String, String>{'hfr': hfr.toStringAsFixed(2)},
         ),
-      if (rejected) l10n.text('nightCtrRejected'),
+      if (frame.exclusion case final kind?)
+        frameExclusionLabel(context, kind)
+      else if (rejected)
+        l10n.text('nightCtrRejected'),
       if (frame.isNewest) l10n.text('nightCtrStripNewest'),
     ].join(', ');
 
@@ -306,14 +310,32 @@ class _StripTileState extends ConsumerState<_StripTile> {
                           : Border.all(color: ring, width: 2),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: Opacity(
-                      opacity: rejected ? 0.4 : 1,
-                      child: FrameThumbnail(
-                        iconSize: 12,
-                        bytesFuture: _bytes,
-                        fallbackFilePath: frame.filePath ?? nightNoLocalFile,
-                        colors: colors,
-                      ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        Opacity(
+                          opacity: rejected ? 0.4 : 1,
+                          child: FrameThumbnail(
+                            iconSize: 12,
+                            bytesFuture: _bytes,
+                            fallbackFilePath:
+                                frame.filePath ?? nightNoLocalFile,
+                            colors: colors,
+                          ),
+                        ),
+                        if (frame.exclusion case final kind?)
+                          Positioned(
+                            top: SkotiqTokens.spaceXs,
+                            left: SkotiqTokens.spaceXs,
+                            // The tile's own label names the exclusion.
+                            child: ExcludeSemantics(
+                              child: FrameExclusionBadge(
+                                kind: kind,
+                                compact: true,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

@@ -96,7 +96,9 @@ class _SubTile extends ConsumerWidget {
                     Positioned(
                       bottom: 4,
                       left: 4,
-                      child: _Badge(text: 'REJECTED', color: colors.error),
+                      child: frameExclusionKindOf(sub.rejectionReason) == null
+                          ? _Badge(text: 'REJECTED', color: colors.error)
+                          : FrameExclusionBadge.forReason(sub.rejectionReason),
                     ),
                 ],
               ),
