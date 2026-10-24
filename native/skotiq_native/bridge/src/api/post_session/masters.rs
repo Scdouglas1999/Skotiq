@@ -242,7 +242,7 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
 
     // Load + calibrate masters once.
     let dark = load_optional_master(&args.calibration.dark, "dark")?;
-    let flat = load_optional_master(&args.calibration.flat, "flat")?;
+    let flat = load_optional_flat(&args.calibration.flat)?;
     let bias = load_optional_master(&args.calibration.bias, "bias")?;
 
     // Register against the frozen reference companion written at `create` (the
@@ -294,13 +294,8 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
             ));
         }
         if dark.is_some() || flat.is_some() || bias.is_some() {
-            image = skotiq_imaging::calibration::calibrate_frame(
-                &image,
-                dark.as_ref(),
-                flat.as_ref(),
-                bias.as_ref(),
-            )
-            .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
+            image = calibrate_with_flat_state(&image, dark.as_ref(), flat.as_ref(), bias.as_ref())
+                .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
         }
         if args.calibration.cosmetic_correction {
             // The returned report is advisory; the error is not. The fold's
@@ -598,6 +593,9 @@ pub(crate) struct BuildMasterFlatResult {
     pub(crate) height: u32,
     pub(crate) channels: u32,
     pub(crate) output_bit_depth: String,
+    /// Raw flats left out of the master (banded or obstructed), with reasons.
+    #[serde(default)]
+    pub(crate) excluded: Vec<ExcludedFlat>,
 }
 
 // Keep non-FITS inputs supported by the existing image reader. Metadata
@@ -641,12 +639,69 @@ fn validate_flat_pedestal(flat: &FitsHeader, pedestal: &FitsHeader) -> Result<()
     let is_bias = kind.contains("bias") || kind.contains("offset");
     if !is_bias {
         if let (Some(a), Some(b)) = (flat.get_float("EXPTIME"), pedestal.get_float("EXPTIME")) {
-            if b > 0.1 && (a - b).abs() > 1e-6 {
-                return Err("Dark-flat exposure must match the raw flats; select a matching dark-flat or master bias".into());
+            // Dark current in a dark-flat of 0.1 s or less is negligible, so it
+            // stands in for a bias. A longer one must match within 10%.
+            if b > 0.1 && (a - b).abs() > 0.1 * b {
+                return Err(format!(
+                    "Dark-flat exposure {b} s does not match a raw flat's {a} s; select a matching dark-flat or a master bias"
+                ));
             }
         }
     }
     Ok(())
+}
+
+/// The header card that records whether a master flat's pedestal was removed.
+pub(crate) const FLAT_PEDESTAL_CARD: &str = "PEDSUB";
+
+/// Whether a flat master read from disk already had its bias or dark-flat
+/// removed, so a light's bias must not be subtracted from it again.
+///
+/// Floating-point flats are normalized response maps. Integer flats count as
+/// corrected when their header says so: Skotiq's `PEDSUB` card, a master frame
+/// type, or a combine count. A single raw integer flat still carries its bias.
+pub(crate) fn flat_pedestal_state(
+    image: &ImageData,
+    header: Option<&FitsHeader>,
+) -> skotiq_imaging::calibration::FlatPedestal {
+    use skotiq_imaging::calibration::FlatPedestal;
+    if matches!(image.pixel_type, PixelType::F32 | PixelType::F64) {
+        return FlatPedestal::Removed;
+    }
+    let Some(header) = header else {
+        return FlatPedestal::Included;
+    };
+    if let Some(removed) = header.get_bool(FLAT_PEDESTAL_CARD) {
+        return if removed {
+            FlatPedestal::Removed
+        } else {
+            FlatPedestal::Included
+        };
+    }
+    let upper = |key: &str| {
+        header
+            .get_string(key)
+            .unwrap_or_default()
+            .to_ascii_uppercase()
+    };
+    let master = upper("FRAMETYP").contains("MASTER")
+        || upper("IMAGETYP").contains("MASTER")
+        || header.get_int("NCOMBINE").is_some_and(|n| n > 1)
+        || header.get_int("NFRAMES").is_some_and(|n| n > 1);
+    if master {
+        FlatPedestal::Removed
+    } else {
+        FlatPedestal::Included
+    }
+}
+
+/// One raw flat left out of a master flat, and why.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct ExcludedFlat {
+    pub(crate) path: String,
+    pub(crate) reason: String,
 }
 
 pub(crate) fn build_master_flat_impl(
@@ -664,6 +719,8 @@ pub(crate) fn build_master_flat_impl(
         .iter()
         .map(|path| flat_metadata(path))
         .collect::<Result<Vec<_>, _>>()?;
+    // Exposure may vary: Skotiq's flat capture adjusts it frame by frame, and
+    // each flat is scaled to its own median before combining.
     for header in &source_headers[1..] {
         for key in ["INSTRUME", "FILTER"] {
             if let (Some(first), Some(next)) =
@@ -676,7 +733,7 @@ pub(crate) fn build_master_flat_impl(
                 }
             }
         }
-        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING", "EXPTIME"] {
+        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
             if let (Some(first), Some(next)) =
                 (source_headers[0].get_float(key), header.get_float(key))
             {
@@ -688,20 +745,29 @@ pub(crate) fn build_master_flat_impl(
             }
         }
     }
-
-    let flats: Vec<ImageData> = args
-        .flat_paths
+    let exposures: Vec<f64> = source_headers
         .iter()
-        .map(|p| {
-            read_image(Path::new(p))
-                .map(|r| r.image)
-                .map_err(|e| format!("failed to read flat '{p}': {e}"))
-        })
-        .collect::<Result<_, _>>()?;
+        .filter_map(|h| h.get_float("EXPTIME"))
+        .collect();
+    let varied = exposures
+        .iter()
+        .any(|e| (e - exposures[0]).abs() > 1e-6 * exposures[0].abs().max(1.0));
 
-    if let Some(path) = &args.bias_or_dark_flat {
+    let pedestal_path = args
+        .bias_or_dark_flat
+        .as_deref()
+        .map(str::trim)
+        .filter(|p| !p.is_empty());
+    if let Some(path) = pedestal_path {
         let pedestal_header = flat_metadata(path)?;
-        validate_flat_pedestal(&source_headers[0], &pedestal_header)?;
+        for header in &source_headers {
+            validate_flat_pedestal(header, &pedestal_header)?;
+        }
+    } else if varied {
+        return Err(
+            "Raw flats have different exposures; select a master bias or dark-flat so each flat can be scaled to its own level"
+                .into(),
+        );
     }
     let pedestal = load_optional_master(&args.bias_or_dark_flat, "bias/dark-flat")?;
 
@@ -722,18 +788,49 @@ pub(crate) fn build_master_flat_impl(
             } else {
                 5
             },
-        }, // sigma_iterations is u32 (see SigmaClip below)
+        },
         "median" => CombineMethod::Median,
         "mean" => CombineMethod::Mean,
         other => return Err(format!("unknown combine method '{other}'")),
     };
 
+    // Each flat is read, pedestal-corrected and normalized on its own, so only
+    // one raw frame is in memory at a time. Banded flats are left out.
+    let mut normalized = Vec::with_capacity(args.flat_paths.len());
+    let mut levels = Vec::with_capacity(args.flat_paths.len());
+    let mut excluded = Vec::new();
+    for path in &args.flat_paths {
+        let raw = read_image(Path::new(path))
+            .map_err(|e| format!("failed to read flat '{path}': {e}"))?
+            .image;
+        if let Some(bands) = skotiq_imaging::calibration_masters::flat_bands(&raw) {
+            tracing::warn!("master flat: leaving out '{path}': {bands}");
+            excluded.push(ExcludedFlat {
+                path: path.clone(),
+                reason: bands,
+            });
+            continue;
+        }
+        let (frame, level) =
+            skotiq_imaging::calibration_masters::normalize_raw_flat(&raw, pedestal.as_ref())
+                .map_err(|e| format!("flat '{path}': {e}"))?;
+        normalized.push(frame);
+        levels.push(level);
+    }
+    if normalized.is_empty() {
+        return Err(format!(
+            "every raw flat is banded or obstructed (first: {}: {}); capture new flats",
+            excluded[0].path, excluded[0].reason
+        ));
+    }
+
     let config = MasterFlatConfig {
         method,
         output_type,
     };
-    let master = build_master_flat(&flats, pedestal.as_ref(), config)
+    let master = build_master_flat(&normalized, None, config)
         .map_err(|e| format!("master-flat build failed: {e}"))?;
+    let input_mean = levels.iter().sum::<f64>() / levels.len() as f64;
 
     let out_path = Path::new(&args.output_path);
     ensure_parent_dir(out_path)?;
@@ -742,8 +839,28 @@ pub(crate) fn build_master_flat_impl(
     header.set_string("FRAMETYP", "MASTER");
     header.set_string("CALSTAT", "Skotiq master flat");
     header.set_int("NFRAMES", master.frame_count as i64);
+    header.set_int("NCOMBINE", master.frame_count as i64);
+    header.set_bool(FLAT_PEDESTAL_CARD, pedestal.is_some());
+    match pedestal_path {
+        Some(path) => header.add_history(&format!(
+            "Bias-corrected: {path} subtracted from every raw flat before combining"
+        )),
+        None => header.add_history("No bias or dark-flat subtracted from the raw flats"),
+    }
+    header.add_history("Each raw flat scaled to unit median before combining");
+    if varied {
+        if let (Some(lo), Some(hi)) = (
+            exposures.iter().copied().reduce(f64::min),
+            exposures.iter().copied().reduce(f64::max),
+        ) {
+            header.add_history(&format!("Raw flat exposures {lo} s to {hi} s"));
+        }
+    }
+    for flat in &excluded {
+        header.add_history(&format!("Left out {}: {}", flat.path, flat.reason));
+    }
     // FITS keywords are capped at 8 chars (see `fits::is_valid_keyword`).
-    header.set_float("INMEAN", master.input_mean);
+    header.set_float("INMEAN", input_mean);
     header.set_float("OUTMEAN", master.output_mean);
     write_fits(out_path, &master.image, &header)
         .map_err(|e| format!("failed to write flat: {e:?}"))?;
@@ -751,7 +868,7 @@ pub(crate) fn build_master_flat_impl(
     Ok(BuildMasterFlatResult {
         output_path: args.output_path,
         frame_count: master.frame_count,
-        input_mean: master.input_mean,
+        input_mean,
         output_mean: master.output_mean,
         width: master.image.width,
         height: master.image.height,
@@ -760,6 +877,7 @@ pub(crate) fn build_master_flat_impl(
             MasterOutputType::F32 => "f32".to_string(),
             MasterOutputType::U16 => "u16".to_string(),
         },
+        excluded,
     })
 }
 

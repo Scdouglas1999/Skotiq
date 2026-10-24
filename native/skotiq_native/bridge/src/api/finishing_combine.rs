@@ -25,7 +25,6 @@
 //! — never a silent partial result.
 
 use serde::{Deserialize, Serialize};
-use skotiq_imaging::calibration::calibrate_frame;
 use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::channel_combine::{combine_channels, hoo_palette, sho_palette};
 use skotiq_imaging::drizzle::{
@@ -277,7 +276,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     // geometry the (raw, Bayer or mono) sub carries, before any debayer/warp.
     let calibrate = args.calibration.is_active();
     let dark = load_optional_master(&args.calibration.dark, "dark")?;
-    let flat = load_optional_master(&args.calibration.flat, "flat")?;
+    let flat = load_optional_flat_raw(&args.calibration.flat)?;
     let bias = load_optional_master(&args.calibration.bias, "bias")?;
 
     // The native `DrizzleFrame`/`BayerDrizzleFrame` borrow their pixel buffer
@@ -329,8 +328,13 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
         // this, `_runDrizzle` would persist an UNcalibrated master as canonical.
         if calibrate {
             if dark.is_some() || flat.is_some() || bias.is_some() {
-                image = calibrate_frame(&image, dark.as_ref(), flat.as_ref(), bias.as_ref())
-                    .map_err(|e| format!("calibration of '{}' failed: {e}", fa.fits_path))?;
+                image = crate::api::post_session::calibrate_with_flat_state(
+                    &image,
+                    dark.as_ref(),
+                    flat.as_ref(),
+                    bias.as_ref(),
+                )
+                .map_err(|e| format!("calibration of '{}' failed: {e}", fa.fits_path))?;
             }
             if args.calibration.cosmetic_correction {
                 // Operates per-channel in place; the report is advisory.
@@ -669,6 +673,26 @@ fn load_optional_master(path: &Option<String>, label: &str) -> Result<Option<Ima
             let (image, _header) = read_fits(Path::new(p))
                 .map_err(|e| format!("failed to read {label} master '{p}': {e:?}"))?;
             Ok(Some(image))
+        }
+        _ => Ok(None),
+    }
+}
+
+/// [`load_optional_master`] for a flat, keeping whether its pedestal is
+/// already removed (read from its header) so a corrected master flat is not
+/// bias-subtracted again.
+fn load_optional_flat_raw(
+    path: &Option<String>,
+) -> Result<Option<crate::api::post_session::FlatMaster>, String> {
+    match path {
+        Some(p) if !p.trim().is_empty() => {
+            let (image, header) = read_fits(Path::new(p))
+                .map_err(|e| format!("failed to read flat master '{p}': {e:?}"))?;
+            let pedestal = crate::api::post_session::flat_pedestal_state(&image, Some(&header));
+            Ok(Some(crate::api::post_session::FlatMaster {
+                image,
+                pedestal,
+            }))
         }
         _ => Ok(None),
     }

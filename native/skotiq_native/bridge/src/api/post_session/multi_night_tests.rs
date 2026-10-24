@@ -206,7 +206,10 @@ fn a_build_with_no_registrable_sub_fails_with_the_reasons() {
         "masterFitsPath": dir.join("m.fits").to_string_lossy(),
     });
     let err = api_master_accumulate(request.to_string()).unwrap_err();
-    assert!(err.contains("none of the 1 subs could be folded"), "{err}");
+    let outcome: serde_json::Value = serde_json::from_str(&err).expect(&err);
+    assert_eq!(outcome["kind"], NO_SUBS_KIND, "{err}");
+    assert_eq!(outcome["offered"], 1, "{err}");
+    assert_eq!(outcome["skipped"][0]["stage"], "registration", "{err}");
     assert!(!dir.join("m.fits").exists());
 }
 

@@ -527,7 +527,7 @@ fn flat_build_preserves_identity_and_rejects_mismatched_inputs() {
     write_fits(&bias, &pedestal, &bias_header).unwrap();
     assert!(api_build_master_flat(args.to_string())
         .unwrap_err()
-        .contains("exposure must match"));
+        .contains("does not match a raw flat"));
 }
 
 /// Master-flat build normalizes to unit mean and writes a readable FITS.

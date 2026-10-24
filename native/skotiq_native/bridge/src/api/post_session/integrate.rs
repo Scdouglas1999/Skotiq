@@ -31,7 +31,7 @@ pub(crate) fn integrate_session(
 
     // Load calibration masters once (shared across all lights).
     let dark = load_optional_master(&args.calibration.dark, "dark")?;
-    let flat = load_optional_master(&args.calibration.flat, "flat")?;
+    let flat = load_optional_flat(&args.calibration.flat)?;
     let bias = load_optional_master(&args.calibration.bias, "bias")?;
 
     // What the masters above actually are, measured against the group's anchor
@@ -77,13 +77,8 @@ pub(crate) fn integrate_session(
             ));
         }
         if dark.is_some() || flat.is_some() || bias.is_some() {
-            image = skotiq_imaging::calibration::calibrate_frame(
-                &image,
-                dark.as_ref(),
-                flat.as_ref(),
-                bias.as_ref(),
-            )
-            .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
+            image = calibrate_with_flat_state(&image, dark.as_ref(), flat.as_ref(), bias.as_ref())
+                .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
         }
         if args.calibration.cosmetic_correction {
             // Self-derived hot/cold transient repair (cosmic rays, residual hot

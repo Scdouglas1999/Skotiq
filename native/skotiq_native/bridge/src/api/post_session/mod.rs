@@ -77,13 +77,18 @@ mod integrate;
 pub(crate) use integrate::*;
 mod masters;
 pub(crate) use masters::*;
+mod master_cards;
+pub(crate) use master_cards::*;
 mod multi_night;
 pub(crate) use multi_night::*;
 mod delivery;
+mod spool;
 mod uniform_delivery;
 pub(crate) use delivery::*;
 mod telemetry;
 pub(crate) use telemetry::*;
+#[cfg(test)]
+mod darkroom_regression_tests;
 #[cfg(test)]
 mod multi_night_tests;
 #[cfg(test)]
