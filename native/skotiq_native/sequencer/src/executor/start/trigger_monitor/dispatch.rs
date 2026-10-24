@@ -206,12 +206,21 @@ impl Dispatcher {
         action: &RecoveryAction,
         action_str: &str,
     ) {
-        tracing::warn!(
-            "Trigger fired: {} ({}) - action: {:?}",
-            trigger_name,
-            trigger_id,
-            action
-        );
+        if matches!(action, RecoveryAction::Continue) {
+            tracing::debug!(
+                "Trigger fired: {} ({}) - action: {:?}",
+                trigger_name,
+                trigger_id,
+                action
+            );
+        } else {
+            tracing::warn!(
+                "Trigger fired: {} ({}) - action: {:?}",
+                trigger_name,
+                trigger_id,
+                action
+            );
+        }
         self.run.send(ExecutorEvent::TriggerFired {
             trigger_id: trigger_id.to_string(),
             trigger_name: trigger_name.to_string(),
@@ -337,7 +346,7 @@ impl Dispatcher {
             // in-flight guard; nothing reaches here with it.
             RecoveryAction::Notify => ActionFlow::Finished,
             RecoveryAction::Continue => {
-                tracing::info!(
+                tracing::debug!(
                     "Trigger '{}' fired with RecoveryAction::Continue (logged and ignored)",
                     trigger_name
                 );

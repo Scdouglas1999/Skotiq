@@ -310,6 +310,7 @@ pub async fn api_set_camera_cooler(
     target_temp: Option<f64>,
 ) -> Result<(), SkotiqError> {
     tracing::info!(
+        target: "skotiq_bridge::api::devices::camera",
         "Setting camera cooler for {}: enabled={}, target={:?}",
         device_id,
         enabled,
@@ -323,7 +324,7 @@ pub async fn api_set_camera_cooler(
 
 /// Set camera gain
 pub async fn api_set_camera_gain(device_id: String, gain: i32) -> Result<(), SkotiqError> {
-    tracing::info!("Setting camera gain for {}: {}", device_id, gain);
+    tracing::info!(target: "skotiq_bridge::api::devices::camera", "Setting camera gain for {}: {}", device_id, gain);
     let mgr = get_device_manager();
     mgr.camera_set_gain(&device_id, gain)
         .await
@@ -332,7 +333,7 @@ pub async fn api_set_camera_gain(device_id: String, gain: i32) -> Result<(), Sko
 
 /// Set camera offset
 pub async fn api_set_camera_offset(device_id: String, offset: i32) -> Result<(), SkotiqError> {
-    tracing::info!("Setting camera offset for {}: {}", device_id, offset);
+    tracing::info!(target: "skotiq_bridge::api::devices::camera", "Setting camera offset for {}: {}", device_id, offset);
     let mgr = get_device_manager();
     mgr.camera_set_offset(&device_id, offset)
         .await

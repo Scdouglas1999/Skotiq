@@ -196,12 +196,14 @@ pub async fn execute_exposure_with_renderer(
         return InstructionResult::failure(error);
     }
 
-    // log "(no filter set)" rather than substituting a filter name like
-    // "unfiltered", which reads as a real filter in operator logs.
+    // The filter the frames are taken through: the node's own, else the one
+    // the wheel is already on (Smart Exposure changes it before each batch).
+    // "(no filter set)" only when there is neither, rather than a made-up name
+    // that would read as a real filter.
     tracing::info!(
         "Starting {} {} x {:.1}s exposures",
         config.count,
-        match config.filter.as_deref() {
+        match config.filter.as_deref().or(ctx.current_filter.as_deref()) {
             Some(name) if !name.is_empty() => name.to_string(),
             _ => "(no filter set)".to_string(),
         },

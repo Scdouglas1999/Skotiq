@@ -169,10 +169,7 @@ impl UnifiedDeviceOps {
             return Ok(id);
         }
 
-        Err(
-            "No safety monitor or weather device configured for sequencer safety checks"
-                .to_string(),
-        )
+        Err(skotiq_sequencer::NO_SAFETY_DEVICE_CONFIGURED.to_string())
     }
 
     /// Where the telescope is actually pointing, sampled for the FITS header.

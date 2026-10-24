@@ -500,12 +500,21 @@ pub(crate) async fn run_sequencer_event_loop(
                     trigger_name,
                     action,
                 } => {
-                    tracing::info!(
-                        "Trigger fired: {} ({}) - {}",
-                        trigger_name,
-                        trigger_id,
-                        action
-                    );
+                    if action == "Continue" {
+                        tracing::debug!(
+                            "Trigger fired: {} ({}) - {}",
+                            trigger_name,
+                            trigger_id,
+                            action
+                        );
+                    } else {
+                        tracing::info!(
+                            "Trigger fired: {} ({}) - {}",
+                            trigger_name,
+                            trigger_id,
+                            action
+                        );
+                    }
                     Some(create_event_auto_id(
                         EventSeverity::Info,
                         EventCategory::Sequencer,

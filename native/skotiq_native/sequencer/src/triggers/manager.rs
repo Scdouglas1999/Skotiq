@@ -206,7 +206,13 @@ impl TriggerManager {
                 // action runs, which under a hold it never does. Warn on the
                 // edge only; the dispatcher logs every firing it acts on.
                 if newly_firing {
-                    tracing::warn!("Trigger fired: {} ({})", trigger.name, trigger.id);
+                    // A trigger whose action is Continue only marks a routine
+                    // event (a filter change); it is not a warning.
+                    if matches!(trigger.recovery_action, RecoveryAction::Continue) {
+                        tracing::debug!("Trigger fired: {} ({})", trigger.name, trigger.id);
+                    } else {
+                        tracing::warn!("Trigger fired: {} ({})", trigger.name, trigger.id);
+                    }
                 } else {
                     tracing::trace!("Trigger still firing: {} ({})", trigger.name, trigger.id);
                 }

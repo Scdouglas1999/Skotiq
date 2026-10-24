@@ -527,6 +527,7 @@ pub async fn api_mount_pulse_guide(
     duration_ms: i32,
 ) -> Result<(), SkotiqError> {
     tracing::info!(
+        target: "skotiq_bridge::api::devices::mount",
         "Pulse guiding {} for {}ms in direction {}",
         device_id,
         duration_ms,
