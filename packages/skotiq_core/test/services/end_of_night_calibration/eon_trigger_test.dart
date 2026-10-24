@@ -40,6 +40,33 @@ void main() {
       );
     });
 
+    test('a dawn park filed as aborted ends the night', () {
+      // The native side files a stop it made itself (the dawn trigger's park)
+      // as `aborted`, not `stopped`.
+      expect(
+        classifyRunEnd(
+          runStatus: 'aborted',
+          stopOrigin: 'dawn_approaching',
+          nightEnding: true,
+        ),
+        EonEndReason.dawn,
+      );
+    });
+
+    test('an obstruction park ends the night at any hour', () {
+      for (final status in ['aborted', 'stopped']) {
+        expect(
+          classifyRunEnd(
+            runStatus: status,
+            stopOrigin: 'obstruction',
+            nightEnding: false,
+          ),
+          EonEndReason.obstruction,
+          reason: status,
+        );
+      }
+    });
+
     test('a weather or safety stop ends the night only at dawn', () {
       for (final origin in ['weather_unsafe', 'safety', null]) {
         expect(
@@ -248,6 +275,25 @@ void main() {
       finishRun(2, 9, 'stopped');
       await settle();
       expect(rig.calls, contains('run'));
+    });
+
+    test('the dawn park, filed as aborted, starts it', () async {
+      await enable(true);
+      await recordRunFrame(10, 'light');
+      container
+          .read(sequenceStopEvidenceProvider.notifier)
+          .state = const SequenceStopDecision(
+        SequenceStopAuthor.system,
+        origin: 'dawn_approaching',
+        parked: true,
+      );
+      finishRun(1, 10, 'aborted');
+      await settle();
+      expect(rig.calls, contains('run'));
+      expect(
+        container.read(endOfNightCalibrationProvider).report?.reason,
+        EonEndReason.dawn.description,
+      );
     });
 
     test('another feature ending the night starts it', () async {

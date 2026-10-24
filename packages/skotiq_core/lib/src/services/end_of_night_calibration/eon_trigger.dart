@@ -64,6 +64,16 @@ bool isNightEnding({
   return now >= eonDawnSunAltitudeDeg && later > now;
 }
 
+/// Stop origins of the native triggers that end the night: the run's stop
+/// origin is the id of the trigger that parked it.
+const eonDawnStopOrigin = 'dawn_approaching';
+const eonObstructionStopOrigin = 'obstruction';
+
+/// Run statuses a run ended by a stop is filed under: an operator stop is
+/// `stopped` or `paused-stopped`, a stop the native side made itself (a
+/// trigger's park) is `aborted`.
+const _stoppedRunStatuses = {'stopped', 'paused-stopped', 'aborted'};
+
 /// Whether a finished imaging run ended the night, and why. Null when it did
 /// not: an operator stop, a failure, or a weather stop in the middle of the
 /// night leave the night open.
@@ -73,8 +83,9 @@ EonEndReason? classifyRunEnd({
   required bool nightEnding,
 }) {
   if (runStatus == 'completed') return EonEndReason.targetsComplete;
-  if (runStatus != 'stopped' && runStatus != 'paused-stopped') return null;
-  if (stopOrigin == 'dawn_approaching') return EonEndReason.dawn;
+  if (!_stoppedRunStatuses.contains(runStatus)) return null;
+  if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
+  if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
   final safetyStop =
       stopOrigin == 'weather_unsafe' ||
       stopOrigin == 'safety' ||
