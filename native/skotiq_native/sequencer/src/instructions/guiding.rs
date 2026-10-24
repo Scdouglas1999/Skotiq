@@ -416,10 +416,7 @@ async fn start_guiding(
 
                     match ctx.device_ops.guider_get_status().await {
                         Ok(status) if status.is_guiding => {
-                            tracing::info!(
-                                "Guiding confirmed active: RMS total={:.2}\"",
-                                status.rms_total
-                            );
+                            tracing::info!("Guiding confirmed active: {}", status.rms_summary());
                             guiding_confirmed = true;
                             break;
                         }
