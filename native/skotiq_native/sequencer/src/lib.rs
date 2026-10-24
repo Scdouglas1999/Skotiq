@@ -50,6 +50,7 @@ pub mod slew_arrival;
 // the WaitTime twilight instruction and the DawnApproaching trigger all share.
 pub mod solar;
 pub mod temperature_compensation;
+mod tracking_check;
 mod triggers;
 pub mod wizard;
 
