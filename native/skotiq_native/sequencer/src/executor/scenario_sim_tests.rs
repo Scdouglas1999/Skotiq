@@ -105,6 +105,9 @@ pub(crate) struct ScriptedDeviceOps {
     /// When true, `safety_is_safe` answers as a rig with no safety monitor or
     /// weather device does: an error, resolved through the fail mode.
     pub(crate) safety_absent: Arc<AtomicBool>,
+    /// When true, the camera's cooler reads 0% power, so a Warm Camera step
+    /// switches it straight off instead of ramping.
+    pub(crate) cooler_idle: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -133,6 +136,7 @@ impl ScriptedDeviceOps {
             saved_frames: Arc::new(Mutex::new(Vec::new())),
             plate_solve_fails: Arc::new(AtomicBool::new(false)),
             safety_absent: Arc::new(AtomicBool::new(false)),
+            cooler_idle: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -356,12 +360,16 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.camera_abort_exposure(id).await
     }
     async fn camera_set_cooler(&self, id: &str, e: bool, t: f64) -> DeviceResult<()> {
+        self.record(format!("camera_set_cooler:{id}:{e}"));
         self.inner.camera_set_cooler(id, e, t).await
     }
     async fn camera_get_temperature(&self, id: &str) -> DeviceResult<f64> {
         self.inner.camera_get_temperature(id).await
     }
     async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
+        if self.cooler_idle.load(Ordering::SeqCst) {
+            return Ok(0.0);
+        }
         self.inner.camera_get_cooler_power(id).await
     }
     async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
@@ -442,6 +450,7 @@ impl DeviceOps for ScriptedDeviceOps {
         m: &str,
         x: Option<&[String]>,
     ) -> DeviceResult<()> {
+        self.record(format!("notify:{l}:{m}"));
         self.inner.send_notification(l, t, m, x).await
     }
     fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
@@ -1574,7 +1583,7 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
 }
 
 /// Poll `executor` until `pred` holds for its state, or `timeout` passes.
-async fn wait_for_state(
+pub(crate) async fn wait_for_state(
     executor: &super::SequenceExecutor,
     timeout: std::time::Duration,
     pred: impl Fn(super::ExecutorState) -> bool,
@@ -2127,14 +2136,14 @@ async fn start_park_policy_run(
     start_long_run(executor, ops).await
 }
 
-fn parked_or_closed(calls: &[String]) -> bool {
+pub(crate) fn parked_or_closed(calls: &[String]) -> bool {
     calls.iter().any(|c| {
         c.starts_with("mount_park") || c.starts_with("cover_close") || c.starts_with("dome_close")
     })
 }
 
 /// Collect the trigger-fired actions and error messages sent so far.
-fn drain_fired_and_errors(
+pub(crate) fn drain_fired_and_errors(
     events: &mut tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
 ) -> (Vec<(String, String)>, Vec<String>) {
     let mut fired = Vec::new();
@@ -2151,7 +2160,7 @@ fn drain_fired_and_errors(
     (fired, errors)
 }
 
-async fn wait_for_monitor(ops: &ScriptedDeviceOps) {
+pub(crate) async fn wait_for_monitor(ops: &ScriptedDeviceOps) {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("guider_get_status") < 2 {
         assert!(
@@ -2167,7 +2176,7 @@ const WEATHER_OFF: super::ParkPolicy = super::ParkPolicy {
     park_before_dawn: true,
 };
 
-const DAWN_OFF: super::ParkPolicy = super::ParkPolicy {
+pub(crate) const DAWN_OFF: super::ParkPolicy = super::ParkPolicy {
     park_on_unsafe_weather: true,
     park_before_dawn: false,
 };
@@ -2307,7 +2316,7 @@ async fn turning_weather_parking_off_mid_run_takes_effect() {
 }
 
 /// Force the Dawn Approaching trigger: a site and a dawn ten minutes away.
-async fn bring_dawn_near(executor: &super::SequenceExecutor) {
+pub(crate) async fn bring_dawn_near(executor: &super::SequenceExecutor) {
     executor
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(45.0), Some(-75.0));

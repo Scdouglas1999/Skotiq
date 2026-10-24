@@ -1,22 +1,104 @@
 //! `ParkAndAbort`: end the run, parking and closing the rig unless the
-//! operator's park setting says to leave it.
+//! operator's park setting says to leave it. When the trigger ends the night
+//! (dawn, an obstruction), the plan's own shutdown steps run afterwards.
 
+use super::super::super::night_end::{self, AlreadySafe, StepOutcome};
+use super::custom_branch::CustomBranches;
 use super::*;
 
-/// "Park before dawn" is off: end the run as the dawn rule does and leave the
-/// mount, cover and dome as they are. The node tree is cancelled first so the
-/// exposure in flight is aborted rather than cut off.
-pub(in super::super) async fn end_without_parking(
+/// The plan's shutdown steps, when `trigger_id` ends the night and the run has
+/// a plan to read them from.
+async fn finish_the_night(
+    trigger_id: &str,
     trigger_name: &str,
+    rig: &Rig,
+    plan: &CustomBranches,
+    run: &RunControl,
+    already: AlreadySafe,
+) -> Vec<StepOutcome> {
+    if !night_end::ends_the_night(trigger_id) {
+        return Vec::new();
+    }
+    let Some(sequence) = plan.sequence.as_ref() else {
+        return Vec::new();
+    };
+    {
+        let mut progress = run.progress.write();
+        progress.message = Some(format!("{trigger_name}: putting the rig away"));
+    }
+    night_end::run_plan_shutdown_steps(
+        trigger_name,
+        sequence,
+        &plan.context,
+        &rig.device_ops,
+        already,
+    )
+    .await
+}
+
+/// Stop the guider before the rig is put away. Guiding is device state the
+/// node tree does not own. Returns whether it is stopped (or there is none).
+async fn stop_guiding(rig: &Rig, run: &RunControl) -> bool {
+    match rig.device_ops.guider_stop().await {
+        Ok(()) => true,
+        // An unguided rig has nothing to stop; reporting it would bury the
+        // abort's real cause.
+        Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+            tracing::debug!("ParkAndAbort: no guider to stop ({})", error);
+            true
+        }
+        Err(error) => {
+            let msg = format!(
+                "ParkAndAbort: failed to stop guiding before parking: {}",
+                error
+            );
+            tracing::error!("{}", msg);
+            run.error(msg);
+            false
+        }
+    }
+}
+
+/// "Park before dawn" is off: end the run as the dawn rule does and leave the
+/// mount, cover and dome as they are, apart from what the plan's own shutdown
+/// steps do. The node tree is cancelled first so the exposure in flight is
+/// aborted rather than cut off.
+pub(in super::super) async fn end_without_parking(
+    trigger_id: &str,
+    trigger_name: &str,
+    rig: &Rig,
+    plan: &CustomBranches,
     run: &RunControl,
     park: &mut ParkSignals,
 ) -> ActionFlow {
     park.stop_node_tree(&run.is_cancelled).await;
-    let message = format!(
-        "{trigger_name}: the run has ended. The mount was not parked and the \
-         cover and dome were not closed, because Park before dawn is off. \
-         The mount may still be tracking."
-    );
+    let guiding_stopped = night_end::ends_the_night(trigger_id) && stop_guiding(rig, run).await;
+    let steps = finish_the_night(
+        trigger_id,
+        trigger_name,
+        rig,
+        plan,
+        run,
+        AlreadySafe {
+            guiding_stopped,
+            ..AlreadySafe::default()
+        },
+    )
+    .await;
+    let mount_moved = steps.iter().any(StepOutcome::moved_mount);
+    let message = if mount_moved {
+        format!(
+            "{trigger_name}: the run has ended. Park before dawn is off, so the \
+             mount was moved only by the plan's own shutdown steps, and the \
+             cover and dome were not closed."
+        )
+    } else {
+        format!(
+            "{trigger_name}: the run has ended. The mount was not parked and the \
+             cover and dome were not closed, because Park before dawn is off. \
+             The mount may still be tracking."
+        )
+    };
     tracing::warn!("{}", message);
     run.error(message);
     ActionFlow::Terminate {
@@ -29,7 +111,10 @@ pub(in super::super) async fn end_without_parking(
 /// and dome through the shared safe-state sweep. Every step's failure is
 /// logged as well as sent, since a headless run has no event subscriber.
 pub(in super::super) async fn park_and_abort(
+    trigger_id: &str,
+    trigger_name: &str,
     rig: &Rig,
+    plan: &CustomBranches,
     run: &RunControl,
     park: &mut ParkSignals,
 ) -> ActionFlow {
@@ -38,21 +123,7 @@ pub(in super::super) async fn park_and_abort(
     park.parking_begins();
     park.stop_node_tree(&run.is_cancelled).await;
 
-    // Guiding is device state the node tree does not own.
-    if let Err(error) = rig.device_ops.guider_stop().await {
-        // An unguided rig has nothing to stop; reporting it would bury the
-        // abort's real cause.
-        if crate::device_ops::is_no_guider_configured(&error) {
-            tracing::debug!("ParkAndAbort: no guider to stop ({})", error);
-        } else {
-            let msg = format!(
-                "ParkAndAbort: failed to stop guiding before parking: {}",
-                error
-            );
-            tracing::error!("{}", msg);
-            run.error(msg);
-        }
-    }
+    let guiding_stopped = stop_guiding(rig, run).await;
 
     let devices = &rig.context;
     if devices.mount_id.is_some() {
@@ -125,6 +196,15 @@ pub(in super::super) async fn park_and_abort(
         tracing::error!("{}", msg);
         run.error(msg);
     }
+
+    let already = AlreadySafe {
+        guiding_stopped,
+        mount_parked: safe_state.park.as_ref().is_some_and(|p| p.success),
+        cover_closed: devices.cover_calibrator_id.is_some()
+            && safe_state.cover_close_error.is_none(),
+        dome_closed: devices.dome_id.is_some() && safe_state.dome_close_error.is_none(),
+    };
+    finish_the_night(trigger_id, trigger_name, rig, plan, run, already).await;
 
     park.parked();
     ActionFlow::Terminate {

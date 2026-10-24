@@ -257,9 +257,27 @@ impl Dispatcher {
                 recovery::pause_and_wait_for_clear(trigger_name, &self.recovery_tx, run).await
             }
             RecoveryAction::ParkAndAbort if end_without_parking => {
-                park::end_without_parking(trigger_name, run, &mut self.park).await
+                park::end_without_parking(
+                    trigger_id,
+                    trigger_name,
+                    rig,
+                    &self.custom,
+                    run,
+                    &mut self.park,
+                )
+                .await
             }
-            RecoveryAction::ParkAndAbort => park::park_and_abort(rig, run, &mut self.park).await,
+            RecoveryAction::ParkAndAbort => {
+                park::park_and_abort(
+                    trigger_id,
+                    trigger_name,
+                    rig,
+                    &self.custom,
+                    run,
+                    &mut self.park,
+                )
+                .await
+            }
             RecoveryAction::NextTarget => {
                 tracing::info!("Trigger requested advance to next target");
                 self.skip_to_next_target.store(true, Ordering::Relaxed);
