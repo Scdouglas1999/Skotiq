@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+/// Smallest crop, as a fraction of the field, a build accepts by default.
+const double defaultMinRetainedArea = .8;
+
 /// Validated, frozen native build inputs. Kept with a run so recovery cannot
 /// silently substitute another target, reference, calibration set or filter.
 class DarkroomBuildPlan {
@@ -21,6 +24,7 @@ class DarkroomBuildPlan {
     }
     final overlap = value['minOverlap'];
     final eccentricity = value['maxEccentricity'];
+    final retained = value['minRetainedArea'] ?? defaultMinRetainedArea;
     if (overlap is! num ||
         !overlap.isFinite ||
         overlap < .5 ||
@@ -28,7 +32,11 @@ class DarkroomBuildPlan {
         eccentricity is! num ||
         !eccentricity.isFinite ||
         eccentricity <= 0 ||
-        eccentricity > 1) {
+        eccentricity > 1 ||
+        retained is! num ||
+        !retained.isFinite ||
+        retained < .1 ||
+        retained > 1) {
       throw const FormatException('Invalid framing or star-shape limits.');
     }
     final paths = <String>{};
@@ -75,9 +83,68 @@ class DarkroomBuildPlan {
     if (!paths.contains(value['referencePath'])) {
       throw const FormatException('Reference must be an included light.');
     }
-    return DarkroomBuildPlan._(jsonEncode(value));
+    return DarkroomBuildPlan._(
+      jsonEncode({...value, 'minRetainedArea': retained}),
+    );
   }
 
   Map<String, dynamic> toJson() =>
       Map<String, dynamic>.from(jsonDecode(_json) as Map);
+
+  String get target => toJson()['target'] as String;
+  String get referencePath => toJson()['referencePath'] as String;
+  double get minRetainedArea => (toJson()['minRetainedArea'] as num).toDouble();
+
+  /// Every light in the plan, in build order.
+  List<Map<String, dynamic>> get lights => [
+    for (final g in toJson()['groups'] as List)
+      for (final l in (g as Map)['lights'] as List)
+        Map<String, dynamic>.from(l as Map),
+  ];
+
+  /// Filters in the order they are built.
+  List<String> get filters => {
+    for (final g in toJson()['groups'] as List) (g as Map)['filter'] as String,
+  }.toList()..sort();
+
+  /// This plan without the lights at [reasons]' keys, each recorded as
+  /// excluded with its reason. Groups left empty are dropped. The reference
+  /// cannot be excluded; choose another reference first.
+  DarkroomBuildPlan withoutLights(Map<String, String> reasons) {
+    final value = toJson();
+    if (reasons.containsKey(value['referencePath'])) {
+      throw ArgumentError(
+        'The alignment reference cannot be excluded. Choose another reference first.',
+      );
+    }
+    final excluded = [...(value['excluded'] as List? ?? const [])];
+    final groups = <Map<String, dynamic>>[];
+    for (final g in value['groups'] as List) {
+      final group = Map<String, dynamic>.from(g as Map);
+      final kept = <dynamic>[];
+      for (final l in group['lights'] as List) {
+        final path = (l as Map)['path'] as String;
+        final reason = reasons[path];
+        if (reason == null) {
+          kept.add(l);
+        } else {
+          excluded.add({
+            'filter': group['filter'],
+            'path': path,
+            'reason': reason,
+          });
+        }
+      }
+      if (kept.isNotEmpty) groups.add({...group, 'lights': kept});
+    }
+    return DarkroomBuildPlan.fromJson({
+      ...value,
+      'groups': groups,
+      'excluded': excluded,
+    });
+  }
+
+  /// The plan with a different smallest acceptable crop.
+  DarkroomBuildPlan withMinRetainedArea(double value) =>
+      DarkroomBuildPlan.fromJson({...toJson(), 'minRetainedArea': value});
 }
