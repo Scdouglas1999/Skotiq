@@ -39,6 +39,24 @@ pub(crate) struct PreviewLight {
     pub(crate) path: String,
     /// Side of the pier when it was captured, as recorded (`East`/`West`).
     pub(crate) side: Option<String>,
+    /// The outcome of an earlier pass over this light. Supplied, it is reused
+    /// instead of registering the light again, so excluding frames re-evaluates
+    /// the crop at once.
+    pub(crate) known: Option<KnownFootprint>,
+}
+
+/// A light's registration from an earlier pass: its footprint, or the reason
+/// it could not be registered.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct KnownFootprint {
+    pub(crate) corners: Option<[[f64; 2]; 4]>,
+    pub(crate) rotation_deg: Option<f64>,
+    pub(crate) shift_px: Option<[f64; 2]>,
+    pub(crate) stars_matched: Option<usize>,
+    pub(crate) rms_px: Option<f64>,
+    pub(crate) failure: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -65,6 +83,9 @@ pub(crate) struct RegistrationPreviewArgs {
     pub(crate) grid_reference: PreviewReference,
     pub(crate) groups: Vec<PreviewGroup>,
     pub(crate) settings: PreviewSettings,
+    /// `[width, height]` of the grid. Needed only when every light is known,
+    /// so the reference need not be read.
+    pub(crate) grid_size: Option<[u32; 2]>,
     /// A light covering less of the grid than this is left out of the build.
     pub(crate) min_overlap: f64,
     /// Smallest crop, as a fraction of the grid, the build accepts.
@@ -78,6 +99,7 @@ impl Default for RegistrationPreviewArgs {
             grid_reference: PreviewReference::default(),
             groups: Vec::new(),
             settings: PreviewSettings::default(),
+            grid_size: None,
             min_overlap: 0.95,
             min_retained_area: 0.8,
         }
@@ -100,6 +122,8 @@ pub(crate) struct FrameFootprint {
     pub(crate) shift_px: Option<[f64; 2]>,
     pub(crate) stars_matched: Option<usize>,
     pub(crate) rms_px: Option<f64>,
+    /// Why it could not be registered; absent when it was.
+    pub(crate) failure: Option<String>,
     /// `true` when the build would include it: registered and within the
     /// overlap limit.
     pub(crate) included: bool,
@@ -357,10 +381,28 @@ fn supported_source(width: u32, height: u32, interpolator: Interpolator) -> [[f6
 
 struct Registered {
     corners: [[f64; 2]; 4],
-    rotation_deg: f64,
-    shift_px: [f64; 2],
-    stars_matched: usize,
-    rms_px: f64,
+    rotation_deg: Option<f64>,
+    shift_px: Option<[f64; 2]>,
+    stars_matched: Option<usize>,
+    rms_px: Option<f64>,
+}
+
+impl KnownFootprint {
+    fn outcome(&self) -> Option<Result<Registered, String>> {
+        if let Some(reason) = &self.failure {
+            return Some(Err(reason.clone()));
+        }
+        let corners = self.corners?;
+        corners.iter().flatten().all(|v| v.is_finite()).then(|| {
+            Ok(Registered {
+                corners,
+                rotation_deg: self.rotation_deg,
+                shift_px: self.shift_px,
+                stars_matched: self.stars_matched,
+                rms_px: self.rms_px,
+            })
+        })
+    }
 }
 
 fn register_light(
@@ -397,10 +439,10 @@ fn register_light(
     let m = transform.matrix;
     Ok(Registered {
         corners,
-        rotation_deg: m[1][0].atan2(m[0][0]).to_degrees(),
-        shift_px: [m[0][2], m[1][2]],
-        stars_matched: stats.inlier_count,
-        rms_px: stats.rms_residual_px,
+        rotation_deg: Some(m[1][0].atan2(m[0][0]).to_degrees()),
+        shift_px: Some([m[0][2], m[1][2]]),
+        stars_matched: Some(stats.inlier_count),
+        rms_px: Some(stats.rms_residual_px),
     })
 }
 
@@ -425,10 +467,26 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
     let total = lights.len() as u32;
     let cancel = RunCancelToken::register(&args.run_id)?;
     let config = build_registration_config(&args.settings.align)?;
-    let reference = read_image(Path::new(args.grid_reference.path.trim()))
-        .map_err(|e| format!("the grid reference cannot be read: {e}"))?
-        .image;
-    let (width, height) = (reference.width, reference.height);
+    let known: Vec<Option<Result<Registered, String>>> = lights
+        .iter()
+        .map(|(_, l)| l.known.as_ref().and_then(KnownFootprint::outcome))
+        .collect();
+    let reference = match (known.iter().all(Option::is_some), args.grid_size) {
+        (true, Some(_)) => None,
+        _ => Some(
+            read_image(Path::new(args.grid_reference.path.trim()))
+                .map_err(|e| format!("the grid reference cannot be read: {e}"))?
+                .image,
+        ),
+    };
+    let (width, height) = match (&reference, args.grid_size) {
+        (Some(r), _) => (r.width, r.height),
+        (None, Some([w, h])) => (w, h),
+        (None, None) => unreachable!("the reference is read unless the grid size is given"),
+    };
+    if width == 0 || height == 0 {
+        return Err("the grid has no pixels".into());
+    }
     let grid_pixels = width as f64 * height as f64;
 
     let done = AtomicU32::new(0);
@@ -440,11 +498,16 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
     let outcomes: Vec<Option<Result<Registered, String>>> = pool.install(|| {
         lights
             .par_iter()
-            .map(|(_, light)| {
+            .zip(known.into_par_iter())
+            .map(|((_, light), known)| {
                 if cancel.is_cancelled() {
                     return None;
                 }
-                let outcome = register_light(&reference, &light.path, &config);
+                let outcome = match (known, &reference) {
+                    (Some(outcome), _) => outcome,
+                    (None, Some(reference)) => register_light(reference, &light.path, &config),
+                    (None, None) => unreachable!("the reference is read when a light is unknown"),
+                };
                 let n = done.fetch_add(1, Ordering::Relaxed) + 1;
                 emit_integration_progress("framing", n as f32 / total as f32, Some(n), Some(total));
                 Some(outcome)
@@ -467,21 +530,25 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
             shift_px: None,
             stars_matched: None,
             rms_px: None,
+            failure: None,
             included: false,
             reason: None,
         };
         match outcome.expect("every light ran unless cancelled") {
-            Err(reason) => frame.reason = Some(reason),
+            Err(reason) => {
+                frame.failure = Some(reason.clone());
+                frame.reason = Some(reason);
+            }
             Ok(registered) => {
                 let quad = oriented(registered.corners.to_vec());
                 let footprint = intersect(width, height, &[(index, quad.clone())], None);
                 let overlap = covered_pixels(&footprint) as f64 / grid_pixels;
                 frame.corners = Some(registered.corners);
                 frame.overlap = Some(overlap);
-                frame.rotation_deg = Some(registered.rotation_deg);
-                frame.shift_px = Some(registered.shift_px);
-                frame.stars_matched = Some(registered.stars_matched);
-                frame.rms_px = Some(registered.rms_px);
+                frame.rotation_deg = registered.rotation_deg;
+                frame.shift_px = registered.shift_px;
+                frame.stars_matched = registered.stars_matched;
+                frame.rms_px = registered.rms_px;
                 if overlap < args.min_overlap {
                     frame.reason = Some(format!(
                         "{:.1}% field overlap; need at least {:.1}%",
@@ -735,6 +802,27 @@ mod tests {
         });
         let result = registration_preview(&request.to_string()).unwrap();
         std::fs::remove_dir_all(&dir).ok();
+
+        // Excluding the limiting frame re-evaluates from the known footprints,
+        // with the source files gone.
+        let known = |i: usize| serde_json::to_value(&result.frames[i]).unwrap();
+        let again = serde_json::json!({
+            "gridReference": {"path": paths[0]},
+            "gridSize": [W, H],
+            "groups": [{"label": "All", "lights": [
+                {"path": paths[0], "known": known(0)},
+                {"path": paths[1], "known": known(1)},
+                {"path": paths[2], "known": known(2)},
+                {"path": blank.to_string_lossy(), "known": known(4)},
+            ]}],
+            "settings": {"align": {"model": "similarity"}},
+            "minOverlap": 0.5,
+            "minRetainedArea": 0.8,
+        });
+        let rerun = registration_preview(&again.to_string()).unwrap();
+        assert!(rerun.meets_minimum, "{}", rerun.retained_area);
+        assert!((rerun.retained_area - result.limiting[0].retained_without).abs() < 1e-12);
+        assert_eq!(rerun.frames[3].failure, result.frames[4].failure);
 
         assert_eq!(result.frames.len(), 5);
         assert!(
