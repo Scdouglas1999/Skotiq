@@ -172,7 +172,19 @@ class RecoveryEventEnvelope {
 /// [currentRecoveryProvider] and [recoveryHistoryProvider]. Must be
 /// `ref.watch`-ed somewhere in the widget tree (the Run Dashboard
 /// scaffolding watches it).
+///
+/// A recovery ends with the run it belongs to. A run that ends while a
+/// recovery is in flight (a dawn park, a stop) gets no recovery outcome event,
+/// so the run's end clears it here.
 final recoveryEventBridgeProvider = Provider<void>((ref) {
+  ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider, (
+    previous,
+    next,
+  ) {
+    if (previous == next || !_runHasEnded(next)) return;
+    if (ref.read(currentRecoveryProvider) == null) return;
+    ref.read(currentRecoveryProvider.notifier).clear();
+  });
   ref.listen<AsyncValue<bridge_event.SkotiqEvent>>(skotiqEventsProvider, (
     previous,
     next,
@@ -194,6 +206,13 @@ final recoveryEventBridgeProvider = Provider<void>((ref) {
     );
   }, fireImmediately: true);
 });
+
+bool _runHasEnded(SequenceExecutionState state) => switch (state) {
+  SequenceExecutionState.idle ||
+  SequenceExecutionState.completed ||
+  SequenceExecutionState.failed => true,
+  _ => false,
+};
 
 /// Parses a [bridge_event.SkotiqEvent] into a typed
 /// [RecoveryEventEnvelope] when the payload is one of the four

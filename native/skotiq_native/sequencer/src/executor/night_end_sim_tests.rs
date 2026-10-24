@@ -3,8 +3,8 @@
 //! night by cancelling the node tree.
 
 use super::scenario_sim_tests::{
-    bring_dawn_near, drain_fired_and_errors, wait_for_monitor, wait_for_state, ScriptedDeviceOps,
-    DAWN_OFF,
+    bring_dawn_near, drain_fired_and_errors, start_run_in_guide_star_recovery, wait_for_monitor,
+    wait_for_state, ScriptedDeviceOps, DAWN_OFF,
 };
 use crate::device_ops::SharedDeviceOps;
 use crate::{
@@ -313,4 +313,23 @@ async fn a_plan_with_nothing_left_to_image_refuses_to_start() {
     assert_eq!(executor.get_state().await, super::ExecutorState::Idle);
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(ops.calls().is_empty(), "calls={:?}", ops.calls());
+}
+
+/// A run that dawn ends in the middle of a guide-star recovery takes the
+/// recovery with it: the status API stops reporting one, so no banner is left
+/// on screen after the night.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_during_a_recovery_ends_the_recovery_with_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_run_in_guide_star_recovery(ops.clone(), 30.0).await;
+    assert!(executor.current_recovery().is_some());
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let recovery = executor.current_recovery();
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(recovery.is_none(), "recovery={recovery:?}");
 }

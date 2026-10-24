@@ -1900,7 +1900,7 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
 /// Start a run on a scripted rig whose guide star is lost and whose guider
 /// cannot restart, and return it once it is in a recovery ladder that retries
 /// every `retry_interval_secs`.
-async fn start_run_in_guide_star_recovery(
+pub(crate) async fn start_run_in_guide_star_recovery(
     ops: Arc<ScriptedDeviceOps>,
     retry_interval_secs: f64,
 ) -> super::SequenceExecutor {
