@@ -1,12 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../utils/startup_surface_coordinator.dart';
+import '../../utils/startup_ui_context.dart';
+
 /// Watches for a pending site/time disagreement and puts the card up once.
 ///
-/// Mounted high in the app shell. Kept separate from the card so the card
-/// itself stays a plain widget that can be previewed with fixture data.
+/// Mounted high in the app shell, above the router's Navigator, so the card
+/// is shown through the context [resolveStartupUiContext] finds below it.
+/// Kept separate from the card so the card itself stays a plain widget that
+/// can be previewed with fixture data.
 class MountSiteReconciliationListener extends ConsumerStatefulWidget {
   const MountSiteReconciliationListener({super.key, required this.child});
 
@@ -19,29 +26,65 @@ class MountSiteReconciliationListener extends ConsumerStatefulWidget {
 
 class _MountSiteReconciliationListenerState
     extends ConsumerState<MountSiteReconciliationListener> {
+  /// How many frames to wait for the Navigator before giving up on a card.
+  static const _maxNavigatorWaits = 30;
+
   bool _showing = false;
 
   @override
-  Widget build(BuildContext context) {
-    ref.listen<MountSiteReconciliation?>(
+  void initState() {
+    super.initState();
+    ref.listenManual<MountSiteReconciliation?>(
       pendingMountSiteReconciliationProvider,
       (previous, next) {
-        // One card at a time: a mount that reconnects while the operator is
-        // still reading the first one must not stack a second on top of it.
-        if (next == null || _showing) return;
-        _showing = true;
-        showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => MountSiteReconciliationCard(comparison: next),
-        ).whenComplete(() {
-          _showing = false;
-          ref.read(pendingMountSiteReconciliationProvider.notifier).clear();
-        });
+        if (next != null) _show(next);
       },
     );
-    return widget.child;
   }
+
+  /// One card at a time: a mount that reconnects while the operator is still
+  /// reading the first one must not stack a second on top of it.
+  void _show(MountSiteReconciliation comparison, {int waits = 0}) {
+    if (_showing || !mounted) return;
+    final uiContext = resolveStartupUiContext(ref, context);
+    if (uiContext == null || !uiContext.mounted) {
+      // The router has not built its Navigator yet; try again next frame.
+      if (waits >= _maxNavigatorWaits) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final pending = ref.read(pendingMountSiteReconciliationProvider);
+        if (pending != null) _show(pending, waits: waits + 1);
+      });
+      return;
+    }
+    _showing = true;
+    unawaited(
+      ref.read(startupSurfaceCoordinatorProvider).run(() async {
+        try {
+          if (!uiContext.mounted) return;
+          await showDialog<void>(
+            context: uiContext,
+            barrierDismissible: false,
+            builder: (_) => MountSiteReconciliationCard(comparison: comparison),
+          );
+        } finally {
+          _showing = false;
+          if (mounted) {
+            final pending = ref.read(pendingMountSiteReconciliationProvider);
+            if (identical(pending, comparison)) {
+              ref.read(pendingMountSiteReconciliationProvider.notifier).clear();
+            } else if (pending != null) {
+              // A newer comparison arrived while this card was up.
+              _show(pending);
+            }
+          }
+        }
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Side-by-side of what this computer believes and what the mount believes,
