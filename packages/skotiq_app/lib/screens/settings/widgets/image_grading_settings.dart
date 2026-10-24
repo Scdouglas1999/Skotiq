@@ -19,6 +19,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../session_review/auto_integration_service.dart';
+import 'frame_watch_settings_section.dart';
 import 'settings_widgets.dart';
 
 // Bounds of what the capture pipeline can actually measure, mirrored from
@@ -317,6 +318,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                 ),
               ],
             ),
+            FrameWatchSettingsSection(isMobile: widget.isMobile),
             const SettingsSection(
               title: 'Post-session integration',
               children: [

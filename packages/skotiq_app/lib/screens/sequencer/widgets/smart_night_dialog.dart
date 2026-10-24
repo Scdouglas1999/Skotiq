@@ -506,6 +506,12 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
         if (!_isCurrentAuthority(backend, generation)) return false;
       }
 
+      // The site's horizon with the obstructions runs have learned there, so
+      // the plan's scheduler keeps targets clear of them.
+      await ref.read(frameWatchSettingsProvider.future);
+      if (!_isCurrentAuthority(backend, generation)) return false;
+      final siteHorizon = ref.read(horizonProfileProvider);
+
       final context = SmartNightContext(
         windowStart: _windowStart!,
         windowEnd: _windowEnd!,
@@ -514,6 +520,8 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
         daysSinceLastPolarAlignment: daysSinceLastPolar,
         missingDarkLibraryNotes: darkLibraryMissing.notes,
         missingDarkRequirements: darkLibraryMissing.requirements,
+        horizonProfile:
+            siteHorizon.isFlat ? null : siteHorizon.toSchedulerProfile(),
       );
 
       await ref.read(hardwarePresetsServiceProvider.notifier).loaded;
