@@ -494,7 +494,6 @@ fn describe_triangle(
     ];
     let idx = [i, j, k];
 
-    // Side `s[e]` is the edge *opposite* vertex `e`, i.e. between the other two.
     let dist = |a: usize, b: usize| -> f64 {
         let dx = p[a].0 - p[b].0;
         let dy = p[a].1 - p[b].1;
@@ -557,14 +556,16 @@ fn describe_triangle(
         return None;
     }
 
-    // Canonical vertex ordering: v0 and v1 are the endpoints of the longest
-    // edge; v2 is the remaining vertex. We further fix the v0/v1 ordering by a
-    // chirality-independent rule (smaller global index first) so both frames
-    // order identical triangles the same way regardless of flip.
+    // v0 joins the longest and shortest edges. Geometry determines the order,
+    // independent of brightness ranking, detection order, or reflection.
     let (la, lb) = (longest.1, longest.2);
     let local_remaining = 3 - la - lb; // 0+1+2 = 3
-    let v0_local = la.min(lb);
-    let v1_local = la.max(lb);
+    let v0_local = if la == shortest.1 || la == shortest.2 {
+        la
+    } else {
+        lb
+    };
+    let v1_local = if v0_local == la { lb } else { la };
     let v2_local = local_remaining;
 
     Some(TriangleDescriptor {
@@ -1477,6 +1478,40 @@ mod tests {
         RegistrationConfig {
             star_detection: sd,
             ..Default::default()
+        }
+    }
+
+    #[test]
+    fn triangle_vertex_order_does_not_depend_on_detection_order() {
+        let stars: Vec<DetectedStar> = base_stars(256.0)
+            .into_iter()
+            .take(3)
+            .map(|(x, y, flux)| DetectedStar {
+                x,
+                y,
+                flux,
+                hfr: 2.0,
+                fwhm: 4.0,
+                peak: flux,
+                background: 600.0,
+                snr: 30.0,
+                eccentricity: 0.0,
+                sharpness: 0.1,
+            })
+            .collect();
+        let expected = describe_triangle(&stars, 0, 1, 2).unwrap();
+        for order in [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0],
+        ] {
+            let reordered: Vec<_> = order.iter().map(|&i| stars[i].clone()).collect();
+            let actual = describe_triangle(&reordered, 0, 1, 2).unwrap();
+            let physical_vertices = actual.vertices.map(|i| order[i]);
+            assert_eq!(physical_vertices, expected.vertices, "order {order:?}");
         }
     }
 
