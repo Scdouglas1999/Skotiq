@@ -552,21 +552,11 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     );
   }
 
-  /// The night's numbers, in two readings that answer two questions.
-  ///
-  /// `successful_exposures` counts what the CAMERA returned, and this dialog
-  /// used to label it "Successful". A night whose every sub was rejected for
-  /// low star count therefore read "Successful 6 · Failed 0" directly above its
-  /// own six cards each stamped REJECTED. The culling verdict lives in
-  /// `captured_images.is_accepted`, which [images] carries, so the pair is
-  /// counted from the frames themselves and shown beside the camera's tally
-  /// rather than in place of it — a frame the camera returned and the culling
-  /// threw away is a fact about each.
-  ///
-  /// This is the same split the API (`acceptedLights`/`rejectedLights` on
-  /// `/api/sessions`), the exported HTML report ("returned by the camera") and
-  /// the observation report ("Camera Returned") already publish; the dialog was
-  /// the last surface still calling the camera's count a success.
+  /// The night's numbers. The capture count comes from the session row; the
+  /// accepted and rejected split is counted from the frames themselves
+  /// (`captured_images.is_accepted`, which [images] carries), which also
+  /// covers frames the run's frame watch excluded after grading and sessions
+  /// recorded before the row kept that split.
   Widget _buildStatisticsSection(
     BuildContext context,
     SkotiqColors colors,
@@ -588,14 +578,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
             _buildStat(
               l10n.text('analyticsTotalExposures'),
               session.totalExposures.toString(),
-            ),
-            _buildStat(
-              l10n.text('analyticsCameraReturned'),
-              session.successfulExposures.toString(),
-            ),
-            _buildStat(
-              l10n.text('analyticsFailed'),
-              session.failedExposures.toString(),
             ),
             _buildStat(
               l10n.text('analyticsAcceptedLights'),

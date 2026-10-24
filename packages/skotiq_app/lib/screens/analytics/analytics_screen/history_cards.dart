@@ -115,15 +115,11 @@ class _SessionHistoryCard extends ConsumerWidget {
         label: elapsed.captionLabel,
         value: elapsed.valueLabel,
       ),
-      // "frames returned", not "frames": the number is
-      // `successful_exposures`, which counts what the CAMERA handed back. A
-      // night whose every sub was culled still counts them all here, so the row
-      // read `COMPLETED · 6 frames · 0 integration` — a good night with an odd
-      // integration figure rather than a night that kept nothing.
+      // Every capture the session made; the rejected share, if any, follows.
       Readout(
         size: ReadoutSize.sm,
-        label: 'Frames returned',
-        value: '${session.successfulExposures}',
+        label: 'Frames',
+        value: '${session.totalExposures}',
       ),
       // The culling's own verdict, from `captured_images.is_accepted`, and only
       // when it threw something away: a night that kept everything is the
