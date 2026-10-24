@@ -15,6 +15,36 @@ pub(super) struct PreflightOutcome {
 }
 
 impl SequenceExecutor {
+    /// Move end times left over from an earlier night to tonight, and refuse
+    /// a run whose every target's end time has already passed tonight: it
+    /// would image nothing and run its shutdown steps at dusk.
+    fn settle_stale_end_times(&mut self) -> Result<(), String> {
+        let now = chrono::Utc::now().timestamp();
+        let Some(mut sequence) = self.sequence.clone() else {
+            return Ok(());
+        };
+        let rolled = super::stale_end_times::roll_forward(&mut sequence, now);
+        if !rolled.is_empty() {
+            let root = self.build_node_tree(&sequence)?;
+            self.root_node = Some(root);
+            self.sequence = Some(sequence);
+            for end in &rolled {
+                let message = end.message();
+                tracing::warn!("{}", message);
+                let _ = self.event_tx.send(ExecutorEvent::Warning { message });
+            }
+        }
+        if let Some(refusal) = self
+            .sequence
+            .as_ref()
+            .and_then(|sequence| super::stale_end_times::nothing_left_to_image(sequence, now))
+        {
+            tracing::warn!("{}", refusal);
+            return Err(refusal);
+        }
+        Ok(())
+    }
+
     pub(super) async fn preflight_start(&mut self) -> Result<PreflightOutcome, String> {
         let state = self.get_state().await;
         if matches!(
@@ -65,6 +95,8 @@ impl SequenceExecutor {
         if self.sequence.is_none() || self.root_node.is_none() {
             return Err("No sequence loaded".to_string());
         }
+
+        self.settle_stale_end_times()?;
 
         // Reject start when device_ops is unset: every instruction (slew, expose, autofocus)
         // routes through it, so a missing handle would let a sequence "run" while doing

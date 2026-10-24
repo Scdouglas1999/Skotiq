@@ -196,3 +196,121 @@ async fn a_weather_park_does_not_run_the_end_of_night_steps() {
         "calls={calls:?}"
     );
 }
+
+fn target_plan(end_when: crate::scheduling::TargetTrigger) -> SequenceDefinition {
+    let config: crate::TargetHeaderConfig = serde_json::from_value(serde_json::json!({
+        "target_name": "NGC0891",
+        "ra_hours": 2.376,
+        "dec_degrees": 42.35,
+        "rotation": null,
+        "priority": 0,
+        "min_altitude": null,
+        "max_altitude": null,
+    }))
+    .unwrap();
+    let mut target = node(
+        "target",
+        "Target — NGC0891",
+        NodeType::TargetHeader(crate::TargetHeaderConfig {
+            end_when: Some(end_when),
+            ..config
+        }),
+    );
+    target.children = vec!["imaging".into()];
+    let imaging = node(
+        "imaging",
+        "Imaging",
+        NodeType::Delay(DelayConfig { seconds: 600.0 }),
+    );
+    let warm = node(
+        "warm",
+        "Warm camera",
+        NodeType::WarmCamera(WarmConfig::default()),
+    );
+    let mut root = node(
+        "root",
+        "Night",
+        NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            ..Default::default()
+        }),
+    );
+    root.children = vec!["target".into(), "warm".into()];
+    let mut sequence = SequenceDefinition::new("Night".into());
+    sequence.root_node_id = Some("root".into());
+    sequence.nodes = vec![root, target, imaging, warm];
+    sequence
+}
+
+/// A plan that kept last night's absolute stop time images tonight: the time
+/// is moved to tonight and the operator is told, instead of the target being
+/// skipped and the camera warmed at dusk.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn last_nights_stop_time_is_rolled_to_tonight_and_the_target_images() {
+    use crate::scheduling::TargetTrigger;
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    let yesterday_morning = chrono::Utc::now().timestamp() - 15 * 3600;
+    let plan = target_plan(TargetTrigger::TimeAfter(yesterday_morning));
+    let mut executor = start_night(executor, ops.clone(), plan).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let state = executor.get_state().await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    let mut warnings = Vec::new();
+    let mut skipped = false;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            super::ExecutorEvent::Warning { message } => warnings.push(message),
+            super::ExecutorEvent::TriggerFired { trigger_id, .. }
+                if trigger_id == crate::node::logic::target_header::TARGET_END_WHEN_TRIGGER_ID =>
+            {
+                skipped = true
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(!skipped, "the target must not be skipped");
+    assert!(
+        warnings
+            .iter()
+            .any(|m| m.contains("earlier night") && m.contains("NGC0891")),
+        "warnings={warnings:?}"
+    );
+    assert!(
+        !calls.iter().any(|c| c.starts_with("camera_set_cooler")),
+        "the camera must not be warmed at dusk; calls={calls:?}"
+    );
+}
+
+/// A plan whose only target's end time passed earlier tonight refuses to
+/// start with a clear message: no shutdown steps run and no 0-frame run is
+/// recorded as completed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_plan_with_nothing_left_to_image_refuses_to_start() {
+    use crate::scheduling::TargetTrigger;
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.cooler_idle.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(
+        Some("cam-1".to_string()),
+        Some("mount-1".to_string()),
+        None,
+        None,
+        None,
+    );
+    executor.set_device_ops(ops.clone() as SharedDeviceOps);
+    let an_hour_ago = chrono::Utc::now().timestamp() - 3600;
+    executor
+        .load_sequence(target_plan(TargetTrigger::TimeAfter(an_hour_ago)))
+        .expect("sequence loads");
+    let refusal = executor.start().await.expect_err("start is refused");
+    assert!(refusal.contains("Nothing to image"), "{refusal}");
+    assert_eq!(executor.get_state().await, super::ExecutorState::Idle);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(ops.calls().is_empty(), "calls={:?}", ops.calls());
+}
