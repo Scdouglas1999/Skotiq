@@ -335,8 +335,7 @@ void main() {
           expect(report, contains('Frames Kept'));
           expect(report, contains('<strong>0/4</strong>'));
           expect(report, contains('0.0% kept, 4 rejected'));
-          // The camera's own count is still there, labelled for what it is.
-          expect(report, contains('returned by the camera'));
+          expect(report, contains('accepted of all captures'));
           expect(report, contains('No accepted frames recorded.'));
         },
       );

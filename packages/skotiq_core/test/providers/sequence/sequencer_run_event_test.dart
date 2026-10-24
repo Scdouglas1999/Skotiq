@@ -274,6 +274,96 @@ void main() {
     }
   });
 
+  test('a frame assessment decodes as its own event', () {
+    for (final e in both(
+      bridge.SequencerEvent.instructionProgressStructured(
+        nodeId: 'n1',
+        instruction: 'Frame watch',
+        progressPercent: 100.0,
+        detailKind: frameAssessedDetailKind,
+        detailJson: jsonEncode({
+          'save_path': r'C:\data\NGC0891\B_0120.fits',
+          'filter': 'B',
+          'exposure_secs': 120,
+          'was_accepted': true,
+          'solve_attempted': true,
+          'plate_solved': true,
+          'solved_ra_deg': 35.64,
+          'solved_dec_deg': 42.35,
+          'solved_rotation_deg': null,
+          'solved_pixel_scale': 1.12,
+          'offset_arcmin': 31.6,
+          'guide_rms_total': 0.74,
+          'guide_rms_samples': 58,
+          'background_adu': 801.5,
+          'star_count': 640,
+          'altitude_deg': 66.1,
+          'azimuth_deg': 283.0,
+          'pier_side': 'East',
+          'off_target': true,
+          'obstructed': false,
+          'exclusion_reason': 'Off target: 31.6 arcmin from NGC 891',
+        }),
+      ),
+    )) {
+      expect(
+        e,
+        isA<FrameAssessed>()
+            .having((e) => e.savePath, 'path', r'C:\data\NGC0891\B_0120.fits')
+            .having((e) => e.exposureSecs, 'exposure', 120.0)
+            .having((e) => e.solvedRaDeg, 'ra', 35.64)
+            .having((e) => e.solvedRotationDeg, 'rotation', isNull)
+            .having((e) => e.guideRmsTotal, 'rms', 0.74)
+            .having((e) => e.guideRmsSamples, 'samples', 58)
+            .having((e) => e.offTarget, 'off target', isTrue)
+            .having((e) => e.isExcluded, 'excluded', isTrue),
+      );
+    }
+  });
+
+  test('a horizon obstruction decodes as its own event', () {
+    for (final e in both(
+      bridge.SequencerEvent.instructionProgressStructured(
+        nodeId: 'n1',
+        instruction: 'Frame watch',
+        progressPercent: 100.0,
+        detailKind: horizonObstructionDetailKind,
+        detailJson: jsonEncode({
+          'altitude_deg': 64.0,
+          'azimuth_deg': 286.2,
+          'target_name': 'NGC 891',
+          'latitude': 43.1,
+          'longitude': -77.6,
+          'verdict': 'obstruction',
+          'action': 'next_target',
+          'message': 'Trees ahead.',
+        }),
+      ),
+    )) {
+      expect(
+        e,
+        isA<HorizonObstructionDetected>()
+            .having((e) => e.azimuthDeg, 'az', 286.2)
+            .having((e) => e.action, 'action', 'next_target')
+            .having((e) => e.latitude, 'lat', 43.1),
+      );
+    }
+  });
+
+  test('an obstruction without a position stays plain progress', () {
+    for (final e in both(
+      const bridge.SequencerEvent.instructionProgressStructured(
+        nodeId: 'n1',
+        instruction: 'Frame watch',
+        progressPercent: 100.0,
+        detailKind: horizonObstructionDetailKind,
+        detailJson: '{}',
+      ),
+    )) {
+      expect(e, isA<StructuredInstructionProgress>());
+    }
+  });
+
   test('graded frames carry capture truth and paths on both transports', () {
     for (final e in both(
       const bridge.SequencerEvent.frameAccepted(

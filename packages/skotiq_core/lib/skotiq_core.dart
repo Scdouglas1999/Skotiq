@@ -217,6 +217,7 @@ export 'src/providers/sequence_stats_provider.dart';
 export 'src/providers/sequence/run_stop_classification.dart';
 // The one wording for a target dropped by its own end_when.
 export 'src/providers/sequence/run_dither_event.dart';
+export 'src/providers/sequence/run_frame_assessment.dart';
 // Sequencer events, typed once at the Dart boundary.
 export 'src/providers/sequence/sequencer_run_event.dart';
 export 'src/providers/sequence/target_end_when_notice.dart';
@@ -451,6 +452,8 @@ export 'src/services/hips/healpix_nested.dart';
 export 'src/services/catalog_overlay_service.dart';
 export 'src/providers/catalog_overlay_provider.dart';
 export 'src/providers/current_frame_analysis_provider.dart';
+export 'src/providers/frame_record_updates.dart';
+export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/services/annotation_service.dart';
 export 'src/services/scheduler_service.dart';
 export 'src/services/scheduler/scheduler_engine.dart';

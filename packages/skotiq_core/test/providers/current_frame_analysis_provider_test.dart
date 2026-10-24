@@ -77,13 +77,18 @@ void main() {
   late _FakeSolver solver;
   late ProviderContainer container;
   SavedFrameSolution? saved;
+  late List<({String path, PlateSolveResult result})> recorded;
 
   setUp(() {
     solver = _FakeSolver();
     saved = null;
+    recorded = [];
     container = ProviderContainer(
       overrides: [
         backgroundFrameSolverProvider.overrideWithValue(solver.call),
+        backgroundSolveRecorderProvider.overrideWithValue(
+          (path, result) async => recorded.add((path: path, result: result)),
+        ),
         savedFrameSolutionProvider.overrideWithValue((_) async => saved),
         mountPointingHintProvider.overrideWithValue((2.5, 30.0)),
       ],
@@ -121,6 +126,23 @@ void main() {
     final wcs = solve.wcsFor(width: 40, height: 30)!;
     expect(wcs.raHours, 10);
     expect(wcs.pixelScaleArcsec, 1.2);
+    // The solve is kept with the frame's record too.
+    expect(recorded.single.path, '/lights/a.fits');
+    expect(recorded.single.result.ra, 150);
+  });
+
+  test('a failed solve is not written to the frame record', () async {
+    show(_frame(1, path: '/lights/f.fits'));
+    await settle();
+    solver.pending['/lights/f.fits']!.complete(
+      _result(ra: 0, success: false, error: 'no solution'),
+    );
+    await settle();
+    expect(
+      container.read(currentFrameSolveProvider)?.status,
+      FrameSolveStatus.failed,
+    );
+    expect(recorded, isEmpty);
   });
 
   test('the frame already on screen is solved when the queue starts', () async {

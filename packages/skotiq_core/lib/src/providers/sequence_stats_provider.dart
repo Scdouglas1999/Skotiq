@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -198,6 +199,29 @@ class SequenceRunStats {
     filterStats.captured++;
     if (!accepted) filterStats.rejected++;
     if (accepted) filterStats.integrationSecs += exposureSecs;
+  }
+
+  /// Move one frame already counted as accepted into the rejected count: the
+  /// frame watch excluded it (off target, obstructed) after the grader passed
+  /// it, so its time stops counting as integration. A no-op when [target] /
+  /// [filter] holds no accepted frame to move.
+  void reclassifyAsRejected({
+    required String target,
+    required String filter,
+    required double exposureSecs,
+  }) {
+    final filterStats = targetBreakdown[target]?[filter];
+    if (filterStats == null ||
+        filterStats.captured - filterStats.rejected <= 0) {
+      return;
+    }
+    filterStats.rejected++;
+    filterStats.integrationSecs = math.max(
+      0.0,
+      filterStats.integrationSecs - exposureSecs,
+    );
+    framesRejected++;
+    integrationSecs = math.max(0.0, integrationSecs - exposureSecs);
   }
 
   void recordTriggerFire() => triggerFires++;

@@ -16,6 +16,7 @@ import '../backend_provider.dart';
 import '../database_provider.dart' show targetsDaoProvider;
 import '../disk_space_provider.dart';
 import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
+import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // Sky-brightness poll reads the tracker via this
 // provider (defined in flat_wizard_provider since the tracker is
 // shared between flat-wizard and adaptive-exposure paths).
@@ -728,6 +729,7 @@ class SequenceExecutor {
     // would bake factory values into the run.
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
     await _ref.read(savedFocuserBacklashProvider.future);
+    await _ref.read(frameWatchSettingsProvider.future);
 
     await _backend.sequencerLoadJson(_serializer.sequenceToJson(sequence));
 

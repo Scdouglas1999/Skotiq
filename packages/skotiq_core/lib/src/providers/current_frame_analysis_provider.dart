@@ -24,6 +24,7 @@ import '../services/wcs/gnomonic_projection.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/mount_state_provider.dart';
+import 'frame_record_updates.dart';
 
 // ---------------------------------------------------------------------------
 // Background plate solve
@@ -210,8 +211,8 @@ const int _rememberedSolves = 12;
 /// One solve at a time. A frame that arrives while one runs waits, and a
 /// newer frame replaces it in the queue, so a fast loop never builds a
 /// backlog: only the newest frame is ever solved next. Results are kept per
-/// frame in memory; they are not written to the frame's database row, which
-/// would fold every frame into the sky atlas as a side effect.
+/// frame in memory, and a successful solve is also written to the frame's
+/// `captured_images` row when it has one ([backgroundSolveRecorderProvider]).
 /// The frame on screen that a linked client fetched because the imaging host
 /// showed it, and the background solve the host made of it, by host path.
 ///
@@ -345,6 +346,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
         );
         _lastSolved = solved;
         _put(solved);
+        unawaited(ref.read(backgroundSolveRecorderProvider)(path, result));
       } else {
         _put(
           FrameSolveVm(

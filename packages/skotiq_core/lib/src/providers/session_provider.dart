@@ -134,10 +134,19 @@ class SessionState extends Equatable {
     return DateTime.now().difference(startTime!);
   }
 
-  /// Calculate success rate
+  /// Frames that count: captured and neither rejected nor excluded.
+  int get acceptedExposures =>
+      math.max(0, completedExposures - rejectedExposures);
+
+  /// Captures that produced nothing usable: failed captures plus rejected or
+  /// excluded frames.
+  int get unusableExposures => failedExposures + rejectedExposures;
+
+  /// Accepted frames over every capture attempt.
   double get successRate {
-    if (completedExposures + failedExposures == 0) return 1.0;
-    return completedExposures / (completedExposures + failedExposures);
+    final attempts = completedExposures + failedExposures;
+    if (attempts == 0) return 1.0;
+    return acceptedExposures / attempts;
   }
 
   @override
@@ -170,6 +179,11 @@ class SessionState extends Equatable {
 class SessionStateNotifier extends StateNotifier<SessionState> {
   final Ref _ref;
   int _autofocusCount = 0;
+
+  /// Per-frame guide RMS (total) over the session's frames, from the frame
+  /// watch: the sum and the number of frames that had guide samples.
+  double _guideRmsSum = 0;
+  int _guideRmsFrames = 0;
 
   SessionStateNotifier(this._ref) : super(const SessionState());
 
@@ -205,6 +219,8 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     await _recordEquipmentSnapshot(dbId);
 
     _autofocusCount = 0;
+    _guideRmsSum = 0;
+    _guideRmsFrames = 0;
 
     state = SessionState(
       isActive: true,
@@ -278,6 +294,8 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     await sessionService.endSession(status: status);
 
     _autofocusCount = 0;
+    _guideRmsSum = 0;
+    _guideRmsFrames = 0;
     state = const SessionState();
   }
 
@@ -309,6 +327,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     );
 
     _autofocusCount = recoveryInfo.stats.autofocusCount;
+    final recoveredRms = recoveryInfo.stats.avgGuidingRms;
+    _guideRmsSum = recoveredRms ?? 0;
+    _guideRmsFrames = recoveredRms == null ? 0 : 1;
   }
 
   /// Set the current target
@@ -371,6 +392,29 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     );
 
     // Update session service (triggers checkpoint if needed)
+    _updateSessionServiceStats();
+  }
+
+  /// Take a frame already recorded as accepted out of the accepted set: the
+  /// frame watch found it off target or obstructed after the grader passed
+  /// it. Its time leaves the integration total.
+  void excludeAcceptedFrame({required double exposureTime}) {
+    if (state.acceptedExposures <= 0) return;
+    state = state.copyWith(
+      rejectedExposures: state.rejectedExposures + 1,
+      totalIntegrationSecs: math.max(
+        0.0,
+        state.totalIntegrationSecs - exposureTime,
+      ),
+    );
+    _updateSessionServiceStats();
+  }
+
+  /// Add one frame's guide RMS (total) to the session average.
+  void recordFrameGuidingRms(double rmsTotal) {
+    if (!rmsTotal.isFinite || rmsTotal < 0) return;
+    _guideRmsSum += rmsTotal;
+    _guideRmsFrames++;
     _updateSessionServiceStats();
   }
 
@@ -439,18 +483,25 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
     final sessionService = _ref.read(sessionServiceProvider);
 
-    // Calculate combined guiding RMS (RMS of both axes)
+    // The mean of the frames' guide RMS when the frame watch reported any,
+    // else the combined RMS of both axes.
     double? combinedGuidingRms;
-    if (snapshot.avgGuidingRmsRa != null && snapshot.avgGuidingRmsDec != null) {
+    if (_guideRmsFrames > 0) {
+      combinedGuidingRms = _guideRmsSum / _guideRmsFrames;
+    } else if (snapshot.avgGuidingRmsRa != null &&
+        snapshot.avgGuidingRmsDec != null) {
       combinedGuidingRms = math.sqrt(
         snapshot.avgGuidingRmsRa! * snapshot.avgGuidingRmsRa! +
             snapshot.avgGuidingRmsDec! * snapshot.avgGuidingRmsDec!,
       );
     }
 
+    // The row's successful count is the accepted frames and its failed count
+    // every capture that produced nothing usable, so successful + failed is
+    // every capture the session made.
     final stats = SessionStats(
-      completedExposures: snapshot.completedExposures,
-      failedExposures: snapshot.failedExposures,
+      completedExposures: snapshot.acceptedExposures,
+      failedExposures: snapshot.unusableExposures,
       totalIntegrationSecs: snapshot.totalIntegrationSecs,
       avgHfr: snapshot.avgHfr,
       avgGuidingRms: combinedGuidingRms,
