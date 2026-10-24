@@ -97,9 +97,13 @@ EonEndReason? classifyRunEnd({
 /// Starts the end-of-night calibration step when the night's imaging ends.
 ///
 /// It watches every finished run. A run that took light frames and completed,
-/// or was ended by dawn, starts the step when it is switched on in Settings.
-/// Other features that end a night (obstruction detection, the scheduler)
-/// call [imagingEnded].
+/// or was ended by dawn or an obstruction, starts the step when it is switched
+/// on in Settings. Other features that end a night (the scheduler) call
+/// [imagingEnded].
+///
+/// Work that belongs after the night's calibration, such as the post-session
+/// integration, waits on [runEnded] and [nightSettled] for the run's
+/// generation, so tonight's darks are in the library before it reads them.
 class EndOfNightCalibrationCoordinator {
   EndOfNightCalibrationCoordinator(this._ref) {
     _ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider, (
@@ -119,32 +123,57 @@ class EndOfNightCalibrationCoordinator {
               ? null
               : _ref.read(sequenceExecutorProvider).lastRunEndOrigin,
       };
-      unawaited(_onRunEnded(next, owner, origin));
+      unawaited(_settle(next, owner, origin));
     });
   }
 
   final Ref _ref;
   int? _lastGeneration;
+  final _decided = <int, Completer<EonEndReason?>>{};
+  final _settled = <int, Completer<void>>{};
 
   LoggingService get _log => _ref.read(loggingServiceProvider);
 
-  Future<void> _onRunEnded(
+  /// Whether the run of [generation] ended the night, and why; null when it
+  /// left the night open. Completes as soon as the run is classified.
+  Future<EonEndReason?> runEnded(int generation) =>
+      (_decided[generation] ??= Completer<EonEndReason?>()).future;
+
+  /// Completes once whatever the end of [generation]'s run started has
+  /// finished: the calibration step when one ran, at once otherwise.
+  Future<void> nightSettled(int generation) =>
+      (_settled[generation] ??= Completer<void>()).future;
+
+  Future<void> _settle(
     SequenceTerminalRunResult result,
     ActivePlanOwner owner,
     String? stopOrigin,
   ) async {
-    // The scheduler runs a night as many runs and says itself when the night
-    // is over; a calibration run is the step's own.
-    if (owner == ActivePlanOwner.autopilot ||
-        owner == ActivePlanOwner.calibration) {
-      return;
+    final decided = _decided[result.generation] ??= Completer();
+    final settled = _settled[result.generation] ??= Completer();
+    try {
+      final reason = _classify(result, owner, stopOrigin);
+      if (!decided.isCompleted) decided.complete(reason);
+      if (reason != null) await _onNightEnded(result, owner, reason);
+    } catch (e, stack) {
+      _log.error(
+        'End-of-night handling failed: $e',
+        source: 'EndOfNightCalibration',
+        fields: {'stack': '$stack'},
+      );
+      if (!decided.isCompleted) decided.complete(null);
+    } finally {
+      if (!settled.isCompleted) settled.complete();
     }
-    final runId = result.runId;
-    if (runId == null) return;
-    final frames = await _ref
-        .read(imagesDaoProvider)
-        .getImagesByProducingRun(producingRunId: '$runId');
-    if (!frames.any((f) => f.frameType.toLowerCase() == 'light')) return;
+  }
+
+  EonEndReason? _classify(
+    SequenceTerminalRunResult result,
+    ActivePlanOwner owner,
+    String? stopOrigin,
+  ) {
+    // A calibration run is the step's own and ends nothing.
+    if (owner == ActivePlanOwner.calibration) return null;
     final settings = _ref.read(appSettingsProvider).valueOrNull;
     final nightEnding =
         settings != null &&
@@ -154,18 +183,38 @@ class EndOfNightCalibrationCoordinator {
           latitude: settings.latitude,
           longitude: settings.longitude,
         );
-    final reason = classifyRunEnd(
+    return classifyRunEnd(
       runStatus: result.runStatus,
       stopOrigin: stopOrigin,
       nightEnding: nightEnding,
     );
-    if (reason == null) return;
-    await imagingEnded(reason);
+  }
+
+  Future<void> _onNightEnded(
+    SequenceTerminalRunResult result,
+    ActivePlanOwner owner,
+    EonEndReason reason,
+  ) async {
+    // The scheduler runs a night as many runs and says itself when the night
+    // is over.
+    if (owner == ActivePlanOwner.autopilot) return;
+    final runId = result.runId;
+    if (runId == null) return;
+    final frames = await _ref
+        .read(imagesDaoProvider)
+        .getImagesByProducingRun(producingRunId: '$runId');
+    if (!frames.any((f) => f.frameType.toLowerCase() == 'light')) return;
+    await _start(reason, waitForCompletion: true);
   }
 
   /// The night's imaging has ended for [reason]: start the calibration step
   /// if it is switched on. Returns whether it started.
-  Future<bool> imagingEnded(EonEndReason reason) async {
+  Future<bool> imagingEnded(EonEndReason reason) => _start(reason);
+
+  Future<bool> _start(
+    EonEndReason reason, {
+    bool waitForCompletion = false,
+  }) async {
     if (_ref.read(backendProvider) is NetworkBackend) return false;
     final settings = await EonSettings.load(_ref.read(settingsDaoProvider));
     if (!settings.enabled) {
@@ -191,9 +240,12 @@ class EndOfNightCalibrationCoordinator {
       'calibration',
       source: 'EndOfNightCalibration',
     );
-    unawaited(
-      service.run(reason: reason.description, settings: settings).then((_) {}),
-    );
+    final run = service.run(reason: reason.description, settings: settings);
+    if (waitForCompletion) {
+      await run;
+    } else {
+      unawaited(run.then((_) {}));
+    }
     return true;
   }
 }

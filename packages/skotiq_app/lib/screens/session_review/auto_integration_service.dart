@@ -949,26 +949,49 @@ class AutoIntegrationCompletion {
 final autoIntegrationCompletionProvider =
     StateProvider<AutoIntegrationCompletion?>((ref) => null);
 
+/// How long to wait for the end-of-night coordinator to classify a finished
+/// run before falling back to the run's own status.
+const _nightDecisionTimeout = Duration(seconds: 30);
+
 /// Always-on host lifecycle for automatic integration.
 ///
 /// It deliberately activates only for [FfiBackend]. A remote UI mirrors the
 /// host's terminal state and image catalog, but must never process its own
 /// client-side database or paths. Runs are serialized so two closely-spaced
 /// terminal events cannot race the same accumulating master.
+///
+/// A run is integrated when it ended the night: it completed, or a dawn or
+/// obstruction park ended it. It waits for the end-of-night calibration that
+/// run started, so the masters are calibrated with tonight's darks.
 final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend is! FfiBackend) return;
 
+  // Created first so it sees every terminal run this coordinator sees.
+  final night = ref.read(endOfNightCalibrationCoordinatorProvider);
   var queue = Future<void>.value();
   ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider,
       (previous, next) {
-    if (next == null || next.runStatus != 'completed') return;
+    if (next == null) return;
     if (previous?.generation == next.generation) return;
     final sessionId = next.dbSessionId;
     if (sessionId == null) return;
+    final generation = next.generation;
+    var classified = true;
+    final ended = night.runEnded(generation).timeout(
+      _nightDecisionTimeout,
+      onTimeout: () {
+        classified = false;
+        return next.runStatus == 'completed'
+            ? EonEndReason.targetsComplete
+            : null;
+      },
+    );
 
     queue = queue.then((_) async {
       try {
+        if (await ended == null) return;
+        if (classified) await night.nightSettled(generation);
         final result = await ref
             .read(autoIntegrationServiceProvider)
             .maybeRunForSession(sessionId);

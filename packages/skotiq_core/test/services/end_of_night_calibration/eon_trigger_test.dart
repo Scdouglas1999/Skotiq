@@ -296,6 +296,38 @@ void main() {
       );
     });
 
+    test('the night settles only after the calibration it started', () async {
+      await enable(true);
+      await recordRunFrame(11, 'light');
+      final coordinator = container.read(
+        endOfNightCalibrationCoordinatorProvider,
+      );
+      finishRun(1, 11, 'completed');
+      expect(await coordinator.runEnded(1), EonEndReason.targetsComplete);
+      var settled = false;
+      unawaited(coordinator.nightSettled(1).then((_) => settled = true));
+      await settle();
+      expect(rig.calls, contains('run'));
+      expect(settled, isFalse, reason: 'the calibration run is still going');
+      rig.runGate!.complete();
+      await settle();
+      expect(settled, isTrue);
+    });
+
+    test('an operator stop settles at once as not ending the night', () async {
+      await enable(true);
+      await recordRunFrame(12, 'light');
+      container.read(sequenceStopEvidenceProvider.notifier).state =
+          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      final coordinator = container.read(
+        endOfNightCalibrationCoordinatorProvider,
+      );
+      finishRun(1, 12, 'stopped');
+      expect(await coordinator.runEnded(1), isNull);
+      await coordinator.nightSettled(1);
+      expect(rig.calls, isEmpty);
+    });
+
     test('another feature ending the night starts it', () async {
       await enable(true);
       final started = await container

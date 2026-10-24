@@ -467,6 +467,12 @@ void main() {
     expect(result.message, contains('2 subs'));
   });
 
+  Future<void> settleCoordinator() async {
+    for (var i = 0; i < 40; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+  }
+
   test('host coordinator runs independently of the sequencer screen', () async {
     late _RecordingAutoIntegrationService recording;
     final coordinatorContainer = ProviderContainer(
@@ -493,8 +499,7 @@ void main() {
       runId: 10,
       dbSessionId: 20,
     );
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+    await settleCoordinator();
 
     expect(recording.calls, [20]);
     expect(
@@ -511,9 +516,30 @@ void main() {
       runId: 11,
       dbSessionId: 21,
     );
-    await Future<void>.delayed(Duration.zero);
+    await settleCoordinator();
     expect(recording.calls, [20],
         reason: 'Stopped runs must not auto-integrate');
+
+    // The dawn park files the run as aborted; it ended the night, so the
+    // night's subs are integrated.
+    coordinatorContainer.read(sequenceStopEvidenceProvider.notifier).state =
+        const SequenceStopDecision(
+      SequenceStopAuthor.system,
+      origin: 'dawn_approaching',
+      parked: true,
+    );
+    coordinatorContainer
+        .read(sequenceTerminalRunResultProvider.notifier)
+        .state = const SequenceTerminalRunResult(
+      generation: 3,
+      outcome: SequenceExecutionState.idle,
+      runStatus: 'aborted',
+      runId: 12,
+      dbSessionId: 22,
+    );
+    await settleCoordinator();
+    expect(recording.calls, [20, 22],
+        reason: 'a night ended by the dawn park must integrate');
   });
 
   test('every native integration call carries the session\'s cancel handle',
