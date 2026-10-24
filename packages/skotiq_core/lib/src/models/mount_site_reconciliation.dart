@@ -104,6 +104,18 @@ class MountSiteReconciliation {
     return delta > timeTolerance;
   }
 
+  /// The mount's elevation, when this computer has none to offer and the two
+  /// agree on where the site is. A profile elevation of exactly 0 m is the
+  /// unset default; a mount's 0 m is no better.
+  double? get elevationToAdopt {
+    final mine = computerElevationM;
+    final theirs = mountElevationM;
+    if (mine != null && mine != 0) return null;
+    if (theirs == null || theirs.abs() < 1) return null;
+    if (!hasMountSite || siteDiffers) return null;
+    return theirs;
+  }
+
   /// Whether there is anything worth asking the operator about.
   bool get needsAttention => siteDiffers || timeDiffers;
 
