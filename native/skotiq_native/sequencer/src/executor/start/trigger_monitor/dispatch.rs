@@ -27,7 +27,7 @@ pub(super) struct Dispatcher {
     custom: CustomBranches,
     pub(super) trigger_manager: Arc<RwLock<TriggerManager>>,
     pub(super) tracking_limit_hold: Option<super::tracking_limit::TrackingLimitHold>,
-    recovery_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
+    pub(super) recovery_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
     action_in_flight: Arc<AtomicBool>,
     skip_to_next_target: Arc<AtomicBool>,
     skip_to_node: Arc<StdRwLock<Option<NodeId>>>,

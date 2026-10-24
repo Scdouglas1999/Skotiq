@@ -50,10 +50,10 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
     // An operator's request is consumed whatever happens next: it asked for
     // this flip, not for every later one.
     let requested = rig.trigger_state.write().await.meridian.take_request();
-    if !still_due(config, requested, rig).await {
+    let Some(early) = still_due(config, requested, rig).await else {
         camera_claim.release().await;
         return ActionFlow::NotRun;
-    }
+    };
     tracing::info!(
         "[MERIDIAN] Trigger fired - executing meridian flip{}",
         if requested {
@@ -101,7 +101,8 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
     )
     // The executor emits the MeridianFlipOutcome verdict itself.
     .with_executor_event_tx(run.events.clone())
-    .with_decision_tx(decisions.tx.clone(), decisions.run_id.clone());
+    .with_decision_tx(decisions.tx.clone(), decisions.run_id.clone())
+    .with_early_tracking_limit_flip(early);
     let flip_result = flip_executor.execute(&flip_ctx).await;
     camera_claim.release().await;
     // A flip that succeeded only on a retry is degraded, and the operator is
@@ -138,21 +139,35 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                     error
                 )
             });
+            // The executor records the flip once the new pier side is
+            // verified, so a failure after that is a post-flip step failing
+            // under "Stop the run for quality problems", not a mount left on
+            // the wrong side.
+            let flipped = rig.trigger_state.read().await.meridian.has_flipped();
             match action_taken {
                 crate::FlipFailureAction::PauseAndAlert => {
                     // No separate Error event: the Critical MeridianFlipOutcome
                     // is the verdict, and both would record it twice.
-                    run.pause(Some(format!(
-                        "Meridian flip for '{}' FAILED after {} \
-                         attempt{}: {}. Sequence paused — the \
-                         mount may be on the wrong side of the \
-                         pier; verify framing before resuming.",
-                        target_name,
-                        flip_attempts,
-                        plural(flip_attempts),
-                        error
-                    )))
-                    .await;
+                    let message = if flipped {
+                        format!(
+                            "The meridian flip for '{}' moved the mount to the new pier side, \
+                             but a step after it failed: {}. Sequence paused because Stop the \
+                             run for quality problems is on; the flip is not repeated on \
+                             Resume.",
+                            target_name, error
+                        )
+                    } else {
+                        format!(
+                            "Meridian flip for '{}' FAILED after {} attempt{}: {}. Sequence \
+                             paused; the mount did not reach the other side of the pier. \
+                             Verify framing before resuming.",
+                            target_name,
+                            flip_attempts,
+                            plural(flip_attempts),
+                            error
+                        )
+                    };
+                    run.pause(Some(message)).await;
                     ActionFlow::Finished
                 }
                 crate::FlipFailureAction::AbortAndPark => {
@@ -166,18 +181,40 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
         }
         crate::meridian_flip_executor::FlipResult::Aborted { reason } => {
             tracing::warn!("[MERIDIAN] Flip aborted: {}", reason);
+            if early && !run.is_cancelled() {
+                // The mount would not take the east side this early. Wait for
+                // the configured window instead; tracking stays off.
+                let wait = {
+                    let mut state = rig.trigger_state.write().await;
+                    state.run.refuse_early_flip();
+                    state.current_hour_angle.map(|ha| {
+                        (crate::triggers::tracking_limit_flip_threshold(config) - ha).max(0.0)
+                            * 60.0
+                    })
+                };
+                let message = format!(
+                    "The mount did not flip early ({reason}). Holding with tracking off until \
+                     the flip window, {:.0} min past the meridian{}.",
+                    crate::triggers::tracking_limit_flip_threshold(config) * 60.0,
+                    wait.map(|m| format!(", about {m:.0} min away"))
+                        .unwrap_or_default()
+                );
+                tracing::warn!("[MERIDIAN] {}", message);
+                run.warning(message);
+            }
             ActionFlow::Finished
         }
     }
 }
 
-/// Whether the flip is still due now that its turn has come. It waited for
-/// the imaging train, and a target change in the meantime can put the mount
-/// on the post-flip side, so the pier side is read again. An operator's
-/// request waives the window threshold but not the pre-flip side.
-async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Rig) -> bool {
+/// Whether the flip is still due now that its turn has come, and if so
+/// whether it is an early tracking-limit flip. It waited for the imaging
+/// train, and a target change in the meantime can put the mount on the
+/// post-flip side, so the pier side is read again. An operator's request
+/// waives the window threshold but not the pre-flip side.
+async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Rig) -> Option<bool> {
     let Some(mount_id) = rig.context.mount_id.as_deref() else {
-        return true;
+        return Some(false);
     };
     let fresh_pier = bounded_poll(
         "mount_side_of_pier",
@@ -194,15 +231,16 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
         ts.current_hour_angle
     };
     let pier_now = fresh_pier.or(rig.trigger_state.read().await.pier_side);
-    let tracking_limit_hold =
-        rig.trigger_state.read().await.run.hold() == Some(crate::triggers::RunHold::TrackingLimit);
+    let (tracking_limit_hold, early_refused) = {
+        let state = rig.trigger_state.read().await;
+        (
+            state.run.hold() == Some(crate::triggers::RunHold::TrackingLimit),
+            state.run.early_flip_refused(),
+        )
+    };
     let due = if tracking_limit_hold {
         hour_angle.is_some_and(|ha| {
-            crate::triggers::flip_window_open(
-                ha,
-                pier_now,
-                crate::triggers::tracking_limit_flip_threshold(config),
-            )
+            crate::triggers::tracking_limit_flip_due(config, ha, pier_now, early_refused)
         })
     } else if requested {
         hour_angle.is_some_and(|ha| crate::triggers::on_pre_flip_side(ha, pier_now))
@@ -216,8 +254,14 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
             hour_angle,
             pier_now
         );
+        return None;
     }
-    due
+    Some(
+        tracking_limit_hold
+            && hour_angle.is_some_and(|ha| {
+                crate::triggers::tracking_limit_flip_is_early(config, ha, pier_now)
+            }),
+    )
 }
 
 /// The flip failed and the operator chose to abort: the mount may be anywhere

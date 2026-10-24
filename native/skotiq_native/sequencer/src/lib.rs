@@ -2481,6 +2481,22 @@ pub enum MeridianTriggerMethod {
     OnTrackingLimitHit,
 }
 
+/// What a run does when the mount stops tracking on the west side of the pier
+/// before the configured flip window, as a mount does at its own tracking
+/// limit.
+///
+/// `FlipEarly` flips to the east side as soon as the stop is adopted, so the
+/// mount tracks again within minutes; a mount that refuses that slew (the new
+/// pointing is outside its east-side limit) falls back to waiting.
+/// `WaitForFlipWindow` holds with tracking off until the configured flip
+/// window opens. Neither restarts tracking into the limit.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub enum TrackingLimitPolicy {
+    #[default]
+    FlipEarly,
+    WaitForFlipWindow,
+}
+
 /// Action when flip fails after all retries
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
 pub enum FlipFailureAction {
@@ -2507,6 +2523,10 @@ pub struct MeridianFlipConfig {
     /// `instructions::pre_meridian_hold`.
     #[serde(default)]
     pub pause_before_meridian_minutes: f64,
+    /// What to do when the mount stops tracking on the pre-flip side before
+    /// the flip window. See [`TrackingLimitPolicy`].
+    #[serde(default)]
+    pub tracking_limit_policy: TrackingLimitPolicy,
 
     // Flip sequence options
     pub pause_guiding: bool,
@@ -2614,6 +2634,7 @@ impl Default for MeridianFlipConfig {
             hour_angle_threshold: 0.5,
             tracking_limit_wait_minutes: 0.0,
             pause_before_meridian_minutes: 0.0,
+            tracking_limit_policy: TrackingLimitPolicy::FlipEarly,
             pause_guiding: true,
             auto_center: true,
             refocus_after: false,

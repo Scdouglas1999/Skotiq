@@ -460,8 +460,8 @@ async fn a_new_run_starts_with_no_trigger_in_cooldown() {
 
 #[tokio::test]
 async fn tracking_limit_recovery_keeps_the_scheduled_flip_armed() {
-    // Oct 23: NYX tracking stopped before transit; once the configured
-    // 20-minute window opened the mount was still stopped on the west side.
+    // A mount stopped on the west side keeps its scheduled flip once the
+    // configured window opens.
     let config = crate::MeridianFlipConfig {
         trigger_method: crate::MeridianTriggerMethod::MinutesPastMeridian,
         minutes_past_meridian: 20.0,

@@ -165,6 +165,9 @@ pub enum TriggerEvaluation {
 pub struct RunState {
     hold: Option<RunHold>,
     last_evaluation: TriggerEvaluation,
+    /// The mount refused the early flip of the current tracking-limit hold,
+    /// so the hold waits for the configured flip window instead.
+    early_flip_refused: bool,
 }
 
 impl RunState {
@@ -177,11 +180,25 @@ impl RunState {
     }
 
     pub fn begin_hold(&mut self, hold: RunHold) {
+        if self.hold != Some(hold) {
+            self.early_flip_refused = false;
+        }
         self.hold = Some(hold);
     }
 
     pub fn end_hold(&mut self) {
         self.hold = None;
+        self.early_flip_refused = false;
+    }
+
+    /// Whether the current tracking-limit hold already tried an early flip
+    /// that the mount refused.
+    pub fn early_flip_refused(&self) -> bool {
+        self.early_flip_refused
+    }
+
+    pub fn refuse_early_flip(&mut self) {
+        self.early_flip_refused = true;
     }
 
     pub fn last_evaluation(&self) -> TriggerEvaluation {
@@ -200,6 +217,7 @@ impl RunState {
     /// A run is starting: no hold, and no running evaluation yet.
     pub fn reset_for_new_run(&mut self) {
         self.hold = None;
+        self.early_flip_refused = false;
         self.last_evaluation = TriggerEvaluation::AwaitingRunningTick;
     }
 }
