@@ -234,9 +234,8 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
   @override
   Future<FrameWatchSettings> build() async {
     final dao = ref.watch(settingsDaoProvider);
-    final drift = double.tryParse(
-      await dao.getSetting(frameWatchDriftLimitPercentKey) ?? '',
-    );
+    final storedDrift = await dao.getSetting(frameWatchDriftLimitPercentKey);
+    final drift = storedDrift == null ? null : double.tryParse(storedDrift);
     final detection = await dao.getSetting(frameWatchObstructionDetectionKey);
     final points = decodeLearnedObstructionPoints(
       await dao.getSetting(learnedHorizonPointsKey),

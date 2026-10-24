@@ -327,9 +327,16 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     );
 
     _autofocusCount = recoveryInfo.stats.autofocusCount;
+    // The recovered average stands in for one frame until new frames
+    // report their own.
     final recoveredRms = recoveryInfo.stats.avgGuidingRms;
-    _guideRmsSum = recoveredRms ?? 0;
-    _guideRmsFrames = recoveredRms == null ? 0 : 1;
+    if (recoveredRms == null) {
+      _guideRmsSum = 0;
+      _guideRmsFrames = 0;
+    } else {
+      _guideRmsSum = recoveredRms;
+      _guideRmsFrames = 1;
+    }
   }
 
   /// Set the current target

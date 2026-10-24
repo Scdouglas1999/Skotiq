@@ -364,7 +364,6 @@ final class FrameAssessed extends SequencerRunEvent {
     required super.eventType,
     required super.timestamp,
     required super.severity,
-    required this.wasAccepted,
     required this.solveAttempted,
     required this.plateSolved,
     required this.offTarget,
@@ -373,6 +372,7 @@ final class FrameAssessed extends SequencerRunEvent {
     this.savePath,
     this.filter,
     this.exposureSecs,
+    this.wasAccepted,
     this.solvedRaDeg,
     this.solvedDecDeg,
     this.solvedRotationDeg,
@@ -396,8 +396,9 @@ final class FrameAssessed extends SequencerRunEvent {
   final String? filter;
   final double? exposureSecs;
 
-  /// The grader's verdict, before any exclusion below.
-  final bool wasAccepted;
+  /// The grader's verdict, before any exclusion below; null when the payload
+  /// did not say.
+  final bool? wasAccepted;
   final bool solveAttempted;
   final bool plateSolved;
 
@@ -1008,9 +1009,10 @@ SequencerRunEvent? _decodeFrameWatchDetail(
       savePath: f.string('save_path'),
       filter: f.string('filter'),
       exposureSecs: f.real('exposure_secs'),
-      wasAccepted: f.boolean('was_accepted') ?? true,
-      solveAttempted: f.boolean('solve_attempted') ?? false,
-      plateSolved: f.boolean('plate_solved') ?? false,
+      wasAccepted: f.boolean('was_accepted'),
+      // A flag the payload does not carry was not reported as true.
+      solveAttempted: f.boolean('solve_attempted') == true,
+      plateSolved: f.boolean('plate_solved') == true,
       solvedRaDeg: f.real('solved_ra_deg'),
       solvedDecDeg: f.real('solved_dec_deg'),
       solvedRotationDeg: f.real('solved_rotation_deg'),
@@ -1023,8 +1025,8 @@ SequencerRunEvent? _decodeFrameWatchDetail(
       altitudeDeg: f.real('altitude_deg'),
       azimuthDeg: f.real('azimuth_deg'),
       pierSide: f.string('pier_side'),
-      offTarget: f.boolean('off_target') ?? false,
-      obstructed: f.boolean('obstructed') ?? false,
+      offTarget: f.boolean('off_target') == true,
+      obstructed: f.boolean('obstructed') == true,
       exclusionReason: f.string('exclusion_reason'),
     );
   }
