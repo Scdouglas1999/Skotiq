@@ -76,6 +76,15 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
 
   /// Captured lights are read when the setup is first shown, not while a
   /// build is on screen.
+  /// Start background work that outlives this window. Errors raised before
+  /// the job takes over (another build running, an unreadable saved plan)
+  /// are shown here; later ones are the job's own.
+  void _background(Future<void> work) => unawaited(
+        work.catchError((Object e) {
+          if (mounted) setState(() => _error = '$e');
+        }),
+      );
+
   Future<void> _load() => _action(() async {
         _progress = 'Reading captured lights';
         final targets = await loadDarkroomTargets(ref.read(databaseProvider));
@@ -190,7 +199,7 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
               },
           ],
         );
-        unawaited(_jobs.checkFraming(target: _target!, plan: plan));
+        _background(_jobs.checkFraming(target: _target!, plan: plan));
       });
 
   Future<void> _build(DarkroomBuildJob job) => _action(() async {
@@ -203,7 +212,7 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
           p.join(
               parent, 'Skotiq-$name-${DateTime.now().microsecondsSinceEpoch}'),
         );
-        unawaited(_jobs.accept(directory));
+        _background(_jobs.accept(directory));
       });
 
   Future<void> _resumeFrom() => _action(() async {
@@ -211,12 +220,12 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
           confirmButtonText: 'Resume this Skotiq build',
         );
         if (folder == null) return;
-        unawaited(_jobs.resume(Directory(folder)));
+        _background(_jobs.resume(Directory(folder)));
       });
 
   Future<void> _resumeJob(DarkroomBuildJob job) => _action(() async {
         _jobs.dismiss();
-        unawaited(_jobs.resume(Directory(job.directory!)));
+        _background(_jobs.resume(Directory(job.directory!)));
       });
 
   @override
