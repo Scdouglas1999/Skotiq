@@ -521,6 +521,22 @@ fn build_master_flat_unit_mean() {
 
     let (img, _h) = read_fits(out.as_path()).unwrap();
     assert_eq!(img.pixel_type, PixelType::F32);
+
+    // The default output must be usable by the camera-light calibration path.
+    let response = img.as_f32().unwrap();
+    let light_pixels: Vec<u16> = response
+        .iter()
+        .map(|&v| (1000.0 * v).round() as u16)
+        .collect();
+    let light = ImageData::from_u16(size, size, 1, &light_pixels);
+    let calibrated = skotiq_imaging::calibration::calibrate_frame(&light, None, Some(&img), None)
+        .expect("generated float flat calibrates U16 lights");
+    assert_eq!(calibrated.pixel_type, PixelType::U16);
+    assert!(calibrated
+        .as_u16()
+        .unwrap()
+        .iter()
+        .all(|&v| v.abs_diff(1000) <= 1));
 }
 
 /// save_fits_master re-exports a buffer with the declared geometry/type.

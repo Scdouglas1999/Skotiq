@@ -115,8 +115,8 @@ fn validate_buffer_length(frame: &ImageData, frame_name: &str) -> Result<(), Cal
     Ok(())
 }
 
-/// Validate that two frames have matching dimensions, channels, and pixel type
-fn validate_frames(
+/// Validate dimensions and buffers without imposing a sample representation.
+fn validate_frame_geometry(
     reference: &ImageData,
     other: &ImageData,
     other_name: &str,
@@ -147,6 +147,19 @@ fn validate_frames(
             frame_name: other_name.to_string(),
         });
     }
+    // Validate that raw buffers are correctly sized for their pixel types
+    validate_buffer_length(reference, "light frame")?;
+    validate_buffer_length(other, other_name)?;
+    Ok(())
+}
+
+/// Additive calibration requires matching sample representations.
+fn validate_frames(
+    reference: &ImageData,
+    other: &ImageData,
+    other_name: &str,
+) -> Result<(), CalibrationError> {
+    validate_frame_geometry(reference, other, other_name)?;
     if reference.pixel_type != other.pixel_type {
         return Err(CalibrationError::PixelTypeMismatch {
             expected: reference.pixel_type,
@@ -154,9 +167,6 @@ fn validate_frames(
             frame_name: other_name.to_string(),
         });
     }
-    // Validate that raw buffers are correctly sized for their pixel types
-    validate_buffer_length(reference, "light frame")?;
-    validate_buffer_length(other, other_name)?;
     Ok(())
 }
 
@@ -219,7 +229,15 @@ pub fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, C
 /// For integer types, the computation is done in f64 and the result is clamped
 /// back to the valid range. Division by zero (dead pixels in flat) produces 0.
 pub fn divide_flat(light: &ImageData, flat: &ImageData) -> Result<ImageData, CalibrationError> {
-    validate_frames(light, flat, "flat frame")?;
+    validate_frame_geometry(light, flat, "flat frame")?;
+    if light.pixel_type != flat.pixel_type {
+        // Keep a unit-mean float flat fractional: converting it to integer
+        // samples before division would turn its response into 0, 1, or 2.
+        let float_light = convert_sample_type(light, PixelType::F64);
+        let float_flat = convert_sample_type(flat, PixelType::F64);
+        let corrected = divide_flat(&float_light, &float_flat)?;
+        return Ok(convert_sample_type(&corrected, light.pixel_type).into_owned());
+    }
 
     let channels = (light.channels as usize).max(1);
     let result_data = match light.pixel_type {
@@ -267,12 +285,10 @@ pub fn calibrate_frame(
     }
     validate_buffer_length(light, "light frame")?;
 
-    // Dark and bias masters are additive and in ADU, so a float master (the
-    // usual output of PixInsight, Siril or a sigma-clipped combine) is brought
-    // to the light's sample type here. A flat is not: its scale is arbitrary
-    // (unit mean for a float flat), so a type mismatch there stays an error.
-    let conformed_dark = dark.map(|d| conform_additive_master(d, light.pixel_type));
-    let conformed_bias = bias.map(|b| conform_additive_master(b, light.pixel_type));
+    // Dark and bias masters are additive and in ADU. Flats retain their own
+    // sample type so normalized float responses stay fractional during division.
+    let conformed_dark = dark.map(|d| convert_sample_type(d, light.pixel_type));
+    let conformed_bias = bias.map(|b| convert_sample_type(b, light.pixel_type));
     let dark = conformed_dark.as_deref();
     let bias = conformed_bias.as_deref();
 
@@ -281,7 +297,7 @@ pub fn calibrate_frame(
         validate_frames(light, d, "dark frame")?;
     }
     if let Some(f) = flat {
-        validate_frames(light, f, "flat frame")?;
+        validate_frame_geometry(light, f, "flat frame")?;
     }
     if let Some(b) = bias {
         validate_frames(light, b, "bias frame")?;
@@ -330,10 +346,7 @@ pub fn calibrate_frame(
 
 /// `master` re-encoded as `target` samples, or borrowed unchanged when it
 /// already is. Integer targets round and clamp to their range; NaN becomes 0.
-fn conform_additive_master(
-    master: &ImageData,
-    target: PixelType,
-) -> std::borrow::Cow<'_, ImageData> {
+fn convert_sample_type(master: &ImageData, target: PixelType) -> std::borrow::Cow<'_, ImageData> {
     if master.pixel_type == target || master.is_empty() {
         return std::borrow::Cow::Borrowed(master);
     }
@@ -1008,10 +1021,21 @@ mod tests {
     }
 
     #[test]
-    fn a_float_flat_for_a_u16_light_is_still_refused() {
-        let light = ImageData::from_u16(1, 2, 1, &[500, 600]);
-        let flat = ImageData::from_f32(1, 2, 1, &[1.0, 1.0]);
-        let err = calibrate_frame(&light, None, Some(&flat), None).unwrap_err();
-        assert!(matches!(err, CalibrationError::PixelTypeMismatch { .. }));
+    fn a_unit_mean_float_flat_calibrates_u16_lights_without_quantizing_the_flat() {
+        let light = ImageData::from_u16(2, 2, 1, &[600, 1100, 1600, 100]);
+        let dark = ImageData::from_u16(2, 2, 1, &[100; 4]);
+        let flat = ImageData::from_f32(2, 2, 1, &[0.5, 1.0, 1.5, 1.0]);
+        let out = calibrate_frame(&light, Some(&dark), Some(&flat), None)
+            .expect("Darkroom's default float flat must calibrate camera U16 lights");
+        assert_eq!(out.pixel_type, PixelType::U16);
+        assert_eq!(out.as_u16().unwrap(), vec![1000, 1000, 1000, 0]);
+    }
+
+    #[test]
+    fn mixed_type_flat_preserves_channel_normalization_and_zero_pixel_behavior() {
+        let light = ImageData::from_u16(2, 1, 3, &[100, 200, 300, 100, 200, 300]);
+        let flat = ImageData::from_f32(2, 1, 3, &[0.5, 2.0, 0.0, 1.5, 2.0, 6.0]);
+        let out = divide_flat(&light, &flat).expect("mixed-type flat");
+        assert_eq!(out.as_u16().unwrap(), vec![200, 200, 0, 67, 200, 150]);
     }
 }
