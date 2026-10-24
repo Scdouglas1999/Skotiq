@@ -241,6 +241,10 @@ impl FitsHeader {
         self.get(key).and_then(|v| v.as_f64())
     }
 
+    pub fn get_bool(&self, key: &str) -> Option<bool> {
+        self.get(key).and_then(|v| v.as_bool())
+    }
+
     pub fn get_comment(&self, key: &str) -> Option<&str> {
         self.keyword_comments
             .get(&key.to_uppercase())

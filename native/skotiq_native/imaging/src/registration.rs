@@ -305,12 +305,79 @@ pub fn solve_registration(
     config: &RegistrationConfig,
 ) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
     validate_pair(reference, frame)?;
+    let reference = ReferenceStars::detect(reference, config)?;
+    solve_registration_against(&reference, frame, config)
+}
 
-    let ref_plane = detection_plane(reference);
-    let frame_plane = detection_plane(frame);
+/// A registration reference's detected stars, kept so that every frame
+/// registered onto the same reference does not detect them again.
+#[derive(Debug, Clone)]
+pub struct ReferenceStars {
+    stars: Vec<DetectedStar>,
+    width: u32,
+    height: u32,
+    channels: u32,
+}
 
-    let ref_stars = detect_stars(&ref_plane, &config.star_detection);
-    let frame_stars = detect_stars(&frame_plane, &config.star_detection);
+impl ReferenceStars {
+    /// Detect the reference's stars with `config`'s detector.
+    pub fn detect(
+        reference: &ImageData,
+        config: &RegistrationConfig,
+    ) -> Result<Self, RegistrationError> {
+        if reference.pixel_type != PixelType::U16 {
+            return Err(RegistrationError::UnsupportedReferencePixelType(
+                reference.pixel_type,
+            ));
+        }
+        if !matches!(reference.channels, 1 | 3) {
+            return Err(RegistrationError::UnsupportedChannels(reference.channels));
+        }
+        Ok(Self {
+            stars: detect_stars(&detection_plane(reference), &config.star_detection),
+            width: reference.width,
+            height: reference.height,
+            channels: reference.channels,
+        })
+    }
+
+    /// Stars detected on the reference.
+    pub fn len(&self) -> usize {
+        self.stars.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.stars.is_empty()
+    }
+
+    /// The reference grid's width and height.
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+}
+
+/// [`solve_registration`] against a reference whose stars were detected once.
+pub fn solve_registration_against(
+    reference: &ReferenceStars,
+    frame: &ImageData,
+    config: &RegistrationConfig,
+) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
+    if frame.pixel_type != PixelType::U16 {
+        return Err(RegistrationError::UnsupportedFramePixelType(
+            frame.pixel_type,
+        ));
+    }
+    if reference.channels != frame.channels {
+        return Err(RegistrationError::ChannelMismatch {
+            reference: reference.channels,
+            frame: frame.channels,
+        });
+    }
+    if !matches!(frame.channels, 1 | 3) {
+        return Err(RegistrationError::UnsupportedChannels(frame.channels));
+    }
+    let ref_stars = &reference.stars;
+    let frame_stars = detect_stars(&detection_plane(frame), &config.star_detection);
 
     // We need at least enough stars to form triangles and a minimal fit.
     let min_stars = min_registration_stars(config.transform_kind);
@@ -322,7 +389,7 @@ pub fn solve_registration(
         });
     }
 
-    let transform = solve_transform_from_stars(&ref_stars, &frame_stars, config).ok_or(
+    let transform = solve_transform_from_stars(ref_stars, &frame_stars, config).ok_or(
         RegistrationError::NoConsistentGeometry {
             found: 0,
             needed: config.min_inliers,
@@ -330,7 +397,7 @@ pub fn solve_registration(
     )?;
 
     // Recompute the correspondence/inlier statistics for the returned model.
-    let correspondences = correspondences_from_stars(&ref_stars, &frame_stars, config);
+    let correspondences = correspondences_from_stars(ref_stars, &frame_stars, config);
     let residuals: Vec<f64> = correspondences
         .iter()
         .map(|c| {
@@ -371,6 +438,86 @@ pub fn solve_registration(
     };
 
     Ok((transform.model, stats))
+}
+
+/// A frame resampled onto a reference grid in floating point, with the grid
+/// pixels its source actually supports.
+#[derive(Debug, Clone)]
+pub struct WarpedFrame {
+    /// Channel-interleaved samples on the grid; 0 where not covered.
+    pub pixels: Vec<f32>,
+    /// One entry per grid location: true where the interpolation kernel lies
+    /// entirely inside the source frame.
+    pub covered: Vec<bool>,
+}
+
+/// Resample `frame` (any pixel type) onto a `width` × `height` grid with
+/// `model` (source → grid) and `interp`, keeping samples in floating point.
+///
+/// Coverage is geometric. A grid pixel counts as covered only when every
+/// kernel tap falls inside the source frame, so a sample that the source
+/// cannot fully support is excluded rather than attenuated, and a calibrated
+/// value of zero is still data.
+pub fn warp_to_grid(
+    frame: &ImageData,
+    width: u32,
+    height: u32,
+    model: &TransformModel,
+    interp: Interpolator,
+) -> WarpedFrame {
+    let out_w = width as usize;
+    let out_h = height as usize;
+    let channels = (frame.channels as usize).max(1);
+    let (src_w, src_h) = (frame.width as usize, frame.height as usize);
+    let Some(inverse) = model.inverse() else {
+        return WarpedFrame {
+            pixels: vec![0.0; out_w * out_h * channels],
+            covered: vec![false; out_w * out_h],
+        };
+    };
+    let src = crate::calibration::samples_f64(frame);
+    let stride = src_w * channels;
+    let rows: Vec<(Vec<f32>, Vec<bool>)> = (0..out_h)
+        .into_par_iter()
+        .map(|y| {
+            let mut row = vec![0.0f32; out_w * channels];
+            let mut covered = vec![false; out_w];
+            for x in 0..out_w {
+                let (sx, sy) = inverse.apply(x as f64, y as f64);
+                if !kernel_inside(sx, sy, src_w, src_h, interp) {
+                    continue;
+                }
+                covered[x] = true;
+                for c in 0..channels {
+                    row[x * channels + c] =
+                        sample(&src, src_w, src_h, channels, stride, c, sx, sy, interp) as f32;
+                }
+            }
+            (row, covered)
+        })
+        .collect();
+    let mut pixels = Vec::with_capacity(out_w * out_h * channels);
+    let mut covered = Vec::with_capacity(out_w * out_h);
+    for (row, cov) in rows {
+        pixels.extend_from_slice(&row);
+        covered.extend_from_slice(&cov);
+    }
+    WarpedFrame { pixels, covered }
+}
+
+/// Whether every tap of `interp` around source position `(sx, sy)` lies inside
+/// a `w` × `h` frame.
+fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator) -> bool {
+    if !sx.is_finite() || !sy.is_finite() {
+        return false;
+    }
+    let (x0, y0) = (sx.floor(), sy.floor());
+    let (lo, hi) = match interp {
+        Interpolator::Bilinear => (0.0, 1.0),
+        Interpolator::CatmullRom => (-1.0, 2.0),
+        Interpolator::Lanczos3 => (-2.0, 3.0),
+    };
+    x0 + lo >= 0.0 && y0 + lo >= 0.0 && x0 + hi <= (w as f64 - 1.0) && y0 + hi <= (h as f64 - 1.0)
 }
 
 // Validation + detection-plane helpers
@@ -1076,8 +1223,8 @@ fn warp_frame(
 }
 
 /// Sample channel `c` at fractional source position `(sx, sy)` with `interp`.
-/// Returns 0.0 when the support window leaves the image (no edge replication,
-/// to avoid smearing the frame border into the stack).
+/// Returns 0.0 when any tap of the support window leaves the image (no edge
+/// replication, to avoid smearing the frame border into the stack).
 #[allow(clippy::too_many_arguments)]
 fn sample(
     src: &[f64],
@@ -1118,6 +1265,9 @@ fn sample(
                 + (1.0 - dx) * dy * p01
                 + dx * dy * p11
         }
+        // A kernel reaching past the frame edge would weigh the missing taps as
+        // zero and attenuate the sample, so no sample is produced there.
+        _ if !kernel_inside(sx, sy, src_w, src_h, interp) => 0.0,
         Interpolator::CatmullRom => separable_sample(&px, sx, sy, 2, catmull_rom),
         Interpolator::Lanczos3 => separable_sample(&px, sx, sy, 3, lanczos3),
     }
@@ -1513,6 +1663,60 @@ mod tests {
             let physical_vertices = actual.vertices.map(|i| order[i]);
             assert_eq!(physical_vertices, expected.vertices, "order {order:?}");
         }
+    }
+
+    /// Coverage of a float warp is geometric: a translated frame covers
+    /// exactly the grid pixels whose whole Lanczos kernel lies inside it, a
+    /// zero-valued sample is still covered, and no edge sample is attenuated.
+    #[test]
+    fn float_warp_coverage_comes_from_geometry() {
+        let (w, h) = (40u32, 30u32);
+        let frame = ImageData::from_f32(w, h, 1, &vec![0.0f32; (w * h) as usize]);
+        let mut shift = TransformModel::identity();
+        shift.matrix[0][2] = 5.5; // source x maps to grid x + 5.5
+        let warped = warp_to_grid(&frame, w, h, &shift, Interpolator::Lanczos3);
+        let covered = |x: usize, y: usize| warped.covered[y * w as usize + x];
+        // Grid x maps to source x - 5.5: floor is x - 6, taps x - 8 ..= x - 3.
+        assert!(!covered(7, 10));
+        assert!(covered(8, 10));
+        assert!(covered(w as usize - 1, 10));
+        assert!(!covered(8, 1) && covered(8, 2) && covered(8, 26) && !covered(8, 27));
+
+        let ones = ImageData::from_f32(w, h, 1, &vec![1.0f32; (w * h) as usize]);
+        let warped = warp_to_grid(&ones, w, h, &shift, Interpolator::Lanczos3);
+        for (i, &c) in warped.covered.iter().enumerate() {
+            if c {
+                assert!(
+                    (warped.pixels[i] - 1.0).abs() < 1e-5,
+                    "attenuated edge sample"
+                );
+            }
+        }
+    }
+
+    /// Registering against cached reference stars gives the same transform as
+    /// detecting them again for each frame.
+    #[test]
+    fn cached_reference_stars_give_the_same_transform() {
+        let size = 256.0;
+        let ref_stars = base_stars(size);
+        let frame_stars = transform_stars(&ref_stars, 1.0, 0.05, 6.0, -3.0, size);
+        let field = |stars| {
+            SyntheticField {
+                width: 256,
+                height: 256,
+                stars,
+                background: 600.0,
+                sigma: 1.6,
+                noise_amp: 5.0,
+            }
+            .render()
+        };
+        let (reference, frame) = (field(ref_stars), field(frame_stars));
+        let (direct, _) = solve_registration(&reference, &frame, &config()).unwrap();
+        let cached = ReferenceStars::detect(&reference, &config()).unwrap();
+        let (again, _) = solve_registration_against(&cached, &frame, &config()).unwrap();
+        assert_eq!(direct.matrix, again.matrix);
     }
 
     #[test]

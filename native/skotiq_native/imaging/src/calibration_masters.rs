@@ -143,17 +143,18 @@ impl Default for MasterFlatConfig {
 /// Build a master flat from a stack of raw flat frames.
 ///
 /// Pipeline:
-/// 1. Subtract the pedestal (`bias_or_dark_flat`) from each raw flat. Pass a
-///    master **bias** for short snap flats, or a master **dark-flat** (a dark
-///    matched to the flat's exposure & temperature) for longer sky/panel
-///    flats. `None` skips pedestal subtraction (acceptable only when the flats
-///    are already pedestal-corrected, e.g. exported masters).
-/// 2. Combine the pedestal-subtracted flats with
-///    [`combine_master_frames`] using [`MasterFrameKind::Flat`], which
-///    normalises the combined result to **unit mean** (1.0 for `F32`, 32768
-///    for `U16`).
+/// 1. Subtract the pedestal (`bias_or_dark_flat`) from each raw flat in
+///    floating point and scale the result to unit median
+///    ([`normalize_raw_flat`]). Pass a master **bias** for short flats, or a
+///    master **dark-flat** for longer sky/panel flats. `None` skips pedestal
+///    subtraction (acceptable only when the flats are already
+///    pedestal-corrected). Because every frame is scaled to its own median,
+///    flats of different exposure combine correctly.
+/// 2. Combine the normalized flats with [`combine_master_frames`] using
+///    [`MasterFrameKind::Flat`], which normalises the combined result to
+///    **unit mean** (1.0 for `F32`, 32768 for `U16`).
 ///
-/// The returned [`MasterFrame`] reports the pre-normalisation mean
+/// The returned [`MasterFrame`] reports the raw flats' mean median level
 /// (`input_mean`) and the post-normalisation mean (`output_mean`, ≈ the target
 /// mean), which the integration layer surfaces as a flat-quality diagnostic.
 ///
@@ -170,27 +171,158 @@ pub fn build_master_flat(
         return Err(MasterCalibrationError::EmptyFlatStack);
     }
 
-    // Step 1: pedestal subtraction. We materialise the corrected flats into a
-    // fresh Vec because `combine_master_frames` takes an owned slice. When no
-    // pedestal is supplied we clone (the combiner needs `&[ImageData]` and the
-    // caller owns `flats`); the clone is unavoidable given the combiner's
-    // by-value contract and matches the memory the offline path already pays.
-    let corrected: Vec<ImageData> = match bias_or_dark_flat {
-        Some(pedestal) => flats
-            .iter()
-            .map(|flat| crate::calibration::subtract_bias(flat, pedestal))
-            .collect::<Result<Vec<_>, _>>()?,
-        None => flats.to_vec(),
-    };
-
-    // Step 2: combine + normalise to unit mean. Reuse the tested combiner.
-    combine_master_frames(
-        &corrected,
+    let mut levels = Vec::with_capacity(flats.len());
+    let mut normalized = Vec::with_capacity(flats.len());
+    for flat in flats {
+        let (frame, level) = normalize_raw_flat(flat, bias_or_dark_flat)?;
+        levels.push(level);
+        normalized.push(frame);
+    }
+    let mut master = combine_master_frames(
+        &normalized,
         MasterFrameKind::Flat,
         config.method,
         config.output_type,
     )
-    .map_err(MasterCalibrationError::Combine)
+    .map_err(MasterCalibrationError::Combine)?;
+    // The combined frames are unit-median, so the illumination level the
+    // caller reports is the raw flats' own mean level.
+    master.input_mean = levels.iter().sum::<f64>() / levels.len() as f64;
+    Ok(master)
+}
+
+/// Subtract the pedestal from a raw flat in floating point and divide it by its
+/// own median (per channel), returning the unit-median `F32` frame and the
+/// median level it had.
+///
+/// Flats exposed for different times, or under a changing sky or panel, differ
+/// only by a scale factor once the pedestal is gone. PixInsight integrates flats
+/// with multiplicative normalization for this reason; without it, rejection
+/// compares frames of different brightness and the combine is weighted toward
+/// the brightest. Integer subtraction would also clip noise at zero.
+pub fn normalize_raw_flat(
+    flat: &ImageData,
+    pedestal: Option<&ImageData>,
+) -> Result<(ImageData, f64), MasterCalibrationError> {
+    let cal = crate::calibration::FloatCalibration {
+        bias: pedestal,
+        ..Default::default()
+    };
+    let corrected = crate::calibration::calibrate_frame_f32(flat, &cal)?;
+    let channels = (corrected.channels as usize).max(1);
+    let mut samples = crate::calibration::samples_f64(&corrected);
+    let stride = (samples.len() / (2_000_000 * channels)).max(1) * channels;
+    let medians: Vec<f64> = (0..channels)
+        .map(|c| {
+            let mut v: Vec<f64> = samples
+                .iter()
+                .skip(c)
+                .step_by(stride)
+                .copied()
+                .filter(|v| v.is_finite())
+                .collect();
+            if v.is_empty() {
+                return 0.0;
+            }
+            let mid = v.len() / 2;
+            *v.select_nth_unstable_by(mid, f64::total_cmp).1
+        })
+        .collect();
+    if medians.iter().any(|m| !(m.is_finite() && *m > 0.0)) {
+        return Err(MasterCalibrationError::InvalidParameter(format!(
+            "a flat has no positive median after the pedestal is removed (median {medians:?})"
+        )));
+    }
+    for (i, v) in samples.iter_mut().enumerate() {
+        *v /= medians[i % channels];
+    }
+    let level = medians.iter().sum::<f64>() / channels as f64;
+    let data: Vec<f32> = samples.iter().map(|&v| v as f32).collect();
+    Ok((
+        ImageData::from_f32(corrected.width, corrected.height, corrected.channels, &data),
+        level,
+    ))
+}
+
+/// Fraction of the frame's typical row (or column) level below which a whole
+/// row (or column) counts as a band. Vignetting dims the corners, but the
+/// median along a full row or column stays well above half the frame's.
+const FLAT_BAND_LEVEL: f64 = 0.5;
+
+/// Rows or columns whose median response falls far below the frame's: a
+/// shutter band, a truncated readout, or an obstruction across the sensor.
+///
+/// Returns a description of the banded rows and columns, or `None` for a
+/// clean flat. Works on raw and normalized flats alike because it compares the
+/// frame with itself.
+pub fn flat_bands(image: &ImageData) -> Option<String> {
+    let (w, h) = (image.width as usize, image.height as usize);
+    let c = (image.channels as usize).max(1);
+    if w < 8 || h < 8 {
+        return None;
+    }
+    let samples = crate::calibration::samples_f64(image);
+    let at = |x: usize, y: usize| -> f64 {
+        let base = (y * w + x) * c;
+        samples[base..base + c].iter().sum::<f64>() / c as f64
+    };
+    let median = |mut v: Vec<f64>| -> f64 {
+        v.retain(|x| x.is_finite());
+        if v.is_empty() {
+            return 0.0;
+        }
+        let mid = v.len() / 2;
+        *v.select_nth_unstable_by(mid, f64::total_cmp).1
+    };
+    let profile = |len: usize, across: usize, value: &dyn Fn(usize, usize) -> f64| -> Vec<f64> {
+        let (start, end) = (across / 10, across - across / 10);
+        let step = ((end - start) / 512).max(1);
+        (0..len)
+            .map(|i| median((start..end).step_by(step).map(|j| value(i, j)).collect()))
+            .collect()
+    };
+    let rows = profile(h, w, &|y, x| at(x, y));
+    let cols = profile(w, h, &|x, y| at(x, y));
+    let describe = |profile: &[f64], what: &str| -> Option<String> {
+        let typical = median(profile.to_vec());
+        if typical <= 0.0 {
+            return None;
+        }
+        let mut runs: Vec<(usize, usize)> = Vec::new();
+        for (i, &v) in profile.iter().enumerate() {
+            if v < FLAT_BAND_LEVEL * typical {
+                match runs.last_mut() {
+                    Some((_, end)) if *end + 1 == i => *end = i,
+                    _ => runs.push((i, i)),
+                }
+            }
+        }
+        if runs.is_empty() {
+            return None;
+        }
+        let count: usize = runs.iter().map(|(a, b)| b - a + 1).sum();
+        let shown: Vec<String> = runs
+            .iter()
+            .take(3)
+            .map(|(a, b)| {
+                if a == b {
+                    format!("{a}")
+                } else {
+                    format!("{a}-{b}")
+                }
+            })
+            .collect();
+        Some(format!(
+            "{count} {what} below half the typical level ({}{})",
+            shown.join(", "),
+            if runs.len() > 3 { ", ..." } else { "" }
+        ))
+    };
+    let found: Vec<String> = [describe(&rows, "rows"), describe(&cols, "columns")]
+        .into_iter()
+        .flatten()
+        .collect();
+    (!found.is_empty()).then(|| found.join("; "))
 }
 
 // Defect map from a master dark
@@ -350,7 +482,7 @@ pub fn cosmetic_correct_transient(
     frame: &mut ImageData,
     config: CosmeticConfig,
 ) -> Result<CosmeticReport, MasterCalibrationError> {
-    if frame.pixel_type != PixelType::U16 {
+    if !matches!(frame.pixel_type, PixelType::U16 | PixelType::F32) {
         return Err(MasterCalibrationError::UnsupportedPixelType {
             pixel_type: frame.pixel_type,
         });
@@ -372,91 +504,24 @@ pub fn cosmetic_correct_transient(
     let height = frame.height;
     let channels = frame.channels;
     let expected = (width as usize) * (height as usize) * (channels as usize);
-
-    let mut pixels = frame
-        .as_u16()
-        .ok_or(MasterCalibrationError::UnsupportedPixelType {
-            pixel_type: frame.pixel_type,
-        })?;
-    if pixels.len() != expected {
+    let values = crate::calibration::samples_f64(frame);
+    if values.len() != expected {
         return Err(MasterCalibrationError::BufferLengthMismatch {
-            expected: expected * 2,
+            expected: expected * frame.pixel_type.byte_size(),
             actual: frame.data.len(),
         });
     }
-
-    // Detection pass: build a defect map from the local-outlier test. We scan
-    // in parallel over rows, then mark the map serially (mark_defective mutates
-    // a shared bitmap; the per-row outlier lists keep the parallel part lock
-    // free).
-    let half = config.kernel.half_width();
-    let w_i = width as i32;
-    let h_i = height as i32;
-    let w = width as usize;
-    let ch = channels as usize;
-
-    // Per-pixel polarity classification, computed in parallel. 0 = clean,
-    // 1 = hot, 2 = cold. Channel-agnostic: a location is hot/cold if any of
-    // its channels trips the test (hot takes precedence for the report tally
-    // when a multi-channel pixel is mixed, which is vanishingly rare).
-    let classification: Vec<u8> = (0..(height as usize) * w)
-        .into_par_iter()
-        .map(|loc| {
-            let x = (loc % w) as i32;
-            let y = (loc / w) as i32;
-            let mut polarity = 0u8;
-            for c in 0..ch {
-                // Gather neighbourhood values (excluding the centre) for this
-                // channel.
-                let mut nbr: Vec<f64> =
-                    Vec::with_capacity(((2 * half + 1) * (2 * half + 1)) as usize);
-                for dy in -half..=half {
-                    for dx in -half..=half {
-                        if dx == 0 && dy == 0 {
-                            continue;
-                        }
-                        let nx = x + dx;
-                        let ny = y + dy;
-                        if nx < 0 || nx >= w_i || ny < 0 || ny >= h_i {
-                            continue;
-                        }
-                        let idx = ((ny as usize) * w + nx as usize) * ch + c;
-                        nbr.push(pixels[idx] as f64);
-                    }
-                }
-                if nbr.len() < 3 {
-                    // Too few neighbours (frame corner on a tiny frame) to make
-                    // a robust call; leave it clean rather than guess.
-                    continue;
-                }
-                let med = median_in_place(&mut nbr.clone());
-                let mut dev: Vec<f64> = nbr.iter().map(|&v| (v - med).abs()).collect();
-                let mad = median_in_place(&mut dev).max(1.0e-9);
-                let sigma = (mad * MAD_TO_SIGMA).max(1.0e-9);
-
-                let centre = pixels[(y as usize * w + x as usize) * ch + c] as f64;
-                if centre > med + config.hot_sigma * sigma {
-                    polarity = 1;
-                    break;
-                } else if centre < med - config.cold_sigma * sigma {
-                    polarity = 2;
-                    break;
-                }
-            }
-            polarity
-        })
-        .collect();
+    let classification = classify_transients(&values, width, height, channels, &config);
 
     let mut map = DefectMap::empty(width, height, 0);
     let mut hot = 0u32;
     let mut cold = 0u32;
+    let w = width as usize;
     for (loc, &p) in classification.iter().enumerate() {
         if p == 0 {
             continue;
         }
-        let x = (loc % w) as u32;
-        let y = (loc / w) as u32;
-        map.mark_defective(x, y);
+        map.mark_defective((loc % w) as u32, (loc / w) as u32);
         if p == 1 {
             hot += 1;
         } else {
@@ -468,27 +533,144 @@ pub fn cosmetic_correct_transient(
         return Ok(CosmeticReport::default());
     }
 
-    // Repair pass: reuse the capture-path corrector so the fill behaviour
-    // (neighbour median, 5x5 fallback for clusters, cluster skip) is identical
-    // and already tested.
-    correct_u16_slice(
-        &mut pixels,
-        width,
-        height,
-        channels,
-        &map,
-        config.method,
-        config.kernel,
-    )
-    .map_err(|e| MasterCalibrationError::Combine(e.to_string()))?;
-
-    // Write the repaired pixels back into the frame's byte buffer.
-    *frame = ImageData::from_u16(width, height, channels, &pixels);
+    if frame.pixel_type == PixelType::U16 {
+        // Reuse the capture-path corrector so the fill behaviour (neighbour
+        // median, 5x5 fallback for clusters, cluster skip) is identical and
+        // already tested.
+        let mut pixels = frame
+            .as_u16()
+            .ok_or(MasterCalibrationError::UnsupportedPixelType {
+                pixel_type: frame.pixel_type,
+            })?;
+        correct_u16_slice(
+            &mut pixels,
+            width,
+            height,
+            channels,
+            &map,
+            config.method,
+            config.kernel,
+        )
+        .map_err(|e| MasterCalibrationError::Combine(e.to_string()))?;
+        *frame = ImageData::from_u16(width, height, channels, &pixels);
+    } else {
+        let repaired = repair_float(
+            &values,
+            &classification,
+            width,
+            height,
+            channels,
+            config.kernel,
+        );
+        *frame = ImageData::from_f32(width, height, channels, &repaired);
+    }
 
     Ok(CosmeticReport {
         hot_repaired: hot,
         cold_repaired: cold,
     })
+}
+
+/// Per-location polarity: 0 = clean, 1 = hot, 2 = cold. A location is hot or
+/// cold when any channel deviates from the median of its kernel neighbours by
+/// more than the configured multiple of their MAD-derived sigma.
+fn classify_transients(
+    pixels: &[f64],
+    width: u32,
+    height: u32,
+    channels: u32,
+    config: &CosmeticConfig,
+) -> Vec<u8> {
+    let half = config.kernel.half_width();
+    let w_i = width as i32;
+    let h_i = height as i32;
+    let w = width as usize;
+    let ch = channels as usize;
+    (0..(height as usize) * w)
+        .into_par_iter()
+        .map_init(
+            || (Vec::with_capacity(48), Vec::with_capacity(48)),
+            |(nbr, dev): &mut (Vec<f64>, Vec<f64>), loc| {
+                let x = (loc % w) as i32;
+                let y = (loc / w) as i32;
+                for c in 0..ch {
+                    nbr.clear();
+                    for dy in -half..=half {
+                        for dx in -half..=half {
+                            if dx == 0 && dy == 0 {
+                                continue;
+                            }
+                            let (nx, ny) = (x + dx, y + dy);
+                            if nx < 0 || nx >= w_i || ny < 0 || ny >= h_i {
+                                continue;
+                            }
+                            nbr.push(pixels[((ny as usize) * w + nx as usize) * ch + c]);
+                        }
+                    }
+                    if nbr.len() < 3 {
+                        // Too few neighbours to make a robust call.
+                        continue;
+                    }
+                    let med = median_in_place(nbr);
+                    dev.clear();
+                    dev.extend(nbr.iter().map(|&v| (v - med).abs()));
+                    let mad = median_in_place(dev).max(1.0e-9);
+                    let sigma = (mad * MAD_TO_SIGMA).max(1.0e-9);
+                    let centre = pixels[(y as usize * w + x as usize) * ch + c];
+                    if centre > med + config.hot_sigma * sigma {
+                        return 1;
+                    } else if centre < med - config.cold_sigma * sigma {
+                        return 2;
+                    }
+                }
+                0
+            },
+        )
+        .collect()
+}
+
+/// Replace each flagged location of a float frame by the median of its
+/// unflagged kernel neighbours, per channel. A location with no clean
+/// neighbour keeps its value.
+fn repair_float(
+    pixels: &[f64],
+    flags: &[u8],
+    width: u32,
+    height: u32,
+    channels: u32,
+    kernel: KernelSize,
+) -> Vec<f32> {
+    let half = kernel.half_width();
+    let (w, h, ch) = (width as usize, height as usize, channels as usize);
+    let mut out: Vec<f32> = pixels.iter().map(|&v| v as f32).collect();
+    let mut nbr = Vec::with_capacity(48);
+    for (loc, _) in flags.iter().enumerate().filter(|(_, &f)| f != 0) {
+        let (x, y) = ((loc % w) as i32, (loc / w) as i32);
+        for c in 0..ch {
+            nbr.clear();
+            for dy in -half..=half {
+                for dx in -half..=half {
+                    let (nx, ny) = (x + dx, y + dy);
+                    if (dx == 0 && dy == 0)
+                        || nx < 0
+                        || ny < 0
+                        || nx as usize >= w
+                        || ny as usize >= h
+                    {
+                        continue;
+                    }
+                    let n = ny as usize * w + nx as usize;
+                    if flags[n] == 0 {
+                        nbr.push(pixels[n * ch + c]);
+                    }
+                }
+            }
+            if !nbr.is_empty() {
+                out[loc * ch + c] = median_in_place(&mut nbr) as f32;
+            }
+        }
+    }
+    out
 }
 
 // Small numeric helpers (local to keep the module self-contained)
@@ -767,12 +949,35 @@ mod tests {
     }
 
     #[test]
-    fn cosmetic_correction_rejects_non_u16() {
-        let mut frame = ImageData::from_f32(4, 4, 1, &[0.0; 16]);
+    fn cosmetic_correction_rejects_unsupported_types() {
+        let mut frame = ImageData::new(4, 4, 1, PixelType::U8);
         assert!(matches!(
             cosmetic_correct_transient(&mut frame, CosmeticConfig::default()),
             Err(MasterCalibrationError::UnsupportedPixelType { .. })
         ));
+    }
+
+    /// Calibrated float frames keep negative sky samples; a hot pixel among
+    /// them is repaired to its neighbours' level and nothing else changes.
+    #[test]
+    fn cosmetic_correction_repairs_float_frames() {
+        let (w, h) = (16u32, 16u32);
+        let mut values: Vec<f32> = (0..w * h)
+            .map(|i| -3.0 + 0.25 * (i % w) as f32 + 0.1 * (i / w) as f32)
+            .collect();
+        let hot = (8 * w + 8) as usize;
+        values[hot] = 5000.0;
+        let mut frame = ImageData::from_f32(w, h, 1, &values);
+        let report = cosmetic_correct_transient(&mut frame, CosmeticConfig::default()).unwrap();
+        assert_eq!(report.hot_repaired, 1);
+        let out = frame.as_f32().unwrap();
+        let expected = values[hot - 1].max(values[hot + 1]);
+        assert!(out[hot] <= expected + 1.0, "repaired to {}", out[hot]);
+        for (i, (&a, &b)) in out.iter().zip(&values).enumerate() {
+            if i != hot {
+                assert_eq!(a, b);
+            }
+        }
     }
 
     #[test]
