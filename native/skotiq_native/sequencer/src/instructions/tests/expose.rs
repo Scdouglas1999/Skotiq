@@ -702,3 +702,92 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
 }
+
+/// A run imaging unguided tries guiding again before a light frame once the
+/// retry interval has passed, through the same gate that restarts guiding
+/// after a move.
+#[tokio::test(start_paused = true)]
+async fn an_unguided_run_retries_guiding_before_a_light_frame() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let dir = std::env::temp_dir().join(format!("sk-unguided-retry-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("unguided-retry".into());
+    ec.device_ops = ops.clone();
+    ec.camera_id = Some("camera-1".into());
+    ec.mount_id = Some("mount-1".into());
+    ec.save_path = Some(dir.clone());
+    let mut state = crate::triggers::TriggerState::new();
+    state.guiding.give_up_guiding();
+    let state = Arc::new(tokio::sync::RwLock::new(state));
+    ec.trigger_state = Some(state.clone());
+    let ctx = ec.to_instruction_context("unguided-retry").await;
+    let control = BurstControl {
+        pause: ec.pause_gate(),
+        status: None,
+    };
+    let config = ExposureConfig {
+        count: 1,
+        duration_secs: 0.0,
+        ..Default::default()
+    };
+    tokio::time::advance(crate::instructions::guiding::UNGUIDED_RETRY_INTERVAL).await;
+    let result = tokio::time::timeout(
+        Duration::from_secs(600),
+        execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
+    )
+    .await
+    .expect("the frame runs");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
+    assert!(!state.read().await.guiding.is_unguided());
+}
+
+/// A pending restart that finds the mount not tracking when it asks the
+/// mount (the monitor has not read the stop yet) waits like one the monitor
+/// already knew about, and never starts the guider.
+#[tokio::test(start_paused = true)]
+async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_tracking(false));
+    let dir = std::env::temp_dir().join(format!("sk-guide-wait-dev-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("guide-wait-dev".into());
+    ec.device_ops = ops.clone();
+    ec.camera_id = Some("camera-1".into());
+    ec.mount_id = Some("mount-1".into());
+    ec.save_path = Some(dir.clone());
+    let mut state = crate::triggers::TriggerState::new();
+    state.guiding.set_resume_pending(true);
+    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    let ctx = ec.to_instruction_context("guide-wait-dev").await;
+    let control = BurstControl {
+        pause: ec.pause_gate(),
+        status: None,
+    };
+    let config = ExposureConfig {
+        count: 1,
+        duration_secs: 0.0,
+        ..Default::default()
+    };
+    let mut burst = std::pin::pin!(execute_exposure_with_renderer(
+        &config,
+        &ctx,
+        None,
+        &control,
+        |_, _, _| {}
+    ));
+    assert!(tokio::time::timeout(Duration::from_secs(30), &mut burst)
+        .await
+        .is_err());
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 0);
+    // Past the wait the frame is taken without restarting guiding.
+    let result = tokio::time::timeout(Duration::from_secs(600), burst)
+        .await
+        .expect("the frame runs after the wait");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
+}
