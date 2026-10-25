@@ -305,6 +305,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   masterParam == null ? null : int.tryParse(masterParam);
               return CustomTransitionPage(
                 child: DarkroomScreen(
+                  editTab: state.uri.queryParameters['tab'] == 'edit',
                   scope: recipeId != null
                       ? DarkroomScope.recipe(recipeId)
                       : (masterId != null

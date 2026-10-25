@@ -402,8 +402,22 @@ void main() {
 
   group('the Darkroom locations', () {
     test('a recipe and a master are distinct query scopes', () {
-      expect(darkroomRecipeLocation(412), '/darkroom?recipe=412');
-      expect(darkroomMasterLocation(7), '/darkroom?master=7');
+      expect(darkroomRecipeLocation(412), '/darkroom?tab=edit&recipe=412');
+      expect(darkroomMasterLocation(7), '/darkroom?tab=edit&master=7');
+    });
+
+    test('a target and its framing check are Targets-tab links', () {
+      expect(darkroomTargetsLocation(), '/darkroom?tab=targets');
+      expect(
+        darkroomTargetsLocation('NGC 891'),
+        '/darkroom?tab=targets&target=NGC+891',
+      );
+      final framing = Uri.parse(darkroomFramingLocation('M 81 & 82'));
+      expect(framing.queryParameters, {
+        'tab': 'targets',
+        'target': 'M 81 & 82',
+        'view': 'framing',
+      });
     });
   });
 }

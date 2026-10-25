@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// Longest account this panel states without being asked.
 ///

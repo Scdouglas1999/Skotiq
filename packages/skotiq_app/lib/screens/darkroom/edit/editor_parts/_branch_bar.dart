@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// Why "Compare" is unavailable while this master carries one recipe.
 ///

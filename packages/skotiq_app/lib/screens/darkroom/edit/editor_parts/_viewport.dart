@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// Screen pixels per MASTER pixel in the Darkroom viewport.
 ///

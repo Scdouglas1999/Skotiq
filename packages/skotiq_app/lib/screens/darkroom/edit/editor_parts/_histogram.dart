@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// Bins across the display range.
 const int _kHistogramBins = 64;

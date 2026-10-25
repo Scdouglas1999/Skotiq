@@ -1,10 +1,14 @@
 /// How the rest of the app opens the Darkroom.
 ///
-/// The `/darkroom` route is scoped by ONE of two query parameters — `recipe`
-/// for a saved recipe row and `master` for a linear master whose newest recipe
-/// should be loaded. Every entry point goes through the builders here so the
-/// parameter names live in one place: a link written by hand somewhere else
-/// would resolve to the screen's empty state without ever saying why.
+/// The `/darkroom` route has four tabs, chosen by `tab`: `targets`,
+/// `calibration`, `edit` and `activity`. The Edit tab is scoped by ONE of two
+/// query parameters — `recipe` for a saved recipe row and `master` for a
+/// registered image whose newest recipe should be loaded. The Targets tab takes
+/// `target` (the name the guided build keys its jobs by) and `view=framing` for
+/// that target's framing check. Every entry point goes through the builders
+/// here so the parameter names live in one place: a link written by hand
+/// somewhere else would resolve to the screen's empty state without ever
+/// saying why.
 ///
 /// Screens that only hold a session id resolve it with
 /// [resolveDarkroomTargetForSession], which reads the session's masters the
@@ -20,12 +24,52 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import 'snackbar_helper.dart';
 
-/// The Darkroom location for a saved recipe row.
-String darkroomRecipeLocation(int recipeId) => '/darkroom?recipe=$recipeId';
+/// The Edit tab on a saved recipe row.
+String darkroomRecipeLocation(int recipeId) =>
+    '/darkroom?tab=edit&recipe=$recipeId';
 
-/// The Darkroom location for a linear master; the screen loads its newest
-/// recipe, or offers to compose one when the master has none.
-String darkroomMasterLocation(int masterId) => '/darkroom?master=$masterId';
+/// The Edit tab on a registered image; the editor loads its newest recipe, or
+/// offers to compose one when the image has none.
+String darkroomMasterLocation(int masterId) =>
+    '/darkroom?tab=edit&master=$masterId';
+
+/// The Edit tab with no image open: the list of every registered image.
+const String darkroomEditLocation = '/darkroom?tab=edit';
+
+/// The Targets tab, on [target] when one is named.
+String darkroomTargetsLocation([String? target]) =>
+    target == null || target.isEmpty
+        ? '/darkroom?tab=targets'
+        : '/darkroom?tab=targets&target=${Uri.encodeQueryComponent(target)}';
+
+/// Leave the Edit tab the way it was entered.
+///
+/// Popping is what a pushed route deserves: it returns to the screen the image
+/// was opened from. An editor reached with nothing to pop to — a notification,
+/// a link from inside the Darkroom, a branch switch — returns to the Targets
+/// tab on [target], the Darkroom's own home for the image.
+void leaveDarkroomEdit(BuildContext context, {String? target}) {
+  final router = GoRouter.of(context);
+  if (router.canPop()) {
+    router.pop();
+    return;
+  }
+  router.go(darkroomTargetsLocation(target));
+}
+
+/// Where [leaveDarkroomEdit] goes, in words, for the Back control's name.
+String darkroomEditBackDestination(BuildContext context, {String? target}) {
+  final canPop = GoRouter.maybeOf(context)?.canPop() ?? false;
+  if (canPop) return 'Back to where this image was opened from';
+  return target == null
+      ? 'Back to the Darkroom targets'
+      : 'Back to $target in the Darkroom targets';
+}
+
+/// The framing check of [target]'s guided master build.
+String darkroomFramingLocation(String target) =>
+    '/darkroom?tab=targets&target=${Uri.encodeQueryComponent(target)}'
+    '&view=framing';
 
 /// The Darkroom location for a pass, live while it runs and its record after.
 String darkroomPassLocation(String runId) =>

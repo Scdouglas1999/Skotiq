@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_measured_values.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
+import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
 
 void main() {
   test('the combination inputs read as filters, registration and files', () {

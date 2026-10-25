@@ -21,6 +21,7 @@
 //  * compare keeps the Recipe and History panels reachable;
 //  * a `.skrecipe` sidecar can be read back into a recipe.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
+import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -242,6 +244,7 @@ void main() {
     required String path,
     int channels = 1,
     String? filter,
+    String settingsJson = '{}',
   }) {
     return masters.insertMaster(
       targetId: null,
@@ -254,7 +257,7 @@ void main() {
       height: 64,
       frameCount: 3,
       totalIntegrationSeconds: 6,
-      settingsJson: '{}',
+      settingsJson: settingsJson,
       statsJson: '{}',
       filter: filter,
     );
@@ -847,14 +850,24 @@ void main() {
   // D2-11 — leaving the Darkroom
   // -------------------------------------------------------------------
 
-  testWidgets('Escape leaves the Darkroom, and a Back control says so',
-      (tester) async {
-    final id = await seedRecipe([_step('denoise')]);
+  testWidgets(
+      'Escape leaves the editor for its target in the Darkroom, and the Back '
+      'control says where', (tester) async {
+    final masterId = await seedMaster(
+      name: 'Master · B',
+      path: _masterPath,
+      filter: 'B',
+      settingsJson: '{"target":"NGC 891"}',
+    );
+    final id = await seedRecipe([_step('denoise')], masterId: masterId);
     final router = await pump(tester, location: '/darkroom?recipe=$id');
+    await settle(tester);
 
     final semantics = tester.ensureSemantics();
     expect(
-      find.bySemanticsLabel(RegExp('^Back to where the Darkroom was opened')),
+      find.bySemanticsLabel(
+        RegExp(r'^Back to NGC 891 in the Darkroom targets'),
+      ),
       findsOneWidget,
     );
     semantics.dispose();
@@ -862,12 +875,33 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await settle(tester);
 
-    // Nothing to pop from a deep link, so it goes where the empty state goes:
-    // the surface that lists the masters there are pixels for.
+    // Nothing to pop from a deep link, so it goes to the image's target in the
+    // Darkroom, never out of the Darkroom to Analytics.
+    final uri = router.routerDelegate.currentConfiguration.uri;
+    expect(uri.path, '/darkroom');
+    expect(uri.queryParameters['tab'], 'targets');
+    expect(uri.queryParameters['target'], 'NGC 891');
+    await drain(tester);
+  });
+
+  testWidgets('Back pops to the screen that pushed the editor', (tester) async {
+    final id = await seedRecipe([_step('denoise')]);
+    final router = await pump(tester, location: '/analytics');
+    unawaited(router.push('/darkroom?tab=edit&recipe=$id'));
+    await settle(tester);
+
+    final semantics = tester.ensureSemantics();
     expect(
-      router.routerDelegate.currentConfiguration.uri.path,
-      '/analytics',
+      find.bySemanticsLabel(
+        RegExp('^Back to where this image was opened from'),
+      ),
+      findsOneWidget,
     );
+    semantics.dispose();
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_editor_back')));
+    await settle(tester);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
     await drain(tester);
   });
 
@@ -877,11 +911,6 @@ void main() {
 
   testWidgets('the host-only gate carries the same way out the editor does',
       (tester) async {
-    // The gate returned its own Scaffold BEFORE the shortcuts wrapper and the
-    // header actions, so the ONE branch whose whole job is to send the operator
-    // elsewhere was the one branch with nowhere to go: no Back in the header,
-    // no action on the empty state, Escape and Alt+Left both dead, and a nav
-    // rail still highlighting the screen they came from.
     final id = await seedRecipe([_step('denoise')]);
     final router = await pump(
       tester,
@@ -893,7 +922,7 @@ void main() {
 
     final semantics = tester.ensureSemantics();
     expect(
-      find.bySemanticsLabel(RegExp('^Back to where the Darkroom was opened')),
+      find.bySemanticsLabel(RegExp('^Back to the Darkroom targets')),
       findsOneWidget,
     );
     semantics.dispose();
@@ -905,7 +934,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await settle(tester);
 
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
+    expect(
+      router.routerDelegate.currentConfiguration.uri.queryParameters['tab'],
+      'targets',
+    );
     await drain(tester);
   });
 
@@ -922,7 +954,10 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
     await settle(tester);
 
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
+    expect(
+      router.routerDelegate.currentConfiguration.uri.queryParameters['tab'],
+      'targets',
+    );
     await drain(tester);
   });
 
@@ -937,7 +972,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('darkroom_remote_gate_back')));
     await settle(tester);
 
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
+    expect(
+      router.routerDelegate.currentConfiguration.uri.queryParameters['tab'],
+      'targets',
+    );
     await drain(tester);
   });
 
