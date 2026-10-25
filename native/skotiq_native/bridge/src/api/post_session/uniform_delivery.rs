@@ -428,8 +428,8 @@ mod tests {
         let mut rgb = Vec::with_capacity((w * h * 3) as usize);
         for i in 0..(w * h) {
             let star = i % 397 == 0;
-            for c in 0..3 {
-                let v = background[c] * (1.0 + 0.1 * noise());
+            for level in background {
+                let v = level * (1.0 + 0.1 * noise());
                 rgb.push(if star { 0.9 } else { v });
             }
         }
