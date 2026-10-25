@@ -37,6 +37,30 @@ const double darkroomTemperatureGapC = 3;
 /// Weight.
 const String darkroomWeightFormula = 'starSignal';
 
+/// A filter's build error in words. The native side reports a filter with
+/// no integrable light as JSON naming each light's reason.
+String describeFilterFailure(Object error) {
+  final text = error is String ? error : '$error';
+  final start = text.indexOf('{');
+  if (start >= 0) {
+    try {
+      final value = jsonDecode(text.substring(start));
+      if (value is Map && value['kind'] == 'noSubsIntegrated') {
+        final skipped = (value['skipped'] as List? ?? const []).cast<Map>();
+        final reasons = skipped
+            .take(3)
+            .map((s) => '${p.basename('${s['path']}')}: ${s['reason']}')
+            .join('; ');
+        return 'None of its ${value['offered']} lights could be integrated'
+            '${reasons.isEmpty ? '.' : ' ($reasons).'}';
+      }
+    } on FormatException {
+      // Not the structured report; the text is shown as it is.
+    }
+  }
+  return text;
+}
+
 /// Integration time for display: minutes under an hour, else hours.
 String describeIntegration(num seconds) => seconds < 3600
     ? '${(seconds / 60).round()} min'
@@ -281,6 +305,14 @@ class DarkroomBuildService {
         final dark = matches.dark?.record;
         final exactDark =
             dark != null && dark.exposureSeconds == f.exposureDuration;
+        final bias = matches.bias?.record.filePath;
+        // A dark of another exposure is scaled to the lights' exposure, which
+        // needs the bias to separate the dark current from the offset.
+        final scaledDark =
+            dark != null &&
+            dark.exposureSeconds != null &&
+            !exactDark &&
+            bias != null;
         result.add(
           DarkroomBuildGroup(
             label: label,
@@ -289,17 +321,19 @@ class DarkroomBuildService {
             equipment: '${camera(f)} · ${optics(f)}',
             frames: cluster,
             calibration: {
-              if (exactDark) 'dark': dark.filePath,
+              if (exactDark || scaledDark) 'dark': dark.filePath,
+              if (scaledDark) 'scaleDark': true,
               if (matches.flat?.record.filePath != null)
                 'flat': matches.flat!.record.filePath,
-              if (!exactDark && matches.bias?.record.filePath != null)
-                'bias': matches.bias!.record.filePath,
+              if (!exactDark && bias != null) 'bias': bias,
               'cosmeticCorrection': true,
             },
             warnings: [
               ...matches.allWarnings,
-              if (dark != null && !exactDark)
-                'Dark exposure differs; no scaled dark will be applied.',
+              if (scaledDark)
+                'The ${_seconds(dark.exposureSeconds!)} s dark is scaled to ${_seconds(f.exposureDuration)} s using the bias.',
+              if (dark != null && !exactDark && !scaledDark)
+                'Dark exposure differs and there is no bias to scale it with; no dark will be applied.',
             ],
           ),
         );
@@ -381,6 +415,7 @@ class DarkroomBuildService {
         g.calibration.remove(kind);
       } else {
         g.calibration[kind] = path;
+        g.calibration.remove('scaleDark');
         if (kind == 'dark') g.calibration.remove('bias');
         if (kind == 'bias') g.calibration.remove('dark');
       }
@@ -786,6 +821,10 @@ class DarkroomBuildService {
               'weighting': {'enabled': true, 'formula': darkroomWeightFormula},
               'normalization': {'enabled': true, 'mode': 'global'},
             },
+            // PixInsight's default: the rejection algorithm is chosen by the
+            // number of frames. Native builds that still fold online use the
+            // clip thresholds instead.
+            'rejection': 'auto',
             'clip': {'onlineClipLow': 4, 'onlineClipHigh': 4},
             'masterFitsPath': p.join(directory.path, 'full-$key.fits'),
             'previewPngPath': p.join(directory.path, 'full-$key.png'),
@@ -799,7 +838,7 @@ class DarkroomBuildService {
               'Stopped. Resume this folder to keep completed filters.',
             );
           }
-          failures.add({'filter': filter, 'error': '$e'});
+          failures.add({'filter': filter, 'error': describeFilterFailure(e)});
         } finally {
           _runId = null;
         }

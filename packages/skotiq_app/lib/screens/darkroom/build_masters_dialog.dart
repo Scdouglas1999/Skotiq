@@ -115,6 +115,7 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
       group.calibration.remove(kind);
     } else {
       group.calibration[kind] = path;
+      group.calibration.remove('scaleDark');
       if (kind == 'dark') group.calibration.remove('bias');
       if (kind == 'bias') group.calibration.remove('dark');
     }

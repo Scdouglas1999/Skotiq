@@ -53,7 +53,9 @@ class DarkroomBuildPlan {
         );
       }
       final calibration = group['calibration'] as Map;
-      if (calibration['dark'] != null && calibration['bias'] != null) {
+      if (calibration['dark'] != null &&
+          calibration['bias'] != null &&
+          calibration['scaleDark'] != true) {
         throw const FormatException(
           'Choose dark or bias for lights; master darks already include bias.',
         );

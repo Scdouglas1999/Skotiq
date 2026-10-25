@@ -121,6 +121,50 @@ void main() {
     await folder.delete(recursive: true);
   });
 
+  test('a filter with no integrable light is reported with reasons', () {
+    const e =
+        '{"kind":"noSubsIntegrated","filter":"R","offered":2,"skipped":['
+        '{"path":"/d/R_1.fits","group":"n1","stage":"registration","reason":"too few stars"}]}';
+    expect(
+      describeFilterFailure(e),
+      'None of its 2 lights could be integrated (R_1.fits: too few stars).',
+    );
+    expect(
+      describeFilterFailure(StateError('disk full')),
+      'Bad state: disk full',
+    );
+  });
+
+  test('a plan may pair a dark with a bias only to scale the dark', () {
+    Map<String, dynamic> plan(Map<String, dynamic> calibration) => {
+      'version': 1,
+      'target': 'T',
+      'referencePath': '/a.fits',
+      'minOverlap': .95,
+      'maxEccentricity': .65,
+      'groups': [
+        {
+          'label': 'n1',
+          'filter': 'L',
+          'calibration': calibration,
+          'lights': [
+            {'id': 1, 'path': '/a.fits', 'exposureSec': 120},
+          ],
+        },
+      ],
+    };
+    expect(
+      () => DarkroomBuildPlan.fromJson(plan({'dark': '/d', 'bias': '/b'})),
+      throwsFormatException,
+    );
+    expect(
+      DarkroomBuildPlan.fromJson(
+        plan({'dark': '/d', 'bias': '/b', 'scaleDark': true}),
+      ).target,
+      'T',
+    );
+  });
+
   test('integration time reads in minutes under an hour', () {
     expect(describeIntegration(105), '2 min');
     expect(describeIntegration(14160), '3.9 h');
