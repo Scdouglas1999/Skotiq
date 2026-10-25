@@ -29,6 +29,7 @@ void main() {
       'FILTER': "'L       '",
     },
     bool previewFails = false,
+    Map<String, Map<String, String>>? headersByPath,
   }) => LiveStackMasterLibrary(
     currentResult: () async {
       events.add('read');
@@ -56,7 +57,9 @@ void main() {
       previews.add(path);
     },
     masters: masters,
-    readHeader: (_) async => header,
+    readHeader: (path) async => headersByPath == null
+        ? header
+        : (headersByPath[path] ?? (throw StateError('no file $path'))),
   );
 
   test(
@@ -112,5 +115,20 @@ void main() {
     expect(row.name, 'Live stack');
     expect(row.filter, isNull);
     expect(jsonDecode(row.settingsJson), {'source': 'liveStack'});
+  });
+
+  test('the target and filter come from the stack\'s reference frame when the '
+      'master names none', () async {
+    await library(
+      headersByPath: {
+        '/stacks/live.fits': const {'IMAGETYP': "'MASTER_LIGHT'"},
+        '/frames/ref.fits': const {'OBJECT': "'M 81'", 'FILTER': "'Ha'"},
+      },
+    ).save('/stacks/live.fits', sourceFramePath: '/frames/ref.fits');
+
+    final row = (await masters.getAll()).single;
+    expect(row.name, 'M 81 Ha live stack');
+    expect(row.filter, 'Ha');
+    expect(jsonDecode(row.settingsJson)['target'], 'M 81');
   });
 }

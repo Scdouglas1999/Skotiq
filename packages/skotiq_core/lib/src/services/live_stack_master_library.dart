@@ -71,7 +71,14 @@ class LiveStackMasterLibrary {
   /// right before the stacker is stopped. A thumbnail or header that cannot be
   /// produced leaves the row without that detail; the master is still
   /// registered, because the FITS file is what the library is for.
-  Future<LiveStackLibrarySave> save(String filePath) async {
+  ///
+  /// The stacked master's header carries no `OBJECT` or `FILTER`, so the
+  /// target and filter are read from [sourceFramePath], a frame of the stack
+  /// (its reference), when the master names none.
+  Future<LiveStackLibrarySave> save(
+    String filePath, {
+    String? sourceFramePath,
+  }) async {
     final result = await _currentResult();
     final saved = await _saveMaster(filePath);
     if (saved.format != LiveStackingMasterFormat.fitsMaster) {
@@ -93,16 +100,18 @@ class LiveStackMasterLibrary {
       );
       preview = null;
     }
-    var header = const <String, String>{};
-    try {
-      header = await _readHeader(saved.filePath);
-    } catch (error) {
-      developer.log(
-        'Live stack: the header of ${saved.filePath} could not be read, so '
-        'the master names no target or filter: $error',
-        name: 'LiveStackMasterLibrary',
-        level: 900,
-      );
+    final header = <String, String>{};
+    for (final path in [?sourceFramePath, saved.filePath]) {
+      try {
+        header.addAll(await _readHeader(path));
+      } catch (error) {
+        developer.log(
+          'Live stack: the header of $path could not be read, so the master '
+          'may name no target or filter: $error',
+          name: 'LiveStackMasterLibrary',
+          level: 900,
+        );
+      }
     }
     final object = FitsHeaderReader.stringValue(header, 'OBJECT')?.trim();
     final filter = FitsHeaderReader.stringValue(header, 'FILTER')?.trim();

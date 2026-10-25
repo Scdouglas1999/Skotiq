@@ -293,8 +293,10 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     try {
       // A FITS master is registered in the master library as it is written,
       // so the Darkroom lists it under its target and opens it in the editor.
-      final library =
-          await ref.read(liveStackMasterLibraryProvider).save(destination);
+      final library = await ref.read(liveStackMasterLibraryProvider).save(
+            destination,
+            sourceFramePath: ref.read(liveStackingProvider).referenceImagePath,
+          );
       final saved = library.saved;
       if (!mounted) return true;
       final integration = saved.totalIntegrationSecs;
