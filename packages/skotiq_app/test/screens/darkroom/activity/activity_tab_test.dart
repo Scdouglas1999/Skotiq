@@ -237,7 +237,7 @@ void main() {
       ),
     );
     expect(find.text('62.0% kept, 80% needed'), findsOneWidget);
-    expect(find.textContaining('1 frame limit the field'), findsOneWidget);
+    expect(find.textContaining('1 frame limits the field'), findsOneWidget);
     expect(
       find.textContaining('Held by the night-end build of Oct 23 to 24'),
       findsOneWidget,

@@ -112,8 +112,8 @@ class _WaitingRow extends ConsumerWidget {
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             [
-              if (limiting > 0)
-                '$limiting frame${limiting == 1 ? '' : 's'} limit the field.',
+              if (limiting == 1) '1 frame limits the field.',
+              if (limiting > 1) '$limiting frames limit the field.',
               if (job.nightRunId != null)
                 'Held by the night-end build of ${nightLabel(job.startedAt)}.'
               else

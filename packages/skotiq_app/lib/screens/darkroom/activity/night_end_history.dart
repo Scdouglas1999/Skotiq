@@ -110,14 +110,20 @@ class _NightRun extends StatelessWidget {
           _StepRow(
             label: 'Build',
             step: run.build,
-            children: [
-              for (final t in run.targets) _TargetLine(target: t),
-            ],
+            // A night that built nothing says why once, and names what it
+            // imaged, instead of a line per target saying the same thing.
+            detail: run.build.state == NightEndStepState.skipped
+                ? _skippedBuild(run)
+                : null,
+            children: run.build.state == NightEndStepState.skipped
+                ? const []
+                : [for (final t in run.targets) _TargetLine(target: t)],
           ),
           _StepRow(
             label: 'Deliver',
             step: run.deliver,
-            detail: run.deliver.state == NightEndStepState.skipped
+            detail: run.deliver.state == NightEndStepState.skipped ||
+                    run.deliver.state == NightEndStepState.pending
                 ? run.deliver.detail
                 : null,
             children: [
@@ -137,6 +143,14 @@ class _NightRun extends StatelessWidget {
     );
   }
 }
+
+/// Why a night built nothing, and what it imaged.
+String _skippedBuild(NightEndRun run) => [
+      for (final t in run.targets.take(1))
+        if (t.build.detail case final detail?) detail,
+      if (run.targets.isNotEmpty)
+        'Imaged: ${run.targets.map((t) => t.target).join(', ')}.',
+    ].join(' ');
 
 /// One step: its state icon and name, then its detail or its lines.
 class _StepRow extends StatelessWidget {

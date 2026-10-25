@@ -168,7 +168,10 @@ class NightEndRunner {
             build: settings.build ? NightEndStep.pending : buildOff,
             deliver: settings.build
                 ? NightEndStep.pending
-                : const NightEndStep(NightEndStepState.skipped),
+                : const NightEndStep(
+                    NightEndStepState.skipped,
+                    'Nothing was built to deliver.',
+                  ),
           ),
       ],
     );
@@ -330,7 +333,10 @@ class NightEndRunner {
               'It waits for you at the framing check.',
             ].join(' '),
           ),
-          deliver: const NightEndStep(NightEndStepState.pending),
+          deliver: const NightEndStep(
+            NightEndStepState.pending,
+            'After the framing check.',
+          ),
           nights: nights,
           directory: job.directory,
         );

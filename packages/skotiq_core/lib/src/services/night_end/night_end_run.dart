@@ -138,7 +138,10 @@ class NightEndRun {
     if (steps.every((s) => s.state == NightEndStepState.skipped)) {
       return NightEndStep(NightEndStepState.skipped, steps.first.detail);
     }
-    return const NightEndStep(NightEndStepState.pending);
+    return NightEndStep(
+      NightEndStepState.pending,
+      steps.firstWhere((s) => s.state == NightEndStepState.pending).detail,
+    );
   }
 
   /// The build step over every target.
