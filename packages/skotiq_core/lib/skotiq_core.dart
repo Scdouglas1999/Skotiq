@@ -669,6 +669,10 @@ export 'src/services/stack_share_export_service.dart';
 // accumulation + master-flat library.
 export 'src/services/post_session_seam.dart';
 export 'src/services/darkroom_build_jobs.dart';
+export 'src/services/darkroom_state_store.dart';
+export 'src/services/night_end/night_end_run.dart';
+export 'src/services/night_end/night_end_runner.dart';
+export 'src/services/night_end/night_end_settings.dart';
 export 'src/services/darkroom_build_service.dart';
 export 'src/services/post_session_integration_service.dart';
 export 'src/services/master_accumulation_service.dart';

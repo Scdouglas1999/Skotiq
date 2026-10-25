@@ -22,6 +22,7 @@ class _Seam extends Fake implements PostSessionSeam {
 class _Notifications extends NotificationService {
   _Notifications() : super.testing(settingsReader: () => null);
   final sent = <String>[];
+  final links = <String?>[];
   @override
   Future<bool> notify({
     required NotificationEvent event,
@@ -32,6 +33,7 @@ class _Notifications extends NotificationService {
     String? deepLink,
   }) async {
     sent.add('$title | $message');
+    links.add(deepLink);
     return true;
   }
 
@@ -233,6 +235,8 @@ void main() {
       expect(native.built, ['L', 'R']);
       expect(notifications.sent.single, contains('Masters ready: NGC891'));
       expect(notifications.sent.single, contains('No filter has flats (L, R)'));
+      expect(notifications.links.single, 'darkroom_target:NGC891');
+      expect(job.directory, '${folder.path}/auto/NGC891');
     },
   );
 
@@ -255,6 +259,7 @@ void main() {
         notifications.sent.single,
         contains('R_2.fits (91.0% without it)'),
       );
+      expect(notifications.links.single, 'darkroom_framing:NGC891');
     },
   );
 
@@ -317,7 +322,7 @@ void main() {
         .startUnattended(
           'NGC891',
           outputRoot: Directory('${folder.path}/auto'),
-          announceReady: false,
+          announce: false,
         );
     expect(job.stage, DarkroomJobStage.done);
     expect(
@@ -368,5 +373,120 @@ void main() {
     await expectLater(jobs.startUnattended('NGC891'), throwsStateError);
     native.buildGate!.complete();
     await running;
+  });
+
+  group('across restarts', () {
+    ProviderContainer restart() {
+      final next = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          darkroomBuildServiceProvider.overrideWithValue(
+            container.read(darkroomBuildServiceProvider),
+          ),
+          postSessionSeamProvider.overrideWithValue(seam),
+          notificationServiceProvider.overrideWithValue(notifications),
+        ],
+      );
+      addTearDown(next.dispose);
+      return next;
+    }
+
+    test('a build held at the framing check comes back after a restart, '
+        'and accepting it builds into its own folder', () async {
+      native.retained = .55;
+      final jobs = container.read(darkroomBuildJobsProvider.notifier);
+      await jobs.startUnattended(
+        'NGC891',
+        outputRoot: Directory('${folder.path}/auto'),
+      );
+      await jobs.flush();
+
+      final after = restart();
+      final restored = after.read(darkroomBuildJobsProvider.notifier);
+      await restored.restore();
+      final job = after.read(darkroomBuildJobsProvider)!;
+      expect(job.stage, DarkroomJobStage.awaitingReview);
+      expect(job.plan!.lights, hasLength(6));
+      expect(job.preview!.retainedArea, .55);
+
+      await restored.setMinRetainedArea(.5);
+      await restored.accept();
+      final done = after.read(darkroomBuildJobsProvider)!;
+      expect(done.stage, DarkroomJobStage.done);
+      expect(done.directory, '${folder.path}/auto/NGC891');
+      expect(native.built, ['L', 'R']);
+    });
+
+    test('a build running when the process ended comes back stopped and '
+        'resumes from its folder', () async {
+      final jobs = container.read(darkroomBuildJobsProvider.notifier);
+      native.buildGate = Completer<void>();
+      final running = jobs.startUnattended(
+        'NGC891',
+        outputRoot: Directory('${folder.path}/auto'),
+      );
+      await native.buildStarted.future;
+      await jobs.flush();
+
+      final after = restart();
+      final restored = after.read(darkroomBuildJobsProvider.notifier);
+      await restored.restore();
+      final job = after.read(darkroomBuildJobsProvider)!;
+      expect(job.stage, DarkroomJobStage.stopped);
+      expect(job.message, contains('Resume keeps the finished filters'));
+      expect(job.unattended, isTrue);
+      native.buildGate!.complete();
+      await running;
+    });
+
+    test('a second target does not push the first one\'s framing check '
+        'out; it waits in the held list', () async {
+      final other = await db.targetsDao.createTarget(
+        TargetsCompanion.insert(name: 'M81', ra: 9.9, dec: 69),
+      );
+      final file = File('${folder.path}/M81_L.fits');
+      await file.writeAsString('raw');
+      await db.imagesDao.createImage(
+        CapturedImagesCompanion.insert(
+          targetId: Value(other),
+          filePath: file.path,
+          fileName: 'M81_L.fits',
+          exposureDuration: 120,
+          filter: const Value('L'),
+          sensorTemp: const Value(-10),
+          capturedAt: DateTime(2026, 10, 22, 23),
+        ),
+      );
+      native.retained = .55;
+      final jobs = container.read(darkroomBuildJobsProvider.notifier);
+      await jobs.startUnattended(
+        'NGC891',
+        outputRoot: Directory('${folder.path}/auto'),
+      );
+      native.retained = .9;
+      await jobs.startUnattended(
+        'M81',
+        outputRoot: Directory('${folder.path}/auto'),
+      );
+      expect(container.read(darkroomBuildJobsProvider)!.target, 'M81');
+      final held = container.read(darkroomHeldBuildsProvider);
+      expect(held.single.target, 'NGC891');
+      expect(jobs.heldFor('NGC891'), same(held.single));
+
+      final reviewed = jobs.reviewHeld('NGC891')!;
+      expect(container.read(darkroomBuildJobsProvider), same(reviewed));
+      expect(container.read(darkroomHeldBuildsProvider), isEmpty);
+      expect(
+        container.read(darkroomRecentBuildsProvider).single.target,
+        'M81',
+        reason: 'the finished build is kept as a recent result',
+      );
+      await jobs.flush();
+
+      final after = restart();
+      await after.read(darkroomBuildJobsProvider.notifier).restore();
+      expect(after.read(darkroomBuildJobsProvider)!.target, 'NGC891');
+      expect(after.read(darkroomRecentBuildsProvider).single.target, 'M81');
+    });
   });
 }

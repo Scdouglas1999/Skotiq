@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 import 'package:skotiq_core/src/models/notification/notification_categories.dart';
 import 'package:skotiq_core/src/services/notification/notification_router.dart';
+import 'package:skotiq_core/src/providers/ui_notification_provider.dart';
+import 'package:skotiq_core/src/services/notification/transports/in_app_transport.dart';
 import 'package:skotiq_core/src/services/notification/transports/notification_transport.dart';
 import 'package:skotiq_core/src/services/notification/transports/system_push_transport.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart';
@@ -159,6 +161,30 @@ void main() {
 
       expect(rig.inApp.sent.single.category, NotificationCategory.custom);
       expect(pushes, isEmpty, reason: 'custom is in-app only by default');
+    },
+  );
+
+  test(
+    'the in-app banner carries the payload so it can offer to open it',
+    () async {
+      final banners = UiNotificationNotifier();
+      final router = NotificationRouter(
+        transports: [InAppTransport(banners)],
+        matrix: NotificationRoutingMatrix.defaults(),
+      );
+      router.routeRendered(
+        category: NotificationCategory.darkroomDraftReady,
+        title: 'Masters wait for the framing check: M81',
+        body: 'The common crop keeps 55.0% of the field (minimum 80%).',
+        deepLink: 'darkroom_framing:M81',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(banners.state.single.deepLink, 'darkroom_framing:M81');
+      expect(
+        banners.state.single.duration,
+        const Duration(seconds: 15),
+        reason: 'long enough to follow the link',
+      );
     },
   );
 }

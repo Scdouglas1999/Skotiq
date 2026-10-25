@@ -219,17 +219,12 @@ void main() {
     expect(_rendersText(tester, 'Heads up:'), isFalse);
   });
 
-  testWidgets('auto-integration toggle persists immediately', (tester) async {
-    final handle = await _pumpSettings(tester);
+  testWidgets('the auto-integrate switch moved to the Darkroom', (
+    tester,
+  ) async {
+    await _pumpSettings(tester);
     await tester.pump();
-    final toggle = find.byKey(const ValueKey('auto-integrate-switch'));
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await _pumpWrites(tester);
-
-    expect(
-      await handle.database.settingsDao.getSetting(kAutoIntegrateSettingKey),
-      'true',
-    );
+    expect(find.byKey(const ValueKey('auto-integrate-switch')), findsNothing);
+    expect(_rendersText(tester, 'Auto-integrate at end of run'), isFalse);
   });
 }

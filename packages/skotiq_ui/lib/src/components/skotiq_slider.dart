@@ -20,6 +20,10 @@ class SkotiqSlider extends StatelessWidget {
   /// Value-change callback. Pass `null` to render a disabled slider.
   final ValueChanged<double>? onChanged;
 
+  /// Called once when a drag or tap ends, with the final value: where a
+  /// value is saved rather than previewed.
+  final ValueChanged<double>? onChangeEnd;
+
   /// Optional caption rendered above the track.
   final String? label;
 
@@ -27,6 +31,7 @@ class SkotiqSlider extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.onChangeEnd,
     this.min = 0.0,
     this.max = 1.0,
     this.divisions,
@@ -55,6 +60,7 @@ class SkotiqSlider extends StatelessWidget {
         max: max,
         divisions: divisions,
         onChanged: onChanged,
+        onChangeEnd: onChanged == null ? null : onChangeEnd,
       ),
     );
 

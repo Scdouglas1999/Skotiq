@@ -58,17 +58,14 @@ void main() {
     ('ui scale', 'appearance'),
     ('bortle', 'location'),
     ('limiting magnitude', 'location'),
-    // The dawn Darkroom pass had no page at all, so every word for it was a
-    // dead end while the feature ran unattended on a default nobody was shown:
-    // "darkroom", "draft" and "recipe" each returned nothing, and "dawn"
-    // returned only the sequencer's park control.
+    // The night-end automation entry leads to the Darkroom's Activity tab;
+    // every word for it must find the entry.
     ('darkroom', 'darkroom'),
-    ('draft', 'darkroom'),
-    ('auto draft', 'darkroom'),
     ('dawn', 'darkroom'),
-    ('recipe', 'darkroom'),
     ('autopilot', 'darkroom'),
-    ('night report', 'darkroom'),
+    ('auto integrate', 'darkroom'),
+    ('morning message', 'darkroom'),
+    ('build masters', 'darkroom'),
   ];
 
   testWidgets('every setting observed as unfindable is now findable', (

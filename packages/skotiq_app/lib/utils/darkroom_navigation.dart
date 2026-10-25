@@ -32,7 +32,7 @@ String darkroomMasterLocation(int masterId) => '/darkroom?master=$masterId';
 
 /// The Darkroom location for a pass, live while it runs and its record after.
 String darkroomPassLocation(String runId) =>
-    '/darkroom?pass=${Uri.encodeQueryComponent(runId)}';
+    '/darkroom?tab=activity&pass=${Uri.encodeQueryComponent(runId)}';
 
 /// The Darkroom opened on one of its tabs.
 String darkroomTabLocation(DarkroomTab tab) => DarkroomRoute(tab: tab).location;

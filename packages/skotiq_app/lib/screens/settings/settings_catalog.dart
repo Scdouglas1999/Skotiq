@@ -477,24 +477,24 @@ List<SettingsGroupDef> buildSettingsGroups(BuildContext context) {
           build: (isMobile) =>
               EndOfNightCalibrationSettings(isMobile: isMobile),
         ),
-        // What happens to the night after its masters exist. Beside Delivery
-        // because they are two links of one chain — this one composes the
-        // drafts and the report, Delivery carries them off the rig — and the
-        // pair reads as nonsense apart.
+        // The night-end automation lives in the Darkroom's Activity tab; this
+        // entry, beside Delivery, takes the operator there.
         SettingsSectionDef(
           key: 'darkroom',
-          label: 'Darkroom autopilot',
+          label: 'Night-end automation',
           icon: LucideIcons.sparkles,
           keywords: const [
             'darkroom',
             'autopilot',
-            'auto draft',
-            'draft',
-            'dawn',
-            'recipe',
-            'morning',
+            'auto-integrate',
+            'auto integrate',
             'post-session',
-            'night report',
+            'masters',
+            'build masters',
+            'dawn',
+            'morning message',
+            'delivery',
+            'night end',
             'unattended',
           ],
           build: (isMobile) => DarkroomAutopilotSettings(isMobile: isMobile),

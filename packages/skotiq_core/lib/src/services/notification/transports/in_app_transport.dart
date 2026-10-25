@@ -29,22 +29,30 @@ class InAppTransport extends NotificationTransport {
     required NotificationCategory category,
     required String title,
     required String body,
+  }) => sendWithLink(category: category, title: title, body: body);
+
+  /// [send], with the `type[:arg]` payload the banner offers to open.
+  Future<NotificationResult> sendWithLink({
+    required NotificationCategory category,
+    required String title,
+    required String body,
+    String? deepLink,
   }) async {
     final severity = category.defaultSeverity;
     switch (severity) {
       case EventSeverity.info:
         if (_isPositive(category)) {
-          _notifier.showSuccess(body, title: title);
+          _notifier.showSuccess(body, title: title, deepLink: deepLink);
         } else {
-          _notifier.showInfo(body, title: title);
+          _notifier.showInfo(body, title: title, deepLink: deepLink);
         }
         break;
       case EventSeverity.warning:
-        _notifier.showWarning(body, title: title);
+        _notifier.showWarning(body, title: title, deepLink: deepLink);
         break;
       case EventSeverity.error:
       case EventSeverity.critical:
-        _notifier.showError(body, title: title);
+        _notifier.showError(body, title: title, deepLink: deepLink);
         break;
     }
     return NotificationResult.ok();

@@ -10,5 +10,6 @@
 library;
 
 export 'darkroom_job.dart';
+export 'darkroom_links.dart';
 export 'delivery.dart';
 export 'recipe.dart';

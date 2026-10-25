@@ -12,7 +12,6 @@
 // routing decision is observable without native code.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -238,64 +237,35 @@ class _FixedBackendNotifier extends BackendNotifier {
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
-class _RecordingAutoIntegrationService extends AutoIntegrationService {
-  _RecordingAutoIntegrationService(super.ref);
+/// The night-end runner, recording the nights it is handed.
+class _RecordingRunner extends NightEndRunner {
+  _RecordingRunner(super.ref);
 
   final calls = <int>[];
+  final reasons = <String>[];
 
   @override
-  Future<AutoIntegrationResult> buildNightMasters(int sessionId) async {
-    calls.add(sessionId);
-    return const AutoIntegrationResult(ran: true, message: 'ready');
-  }
-}
-
-/// The morning delivery of a finished guided build, recording the targets.
-class _RecordingDelivery implements GuidedBuildDelivery {
-  final delivered = <String>[];
+  Future<void> start() async {}
 
   @override
-  Future<GuidedBuildDeliveryOutcome> deliver(DarkroomBuildJob job) async {
-    delivered.add(job.target);
-    return GuidedBuildDeliveryOutcome(
-      jobId: delivered.length,
-      title: 'Masters ready: ${job.target}',
-      message: '1 night, 3 subs used, 0 left out.',
-      delivery: null,
-      problems: const [],
-      announced: true,
-    );
-  }
-}
-
-/// The background master build, recording the targets it is asked to build
-/// unattended.
-class _RecordingBuildJobs extends DarkroomBuildJobs {
-  _RecordingBuildJobs(this.started, {this.stage = DarkroomJobStage.done});
-
-  final List<String> started;
-  final announced = <bool>[];
-  final DarkroomJobStage stage;
-
-  @override
-  DarkroomBuildJob? build() => null;
-
-  @override
-  Future<DarkroomBuildJob> startUnattended(
-    String target, {
-    Directory? outputRoot,
-    double minRetainedArea = defaultMinRetainedArea,
-    bool announceReady = true,
+  Future<NightEndRun?> nightEnded({
+    required int sessionId,
+    required String reason,
+    EonReport? calibration,
   }) async {
-    started.add(target);
-    announced.add(announceReady);
-    return DarkroomBuildJob(
-      target: target,
-      unattended: true,
-      stage: stage,
-      message: 'Masters ready',
+    calls.add(sessionId);
+    reasons.add(reason);
+    return NightEndRun(
+      id: 'n$sessionId',
       startedAt: DateTime(2026, 10, 24, 6),
-      directory: '/masters/$target',
+      reason: reason,
+      targets: const [
+        NightEndTarget(
+          target: 'NGC891',
+          build: NightEndStep(NightEndStepState.done),
+          nights: 3,
+        ),
+      ],
     );
   }
 }
@@ -525,15 +495,15 @@ void main() {
   }
 
   test('host coordinator runs independently of the sequencer screen', () async {
-    late _RecordingAutoIntegrationService recording;
+    late _RecordingRunner recording;
     final coordinatorContainer = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, FfiBackend(database: db)),
         ),
-        autoIntegrationServiceProvider.overrideWith((ref) {
-          recording = _RecordingAutoIntegrationService(ref);
+        nightEndRunnerProvider.overrideWith((ref) {
+          recording = _RecordingRunner(ref);
           return recording;
         }),
       ],
@@ -553,10 +523,10 @@ void main() {
     await settleCoordinator();
 
     expect(recording.calls, [20]);
-    expect(
-      coordinatorContainer.read(autoIntegrationCompletionProvider)?.generation,
-      1,
-    );
+    expect(recording.reasons, ['the plan completed']);
+    final toast = coordinatorContainer.read(autoIntegrationCompletionProvider);
+    expect(toast?.generation, 1);
+    expect(toast?.result.message, 'NGC891: masters ready from 3 nights.');
 
     coordinatorContainer
         .read(sequenceTerminalRunResultProvider.notifier)
@@ -591,6 +561,7 @@ void main() {
     await settleCoordinator();
     expect(recording.calls, [20, 22],
         reason: 'a night ended by the dawn park must integrate');
+    expect(recording.reasons.last, 'dawn ended imaging');
 
     // An obstruction park ends the night the same way.
     coordinatorContainer.read(sequenceStopEvidenceProvider.notifier).state =
@@ -624,96 +595,6 @@ void main() {
         const NightIntegrationRequest(generation: 1, sessionId: 23);
     await settleCoordinator();
     expect(recording.calls, [20, 22, 24, 23]);
-  });
-
-  group('the night\'s masters come from the guided multi-night build', () {
-    late List<String> started;
-    late ProviderContainer builds;
-    late _RecordingDelivery delivery;
-
-    ProviderContainer buildContainer({
-      DarkroomJobStage stage = DarkroomJobStage.done,
-    }) {
-      started = <String>[];
-      delivery = _RecordingDelivery();
-      final c = ProviderContainer(overrides: [
-        guidedBuildDeliveryProvider.overrideWithValue(delivery),
-        databaseProvider.overrideWithValue(db),
-        masterAccumulationServiceProvider.overrideWithValue(accumulate),
-        postSessionIntegrationServiceProvider.overrideWithValue(integrate),
-        dawnAutopilotServiceProvider.overrideWithValue(darkroom),
-        pushNotificationServiceProvider.overrideWithValue(push),
-        darkroomBuildJobsProvider
-            .overrideWith(() => _RecordingBuildJobs(started, stage: stage)),
-      ]);
-      addTearDown(c.dispose);
-      return c;
-    }
-
-    test('each target the night imaged is built once, unattended', () async {
-      builds = buildContainer();
-      await enableAutoIntegrate();
-      final sessionId = await insertSession();
-      final ngc891 = await insertTarget('NGC891');
-      final m31 = await insertTarget('M31');
-      await insertSub(sessionId: sessionId, targetId: ngc891, filter: 'L');
-      await insertSub(sessionId: sessionId, targetId: ngc891, filter: 'R');
-      await insertSub(sessionId: sessionId, targetId: m31, filter: 'L');
-      final other = await insertSession();
-      await insertSub(
-        sessionId: other,
-        targetId: await insertTarget('NGC7380'),
-        filter: 'L',
-      );
-
-      final result = await builds
-          .read(autoIntegrationServiceProvider)
-          .buildNightMasters(sessionId);
-
-      expect(started..sort(), ['M31', 'NGC891']);
-      expect(result.ran, isTrue);
-      expect(result.failed, isFalse);
-      expect(result.message, contains('NGC891: 1 night, 3 subs used'));
-      expect(delivery.delivered..sort(), ['M31', 'NGC891'],
-          reason: 'each finished build gets its morning delivery');
-      expect(accumulate.calls, isEmpty,
-          reason: 'the session-only integration is not run as well');
-      expect(integrate.calls, isEmpty);
-    });
-
-    test('nothing is built with automatic integration off', () async {
-      builds = buildContainer();
-      final sessionId = await insertSession();
-      await insertSub(
-        sessionId: sessionId,
-        targetId: await insertTarget('NGC891'),
-        filter: 'L',
-      );
-      final result = await builds
-          .read(autoIntegrationServiceProvider)
-          .buildNightMasters(sessionId);
-      expect(started, isEmpty);
-      expect(result.ran, isFalse);
-    });
-
-    test('a build that waits for framing review says so', () async {
-      builds = buildContainer(stage: DarkroomJobStage.awaitingReview);
-      await enableAutoIntegrate();
-      final sessionId = await insertSession();
-      await insertSub(
-        sessionId: sessionId,
-        targetId: await insertTarget('NGC891'),
-        filter: 'L',
-      );
-      final result = await builds
-          .read(autoIntegrationServiceProvider)
-          .buildNightMasters(sessionId);
-      expect(started, ['NGC891']);
-      expect(result.ran, isFalse);
-      expect(result.message, contains('framing review'));
-      expect(delivery.delivered, isEmpty,
-          reason: 'nothing is delivered before the framing is accepted');
-    });
   });
 
   test('every native integration call carries the session\'s cancel handle',
@@ -796,16 +677,15 @@ void main() {
       () => backend.setAutoIntegrationEnabled(any()),
     ).thenAnswer((_) async {});
 
-    late _RecordingAutoIntegrationService recording;
+    _RecordingRunner? recording;
     final remoteContainer = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
         ),
-        autoIntegrationServiceProvider.overrideWith((ref) {
-          recording = _RecordingAutoIntegrationService(ref);
-          return recording;
+        nightEndRunnerProvider.overrideWith((ref) {
+          return recording = _RecordingRunner(ref);
         }),
       ],
     );
@@ -833,7 +713,7 @@ void main() {
       dbSessionId: 2,
     );
     await Future<void>.delayed(Duration.zero);
-    expect(recording.calls, isEmpty);
+    expect(recording, isNull, reason: 'a remote client runs no night end');
   });
 
   // D2-4. A fresh install shipped "Draft, deliver and report at dawn" reading
