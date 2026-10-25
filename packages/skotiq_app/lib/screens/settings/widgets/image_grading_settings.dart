@@ -18,7 +18,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../session_review/auto_integration_service.dart';
 import 'frame_watch_settings_section.dart';
 import 'settings_widgets.dart';
 
@@ -319,21 +318,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               ],
             ),
             FrameWatchSettingsSection(isMobile: widget.isMobile),
-            const SettingsSection(
-              title: 'Post-session integration',
-              children: [
-                SettingRow(
-                  icon: LucideIcons.sparkles,
-                  title: 'Auto-integrate at end of run',
-                  subtitle: 'When on, the end of a night builds linear masters '
-                      'for each target it imaged, from all of the target\'s '
-                      'nights, after end-of-night calibration. The masters '
-                      'appear in Darkroom › Masters.',
-                  trailing: _AutoIntegrateSwitch(),
-                  isLast: true,
-                ),
-              ],
-            ),
             SettingsSection(
               title: 'Reject folder',
               children: [
@@ -360,52 +344,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
         );
       },
     );
-  }
-}
-
-/// Opt-in toggle for the host-owned post-session auto-integration hook.
-class _AutoIntegrateSwitch extends ConsumerStatefulWidget {
-  const _AutoIntegrateSwitch();
-
-  @override
-  ConsumerState<_AutoIntegrateSwitch> createState() =>
-      _AutoIntegrateSwitchState();
-}
-
-class _AutoIntegrateSwitchState extends ConsumerState<_AutoIntegrateSwitch> {
-  bool _saving = false;
-  String? _error;
-
-  Future<void> _set(bool value) async {
-    if (_saving) return;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref.read(autoIntegrationSettingsActionsProvider).setEnabled(value);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _error = 'Could not save auto-integration setting.');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final setting = ref.watch(autoIntegrationEnabledProvider);
-    final enabled = setting.valueOrNull ?? false;
-    final loadError =
-        setting.hasError ? 'Could not load auto-integration setting.' : null;
-    final control = SkotiqSwitch(
-      key: const ValueKey('auto-integrate-switch'),
-      value: enabled,
-      enabled: setting.hasValue && !_saving,
-      onChanged: _set,
-    );
-    final error = _error ?? loadError;
-    return error == null ? control : Tooltip(message: error, child: control);
   }
 }
 

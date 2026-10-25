@@ -245,17 +245,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Temperature tolerance',
   ],
   'darkroom': [
-    'At the end of a run',
-    'Auto-integrate has to be on for any of this to run',
-    'Darkroom autopilot',
-    'Delivery destinations decide what leaves the rig',
-    'Draft, deliver and report at dawn',
-    'One notification goes out when the pass finishes, through the same',
-    'The dawn pass starts from the masters the post-session integration',
-    'The morning message rides the sequence-complete alerts',
-    'The pass hands its masters, drafts and report to Delivery. A',
-    'What can silence it',
-    'When on, each master the night produced gets a first-draft',
+    'Night-end automation is in the Darkroom',
   ],
   'delivery': [
     'Delivery',
@@ -364,7 +354,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Walk back through the equipment onboarding wizard to scan',
   ],
   'image-grading': [
-    'Auto-integrate at end of run',
     'Detect obstructions',
     'Eccentricity max',
     'Enable image grading',
@@ -375,7 +364,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Image grading',
     'Master toggle',
     'Notify after consecutive rejects',
-    'Post-session integration',
     'Recenter after drift',
     'Reject folder',
     'Reject folder path',
@@ -388,7 +376,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Watch for trees or a roof entering the field: stars fade while',
     'When a solved frame is farther from the target than this share',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
-    'When on, the end of a night builds linear masters',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
   ],
   'imaging': [
@@ -944,16 +931,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Auto-calibrate light frames',
     'Maximum temperature difference for dark matching': 'Temperature tolerance',
   },
-  'darkroom': {
-    'One notification goes out when the pass finishes, through the same':
-        'The morning message rides the sequence-complete alerts',
-    'The dawn pass starts from the masters the post-session integration':
-        'Auto-integrate has to be on for any of this to run',
-    'The pass hands its masters, drafts and report to Delivery. A':
-        'Delivery destinations decide what leaves the rig',
-    'When on, each master the night produced gets a first-draft':
-        'Draft, deliver and report at dawn',
-  },
   'end-of-night-calibration': {
     'Guiding is stopped first. A mount the night already':
         'Mount before the darks',
@@ -1005,8 +982,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Recenter after drift',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.':
         'Enable image grading',
-    'When on, the end of a night builds linear masters':
-        'Auto-integrate at end of run',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.':
         'Reject folder path',
   },

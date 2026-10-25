@@ -293,7 +293,7 @@ void main() {
     await tester.enterText(find.byType(TextField).first, 'delivery');
     await tester.pumpAndSettle(const Duration(milliseconds: 300));
 
-    for (final label in ['Delivery', 'Darkroom autopilot']) {
+    for (final label in ['Delivery', 'Night-end automation']) {
       final node = published(label);
       expect(node, isNotNull, reason: 'no node is published under "$label"');
       final data = node!.getSemanticsData();
