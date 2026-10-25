@@ -34,6 +34,7 @@ import 'notification_template.dart';
 import 'stop_push_arbiter.dart';
 import 'transports/notification_transport.dart';
 import 'transports/system_push_transport.dart';
+import 'transports/in_app_transport.dart';
 
 /// What one routed message actually did.
 ///
@@ -407,8 +408,8 @@ class NotificationRouter {
   /// enabled/severity/debounce/rate gates, on the row the operator can see and
   /// edit in Settings.
   ///
-  /// [deepLink] is the phone's `type[:arg]` tap payload. Only the systemPush
-  /// transport can act on it; the others ignore it, because an email has
+  /// [deepLink] is the `type[:arg]` tap payload. The systemPush transport and
+  /// the in-app banner act on it; the others ignore it, because an email has
   /// nowhere to navigate to.
   /// Returns what actually left the process, or why nothing did.
   ///
@@ -688,21 +689,28 @@ class NotificationRouter {
     Future.microtask(() async {
       late NotificationResult result;
       try {
-        // Only the phone has a route table to act on a deep link; the base
-        // signature carries no such parameter, so the one transport that
-        // understands it is asked for it by type.
-        result = transport is SystemPushTransport
-            ? await transport.send(
-                category: category,
-                title: title,
-                body: body,
-                deepLink: deepLink,
-              )
-            : await transport.send(
-                category: category,
-                title: title,
-                body: body,
-              );
+        // The phone and the in-app banner can act on a deep link; the base
+        // signature carries no such parameter, so the transports that
+        // understand it are asked for it by type.
+        result = switch (transport) {
+          SystemPushTransport() => await transport.send(
+            category: category,
+            title: title,
+            body: body,
+            deepLink: deepLink,
+          ),
+          InAppTransport() => await transport.sendWithLink(
+            category: category,
+            title: title,
+            body: body,
+            deepLink: deepLink,
+          ),
+          _ => await transport.send(
+            category: category,
+            title: title,
+            body: body,
+          ),
+        };
       } catch (error, stackTrace) {
         result = NotificationResult.fail(error.toString());
         developer.log(

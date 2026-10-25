@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -152,6 +153,19 @@ class _NotificationToastOverlayState
     });
   }
 
+  /// Follows the notification's deep link and dismisses it, or null when the
+  /// notification leads nowhere this window can open.
+  VoidCallback? _opener(BuildContext context, _ToastGroup group) {
+    final link = group.latest.deepLink;
+    final route = link == null ? null : darkroomRouteForPayload(link);
+    final router = GoRouter.maybeOf(context);
+    if (route == null || router == null) return null;
+    return () {
+      router.go(route);
+      _dismiss(group);
+    };
+  }
+
   void _dismiss(_ToastGroup group) {
     final key = group.key;
     if (!mounted || _dismissingKeys.contains(key)) return;
@@ -240,6 +254,7 @@ class _NotificationToastOverlayState
               repeatCount: group.count,
               isDismissing: _dismissingKeys.contains(group.key),
               onDismiss: () => _dismiss(group),
+              onOpen: _opener(context, group),
             );
           }).toList(),
         ),
@@ -250,6 +265,9 @@ class _NotificationToastOverlayState
 
 class _NotificationToast extends StatefulWidget {
   final UiNotification notification;
+
+  /// Opens where the notification leads; null when it leads nowhere.
+  final VoidCallback? onOpen;
 
   /// How many identical notifications this toast stands for (1 = just itself).
   final int repeatCount;
@@ -262,6 +280,7 @@ class _NotificationToast extends StatefulWidget {
     this.repeatCount = 1,
     required this.isDismissing,
     required this.onDismiss,
+    this.onOpen,
   });
 
   @override
@@ -446,6 +465,21 @@ class _NotificationToastState extends State<_NotificationToast>
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      if (widget.onOpen != null) ...[
+                                        const SizedBox(
+                                          height: SkotiqTokens.spaceXs,
+                                        ),
+                                        SkotiqButton(
+                                          key: const ValueKey(
+                                            'notification-toast-open',
+                                          ),
+                                          label: 'Open',
+                                          icon: LucideIcons.arrowRight,
+                                          variant: ButtonVariant.secondary,
+                                          size: ButtonSize.small,
+                                          onPressed: widget.onOpen,
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

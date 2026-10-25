@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_core/skotiq_core.dart' show darkroomRouteForPayload;
 
 import 'mobile_preferences.dart';
 
@@ -141,6 +142,10 @@ const _infoPassiveDetails = NotificationDetails(
 ///
 /// Top-level so the table can be exercised without the plugin singleton.
 String? routeForNotificationPayload(String payload) {
+  // The Darkroom's own payloads (a target, its framing check, the Activity
+  // tab) share one table with the desktop banners.
+  final darkroom = darkroomRouteForPayload(payload);
+  if (darkroom != null) return darkroom;
   final colon = payload.indexOf(':');
   final type = colon == -1 ? payload : payload.substring(0, colon);
   final arg = colon == -1 ? null : payload.substring(colon + 1);

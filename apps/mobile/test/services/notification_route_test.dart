@@ -30,6 +30,22 @@ void main() {
       expect(routeForNotificationPayload('darkroom_draft:'), '/darkroom');
     });
 
+    test('a built target, its framing check and the Activity tab open in the '
+        'Darkroom', () {
+      expect(
+        routeForNotificationPayload('darkroom_target:NGC 891'),
+        '/darkroom?tab=targets&target=NGC+891',
+      );
+      expect(
+        routeForNotificationPayload('darkroom_framing:M81'),
+        '/darkroom?tab=targets&target=M81&view=framing',
+      );
+      expect(
+        routeForNotificationPayload('darkroom_activity'),
+        '/darkroom?tab=activity',
+      );
+    });
+
     test('the pre-existing arms are unchanged', () {
       expect(
         routeForNotificationPayload('image_ready:M31.fits'),

@@ -12,6 +12,10 @@ class UiNotification {
   final String? title;
   final Duration? duration;
 
+  /// The `type[:arg]` payload of where this notification leads, when it
+  /// leads somewhere; the toast offers to open it.
+  final String? deepLink;
+
   const UiNotification({
     required this.id,
     required this.message,
@@ -19,6 +23,7 @@ class UiNotification {
     required this.timestamp,
     this.title,
     this.duration,
+    this.deepLink,
   });
 }
 
@@ -53,6 +58,7 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     required UiNotificationLevel level,
     String? title,
     Duration? duration,
+    String? deepLink,
   }) {
     final notification = UiNotification(
       id: '${DateTime.now().millisecondsSinceEpoch}-${_idSequence++}',
@@ -60,7 +66,13 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
       level: level,
       timestamp: DateTime.now(),
       title: title,
-      duration: duration ?? const Duration(seconds: 4),
+      // A toast that leads somewhere stays long enough to be followed.
+      duration:
+          duration ??
+          (deepLink == null
+              ? const Duration(seconds: 4)
+              : const Duration(seconds: 15)),
+      deepLink: deepLink,
     );
 
     final appended = [...state, notification];
@@ -72,41 +84,65 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
   }
 
   /// Show an info notification
-  void showInfo(String message, {String? title, Duration? duration}) {
+  void showInfo(
+    String message, {
+    String? title,
+    Duration? duration,
+    String? deepLink,
+  }) {
     show(
       message: message,
       level: UiNotificationLevel.info,
       title: title,
+      deepLink: deepLink,
       duration: duration,
     );
   }
 
   /// Show a success notification
-  void showSuccess(String message, {String? title, Duration? duration}) {
+  void showSuccess(
+    String message, {
+    String? title,
+    Duration? duration,
+    String? deepLink,
+  }) {
     show(
       message: message,
       level: UiNotificationLevel.success,
       title: title,
+      deepLink: deepLink,
       duration: duration,
     );
   }
 
   /// Show a warning notification
-  void showWarning(String message, {String? title, Duration? duration}) {
+  void showWarning(
+    String message, {
+    String? title,
+    Duration? duration,
+    String? deepLink,
+  }) {
     show(
       message: message,
       level: UiNotificationLevel.warning,
       title: title,
+      deepLink: deepLink,
       duration: duration ?? const Duration(seconds: 6),
     );
   }
 
   /// Show an error notification
-  void showError(String message, {String? title, Duration? duration}) {
+  void showError(
+    String message, {
+    String? title,
+    Duration? duration,
+    String? deepLink,
+  }) {
     show(
       message: message,
       level: UiNotificationLevel.error,
       title: title,
+      deepLink: deepLink,
       duration: duration ?? const Duration(seconds: 8),
     );
   }
