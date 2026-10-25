@@ -21,6 +21,7 @@ import '../darkroom_route.dart' show DarkroomRouteScope;
 import 'channel_combine.dart';
 import 'darkroom_editor.dart';
 import 'darkroom_image_library.dart';
+import '../targets/nights_strip.dart' show darkroomShortDate;
 
 /// Width at and above which the image list sits beside an open editor.
 const double kDarkroomEditListBreakpoint = 1100;
@@ -299,6 +300,8 @@ class _DarkroomImageRow extends StatelessWidget {
     final meta = [
       if (master.frameCount > 0) '${master.frameCount} frames',
       if (master.totalIntegrationSeconds > 0) hours,
+      // Two builds of one filter differ by when they were made.
+      'built ${darkroomShortDate(master.createdAt)}',
     ].join(' · ');
     final status = recipes == 0
         ? 'No recipe yet'

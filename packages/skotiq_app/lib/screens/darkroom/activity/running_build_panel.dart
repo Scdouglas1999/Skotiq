@@ -45,7 +45,7 @@ class _RunningBuildPanelState extends ConsumerState<RunningBuildPanel> {
         : job;
     return ActivityPanel(
       key: const ValueKey('darkroom_activity_running'),
-      title: 'Running build',
+      title: shown == null || shown.active ? 'Running build' : 'Last build',
       note: shown?.target,
       child: shown == null
           ? const ActivityQuiet(

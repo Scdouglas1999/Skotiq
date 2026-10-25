@@ -186,6 +186,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a finished build is titled as the last build, not a running '
+      'one', (tester) async {
+    await pump(
+      tester,
+      job: DarkroomBuildJob(
+        target: 'NGC 891',
+        stage: DarkroomJobStage.done,
+        message: 'Masters ready',
+        startedAt: DateTime(2026, 10, 24, 5, 30),
+        finishedAt: DateTime(2026, 10, 24, 6, 10),
+      ),
+    );
+    expect(find.text('Last build'), findsOneWidget);
+    expect(find.text('Running build'), findsNothing);
+  });
+
   testWidgets('a running build shows its stage, subs, time left and Stop', (
     tester,
   ) async {

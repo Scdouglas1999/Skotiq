@@ -225,7 +225,12 @@ void main() {
   testWidgets(
       'every registered image is listed under its target, '
       'composites first', (tester) async {
-    final l = await seedMaster(name: 'NGC891 L', filter: 'L', target: 'NGC891');
+    final l = await seedMaster(
+      name: 'NGC891 L',
+      filter: 'L',
+      target: 'NGC891',
+      createdAt: DateTime(2026, 10, 20, 9),
+    );
     final r = await seedMaster(name: 'NGC891 R', filter: 'R', target: 'NGC891');
     final lrgb = await seedMaster(
       name: 'NGC891 LRGB',
@@ -244,6 +249,8 @@ void main() {
     expect(top(lrgb), lessThan(top(l)));
     expect(top(l), lessThan(top(r)));
     expect(find.text('No recipe yet'), findsNWidgets(4));
+    // Two builds of one filter are told apart by when they were built.
+    expect(find.textContaining('built Oct 20'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
