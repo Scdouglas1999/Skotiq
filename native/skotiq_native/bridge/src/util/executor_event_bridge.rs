@@ -93,6 +93,8 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         ExecutorEvent::AutofocusProgress { .. } | ExecutorEvent::AutofocusFinished { .. } => return,
         // A one-shot dither is not a run's dither; there is no run to count it.
         ExecutorEvent::DitherPerformed { .. } => return,
+        // Frame measurements belong to a run's frame record.
+        ExecutorEvent::FrameWatch(_) => return,
         // Other variants currently surface as an informational error-tagged
         // payload because the one-shot bridge sites don't have a richer
         // mapping. If a future caller needs typed routing (e.g. exposure

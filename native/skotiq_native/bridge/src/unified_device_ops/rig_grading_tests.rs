@@ -235,12 +235,12 @@ fn shipped_check() -> ImageQualityCheck {
 }
 
 /// Grades frames in capture order the way `run_exposure_loop` does: the HFR
-/// baseline over the run, the star-count baseline per filter, both fed only
-/// by accepted frames.
+/// and star-count baselines per filter (the run's HFR baseline until a filter
+/// has one), fed only by accepted frames.
 struct Run {
     hfr_baseline: Option<f64>,
     hfr_samples: Vec<f64>,
-    star_baselines: std::collections::HashMap<String, skotiq_sequencer::quality::StarCountBaseline>,
+    star_baselines: std::collections::HashMap<String, skotiq_sequencer::quality::FilterBaseline>,
 }
 
 impl Run {
@@ -258,8 +258,8 @@ impl Run {
         let grade = skotiq_sequencer::quality::grade_frame_with_baselines(
             &shipped_check(),
             &metrics,
-            self.hfr_baseline,
-            baseline.baseline(),
+            baseline.hfr().or(self.hfr_baseline),
+            baseline.star_count_at(None),
         );
         if grade.is_pass() {
             skotiq_sequencer::quality::update_hfr_baseline(
@@ -267,7 +267,7 @@ impl Run {
                 &mut self.hfr_samples,
                 metrics.hfr,
             );
-            baseline.record(metrics.star_count);
+            baseline.record(metrics.star_count, metrics.hfr, None);
         }
         println!("{}: {metrics:?} -> {grade:?}", path.display());
         (metrics, grade)
@@ -299,7 +299,10 @@ async fn the_ngc891_run_keeps_its_subs_and_rejects_its_trailed_frames() {
             );
         }
     }
-    assert!(run.star_baselines.values().all(|b| b.baseline().is_some()));
+    assert!(run
+        .star_baselines
+        .values()
+        .all(|b| b.star_count_at(None).is_some()));
     for filter in ["R", "G", "B"] {
         let (metrics, grade) = run
             .grade(
@@ -309,7 +312,9 @@ async fn the_ngc891_run_keeps_its_subs_and_rejects_its_trailed_frames() {
             .await;
         assert!(grade.is_reject(), "trailed {filter}: {metrics:?}");
         // Each would be rejected on its star count alone.
-        let baseline = run.star_baselines[filter].baseline().expect("baseline");
+        let baseline = run.star_baselines[filter]
+            .star_count_at(None)
+            .expect("baseline");
         let count = f64::from(metrics.star_count.expect("counted"));
         assert!(
             count < 0.5 * baseline,

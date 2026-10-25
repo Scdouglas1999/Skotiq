@@ -35,6 +35,23 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         return ActionFlow::Finished;
     }
 
+    // The frame the claim waited for may have come back trailed or starless;
+    // the sweep waits for a clean frame (see the frame watch).
+    {
+        let mut state = rig.trigger_state.write().await;
+        if let Some(reason) = state.autofocus_hold.clone() {
+            state.autofocus_wanted_while_held = true;
+            drop(state);
+            camera_claim.release().await;
+            tracing::info!(
+                "Trigger '{}' autofocus waits: {}; it runs once a frame comes back clean",
+                trigger_name,
+                reason
+            );
+            return ActionFlow::NotRun;
+        }
+    }
+
     let af_ctx = rig.instruction_context(rig.target().await, run);
     // The operator's tuning, seeded at start from the sequence's Autofocus
     // node or pushed through the runtime config.
@@ -177,6 +194,21 @@ async fn skip_impossible_autofocus(trigger_name: &str, missing: &str, rig: &Rig,
     ));
 }
 
+/// What a sweep that found no focus changes in the trigger state. The HFR
+/// baseline stays the last good focus: a failed sweep says nothing about where
+/// focus is, and re-basing on the degraded HFR would make the bad frames the
+/// new reference. The cadence anchor moves, because the interval trigger has
+/// no time cooldown and would re-fire the failed sweep after every frame.
+fn record_failed_sweep(ts: &mut crate::triggers::TriggerState) {
+    ts.mark_autofocus_attempted();
+    tracing::warn!(
+        "Autofocus failed; the HFR baseline stays at the last good focus ({:?}) and the \
+         interval cadence anchor advanced so the failed sweep does not re-fire on every \
+         subsequent frame",
+        ts.baseline_hfr
+    );
+}
+
 struct FailedSweep<'a> {
     trigger_id: &'a str,
     trigger_name: &'a str,
@@ -202,25 +234,11 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         tolerance_ratio,
         position_before_af,
     } = sweep;
-    // Read the reference before `reset_baseline_hfr` overwrites it.
     let verdict = {
         let ts = rig.trigger_state.read().await;
         autofocus_failure_verdict(ts.baseline_hfr, ts.current_hfr, tolerance_ratio)
     };
-    {
-        let mut ts = rig.trigger_state.write().await;
-        // Re-base on the degraded HFR, and move the cadence anchor: the
-        // interval trigger has no time cooldown and would re-fire the failed
-        // sweep after every frame.
-        ts.reset_baseline_hfr();
-        ts.mark_autofocus_attempted();
-        tracing::warn!(
-            "Autofocus failed — HFR baseline reset to current value ({:?}) \
-             and the interval cadence anchor advanced so the failed sweep \
-             does not re-fire on every subsequent frame",
-            ts.baseline_hfr
-        );
-    }
+    record_failed_sweep(&mut *rig.trigger_state.write().await);
 
     // Absent (not `false`) when the sweep never moved the focuser.
     let origin_restored = af_result
@@ -286,4 +304,24 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
     let message = format!("{}{}", continuation.operator_message, focus_note);
     tracing::warn!("{}", message);
     run.warning(message);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The rig's 04:24 autofocus failed on 3-9 stars behind the trees and
+    /// re-based the HFR baseline to 3.26 px, the obstructed frames' HFR.
+    #[test]
+    fn a_failed_sweep_keeps_the_last_good_hfr_baseline() {
+        let mut ts = crate::triggers::TriggerState::new();
+        ts.update_hfr(2.0);
+        ts.update_hfr(3.26);
+        for _ in 0..12 {
+            ts.increment_exposure_count();
+        }
+        record_failed_sweep(&mut ts);
+        assert_eq!(ts.baseline_hfr, Some(2.0));
+        assert_eq!(ts.last_autofocus_frame, 12, "the cadence anchor moves");
+    }
 }

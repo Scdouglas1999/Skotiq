@@ -26,6 +26,8 @@ import '../../models/backend/event_types.dart';
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart' show NodeStatus;
 import 'run_dither_event.dart' show ditherPerformedDetailKind;
+import 'run_frame_assessment.dart'
+    show frameAssessedDetailKind, horizonObstructionDetailKind;
 import 'structured_progress_json.dart';
 
 /// One sequencer event, typed. See the library comment for the normalization
@@ -350,6 +352,118 @@ final class DitherPerformed extends SequencerRunEvent {
   });
 
   final String? nodeId;
+}
+
+/// The native frame watch's verdict on one saved frame: where it solved, how
+/// far from the target, the guide RMS during the exposure, the sky level, and
+/// whether it must stop counting. Carried on the wire as an
+/// `InstructionProgressStructured` with its own detail kind (see
+/// `run_frame_assessment.dart`).
+final class FrameAssessed extends SequencerRunEvent {
+  const FrameAssessed({
+    required super.eventType,
+    required super.timestamp,
+    required super.severity,
+    required this.solveAttempted,
+    required this.plateSolved,
+    required this.offTarget,
+    required this.obstructed,
+    this.nodeId,
+    this.savePath,
+    this.filter,
+    this.exposureSecs,
+    this.wasAccepted,
+    this.solvedRaDeg,
+    this.solvedDecDeg,
+    this.solvedRotationDeg,
+    this.solvedPixelScale,
+    this.offsetArcmin,
+    this.guideRmsTotal,
+    this.guideRmsSamples,
+    this.backgroundAdu,
+    this.starCount,
+    this.altitudeDeg,
+    this.azimuthDeg,
+    this.pierSide,
+    this.exclusionReason,
+  });
+
+  final String? nodeId;
+
+  /// The path the frame's `captured_images` row was written with: the save
+  /// path when accepted, the reject path when the grader rejected it.
+  final String? savePath;
+  final String? filter;
+  final double? exposureSecs;
+
+  /// The grader's verdict, before any exclusion below; null when the payload
+  /// did not say.
+  final bool? wasAccepted;
+  final bool solveAttempted;
+  final bool plateSolved;
+
+  /// Solved center in degrees (RA too), rotation in degrees, scale in
+  /// arcsec per pixel.
+  final double? solvedRaDeg;
+  final double? solvedDecDeg;
+  final double? solvedRotationDeg;
+  final double? solvedPixelScale;
+
+  /// Distance of the solved center from the target.
+  final double? offsetArcmin;
+
+  /// RMS of the guider's total-RMS samples over the exposure, in the
+  /// guider's units.
+  final double? guideRmsTotal;
+  final int? guideRmsSamples;
+  final double? backgroundAdu;
+  final int? starCount;
+  final double? altitudeDeg;
+  final double? azimuthDeg;
+  final String? pierSide;
+  final bool offTarget;
+  final bool obstructed;
+
+  /// Non-null when the frame must no longer count; starts with
+  /// `frameExclusionOffTargetPrefix` or `frameExclusionObstructedPrefix`.
+  final String? exclusionReason;
+
+  bool get isExcluded => exclusionReason != null && exclusionReason!.isNotEmpty;
+}
+
+/// A confirmed obstruction (trees, a roof) the run met while imaging, where
+/// it began on the sky and what the run did about it.
+final class HorizonObstructionDetected extends SequencerRunEvent {
+  const HorizonObstructionDetected({
+    required super.eventType,
+    required super.timestamp,
+    required super.severity,
+    required this.altitudeDeg,
+    required this.azimuthDeg,
+    this.nodeId,
+    this.targetName,
+    this.latitude,
+    this.longitude,
+    this.verdict,
+    this.action,
+    this.message,
+  });
+
+  final String? nodeId;
+  final double altitudeDeg;
+  final double azimuthDeg;
+  final String? targetName;
+
+  /// The run's site; null when the executor did not know it.
+  final double? latitude;
+  final double? longitude;
+  final String? verdict;
+
+  /// `next_target` or `end_of_night`.
+  final String? action;
+
+  /// The operator-facing sentence.
+  final String? message;
 }
 
 final class MeridianFlipOutcome extends SequencerRunEvent {
@@ -717,6 +831,21 @@ SequencerRunEvent _decode(SkotiqEvent event) {
       );
     case 'InstructionProgressStructured':
       final detailKind = d.string('detail_kind') ?? 'Unknown';
+      if (detailKind == frameAssessedDetailKind ||
+          detailKind == horizonObstructionDetailKind) {
+        final detail = decodeStructuredProgressJson(event.data['detail_json']);
+        final decoded = detail is Map
+            ? _decodeFrameWatchDetail(
+                detailKind,
+                Map<String, dynamic>.from(detail),
+                type: type,
+                timestamp: ts,
+                severity: sev,
+                nodeId: d.string('node_id'),
+              )
+            : null;
+        if (decoded != null) return decoded;
+      }
       if (detailKind == ditherPerformedDetailKind) {
         return DitherPerformed(
           eventType: type,
@@ -858,6 +987,66 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         data: event.data,
       );
   }
+}
+
+/// Decode a frame-watch payload; null when a field the event cannot do
+/// without is missing, so it falls through as plain structured progress.
+SequencerRunEvent? _decodeFrameWatchDetail(
+  String detailKind,
+  Map<String, dynamic> json, {
+  required String type,
+  required int timestamp,
+  required EventSeverity severity,
+  required String? nodeId,
+}) {
+  final f = _Fields(json);
+  if (detailKind == frameAssessedDetailKind) {
+    return FrameAssessed(
+      eventType: type,
+      timestamp: timestamp,
+      severity: severity,
+      nodeId: nodeId,
+      savePath: f.string('save_path'),
+      filter: f.string('filter'),
+      exposureSecs: f.real('exposure_secs'),
+      wasAccepted: f.boolean('was_accepted'),
+      // A flag the payload does not carry was not reported as true.
+      solveAttempted: f.boolean('solve_attempted') == true,
+      plateSolved: f.boolean('plate_solved') == true,
+      solvedRaDeg: f.real('solved_ra_deg'),
+      solvedDecDeg: f.real('solved_dec_deg'),
+      solvedRotationDeg: f.real('solved_rotation_deg'),
+      solvedPixelScale: f.real('solved_pixel_scale'),
+      offsetArcmin: f.real('offset_arcmin'),
+      guideRmsTotal: f.real('guide_rms_total'),
+      guideRmsSamples: f.integer('guide_rms_samples'),
+      backgroundAdu: f.real('background_adu'),
+      starCount: f.integer('star_count'),
+      altitudeDeg: f.real('altitude_deg'),
+      azimuthDeg: f.real('azimuth_deg'),
+      pierSide: f.string('pier_side'),
+      offTarget: f.boolean('off_target') == true,
+      obstructed: f.boolean('obstructed') == true,
+      exclusionReason: f.string('exclusion_reason'),
+    );
+  }
+  final altitude = f.real('altitude_deg');
+  final azimuth = f.real('azimuth_deg');
+  if (altitude == null || azimuth == null) return null;
+  return HorizonObstructionDetected(
+    eventType: type,
+    timestamp: timestamp,
+    severity: severity,
+    nodeId: nodeId,
+    altitudeDeg: altitude,
+    azimuthDeg: azimuth,
+    targetName: f.string('target_name'),
+    latitude: f.real('latitude'),
+    longitude: f.real('longitude'),
+    verdict: f.string('verdict'),
+    action: f.string('action'),
+    message: f.string('message'),
+  );
 }
 
 /// Lenient typed reads over an event `data` map: a missing key or a value of

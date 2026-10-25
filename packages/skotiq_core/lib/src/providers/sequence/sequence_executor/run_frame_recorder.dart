@@ -13,6 +13,7 @@ import '../../../services/logging_service.dart';
 import '../../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../../database_provider.dart' show imagesDaoProvider;
 import '../../equipment_provider.dart';
+import '../../frame_record_updates.dart';
 import '../../imaging_provider.dart';
 import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
@@ -67,6 +68,12 @@ class RunFrameRecorder {
   /// Frame persistence still in flight.
   final Set<Future<void>> _inFlight = <Future<void>>{};
 
+  /// How each recent graded frame was counted, by the path it was saved at,
+  /// so the frame watch's later exclusion moves it out of the bucket it was
+  /// counted in. Bounded: an assessment arrives within a frame or two.
+  final Map<String, _CountedFrame> _countedByPath = <String, _CountedFrame>{};
+  static const int _countedFramesKept = 64;
+
   /// The persistence futures in flight, for tests waiting on quiescence.
   List<Future<void>> get inFlightRegistrations => List.of(_inFlight);
 
@@ -79,8 +86,9 @@ class RunFrameRecorder {
   /// reported, the value the FITS header and the row are written from.
   void recordGraded(FrameGraded event) {
     final capture = event.capture;
-    recordRunFrame(
-      exposureSecs: capture.exposureSecs ?? 0.0,
+    final exposureSecs = capture.exposureSecs ?? 0.0;
+    final bucket = recordRunFrame(
+      exposureSecs: exposureSecs,
       filter: event.filter,
       accepted: event.accepted,
     );
@@ -88,6 +96,18 @@ class RunFrameRecorder {
     // star overlay can find it. A Smart Exposure frame never gets an
     // `ExposureCompleted`, so the verdict is where it goes on screen.
     final path = event.filePath;
+    if (path != null && path.isNotEmpty) {
+      _countedByPath.remove(path);
+      _countedByPath[path] = _CountedFrame(
+        target: bucket.target,
+        filter: bucket.filter,
+        exposureSecs: exposureSecs,
+        accepted: event.accepted,
+      );
+      while (_countedByPath.length > _countedFramesKept) {
+        _countedByPath.remove(_countedByPath.keys.first);
+      }
+    }
     showPreview(
       previewSettingsFor(capture, capture.exposureSecs ?? 0.0),
       filePath: path == null || path.isEmpty ? null : path,
@@ -101,25 +121,121 @@ class RunFrameRecorder {
   /// graded and still needs counting.
   bool takeVerdict(int frame) => _graded.remove(frame) != null;
 
-  /// Count one frame into the run's per-target, per-filter vitals.
-  void recordRunFrame({
+  /// Count one frame into the run's per-target, per-filter vitals; returns
+  /// the target and filter it was counted under.
+  ({String target, String filter}) recordRunFrame({
     required double exposureSecs,
     required bool accepted,
     String? filter,
   }) {
+    final resolvedFilter = (filter != null && filter.isNotEmpty)
+        ? filter
+        : activeFilter();
+    final bucket = (
+      target: _activeTargetName(),
+      filter: (resolvedFilter != null && resolvedFilter.isNotEmpty)
+          ? resolvedFilter
+          : 'Unknown',
+    );
     _stats.update((stats) {
-      final resolvedFilter = (filter != null && filter.isNotEmpty)
-          ? filter
-          : activeFilter();
       stats.recordFrame(
-        target: _activeTargetName(),
-        filter: (resolvedFilter != null && resolvedFilter.isNotEmpty)
-            ? resolvedFilter
-            : 'Unknown',
+        target: bucket.target,
+        filter: bucket.filter,
         exposureSecs: exposureSecs,
         accepted: accepted,
       );
     });
+    return bucket;
+  }
+
+  /// Apply the frame watch's assessment of a saved frame: an excluded frame
+  /// that was counted as accepted moves to the rejected count in the run
+  /// stats and the session (its time stops counting as integration), the
+  /// frame's guide RMS joins the session average, and the frame's row gets
+  /// its solve, sky background, guide RMS and exclusion. The row update waits
+  /// for the row's own insert; a frame with no row is logged, never dropped
+  /// silently.
+  void recordAssessment(FrameAssessed event) {
+    final path = event.savePath;
+    if (path == null || path.isEmpty) {
+      _logger.warning(
+        'Frame assessment arrived without a save path; its solve, guide RMS '
+        'and exclusion were not recorded.',
+        source: 'SequenceExecutor',
+      );
+      return;
+    }
+
+    final session = _ref.read(sessionStateProvider.notifier);
+    final exclusion = event.isExcluded ? event.exclusionReason : null;
+    if (exclusion != null) {
+      final counted = _countedByPath.remove(path);
+      if (counted != null && counted.accepted) {
+        _stats.update(
+          (stats) => stats.reclassifyAsRejected(
+            target: counted.target,
+            filter: counted.filter,
+            exposureSecs: counted.exposureSecs,
+          ),
+        );
+        session.excludeAcceptedFrame(exposureTime: counted.exposureSecs);
+      }
+    }
+    final rms = event.guideRmsTotal;
+    if (rms != null && (event.guideRmsSamples ?? 1) > 0) {
+      session.recordFrameGuidingRms(rms);
+    }
+
+    // Captured before the await: the update outlives the handler.
+    final logger = _logger;
+    final dao = _ref.read(imagesDaoProvider);
+    final tracker = _ref.read(frameRegistrationTrackerProvider);
+    final update = () async {
+      try {
+        await tracker.settled(path);
+        final row = await dao.getLatestImageByFilePath(path);
+        if (row == null) {
+          logger.warning(
+            'Frame assessment for $path matched no recorded frame; its solve, '
+            'guide RMS and exclusion were not saved.',
+            source: 'SequenceExecutor',
+          );
+          return;
+        }
+        final ra = event.solvedRaDeg;
+        final dec = event.solvedDecDeg;
+        final scale = event.solvedPixelScale;
+        if (event.plateSolved && ra != null && dec != null && scale != null) {
+          await writeFrameSolveToRow(
+            dao,
+            path,
+            raDegrees: ra,
+            decDegrees: dec,
+            rotationDegrees: event.solvedRotationDeg ?? 0.0,
+            pixelScaleArcsec: scale,
+          );
+        }
+        await dao.applyFrameAssessment(
+          row.id,
+          background: event.backgroundAdu,
+          guidingRmsTotal: rms,
+          pierSide: event.pierSide,
+          exclusionReason: exclusion,
+        );
+        if (exclusion != null && !_isDisposed()) {
+          _ref
+              .read(sessionImagesProvider.notifier)
+              .removeImage(row.id.toString());
+        }
+      } catch (e) {
+        logger.warning(
+          'Could not record the frame assessment of $path: $e',
+          source: 'SequenceExecutor',
+        );
+      }
+    }();
+    _inFlight.add(update);
+    unawaited(update.whenComplete(() => _inFlight.remove(update)));
   }
 
   /// The filter the run is exposing through: the Change Filter instruction's
@@ -417,6 +533,22 @@ class RunFrameRecorder {
       }
     }();
     _inFlight.add(registration);
+    _ref.read(frameRegistrationTrackerProvider).track(filePath, registration);
     unawaited(registration.whenComplete(() => _inFlight.remove(registration)));
   }
+}
+
+/// The bucket a graded frame was counted in.
+class _CountedFrame {
+  const _CountedFrame({
+    required this.target,
+    required this.filter,
+    required this.exposureSecs,
+    required this.accepted,
+  });
+
+  final String target;
+  final String filter;
+  final double exposureSecs;
+  final bool accepted;
 }

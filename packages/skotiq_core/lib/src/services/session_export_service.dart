@@ -566,7 +566,7 @@ class SessionExportService {
 
   <section class="grid">
     <div class="card"><div class="muted">Integration</div><strong>${totalIntegrationHours.toStringAsFixed(2)} h</strong></div>
-    <div class="card"><div class="muted">Exposures</div><strong>${session.successfulExposures}/${session.totalExposures}</strong>${_source('returned by the camera')}</div>
+    <div class="card"><div class="muted">Exposures</div><strong>${session.successfulExposures}/${session.totalExposures}</strong>${_source('accepted of all captures')}</div>
     <div class="card"><div class="muted">Frames Kept</div><strong>${grading.accepted}/${grading.lights}</strong>${_source(keptPercent == null ? 'no light frames recorded' : '${keptPercent.toStringAsFixed(1)}% kept, ${grading.rejected} rejected')}</div>
     <div class="card"><div class="muted">Autofocus Runs</div><strong>${session.autofocusCount}</strong></div>
   </section>

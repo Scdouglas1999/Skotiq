@@ -424,8 +424,9 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
                 size: ReadoutSize.sm,
               ),
               Readout(
+                // Failed captures plus rejected or excluded frames.
                 value: '${session.failedExposures}',
-                label: 'Failed',
+                label: 'Not kept',
                 size: ReadoutSize.sm,
               ),
             ],

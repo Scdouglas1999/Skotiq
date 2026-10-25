@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,8 @@ import '../models/backend/event_types.dart'
     show EventCategory, SkotiqEvent, settingsChangedEventType;
 import 'database_provider.dart';
 import 'backend_provider.dart';
+import 'frame_watch_settings_provider.dart';
+import '../services/scheduler/horizon_profile.dart' as scheduler;
 import 'host_settings/host_settings_providers.dart';
 import '../models/plate_solver.dart';
 import '../services/plate_solve_service.dart';
@@ -391,10 +394,25 @@ class HorizonProfile {
   /// one sample cannot be interpolated and is already a flat horizon.
   final List<({double azimuth, double altitude})> _samples;
 
+  /// Obstructions a run met at this site. Each blocks a narrow band of
+  /// azimuth up to just above where it was seen; the effective horizon is the
+  /// higher of these and the profile above, which they never change.
+  final List<LearnedObstructionPoint> _learned;
+
   HorizonProfile(
     this._altitudes, {
     List<({double azimuth, double altitude})> samples = const [],
-  }) : _samples = _normalizeSamples(samples);
+    List<LearnedObstructionPoint> learned = const [],
+  }) : _samples = _normalizeSamples(samples),
+       _learned = List.unmodifiable(learned);
+
+  /// This profile with the obstructions learned at the site added.
+  HorizonProfile withLearnedObstructions(
+    List<LearnedObstructionPoint> learned,
+  ) => HorizonProfile(_altitudes, samples: _samples, learned: learned);
+
+  /// How many learned obstructions are merged into this profile.
+  int get learnedObstructionCount => _learned.length;
 
   /// How many samples back this profile — 0 when it is the 8-sector mask
   /// alone. The import message reports this.
@@ -472,6 +490,15 @@ class HorizonProfile {
   /// points. Every visibility decision in the app funnels through here, so
   /// this is the one place that has to know the difference.
   double altitudeAtAzimuth(double azimuthDeg) {
+    final base = _profileAltitudeAt(azimuthDeg);
+    if (_learned.isEmpty) return base;
+    final learned = learnedObstructionAltitudeAt(_learned, azimuthDeg);
+    return learned == null ? base : math.max(base, learned);
+  }
+
+  /// The profile's own altitude at [azimuthDeg], without learned
+  /// obstructions.
+  double _profileAltitudeAt(double azimuthDeg) {
     // Normalize azimuth to 0-360
     var az = azimuthDeg % 360.0;
     if (az < 0) az += 360.0;
@@ -618,8 +645,50 @@ class HorizonProfile {
     return result;
   }
 
-  /// Whether this profile is all zeros (flat horizon)
-  bool get isFlat => _altitudes.values.every((v) => v == 0.0);
+  /// Whether this profile is all zeros (flat horizon) with no learned
+  /// obstruction.
+  bool get isFlat =>
+      _learned.isEmpty && _altitudes.values.every((v) => v == 0.0);
+
+  /// The effective horizon as (azimuth, altitude) samples every [stepDeg]
+  /// degrees, plus both edges of every learned obstruction's band, so a
+  /// consumer that interpolates linearly between samples keeps the bands'
+  /// edges sharp.
+  List<({double azimuth, double altitude})> denseSamples({
+    double stepDeg = 1.0,
+  }) {
+    final azimuths = <double>{
+      for (var az = 0.0; az < 360.0; az += stepDeg) az,
+      for (final p in _learned) ...[
+        for (final edge in [
+          p.azimuthDeg - learnedObstructionHalfWidthDeg,
+          p.azimuthDeg + learnedObstructionHalfWidthDeg,
+        ]) ...[
+          _wrapAz(edge),
+          _wrapAz(edge + (edge < p.azimuthDeg ? -0.01 : 0.01)),
+        ],
+      ],
+    }.toList()..sort();
+    return [
+      for (final az in azimuths) (azimuth: az, altitude: altitudeAtAzimuth(az)),
+    ];
+  }
+
+  /// The effective horizon as the scheduler's samples-based profile, for
+  /// plans that carry their own horizon (a Target Scheduler node).
+  scheduler.HorizonProfile toSchedulerProfile({String name = 'Site horizon'}) =>
+      scheduler.HorizonProfile(
+        name: name,
+        samples: [
+          for (final s in denseSamples())
+            scheduler.HorizonSample(s.azimuth, s.altitude),
+        ],
+      );
+
+  static double _wrapAz(double az) {
+    final v = az % 360.0;
+    return v < 0 ? v + 360.0 : v;
+  }
 
   /// Build a profile from arbitrary (azimuth, altitude) samples.
   ///
@@ -704,10 +773,32 @@ final bortleClassProvider = Provider<int>((ref) {
 });
 
 /// Focused provider for parsed horizon profile.
+///
+/// The operator's profile with the obstructions the runs learned at the
+/// current site merged in (see [userHorizonProfileProvider] for the profile
+/// alone, which is what the horizon editor edits).
 final horizonProfileProvider = Provider<HorizonProfile>((ref) {
-  final settingsAsync = ref.watch(appSettingsProvider);
-  final json =
-      settingsAsync.valueOrNull?.horizonProfileJson ??
-      '{"N":0,"NE":0,"E":0,"SE":0,"S":0,"SW":0,"W":0,"NW":0}';
+  final profile = ref.watch(userHorizonProfileProvider);
+  final site = ref.watch(appObserverLocationProvider);
+  if (site == null) return profile;
+  final learned =
+      ref
+          .watch(frameWatchSettingsProvider)
+          .valueOrNull
+          ?.pointsForSite(site.latitude, site.longitude) ??
+      const <LearnedObstructionPoint>[];
+  if (learned.isEmpty) return profile;
+  return profile.withLearnedObstructions(learned);
+});
+
+/// The operator's own horizon profile, without learned obstructions.
+final userHorizonProfileProvider = Provider<HorizonProfile>((ref) {
+  final json = ref.watch(
+    appSettingsProvider.select(
+      (settingsAsync) =>
+          settingsAsync.valueOrNull?.horizonProfileJson ??
+          '{"N":0,"NE":0,"E":0,"SE":0,"S":0,"SW":0,"W":0,"NW":0}',
+    ),
+  );
   return HorizonProfile.fromJson(json);
 });

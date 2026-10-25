@@ -18,6 +18,7 @@ import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
+import 'learned_obstructions_section.dart';
 import 'settings_widgets.dart';
 
 part 'location_settings_parts/_timezone_data.dart';
@@ -655,6 +656,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 ],
               ],
             ),
+            LearnedObstructionsSection(isMobile: widget.isMobile),
             SettingsSection(
               title: 'Time',
               isMobile: widget.isMobile,

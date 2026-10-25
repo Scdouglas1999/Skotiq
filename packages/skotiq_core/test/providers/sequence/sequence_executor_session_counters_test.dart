@@ -153,10 +153,11 @@ void main() {
       final row = await db.sessionsDao.getSessionById(sessionId!);
       expect(row, isNotNull);
 
-      // Every frame completed a capture — including the rejected one, whose
-      // shutter did open.
+      // Every frame is a capture, including the rejected one; only the
+      // accepted ones are successful, and the reject counts as failed.
       expect(row!.totalExposures, 4);
-      expect(row.successfulExposures, 4);
+      expect(row.successfulExposures, 3);
+      expect(row.failedExposures, 1);
       // Only accepted frames buy integration time.
       expect(row.totalIntegrationSecs, closeTo(3 * _exposureSecs, 0.001));
       // HFR is averaged over accepted frames only.

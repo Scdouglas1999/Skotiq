@@ -21,6 +21,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/preview_transform.dart';
 import '../../../widgets/catalog_overlay_widget.dart';
+import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 import '../../imaging/widgets/image_display.dart';
 import '../../imaging/widgets/overlay_painters.dart';

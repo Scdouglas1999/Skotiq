@@ -60,10 +60,14 @@ _PillText _stripPill(BuildContext context, StripFrameVm frame, {String? time}) {
   return _PillText(
     title: _stripTitle(frame) ?? l10n.text('nightCtrFrame'),
     time: time ?? nightClockHms(frame.capturedAt),
-    status: switch (accepted) {
-      true => l10n.text('nightCtrAccepted'),
-      false => l10n.text('nightCtrRejected'),
-      null => null,
+    status: switch ((accepted, frame.exclusion)) {
+      (false, final FrameExclusionKind kind) => frameExclusionLabel(
+          context,
+          kind,
+        ),
+      (true, _) => l10n.text('nightCtrAccepted'),
+      (false, _) => l10n.text('nightCtrRejected'),
+      (null, _) => null,
     },
     statusTone: switch (accepted) {
       true => _PillTone.good,

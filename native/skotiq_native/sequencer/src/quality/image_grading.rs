@@ -15,11 +15,11 @@
 //!   global settings, so an operator can disable grading on a specific
 //!   smart-exposure burst while keeping it active globally.
 //! * **Baseline computation**: `hfr_baseline_percent` compares the current
-//!   frame's HFR against a rolling baseline of the first 5 accepted
-//!   frames. This catches sky-quality degradation that absolute thresholds
-//!   miss (a dry-air HFR of 2.4 px is great; the same field at 3.6 px the
-//!   next night is everyone-pack-up bad — `hfr_baseline_percent: 50` would
-//!   flag it).
+//!   frame's HFR against the median of the recent accepted frames of its
+//!   target and filter. This catches a frame that went soft or trailed
+//!   against its neighbors where an absolute threshold set for the whole
+//!   night does not (3.15 px next to 2.0 px frames is bad; 3.15 px on a
+//!   night of poor seeing is not).
 //! * **Consecutive-reject notice**: 3 in a row tells the operator once for
 //!   that streak, because no amount of averaging will fix a systematic
 //!   failure (focus walked off, cloud bank moved through, dome failed to
@@ -35,14 +35,14 @@
 //!   would be skipped and a clouded-out or badly trailed frame would pass on
 //!   the strength of having been unmeasurable. See `grade_frame`.
 //! * **Star count against the frame's own baseline.** The count a sky gives
-//!   depends on the field, filter and exposure, so a fixed floor either never
-//!   fires or rejects a sparse field. The baseline is the median count of the
-//!   first accepted frames of the same target and filter; a frame that keeps
-//!   too small a fraction of it lost its stars to cloud, trailing or a missed
-//!   slew.
+//!   depends on the field, filter, exposure and altitude, so a fixed floor
+//!   either never fires or rejects a sparse field. The baseline is the median
+//!   of the recent accepted frames of the same target and filter, scaled to
+//!   the frame's airmass (see [`super::filter_baseline`]); a frame that keeps
+//!   too small a fraction of it lost its stars to an obstruction, cloud,
+//!   trailing or a missed slew.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Default number of accepted frames blended into the baseline before the
 /// `hfr_baseline_percent` check becomes active.
@@ -82,8 +82,10 @@ pub struct ImageQualityCheck {
     /// Reject if HFR exceeds this absolute pixel value.
     pub hfr_threshold: Option<f64>,
     /// Reject if HFR exceeds `baseline * (1 + percent / 100)`. Baseline
-    /// is the median of the first `DEFAULT_HFR_BASELINE_WINDOW` accepted
-    /// frames of the current target.
+    /// is the median HFR of the recent accepted frames of the same target and
+    /// filter (see [`super::filter_baseline`]), or of the run's first
+    /// `DEFAULT_HFR_BASELINE_WINDOW` accepted frames until that filter has
+    /// one.
     pub hfr_baseline_percent: Option<f64>,
     /// Reject if the eccentricity (axis-ratio derived measure of star
     /// roundness) exceeds this value. 0.6 is a 1.25:1 smear (tight guiding
@@ -98,7 +100,7 @@ pub struct ImageQualityCheck {
     pub star_count_min: Option<u32>,
     /// Reject if the star count falls more than this percent below the
     /// baseline of the same target and filter (50 = fewer than half the
-    /// baseline's stars). See [`StarCountBaseline`].
+    /// baseline's stars). See [`super::filter_baseline::FilterBaseline`].
     #[serde(default)]
     pub star_count_drop_percent: Option<f64>,
     /// Notify the operator once when this many frames in a row have been
@@ -291,7 +293,7 @@ pub fn grade_frame_with_baselines(
         if count < min {
             return FrameGrade::Reject {
                 reason: format!(
-                    "star count {} below minimum {} (likely cloud / off-target)",
+                    "star count {} below minimum {} (possible obstruction or cloud, or an off-target frame)",
                     count, min
                 ),
                 hfr: metrics.hfr,
@@ -312,7 +314,7 @@ pub fn grade_frame_with_baselines(
             return FrameGrade::Reject {
                 reason: format!(
                     "star count {} is {:.0}% of this filter's baseline {:.0} (limit {:.0}%; \
-                     likely cloud, trailing or an off-target frame)",
+                     possible obstruction or cloud, trailing, or an off-target frame)",
                     count,
                     100.0 * f64::from(count) / baseline,
                     baseline,
@@ -328,49 +330,9 @@ pub fn grade_frame_with_baselines(
     FrameGrade::Pass
 }
 
-/// The star-count baseline of one target and filter: the median count of its
-/// first [`STAR_COUNT_BASELINE_WINDOW`] accepted frames, fixed from then on.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct StarCountBaseline {
-    samples: Vec<u32>,
-    baseline: Option<f64>,
-}
-
-impl StarCountBaseline {
-    pub fn baseline(&self) -> Option<f64> {
-        self.baseline
-    }
-
-    /// Add an accepted frame's star count. Zero counts are not samples.
-    pub fn record(&mut self, count: Option<u32>) {
-        if self.baseline.is_some() {
-            return;
-        }
-        let Some(count) = count.filter(|&c| c > 0) else {
-            return;
-        };
-        self.samples.push(count);
-        if self.samples.len() >= STAR_COUNT_BASELINE_WINDOW {
-            let mut sorted = self.samples.clone();
-            sorted.sort_unstable();
-            let mid = sorted.len() / 2;
-            self.baseline = Some(if sorted.len() % 2 == 1 {
-                f64::from(sorted[mid])
-            } else {
-                (f64::from(sorted[mid - 1]) + f64::from(sorted[mid])) / 2.0
-            });
-        }
-    }
-}
-
-/// Star-count baselines of a run, one per target and filter.
-pub type StarCountBaselines =
-    std::sync::Arc<tokio::sync::RwLock<HashMap<String, StarCountBaseline>>>;
-
-/// Key of a frame's star-count baseline.
-pub fn star_count_baseline_key(target: Option<&str>, filter: Option<&str>) -> String {
-    format!("{}\u{1f}{}", target.unwrap_or(""), filter.unwrap_or(""))
-}
+/// Star-count and HFR baselines of a run, one per target and filter. See
+/// [`super::filter_baseline`].
+pub type StarCountBaselines = super::filter_baseline::FilterBaselines;
 
 /// Update the rolling HFR baseline with a newly-accepted frame.
 ///
@@ -880,32 +842,6 @@ mod tests {
         };
         assert!(grade_frame_with_baselines(&check, &metrics, None, None).is_pass());
         assert!(grade_frame(&check, &metrics, None).is_pass());
-    }
-
-    #[test]
-    fn a_star_count_baseline_is_the_median_of_the_first_frames_and_then_fixed() {
-        let mut baseline = StarCountBaseline::default();
-        baseline.record(Some(2183));
-        baseline.record(Some(0));
-        baseline.record(None);
-        baseline.record(Some(2301));
-        assert_eq!(baseline.baseline(), None);
-        baseline.record(Some(2222));
-        assert_eq!(baseline.baseline(), Some(2222.0));
-        baseline.record(Some(10));
-        assert_eq!(baseline.baseline(), Some(2222.0));
-    }
-
-    #[test]
-    fn star_count_baselines_are_kept_per_target_and_filter() {
-        assert_ne!(
-            star_count_baseline_key(Some("NGC 891"), Some("L")),
-            star_count_baseline_key(Some("NGC 891"), Some("R"))
-        );
-        assert_ne!(
-            star_count_baseline_key(Some("NGC 891"), Some("L")),
-            star_count_baseline_key(Some("M 31"), Some("L"))
-        );
     }
 
     /// A per-node check saved before the star-count drop existed still loads,

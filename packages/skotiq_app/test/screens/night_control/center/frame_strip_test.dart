@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
+import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/widgets/frame_exclusion_badge.dart';
+import 'package:skotiq_core/skotiq_core.dart' show FrameExclusionKind;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';
@@ -37,6 +40,52 @@ void main() {
     // #43 is the newest.
     expect(
         find.bySemanticsLabel(RegExp(r'^Frame #43.*newest$')), findsOneWidget);
+    handle.dispose();
+  });
+
+  testWidgets('a frame the frame watch excluded is badged and labeled',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    final board = NightFixtures.running();
+    final frames = <StripFrameVm>[
+      for (final f in board.frames)
+        f.frameNumber == 40
+            ? StripFrameVm(
+                id: f.id,
+                frameNumber: f.frameNumber,
+                capturedAt: f.capturedAt,
+                filter: f.filter,
+                exposureSecs: f.exposureSecs,
+                hfr: f.hfr,
+                starCount: 140,
+                accepted: false,
+                exclusion: FrameExclusionKind.obstructed,
+                isNewest: f.isNewest,
+              )
+            : f,
+    ];
+    await pumpCenter(
+      tester,
+      centerOverrides(board, frames: frames),
+      child: const FrameStrip(),
+      size: const Size(1000, FrameStrip.height),
+    );
+    expect(
+      find.bySemanticsLabel(RegExp(r'^Frame #40, Ha 180 s, HFR [0-9.]+, '
+          r'Obstructed')),
+      findsOneWidget,
+    );
+    final badge = tester.widget<FrameExclusionBadge>(
+      find.byType(FrameExclusionBadge),
+    );
+    expect(badge.kind, FrameExclusionKind.obstructed);
+    expect(badge.compact, isTrue);
+    // The ordinary reject keeps its plain label and no badge.
+    expect(
+      find.bySemanticsLabel(
+          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05, Rejected')),
+      findsOneWidget,
+    );
     handle.dispose();
   });
 

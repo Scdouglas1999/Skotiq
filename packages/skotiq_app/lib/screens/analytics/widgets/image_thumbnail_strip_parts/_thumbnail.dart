@@ -297,7 +297,19 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                               ],
                             ),
                           ),
-                          if (!widget.image.isAccepted)
+                          if (!widget.image.isAccepted &&
+                              frameExclusionKindOf(
+                                    widget.image.rejectionReason,
+                                  ) !=
+                                  null)
+                            Positioned(
+                              bottom: 4,
+                              left: 4,
+                              child: FrameExclusionBadge.forReason(
+                                widget.image.rejectionReason,
+                              ),
+                            )
+                          else if (!widget.image.isAccepted)
                             Positioned(
                               bottom: 4,
                               left: 4,

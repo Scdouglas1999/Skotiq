@@ -7,6 +7,7 @@ import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
+import '../../frame_watch_settings_provider.dart';
 import '../../focuser_backlash_provider.dart'
     show measuredFocuserBacklashStepsProvider;
 import '../../meridian_flip_provider.dart';
@@ -192,6 +193,7 @@ class SequenceSerializer {
     final metadata = <String, String>{
       'autofocus_every_minutes': autoFocusEveryMinutes.toString(),
       'autofocus_on_filter_change': autoFocusOnFilterChange.toString(),
+      'frame_watch': _frameWatchMetadata(),
     };
 
     return jsonEncode({
@@ -202,6 +204,23 @@ class SequenceSerializer {
       'root_node_id': sequence.rootNodeId,
       'metadata': metadata,
     });
+  }
+
+  /// The frame watch's settings for this run, as the JSON string the native
+  /// executor reads from `metadata["frame_watch"]`: the drift limit, whether
+  /// obstruction detection runs, and the obstructions learned at the current
+  /// site. Defaults when the settings have not loaded.
+  String _frameWatchMetadata() {
+    final settings =
+        _ref.read(frameWatchSettingsProvider).valueOrNull ??
+        const FrameWatchSettings();
+    final site = _ref.read(appObserverLocationProvider);
+    return jsonEncode(
+      settings.sequenceMetadata(
+        latitude: site?.latitude,
+        longitude: site?.longitude,
+      ),
+    );
   }
 
   Map<String, dynamic> autofocusRuntimeConfig(

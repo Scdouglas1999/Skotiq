@@ -198,6 +198,9 @@ pub(crate) struct ScriptedDeviceOps {
     pub(crate) guide_star: Arc<Mutex<Option<crate::GuideStarQuality>>>,
     /// A mount with a moving pointing; `None` keeps the fixed null pointing.
     sim_mount: Arc<Mutex<Option<SimMount>>>,
+    /// Where a mount that follows its slews points (RA hours, Dec degrees);
+    /// `None` answers as the null mount does. Set it to make slews arrive.
+    pub(crate) pointing: Arc<Mutex<Option<(f64, f64)>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -232,6 +235,7 @@ impl ScriptedDeviceOps {
             guide_drag_deg: Arc::new(Mutex::new(0.0)),
             guide_star: Arc::new(Mutex::new(None)),
             sim_mount: Arc::new(Mutex::new(None)),
+            pointing: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -457,7 +461,12 @@ impl DeviceOps for ScriptedDeviceOps {
             mount.since = now;
             mount.settle_until = Some(now + std::time::Duration::from_secs_f64(mount.settle_secs));
         }
-        self.inner.mount_slew_to_coordinates(id, ra, dec).await
+        let result = self.inner.mount_slew_to_coordinates(id, ra, dec).await;
+        let mut pointing = self.pointing.lock().unwrap();
+        if pointing.is_some() {
+            *pointing = Some((ra, dec));
+        }
+        result
     }
     async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
         self.inner.mount_abort_slew(id).await
@@ -465,6 +474,9 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn mount_get_coordinates(&self, _id: &str) -> DeviceResult<(f64, f64)> {
         if let Some(mount) = self.sim_mount.lock().unwrap().as_ref() {
             return Ok(mount.pointing(tokio::time::Instant::now()));
+        }
+        if let Some(pointing) = *self.pointing.lock().unwrap() {
+            return Ok(pointing);
         }
         Ok(*self.mount_position.lock().unwrap())
     }

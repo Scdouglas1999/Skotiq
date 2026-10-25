@@ -11,6 +11,8 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../../services/logging_service.dart';
 import '../../../utils/remote_path.dart';
 import '../../equipment_provider.dart';
+import '../../frame_watch_settings_provider.dart';
+import '../../settings_provider.dart' show appObserverLocationProvider;
 import '../../focuser_backlash_provider.dart'
     show focuserBacklashOfferSessionProvider;
 import '../../plugin_node_dispatcher.dart';
@@ -215,6 +217,10 @@ class RunEventHandler {
         _persistDepthGoalDecision(event);
       case DecisionLogged():
         _persistReplayDecision(event);
+      case FrameAssessed():
+        _frames.recordAssessment(event);
+      case HorizonObstructionDetected():
+        _onHorizonObstruction(event, progressNotifier);
       case DitherPerformed() || RunCancelled() || UnrecognizedSequencerEvent():
         break;
     }
@@ -248,9 +254,11 @@ class RunEventHandler {
     final nodeStatus = event.nodeStatus ?? NodeStatus.failure;
     progressNotifier.updateNodeStatus(nodeId, nodeStatus);
     // An autofocus is counted by what the node did (its structured progress
-    // was an Autofocus detail), never by its operator-editable name.
+    // was an Autofocus detail), never by its operator-editable name. The run
+    // stats and the session row count the same sweeps.
     if (nodeStatus == NodeStatus.success && _nodeRanAutofocus(nodeId)) {
       _stats.update((stats) => stats.recordAutofocus());
+      _ref.read(sessionStateProvider.notifier).incrementAutofocusCount();
       _noteAutofocusOutcomeForBacklashOffer();
     }
     // A status Dart has not learned yet reads as a failure; carry the raw
@@ -479,6 +487,54 @@ class RunEventHandler {
       return;
     }
     _onTerminal(SequenceExecutionState.completed, 'completed');
+  }
+
+  /// Learn the obstruction the run met at this site, so planning keeps clear
+  /// of it, and put the run's account of it on the run record.
+  void _onHorizonObstruction(
+    HorizonObstructionDetected event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final site = _ref.read(appObserverLocationProvider);
+    final latitude = event.latitude ?? site?.latitude;
+    final longitude = event.longitude ?? site?.longitude;
+    final point = LearnedObstructionPoint(
+      azimuthDeg: event.azimuthDeg,
+      altitudeDeg: event.altitudeDeg,
+      latitude: latitude,
+      longitude: longitude,
+      recordedAt: DateTime.fromMillisecondsSinceEpoch(event.timestamp).toUtc(),
+      targetName: event.targetName,
+    );
+    final logger = _logger;
+    unawaited(
+      _ref
+          .read(frameWatchSettingsProvider.notifier)
+          .addLearnedPoint(point)
+          .catchError((Object e) {
+            logger.warning(
+              'Could not remember the obstruction at alt '
+              '${event.altitudeDeg.toStringAsFixed(1)} deg, az '
+              '${event.azimuthDeg.toStringAsFixed(1)} deg: $e',
+              source: 'SequenceExecutor',
+            );
+          }),
+    );
+    if (latitude == null || longitude == null) {
+      logger.warning(
+        'Obstruction at az ${event.azimuthDeg.toStringAsFixed(1)} deg was '
+        'recorded without a site, so planning cannot use it. Set the site '
+        'location in Settings > Location.',
+        source: 'SequenceExecutor',
+      );
+    }
+    final message =
+        event.message ??
+        'Obstruction at alt ${event.altitudeDeg.toStringAsFixed(1)} deg, az '
+            '${event.azimuthDeg.toStringAsFixed(1)} deg'
+            '${event.targetName == null ? '' : ' on ${event.targetName}'}.';
+    _warn(message);
+    progressNotifier.updateProgress(message: message);
   }
 
   /// A native `Stopped` this executor did not command came from the native

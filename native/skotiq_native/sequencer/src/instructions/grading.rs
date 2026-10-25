@@ -289,6 +289,15 @@ pub(crate) async fn save_uncorrected_raw_frame(
     }
 }
 
+/// The current altitude of the run's target, for the airmass of a frame's
+/// baseline. `None` without a target or an observer location.
+pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
+    let (ra_hours, dec) = (ctx.target_ra?, ctx.target_dec?);
+    let (lat, lon) = (ctx.latitude?, ctx.longitude?);
+    let (alt, _) = crate::meridian::calculate_alt_az(ra_hours, dec, lat, lon, chrono::Utc::now());
+    Some(alt)
+}
+
 /// Resolve the directory where rejected frames go.
 ///
 /// * `override_path = None`: use `<base>/Reject/`.
@@ -649,11 +658,22 @@ pub(crate) async fn emit_grade_progress(
             // reject. Told once, at the crossing: `consecutive` resets to 0 on
             // the next accepted frame, so a later streak is told about again.
             if max_consecutive > 0 && consecutive == max_consecutive {
+                let pointing = match (capture.mount_altitude_deg, capture.mount_azimuth_deg) {
+                    (Some(alt), Some(az)) => format!(" at alt {alt:.1}°, az {az:.1}°"),
+                    _ => String::new(),
+                };
                 let notice = format!(
                     "Image grading: {} frames in a row rejected (notify limit {}), most recently \
-                     frame {}/{}: {}. The run continues and every frame is kept; rejects are in \
+                     frame {}/{}{}: {}. The run continues and every frame is kept; rejects are in \
                      the Reject folder. Accepted so far: {}, rejected: {}.",
-                    consecutive, max_consecutive, frame, total, reason, accepted, rejected,
+                    consecutive,
+                    max_consecutive,
+                    frame,
+                    total,
+                    pointing,
+                    reason,
+                    accepted,
+                    rejected,
                 );
                 tracing::warn!("{}", notice);
                 if let Some(event_tx) = &ctx.event_tx {

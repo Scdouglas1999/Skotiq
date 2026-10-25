@@ -792,10 +792,10 @@ class _SessionReviewBar extends StatelessWidget {
                       child: Text(
                         '${session.name ?? 'Session ${session.id}'}'
                         '  ·  ${format.format(session.startTime)}'
-                        // "frames returned": `successful_exposures` counts
-                        // what the camera handed back, not what the culling
-                        // kept.
-                        '  ·  ${session.successfulExposures} frames returned',
+                        // `successful_exposures` is the frames kept and
+                        // `total_exposures` every capture.
+                        '  ·  ${session.successfulExposures}/'
+                        '${session.totalExposures} frames kept',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: SkotiqTypography.bodySm

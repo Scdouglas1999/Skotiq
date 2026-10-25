@@ -18,6 +18,7 @@ class StripFrameVm {
     this.hfr,
     this.starCount,
     this.accepted,
+    this.exclusion,
     this.thumbnailPath,
     this.filePath,
   });
@@ -37,6 +38,10 @@ class StripFrameVm {
   /// True accepted, false rejected (dimmed, error-tone HFR), null when the
   /// frame was never graded.
   final bool? accepted;
+
+  /// Why the run's frame watch took the frame out of the accepted set (off
+  /// target, obstructed), or null.
+  final FrameExclusionKind? exclusion;
 
   /// The thumbnail sidecar, when one was written.
   final String? thumbnailPath;
@@ -58,6 +63,7 @@ class StripFrameVm {
       other.hfr == hfr &&
       other.starCount == starCount &&
       other.accepted == accepted &&
+      other.exclusion == exclusion &&
       other.thumbnailPath == thumbnailPath &&
       other.filePath == filePath &&
       other.isNewest == isNewest;
@@ -72,6 +78,7 @@ class StripFrameVm {
         hfr,
         starCount,
         accepted,
+        exclusion,
         thumbnailPath,
         filePath,
         isNewest,

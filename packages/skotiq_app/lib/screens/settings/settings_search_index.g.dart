@@ -365,15 +365,18 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'image-grading': [
     'Auto-integrate at end of run',
+    'Detect obstructions',
     'Eccentricity max',
     'Enable image grading',
     'Focus thresholds',
+    'Frame watch',
     'HFR absolute (pixels)',
     'HFR baseline percent',
     'Image grading',
     'Master toggle',
     'Notify after consecutive rejects',
     'Post-session integration',
+    'Recenter after drift',
     'Reject folder',
     'Reject folder path',
     'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
@@ -382,6 +385,8 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.',
     'Star count min',
     'Star shape thresholds',
+    'Watch for trees or a roof entering the field: stars fade while',
+    'When a solved frame is farther from the target than this share',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
     'When on, the accepted subs are integrated into an',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
@@ -420,6 +425,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Google Geolocation API key',
     'Height above sea level',
     'Latitude',
+    'Learned obstructions',
     'Limiting magnitude',
     'Local horizon mask',
     'Location',
@@ -992,6 +998,10 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'HFR baseline percent',
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.':
         'Notify after consecutive rejects',
+    'Watch for trees or a roof entering the field: stars fade while':
+        'Detect obstructions',
+    'When a solved frame is farther from the target than this share':
+        'Recenter after drift',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.':
         'Enable image grading',
     'When on, the accepted subs are integrated into an':

@@ -15,13 +15,15 @@ import 'package:skotiq_core/skotiq_core.dart'
         FramePhotometricCalibrationRow,
         FrameQualityAssessment,
         FrameQualityAssessmentService,
-        FrameQualityLevel;
+        FrameQualityLevel,
+        frameExclusionKindOf;
 
 import '../../../utils/snackbar_helper.dart';
 import '../analytics_screen.dart' show dbSessionImagesProvider;
 import '../../../utils/filter_label.dart';
 import 'frame_detail_dialog.dart';
 import '../../../utils/image_decode_size.dart';
+import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 
 part 'image_thumbnail_strip_parts/_chips.dart';

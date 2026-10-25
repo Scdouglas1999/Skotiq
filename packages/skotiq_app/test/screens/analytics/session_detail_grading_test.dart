@@ -1,12 +1,11 @@
 // What the Analytics session dialog says about a night whose frames were all
 // culled.
 //
-// `imaging_sessions.successful_exposures` counts what the CAMERA returned, and
-// the dialog labelled it "Successful". A night whose six subs were every one of
-// them rejected for low star count therefore read "Successful 6 · Failed 0"
-// directly above its own six cards each stamped REJECTED — the fourth surface
-// in this family to publish the camera's tally as a verdict, after the sessions
-// API, the exported HTML report and the observation report were each corrected.
+// A night whose six subs were every one of them rejected for low star count
+// once read "Successful 6 · Failed 0" above its own six cards each stamped
+// REJECTED. The accepted and rejected split is counted from the frames, which
+// also covers rows written before the session row kept that split (the
+// fixture below is such a row: successful 6 of 6).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,7 +134,7 @@ void main() {
       // nothing.
       // Both figures are Readouts now, so the label and the value are one
       // widget and the test no longer has to guess which Column pairs them.
-      expect(_readout(tester, 'Frames returned').value, '6');
+      expect(_readout(tester, 'Frames').value, '6');
       expect(_readout(tester, 'Rejected').value, '6');
     },
   );
@@ -147,7 +146,7 @@ void main() {
         for (var id = 1; id <= 6; id++) _light(id: id, accepted: true),
       ]);
 
-      expect(_readout(tester, 'Frames returned').value, '6');
+      expect(_readout(tester, 'Frames').value, '6');
       expect(_readouts(tester, 'Rejected'), isEmpty);
     },
   );
@@ -162,8 +161,8 @@ void main() {
 
       expect(_readouts(tester, 'Successful', within: _dialog), isEmpty);
 
-      // Accepted 0, Rejected 6, beside the camera's own 6.
-      expect(_readout(tester, 'Camera Returned', within: _dialog).value, '6');
+      // Accepted 0, Rejected 6 of 6 captures.
+      expect(_readout(tester, 'Total exposures', within: _dialog).value, '6');
       expect(_readout(tester, 'Accepted', within: _dialog).value, '0');
       expect(_readout(tester, 'Rejected', within: _dialog).value, '6');
     },
@@ -175,7 +174,7 @@ void main() {
       _light(id: 6, accepted: false),
     ]);
 
-    expect(_readout(tester, 'Camera Returned', within: _dialog).value, '6');
+    expect(_readout(tester, 'Total exposures', within: _dialog).value, '6');
     expect(_readout(tester, 'Accepted', within: _dialog).value, '5');
     expect(_readout(tester, 'Rejected', within: _dialog).value, '1');
   });

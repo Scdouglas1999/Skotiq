@@ -180,7 +180,10 @@ impl TriggerManager {
     }
 
     /// Evaluate every trigger and return the ones that fired. Nothing here
-    /// starts a cooldown; see [`Firing`].
+    /// starts a cooldown; see [`Firing`]. While
+    /// [`TriggerState::autofocus_hold`] is set an autofocus trigger that comes
+    /// due is held back and fires on the first evaluation after the hold
+    /// ends.
     pub async fn check_all(&mut self) -> Vec<Firing> {
         if !self.enabled {
             return Vec::new();
@@ -197,8 +200,16 @@ impl TriggerManager {
         let mut fired = Vec::new();
 
         let mut filter_change_fired = false;
+        let mut autofocus_held = false;
         for trigger in &mut self.triggers {
-            let firing = trigger.check(&state).await;
+            let mut firing = trigger.check(&state).await;
+            if firing
+                && state.autofocus_hold.is_some()
+                && matches!(trigger.recovery_action, RecoveryAction::Autofocus)
+            {
+                autofocus_held = true;
+                firing = false;
+            }
             let newly_firing = firing && !trigger.was_firing;
             trigger.was_firing = firing;
             if firing {
@@ -231,6 +242,9 @@ impl TriggerManager {
         // every tick. After the loop, so every trigger saw the same snapshot.
         if filter_change_fired {
             self.state.write().await.clear_filter_changed();
+        }
+        if autofocus_held {
+            self.state.write().await.autofocus_wanted_while_held = true;
         }
 
         fired

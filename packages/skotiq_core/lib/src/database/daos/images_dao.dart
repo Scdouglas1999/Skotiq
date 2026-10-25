@@ -448,6 +448,62 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     }
   }
 
+  /// The newest row recorded for [filePath], or null. A path can be recorded
+  /// more than once (a frame re-registered after a restart), and the newest
+  /// row is the one a run's later facts belong to.
+  Future<CapturedImage?> getLatestImageByFilePath(String filePath) {
+    return (select(capturedImages)
+          ..where((i) => i.filePath.equals(filePath))
+          ..orderBy([(i) => OrderingTerm.desc(i.id)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  /// Record what the run's frame watch measured on a saved frame. Null values
+  /// leave their columns as they are. A non-null [exclusionReason] takes the
+  /// frame out of the accepted set and is appended to any reason already on
+  /// the row, so the grader's own reason is kept.
+  Future<void> applyFrameAssessment(
+    int id, {
+    double? background,
+    double? guidingRmsTotal,
+    String? pierSide,
+    String? exclusionReason,
+  }) {
+    return transaction(() async {
+      final row = await getImageById(id);
+      if (row == null) return;
+      String? reason;
+      if (exclusionReason != null && exclusionReason.isNotEmpty) {
+        final existing = row.rejectionReason;
+        reason = existing == null || existing.isEmpty
+            ? exclusionReason
+            : existing.contains(exclusionReason)
+            ? existing
+            : '$existing; $exclusionReason';
+      }
+      await (update(capturedImages)..where((i) => i.id.equals(id))).write(
+        CapturedImagesCompanion(
+          background: background == null
+              ? const Value.absent()
+              : Value(background),
+          guidingRmsTotal: guidingRmsTotal == null
+              ? const Value.absent()
+              : Value(guidingRmsTotal),
+          pierSide: pierSide == null || row.pierSide != null
+              ? const Value.absent()
+              : Value(pierSide),
+          isAccepted: reason == null
+              ? const Value.absent()
+              : const Value(false),
+          rejectionReason: reason == null
+              ? const Value.absent()
+              : Value(reason),
+        ),
+      );
+    });
+  }
+
   /// Read the off-table WCS columns for [id] — the `solved_cd*` matrix and the
   /// `solved_sip` blob. Any may be null when the stored solve was isotropic.
   Future<
