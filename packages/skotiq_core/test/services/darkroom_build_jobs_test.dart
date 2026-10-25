@@ -177,7 +177,7 @@ void main() {
       expect(job.unattended, isTrue);
       expect(native.built, ['L', 'R']);
       expect(notifications.sent.single, contains('Masters ready: NGC891'));
-      expect(notifications.sent.single, contains('not for L, R'));
+      expect(notifications.sent.single, contains('No filter has flats (L, R)'));
     },
   );
 

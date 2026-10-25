@@ -352,11 +352,11 @@ class _FilterResultRow extends StatelessWidget {
         icon: SkotiqIcons.warning,
       );
     }
-    final hours = ((result['totalIntegrationSec'] as num?) ?? 0) / 3600;
+    final seconds = (result['totalIntegrationSec'] as num?) ?? 0;
     final skipped = (result['skipped'] as List? ?? const []).length;
     return DetailRow(
       title:
-          '${result['filter']}: ${result['frameCount']} frames, ${hours.toStringAsFixed(2)} h',
+          '${result['filter']}: ${result['frameCount']} frames, ${describeIntegration(seconds)}',
       subtitle: skipped == 0
           ? 'No frames left out'
           : '$skipped left out during processing',
@@ -423,7 +423,7 @@ class BuildResultPanel extends StatelessWidget {
         for (var i = 0; i < results.length && i < masters.length; i++)
           DetailRow(
             title:
-                '${results[i]['filter']}: ${results[i]['frameCount']} frames, ${((results[i]['totalIntegrationSec'] as num) / 3600).toStringAsFixed(2)} h',
+                '${results[i]['filter']}: ${results[i]['frameCount']} frames, ${describeIntegration(results[i]['totalIntegrationSec'] as num)}',
             subtitle:
                 '${(results[i]['skipped'] as List).length} left out during processing',
             leading: SizedBox(

@@ -348,7 +348,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('About 1.6 h left'), findsOneWidget);
-      expect(find.text('B: 118 frames, 3.93 h'), findsOneWidget);
+      expect(find.text('B: 118 frames, 3.9 h'), findsOneWidget);
       expect(find.text('2 left out during processing'), findsOneWidget);
       expect(find.text('Stop after the current light'), findsOneWidget);
 

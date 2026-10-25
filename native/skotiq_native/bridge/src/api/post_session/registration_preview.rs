@@ -576,6 +576,10 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
         .collect();
     boundary.sort_unstable();
     boundary.dedup();
+    // The reference defines the grid and cannot be left out, so it is never
+    // offered as a frame to exclude.
+    let reference_path = args.grid_reference.path.trim();
+    boundary.retain(|&i| frames[i].path.trim() != reference_path);
     if quads.len() <= 1 {
         boundary.clear();
     }
@@ -839,6 +843,7 @@ mod tests {
         );
         assert!(!result.meets_minimum, "{}", result.retained_area);
         assert_eq!(result.limiting[0].path, paths[3]);
+        assert!(result.limiting.iter().all(|f| f.path != paths[0]));
         assert!(result.limiting[0].retained_without > 0.9);
         assert_eq!(result.frames[0].side.as_deref(), Some("West"));
     }

@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+/// Height of the overlap map; the field is scaled to fit inside it.
+const double _mapHeight = 360;
+
 /// How footprints are grouped by color on the overlap map.
 enum OverlapColorBy { night, pierSide }
 
@@ -68,8 +71,8 @@ class OverlapMap extends StatelessWidget {
           label: 'Overlap map of ${preview.included.length} frames on a '
               '${preview.width} by ${preview.height} pixel grid. '
               'The common crop keeps $retained percent of the field.',
-          child: AspectRatio(
-            aspectRatio: 1.6,
+          child: SizedBox(
+            height: _mapHeight,
             child: CustomPaint(
               painter: _OverlapMapPainter(
                 preview: preview,

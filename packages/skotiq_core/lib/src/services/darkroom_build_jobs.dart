@@ -611,7 +611,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     final built = results
         .map(
           (r) =>
-              '${r['filter']} ${r['frameCount']} frames, ${((r['totalIntegrationSec'] as num) / 3600).toStringAsFixed(1)} h',
+              '${r['filter']} ${r['frameCount']} frames, ${describeIntegration(r['totalIntegrationSec'] as num)}',
         )
         .join('; ');
     final failed = failures.isEmpty

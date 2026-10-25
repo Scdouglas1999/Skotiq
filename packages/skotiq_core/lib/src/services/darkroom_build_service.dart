@@ -37,6 +37,11 @@ const double darkroomTemperatureGapC = 3;
 /// Weight.
 const String darkroomWeightFormula = 'starSignal';
 
+/// Integration time for display: minutes under an hour, else hours.
+String describeIntegration(num seconds) => seconds < 3600
+    ? '${(seconds / 60).round()} min'
+    : '${(seconds / 3600).toStringAsFixed(1)} h';
+
 /// The evening date of the observing night [time] belongs to. A night runs
 /// from local noon to local noon, so frames after midnight stay with the
 /// evening they started.
@@ -112,9 +117,13 @@ class DarkroomFlatCoverage {
       ...withoutFlats,
       ...partial.map((f) => '$f (some nights)'),
     ];
-    final have = withFlats.isEmpty ? 'no filter' : withFlats.join(', ');
-    return 'Flats are available for $have, but not for ${missing.join(', ')}. '
+    const effect =
         'Masters built without flats keep dust shadows and vignetting.';
+    if (withFlats.isEmpty) {
+      return 'No filter has flats (${missing.join(', ')}). $effect';
+    }
+    return 'Flats are available for ${withFlats.join(', ')}, but not for '
+        '${missing.join(', ')}. $effect';
   }
 }
 

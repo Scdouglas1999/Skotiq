@@ -121,6 +121,11 @@ void main() {
     await folder.delete(recursive: true);
   });
 
+  test('integration time reads in minutes under an hour', () {
+    expect(describeIntegration(105), '2 min');
+    expect(describeIntegration(14160), '3.9 h');
+  });
+
   group('observing night', () {
     test('runs from local noon to local noon', () {
       expect(observingNight(DateTime(2026, 10, 22, 20)), '2026-10-22');
@@ -482,7 +487,7 @@ void main() {
       expect(outcome.plan!.referencePath, contains('/L_'));
       expect(
         outcome.warnings.single,
-        contains('not for B, L, R'),
+        contains('No filter has flats (B, L, R)'),
         reason: 'no flats in the empty library',
       );
     });

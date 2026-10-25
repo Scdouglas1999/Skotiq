@@ -359,6 +359,7 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
         ),
         SkotiqButton(
           label: 'Check framing',
+          isLoading: _busy && _groups.isNotEmpty,
           onPressed: _busy || !_canCheck ? null : _checkFraming,
         ),
       ];
@@ -728,7 +729,7 @@ class _BuildMastersDialogState extends ConsumerState<BuildMastersDialog> {
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 Expanded(
                   child: Text(
-                    '${group.label} · ${group.frames.length} frames',
+                    '${group.label} · ${group.frames.length} frame${group.frames.length == 1 ? '' : 's'}',
                     style: SkotiqTypography.body.copyWith(
                       color: colors.textPrimary,
                     ),
