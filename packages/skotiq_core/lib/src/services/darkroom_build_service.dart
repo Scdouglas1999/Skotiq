@@ -15,6 +15,7 @@ import 'calibration/fits_header_reader.dart';
 import 'calibration_library_service.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
+import 'disk_space_service.dart';
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
 export 'darkroom_build_plan.dart';
@@ -27,6 +28,17 @@ typedef DarkroomBuildOperation =
 /// Reads a light's primary FITS header.
 typedef DarkroomHeaderReader =
     Future<Map<String, String>> Function(String path);
+
+/// Free bytes on the volume holding a directory.
+typedef DarkroomFreeSpace = Future<int> Function(String directory);
+
+/// Memory the native build may hold registered subs in before it writes
+/// them to a working folder beside the master, in MiB.
+const int darkroomSpoolMemoryBudgetMb = 1024;
+
+/// Space kept free beyond the working folder, for the masters and the rest
+/// of the system.
+const int darkroomSpoolHeadroomBytes = 512 << 20;
 
 /// Sensor temperatures closer than this, within one night and setup, are one
 /// group: cooler drift during a night must not split its calibration.
@@ -207,9 +219,14 @@ class DarkroomBuildService {
     DarkroomBuildOperation? buildFlat,
     this.darkLibrary,
     this.flatLibrary,
+    DarkroomFreeSpace? freeSpace,
   }) : _readHeader =
            readHeader ??
            ((path) => const FitsHeaderReader().readPrimaryHeader(path)),
+       _freeSpace =
+           freeSpace ??
+           ((directory) async =>
+               (await DiskSpaceService().query(directory)).freeBytes),
        _buildMaster = buildMaster ?? buildCalibrationMasterNative,
        _buildFlat = buildFlat ?? _nativeBuildFlat;
 
@@ -219,6 +236,7 @@ class DarkroomBuildService {
   final DarkLibraryService? darkLibrary;
   final FlatLibraryDao? flatLibrary;
   final DarkroomHeaderReader _readHeader;
+  final DarkroomFreeSpace _freeSpace;
   final CalibrationMasterBuild _buildMaster;
   final DarkroomBuildOperation _buildFlat;
   bool _running = false;
@@ -753,6 +771,19 @@ class DarkroomBuildService {
       final referenceGroup = groups.firstWhere(
         (g) => (g['lights'] as List).any((f) => f['path'] == referencePath),
       );
+      await _checkWorkingSpace(
+        directory,
+        referencePath: referencePath,
+        lightsPerFilter: {
+          for (final filter in filters)
+            if (!await File(
+              p.join(directory.path, 'filter-${_filterKey(filter)}.json'),
+            ).exists())
+              filter: groups
+                  .where((g) => g['filter'] == filter)
+                  .fold<int>(0, (n, g) => n + (g['lights'] as List).length),
+        },
+      );
       final results = <Map<String, dynamic>>[];
       final failures = <Map<String, dynamic>>[];
       List<Map<String, dynamic>> finished() => [...results, ...failures];
@@ -825,6 +856,7 @@ class DarkroomBuildService {
             // number of frames. Native builds that still fold online use the
             // clip thresholds instead.
             'rejection': 'auto',
+            'memoryBudgetMb': darkroomSpoolMemoryBudgetMb,
             'clip': {'onlineClipLow': 4, 'onlineClipHigh': 4},
             'masterFitsPath': p.join(directory.path, 'full-$key.fits'),
             'previewPngPath': p.join(directory.path, 'full-$key.png'),
@@ -1142,6 +1174,58 @@ class DarkroomBuildService {
       warnings: warnings,
     );
   }
+
+  /// Fail before any filter is built when the working folder the native
+  /// build writes registered subs to cannot fit on the master's volume.
+  ///
+  /// A filter whose subs, as `f32` on the reference grid, fit in
+  /// [darkroomSpoolMemoryBudgetMb] is integrated in memory and needs no
+  /// folder; a larger one writes every sub beside the master. Filters are
+  /// built one at a time and each folder is removed after its filter, so the
+  /// largest one is what has to fit.
+  Future<void> _checkWorkingSpace(
+    Directory directory, {
+    required String referencePath,
+    required Map<String, int> lightsPerFilter,
+  }) async {
+    if (lightsPerFilter.isEmpty) return;
+    final header = await _readHeader(referencePath);
+    final width = FitsHeaderReader.intValue(header, 'NAXIS1');
+    final height = FitsHeaderReader.intValue(header, 'NAXIS2');
+    if (width == null || height == null) {
+      throw StateError(
+        'The reference light $referencePath has no image size in its header, '
+        'so the space the build needs cannot be worked out.',
+      );
+    }
+    final channels = FitsHeaderReader.intValue(header, 'NAXIS3') ?? 1;
+    final subBytes = width * height * channels * 4;
+    const budget = darkroomSpoolMemoryBudgetMb << 20;
+    var largest = 0;
+    var largestFilter = '';
+    for (final entry in lightsPerFilter.entries) {
+      final bytes = entry.value * subBytes;
+      if (bytes > budget && bytes > largest) {
+        largest = bytes;
+        largestFilter = entry.key;
+      }
+    }
+    if (largest == 0) return;
+    final needed = largest + darkroomSpoolHeadroomBytes;
+    final free = await _freeSpace(directory.path);
+    if (free >= needed) return;
+    throw StateError(
+      'Not enough free disk space to build masters in ${directory.path}: '
+      '$largestFilter needs ${_gb(needed)} for its registered subs '
+      '(${lightsPerFilter[largestFilter]} subs of ${_mb(subBytes)} each) and '
+      '${_gb(free)} is free. Free up space on that drive or choose an '
+      'output folder on a larger one.',
+    );
+  }
+
+  static String _gb(int bytes) =>
+      '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
+  static String _mb(int bytes) => '${(bytes / (1 << 20)).round()} MB';
 
   static Future<void> _write(File file, Map<String, dynamic> data) async {
     final temporary = File('${file.path}.tmp');

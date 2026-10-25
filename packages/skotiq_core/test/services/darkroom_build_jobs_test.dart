@@ -203,6 +203,47 @@ void main() {
     },
   );
 
+  test(
+    'unattended fails at once, and says so, when the working folder will not fit',
+    () async {
+      final service = DarkroomBuildService(
+        operation: native.call,
+        library: CalibrationLibraryService(
+          db: db,
+          flatLibraryDao: FlatLibraryDao(db),
+          tagsDao: CalibrationTagsDao(db),
+        ),
+        masters: IntegratedMastersDao(db),
+        // Three 20000 x 20000 subs per filter: 4.8 GB of registered subs.
+        readHeader: (_) async => {'NAXIS1': '20000', 'NAXIS2': '20000'},
+        freeSpace: (_) async => 1 << 30,
+      );
+      final small = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          darkroomBuildServiceProvider.overrideWithValue(service),
+          postSessionSeamProvider.overrideWithValue(seam),
+          notificationServiceProvider.overrideWithValue(notifications),
+        ],
+      );
+      addTearDown(small.dispose);
+      final job = await small
+          .read(darkroomBuildJobsProvider.notifier)
+          .startUnattended(
+            'NGC891',
+            outputRoot: Directory('${folder.path}/auto'),
+          );
+      expect(job.stage, DarkroomJobStage.failed);
+      expect(native.built, isEmpty);
+      expect(job.error, contains('needs 5.0 GB'));
+      expect(job.error, contains('1.0 GB is free'));
+      expect(
+        notifications.sent.single,
+        allOf(startsWith('Master build failed: NGC891'), contains('is free')),
+      );
+    },
+  );
+
   test('a second build is refused while one runs', () async {
     final jobs = container.read(darkroomBuildJobsProvider.notifier);
     await jobs.checkFraming(target: 'NGC891', plan: await planFor());

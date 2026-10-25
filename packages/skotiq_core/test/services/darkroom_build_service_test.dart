@@ -322,6 +322,75 @@ void main() {
     });
   });
 
+  group('working space', () {
+    DarkroomBuildService sized(int width, int height, List<String> asked) =>
+        DarkroomBuildService(
+          library: CalibrationLibraryService(
+            db: db,
+            flatLibraryDao: FlatLibraryDao(db),
+            tagsDao: CalibrationTagsDao(db),
+          ),
+          masters: IntegratedMastersDao(db),
+          readHeader: (_) async => {'NAXIS1': '$width', 'NAXIS2': '$height'},
+          operation: native.call,
+          freeSpace: (directory) async {
+            asked.add(directory);
+            return 2 << 30;
+          },
+        );
+
+    test(
+      'a build whose subs fit in memory does not ask for disk space',
+      () async {
+        final asked = <String>[];
+        final svc = sized(100, 80, asked);
+        final preview = await svc.previewRegistration(plan);
+        await svc.run(plan, Directory('${folder.path}/run'), accepted: preview);
+        expect(asked, isEmpty);
+        expect(native.built, ['B', 'L', 'R']);
+      },
+    );
+
+    test('a build that cannot fit its working folder fails before any filter, '
+        'naming the space needed and free', () async {
+      final asked = <String>[];
+      // Two 20000 x 20000 subs per filter: 3.2 GB of registered subs.
+      final svc = sized(20000, 20000, asked);
+      final preview = await svc.previewRegistration(plan);
+      final output = Directory('${folder.path}/run');
+      await expectLater(
+        svc.run(plan, output, accepted: preview),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('needs 3.5 GB'), contains('2.0 GB is free')),
+          ),
+        ),
+      );
+      expect(asked, [output.path]);
+      expect(native.built, isEmpty);
+    });
+
+    test('a build with room for its working folder runs, and asks the '
+        'native side to keep the same memory budget', () async {
+      final asked = <String>[];
+      // 600 MB per sub, two per filter: 1.2 GB of registered subs.
+      final svc = sized(15000, 10000, asked);
+      final preview = await svc.previewRegistration(plan);
+      await svc.run(plan, Directory('${folder.path}/run'), accepted: preview);
+      expect(asked, hasLength(1));
+      expect(native.built, ['B', 'L', 'R']);
+      expect(
+        native.requests
+            .where((r) => r['op'] == 'build')
+            .map((r) => r['memoryBudgetMb'])
+            .toSet(),
+        {darkroomSpoolMemoryBudgetMb},
+      );
+    });
+  });
+
   group('framing pre-pass', () {
     test('sends limits and pier sides, then reuses known footprints', () async {
       final first = await service.previewRegistration(plan);
