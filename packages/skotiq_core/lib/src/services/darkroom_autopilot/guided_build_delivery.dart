@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 
 import '../../database/daos/darkroom_jobs_dao.dart';
 import '../../models/darkroom/darkroom_job.dart';
+import '../../models/darkroom/darkroom_links.dart';
 import '../../models/darkroom/delivery.dart';
 import '../../models/notification/notification_categories.dart';
 import '../darkroom_build_jobs.dart';
@@ -64,9 +65,13 @@ class GuidedBuildDelivery {
   final LoggingService? _logger;
 
   /// Deliver [job], a guided build that finished with masters, and announce
-  /// it. Never throws for a delivery or notification problem; both are lines
-  /// in the message and the outcome.
-  Future<GuidedBuildDeliveryOutcome> deliver(DarkroomBuildJob job) async {
+  /// it unless [announce] is false (a night-end run sends one message for the
+  /// whole night). Never throws for a delivery or notification problem; both
+  /// are lines in the message and the outcome.
+  Future<GuidedBuildDeliveryOutcome> deliver(
+    DarkroomBuildJob job, {
+    bool announce = true,
+  }) async {
     final report = job.report;
     if (job.stage != DarkroomJobStage.done || report == null) {
       throw StateError('${job.target}: the build has no masters to deliver.');
@@ -124,12 +129,33 @@ class GuidedBuildDelivery {
     final title = 'Masters ready: ${job.target}';
     final message = lines.join(' ');
     var announced = false;
+    if (announce) {
+      announced = await _announce(job, title, message);
+    }
+    await _jobs.markDone(jobId, note: message);
+    return GuidedBuildDeliveryOutcome(
+      jobId: jobId,
+      title: title,
+      message: message,
+      delivery: delivered,
+      problems: problems,
+      announced: announced,
+    );
+  }
+
+  Future<bool> _announce(
+    DarkroomBuildJob job,
+    String title,
+    String message,
+  ) async {
+    var announced = false;
     try {
       final dispatch = await _notifications.notifyDetailed(
         event: NotificationEvent.sequenceComplete,
         title: title,
         message: message,
         routeAs: NotificationCategory.darkroomDraftReady,
+        deepLink: darkroomTargetPayload(job.target),
       );
       announced = dispatch.anyDelivered;
       if (!announced) {
@@ -145,15 +171,7 @@ class GuidedBuildDelivery {
         source: 'GuidedBuildDelivery',
       );
     }
-    await _jobs.markDone(jobId, note: message);
-    return GuidedBuildDeliveryOutcome(
-      jobId: jobId,
-      title: title,
-      message: message,
-      delivery: delivered,
-      problems: problems,
-      announced: announced,
-    );
+    return announced;
   }
 }
 

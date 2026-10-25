@@ -279,9 +279,12 @@ Directory darkroomTargetBuildDirectory(Directory root, String target) =>
       p.join(root.path, target.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')),
     );
 
-/// Where unattended builds go unless told otherwise.
-Future<Directory> defaultDarkroomMastersRoot() async => Directory(
-  p.join((await resolveSkotiqDocumentsDirectory()).path, 'Skotiq', 'Masters'),
+/// Where unattended builds go unless told otherwise: one folder per target
+/// under `Documents/Skotiq/Masters`.
+final darkroomMastersRootProvider = FutureProvider<Directory>(
+  (ref) async => Directory(
+    p.join((await resolveSkotiqDocumentsDirectory()).path, 'Skotiq', 'Masters'),
+  ),
 );
 
 /// Every captured light, by target: the target's name, else the FITS
@@ -845,7 +848,8 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     if (frames == null || frames.isEmpty) {
       throw StateError('No captured lights for $target.');
     }
-    final root = outputRoot ?? await defaultDarkroomMastersRoot();
+    final Directory root =
+        outputRoot ?? await ref.read(darkroomMastersRootProvider.future);
     final directory = darkroomTargetBuildDirectory(root, target);
     _begin(
       DarkroomBuildJob(

@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 /// automatically when a sequence run completes. Off by default — the user opts
 /// in from Settings so an unattended night "just has the master ready" in the
 /// morning.
-const String kAutoIntegrateSettingKey = 'post_session.auto_integrate';
+const String kAutoIntegrateSettingKey = NightEndAutomationSettings.buildKey;
 
 /// App-settings key controlling whether the dawn autopilot's Darkroom pass runs
 /// after the masters exist: compose a first-draft recipe per master, render the
@@ -245,81 +245,6 @@ class AutoIntegrationService {
         ran: false,
         failed: true,
         message: 'Auto-integration failed: $error',
-      );
-    }
-  }
-
-  /// Build PixInsight-ready masters for every target [sessionId] imaged,
-  /// when automatic integration is on: the guided multi-night build, run
-  /// unattended over all of each target's nights with tonight's calibration.
-  /// A finished build is delivered and announced with one morning message
-  /// ([GuidedBuildDelivery]); the build job announces a framing review or a
-  /// failure itself. A target that could not be started is reported as a
-  /// failure here. The dawn draft pass is not run: the guided build writes
-  /// the previews and composites it would draft.
-  Future<AutoIntegrationResult> buildNightMasters(int sessionId) async {
-    try {
-      if (!await _isEnabled()) return AutoIntegrationResult.disabled;
-      final images =
-          await _ref.read(imagesDaoProvider).getImagesForSession(sessionId);
-      final lightIds = {
-        for (final image in images)
-          if (image.frameType.toLowerCase() == 'light' && image.isAccepted)
-            image.id,
-      };
-      if (lightIds.isEmpty) {
-        return const AutoIntegrationResult(
-          ran: false,
-          message: 'No accepted subs to integrate.',
-        );
-      }
-      final targets = await loadDarkroomTargets(_ref.read(databaseProvider));
-      final names = [
-        for (final entry in targets.entries)
-          if (entry.value.any((frame) => lightIds.contains(frame.id)))
-            entry.key,
-      ];
-      final jobs = _ref.read(darkroomBuildJobsProvider.notifier);
-      final lines = <String>[];
-      var built = 0;
-      var notStarted = 0;
-      for (final name in names) {
-        try {
-          final job = await jobs.startUnattended(name, announceReady: false);
-          switch (job.stage) {
-            case DarkroomJobStage.done:
-              built++;
-              // The morning message: delivery of the masters, composites,
-              // previews and report, and one summary of the build.
-              final delivered =
-                  await _ref.read(guidedBuildDeliveryProvider).deliver(job);
-              lines.add('$name: ${delivered.message}');
-            case DarkroomJobStage.awaitingReview:
-              lines.add('$name: the masters wait for a framing review in '
-                  'Darkroom.');
-            default:
-              lines.add('$name: ${job.error ?? job.message}');
-          }
-        } catch (e) {
-          notStarted++;
-          lines.add('$name: the master build did not start: $e');
-        }
-      }
-      return AutoIntegrationResult(
-        ran: built > 0,
-        failed: notStarted > 0,
-        message: lines.join(' '),
-      );
-    } catch (error) {
-      _ref.read(loggingServiceProvider).error(
-        'Automatic master build failed',
-        source: 'AutoIntegrationService',
-        fields: {'sessionId': sessionId, 'error': '$error'},
-      );
-      return AutoIntegrationResult(
-        ran: false,
-        failed: true,
-        message: 'The automatic master build failed: $error',
       );
     }
   }
@@ -1028,23 +953,28 @@ final autoIntegrationCompletionProvider =
 /// run before falling back to the run's own status.
 const _nightDecisionTimeout = Duration(seconds: 30);
 
-/// Always-on host lifecycle for automatic integration.
+/// Always-on host lifecycle for the night-end automation.
 ///
 /// It deliberately activates only for [FfiBackend]. A remote UI mirrors the
 /// host's terminal state and image catalog, but must never process its own
-/// client-side database or paths. Runs are serialized so two closely-spaced
-/// terminal events cannot race the same accumulating master.
+/// client-side database or paths. Nights are handled one at a time.
 ///
-/// A run is integrated when it ended the night: it completed, or a dawn or
+/// A night is handled when its run ended it: the run completed, or a dawn or
 /// obstruction park ended it. It waits for the end-of-night calibration that
-/// run started, so the masters are calibrated with tonight's darks.
+/// run started, so the masters are calibrated with tonight's darks, then
+/// hands the night to the [NightEndRunner]: build every imaged target from all
+/// its nights, deliver, and send the morning message, as the Darkroom's
+/// Activity settings say. At launch the runner carries on a night a restart
+/// cut short.
 final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend is! FfiBackend) return;
 
   // Created first so it sees every terminal run this coordinator sees.
   final night = ref.read(endOfNightCalibrationCoordinatorProvider);
-  final integrate = _integrator(ref);
+  final runner = ref.read(nightEndRunnerProvider);
+  unawaited(runner.start());
+  final handle = _nightEndHandler(ref);
   var queue = Future<void>.value();
   ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider,
       (previous, next) {
@@ -1053,6 +983,7 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
     final sessionId = next.dbSessionId;
     if (sessionId == null) return;
     final generation = next.generation;
+    final endedAt = DateTime.now();
     var classified = true;
     final ended = night.runEnded(generation).timeout(
       _nightDecisionTimeout,
@@ -1065,55 +996,101 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
     );
 
     queue = queue.then((_) async {
-      if (await ended == null) return;
+      final reason = await ended;
+      if (reason == null) return;
       if (classified) await night.nightSettled(generation);
-      await integrate(sessionId, generation);
+      final report = ref.read(endOfNightCalibrationProvider).report;
+      await handle(
+        sessionId: sessionId,
+        generation: generation,
+        reason: reason,
+        calibration: report != null &&
+                !report.startedAt
+                    .isBefore(endedAt.subtract(const Duration(minutes: 5)))
+            ? report
+            : null,
+      );
     });
   });
 
   // A night the operator stopped and then ended with a manual end-of-night
-  // calibration is integrated once that calibration is done.
+  // calibration is handled once that calibration is done.
   ref.listen<NightIntegrationRequest?>(nightIntegrationRequestProvider,
       (previous, next) {
     if (next == null || previous?.generation == next.generation) return;
-    queue = queue.then((_) => integrate(next.sessionId, -next.generation));
+    queue = queue.then(
+      (_) => handle(
+        sessionId: next.sessionId,
+        generation: -next.generation,
+        reason: EonEndReason.manual,
+        calibration: ref.read(endOfNightCalibrationProvider).report,
+      ),
+    );
   });
 });
 
-/// What the coordinator does for one night: build its targets' masters with
-/// the guided multi-night build and publish the result. [generation] keys the
-/// completion toast.
-Future<void> Function(int sessionId, int generation) _integrator(Ref ref) =>
-    (sessionId, generation) async {
+/// What the coordinator does for one night: run the night-end automation and
+/// publish a one-line result for the toast. [generation] keys the toast.
+Future<void> Function({
+  required int sessionId,
+  required int generation,
+  required EonEndReason reason,
+  EonReport? calibration,
+}) _nightEndHandler(Ref ref) => ({
+      required sessionId,
+      required generation,
+      required reason,
+      calibration,
+    }) async {
       try {
-        final result = await ref
-            .read(autoIntegrationServiceProvider)
-            .buildNightMasters(sessionId);
-        if (!result.ran && !result.failed) return;
+        final run = await ref.read(nightEndRunnerProvider).nightEnded(
+              sessionId: sessionId,
+              reason: reason.description,
+              calibration: calibration,
+            );
+        if (run == null) return;
+        final result = describeNightEndRun(run);
+        if (result == null) return;
         ref.read(autoIntegrationCompletionProvider.notifier).state =
-            AutoIntegrationCompletion(
-          generation: generation,
-          result: result,
-        );
-        if (result.failed) {
-          ref.read(pushNotificationServiceProvider).enqueue(
-                PushNotification(
-                  title: 'Auto-integration failed',
-                  body: result.message,
-                  priority: PushNotificationPriority.high,
-                  eventType: 'PostSessionAutoIntegrationFailed',
-                  category: EventCategory.imaging,
-                  timestamp: DateTime.now(),
-                ),
-              );
-        }
+            AutoIntegrationCompletion(generation: generation, result: result);
       } catch (error) {
-        // Keep the serialization chain alive even if notification/UI
-        // publication fails after the service has already returned.
+        // Keep the serialization chain alive even if the run or the toast
+        // publication fails; the run records its own outcome.
         ref.read(loggingServiceProvider).error(
-          'Auto-integration completion publication failed',
+          'Night-end automation failed',
           source: 'AutoIntegrationCoordinator',
           fields: {'sessionId': sessionId, 'error': '$error'},
         );
       }
     };
+
+/// The toast for a finished night-end run, or null when it built nothing.
+AutoIntegrationResult? describeNightEndRun(NightEndRun run) {
+  final lines = <String>[];
+  var built = 0;
+  var failed = false;
+  for (final target in run.targets) {
+    switch (target.build.state) {
+      case NightEndStepState.done:
+        built++;
+        final nights = target.nights;
+        lines.add('${target.target}: masters ready'
+            '${nights == null ? '' : ' from $nights night${nights == 1 ? '' : 's'}'}.');
+      case NightEndStepState.waiting:
+        lines.add('${target.target}: waits for you at the framing check.');
+      case NightEndStepState.failed:
+        failed = true;
+        lines.add('${target.target}: the build failed. '
+                '${target.build.detail ?? ''}'
+            .trim());
+      default:
+        break;
+    }
+  }
+  if (lines.isEmpty) return null;
+  return AutoIntegrationResult(
+    ran: built > 0,
+    failed: failed,
+    message: lines.join(' '),
+  );
+}
