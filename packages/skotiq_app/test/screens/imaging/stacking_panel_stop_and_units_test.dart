@@ -37,6 +37,15 @@ class _FakeLiveStackingService extends LiveStackingService {
   bool failSave = false;
 
   @override
+  Future<LiveStackingResult> getCurrentResult() async =>
+      const LiveStackingResult(
+        width: 1920,
+        height: 1080,
+        data: [],
+        stats: _stats,
+      );
+
+  @override
   Future<LiveStackingMasterSave> saveMaster({required String filePath}) async {
     // Mirrors the real service: FITS is the master, PNG is the render, and any
     // other extension is refused rather than renaming the operator's file.
@@ -116,6 +125,18 @@ Future<_Harness> _pumpPanel(
       liveStackingServiceProvider.overrideWith(
         (ref) => _FakeLiveStackingService(ref)..failSave = failSave,
       ),
+      // The library's own file reads and thumbnail writes are covered in the
+      // core package; here the header and thumbnail are stand-ins.
+      liveStackMasterLibraryProvider.overrideWith((ref) {
+        final service = ref.watch(liveStackingServiceProvider);
+        return LiveStackMasterLibrary(
+          currentResult: service.getCurrentResult,
+          saveMaster: (path) => service.saveMaster(filePath: path),
+          writePreview: (_, __) async {},
+          masters: ref.watch(integratedMastersDaoProvider),
+          readHeader: (_) async => const {'OBJECT': "'M 31'"},
+        );
+      }),
       liveStackingProvider.overrideWith((ref) {
         stacker = _RecordingLiveStackingNotifier(
           ref,
@@ -201,6 +222,50 @@ void main() {
     // Decision 8: the master carries its integration, so the confirmation can
     // state it instead of naming a frame count alone.
     expect(find.textContaining('3840 s integration'), findsOneWidget);
+    expect(find.textContaining('added to the Darkroom'), findsOneWidget);
+  });
+
+  testWidgets('a saved FITS master is registered in the master library',
+      (tester) async {
+    await _pumpPanel(tester, destination: '/tmp/master.fits');
+
+    await tester.tap(find.text('Stop'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save master'));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(StackingPanel)),
+    );
+    final rows = await tester.runAsync(
+      () => container.read(integratedMastersDaoProvider).getAll(),
+    );
+    final row = rows!.single;
+    expect(row.masterFitsPath, '/tmp/master.fits');
+    expect(row.name, 'M 31 live stack');
+    expect(row.frameCount, 32);
+    expect(row.totalIntegrationSeconds, 3840);
+    expect((row.width, row.height), (1920, 1080));
+    expect(row.status, IntegratedMasterStatus.finalized);
+  });
+
+  testWidgets('a PNG render is saved but not registered as a master',
+      (tester) async {
+    await _pumpPanel(tester, destination: '/tmp/render.png');
+
+    await tester.tap(find.text('Stop'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save master'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('added to the Darkroom'), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(StackingPanel)),
+    );
+    final rows = await tester.runAsync(
+      () => container.read(integratedMastersDaoProvider).getAll(),
+    );
+    expect(rows, isEmpty);
   });
 
   // The default destination is the data product, not the render: an operator

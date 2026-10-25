@@ -291,9 +291,11 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     }
 
     try {
-      final saved = await ref
-          .read(liveStackingServiceProvider)
-          .saveMaster(filePath: destination);
+      // A FITS master is registered in the master library as it is written,
+      // so the Darkroom lists it under its target and opens it in the editor.
+      final library =
+          await ref.read(liveStackMasterLibraryProvider).save(destination);
+      final saved = library.saved;
       if (!mounted) return true;
       final integration = saved.totalIntegrationSecs;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -302,7 +304,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
             'Stacked master (${saved.stackedFrameCount} frames'
             '${integration != null && integration > 0 ? ', '
                 '${integration.toStringAsFixed(0)} s integration' : ''}) '
-            'saved to ${saved.filePath}',
+            'saved to ${saved.filePath}'
+            '${library.masterId == null ? '' : ' and added to the Darkroom'}',
           ),
         ),
       );
