@@ -15,6 +15,7 @@ import 'darkroom_image.dart';
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'nights_strip.dart';
+import 'tile_crop.dart';
 
 const double _heroHeight = 292;
 
@@ -383,6 +384,7 @@ class _ChannelTiles extends ConsumerWidget {
             if (i > 0) const SizedBox(width: SkotiqTokens.spaceSm + 2),
             _ChannelTile(
               channel: ch,
+              target: target.row,
               flat: matches == null
                   ? null
                   : darkroomFlatFor(ch.filter, matches, choices) != null,
@@ -395,9 +397,16 @@ class _ChannelTiles extends ConsumerWidget {
 }
 
 class _ChannelTile extends StatelessWidget {
-  const _ChannelTile({required this.channel, required this.flat});
+  const _ChannelTile({
+    required this.channel,
+    required this.flat,
+    required this.target,
+  });
 
   final DarkroomChannel channel;
+
+  /// The target row, whose position and size place the crop.
+  final DbTarget? target;
 
   /// Whether a flat is ready; null while the library is read.
   final bool? flat;
@@ -414,7 +423,6 @@ class _ChannelTile extends StatelessWidget {
       true => 'Flat ready',
       false => 'No flat',
     };
-    final dpr = MediaQuery.devicePixelRatioOf(context);
     final tile = Container(
       width: _tileWidth,
       padding: const EdgeInsets.all(6),
@@ -431,11 +439,21 @@ class _ChannelTile extends StatelessWidget {
             borderRadius: SkotiqTokens.borderRadiusXs,
             child: SizedBox.square(
               dimension: _tileThumb,
-              child: DarkroomPreviewImage(
-                path: master?.previewPngPath,
-                decodeWidth: (_tileThumb * 2 * dpr).round(),
-                placeholderIcon: SkotiqIcons.layers,
-              ),
+              child: master == null
+                  ? const DarkroomPreviewImage(
+                      path: null,
+                      placeholderIcon: SkotiqIcons.layers,
+                    )
+                  : DarkroomCroppedPreview(
+                      key: ValueKey('darkroom_channel_crop_${channel.filter}'),
+                      path: master.previewPngPath,
+                      imageSize: Size(
+                        master.width.toDouble(),
+                        master.height.toDouble(),
+                      ),
+                      crop: DarkroomTileCrop.forMaster(master, target),
+                      placeholderIcon: SkotiqIcons.layers,
+                    ),
             ),
           ),
           const SizedBox(height: SkotiqTokens.spaceXs + 2),
@@ -696,6 +714,43 @@ class _MasterRow extends StatelessWidget {
   }
 }
 
+/// What a finished build made, for its banner: the filters with their subs
+/// and hours, the filters that failed, and where the files are.
+String describeBuiltMasters(DarkroomBuildJob job) {
+  final report = job.report;
+  final results = <Map>[
+    if (report?['results'] case final List list)
+      for (final r in list)
+        if (r is Map) r else ...job.filterResults,
+  ];
+  final parts = <String>[];
+  if (results.isNotEmpty) {
+    var subs = 0;
+    var seconds = 0.0;
+    for (final r in results) {
+      if (r['frameCount'] case final num n) subs += n.toInt();
+      if (r['totalIntegrationSec'] case final num s) seconds += s.toDouble();
+    }
+    final filters = [for (final r in results) '${r['filter']}'];
+    parts.add('${joinWords(filters)} from $subs subs, '
+        '${(seconds / 3600).toStringAsFixed(1)} h.');
+  }
+  if (report?['failures'] case final List failures) {
+    for (final f in failures) {
+      if (f is Map) parts.add('${f['filter']} failed: ${f['error']}.');
+    }
+  }
+  parts.addAll(job.warnings);
+  if (job.directory != null) parts.add('Saved in ${job.directory}.');
+  return parts.join(' ');
+}
+
+/// "a", "a and b", "a, b and c".
+String joinWords(List<String> words) {
+  if (words.length < 2) return words.join();
+  return '${words.sublist(0, words.length - 1).join(', ')} and ${words.last}';
+}
+
 class _JobBanner extends ConsumerWidget {
   const _JobBanner({required this.job});
 
@@ -743,11 +798,8 @@ class _JobBanner extends ConsumerWidget {
         ),
       DarkroomJobStage.done => (
           BannerTone.success,
-          'Masters ready.',
-          [
-            if (job.message != 'Masters ready') job.message,
-            if (job.directory != null) 'Saved in ${job.directory}.',
-          ].join(' '),
+          'Masters ready: ${job.target}',
+          describeBuiltMasters(job),
           null,
         ),
       DarkroomJobStage.failed || DarkroomJobStage.stopped => (

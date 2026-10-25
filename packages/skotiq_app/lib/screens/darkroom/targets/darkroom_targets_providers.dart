@@ -63,6 +63,8 @@ class DarkroomFilterCalibration {
 /// the local library and the settings most of each filter's subs share.
 final darkroomTargetCalibrationProvider = FutureProvider.autoDispose
     .family<List<DarkroomFilterCalibration>, String>((ref, key) async {
+  // A master built or removed in the Calibration tab changes the matches.
+  ref.watch(calibrationLibraryRevisionProvider);
   final targets = await ref.watch(darkroomTargetsProvider.future);
   final target = targets.where((t) => t.key == key).firstOrNull;
   if (target == null) return const [];

@@ -61,8 +61,9 @@ class DarkroomStatusChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final job = ref.watch(darkroomBuildJobsProvider);
+    final nightEnd = ref.watch(nightEndAutomationSummaryProvider);
     final (value, tone) = switch (job?.stage) {
-      null => ('No build running', InstrumentTone.idle),
+      null => (nightEnd ?? 'No build running', InstrumentTone.idle),
       DarkroomJobStage.framing => (
           'Checking framing: ${job!.target} '
               '${job.framesDone}/${job.framesTotal}',

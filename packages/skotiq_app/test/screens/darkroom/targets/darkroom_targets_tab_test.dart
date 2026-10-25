@@ -10,6 +10,7 @@ import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/targets/calibration_panel.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';
 import 'package:skotiq_app/screens/darkroom/targets/framing_check.dart';
+import 'package:skotiq_app/screens/darkroom/targets/tile_crop.dart';
 import 'package:skotiq_app/screens/session_review/widgets/sub_cull_rail.dart'
     show subThumbnailProvider;
 import 'package:skotiq_core/skotiq_core.dart';
@@ -133,6 +134,28 @@ class _Jobs extends DarkroomBuildJobs {
 /// Held builds a test can set directly.
 class _Held extends DarkroomHeldBuilds {
   void put(List<DarkroomBuildJob> jobs) => state = jobs;
+}
+
+/// The calibration library, counting how often a target's matches are read.
+class _CountingLibrary extends CalibrationLibraryService {
+  _CountingLibrary(SkotiqDatabase db)
+      : super(
+          db: db,
+          flatLibraryDao: FlatLibraryDao(db),
+          tagsDao: CalibrationTagsDao(db),
+        );
+
+  int matches = 0;
+
+  @override
+  Future<CalibrationMatchSet> match(
+    LightFrameContext context, {
+    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
+    bool includeRemote = true,
+  }) async {
+    matches++;
+    return CalibrationMatchSet(context: context);
+  }
 }
 
 CalibrationMatch _match(
@@ -625,6 +648,109 @@ void main() {
       h.native.requests.where((r) => r['op'] == 'registrationPreview'),
       isEmpty,
     );
+  });
+
+  testWidgets('a finished build says which masters it made and where', (
+    tester,
+  ) async {
+    final h = await _pump(tester);
+    h.jobs.state = DarkroomBuildJob(
+      target: 'NGC 891',
+      stage: DarkroomJobStage.done,
+      message: 'Masters ready',
+      startedAt: DateTime(2026, 10, 24, 6),
+      directory: '/data/Masters/NGC_891',
+      report: const {
+        'results': [
+          {'filter': 'L', 'frameCount': 41, 'totalIntegrationSec': 3690},
+          {'filter': 'R', 'frameCount': 14, 'totalIntegrationSec': 1680},
+          {'filter': 'G', 'frameCount': 14, 'totalIntegrationSec': 1680},
+          {'filter': 'B', 'frameCount': 13, 'totalIntegrationSec': 1560},
+        ],
+        'failures': [],
+      },
+    );
+    await _settle(tester);
+
+    expect(find.text('Masters ready: NGC 891'), findsOneWidget);
+    expect(
+      find.textContaining('L, R, G and B from 82 subs, 2.4 h. '
+          'Saved in /data/Masters/NGC_891.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Masters ready. Masters ready'), findsNothing);
+  });
+
+  testWidgets('channel tiles show the master cropped around the target', (
+    tester,
+  ) async {
+    await _pump(tester);
+    for (final f in ['L', 'R', 'G', 'B']) {
+      final preview = tester.widget<DarkroomCroppedPreview>(
+        find.byKey(ValueKey('darkroom_channel_crop_$f')),
+      );
+      // The seeded masters carry no plate solve: the image center, zoomed.
+      expect(preview.crop.center, const Offset(.5, .5));
+      expect(preview.crop.span, darkroomDefaultTileSpan);
+    }
+  });
+
+  testWidgets('with nothing running the header chip states the night end', (
+    tester,
+  ) async {
+    final h = await _pump(tester);
+    final chip = find.byKey(const ValueKey('darkroom_status_chip'));
+    expect(
+      find.descendant(
+        of: chip,
+        matching: find.text('Night end: calibrate, build, deliver, message'),
+      ),
+      findsOneWidget,
+    );
+
+    await h.owner.db.settingsDao
+        .setSetting(NightEndAutomationSettings.buildKey, 'false');
+    h.container.invalidate(nightEndAutomationSettingsProvider);
+    await _settle(tester);
+    expect(
+      find.descendant(
+        of: chip,
+        matching: find.text('Night end: calibrate, message'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(chip);
+    await _settle(tester);
+    expect(h.location, '/darkroom?tab=activity');
+  });
+
+  test(
+      'a target\'s calibration matches are read again when the library '
+      'changes', () async {
+    final owner = await seedOwnerNights();
+    addTearDown(owner.db.close);
+    final library = _CountingLibrary(owner.db);
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(owner.db),
+        calibrationLibraryServiceProvider.overrideWithValue(library),
+      ],
+    );
+    addTearDown(container.dispose);
+    final sub = container.listen(
+      darkroomTargetCalibrationProvider('NGC 891'),
+      (_, __) {},
+    );
+    addTearDown(sub.close);
+
+    await container.read(darkroomTargetCalibrationProvider('NGC 891').future);
+    final first = library.matches;
+    expect(first, greaterThan(0));
+
+    container.read(calibrationLibraryRevisionProvider.notifier).state++;
+    await container.read(darkroomTargetCalibrationProvider('NGC 891').future);
+    expect(library.matches, 2 * first);
   });
 
   testWidgets('the detail fits at 1280 wide without overflow', (tester) async {
