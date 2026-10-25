@@ -335,4 +335,36 @@ void main() {
     expect(notifications.sent, isEmpty);
     expect(drop.listSync(recursive: true), isEmpty);
   });
+
+  test(
+      'a build still held when the next night ends is folded into that '
+      'night\'s build', () async {
+    final first = await night(
+      DateTime(2026, 10, 21, 20),
+      ['L'],
+      runId: ++run,
+    );
+    native.retained = .55;
+    final app = launch();
+    dawnEnds(app, first, run);
+    final held = await nightEndRun(app, 1);
+    expect(held.targets.single.build.state, NightEndStepState.waiting);
+
+    native.retained = .9;
+    final second = await night(
+      DateTime(2026, 10, 22, 20),
+      ['L'],
+      runId: ++run,
+    );
+    dawnEnds(app, second, run);
+    final built = await nightEndRun(app, 2);
+    expect(built.targets.single.build.state, NightEndStepState.done);
+    expect(built.targets.single.nights, 2);
+    final earlier =
+        app.read(nightEndRunsProvider).singleWhere((r) => r.id == held.id);
+    expect(earlier.targets.single.build.state, NightEndStepState.skipped);
+    expect(earlier.targets.single.build.detail, contains('Folded'));
+    expect(app.read(darkroomHeldBuildsProvider), isEmpty);
+    expect(app.read(darkroomBuildJobsProvider)!.stage, DarkroomJobStage.done);
+  });
 }

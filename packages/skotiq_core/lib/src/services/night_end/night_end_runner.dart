@@ -240,6 +240,7 @@ class NightEndRunner {
         continue;
       }
       await _jobs.whenIdle();
+      _supersedeHeld(target.target, id);
       run = _run(id)!.withTarget(
         target.target,
         (t) => t.copyWith(build: const NightEndStep(NightEndStepState.running)),
@@ -300,6 +301,30 @@ class NightEndRunner {
     run = _run(id)!;
     final message = await _morningMessage(run, jobs, settings);
     _put(run.copyWith(message: message, finishedAt: DateTime.now()));
+  }
+
+  /// An earlier night whose build of [target] still waits at the framing
+  /// check is replaced by this night's build, which folds every night in.
+  void _supersedeHeld(String target, String id) {
+    for (final other in _runs) {
+      if (other.id == id) continue;
+      final held = other.targets.where(
+        (t) => t.target == target && t.build.state == NightEndStepState.waiting,
+      );
+      if (held.isEmpty) continue;
+      _put(
+        other.withTarget(
+          target,
+          (t) => t.copyWith(
+            build: const NightEndStep(
+              NightEndStepState.skipped,
+              'Folded into a later night\'s build.',
+            ),
+            deliver: const NightEndStep(NightEndStepState.skipped),
+          ),
+        ),
+      );
+    }
   }
 
   NightEndTarget _afterBuild(

@@ -269,8 +269,9 @@ void main() {
     }
     expect(find.textContaining('Took 20 darks'), findsOneWidget);
     expect(find.text('Delivered 14 files to 1 destination.'), findsOneWidget);
-        expect(find.bySemanticsLabel(RegExp('^Calibrate: Done')), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('^Build: Waits for you')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('^Calibrate: Done')), findsOneWidget);
+    expect(
+        find.bySemanticsLabel(RegExp('^Build: Waits for you')), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Open the framing check'));
     await tester.pumpAndSettle();
