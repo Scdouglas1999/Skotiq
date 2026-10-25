@@ -119,6 +119,10 @@ pub struct DetectedStar {
     pub snr: f64,
     /// Eccentricity: 0 = perfect circle, 1 = line (elongated)
     pub eccentricity: f64,
+    /// Direction of the star's long axis from its second moments, in degrees
+    /// from the image +x axis toward +y, in `[0, 180)`. Meaningless for a
+    /// round star (eccentricity near 0).
+    pub elongation_angle_deg: f64,
     /// Fraction of the star's flux in its brightest pixel: 0.02-0.3 for real
     /// stars, near 1 for a hot pixel.
     pub sharpness: f64,
@@ -1092,6 +1096,7 @@ mod tests {
                 snr: 50.0,
                 eccentricity: 0.1,
                 sharpness: 0.3,
+                elongation_angle_deg: 0.0,
             })
             .collect();
         assert_eq!(frame_eccentricity(&stars), None);
@@ -1114,6 +1119,7 @@ mod tests {
                 snr: 50.0,
                 eccentricity: 0.1,
                 sharpness: 0.3,
+                elongation_angle_deg: 0.0,
             })
             .collect();
         stars.push(DetectedStar {
@@ -1127,6 +1133,7 @@ mod tests {
             snr: 80.0,
             eccentricity: 0.9,
             sharpness: 0.3,
+            elongation_angle_deg: 0.0,
         });
         let ecc = frame_eccentricity(&stars).expect("six reliable stars → Some");
         assert!(
@@ -1152,6 +1159,7 @@ mod tests {
                 snr: 50.0,
                 eccentricity: 0.05,
                 sharpness: 0.99,
+                elongation_angle_deg: 0.0,
             })
             .collect();
         assert_eq!(frame_eccentricity(&stars), None);

@@ -1652,6 +1652,7 @@ mod tests {
                 snr: 30.0,
                 eccentricity: 0.0,
                 sharpness: 0.1,
+                elongation_angle_deg: 0.0,
             })
             .collect();
         let expected = describe_triangle(&stars, 0, 1, 2).unwrap();

@@ -2151,6 +2151,7 @@ mod tests {
                     snr: 50.0,
                     eccentricity: 0.1,
                     sharpness: 0.3,
+                    elongation_angle_deg: 0.0,
                 },
                 frame_star: DetectedStar {
                     x: 105.0,
@@ -2163,6 +2164,7 @@ mod tests {
                     snr: 50.0,
                     eccentricity: 0.1,
                     sharpness: 0.3,
+                    elongation_angle_deg: 0.0,
                 },
                 distance: 5.83,
             },
@@ -2178,6 +2180,7 @@ mod tests {
                     snr: 40.0,
                     eccentricity: 0.1,
                     sharpness: 0.3,
+                    elongation_angle_deg: 0.0,
                 },
                 frame_star: DetectedStar {
                     x: 205.0,
@@ -2190,6 +2193,7 @@ mod tests {
                     snr: 40.0,
                     eccentricity: 0.1,
                     sharpness: 0.3,
+                    elongation_angle_deg: 0.0,
                 },
                 distance: 5.83,
             },
@@ -2254,6 +2258,7 @@ mod tests {
                 snr: 50.0,
                 eccentricity: 0.1,
                 sharpness: 0.3,
+                elongation_angle_deg: 0.0,
             },
             DetectedStar {
                 x: 200.0,
@@ -2266,6 +2271,7 @@ mod tests {
                 snr: 40.0,
                 eccentricity: 0.1,
                 sharpness: 0.3,
+                elongation_angle_deg: 0.0,
             },
         ];
 
@@ -2282,6 +2288,7 @@ mod tests {
                 snr: 50.0,
                 eccentricity: 0.1,
                 sharpness: 0.3,
+                elongation_angle_deg: 0.0,
             },
             DetectedStar {
                 x: 203.0,
@@ -2294,6 +2301,7 @@ mod tests {
                 snr: 40.0,
                 eccentricity: 0.1,
                 sharpness: 0.3,
+                elongation_angle_deg: 0.0,
             },
         ];
 
@@ -3155,6 +3163,7 @@ mod tests {
             snr: 50.0,
             eccentricity: 0.0,
             sharpness: 0.2,
+            elongation_angle_deg: 0.0,
         };
         StarMatch {
             ref_star: mk(rx, ry),
@@ -3315,6 +3324,7 @@ mod tests {
             snr: 50.0,
             eccentricity: 0.0,
             sharpness: 0.2,
+            elongation_angle_deg: 0.0,
         }
     }
 

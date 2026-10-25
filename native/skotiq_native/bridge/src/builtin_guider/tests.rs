@@ -12,6 +12,7 @@ fn star(x: f64, y: f64, flux: f64) -> DetectedStar {
         snr: flux / 100.0,
         eccentricity: 0.1,
         sharpness: 0.4,
+        elongation_angle_deg: 0.0,
     }
 }
 
@@ -338,6 +339,7 @@ fn star_q(x: f64, y: f64, flux: f64, snr: f64, peak: f64, ecc: f64) -> DetectedS
         snr,
         eccentricity: ecc,
         sharpness: 0.4,
+        elongation_angle_deg: 0.0,
     }
 }
 

@@ -470,6 +470,11 @@ fn measure(
             mw += v;
         }
     }
+    let elongation_angle_deg = if mw > 0.0 {
+        elongation_angle_deg(mxx / mw, myy / mw, mxy / mw)
+    } else {
+        0.0
+    };
     let eccentricity = if mw > 0.0 {
         let (mxx, myy, mxy) = (mxx / mw, myy / mw, mxy / mw);
         let trace = mxx + myy;
@@ -507,6 +512,7 @@ fn measure(
             background: back_here,
             snr,
             eccentricity,
+            elongation_angle_deg,
             sharpness: (peak_above / total).clamp(0.0, 1.0),
         },
         saturated: peak_raw as f64 > config.saturation_limit as f64,
@@ -515,6 +521,14 @@ fn measure(
         diffuse: hfr > DIFFUSE_MIN_HFR && r90 > DIFFUSE_R90_RATIO * hfr,
         area: pixels.len() as u32,
     })
+}
+
+/// Direction of the major axis of second moments `mxx`, `myy`, `mxy`, in
+/// degrees from +x toward +y, in `[0, 180)`.
+pub(crate) fn elongation_angle_deg(mxx: f64, myy: f64, mxy: f64) -> f64 {
+    (0.5 * (2.0 * mxy).atan2(mxx - myy))
+        .to_degrees()
+        .rem_euclid(180.0)
 }
 
 /// Replace single-pixel spikes with the median of their eight neighbors.

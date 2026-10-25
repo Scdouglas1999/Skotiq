@@ -58,6 +58,30 @@ pub struct FrameShape {
     pub eccentricity: f64,
     /// How many stars the medians were taken over.
     pub stars_measured: usize,
+    /// Mean direction of the stars' long axes, in degrees from the image +x
+    /// axis toward +y, in `[0, 180)`, each star weighted by its eccentricity.
+    pub elongation_angle_deg: f64,
+    /// How well the stars agree on that direction: 1 when every star is
+    /// stretched the same way, near 0 when the directions are random (round
+    /// stars, or elongation from noise).
+    pub elongation_consistency: f64,
+}
+
+/// Eccentricity-weighted mean of axial directions (degrees, period 180) and
+/// the length of the mean resultant, 0 to 1.
+fn axial_mean(stars: &[(f64, f64)]) -> (f64, f64) {
+    let (mut c, mut s, mut w) = (0.0, 0.0, 0.0);
+    for &(eccentricity, angle_deg) in stars {
+        let doubled = (2.0 * angle_deg).to_radians();
+        c += eccentricity * doubled.cos();
+        s += eccentricity * doubled.sin();
+        w += eccentricity;
+    }
+    if w <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let angle = (0.5 * s.atan2(c).to_degrees()).rem_euclid(180.0);
+    (angle, (c.hypot(s) / w).clamp(0.0, 1.0))
 }
 
 /// Measure a frame's star size and shape for grading.
@@ -100,6 +124,7 @@ pub fn measure_frame_shape_from(
     let neighbors = NeighborGrid::new(&seeds);
     let mut hfrs = Vec::with_capacity(MAX_STARS);
     let mut eccentricities = Vec::with_capacity(MAX_STARS);
+    let mut directions = Vec::with_capacity(MAX_STARS);
     for seed in &seeds {
         if hfrs.len() >= MAX_STARS {
             break;
@@ -109,19 +134,23 @@ pub fn measure_frame_shape_from(
         {
             continue;
         }
-        if let Some((hfr, eccentricity)) = measure_star(&frame, seed) {
+        if let Some((hfr, eccentricity, angle)) = measure_star(&frame, seed) {
             hfrs.push(hfr);
             eccentricities.push(eccentricity);
+            directions.push((eccentricity, angle));
         }
     }
     if hfrs.len() < MIN_STARS {
         return None;
     }
     let stars_measured = hfrs.len();
+    let (elongation_angle_deg, elongation_consistency) = axial_mean(&directions);
     Some(FrameShape {
         hfr: crate::robust_stats::median_in_place(&mut hfrs),
         eccentricity: crate::robust_stats::median_in_place(&mut eccentricities),
         stars_measured,
+        elongation_angle_deg,
+        elongation_consistency,
     })
 }
 
@@ -247,9 +276,9 @@ impl<'a> NeighborGrid<'a> {
     }
 }
 
-/// `(hfr, eccentricity)` for one star, or `None` when it cannot be measured
-/// honestly.
-fn measure_star(frame: &Frame, seed: &Seed) -> Option<(f64, f64)> {
+/// `(hfr, eccentricity, long-axis direction in degrees)` for one star, or
+/// `None` when it cannot be measured honestly.
+fn measure_star(frame: &Frame, seed: &Seed) -> Option<(f64, f64, f64)> {
     let r = ANNULUS_OUTER;
     let (px, py) = (seed.x, seed.y);
 
@@ -319,14 +348,16 @@ fn measure_star(frame: &Frame, seed: &Seed) -> Option<(f64, f64)> {
         return None;
     }
 
-    let eccentricity = adaptive_eccentricity(frame, px, py, background, cx, cy, &samples, flux)?;
-    Some((hfr, eccentricity))
+    let (eccentricity, angle) =
+        adaptive_eccentricity(frame, px, py, background, cx, cy, &samples, flux)?;
+    Some((hfr, eccentricity, angle))
 }
 
-/// Eccentricity from adaptive second moments: the weight is an elliptical
-/// Gaussian matched to the star's own shape, iterated to convergence. For a
-/// Gaussian star the weighted moments are half the star's covariance, so the
-/// converged weight is twice the measured moments.
+/// Eccentricity and long-axis direction (degrees) from adaptive second
+/// moments: the weight is an elliptical Gaussian matched to the star's own
+/// shape, iterated to convergence. For a Gaussian star the weighted moments
+/// are half the star's covariance, so the converged weight is twice the
+/// measured moments.
 #[allow(clippy::too_many_arguments)]
 fn adaptive_eccentricity(
     frame: &Frame,
@@ -337,7 +368,7 @@ fn adaptive_eccentricity(
     cy: f64,
     samples: &[(f64, f64, f64)],
     flux: f64,
-) -> Option<f64> {
+) -> Option<(f64, f64)> {
     // Start from the unweighted aperture moments.
     let (mut mxx, mut myy, mut mxy) = (0.0, 0.0, 0.0);
     for &(x, y, v) in samples {
@@ -404,7 +435,10 @@ fn adaptive_eccentricity(
     if major <= 0.0 || minor < 0.0 {
         return None;
     }
-    Some((1.0 - minor / major).max(0.0).sqrt())
+    Some((
+        (1.0 - minor / major).max(0.0).sqrt(),
+        crate::star_detect::elongation_angle_deg(a, b, c),
+    ))
 }
 
 #[cfg(test)]
@@ -414,6 +448,80 @@ mod tests {
     /// Stars on a noisy sky: `sigma_x`/`sigma_y` set the PSF, `pedestal`
     /// raises one half of the frame (a gradient the global background
     /// estimate cannot follow), and `hot_pixels` adds single-pixel spikes.
+    /// Stars stretched along `angle_deg` (from +x toward +y): `sigma_long`
+    /// along that direction, `sigma_short` across it, on a noisy sky.
+    fn stretched_field(sigma_long: f64, sigma_short: f64, angle_deg: f64) -> ImageData {
+        let (w, h) = (600usize, 600usize);
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut noise = move || {
+            let mut acc = 0.0;
+            for _ in 0..4 {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                acc += (state >> 11) as f64 / (1u64 << 53) as f64;
+            }
+            (acc - 2.0) * 1.732
+        };
+        let (cos, sin) = (angle_deg.to_radians().cos(), angle_deg.to_radians().sin());
+        let mut px = vec![0.0f64; w * h];
+        for p in px.iter_mut() {
+            *p = 600.0 + 60.0 * noise();
+        }
+        for row in 0..6 {
+            for col in 0..6 {
+                let (cx, cy) = (60.0 + col as f64 * 95.0, 60.0 + row as f64 * 95.0);
+                for y in (cy as usize - 25)..(cy as usize + 25) {
+                    for x in (cx as usize - 25)..(cx as usize + 25) {
+                        let (dx, dy) = (x as f64 - cx, y as f64 - cy);
+                        let along = dx * cos + dy * sin;
+                        let across = -dx * sin + dy * cos;
+                        px[y * w + x] += 9000.0
+                            * (-0.5
+                                * ((along / sigma_long).powi(2) + (across / sigma_short).powi(2)))
+                            .exp();
+                    }
+                }
+            }
+        }
+        let data: Vec<u16> = px.iter().map(|v| v.clamp(0.0, 65535.0) as u16).collect();
+        ImageData::from_u16(w as u32, h as u32, 1, &data)
+    }
+
+    fn axial_difference(a: f64, b: f64) -> f64 {
+        let d = (a - b).rem_euclid(180.0);
+        d.min(180.0 - d)
+    }
+
+    #[test]
+    fn the_direction_of_elongation_is_measured_and_agrees_across_stars() {
+        for angle in [0.0, 30.0, 90.0, 135.0] {
+            let shape = measure_frame_shape(&stretched_field(3.0, 1.8, angle))
+                .unwrap_or_else(|| panic!("{angle}: no stars"));
+            assert!(
+                axial_difference(shape.elongation_angle_deg, angle) < 3.0,
+                "{angle}: measured {}",
+                shape.elongation_angle_deg
+            );
+            assert!(shape.elongation_consistency > 0.9, "{shape:?}");
+        }
+        let round = measure_frame_shape(&stretched_field(2.0, 2.0, 0.0)).expect("stars");
+        assert!(round.eccentricity < 0.3, "{round:?}");
+    }
+
+    #[test]
+    fn the_detector_reports_each_stars_direction() {
+        let image = stretched_field(3.0, 1.8, 30.0);
+        let stars = detect_stars(&image, &StarDetectionConfig::default());
+        assert!(stars.len() >= 20, "{}", stars.len());
+        let mut off = stars
+            .iter()
+            .map(|s| axial_difference(s.elongation_angle_deg, 30.0))
+            .collect::<Vec<_>>();
+        off.sort_by(f64::total_cmp);
+        assert!(off[off.len() / 2] < 5.0, "{off:?}");
+    }
+
     fn field(sigma_x: f64, sigma_y: f64, pedestal: f64, hot_pixels: bool) -> ImageData {
         let (w, h) = (600usize, 600usize);
         let mut state = 0x2545_f491_4f6c_dd1du64;
