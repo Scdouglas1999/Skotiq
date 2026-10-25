@@ -94,7 +94,7 @@ class DarkroomStatusChip extends ConsumerWidget {
       dotTone: tone,
       value: value,
       maxValueWidth: 320,
-      live: job?.active ?? false,
+      live: job?.active == true,
       semanticLabel: '$value. Open Activity.',
       onTap: () => context.go(darkroomTabLocation(DarkroomTab.activity)),
     );

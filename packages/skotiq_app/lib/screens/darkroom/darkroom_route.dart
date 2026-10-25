@@ -59,8 +59,13 @@ class DarkroomRoute {
   /// or a recipe opens Edit, a pass opens Activity, anything else Targets.
   factory DarkroomRoute.fromUri(Uri uri) {
     final q = uri.queryParameters;
-    final masterId = int.tryParse(q['master'] ?? '');
-    final recipeId = int.tryParse(q['recipe'] ?? '');
+    int? id(String key) {
+      final value = q[key];
+      return value == null ? null : int.tryParse(value);
+    }
+
+    final masterId = id('master');
+    final recipeId = id('recipe');
     final pass = q['pass'];
     final passRunId = pass == null || pass.isEmpty ? null : pass;
     final target = q['target']?.trim();

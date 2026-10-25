@@ -338,7 +338,7 @@ class _Hero extends ConsumerWidget {
                                     label: openLabel,
                                     variant: ButtonVariant.secondary,
                                     size: ButtonSize.large,
-                                    onPressed: () => context.go(
+                                    onPressed: () => context.push(
                                       darkroomEditLocation(masterId: open.id),
                                     ),
                                   ),
@@ -479,15 +479,18 @@ class _ChannelTile extends StatelessWidget {
     if (master == null) {
       return Semantics(label: label, excludeSemantics: true, child: tile);
     }
+    void open() => context.push(darkroomEditLocation(masterId: master.id));
     return Semantics(
       button: true,
+      enabled: true,
       label: '$label. Open in Edit.',
+      onTap: open,
       excludeSemantics: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           key: ValueKey('darkroom_channel_${channel.filter}'),
-          onTap: () => context.go(darkroomEditLocation(masterId: master.id)),
+          onTap: open,
           child: tile,
         ),
       ),
@@ -639,14 +642,17 @@ class _MasterRow extends StatelessWidget {
       describeIntegration(master.totalIntegrationSeconds),
     ].join(' · ');
     final missing = path == null || path.isEmpty || !File(path).existsSync();
+    void open() => context.push(darkroomEditLocation(masterId: master.id));
     return Semantics(
       button: true,
+      enabled: true,
       label: '$name, $kind${missing ? ', file not on this computer' : ''}. '
           'Open in Edit.',
+      onTap: open,
       excludeSemantics: true,
       child: InkWell(
         key: ValueKey('darkroom_last_master_${master.id}'),
-        onTap: () => context.go(darkroomEditLocation(masterId: master.id)),
+        onTap: open,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
           decoration: BoxDecoration(

@@ -251,10 +251,13 @@ class _TargetRowState extends State<_TargetRow> {
       if (t.keptSeconds > 0) describeIntegration(t.keptSeconds),
     ].join(' · ');
     final hero = t.heroMaster;
+    void open() => context.go(darkroomTargetLocation(t.key));
     return Semantics(
       button: true,
+      enabled: true,
       selected: widget.selected,
       label: '${t.key}. $meta. $status.',
+      onTap: open,
       excludeSemantics: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -263,7 +266,7 @@ class _TargetRowState extends State<_TargetRow> {
         child: GestureDetector(
           key: ValueKey('darkroom_target_row_${t.key}'),
           behavior: HitTestBehavior.opaque,
-          onTap: () => context.go(darkroomTargetLocation(t.key)),
+          onTap: open,
           child: AnimatedContainer(
             duration: SkotiqTokens.durationFast,
             padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
