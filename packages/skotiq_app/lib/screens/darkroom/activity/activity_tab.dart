@@ -24,9 +24,27 @@ class DarkroomActivityTab extends ConsumerWidget {
     }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(SkotiqTokens.space2xl),
-      child: job.stage == DarkroomJobStage.done
-          ? BuildResultPanel(job: job, onError: (_) {})
-          : BuildProgressPanel(job: job),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (job.stage == DarkroomJobStage.done)
+            BuildResultPanel(job: job, onError: (_) {})
+          else
+            BuildProgressPanel(job: job),
+          if (job.active) ...[
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SkotiqButton(
+                label: 'Stop after the current light',
+                variant: ButtonVariant.destructive,
+                onPressed: () =>
+                    ref.read(darkroomBuildJobsProvider.notifier).stop(),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

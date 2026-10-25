@@ -812,7 +812,8 @@ class _FieldPainter extends CustomPainter {
           ..strokeWidth = emphasized ? 3 : 1.5,
       );
       final b = poly.getBounds().intersect(Offset.zero & size);
-      if (!b.isEmpty) {
+      final named = highlighted == null ? path == limiting.first : emphasized;
+      if (named && !b.isEmpty) {
         label(
           p.basenameWithoutExtension(path),
           Offset(b.left + 8, b.bottom - 20),
@@ -990,6 +991,7 @@ class _Aside extends ConsumerWidget {
               const SizedBox(height: SkotiqTokens.spaceXl),
               if (limiting.isNotEmpty) ...[
                 _LimitingCard(
+                  total: limiting.length,
                   limiting: limiting.take(_limitingShown).toList(),
                   byPath: byPath,
                   busy: busy,
@@ -1034,22 +1036,6 @@ class _Aside extends ConsumerWidget {
                     : 'No flat for ${missingFlats.join(', ')}',
                 tone: missingFlats.isEmpty ? null : colors.warning,
               ),
-              if (missingFlats.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: SkotiqTokens.spaceXs,
-                  ),
-                  child: _CheckRow(
-                    key: const ValueKey('darkroom_without_flats'),
-                    value: session.withoutFlats,
-                    label: 'Build ${missingFlats.join(', ')} without flats. '
-                        'Dust shadows and vignetting stay in.',
-                    onChanged: busy
-                        ? null
-                        : (v) => setSession.state =
-                            session.copyWith(withoutFlats: v),
-                  ),
-                ),
               const _SettingRow(
                 label: 'Rejection',
                 value: 'Chosen by sub count',
@@ -1073,6 +1059,19 @@ class _Aside extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (missingFlats.isNotEmpty) ...[
+                _CheckRow(
+                  key: const ValueKey('darkroom_without_flats'),
+                  value: session.withoutFlats,
+                  label: 'Build ${missingFlats.join(', ')} without flats. '
+                      'Dust shadows and vignetting stay in.',
+                  onChanged: busy
+                      ? null
+                      : (v) =>
+                          setSession.state = session.copyWith(withoutFlats: v),
+                ),
+                const SizedBox(height: SkotiqTokens.spaceSm),
+              ],
               Row(
                 children: [
                   Expanded(
@@ -1121,6 +1120,7 @@ class _Aside extends ConsumerWidget {
 
 class _LimitingCard extends StatelessWidget {
   const _LimitingCard({
+    required this.total,
     required this.limiting,
     required this.byPath,
     required this.busy,
@@ -1128,6 +1128,8 @@ class _LimitingCard extends StatelessWidget {
     required this.onLeaveOut,
   });
 
+  /// Every limiting sub; [limiting] is the most limiting few.
+  final int total;
   final List<DarkroomLimitingFrame> limiting;
   final Map<String, DbCapturedImage> byPath;
   final bool busy;
@@ -1149,13 +1151,20 @@ class _LimitingCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            limiting.length == 1
+            total == 1
                 ? 'One sub is holding it back'
-                : '${limiting.length} subs are holding it back',
+                : '$total subs are holding it back',
             style: SkotiqTypography.bodyStrong.copyWith(
               color: colors.textPrimary,
             ),
           ),
+          if (total > limiting.length)
+            Text(
+              'The ${limiting.length} that cost the most field:',
+              style: SkotiqTypography.caption.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
           for (final f in limiting)
             MouseRegion(
               onEnter: (_) => onHighlight(f.path),
@@ -1180,7 +1189,16 @@ class _LimitingCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _describe(f, byPath[f.path]),
+                            _when(f, byPath[f.path]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SkotiqTypography.caption.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            'Without it: ${percent(f.retainedWithout)} kept',
+                            maxLines: 1,
                             style: SkotiqTypography.caption.copyWith(
                               color: colors.textSecondary,
                             ),
@@ -1206,7 +1224,9 @@ class _LimitingCard extends StatelessWidget {
             key: const ValueKey('darkroom_leave_out'),
             label: limiting.length == 1
                 ? 'Leave it out'
-                : 'Leave all ${limiting.length} out',
+                : (total > limiting.length
+                    ? 'Leave these ${limiting.length} out'
+                    : 'Leave all ${limiting.length} out'),
             variant: ButtonVariant.secondary,
             onPressed: busy
                 ? null
@@ -1217,12 +1237,11 @@ class _LimitingCard extends StatelessWidget {
     );
   }
 
-  static String _describe(DarkroomLimitingFrame f, DbCapturedImage? image) {
-    final kept = 'without it ${percent(f.retainedWithout)} is kept';
-    if (image == null) return '${f.group} · $kept';
+  static String _when(DarkroomLimitingFrame f, DbCapturedImage? image) {
+    if (image == null) return f.group;
     final side = image.pierSide == null ? '' : ' · ${image.pierSide}';
     return '${darkroomShortDate(image.capturedAt)}, '
-        '${hhmm(image.capturedAt)}$side · $kept';
+        '${hhmm(image.capturedAt)}$side';
   }
 }
 

@@ -192,12 +192,15 @@ class _Hero extends ConsumerWidget {
     final color = target.color;
     final otherBusy = job != null && job!.active && job!.target != target.key;
     final hasKept = target.nights.any((n) => n.kept > 0);
+    final ownBusy = job != null && job!.active && job!.target == target.key;
     final buildReason = !hasKept
         ? 'There are no kept subs to build from.'
-        : (otherBusy
-            ? 'A build for ${job!.target} is running. One build runs at a '
-                'time.'
-            : null);
+        : ownBusy
+            ? 'This target is being built now.'
+            : (otherBusy
+                ? 'A build for ${job!.target} is running. One build runs at '
+                    'a time.'
+                : null);
     final open = color ?? hero;
     final openLabel = color != null
         ? 'Open the color image'

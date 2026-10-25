@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -35,9 +37,14 @@ class DarkroomFilterCalibration {
     required this.filter,
     required this.exposureSeconds,
     required this.match,
+    this.missing = const {},
   });
 
   final String filter;
+
+  /// Matched masters whose file is not on this computer: `dark`, `bias` or
+  /// `flat`.
+  final Set<String> missing;
 
   /// The exposure most of the filter's kept subs were taken at.
   final double exposureSeconds;
@@ -64,27 +71,39 @@ final darkroomTargetCalibrationProvider = FutureProvider.autoDispose
       for (final s in subs)
         if (s.sensorTemp != null) s.sensorTemp!,
     ]..sort();
+    final match = await library.match(
+      LightFrameContext(
+        gain: f.gain,
+        offset: f.offset,
+        exposureSeconds: f.exposureDuration,
+        temperature: temps.isEmpty ? null : temps[temps.length ~/ 2],
+        filter: f.filter,
+        binX: f.binX,
+        binY: f.binY,
+      ),
+      includeRemote: false,
+    );
     result.add(
       DarkroomFilterCalibration(
         filter: channel.filter,
         exposureSeconds: f.exposureDuration,
-        match: await library.match(
-          LightFrameContext(
-            gain: f.gain,
-            offset: f.offset,
-            exposureSeconds: f.exposureDuration,
-            temperature: temps.isEmpty ? null : temps[temps.length ~/ 2],
-            filter: f.filter,
-            binX: f.binX,
-            binY: f.binY,
-          ),
-          includeRemote: false,
-        ),
+        match: match,
+        missing: {
+          for (final (kind, m) in [
+            ('dark', match.dark),
+            ('bias', match.bias),
+            ('flat', match.flat),
+          ])
+            if (m != null && !await _present(m.record.filePath)) kind,
+        },
       ),
     );
   }
   return result;
 });
+
+Future<bool> _present(String? path) async =>
+    path != null && path.isNotEmpty && await File(path).exists();
 
 /// The sub whose exposure, gain, offset and binning most subs share.
 DbCapturedImage _typical(List<DbCapturedImage> subs) {

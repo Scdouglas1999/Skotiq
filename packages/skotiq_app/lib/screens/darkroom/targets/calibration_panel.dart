@@ -186,52 +186,44 @@ class _FilterRow extends ConsumerWidget {
       filter,
       style: SkotiqTypography.labelStrong.copyWith(color: colors.textPrimary),
     );
-    final darkCell = Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: 'Dark ', style: muted),
+    final missing = calibration.missing;
+    Widget cell(String kind, String label, String? text, String? path) {
+      final gone = missing.contains(kind);
+      return Tooltip(
+        message: gone
+            ? 'The $kind master is not on this computer: $path'
+            : (path ?? 'No matching $kind'),
+        child: Text.rich(
           TextSpan(
-            text: darkText ?? 'none',
-            style: darkText == null ? warn : value,
+            children: [
+              TextSpan(text: '$label ', style: muted),
+              TextSpan(
+                text: text == null ? 'none' : (gone ? '$text · missing' : text),
+                style: text == null || gone ? warn : value,
+              ),
+            ],
           ),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-    final biasCell = Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: 'Bias ', style: muted),
-          TextSpan(
-            text: bias == null ? 'none' : frames(bias.record.frameCount),
-            style: value,
-          ),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-    final flatCell = Tooltip(
-      message: chosen ?? flat?.record.filePath ?? 'No matching flat',
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(text: 'Flat ', style: muted),
-            TextSpan(
-              text: chosen != null
-                  ? p.basename(chosen)
-                  : (flat == null
-                      ? 'none'
-                      : darkroomShortDate(flat.record.createdAt)),
-              style: chosen == null && flat == null ? warn : value,
-            ),
-          ],
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      );
+    }
+
+    final darkCell = cell('dark', 'Dark', darkText, dark?.record.filePath);
+    final biasCell = cell(
+      'bias',
+      'Bias',
+      bias == null ? null : frames(bias.record.frameCount),
+      bias?.record.filePath,
     );
+    final flatCell = chosen != null
+        ? cell('chosen flat', 'Flat', p.basename(chosen), chosen)
+        : cell(
+            'flat',
+            'Flat',
+            flat == null ? null : darkroomShortDate(flat.record.createdAt),
+            flat?.record.filePath,
+          );
     return Container(
       key: ValueKey('darkroom_calibration_row_$filter'),
       padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
