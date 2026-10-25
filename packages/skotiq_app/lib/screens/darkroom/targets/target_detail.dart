@@ -241,7 +241,7 @@ class _Hero extends ConsumerWidget {
                         bottom: 0,
                         width: width,
                         child: DarkroomPreviewImage(
-                          path: hero?.previewPngPath,
+                          path: target.heroImagePath,
                           decodeWidth: (width * dpr).round(),
                           placeholderIcon: SkotiqIcons.star,
                         ),

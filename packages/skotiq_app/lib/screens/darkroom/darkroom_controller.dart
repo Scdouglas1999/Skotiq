@@ -37,6 +37,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 
+import 'darkroom_previews.dart';
+
 part 'darkroom_controller_parts/_models.dart';
 part 'darkroom_controller_parts/_state.dart';
 part 'darkroom_controller_parts/_helpers.dart';
@@ -1646,6 +1648,28 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         reportedSteps: List.unmodifiable(askedIdentities),
         clearRenderFailure: true,
       );
+      final encoding = decodeDarkroomEncoding(preview.report);
+      if (darkroomRenderIsDisplayable(
+        encoding.applied,
+        encoding.sourceDomain,
+      )) {
+        // The finished render becomes the recipe's draft thumbnail, which the
+        // Targets and Edit lists show in place of the master's preview.
+        unawaited(
+          saveDarkroomRecipePreview(
+            path: darkroomRecipePreviewPath(masterPath, recipeId),
+            width: preview.width,
+            height: preview.height,
+            rgba: preview.rgba,
+          ).catchError((Object error) {
+            developer.log(
+              'The draft thumbnail for recipe $recipeId could not be saved: '
+              '$error',
+              name: 'DarkroomController',
+            );
+          }),
+        );
+      }
     } on DarkroomCancelledOutcome catch (cancelled) {
       if (!mounted || generation != _renderGeneration) return;
       // A stopped render is the operator's own instruction being obeyed, not a

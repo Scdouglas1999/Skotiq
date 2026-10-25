@@ -20,6 +20,7 @@ import '../darkroom_controller.dart' show DarkroomScope;
 import '../darkroom_route.dart' show DarkroomRouteScope;
 import 'channel_combine.dart';
 import 'darkroom_editor.dart';
+import '../darkroom_previews.dart';
 import 'darkroom_image_library.dart';
 import '../targets/nights_strip.dart' show darkroomShortDate;
 
@@ -393,7 +394,9 @@ class _DarkroomImageThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final path = image.master.previewPngPath;
+    // A rendered recipe draft, else the master's auto-stretched preview.
+    final path = darkroomRecipeDraftPreview(image.recipes) ??
+        image.master.previewPngPath;
     final ratio = MediaQuery.devicePixelRatioOf(context);
     final placeholder = Container(
       color: colors.well,

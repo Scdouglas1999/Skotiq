@@ -250,7 +250,6 @@ class _TargetRowState extends State<_TargetRow> {
       if (t.filters.isNotEmpty) darkroomFilterSummary(t.filters),
       if (t.keptSeconds > 0) describeIntegration(t.keptSeconds),
     ].join(' · ');
-    final hero = t.heroMaster;
     void open() => context.go(darkroomTargetLocation(t.key));
     return Semantics(
       button: true,
@@ -288,7 +287,7 @@ class _TargetRowState extends State<_TargetRow> {
                   child: SizedBox.square(
                     dimension: _thumbSize,
                     child: DarkroomPreviewImage(
-                      path: hero?.previewPngPath,
+                      path: t.heroImagePath,
                       alignment: const Alignment(.4, 0),
                       decodeWidth: 240,
                       placeholderIcon: SkotiqIcons.star,

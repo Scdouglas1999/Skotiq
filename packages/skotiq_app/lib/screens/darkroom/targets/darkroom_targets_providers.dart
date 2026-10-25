@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../darkroom_previews.dart';
 import 'darkroom_targets_model.dart';
 
 /// Every imaged target with its nights and masters, most recently imaged
@@ -22,7 +23,16 @@ final darkroomTargetsProvider =
   final rows = await db.targetsDao.getAllTargets();
   final folded = <int, Set<int>>{};
   final used = <int, Set<int>>{};
+  final drafts = <int, String>{};
+  final recipes = RecipesDao(db);
   for (final m in masters) {
+    final path = m.masterFitsPath;
+    if (path != null) {
+      final draft = darkroomRecipeDraftPreview(
+        await recipes.listForMaster(path),
+      );
+      if (draft != null) drafts[m.id] = draft;
+    }
     final records = await mastersDao.getFramesForMaster(m.id);
     folded[m.id] = {for (final r in records) r.imageId};
     used[m.id] = {
@@ -36,6 +46,7 @@ final darkroomTargetsProvider =
     targetRows: rows,
     foldedByMaster: folded,
     usedByMaster: used,
+    draftPreviews: drafts,
   );
 });
 

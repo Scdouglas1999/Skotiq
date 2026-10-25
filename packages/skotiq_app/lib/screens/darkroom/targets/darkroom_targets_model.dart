@@ -190,7 +190,11 @@ class DarkroomTarget {
     required this.masters,
     required this.channels,
     this.row,
+    this.draftPreviews = const {},
   });
+
+  /// Rendered recipe drafts on disk, by master id.
+  final Map<int, String> draftPreviews;
 
   /// The name `loadDarkroomTargets` lists it under; the build plan's target.
   final String key;
@@ -223,6 +227,23 @@ class DarkroomTarget {
       }
     }
     return masters.firstOrNull;
+  }
+
+  /// The picture that stands for the target: a rendered recipe draft (of
+  /// the color image, else the luminance master, else any master), else the
+  /// auto-stretched preview of the color image, else of the luminance master.
+  String? get heroImagePath {
+    final hero = heroMaster;
+    final order = [
+      if (hero != null) hero,
+      for (final m in masters)
+        if (m.id != hero?.id) m,
+    ];
+    for (final m in order) {
+      final draft = draftPreviews[m.id];
+      if (draft != null) return draft;
+    }
+    return hero?.previewPngPath;
   }
 
   /// The newest master of each filter, plus the newest color image.
@@ -427,6 +448,7 @@ List<DarkroomTarget> buildDarkroomTargets({
   required List<DbTarget> targetRows,
   required Map<int, Set<int>> foldedByMaster,
   Map<int, Set<int>>? usedByMaster,
+  Map<int, String> draftPreviews = const {},
 }) {
   final rowsByName = {for (final t in targetRows) t.name: t};
   final result = <DarkroomTarget>[];
@@ -492,6 +514,10 @@ List<DarkroomTarget> buildDarkroomTargets({
         nights: nights,
         masters: own,
         channels: channels,
+        draftPreviews: {
+          for (final m in own)
+            if (draftPreviews[m.id] case final String path) m.id: path,
+        },
       ),
     );
   }
