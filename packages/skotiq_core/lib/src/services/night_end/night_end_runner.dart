@@ -325,9 +325,10 @@ class NightEndRunner {
         return target.copyWith(
           build: NightEndStep(
             NightEndStepState.waiting,
-            '${job.preview?.describeLimit() ?? ''} It waits for you at the '
-                    'framing check.'
-                .trim(),
+            [
+              if (job.preview case final preview?) preview.describeLimit(),
+              'It waits for you at the framing check.',
+            ].join(' '),
           ),
           deliver: const NightEndStep(NightEndStepState.pending),
           nights: nights,
@@ -442,8 +443,10 @@ class NightEndRunner {
             '${t.target}: ${t.build.detail ?? 'masters ready.'}'
                 '${t.deliver.detail == null ? '' : ' ${t.deliver.detail}'}',
           NightEndStepState.waiting => '${t.target}: ${t.build.detail}',
-          NightEndStepState.failed =>
-            '${t.target}: the build failed. ${t.build.detail ?? ''}'.trim(),
+          NightEndStepState.failed => [
+            '${t.target}: the build failed.',
+            if (t.build.detail case final detail?) detail,
+          ].join(' '),
           _ => null,
         },
       if (run.calibrate.state == NightEndStepState.failed)
