@@ -374,6 +374,31 @@ class IntegratedMastersDao {
     );
   }
 
+  /// Replace master [oldId] with [newId], a newer build of the same target and
+  /// filter at [newPath]: the old master's recipes move to the new one, since
+  /// their steps apply to the same target, and the old row is deleted.
+  Future<void> replaceMaster({
+    required int oldId,
+    required String? oldPath,
+    required int newId,
+    required String newPath,
+  }) {
+    return _db.transaction(() async {
+      await _db.customUpdate(
+        'UPDATE recipes SET master_id = ?, base_master_path = ? '
+        'WHERE master_id = ? OR base_master_path = ?',
+        variables: [
+          Variable<int>(newId),
+          Variable<String>(newPath),
+          Variable<int>(oldId),
+          Variable<String>(oldPath ?? newPath),
+        ],
+        updateKind: UpdateKind.update,
+      );
+      await deleteMaster(oldId);
+    });
+  }
+
   /// Delete a master (cascades to its `integrated_master_frames` rows via the FK).
   Future<int> deleteMaster(int id) {
     return _db.customUpdate(

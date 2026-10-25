@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/integrated_masters_dao.dart';
+import 'package:skotiq_core/src/database/daos/recipes_dao.dart';
+import 'package:skotiq_core/src/models/darkroom/recipe.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/services/calibration_master_builder.dart';
@@ -826,7 +828,20 @@ void main() {
       ]..sort();
 
       final made = <String>[];
+      int? recipe;
       for (var fold = 0; fold < 3; fold++) {
+        if (fold == 1) {
+          // An edit made on the first fold's L master.
+          final l = (await IntegratedMastersDao(
+            db,
+          ).getAll()).singleWhere((m) => m.filter == 'L');
+          recipe = await RecipesDao(db).create(
+            masterId: l.id,
+            baseMasterPath: l.masterFitsPath!,
+            name: 'My L',
+            createdBy: RecipeAuthor.user,
+          );
+        }
         if (fold > 0) await addNight(fold + 1);
         final outcome = await service.buildUnattended(
           target: 'NGC891',
@@ -859,6 +874,11 @@ void main() {
         expect(entry.value, hasLength(1), reason: '${entry.key} once');
         expect(entry.value.single, contains('/${made[2]}/'));
       }
+      // The edit followed the L master through both folds.
+      final moved = (await RecipesDao(db).getById(recipe!))!;
+      final currentL = rows.singleWhere((m) => m.filter == 'L');
+      expect(moved.masterId, currentL.id);
+      expect(moved.baseMasterPath, currentL.masterFitsPath);
     });
 
     test('waits for review below the minimum and integrates nothing', () async {

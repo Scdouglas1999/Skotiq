@@ -1095,19 +1095,26 @@ class DarkroomBuildService {
     return failures;
   }
 
-  /// Drop the library rows for [filter] that an earlier export of
-  /// [directory] registered, now that [current] replaces them.
+  /// Replace the library rows for [filter] that an earlier export of
+  /// [directory] registered with [currentId] at [current]; their recipes
+  /// move to the new master.
   Future<void> _replaceEarlier(
     Directory directory,
     List<IntegratedMaster> library,
     String filter,
+    int currentId,
     String current,
   ) async {
     for (final row in library) {
       if (row.filter == filter &&
           row.masterFitsPath != current &&
           _inExport(directory, row.masterFitsPath)) {
-        await masters.deleteMaster(row.id);
+        await masters.replaceMaster(
+          oldId: row.id,
+          oldPath: row.masterFitsPath,
+          newId: currentId,
+          newPath: current,
+        );
       }
     }
   }
@@ -1137,7 +1144,6 @@ class DarkroomBuildService {
           .where((m) => m.masterFitsPath == file['path'])
           .firstOrNull;
       if (existing != null) continue;
-      await _replaceEarlier(directory, library, filter, file['path'] as String);
       final masterId = await masters.insertMaster(
         name: '${plan['target']} $filter',
         masterFitsPath: file['path'] as String,
@@ -1153,6 +1159,13 @@ class DarkroomBuildService {
             .toDouble(),
         settingsJson: jsonEncode(plan),
         statsJson: jsonEncode(results[i]),
+      );
+      await _replaceEarlier(
+        directory,
+        library,
+        filter,
+        masterId,
+        file['path'] as String,
       );
       for (final frame in results[i]['folded'] as List) {
         final id = inputsByPath[frame['path']];
@@ -1210,13 +1223,12 @@ class DarkroomBuildService {
         );
       }
       if (library.any((m) => m.masterFitsPath == path)) continue;
-      await _replaceEarlier(directory, library, kind, path);
       final used = [
         for (final r in results)
           if (roles.contains(darkroomColorRole(r['filter'] as String))) r,
       ];
       final preview = composites[previewKey];
-      await masters.insertMaster(
+      final compositeId = await masters.insertMaster(
         name: '${plan['target']} $kind',
         masterFitsPath: path,
         previewPngPath: preview is String ? preview : null,
@@ -1238,6 +1250,7 @@ class DarkroomBuildService {
           if (composites[xisfKey] != null) 'xisfPath': composites[xisfKey],
         }),
       );
+      await _replaceEarlier(directory, library, kind, compositeId, path);
     }
   }
 

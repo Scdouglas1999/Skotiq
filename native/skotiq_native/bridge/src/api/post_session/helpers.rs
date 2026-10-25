@@ -700,6 +700,17 @@ pub(crate) fn reference_wcs_from_fits(path: &str) -> Option<WcsInfo> {
 /// can emit the same stretched preview alongside its drizzled master FITS rather
 /// than re-implementing the stretch.
 pub(crate) fn write_preview_png(master: &ImageData, path: &Path) -> Result<(), String> {
+    write_preview_png_with_mode(master, path, RgbStretchMode::Linked)
+}
+
+/// [`write_preview_png`] with the color STF chosen: `Unlinked` stretches each
+/// channel from its own median and MAD, PixInsight's default auto-stretch,
+/// so a color cast in the linear data does not leave two channels black.
+pub(crate) fn write_preview_png_with_mode(
+    master: &ImageData,
+    path: &Path,
+    mode: RgbStretchMode,
+) -> Result<(), String> {
     ensure_parent_dir(path)?;
     let u16_master = to_u16_for_preview(master);
 
@@ -718,7 +729,7 @@ pub(crate) fn write_preview_png(master: &ImageData, path: &Path) -> Result<(), S
         let rgb = u16_master
             .as_u16()
             .ok_or_else(|| "RGB preview requires u16 master".to_string())?;
-        let (r, g, b) = auto_stretch_rgb_with_mode(&rgb, width, height, RgbStretchMode::Linked);
+        let (r, g, b) = auto_stretch_rgb_with_mode(&rgb, width, height, mode);
         let eight = apply_stretch_rgb_per_channel(&rgb, width, height, &r, &g, &b);
         let img: image::RgbImage = image::ImageBuffer::from_raw(width, height, eight)
             .ok_or_else(|| "failed to build RGB preview buffer".to_string())?;

@@ -279,9 +279,10 @@ fn write_rgb(
     };
     skotiq_imaging::write_xisf(&xisf, &image, &metadata)
         .map_err(|e| format!("failed to write '{}': {e:?}", xisf.display()))?;
-    // The stretched thumbnail the master library shows for the composite.
+    // The stretched thumbnail the master library shows for the composite,
+    // each channel auto-stretched on its own as PixInsight's STF does.
     let png = path_stem.with_extension("png");
-    write_preview_png(&image, &png)?;
+    write_preview_png_with_mode(&image, &png, RgbStretchMode::Unlinked)?;
     Ok((
         fits.to_string_lossy().to_string(),
         xisf.to_string_lossy().to_string(),
@@ -409,5 +410,41 @@ mod tests {
             }
         }
         assert_eq!(rectangle(&[false; 12], 4, 3), None);
+    }
+
+    /// A linear composite with a strong color cast (blue sky glow far above
+    /// red and green) previews with every channel's background lifted into
+    /// the STF's target range, not two black channels and a blue one.
+    #[test]
+    fn a_linear_composite_previews_auto_stretched_per_channel() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let (w, h) = (96u32, 64u32);
+        let mut seed = 7u32;
+        let mut noise = || {
+            seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+            ((seed >> 16) & 0x7fff) as f32 / 32_768.0 - 0.5
+        };
+        let background = [0.004f32, 0.006, 0.03];
+        let mut rgb = Vec::with_capacity((w * h * 3) as usize);
+        for i in 0..(w * h) {
+            let star = i % 397 == 0;
+            for c in 0..3 {
+                let v = background[c] * (1.0 + 0.1 * noise());
+                rgb.push(if star { 0.9 } else { v });
+            }
+        }
+        let header = FitsHeader::default();
+        let (_, _, png) = write_rgb(&dir.path().join("RGB_linear"), &rgb, w, h, &header)
+            .expect("composite written");
+        let preview = image::open(&png).expect("preview").to_rgb8();
+        for c in 0..3 {
+            let mut values: Vec<u8> = preview.pixels().map(|p| p.0[c]).collect();
+            values.sort_unstable();
+            let median = values[values.len() / 2] as f32 / 255.0;
+            assert!(
+                (0.12..=0.45).contains(&median),
+                "channel {c} preview median {median} is outside the auto-stretch range"
+            );
+        }
     }
 }
