@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +33,20 @@ class _Notifications extends NotificationService {
   }) async {
     sent.add('$title | $message');
     return true;
+  }
+
+  final detailed = <String>[];
+  @override
+  Future<NotificationDispatch> notifyDetailed({
+    required NotificationEvent event,
+    required String title,
+    required String message,
+    NotificationPriority priority = NotificationPriority.normal,
+    NotificationCategory routeAs = NotificationCategory.custom,
+    String? deepLink,
+  }) async {
+    detailed.add('$title | $message');
+    return const NotificationDispatch(routed: null, webhookAccepted: true);
   }
 }
 
@@ -243,6 +259,66 @@ void main() {
       );
     },
   );
+
+  test('a finished unattended build is delivered and announced with one '
+      'morning message', () async {
+    final drop = await Directory('${folder.path}/nas').create();
+    await DeliveryTargetsDao(db).create(
+      name: 'nas',
+      kind: ArtifactDestinationKind.watchedFolder,
+      configJson: jsonEncode({'path': drop.path}),
+      content: const {
+        ArtifactContent.linearMasters,
+        ArtifactContent.draftRender,
+        ArtifactContent.nightReport,
+      },
+    );
+    final job = await container
+        .read(darkroomBuildJobsProvider.notifier)
+        .startUnattended(
+          'NGC891',
+          outputRoot: Directory('${folder.path}/auto'),
+          announceReady: false,
+        );
+    expect(job.stage, DarkroomJobStage.done);
+    expect(
+      notifications.sent,
+      isEmpty,
+      reason: 'the caller sends the morning message',
+    );
+
+    // The fake native writes no previews; give the masters theirs.
+    for (final m in job.report!['delivery']['masters'] as List) {
+      await File(m['previewPath'] as String).writeAsString('png');
+    }
+    final delivery = GuidedBuildDelivery(
+      jobs: DarkroomJobsDao(db),
+      delivery: DeliveryService(
+        targets: DeliveryTargetsDao(db),
+        journal: DeliveryJournalDao(db),
+        transportFactory: (destination, jobId) =>
+            WatchedFolderTransport(destination: destination, jobId: jobId),
+      ),
+      notifications: notifications,
+    );
+    final outcome = await delivery.deliver(job);
+
+    expect(outcome.problems, isEmpty);
+    // Two masters, two previews, the report and the frame audit.
+    expect(outcome.delivery!.delivered, 6);
+    expect(notifications.detailed, hasLength(1));
+    final message = notifications.detailed.single;
+    expect(message, startsWith('Masters ready: NGC891'));
+    expect(message, contains('1 night, 2 subs used, 4 left out.'));
+    expect(message, contains('L 1 sub, 2 min; R 1 sub, 2 min.'));
+    expect(message, contains('of the field kept (95 x 75 px)'));
+    expect(message, contains('No filter has flats (L, R)'));
+    expect(message, contains('Delivered 6 files to 1 destination.'));
+    expect(outcome.announced, isTrue);
+    final row = await DarkroomJobsDao(db).getById(outcome.jobId);
+    expect(row!.sessionId, isNull, reason: 'never re-run as a dawn draft pass');
+    expect(row.state, DarkroomJobState.done);
+  });
 
   test('a second build is refused while one runs', () async {
     final jobs = container.read(darkroomBuildJobsProvider.notifier);

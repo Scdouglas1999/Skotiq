@@ -252,9 +252,11 @@ class AutoIntegrationService {
   /// Build PixInsight-ready masters for every target [sessionId] imaged,
   /// when automatic integration is on: the guided multi-night build, run
   /// unattended over all of each target's nights with tonight's calibration.
-  /// The build job announces its own outcome (masters ready, framing review
-  /// needed, or failed); a target that could not be started is reported as a
-  /// failure here.
+  /// A finished build is delivered and announced with one morning message
+  /// ([GuidedBuildDelivery]); the build job announces a framing review or a
+  /// failure itself. A target that could not be started is reported as a
+  /// failure here. The dawn draft pass is not run: the guided build writes
+  /// the previews and composites it would draft.
   Future<AutoIntegrationResult> buildNightMasters(int sessionId) async {
     try {
       if (!await _isEnabled()) return AutoIntegrationResult.disabled;
@@ -283,11 +285,15 @@ class AutoIntegrationService {
       var notStarted = 0;
       for (final name in names) {
         try {
-          final job = await jobs.startUnattended(name);
+          final job = await jobs.startUnattended(name, announceReady: false);
           switch (job.stage) {
             case DarkroomJobStage.done:
               built++;
-              lines.add('$name: masters ready in ${job.directory}.');
+              // The morning message: delivery of the masters, composites,
+              // previews and report, and one summary of the build.
+              final delivered =
+                  await _ref.read(guidedBuildDeliveryProvider).deliver(job);
+              lines.add('$name: ${delivered.message}');
             case DarkroomJobStage.awaitingReview:
               lines.add('$name: the masters wait for a framing review in '
                   'Darkroom.');

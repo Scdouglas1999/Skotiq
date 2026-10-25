@@ -62,6 +62,13 @@ with **Run now** in end-of-night calibration. The build waits for that
 night's calibration frames, so tonight's darks and bias are in the library
 when it matches them.
 
+When such a build finishes, its linear masters, composites, previews,
+`report.json` and `frame-audit.csv` go to the delivery destinations set up in
+Darkroom, and one morning message summarizes it: the nights, the subs used and
+left out per filter, the share of the field kept, the composites, any warnings,
+and where the files were delivered. A build waiting for a framing review, or
+one that failed, sends its own notification instead.
+
 ## Framing and linear output
 
 Skotiq calibrates each light in 32-bit floating point, registers it onto the

@@ -250,12 +250,31 @@ class _RecordingAutoIntegrationService extends AutoIntegrationService {
   }
 }
 
+/// The morning delivery of a finished guided build, recording the targets.
+class _RecordingDelivery implements GuidedBuildDelivery {
+  final delivered = <String>[];
+
+  @override
+  Future<GuidedBuildDeliveryOutcome> deliver(DarkroomBuildJob job) async {
+    delivered.add(job.target);
+    return GuidedBuildDeliveryOutcome(
+      jobId: delivered.length,
+      title: 'Masters ready: ${job.target}',
+      message: '1 night, 3 subs used, 0 left out.',
+      delivery: null,
+      problems: const [],
+      announced: true,
+    );
+  }
+}
+
 /// The background master build, recording the targets it is asked to build
 /// unattended.
 class _RecordingBuildJobs extends DarkroomBuildJobs {
   _RecordingBuildJobs(this.started, {this.stage = DarkroomJobStage.done});
 
   final List<String> started;
+  final announced = <bool>[];
   final DarkroomJobStage stage;
 
   @override
@@ -266,8 +285,10 @@ class _RecordingBuildJobs extends DarkroomBuildJobs {
     String target, {
     Directory? outputRoot,
     double minRetainedArea = defaultMinRetainedArea,
+    bool announceReady = true,
   }) async {
     started.add(target);
+    announced.add(announceReady);
     return DarkroomBuildJob(
       target: target,
       unattended: true,
@@ -608,12 +629,15 @@ void main() {
   group('the night\'s masters come from the guided multi-night build', () {
     late List<String> started;
     late ProviderContainer builds;
+    late _RecordingDelivery delivery;
 
     ProviderContainer buildContainer({
       DarkroomJobStage stage = DarkroomJobStage.done,
     }) {
       started = <String>[];
+      delivery = _RecordingDelivery();
       final c = ProviderContainer(overrides: [
+        guidedBuildDeliveryProvider.overrideWithValue(delivery),
         databaseProvider.overrideWithValue(db),
         masterAccumulationServiceProvider.overrideWithValue(accumulate),
         postSessionIntegrationServiceProvider.overrideWithValue(integrate),
@@ -649,7 +673,9 @@ void main() {
       expect(started..sort(), ['M31', 'NGC891']);
       expect(result.ran, isTrue);
       expect(result.failed, isFalse);
-      expect(result.message, contains('NGC891: masters ready'));
+      expect(result.message, contains('NGC891: 1 night, 3 subs used'));
+      expect(delivery.delivered..sort(), ['M31', 'NGC891'],
+          reason: 'each finished build gets its morning delivery');
       expect(accumulate.calls, isEmpty,
           reason: 'the session-only integration is not run as well');
       expect(integrate.calls, isEmpty);
@@ -685,6 +711,8 @@ void main() {
       expect(started, ['NGC891']);
       expect(result.ran, isFalse);
       expect(result.message, contains('framing review'));
+      expect(delivery.delivered, isEmpty,
+          reason: 'nothing is delivered before the framing is accepted');
     });
   });
 

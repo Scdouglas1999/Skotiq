@@ -461,11 +461,13 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   /// and no dialog. The build starts only when the common crop keeps at least
   /// [minRetainedArea] of the field; otherwise the job waits for review and a
   /// notification names the frames that limit the crop. Returns when the job
-  /// ends or waits.
+  /// ends or waits. With [announceReady] false the caller sends the message
+  /// for a build that finished; review and failure are still announced here.
   Future<DarkroomBuildJob> startUnattended(
     String target, {
     Directory? outputRoot,
     double minRetainedArea = defaultMinRetainedArea,
+    bool announceReady = true,
   }) async {
     _guardIdle();
     final frames = (await loadDarkroomTargets(
@@ -563,10 +565,12 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
             clearEta: true,
           ),
         );
-        await _notify(
-          'Masters ready: $target',
-          [_summary(outcome.report!), ...outcome.warnings].join(' '),
-        );
+        if (announceReady) {
+          await _notify(
+            'Masters ready: $target',
+            [_summary(outcome.report!), ...outcome.warnings].join(' '),
+          );
+        }
       }
     } catch (e) {
       _fail(e);

@@ -24,4 +24,5 @@ export 'dawn_draft_builder.dart';
 export 'dawn_job_report.dart';
 export 'dawn_master_resolver.dart';
 export 'dawn_morning_notifier.dart';
+export 'guided_build_delivery.dart';
 export 'dawn_photometry.dart';
