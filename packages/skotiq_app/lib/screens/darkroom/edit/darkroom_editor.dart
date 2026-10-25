@@ -56,7 +56,15 @@ class DarkroomEditor extends ConsumerStatefulWidget {
   /// list instead of an editor when nothing is named.
   final DarkroomScope scope;
 
-  const DarkroomEditor({super.key, required this.scope});
+  /// Whether the branch bar lists the other images of the night. False when
+  /// the Edit tab's image list is on screen beside the editor.
+  final bool showSiblings;
+
+  const DarkroomEditor({
+    super.key,
+    required this.scope,
+    this.showSiblings = true,
+  });
 
   @override
   ConsumerState<DarkroomEditor> createState() => _DarkroomEditorState();
@@ -303,6 +311,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
           siblingsError: state.siblingsError,
           onImportRecipe: () => unawaited(_controller.importRecipe()),
           importBusy: state.offerBusy,
+          showSiblings: widget.showSiblings,
         ),
         // The branch bar's `Import .skrecipe` writes its refusals into
         // `offerError`, the same field the start offer's copy of that control

@@ -164,6 +164,11 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
   /// second one.
   final bool importBusy;
 
+  /// Whether the bar lists the other images of this night. The Edit tab's
+  /// image list already shows them beside a wide editor, so the bar only
+  /// repeats them when that list is hidden.
+  final bool showSiblings;
+
   const _DarkroomBranchBar({
     required this.scope,
     required this.editorScope,
@@ -178,6 +183,7 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
     required this.siblingsError,
     required this.onImportRecipe,
     required this.importBusy,
+    this.showSiblings = true,
   });
 
   @override
@@ -193,53 +199,88 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     final colors = SkotiqColors.of(context);
     final state = ref.watch(darkroomBranchControllerProvider(widget.scope));
 
+    final banners = <Widget>[
+      if (state.lineageError != null)
+        SkotiqBanner(
+          title: 'The branch history is incomplete',
+          tone: BannerTone.warning,
+          message: state.lineageError!,
+        ),
+      if (state.loadError != null)
+        SkotiqBanner(
+          title: 'The branches could not be read',
+          tone: BannerTone.error,
+          message: state.loadError!,
+        ),
+      if (state.actionError != null)
+        SkotiqBanner(
+          title: 'That branch action did not take effect',
+          tone: BannerTone.error,
+          message: state.actionError!,
+        ),
+      if (state.deleteRefusal != null) _refusal(state.deleteRefusal!),
+    ];
+    final siblings = widget.showSiblings ? _siblings(colors) : const <Widget>[];
+
     return Container(
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: colors.background,
         border: Border(bottom: BorderSide(color: colors.border)),
       ),
       padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.spaceMd,
+        horizontal: SkotiqTokens.spaceLg,
         vertical: SkotiqTokens.spaceSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _chips(colors, state),
+          // The variants and the actions on them share one row when there is
+          // room, so the image keeps the height; a narrow editor stacks them.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final variants = Row(
+                children: [
+                  Text(
+                    'VARIANTS',
+                    style: kDarkroomOverline.copyWith(color: colors.textMuted),
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  Expanded(child: _chips(colors, state)),
+                ],
+              );
+              if (constraints.maxWidth < 1150) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    variants,
+                    const SizedBox(height: SkotiqTokens.spaceSm),
+                    _actions(state),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 2, child: variants),
+                  const SizedBox(width: SkotiqTokens.spaceLg),
+                  Flexible(
+                    flex: 3,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _actions(state, alignEnd: true),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
           if (state.lineage.length > 1) ...[
             const SizedBox(height: SkotiqTokens.spaceXs),
             _lineage(colors, state),
           ],
-          if (state.lineageError != null) ...[
-            const SizedBox(height: SkotiqTokens.spaceXs),
-            SkotiqBanner(
-              title: 'The branch history is incomplete',
-              tone: BannerTone.warning,
-              message: state.lineageError!,
-            ),
-          ],
-          ..._siblings(colors),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          _actions(state),
-          if (state.loadError != null) ...[
+          ...siblings,
+          for (final banner in banners) ...[
             const SizedBox(height: SkotiqTokens.spaceSm),
-            SkotiqBanner(
-              title: 'The branches could not be read',
-              tone: BannerTone.error,
-              message: state.loadError!,
-            ),
-          ],
-          if (state.actionError != null) ...[
-            const SizedBox(height: SkotiqTokens.spaceSm),
-            SkotiqBanner(
-              title: 'That branch action did not take effect',
-              tone: BannerTone.error,
-              message: state.actionError!,
-            ),
-          ],
-          if (state.deleteRefusal != null) ...[
-            const SizedBox(height: SkotiqTokens.spaceSm),
-            _refusal(state.deleteRefusal!),
+            banner,
           ],
         ],
       ),
@@ -407,13 +448,14 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     );
   }
 
-  Widget _actions(DarkroomBranchState state) {
+  Widget _actions(DarkroomBranchState state, {bool alignEnd = false}) {
     final compareTargets = state.branches
         .where((branch) => branch.id != widget.recipeId)
         .toList(growable: false);
     final comparing = widget.compareRecipeId != null;
 
     return Wrap(
+      alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
       spacing: SkotiqTokens.spaceXs,
       runSpacing: SkotiqTokens.spaceXs,
       crossAxisAlignment: WrapCrossAlignment.center,

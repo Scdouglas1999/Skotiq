@@ -62,11 +62,13 @@ class DarkroomEditTab extends ConsumerWidget {
         if (scope.isEmpty) {
           return const _DarkroomImageList(selected: null, fill: true);
         }
+        final listShown = constraints.maxWidth >= kDarkroomEditListBreakpoint;
         final editor = DarkroomEditor(
           key: ValueKey('darkroom_editor_$scope'),
           scope: scope,
+          showSiblings: !listShown,
         );
-        if (constraints.maxWidth < kDarkroomEditListBreakpoint) return editor;
+        if (!listShown) return editor;
         final colors = SkotiqColors.of(context);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,

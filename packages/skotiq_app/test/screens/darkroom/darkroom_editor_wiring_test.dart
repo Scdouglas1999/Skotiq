@@ -824,7 +824,13 @@ void main() {
       path: '/tmp/skotiq-test/m31_L.fits',
     );
 
-    await pump(tester, location: '/darkroom?master=$bId');
+    // Narrower than the Edit tab's image list needs, so the bar carries the
+    // night's other masters itself.
+    await pump(
+      tester,
+      location: '/darkroom?master=$bId',
+      size: const Size(1000, 1200),
+    );
     await settle(tester);
 
     // The bar counts the night, not just this master's branches.
@@ -843,6 +849,31 @@ void main() {
       find.textContaining('Master · G — no recipe yet'),
       findsWidgets,
     );
+    await drain(tester);
+  });
+
+  testWidgets(
+      'beside the image list the bar does not repeat the night\'s other '
+      'masters', (tester) async {
+    final bId = await seedMaster(
+      name: 'Master · B',
+      path: _masterPath,
+      filter: 'B',
+    );
+    final lId = await seedMaster(
+      name: 'Master · L',
+      path: '/tmp/skotiq-test/m31_L.fits',
+      filter: 'L',
+    );
+    await seedRecipe([_step('denoise')],
+        name: 'Master · B draft', masterId: bId);
+
+    await pump(tester, location: '/darkroom?master=$bId');
+    await settle(tester);
+
+    expect(find.byKey(kDarkroomSiblingStripKey), findsNothing);
+    expect(find.byKey(ValueKey('darkroom_edit_image_$bId')), findsOneWidget);
+    expect(find.byKey(ValueKey('darkroom_edit_image_$lId')), findsOneWidget);
     await drain(tester);
   });
 
