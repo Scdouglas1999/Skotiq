@@ -26,11 +26,13 @@ const TRACKING_DRIFT_FRACTION: f64 = 0.25;
 /// is still moving, not tracking.
 const DEC_MOTION_LIMIT_ARCSEC: f64 = 30.0;
 
-/// Pointing samples closer than this (arcseconds on the sky) count as the
-/// same pointing when waiting for the mount to settle.
+/// How far (arcseconds on the sky) the pointing may wander from where it
+/// stood at the start of a still spell and still count as the same pointing.
+/// Measured from that start, not between neighbors, so a slow creep that
+/// moves less than this per second is still seen moving.
 const SETTLE_TOLERANCE_ARCSEC: f64 = 5.0;
-/// Consecutive agreeing samples that make a settled mount.
-const SETTLE_STABLE_SAMPLES: u32 = 3;
+/// How long the pointing must hold still to make a settled mount.
+const SETTLE_STILL_SPAN: Duration = Duration::from_secs(5);
 const SETTLE_POLL: Duration = Duration::from_secs(1);
 
 fn wrap_hours(delta: f64) -> f64 {
@@ -134,8 +136,8 @@ pub(crate) enum SettleOutcome {
 }
 
 /// Wait until the mount has come to rest after a slew: not slewing, tracking,
-/// and [`SETTLE_STABLE_SAMPLES`] consecutive pointing samples agree within
-/// [`SETTLE_TOLERANCE_ARCSEC`]. Waits at least `min` and at most `max`.
+/// and its pointing held within [`SETTLE_TOLERANCE_ARCSEC`] of one spot for
+/// [`SETTLE_STILL_SPAN`]. Waits at least `min` and at most `max`.
 pub(crate) async fn wait_until_mount_settled(
     device_ops: &SharedDeviceOps,
     mount_id: &str,
@@ -144,8 +146,8 @@ pub(crate) async fn wait_until_mount_settled(
     is_cancelled: &(dyn Fn() -> bool + Send + Sync),
 ) -> SettleOutcome {
     let started = tokio::time::Instant::now();
-    let mut previous: Option<(f64, f64)> = None;
-    let mut stable = 0u32;
+    // Where the current still spell began, and when.
+    let mut still: Option<((f64, f64), tokio::time::Instant)> = None;
     let mut reason = "the mount did not report its position".to_string();
     loop {
         if is_cancelled() {
@@ -160,31 +162,36 @@ pub(crate) async fn wait_until_mount_settled(
                 None
             }
         };
+        let now = tokio::time::Instant::now();
         if slewing {
             reason = "the mount still reports slewing".to_string();
-            stable = 0;
+            still = None;
         } else if !tracking {
             reason = "the mount reports tracking off".to_string();
-            stable = 0;
+            still = None;
         } else {
-            match (previous, pointing) {
-                (Some((ra0, dec0)), Some((ra1, dec1))) => {
+            still = match (still, pointing) {
+                (_, None) => None,
+                (None, Some(here)) => Some((here, now)),
+                (Some(((ra0, dec0), since)), Some((ra1, dec1))) => {
                     let ra_arcsec = wrap_hours(ra1 - ra0) * 15.0 * 3600.0 * dec1.to_radians().cos();
                     let dec_arcsec = (dec1 - dec0) * 3600.0;
                     let moved = ra_arcsec.hypot(dec_arcsec);
                     if moved <= SETTLE_TOLERANCE_ARCSEC {
-                        stable += 1;
+                        Some(((ra0, dec0), since))
                     } else {
-                        reason = format!("the pointing was still moving ({moved:.0}\" per second)");
-                        stable = 0;
+                        reason = format!(
+                            "the pointing was still moving ({moved:.0}\" in {:.0} s)",
+                            (now - since).as_secs_f64()
+                        );
+                        Some(((ra1, dec1), now))
                     }
                 }
-                _ => stable = 0,
-            }
+            };
         }
-        previous = pointing;
         let elapsed = started.elapsed();
-        if stable >= SETTLE_STABLE_SAMPLES && elapsed >= min {
+        let held_still = still.is_some_and(|(_, since)| now - since >= SETTLE_STILL_SPAN);
+        if held_still && elapsed >= min {
             return SettleOutcome::Settled {
                 after_secs: elapsed.as_secs_f64(),
             };
@@ -256,6 +263,60 @@ mod tests {
         .await;
         match outcome {
             SettleOutcome::Settled { after_secs } => assert!(after_secs >= 20.0, "{after_secs}"),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    /// A mount creeping in at 4" per second never moves 5" between two
+    /// samples a second apart, yet it is not at rest.
+    #[tokio::test(start_paused = true)]
+    async fn the_settle_wait_outlasts_a_slow_creep() {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        let mut mount = SimMount::tracking_at(2.37, 42.35);
+        mount.settle_secs = 20.0;
+        mount.settle_creep_arcsec_per_sec = Some(4.0);
+        ops.attach_sim_mount(mount);
+        let shared: SharedDeviceOps = ops.clone();
+        shared
+            .mount_slew_to_coordinates("mount", 2.40, 42.35)
+            .await
+            .unwrap();
+        let outcome = wait_until_mount_settled(
+            &shared,
+            "mount",
+            Duration::ZERO,
+            Duration::from_secs(60),
+            &|| false,
+        )
+        .await;
+        match outcome {
+            SettleOutcome::Settled { after_secs } => assert!(after_secs >= 20.0, "{after_secs}"),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    /// A mount at rest straight away still has to hold still for the whole
+    /// still spell; three quick samples are not a settle.
+    #[tokio::test(start_paused = true)]
+    async fn a_resting_mount_settles_only_after_holding_still() {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        ops.attach_sim_mount(SimMount::tracking_at(2.37, 42.35));
+        let shared: SharedDeviceOps = ops.clone();
+        let outcome = wait_until_mount_settled(
+            &shared,
+            "mount",
+            Duration::ZERO,
+            Duration::from_secs(60),
+            &|| false,
+        )
+        .await;
+        match outcome {
+            SettleOutcome::Settled { after_secs } => {
+                assert!(
+                    after_secs >= SETTLE_STILL_SPAN.as_secs_f64(),
+                    "{after_secs}"
+                )
+            }
             other => panic!("{other:?}"),
         }
     }

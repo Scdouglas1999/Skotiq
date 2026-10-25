@@ -1366,15 +1366,17 @@ impl MeridianFlipExecutor {
     /// Wait for the mount to come to rest before a solve frame: not slewing,
     /// tracking, and its pointing holding still. A mount can report a slew
     /// done while it is still swinging in, and a frame taken then trails.
-    /// Bounded; on the bound the frame is taken anyway and the solve judges.
+    /// Never shorter than the configured settle time, which is what a fixed
+    /// wait gave the mount before. Bounded; on the bound the frame is taken
+    /// anyway and the solve judges.
     async fn wait_for_mount_to_settle(&self, ctx: &FlipContext) -> Result<(), String> {
-        let max = std::time::Duration::from_secs_f64(self.config.settle_time.max(0.0) * 6.0)
-            .max(std::time::Duration::from_secs(60));
+        let min = std::time::Duration::from_secs_f64(self.config.settle_time.max(0.0));
+        let max = (min * 6).max(std::time::Duration::from_secs(60));
         let cancelled = || self.is_cancelled(ctx);
         match crate::tracking_check::wait_until_mount_settled(
             &self.device_ops,
             &ctx.mount_id,
-            std::time::Duration::from_secs(2),
+            min,
             max,
             &cancelled,
         )
@@ -2304,6 +2306,8 @@ mod tests {
         guider_settle_times_out: AtomicBool,
         /// The settle bar (pixels, time, timeout) each `guider_start` got.
         guider_start_settles: Mutex<Vec<(f64, f64, f64)>>,
+        /// When each camera exposure started.
+        exposure_starts: Mutex<Vec<tokio::time::Instant>>,
         guider_start_failures_remaining: AtomicI32,
         post_flip_calls: Mutex<Vec<&'static str>>,
         /// For each guider-stop call, how many slews had been commanded when it
@@ -2467,6 +2471,11 @@ mod tests {
             _bin_x: i32,
             _bin_y: i32,
         ) -> DeviceResult<ImageData> {
+            self.state
+                .exposure_starts
+                .lock()
+                .unwrap()
+                .push(tokio::time::Instant::now());
             if !self.state.guider_stopped.load(Ordering::Relaxed) {
                 self.state
                     .exposures_while_guiding
@@ -3384,6 +3393,48 @@ mod tests {
             2,
             "Both attempts failed and both must be recorded, got {:?}",
             executor.failed_attempts()
+        );
+    }
+
+    /// A post-flip frame that does not solve is taken again within the same
+    /// step, after the mount has held still for at least the settle time.
+    #[tokio::test(start_paused = true)]
+    async fn a_frame_that_does_not_solve_is_taken_again_after_a_full_settle_in_the_same_step() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        state
+            .plate_solve_failures_remaining
+            .store(1, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: true,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 10.0,
+            max_retries: 3,
+            retry_delays_secs: vec![30.0],
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+
+        let result = executor.execute(&make_ctx(&state)).await;
+
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        assert_eq!(
+            executor.attempts_made, 1,
+            "the second frame solves within the same step, not on a retry"
+        );
+        assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 2);
+        let starts = state.exposure_starts.lock().unwrap().clone();
+        assert_eq!(starts.len(), 2, "{starts:?}");
+        assert!(
+            starts[1] - starts[0] >= std::time::Duration::from_secs(10),
+            "the second frame waits a full settle: {:?}",
+            starts[1] - starts[0]
         );
     }
 

@@ -62,6 +62,9 @@ pub(crate) struct SimMount {
     pub(crate) ignore_tracking_on: u32,
     /// How long the mount keeps moving after a slew reports done.
     pub(crate) settle_secs: f64,
+    /// The rate it moves at while it settles, in arcseconds per second;
+    /// `None` is ten.
+    pub(crate) settle_creep_arcsec_per_sec: Option<f64>,
     /// The last exposure started while the mount was still moving.
     exposure_while_moving: bool,
 }
@@ -76,6 +79,7 @@ impl SimMount {
             settle_until: None,
             ignore_tracking_on: 0,
             settle_secs: 0.0,
+            settle_creep_arcsec_per_sec: None,
             exposure_while_moving: false,
         }
     }
@@ -98,8 +102,10 @@ impl SimMount {
     fn pointing(&self, now: tokio::time::Instant) -> (f64, f64) {
         let (ra, mut dec) = self.resting_pointing(now);
         if let Some(until) = self.settle_until.filter(|until| now < *until) {
-            // Still swinging in: ten arcseconds per second of remaining settle.
-            dec += (until - now).as_secs_f64() * 10.0 / 3600.0;
+            // Still swinging in: ten arcseconds (or the creep rate) per
+            // second of remaining settle.
+            let rate = self.settle_creep_arcsec_per_sec.unwrap_or(10.0);
+            dec += (until - now).as_secs_f64() * rate / 3600.0;
         }
         (ra, dec)
     }
