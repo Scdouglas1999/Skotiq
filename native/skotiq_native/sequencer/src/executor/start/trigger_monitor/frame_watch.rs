@@ -21,6 +21,24 @@ use std::collections::VecDeque;
 
 pub(crate) use crate::executor::OBSTRUCTION_TRIGGER_ID;
 
+/// Failed guide-star recoveries at one pointing that count as lost guiding
+/// for a frame, even while the guider reports a star again.
+const GUIDE_STALL_MIN_FAILURES: usize = 2;
+
+/// How far apart, in degrees of altitude and azimuth, those failures may be.
+const GUIDE_STALL_MAX_SPREAD_DEG: f64 = 1.0;
+
+/// Whether a frame saved now was taken with guiding lost: the star is lost,
+/// the run gave guiding up, or guide-star recovery keeps failing with the
+/// mount at one place in the sky (something in the way, not cloud passing).
+fn guiding_lost(state: &crate::triggers::TriggerState) -> bool {
+    state.guiding.star_lost()
+        || state.guiding.is_unguided()
+        || state.guide_recovery.as_ref().is_some_and(|stall| {
+            stall.stalled_at_one_pointing(GUIDE_STALL_MIN_FAILURES, GUIDE_STALL_MAX_SPREAD_DEG)
+        })
+}
+
 /// Trigger id of a recenter the frame watch asks for.
 pub(crate) const TARGET_DRIFT_TRIGGER_ID: &str = "target_drift";
 
@@ -252,7 +270,7 @@ impl FrameWatchStage {
                 background_adu: None,
                 guide_rms,
                 guide_rms_samples,
-                guiding_lost: state.guiding.star_lost() || state.guiding.is_unguided(),
+                guiding_lost: guiding_lost(&state),
             };
             drop(state);
             // Until the frame is measured, a grader reject for trailed or lost
@@ -815,4 +833,46 @@ fn file_label(path: &str) -> String {
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.to_string())
+}
+
+#[cfg(test)]
+mod guiding_lost_tests {
+    use super::guiding_lost;
+    use crate::triggers::{GuideRecoveryFailure, GuideRecoveryStall, TriggerState};
+
+    fn stall(pointings: &[(f64, f64)]) -> GuideRecoveryStall {
+        GuideRecoveryStall {
+            origin: None,
+            failures: pointings
+                .iter()
+                .enumerate()
+                .map(|(i, &alt_az)| GuideRecoveryFailure {
+                    at_unix: 1_000 + 60 * i as i64,
+                    alt_az_deg: Some(alt_az),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_guide_recovery_stalled_at_one_pointing_marks_the_frame_guiding_lost() {
+        let mut state = TriggerState::new();
+        assert!(!guiding_lost(&state));
+
+        state.guide_recovery = Some(stall(&[(64.1, 286.0)]));
+        assert!(
+            !guiding_lost(&state),
+            "one failed attempt is not yet a stall"
+        );
+
+        state.guide_recovery = Some(stall(&[(64.1, 286.0), (64.0, 286.3)]));
+        assert!(guiding_lost(&state));
+    }
+
+    #[test]
+    fn failures_spread_across_the_sky_are_not_a_stall() {
+        let mut state = TriggerState::new();
+        state.guide_recovery = Some(stall(&[(64.0, 286.0), (40.0, 200.0)]));
+        assert!(!guiding_lost(&state));
+    }
 }
