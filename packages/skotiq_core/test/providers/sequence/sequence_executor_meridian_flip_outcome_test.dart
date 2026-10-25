@@ -130,11 +130,37 @@ void main() {
     expect(
       stats.warningMessages.single,
       allOf(
-        contains('succeeded only on attempt 2'),
+        contains('succeeded on attempt 2'),
         contains('Plate solve failed'),
-        contains('Verify framing'),
+        contains('Check the framing'),
+        contains('recenter'),
+        isNot(contains('recentre')),
       ),
     );
+  });
+
+  test('a flip retried for its guider names that step, not the recenter', () {
+    final (container, executor) = build();
+
+    executor.handleSequencerEventForTest(
+      flipEvent(
+        outcome: 'success',
+        attempts: 2,
+        failedSteps: const [
+          'Resuming guider: Start guiding failed: Guiding did not settle',
+        ],
+      ),
+    );
+
+    final warning = container
+        .read(liveSequenceStatsProvider)!
+        .warningMessages
+        .single;
+    expect(warning, contains('Failed: resuming guider (Start guiding failed'));
+    expect(warning, contains('Guiding did not settle'));
+    expect(warning, isNot(contains('recenter')));
+    expect(warning, isNot(contains('recentre')));
+    expect(warning, isNot(contains('framing')));
   });
 
   test('a failed flip records an error and does NOT count as a flip', () {
@@ -218,7 +244,7 @@ void main() {
       container.read(liveSequenceStatsProvider)!.toJson(),
     );
     expect(restored.meridianFlips, 1);
-    expect(restored.warningMessages.single, contains('succeeded only on'));
+    expect(restored.warningMessages.single, contains('succeeded on attempt 3'));
   });
 
   test('a terminal SequenceFailed actually finalizes the run', () async {

@@ -824,12 +824,11 @@ class RunEventHandler {
           _logger.info(message, source: 'SequenceExecutor');
           progressNotifier.updateProgress(message: message);
         } else {
-          final message =
-              'Meridian flip for "$targetName" succeeded only on attempt '
-              '$attempts after ${failedSteps.length} failed '
-              'attempt${failedSteps.length == 1 ? '' : 's'}: '
-              '${failedSteps.join("; ")}. Verify framing — the post-flip '
-              'recentre needed retries.';
+          final message = flipRetryWarning(
+            targetName: targetName,
+            attempts: attempts,
+            failedSteps: failedSteps,
+          );
           _logger.warning(message, source: 'SequenceExecutor');
           _stats.update((stats) => stats.recordWarning(message));
           progressNotifier.updateProgress(message: message);
@@ -864,4 +863,41 @@ class RunEventHandler {
         break;
     }
   }
+}
+
+/// The warning for a flip that succeeded only after retries. Each entry of
+/// [failedSteps] is `"<step>: <error>"` as the flip reports it; the message
+/// names the steps that failed, and asks for a framing check only when the
+/// recenter was one of them.
+String flipRetryWarning({
+  required String targetName,
+  required int attempts,
+  required List<String> failedSteps,
+}) {
+  final failures = [
+    for (final entry in failedSteps)
+      () {
+        final colon = entry.indexOf(':');
+        if (colon <= 0) return (step: entry.trim(), error: '');
+        return (
+          step: entry.substring(0, colon).trim(),
+          error: entry.substring(colon + 1).trim(),
+        );
+      }(),
+  ];
+  final described = failures
+      .map(
+        (f) => f.error.isEmpty
+            ? f.step.toLowerCase()
+            : '${f.step.toLowerCase()} (${f.error})',
+      )
+      .join('; ');
+  final recenterFailed = failures.any(
+    (f) => f.step.toLowerCase().contains('centering'),
+  );
+  final count = failedSteps.length;
+  return 'Meridian flip for "$targetName" succeeded on attempt $attempts '
+      'after $count failed attempt${count == 1 ? '' : 's'}. '
+      'Failed: $described.'
+      '${recenterFailed ? ' Check the framing: the recenter after the flip needed retries.' : ''}';
 }
