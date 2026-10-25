@@ -122,6 +122,8 @@ pub struct RollingGuideStats {
     dec_samples: Vec<f64>,
     /// Recent SNR values
     snr_samples: Vec<f64>,
+    /// Recent star masses
+    mass_samples: Vec<f64>,
     /// Running count of all frames
     total_frame_count: u32,
     /// Peak RA error seen
@@ -148,6 +150,7 @@ impl RollingGuideStats {
             ra_samples: Vec::with_capacity(max_samples),
             dec_samples: Vec::with_capacity(max_samples),
             snr_samples: Vec::with_capacity(max_samples),
+            mass_samples: Vec::with_capacity(max_samples),
             total_frame_count: 0,
             peak_ra: 0.0,
             peak_dec: 0.0,
@@ -166,11 +169,13 @@ impl RollingGuideStats {
             self.ra_samples.remove(0);
             self.dec_samples.remove(0);
             self.snr_samples.remove(0);
+            self.mass_samples.remove(0);
         }
 
         self.ra_samples.push(frame.ra_distance);
         self.dec_samples.push(frame.dec_distance);
         self.snr_samples.push(frame.snr);
+        self.mass_samples.push(frame.star_mass);
 
         // Track peak errors
         let ra_abs = frame.ra_distance.abs();
@@ -207,6 +212,7 @@ impl RollingGuideStats {
 
         // Average SNR
         let snr = self.snr_samples.iter().sum::<f64>() / n as f64;
+        let star_mass = self.mass_samples.iter().sum::<f64>() / n as f64;
 
         self.cached_stats = GuideStats {
             rms_ra,
@@ -216,7 +222,7 @@ impl RollingGuideStats {
             peak_dec: self.peak_dec,
             frame_count: self.total_frame_count,
             snr,
-            star_mass: 0.0, // Not tracked in guide frames
+            star_mass,
         };
         self.cache_valid = true;
 
@@ -228,6 +234,7 @@ impl RollingGuideStats {
         self.ra_samples.clear();
         self.dec_samples.clear();
         self.snr_samples.clear();
+        self.mass_samples.clear();
         self.total_frame_count = 0;
         self.peak_ra = 0.0;
         self.peak_dec = 0.0;
@@ -394,57 +401,76 @@ pub struct SettleOutcome {
 pub struct SettleWaiter {
     settle_tracker: Arc<Mutex<SettleTracker>>,
     running: Arc<AtomicBool>,
+    state: Arc<Mutex<Phd2State>>,
     generation: u64,
 }
 
 impl SettleWaiter {
+    /// The settle's result if it is decided: PHD2 reported `SettleDone`, the
+    /// settle was superseded, or PHD2 disconnected. `None` while it runs.
+    ///
+    /// Same fail-closed contract as [`Self::wait`]: a non-zero PHD2 status,
+    /// a disconnect or a superseding settle are `Err`.
+    pub fn check(&self) -> Option<Result<SettleOutcome, String>> {
+        {
+            let mut tracker = match self.settle_tracker.lock() {
+                Ok(t) => t,
+                Err(poison) => poison.into_inner(),
+            };
+            if tracker.generation != self.generation {
+                return Some(Err(format!(
+                    "PHD2 settle wait superseded (expected generation {}, found {})",
+                    self.generation, tracker.generation
+                )));
+            }
+            if let Some(outcome) = tracker.outcome.take() {
+                tracker.awaiting = false;
+                if outcome.status == 0 {
+                    return Some(Ok(outcome));
+                }
+                return Some(Err(format!(
+                    "PHD2 settle failed (status {}): {}",
+                    outcome.status,
+                    if outcome.error.is_empty() {
+                        "no error detail"
+                    } else {
+                        outcome.error.as_str()
+                    }
+                )));
+            }
+        }
+        if !self.running.load(Ordering::SeqCst) {
+            return Some(Err("PHD2 disconnected while waiting for settle".to_string()));
+        }
+        None
+    }
+
+    /// Whether PHD2 is calibrating. PHD2 starts its settle clock only once
+    /// calibration is done, so a wait for the settle must not count it.
+    pub fn is_calibrating(&self) -> bool {
+        let state = match self.state.lock() {
+            Ok(state) => state,
+            Err(poison) => poison.into_inner(),
+        };
+        matches!(*state, Phd2State::Calibrating)
+    }
+
     /// Block until the armed settle completes or [timeout] elapses.
     ///
-    /// Same fail-closed contract as [`Phd2Client::wait_for_settle`]: non-zero
-    /// PHD2 status, timeout, disconnect, or a superseding settle all return
-    /// `Err`.
+    /// Fail closed: non-zero PHD2 status, timeout, disconnect, or a
+    /// superseding settle all return `Err`.
     pub fn wait(&self, timeout: Duration) -> Result<SettleOutcome, String> {
         let deadline = Instant::now() + timeout;
         loop {
-            {
-                let mut tracker = match self.settle_tracker.lock() {
-                    Ok(t) => t,
-                    Err(poison) => poison.into_inner(),
-                };
-                if tracker.generation != self.generation {
-                    return Err(format!(
-                        "PHD2 settle wait superseded (expected generation {}, found {})",
-                        self.generation, tracker.generation
-                    ));
-                }
-                if let Some(outcome) = tracker.outcome.take() {
-                    tracker.awaiting = false;
-                    if outcome.status == 0 {
-                        return Ok(outcome);
-                    }
-                    return Err(format!(
-                        "PHD2 settle failed (status {}): {}",
-                        outcome.status,
-                        if outcome.error.is_empty() {
-                            "no error detail"
-                        } else {
-                            outcome.error.as_str()
-                        }
-                    ));
-                }
+            if let Some(result) = self.check() {
+                return result;
             }
-
-            if !self.running.load(Ordering::SeqCst) {
-                return Err("PHD2 disconnected while waiting for settle".to_string());
-            }
-
             if Instant::now() >= deadline {
                 return Err(format!(
                     "PHD2 settle did not complete within {:.1}s",
                     timeout.as_secs_f64()
                 ));
             }
-
             thread::sleep(Duration::from_millis(100));
         }
     }
@@ -468,6 +494,45 @@ struct SettleTracker {
     awaiting: bool,
     /// The outcome of the most recent settle for the armed generation.
     outcome: Option<SettleOutcome>,
+}
+
+/// The star PHD2 measured in a looping frame once a star is selected.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LoopingStar {
+    /// This connection's count of looping frames when the star was measured
+    /// (see [`Phd2Client::looping_frame_count`]).
+    pub frame: u64,
+    pub snr: f64,
+    pub star_mass: f64,
+}
+
+/// Looping frames received on a connection, and the star the latest one
+/// measured.
+#[derive(Debug, Default)]
+struct LoopingFrames {
+    count: std::sync::atomic::AtomicU64,
+    star: Mutex<Option<LoopingStar>>,
+}
+
+impl LoopingFrames {
+    /// Count a `LoopingExposures` event. PHD2 adds `SNR` and `StarMass` only
+    /// when a star is selected; a frame without them clears the last star.
+    fn record(&self, extra: &serde_json::Value) {
+        let frame = self.count.fetch_add(1, Ordering::SeqCst) + 1;
+        let field = |name: &str| extra.get(name).and_then(|v| v.as_f64());
+        let star = match (field("SNR"), field("StarMass")) {
+            (Some(snr), Some(star_mass)) => Some(LoopingStar {
+                frame,
+                snr,
+                star_mass,
+            }),
+            _ => None,
+        };
+        match self.star.lock() {
+            Ok(mut last) => *last = star,
+            Err(poison) => *poison.into_inner() = star,
+        }
+    }
 }
 
 /// PHD2 client for real guiding control.
@@ -501,7 +566,7 @@ pub struct Phd2Client {
     /// Tracks the in-flight settle so `dither`/`wait_for_settle` can block on
     /// PHD2's asynchronous `SettleDone` event and fail closed on failure.
     settle_tracker: Arc<Mutex<SettleTracker>>,
-    looping_frames: Arc<std::sync::atomic::AtomicU64>,
+    looping: Arc<LoopingFrames>,
 }
 
 impl Phd2Client {
@@ -521,7 +586,7 @@ impl Phd2Client {
             response_registry: Arc::new(Mutex::new(HashMap::new())),
             suppress_disconnect_events: Arc::new(AtomicBool::new(false)),
             settle_tracker: Arc::new(Mutex::new(SettleTracker::default())),
-            looping_frames: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            looping: Arc::new(LoopingFrames::default()),
         }
     }
 
@@ -541,7 +606,7 @@ impl Phd2Client {
             response_registry: Arc::new(Mutex::new(HashMap::new())),
             suppress_disconnect_events: Arc::new(AtomicBool::new(false)),
             settle_tracker: Arc::new(Mutex::new(SettleTracker::default())),
-            looping_frames: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            looping: Arc::new(LoopingFrames::default()),
         }
     }
 
@@ -753,7 +818,7 @@ impl Phd2Client {
         let response_registry = Arc::clone(&self.response_registry);
         let suppress_disconnect_events = Arc::clone(&self.suppress_disconnect_events);
         let settle_tracker = Arc::clone(&self.settle_tracker);
-        let looping_frames = Arc::clone(&self.looping_frames);
+        let looping = Arc::clone(&self.looping);
 
         thread::spawn(move || {
             tracing::info!("PHD2: Reader thread started");
@@ -810,7 +875,7 @@ impl Phd2Client {
                             &state,
                             &callback,
                             &settle_tracker,
-                            &looping_frames,
+                            &looping,
                         );
 
                         // Clear buffer for next line
@@ -864,7 +929,7 @@ impl Phd2Client {
         state: &Arc<Mutex<Phd2State>>,
         callback: &Option<Phd2EventCallback>,
         settle_tracker: &Arc<Mutex<SettleTracker>>,
-        looping_frames: &std::sync::atomic::AtomicU64,
+        looping: &LoopingFrames,
     ) {
         // Parse JSON
         let parsed: serde_json::Value = match serde_json::from_str(json) {
@@ -907,7 +972,7 @@ impl Phd2Client {
                         .and_then(|v| v.as_u64())
                         .is_some()
                 {
-                    looping_frames.fetch_add(1, Ordering::SeqCst);
+                    looping.record(&event_msg.extra);
                 }
                 // Every looping/guide frame is an event (~1 Hz); trace, don't info.
                 tracing::debug!("PHD2: Received event: {}", event_msg.event);
@@ -1142,7 +1207,34 @@ impl Phd2Client {
     /// Number of completed looping frames received on this connection.
     /// Unlike PHD2's frame IDs, this does not reset when capture restarts.
     pub fn looping_frame_count(&self) -> u64 {
-        self.looping_frames.load(Ordering::SeqCst)
+        self.looping.count.load(Ordering::SeqCst)
+    }
+
+    /// The star the latest looping frame measured, if PHD2 reported one.
+    pub fn looping_star(&self) -> Option<LoopingStar> {
+        match self.looping.star.lock() {
+            Ok(star) => *star,
+            Err(poison) => *poison.into_inner(),
+        }
+    }
+
+    /// Whether a `guide` or `dither` this client issued is still waiting for
+    /// PHD2's `SettleDone`. PHD2 refuses a new `guide` while one is.
+    pub fn settle_pending(&self) -> bool {
+        match self.settle_tracker.lock() {
+            Ok(tracker) => tracker.awaiting,
+            Err(poison) => poison.into_inner().awaiting,
+        }
+    }
+
+    /// PHD2's application state exactly as it names it. "Stopped" is the only
+    /// state with no capture in progress; "Selected" still has one.
+    pub fn get_app_state_name(&mut self) -> Result<String, String> {
+        let result = self.send_request("get_app_state", None)?;
+        result
+            .as_str()
+            .map(str::to_string)
+            .ok_or_else(|| format!("get_app_state: expected string, got {}", result))
     }
 
     /// Stop guiding
@@ -1177,6 +1269,7 @@ impl Phd2Client {
         SettleWaiter {
             settle_tracker: Arc::clone(&self.settle_tracker),
             running: Arc::clone(&self.running),
+            state: Arc::clone(&self.state),
             generation: tracker.generation,
         }
     }
@@ -2028,7 +2121,7 @@ mod tests {
                 &state,
                 &None,
                 &settle,
-                &std::sync::atomic::AtomicU64::new(0),
+                &LoopingFrames::default(),
             );
         }
         let result = stats.lock().unwrap().get_stats();
@@ -2164,6 +2257,7 @@ mod tests {
         let waiter = SettleWaiter {
             settle_tracker: tracker,
             running: Arc::new(AtomicBool::new(true)),
+            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 1,
         };
         let err = waiter
@@ -2188,6 +2282,7 @@ mod tests {
         let waiter = SettleWaiter {
             settle_tracker: tracker,
             running: Arc::new(AtomicBool::new(true)),
+            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 5,
         };
         let outcome = waiter
@@ -2207,6 +2302,7 @@ mod tests {
         let waiter = SettleWaiter {
             settle_tracker: tracker,
             running: Arc::new(AtomicBool::new(true)),
+            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 1,
         };
         let err = waiter
@@ -2226,6 +2322,7 @@ mod tests {
         let waiter = SettleWaiter {
             settle_tracker: tracker,
             running: Arc::new(AtomicBool::new(false)),
+            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 1,
         };
         let err = waiter
@@ -2280,5 +2377,43 @@ mod tests {
             .expect("clear calibration response");
         client.disconnect();
         server.join().expect("mock server completed");
+    }
+
+    /// PHD2 measures the selected star in every looping frame. A recovery
+    /// compares that against the star the run guided on, so the measurement
+    /// must be the one from the newest frame, and a frame with no star
+    /// selected must not leave an older star standing in for it.
+    #[test]
+    fn looping_frames_carry_the_selected_star_and_forget_it_when_gone() {
+        let looping = LoopingFrames::default();
+        looping.record(&serde_json::json!({"Frame": 7, "SNR": 59.4, "StarMass": 21763.0}));
+        let star = *looping.star.lock().unwrap();
+        assert_eq!(
+            star,
+            Some(LoopingStar {
+                frame: 1,
+                snr: 59.4,
+                star_mass: 21763.0
+            })
+        );
+        looping.record(&serde_json::json!({"Frame": 8}));
+        assert_eq!(*looping.star.lock().unwrap(), None);
+        assert_eq!(looping.count.load(Ordering::SeqCst), 2);
+    }
+
+    /// Guide steps carry the star's mass; the rolling statistics report it so
+    /// a later star can be compared with the one the run guided on.
+    #[test]
+    fn rolling_stats_report_the_guide_star_mass() {
+        let lines: Vec<String> = (0..4)
+            .map(|i| {
+                format!(
+                    r#"{{"Event":"GuideStep","Frame":{i},"RADistanceRaw":0.2,"DECDistanceRaw":0.1,"SNR":230.0,"StarMass":750000}}"#
+                )
+            })
+            .collect();
+        let stats = feed_lines(&lines);
+        assert!((stats.star_mass - 750_000.0).abs() < 1e-6, "{stats:?}");
+        assert!((stats.snr - 230.0).abs() < 1e-6, "{stats:?}");
     }
 }

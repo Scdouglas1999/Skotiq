@@ -214,6 +214,12 @@ pub struct TriggerState {
     /// This run's guiding and the moves that interrupt it. See
     /// [`super::GuidingState`].
     pub guiding: super::GuidingState,
+    /// The star the run's guiding settled on for the current target. A star
+    /// selected later on the same field is compared with it. Cleared when
+    /// the target changes.
+    pub guide_star_reference: Option<crate::GuideStarQuality>,
+    /// The guide-star recovery that is failing, until guiding settles again.
+    pub guide_recovery: Option<super::GuideRecoveryStall>,
     /// Filter focus offset (steps) currently embodied in the focuser position,
     /// relative to the reference filter. Filter offsets are reference-relative
     /// deltas; a filter change moves the focuser by
@@ -424,6 +430,8 @@ impl Default for TriggerState {
             dither_cadence_owners: 0,
             guiding_rms_history: None,
             guiding: super::GuidingState::default(),
+            guide_star_reference: None,
+            guide_recovery: None,
             last_applied_filter_offset: 0,
             // 300s preserves the previous hardcoded retention so
             // un-configured triggers behave exactly as before.
@@ -661,6 +669,7 @@ impl TriggerState {
         // run started; carried over, they fire Guide Star Lost on a guider the
         // new run never started.
         self.guiding_rms_history = None;
+        self.guide_recovery = None;
         // The temperature the Temperature Shift trigger and the temperature
         // compensation measure from is taken again by this run, resumed or
         // not. Carried over, a load-and-start on the rig (2026-10-20) fired a
@@ -693,6 +702,7 @@ impl TriggerState {
         self.current_target_name = None;
         self.target_ra = None;
         self.target_dec = None;
+        self.guide_star_reference = None;
         self.current_altitude = None;
         self.current_hour_angle = None;
         self.next_meridian_flip_time = None;
@@ -752,6 +762,8 @@ impl TriggerState {
         // "drift" and fired a DriftLimit recenter the moment a target started,
         // before its own slew or Center node had run.
         if self.target_ra != Some(ra_degrees) || self.target_dec != Some(dec_degrees) {
+            // Nor is the previous field's guide star a measure for this one.
+            self.guide_star_reference = None;
             self.last_plate_solve_ra = None;
             self.last_plate_solve_dec = None;
             self.last_plate_solve_pixel_scale = None;

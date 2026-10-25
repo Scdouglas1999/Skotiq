@@ -430,3 +430,128 @@ mod while_imaging_unguided {
         );
     }
 }
+
+/// A context for the guiding restart before a light frame: a mount, the
+/// run's trigger state, and the operator's feed.
+async fn restart_ctx(
+    ops: Arc<ScriptedDomeRotatorOps>,
+) -> (
+    InstructionContext,
+    Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>,
+    tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+) {
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("light".to_string());
+    ec.device_ops = ops;
+    ec.mount_id = Some("mount-1".to_string());
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    ec.trigger_state = Some(trigger_state.clone());
+    let (event_tx, events) = tokio::sync::broadcast::channel(64);
+    ec.event_tx = Some(event_tx);
+    (
+        ec.to_instruction_context("light").await,
+        trigger_state,
+        events,
+    )
+}
+
+fn drain_warnings(
+    events: &mut tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+) -> Vec<String> {
+    let mut warnings = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::executor::ExecutorEvent::Warning { message } = event {
+            warnings.push(message);
+        }
+    }
+    warnings
+}
+
+/// On 2026-10-24 the light frame's guiding restart ran for 51 min on a mount
+/// stopped at its tracking limit, PHD2 sending 2.5 s pulses after a star the
+/// sky carried away, and the run said "Imaging continues unguided". Nothing
+/// is started on a mount that is not tracking; the restart waits for it and
+/// the operator is told once.
+#[tokio::test(start_paused = true)]
+async fn guiding_is_not_restarted_on_a_mount_that_is_not_tracking() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_tracking(false));
+    let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
+    trigger_state.write().await.guiding.set_resume_pending(true);
+
+    assert!(resume_guiding_after_motion(&ctx).await.is_none());
+    assert!(resume_guiding_after_motion(&ctx).await.is_none());
+
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
+    assert!(trigger_state.read().await.guiding.resume_pending());
+    let warnings = drain_warnings(&mut events);
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|w| w.contains("not tracking"))
+            .count(),
+        1,
+        "{warnings:?}"
+    );
+    assert!(
+        !warnings.iter().any(|w| w.contains("unguided")),
+        "{warnings:?}"
+    );
+
+    *ops.mount_tracking.lock().unwrap() = Some(true);
+    assert!(resume_guiding_after_motion(&ctx).await.is_none());
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
+    let state = trigger_state.read().await;
+    assert!(!state.guiding.resume_pending());
+    assert!(state.guiding.is_enabled());
+}
+
+/// A night whose guiding was lost does not stay unguided: before a light
+/// frame the run tries again every ten minutes, and says so when guiding is
+/// back.
+#[tokio::test(start_paused = true)]
+async fn an_unguided_run_tries_guiding_again_every_ten_minutes() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
+    trigger_state.write().await.guiding.give_up_guiding();
+
+    assert!(resume_guiding_after_motion(&ctx).await.is_none());
+    assert_eq!(
+        ops.guider_start_calls.load(Ordering::SeqCst),
+        0,
+        "not straight after the recovery gave up"
+    );
+
+    tokio::time::advance(UNGUIDED_RETRY_INTERVAL).await;
+    assert!(resume_guiding_after_motion(&ctx).await.is_none());
+
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
+    let state = trigger_state.read().await;
+    assert!(!state.guiding.is_unguided());
+    assert!(state.guiding.is_enabled());
+    drop(state);
+    let warnings = drain_warnings(&mut events);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("Guiding is running again")),
+        "{warnings:?}"
+    );
+}
+
+/// M10: "Guiding confirmed active: RMS total=0.00" was logged straight after
+/// the guide command, before PHD2 had measured one guide step. An empty
+/// statistics window does not confirm guiding.
+#[tokio::test(start_paused = true)]
+async fn guiding_without_a_measured_guide_step_is_not_confirmed() {
+    let run = start_guiding_with(ScriptedDomeRotatorOps::new().with_guider_rms(0.0), false).await;
+    assert_eq!(run.result.status, NodeStatus::Failure, "{:?}", run.result);
+    assert!(
+        run.result
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("did not reach active state")),
+        "{:?}",
+        run.result.message
+    );
+}

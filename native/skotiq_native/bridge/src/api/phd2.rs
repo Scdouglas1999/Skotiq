@@ -395,6 +395,7 @@ pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result
 
 /// Disconnect from PHD2
 pub async fn api_phd2_disconnect() -> Result<(), SkotiqError> {
+    PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
     let mut storage = get_phd2_storage().write().await;
     if let Some(mut client) = storage.take() {
         client.disconnect();
@@ -413,25 +414,181 @@ pub async fn api_phd2_disconnect() -> Result<(), SkotiqError> {
     Ok(())
 }
 
-/// Start guiding in PHD2
+/// Serializes the PHD2 operations that start guiding or move the guide star:
+/// a fresh star selection, a start with its settle, and a dither with its
+/// settle. PHD2 refuses a `guide` while an earlier guide or dither is still
+/// settling ("Cannot initiate guide while guide is in progress"), and a
+/// selection that stops capture under a running start breaks both. A stop
+/// never waits for this lock: it is how a running settle is ended.
+static PHD2_GUIDE_OPS: Mutex<()> = Mutex::const_new(());
+
+/// Bumped by every stop and disconnect. A settle wait that sees it change
+/// ends at once instead of running out its timeout.
+static PHD2_STOP_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// How long a start waits for calibration on top of its settle. PHD2 starts
+/// the settle clock only after calibration, and a calibration of both axes
+/// with backlash clearing takes several minutes on a long-focal-length rig.
+const CALIBRATION_ALLOWANCE: Duration = Duration::from_secs(600);
+
+/// The guide exposure assumed when PHD2 does not answer `get_exposure`. It
+/// only sizes timeouts, so it errs long.
+const FALLBACK_GUIDE_EXPOSURE: Duration = Duration::from_secs(5);
+
+/// How long past one guide exposure PHD2 may take to end a capture it was
+/// asked to stop: the download and a guide pulse of up to a few seconds.
+const STOP_GRACE: Duration = Duration::from_secs(15);
+
+/// PHD2's guide exposure, or [`FALLBACK_GUIDE_EXPOSURE`] when it does not
+/// answer. A slow PHD2 is not a reason to give up on guiding.
+async fn guide_exposure() -> Result<Duration, SkotiqError> {
+    let reply = phd2_client().await?.get_exposure();
+    Ok(match reply {
+        Ok(ms) if ms > 0 => Duration::from_millis(u64::from(ms)),
+        Ok(_) => FALLBACK_GUIDE_EXPOSURE,
+        Err(e) => {
+            tracing::warn!(
+                "PHD2 did not report its guide exposure ({e}); assuming {} s",
+                FALLBACK_GUIDE_EXPOSURE.as_secs()
+            );
+            FALLBACK_GUIDE_EXPOSURE
+        }
+    })
+}
+
+/// Stop PHD2's capture and wait until PHD2 reports "Stopped". Ok(false)
+/// when it was still capturing after one exposure and [`STOP_GRACE`].
+///
+/// `stop_capture` returns as soon as PHD2 has the request, while its worker
+/// is still inside a guide pulse or an exposure. Until that ends PHD2 keeps
+/// the earlier guide's settle open and refuses a new `guide`, and a looping
+/// frame from the old capture can still arrive.
+async fn stop_capture_and_wait(exposure: Duration) -> Result<bool, SkotiqError> {
+    {
+        let mut client = phd2_client().await?;
+        if let Err(first) = client.stop_capture() {
+            tracing::warn!("PHD2 stop_capture did not complete ({first}); trying again");
+            client.stop_capture().map_err(|e| {
+                SkotiqError::OperationFailed(format!("Failed to stop PHD2 capture: {e}"))
+            })?;
+        }
+    }
+    let deadline = tokio::time::Instant::now() + exposure + STOP_GRACE;
+    loop {
+        let state = {
+            let mut client = phd2_client().await?;
+            if !client.is_connected() {
+                return Err(SkotiqError::NotConnected("PHD2".into()));
+            }
+            client.get_app_state_name()
+        };
+        if matches!(state.as_deref(), Ok("Stopped")) {
+            return Ok(true);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            tracing::warn!(
+                "[GUIDING] PHD2 was still capturing {} s after it was asked to stop ({})",
+                (exposure + STOP_GRACE).as_secs(),
+                state.unwrap_or_else(|e| e)
+            );
+            return Ok(false);
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// [`stop_capture_and_wait`] for a caller that must not go on while PHD2 is
+/// still capturing.
+async fn stop_capture_completely(exposure: Duration) -> Result<(), SkotiqError> {
+    if stop_capture_and_wait(exposure).await? {
+        Ok(())
+    } else {
+        Err(SkotiqError::OperationFailed(
+            "PHD2 did not stop its capture".to_string(),
+        ))
+    }
+}
+
+/// Wait for the settle `waiter` tracks without blocking a thread, so the
+/// wait ends when its future is dropped, when guiding is stopped, or when
+/// PHD2 reports the settle. Time PHD2 spends calibrating does not count
+/// against `settle_wait`, up to [`CALIBRATION_ALLOWANCE`].
+async fn await_settle(
+    waiter: skotiq_imaging::SettleWaiter,
+    settle_wait: Duration,
+    stop_generation: u64,
+) -> Result<(), String> {
+    let started = tokio::time::Instant::now();
+    let cap = started + settle_wait + CALIBRATION_ALLOWANCE;
+    let mut deadline = started + settle_wait;
+    loop {
+        if let Some(result) = waiter.check() {
+            return result.map(|_| ());
+        }
+        if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
+            return Err("guiding was stopped while it settled".to_string());
+        }
+        let now = tokio::time::Instant::now();
+        if waiter.is_calibrating() {
+            deadline = deadline.max(now + settle_wait).min(cap);
+        }
+        if now >= deadline {
+            return Err(format!(
+                "PHD2 settle did not complete within {:.0}s",
+                (deadline - started).as_secs_f64()
+            ));
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// End a settle this client is still waiting on before a new guide or dither.
+async fn finish_pending_settle() -> Result<(), SkotiqError> {
+    if !phd2_client().await?.settle_pending() {
+        return Ok(());
+    }
+    tracing::warn!(
+        "[GUIDING] PHD2 is still settling an earlier guide or dither; stopping its capture first"
+    );
+    stop_capture_completely(guide_exposure().await?).await
+}
+
+/// Start guiding in PHD2 and wait for it to settle.
+///
+/// A settle that runs out while PHD2 is still guiding leaves it guiding and
+/// returns Ok: the star is held, only not yet inside the settle bound, and
+/// every caller judges the guiding RMS itself. Stopping it there left the
+/// rest of the night unguided. Any other failure is an error, and a PHD2
+/// that is not guiding is stopped so it does not keep looking for a star.
 pub async fn api_phd2_start_guiding(
     settle_pixels: f64,
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), SkotiqError> {
-    let mut client = phd2_client().await?;
-
-    let waiter = client
+    let _ops = PHD2_GUIDE_OPS.lock().await;
+    finish_pending_settle().await?;
+    let stop_generation = PHD2_STOP_GENERATION.load(Ordering::SeqCst);
+    let waiter = phd2_client()
+        .await?
         .guide_arm(settle_pixels, settle_time, settle_timeout)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start guiding: {}", e)))?;
-    drop(client);
-    let timeout = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
-    let result = tokio::task::spawn_blocking(move || waiter.wait(timeout))
-        .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Guiding settle task failed: {e}")))?;
-    if let Err(error) = result {
-        // A failed lock must not keep issuing corrections while the run retries.
+    let settle_wait = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
+    if let Err(error) = await_settle(waiter, settle_wait, stop_generation).await {
+        if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
+            return Err(SkotiqError::OperationFailed(format!(
+                "Guiding did not settle: {error}"
+            )));
+        }
         let mut client = phd2_client().await?;
+        if matches!(client.get_app_state_name().as_deref(), Ok("Guiding")) {
+            tracing::warn!(
+                "[GUIDING] Guiding did not settle within {settle_pixels:.1} px ({error}); \
+                 PHD2 is still guiding, so it is left guiding"
+            );
+            drop(client);
+            get_state().publish_guiding_event(GuidingEvent::GuidingStarted, EventSeverity::Info);
+            return Ok(());
+        }
         client.stop_capture().map_err(|stop| {
             SkotiqError::OperationFailed(format!(
                 "Guiding did not settle: {error}; stopping guiding also failed: {stop}"
@@ -447,13 +604,21 @@ pub async fn api_phd2_start_guiding(
     Ok(())
 }
 
-/// Stop guiding in PHD2
+/// Stop guiding in PHD2 and wait until its capture has ended, so the mount
+/// is not moved under a guide pulse and the next start is not refused. A
+/// settle another call is waiting on ends at once.
 pub async fn api_phd2_stop_guiding() -> Result<(), SkotiqError> {
-    let mut client = phd2_client().await?;
-
-    client
-        .stop_capture()
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to stop guiding: {}", e)))?;
+    PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
+    // A capture still ending after the grace period has been told to stop;
+    // that is logged, not a failed stop.
+    stop_capture_and_wait(guide_exposure().await?)
+        .await
+        .map_err(|e| match e {
+            SkotiqError::OperationFailed(message) => {
+                SkotiqError::OperationFailed(format!("Failed to stop guiding: {message}"))
+            }
+            other => other,
+        })?;
 
     get_state().publish_guiding_event(GuidingEvent::GuidingStopped, EventSeverity::Info);
 
@@ -468,42 +633,35 @@ pub async fn api_phd2_dither(
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), SkotiqError> {
-    let mut client = phd2_client().await?;
+    let _ops = PHD2_GUIDE_OPS.lock().await;
+    finish_pending_settle().await?;
+    let stop_generation = PHD2_STOP_GENERATION.load(Ordering::SeqCst);
 
-    let ra_only_bool = ra_only != 0;
-
-    // Issue the dither RPC and arm settle tracking while holding the storage
-    // lock, but DO NOT block on the multi-second settle here — that would stall
-    // every other PHD2 operation (status polls, stop, etc.) for the duration.
-    // `dither_arm` returns a detached waiter that only clones the shared Arcs.
-    let waiter = client
+    // Issue the dither RPC and arm settle tracking under the client lock, then
+    // release it for the settle wait so status polls and stop are not stalled.
+    let waiter = phd2_client()
+        .await?
         .dither_arm(
             amount,
-            ra_only_bool,
+            ra_only != 0,
             settle_pixels,
             settle_time,
             settle_timeout,
         )
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to dither: {}", e)))?;
 
-    // Release the storage write-lock before waiting for settle.
-    drop(client);
-
     get_state().publish_guiding_event(
         GuidingEvent::DitherStarted { pixels: amount },
         EventSeverity::Info,
     );
 
-    // Wait (off the async runtime) for PHD2's asynchronous SettleDone. This
-    // fails CLOSED: a non-zero PHD2 settle status, a settle timeout, or a
-    // disconnect all surface as an error so the sequencer never resumes
+    // Fail closed: a non-zero PHD2 settle status, a settle timeout, a stop or
+    // a disconnect all surface as an error so the sequencer never resumes
     // exposing mid-settle (which trailed every dithered sub).
     let wait = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
-    let settle = tokio::task::spawn_blocking(move || waiter.wait(wait))
+    await_settle(waiter, wait, stop_generation)
         .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Dither settle task failed: {}", e)))?;
-
-    settle.map_err(|e| SkotiqError::OperationFailed(format!("Dither did not settle: {}", e)))?;
+        .map_err(|e| SkotiqError::OperationFailed(format!("Dither did not settle: {}", e)))?;
 
     get_state().publish_guiding_event(GuidingEvent::Settled { rms: 0.0 }, EventSeverity::Info);
 
@@ -883,85 +1041,122 @@ pub async fn api_guider_find_star(device_id: String) -> Result<(f64, f64), Skoti
 /// How many guide frames a fresh star selection waits for before giving up.
 const FRESH_STAR_ATTEMPTS: u32 = 3;
 
-/// Make PHD2 pick a guide star afresh before the sequencer (re)starts guiding:
-/// stop capture, loop, wait for a frame, then auto-select a star.
-///
-/// PHD2's `guide` RPC keeps the star it has selected. After a slew or a target
-/// change that is the lock position from the previous field, and PHD2 then
-/// "guides" on empty sky (owner report from the rig, 2026-10-06).
-///
-/// The built-in guider selects its star inside its own start, so it has
-/// nothing to do here.
-#[flutter_rust_bridge::frb(ignore)]
-pub async fn select_fresh_guide_star(device_id: &str) -> Result<(f64, f64), SkotiqError> {
-    if matches!(resolve_guider_backend(device_id)?, GuiderBackend::Builtin) {
-        return Ok((0.0, 0.0));
-    }
-    let (exposure, mut last_frame) = {
-        let mut client = phd2_client().await?;
-        // PHD2 can take longer than one request timeout to stop a capture it
-        // is waiting on (a long guide exposure under cloud). One more try
-        // before calling it a failure.
-        if let Err(first) = client.stop_capture() {
-            tracing::warn!(
-                "PHD2 stop_capture did not complete ({}); trying again",
-                first
-            );
-            client.stop_capture().map_err(|e| {
-                SkotiqError::OperationFailed(format!("Failed to stop PHD2 capture: {}", e))
-            })?;
-        }
-        client.loop_exposures().map_err(|e| {
-            SkotiqError::OperationFailed(format!("Failed to start PHD2 looping: {}", e))
-        })?;
-        // The exposure length sets a timeout, never proof that a frame arrived.
-        let exposure = client
-            .get_exposure()
-            .map(|ms| Duration::from_millis(u64::from(ms)))
-            .map_err(|e| {
-                SkotiqError::OperationFailed(format!("Cannot read guide exposure: {e}"))
-            })?;
-        (exposure, client.looping_frame_count())
-    };
-    let mut last_error = String::new();
-    for attempt in 1..=FRESH_STAR_ATTEMPTS {
-        // Exposure time does not include USB download. Wait for PHD2's actual
-        // frame event, otherwise find_star can succeed on the pre-slew image.
-        let deadline = tokio::time::Instant::now() + exposure + Duration::from_secs(15);
-        loop {
+/// Wait for a looping frame counted after `after`, and return its count.
+/// The exposure length sets the timeout, never proof that a frame arrived.
+async fn wait_for_looping_frame(after: u64, exposure: Duration) -> Result<u64, SkotiqError> {
+    // Exposure time does not include the download. Waiting for PHD2's frame
+    // event is what keeps find_star off the image taken before the move.
+    let deadline = tokio::time::Instant::now() + exposure + STOP_GRACE;
+    loop {
+        let frame = {
             let client = phd2_client().await?;
             if !client.is_connected() {
                 return Err(SkotiqError::NotConnected("PHD2".into()));
             }
-            let frame = client.looping_frame_count();
-            drop(client);
-            if frame != last_frame {
-                last_frame = frame;
-                break;
-            }
-            if tokio::time::Instant::now() >= deadline {
-                return Err(SkotiqError::OperationFailed(
-                    "PHD2 did not deliver a fresh guide frame".into(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            client.looping_frame_count()
+        };
+        if frame > after {
+            return Ok(frame);
         }
-        let found = phd2_client().await?.find_star();
-        match found {
-            Ok((x, y)) => {
-                tracing::info!(
-                    "[GUIDING] Fresh guide star selected at ({x:.1}, {y:.1}) px \
-                     (attempt {attempt}/{FRESH_STAR_ATTEMPTS})"
-                );
-                return Ok((x, y));
-            }
+        if tokio::time::Instant::now() >= deadline {
+            return Err(SkotiqError::OperationFailed(
+                "PHD2 did not deliver a fresh guide frame".into(),
+            ));
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// Make PHD2 pick a guide star afresh before the sequencer (re)starts guiding:
+/// stop capture and wait until it has stopped, loop, wait for a frame taken
+/// after that, then auto-select a star.
+///
+/// PHD2's `guide` RPC keeps the star it has selected. After a slew or a target
+/// change that is the lock position from the previous field, and PHD2 then
+/// guides on empty sky.
+///
+/// With a `floor`, the selected star is measured on the next frame and one
+/// below the floor is refused; the search goes on in the following frames.
+/// A PHD2 that does not report the star's measurements is taken at its word.
+///
+/// The built-in guider selects its star inside its own start, so it has
+/// nothing to do here.
+#[flutter_rust_bridge::frb(ignore)]
+pub async fn select_fresh_guide_star(
+    device_id: &str,
+    floor: Option<skotiq_sequencer::GuideStarFloor>,
+) -> Result<(f64, f64), SkotiqError> {
+    if matches!(resolve_guider_backend(device_id)?, GuiderBackend::Builtin) {
+        return Ok((0.0, 0.0));
+    }
+    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let exposure = guide_exposure().await?;
+    tracing::info!(
+        "[GUIDING] Selecting a fresh guide star: stopping PHD2's capture, then looping \
+         {:.1} s frames",
+        exposure.as_secs_f64()
+    );
+    stop_capture_completely(exposure).await?;
+    // Counted only once PHD2 has stopped, so every later frame was exposed
+    // after this request.
+    let mut last_frame = {
+        let mut client = phd2_client().await?;
+        let frame = client.looping_frame_count();
+        client.loop_exposures().map_err(|e| {
+            SkotiqError::OperationFailed(format!("Failed to start PHD2 looping: {}", e))
+        })?;
+        frame
+    };
+    let mut last_error = String::new();
+    for attempt in 1..=FRESH_STAR_ATTEMPTS {
+        last_frame = wait_for_looping_frame(last_frame, exposure).await?;
+        let (x, y) = match phd2_client().await?.find_star() {
+            Ok(found) => found,
             Err(e) => {
                 tracing::warn!(
                     "[GUIDING] No guide star found in frame {attempt}/{FRESH_STAR_ATTEMPTS}: {e}"
                 );
                 last_error = e;
+                continue;
+            }
+        };
+        if let Some(floor) = floor {
+            // PHD2 measures the selected star in the frames that follow.
+            last_frame = wait_for_looping_frame(last_frame, exposure).await?;
+            let star = phd2_client()
+                .await?
+                .looping_star()
+                .filter(|star| star.frame >= last_frame);
+            match star {
+                Some(star)
+                    if !floor.accepts(&skotiq_sequencer::GuideStarQuality {
+                        snr: star.snr,
+                        star_mass: star.star_mass,
+                    }) =>
+                {
+                    let refused = format!(
+                        "the star at ({x:.1}, {y:.1}) px measures SNR {:.1}, mass {:.0}, \
+                         below the floor of SNR {:.1}, mass {:.0}",
+                        star.snr, star.star_mass, floor.min_snr, floor.min_star_mass
+                    );
+                    tracing::warn!(
+                        "[GUIDING] Refused a guide star in frame {attempt}/{FRESH_STAR_ATTEMPTS}: \
+                         {refused}"
+                    );
+                    last_error = refused;
+                    continue;
+                }
+                Some(_) => {}
+                None => tracing::info!(
+                    "[GUIDING] PHD2 did not report the selected star's SNR; it is used unchecked"
+                ),
             }
         }
+        tracing::info!(
+            "[GUIDING] Fresh guide star selected at ({x:.1}, {y:.1}) px \
+             (attempt {attempt}/{FRESH_STAR_ATTEMPTS})"
+        );
+        return Ok((x, y));
     }
     Err(SkotiqError::OperationFailed(format!(
         "PHD2 found no guide star in {FRESH_STAR_ATTEMPTS} fresh frames ({last_error})"
@@ -1476,7 +1671,7 @@ mod fresh_guide_star_tests {
             .expect("mock PHD2 must accept the connect");
         methods.lock().unwrap().clear();
 
-        let selected = select_fresh_guide_star(PHD2_DEVICE_ID).await;
+        let selected = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
 
         let _ = api_phd2_disconnect().await;
         server.join().expect("mock PHD2 server thread finished");
@@ -1503,6 +1698,11 @@ mod fresh_guide_star_tests {
             "selecting a star must not start guiding: {methods:?}"
         );
     }
+}
+
+#[cfg(test)]
+mod tests {
+    mod sim;
 }
 
 #[cfg(test)]
@@ -1573,7 +1773,7 @@ mod post_flip_protocol_tests {
         api_phd2_connect(Some("127.0.0.1".into()), Some(port))
             .await
             .unwrap();
-        let selected = select_fresh_guide_star(PHD2_DEVICE_ID).await;
+        let selected = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
         api_phd2_disconnect().await.unwrap();
         task.join().unwrap();
         assert_eq!(
@@ -1618,7 +1818,7 @@ mod post_flip_protocol_tests {
         api_phd2_connect(Some("127.0.0.1".into()), Some(port))
             .await
             .unwrap();
-        let result = select_fresh_guide_star(PHD2_DEVICE_ID).await;
+        let result = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
         api_phd2_disconnect().await.unwrap();
         task.join().unwrap();
         assert!(result.is_err());

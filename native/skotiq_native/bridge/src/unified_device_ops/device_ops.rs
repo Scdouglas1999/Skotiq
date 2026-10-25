@@ -1144,10 +1144,40 @@ impl DeviceOps for UnifiedDeviceOps {
         let guider_id = get_active_guider_id_for_ops()
             .await
             .ok_or_else(|| "No active guider configured".to_string())?;
-        crate::api::phd2::select_fresh_guide_star(&guider_id)
+        crate::api::phd2::select_fresh_guide_star(&guider_id, None)
             .await
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+
+    async fn guider_select_fresh_star_above(
+        &self,
+        floor: skotiq_sequencer::GuideStarFloor,
+    ) -> DeviceResult<()> {
+        let guider_id = get_active_guider_id_for_ops()
+            .await
+            .ok_or_else(|| "No active guider configured".to_string())?;
+        crate::api::phd2::select_fresh_guide_star(&guider_id, Some(floor))
+            .await
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    async fn guider_star_quality(
+        &self,
+    ) -> DeviceResult<Option<skotiq_sequencer::GuideStarQuality>> {
+        let guider_id = get_active_guider_id_for_ops()
+            .await
+            .ok_or_else(|| "No active guider configured".to_string())?;
+        let status = api_guider_get_status(guider_id)
+            .await
+            .map_err(|e| format!("Failed to get guiding status: {}", e))?;
+        Ok((status.snr > 0.0 && status.star_mass > 0.0).then_some(
+            skotiq_sequencer::GuideStarQuality {
+                snr: status.snr,
+                star_mass: status.star_mass,
+            },
+        ))
     }
 
     async fn guider_stop(&self) -> DeviceResult<()> {

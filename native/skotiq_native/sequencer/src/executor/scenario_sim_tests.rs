@@ -108,6 +108,14 @@ pub(crate) struct ScriptedDeviceOps {
     /// When true, the camera's cooler reads 0% power, so a Warm Camera step
     /// switches it straight off instead of ramping.
     pub(crate) cooler_idle: Arc<AtomicBool>,
+    /// The mount's position (RA hours, Dec degrees).
+    pub(crate) mount_position: Arc<Mutex<(f64, f64)>>,
+    /// Degrees of Dec each guider status read moves the mount while guiding:
+    /// a guider chasing noise dragging it.
+    pub(crate) guide_drag_deg: Arc<Mutex<f64>>,
+    /// The star the guider measures, for selection floors and
+    /// `guider_star_quality`. `None`: it cannot measure stars.
+    pub(crate) guide_star: Arc<Mutex<Option<crate::GuideStarQuality>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -137,6 +145,9 @@ impl ScriptedDeviceOps {
             plate_solve_fails: Arc::new(AtomicBool::new(false)),
             safety_absent: Arc::new(AtomicBool::new(false)),
             cooler_idle: Arc::new(AtomicBool::new(false)),
+            mount_position: Arc::new(Mutex::new((2.3, 42.3))),
+            guide_drag_deg: Arc::new(Mutex::new(0.0)),
+            guide_star: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -214,6 +225,10 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
         let guiding = self.guiding.load(Ordering::SeqCst);
         self.record(format!("guider_get_status->{guiding}"));
+        if self.guider_start_count.load(Ordering::SeqCst) > 0 {
+            let drag = *self.guide_drag_deg.lock().unwrap();
+            self.mount_position.lock().unwrap().1 += drag;
+        }
         Ok(GuidingStatus {
             is_guiding: guiding,
             rms_ra: 0.5,
@@ -252,8 +267,27 @@ impl DeviceOps for ScriptedDeviceOps {
         Ok(())
     }
 
+    async fn guider_select_fresh_star_above(
+        &self,
+        floor: crate::GuideStarFloor,
+    ) -> DeviceResult<()> {
+        self.guider_select_fresh_star().await?;
+        match *self.guide_star.lock().unwrap() {
+            Some(star) if !floor.accepts(&star) => Err(format!(
+                "the star measures SNR {:.1}, mass {:.0}, below the floor",
+                star.snr, star.star_mass
+            )),
+            _ => Ok(()),
+        }
+    }
+
+    async fn guider_star_quality(&self) -> DeviceResult<Option<crate::GuideStarQuality>> {
+        Ok(*self.guide_star.lock().unwrap())
+    }
+
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.record("guider_stop");
+        self.guider_start_count.store(0, Ordering::SeqCst);
         Ok(())
     }
 
@@ -313,8 +347,8 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
         self.inner.mount_abort_slew(id).await
     }
-    async fn mount_get_coordinates(&self, id: &str) -> DeviceResult<(f64, f64)> {
-        self.inner.mount_get_coordinates(id).await
+    async fn mount_get_coordinates(&self, _id: &str) -> DeviceResult<(f64, f64)> {
+        Ok(*self.mount_position.lock().unwrap())
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.inner.mount_sync(id, ra, dec).await
@@ -910,7 +944,7 @@ async fn scenario5_guide_star_lost_reacquires_when_guider_relocks() {
     ops_concrete.guiding.store(false, Ordering::SeqCst);
     ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
 
-    let outcome = super::recover_guide_star(&ops).await;
+    let outcome = super::recover_guide_star(&ops, None, None).await;
     assert_eq!(
         outcome,
         AttemptOutcome::Succeeded,
@@ -932,7 +966,7 @@ async fn scenario5b_guide_star_already_recovered_skips_reacquire() {
     let ops: SharedDeviceOps = ops_concrete.clone();
     ops_concrete.guiding.store(true, Ordering::SeqCst);
 
-    let outcome = super::recover_guide_star(&ops).await;
+    let outcome = super::recover_guide_star(&ops, None, None).await;
     assert_eq!(outcome, AttemptOutcome::Succeeded);
     assert!(
         ops_concrete.index_of("guider_start").is_none(),
@@ -949,7 +983,7 @@ async fn scenario5c_guide_star_never_relocks_fails_closed() {
     ops_concrete.guiding.store(false, Ordering::SeqCst);
     ops_concrete.relock_after_starts.store(0, Ordering::SeqCst); // never re-lock
 
-    let outcome = super::recover_guide_star(&ops).await;
+    let outcome = super::recover_guide_star(&ops, None, None).await;
     assert!(
         matches!(outcome, AttemptOutcome::Failed { .. }),
         "a guider that never re-locks must fail closed, not fake success"
@@ -965,7 +999,7 @@ async fn scenario5d_guide_star_reacquire_selects_a_fresh_star_first() {
     ops_concrete.guiding.store(false, Ordering::SeqCst);
     ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
 
-    let outcome = super::recover_guide_star(&ops).await;
+    let outcome = super::recover_guide_star(&ops, None, None).await;
 
     assert_eq!(outcome, AttemptOutcome::Succeeded);
     let select = ops_concrete.index_of("guider_select_fresh_star");
@@ -987,7 +1021,7 @@ async fn scenario5e_no_star_in_a_fresh_frame_fails_the_attempt() {
     ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
     ops_concrete.no_guide_star.store(true, Ordering::SeqCst);
 
-    let outcome = super::recover_guide_star(&ops).await;
+    let outcome = super::recover_guide_star(&ops, None, None).await;
 
     assert!(
         matches!(&outcome, AttemptOutcome::Failed { message } if message.contains("no star")),
@@ -998,6 +1032,170 @@ async fn scenario5e_no_star_in_a_fresh_frame_fails_the_attempt() {
         "guiding was started on the old star; calls={:?}",
         ops_concrete.calls()
     );
+}
+
+/// A guide-star recovery with a trigger state, as the driver runs it.
+async fn trigger_manager_with_site() -> Arc<RwLock<TriggerManager>> {
+    let manager = Arc::new(RwLock::new(TriggerManager::new()));
+    {
+        let guard = manager.read().await;
+        let lock = guard.state();
+        let mut state = lock.write().await;
+        state.observer_latitude = Some(43.0);
+        state.observer_longitude = Some(-79.0);
+    }
+    manager
+}
+
+async fn trigger_state_of(manager: &Arc<RwLock<TriggerManager>>) -> crate::triggers::TriggerState {
+    let guard = manager.read().await;
+    let lock = guard.state();
+    let state = lock.read().await.clone();
+    state
+}
+
+/// N3: a guide star cannot be held on a mount that is not tracking. The
+/// attempt hands the recovery to tracking and never touches the guider.
+#[tokio::test(start_paused = true)]
+async fn scenario5f_a_stopped_mount_hands_the_recovery_to_tracking() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    ops_concrete.mount_tracking.store(false, Ordering::SeqCst);
+
+    let outcome = super::recover_guide_star(&ops, Some("mount-1"), None).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            AttemptOutcome::HandOff { cause: crate::recovery::RecoveryCause::MountTrackingLost, message }
+                if message.contains("not tracking")
+        ),
+        "{outcome:?}"
+    );
+    assert_eq!(
+        ops_concrete.call_count("guider_"),
+        0,
+        "{:?}",
+        ops_concrete.calls()
+    );
+}
+
+/// A mount that is slewing reads as not tracking on some drivers; that is
+/// the run's own move, not a stopped mount.
+#[tokio::test(start_paused = true)]
+async fn scenario5g_a_slewing_mount_is_not_handed_to_tracking() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
+    ops_concrete.mount_tracking.store(false, Ordering::SeqCst);
+    ops_concrete.mount_slewing.store(true, Ordering::SeqCst);
+
+    let outcome = super::recover_guide_star(&ops, Some("mount-1"), None).await;
+
+    assert!(
+        !matches!(outcome, AttemptOutcome::HandOff { .. }),
+        "{outcome:?}"
+    );
+}
+
+/// M7: behind the trees PHD2 offered sources at a few percent of the run's
+/// guide star's mass. The recovery refuses them, records the failure with
+/// where the mount pointed, and does not start guiding.
+#[tokio::test(start_paused = true)]
+async fn scenario5h_recovery_refuses_a_star_far_fainter_than_the_runs() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
+    *ops_concrete.guide_star.lock().unwrap() = Some(crate::GuideStarQuality {
+        snr: 77.3,
+        star_mass: 29_612.0,
+    });
+    let manager = trigger_manager_with_site().await;
+    {
+        let guard = manager.read().await;
+        guard.state().write().await.guide_star_reference = Some(crate::GuideStarQuality {
+            snr: 230.0,
+            star_mass: 750_000.0,
+        });
+    }
+
+    let first = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
+    let second = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
+
+    assert!(
+        matches!(&first, AttemptOutcome::Failed { message } if message.contains("below the floor")),
+        "{first:?}"
+    );
+    assert!(matches!(second, AttemptOutcome::Failed { .. }));
+    assert!(
+        ops_concrete.index_of("guider_start").is_none(),
+        "{:?}",
+        ops_concrete.calls()
+    );
+    let stall = trigger_state_of(&manager)
+        .await
+        .guide_recovery
+        .expect("the failures are recorded");
+    assert_eq!(stall.failed_attempts(), 2);
+    assert!(
+        stall.stalled_at_one_pointing(2, 1.0),
+        "two attempts at one pointing: {stall:?}"
+    );
+}
+
+/// M7: guiding that drags the mount after noise is stopped once it has
+/// moved the mount past the cap, and later attempts do not restart it.
+#[tokio::test(start_paused = true)]
+async fn scenario5i_guiding_that_drags_the_mount_is_stopped_and_not_restarted() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    // Locked but never settling, dragging Dec 1' per status read.
+    *ops_concrete.guide_drag_deg.lock().unwrap() = 1.0 / 60.0;
+    let manager = trigger_manager_with_site().await;
+
+    let first = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
+    let starts_after_first = ops_concrete.call_count("guider_start");
+    let second = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
+
+    assert!(
+        matches!(&first, AttemptOutcome::Failed { message } if message.contains("moved the mount")),
+        "{first:?}"
+    );
+    assert!(ops_concrete.index_of("guider_stop").is_some());
+    assert!(
+        matches!(&second, AttemptOutcome::Failed { message } if message.contains("moved the mount")),
+        "{second:?}"
+    );
+    assert_eq!(
+        ops_concrete.call_count("guider_start"),
+        starts_after_first,
+        "a displaced recovery must not restart guiding: {:?}",
+        ops_concrete.calls()
+    );
+}
+
+/// A recovery that ends with guiding settled clears its record.
+#[tokio::test(start_paused = true)]
+async fn scenario5j_a_settled_recovery_clears_its_record() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    ops_concrete.no_guide_star.store(true, Ordering::SeqCst);
+    let manager = trigger_manager_with_site().await;
+
+    let failed = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
+    assert!(matches!(failed, AttemptOutcome::Failed { .. }));
+    assert!(trigger_state_of(&manager).await.guide_recovery.is_some());
+
+    ops_concrete.no_guide_star.store(false, Ordering::SeqCst);
+    ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
+    let recovered = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
+    assert_eq!(recovered, AttemptOutcome::Succeeded);
+    assert!(trigger_state_of(&manager).await.guide_recovery.is_none());
 }
 
 // =============================================================================
@@ -1081,7 +1279,7 @@ async fn scenario6b_guide_star_exhaustion_then_safe_state_parks_and_closes() {
 
     // Attempts keep failing.
     for _ in 0..2 {
-        let outcome = super::recover_guide_star(&ops).await;
+        let outcome = super::recover_guide_star(&ops, None, None).await;
         assert!(matches!(outcome, AttemptOutcome::Failed { .. }));
     }
 

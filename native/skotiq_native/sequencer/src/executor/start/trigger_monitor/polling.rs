@@ -479,10 +479,16 @@ impl DevicePoller {
             .as_ref()
             .map(|status| status.is_guiding)
             .map_err(|_| ());
-        if state.guiding.observe_guider(poll) == GuiderObservation::GuidingAgain {
-            tracing::info!(
+        let mount_tracking = state.mount_is_tracking;
+        match state.guiding.observe_guider_on_mount(poll, mount_tracking) {
+            GuiderObservation::GuidingAgain => tracing::info!(
                 "[GUIDING] The guider is guiding again; dithers and guiding checks resume"
-            );
+            ),
+            GuiderObservation::GuidingWithoutTracking => tracing::warn!(
+                "[GUIDING] The guider reports guiding but the mount is not tracking; the run \
+                 stays unguided until the mount tracks"
+            ),
+            GuiderObservation::Unchanged => {}
         }
     }
 }

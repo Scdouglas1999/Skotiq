@@ -8,6 +8,7 @@
 
 mod dawn;
 mod flip_state;
+mod guide_recovery;
 mod guiding_state;
 mod manager;
 mod manual_flip;
@@ -19,6 +20,7 @@ mod trigger;
 
 pub use dawn::*;
 pub use flip_state::*;
+pub use guide_recovery::*;
 pub use guiding_state::*;
 pub use manager::*;
 pub use meridian_window::*;

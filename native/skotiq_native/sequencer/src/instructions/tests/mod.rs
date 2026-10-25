@@ -125,6 +125,8 @@ struct ScriptedDomeRotatorOps {
     /// The guider's reported RMS, in guide-camera pixels.
     guider_rms_total: Mutex<f64>,
     guider_calibration: Option<GuidingCalibration>,
+    /// What `mount_is_tracking` answers; `None` defers to the null mount.
+    mount_tracking: Mutex<Option<bool>>,
     /// When `Some`, every `guider_dither` fails with this message.
     dither_error: Option<String>,
     /// When true, every plate solve finds no solution (a clouded frame).
@@ -244,6 +246,7 @@ impl ScriptedDomeRotatorOps {
             guider_polls_before_lock: AtomicU32::new(0),
             guider_rms_total: Mutex::new(0.7),
             guider_calibration: None,
+            mount_tracking: Mutex::new(None),
             dither_error: None,
             plate_solve_fails: false,
             saved_frame_contexts: Mutex::new(Vec::new()),
@@ -426,6 +429,11 @@ impl ScriptedDomeRotatorOps {
     /// A guider reporting `rms_total` px of guide error.
     fn with_no_guide_star(mut self) -> Self {
         self.no_guide_star = true;
+        self
+    }
+
+    fn with_mount_tracking(self, tracking: bool) -> Self {
+        *self.mount_tracking.lock().unwrap() = Some(tracking);
         self
     }
 
@@ -613,6 +621,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.mount_side_of_pier(id).await
     }
     async fn mount_is_tracking(&self, id: &str) -> DeviceResult<bool> {
+        if let Some(tracking) = *self.mount_tracking.lock().unwrap() {
+            return Ok(tracking);
+        }
         self.inner.mount_is_tracking(id).await
     }
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
