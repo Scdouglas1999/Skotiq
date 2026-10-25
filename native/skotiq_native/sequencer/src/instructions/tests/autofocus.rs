@@ -642,6 +642,33 @@ async fn a_successful_guider_resume_leaves_the_result_alone() {
     );
 }
 
+/// The guider restarted after autofocus must find a star that measures up to
+/// the run's guide star, so it never locks noise or a faint source instead.
+#[tokio::test]
+async fn the_guider_restart_after_autofocus_refuses_a_star_below_the_runs_guide_star() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guiding(false));
+    let ctx = pointing_ctx(ops.clone(), "NGC891", (2.38, 42.35)).await;
+    let reference = crate::GuideStarQuality {
+        snr: 40.0,
+        star_mass: 20_000.0,
+    };
+    ctx.trigger_state
+        .as_ref()
+        .expect("pointing_ctx wires a trigger state")
+        .write()
+        .await
+        .guide_star_reference = Some(reference);
+
+    let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert_eq!(
+        *ops.fresh_star_floors.lock().unwrap(),
+        vec![crate::GuideStarFloor::relative_to(Some(reference)).unwrap()],
+        "the restart selects its star against the run's guide star"
+    );
+}
+
 /// A missed curve fit and a dead guider must not be classified the same way.
 /// They arrive as the identical `NodeStatus::Failure`, and collapsing them is
 /// the whole defect.

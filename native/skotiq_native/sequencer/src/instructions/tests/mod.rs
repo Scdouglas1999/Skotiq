@@ -113,6 +113,8 @@ struct ScriptedDomeRotatorOps {
     /// For each `guider_select_fresh_star`, how many `guider_start` calls had
     /// been made when it was issued, so a test can tell it came first.
     fresh_star_selections: Mutex<Vec<u32>>,
+    /// The floor each `guider_select_fresh_star_above` was given.
+    fresh_star_floors: Mutex<Vec<crate::GuideStarFloor>>,
     /// When true, `guider_select_fresh_star` finds no star.
     no_guide_star: bool,
     /// When true, `guider_start` returns Ok but the guider never reports
@@ -241,6 +243,7 @@ impl ScriptedDomeRotatorOps {
             off_target_solves: AtomicU32::new(0),
             guider_start_calls: AtomicU32::new(0),
             fresh_star_selections: Mutex::new(Vec::new()),
+            fresh_star_floors: Mutex::new(Vec::new()),
             no_guide_star: false,
             guider_resume_never_guides: false,
             guider_polls_before_lock: AtomicU32::new(0),
@@ -839,6 +842,13 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             return Err("no star found in the guide frame".to_string());
         }
         Ok(())
+    }
+    async fn guider_select_fresh_star_above(
+        &self,
+        floor: crate::GuideStarFloor,
+    ) -> DeviceResult<()> {
+        self.fresh_star_floors.lock().unwrap().push(floor);
+        self.guider_select_fresh_star().await
     }
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.guider_stop_calls.fetch_add(1, Ordering::SeqCst);

@@ -721,8 +721,20 @@ pub(crate) async fn resume_guiding_after_autofocus(
     result: InstructionResult,
 ) -> InstructionResult {
     // A fresh star: the autofocus run may have moved the field under the
-    // guider's old lock position.
-    if let Err(error) = start_guiding_on_fresh_star(&ctx.device_ops, 1.0, 10.0, 60.0).await {
+    // guider's old lock position. It must measure up to the run's guide star.
+    let reference = match &ctx.trigger_state {
+        Some(state) => state.read().await.guide_star_reference,
+        None => None,
+    };
+    if let Err(error) = start_guiding_on_fresh_star_above(
+        &ctx.device_ops,
+        crate::GuideStarFloor::relative_to(reference),
+        1.0,
+        10.0,
+        60.0,
+    )
+    .await
+    {
         return append_guiding_not_restored(
             ctx,
             result,

@@ -1638,9 +1638,16 @@ impl MeridianFlipExecutor {
         // resume, so do not send the flip into its 120-second retry ladder over
         // a no-op. A real guider failure still fails closed below.
         // On a star picked afresh: the flip turned the field over, so the
-        // guider's old lock position is not where the star is.
-        match crate::instructions::start_guiding_on_fresh_star(
+        // guider's old lock position is not where the star is. The star must
+        // measure up to the one the run was guiding on, so noise or a faint
+        // source is never locked instead.
+        let reference = match &ctx.trigger_state {
+            Some(state) => state.read().await.guide_star_reference,
+            None => None,
+        };
+        match crate::instructions::start_guiding_on_fresh_star_above(
             &self.device_ops,
+            crate::GuideStarFloor::relative_to(reference),
             settle_pixels,
             settle_time,
             settle_timeout,
@@ -2259,6 +2266,8 @@ mod tests {
         /// For each fresh guide-star selection, how many guider starts had
         /// been made when it arrived.
         fresh_star_before_starts: Mutex<Vec<i32>>,
+        /// The floor each `guider_select_fresh_star_above` was given.
+        fresh_star_floors: Mutex<Vec<crate::GuideStarFloor>>,
         /// When true, `guider_start` fails, as a guider with no star does.
         guider_start_fails: AtomicBool,
         guider_start_failures_remaining: AtomicI32,
@@ -2564,6 +2573,14 @@ mod tests {
             }
             self.state.guider_stopped.store(false, Ordering::Relaxed);
             Ok(())
+        }
+
+        async fn guider_select_fresh_star_above(
+            &self,
+            floor: crate::GuideStarFloor,
+        ) -> DeviceResult<()> {
+            self.state.fresh_star_floors.lock().unwrap().push(floor);
+            self.guider_select_fresh_star().await
         }
 
         async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
@@ -2969,6 +2986,36 @@ mod tests {
             state.guider_start_calls.load(Ordering::Relaxed),
             0,
             "Guiding must not resume after post-flip centering fails"
+        );
+    }
+
+    /// The guider restarted after a flip must find a star that measures up to
+    /// the run's guide star: a star picked from a stale or clouded frame was
+    /// noise or a faint source, and guiding on it dragged the mount away.
+    #[tokio::test(start_paused = true)]
+    async fn the_post_flip_guider_restart_refuses_a_star_below_the_runs_guide_star() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(MeridianFlipConfig::default(), ops);
+        let reference = crate::GuideStarQuality {
+            snr: 35.0,
+            star_mass: 15_000.0,
+        };
+        let mut trigger_state = TriggerState::new();
+        trigger_state.guide_star_reference = Some(reference);
+        let ctx = FlipContext {
+            trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
+            ..make_ctx(&state)
+        };
+
+        executor
+            .restart_guider(&ctx)
+            .await
+            .expect("the guider restarts");
+
+        assert_eq!(
+            *state.fresh_star_floors.lock().unwrap(),
+            vec![crate::GuideStarFloor::relative_to(Some(reference)).unwrap()],
         );
     }
 
