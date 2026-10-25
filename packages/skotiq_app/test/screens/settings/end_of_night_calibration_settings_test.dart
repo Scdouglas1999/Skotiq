@@ -93,6 +93,11 @@ void main() {
       expect(find.text('Take darks and bias now'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
+      expect(
+        (await EonSettings.load(SettingsDao(database))).enabled,
+        isTrue,
+        reason: 'a fresh install runs end-of-night calibration',
+      );
       final toggle = find.descendant(
         of: find.ancestor(
           of: find.text('Take darks and bias when imaging ends'),
@@ -103,7 +108,7 @@ void main() {
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       final stored = await EonSettings.load(SettingsDao(database));
-      expect(stored.enabled, isTrue);
+      expect(stored.enabled, isFalse);
     });
   }
 

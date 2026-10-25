@@ -35,7 +35,7 @@ enum EonNoDarkSlotPolicy {
 /// Operator settings for the end-of-night calibration step.
 class EonSettings {
   const EonSettings({
-    this.enabled = false,
+    this.enabled = true,
     this.mountAction = EonMountAction.home,
     this.darkCount = 20,
     this.biasCount = 50,
@@ -44,7 +44,8 @@ class EonSettings {
     this.warmUp = true,
   });
 
-  /// Run the step automatically when the night's imaging ends.
+  /// Run the step automatically when the night's imaging ends. On by
+  /// default.
   final bool enabled;
   final EonMountAction mountAction;
 
@@ -79,7 +80,10 @@ class EonSettings {
     int count(String? raw, int fallback) =>
         (int.tryParse(raw ?? '') ?? fallback).clamp(minCount, maxCount);
     return EonSettings(
-      enabled: await read(enabledKey) == 'true',
+      // On unless the operator switched it off: an install that never stored
+      // the key runs it. With no dark slot it asks for a cap or skips, and
+      // says so.
+      enabled: await read(enabledKey) != 'false',
       mountAction: EonMountAction.parse(await read(mountKey)),
       darkCount: count(await read(darkCountKey), 20),
       biasCount: count(await read(biasCountKey), 50),
