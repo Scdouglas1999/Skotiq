@@ -56,7 +56,10 @@ import 'darkroom_targets_model.dart';
 /// The header chip: what the Darkroom is doing in the background. Opens
 /// Activity.
 class DarkroomStatusChip extends ConsumerWidget {
-  const DarkroomStatusChip({super.key});
+  const DarkroomStatusChip({super.key, this.maxValueWidth = 320});
+
+  /// The widest the status text may grow before it ellipsizes.
+  final double maxValueWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -94,7 +97,7 @@ class DarkroomStatusChip extends ConsumerWidget {
       key: const ValueKey('darkroom_status_chip'),
       dotTone: tone,
       value: value,
-      maxValueWidth: 320,
+      maxValueWidth: maxValueWidth,
       live: job?.active == true,
       semanticLabel: '$value. Open Activity.',
       onTap: () => context.go(darkroomTabLocation(DarkroomTab.activity)),

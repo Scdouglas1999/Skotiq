@@ -1,5 +1,8 @@
 part of '../darkroom_screen.dart';
 
+/// Below this window width the header chip's text is shortened.
+const double _narrowHeader = 600;
+
 /// The tab icons, in [DarkroomTab] order.
 IconData _darkroomTabIcon(DarkroomTab tab) => switch (tab) {
       DarkroomTab.targets => SkotiqIcons.target,
@@ -39,7 +42,13 @@ class _DarkroomTabsView extends StatelessWidget {
               context.go(darkroomTabLocation(tab));
             },
           ),
-          actions: const [DarkroomStatusChip()],
+          actions: [
+            // A phone header keeps the title and the chip on one row.
+            DarkroomStatusChip(
+              maxValueWidth:
+                  MediaQuery.sizeOf(context).width < _narrowHeader ? 120 : 320,
+            ),
+          ],
         ),
         Expanded(
           child: DarkroomRouteScope(
