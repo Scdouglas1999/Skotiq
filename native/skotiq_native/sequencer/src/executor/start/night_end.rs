@@ -78,6 +78,9 @@ impl AlreadySafe {
             }
             NodeType::CloseCover(_) if self.cover_closed => Some("the cover was already closed"),
             NodeType::CloseDome(_) if self.dome_closed => Some("the dome was already closed"),
+            NodeType::WarmCamera(config) if config.defer_to_calibration => {
+                Some("end-of-night calibration warms the camera after its darks")
+            }
             _ => None,
         }
     }

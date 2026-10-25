@@ -340,9 +340,9 @@ class _EndOfNightStatusCard extends ConsumerWidget {
                     variant: ButtonVariant.secondary,
                     size: ButtonSize.small,
                     onPressed: canStart
-                        ? () => service.run(
-                              reason: EonEndReason.manual.description,
-                            )
+                        ? () => ref
+                            .read(endOfNightCalibrationCoordinatorProvider)
+                            .runNow()
                         : null,
                   ),
               ],

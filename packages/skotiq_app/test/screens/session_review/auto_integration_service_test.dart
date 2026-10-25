@@ -540,6 +540,13 @@ void main() {
     await settleCoordinator();
     expect(recording.calls, [20, 22],
         reason: 'a night ended by the dawn park must integrate');
+
+    // The operator stopped a night and ended it with a manual end-of-night
+    // calibration: that night is integrated too.
+    coordinatorContainer.read(nightIntegrationRequestProvider.notifier).state =
+        const NightIntegrationRequest(generation: 1, sessionId: 23);
+    await settleCoordinator();
+    expect(recording.calls, [20, 22, 23]);
   });
 
   test('every native integration call carries the session\'s cancel handle',

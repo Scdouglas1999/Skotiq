@@ -969,6 +969,7 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
 
   // Created first so it sees every terminal run this coordinator sees.
   final night = ref.read(endOfNightCalibrationCoordinatorProvider);
+  final integrate = _integrator(ref);
   var queue = Future<void>.value();
   ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider,
       (previous, next) {
@@ -989,16 +990,33 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
     );
 
     queue = queue.then((_) async {
+      if (await ended == null) return;
+      if (classified) await night.nightSettled(generation);
+      await integrate(sessionId, generation);
+    });
+  });
+
+  // A night the operator stopped and then ended with a manual end-of-night
+  // calibration is integrated once that calibration is done.
+  ref.listen<NightIntegrationRequest?>(nightIntegrationRequestProvider,
+      (previous, next) {
+    if (next == null || previous?.generation == next.generation) return;
+    queue = queue.then((_) => integrate(next.sessionId, -next.generation));
+  });
+});
+
+/// What the coordinator does for one night: integrate it and publish the
+/// result. [generation] keys the completion toast.
+Future<void> Function(int sessionId, int generation) _integrator(Ref ref) =>
+    (sessionId, generation) async {
       try {
-        if (await ended == null) return;
-        if (classified) await night.nightSettled(generation);
         final result = await ref
             .read(autoIntegrationServiceProvider)
             .maybeRunForSession(sessionId);
         if (!result.ran && !result.failed) return;
         ref.read(autoIntegrationCompletionProvider.notifier).state =
             AutoIntegrationCompletion(
-          generation: next.generation,
+          generation: generation,
           result: result,
         );
         if (result.failed) {
@@ -1022,6 +1040,4 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
           fields: {'sessionId': sessionId, 'error': '$error'},
         );
       }
-    });
-  });
-});
+    };

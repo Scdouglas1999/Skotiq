@@ -218,6 +218,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   Completer<bool>? _capConfirmation;
   bool _cancelRequested = false;
   bool _runInFlight = false;
+  bool _forceWarmUp = false;
 
   bool get isRunning => state.phase.isActive;
 
@@ -248,14 +249,21 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     if (_runInFlight) await _rig.stopRun();
   }
 
-  /// Run the step. [reason] says what ended the night.
-  Future<EonReport> run({required String reason, EonSettings? settings}) async {
+  /// Run the step. [reason] says what ended the night. [forceWarmUp] is set
+  /// when the run handed its own closing warm-up to this step: the camera is
+  /// then warmed however the step ends, even if it takes no frames.
+  Future<EonReport> run({
+    required String reason,
+    EonSettings? settings,
+    bool forceWarmUp = false,
+  }) async {
     if (isRunning) {
       throw const EonBusyException(
         'End-of-night calibration is already running',
       );
     }
     _cancelRequested = false;
+    _forceWarmUp = forceWarmUp;
     final config = settings ?? await _loadSettings();
     final report = EonReport(reason: reason, startedAt: _rig.now());
     _set(EonPhase.preparing, 'Working out the frames tonight needs', report);
@@ -270,8 +278,31 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
         problem: true,
       );
     }
+    if (forceWarmUp && report.warmUp == null) {
+      report.warmUp = await _attempt(
+        report,
+        'Warming the camera up',
+        _rig.warmUpCamera,
+      );
+      await _rig.notify(
+        'Camera warm-up',
+        'The plan left the camera cold for calibration: ${report.warmUp}.',
+      );
+    }
     await _rig.saveReport(report.toJson());
     return report;
+  }
+
+  /// Warm the camera a run left cold for a calibration step that then did not
+  /// run, and tell the operator [why].
+  Future<void> warmUpDeferredCamera(String why) async {
+    String outcome;
+    try {
+      outcome = await _rig.warmUpCamera();
+    } catch (e) {
+      outcome = 'Warming the camera up failed: $e';
+    }
+    await _rig.notify('Camera warm-up', '$why. $outcome.');
   }
 
   void _finish(EonReport report, EonPhase phase, String summary) {
@@ -355,7 +386,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       );
     }
 
-    if (config.warmUp && camera.canCool) {
+    if ((config.warmUp || _forceWarmUp) && camera.canCool) {
       report.warmUp = await _attempt(
         report,
         'Warming the camera up',

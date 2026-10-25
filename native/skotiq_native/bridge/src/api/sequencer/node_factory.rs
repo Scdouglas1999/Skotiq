@@ -451,6 +451,7 @@ pub fn api_create_warm_camera_node(
     let config = WarmConfig {
         rate_per_min,
         target_temp,
+        ..WarmConfig::default()
     };
 
     let node = NodeDefinition {

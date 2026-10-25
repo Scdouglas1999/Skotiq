@@ -328,6 +328,64 @@ void main() {
       expect(rig.calls, isEmpty);
     });
 
+    test('a run that deferred its warm-up hands it to the step', () async {
+      await enable(true);
+      await recordRunFrame(13, 'light');
+      container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
+      final coordinator = container.read(
+        endOfNightCalibrationCoordinatorProvider,
+      );
+      finishRun(1, 13, 'completed');
+      await settle();
+      rig.runGate!.complete();
+      await coordinator.nightSettled(1);
+      expect(rig.calls, containsAllInOrder(['run', 'warmUp']));
+      expect(container.read(shutdownWarmUpDeferredProvider), isFalse);
+    });
+
+    test('a deferred warm-up happens when the step cannot run', () async {
+      await enable(true);
+      // No light frames: the step does not start.
+      await recordRunFrame(14, 'dark');
+      container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
+      final coordinator = container.read(
+        endOfNightCalibrationCoordinatorProvider,
+      );
+      finishRun(1, 14, 'completed');
+      await coordinator.nightSettled(1);
+      expect(rig.calls, isNot(contains('run')));
+      expect(rig.calls, contains('warmUp'));
+    });
+
+    test('a manual run after an operator stop queues the night', () async {
+      await enable(true);
+      await recordRunFrame(15, 'light');
+      container.read(sequenceStopEvidenceProvider.notifier).state =
+          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      final coordinator = container.read(
+        endOfNightCalibrationCoordinatorProvider,
+      );
+      container
+          .read(sequenceTerminalRunResultProvider.notifier)
+          .state = const SequenceTerminalRunResult(
+        generation: 1,
+        outcome: SequenceExecutionState.idle,
+        runStatus: 'stopped',
+        runId: 15,
+        dbSessionId: 40,
+      );
+      await coordinator.nightSettled(1);
+      expect(container.read(nightIntegrationRequestProvider), isNull);
+
+      rig.runGate!.complete();
+      await coordinator.runNow();
+      expect(container.read(nightIntegrationRequestProvider)?.sessionId, 40);
+
+      // The night is handed over once.
+      await coordinator.runNow();
+      expect(container.read(nightIntegrationRequestProvider)?.generation, 1);
+    });
+
     test('another feature ending the night starts it', () async {
       await enable(true);
       final started = await container

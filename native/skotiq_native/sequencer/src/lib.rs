@@ -2372,6 +2372,11 @@ pub struct WarmConfig {
     pub rate_per_min: f64,
     #[serde(default)]
     pub target_temp: Option<f64>,
+    /// Set by the app on a plan's closing Warm Camera step when end-of-night
+    /// calibration follows the run: the camera stays at its set-point for the
+    /// darks, and the calibration step warms it once its frames are taken.
+    #[serde(default)]
+    pub defer_to_calibration: bool,
 }
 
 impl Default for WarmConfig {
@@ -2379,6 +2384,7 @@ impl Default for WarmConfig {
         Self {
             rate_per_min: 2.0,
             target_temp: None,
+            defer_to_calibration: false,
         }
     }
 }

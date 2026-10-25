@@ -96,7 +96,9 @@ extension CalibrationEndOfNightHandlers on CalibrationHandlers {
         'message': 'A run is active; stop it before taking calibration frames',
       });
     }
-    unawaited(service.run(reason: EonEndReason.manual.description));
+    unawaited(
+      container.read(endOfNightCalibrationCoordinatorProvider).runNow(),
+    );
     return Response(
       HttpStatus.accepted,
       body: jsonEncode(await _endOfNightJson()),

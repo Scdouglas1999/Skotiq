@@ -333,3 +333,37 @@ async fn dawn_during_a_recovery_ends_the_recovery_with_the_run() {
     assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
     assert!(recovery.is_none(), "recovery={recovery:?}");
 }
+
+/// With end-of-night calibration to follow, the plan's Warm Camera step is
+/// deferred: the camera stays at its set-point for the darks.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_park_leaves_a_deferred_warm_up_to_calibration() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut plan = night_plan(node("home", "Home mount", NodeType::HomeMount));
+    for n in &mut plan.nodes {
+        if let NodeType::WarmCamera(config) = &mut n.node_type {
+            config.defer_to_calibration = true;
+        }
+    }
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+    assert!(
+        !calls.iter().any(|c| c.starts_with("camera_set_cooler")),
+        "the cooler must stay at its set-point; calls={calls:?}"
+    );
+    assert!(
+        notified(&calls, "Warm camera: not run, end-of-night calibration"),
+        "calls={calls:?}"
+    );
+}

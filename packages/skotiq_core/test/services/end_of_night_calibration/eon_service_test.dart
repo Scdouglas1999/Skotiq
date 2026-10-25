@@ -296,6 +296,41 @@ void main() {
     );
   });
 
+  test('a deferred warm-up still happens when the step skips', () async {
+    rig.wheel = ['L', 'R', 'G', 'B'];
+    final skipping = EndOfNightCalibrationService(
+      rig,
+      () async => settings.copyWith(noDarkSlot: EonNoDarkSlotPolicy.skip),
+    );
+    final report = await skipping.run(reason: 'dawn', forceWarmUp: true);
+    expect(report.phase, EonPhase.skipped);
+    expect(rig.calls, contains('warmUp'));
+    expect(rig.notifications.map((n) => n.$1), contains('Camera warm-up'));
+  });
+
+  test(
+    'a deferred warm-up runs after the frames even with warm-up off',
+    () async {
+      final noWarm = EndOfNightCalibrationService(
+        rig,
+        () async => settings.copyWith(warmUp: false),
+      );
+      await noWarm.run(reason: 'dawn', forceWarmUp: true);
+      expect(rig.calls, containsAllInOrder(['run', 'warmUp']));
+      expect(rig.calls.where((c) => c == 'warmUp'), hasLength(1));
+    },
+  );
+
+  test('a skip without a deferred warm-up leaves the camera alone', () async {
+    rig.wheel = ['L', 'R', 'G', 'B'];
+    final skipping = EndOfNightCalibrationService(
+      rig,
+      () async => settings.copyWith(noDarkSlot: EonNoDarkSlotPolicy.skip),
+    );
+    await skipping.run(reason: 'manual');
+    expect(rig.calls, isNot(contains('warmUp')));
+  });
+
   test('a night without lights is skipped', () async {
     rig.lights = [];
     final report = await service.run(reason: 'manual');
