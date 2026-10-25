@@ -17,7 +17,7 @@ import '../../session_review/widgets/sub_cull_rail.dart'
 import '../build_masters/job_views.dart' show describeEta, percent;
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
-import 'target_detail.dart' show joinWords;
+import 'target_detail.dart' show describeBuiltMasters, joinWords;
 import 'nights_strip.dart' show darkroomNightLabel, darkroomShortDate;
 
 part 'framing_check_parts/_field.dart';
@@ -163,7 +163,14 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final job = ref.read(darkroomBuildJobsProvider);
-      if (job != null && (job.active || job.target == _key)) return;
+      // A running build, or this target's build waiting for review, is
+      // shown as it is; a finished build of this target is checked afresh.
+      if (job != null &&
+          (job.active ||
+              (job.target == _key &&
+                  job.stage == DarkroomJobStage.awaitingReview))) {
+        return;
+      }
       // A build held here by the night-end automation is reviewed, not
       // checked again, so accepting it credits that night's run.
       if (_jobs.reviewHeld(_key) != null) return;
@@ -500,7 +507,7 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
       body = _Notice(
         icon: SkotiqIcons.success,
         title: 'Masters ready',
-        body: own!.message,
+        body: describeBuiltMasters(own!),
         action: SkotiqButton(
           label: 'Check framing again',
           variant: ButtonVariant.secondary,

@@ -660,11 +660,18 @@ class _FolderRow extends ConsumerWidget {
     final root = session.folder ??
         ref.watch(darkroomMastersRootProvider).valueOrNull?.path ??
         'Documents';
+    final folder =
+        darkroomTargetBuildDirectory(Directory(root), targetKey).path;
+    // The last folders name the place; the full path is in the tooltip.
+    final parts = p.split(folder);
+    final shown = parts.length > 3
+        ? p.join('…', p.joinAll(parts.sublist(parts.length - 3)))
+        : folder;
     return Tooltip(
-      message: root,
+      message: folder,
       child: _SettingRow(
         label: 'Save to',
-        value: root,
+        value: shown,
         trailing: SkotiqButton(
           label: 'Change',
           variant: ButtonVariant.ghost,

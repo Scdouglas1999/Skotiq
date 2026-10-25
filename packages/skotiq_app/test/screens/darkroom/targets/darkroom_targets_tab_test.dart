@@ -709,6 +709,30 @@ void main() {
     );
   });
 
+  testWidgets(
+      'Build masters after a finished build checks the framing '
+      'again', (tester) async {
+    final h = await _pump(tester);
+    h.jobs.state = DarkroomBuildJob(
+      target: 'NGC 891',
+      stage: DarkroomJobStage.done,
+      message: 'Masters ready',
+      startedAt: DateTime(2026, 10, 24, 6),
+      directory: '/data/Masters/NGC_891',
+    );
+    await _settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_hero_build')));
+    await _settle(tester);
+
+    expect(
+      h.native.requests.where((r) => r['op'] == 'registrationPreview'),
+      isNotEmpty,
+    );
+    expect(h.jobs.state!.stage, DarkroomJobStage.awaitingReview);
+    expect(find.byKey(const ValueKey('darkroom_field_kept')), findsOneWidget);
+  });
+
   testWidgets('while another target builds, the check waits instead', (
     tester,
   ) async {
@@ -749,10 +773,10 @@ void main() {
       directory: '/data/Masters/NGC_891',
       report: const {
         'results': [
+          {'filter': 'B', 'frameCount': 13, 'totalIntegrationSec': 1560},
+          {'filter': 'G', 'frameCount': 14, 'totalIntegrationSec': 1680},
           {'filter': 'L', 'frameCount': 41, 'totalIntegrationSec': 3690},
           {'filter': 'R', 'frameCount': 14, 'totalIntegrationSec': 1680},
-          {'filter': 'G', 'frameCount': 14, 'totalIntegrationSec': 1680},
-          {'filter': 'B', 'frameCount': 13, 'totalIntegrationSec': 1560},
         ],
         'failures': [],
       },

@@ -2335,7 +2335,7 @@ void main() {
 
       expect(outcome.state, DarkroomJobState.failed);
       expect(outcome.failure, contains('no integrated master'));
-      expect(outcome.failure, contains('Session Review'));
+      expect(outcome.failure, contains('masters in the Darkroom'));
     },
   );
 

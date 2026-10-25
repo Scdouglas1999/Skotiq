@@ -731,7 +731,8 @@ String describeBuiltMasters(DarkroomBuildJob job) {
       if (r['frameCount'] case final num n) subs += n.toInt();
       if (r['totalIntegrationSec'] case final num s) seconds += s.toDouble();
     }
-    final filters = [for (final r in results) '${r['filter']}'];
+    final filters = [for (final r in results) '${r['filter']}']
+      ..sort(compareDarkroomFilters);
     parts.add('${joinWords(filters)} from $subs subs, '
         '${(seconds / 3600).toStringAsFixed(1)} h.');
   }
