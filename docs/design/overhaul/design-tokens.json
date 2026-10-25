@@ -119,6 +119,21 @@
     "fontFamily": "HankenGrotesk",
     "fontFamilyMono": "SplineSansMono",
     "styles": {
+      "heroTitle": {
+        "size": 52,
+        "weight": 600,
+        "lineHeight": 1.0,
+        "letterSpacing": -1.5,
+        "family": "sans"
+      },
+      "heroFigure": {
+        "size": 64,
+        "weight": 600,
+        "lineHeight": 1.0,
+        "letterSpacing": -2.5,
+        "family": "sans",
+        "tabular": true
+      },
       "display": {
         "size": 28,
         "weight": 600,

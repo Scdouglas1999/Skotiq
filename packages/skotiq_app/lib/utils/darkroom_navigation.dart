@@ -18,7 +18,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../screens/darkroom/darkroom_route.dart';
 import 'snackbar_helper.dart';
+
+export '../screens/darkroom/darkroom_route.dart' show DarkroomTab;
 
 /// The Darkroom location for a saved recipe row.
 String darkroomRecipeLocation(int recipeId) => '/darkroom?recipe=$recipeId';
@@ -30,6 +33,27 @@ String darkroomMasterLocation(int masterId) => '/darkroom?master=$masterId';
 /// The Darkroom location for a pass, live while it runs and its record after.
 String darkroomPassLocation(String runId) =>
     '/darkroom?pass=${Uri.encodeQueryComponent(runId)}';
+
+/// The Darkroom opened on one of its tabs.
+String darkroomTabLocation(DarkroomTab tab) => DarkroomRoute(tab: tab).location;
+
+/// The Targets tab with [target] selected. [target] is the key the build
+/// jobs use (`DarkroomBuildJob.target`).
+String darkroomTargetLocation(String target) =>
+    DarkroomRoute(target: target).location;
+
+/// The framing check of [target]'s master build.
+String darkroomFramingLocation(String target) => DarkroomRoute(
+      target: target,
+      view: DarkroomTargetView.framing,
+    ).location;
+
+/// The Edit tab opened on a registered image or a saved recipe.
+String darkroomEditLocation({int? masterId, int? recipeId}) => DarkroomRoute(
+      tab: DarkroomTab.edit,
+      masterId: masterId,
+      recipeId: recipeId,
+    ).location;
 
 /// The one sentence every Darkroom entry point refuses a remote client with.
 ///

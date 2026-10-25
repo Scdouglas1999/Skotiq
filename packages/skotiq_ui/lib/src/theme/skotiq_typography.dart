@@ -90,6 +90,27 @@ abstract final class SkotiqTypography {
     letterSpacing: -0.4,
   );
 
+  /// Hero title - a target's name set over its own image on a hero card.
+  /// 52px, Semi-bold
+  static const TextStyle heroTitle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 52,
+    fontWeight: FontWeight.w600,
+    height: 1.0,
+    letterSpacing: -1.5,
+  );
+
+  /// Hero figure - the one number a decision screen turns on (the field a
+  /// master build keeps). 64px, Semi-bold, tabular.
+  static const TextStyle heroFigure = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 64,
+    fontWeight: FontWeight.w600,
+    height: 1.0,
+    letterSpacing: -2.5,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
   /// Page title - the screen title in the page header.
   /// 20px, Semi-bold
   static const TextStyle pageTitle = TextStyle(

@@ -302,6 +302,33 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     }
   }
 
+  /// Re-evaluate the crop for [plan], a changed copy of the waiting plan:
+  /// lights put back, or other framing limits. Footprints in [known] are
+  /// reused, so a light registered once is not registered again.
+  Future<void> replan(
+    DarkroomBuildPlan plan, {
+    DarkroomRegistrationPreview? known,
+  }) async {
+    final job = state;
+    if (job == null || job.stage != DarkroomJobStage.awaitingReview) return;
+    try {
+      final preview = await _service.previewRegistration(
+        plan,
+        previous: known ?? job.preview,
+      );
+      _set(
+        job.copyWith(
+          plan: plan,
+          preview: preview,
+          message: preview.describeLimit(),
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      _set(job.copyWith(error: '$e'));
+    }
+  }
+
   /// Change the smallest acceptable crop.
   Future<void> setMinRetainedArea(double value) async {
     final job = state;
