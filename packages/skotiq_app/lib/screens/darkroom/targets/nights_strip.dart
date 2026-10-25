@@ -243,9 +243,11 @@ class _NightRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  night.use == DarkroomNightUse.partly
-                      ? '${night.inMasters} in masters'
-                      : night.note,
+                  night.use == DarkroomNightUse.none
+                      ? night.note
+                      : (night.used < night.kept
+                          ? '${night.used} of ${night.kept} used'
+                          : night.note),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: SkotiqTypography.captionSm.copyWith(

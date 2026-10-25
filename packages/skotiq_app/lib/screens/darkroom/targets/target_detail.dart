@@ -140,7 +140,7 @@ String darkroomHeroSentence(DarkroomTarget target, DarkroomBuildJob? job) {
   if (more > 0) {
     return '$more subs from $topUp are not in your masters yet.';
   }
-  return 'Your masters hold every kept sub.';
+  return 'No new subs since your last masters.';
 }
 
 /// `GALAXY · AND · RA 02h 22m 33s · DEC +42° 20' 57"`.
@@ -738,7 +738,10 @@ class _JobBanner extends ConsumerWidget {
       DarkroomJobStage.done => (
           BannerTone.success,
           'Masters ready.',
-          job.message,
+          [
+            if (job.message != 'Masters ready') job.message,
+            if (job.directory != null) 'Saved in ${job.directory}.',
+          ].join(' '),
           null,
         ),
       DarkroomJobStage.failed || DarkroomJobStage.stopped => (

@@ -115,6 +115,7 @@ class DarkroomNight {
     required this.marks,
     required this.use,
     this.inMasters = 0,
+    this.used = 0,
   });
 
   /// The evening date, `yyyy-mm-dd`, as `observingNight` writes it.
@@ -129,8 +130,12 @@ class DarkroomNight {
   final List<DarkroomNightMark> marks;
   final DarkroomNightUse use;
 
-  /// Kept subs the current masters were built from.
+  /// Kept subs a build of the current masters was given.
   final int inMasters;
+
+  /// Kept subs the current masters were integrated from; a build can skip a
+  /// sub it was given.
+  final int used;
 
   int get kept => subs.where((s) => s.kept).length;
   int get offTarget => subs.where((s) => s.offTarget).length;
@@ -265,11 +270,12 @@ double darkroomSeparationDeg(
   return math.acos(cosSep.clamp(-1.0, 1.0)) / rad;
 }
 
-/// The nights of [frames], newest first. [folded] holds the image ids the
-/// current masters were built from.
+/// The nights of [frames], newest first. [folded] holds the image ids a
+/// build of the current masters was given, [used] those it integrated.
 List<DarkroomNight> buildDarkroomNights(
   List<DbCapturedImage> frames, {
   Set<int> folded = const {},
+  Set<int>? used,
   DbTarget? target,
 }) {
   final byNight = <String, List<DbCapturedImage>>{};
@@ -312,6 +318,7 @@ List<DarkroomNight> buildDarkroomNights(
                 ? DarkroomNightUse.all
                 : DarkroomNightUse.partly),
         inMasters: inMasters,
+        used: keptIds.where((used ?? folded).contains).length,
       ),
     );
   }
@@ -419,6 +426,7 @@ List<DarkroomTarget> buildDarkroomTargets({
   required List<IntegratedMaster> masters,
   required List<DbTarget> targetRows,
   required Map<int, Set<int>> foldedByMaster,
+  Map<int, Set<int>>? usedByMaster,
 }) {
   final rowsByName = {for (final t in targetRows) t.name: t};
   final result = <DarkroomTarget>[];
@@ -448,7 +456,16 @@ List<DarkroomTarget> buildDarkroomTargets({
     final folded = <int>{
       for (final m in [...newestByFilter.values]) ...?foldedByMaster[m.id],
     };
-    final nights = buildDarkroomNights(frames, folded: folded, target: row);
+    final used = <int>{
+      for (final m in [...newestByFilter.values])
+        ...?(usedByMaster ?? foldedByMaster)[m.id],
+    };
+    final nights = buildDarkroomNights(
+      frames,
+      folded: folded,
+      used: used,
+      target: row,
+    );
     final filters = <String>{
       for (final f in frames) darkroomFilterOf(f),
       ...newestByFilter.keys,

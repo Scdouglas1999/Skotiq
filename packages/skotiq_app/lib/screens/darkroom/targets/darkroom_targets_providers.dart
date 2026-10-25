@@ -20,14 +20,22 @@ final darkroomTargetsProvider =
   final framesByTarget = await loadDarkroomTargets(db);
   final masters = await mastersDao.getAll();
   final rows = await db.targetsDao.getAllTargets();
-  final folded = <int, Set<int>>{
-    for (final m in masters) m.id: await mastersDao.getFoldedImageIds(m.id),
-  };
+  final folded = <int, Set<int>>{};
+  final used = <int, Set<int>>{};
+  for (final m in masters) {
+    final records = await mastersDao.getFramesForMaster(m.id);
+    folded[m.id] = {for (final r in records) r.imageId};
+    used[m.id] = {
+      for (final r in records)
+        if (r.accepted) r.imageId,
+    };
+  }
   return buildDarkroomTargets(
     framesByTarget: framesByTarget,
     masters: masters,
     targetRows: rows,
     foldedByMaster: folded,
+    usedByMaster: used,
   );
 });
 

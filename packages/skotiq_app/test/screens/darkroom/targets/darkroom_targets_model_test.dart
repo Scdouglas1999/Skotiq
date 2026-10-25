@@ -89,6 +89,33 @@ void main() {
     expect(t.hasNewLight, isTrue);
   });
 
+  test('a sub a build was given but skipped is not new, and not used',
+      () async {
+    final dao = IntegratedMastersDao(owner.db);
+    final old = await dao.getFramesForMaster(owner.masters['L']!);
+    final rebuilt = await dao.insertMaster(
+      targetId: owner.target,
+      name: 'NGC0891 · L',
+      filter: 'L',
+      status: IntegratedMasterStatus.finalized,
+      accumulationMode: AccumulationMode.batch,
+      createdAt: DateTime(2026, 10, 22, 9),
+      updatedAt: DateTime(2026, 10, 22, 9),
+    );
+    for (final (i, f) in old.indexed) {
+      await dao.recordFoldedFrame(
+        masterId: rebuilt,
+        imageId: f.imageId,
+        accepted: i != 0,
+        rejectionReason: i == 0 ? 'Eccentric stars' : null,
+      );
+    }
+    final oct20 = (await ngc891()).nights.last;
+    expect(oct20.use, DarkroomNightUse.all);
+    expect(oct20.isNew, isFalse);
+    expect(oct20.used, oct20.kept - 1);
+  });
+
   test(
       'channels pair each filter with its newest master; the color image '
       'leads the hero', () async {
