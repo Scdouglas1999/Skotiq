@@ -402,6 +402,8 @@ void main() {
           (tokens['typography'] as Map<String, dynamic>)['styles']
               as Map<String, dynamic>;
       final mirrored = <String, TextStyle>{
+        'heroTitle': SkotiqTypography.heroTitle,
+        'heroFigure': SkotiqTypography.heroFigure,
         'display': SkotiqTypography.display,
         'pageTitle': SkotiqTypography.pageTitle,
         'sectionTitle': SkotiqTypography.sectionTitle,
