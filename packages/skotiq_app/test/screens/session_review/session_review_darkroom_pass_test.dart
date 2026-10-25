@@ -124,7 +124,7 @@ void main() {
     expect(message, contains('The Darkroom pass for this night failed.'));
     expect(message, contains('could not be created'));
     expect(message, contains('delivering the night'));
-    expect(message, contains('Process now'));
+    expect(message, contains('Build masters in the Darkroom'));
   });
 
   testWidgets('a stopped pass is stated as stopped, not as a failure', (
@@ -246,7 +246,7 @@ void main() {
       isNot(contains('started 0 times')),
       reason: 'a pass nothing has picked up has no history to state',
     );
-    expect(widget.message, contains('Process now'));
+    expect(widget.message, isNot(contains('Process now')));
   });
 
   testWidgets('a queued pass that has been started before says so', (

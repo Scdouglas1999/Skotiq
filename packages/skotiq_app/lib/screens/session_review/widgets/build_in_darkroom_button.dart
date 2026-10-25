@@ -29,7 +29,18 @@ class BuildInDarkroomButton extends ConsumerWidget {
   /// session's frames name none.
   final String? targetName;
 
-  const BuildInDarkroomButton({super.key, required this.targetName});
+  /// The button's key; a screen showing the shortcut twice keys each one.
+  final Key buttonKey;
+
+  /// The small secondary size of a page header action.
+  final bool compact;
+
+  const BuildInDarkroomButton({
+    super.key,
+    required this.targetName,
+    this.buttonKey = const ValueKey('session_review_build_in_darkroom'),
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,6 +52,8 @@ class BuildInDarkroomButton extends ConsumerWidget {
         : 'Opens the framing check for $name in the Darkroom. The build '
             'combines every night of $name, not only this one.';
     const label = 'Build masters in the Darkroom';
+    final variant = compact ? ButtonVariant.secondary : ButtonVariant.primary;
+    final size = compact ? ButtonSize.small : ButtonSize.medium;
     if (refusal != null) {
       // The reason rides on the accessible name: a tooltip alone does not
       // reach the Linux accessibility bridge.
@@ -51,11 +64,13 @@ class BuildInDarkroomButton extends ConsumerWidget {
           button: true,
           enabled: false,
           label: unavailableControlName(label, refusal),
-          child: const ExcludeSemantics(
+          child: ExcludeSemantics(
             child: SkotiqButton(
-              key: ValueKey('session_review_build_in_darkroom'),
+              key: buttonKey,
               label: label,
               icon: SkotiqIcons.layers,
+              variant: variant,
+              size: size,
               onPressed: null,
             ),
           ),
@@ -65,9 +80,11 @@ class BuildInDarkroomButton extends ConsumerWidget {
     return Tooltip(
       message: where,
       child: SkotiqButton(
-        key: const ValueKey('session_review_build_in_darkroom'),
+        key: buttonKey,
         label: label,
         icon: SkotiqIcons.layers,
+        variant: variant,
+        size: size,
         semanticsHint: where,
         onPressed: () => context.go(sessionReviewBuildLocation(targetName)),
       ),

@@ -99,8 +99,8 @@ class DarkroomPassBanner extends StatelessWidget {
         key: const ValueKey('session_review_darkroom_pass_banner'),
         title: 'The Darkroom pass did not finish',
         message: '$lead $why$stage '
-            'The subs and any masters already integrated are untouched — '
-            'press Process now to run the pass again.',
+            'The subs and any masters already integrated are untouched. '
+            'Build masters in the Darkroom to process this target again.',
         tone: tone,
       ),
     );
@@ -221,8 +221,7 @@ class _QueuedPass extends StatelessWidget {
         title: 'The Darkroom pass is still queued',
         message: 'The drafts, the night report, the delivery and the morning '
             'message it owes have not happened.$why$history '
-            'It runs on its own when the Darkroom queue is drained; press '
-            'Process now to run it here.',
+            'It runs on its own when the Darkroom queue is drained.',
         tone: BannerTone.warning,
       ),
     );

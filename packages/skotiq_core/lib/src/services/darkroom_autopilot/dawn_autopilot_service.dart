@@ -260,30 +260,11 @@ class DawnAutopilotService {
     return _runSerialized(jobId);
   }
 
-  /// Queue and run an operator-requested pass over [sessionId] — the
-  /// "process this session now" action.
-  ///
-  /// The job is `manual`, so it produces the same drafts, the same report and
-  /// the same delivery, and sends NO morning notification: the operator is
-  /// standing at the machine and does not need to be told what they just asked
-  /// for.
-  ///
-  /// Throws [DarkroomSessionBusyException] when a pass over this session is
-  /// already queued or running — see [_enqueueOnePassPerSession].
-  Future<DawnJobOutcome> processSessionNow(int sessionId) async {
-    final jobId = await _enqueueOnePassPerSession(
-      sessionId: sessionId,
-      kind: DarkroomJobKind.manual,
-      note: 'Queued on request',
-    );
-    return _runSerialized(jobId);
-  }
-
   /// Queue one pass over [sessionId], or refuse because one is already live.
   ///
   /// **The guard is the durable row, not a screen's latch.** Session Review
   /// kept a per-screen `_darkroomRunning` flag, so navigating away and back
-  /// built a fresh screen state that offered "Process now" again while the
+  /// built a fresh screen state that offered to start a pass again while the
   /// first pass was still rendering. Two passes then ran over one session's
   /// masters — fighting for the render cache and for the one cancellation id
   /// [renderIdFor] derives per job — and a Stop, which finds the session's
@@ -340,11 +321,11 @@ class DawnAutopilotService {
   ///
   /// **Every entry point comes through here.** The one-at-a-time rule was
   /// [drainQueue]'s alone: it ran its jobs in a loop, so the rows IT owned
-  /// never overlapped, while [runDawnForSession] and [processSessionNow]
-  /// enqueued and then called `runJob` straight away. The per-session guard in
+  /// never overlapped, while [runDawnForSession] enqueued and then called
+  /// `runJob` straight away. The per-session guard in
   /// [_enqueueOnePassPerSession] stopped a second pass over the SAME session
-  /// and nothing else, so a dawn pass over last night and a "Process now" over
-  /// a different night ran side by side — measured on the release bundle, two
+  /// and nothing else, so two passes over different nights ran side by
+  /// side — measured on the release bundle, two
   /// rows held `running` for minutes and both wrote drafts into the same output
   /// directory. That is exactly what the rule exists to prevent: a single
   /// process-wide render cache the two passes evict each other out of.
@@ -1193,8 +1174,8 @@ class DawnAutopilotService {
     ];
     if (reasons.isEmpty) {
       return 'The Darkroom pass rendered no draft. This night has no '
-          'integrated master to draft from — integrate it in Session Review, '
-          'then run the pass again.';
+          'integrated master to draft from. Build the target\'s masters in '
+          'the Darkroom.';
     }
     return 'The Darkroom pass rendered no draft: ${reasons.join('; ')}.';
   }

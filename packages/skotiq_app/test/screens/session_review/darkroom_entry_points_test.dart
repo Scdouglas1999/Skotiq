@@ -301,7 +301,7 @@ void main() {
     });
   });
 
-  group('the session-review header processes tonight', () {
+  group('the session-review header builds through the Darkroom', () {
     late SkotiqDatabase db;
     late String previewPath;
 
@@ -356,32 +356,29 @@ void main() {
       await tester.pump(const Duration(seconds: 30));
     }
 
-    testWidgets('a session scope offers a live control', (tester) async {
+    testWidgets('a session scope offers the guided build, not a pass', (
+      tester,
+    ) async {
       await pumpScreen(tester, const SessionReviewScope.session(1));
 
-      final button = find.byKey(const ValueKey('session_review_process_now'));
+      expect(find.byKey(const ValueKey('session_review_process_now')),
+          findsNothing);
+      final button = find.byKey(const ValueKey('session_review_header_build'));
       expect(button, findsOneWidget);
-      expect(
-        tester.widget<SkotiqButton>(button).onPressed,
-        isNotNull,
-        reason: 'a single night is exactly what the pass reads',
-      );
+      expect(tester.widget<SkotiqButton>(button).onPressed, isNotNull);
       await unmount(tester);
     });
 
-    testWidgets('a target scope disables it and names the reason', (
-      tester,
-    ) async {
+    testWidgets('a target scope offers the same build', (tester) async {
       await pumpScreen(tester, const SessionReviewScope.target(1));
 
-      final button = find.byKey(const ValueKey('session_review_process_now'));
+      final button = find.byKey(const ValueKey('session_review_header_build'));
       expect(button, findsOneWidget);
-      expect(tester.widget<SkotiqButton>(button).onPressed, isNull);
-
+      expect(tester.widget<SkotiqButton>(button).onPressed, isNotNull);
       final tooltip = tester.widget<Tooltip>(
         find.ancestor(of: button, matching: find.byType(Tooltip)).first,
       );
-      expect(tooltip.message, contains('spans a target'));
+      expect(tooltip.message, contains('every night of NGC 7000'));
       await unmount(tester);
     });
 

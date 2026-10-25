@@ -1836,17 +1836,18 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
         'That was start ${darkroomPass.attempts} of at most '
             '$kDarkroomJobMaxAttempts, so the job is marked failed rather than '
             're-queued: the drafts, the night report and the delivery are not '
-            'coming without you starting the pass yourself. The masters are '
-            'untouched.'
+            'coming from this pass; build the target\'s masters in the '
+            'Darkroom instead. The masters are untouched.'
       else if (passIsOwed && owedJobId != null)
         'It is queued now as Darkroom job #$owedJobId and runs at this '
             'startup. Do not run the integration again — it is the one part of '
             'this night that did finish.'
       else if (passIsOwed)
         'It could not be queued here either, so the drafts, the night report '
-            'and the delivery are not coming without you pressing Process now '
-            'in Session Review. Do not run the integration again — it is the '
-            'one part of this night that did finish.'
+            'and the delivery are not coming from this pass; build the '
+            'target\'s masters in the Darkroom instead. Do not run the '
+            'integration again — it is the one part of this night that did '
+            'finish.'
       else if (integrateFinished)
         'The subs are all still on disk and still graded, so re-run the '
             'integration only for the masters named above; the rest of the '
@@ -1991,9 +1992,9 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
           'The earlier notice on this night said the job was re-queued; that '
               're-queue is over.',
         'The drafts, the night report and the delivery this pass owes are not '
-            'coming without you starting it again yourself from Session '
-            'Review. The subs and any masters already integrated are '
-            'untouched.',
+            'coming from this pass; build the target\'s masters in the '
+            'Darkroom instead. The subs and any masters already integrated '
+            'are untouched.',
       ].join(' ');
 
       await customUpdate(
