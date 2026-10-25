@@ -15,7 +15,7 @@
 
 use super::*;
 use rayon::prelude::*;
-use skotiq_imaging::registration::solve_registration;
+use skotiq_imaging::registration::{solve_registration_against, ReferenceStars};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Lights registered at once. Each holds one full frame plus its detection
@@ -406,29 +406,27 @@ impl KnownFootprint {
 }
 
 fn register_light(
-    reference: &ImageData,
+    reference: &ReferenceStars,
     path: &str,
     config: &RegistrationConfig,
 ) -> Result<Registered, String> {
     let image = read_image(Path::new(path))
         .map_err(|e| format!("cannot be read: {e}"))?
         .image;
-    if image.width != reference.width
-        || image.height != reference.height
-        || image.channels != reference.channels
-    {
+    let (width, height) = reference.size();
+    if image.width != width || image.height != height || image.channels != reference.channels() {
         return Err(format!(
             "is {}×{}×{}, the grid is {}×{}×{}",
             image.width,
             image.height,
             image.channels,
-            reference.width,
-            reference.height,
-            reference.channels
+            width,
+            height,
+            reference.channels()
         ));
     }
     let (transform, stats) =
-        solve_registration(reference, &image, config).map_err(|e| e.to_string())?;
+        solve_registration_against(reference, &image, config).map_err(|e| e.to_string())?;
     let corners = supported_source(image.width, image.height, config.interpolator).map(|[x, y]| {
         let (gx, gy) = transform.apply(x, y);
         [gx, gy]
@@ -444,6 +442,23 @@ fn register_light(
         stars_matched: Some(stats.inlier_count),
         rms_px: Some(stats.rms_residual_px),
     })
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Reference star detections made on this thread, for tests.
+    static REFERENCE_DETECTIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Detect the grid reference's stars. A reference the detector refuses fails
+/// every light that needed it, with the reason.
+fn detect_reference_stars(
+    image: &ImageData,
+    config: &RegistrationConfig,
+) -> Result<ReferenceStars, String> {
+    #[cfg(test)]
+    REFERENCE_DETECTIONS.with(|n| n.set(n.get() + 1));
+    ReferenceStars::detect(image, config).map_err(|e| e.to_string())
 }
 
 /// Run the pre-pass.
@@ -471,16 +486,21 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
         .iter()
         .map(|(_, l)| l.known.as_ref().and_then(KnownFootprint::outcome))
         .collect();
+    // The reference's stars are detected once and every light is matched
+    // against them.
     let reference = match (known.iter().all(Option::is_some), args.grid_size) {
         (true, Some(_)) => None,
-        _ => Some(
-            read_image(Path::new(args.grid_reference.path.trim()))
+        _ => {
+            let image = read_image(Path::new(args.grid_reference.path.trim()))
                 .map_err(|e| format!("the grid reference cannot be read: {e}"))?
-                .image,
-        ),
+                .image;
+            let size = (image.width, image.height);
+            let stars = detect_reference_stars(&image, &config);
+            Some((size, stars))
+        }
     };
     let (width, height) = match (&reference, args.grid_size) {
-        (Some(r), _) => (r.width, r.height),
+        (Some((size, _)), _) => *size,
         (None, Some([w, h])) => (w, h),
         (None, None) => unreachable!("the reference is read unless the grid size is given"),
     };
@@ -505,7 +525,10 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
                 }
                 let outcome = match (known, &reference) {
                     (Some(outcome), _) => outcome,
-                    (None, Some(reference)) => register_light(reference, &light.path, &config),
+                    (None, Some((_, Ok(reference)))) => {
+                        register_light(reference, &light.path, &config)
+                    }
+                    (None, Some((_, Err(reason)))) => Err(reason.clone()),
                     (None, None) => unreachable!("the reference is read when a light is unknown"),
                 };
                 let n = done.fetch_add(1, Ordering::Relaxed) + 1;
@@ -804,7 +827,13 @@ mod tests {
             "minOverlap": 0.5,
             "minRetainedArea": 0.8,
         });
+        let detections_before = REFERENCE_DETECTIONS.with(|n| n.get());
         let result = registration_preview(&request.to_string()).unwrap();
+        assert_eq!(
+            REFERENCE_DETECTIONS.with(|n| n.get()) - detections_before,
+            1,
+            "the reference's stars are detected once for all five lights"
+        );
         std::fs::remove_dir_all(&dir).ok();
 
         // Excluding the limiting frame re-evaluates from the known footprints,

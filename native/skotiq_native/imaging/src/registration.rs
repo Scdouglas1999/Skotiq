@@ -354,6 +354,11 @@ impl ReferenceStars {
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)
     }
+
+    /// The reference's channel count.
+    pub fn channels(&self) -> u32 {
+        self.channels
+    }
 }
 
 /// [`solve_registration`] against a reference whose stars were detected once.
