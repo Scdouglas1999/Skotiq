@@ -68,6 +68,15 @@ class PostSessionHandlers {
     return jsonOk({'autoIntegrate': enabled});
   }
 
+  /// The scalar fields of a job result, for the log line that records it.
+  static String _outcomeSummary(Map<String, Object?> result) {
+    final scalars = result.entries
+        .where((e) => e.value is num || e.value is String || e.value is bool)
+        .take(8)
+        .map((e) => '${e.key}=${e.value}');
+    return scalars.join(', ');
+  }
+
   /// Decode a native JSON envelope to a `Map<String, dynamic>`, the job-result
   /// shape clients decode. Mirrors `BridgePostSessionSeam._decodeObject`.
   Map<String, dynamic> _decodeObject(String json) {
@@ -243,16 +252,35 @@ class PostSessionHandlers {
       deviceId: null,
       work: (sink, cancellation) async {
         sink.update(null, operation);
+        final started = DateTime.now();
         // The native pipeline has no cancellation hook. Do not transition the
         // job to cancelled while host CPU work is still running; await its real
         // exit, then honour the pending cancellation instead of publishing the
         // discarded result as success.
-        final result = await work();
+        final Map<String, Object?> result;
+        try {
+          result = await work();
+        } catch (e) {
+          _logger.error(
+            '[API] $operation failed after '
+            '${DateTime.now().difference(started).inSeconds} s: $e',
+            source: 'PostSessionHandlers',
+          );
+          rethrow;
+        }
         if (cancellation.isCancelled) {
+          _logInfo(
+            '[API] $operation finished after cancellation was requested',
+          );
           throw const JobCancelledException(
             'Post-session operation cancellation requested by client',
           );
         }
+        _logInfo(
+          '[API] $operation succeeded after '
+          '${DateTime.now().difference(started).inSeconds} s: '
+          '${_outcomeSummary(result)}',
+        );
         return result;
       },
     );

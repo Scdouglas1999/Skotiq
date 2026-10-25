@@ -55,7 +55,7 @@ pub(crate) fn has_wcs(header: &FitsHeader) -> bool {
 }
 
 /// Copy the WCS of `source`, including any SIP distortion terms.
-fn copy_wcs(header: &mut FitsHeader, source: &FitsHeader) {
+pub(crate) fn copy_wcs(header: &mut FitsHeader, source: &FitsHeader) {
     for key in WCS_CARDS {
         copy_card(header, source, key);
     }

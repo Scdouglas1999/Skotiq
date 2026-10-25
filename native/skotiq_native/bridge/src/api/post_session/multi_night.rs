@@ -335,7 +335,7 @@ const DEFAULT_MEMORY_BUDGET: usize = 1 << 30;
 
 /// Calibration masters of one group, loaded once and shared.
 #[derive(Default, Clone)]
-struct GroupMasters {
+pub(crate) struct GroupMasters {
     dark: Option<Arc<ImageData>>,
     /// The dark's exposure in seconds, when its header says.
     dark_exposure: Option<f64>,
@@ -404,11 +404,11 @@ impl MasterCache {
 
 /// A light calibrated in floating point, and the 16-bit copy star detection
 /// and registration run on.
-struct CalibratedLight {
-    image: ImageData,
-    detection: ImageData,
+pub(crate) struct CalibratedLight {
+    pub(crate) image: ImageData,
+    pub(crate) detection: ImageData,
     /// The multiplier applied to the dark's thermal signal.
-    dark_scale: f64,
+    pub(crate) dark_scale: f64,
 }
 
 /// The calibrated samples rounded into 16 bits for star detection.
@@ -470,6 +470,15 @@ fn calibrated_light(
         .filter(|s| *s > 0.0)
         .or_else(|| fits_header_of(path).and_then(|h| h.get_float("EXPTIME")));
     let dark_scale = dark_scale(masters, exposure).map_err(|e| ("calibration", e))?;
+    if calibration.scale_dark
+        && masters.dark.is_some()
+        && (masters.bias.is_none() || masters.dark_exposure.is_none() || exposure.is_none())
+    {
+        return Err((
+            "calibration",
+            "the dark is to be scaled, but scaling needs a master bias and the exposures of the dark and the light".to_string(),
+        ));
+    }
     let cal = skotiq_imaging::calibration::FloatCalibration {
         bias: masters.bias.as_deref(),
         dark: masters.dark.as_deref(),
@@ -498,13 +507,13 @@ fn calibrated_light(
 
 /// A sub resampled onto the grid: samples with `NaN` where it has no
 /// coverage, and the covered locations.
-struct OnGrid {
-    pixels: Vec<f64>,
-    covered: Vec<bool>,
+pub(crate) struct OnGrid {
+    pub(crate) pixels: Vec<f64>,
+    pub(crate) covered: Vec<bool>,
 }
 
 impl OnGrid {
-    fn new(
+    pub(crate) fn new(
         calibrated: &ImageData,
         grid: (u32, u32),
         transform: &TransformModel,
@@ -537,7 +546,7 @@ impl OnGrid {
     }
 
     /// The 16-bit copy quality measurement and star matching run on.
-    fn detection(&self, width: u32, height: u32, channels: u32) -> ImageData {
+    pub(crate) fn detection(&self, width: u32, height: u32, channels: u32) -> ImageData {
         let data: Vec<u16> = self
             .pixels
             .iter()
@@ -551,6 +560,21 @@ impl OnGrid {
             .collect();
         ImageData::from_u16(width, height, channels, &data)
     }
+}
+
+/// The calibration masters `calibration` names, for one accumulating fold.
+pub(crate) fn fold_masters(calibration: &CalibrationArgs) -> Result<GroupMasters, String> {
+    MasterCache::default().masters(calibration)
+}
+
+/// A light calibrated as a build calibrates it, for one accumulating fold.
+pub(crate) fn calibrate_for_fold(
+    path: &str,
+    exposure: Option<f64>,
+    calibration: &CalibrationArgs,
+    masters: &GroupMasters,
+) -> Result<CalibratedLight, String> {
+    calibrated_light(path, exposure, calibration, masters).map_err(|(_, e)| format!("'{path}' {e}"))
 }
 
 /// The rejection the build applies, from the request token.
@@ -1364,8 +1388,14 @@ pub(crate) fn check_build_calibration(json: &str) -> Result<serde_json::Value, S
     let _ = calibrated_light(&reference.path, None, &reference.calibration, &masters)
         .map_err(|(_, e)| e)?;
     let report = build_calibration_report(&reference.path, &reference.calibration);
+    // A build scales a dark of another exposure when a bias is present, so
+    // that difference does not block it.
+    let scales_darks = masters.bias.is_some();
     for master in &report.masters {
-        if master.mismatches.iter().any(|m| !m.within_tolerance) {
+        if master.mismatches.iter().any(|m| {
+            !m.within_tolerance
+                && !(scales_darks && master.kind == "dark" && m.dimension == "EXPTIME")
+        }) {
             return Err(format!(
                 "{} calibration mismatch: {:?}",
                 master.kind, master.mismatches
