@@ -247,6 +247,41 @@ fn start_device_poll_watcher() {
     });
 }
 
+/// How the poll treats one device type's native bus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NativeScan {
+    /// Leave the bus alone and keep what is cached for it.
+    CarryForward,
+    /// Enumerate it, opening serial ports or not.
+    Scan(skotiq_native::SerialProbe),
+}
+
+/// A connected device of a type holds its bus, so that type is carried
+/// forward. A connected mount, whatever its driver, holds a serial port:
+/// serial mounts are then not looked for (native mounts are found only on
+/// serial ports, so that type is carried forward), and every other type is
+/// enumerated through the vendor SDKs alone, which still finds a newly
+/// plugged USB camera, focuser or wheel.
+fn native_scan_plan(
+    device_type: DeviceType,
+    connected_types: &HashSet<(DriverType, DeviceType)>,
+) -> NativeScan {
+    if connected_types.contains(&(DriverType::Native, device_type)) {
+        return NativeScan::CarryForward;
+    }
+    let mount_connected = connected_types
+        .iter()
+        .any(|(_, connected)| *connected == DeviceType::Mount);
+    if !mount_connected {
+        return NativeScan::Scan(skotiq_native::SerialProbe::Probe);
+    }
+    if device_type == DeviceType::Mount {
+        NativeScan::CarryForward
+    } else {
+        NativeScan::Scan(skotiq_native::SerialProbe::Skip)
+    }
+}
+
 /// Walk the native + ASCOM (on Windows) device lists for each polled device
 /// type and diff against the cached set. Emits one event per (arrived /
 /// removed) device.
@@ -293,14 +328,12 @@ async fn poll_once(suppress_events: bool) {
         // Native (vendor SDK) backend — always polled, the SDK enumerates
         // are local and don't touch the network. BUT pause the probe if a
         // native device of this type is currently connected (bus in use).
-        if connected_types.contains(&(DriverType::Native, device_type)) {
-            tracing::debug!(
-                "Hot-plug poll: skipping native scan for {:?} (device connected, bus in use)",
-                device_type
-            );
-            carry_forward_cached(&mut observed, DriverType::Native, device_type);
-        } else {
-            match crate::api::discovery::scan_native_for_type_public(device_type).await {
+        let serial = match native_scan_plan(device_type, &connected_types) {
+            NativeScan::CarryForward => None,
+            NativeScan::Scan(serial) => Some(serial),
+        };
+        if let Some(serial) = serial {
+            match crate::api::discovery::scan_native_for_type_public(device_type, serial).await {
                 Ok(devices) => {
                     for dev in devices {
                         observed.insert(
@@ -322,6 +355,12 @@ async fn poll_once(suppress_events: bool) {
                     );
                 }
             }
+        } else {
+            tracing::debug!(
+                "Hot-plug poll: skipping native scan for {:?} (its bus is in use)",
+                device_type
+            );
+            carry_forward_cached(&mut observed, DriverType::Native, device_type);
         }
 
         // ASCOM only on Windows. The ASCOM Profile registry doesn't model
@@ -773,6 +812,46 @@ fn windows_device_change_thread() {
 
 #[cfg(test)]
 mod tests {
+    use super::{native_scan_plan, NativeScan};
+    use skotiq_native::SerialProbe;
+
+    /// An ASCOM mount connected during a run: the poll never opens serial
+    /// ports, never rescans the native mounts, and still enumerates the
+    /// USB vendor SDKs for the other types.
+    #[test]
+    fn a_connected_ascom_mount_stops_serial_probing_but_not_usb_enumeration() {
+        use crate::device::{DeviceType, DriverType};
+        let connected: std::collections::HashSet<(DriverType, DeviceType)> = [
+            (DriverType::Ascom, DeviceType::Mount),
+            (DriverType::Native, DeviceType::Camera),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            native_scan_plan(DeviceType::Mount, &connected),
+            NativeScan::CarryForward
+        );
+        assert_eq!(
+            native_scan_plan(DeviceType::Camera, &connected),
+            NativeScan::CarryForward
+        );
+        for other in [
+            DeviceType::Focuser,
+            DeviceType::FilterWheel,
+            DeviceType::Rotator,
+        ] {
+            assert_eq!(
+                native_scan_plan(other, &connected),
+                NativeScan::Scan(SerialProbe::Skip),
+                "{other:?}"
+            );
+        }
+        let nothing = std::collections::HashSet::new();
+        assert_eq!(
+            native_scan_plan(DeviceType::Mount, &nothing),
+            NativeScan::Scan(SerialProbe::Probe)
+        );
+    }
     use super::*;
 
     #[test]

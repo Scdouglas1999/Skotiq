@@ -528,8 +528,9 @@ async fn scan_devices_for_pair(
 #[flutter_rust_bridge::frb(ignore)]
 pub async fn scan_native_for_type_public(
     device_type: DeviceType,
+    serial: skotiq_native::SerialProbe,
 ) -> Result<Vec<DeviceInfo>, String> {
-    scan_native_for_type(device_type).await
+    scan_native_for_type_with(device_type, serial).await
 }
 
 #[cfg(windows)]
@@ -759,8 +760,13 @@ async fn scan_alpaca_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>
 }
 
 async fn scan_native_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, String> {
-    use skotiq_native::discover_all_devices as native_discover_all;
+    scan_native_for_type_with(device_type, skotiq_native::SerialProbe::Probe).await
+}
 
+async fn scan_native_for_type_with(
+    device_type: DeviceType,
+    serial: skotiq_native::SerialProbe,
+) -> Result<Vec<DeviceInfo>, String> {
     // The native crate has its own internal cache + serializing mutex (see
     // native/src/discovery.rs), so calling discover_all_devices() repeatedly
     // for different device types is cheap: only the first call within the
@@ -814,7 +820,7 @@ async fn scan_native_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>
         return Ok(out);
     }
 
-    let native_devices = native_discover_all()
+    let native_devices = skotiq_native::discover_native_devices(serial)
         .await
         .map_err(|e| format!("Native SDK discovery failed: {}", e))?;
 

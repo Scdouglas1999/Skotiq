@@ -117,12 +117,31 @@ pub enum DeviceType {
     Rotator,
 }
 
+/// Whether a discovery may open serial ports to look for serial-protocol
+/// mounts (Sky-Watcher, iOptron, LX200).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SerialProbe {
+    Probe,
+    /// Vendor SDK enumeration only. Used while a connected mount owns a
+    /// serial port: probing the ports then only disturbs the rig.
+    Skip,
+}
+
 /// Discover all native devices from all vendors
 ///
 /// This function is protected by a mutex to ensure thread-safety since most
 /// vendor SDKs are NOT thread-safe. Results are cached for CACHE_TTL seconds
 /// to avoid redundant SDK queries when multiple device types are discovered.
 pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, NativeError> {
+    discover_native_devices(SerialProbe::Probe).await
+}
+
+/// [`discover_all_devices`], probing serial ports only when `serial` allows.
+/// A discovery that skipped the serial ports is not cached, so a later full
+/// discovery still looks for serial mounts.
+pub async fn discover_native_devices(
+    serial: SerialProbe,
+) -> Result<Vec<NativeDeviceInfo>, NativeError> {
     // Publish libusb symbols globally BEFORE probing any vendor SDK. Some SDKs
     // (SVBony) expect the host to provide libusb and otherwise abort the whole
     // process with `undefined symbol: libusb_init` on first use. Idempotent.
@@ -655,94 +674,98 @@ pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, NativeError
     }
     tracing::debug!("gPhoto2 camera discovery complete.");
 
-    // Mount discovery (serial protocol mounts)
+    if serial == SerialProbe::Probe {
+        // Mount discovery (serial protocol mounts)
 
-    // Discover Sky-Watcher mounts (SynScan protocol)
-    tracing::debug!("Discovering Sky-Watcher mounts...");
-    match crate::vendor::skywatcher::discover_mounts().await {
-        Ok(skywatcher_mounts) => {
-            tracing::debug!("Found {} Sky-Watcher mounts", skywatcher_mounts.len());
-            devices.extend(skywatcher_mounts.into_iter().map(|info| {
-                let port_safe = info.port.replace("/", "_").replace("\\", "_");
-                // Include baud rate in the ID so we can use it when connecting
-                // Format: native:skywatcher:<port>:<baud>
-                NativeDeviceInfo {
-                    id: format!("native:skywatcher:{}:{}", port_safe, info.baud_rate),
-                    name: info.name.clone(),
-                    vendor: NativeVendor::SkyWatcher,
-                    device_type: DeviceType::Mount,
-                    serial_number: None,
-                    sdk_version: info.firmware_version,
-                    display_name: info.name,
-                }
-            }));
+        // Discover Sky-Watcher mounts (SynScan protocol)
+        tracing::debug!("Discovering Sky-Watcher mounts...");
+        match crate::vendor::skywatcher::discover_mounts().await {
+            Ok(skywatcher_mounts) => {
+                tracing::debug!("Found {} Sky-Watcher mounts", skywatcher_mounts.len());
+                devices.extend(skywatcher_mounts.into_iter().map(|info| {
+                    let port_safe = info.port.replace("/", "_").replace("\\", "_");
+                    // Include baud rate in the ID so we can use it when connecting
+                    // Format: native:skywatcher:<port>:<baud>
+                    NativeDeviceInfo {
+                        id: format!("native:skywatcher:{}:{}", port_safe, info.baud_rate),
+                        name: info.name.clone(),
+                        vendor: NativeVendor::SkyWatcher,
+                        device_type: DeviceType::Mount,
+                        serial_number: None,
+                        sdk_version: info.firmware_version,
+                        display_name: info.name,
+                    }
+                }));
+            }
+            Err(e) => tracing::warn!("Sky-Watcher mount discovery failed: {}", e),
         }
-        Err(e) => tracing::warn!("Sky-Watcher mount discovery failed: {}", e),
-    }
-    tracing::debug!("Sky-Watcher discovery complete.");
+        tracing::debug!("Sky-Watcher discovery complete.");
 
-    // Give Windows time to fully release COM ports before next vendor discovery
-    // This prevents "Access denied" errors when the same ports are probed
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        // Give Windows time to fully release COM ports before next vendor discovery
+        // This prevents "Access denied" errors when the same ports are probed
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-    // Discover iOptron mounts
-    tracing::debug!("Discovering iOptron mounts...");
-    match crate::vendor::ioptron::discover_mounts().await {
-        Ok(ioptron_mounts) => {
-            tracing::debug!("Found {} iOptron mounts", ioptron_mounts.len());
-            devices.extend(ioptron_mounts.into_iter().map(|info| {
-                let port_safe = info.port.replace("/", "_").replace("\\", "_");
-                // Include baud rate in the ID so we can use it when connecting
-                // Format: native:ioptron:<port>:<baud>
-                NativeDeviceInfo {
-                    id: format!("native:ioptron:{}:{}", port_safe, info.baud_rate),
-                    name: info.name.clone(),
-                    vendor: NativeVendor::IOptron,
-                    device_type: DeviceType::Mount,
-                    serial_number: None,
-                    sdk_version: info.firmware_version,
-                    display_name: info.name,
-                }
-            }));
+        // Discover iOptron mounts
+        tracing::debug!("Discovering iOptron mounts...");
+        match crate::vendor::ioptron::discover_mounts().await {
+            Ok(ioptron_mounts) => {
+                tracing::debug!("Found {} iOptron mounts", ioptron_mounts.len());
+                devices.extend(ioptron_mounts.into_iter().map(|info| {
+                    let port_safe = info.port.replace("/", "_").replace("\\", "_");
+                    // Include baud rate in the ID so we can use it when connecting
+                    // Format: native:ioptron:<port>:<baud>
+                    NativeDeviceInfo {
+                        id: format!("native:ioptron:{}:{}", port_safe, info.baud_rate),
+                        name: info.name.clone(),
+                        vendor: NativeVendor::IOptron,
+                        device_type: DeviceType::Mount,
+                        serial_number: None,
+                        sdk_version: info.firmware_version,
+                        display_name: info.name,
+                    }
+                }));
+            }
+            Err(e) => tracing::warn!("iOptron mount discovery failed: {}", e),
         }
-        Err(e) => tracing::warn!("iOptron mount discovery failed: {}", e),
-    }
-    tracing::debug!("iOptron discovery complete.");
+        tracing::debug!("iOptron discovery complete.");
 
-    // Give Windows time to fully release COM ports before next vendor discovery
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        // Give Windows time to fully release COM ports before next vendor discovery
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-    // Discover LX200-compatible mounts (Meade, OnStep/Pegasus, Losmandy, etc.)
-    tracing::debug!("Discovering LX200 mounts...");
-    match crate::vendor::lx200::discover_mounts().await {
-        Ok(lx200_mounts) => {
-            tracing::debug!("Found {} LX200 mounts", lx200_mounts.len());
-            devices.extend(lx200_mounts.into_iter().map(|info| {
-                let port_safe = info.port.replace("/", "_").replace("\\", "_");
-                let vendor = info.mount_type.vendor();
-                let type_prefix = match &info.mount_type {
-                    crate::vendor::lx200::Lx200MountType::Meade => "meade",
-                    crate::vendor::lx200::Lx200MountType::OnStep => "onstep",
-                    crate::vendor::lx200::Lx200MountType::Losmandy => "losmandy",
-                    crate::vendor::lx200::Lx200MountType::TenMicron => "10micron",
-                    crate::vendor::lx200::Lx200MountType::Generic => "lx200",
-                };
-                // Include baud rate in the ID so we can use it when connecting
-                // Format: native:<type>:<port>:<baud>
-                NativeDeviceInfo {
-                    id: format!("native:{}:{}:{}", type_prefix, port_safe, info.baud_rate),
-                    name: info.name.clone(),
-                    vendor,
-                    device_type: DeviceType::Mount,
-                    serial_number: None,
-                    sdk_version: info.firmware_version,
-                    display_name: info.name,
-                }
-            }));
+        // Discover LX200-compatible mounts (Meade, OnStep/Pegasus, Losmandy, etc.)
+        tracing::debug!("Discovering LX200 mounts...");
+        match crate::vendor::lx200::discover_mounts().await {
+            Ok(lx200_mounts) => {
+                tracing::debug!("Found {} LX200 mounts", lx200_mounts.len());
+                devices.extend(lx200_mounts.into_iter().map(|info| {
+                    let port_safe = info.port.replace("/", "_").replace("\\", "_");
+                    let vendor = info.mount_type.vendor();
+                    let type_prefix = match &info.mount_type {
+                        crate::vendor::lx200::Lx200MountType::Meade => "meade",
+                        crate::vendor::lx200::Lx200MountType::OnStep => "onstep",
+                        crate::vendor::lx200::Lx200MountType::Losmandy => "losmandy",
+                        crate::vendor::lx200::Lx200MountType::TenMicron => "10micron",
+                        crate::vendor::lx200::Lx200MountType::Generic => "lx200",
+                    };
+                    // Include baud rate in the ID so we can use it when connecting
+                    // Format: native:<type>:<port>:<baud>
+                    NativeDeviceInfo {
+                        id: format!("native:{}:{}:{}", type_prefix, port_safe, info.baud_rate),
+                        name: info.name.clone(),
+                        vendor,
+                        device_type: DeviceType::Mount,
+                        serial_number: None,
+                        sdk_version: info.firmware_version,
+                        display_name: info.name,
+                    }
+                }));
+            }
+            Err(e) => tracing::warn!("LX200 mount discovery failed: {}", e),
         }
-        Err(e) => tracing::warn!("LX200 mount discovery failed: {}", e),
+        tracing::debug!("LX200 discovery complete.");
+    } else {
+        tracing::debug!("Skipping serial mount discovery: a connected mount holds a serial port");
     }
-    tracing::debug!("LX200 discovery complete.");
 
     tracing::info!(
         "Native discovery complete: found {} total devices",
@@ -750,7 +773,7 @@ pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, NativeError
     );
 
     // Cache the results for future calls
-    {
+    if serial == SerialProbe::Probe {
         let mut cache = get_discovery_cache().lock().await;
         *cache = Some(DiscoveryCache {
             devices: devices.clone(),
