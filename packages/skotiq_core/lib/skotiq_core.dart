@@ -295,6 +295,7 @@ export 'src/providers/equipment/device_type_registry.dart';
 export 'src/providers/meridian_countdown_provider.dart';
 export 'src/providers/meridian_flip_provider.dart';
 export 'src/providers/flat_wizard_provider.dart';
+export 'src/providers/flat_wizard_output.dart';
 export 'src/providers/ui_notification_provider.dart';
 export 'src/providers/operation_progress_provider.dart';
 export 'src/providers/current_screen_provider.dart';
@@ -746,6 +747,7 @@ export 'src/services/calibration/defect_map_service.dart';
 export 'src/models/calibration/calibration_library_models.dart';
 export 'src/services/calibration/fits_header_reader.dart';
 export 'src/services/calibration_library_service.dart';
+export 'src/services/calibration_backlog_service.dart';
 export 'src/database/daos/calibration_tags_dao.dart';
 // Shared calibration libraries — the hub wire model, the REST client, and the
 // matcher-folding remote-library seam.
