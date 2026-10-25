@@ -520,7 +520,7 @@ class _DarkroomChannelCombineDialogState
               ),
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
-                '${master.frameCount} × · '
+                '${master.frameCount} frames · '
                 '${describeIntegration(master.totalIntegrationSeconds)}',
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
