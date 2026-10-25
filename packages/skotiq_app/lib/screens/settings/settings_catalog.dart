@@ -17,10 +17,8 @@ import 'widgets/rig_catalog_settings.dart';
 import 'widgets/update_settings.dart';
 import 'widgets/annotation_settings.dart';
 import 'widgets/appearance_settings.dart';
-import 'widgets/calibration_library_settings.dart';
-import 'widgets/calibration_settings.dart';
+import 'widgets/calibration_redirect.dart';
 import 'widgets/connection_settings.dart';
-import 'widgets/dark_library_settings.dart';
 import 'widgets/darkroom_autopilot_settings.dart';
 import 'widgets/end_of_night_calibration_settings.dart';
 import 'widgets/general_settings.dart';
@@ -311,21 +309,13 @@ List<SettingsGroupDef> buildSettingsGroups(BuildContext context) {
             'bias',
             'master frames',
             'calibration',
+            'dark library',
+            'calibration library',
+            'auto-calibrate',
+            'temperature tolerance',
+            'defect map',
           ],
-          build: (isMobile) => CalibrationSettingsPage(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'dark-library',
-          label: t('settingsDarkLibrary'),
-          icon: LucideIcons.moon,
-          keywords: const [
-            'dark frames',
-            'master dark',
-            'library',
-            'exposure',
-            'temperature match',
-          ],
-          build: (isMobile) => DarkLibrarySettings(isMobile: isMobile),
+          build: (isMobile) => CalibrationSettingsRedirect(isMobile: isMobile),
         ),
       ],
     ),
@@ -375,22 +365,6 @@ List<SettingsGroupDef> buildSettingsGroups(BuildContext context) {
             'grading thresholds',
           ],
           build: (isMobile) => ImageGradingSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'calibration-library',
-          label: t('settingsCalibrationLibrary'),
-          icon: LucideIcons.library,
-          keywords: const [
-            'darks',
-            'flats',
-            'bias',
-            'defect map',
-            'master',
-            'calibration',
-            'auto-match',
-            'tags',
-          ],
-          build: (isMobile) => CalibrationLibrarySettings(isMobile: isMobile),
         ),
         SettingsSectionDef(
           key: 'annotations',
@@ -758,6 +732,10 @@ const Map<String, String> kMergedSectionAliases = {
   'focus-model': 'autofocus',
   // Notifications = notifications + notification-routing
   'notification-routing': 'notifications',
+  // Calibration, Dark library and Calibration library moved to the
+  // Darkroom's Calibration tab; the Calibration entry redirects there.
+  'dark-library': 'calibration',
+  'calibration-library': 'calibration',
 };
 
 /// Resolves a deep-link [key] (including merged-away aliases) to the section
@@ -858,13 +836,11 @@ const List<List<String>> _structuralGroups = [
     'plate-solving',
     'autofocus',
     'calibration',
-    'dark-library',
   ],
   [
     'imaging',
     'adaptive-exposure',
     'image-grading',
-    'calibration-library',
     'annotations',
     'catalogs',
   ],

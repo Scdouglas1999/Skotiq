@@ -84,7 +84,7 @@ class FlatLibraryService {
   /// with, because the matcher pairs a flat with lights by filter, gain,
   /// offset and binning. Any of those the caller leaves null is read from the
   /// first flat's FITS header, so a registered flat is never filed under a
-  /// placeholder gain of 0 that no light frame would match.
+  /// gain of 0 that no light frame would match.
   ///
   /// Throws [ArgumentError] for an empty input list, and propagates any native
   /// build error (never registers a flat that failed to build).

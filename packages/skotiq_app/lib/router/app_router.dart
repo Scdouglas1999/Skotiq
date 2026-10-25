@@ -22,6 +22,7 @@ import '../screens/mosaic/mosaic_projects_list_screen.dart';
 import '../screens/weather/weather_screen.dart';
 import '../screens/settings/pairing_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/widgets/calibration_redirect.dart';
 import '../screens/settings/plate_solving_settings_screen.dart';
 import '../screens/polar_alignment/polar_alignment_screen.dart';
 import '../screens/transients/transients_screen.dart';
@@ -394,6 +395,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             name: 'settings',
+            // The calibration pages moved to the Darkroom's Calibration tab.
+            redirect: (context, state) =>
+                calibrationSettingsRedirect(state.uri),
             pageBuilder: (context, state) => CustomTransitionPage(
               // Deep-link a specific section via `?section=<key>` (see
               // kSettingsSectionIndex); null/unknown opens the first category.

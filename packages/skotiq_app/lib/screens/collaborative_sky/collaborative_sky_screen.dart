@@ -724,10 +724,10 @@ class _SharedLibrarySection extends ConsumerWidget {
   }
 
   void _openLibrary(BuildContext context) {
-    // The shared library is matched, pulled, and published from the calibration
-    // library in Settings. Guarded so a standalone mount (tests) is a no-op.
+    // The shared library is matched, pulled, and published from the Darkroom's
+    // calibration library. Guarded so a standalone mount (tests) is a no-op.
     final router = GoRouter.maybeOf(context);
-    router?.go('/settings?section=calibration-library');
+    router?.go('/darkroom?tab=calibration');
   }
 }
 
