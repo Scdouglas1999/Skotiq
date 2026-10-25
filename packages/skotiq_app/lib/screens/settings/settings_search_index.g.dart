@@ -9,7 +9,12 @@
 
 /// Settings section key -> the row titles that section renders.
 const Map<String, List<String>> kSettingsSearchTerms = {
-  'about': ['About', 'License', 'Software update', 'System information'],
+  'about': [
+    'About',
+    'License',
+    'Software update',
+    'System information',
+  ],
   'adaptive-conditions': [
     'Adaptive conditions',
     'Cloud weight',
@@ -174,8 +179,12 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Quick Actions',
     'Recent Backups',
   ],
-  'calibration': ['Calibration is in the Darkroom'],
-  'captured-images': ['Captured images'],
+  'calibration': [
+    'Calibration is in the Darkroom',
+  ],
+  'captured-images': [
+    'Captured images',
+  ],
   'catalogs': [
     'Actions',
     'Catalogs',
@@ -207,7 +216,9 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Server status',
     'Work locally',
   ],
-  'darkroom': ['Night-end automation is in the Darkroom'],
+  'darkroom': [
+    'Night-end automation is in the Darkroom',
+  ],
   'delivery': [
     'Delivery',
     'Delivery destinations',
@@ -391,7 +402,11 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use system time',
     'Wi-Fi is switched off, so the precise scan was',
   ],
-  'logs': ['Entries on screen', 'Full history', 'Logs'],
+  'logs': [
+    'Entries on screen',
+    'Full history',
+    'Logs',
+  ],
   'notifications': [
     'Alert sound',
     'Allow control from Home Assistant',
@@ -520,8 +535,13 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Which sound to play when critical events fire',
     'Write-only secret stored on the imaging host.',
   ],
-  'observation-log': ['Observation Log'],
-  'observing-lists': ['No observing lists yet', 'Observing Lists'],
+  'observation-log': [
+    'Observation Log',
+  ],
+  'observing-lists': [
+    'No observing lists yet',
+    'Observing Lists',
+  ],
   'phd2-guiding': [
     'Host',
     'Information',
@@ -594,7 +614,9 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Retention (days)',
     'When enabled, every adaptive-exposure swap, trigger',
   ],
-  'rig-catalogs': ['Appliance catalogs'],
+  'rig-catalogs': [
+    'Appliance catalogs',
+  ],
   'science': [
     '3D science surfaces',
     'AAVSO',
@@ -750,7 +772,9 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'When the mount stops at its limit',
     'Wrap multi-target plans in a TargetScheduler so',
   ],
-  'updates': ['Appliance updates'],
+  'updates': [
+    'Appliance updates',
+  ],
   'weather-safety': [
     'Alert distance',
     'Alert Timing',
