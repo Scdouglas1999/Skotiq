@@ -233,16 +233,6 @@ impl ScriptedDeviceOps {
         self.sim_mount.lock().unwrap().clone()
     }
 
-    /// Stop the axes the way a mount at its own limit does: tracking reads
-    /// off and the pointing stops following the sky.
-    pub(crate) fn mount_stops_by_itself(&self) {
-        let now = tokio::time::Instant::now();
-        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
-            mount.set_axes_tracking(false, now);
-        }
-        self.mount_tracking.store(false, Ordering::SeqCst);
-    }
-
     /// Fail the next exposures with these errors, one each.
     fn fail_next_exposures(&self, errors: &[&str]) {
         self.camera_failures
