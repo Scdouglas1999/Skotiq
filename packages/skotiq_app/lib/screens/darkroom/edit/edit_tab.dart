@@ -29,9 +29,14 @@ const double kDarkroomEditListWidth = 280;
 
 /// The scope the route names, or an empty scope.
 DarkroomScope darkroomEditScopeFromUri(Uri uri) {
-  final recipe = int.tryParse(uri.queryParameters['recipe'] ?? '');
+  int? id(String key) {
+    final raw = uri.queryParameters[key];
+    return raw == null ? null : int.tryParse(raw);
+  }
+
+  final recipe = id('recipe');
   if (recipe != null) return DarkroomScope.recipe(recipe);
-  final master = int.tryParse(uri.queryParameters['master'] ?? '');
+  final master = id('master');
   if (master != null) return DarkroomScope.master(master);
   return const DarkroomScope.empty();
 }
