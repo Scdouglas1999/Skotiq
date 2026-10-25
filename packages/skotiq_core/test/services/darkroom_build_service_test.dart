@@ -165,6 +165,15 @@ void main() {
     );
   });
 
+  test('filter names map to the composite color roles', () {
+    expect(darkroomColorRole('Lum'), 'L');
+    expect(darkroomColorRole('UV/IR Cut'), 'L');
+    expect(darkroomColorRole('Red'), 'R');
+    expect(darkroomColorRole('g'), 'G');
+    expect(darkroomColorRole('B'), 'B');
+    expect(darkroomColorRole('Ha'), isNull);
+  });
+
   test('integration time reads in minutes under an hour', () {
     expect(describeIntegration(105), '2 min');
     expect(describeIntegration(14160), '3.9 h');
@@ -487,6 +496,66 @@ void main() {
           await File('${output.path}/frame-audit.csv').readAsString(),
           contains('true'),
         );
+      },
+    );
+
+    test(
+      'the RGB and LRGB composites register as color masters, once',
+      () async {
+        final groups = [
+          for (final g in plan.toJson()['groups'] as List)
+            Map<String, dynamic>.from(g as Map),
+        ];
+        final green = File('${folder.path}/G_0.fits');
+        await green.writeAsString('raw input');
+        final greenId = await db.imagesDao.createImage(
+          CapturedImagesCompanion.insert(
+            filePath: green.path,
+            fileName: 'G_0.fits',
+            exposureDuration: 90,
+            capturedAt: DateTime(2026, 10, 22, 23),
+            filter: const Value('G'),
+          ),
+        );
+        groups.add({
+          'label': 'Night of 2026-10-22 · G',
+          'filter': 'G',
+          'calibration': <String, dynamic>{},
+          'lights': [
+            {
+              'id': greenId,
+              'path': green.path,
+              'exposureSec': 90.0,
+              'side': 'West',
+            },
+          ],
+        });
+        final lrgb = DarkroomBuildPlan.fromJson({
+          ...plan.toJson(),
+          'groups': groups,
+        });
+        final preview = await service.previewRegistration(lrgb);
+        final output = Directory('${folder.path}/run');
+        await service.run(lrgb, output, accepted: preview);
+        await service.run(lrgb, output);
+
+        final all = await IntegratedMastersDao(db).getAll();
+        expect(all, hasLength(6), reason: 'four filters and two composites');
+        final color = {
+          for (final m in all)
+            if (m.channels == 3) m.filter: m,
+        };
+        expect(color.keys, unorderedEquals(['RGB', 'LRGB']));
+        final rgb = color['RGB']!;
+        expect(rgb.name, 'NGC891 RGB');
+        expect(rgb.masterFitsPath, endsWith('RGB_linear.fits'));
+        expect(rgb.previewPngPath, endsWith('RGB_linear.png'));
+        expect(rgb.width, 95);
+        expect(rgb.frameCount, 3, reason: 'R, G and B each folded one');
+        expect(rgb.totalIntegrationSeconds, 270);
+        expect(color['LRGB']!.frameCount, 4);
+        expect(jsonDecode(rgb.settingsJson)['target'], 'NGC891');
+        expect(jsonDecode(rgb.statsJson)['filters'], ['B', 'G', 'R']);
       },
     );
 

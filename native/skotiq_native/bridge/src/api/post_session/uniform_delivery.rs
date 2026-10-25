@@ -263,7 +263,7 @@ fn write_rgb(
     width: u32,
     height: u32,
     header: &FitsHeader,
-) -> Result<(String, String), String> {
+) -> Result<(String, String, String), String> {
     let image = ImageData::from_f32(width, height, 3, rgb);
     let fits = path_stem.with_extension("fits");
     let xisf = path_stem.with_extension("xisf");
@@ -279,9 +279,13 @@ fn write_rgb(
     };
     skotiq_imaging::write_xisf(&xisf, &image, &metadata)
         .map_err(|e| format!("failed to write '{}': {e:?}", xisf.display()))?;
+    // The stretched thumbnail the master library shows for the composite.
+    let png = path_stem.with_extension("png");
+    write_preview_png(&image, &png)?;
     Ok((
         fits.to_string_lossy().to_string(),
         xisf.to_string_lossy().to_string(),
+        png.to_string_lossy().to_string(),
     ))
 }
 
@@ -323,8 +327,13 @@ fn write_composites(
             scale_note,
         ],
     );
-    let (rgb_fits, rgb_xisf) = write_rgb(&out.join("RGB_linear"), &rgb, width, height, &header)?;
-    let mut result = serde_json::json!({"rgbPath": rgb_fits, "rgbXisfPath": rgb_xisf});
+    let (rgb_fits, rgb_xisf, rgb_png) =
+        write_rgb(&out.join("RGB_linear"), &rgb, width, height, &header)?;
+    let mut result = serde_json::json!({
+        "rgbPath": rgb_fits,
+        "rgbXisfPath": rgb_xisf,
+        "rgbPreviewPath": rgb_png,
+    });
 
     if let Some((l, lh)) = planes.get("L") {
         let (w, h) = (width as usize, height as usize);
@@ -376,9 +385,10 @@ fn write_composites(
                 scale_note,
             ],
         );
-        let (fits, xisf) = write_rgb(&out.join("LRGB_linear"), &lrgb, width, height, &header)?;
+        let (fits, xisf, png) = write_rgb(&out.join("LRGB_linear"), &lrgb, width, height, &header)?;
         result["lrgbPath"] = serde_json::json!(fits);
         result["lrgbXisfPath"] = serde_json::json!(xisf);
+        result["lrgbPreviewPath"] = serde_json::json!(png);
     }
     Ok(result)
 }

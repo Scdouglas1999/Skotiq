@@ -95,12 +95,32 @@ class FakeDarkroomNative {
             'channels': 1,
           });
         }
+        // The native export writes the RGB composite when R, G and B are all
+        // built, and the LRGB one when L is too. Each master's filter arrives
+        // as a file-safe key, `<filter>-<hash>`.
+        final filters = {
+          for (final m in args['masters'] as List)
+            '${m['filter']}'.split('-').first,
+        };
+        Map<String, dynamic>? composites;
+        if (filters.containsAll(['R', 'G', 'B'])) {
+          composites = {};
+          for (final kind in ['RGB', if (filters.contains('L')) 'LRGB']) {
+            final stem = '${args['outputDir']}/${kind}_linear';
+            await File('$stem.fits').writeAsString('linear rgb');
+            final key = kind.toLowerCase();
+            composites['${key}Path'] = '$stem.fits';
+            composites['${key}XisfPath'] = '$stem.xisf';
+            composites['${key}PreviewPath'] = '$stem.png';
+          }
+        }
         return {
           'masters': files,
           'width': 95,
           'height': 75,
           'crop': [2, 2, 97, 77],
           'retainedArea': retained,
+          'composites': composites,
         };
     }
     throw StateError('unexpected op ${args['op']}');
