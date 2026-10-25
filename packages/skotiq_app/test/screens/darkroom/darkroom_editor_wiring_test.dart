@@ -464,9 +464,10 @@ void main() {
 
     await pump(tester, location: '/darkroom?master=$masterId');
     expect(find.text('Master · B has no recipe yet'), findsOneWidget);
+    expect(find.text('No recipe yet'), findsOneWidget, reason: 'its list row');
     // The offer no longer promises colour on a master that has one channel.
     expect(
-      find.textContaining('no colour calibration, because the fit needs three'),
+      find.textContaining('no color calibration, because the fit needs three'),
       findsOneWidget,
     );
 
@@ -475,6 +476,9 @@ void main() {
 
     // The stack the registry did carry.
     expect(find.text('Stretch'), findsOneWidget);
+    // The image list beside the editor counts the new recipe at once.
+    expect(find.text('No recipe yet'), findsNothing);
+    expect(find.text('1 recipe'), findsOneWidget);
     // And the operation it decided about and did not carry, with its reason —
     // which used to reach the night report on disk and nothing else.
     expect(

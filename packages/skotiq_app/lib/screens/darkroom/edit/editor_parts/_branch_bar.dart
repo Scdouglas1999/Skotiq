@@ -260,7 +260,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
               }
               return Row(
                 children: [
-                  Expanded(flex: 2, child: variants),
+                  Expanded(child: variants),
                   const SizedBox(width: SkotiqTokens.spaceLg),
                   Flexible(
                     flex: 3,

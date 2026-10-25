@@ -107,6 +107,14 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final state = ref.watch(darkroomControllerProvider(widget.scope));
+    // A recipe created, imported or deleted here changes the image list's
+    // recipe counts, so the list is read again whenever the open recipe does.
+    ref.listen(
+      darkroomControllerProvider(widget.scope).select((s) => s.recipeId),
+      (previous, next) {
+        if (previous != next) ref.invalidate(darkroomImageLibraryProvider);
+      },
+    );
 
     // A refused reorder and a failed write are both things the operator did
     // that did not take effect, so each is announced once per OCCURRENCE — the
@@ -280,8 +288,10 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
         offer: offer,
         busy: state.offerBusy,
         error: state.offerError,
-        siblings: state.siblings,
-        siblingsError: state.siblingsError,
+        // Beside the Edit tab's image list the night's other images are on
+        // screen already, so the offer does not list them again.
+        siblings: widget.showSiblings ? state.siblings : const [],
+        siblingsError: widget.showSiblings ? state.siblingsError : null,
         onStartFromLinear: _controller.startFromLinear,
         onDraftForMe: _controller.draftForMe,
         onImportRecipe: () => unawaited(_controller.importRecipe()),
@@ -735,8 +745,8 @@ class _DarkroomStartOfferView extends StatelessWidget {
                 // the promise before the draft existed to contradict it.
                 'The operation registry measures this master and proposes a '
                 'first stack — a background fit, denoise, '
-                '${offer.isColor ? 'a colour calibration' : ''
-                    'no colour calibration, because the fit needs three '
+                '${offer.isColor ? 'a color calibration' : ''
+                    'no color calibration, because the fit needs three '
                     'channels and this master has '
                     '${offer.channels}'}, and a stretch. A crop joins them when '
                 'the registration left an edge to trim, and is left out when '
@@ -877,10 +887,11 @@ class _DarkroomEditorBar extends StatelessWidget {
             if (image.master.width > 0)
               '${image.master.width}×${image.master.height}',
           ].join(' · ').toUpperCase();
-    final title = [
-      if (imageName != null && imageName.isNotEmpty) imageName,
-      if (recipeName != null && recipeName!.isNotEmpty) recipeName!,
-    ].join('  ·  ');
+    // The overline already names the target and the kind, so the title is the
+    // open recipe, or the image itself while it has none.
+    final recipe = recipeName;
+    final title =
+        recipe != null && recipe.isNotEmpty ? recipe : (imageName ?? '');
     return Container(
       key: const ValueKey('darkroom_editor_bar'),
       padding: const EdgeInsets.symmetric(
