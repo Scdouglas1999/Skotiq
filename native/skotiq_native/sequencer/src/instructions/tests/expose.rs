@@ -654,6 +654,87 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     assert!(warned, "the rejection is announced");
 }
 
+/// The mount stops tracking halfway through a frame that is already
+/// exposing, with no hold in place when it started: the frame is trailed and
+/// rejected with the reason, whether the monitor saw the stop during the
+/// frame or only the mount's own reading at its end shows it.
+#[tokio::test(start_paused = true)]
+async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason() {
+    for monitor_saw_it in [true, false] {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new());
+        *ops.mount_tracking.lock().unwrap() = Some(true);
+        let dir = std::env::temp_dir().join(format!("sk-midframe-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let mut ec = crate::node::context::ExecutionContext::new_for_test("midframe".into());
+        ec.device_ops = ops.clone();
+        ec.camera_id = Some("camera-1".into());
+        ec.mount_id = Some("mount-1".into());
+        ec.save_path = Some(dir.clone());
+        let mut state = crate::triggers::TriggerState::new();
+        state.tracking.set_expected(true);
+        let state = Arc::new(tokio::sync::RwLock::new(state));
+        ec.trigger_state = Some(state.clone());
+        let (events, mut rx) = tokio::sync::broadcast::channel(64);
+        let mut ctx = ec.to_instruction_context("midframe").await;
+        ctx.event_tx = Some(events);
+        let control = BurstControl {
+            pause: ec.pause_gate(),
+            status: None,
+        };
+        let config = ExposureConfig {
+            count: 1,
+            duration_secs: 60.0,
+            ..Default::default()
+        };
+
+        let stopper = {
+            let ops = ops.clone();
+            let state = state.clone();
+            tokio::spawn(async move {
+                while ops.camera_exposure_calls.load(Ordering::SeqCst) == 0 {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+                tokio::time::sleep(Duration::from_secs(30)).await;
+                *ops.mount_tracking.lock().unwrap() = Some(false);
+                if monitor_saw_it {
+                    state
+                        .write()
+                        .await
+                        .tracking
+                        .record_loss(chrono::Utc::now().timestamp());
+                }
+            })
+        };
+        let result =
+            execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+        stopper.await.expect("stopper");
+        let rejected_files = std::fs::read_dir(dir.join("Reject"))
+            .map(|entries| entries.count())
+            .unwrap_or(0);
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(
+            ec.frames_rejected.load(Ordering::SeqCst),
+            1,
+            "monitor saw it: {monitor_saw_it}"
+        );
+        assert_eq!(rejected_files, 1);
+        let expected_reason = if monitor_saw_it {
+            "stopped tracking during this exposure"
+        } else {
+            "not tracking at the end of this exposure"
+        };
+        let mut warned = false;
+        while let Ok(event) = rx.try_recv() {
+            if let crate::executor::ExecutorEvent::Warning { message } = event {
+                warned |= message.contains(expected_reason);
+            }
+        }
+        assert!(warned, "the rejection names the reason: {expected_reason}");
+    }
+}
+
 /// Guiding is never restarted on a mount that reads tracking off: the frame
 /// waits, and starts with guiding restarted once the mount tracks again.
 #[tokio::test(start_paused = true)]
