@@ -130,6 +130,11 @@ class _Jobs extends DarkroomBuildJobs {
   }
 }
 
+/// Held builds a test can set directly.
+class _Held extends DarkroomHeldBuilds {
+  void put(List<DarkroomBuildJob> jobs) => state = jobs;
+}
+
 CalibrationMatch _match(
   CalibrationMasterType type,
   int id,
@@ -525,6 +530,73 @@ void main() {
           .toSet(),
       {darkroomNightLeftOutReason},
     );
+  });
+
+  testWidgets(
+      'a build held by the night-end run is reviewed, not checked again',
+      (tester) async {
+    final held = _Held();
+    final h = await _pump(
+      tester,
+      initial: '/darkroom?tab=targets&target=NGC+891&view=framing',
+      overrides: [darkroomHeldBuildsProvider.overrideWith(() => held)],
+    );
+    final checked = h.jobs.state!;
+    expect(checked.stage, DarkroomJobStage.awaitingReview);
+    h.router.go('/darkroom?tab=targets&target=NGC+891');
+    await _settle(tester);
+    h.jobs.state = null;
+    held.put([
+      DarkroomBuildJob(
+        target: 'NGC 891',
+        unattended: true,
+        nightRunId: 'night-2026-10-23',
+        stage: DarkroomJobStage.awaitingReview,
+        message: checked.message,
+        startedAt: checked.startedAt,
+        plan: checked.plan,
+        preview: checked.preview,
+        directory: '/data/Masters/NGC_891',
+      ),
+    ]);
+    final previews =
+        h.native.requests.where((r) => r['op'] == 'registrationPreview').length;
+
+    h.router.go('/darkroom?tab=targets&target=NGC+891&view=framing');
+    await _settle(tester);
+
+    // The held build became the current one; nothing was registered again.
+    expect(h.jobs.state?.nightRunId, 'night-2026-10-23');
+    expect(h.jobs.state?.stage, DarkroomJobStage.awaitingReview);
+    expect(held.state, isEmpty);
+    expect(
+      h.native.requests.where((r) => r['op'] == 'registrationPreview').length,
+      previews,
+    );
+    expect(find.byKey(const ValueKey('darkroom_field_kept')), findsOneWidget);
+  });
+
+  testWidgets('checking another target holds the build waiting for review', (
+    tester,
+  ) async {
+    final h = await _pump(tester);
+    final waiting = DarkroomBuildJob(
+      target: 'M 81',
+      unattended: true,
+      nightRunId: 'night-2026-10-23',
+      stage: DarkroomJobStage.awaitingReview,
+      message: 'Waiting for review',
+      startedAt: DateTime(2026, 10, 24, 6),
+    );
+    h.jobs.state = waiting;
+
+    h.router.go('/darkroom?tab=targets&target=NGC+891&view=framing');
+    await _settle(tester);
+
+    expect(h.jobs.state?.target, 'NGC 891');
+    final parked = h.container.read(darkroomHeldBuildsProvider);
+    expect(parked.map((j) => j.target), ['M 81']);
+    expect(parked.single.nightRunId, 'night-2026-10-23');
   });
 
   testWidgets('while another target builds, the check waits instead', (

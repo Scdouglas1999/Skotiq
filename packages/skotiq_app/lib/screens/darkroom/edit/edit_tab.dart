@@ -17,6 +17,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
 import '../darkroom_controller.dart' show DarkroomScope;
+import '../darkroom_route.dart' show DarkroomRouteScope;
 import 'channel_combine.dart';
 import 'darkroom_editor.dart';
 import 'darkroom_image_library.dart';
@@ -43,7 +44,8 @@ DarkroomScope darkroomEditScopeFromUri(Uri uri) {
 
 /// The Edit tab.
 class DarkroomEditTab extends ConsumerWidget {
-  /// What to open. Null reads `master` and `recipe` from the current route.
+  /// What to open. Null reads `master` and `recipe` from the enclosing
+  /// Darkroom screen's route, or from the current location outside one.
   final DarkroomScope? scope;
 
   const DarkroomEditTab({super.key, this.scope});
@@ -51,6 +53,12 @@ class DarkroomEditTab extends ConsumerWidget {
   DarkroomScope _scope(BuildContext context) {
     final given = scope;
     if (given != null) return given;
+    final route = DarkroomRouteScope.maybeOf(context);
+    if (route != null) {
+      if (route.recipeId != null) return DarkroomScope.recipe(route.recipeId!);
+      if (route.masterId != null) return DarkroomScope.master(route.masterId!);
+      return const DarkroomScope.empty();
+    }
     final router = GoRouter.maybeOf(context);
     if (router == null) return const DarkroomScope.empty();
     return darkroomEditScopeFromUri(GoRouterState.of(context).uri);

@@ -146,8 +146,11 @@ class DarkroomRouteScope extends InheritedWidget {
   /// The route of the enclosing Darkroom screen, or the default Targets route
   /// when a tab body is shown on its own.
   static DarkroomRoute of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<DarkroomRouteScope>()?.route ??
-      const DarkroomRoute();
+      maybeOf(context) ?? const DarkroomRoute();
+
+  /// The route of the enclosing Darkroom screen, or null outside one.
+  static DarkroomRoute? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<DarkroomRouteScope>()?.route;
 
   @override
   bool updateShouldNotify(DarkroomRouteScope oldWidget) =>

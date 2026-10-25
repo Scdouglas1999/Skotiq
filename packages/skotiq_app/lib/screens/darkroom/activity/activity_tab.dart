@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../darkroom_route.dart' show DarkroomRouteScope;
 import '../pass_view/darkroom_pass_page.dart';
 import 'automation_settings_panel.dart';
 import 'night_end_history.dart';
@@ -41,6 +42,8 @@ class _DarkroomActivityTabState extends ConsumerState<DarkroomActivityTab> {
   }
 
   String? _passFromRoute(BuildContext context) {
+    final route = DarkroomRouteScope.maybeOf(context);
+    if (route != null) return route.passRunId;
     try {
       final pass = GoRouterState.of(context).uri.queryParameters['pass'];
       return pass == null || pass.isEmpty ? null : pass;

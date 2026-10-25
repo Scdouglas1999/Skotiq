@@ -957,7 +957,7 @@ void main() {
 
     final semantics = tester.ensureSemantics();
     expect(
-      find.bySemanticsLabel(RegExp('^Back to the Darkroom targets')),
+      find.bySemanticsLabel(RegExp('^Back to where the Darkroom was opened')),
       findsOneWidget,
     );
     semantics.dispose();
@@ -969,10 +969,9 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await settle(tester);
 
-    expect(
-      router.routerDelegate.currentConfiguration.uri.queryParameters['tab'],
-      'targets',
-    );
+    // Every Darkroom tab is gated on a remote client, so the way out leaves
+    // the Darkroom.
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
     await drain(tester);
   });
 
@@ -989,10 +988,9 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
     await settle(tester);
 
-    expect(
-      router.routerDelegate.currentConfiguration.uri.queryParameters['tab'],
-      'targets',
-    );
+    // Every Darkroom tab is gated on a remote client, so the way out leaves
+    // the Darkroom.
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
     await drain(tester);
   });
 
@@ -1007,10 +1005,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('darkroom_remote_gate_back')));
     await settle(tester);
 
-    expect(
-      router.routerDelegate.currentConfiguration.uri.queryParameters['tab'],
-      'targets',
-    );
+    // Every Darkroom tab is gated on a remote client, so the way out leaves
+    // the Darkroom.
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/analytics');
     await drain(tester);
   });
 
