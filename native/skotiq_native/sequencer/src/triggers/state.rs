@@ -65,15 +65,16 @@ pub struct ImagingTrainHold {
 /// read as the mount's own tracking limit. Some mounts stop before transit and
 /// do not advertise a limit timestamp, so stops from an hour before transit
 /// on are adopted. A stop the run made itself (a hold, or a park, home or
-/// slew in progress) is never one, and unknown mount state is not evidence of
-/// a limit stop. A stop made at the hand controller or by another program
-/// looks the same as a limit stop to the driver; the hold's notice says how
-/// it was read.
+/// slew in progress) is never one, nor is a stop made from the app's own
+/// mount controls, and unknown mount state is not evidence of a limit stop. A
+/// stop made at the hand controller or by another program looks the same as
+/// a limit stop to the driver; the hold's notice says how it was read.
 pub(crate) fn tracking_limit_recovery_candidate(state: &TriggerState) -> bool {
     state.target_ra.is_some()
         && state.target_dec.is_some()
         && !state.meridian.has_flipped()
         && !state.guiding.in_motion()
+        && !state.tracking.operator_stopped()
         && state.tracking.expected_and_lost()
         && !state.mount_status_query_failed
         && state.mount_is_tracking == Some(false)

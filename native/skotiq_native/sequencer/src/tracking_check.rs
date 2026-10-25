@@ -153,7 +153,13 @@ pub(crate) async fn wait_until_mount_settled(
         }
         let slewing = matches!(device_ops.mount_is_slewing(mount_id).await, Ok(true));
         let tracking = matches!(device_ops.mount_is_tracking(mount_id).await, Ok(true));
-        let pointing = device_ops.mount_get_coordinates(mount_id).await.ok();
+        let pointing = match device_ops.mount_get_coordinates(mount_id).await {
+            Ok(pointing) => Some(pointing),
+            Err(error) => {
+                reason = format!("the mount's position could not be read: {error}");
+                None
+            }
+        };
         if slewing {
             reason = "the mount still reports slewing".to_string();
             stable = 0;

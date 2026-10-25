@@ -480,9 +480,11 @@ then does what the setting **When the mount stops at its limit**
 
 Tracking is never switched back on into the limit. Stops that Skotiq made
 itself (a park, a home, a slew, the pre-meridian hold) are never treated as
-a limit. A stop made at the hand controller or by another program looks the
-same to the driver as a limit stop, so the notice says how the stop was read;
-pause or stop the run if you stopped tracking yourself.
+a limit. Switching tracking off from Skotiq's own mount controls during a run
+pauses the run instead; when you resume, tracking is switched back on. A stop
+made at the hand controller or by another program looks the same to the
+driver as a limit stop, so the notice says how the stop was read; pause or
+stop the run if you stopped tracking yourself.
 
 After any flip, the run continues once the mount is verified on its new side.
 A recenter that finds no solution, a guider that will not restart, or high

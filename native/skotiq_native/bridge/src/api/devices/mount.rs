@@ -86,7 +86,18 @@ pub async fn mount_can_park(device_id: String) -> Result<bool, SkotiqError> {
 }
 
 /// Set mount tracking
+///
+/// A stop sent from here while a run is active is the operator's, so the run
+/// is told before the mount stops: it pauses instead of reading the stop as
+/// the mount's tracking limit. The run's own commands go through device ops,
+/// not this call.
 pub async fn mount_set_tracking(device_id: String, enabled: u8) -> Result<(), SkotiqError> {
+    if enabled == 0 {
+        // Never wait on the executor lock to stop a mount.
+        if let Ok(executor) = crate::api::sequencer::get_sequence_executor().try_read() {
+            executor.note_operator_tracking_stop().await;
+        }
+    }
     let mgr = get_device_manager();
     mgr.mount_set_tracking(&device_id, enabled != 0)
         .await

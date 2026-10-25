@@ -196,8 +196,10 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                     "The mount did not flip early ({reason}). Holding with tracking off until \
                      the flip window, {:.0} min past the meridian{}.",
                     crate::triggers::tracking_limit_flip_threshold(config) * 60.0,
-                    wait.map(|m| format!(", about {m:.0} min away"))
-                        .unwrap_or_default()
+                    match wait {
+                        Some(minutes) => format!(", about {minutes:.0} min away"),
+                        None => String::new(),
+                    }
                 );
                 tracing::warn!("[MERIDIAN] {}", message);
                 run.warning(message);

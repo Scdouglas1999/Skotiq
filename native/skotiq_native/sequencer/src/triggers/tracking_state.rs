@@ -19,6 +19,12 @@ pub struct TrackingLossState {
     /// Unix seconds of the most recent loss, kept after tracking resumes so a
     /// frame that was exposing at the time can be told it was untracked.
     last_loss_at: Option<i64>,
+    /// Tracking was switched off from the app's own mount controls during the
+    /// run: the stop that follows is the operator's, never the mount's limit.
+    /// Holds until the mount is seen tracking again.
+    operator_stop: bool,
+    /// The run has already paused for that operator stop.
+    operator_stop_announced: bool,
 }
 
 impl TrackingLossState {
@@ -50,6 +56,24 @@ impl TrackingLossState {
         self.lost = false;
     }
 
+    /// The operator is switching tracking off from the app's mount controls.
+    pub fn note_operator_stop(&mut self) {
+        self.operator_stop = true;
+        self.operator_stop_announced = false;
+    }
+
+    /// Whether the current stop was the operator's own.
+    pub fn operator_stopped(&self) -> bool {
+        self.operator_stop
+    }
+
+    /// Whether the run still has to pause for the operator's stop; true once.
+    pub fn take_operator_stop_announcement(&mut self) -> bool {
+        let due = self.operator_stop && !self.operator_stop_announced;
+        self.operator_stop_announced |= due;
+        due
+    }
+
     /// Record a loss seen at `now` (Unix seconds). Returns whether this loss
     /// started the tracking-limit wait; an earlier, unresolved detection keeps
     /// its own start.
@@ -74,9 +98,12 @@ impl TrackingLossState {
         self.limit_detected_at = at;
     }
 
-    /// Forget the recorded loss but not when it was first seen.
+    /// Tracking was seen on: forget the recorded loss but not when it was
+    /// first seen, and whose stop it was.
     pub fn clear_lost(&mut self) {
         self.lost = false;
+        self.operator_stop = false;
+        self.operator_stop_announced = false;
     }
 
     /// Tracking resumed or the flip ran: no loss and no wait in progress.
@@ -97,6 +124,8 @@ impl TrackingLossState {
             lost,
             limit_detected_at,
             last_loss_at: self.last_loss_at,
+            operator_stop: self.operator_stop,
+            operator_stop_announced: self.operator_stop_announced,
         };
     }
 }

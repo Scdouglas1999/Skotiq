@@ -95,6 +95,24 @@ impl Dispatcher {
             return;
         }
 
+        if executor_state == ExecutorState::Running
+            && state.tracking.expected_and_lost()
+            && self
+                .rig
+                .trigger_state
+                .write()
+                .await
+                .tracking
+                .take_operator_stop_announcement()
+        {
+            let message = "Tracking was switched off from Skotiq's mount controls during the run. \
+                           The run is paused; when you resume, tracking is switched back on."
+                .to_string();
+            tracing::warn!("[MERIDIAN] {}", message);
+            self.run.warning(message.clone());
+            self.run.pause(Some(message)).await;
+            return;
+        }
         let handed_off = state.run.hold() == Some(RunHold::TrackingLimit);
         if calibration_run
             || executor_state != ExecutorState::Running
@@ -723,10 +741,48 @@ mod tests {
         assert!(!state.tracking.is_lost());
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn a_stop_from_the_apps_mount_controls_pauses_and_is_never_read_as_the_limit() {
+        let mut h = Harness::new().await;
+        let config = h.flip_early();
+        h.use_config(config).await;
+        h.dispatcher
+            .rig
+            .trigger_state
+            .write()
+            .await
+            .tracking
+            .note_operator_stop();
+        let mut events = h.dispatcher.run.events.subscribe();
+        h.tick().await;
+        assert!(h.dispatcher.tracking_limit_hold.is_none());
+        assert_eq!(h.slews(), 0);
+        assert_eq!(
+            *h.dispatcher.run.executor_state.read().await,
+            ExecutorState::Paused
+        );
+        let warnings = drain_warnings(&mut events);
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("Skotiq's mount controls")),
+            "{warnings:?}"
+        );
+        // Resume: tracking recovery switches tracking back on; nothing flips.
+        h.resume().await;
+        h.tick().await;
+        assert!(h.dispatcher.tracking_limit_hold.is_none());
+        assert_eq!(h.slews(), 0);
+        assert_eq!(
+            h.recovery.try_recv().ok(),
+            Some(crate::recovery::RecoveryCause::MountTrackingLost)
+        );
+    }
+
     #[test]
     fn a_reading_during_the_runs_own_move_does_not_arm_the_loss_baseline() {
         let mut state = crate::triggers::TriggerState::default();
-        let _ = state.guiding.begin_motion();
+        let _motion = state.guiding.begin_motion();
         assert!(!apply_mount_tracking_poll(&mut state, true));
         state.mount_is_tracking = Some(true);
         assert!(!state.tracking.is_expected());

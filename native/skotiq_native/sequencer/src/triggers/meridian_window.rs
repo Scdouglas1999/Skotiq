@@ -151,6 +151,36 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_tracking_limit_policy_reads_from_the_app_json_and_defaults_to_flipping_early() {
+        let saved: crate::MeridianFlipConfig = serde_json::from_value(serde_json::json!({
+            "trigger_method": "MinutesPastMeridian",
+            "minutes_past_meridian": 20.0,
+            "minutes_before_limit": 10.0,
+            "hour_angle_threshold": 0.5,
+            "pause_guiding": true,
+            "auto_center": true,
+            "refocus_after": false,
+            "settle_time": 10.0,
+            "resume_guiding": true,
+            "max_retries": 3,
+            "retry_delays_secs": [30.0, 60.0, 120.0],
+            "failure_action": "PauseAndAlert",
+        }))
+        .unwrap();
+        assert_eq!(
+            saved.tracking_limit_policy,
+            crate::TrackingLimitPolicy::FlipEarly
+        );
+        let mut json = serde_json::to_value(&saved).unwrap();
+        json["tracking_limit_policy"] = "WaitForFlipWindow".into();
+        let waiting: crate::MeridianFlipConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(
+            waiting.tracking_limit_policy,
+            crate::TrackingLimitPolicy::WaitForFlipWindow
+        );
+    }
+
+    #[test]
     fn a_tracking_limit_stop_flips_early_by_default_and_waits_when_asked() {
         let mut config = crate::MeridianFlipConfig {
             minutes_past_meridian: 20.0,
