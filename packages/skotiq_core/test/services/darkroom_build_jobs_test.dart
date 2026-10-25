@@ -146,6 +146,45 @@ void main() {
     },
   );
 
+  test('a light put back is re-evaluated from its known footprint', () async {
+    final jobs = container.read(darkroomBuildJobsProvider.notifier);
+    final plan = await planFor();
+    await jobs.checkFraming(target: 'NGC891', plan: plan);
+    final first = container.read(darkroomBuildJobsProvider)!.preview!;
+    final r2 =
+        plan.lights.firstWhere(
+              (l) => '${l['path']}'.endsWith('R_2.fits'),
+            )['path']
+            as String;
+    await jobs.exclude({r2: 'Limits the crop'});
+    expect(
+      container.read(darkroomBuildJobsProvider)!.plan!.lights,
+      hasLength(5),
+    );
+
+    await jobs.replan(plan, known: first);
+    final job = container.read(darkroomBuildJobsProvider)!;
+    expect(job.stage, DarkroomJobStage.awaitingReview);
+    expect(job.plan!.lights, hasLength(6));
+    expect(job.preview!.frames, hasLength(6));
+    expect(
+      native.requests.last['gridSize'],
+      [100, 80],
+      reason: 'every footprint was known, so nothing registered again',
+    );
+    expect(native.built, isEmpty);
+  });
+
+  test(
+    'replan does nothing unless a build waits at the framing check',
+    () async {
+      final jobs = container.read(darkroomBuildJobsProvider.notifier);
+      await jobs.replan(await planFor());
+      expect(container.read(darkroomBuildJobsProvider), isNull);
+      expect(native.requests, isEmpty);
+    },
+  );
+
   test(
     'an accepted build runs in the background with progress, ETA and the current frame',
     () async {
