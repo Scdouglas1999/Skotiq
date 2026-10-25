@@ -146,6 +146,8 @@
   --opacity-selectedRing: 0.5;
   --opacity-liveHalo: 0.22;
 }
+.t-heroTitle { font-family: var(--font-sans); font-size: 52px; font-weight: 600; line-height: 1.0; letter-spacing: -1.5px; }
+.t-heroFigure { font-family: var(--font-sans); font-size: 64px; font-weight: 600; line-height: 1.0; letter-spacing: -2.5px; font-variant-numeric: tabular-nums; }
 .t-display { font-family: var(--font-sans); font-size: 28px; font-weight: 600; line-height: 1.2; letter-spacing: -0.4px; }
 .t-pageTitle { font-family: var(--font-sans); font-size: 20px; font-weight: 600; line-height: 1.3; letter-spacing: -0.2px; }
 .t-sectionTitle { font-family: var(--font-sans); font-size: 15px; font-weight: 600; line-height: 1.4; letter-spacing: 0px; }
