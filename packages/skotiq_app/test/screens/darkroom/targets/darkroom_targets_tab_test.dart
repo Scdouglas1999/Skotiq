@@ -270,6 +270,7 @@ Future<_Harness> _pump(
           .overrideWith((ref, key) async => _library()),
       darkroomMastersRootProvider
           .overrideWith((ref) async => Directory('/data/Masters')),
+      darkroomFileExistsProvider.overrideWithValue((_) => true),
       subThumbnailProvider.overrideWith(
         (ref, id) => Future<Uint8List>.error(StateError('no thumbnail')),
       ),
@@ -620,6 +621,92 @@ void main() {
     final parked = h.container.read(darkroomHeldBuildsProvider);
     expect(parked.map((j) => j.target), ['M 81']);
     expect(parked.single.nightRunId, 'night-2026-10-23');
+  });
+
+  testWidgets(
+      'subs whose files are not here are named, and the build can '
+      'go on without them', (tester) async {
+    final gone = <String>{};
+    final h = await _pump(
+      tester,
+      initial: '/darkroom?tab=targets&target=NGC+891&view=framing',
+      overrides: [
+        darkroomFileExistsProvider.overrideWithValue((p) => !gone.contains(p)),
+      ],
+    );
+    // Any existing check is dropped so the missing files are found afresh.
+    final kept = [
+      for (final f in await h.owner.db.imagesDao.getAllImages())
+        if (f.isAccepted) f.filePath,
+    ];
+    gone.addAll(kept.take(10));
+    h.router.go('/darkroom?tab=targets&target=NGC+891');
+    await _settle(tester);
+    h.jobs.state = null;
+    h.router.go('/darkroom?tab=targets&target=NGC+891&view=framing');
+    await _settle(tester);
+
+    expect(
+        find.byKey(const ValueKey('darkroom_framing_missing')), findsOneWidget);
+    expect(
+      find.text('10 of ${kept.length} kept subs are not on this computer'),
+      findsOneWidget,
+    );
+    expect(find.textContaining(kept.first), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('darkroom_framing_without_missing')),
+    );
+    await _settle(tester);
+    final plan = h.jobs.state!.plan!;
+    expect(plan.lights, hasLength(kept.length - 10));
+    final excluded = plan.toJson()['excluded'] as List;
+    expect(
+      excluded.where((e) => e['reason'] == darkroomMissingFileReason),
+      hasLength(10),
+    );
+  });
+
+  testWidgets(
+      'a matched calibration master that is not here is named, and '
+      'the build can go on without it', (tester) async {
+    final h = await _pump(
+      tester,
+      initial: '/darkroom?tab=targets&target=NGC+891&view=framing',
+      overrides: [
+        darkroomFileExistsProvider
+            .overrideWithValue((p) => !p.startsWith('/flats/')),
+      ],
+    );
+
+    expect(
+      find.byKey(const ValueKey('darkroom_framing_missing_calibration')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        RegExp('flat masters the library matched for (L and B|B and L) are'),
+      ),
+      findsOneWidget,
+    );
+    expect(h.jobs.state, isNull, reason: 'nothing is registered yet');
+
+    await tester.tap(
+      find.byKey(const ValueKey('darkroom_framing_without_calibration')),
+    );
+    await _settle(tester);
+    final groups = h.jobs.state!.plan!.toJson()['groups'] as List;
+    for (final g in groups) {
+      expect((g['calibration'] as Map).containsKey('flat'), isFalse);
+    }
+    expect(
+      groups
+          .where((g) => g['filter'] == 'L')
+          .every((g) => (g['warnings'] as List).any(
+                (w) => '$w'.contains('Built without the flat master'),
+              )),
+      isTrue,
+    );
   });
 
   testWidgets('while another target builds, the check waits instead', (

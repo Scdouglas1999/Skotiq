@@ -17,6 +17,7 @@ import '../../session_review/widgets/sub_cull_rail.dart'
 import '../build_masters/job_views.dart' show describeEta, percent;
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
+import 'target_detail.dart' show joinWords;
 import 'nights_strip.dart' show darkroomNightLabel, darkroomShortDate;
 
 part 'framing_check_parts/_field.dart';
@@ -33,6 +34,12 @@ const double _limitThumb = 56;
 /// Reason recorded in the build audit for a sub the operator left out here.
 const String darkroomLeftOutReason = 'Left out at the framing check';
 const String darkroomNightLeftOutReason = 'Night left out at the framing check';
+const String darkroomMissingFileReason = 'Not on this computer';
+
+/// Whether a sub's file is on this computer; replaceable in tests.
+final darkroomFileExistsProvider = Provider<bool Function(String path)>(
+  (ref) => (path) => File(path).existsSync(),
+);
 
 /// Picks a folder; replaceable in tests.
 final darkroomFolderPickerProvider = Provider<Future<String?> Function()>(
@@ -132,6 +139,21 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
   String? _error;
   String? _highlighted;
 
+  /// Kept subs whose files are not on this computer, while the operator
+  /// decides whether to build without them.
+  List<DbCapturedImage>? _missing;
+  int _keptCount = 0;
+
+  /// Whether the operator chose to build from the subs that are here.
+  bool _withoutMissing = false;
+
+  /// Matched calibration masters whose files are not on this computer, by
+  /// kind and filter, while the operator decides what to do.
+  List<({String kind, String filter, String path})>? _missingCalibration;
+
+  /// Whether the operator chose to build without those masters.
+  bool _withoutMissingCalibration = false;
+
   String get _key => widget.target.key;
   DarkroomBuildJobs get _jobs => ref.read(darkroomBuildJobsProvider.notifier);
 
@@ -155,23 +177,65 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
     if (job?.active == true) return;
     // A finished build is archived and another target's build waiting for
     // review is held by `checkFraming`, so neither is dismissed here.
+    final kept = [
+      for (final f in widget.target.frames)
+        if (f.isAccepted) f
+    ];
+    final exists = ref.read(darkroomFileExistsProvider);
+    final missing = [
+      for (final f in kept)
+        if (!exists(f.filePath)) f
+    ];
+    if (missing.isNotEmpty && !_withoutMissing) {
+      setState(() {
+        _missing = missing;
+        _keptCount = kept.length;
+        _error = null;
+      });
+      return;
+    }
     setState(() {
       _preparing = true;
+      _missing = null;
+      _missingCalibration = null;
       _error = null;
     });
     try {
       final service = ref.read(darkroomBuildServiceProvider);
-      final kept = [
-        for (final f in widget.target.frames)
-          if (f.isAccepted) f
+      final here = [
+        for (final f in kept)
+          if (!missing.contains(f)) f
       ];
-      final groups = await service.prepare(kept);
+      final groups = await service.prepare(here);
       if (groups.isEmpty) {
         throw StateError('No kept light frames to build from.');
       }
       final choices = ref.read(darkroomFlatChoicesProvider(_key));
       for (final e in choices.entries) {
         DarkroomBuildService.applyToFilter(groups, e.key, 'flat', e.value);
+      }
+      final gone = [
+        for (final g in groups)
+          for (final kind in const ['dark', 'bias', 'flat'])
+            if (g.calibration[kind] case final String path when !exists(path))
+              (kind: kind, filter: g.filter, path: path, group: g),
+      ];
+      if (gone.isNotEmpty && !_withoutMissingCalibration) {
+        if (mounted) {
+          setState(() => _missingCalibration = [
+                for (final m in gone)
+                  (kind: m.kind, filter: m.filter, path: m.path),
+              ]);
+        }
+        return;
+      }
+      for (final m in gone) {
+        m.group.calibration.remove(m.kind);
+        if (m.kind == 'dark') m.group.calibration.remove('scaleDark');
+        m.group.warnings.add(
+          'Built without the ${m.kind} master, which is not on this '
+          'computer: ${m.path}',
+        );
       }
       await service.checkCalibration(groups);
       final plan = service.plan(
@@ -186,6 +250,12 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
                 'path': f.filePath,
                 'reason': f.rejectionReason ?? 'Capture quality rejection',
               },
+          for (final f in missing)
+            {
+              'filter': f.filter,
+              'path': f.filePath,
+              'reason': darkroomMissingFileReason,
+            },
         ],
       );
       ref.read(darkroomFramingSessionProvider(_key).notifier).state =
@@ -295,6 +365,94 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
         onLeaveOut: (session, leftOut) => _applyLeftOut(session, leftOut, own),
         onBuild: () => _build(own, session),
         onDismissError: () => setState(() => _error = null),
+      );
+    } else if (_missing != null) {
+      final missing = _missing!;
+      final here = _keptCount - missing.length;
+      body = _Notice(
+        key: const ValueKey('darkroom_framing_missing'),
+        icon: SkotiqIcons.warning,
+        title: here == 0
+            ? 'None of the kept subs are on this computer'
+            : '${missing.length} of $_keptCount kept subs are not on this '
+                'computer',
+        body: 'Skotiq looks for them where they were saved, for example '
+            '${missing.first.filePath}. Connect the drive that holds them '
+            'and try again${here == 0 ? '.' : ', or build from the $here '
+                'subs that are here.'}',
+        tone: context.skotiqColors.warning,
+        action: Wrap(
+          spacing: SkotiqTokens.spaceSm,
+          runSpacing: SkotiqTokens.spaceSm,
+          alignment: WrapAlignment.center,
+          children: [
+            if (here > 0)
+              SkotiqButton(
+                key: const ValueKey('darkroom_framing_without_missing'),
+                label: 'Build from the $here here',
+                size: ButtonSize.small,
+                onPressed: () {
+                  _withoutMissing = true;
+                  unawaited(_start());
+                },
+              ),
+            SkotiqButton(
+              label: 'Try again',
+              icon: SkotiqIcons.refresh,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: _start,
+            ),
+          ],
+        ),
+      );
+    } else if (_missingCalibration != null) {
+      final gone = _missingCalibration!;
+      final kinds = {for (final m in gone) m.kind}.toList();
+      final filters = {for (final m in gone) m.filter}.toList();
+      body = _Notice(
+        key: const ValueKey('darkroom_framing_missing_calibration'),
+        icon: SkotiqIcons.warning,
+        title: 'Calibration masters are not on this computer',
+        body: 'The ${joinWords(kinds)} '
+            'master${gone.length == 1 ? '' : 's'} the library matched for '
+            '${joinWords(filters)} '
+            '${gone.length == 1 ? 'is' : 'are'} missing, for example '
+            '${gone.first.path}. Restore them, or remove them from the '
+            'library in the Calibration tab, and try again. You can also '
+            'build without them.',
+        tone: context.skotiqColors.warning,
+        action: Wrap(
+          spacing: SkotiqTokens.spaceSm,
+          runSpacing: SkotiqTokens.spaceSm,
+          alignment: WrapAlignment.center,
+          children: [
+            SkotiqButton(
+              key: const ValueKey('darkroom_framing_without_calibration'),
+              label: 'Build without them',
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () {
+                _withoutMissingCalibration = true;
+                unawaited(_start());
+              },
+            ),
+            SkotiqButton(
+              label: 'Open Calibration',
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () =>
+                  context.go(darkroomTabLocation(DarkroomTab.calibration)),
+            ),
+            SkotiqButton(
+              label: 'Try again',
+              icon: SkotiqIcons.refresh,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: _start,
+            ),
+          ],
+        ),
       );
     } else if (_preparing) {
       body = const _Notice(
@@ -439,6 +597,7 @@ class _TitleRow extends StatelessWidget {
 
 class _Notice extends StatelessWidget {
   const _Notice({
+    super.key,
     required this.icon,
     required this.title,
     this.body,
