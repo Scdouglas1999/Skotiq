@@ -212,3 +212,32 @@ fn home_mount_node_type_round_trips_through_the_wire_tag() {
         .build(&crate::NodeType::HomeMount)
         .is_some());
 }
+
+/// A home is the run's own move, and the tracking stop it leaves behind is
+/// the run's own: it must never read as a lost-tracking event.
+#[tokio::test]
+async fn homing_is_never_read_as_lost_tracking() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_mount_parked(false)
+            .with_mount_slewing_states(vec![true, true, false]),
+    );
+    let mut ctx = home_ctx(ops.clone()).await;
+    let mut state = crate::triggers::TriggerState::new();
+    state.set_mount_tracking_expected(true);
+    state.mount_is_tracking = Some(true);
+    let state = Arc::new(tokio::sync::RwLock::new(state));
+    ctx.trigger_state = Some(state.clone());
+
+    let result = execute_home_mount_with(&ctx, fast_home_timing()).await;
+    assert_eq!(result.status, NodeStatus::Success);
+
+    let mut state = state.write().await;
+    assert!(!state.guiding.in_motion());
+    assert!(!state.tracking.is_expected());
+    // The mount reads tracking off after the home: no loss.
+    assert!(!crate::executor::apply_mount_tracking_poll(
+        &mut state, false
+    ));
+    assert!(!state.tracking.is_lost());
+}

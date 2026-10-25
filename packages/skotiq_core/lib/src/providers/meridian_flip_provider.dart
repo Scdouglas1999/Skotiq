@@ -272,6 +272,11 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(trackingLimitWaitMinutes: minutes));
   }
 
+  /// Update what a run does when the mount stops at its own tracking limit
+  Future<void> setTrackingLimitPolicy(TrackingLimitPolicy policy) async {
+    await updateSettings(state.copyWith(trackingLimitPolicy: policy));
+  }
+
   /// Update pause guiding before flip
   Future<void> setPauseGuidingBeforeFlip(bool pause) async {
     await updateSettings(state.copyWith(pauseGuidingBeforeFlip: pause));

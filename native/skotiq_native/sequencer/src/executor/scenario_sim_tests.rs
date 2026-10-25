@@ -43,6 +43,83 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
+/// Sidereal hours that pass per solar second.
+const SIM_SIDEREAL_HOURS_PER_SECOND: f64 = 1.002_737_909_35 / 3600.0;
+
+/// A mount whose pointing behaves like a real one on a paused clock: tracking
+/// holds the right ascension, a stopped mount lets it climb at the sidereal
+/// rate, and a slew lands and then keeps moving for `settle_secs` while
+/// already reporting the slew done.
+#[derive(Debug, Clone)]
+pub(crate) struct SimMount {
+    ra_hours: f64,
+    dec_deg: f64,
+    axes_tracking: bool,
+    since: tokio::time::Instant,
+    settle_until: Option<tokio::time::Instant>,
+    /// Tracking-on commands the mount acknowledges, and then reads back as
+    /// on, without the axes starting.
+    pub(crate) ignore_tracking_on: u32,
+    /// How long the mount keeps moving after a slew reports done.
+    pub(crate) settle_secs: f64,
+    /// The last exposure started while the mount was still moving.
+    exposure_while_moving: bool,
+}
+
+impl SimMount {
+    pub(crate) fn tracking_at(ra_hours: f64, dec_deg: f64) -> Self {
+        Self {
+            ra_hours,
+            dec_deg,
+            axes_tracking: true,
+            since: tokio::time::Instant::now(),
+            settle_until: None,
+            ignore_tracking_on: 0,
+            settle_secs: 0.0,
+            exposure_while_moving: false,
+        }
+    }
+
+    pub(crate) fn stopped_at(ra_hours: f64, dec_deg: f64) -> Self {
+        Self {
+            axes_tracking: false,
+            ..Self::tracking_at(ra_hours, dec_deg)
+        }
+    }
+
+    fn resting_pointing(&self, now: tokio::time::Instant) -> (f64, f64) {
+        let mut ra = self.ra_hours;
+        if !self.axes_tracking {
+            ra += (now - self.since).as_secs_f64() * SIM_SIDEREAL_HOURS_PER_SECOND;
+        }
+        (ra.rem_euclid(24.0), self.dec_deg)
+    }
+
+    fn pointing(&self, now: tokio::time::Instant) -> (f64, f64) {
+        let (ra, mut dec) = self.resting_pointing(now);
+        if let Some(until) = self.settle_until.filter(|until| now < *until) {
+            // Still swinging in: ten arcseconds per second of remaining settle.
+            dec += (until - now).as_secs_f64() * 10.0 / 3600.0;
+        }
+        (ra, dec)
+    }
+
+    fn moving(&self, now: tokio::time::Instant) -> bool {
+        self.settle_until.is_some_and(|until| now < until)
+    }
+
+    fn set_axes_tracking(&mut self, tracking: bool, now: tokio::time::Instant) {
+        let (ra, _) = self.resting_pointing(now);
+        self.ra_hours = ra;
+        self.since = now;
+        self.axes_tracking = tracking;
+    }
+
+    pub(crate) fn axes_tracking(&self) -> bool {
+        self.axes_tracking
+    }
+}
+
 /// Scriptable device-ops double. Records every safety-relevant device call into
 /// a shared log and lets the test flip device state MID-RUN (the whole point of
 /// a disconnect-simulation harness). Everything not explicitly scripted
@@ -92,6 +169,9 @@ pub(crate) struct ScriptedDeviceOps {
     pub(crate) mount_slewing: Arc<AtomicBool>,
     /// Test mount changes pier side when slewed, as a successful flip does.
     pub(crate) flip_on_slew: Arc<AtomicBool>,
+    /// With `flip_on_slew`, a slew lands on the same side: the mount will not
+    /// take the other side for this pointing.
+    pub(crate) flip_refused: Arc<AtomicBool>,
     flipped: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
@@ -116,6 +196,8 @@ pub(crate) struct ScriptedDeviceOps {
     /// The star the guider measures, for selection floors and
     /// `guider_star_quality`. `None`: it cannot measure stars.
     pub(crate) guide_star: Arc<Mutex<Option<crate::GuideStarQuality>>>,
+    /// A mount with a moving pointing; `None` keeps the fixed null pointing.
+    sim_mount: Arc<Mutex<Option<SimMount>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -138,6 +220,7 @@ impl ScriptedDeviceOps {
             no_guide_star: Arc::new(AtomicBool::new(false)),
             mount_slewing: Arc::new(AtomicBool::new(false)),
             flip_on_slew: Arc::new(AtomicBool::new(false)),
+            flip_refused: Arc::new(AtomicBool::new(false)),
             flipped: Arc::new(AtomicBool::new(false)),
             camera_failures: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             exposure_calls: Arc::new(AtomicU32::new(0)),
@@ -148,7 +231,21 @@ impl ScriptedDeviceOps {
             mount_position: Arc::new(Mutex::new((2.3, 42.3))),
             guide_drag_deg: Arc::new(Mutex::new(0.0)),
             guide_star: Arc::new(Mutex::new(None)),
+            sim_mount: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Drive the mount's pointing from `mount`; its tracking flag starts as
+    /// the axes do.
+    pub(crate) fn attach_sim_mount(&self, mount: SimMount) {
+        self.mount_tracking
+            .store(mount.axes_tracking, Ordering::SeqCst);
+        *self.sim_mount.lock().unwrap() = Some(mount);
+    }
+
+    /// The simulated mount as it is now.
+    pub(crate) fn sim_mount(&self) -> Option<SimMount> {
+        self.sim_mount.lock().unwrap().clone()
     }
 
     /// Fail the next exposures with these errors, one each.
@@ -298,6 +395,9 @@ impl DeviceOps for ScriptedDeviceOps {
         } else {
             self.mount_parked.store(true, Ordering::SeqCst);
             self.mount_tracking.store(false, Ordering::SeqCst);
+            if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+                mount.set_axes_tracking(false, tokio::time::Instant::now());
+            }
             Ok(())
         }
     }
@@ -310,6 +410,14 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
         self.record(format!("mount_set_tracking:{mount_id}:{enabled}"));
         self.mount_tracking.store(enabled, Ordering::SeqCst);
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            let now = tokio::time::Instant::now();
+            if enabled && mount.ignore_tracking_on > 0 {
+                mount.ignore_tracking_on -= 1;
+            } else {
+                mount.set_axes_tracking(enabled, now);
+            }
+        }
         Ok(())
     }
 
@@ -339,8 +447,15 @@ impl DeviceOps for ScriptedDeviceOps {
 
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.record(format!("mount_slew:{id}"));
-        if self.flip_on_slew.load(Ordering::SeqCst) {
+        if self.flip_on_slew.load(Ordering::SeqCst) && !self.flip_refused.load(Ordering::SeqCst) {
             self.flipped.store(true, Ordering::SeqCst);
+        }
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            let now = tokio::time::Instant::now();
+            mount.ra_hours = ra;
+            mount.dec_deg = dec;
+            mount.since = now;
+            mount.settle_until = Some(now + std::time::Duration::from_secs_f64(mount.settle_secs));
         }
         self.inner.mount_slew_to_coordinates(id, ra, dec).await
     }
@@ -348,6 +463,9 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.mount_abort_slew(id).await
     }
     async fn mount_get_coordinates(&self, _id: &str) -> DeviceResult<(f64, f64)> {
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_ref() {
+            return Ok(mount.pointing(tokio::time::Instant::now()));
+        }
         Ok(*self.mount_position.lock().unwrap())
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
@@ -385,6 +503,9 @@ impl DeviceOps for ScriptedDeviceOps {
         by: i32,
     ) -> DeviceResult<ImageData> {
         self.exposure_calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
+        }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
             return Err(error);
         }
@@ -465,6 +586,16 @@ impl DeviceOps for ScriptedDeviceOps {
         self.record("plate_solve");
         if self.plate_solve_fails.load(Ordering::SeqCst) {
             return Err("no solution: too few stars".to_string());
+        }
+        if self
+            .sim_mount
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|mount| mount.exposure_while_moving)
+        {
+            // A frame taken while the mount swings in trails every star.
+            return Err("Only 1 stars found, minimum is 6".to_string());
         }
         self.inner.plate_solve(d, ra, dec, s).await
     }
@@ -3209,4 +3340,71 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
             .any(|c| c.starts_with("focuser_move") || c.starts_with("mount_slew")),
         "calls={calls:?}"
     );
+}
+
+// A mount stopped at its limit can accept tracking on and read it back as on
+// without moving. A tracking-loss attempt succeeds only when the axes follow
+// the sky.
+#[tokio::test(start_paused = true)]
+async fn tracking_recovery_is_not_fooled_by_a_tracking_flag_that_reads_on() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    let mut mount = SimMount::stopped_at(2.3759, 42.3491);
+    mount.ignore_tracking_on = 1;
+    ops_concrete.attach_sim_mount(mount);
+    let (manager, _state) = manager_with_state().await;
+
+    let first = super::run_recovery_attempt(
+        &RecoveryCause::MountTrackingLost,
+        &ops,
+        Some("mount-1"),
+        &[],
+        &manager,
+    )
+    .await;
+    assert!(
+        matches!(&first, AttemptOutcome::Failed { message } if message.contains("not tracking")),
+        "a mount whose RA climbs is not tracking, whatever the flag says: {first:?}"
+    );
+    assert_eq!(ops_concrete.mount_is_tracking("mount-1").await, Ok(true));
+
+    // The next attempt sends tracking on again, and this time the axes start.
+    let second = super::run_recovery_attempt(
+        &RecoveryCause::MountTrackingLost,
+        &ops,
+        Some("mount-1"),
+        &[],
+        &manager,
+    )
+    .await;
+    assert_eq!(second, AttemptOutcome::Succeeded);
+    assert!(ops_concrete.sim_mount().unwrap().axes_tracking());
+    assert_eq!(
+        ops_concrete.call_count("mount_set_tracking:mount-1:true"),
+        2
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn tracking_recovery_never_succeeds_on_a_mount_that_stays_stopped() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    let mut mount = SimMount::stopped_at(2.3759, 42.3491);
+    mount.ignore_tracking_on = u32::MAX;
+    ops_concrete.attach_sim_mount(mount);
+    let (manager, _state) = manager_with_state().await;
+    for _ in 0..5 {
+        let outcome = super::run_recovery_attempt(
+            &RecoveryCause::MountTrackingLost,
+            &ops,
+            Some("mount-1"),
+            &[],
+            &manager,
+        )
+        .await;
+        assert!(
+            matches!(outcome, AttemptOutcome::Failed { .. }),
+            "{outcome:?}"
+        );
+    }
 }

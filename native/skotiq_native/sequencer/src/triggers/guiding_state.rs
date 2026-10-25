@@ -93,16 +93,21 @@ impl GuidingState {
         self.set_star_lost(false);
     }
 
+    /// Whether a run imaging unguided is due to try starting guiding again:
+    /// it has been `interval` since it went unguided or last tried.
+    pub fn unguided_retry_due(&self, interval: std::time::Duration) -> bool {
+        self.unguided
+            && !self.in_motion()
+            && self
+                .last_unguided_attempt
+                .is_none_or(|last| last.elapsed() >= interval)
+    }
+
     /// Whether a run imaging unguided should try to start guiding again: it
     /// has been `interval` since it went unguided or last tried. Taking a
     /// due attempt starts the next interval.
     pub fn take_unguided_retry(&mut self, interval: std::time::Duration) -> bool {
-        if !self.unguided || self.in_motion() {
-            return false;
-        }
-        let due = self
-            .last_unguided_attempt
-            .is_none_or(|last| last.elapsed() >= interval);
+        let due = self.unguided_retry_due(interval);
         if due {
             self.last_unguided_attempt = Some(tokio::time::Instant::now());
         }

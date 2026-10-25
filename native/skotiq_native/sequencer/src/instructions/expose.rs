@@ -293,6 +293,7 @@ pub async fn execute_exposure_with_renderer(
         // the frame's registration below happen once, for the attempt that
         // returned an image, so frames on disk still equal frames recorded.
         let mut camera_retries_done = 0u32;
+        let mut waiting_for_tracking_since: Option<tokio::time::Instant> = None;
         let (mut image_data, exposure_started_at) = loop {
             if let Some(result) = ctx.check_cancelled() {
                 return result;
@@ -392,9 +393,28 @@ pub async fn execute_exposure_with_renderer(
             // Resume only after the hold and imaging-train gates. Otherwise a
             // pending restart can turn guiding back on during a tracking-limit hold.
             if frame_type_requires_darkness(&config.frame_type) {
-                if let Some(result) = resume_guiding_after_motion(ctx).await {
-                    frame_claim.release(ctx).await;
-                    return result;
+                match prepare_guiding_for_frame(ctx, &mut waiting_for_tracking_since).await {
+                    GuidingForFrame::Ready => {}
+                    GuidingForFrame::Stop(result) => {
+                        frame_claim.release(ctx).await;
+                        return result;
+                    }
+                    // Restarting guiding took time, so the meridian gate's
+                    // estimate is stale: run the gates again.
+                    GuidingForFrame::Resumed => {
+                        frame_claim.release(ctx).await;
+                        continue;
+                    }
+                    GuidingForFrame::WaitForTracking => {
+                        frame_claim.release(ctx).await;
+                        tokio::select! {
+                            _ = sleep(Duration::from_secs(2)) => {}
+                            _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
+                                return InstructionResult::cancelled("Exposure cancelled");
+                            }
+                        }
+                        continue;
+                    }
                 }
             }
 
@@ -474,6 +494,24 @@ pub async fn execute_exposure_with_renderer(
                 },
             }
         };
+
+        // A light frame that was exposing when the mount stopped tracking is
+        // trailed whatever its star count says; it is rejected below.
+        let untracked_reason = if is_light_frame {
+            untracked_exposure_reason(ctx, exposure_started_at).await
+        } else {
+            None
+        };
+        if let Some(reason) = &untracked_reason {
+            let message = format!(
+                "Frame {}/{}: {reason}. It is marked rejected.",
+                frame, config.count
+            );
+            tracing::warn!("[SEQ] {}", message);
+            if let Some(event_tx) = &ctx.event_tx {
+                let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+            }
+        }
 
         // per-frame defect-map application.
         //
@@ -728,6 +766,19 @@ pub async fn execute_exposure_with_renderer(
                 }
             } else {
                 (crate::quality::FrameGrade::Pass, base_path.clone(), false)
+            };
+            let (grade, save_dir, was_graded) = match untracked_reason.clone() {
+                Some(reason) => (
+                    crate::quality::FrameGrade::Reject {
+                        reason,
+                        hfr: None,
+                        eccentricity: None,
+                        star_count: None,
+                    },
+                    resolve_reject_dir(&base_path, reject_folder_override.as_deref()),
+                    true,
+                ),
+                None => (grade, save_dir, was_graded),
             };
 
             // Ensure reject dir exists if grading routed us there. The dir
@@ -1060,6 +1111,134 @@ pub async fn execute_exposure_with_renderer(
         })),
         hfr_values,
     }
+}
+
+/// What a light frame does about guiding before it starts.
+enum GuidingForFrame {
+    /// Nothing to restart, or nothing more to wait for.
+    Ready,
+    /// Guiding was restarted; the frame's gates must be run again.
+    Resumed,
+    /// Guiding waits for the mount to track again.
+    WaitForTracking,
+    Stop(InstructionResult),
+}
+
+/// How long a frame waits for a stopped mount before it is taken unguided.
+/// The tracking triggers pause the run long before this on a real stop.
+const TRACKING_WAIT_BEFORE_FRAME: Duration = Duration::from_secs(120);
+
+/// Restart guiding before a light frame: guiding the run's own move stopped,
+/// and, while the run images unguided, a retry each
+/// [`super::guiding::UNGUIDED_RETRY_INTERVAL`]. Never on a mount that is not
+/// tracking or while the run holds it: guiding a stopped mount only drags the
+/// star. A pending restart waits for the mount; a due unguided retry is left
+/// for a later frame.
+async fn prepare_guiding_for_frame(
+    ctx: &InstructionContext,
+    waiting_since: &mut Option<tokio::time::Instant>,
+) -> GuidingForFrame {
+    let Some(trigger_state) = ctx.trigger_state.as_ref() else {
+        return GuidingForFrame::Ready;
+    };
+    let (pending, retry_due, held, stopped) = {
+        let state = trigger_state.read().await;
+        (
+            state.guiding.resume_pending(),
+            state
+                .guiding
+                .unguided_retry_due(super::guiding::UNGUIDED_RETRY_INTERVAL),
+            state.run.is_held_by_run(),
+            state.mount_is_tracking == Some(false),
+        )
+    };
+    if !pending && !retry_due {
+        *waiting_since = None;
+        return GuidingForFrame::Ready;
+    }
+    if held || stopped {
+        if !pending {
+            return GuidingForFrame::Ready;
+        }
+        return wait_for_tracking(
+            ctx,
+            waiting_since,
+            if held {
+                "held by the run"
+            } else {
+                "not tracking"
+            },
+        );
+    }
+    if let Some(result) = resume_guiding_after_motion(ctx).await {
+        return GuidingForFrame::Stop(result);
+    }
+    // The restart found the mount not tracking and left the restart pending.
+    if trigger_state.read().await.guiding.resume_pending() {
+        return wait_for_tracking(ctx, waiting_since, "not tracking");
+    }
+    *waiting_since = None;
+    GuidingForFrame::Resumed
+}
+
+/// Wait for the mount before a pending guiding restart, up to
+/// [`TRACKING_WAIT_BEFORE_FRAME`]; then the frame is taken without it.
+fn wait_for_tracking(
+    ctx: &InstructionContext,
+    waiting_since: &mut Option<tokio::time::Instant>,
+    mount_state: &str,
+) -> GuidingForFrame {
+    let first = waiting_since.is_none();
+    let since = *waiting_since.get_or_insert_with(tokio::time::Instant::now);
+    if since.elapsed() < TRACKING_WAIT_BEFORE_FRAME {
+        if first {
+            tracing::info!("[GUIDING] Not restarting guiding: the mount is {mount_state}");
+        }
+        return GuidingForFrame::WaitForTracking;
+    }
+    let message = "The mount still reads tracking off; the next frame is taken without \
+                   restarting guiding."
+        .to_string();
+    tracing::warn!("[GUIDING] {}", message);
+    if let Some(event_tx) = &ctx.event_tx {
+        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+    }
+    *waiting_since = None;
+    GuidingForFrame::Ready
+}
+
+/// Why a light frame started at `started` was not tracked throughout, if it
+/// was not: the mount stopped during it, or a tracking-limit hold began.
+async fn untracked_exposure_reason(
+    ctx: &InstructionContext,
+    started: chrono::DateTime<chrono::Utc>,
+) -> Option<String> {
+    let trigger_state = ctx.trigger_state.as_ref()?;
+    let (limit_hold, lost_since_start, expected, run_owns_tracking) = {
+        let state = trigger_state.read().await;
+        (
+            state.run.hold() == Some(crate::triggers::RunHold::TrackingLimit),
+            state
+                .tracking
+                .last_loss_at()
+                .is_some_and(|at| at >= started.timestamp()),
+            state.tracking.is_expected(),
+            state.run.is_held_by_run() || state.guiding.in_motion(),
+        )
+    };
+    if limit_hold || lost_since_start {
+        return Some("the mount stopped tracking during this exposure".to_string());
+    }
+    // The monitor polls on its own cadence; a stop in the last seconds of the
+    // frame is read from the mount directly.
+    if expected && !run_owns_tracking {
+        if let Some(mount_id) = ctx.mount_id.as_deref() {
+            if matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+                return Some("the mount was not tracking at the end of this exposure".to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Whether a burst skips its dither because the run is imaging unguided (the

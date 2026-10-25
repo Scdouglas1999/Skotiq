@@ -92,8 +92,8 @@ pub fn flip_still_due(
     hour_angle_hours.is_some_and(|ha| flip_window_open(ha, pier_side, threshold_hours))
 }
 
-/// A limit stop must not move the user's scheduled flip earlier. Limit-based
-/// modes have no hour-angle threshold, but still wait until after transit.
+/// The hour angle at which a tracking-limit hold that waits flips: the
+/// configured window, or transit for the limit-based methods.
 pub(crate) fn tracking_limit_flip_threshold(config: &crate::MeridianFlipConfig) -> f64 {
     match config.trigger_method {
         crate::MeridianTriggerMethod::MinutesPastMeridian => config.minutes_past_meridian / 60.0,
@@ -103,9 +103,109 @@ pub(crate) fn tracking_limit_flip_threshold(config: &crate::MeridianFlipConfig) 
     .max(0.0)
 }
 
+/// Whether the flip that ends a tracking-limit hold may run now.
+///
+/// The hold only exists for a mount stopped on the west side, the pre-flip
+/// side before transit, so under [`crate::TrackingLimitPolicy::FlipEarly`] the
+/// flip is due at once, east of the meridian too: the mount cannot track there
+/// any longer, and the east side can. That is the one exception to "an east
+/// target never flips". A mount that refused the early flip, and the
+/// `WaitForFlipWindow` policy, wait for [`tracking_limit_flip_threshold`].
+pub(crate) fn tracking_limit_flip_due(
+    config: &crate::MeridianFlipConfig,
+    hour_angle_hours: f64,
+    pier_side: Option<PierSide>,
+    early_flip_refused: bool,
+) -> bool {
+    if !hour_angle_hours.is_finite() {
+        return false;
+    }
+    if config.tracking_limit_policy == crate::TrackingLimitPolicy::FlipEarly && !early_flip_refused
+    {
+        return pier_side == Some(PierSide::West);
+    }
+    flip_window_open(
+        hour_angle_hours,
+        pier_side,
+        tracking_limit_flip_threshold(config),
+    )
+}
+
+/// Whether a tracking-limit flip that runs now is an early one: due only
+/// because of [`crate::TrackingLimitPolicy::FlipEarly`], with the configured
+/// window still closed.
+pub(crate) fn tracking_limit_flip_is_early(
+    config: &crate::MeridianFlipConfig,
+    hour_angle_hours: f64,
+    pier_side: Option<PierSide>,
+) -> bool {
+    !flip_window_open(
+        hour_angle_hours,
+        pier_side,
+        tracking_limit_flip_threshold(config),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_tracking_limit_policy_reads_from_the_app_json_and_defaults_to_flipping_early() {
+        let saved: crate::MeridianFlipConfig = serde_json::from_value(serde_json::json!({
+            "trigger_method": "MinutesPastMeridian",
+            "minutes_past_meridian": 20.0,
+            "minutes_before_limit": 10.0,
+            "hour_angle_threshold": 0.5,
+            "pause_guiding": true,
+            "auto_center": true,
+            "refocus_after": false,
+            "settle_time": 10.0,
+            "resume_guiding": true,
+            "max_retries": 3,
+            "retry_delays_secs": [30.0, 60.0, 120.0],
+            "failure_action": "PauseAndAlert",
+        }))
+        .unwrap();
+        assert_eq!(
+            saved.tracking_limit_policy,
+            crate::TrackingLimitPolicy::FlipEarly
+        );
+        let mut json = serde_json::to_value(&saved).unwrap();
+        json["tracking_limit_policy"] = "WaitForFlipWindow".into();
+        let waiting: crate::MeridianFlipConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(
+            waiting.tracking_limit_policy,
+            crate::TrackingLimitPolicy::WaitForFlipWindow
+        );
+    }
+
+    #[test]
+    fn a_tracking_limit_stop_flips_early_by_default_and_waits_when_asked() {
+        let mut config = crate::MeridianFlipConfig {
+            minutes_past_meridian: 20.0,
+            ..Default::default()
+        };
+        let west = Some(PierSide::West);
+        assert!(tracking_limit_flip_due(&config, -0.55, west, false));
+        assert!(tracking_limit_flip_is_early(&config, -0.55, west));
+        // Only a mount known to be on the west side flips early.
+        assert!(!tracking_limit_flip_due(&config, -0.55, None, false));
+        assert!(!tracking_limit_flip_due(
+            &config,
+            -0.55,
+            Some(PierSide::East),
+            false
+        ));
+        // A refused early flip waits for the configured window.
+        assert!(!tracking_limit_flip_due(&config, -0.55, west, true));
+        assert!(!tracking_limit_flip_due(&config, 0.2, west, true));
+        assert!(tracking_limit_flip_due(&config, 0.34, west, true));
+        assert!(!tracking_limit_flip_is_early(&config, 0.34, west));
+        config.tracking_limit_policy = crate::TrackingLimitPolicy::WaitForFlipWindow;
+        assert!(!tracking_limit_flip_due(&config, -0.55, west, false));
+        assert!(tracking_limit_flip_due(&config, 0.34, west, false));
+    }
 
     /// The target-change case: requested on the old pointing's pier side,
     /// run after the next target's slew put the mount on the post-flip side.

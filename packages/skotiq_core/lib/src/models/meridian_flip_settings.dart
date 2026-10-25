@@ -65,6 +65,33 @@ extension MeridianTriggerMethodExtension on MeridianTriggerMethod {
   }
 }
 
+/// What a run does when the mount stops tracking on the west side of the
+/// pier before the flip window, as a mount does at its own tracking limit.
+enum TrackingLimitPolicy {
+  /// Flip to the east side as soon as the stop is seen. A mount that will
+  /// not take the east side yet falls back to waiting for the window.
+  flipEarly,
+
+  /// Hold with tracking off until the flip window opens, then flip.
+  waitForFlipWindow,
+}
+
+extension TrackingLimitPolicyExtension on TrackingLimitPolicy {
+  String get displayName => switch (this) {
+    TrackingLimitPolicy.flipEarly => 'Flip right away',
+    TrackingLimitPolicy.waitForFlipWindow => 'Wait for the flip window',
+  };
+
+  String get description => switch (this) {
+    TrackingLimitPolicy.flipEarly =>
+      'Flip to the other side of the pier as soon as tracking stops, so '
+          'imaging resumes within minutes. If the mount will not flip yet, '
+          'the run waits for the flip window instead.',
+    TrackingLimitPolicy.waitForFlipWindow =>
+      'Hold with tracking off until the flip window opens, then flip.',
+  };
+}
+
 /// Action to take when meridian flip fails after all retries
 enum FlipFailureAction {
   /// Pause sequence and alert user for manual intervention
@@ -129,6 +156,11 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
     /// cannot track through the meridian, such as one whose tube hits the
     /// tripod there. Only used with the minutesPastMeridian trigger method.
     @Default(0.0) double pauseBeforeMeridianMinutes,
+
+    /// What to do when the mount stops tracking on the west side before the
+    /// flip window (its own tracking limit). See [TrackingLimitPolicy].
+    @Default(TrackingLimitPolicy.flipEarly)
+    TrackingLimitPolicy trackingLimitPolicy,
 
     // Flip sequence options
     /// Pause guider before flip

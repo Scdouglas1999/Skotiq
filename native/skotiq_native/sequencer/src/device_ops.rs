@@ -148,6 +148,18 @@ impl GuideStarFloor {
     }
 }
 
+impl GuidingStatus {
+    /// The RMS for a log line. A total of exactly zero is an empty statistics
+    /// window (guiding just started), not perfect guiding, so it says so.
+    pub fn rms_summary(&self) -> String {
+        if self.rms_total > 0.0 {
+            format!("RMS total {:.2} px", self.rms_total)
+        } else {
+            "no guide samples yet".to_string()
+        }
+    }
+}
+
 /// Guiding calibration snapshot, surfaced for post-start quality checks.
 ///
 /// Both axis angles are in degrees and may be `None` if the underlying

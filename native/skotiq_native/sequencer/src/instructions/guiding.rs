@@ -568,10 +568,7 @@ async fn start_guiding(
                         // PHD2 empties it when guiding starts, so no guide step
                         // has been measured yet.
                         Ok(status) if status.is_guiding && status.rms_total > 0.0 => {
-                            tracing::info!(
-                                "Guiding confirmed active: RMS total={:.2} px",
-                                status.rms_total
-                            );
+                            tracing::info!("Guiding confirmed active: {}", status.rms_summary());
                             guiding_confirmed = true;
                             break;
                         }

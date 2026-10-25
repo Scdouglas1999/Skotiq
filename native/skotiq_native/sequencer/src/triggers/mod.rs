@@ -74,5 +74,7 @@ mod filter_change_edge_tests;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use meridian_window::tracking_limit_flip_threshold;
+pub(crate) use meridian_window::{
+    tracking_limit_flip_due, tracking_limit_flip_is_early, tracking_limit_flip_threshold,
+};
 pub(crate) use state::tracking_limit_recovery_candidate;

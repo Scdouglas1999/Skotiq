@@ -330,10 +330,11 @@ impl Trigger {
                         return false;
                     }
                     return state.current_hour_angle.is_some_and(|ha| {
-                        super::flip_window_open(
+                        super::tracking_limit_flip_due(
+                            config,
                             ha,
                             state.pier_side,
-                            super::tracking_limit_flip_threshold(config),
+                            state.run.early_flip_refused(),
                         )
                     });
                 }

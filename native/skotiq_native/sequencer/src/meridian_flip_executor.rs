@@ -143,6 +143,11 @@ pub struct MeridianFlipExecutor {
     /// post-flip recenter that failed twice before succeeding is a real
     /// framing risk the operator must see in the session report.
     failed_attempts: Vec<String>,
+    /// The flip resolves a tracking-limit stop before the configured window.
+    /// A mount that does not reach the other side then refused the early
+    /// flip: nothing is retried and no failure action runs, and the result
+    /// is `Aborted` so the hold can wait for the window instead.
+    early_tracking_limit_flip: bool,
 }
 
 impl MeridianFlipExecutor {
@@ -159,7 +164,14 @@ impl MeridianFlipExecutor {
             abort_requested: Arc::new(AtomicBool::new(false)),
             attempts_made: 0,
             failed_attempts: Vec::new(),
+            early_tracking_limit_flip: false,
         }
+    }
+
+    /// Mark this flip as an early tracking-limit flip; see the field.
+    pub fn with_early_tracking_limit_flip(mut self, early: bool) -> Self {
+        self.early_tracking_limit_flip = early;
+        self
     }
 
     /// Attempts made by the most recent [`Self::execute`] call (0 before the
@@ -571,6 +583,35 @@ impl MeridianFlipExecutor {
                         return FlipResult::Aborted { reason };
                     }
 
+                    // The pier side is verified once `next_step` has moved past it.
+                    let pier_verified = next_step > 0;
+                    if self.early_tracking_limit_flip && !pier_verified {
+                        let reason = format!("the mount did not take the east side: {e}");
+                        tracing::warn!("[MERIDIAN] Early tracking-limit flip refused: {}", e);
+                        self.emit_event(MeridianFlipEvent::Aborted {
+                            reason: reason.clone(),
+                        });
+                        return FlipResult::Aborted { reason };
+                    }
+                    if attempt >= max_attempts
+                        && pier_verified
+                        && !self.stops_on_quality_problems(ctx).await
+                    {
+                        // The mount is on its new side: whatever failed after
+                        // that (centering, guiding, tracking confirmation) is
+                        // told to the operator and the run goes on. The flip
+                        // was recorded when the side was verified.
+                        self.carry_on_after_flip(ctx, &e).await;
+                        let duration = start_time.elapsed().as_secs_f64();
+                        self.emit_event(MeridianFlipEvent::Completed {
+                            new_pier_side: verified_pier_side,
+                            duration_secs: duration,
+                        });
+                        return FlipResult::Success {
+                            new_pier_side: verified_pier_side,
+                            duration_secs: duration,
+                        };
+                    }
                     if attempt < max_attempts {
                         // With user-provided delays, saturate on the LAST entry; with an
                         // empty array AND retries configured, refuse to retry (return the
@@ -714,10 +755,10 @@ impl MeridianFlipExecutor {
             steps.push(FlipStep::PausingGuider);
         }
 
-        steps.push(FlipStep::StoppingTracking);
+        steps.push(FlipStep::EnablingTracking);
         steps.push(FlipStep::SlewingToTarget);
         steps.push(FlipStep::VerifyingPierSide);
-        steps.push(FlipStep::ResumingTracking);
+        steps.push(FlipStep::ConfirmingTracking);
 
         if self.config.auto_center {
             steps.push(FlipStep::PlateSolvingAndCentering);
@@ -764,7 +805,7 @@ impl MeridianFlipExecutor {
 
             let result = match step {
                 FlipStep::PausingGuider => self.pause_guider(ctx).await,
-                FlipStep::StoppingTracking => self.stop_tracking(ctx).await,
+                FlipStep::EnablingTracking => self.enable_tracking(ctx).await,
                 FlipStep::SlewingToTarget => {
                     self.slew_to_target(ctx, ctx.target_ra_hours, ctx.target_dec_degrees)
                         .await
@@ -773,12 +814,13 @@ impl MeridianFlipExecutor {
                     match self.verify_pier_side_changed(ctx, pre_flip_pier_side).await {
                         Ok(ps) => {
                             *new_pier_side = ps;
+                            self.record_flip(ctx, ps).await;
                             Ok(())
                         }
                         Err(e) => Err(e),
                     }
                 }
-                FlipStep::ResumingTracking => self.resume_tracking(ctx).await,
+                FlipStep::ConfirmingTracking => self.confirm_tracking(ctx).await,
                 FlipStep::PlateSolvingAndCentering => self.plate_solve_and_center(ctx).await,
                 FlipStep::Refocusing => self.run_autofocus(ctx, idx, total_steps).await,
                 FlipStep::ResumingGuider => self.resume_guider(ctx).await,
@@ -859,15 +901,64 @@ impl MeridianFlipExecutor {
         }
     }
 
-    async fn stop_tracking(&self, ctx: &FlipContext) -> Result<(), String> {
+    /// Every slew tracks, the flip's included: a mount stopped at its limit
+    /// gets tracking back on before it moves, and a pier side read by
+    /// coordinates is then compared on a tracking mount.
+    async fn enable_tracking(&self, ctx: &FlipContext) -> Result<(), String> {
         if ctx.simulate {
-            tracing::info!("[MERIDIAN] (dry-run) Would stop tracking — skipping device command");
+            tracing::info!("[MERIDIAN] (dry-run) Would turn tracking on — skipping device command");
             return Ok(());
         }
-        tracing::info!("[MERIDIAN] Stopping tracking...");
+        tracing::info!("[MERIDIAN] Turning tracking on for the flip slew...");
         self.device_ops
-            .mount_set_tracking(&ctx.mount_id, false)
+            .mount_set_tracking(&ctx.mount_id, true)
             .await
+    }
+
+    /// Record the flip the moment the new side is verified, so a failure in a
+    /// later step can neither repeat the flip nor leave a hold waiting for it.
+    async fn record_flip(&self, ctx: &FlipContext, new_pier_side: PierSide) {
+        if ctx.simulate {
+            return;
+        }
+        if let Some(ts) = ctx.trigger_state.as_ref() {
+            let mut state = ts.write().await;
+            if !matches!(new_pier_side, PierSide::Unknown) {
+                state.pier_side = Some(new_pier_side);
+            }
+            state.mark_flip_performed();
+        }
+    }
+
+    async fn stops_on_quality_problems(&self, ctx: &FlipContext) -> bool {
+        match &ctx.trigger_state {
+            Some(state) => state.read().await.stop_on_quality_problems,
+            None => false,
+        }
+    }
+
+    /// Tell the operator what failed after a verified flip and that the run
+    /// goes on.
+    async fn carry_on_after_flip(&self, ctx: &FlipContext, problem: &str) {
+        let continuation = crate::executor::quality_problem_continuation(
+            "After the meridian flip",
+            &format!(
+                "{problem}. The mount is on its new pier side; imaging continues and guiding is \
+                 started again before the next frame."
+            ),
+            serde_json::json!({ "target_name": ctx.target_name }),
+        );
+        tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
+        if let Some(tx) = &self.decision_tx {
+            let mut decision = continuation.decision;
+            decision.sequence_run_id = *self.active_sequence_run_id.read();
+            let _ = tx.send(decision);
+        }
+        if let Some(tx) = &self.executor_event_tx {
+            let _ = tx.send(ExecutorEvent::Warning {
+                message: continuation.operator_message,
+            });
+        }
     }
 
     async fn slew_to_target(
@@ -1079,15 +1170,51 @@ impl MeridianFlipExecutor {
         Ok(new_pier_side)
     }
 
-    async fn resume_tracking(&self, ctx: &FlipContext) -> Result<(), String> {
+    /// Confirm from the pointing that the mount tracks on its new side. A
+    /// mount that acknowledged tracking without starting is told again.
+    async fn confirm_tracking(&self, ctx: &FlipContext) -> Result<(), String> {
         if ctx.simulate {
-            tracing::info!("[MERIDIAN] (dry-run) Would resume tracking — skipping device command");
+            tracing::info!("[MERIDIAN] (dry-run) Would confirm tracking — skipping device command");
             return Ok(());
         }
-        tracing::info!("[MERIDIAN] Resuming tracking...");
+        tracing::info!("[MERIDIAN] Confirming the mount tracks after the flip...");
+        const CONFIRM_BOUND: std::time::Duration = std::time::Duration::from_secs(120);
+        let deadline = tokio::time::Instant::now() + CONFIRM_BOUND;
         self.device_ops
             .mount_set_tracking(&ctx.mount_id, true)
+            .await?;
+        loop {
+            if self.is_cancelled(ctx) {
+                return Err("Abort requested while confirming tracking".to_string());
+            }
+            let problem = match crate::tracking_check::confirm_mount_tracks(
+                &self.device_ops,
+                &ctx.mount_id,
+                crate::tracking_check::TRACKING_CHECK_WINDOW,
+            )
             .await
+            {
+                Ok(()) => return Ok(()),
+                Err(crate::tracking_check::NotTracking::StillMoving(why)) => why,
+                Err(other) => {
+                    tracing::warn!(
+                        "[MERIDIAN] The mount is not tracking after the flip ({}); turning \
+                         tracking on again",
+                        other
+                    );
+                    self.device_ops
+                        .mount_set_tracking(&ctx.mount_id, true)
+                        .await?;
+                    other.to_string()
+                }
+            };
+            if tokio::time::Instant::now() >= deadline {
+                return Err(format!(
+                    "The mount does not track after the flip: {problem}"
+                ));
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
     }
 
     async fn plate_solve_and_center(&self, ctx: &FlipContext) -> Result<(), String> {
@@ -1101,8 +1228,9 @@ impl MeridianFlipExecutor {
 
         let camera_id = ctx.camera_id.as_ref().ok_or("No camera configured")?;
 
+        let mut last_failure = String::new();
         for _ in 0..3 {
-            self.wait_settle(ctx).await?;
+            self.wait_for_mount_to_settle(ctx).await?;
             // 5 s @ 1x1 is enough exposure for typical equatorial fields to get a
             // solvable star count without burning time; deep mosaics with sparse
             // fields should use the dedicated Center node with a longer exposure.
@@ -1123,14 +1251,21 @@ impl MeridianFlipExecutor {
                     None,
                 )
                 .await;
+            // A frame that does not solve is taken again after another
+            // settle: one taken while the mount still moved trails every star.
             let result = match solve {
                 Ok(result) if result.success => result,
                 Ok(_) => {
-                    return Err(
-                        "Plate solve failed: no solution; target centering is unverified".into(),
-                    )
+                    last_failure =
+                        "Plate solve failed: no solution; target centering is unverified".into();
+                    tracing::warn!("[MERIDIAN] {}; taking another frame", last_failure);
+                    continue;
                 }
-                Err(error) => return Err(format!("Plate solve failed: {error}")),
+                Err(error) => {
+                    last_failure = format!("Plate solve failed: {error}");
+                    tracing::warn!("[MERIDIAN] {}; taking another frame", last_failure);
+                    continue;
+                }
             };
 
             let ra_offset =
@@ -1209,7 +1344,46 @@ impl MeridianFlipExecutor {
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
         }
-        Err("Post-flip centering did not converge after three solves".into())
+        if last_failure.is_empty() {
+            Err("Post-flip centering did not converge after three solves".into())
+        } else {
+            Err(format!("{last_failure} (three frames tried)"))
+        }
+    }
+
+    /// Wait for the mount to come to rest before a solve frame: not slewing,
+    /// tracking, and its pointing holding still. A mount can report a slew
+    /// done while it is still swinging in, and a frame taken then trails.
+    /// Bounded; on the bound the frame is taken anyway and the solve judges.
+    async fn wait_for_mount_to_settle(&self, ctx: &FlipContext) -> Result<(), String> {
+        let max = std::time::Duration::from_secs_f64(self.config.settle_time.max(0.0) * 6.0)
+            .max(std::time::Duration::from_secs(60));
+        let cancelled = || self.is_cancelled(ctx);
+        match crate::tracking_check::wait_until_mount_settled(
+            &self.device_ops,
+            &ctx.mount_id,
+            std::time::Duration::from_secs(2),
+            max,
+            &cancelled,
+        )
+        .await
+        {
+            crate::tracking_check::SettleOutcome::Settled { after_secs } => {
+                tracing::info!("[MERIDIAN] Mount settled after {:.0}s", after_secs);
+                Ok(())
+            }
+            crate::tracking_check::SettleOutcome::TimedOut { reason } => {
+                tracing::warn!(
+                    "[MERIDIAN] Mount did not settle within {:.0}s ({}); taking the frame anyway",
+                    max.as_secs_f64(),
+                    reason
+                );
+                Ok(())
+            }
+            crate::tracking_check::SettleOutcome::Cancelled => {
+                Err("Abort requested during settle".to_string())
+            }
+        }
     }
 
     fn resolve_post_flip_autofocus(ctx: &FlipContext) -> PostFlipAutofocusConfig {
@@ -1498,8 +1672,8 @@ impl MeridianFlipExecutor {
             match self.device_ops.guider_get_status().await {
                 Ok(status) if status.is_guiding => {
                     tracing::info!(
-                        "[MERIDIAN] Guiding re-locked after flip: RMS total={:.2}px",
-                        status.rms_total
+                        "[MERIDIAN] Guiding re-locked after flip: {}",
+                        status.rms_summary()
                     );
                     relocked = true;
                     break;
@@ -1978,10 +2152,10 @@ mod tests {
 
         assert_eq!(steps.len(), 9);
         assert_eq!(steps[0], FlipStep::PausingGuider);
-        assert_eq!(steps[1], FlipStep::StoppingTracking);
+        assert_eq!(steps[1], FlipStep::EnablingTracking);
         assert_eq!(steps[2], FlipStep::SlewingToTarget);
         assert_eq!(steps[3], FlipStep::VerifyingPierSide);
-        assert_eq!(steps[4], FlipStep::ResumingTracking);
+        assert_eq!(steps[4], FlipStep::ConfirmingTracking);
         assert_eq!(steps[5], FlipStep::PlateSolvingAndCentering);
         assert_eq!(steps[6], FlipStep::Refocusing);
         assert_eq!(steps[7], FlipStep::ResumingGuider);
@@ -2002,10 +2176,10 @@ mod tests {
         let steps = build_steps_from_config(&config);
 
         assert_eq!(steps.len(), 5);
-        assert_eq!(steps[0], FlipStep::StoppingTracking);
+        assert_eq!(steps[0], FlipStep::EnablingTracking);
         assert_eq!(steps[1], FlipStep::SlewingToTarget);
         assert_eq!(steps[2], FlipStep::VerifyingPierSide);
-        assert_eq!(steps[3], FlipStep::ResumingTracking);
+        assert_eq!(steps[3], FlipStep::ConfirmingTracking);
         assert_eq!(steps[4], FlipStep::Settling);
     }
 
@@ -2017,10 +2191,10 @@ mod tests {
             steps.push(FlipStep::PausingGuider);
         }
 
-        steps.push(FlipStep::StoppingTracking);
+        steps.push(FlipStep::EnablingTracking);
         steps.push(FlipStep::SlewingToTarget);
         steps.push(FlipStep::VerifyingPierSide);
-        steps.push(FlipStep::ResumingTracking);
+        steps.push(FlipStep::ConfirmingTracking);
 
         if config.auto_center {
             steps.push(FlipStep::PlateSolvingAndCentering);
@@ -2612,7 +2786,7 @@ mod tests {
 
     /// pier-side telemetry unavailable — verification falls back to
     /// coordinate convergence and SUCCEEDS when the mount is on-target.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_pier_side_fallback_uses_coordinates_when_unknown() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Both pre and post pier side return Unknown.
@@ -2652,7 +2826,7 @@ mod tests {
     /// and that check compared raw RA degrees against its one-arcminute
     /// tolerance: at Dec 85 an hour of RA spans a twelfth of the arc it does on
     /// the equator, so a read-back 9 arcseconds off on the sky failed the flip.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_flip_near_the_pole_is_verified_on_the_sky() {
         let state = Arc::new(MockDeviceOpsState::default());
         state
@@ -2693,7 +2867,7 @@ mod tests {
     /// pier-side telemetry that had in fact landed on target. The simulator
     /// stores what it is sent, so no simulator run could show it; the same
     /// defect in slew arrival was fixed in d9c7e5d77.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn the_coordinate_fallback_compares_in_the_mounts_own_frame() {
         let state = Arc::new(MockDeviceOpsState::default());
         state
@@ -2752,10 +2926,9 @@ mod tests {
         );
     }
 
-    /// A real post-flip plate-solve failure must fail the flip after pier-side
-    /// verification; otherwise later refocus/guiding steps would run and the
-    /// sequence could resume imaging off-frame.
-    #[tokio::test]
+    /// With "Stop the run for quality problems" on, a post-flip recenter that
+    /// never solves fails the flip, and guiding does not resume off-frame.
+    #[tokio::test(start_paused = true)]
     async fn test_post_flip_plate_solve_failure_fails_flip() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -2764,7 +2937,7 @@ mod tests {
         ]);
         state
             .plate_solve_failures_remaining
-            .store(1, Ordering::Relaxed);
+            .store(3, Ordering::Relaxed);
         let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
 
         let config = MeridianFlipConfig {
@@ -2805,7 +2978,7 @@ mod tests {
     /// landed on. The trigger state still held the pre-flip reading when the
     /// flip was marked, so the origin came out as the new side and the next
     /// telemetry tick cleared the flipped flag as a "return" to it.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_completed_flip_stays_marked_when_the_new_side_is_read_back() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -2843,7 +3016,7 @@ mod tests {
     }
 
     /// that only worked because the retry ladder saved it.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn clean_flip_reports_one_attempt_and_no_failed_steps() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -2890,7 +3063,7 @@ mod tests {
     /// `"✗ Plate solving and centering FAILED"` was followed by
     /// `"Retry 1/4 scheduled"` and the session still persisted
     /// `errorMessages: []` / `warningMessages: []`.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn retried_flip_reports_attempt_count_and_the_failed_step() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Pre-flip read is East; both attempts verify as West so the pier-side
@@ -2900,10 +3073,10 @@ mod tests {
             crate::meridian::PierSide::West,
             crate::meridian::PierSide::West,
         ]);
-        // Exactly one solve fails: attempt 1 fails, attempt 2 succeeds.
+        // Attempt 1 fails all three of its frames; attempt 2 solves.
         state
             .plate_solve_failures_remaining
-            .store(1, Ordering::Relaxed);
+            .store(3, Ordering::Relaxed);
         let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
 
         let config = MeridianFlipConfig {
@@ -2961,7 +3134,7 @@ mod tests {
     /// vitals (`meridianFlips`) and the session report, and the executor — not
     /// the call site — announces it, so a trigger-fired flip and a node-driven
     /// flip both report.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_successful_flip_announces_its_outcome_on_the_event_stream() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3018,7 +3191,7 @@ mod tests {
     /// The failure case is the one that costs a night: a node-driven flip that
     /// failed its post-flip recenter left `errorMessages: []` on a run reported
     /// as completed.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_failed_flip_announces_its_verdict_with_every_failed_attempt() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3074,7 +3247,7 @@ mod tests {
 
     /// When the ladder is exhausted the telemetry must still carry
     /// every attempt so the terminal error can say how hard the app tried.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn exhausted_flip_reports_every_failed_attempt() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3122,7 +3295,7 @@ mod tests {
 
     /// Disabling auto-center intentionally omits the solve/recenter step, so a
     /// configured-off recenter is not treated as a failure.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_disabled_post_flip_recenter_remains_successful() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3163,7 +3336,7 @@ mod tests {
 
     /// when cancellation is requested mid-settle, tracking should
     /// be restored back to its pre-flip state rather than left off.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_cancel_during_settle_restores_tracking() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Pier side reports a clean East→West flip so the verify step passes.
@@ -3260,7 +3433,7 @@ mod tests {
     }
 
     /// cover closed → flip refused with a clear error.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_pre_flip_cover_closed_refuses_flip() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.cover_state.store(1, Ordering::Relaxed); // Closed
@@ -3286,7 +3459,7 @@ mod tests {
 
     /// empty retry_delays_secs with max_retries>0 → fail loudly,
     /// do NOT silently fall back to 60 seconds.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_empty_retry_delays_with_retries_fails_loudly() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Force the verify step to fail by reporting Unknown pier side AND
@@ -3329,7 +3502,7 @@ mod tests {
     /// AbortAndPark with park_failures > retry count → executor
     /// returns Failed and emits a critical-level notification, NOT silently
     /// pretending the failure action succeeded.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_park_failure_propagates_with_critical_event() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Force flip failure: pier side does not change.
@@ -3406,7 +3579,7 @@ mod tests {
     /// Default `min_post_flip_altitude_deg = 10°`
     /// makes a 5°-altitude target abort. Lowering the threshold to 0° allows
     /// the same target to proceed.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_min_post_flip_altitude_is_user_configurable() {
         // Target altitude 5° — below the default 10° gate.
         let make_state = || {
@@ -3479,7 +3652,7 @@ mod tests {
 
     /// Default `safety_action_retry_count = 3`.
     /// Lowering it to 1 means a failing park is attempted only once.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_safety_action_retry_count_is_user_configurable() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3525,7 +3698,7 @@ mod tests {
     /// touch mount tracking — the operator is validating the flip sequence
     /// without moving the mount. This is the core "skip-actual-flip" guarantee:
     /// `mount_slew_to_coordinates` is never called.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_dry_run_does_not_command_real_slew() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Pier sides report a clean East→East (i.e. an un-flipped mount). In a
@@ -3579,7 +3752,7 @@ mod tests {
     /// Phase G: a REAL flip (simulate = false) on the same un-flipped pier-side
     /// scenario DOES command a slew. This is the contrast case proving the
     /// dry-run flag is what suppressed the slew above, not some other config.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_real_flip_commands_slew() {
         let state = Arc::new(MockDeviceOpsState::default());
         // Clean East→West flip so the verify step passes for the real path.
@@ -3619,7 +3792,7 @@ mod tests {
     /// across the pier; guiding through a flip slew fights the mount and loses
     /// the star. Returning Ok from `pause_guider` without stopping anything
     /// passed every flip test.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_flip_stops_the_guider_before_it_slews() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3657,7 +3830,7 @@ mod tests {
     /// guider still guiding: the recenter's frames and correction fought it.
     /// A guider that may move the mount is stopped before the flip whatever
     /// that setting says.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_flip_stops_a_guiding_guider_even_with_pause_guiding_off() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3694,7 +3867,7 @@ mod tests {
     /// Guiding the run had started is stopped for the flip and guiding again
     /// after it: the next light frame owes no resume, and the guiding
     /// triggers are armed again.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_flip_that_resumes_guiding_leaves_the_runs_guiding_armed() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3805,7 +3978,7 @@ mod tests {
     /// every operator surface listens to — otherwise the screen reports Running,
     /// on-schedule progress and a passing finish time while no frame is being
     /// captured.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn a_scheduled_retry_reaches_the_runs_event_stream() {
         let (tx, mut rx) = tokio::sync::broadcast::channel(8);
         let flip = MeridianFlipExecutor::new(
@@ -3852,7 +4025,7 @@ mod tests {
     /// failed the flip, and the flip's failure action — AbortAndPark here —
     /// parked the mount and ended the run. The mount is on the new pier side
     /// and tracking; the run now carries on at the previous focus, and says so.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     #[allow(clippy::await_holding_lock)]
     async fn a_failed_post_flip_refocus_notifies_and_the_flip_completes() {
         let _serial = crate::AF_GATE_TEST_LOCK
@@ -3982,7 +4155,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn post_flip_recenter_retries_without_repeating_the_flip() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -3991,7 +4164,7 @@ mod tests {
         ]);
         state
             .plate_solve_failures_remaining
-            .store(1, Ordering::Relaxed);
+            .store(3, Ordering::Relaxed);
         let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
         let config = MeridianFlipConfig {
             pause_guiding: false,
@@ -4014,9 +4187,12 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn post_flip_quality_policy_cannot_bypass_failed_recenter_or_guiding() {
-        for (solve_failures, rms_ceiling) in [(1, 3.0), (0, 0.5)] {
+    /// After the new pier side is verified, a recenter that never solves or
+    /// guiding over the RMS ceiling is told and the flip completes. Nothing
+    /// pauses or parks, and the flip stays recorded.
+    #[tokio::test(start_paused = true)]
+    async fn post_flip_quality_problems_notify_and_complete_the_flip() {
+        for (solve_failures, rms_ceiling) in [(100, 3.0), (0, 0.5)] {
             let state = Arc::new(MockDeviceOpsState::default());
             state.pier_sides.lock().unwrap().extend([
                 crate::meridian::PierSide::East,
@@ -4032,20 +4208,36 @@ mod tests {
                 refocus_after: false,
                 resume_guiding: true,
                 settle_time: 0.0,
-                max_retries: 0,
-                failure_action: FlipFailureAction::PauseAndAlert,
+                max_retries: 1,
+                retry_delays_secs: vec![0.0],
+                failure_action: FlipFailureAction::AbortAndPark,
                 max_post_settle_rms_pixels: rms_ceiling,
                 ..Default::default()
             };
-            let mut executor = MeridianFlipExecutor::new(config, ops);
-            let result = executor.execute(&make_ctx(&state)).await;
-            assert!(matches!(result, FlipResult::Failed { .. }), "{result:?}");
+            let (tx, mut rx) = broadcast::channel(64);
+            let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+            let ts = Arc::new(RwLock::new(TriggerState::new()));
+            let ctx = FlipContext {
+                trigger_state: Some(ts.clone()),
+                ..make_ctx(&state)
+            };
+            let result = executor.execute(&ctx).await;
+            assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
             assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+            assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
+            assert!(ts.read().await.meridian.has_flipped());
+            let mut warned = false;
+            while let Ok(event) = rx.try_recv() {
+                if let ExecutorEvent::Warning { message } = event {
+                    warned |= message.contains("After the meridian flip");
+                }
+            }
+            assert!(warned, "the post-flip problem must be told");
         }
     }
 
     /// The opt-in keeps the post-flip guiding check's failure too.
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn post_flip_guiding_rms_fails_the_flip_when_the_operator_asked_for_it() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
@@ -4078,39 +4270,136 @@ mod tests {
         }
     }
 
-    /// A previously unguided run still must pass its requested post-flip guide restart.
+    /// A guider that will not restart after a verified flip stops guiding,
+    /// is told, and never parks, whatever the failure action says. The next
+    /// light frame tries guiding again.
     #[tokio::test(start_paused = true)]
-    async fn post_flip_guide_failure_cannot_be_bypassed_by_prior_unguided_state() {
-        for imaging_unguided in [false, true] {
-            let state = Arc::new(MockDeviceOpsState::default());
-            state.pier_sides.lock().unwrap().extend([
-                crate::meridian::PierSide::East,
-                crate::meridian::PierSide::West,
-            ]);
-            state.guider_start_fails.store(true, Ordering::Relaxed);
-            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
-            let config = MeridianFlipConfig {
-                pause_guiding: true,
-                auto_center: false,
-                refocus_after: false,
-                resume_guiding: true,
-                settle_time: 0.0,
-                max_retries: 0,
-                failure_action: FlipFailureAction::AbortAndPark,
-                ..Default::default()
-            };
-            let mut executor = MeridianFlipExecutor::new(config, ops);
-            let mut trigger_state = TriggerState::new();
-            trigger_state.guiding.set_unguided(imaging_unguided);
-            let ctx = FlipContext {
-                trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
-                ..make_ctx(&state)
-            };
+    async fn a_post_flip_guider_failure_notifies_and_never_parks() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        state.guider_start_fails.store(true, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: true,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: true,
+            settle_time: 0.0,
+            max_retries: 0,
+            failure_action: FlipFailureAction::AbortAndPark,
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let mut guiding_run = TriggerState::new();
+        guiding_run.set_guiding_enabled(true);
+        let ts = Arc::new(RwLock::new(guiding_run));
+        let ctx = FlipContext {
+            trigger_state: Some(ts.clone()),
+            ..make_ctx(&state)
+        };
 
-            let result = executor.execute(&ctx).await;
+        let result = executor.execute(&ctx).await;
 
-            assert!(matches!(result, FlipResult::Failed { .. }), "{result:?}");
-            assert!(state.guider_stopped.load(Ordering::Relaxed));
-        }
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        assert!(state.guider_stopped.load(Ordering::Relaxed));
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        assert!(ts.read().await.meridian.has_flipped());
+        assert!(
+            ts.read().await.guiding.resume_pending(),
+            "the next light frame restarts guiding"
+        );
+    }
+
+    /// Every slew tracks, the flip's too: tracking goes on before the slew
+    /// and is confirmed after it.
+    #[tokio::test(start_paused = true)]
+    async fn the_flip_slews_with_tracking_on() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            auto_center: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+        let result = MeridianFlipExecutor::new(config, ops)
+            .execute(&make_ctx(&state))
+            .await;
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        let tracking = state.tracking_calls.lock().unwrap().clone();
+        assert!(
+            !tracking.is_empty() && tracking.iter().all(|on| *on),
+            "{tracking:?}"
+        );
+    }
+
+    /// An early tracking-limit flip that the mount does not take (it stays
+    /// on its side) is not retried, runs no failure action and reports
+    /// `Aborted`, so the hold can wait for the window instead.
+    #[tokio::test(start_paused = true)]
+    async fn a_refused_early_flip_is_aborted_without_retry_or_park() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::West,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            settle_time: 0.0,
+            failure_action: FlipFailureAction::AbortAndPark,
+            ..Default::default()
+        };
+        let ts = Arc::new(RwLock::new(TriggerState::new()));
+        let ctx = FlipContext {
+            trigger_state: Some(ts.clone()),
+            ..make_ctx(&state)
+        };
+        let mut executor =
+            MeridianFlipExecutor::new(config, ops).with_early_tracking_limit_flip(true);
+        let result = executor.execute(&ctx).await;
+        assert!(matches!(result, FlipResult::Aborted { .. }), "{result:?}");
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        assert!(!ts.read().await.meridian.has_flipped());
+    }
+
+    /// Cloud right after a verified flip with AbortAndPark configured: the
+    /// flip completes and is recorded, nothing parks, and nothing flips again.
+    #[tokio::test(start_paused = true)]
+    async fn cloud_after_a_verified_flip_neither_parks_nor_leaves_the_flip_unmarked() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        state
+            .plate_solve_failures_remaining
+            .store(100, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            auto_center: true,
+            settle_time: 0.0,
+            failure_action: FlipFailureAction::AbortAndPark,
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let ts = Arc::new(RwLock::new(TriggerState::new()));
+        let ctx = FlipContext {
+            trigger_state: Some(ts.clone()),
+            ..make_ctx(&state)
+        };
+        let result = executor.execute(&ctx).await;
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
+        assert!(ts.read().await.meridian.has_flipped());
     }
 }

@@ -344,6 +344,35 @@ async fn reacquire_guide_star(
     }
 }
 
+/// One attempt at getting a stopped mount tracking again: command tracking on,
+/// then confirm from the pointing that the axes really follow the sky. A
+/// tracking flag that reads back on is not enough: a mount stopped at its own
+/// limit accepts the command, reads on, and never moves. The command is sent
+/// on every attempt, since re-sending it to a tracking mount changes nothing.
+pub(crate) async fn restore_mount_tracking(
+    device_ops: &SharedDeviceOps,
+    mount_id: &str,
+) -> crate::recovery::AttemptOutcome {
+    use crate::recovery::AttemptOutcome;
+    if let Err(error) = device_ops.mount_set_tracking(mount_id, true).await {
+        return AttemptOutcome::Failed {
+            message: format!("Mount tracking could not be switched on: {error}"),
+        };
+    }
+    match crate::tracking_check::confirm_mount_tracks(
+        device_ops,
+        mount_id,
+        crate::tracking_check::TRACKING_CHECK_WINDOW,
+    )
+    .await
+    {
+        Ok(()) => AttemptOutcome::Succeeded,
+        Err(why) => AttemptOutcome::Failed {
+            message: format!("Mount tracking is not restored: {why}"),
+        },
+    }
+}
+
 /// Whether the sky reads safe right now for a weather hold: the app's verdict
 /// is not acted on as UNSAFE and the hardware safety reading is safe. `Err`
 /// carries what still reads unsafe.
@@ -470,34 +499,7 @@ pub(crate) async fn run_recovery_attempt(
                     ),
                 }
             }
-            Some(id) => match device_ops.mount_is_tracking(id).await {
-                Ok(true) => AttemptOutcome::Succeeded,
-                Ok(false) => {
-                    // Try to re-enable tracking. If the mount accepts the
-                    // command we declare success and let the next loop
-                    // iteration verify; if it errors, surface the error.
-                    match device_ops.mount_set_tracking(id, true).await {
-                        Ok(()) => {
-                            // Verify the change took.
-                            match device_ops.mount_is_tracking(id).await {
-                                Ok(true) => AttemptOutcome::Succeeded,
-                                Ok(false) => AttemptOutcome::Failed {
-                                    message: "Mount tracking did not re-engage".to_string(),
-                                },
-                                Err(e) => AttemptOutcome::Failed {
-                                    message: format!("Mount tracking re-check failed: {}", e),
-                                },
-                            }
-                        }
-                        Err(e) => AttemptOutcome::Failed {
-                            message: format!("Mount tracking re-enable failed: {}", e),
-                        },
-                    }
-                }
-                Err(e) => AttemptOutcome::Failed {
-                    message: format!("Mount tracking query failed: {}", e),
-                },
-            },
+            Some(id) => restore_mount_tracking(device_ops, id).await,
             None => AttemptOutcome::Failed {
                 message: "No mount is configured; cannot recover tracking".to_string(),
             },

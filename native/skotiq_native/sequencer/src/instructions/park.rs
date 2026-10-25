@@ -7,12 +7,31 @@ use super::*;
 
 // PARK/UNPARK instructions
 
+/// A park or home is the run's own move, and the stop in tracking it leaves
+/// behind is the run's own too: the loss baseline is disarmed for it, and the
+/// move keeps it from re-arming until the mount is seen tracking afterwards.
+async fn begin_move_that_stops_tracking(ctx: &InstructionContext, what: &str) -> MountMotion {
+    let motion = MountMotion::begin(ctx, what).await;
+    if let Some(state) = &ctx.trigger_state {
+        state.write().await.set_mount_tracking_expected(false);
+    }
+    motion
+}
+
 /// Execute park
 pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,
     };
+    let motion = begin_move_that_stops_tracking(ctx, "park").await;
+    let result = park_mount(ctx, &mount_id).await;
+    motion.end().await;
+    result
+}
+
+async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResult {
+    let mount_id = mount_id.to_string();
 
     tracing::info!("Parking mount");
 
@@ -182,6 +201,18 @@ pub(crate) async fn execute_home_mount_with(
         Ok(id) => id.to_string(),
         Err(e) => return e,
     };
+    let motion = begin_move_that_stops_tracking(ctx, "home").await;
+    let result = home_mount(ctx, &mount_id, timing).await;
+    motion.end().await;
+    result
+}
+
+async fn home_mount(
+    ctx: &InstructionContext,
+    mount_id: &str,
+    timing: HomeTiming,
+) -> InstructionResult {
+    let mount_id = mount_id.to_string();
 
     match ctx.device_ops.mount_is_parked(&mount_id).await {
         Ok(true) => {

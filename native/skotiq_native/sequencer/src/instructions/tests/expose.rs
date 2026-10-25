@@ -606,3 +606,99 @@ async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
     );
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 0);
 }
+
+/// A light frame that was exposing when a tracking-limit hold began is
+/// trailed, so it is saved to the reject folder with the reason, whatever
+/// its stars say, and counted as rejected.
+#[tokio::test(start_paused = true)]
+async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let dir = std::env::temp_dir().join(format!("sk-untracked-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("untracked".into());
+    ec.device_ops = ops.clone();
+    ec.camera_id = Some("camera-1".into());
+    ec.save_path = Some(dir.clone());
+    let mut state = crate::triggers::TriggerState::new();
+    state
+        .run
+        .begin_hold(crate::triggers::RunHold::TrackingLimit);
+    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    let ctx = ec.to_instruction_context("untracked").await;
+    let control = BurstControl {
+        pause: ec.pause_gate(),
+        status: None,
+    };
+    let config = ExposureConfig {
+        count: 1,
+        duration_secs: 0.0,
+        ..Default::default()
+    };
+    let (events, mut rx) = tokio::sync::broadcast::channel(64);
+    let mut ctx = ctx;
+    ctx.event_tx = Some(events);
+    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+    let rejected_files = std::fs::read_dir(dir.join("Reject"))
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ec.frames_rejected.load(Ordering::SeqCst), 1);
+    assert_eq!(rejected_files, 1);
+    let mut warned = false;
+    while let Ok(event) = rx.try_recv() {
+        if let crate::executor::ExecutorEvent::Warning { message } = event {
+            warned |= message.contains("stopped tracking during this exposure");
+        }
+    }
+    assert!(warned, "the rejection is announced");
+}
+
+/// Guiding is never restarted on a mount that reads tracking off: the frame
+/// waits, and starts with guiding restarted once the mount tracks again.
+#[tokio::test(start_paused = true)]
+async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let dir = std::env::temp_dir().join(format!("sk-guide-wait-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("guide-wait".into());
+    ec.device_ops = ops.clone();
+    ec.camera_id = Some("camera-1".into());
+    ec.save_path = Some(dir.clone());
+    let mut state = crate::triggers::TriggerState::new();
+    state.guiding.set_resume_pending(true);
+    state.mount_is_tracking = Some(false);
+    let state = Arc::new(tokio::sync::RwLock::new(state));
+    ec.trigger_state = Some(state.clone());
+    let ctx = ec.to_instruction_context("guide-wait").await;
+    let control = BurstControl {
+        pause: ec.pause_gate(),
+        status: None,
+    };
+    let config = ExposureConfig {
+        count: 1,
+        duration_secs: 0.0,
+        ..Default::default()
+    };
+    let mut burst = std::pin::pin!(execute_exposure_with_renderer(
+        &config,
+        &ctx,
+        None,
+        &control,
+        |_, _, _| {}
+    ));
+    assert!(tokio::time::timeout(Duration::from_secs(30), &mut burst)
+        .await
+        .is_err());
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 0);
+
+    state.write().await.mount_is_tracking = Some(true);
+    let result = tokio::time::timeout(Duration::from_secs(600), burst)
+        .await
+        .expect("the frame runs once the mount tracks");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
+}

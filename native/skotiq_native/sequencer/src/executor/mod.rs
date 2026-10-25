@@ -96,6 +96,12 @@ pub const WEATHER_HOLD_CHECK_SECS: f64 = 15.0;
 /// that the run resumes shortly after a cloud passes.
 pub const GUIDE_STAR_RECHECK_SECS: f64 = 60.0;
 
+/// First wait between attempts to get a stopped mount tracking again. Each
+/// failed attempt doubles it, up to [`TRACKING_RECHECK_MAX_SECS`]; the attempts
+/// never run out, because nothing else gets the mount tracking.
+pub const TRACKING_RECHECK_SECS: f64 = 30.0;
+pub const TRACKING_RECHECK_MAX_SECS: f64 = 300.0;
+
 /// The span a weather hold reports as its budget. A hold has no budget and
 /// never runs out; this only keeps the attempt counters the recovery events
 /// carry finite.
@@ -617,7 +623,7 @@ pub(crate) fn quality_problem_continuation(
 }
 
 #[cfg(test)]
-mod scenario_sim_tests;
+pub(crate) mod scenario_sim_tests;
 
 #[cfg(test)]
 mod night_end_sim_tests;

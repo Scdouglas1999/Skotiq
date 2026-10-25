@@ -217,6 +217,23 @@ pub(super) fn mount_tracking_poll_verdict(
     (expected, just_lost)
 }
 
+impl SequenceExecutor {
+    /// Tracking is about to be switched off from the app's own mount controls
+    /// while a run is active. The stop that follows is the operator's: it
+    /// pauses the run, and it is never read as the mount's tracking limit.
+    pub async fn note_operator_tracking_stop(&self) {
+        let active = matches!(
+            *self.state.read().await,
+            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
+        );
+        if !active {
+            return;
+        }
+        let lock = self.trigger_manager.read().await.state();
+        lock.write().await.tracking.note_operator_stop();
+    }
+}
+
 /// Apply one mount tracking poll to the trigger state's loss baseline and
 /// return whether it is a genuine loss (see [`mount_tracking_poll_verdict`]).
 /// The caller records the reading in `mount_is_tracking` afterwards.
@@ -234,14 +251,20 @@ pub(crate) fn apply_mount_tracking_poll(
         state.set_mount_tracking_expected(false);
         return false;
     }
-    let (expected, just_lost) = mount_tracking_poll_verdict(
+    let (mut expected, just_lost) = mount_tracking_poll_verdict(
         state.tracking.is_expected(),
         currently_tracking,
         state.mount_is_tracking,
         state.tracking.is_lost(),
     );
-    // Repeated stopped readings must preserve the loss until tracking
-    // actually resumes. Re-arming on every tick cleared the unresolved loss.
+    // A reading taken while the run moves the mount does not arm the
+    // baseline: a park or home turns tracking off at its end, and that stop is
+    // the run's own.
+    if state.guiding.in_motion() {
+        expected = state.tracking.is_expected();
+    }
+    // A loss stays recorded across repeated stopped readings until tracking
+    // actually resumes; re-arming here would forget it.
     if expected != state.tracking.is_expected() {
         state.set_mount_tracking_expected(expected);
     }

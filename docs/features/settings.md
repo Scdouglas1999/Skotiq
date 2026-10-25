@@ -260,6 +260,7 @@ Configure sequence automation behavior.
 | Setting | Range |
 |---------|-------|
 | **Flip before meridian** | 0-60 minutes |
+| **When the mount stops at its limit** | Flip right away (default) or Wait for the flip window. See Sequencing > Meridian Flip Trigger. |
 
 ### Auto Focus
 

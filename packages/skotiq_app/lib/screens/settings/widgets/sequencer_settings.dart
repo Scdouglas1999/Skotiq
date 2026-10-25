@@ -354,6 +354,26 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               },
             ),
           ),
+        // What a stop at the mount's own tracking limit does
+        SettingRow(
+          icon: LucideIcons.flipHorizontal2,
+          title: 'When the mount stops at its limit',
+          subtitle: flipSettings.trackingLimitPolicy.description,
+          trailing: settingsTrailingDropdown(
+            context: context,
+            value: flipSettings.trackingLimitPolicy.displayName,
+            items:
+                TrackingLimitPolicy.values.map((e) => e.displayName).toList(),
+            designWidth: 200,
+            isMobile: widget.isMobile,
+            onChanged: (value) {
+              final policy = TrackingLimitPolicy.values.firstWhere(
+                (e) => e.displayName == value,
+              );
+              return notifier.setTrackingLimitPolicy(policy);
+            },
+          ),
+        ),
         // Flip sequence - pause guiding
         SettingRow(
           icon: LucideIcons.pause,

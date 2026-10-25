@@ -107,6 +107,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // so it is still on the target when the stars return, and the star is
         // looked for often enough that the run resumes soon after they do.
         let mut guide_star_hold = cause == crate::recovery::RecoveryCause::GuideStarLost;
+        // A stopped mount is retried with a growing wait and never given up
+        // on: ending the run leaves it stopped just the same, and every
+        // failed attempt is announced. Tracking is never switched off for it.
+        let mut tracking_hold = cause == crate::recovery::RecoveryCause::MountTrackingLost;
         let (interval_secs, max_duration_secs, stop_tracking) = if weather_hold {
             (
                 WEATHER_HOLD_CHECK_SECS,
@@ -117,6 +121,12 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             (
                 interval_secs.min(GUIDE_STAR_RECHECK_SECS),
                 max_duration_secs,
+                false,
+            )
+        } else if tracking_hold {
+            (
+                interval_secs.min(TRACKING_RECHECK_SECS),
+                WEATHER_HOLD_NOMINAL_SPAN_SECS,
                 false,
             )
         } else {
@@ -275,7 +285,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
                 break;
             }
-            if guide_star_hold
+            if (guide_star_hold || tracking_hold)
                 && hand_off_tracking_limit(
                     &recovery_driver_device_ops,
                     recovery_driver_mount_id.as_deref(),
@@ -287,11 +297,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 aborted_by_user = false;
                 recovered = false;
                 ctx.phase = crate::recovery::RecoveryPhase::Waiting;
-                ctx.last_error =
-                    Some("Guiding recovery handed to tracking-limit flip controller".into());
+                ctx.last_error = Some("Recovery handed to the tracking-limit flip".into());
                 break;
             }
-            if !weather_hold && ctx.is_exhausted(chrono::Utc::now()) {
+            if !weather_hold && !tracking_hold && ctx.is_exhausted(chrono::Utc::now()) {
                 tracing::warn!(
                     "[RECOVERY] Exhausted (attempts={}/{}, elapsed={:.0}s/{:.0}s)",
                     ctx.attempt_count,
@@ -401,6 +410,17 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                         ctx.attempt_count,
                         message
                     );
+                    if tracking_hold {
+                        ctx.retry_interval_secs =
+                            (ctx.retry_interval_secs * 2.0).min(TRACKING_RECHECK_MAX_SECS);
+                        let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                            message: format!(
+                                "{message}. Trying again in {:.0} s; the run stays held until \
+                                 the mount tracks.",
+                                ctx.retry_interval_secs
+                            ),
+                        });
+                    }
                     ctx.last_error = Some(message);
                     ctx.phase = crate::recovery::RecoveryPhase::Waiting;
                     *recovery_driver_current.write() = Some(ctx.clone());
@@ -449,7 +469,18 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
                         message: message.clone(),
                     });
+                    // The new cause takes its own recovery: a stopped mount
+                    // gets the tracking hold's growing, never-exhausted wait.
                     let (interval, max_duration) = configured_cadence;
+                    tracking_hold = cause == crate::recovery::RecoveryCause::MountTrackingLost;
+                    let (interval, max_duration) = if tracking_hold {
+                        (
+                            interval.min(TRACKING_RECHECK_SECS),
+                            WEATHER_HOLD_NOMINAL_SPAN_SECS,
+                        )
+                    } else {
+                        (interval, max_duration)
+                    };
                     ctx = crate::recovery::RecoveryContext::new(cause, interval, max_duration);
                     ctx.last_error = Some(message);
                     guide_star_hold = false;
@@ -498,7 +529,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // exposures. The monitor owns the newly latched hold and keeps
             // polling safety while it waits for the configured flip window.
             *recovery_driver_current.write() = None;
-            let message = "Mount tracking stopped near the meridian; guiding recovery is yielding to the flip controller.";
+            let message = "Mount tracking stopped near the meridian; recovery is handing the mount to the meridian flip.";
             let mut state = recovery_driver_state.write().await;
             if *state == ExecutorState::Recovering
                 && !recovery_driver_is_cancelled.load(Ordering::Relaxed)
@@ -583,6 +614,23 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     event_tx: &recovery_driver_event_tx,
                 })
                 .await;
+            }
+            if tracking_hold {
+                // The attempt confirmed the axes track. Record that, so the
+                // poll's unresolved loss cannot fire the trigger again.
+                let lock = recovery_driver_trigger_mgr.read().await.state();
+                let mut state = lock.write().await;
+                state.mount_is_tracking = Some(true);
+                state.reset_tracking_limit_detection();
+                state.set_mount_tracking_expected(true);
+                let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                    message: format!(
+                        "Mount tracking is restored and confirmed from the mount's pointing after \
+                         {} attempt{}.",
+                        ctx.attempt_count,
+                        if ctx.attempt_count == 1 { "" } else { "s" }
+                    ),
+                });
             }
             *recovery_driver_state.write().await = resumed_state;
             {

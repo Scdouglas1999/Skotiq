@@ -14,10 +14,12 @@ pub enum PierSide {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum FlipStep {
     PausingGuider,
-    StoppingTracking,
+    /// Tracking is switched on before the slew: every slew tracks.
+    EnablingTracking,
     SlewingToTarget,
     VerifyingPierSide,
-    ResumingTracking,
+    /// The pointing shows the axes really follow the sky.
+    ConfirmingTracking,
     PlateSolvingAndCentering,
     Refocusing,
     ResumingGuider,
@@ -28,10 +30,10 @@ impl FlipStep {
     pub fn description(&self) -> &'static str {
         match self {
             FlipStep::PausingGuider => "Pausing guider",
-            FlipStep::StoppingTracking => "Stopping tracking",
+            FlipStep::EnablingTracking => "Turning tracking on",
             FlipStep::SlewingToTarget => "Slewing to target (flip)",
             FlipStep::VerifyingPierSide => "Verifying pier side",
-            FlipStep::ResumingTracking => "Resuming tracking",
+            FlipStep::ConfirmingTracking => "Confirming tracking",
             FlipStep::PlateSolvingAndCentering => "Plate solving and centering",
             FlipStep::Refocusing => "Running autofocus",
             FlipStep::ResumingGuider => "Resuming guider",
