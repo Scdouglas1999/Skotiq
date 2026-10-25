@@ -15,15 +15,15 @@ const String kDarkroomFramingPayloadType = 'darkroom_framing';
 const String kDarkroomActivityPayloadType = 'darkroom_activity';
 
 /// The Darkroom route for one target.
-String darkroomTargetLocation(String target) =>
+String darkroomTargetRoute(String target) =>
     '/darkroom?tab=targets&target=${Uri.encodeQueryComponent(target)}';
 
 /// The Darkroom route for a target's framing check.
-String darkroomFramingLocation(String target) =>
-    '${darkroomTargetLocation(target)}&view=framing';
+String darkroomFramingRoute(String target) =>
+    '${darkroomTargetRoute(target)}&view=framing';
 
 /// The Darkroom's Activity tab.
-const String darkroomActivityLocation = '/darkroom?tab=activity';
+const String darkroomActivityRoute = '/darkroom?tab=activity';
 
 /// The payload that opens [target].
 String darkroomTargetPayload(String target) =>
@@ -41,11 +41,11 @@ String? darkroomRouteForPayload(String payload) {
   final named = arg != null && arg.isNotEmpty;
   switch (type) {
     case kDarkroomTargetPayloadType:
-      return named ? darkroomTargetLocation(arg) : darkroomActivityLocation;
+      return named ? darkroomTargetRoute(arg) : darkroomActivityRoute;
     case kDarkroomFramingPayloadType:
-      return named ? darkroomFramingLocation(arg) : darkroomActivityLocation;
+      return named ? darkroomFramingRoute(arg) : darkroomActivityRoute;
     case kDarkroomActivityPayloadType:
-      return darkroomActivityLocation;
+      return darkroomActivityRoute;
   }
   return null;
 }
