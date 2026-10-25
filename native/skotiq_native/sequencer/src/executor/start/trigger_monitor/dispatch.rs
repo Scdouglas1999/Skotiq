@@ -21,7 +21,7 @@ pub(super) enum Flow {
 pub(super) struct Dispatcher {
     pub(super) run: RunControl,
     pub(super) rig: Rig,
-    decisions: DecisionLog,
+    pub(super) decisions: DecisionLog,
     park: ParkSignals,
     flip_failure: FlipFailureLatch,
     custom: CustomBranches,
@@ -120,6 +120,23 @@ impl Dispatcher {
             }
         }
         Flow::Next
+    }
+
+    /// Run an action the frame watch decided on, the way a fired trigger's
+    /// action runs.
+    pub(super) async fn run_synthetic(
+        &mut self,
+        trigger_id: &str,
+        trigger_name: &str,
+        fired: FiredTriggerAction,
+    ) -> Flow {
+        self.dispatch(Dispatch {
+            trigger_id: trigger_id.to_string(),
+            trigger_name: trigger_name.to_string(),
+            fired,
+            cooldown_secs: None,
+        })
+        .await
     }
 
     async fn dispatch(&mut self, dispatch: Dispatch) -> Flow {

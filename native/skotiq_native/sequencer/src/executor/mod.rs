@@ -53,6 +53,12 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
 
 pub(crate) const RECOVERY_NODE_TRIGGER_PREFIX: &str = "recovery_node:";
+
+/// Trigger id of a fired obstruction (trees, a building) in front of the
+/// telescope. A `ParkAndAbort` fired under this id, like the dawn trigger's,
+/// ends the night: the plan's shutdown steps run after the park, and the app
+/// reads the id as the run's stop origin to start end-of-night calibration.
+pub const OBSTRUCTION_TRIGGER_ID: &str = "obstruction";
 const DEFAULT_SAFETY_CHECK_INTERVAL_SECS: u64 = 30;
 
 /// Summary line of the decision row written when an autofocus does not

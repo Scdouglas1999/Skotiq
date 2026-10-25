@@ -616,6 +616,9 @@ pub enum ExecutorEvent {
         /// The node the dither ran for, or `None` for a trigger's dither.
         node_id: Option<NodeId>,
     },
+    /// The frame watch measured a saved light frame or confirmed an
+    /// obstruction; see [`crate::frame_watch::FrameWatchEvent`].
+    FrameWatch(Box<crate::frame_watch::FrameWatchEvent>),
     Error {
         message: String,
     },

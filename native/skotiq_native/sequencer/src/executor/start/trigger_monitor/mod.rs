@@ -1,12 +1,14 @@
-//! The run's trigger monitor: one tick per second, in four stages.
+//! The run's trigger monitor: one tick per second, in five stages.
 //!
 //! 1. [`polling`] reads the devices and publishes the readings into the
 //!    trigger state.
-//! 2. [`TriggerManager::check_all`] evaluates every trigger.
-//! 3. [`policy`] applies the operator's settings and the run's [`RunMode`],
+//! 2. [`frame_watch`] judges the frames saved since the last tick and acts
+//!    between frames on what it finds.
+//! 3. [`TriggerManager::check_all`] evaluates every trigger.
+//! 4. [`policy`] applies the operator's settings and the run's [`RunMode`],
 //!    and dispatches only what may act, which is what starts a trigger's
 //!    cooldown.
-//! 4. [`dispatch`] hands each dispatch to its action handler in [`actions`],
+//! 5. [`dispatch`] hands each dispatch to its action handler in [`actions`],
 //!    running it to completion before the next tick.
 
 use super::*;
@@ -14,6 +16,9 @@ use crate::triggers::{GuiderObservation, RunMode};
 
 mod actions;
 mod dispatch;
+mod frame_watch;
+#[cfg(test)]
+mod frame_watch_tests;
 mod policy;
 mod polling;
 mod tracking_limit;
@@ -85,6 +90,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         args.event_tx_clone2.clone(),
         &args.trigger_action_context,
     );
+    let mut frame_watch = frame_watch::FrameWatchStage::new(
+        args.event_tx_clone2.subscribe(),
+        args.device_ops_for_triggers.clone(),
+        args.sequence_for_custom_recovery_triggers.clone(),
+    );
     let mut dispatcher = Dispatcher::new(args).await;
 
     let mut check_interval = tokio::time::interval(std::time::Duration::from_secs(1));
@@ -120,6 +130,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         let Some(mode) = RunMode::new(tick_state, run_hold) else {
             continue;
         };
+        if let Some(fired) = frame_watch.tick(&mut dispatcher, mode).await {
+            return fired;
+        }
         let dispatches = {
             let mut manager = trigger_manager.write().await;
             let fired = manager.check_all().await;

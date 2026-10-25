@@ -239,6 +239,19 @@ pub(crate) async fn run_sequencer_event_loop(
                         detail_json: "{}".to_string(),
                     }),
                 )),
+                // Frame-watch measurements and obstruction reports ride the
+                // structured-progress variant under their own kinds.
+                ExecutorEvent::FrameWatch(event) => Some(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Sequencer,
+                    EventPayload::Sequencer(SequencerEvent::InstructionProgressStructured {
+                        node_id: String::new(),
+                        instruction: "Frame watch".to_string(),
+                        progress_percent: 100.0,
+                        detail_kind: event.kind().to_string(),
+                        detail_json: event.payload_json(),
+                    }),
+                )),
                 ExecutorEvent::NodeStarted { id, name } => Some(create_event_auto_id(
                     EventSeverity::Info,
                     EventCategory::Sequencer,

@@ -27,6 +27,7 @@ pub mod focus_prediction;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
 pub mod focuser_calibration;
+pub mod frame_watch;
 pub mod instructions;
 pub mod meridian;
 pub mod meridian_events;

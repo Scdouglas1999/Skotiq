@@ -105,6 +105,9 @@ pub(crate) struct ScriptedDeviceOps {
     /// When true, `safety_is_safe` answers as a rig with no safety monitor or
     /// weather device does: an error, resolved through the fail mode.
     pub(crate) safety_absent: Arc<AtomicBool>,
+    /// Where a mount that follows its slews points (RA hours, Dec degrees);
+    /// `None` answers as the null mount does. Set it to make slews arrive.
+    pub(crate) pointing: Arc<Mutex<Option<(f64, f64)>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -133,6 +136,7 @@ impl ScriptedDeviceOps {
             saved_frames: Arc::new(Mutex::new(Vec::new())),
             plate_solve_fails: Arc::new(AtomicBool::new(false)),
             safety_absent: Arc::new(AtomicBool::new(false)),
+            pointing: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -304,12 +308,20 @@ impl DeviceOps for ScriptedDeviceOps {
         if self.flip_on_slew.load(Ordering::SeqCst) {
             self.flipped.store(true, Ordering::SeqCst);
         }
-        self.inner.mount_slew_to_coordinates(id, ra, dec).await
+        let result = self.inner.mount_slew_to_coordinates(id, ra, dec).await;
+        let mut pointing = self.pointing.lock().unwrap();
+        if pointing.is_some() {
+            *pointing = Some((ra, dec));
+        }
+        result
     }
     async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
         self.inner.mount_abort_slew(id).await
     }
     async fn mount_get_coordinates(&self, id: &str) -> DeviceResult<(f64, f64)> {
+        if let Some(pointing) = *self.pointing.lock().unwrap() {
+            return Ok(pointing);
+        }
         self.inner.mount_get_coordinates(id).await
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
