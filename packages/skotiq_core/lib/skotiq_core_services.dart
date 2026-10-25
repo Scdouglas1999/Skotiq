@@ -239,6 +239,7 @@ export 'src/services/calibration/defect_map_service.dart';
 // dark_library, flat_library, and defect_maps + the calibration_tags layer.
 export 'src/services/calibration/fits_header_reader.dart';
 export 'src/services/calibration_library_service.dart';
+export 'src/services/calibration_backlog_service.dart';
 export 'src/services/disk_space_service.dart';
 export 'src/services/disk_space_guard.dart';
 export 'src/services/safe_rig_service.dart';

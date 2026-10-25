@@ -664,6 +664,9 @@ class BuildMasterFlatResult {
   final int channels;
   final String outputBitDepth;
 
+  /// Raw flats the builder left out (banded or obstructed), by path.
+  final List<String> excluded;
+
   const BuildMasterFlatResult({
     required this.outputPath,
     required this.frameCount,
@@ -673,6 +676,7 @@ class BuildMasterFlatResult {
     required this.height,
     required this.channels,
     required this.outputBitDepth,
+    this.excluded = const [],
   });
 
   factory BuildMasterFlatResult.fromJson(Map<String, dynamic> json) {
@@ -685,6 +689,10 @@ class BuildMasterFlatResult {
       height: (json['height'] as num?)?.toInt() ?? 0,
       channels: (json['channels'] as num?)?.toInt() ?? 1,
       outputBitDepth: json['outputBitDepth'] as String? ?? 'f32',
+      excluded: [
+        for (final e in (json['excluded'] as List? ?? const []))
+          if (e is Map) '${e['path'] ?? ''}' else '$e',
+      ],
     );
   }
 }
