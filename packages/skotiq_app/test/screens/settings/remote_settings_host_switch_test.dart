@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/settings/widgets/calibration_library_settings.dart';
+import 'package:skotiq_app/screens/darkroom/calibration/calibration_library_panel.dart';
 import 'package:skotiq_app/screens/settings/widgets/focus_model_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/imaging_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/log_viewer.dart';
@@ -159,7 +159,7 @@ void main() {
         overrides: [
           calibrationLibraryServiceProvider.overrideWithValue(service),
         ],
-        child: const CalibrationLibrarySettings(isMobile: true),
+        child: const SingleChildScrollView(child: CalibrationLibraryPanel()),
       ),
     );
     await tester.pump();
@@ -167,14 +167,14 @@ void main() {
     notifier.switchTo(hostB);
     await tester.pump();
     await tester.pump();
-    expect(find.text('/tmp/host-b-master.fit'), findsOneWidget);
+    expect(find.text('host-b-master.fit'), findsOneWidget);
 
     hostAResponse.complete([_master('host-a-stale', 1)]);
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('/tmp/host-b-master.fit'), findsOneWidget);
-    expect(find.text('/tmp/host-a-stale-master.fit'), findsNothing);
+    expect(find.text('host-b-master.fit'), findsOneWidget);
+    expect(find.text('host-a-stale-master.fit'), findsNothing);
   });
 
   testWidgets('calibration tag editor cannot write through a host switch',
@@ -195,23 +195,23 @@ void main() {
         overrides: [
           calibrationLibraryServiceProvider.overrideWithValue(service),
         ],
-        child: const CalibrationLibrarySettings(isMobile: true),
+        child: const SingleChildScrollView(child: CalibrationLibraryPanel()),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Edit tags / notes'));
+    await tester.tap(find.byTooltip('Tags and notes'));
     await tester.pumpAndSettle();
-    expect(find.text('Tags — Dark #1'), findsOneWidget);
+    expect(find.text('Dark #1'), findsOneWidget);
 
     notifier.switchTo(hostB);
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
     expect(hostA.calibrationTagWrites, 0);
     expect(hostB.calibrationTagWrites, 0);
-    expect(find.textContaining('action was cancelled'), findsOneWidget);
+    expect(find.textContaining('the tags were not saved'), findsOneWidget);
   });
 
   testWidgets('calibration delete cannot cross imaging hosts', (tester) async {
@@ -231,14 +231,14 @@ void main() {
         overrides: [
           calibrationLibraryServiceProvider.overrideWithValue(service),
         ],
-        child: const CalibrationLibrarySettings(isMobile: true),
+        child: const SingleChildScrollView(child: CalibrationLibraryPanel()),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Delete'));
+    await tester.tap(find.byTooltip('Delete from the library'));
     await tester.pumpAndSettle();
-    expect(find.text('Delete calibration master?'), findsOneWidget);
+    expect(find.text('Delete this master?'), findsOneWidget);
 
     notifier.switchTo(hostB);
     await tester.pump();
@@ -247,7 +247,7 @@ void main() {
 
     expect(hostA.calibrationDeletes, 0);
     expect(hostB.calibrationDeletes, 0);
-    expect(find.textContaining('action was cancelled'), findsOneWidget);
+    expect(find.textContaining('nothing was deleted'), findsOneWidget);
   });
 
   testWidgets('focus model ignores a late response from the old rig',

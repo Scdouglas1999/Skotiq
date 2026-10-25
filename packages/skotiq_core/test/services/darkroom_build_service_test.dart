@@ -320,6 +320,46 @@ void main() {
       expect(flats.single.filter, 'B');
       expect(flats.single.masterFrameCount, 19);
     });
+
+    test(
+      'a flat built for no group is filed under its own frames\' settings',
+      () async {
+        final flatDao = FlatLibraryDao(db);
+        final svc = DarkroomBuildService(
+          operation: native.call,
+          library: CalibrationLibraryService(
+            db: db,
+            flatLibraryDao: flatDao,
+            tagsDao: CalibrationTagsDao(db),
+          ),
+          masters: IntegratedMastersDao(db),
+          flatLibrary: flatDao,
+          readHeader: (path) async => {
+            'FILTER': "'Ha      '",
+            'GAIN': '76.',
+            'OFFSET': '15',
+            'XBINNING': '2',
+            'YBINNING': '2',
+          },
+          buildFlat: (args) async => {
+            'width': 100,
+            'height': 80,
+            'frameCount': 3,
+          },
+        );
+        await svc.buildCalibration(
+          kind: 'flat',
+          paths: ['/f1.fits', '/f2.fits', '/f3.fits'],
+          output: '/masters/flat_Ha.fits',
+          bias: '/masters/bias.fits',
+        );
+        final flat = (await flatDao.getAllEntries()).single;
+        expect(flat.filter, 'Ha');
+        expect(flat.gain, 76);
+        expect(flat.offset, 15);
+        expect(flat.binX, 2);
+      },
+    );
   });
 
   group('working space', () {

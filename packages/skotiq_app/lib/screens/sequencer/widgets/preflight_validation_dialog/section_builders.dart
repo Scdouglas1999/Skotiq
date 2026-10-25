@@ -285,15 +285,15 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
     );
   }
 
-  /// Deep-link to the dark-library settings section. We deliberately do not
-  /// build the capture sequence here — opening the existing tool keeps the
-  /// responsibility with the dark-library screen.
+  /// Deep-link to the Darkroom's calibration library. We deliberately do not
+  /// build the capture sequence here; opening the existing tool keeps the
+  /// responsibility with the calibration library.
   void _openCalibrationCenter() {
     // Capture the router before closing so the dialog's context isn't defunct
     // by the time we navigate.
     final router = GoRouter.maybeOf(context);
     Navigator.of(context).pop();
-    router?.go('/settings?section=dark-library');
+    router?.go('/darkroom?tab=calibration');
   }
 
   /// ONE banner carries the verdict (05 §11). The counts ride on it as chips,

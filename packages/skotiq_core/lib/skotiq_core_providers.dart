@@ -95,6 +95,7 @@ export 'src/providers/equipment/device_capability_provider.dart';
 export 'src/providers/meridian_countdown_provider.dart';
 export 'src/providers/meridian_flip_provider.dart';
 export 'src/providers/flat_wizard_provider.dart';
+export 'src/providers/flat_wizard_output.dart';
 export 'src/providers/ui_notification_provider.dart';
 export 'src/providers/operation_progress_provider.dart';
 export 'src/providers/current_screen_provider.dart';

@@ -7,6 +7,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/tutorial_keys/flat_wizard_keys.dart';
 import 'flat_failure_diagnosis.dart';
+import 'widgets/flat_build_master_step.dart';
 import 'widgets/flat_wizard_split_view.dart';
 import 'widgets/flat_preview_panel.dart';
 import 'widgets/save_path_dialog.dart';

@@ -180,23 +180,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Recent Backups',
   ],
   'calibration': [
-    'Apply dark, flat, and bias correction to captured images automatically',
-    'Auto-calibrate light frames',
-    'Auto-Calibration',
-    'Auto-match from dark library',
-    'Calibration',
-    'Calibration frame status',
-    'Dark frame',
-    'Find the best matching dark frame based on exposure parameters',
-    'Manual dark frame',
-    'Master bias',
-    'Master bias file',
-    'Master flat',
-    'Master flat file',
-  ],
-  'calibration-library': [
-    'Calibration library',
-    'Matching preview',
+    'Calibration is in the Darkroom',
   ],
   'captured-images': [
     'Captured images',
@@ -231,18 +215,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Server address',
     'Server status',
     'Work locally',
-  ],
-  'dark-library': [
-    'All entries',
-    'Apply dark, flat, and bias correction to captured images',
-    'Auto-calibrate light frames',
-    'Auto-Calibration',
-    'Dark library',
-    'Frame groups',
-    'Library management',
-    'Library statistics',
-    'Maximum temperature difference for dark matching',
-    'Temperature tolerance',
   ],
   'darkroom': [
     'At the end of a run',
@@ -923,12 +895,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'When enabled, each successful AF run appends a sample':
         'Auto-learn focus models',
   },
-  'calibration': {
-    'Apply dark, flat, and bias correction to captured images automatically':
-        'Auto-calibrate light frames',
-    'Find the best matching dark frame based on exposure parameters':
-        'Auto-match from dark library',
-  },
   'connection': {
     'Current host and port for this Skotiq server': 'Server address',
     'Drive the equipment attached to this computer instead of': 'Work locally',
@@ -938,11 +904,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Query INDI on startup',
     'Reload this screen from the connected Skotiq host':
         'Refresh host settings',
-  },
-  'dark-library': {
-    'Apply dark, flat, and bias correction to captured images':
-        'Auto-calibrate light frames',
-    'Maximum temperature difference for dark matching': 'Temperature tolerance',
   },
   'darkroom': {
     'One notification goes out when the pass finishes, through the same':

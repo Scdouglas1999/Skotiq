@@ -501,14 +501,28 @@ class DarkroomBuildService {
         'sigmaIterations': 3,
       });
       final sample = forGroup?.frames.firstOrNull;
+      // Without a group to file it under, the flat is registered with the
+      // settings its own frames were taken with, so the matcher can pair it
+      // with lights by filter, gain, offset and binning.
+      final header = sample == null
+          ? await _readHeader(paths.first)
+          : const <String, String>{};
+      int? headerInt(String key) =>
+          FitsHeaderReader.doubleValue(header, key)?.round();
       await flatLibrary?.addEntry(
         filePath: output,
-        filter: forGroup?.filter,
-        temperature: sample?.sensorTemp,
-        gain: sample?.gain ?? 0,
-        offset: sample?.offset ?? 0,
-        binX: sample?.binX ?? 1,
-        binY: sample?.binY ?? 1,
+        filter:
+            forGroup?.filter ?? FitsHeaderReader.stringValue(header, 'FILTER'),
+        temperature:
+            sample?.sensorTemp ??
+            FitsHeaderReader.firstDouble(header, const [
+              'CCD-TEMP',
+              'SET-TEMP',
+            ]),
+        gain: sample?.gain ?? headerInt('GAIN') ?? 0,
+        offset: sample?.offset ?? headerInt('OFFSET') ?? 0,
+        binX: sample?.binX ?? headerInt('XBINNING') ?? 1,
+        binY: sample?.binY ?? headerInt('YBINNING') ?? 1,
         width: (built['width'] as num?)?.toInt(),
         height: (built['height'] as num?)?.toInt(),
         masterFrameCount:

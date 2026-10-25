@@ -374,6 +374,51 @@ void main() {
     );
   });
 
+  test('saved flats are kept for the build step and recorded as raw '
+      'calibration frames', () async {
+    final backend = _AutoBackend();
+    addTearDown(backend.dispose);
+    final container = makeContainer(backend, filterNames: const ['L', 'R']);
+    final notifier = await primeWizard(container, frameCount: 2);
+    notifier.setMode(FlatWizardMode.batch);
+
+    await notifier.runCapture();
+
+    final output = container.read(flatRunOutputProvider);
+    expect(output.remote, isFalse);
+    expect(output.filters.keys, ['L', 'R']);
+    expect(output.filters['L']!.paths, hasLength(2));
+    expect(output.frameCount, 4);
+    final rows = await (db.select(
+      db.capturedImages,
+    )..where((t) => t.frameType.equals('flat'))).get();
+    expect(rows, hasLength(4));
+    expect(rows.map((r) => r.filter).toSet(), {'L', 'R'});
+    expect(rows.map((r) => r.filePath).toSet(), {
+      ...output.filters['L']!.paths,
+      ...output.filters['R']!.paths,
+    });
+  });
+
+  test(
+    'flats saved on a remote host are kept but not recorded locally',
+    () async {
+      final backend = _AutoNetworkBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, filterNames: const ['L']);
+      final notifier = await primeWizard(container, frameCount: 2);
+      notifier.setMode(FlatWizardMode.quick);
+      notifier.setCurrentFilterIndex(0);
+
+      await notifier.runCapture();
+
+      final output = container.read(flatRunOutputProvider);
+      expect(output.remote, isTrue);
+      expect(output.filters['L']!.paths, hasLength(2));
+      expect(await db.select(db.capturedImages).get(), isEmpty);
+    },
+  );
+
   test('remote backend routes history to the master via recordFlat', () async {
     final backend = _AutoNetworkBackend();
     addTearDown(backend.dispose);

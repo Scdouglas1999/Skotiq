@@ -152,6 +152,9 @@ extension FlatWizardRun on FlatWizardNotifier {
 
       // Committed: from here we are truly capturing
       _prepareFiltersForRun(queue);
+      ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
+        remote: backend is NetworkBackend,
+      );
       state = state.copyWith(
         isCapturing: true,
         errorMessage: null,
@@ -440,6 +443,17 @@ extension FlatWizardRun on FlatWizardNotifier {
 
           // Only NOW is the frame real on disk. Update counters + preview.
           savedCount++;
+          await _recordSavedFlat(
+            backend: backend,
+            filePath: filePath,
+            filter: filterSetting.filterName,
+            exposureSeconds: calibration.exposure,
+            capturedAt: captureTime,
+            gain: config.gain,
+            offset: config.offset,
+            binX: config.binX,
+            binY: config.binY,
+          );
           incrementFilterCapturedCount(idx);
           final image = capture.image;
           if (image != null) {
@@ -513,6 +527,77 @@ extension FlatWizardRun on FlatWizardNotifier {
       // transient capture/exposing flags are cleared and the latch released.
       state = state.copyWith(isCapturing: false, isExposing: false);
       _running = false;
+      if (!ref.read(flatRunOutputProvider).isEmpty) {
+        try {
+          unawaited(ref.read(calibrationBacklogProvider.notifier).refresh());
+        } on Object catch (e) {
+          developer.log(
+            'FlatWizard: calibration backlog refresh skipped: $e',
+            name: 'FlatWizardNotifier',
+            level: 900,
+          );
+        }
+      }
+    }
+  }
+
+  /// Keep a saved flat for the run's "Build master flat" step and, when the
+  /// frames are on this computer, record it so it waits in the calibration
+  /// library like any other raw calibration frame until a master covers it.
+  Future<void> _recordSavedFlat({
+    required Object backend,
+    required String filePath,
+    required String filter,
+    required double exposureSeconds,
+    required DateTime capturedAt,
+    required int? gain,
+    required int? offset,
+    required int binX,
+    required int binY,
+  }) async {
+    final output = ref.read(flatRunOutputProvider);
+    final existing =
+        output.filters[filter] ??
+        FlatRunFilterOutput(
+          filter: filter,
+          exposureSeconds: exposureSeconds,
+          gain: gain,
+          offset: offset,
+          binX: binX,
+          binY: binY,
+          paths: const [],
+        );
+    ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
+      filters: {...output.filters, filter: existing.withPath(filePath)},
+      remote: output.remote,
+    );
+    if (backend is NetworkBackend) return;
+    try {
+      await ref
+          .read(calibrationBacklogServiceProvider)
+          .recordCapturedFlat(
+            filePath: filePath,
+            exposureSeconds: exposureSeconds,
+            capturedAt: capturedAt,
+            filter: filter,
+            gain: gain,
+            offset: offset,
+            binX: binX,
+            binY: binY,
+            sensorTemp: ref.read(cameraStateProvider).temperature,
+          );
+    } catch (e, st) {
+      developer.log(
+        'FlatWizard: could not record $filePath: $e',
+        name: 'FlatWizardNotifier',
+        level: 900,
+        error: e,
+        stackTrace: st,
+      );
+      setWarningMessage(
+        '$filter: frames saved, but they were not added to the calibration '
+        'library ($e).',
+      );
     }
   }
 

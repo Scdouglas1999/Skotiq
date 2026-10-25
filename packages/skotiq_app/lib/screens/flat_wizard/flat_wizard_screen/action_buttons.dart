@@ -75,6 +75,11 @@ class _ActionButtons extends ConsumerWidget {
                   onPressed: () => _startCapture(context, ref),
                 ),
         ),
+        // The run's finish: its flats become a master in the library.
+        if (!state.isCapturing) ...[
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          const FlatBuildMasterStep(),
+        ],
       ],
     );
   }
