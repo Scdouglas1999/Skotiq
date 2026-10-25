@@ -1,11 +1,16 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show Variable;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:skotiq_app/screens/darkroom/darkroom_previews.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
+import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+
+import 'targets/owner_nights_fixture.dart';
 
 IntegratedMaster _master(int id, String filter, {int channels = 1}) =>
     IntegratedMaster(
@@ -132,5 +137,42 @@ void main() {
     expect(darkroomRenderIsDisplayable('screen', 'linear'), isTrue);
     expect(darkroomRenderIsDisplayable('unit', 'stretched'), isTrue);
     expect(darkroomRenderIsDisplayable('unit', 'linear'), isFalse);
+  });
+
+  test('a saved draft becomes the target\'s hero once the lists read again',
+      () async {
+    final owner = await seedOwnerNights();
+    addTearDown(owner.db.close);
+    final dir = await Directory.systemTemp.createTemp('darkroom-hero');
+    addTearDown(() => dir.delete(recursive: true));
+    final colorId = owner.masters['RGB']!;
+    final masterPath = '${dir.path}/LRGB_linear.fits';
+    await owner.db.customUpdate(
+      'UPDATE integrated_masters SET master_fits_path = ? WHERE id = ?',
+      variables: [Variable<String>(masterPath), Variable<int>(colorId)],
+    );
+    final container = ProviderContainer(
+      overrides: [databaseProvider.overrideWithValue(owner.db)],
+    );
+    addTearDown(container.dispose);
+    final sub = container.listen(darkroomTargetsProvider, (_, __) {});
+    addTearDown(sub.close);
+
+    DarkroomTarget target(List<DarkroomTarget> all) =>
+        all.singleWhere((t) => t.key == 'NGC 891');
+    final before = target(await container.read(darkroomTargetsProvider.future));
+    expect(before.heroImagePath, '/masters/NGC0891_LRGB.jpg');
+
+    final recipe = await RecipesDao(owner.db).create(
+      masterId: colorId,
+      baseMasterPath: masterPath,
+      createdBy: RecipeAuthor.user,
+    );
+    final draft = darkroomRecipePreviewPath(masterPath, recipe);
+    await File(draft).create(recursive: true);
+    container.read(darkroomDraftPreviewRevisionProvider.notifier).state++;
+
+    final after = target(await container.read(darkroomTargetsProvider.future));
+    expect(after.heroImagePath, draft);
   });
 }

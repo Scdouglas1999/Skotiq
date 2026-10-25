@@ -16,6 +16,7 @@ final darkroomTargetsProvider =
       ref.invalidateSelf();
     }
   });
+  ref.watch(darkroomDraftPreviewRevisionProvider);
   final db = ref.watch(databaseProvider);
   final mastersDao = ref.watch(integratedMastersDaoProvider);
   final framesByTarget = await loadDarkroomTargets(db);

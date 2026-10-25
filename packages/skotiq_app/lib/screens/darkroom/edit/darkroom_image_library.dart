@@ -14,6 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqTypography;
 
+import '../darkroom_previews.dart' show darkroomDraftPreviewRevisionProvider;
+
 /// One registered image and the recipes written over it.
 class DarkroomLibraryImage {
   final IntegratedMaster master;
@@ -159,6 +161,7 @@ List<DarkroomLibraryTarget> groupDarkroomLibrary(
 /// Every registered image with a file, grouped by target.
 final darkroomImageLibraryProvider =
     FutureProvider.autoDispose<List<DarkroomLibraryTarget>>((ref) async {
+  ref.watch(darkroomDraftPreviewRevisionProvider);
   final masters = await ref.watch(integratedMastersDaoProvider).getAll();
   final recipesDao = ref.watch(recipesDaoProvider);
   final targetNames = {

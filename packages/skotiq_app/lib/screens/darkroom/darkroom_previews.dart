@@ -8,9 +8,14 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/skotiq_core.dart';
+
+/// Bumped when a draft thumbnail is saved, so the lists that show one read
+/// it again.
+final darkroomDraftPreviewRevisionProvider = StateProvider<int>((ref) => 0);
 
 /// The widest a saved draft thumbnail is.
 const int kDarkroomDraftPreviewWidth = 960;

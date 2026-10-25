@@ -75,6 +75,8 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         _nightMasters = ref.read(dawnMasterResolverProvider),
         _photometry = ref.read(dawnPhotometryResolverProvider),
         _sidecars = ref.read(darkroomSidecarReaderProvider),
+        _draftRevision =
+            ref.read(darkroomDraftPreviewRevisionProvider.notifier),
         super(const DarkroomState()) {
     unawaited(_load());
   }
@@ -87,6 +89,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   final DawnMasterResolver _nightMasters;
   final DawnPhotometryResolver _photometry;
   final DarkroomSidecarReader _sidecars;
+  final StateController<int> _draftRevision;
 
   Timer? _renderDebounce;
   Timer? _saveDebounce;
@@ -1661,7 +1664,9 @@ class DarkroomController extends StateNotifier<DarkroomState> {
             width: preview.width,
             height: preview.height,
             rgba: preview.rgba,
-          ).catchError((Object error) {
+          ).then((_) {
+            if (mounted) _draftRevision.state++;
+          }).catchError((Object error) {
             developer.log(
               'The draft thumbnail for recipe $recipeId could not be saved: '
               '$error',
