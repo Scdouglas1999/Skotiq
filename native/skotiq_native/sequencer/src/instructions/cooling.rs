@@ -241,6 +241,23 @@ pub async fn execute_warm_camera(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
+    if config.defer_to_calibration {
+        let message = "Warm camera deferred: the camera stays at its set-point for the \
+                       end-of-night darks, and calibration warms it once they are taken";
+        tracing::info!("{}", message);
+        if let Err(e) = ctx
+            .device_ops
+            .send_notification("info", "Ending the night", message, None)
+            .await
+        {
+            tracing::warn!("Warm camera: notification not sent: {}", e);
+        }
+        if let Some(cb) = progress_callback {
+            cb(100.0, message.to_string());
+        }
+        return InstructionResult::success_with_message(message);
+    }
+
     let camera_id = match ctx.camera_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,

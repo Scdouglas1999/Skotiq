@@ -52,3 +52,9 @@ bool isTargetEndWhenSkip(String triggerId) =>
 String targetEndWhenSkipWarning(String triggerName) =>
     '$triggerName was already met when the run reached the target, so the '
     'target was skipped without imaging and no frames were captured for it.';
+
+/// The run error for a run that skipped its targets at entry and captured
+/// nothing.
+const kNothingImagedRunError =
+    'Nothing was imaged: every target this run reached had already met its '
+    'end condition, so no frames were captured.';

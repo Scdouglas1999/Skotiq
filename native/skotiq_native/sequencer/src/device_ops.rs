@@ -18,6 +18,16 @@ pub type DeviceResult<T> = Result<T, String>;
 /// real problem under noise.
 pub const NO_GUIDER_CONFIGURED: &str = "No active guider configured";
 
+/// Error text a safety poll returns on a rig with no safety monitor or weather
+/// device: a configuration, not a failed reading.
+pub const NO_SAFETY_DEVICE_CONFIGURED: &str =
+    "No safety monitor or weather device configured for sequencer safety checks";
+
+/// Whether a safety-poll error is the "this rig has no safety device" marker.
+pub fn is_no_safety_device_configured(error: &str) -> bool {
+    error.contains(NO_SAFETY_DEVICE_CONFIGURED)
+}
+
 /// Error text the default homing operations return when a backend has not
 /// implemented them.
 pub const HOMING_UNSUPPORTED: &str = "Homing is not supported by this device backend";

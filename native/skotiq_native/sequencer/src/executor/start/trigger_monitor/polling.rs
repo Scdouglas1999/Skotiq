@@ -160,12 +160,21 @@ impl DevicePoller {
             }
             NoDataResolution::Safe => {
                 if first_error {
-                    tracing::warn!(
-                        "Safety poll error: {} - treating as safe (FailOpen). \
-                         Sequence will continue. Do not use FailOpen for \
-                         unattended runs.",
-                        error
-                    );
+                    if crate::device_ops::is_no_safety_device_configured(&error) {
+                        // Fail open on a rig without a safety device is the
+                        // operator's setting; the app's weather verdict still
+                        // holds the run when the sky turns.
+                        tracing::info!(
+                            "No safety monitor or weather device is connected; the run \
+                             relies on the app's weather verdict (fail open)"
+                        );
+                    } else {
+                        tracing::warn!(
+                            "Safety poll error: {} - treating as safe (fail open); the \
+                             run continues",
+                            error
+                        );
+                    }
                 }
                 Some(true)
             }

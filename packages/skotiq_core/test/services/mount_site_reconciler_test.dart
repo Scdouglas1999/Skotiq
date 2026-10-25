@@ -328,4 +328,44 @@ void main() {
       expect(backend.calls.where((c) => c.startsWith('setTime')), isEmpty);
     });
   });
+
+  group('site elevation', () {
+    MountSiteReconciliation withElevations({
+      double? computer,
+      double? mount,
+      double mountLat = 40.0,
+    }) => MountSiteReconciliation(
+      deviceId: 'mount',
+      deviceName: 'Test Mount',
+      capabilities: _caps(),
+      computerLatitudeDeg: 40.0,
+      computerLongitudeDeg: -75.0,
+      computerElevationM: computer,
+      computerUtcSeconds: 1000000,
+      computerUtcOffsetHours: -4,
+      mountLatitudeDeg: mountLat,
+      mountLongitudeDeg: -75.0,
+      mountElevationM: mount,
+      mountUtcSeconds: 1000000,
+      mountUtcOffsetHours: -4,
+    );
+
+    test('an unset elevation takes the mount\'s at the same site', () {
+      expect(withElevations(computer: 0, mount: 112).elevationToAdopt, 112);
+      expect(withElevations(mount: 112).elevationToAdopt, 112);
+    });
+
+    test('a set elevation is never overwritten', () {
+      expect(withElevations(computer: 95, mount: 112).elevationToAdopt, isNull);
+    });
+
+    test('a mount with no elevation, or at another site, offers none', () {
+      expect(withElevations(computer: 0, mount: 0).elevationToAdopt, isNull);
+      expect(withElevations(computer: 0).elevationToAdopt, isNull);
+      expect(
+        withElevations(computer: 0, mount: 112, mountLat: 41).elevationToAdopt,
+        isNull,
+      );
+    });
+  });
 }

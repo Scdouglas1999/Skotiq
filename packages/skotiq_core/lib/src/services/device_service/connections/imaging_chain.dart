@@ -376,6 +376,21 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
             computerElevationM: settings.elevation,
           );
 
+      final elevation = comparison.elevationToAdopt;
+      if (elevation != null) {
+        await _ref
+            .read(appSettingsProvider.notifier)
+            .updateLocation(elevation: elevation);
+        _safeLog(
+          (l) => l.info(
+            'The site elevation was not set; using the '
+            '${elevation.toStringAsFixed(0)} m that $deviceName reports',
+            source: 'DeviceService',
+          ),
+          'mount-site-elevation-adopted',
+        );
+      }
+
       if (!comparison.needsAttention) return;
 
       switch (mode) {

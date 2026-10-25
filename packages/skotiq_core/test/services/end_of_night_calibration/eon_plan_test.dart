@@ -1,3 +1,4 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
@@ -214,5 +215,50 @@ void main() {
       );
       expect(isCalibrationOnlySequence(of([CoolCameraNode(id: 'c')])), isFalse);
     });
+  });
+
+  group('the plan\'s closing warm-up', () {
+    Sequence plan(List<SequenceNode> steps) {
+      const root = 'root';
+      return Sequence.create(
+        name: 'Night',
+        rootNodeId: root,
+        nodes: {
+          root: InstructionSetNode(
+            id: root,
+            name: 'Night',
+            childIds: [for (final n in steps) n.id],
+          ),
+          for (final n in steps) n.id: n,
+        },
+      );
+    }
+
+    test('only the warm-up among the closing steps is handed over', () {
+      final sequence = plan([
+        WarmCameraNode(id: 'early-warm', name: 'Warm', parentId: 'root'),
+        ExposureNode(id: 'lights', name: 'Lights', parentId: 'root'),
+        StopGuidingNode(id: 'stop', name: 'Stop', parentId: 'root'),
+        HomeMountNode(id: 'home', name: 'Home', parentId: 'root'),
+        WarmCameraNode(id: 'warm', name: 'Warm', parentId: 'root'),
+      ]);
+      expect(shutdownWarmUpIds(sequence), {'warm'});
+    });
+
+    test('a plan that ends on its lights hands nothing over', () {
+      final sequence = plan([
+        ExposureNode(id: 'lights', name: 'Lights', parentId: 'root'),
+      ]);
+      expect(shutdownWarmUpIds(sequence), isEmpty);
+    });
+  });
+
+  test('end-of-night calibration is on unless switched off', () async {
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final dao = SettingsDao(db);
+    expect((await EonSettings.load(dao)).enabled, isTrue);
+    await dao.setSetting(EonSettings.enabledKey, 'false');
+    expect((await EonSettings.load(dao)).enabled, isFalse);
   });
 }

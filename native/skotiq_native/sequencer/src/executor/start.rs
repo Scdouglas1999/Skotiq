@@ -8,6 +8,8 @@ mod calibration_run;
 mod checkpoint_stream;
 mod command_handler;
 mod explicit_end;
+pub(crate) mod night_end;
+mod stale_end_times;
 mod preflight;
 mod progress_callback;
 mod recovery_driver;

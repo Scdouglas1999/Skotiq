@@ -410,6 +410,41 @@ void main() {
       expect(c.read(liveSequenceStatsProvider)!.warningMessages, hasLength(1));
     });
 
+    test(
+      'a run that skipped its target and imaged nothing is not completed',
+      () async {
+        final c = buildContainer(settings: const AppSettingsState());
+        final executor = c.read(sequenceExecutorProvider);
+        await startNativeRun(executor);
+
+        emitTriggerFired(
+          triggerId: kTargetEndWhenTriggerId,
+          triggerName:
+              'The end condition on "NGC0891" (time ≥ 2026-10-22 09:48 UTC)',
+          action: kTargetEndWhenSkipAction,
+        );
+        eventController.add(
+          bridge_event.SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: bridge_event.EventSeverity.info,
+            category: bridge_event.EventCategory.sequencer,
+            eventType: 'Completed',
+            data: const {},
+          ),
+        );
+        for (var i = 0; i < 20; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+
+        final result = c.read(sequenceTerminalRunResultProvider);
+        expect(result?.runStatus, 'failed');
+        expect(
+          c.read(liveSequenceStatsProvider)?.errorMessages ?? const <String>[],
+          anyElement(contains('Nothing was imaged')),
+        );
+      },
+    );
+
     test('an ordinary trigger fire is still not a warning', () async {
       final c = buildContainer(settings: const AppSettingsState());
       final executor = c.read(sequenceExecutorProvider);

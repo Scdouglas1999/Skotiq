@@ -94,7 +94,10 @@ impl SequenceExecutor {
     /// Private — `load_sequence` is the only documented entry point;
     /// constructing a tree without simultaneously updating
     /// `self.sequence` would leave the executor in a torn state.
-    fn build_node_tree(&self, sequence: &SequenceDefinition) -> Result<Box<dyn Node>, String> {
+    pub(super) fn build_node_tree(
+        &self,
+        sequence: &SequenceDefinition,
+    ) -> Result<Box<dyn Node>, String> {
         let node_map: HashMap<&str, &NodeDefinition> =
             sequence.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 

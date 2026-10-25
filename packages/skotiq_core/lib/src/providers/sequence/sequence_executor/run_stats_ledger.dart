@@ -35,6 +35,9 @@ class RunStatsLedger {
 
   bool get isSealed => _sealed;
 
+  /// The live run's stats, or null when no run is live.
+  SequenceRunStats? get current => _readStats();
+
   /// Apply [mutate] to the live stats and, when [persist] is true, write them
   /// to the run row. A no-op once sealed or when no run is live.
   ///

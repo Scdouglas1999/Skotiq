@@ -170,6 +170,7 @@ pub async fn api_get_filterwheel_status(
     // debug, not info: this whole status path is polled every few seconds by
     // the dashboard/companions — at INFO it dominated the log volume.
     tracing::debug!(
+        target: "skotiq_bridge::api::devices::filter_wheel",
         "[api_get_filterwheel_status] device={}, raw position from SDK={}",
         device_id,
         position
@@ -180,6 +181,7 @@ pub async fn api_get_filterwheel_status(
         .map_err(SkotiqError::from)?;
 
     tracing::debug!(
+        target: "skotiq_bridge::api::devices::filter_wheel",
         "[api_get_filterwheel_status] Returning: position={}, moving={}, filter_count={}, names={:?}",
         position,
         is_moving,
@@ -202,20 +204,25 @@ pub async fn api_filterwheel_set_position(
     position: i32,
 ) -> Result<(), SkotiqError> {
     tracing::info!(
+        target: "skotiq_bridge::api::devices::filter_wheel",
         "[API] api_filterwheel_set_position called: device_id={}, position={}",
         device_id,
         position
     );
     // Real device - use DeviceManager for proper driver routing
-    tracing::info!("[API] Using real device via DeviceManager");
+    tracing::info!(target: "skotiq_bridge::api::devices::filter_wheel", "[API] Using real device via DeviceManager");
     let mgr = get_device_manager();
     let result = mgr
         .filter_wheel_set_position(&device_id, position)
         .await
         .map_err(SkotiqError::from);
     match &result {
-        Ok(_) => tracing::info!("[API] Filter wheel position set successfully"),
-        Err(e) => tracing::error!("[API] Filter wheel set position failed: {:?}", e),
+        Ok(_) => {
+            tracing::info!(target: "skotiq_bridge::api::devices::filter_wheel", "[API] Filter wheel position set successfully")
+        }
+        Err(e) => {
+            tracing::error!(target: "skotiq_bridge::api::devices::filter_wheel", "[API] Filter wheel set position failed: {:?}", e)
+        }
     }
     result
 }
@@ -269,7 +276,7 @@ pub async fn api_filterwheel_set_filter_names(
     device_id: String,
     names: Vec<String>,
 ) -> Result<(), SkotiqError> {
-    tracing::info!("API: Setting filter names for '{}': {:?}", device_id, names);
+    tracing::info!(target: "skotiq_bridge::api::devices::filter_wheel", "API: Setting filter names for '{}': {:?}", device_id, names);
 
     // Real device - use DeviceManager
     let mgr = get_device_manager();

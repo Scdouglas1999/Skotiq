@@ -949,25 +949,66 @@ class AutoIntegrationCompletion {
 final autoIntegrationCompletionProvider =
     StateProvider<AutoIntegrationCompletion?>((ref) => null);
 
+/// How long to wait for the end-of-night coordinator to classify a finished
+/// run before falling back to the run's own status.
+const _nightDecisionTimeout = Duration(seconds: 30);
+
 /// Always-on host lifecycle for automatic integration.
 ///
 /// It deliberately activates only for [FfiBackend]. A remote UI mirrors the
 /// host's terminal state and image catalog, but must never process its own
 /// client-side database or paths. Runs are serialized so two closely-spaced
 /// terminal events cannot race the same accumulating master.
+///
+/// A run is integrated when it ended the night: it completed, or a dawn or
+/// obstruction park ended it. It waits for the end-of-night calibration that
+/// run started, so the masters are calibrated with tonight's darks.
 final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend is! FfiBackend) return;
 
+  // Created first so it sees every terminal run this coordinator sees.
+  final night = ref.read(endOfNightCalibrationCoordinatorProvider);
+  final integrate = _integrator(ref);
   var queue = Future<void>.value();
   ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider,
       (previous, next) {
-    if (next == null || next.runStatus != 'completed') return;
+    if (next == null) return;
     if (previous?.generation == next.generation) return;
     final sessionId = next.dbSessionId;
     if (sessionId == null) return;
+    final generation = next.generation;
+    var classified = true;
+    final ended = night.runEnded(generation).timeout(
+      _nightDecisionTimeout,
+      onTimeout: () {
+        classified = false;
+        return next.runStatus == 'completed'
+            ? EonEndReason.targetsComplete
+            : null;
+      },
+    );
 
     queue = queue.then((_) async {
+      if (await ended == null) return;
+      if (classified) await night.nightSettled(generation);
+      await integrate(sessionId, generation);
+    });
+  });
+
+  // A night the operator stopped and then ended with a manual end-of-night
+  // calibration is integrated once that calibration is done.
+  ref.listen<NightIntegrationRequest?>(nightIntegrationRequestProvider,
+      (previous, next) {
+    if (next == null || previous?.generation == next.generation) return;
+    queue = queue.then((_) => integrate(next.sessionId, -next.generation));
+  });
+});
+
+/// What the coordinator does for one night: integrate it and publish the
+/// result. [generation] keys the completion toast.
+Future<void> Function(int sessionId, int generation) _integrator(Ref ref) =>
+    (sessionId, generation) async {
       try {
         final result = await ref
             .read(autoIntegrationServiceProvider)
@@ -975,7 +1016,7 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
         if (!result.ran && !result.failed) return;
         ref.read(autoIntegrationCompletionProvider.notifier).state =
             AutoIntegrationCompletion(
-          generation: next.generation,
+          generation: generation,
           result: result,
         );
         if (result.failed) {
@@ -999,6 +1040,4 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
           fields: {'sessionId': sessionId, 'error': '$error'},
         );
       }
-    });
-  });
-});
+    };

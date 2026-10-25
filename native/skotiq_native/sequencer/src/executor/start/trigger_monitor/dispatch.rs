@@ -206,12 +206,21 @@ impl Dispatcher {
         action: &RecoveryAction,
         action_str: &str,
     ) {
-        tracing::warn!(
-            "Trigger fired: {} ({}) - action: {:?}",
-            trigger_name,
-            trigger_id,
-            action
-        );
+        if matches!(action, RecoveryAction::Continue) {
+            tracing::debug!(
+                "Trigger fired: {} ({}) - action: {:?}",
+                trigger_name,
+                trigger_id,
+                action
+            );
+        } else {
+            tracing::warn!(
+                "Trigger fired: {} ({}) - action: {:?}",
+                trigger_name,
+                trigger_id,
+                action
+            );
+        }
         self.run.send(ExecutorEvent::TriggerFired {
             trigger_id: trigger_id.to_string(),
             trigger_name: trigger_name.to_string(),
@@ -257,9 +266,27 @@ impl Dispatcher {
                 recovery::pause_and_wait_for_clear(trigger_name, &self.recovery_tx, run).await
             }
             RecoveryAction::ParkAndAbort if end_without_parking => {
-                park::end_without_parking(trigger_name, run, &mut self.park).await
+                park::end_without_parking(
+                    trigger_id,
+                    trigger_name,
+                    rig,
+                    &self.custom,
+                    run,
+                    &mut self.park,
+                )
+                .await
             }
-            RecoveryAction::ParkAndAbort => park::park_and_abort(rig, run, &mut self.park).await,
+            RecoveryAction::ParkAndAbort => {
+                park::park_and_abort(
+                    trigger_id,
+                    trigger_name,
+                    rig,
+                    &self.custom,
+                    run,
+                    &mut self.park,
+                )
+                .await
+            }
             RecoveryAction::NextTarget => {
                 tracing::info!("Trigger requested advance to next target");
                 self.skip_to_next_target.store(true, Ordering::Relaxed);
@@ -319,7 +346,7 @@ impl Dispatcher {
             // in-flight guard; nothing reaches here with it.
             RecoveryAction::Notify => ActionFlow::Finished,
             RecoveryAction::Continue => {
-                tracing::info!(
+                tracing::debug!(
                     "Trigger '{}' fired with RecoveryAction::Continue (logged and ignored)",
                     trigger_name
                 );

@@ -23,6 +23,34 @@ import '../sequencer_defaults.dart';
 /// through the constructor: [Ref] for the settings / profile / defaults it
 /// reads, and [warn] for the operator-facing warnings a lookup failure must
 /// surface into the run record rather than only into a log file.
+/// The Warm Camera steps among the instructions that close [sequence]: the
+/// enabled children of the root after its last target that only put the rig
+/// away. The native sequencer reads the same steps as the plan's shutdown.
+Set<String> shutdownWarmUpIds(Sequence sequence) {
+  final root = sequence.rootNode;
+  if (root == null) return const {};
+  final ids = <String>{};
+  for (final id in root.childIds.reversed) {
+    final node = sequence.nodes[id];
+    if (node == null) break;
+    if (!node.isEnabled) continue;
+    if (node.childIds.isNotEmpty) break;
+    final putsAway =
+        node is StopGuidingNode ||
+        node is ParkNode ||
+        node is HomeMountNode ||
+        node is WarmCameraNode ||
+        node is CloseDomeNode ||
+        node is ParkDomeNode ||
+        node is CloseCoverNode ||
+        node is CalibratorOffNode ||
+        node is NotificationNode;
+    if (!putsAway) break;
+    if (node is WarmCameraNode) ids.add(node.id);
+  }
+  return ids;
+}
+
 class SequenceSerializer {
   SequenceSerializer({
     required Ref ref,
@@ -33,7 +61,13 @@ class SequenceSerializer {
   final Ref _ref;
   final void Function(String message) _warn;
 
-  String sequenceToJson(Sequence sequence) {
+  /// The run's native tree. With [deferShutdownWarmUp], the Warm Camera
+  /// steps that close the plan are marked for end-of-night calibration to
+  /// take over, so the camera stays at its set-point for the darks.
+  String sequenceToJson(Sequence sequence, {bool deferShutdownWarmUp = false}) {
+    final deferredWarmUps = deferShutdownWarmUp
+        ? shutdownWarmUpIds(sequence)
+        : const <String>{};
     final appSettings = _ref.read(appSettingsProvider).valueOrNull;
     final autoFocusOnFilterChange =
         appSettings?.autoFocusOnFilterChange ?? false;
@@ -85,6 +119,9 @@ class SequenceSerializer {
 
     void processNode(SequenceNode node) {
       final Map<String, dynamic> nodeType = _nodeToConfig(node);
+      if (deferredWarmUps.contains(node.id)) {
+        nodeType['defer_to_calibration'] = true;
+      }
 
       // If this node is a parent that contains FilterChange children needing
       // injection, rewrite its `children` list to splice an AF node id in

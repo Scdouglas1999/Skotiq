@@ -11,6 +11,7 @@ import '../../services/sequence_repository.dart'
     show sequenceRepositoryProvider;
 import '../../services/live_stacking_broadcast_service.dart';
 import '../../services/safe_rig_service.dart';
+import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../services/logging_service.dart';
 import '../backend_provider.dart';
 import '../database_provider.dart' show targetsDaoProvider;
@@ -59,7 +60,8 @@ export 'sequence_executor/run_finalization.dart' show RunFinalization;
 export 'sequence_executor/run_lifecycle.dart';
 export 'sequence_executor/session_diagnostics.dart'
     show kCoolerSetpointBandDegC;
-export 'sequence_executor/sequence_serializer.dart' show SequenceSerializer;
+export 'sequence_executor/sequence_serializer.dart'
+    show SequenceSerializer, shutdownWarmUpIds;
 export 'sequence_executor/stop_confirmation.dart'
     show
         NativeStopConfirmer,
@@ -729,7 +731,16 @@ class SequenceExecutor {
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
     await _ref.read(savedFocuserBacklashProvider.future);
 
-    await _backend.sequencerLoadJson(_serializer.sequenceToJson(sequence));
+    // With end-of-night calibration to follow, the plan's closing warm-up
+    // waits for it so the camera stays at the darks' set-point.
+    final deferWarmUp = await endOfNightCalibrationFollows(
+      _ref,
+      _ref.read(currentSequenceProvider.notifier).activeOwner,
+    );
+    _ref.read(shutdownWarmUpDeferredProvider.notifier).state = deferWarmUp;
+    await _backend.sequencerLoadJson(
+      _serializer.sequenceToJson(sequence, deferShutdownWarmUp: deferWarmUp),
+    );
 
     // The runtime config is seeded before start, so the trigger monitor's
     // first poll already runs on the operator's values; the settings watchers

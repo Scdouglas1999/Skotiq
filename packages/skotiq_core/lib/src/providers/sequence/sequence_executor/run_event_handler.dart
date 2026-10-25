@@ -83,6 +83,10 @@ class RunEventHandler {
   final void Function(String message, {bool persist}) _warn;
   final void Function(SequenceExecutionState state) _setExecutionState;
   final RunTerminalSink _onTerminal;
+
+  /// Whether this run skipped a target because its end condition was
+  /// already met when the run reached it.
+  bool _targetSkippedAtEntry = false;
   LoggingService get _logger => _loggerFn();
 
   /// Per-event-type rate limit on the debug trace, so a chatty type cannot
@@ -168,13 +172,14 @@ class RunEventHandler {
         // A new run answers for itself: the previous run's stop cause must not
         // be read as this one's.
         _ref.read(sequenceStopEvidenceProvider.notifier).state = null;
+        _targetSkippedAtEntry = false;
         _setExecutionState(SequenceExecutionState.running);
       case RunPaused():
         _setExecutionState(SequenceExecutionState.paused);
       case RunResumed():
         _setExecutionState(SequenceExecutionState.running);
       case RunCompleted():
-        _onTerminal(SequenceExecutionState.completed, 'completed');
+        _onCompleted();
       case RunFailed(:final error):
         _onTerminal(
           SequenceExecutionState.failed,
@@ -443,6 +448,7 @@ class RunEventHandler {
     // A target dropped by its own end_when costs the operator a whole target,
     // so it goes on the run record, not only into the trigger feed.
     if (isTargetEndWhenSkip(event.triggerId ?? '')) {
+      _targetSkippedAtEntry = true;
       final warning = targetEndWhenSkipWarning(triggerName);
       _logger.warning(warning, source: 'SequenceExecutor');
       _stats.update((stats) => stats.recordWarning(warning));
@@ -458,12 +464,30 @@ class RunEventHandler {
     );
   }
 
+  /// A run that skipped a target at entry and captured no frame imaged
+  /// nothing; it is filed as failed with that reason, never as completed.
+  void _onCompleted() {
+    final framesCaptured = _stats.current?.framesCaptured ?? 0;
+    final skipped = _targetSkippedAtEntry;
+    _targetSkippedAtEntry = false;
+    if (skipped && framesCaptured == 0) {
+      _onTerminal(
+        SequenceExecutionState.failed,
+        'failed',
+        error: kNothingImagedRunError,
+      );
+      return;
+    }
+    _onTerminal(SequenceExecutionState.completed, 'completed');
+  }
+
   /// A native `Stopped` this executor did not command came from the native
   /// side (a trigger's park, a watchdog, a safety abort) and is filed
   /// `aborted`; only a stop the wire attributes to the operator stays
   /// `stopped`. The echo of this executor's own stop() is swallowed by the
   /// finalization it already claimed.
   void _onNativeStopped() {
+    _targetSkippedAtEntry = false;
     final stopEvidence = _ref.read(sequenceStopEvidenceProvider);
     final operatorStopped =
         stopEvidence?.author == SequenceStopAuthor.operatorPress;

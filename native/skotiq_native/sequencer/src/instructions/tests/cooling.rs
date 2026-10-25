@@ -21,6 +21,7 @@ async fn warm_camera_reports_failure_when_the_cooler_will_not_switch_off() {
         &WarmConfig {
             rate_per_min: 60.0,
             target_temp: Some(20.0),
+            ..WarmConfig::default()
         },
         &ctx,
         None,
@@ -56,6 +57,7 @@ async fn warm_with(ops: Arc<ScriptedDomeRotatorOps>) -> (InstructionResult, Vec<
         &WarmConfig {
             rate_per_min: 2.0,
             target_temp: None,
+            ..WarmConfig::default()
         },
         &ctx,
         None,
@@ -239,4 +241,26 @@ async fn a_sensor_warming_under_its_cooler_is_a_fault_that_still_stops() {
     assert_eq!(run.status, NodeStatus::Failure);
     assert_eq!(run.set_temp_c, None);
     assert!(run.decisions.is_empty(), "{:?}", run.decisions);
+}
+
+/// A Warm Camera step handed to end-of-night calibration leaves the cooler
+/// alone: the darks are taken at the set-point and calibration warms after.
+#[tokio::test(start_paused = true)]
+async fn a_warm_up_deferred_to_calibration_leaves_the_cooler_on() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let ctx = ctx_with_ops(ops.clone()).await;
+
+    let result = execute_warm_camera(
+        &WarmConfig {
+            defer_to_calibration: true,
+            ..WarmConfig::default()
+        },
+        &ctx,
+        None,
+    )
+    .await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert!(result.message.unwrap_or_default().contains("deferred"));
+    assert!(ops.cooler_commands.lock().unwrap().is_empty());
 }
