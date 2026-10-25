@@ -36,7 +36,7 @@ void main() {
   });
 
   test(
-    'auto-integration setting defaults off and round-trips on the host',
+    'auto-integration setting defaults on and round-trips on the host',
     () async {
       var response = await translateHandlerErrors(
         handlers.handleGetSettings(
@@ -48,7 +48,7 @@ void main() {
       );
       expect(response.statusCode, HttpStatus.ok);
       expect(jsonDecode(await response.readAsString()), {
-        'autoIntegrate': false,
+        'autoIntegrate': true,
       });
 
       response = await translateHandlerErrors(
@@ -56,7 +56,7 @@ void main() {
           Request(
             'POST',
             Uri.parse('http://localhost/api/post-session/settings'),
-            body: jsonEncode({'autoIntegrate': true}),
+            body: jsonEncode({'autoIntegrate': false}),
             headers: {'content-type': 'application/json'},
           ),
         ),
@@ -64,8 +64,20 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       expect(
         await database.settingsDao.getSetting('post_session.auto_integrate'),
-        'true',
+        'false',
       );
+
+      response = await translateHandlerErrors(
+        handlers.handleGetSettings(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/api/post-session/settings'),
+          ),
+        ),
+      );
+      expect(jsonDecode(await response.readAsString()), {
+        'autoIntegrate': false,
+      });
     },
   );
 

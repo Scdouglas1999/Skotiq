@@ -55,7 +55,8 @@ class PostSessionHandlers {
     final raw = await container
         .read(settingsDaoProvider)
         .getSetting(_autoIntegrateSettingKey);
-    return jsonOk({'autoIntegrate': raw == 'true'});
+    // An unset key reads as on, as NightEndAutomationSettings reads it.
+    return jsonOk({'autoIntegrate': raw != 'false'});
   }
 
   /// POST /api/post-session/settings

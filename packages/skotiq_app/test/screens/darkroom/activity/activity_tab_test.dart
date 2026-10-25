@@ -308,19 +308,30 @@ void main() {
 
   group('night-end automation', () {
     testWidgets(
-        'a fresh install takes darks and bias, builds nothing, and '
-        'says why the later steps are off', (tester) async {
+        'a fresh install takes darks and bias and builds masters', (
+      tester,
+    ) async {
       await pump(tester);
       SkotiqSwitch toggle(String key) =>
           tester.widget<SkotiqSwitch>(find.byKey(ValueKey(key)));
       expect(toggle('night_end_calibrate').value, isTrue);
+      expect(toggle('night_end_build').value, isTrue);
+      expect(toggle('night_end_deliver').enabled, isTrue);
+      expect(find.textContaining('Needs Build masters.'), findsNothing);
+      expect(find.text('80%'), findsOneWidget);
+    });
+
+    testWidgets(
+        'building masters turned off stays off and says why the later '
+        'steps are off', (tester) async {
+      await db.settingsDao
+          .setSetting(NightEndAutomationSettings.buildKey, 'false');
+      await pump(tester);
+      SkotiqSwitch toggle(String key) =>
+          tester.widget<SkotiqSwitch>(find.byKey(ValueKey(key)));
       expect(toggle('night_end_build').value, isFalse);
       expect(toggle('night_end_deliver').enabled, isFalse);
-      expect(
-        find.textContaining('Needs Build masters.'),
-        findsOneWidget,
-      );
-      expect(find.text('80%'), findsOneWidget);
+      expect(find.textContaining('Needs Build masters.'), findsOneWidget);
     });
 
     testWidgets('each switch writes the setting the night-end run reads', (
@@ -340,12 +351,16 @@ void main() {
         }
       }
 
-      await flip('night_end_build');
       await flip('night_end_deliver');
       await flip('night_end_message');
+      await flip('night_end_build');
       await flip('night_end_calibrate');
       final settings = await NightEndAutomationSettings.load(db.settingsDao);
-      expect(settings.build, isTrue);
+      expect(settings.build, isFalse);
+      expect(
+        await db.settingsDao.getSetting(NightEndAutomationSettings.buildKey),
+        'false',
+      );
       expect(settings.deliver, isFalse);
       expect(settings.morningMessage, isFalse);
       expect(settings.calibrate, isFalse);

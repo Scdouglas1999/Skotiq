@@ -10,7 +10,7 @@ import '../end_of_night_calibration/eon_settings.dart';
 class NightEndAutomationSettings {
   const NightEndAutomationSettings({
     this.calibrate = true,
-    this.build = false,
+    this.build = true,
     this.deliver = true,
     this.morningMessage = true,
     this.minRetainedArea = defaultMinRetainedArea,
@@ -21,8 +21,8 @@ class NightEndAutomationSettings {
   final bool calibrate;
 
   /// Build masters for every target the night imaged, from all its nights.
-  /// Off on a fresh install: it writes masters and takes an hour of CPU at
-  /// the end of every night, which is the operator's call.
+  /// On unless the operator turned it off: an unset key reads as on, on a
+  /// fresh install and on one that never touched the switch.
   final bool build;
 
   /// Hand finished masters, previews and the report to the delivery
@@ -54,7 +54,7 @@ class NightEndAutomationSettings {
     );
     return NightEndAutomationSettings(
       calibrate: await dao.getSetting(calibrateKey) != 'false',
-      build: await dao.getSetting(buildKey) == 'true',
+      build: await dao.getSetting(buildKey) != 'false',
       deliver: await dao.getSetting(deliverKey) != 'false',
       morningMessage: await dao.getSetting(morningMessageKey) != 'false',
       minRetainedArea: field == null || !field.isFinite
