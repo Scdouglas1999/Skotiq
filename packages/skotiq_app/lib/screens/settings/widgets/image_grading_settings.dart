@@ -325,10 +325,10 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                 SettingRow(
                   icon: LucideIcons.sparkles,
                   title: 'Auto-integrate at end of run',
-                  subtitle: 'When on, the accepted subs are integrated into an '
-                      'archival master automatically when a sequence run '
-                      'completes — wake up to a finished image. The result '
-                      'lands in Session Review › Masters.',
+                  subtitle: 'When on, the end of a night builds linear masters '
+                      'for each target it imaged, from all of the target\'s '
+                      'nights, after end-of-night calibration. The masters '
+                      'appear in Darkroom › Masters.',
                   trailing: _AutoIntegrateSwitch(),
                   isLast: true,
                 ),

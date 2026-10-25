@@ -12,6 +12,7 @@
 // routing decision is observable without native code.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -243,9 +244,38 @@ class _RecordingAutoIntegrationService extends AutoIntegrationService {
   final calls = <int>[];
 
   @override
-  Future<AutoIntegrationResult> maybeRunForSession(int sessionId) async {
+  Future<AutoIntegrationResult> buildNightMasters(int sessionId) async {
     calls.add(sessionId);
     return const AutoIntegrationResult(ran: true, message: 'ready');
+  }
+}
+
+/// The background master build, recording the targets it is asked to build
+/// unattended.
+class _RecordingBuildJobs extends DarkroomBuildJobs {
+  _RecordingBuildJobs(this.started, {this.stage = DarkroomJobStage.done});
+
+  final List<String> started;
+  final DarkroomJobStage stage;
+
+  @override
+  DarkroomBuildJob? build() => null;
+
+  @override
+  Future<DarkroomBuildJob> startUnattended(
+    String target, {
+    Directory? outputRoot,
+    double minRetainedArea = defaultMinRetainedArea,
+  }) async {
+    started.add(target);
+    return DarkroomBuildJob(
+      target: target,
+      unattended: true,
+      stage: stage,
+      message: 'Masters ready',
+      startedAt: DateTime(2026, 10, 24, 6),
+      directory: '/masters/$target',
+    );
   }
 }
 
@@ -541,12 +571,121 @@ void main() {
     expect(recording.calls, [20, 22],
         reason: 'a night ended by the dawn park must integrate');
 
+    // An obstruction park ends the night the same way.
+    coordinatorContainer.read(sequenceStopEvidenceProvider.notifier).state =
+        const SequenceStopDecision(
+      SequenceStopAuthor.system,
+      origin: 'obstruction',
+      parked: true,
+    );
+    coordinatorContainer
+        .read(sequenceTerminalRunResultProvider.notifier)
+        .state = const SequenceTerminalRunResult(
+      generation: 4,
+      outcome: SequenceExecutionState.idle,
+      runStatus: 'aborted',
+      runId: 13,
+      dbSessionId: 24,
+    );
+    await settleCoordinator();
+    expect(recording.calls, [20, 22, 24],
+        reason: 'a night ended by an obstruction must integrate');
+
     // The operator stopped a night and ended it with a manual end-of-night
     // calibration: that night is integrated too.
     coordinatorContainer.read(nightIntegrationRequestProvider.notifier).state =
         const NightIntegrationRequest(generation: 1, sessionId: 23);
     await settleCoordinator();
-    expect(recording.calls, [20, 22, 23]);
+    expect(recording.calls, [20, 22, 24, 23]);
+
+    // The same request seen again is not a second build.
+    coordinatorContainer.read(nightIntegrationRequestProvider.notifier).state =
+        const NightIntegrationRequest(generation: 1, sessionId: 23);
+    await settleCoordinator();
+    expect(recording.calls, [20, 22, 24, 23]);
+  });
+
+  group('the night\'s masters come from the guided multi-night build', () {
+    late List<String> started;
+    late ProviderContainer builds;
+
+    ProviderContainer buildContainer({
+      DarkroomJobStage stage = DarkroomJobStage.done,
+    }) {
+      started = <String>[];
+      final c = ProviderContainer(overrides: [
+        databaseProvider.overrideWithValue(db),
+        masterAccumulationServiceProvider.overrideWithValue(accumulate),
+        postSessionIntegrationServiceProvider.overrideWithValue(integrate),
+        dawnAutopilotServiceProvider.overrideWithValue(darkroom),
+        pushNotificationServiceProvider.overrideWithValue(push),
+        darkroomBuildJobsProvider
+            .overrideWith(() => _RecordingBuildJobs(started, stage: stage)),
+      ]);
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test('each target the night imaged is built once, unattended', () async {
+      builds = buildContainer();
+      await enableAutoIntegrate();
+      final sessionId = await insertSession();
+      final ngc891 = await insertTarget('NGC891');
+      final m31 = await insertTarget('M31');
+      await insertSub(sessionId: sessionId, targetId: ngc891, filter: 'L');
+      await insertSub(sessionId: sessionId, targetId: ngc891, filter: 'R');
+      await insertSub(sessionId: sessionId, targetId: m31, filter: 'L');
+      final other = await insertSession();
+      await insertSub(
+        sessionId: other,
+        targetId: await insertTarget('NGC7380'),
+        filter: 'L',
+      );
+
+      final result = await builds
+          .read(autoIntegrationServiceProvider)
+          .buildNightMasters(sessionId);
+
+      expect(started..sort(), ['M31', 'NGC891']);
+      expect(result.ran, isTrue);
+      expect(result.failed, isFalse);
+      expect(result.message, contains('NGC891: masters ready'));
+      expect(accumulate.calls, isEmpty,
+          reason: 'the session-only integration is not run as well');
+      expect(integrate.calls, isEmpty);
+    });
+
+    test('nothing is built with automatic integration off', () async {
+      builds = buildContainer();
+      final sessionId = await insertSession();
+      await insertSub(
+        sessionId: sessionId,
+        targetId: await insertTarget('NGC891'),
+        filter: 'L',
+      );
+      final result = await builds
+          .read(autoIntegrationServiceProvider)
+          .buildNightMasters(sessionId);
+      expect(started, isEmpty);
+      expect(result.ran, isFalse);
+    });
+
+    test('a build that waits for framing review says so', () async {
+      builds = buildContainer(stage: DarkroomJobStage.awaitingReview);
+      await enableAutoIntegrate();
+      final sessionId = await insertSession();
+      await insertSub(
+        sessionId: sessionId,
+        targetId: await insertTarget('NGC891'),
+        filter: 'L',
+      );
+      final result = await builds
+          .read(autoIntegrationServiceProvider)
+          .buildNightMasters(sessionId);
+      expect(started, ['NGC891']);
+      expect(result.ran, isFalse);
+      expect(result.message, contains('framing review'));
+    });
   });
 
   test('every native integration call carries the session\'s cancel handle',

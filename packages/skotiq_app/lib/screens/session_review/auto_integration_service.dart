@@ -249,6 +249,75 @@ class AutoIntegrationService {
     }
   }
 
+  /// Build PixInsight-ready masters for every target [sessionId] imaged,
+  /// when automatic integration is on: the guided multi-night build, run
+  /// unattended over all of each target's nights with tonight's calibration.
+  /// The build job announces its own outcome (masters ready, framing review
+  /// needed, or failed); a target that could not be started is reported as a
+  /// failure here.
+  Future<AutoIntegrationResult> buildNightMasters(int sessionId) async {
+    try {
+      if (!await _isEnabled()) return AutoIntegrationResult.disabled;
+      final images =
+          await _ref.read(imagesDaoProvider).getImagesForSession(sessionId);
+      final lightIds = {
+        for (final image in images)
+          if (image.frameType.toLowerCase() == 'light' && image.isAccepted)
+            image.id,
+      };
+      if (lightIds.isEmpty) {
+        return const AutoIntegrationResult(
+          ran: false,
+          message: 'No accepted subs to integrate.',
+        );
+      }
+      final targets = await loadDarkroomTargets(_ref.read(databaseProvider));
+      final names = [
+        for (final entry in targets.entries)
+          if (entry.value.any((frame) => lightIds.contains(frame.id)))
+            entry.key,
+      ];
+      final jobs = _ref.read(darkroomBuildJobsProvider.notifier);
+      final lines = <String>[];
+      var built = 0;
+      var notStarted = 0;
+      for (final name in names) {
+        try {
+          final job = await jobs.startUnattended(name);
+          switch (job.stage) {
+            case DarkroomJobStage.done:
+              built++;
+              lines.add('$name: masters ready in ${job.directory}.');
+            case DarkroomJobStage.awaitingReview:
+              lines.add('$name: the masters wait for a framing review in '
+                  'Darkroom.');
+            default:
+              lines.add('$name: ${job.error ?? job.message}');
+          }
+        } catch (e) {
+          notStarted++;
+          lines.add('$name: the master build did not start: $e');
+        }
+      }
+      return AutoIntegrationResult(
+        ran: built > 0,
+        failed: notStarted > 0,
+        message: lines.join(' '),
+      );
+    } catch (error) {
+      _ref.read(loggingServiceProvider).error(
+        'Automatic master build failed',
+        source: 'AutoIntegrationService',
+        fields: {'sessionId': sessionId, 'error': '$error'},
+      );
+      return AutoIntegrationResult(
+        ran: false,
+        failed: true,
+        message: 'The automatic master build failed: $error',
+      );
+    }
+  }
+
   Future<AutoIntegrationResult> _maybeRunForSession(int sessionId) async {
     final enabled = await _isEnabled();
     if (!enabled) return AutoIntegrationResult.disabled;
@@ -1005,14 +1074,15 @@ final autoIntegrationCoordinatorProvider = Provider<void>((ref) {
   });
 });
 
-/// What the coordinator does for one night: integrate it and publish the
-/// result. [generation] keys the completion toast.
+/// What the coordinator does for one night: build its targets' masters with
+/// the guided multi-night build and publish the result. [generation] keys the
+/// completion toast.
 Future<void> Function(int sessionId, int generation) _integrator(Ref ref) =>
     (sessionId, generation) async {
       try {
         final result = await ref
             .read(autoIntegrationServiceProvider)
-            .maybeRunForSession(sessionId);
+            .buildNightMasters(sessionId);
         if (!result.ran && !result.failed) return;
         ref.read(autoIntegrationCompletionProvider.notifier).state =
             AutoIntegrationCompletion(

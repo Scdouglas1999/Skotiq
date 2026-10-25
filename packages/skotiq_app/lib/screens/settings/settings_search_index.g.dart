@@ -388,7 +388,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Watch for trees or a roof entering the field: stars fade while',
     'When a solved frame is farther from the target than this share',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
-    'When on, the accepted subs are integrated into an',
+    'When on, the end of a night builds linear masters',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
   ],
   'imaging': [
@@ -810,6 +810,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use the scheduler when target count reaches this',
     'Wait before flip',
     'Wait time after flip before resuming',
+    'When the mount stops at its limit',
     'Wrap multi-target plans in a TargetScheduler so',
   ],
   'updates': [
@@ -1004,7 +1005,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Recenter after drift',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.':
         'Enable image grading',
-    'When on, the accepted subs are integrated into an':
+    'When on, the end of a night builds linear masters':
         'Auto-integrate at end of run',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.':
         'Reject folder path',

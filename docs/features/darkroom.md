@@ -55,17 +55,49 @@ when the common crop keeps at least the minimum (80% by default). Otherwise
 nothing is integrated, a notification names the frames that limit the crop,
 and Darkroom shows the framing review so you can exclude them and build.
 
+When **Auto-integrate** is on, the end of a night starts this build for each
+target the night imaged: a run that completes its plan, a run ended by the
+dawn park or an obstruction, and a night the operator stopped and then closed
+with **Run now** in end-of-night calibration. The build waits for that
+night's calibration frames, so tonight's darks and bias are in the library
+when it matches them.
+
 ## Framing and linear output
 
-Skotiq calibrates, registers and integrates each filter using star-signal weights
-and online sigma rejection. It excludes frames outside your overlap limit, then
-crops every exported filter to the same largest rectangle covered by every
-included exposure. This removes borders with fewer contributing exposures. The
-crop is known before integration from the framing check; a frame's footprint
-leaves out the few edge pixels the resampling kernel cannot fully support.
+Skotiq calibrates each light in 32-bit floating point, registers it onto the
+reference and weights it by its star signal. Frames outside your overlap limit
+are left out. A dark whose exposure differs from the light's is scaled to it
+when a bias is available.
 
-Exported masters are floating-point linear FITS files. All filters receive one
-common linear scale, recorded in the FITS header. Only preview PNGs are stretched.
+Each filter is then integrated in one pass over all of its subs, with the
+rejection PixInsight picks by default for the number of frames:
+
+- fewer than 8 subs: percentile clipping (low 0.2, high 0.1);
+- 8 to 19 subs: Winsorized sigma clipping (low 4, high 3 sigma);
+- 20 or more subs: generalized extreme Studentized deviate (ESD), with an
+  outlier fraction of 0.3, significance 0.05 and a low relaxation of 1.5.
+
+The rejected samples are combined with a weighted mean. Registered subs are
+held in memory when a filter's subs fit in 1 GB; otherwise they are written to
+a working folder beside the master and removed when the filter is done, which
+takes about 65 MB per full-size sub. The build checks the free space on that
+drive before it starts and stops at once, naming the space needed and the
+space free, when it would not fit.
+
+Every exported filter is cropped to the same largest rectangle covered by
+every included exposure. This removes borders with fewer contributing
+exposures. The crop is known before integration from the framing check; a
+frame's footprint leaves out the few edge pixels the resampling kernel cannot
+fully support.
+
+Exported masters are linear floating-point FITS files with nothing clipped. By
+default every filter is written as its calibrated ADU divided by 65535, so the
+filters keep their ratios and zero point; the per-filter option instead spans
+each filter from its own minimum to its maximum. The headers carry the optics,
+the number of combined subs, the total exposure, the rejection used and a WCS.
+When R, G and B masters are built, a linear RGB composite is written as well,
+and with an L master a linear LRGB composite, as FITS and XISF; neither has
+color calibration or background extraction. Only preview PNGs are stretched.
 Full-size intermediate masters remain available in the build folder alongside
 `report.json` (calibration, processing results and crop) and `frame-audit.csv`
 (included and excluded frames with reasons). Source captures are never changed.
