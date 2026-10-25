@@ -1640,16 +1640,12 @@ impl MeridianFlipExecutor {
         }
         tracing::info!("[MERIDIAN] Resuming guider...");
 
-        // Post-flip guiding settles at the run's one settle bar, the same one
-        // dithers and autofocus use. The flip config's own settle values only
+        // Post-flip guiding settles at the run's restart bar, the same one
+        // autofocus restarts guiding at. The flip config's own settle values
         // serve a flip outside a run.
         let settle = match &ctx.trigger_state {
-            Some(state) => state.read().await.guider_settle,
-            None => crate::GuiderSettle {
-                pixels: self.config.guider_settle_pixels,
-                time_secs: self.config.guider_settle_time,
-                timeout_secs: self.config.guider_settle_timeout,
-            },
+            Some(state) => state.read().await.restart_settle(),
+            None => crate::GuiderSettle::from(&self.config),
         };
         let settle_timeout = settle.timeout_secs;
         // Mirror `pause_guider`: with no guider configured there is nothing to
@@ -4412,12 +4408,19 @@ mod tests {
         };
         let (tx, mut rx) = broadcast::channel(64);
         let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+        // Both settle settings below the rig's 0.64 px: the restart bar is
+        // the looser of the two, and still below the measured RMS.
         let mut trigger_state = TriggerState::new();
-        trigger_state.guider_settle = crate::GuiderSettle {
+        trigger_state.dither_settle = crate::GuiderSettle {
             pixels: 0.5,
-            time_secs: 10.0,
+            time_secs: 30.0,
             timeout_secs: 30.0,
         };
+        trigger_state.guiding_settle = Some(crate::GuiderSettle {
+            pixels: 0.4,
+            time_secs: 10.0,
+            timeout_secs: 20.0,
+        });
         let ts = Arc::new(RwLock::new(trigger_state));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),
@@ -4438,7 +4441,7 @@ mod tests {
         assert_eq!(
             *state.guider_start_settles.lock().unwrap(),
             vec![(0.5, 10.0, 30.0)],
-            "the guider is started at the run's settle bar"
+            "the guider is started at the run's restart bar"
         );
         let mut warnings = Vec::new();
         while let Ok(event) = rx.try_recv() {

@@ -33,8 +33,14 @@ impl SequenceExecutor {
                 manager.state().write().await.restored_from_checkpoint = false;
             }
             manager.reset_for_new_run().await;
-            let settle = crate::GuiderSettle::from(&self.runtime_config.read().dither);
-            manager.state().write().await.guider_settle = settle;
+            let dither = crate::GuiderSettle::from(&self.runtime_config.read().dither);
+            let guiding = manager
+                .meridian_flip_config()
+                .map(crate::GuiderSettle::from);
+            let state_lock = manager.state();
+            let mut state = state_lock.write().await;
+            state.dither_settle = dither;
+            state.guiding_settle = guiding;
         }
         if self.focuser_id.is_none() {
             let disarmed = {

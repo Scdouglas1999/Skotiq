@@ -2397,9 +2397,7 @@ const fn default_dither_pixels() -> f64 {
     5.0
 }
 
-/// The guider settle bar the run holds every restart of guiding to: after a
-/// dither, after autofocus and after a meridian flip. It comes from the
-/// run's dither settings, so one setting governs all three.
+/// A guider settle bar: how close, for how long, and how long to wait.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GuiderSettle {
     /// Guide error, in guide-camera pixels, the guider must stay within.
@@ -2416,6 +2414,33 @@ impl Default for GuiderSettle {
             pixels: default_dither_settle_pixels(),
             time_secs: default_dither_settle_time(),
             timeout_secs: default_dither_settle_timeout(),
+        }
+    }
+}
+
+impl GuiderSettle {
+    /// The bar a planned restart of guiding (after autofocus or a flip)
+    /// settles at: the looser of the guider and dither settle thresholds,
+    /// so a restart never waits on a bar the rig cannot meet. Settle time
+    /// is the guider's; the timeout is the longer of the two.
+    pub fn restart_bar(dither: GuiderSettle, guiding: Option<GuiderSettle>) -> GuiderSettle {
+        match guiding {
+            None => dither,
+            Some(guiding) => GuiderSettle {
+                pixels: guiding.pixels.max(dither.pixels),
+                time_secs: guiding.time_secs,
+                timeout_secs: guiding.timeout_secs.max(dither.timeout_secs),
+            },
+        }
+    }
+}
+
+impl From<&MeridianFlipConfig> for GuiderSettle {
+    fn from(config: &MeridianFlipConfig) -> Self {
+        Self {
+            pixels: config.guider_settle_pixels,
+            time_secs: config.guider_settle_time,
+            timeout_secs: config.guider_settle_timeout,
         }
     }
 }
@@ -3250,5 +3275,36 @@ mod recovery_action_serde_tests {
             NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, "Dark"),
             other => panic!("expected NodeType::TakeExposure, got {other:?}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod guider_settle_tests {
+    use super::GuiderSettle;
+
+    /// The rig's settings on 2026-10-24/25: guider settle 0.5 px / 10 s /
+    /// 30 s against a guiding RMS of about 0.6 px, dither settle 1.5 px /
+    /// 30 s / 120 s. A planned restart settles at the looser bar.
+    #[test]
+    fn a_planned_restart_settles_at_the_looser_of_the_guider_and_dither_bars() {
+        let dither = GuiderSettle {
+            pixels: 1.5,
+            time_secs: 30.0,
+            timeout_secs: 120.0,
+        };
+        let guiding = GuiderSettle {
+            pixels: 0.5,
+            time_secs: 10.0,
+            timeout_secs: 30.0,
+        };
+        assert_eq!(
+            GuiderSettle::restart_bar(dither, Some(guiding)),
+            GuiderSettle {
+                pixels: 1.5,
+                time_secs: 10.0,
+                timeout_secs: 120.0,
+            }
+        );
+        assert_eq!(GuiderSettle::restart_bar(dither, None), dither);
     }
 }

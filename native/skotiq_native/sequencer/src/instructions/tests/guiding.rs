@@ -612,14 +612,15 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
             .with_dither_failing("Dither did not settle: PHD2 settle failed (status 1): timed-out waiting for guider to settle"),
     );
     let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
-    trigger_state.write().await.guider_settle = crate::GuiderSettle {
-        pixels: 0.5,
-        time_secs: 10.0,
-        timeout_secs: 30.0,
+    let config = crate::DitherConfig {
+        settle_pixels: 0.5,
+        settle_time: 10.0,
+        settle_timeout: 30.0,
+        ..crate::DitherConfig::default()
     };
 
     for _ in 0..2 {
-        let result = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
+        let result = execute_dither(&config, &ctx, None).await;
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
         assert!(
             !result.message.as_deref().unwrap_or("").contains("failed"),

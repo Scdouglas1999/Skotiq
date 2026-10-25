@@ -170,7 +170,7 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                 {
                     let manager = trigger_manager.read().await;
                     let state_lock = manager.state();
-                    state_lock.write().await.guider_settle = crate::GuiderSettle {
+                    state_lock.write().await.dither_settle = crate::GuiderSettle {
                         pixels: settle_pixels,
                         time_secs: settle_time,
                         timeout_secs: settle_timeout,

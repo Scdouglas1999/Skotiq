@@ -391,9 +391,12 @@ impl SequenceExecutor {
             config.max_retries,
             config.failure_action,
         );
+        let guiding = crate::GuiderSettle::from(&config);
         let applied = {
             let mut manager = self.trigger_manager.write().await;
-            manager.set_meridian_flip_config(config)
+            let applied = manager.set_meridian_flip_config(config);
+            manager.state().write().await.guiding_settle = Some(guiding);
+            applied
         };
         if !applied {
             tracing::warn!(

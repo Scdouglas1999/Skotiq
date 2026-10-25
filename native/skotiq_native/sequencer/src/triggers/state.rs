@@ -416,9 +416,11 @@ pub struct TriggerState {
     pub autofocus_hold: Option<String>,
     /// An autofocus trigger came due while autofocus was held.
     pub autofocus_wanted_while_held: bool,
-    /// The settle bar for every restart of guiding in this run (dither,
-    /// autofocus, flip); see [`crate::GuiderSettle`].
-    pub guider_settle: crate::GuiderSettle,
+    /// The run's dither settle settings, as last pushed.
+    pub dither_settle: crate::GuiderSettle,
+    /// The operator's guider settle settings (carried on the meridian-flip
+    /// config), when known.
+    pub guiding_settle: Option<crate::GuiderSettle>,
     /// The operator has been told this run's settle bar is tighter than the
     /// guiding the rig achieves.
     pub settle_bar_warning_given: bool,
@@ -506,7 +508,8 @@ impl Default for TriggerState {
             restored_from_checkpoint: false,
             autofocus_hold: None,
             autofocus_wanted_while_held: false,
-            guider_settle: crate::GuiderSettle::default(),
+            dither_settle: crate::GuiderSettle::default(),
+            guiding_settle: None,
             settle_bar_warning_given: false,
         }
     }
@@ -518,6 +521,12 @@ impl TriggerState {
             weather_safe: false,
             ..Default::default()
         }
+    }
+
+    /// The bar autofocus and a flip restart guiding at; see
+    /// [`crate::GuiderSettle::restart_bar`].
+    pub fn restart_settle(&self) -> crate::GuiderSettle {
+        crate::GuiderSettle::restart_bar(self.dither_settle, self.guiding_settle)
     }
 
     pub fn update_hfr(&mut self, hfr: f64) {

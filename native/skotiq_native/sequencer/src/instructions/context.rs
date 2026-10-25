@@ -465,10 +465,11 @@ impl InstructionContext {
         }
     }
 
-    /// The run's guider settle bar, or `fallback` outside a run.
-    pub async fn guider_settle_or(&self, fallback: crate::GuiderSettle) -> crate::GuiderSettle {
+    /// The bar a planned restart of guiding settles at in this run (see
+    /// [`crate::GuiderSettle::restart_bar`]), or `fallback` outside a run.
+    pub async fn restart_settle_or(&self, fallback: crate::GuiderSettle) -> crate::GuiderSettle {
         match &self.trigger_state {
-            Some(state) => state.read().await.guider_settle,
+            Some(state) => state.read().await.restart_settle(),
             None => fallback,
         }
     }

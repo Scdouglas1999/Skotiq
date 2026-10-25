@@ -733,8 +733,8 @@ pub(crate) async fn resume_guiding_after_autofocus(
         Some(state) => state.read().await.guide_star_reference,
         None => None,
     };
-    // The run's one settle bar, the same a dither and a flip use.
-    let settle = ctx.guider_settle_or(crate::GuiderSettle::default()).await;
+    // The run's restart bar, the same a flip restarts guiding at.
+    let settle = ctx.restart_settle_or(crate::GuiderSettle::default()).await;
     match start_guiding_holding_on_settle_timeout(
         &ctx.device_ops,
         crate::GuideStarFloor::relative_to(reference),

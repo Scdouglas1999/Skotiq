@@ -129,11 +129,8 @@ pub async fn execute_dither(
     // the secondary to clear its in-flight exposure, runs the closure (the
     // actual mount pulse + settle), then releases the barrier so the secondary
     // resumes. With no barrier installed this is a plain pass-through.
-    // The run's one settle bar, the same autofocus and a flip restart
-    // guiding to; the dither's own values only serve a dither outside a run.
-    let settle = ctx
-        .guider_settle_or(crate::GuiderSettle::from(config))
-        .await;
+    // A dither settles at the sequence's own dither settle values.
+    let settle = crate::GuiderSettle::from(config);
     ctx.device_ops
         .guider_note_stop_reason(Some(crate::GuidingStopReason::DitherSettle))
         .await;

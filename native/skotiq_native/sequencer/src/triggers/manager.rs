@@ -82,6 +82,17 @@ impl TriggerManager {
     /// drift apart.
     ///
     /// Returns `true` when the trigger was found and updated.
+    /// The meridian-flip trigger's config, when one is registered.
+    pub fn meridian_flip_config(&self) -> Option<&crate::MeridianFlipConfig> {
+        self.triggers
+            .iter()
+            .find(|t| t.id == "meridian_flip")
+            .and_then(|t| match &t.trigger_type {
+                TriggerType::MeridianFlip { config } => Some(config),
+                _ => None,
+            })
+    }
+
     pub fn set_meridian_flip_config(&mut self, config: crate::MeridianFlipConfig) -> bool {
         let Some(trigger) = self.get_trigger_mut("meridian_flip") else {
             return false;
