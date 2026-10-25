@@ -885,8 +885,7 @@ class _DarkroomEditorBar extends StatelessWidget {
     // The overline already names the target and the kind, so the title is the
     // open recipe, or the image itself while it has none.
     final recipe = recipeName;
-    final title =
-        recipe != null && recipe.isNotEmpty ? recipe : (imageName ?? '');
+    final title = recipe != null && recipe.isNotEmpty ? recipe : imageName;
     return Container(
       key: const ValueKey('darkroom_editor_bar'),
       padding: const EdgeInsets.symmetric(
@@ -913,7 +912,7 @@ class _DarkroomEditorBar extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                if (title.isNotEmpty)
+                if (title != null && title.isNotEmpty)
                   Text(
                     title,
                     style: SkotiqTypography.bodyStrong.copyWith(
