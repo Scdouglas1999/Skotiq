@@ -560,12 +560,32 @@ void main() {
       expect(native.built, ['B']);
     });
 
-    test('a changed calibration choice is not an exclusion', () async {
+    test('a changed calibration choice rebuilds only that filter', () async {
       final preview = await service.previewRegistration(plan);
       final output = Directory('${folder.path}/run');
       await service.run(plan, output, accepted: preview);
       final json = plan.toJson();
       (json['groups'] as List).first['calibration'] = {'flat': paths['B0']};
+      final changed = DarkroomBuildPlan.fromJson(json);
+      await expectLater(
+        service.run(changed, output),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Check framing again'),
+          ),
+        ),
+      );
+      await service.run(changed, output, accepted: preview);
+      expect(native.built, ['B', 'L', 'R', 'B']);
+    });
+
+    test('a different reference is a different build', () async {
+      final preview = await service.previewRegistration(plan);
+      final output = Directory('${folder.path}/run');
+      await service.run(plan, output, accepted: preview);
+      final json = plan.toJson()..['referencePath'] = paths['B0'];
       await expectLater(
         service.run(
           DarkroomBuildPlan.fromJson(json),
@@ -576,7 +596,7 @@ void main() {
           isA<StateError>().having(
             (e) => e.message,
             'message',
-            contains('plan or its input files changed'),
+            contains('Start a new build'),
           ),
         ),
       );
@@ -603,6 +623,71 @@ void main() {
         contains('No filter has flats (B, L, R)'),
         reason: 'no flats in the empty library',
       );
+    });
+
+    test('a new night folds into the build: only filters with new subs are '
+        'rebuilt, on the same reference, and known lights are not registered '
+        'again', () async {
+      final directory = Directory('${folder.path}/auto/NGC891');
+      final first = await service.buildUnattended(
+        target: 'NGC891',
+        frames: await frames(),
+        directory: directory,
+      );
+      expect(first.built, isTrue);
+      expect(native.built, ['B', 'L', 'R']);
+
+      // The next night images L only, and its lights score better than the
+      // first night's reference.
+      for (var i = 0; i < 2; i++) {
+        final file = File('${folder.path}/L_n2_$i.fits');
+        await file.writeAsString('raw input');
+        await db.imagesDao.createImage(
+          CapturedImagesCompanion.insert(
+            filePath: file.path,
+            fileName: 'L_n2_$i.fits',
+            exposureDuration: 90,
+            capturedAt: DateTime(2026, 10, 23, 23),
+            filter: const Value('L'),
+            qualityScore: const Value(99),
+          ),
+        );
+      }
+      native.requests.clear();
+      final second = await service.buildUnattended(
+        target: 'NGC891',
+        frames: await frames(),
+        directory: directory,
+      );
+      expect(second.built, isTrue);
+      expect(second.plan!.referencePath, first.plan!.referencePath);
+      expect(native.built, ['B', 'L', 'R', 'L']);
+      final rebuilt = native.requests.lastWhere((r) => r['op'] == 'build');
+      expect(
+        [
+          for (final g in rebuilt['groups'] as List)
+            for (final l in g['lights'] as List) l['path'],
+        ],
+        hasLength(4),
+        reason: 'the rebuilt filter integrates both nights',
+      );
+      final prepass = native.requests.firstWhere(
+        (r) => r['op'] == 'registrationPreview',
+      );
+      final known = [
+        for (final g in prepass['groups'] as List)
+          for (final l in g['lights'] as List)
+            if (l['known'] != null) l['path'],
+      ];
+      expect(
+        known,
+        hasLength(6),
+        reason: 'first-night lights reuse footprints',
+      );
+      final delivery = native.requests.lastWhere(
+        (r) => r['op'] == 'deliverUniform',
+      );
+      expect(delivery['masters'], hasLength(3));
     });
 
     test('waits for review below the minimum and integrates nothing', () async {

@@ -90,6 +90,12 @@ class DarkroomLimitingFrame {
         group: json['group'] as String? ?? '',
         retainedWithout: (json['retainedWithout'] as num).toDouble(),
       );
+
+  Map<String, dynamic> toJson() => {
+    'path': path,
+    'group': group,
+    'retainedWithout': retainedWithout,
+  };
 }
 
 /// The registration pre-pass: every light's footprint and the common crop.
@@ -141,6 +147,19 @@ class DarkroomRegistrationPreview {
       ],
     );
   }
+
+  /// The native record this was read from, so a saved pre-pass reads back
+  /// identically and its footprints can be reused.
+  Map<String, dynamic> toJson() => {
+    'width': width,
+    'height': height,
+    'frames': [for (final f in frames) f.raw],
+    'crop': crop,
+    'retainedArea': retainedArea,
+    'minRetainedArea': minRetainedArea,
+    'meetsMinimum': meetsMinimum,
+    'limiting': [for (final f in limiting) f.toJson()],
+  };
 
   /// One sentence naming the frames that limit the crop, for errors and
   /// notifications.

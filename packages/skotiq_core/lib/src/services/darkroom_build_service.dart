@@ -643,48 +643,51 @@ class DarkroomBuildService {
     return '$safe-${hash.toRadixString(16)}';
   }
 
-  /// Whether [next] differs from [saved] only by leaving out lights or by a
-  /// different crop minimum: everything else that a completed filter depends
-  /// on is unchanged.
-  static bool _onlyExclusions(Map saved, Map next) {
+  /// Whether [next] is the same build as [saved]: same target, reference and
+  /// limits. Its lights, calibration and crop minimum may differ; the filters
+  /// whose inputs differ are built again.
+  static bool _sameBuild(Map saved, Map next) {
     const free = {'groups', 'excluded', 'minRetainedArea'};
     for (final key in {...saved.keys, ...next.keys}) {
       if (free.contains(key)) continue;
       if (jsonEncode(saved[key]) != jsonEncode(next[key])) return false;
     }
-    final savedGroups = {
-      for (final g in saved['groups'] as List) (g as Map)['label']: g,
-    };
-    for (final g in next['groups'] as List) {
-      final before = savedGroups[(g as Map)['label']];
-      if (before == null ||
-          before['filter'] != g['filter'] ||
-          jsonEncode(before['calibration']) != jsonEncode(g['calibration'])) {
-        return false;
-      }
-      final paths = {
-        for (final l in before['lights'] as List) (l as Map)['path'],
-      };
-      if (!(g['lights'] as List).every((l) => paths.contains(l['path']))) {
-        return false;
-      }
-    }
     return true;
   }
 
-  static Map<String, List<String>> _lightsByFilter(Map plan) {
-    final out = <String, List<String>>{};
+  /// Everything a filter's master depends on, per filter, as one string: its
+  /// groups' lights and calibration and those files' sizes and times. Two
+  /// plans build the same master for a filter exactly when these match.
+  static Map<String, String> _filterInputs(Map plan, Map inputs) {
+    final groups = <String, List<Map<String, dynamic>>>{};
     for (final g in plan['groups'] as List) {
-      for (final l in (g as Map)['lights'] as List) {
-        out
-            .putIfAbsent(g['filter'] as String, () => [])
-            .add(l['path'] as String);
-      }
+      final group = g as Map;
+      final lights = [
+        for (final l in group['lights'] as List) (l as Map)['path'] as String,
+      ]..sort();
+      final calibration = Map<String, dynamic>.from(
+        group['calibration'] as Map,
+      );
+      final files = [
+        ...lights,
+        for (final kind in ['dark', 'bias', 'flat'])
+          if (calibration[kind] is String) calibration[kind] as String,
+      ];
+      groups.putIfAbsent(group['filter'] as String, () => []).add({
+        'label': group['label'],
+        'calibration': calibration,
+        'lights': lights,
+        'files': {for (final f in files) f: inputs[f]},
+      });
     }
-    for (final v in out.values) {
-      v.sort();
-    }
-    return out;
+    return {
+      for (final entry in groups.entries)
+        entry.key: jsonEncode(
+          entry.value..sort(
+            (a, b) => (a['label'] as String).compareTo(b['label'] as String),
+          ),
+        ),
+    };
   }
 
   /// Build every filter of [buildPlan] into [directory] and export the common
@@ -693,9 +696,11 @@ class DarkroomBuildService {
   /// A fresh build needs an [accepted] pre-pass whose crop meets the plan's
   /// minimum. A folder that already holds this plan resumes: completed filters
   /// are reused and an interrupted filter starts over without adding any
-  /// exposure twice. A plan that only leaves out lights (or changes the crop
-  /// minimum) replaces the saved one; filters whose lights changed are built
-  /// again. A filter that fails is reported and the others continue.
+  /// exposure twice. A plan for the same target and reference whose lights,
+  /// calibration or input files differ (frames left out, a new night folded
+  /// in) replaces the saved one after a framing check: filters whose inputs
+  /// changed are built again from all their lights, the others are kept. A
+  /// filter that fails is reported and the others continue.
   Future<Map<String, dynamic>> run(
     DarkroomBuildPlan buildPlan,
     Directory directory, {
@@ -714,30 +719,27 @@ class DarkroomBuildService {
       final journal = File(p.join(directory.path, 'plan.json'));
       if (await journal.exists()) {
         final saved = jsonDecode(await journal.readAsString()) as Map;
+        final savedPlan = saved['plan'] as Map;
         final savedInputs = saved['inputs'] as Map;
-        final changedInputs = inputs.keys.any(
-          (k) => jsonEncode(savedInputs[k]) != jsonEncode(inputs[k]),
-        );
-        if (changedInputs) {
-          throw StateError(
-            'The saved plan or its input files changed. Start a new build to avoid mixing different data.',
-          );
-        }
-        if (jsonEncode(saved['plan']) != jsonEncode(plan)) {
-          if (!_onlyExclusions(saved['plan'] as Map, plan)) {
+        final before = _filterInputs(savedPlan, savedInputs);
+        final after = _filterInputs(plan, inputs);
+        final unchanged =
+            jsonEncode(savedPlan) == jsonEncode(plan) &&
+            jsonEncode(before) == jsonEncode(after);
+        if (!unchanged) {
+          if (!_sameBuild(savedPlan, plan)) {
             throw StateError(
               'The saved plan or its input files changed. Start a new build to avoid mixing different data.',
             );
           }
           if (accepted == null || !accepted.meetsMinimum) {
             throw StateError(
-              'Check framing again after excluding frames before resuming.',
+              'The saved plan or its input files changed. Check framing again '
+              'to rebuild the filters they touch.',
             );
           }
-          final before = _lightsByFilter(saved['plan'] as Map);
-          final after = _lightsByFilter(plan);
           for (final filter in {...before.keys, ...after.keys}) {
-            if (jsonEncode(before[filter]) != jsonEncode(after[filter])) {
+            if (before[filter] != after[filter]) {
               await _deleteIfPresent(
                 File(
                   p.join(directory.path, 'filter-${_filterKey(filter)}.json'),
@@ -1136,10 +1138,20 @@ class DarkroomBuildService {
     }
     final coverage = flatCoverage(groups);
     if (coverage.warning != null) warnings.add(coverage.warning!);
+    // A folder that already holds this target's build keeps its reference,
+    // so filters without new lights stay on the same grid and are reused,
+    // and its saved pre-pass spares registering those lights again.
+    final saved = await _savedBuild(directory);
+    final lightPaths = {
+      for (final g in groups)
+        for (final f in g.frames) f.filePath,
+    };
     final buildPlan = plan(
       target: target,
       groups: groups,
-      referencePath: chooseReference(groups),
+      referencePath: lightPaths.contains(saved.referencePath)
+          ? saved.referencePath!
+          : chooseReference(groups),
       minRetainedArea: minRetainedArea,
       excluded: [
         for (final f in frames.where((f) => !f.isAccepted))
@@ -1150,7 +1162,17 @@ class DarkroomBuildService {
           },
       ],
     );
-    final preview = await previewRegistration(buildPlan);
+    final preview = await previewRegistration(
+      buildPlan,
+      previous: saved.referencePath == buildPlan.referencePath
+          ? saved.preview
+          : null,
+    );
+    await directory.create(recursive: true);
+    await _write(
+      File(p.join(directory.path, savedPreviewFile)),
+      preview.toJson(),
+    );
     onPreview?.call(preview, buildPlan);
     if (!preview.meetsMinimum) {
       return DarkroomUnattendedOutcome(
@@ -1173,6 +1195,35 @@ class DarkroomBuildService {
       report: report,
       warnings: warnings,
     );
+  }
+
+  /// The pre-pass an unattended build saves beside its plan.
+  static const savedPreviewFile = 'framing-preview.json';
+
+  /// The reference and pre-pass of the build already in [directory], when
+  /// there is one that can be read.
+  static Future<({String? referencePath, DarkroomRegistrationPreview? preview})>
+  _savedBuild(Directory directory) async {
+    String? reference;
+    DarkroomRegistrationPreview? preview;
+    try {
+      final journal = File(p.join(directory.path, 'plan.json'));
+      if (await journal.exists()) {
+        final saved = jsonDecode(await journal.readAsString()) as Map;
+        reference = (saved['plan'] as Map)['referencePath'] as String?;
+      }
+      final framing = File(p.join(directory.path, savedPreviewFile));
+      if (await framing.exists()) {
+        preview = DarkroomRegistrationPreview.fromJson(
+          Map<String, dynamic>.from(
+            jsonDecode(await framing.readAsString()) as Map,
+          ),
+        );
+      }
+    } on FormatException {
+      // An unreadable record only costs registering every light again.
+    }
+    return (referencePath: reference, preview: preview);
   }
 
   /// Fail before any filter is built when the working folder the native
