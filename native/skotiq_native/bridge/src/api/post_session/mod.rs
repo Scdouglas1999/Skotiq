@@ -41,7 +41,7 @@ use skotiq_imaging::integration::{
     integrate_frames, Combine, IntegrationConfig, IntegrationFrame, Reject,
 };
 use skotiq_imaging::master_accumulation::{
-    frame_buffer_for_master, AccumulationMode, IntegratedMaster, MasterCreateConfig, OnlineClip,
+    AccumulationMode, IntegratedMaster, MasterCreateConfig, OnlineClip,
 };
 use skotiq_imaging::normalization::{
     apply_normalization, estimate_normalization, CoverageMask, NormMode, NormalizationConfig,

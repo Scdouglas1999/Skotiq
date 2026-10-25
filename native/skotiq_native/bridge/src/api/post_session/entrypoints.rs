@@ -22,6 +22,14 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
     let run_id = args.run_id.clone();
     let lane = args.telemetry.lane.clone();
     let result = integrate_session(args);
+    match &result {
+        Ok(r) => tracing::info!(
+            "integration {run_id:?} finished: {} subs integrated, {} rejected",
+            r.frames_integrated,
+            r.frames_rejected
+        ),
+        Err(e) => tracing::warn!("integration {run_id:?} failed: {e}"),
+    }
     emit_pass_telemetry(
         &run_id,
         "run_ended",
@@ -59,15 +67,33 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
     let op: MasterOp =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid accumulate args: {e}"))?;
-    let encoded = match op.op.as_str() {
-        "create" => serde_json::to_string(&master_create(&args_json)?),
-        "add" => serde_json::to_string(&master_add(&args_json)?),
-        "finalize" => serde_json::to_string(&master_finalize(&args_json)?),
-        "info" => serde_json::to_string(&master_info(&args_json)?),
-        "build" => serde_json::to_string(&master_build(&args_json)?),
-        "checkCalibration" => serde_json::to_string(&check_build_calibration(&args_json)?),
-        "deliverUniform" => serde_json::to_string(&super::uniform_delivery::deliver(&args_json)?),
-        "deliver" => serde_json::to_string(&master_deliver(&args_json)?),
+    let started = std::time::Instant::now();
+    let result = master_accumulate_op(&op.op, &args_json);
+    match &result {
+        Ok(_) => tracing::info!(
+            "master {} finished in {:.1} s",
+            op.op,
+            started.elapsed().as_secs_f64()
+        ),
+        Err(e) => tracing::warn!(
+            "master {} failed after {:.1} s: {e}",
+            op.op,
+            started.elapsed().as_secs_f64()
+        ),
+    }
+    result
+}
+
+fn master_accumulate_op(op: &str, args_json: &str) -> Result<String, String> {
+    let encoded = match op {
+        "create" => serde_json::to_string(&master_create(args_json)?),
+        "add" => serde_json::to_string(&master_add(args_json)?),
+        "finalize" => serde_json::to_string(&master_finalize(args_json)?),
+        "info" => serde_json::to_string(&master_info(args_json)?),
+        "build" => serde_json::to_string(&master_build(args_json)?),
+        "checkCalibration" => serde_json::to_string(&check_build_calibration(args_json)?),
+        "deliverUniform" => serde_json::to_string(&super::uniform_delivery::deliver(args_json)?),
+        "deliver" => serde_json::to_string(&master_deliver(args_json)?),
         other => {
             return Err(format!(
                 "unknown master op '{other}'; expected create/add/finalize/info/build/checkCalibration/deliver/deliverUniform"
@@ -86,7 +112,15 @@ pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
 pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
     let args: BuildMasterFlatArgs =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid flat args: {e}"))?;
-    let result = build_master_flat_impl(args)?;
+    let output = args.output_path.clone();
+    let result = build_master_flat_impl(args).inspect_err(|e| {
+        tracing::warn!("master flat '{output}' failed: {e}");
+    })?;
+    tracing::info!(
+        "master flat '{output}' built from {} flats ({} left out)",
+        result.frame_count,
+        result.excluded.len()
+    );
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 
@@ -101,7 +135,8 @@ pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
 pub fn api_build_calibration_master(args_json: String) -> Result<String, String> {
     let args: BuildCalibrationMasterArgs = serde_json::from_str(&args_json)
         .map_err(|e| format!("invalid calibration master args: {e}"))?;
-    let result = build_calibration_master_impl(args)?;
+    let result = build_calibration_master_impl(args)
+        .inspect_err(|e| tracing::warn!("calibration master failed: {e}"))?;
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 

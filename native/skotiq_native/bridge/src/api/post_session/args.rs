@@ -15,6 +15,10 @@ pub(crate) struct CalibrationArgs {
     pub(crate) bias: Option<String>,
     /// Apply self-derived cosmetic (hot/cold transient) correction per light.
     pub(crate) cosmetic_correction: bool,
+    /// The dark is of another exposure and is to be scaled to each light's
+    /// with the bias. A build scales such a dark whenever a bias is present;
+    /// this flag makes a dark that cannot be scaled an error instead.
+    pub(crate) scale_dark: bool,
 }
 
 /// Star-detection sensitivity overrides for registration.

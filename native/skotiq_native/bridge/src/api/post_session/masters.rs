@@ -173,6 +173,8 @@ pub(crate) fn master_create(args_json: &str) -> Result<MasterAccumulateResult, S
 
     let sidecar = Path::new(&args.sidecar_path);
     ensure_parent_dir(sidecar)?;
+    // A new master replaces whatever was open or journaled at this path.
+    forget_open_master(sidecar);
     std::fs::write(sidecar, master.serialize())
         .map_err(|e| format!("failed to write sidecar: {e}"))?;
 
@@ -207,6 +209,335 @@ pub(crate) fn master_create(args_json: &str) -> Result<MasterAccumulateResult, S
     })
 }
 
+/// Folds kept in memory before the sidecar is rewritten. Between rewrites each
+/// fold's request is appended to the journal beside the sidecar, so an
+/// interrupted process replays it instead of losing it.
+const SAVE_EVERY_FOLDS: usize = 16;
+
+/// Longest time an open master's folds stay out of the sidecar.
+const SAVE_AFTER: std::time::Duration = std::time::Duration::from_secs(600);
+
+/// The journal of folds not yet in the sidecar: `<sidecar>.journal`, one JSON
+/// line per fold, `{"foldsBefore": n, "args": <add request>}`.
+pub(crate) fn journal_path(sidecar: &Path) -> std::path::PathBuf {
+    let mut p = sidecar.to_path_buf();
+    let name = sidecar
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "master".to_string());
+    p.set_file_name(format!("{name}.journal"));
+    p
+}
+
+/// The sidecar's size and modification time, to notice another writer.
+fn disk_stamp(path: &Path) -> Option<(u64, std::time::SystemTime)> {
+    let meta = std::fs::metadata(path).ok()?;
+    Some((meta.len(), meta.modified().ok()?))
+}
+
+/// The registration reference of an open master, prepared once.
+struct FoldReference {
+    stars: skotiq_imaging::registration::ReferenceStars,
+    planes: Vec<Vec<f64>>,
+}
+
+/// An accumulating master held in memory between REST calls, so a fold of one
+/// sub does not read and rewrite a sidecar of hundreds of megabytes.
+struct OpenMaster {
+    sidecar: std::path::PathBuf,
+    master: IntegratedMaster,
+    stamp: Option<(u64, std::time::SystemTime)>,
+    pending: usize,
+    saved_at: std::time::Instant,
+    reference: Option<FoldReference>,
+}
+
+static OPEN_MASTER: std::sync::Mutex<Option<OpenMaster>> = std::sync::Mutex::new(None);
+
+fn lock_open_master() -> std::sync::MutexGuard<'static, Option<OpenMaster>> {
+    OPEN_MASTER.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+impl OpenMaster {
+    /// Write the sidecar atomically and clear the journal.
+    fn save(&mut self) -> Result<(), String> {
+        if self.pending == 0 {
+            return Ok(());
+        }
+        let tmp = self.sidecar.with_extension("saving");
+        std::fs::write(&tmp, self.master.serialize())
+            .and_then(|_| std::fs::rename(&tmp, &self.sidecar))
+            .map_err(|e| format!("failed to write sidecar: {e}"))?;
+        // A journal line whose foldsBefore is below the saved fold count is
+        // skipped on replay, so a crash before this removal is harmless.
+        let _ = std::fs::remove_file(journal_path(&self.sidecar));
+        self.stamp = disk_stamp(&self.sidecar);
+        self.pending = 0;
+        self.saved_at = std::time::Instant::now();
+        Ok(())
+    }
+
+    fn prepare_reference(&mut self, reg_cfg: &RegistrationConfig) -> Result<(), String> {
+        if self.reference.is_none() {
+            let companion = reference_companion_path(&self.sidecar);
+            let image = read_image(&companion)
+                .map(|r| r.image)
+                .map_err(|e| {
+                    format!(
+                        "failed to read reference companion '{}': {e} (was the master created with this build?)",
+                        companion.display()
+                    )
+                })?;
+            let stars = skotiq_imaging::registration::ReferenceStars::detect(&image, reg_cfg)
+                .map_err(|e| format!("reference companion: {e}"))?;
+            let locations = (image.width as usize) * (image.height as usize);
+            let chan = image.channels as usize;
+            let pixels = image_to_f64(&image);
+            let planes = (0..chan)
+                .map(|ch| extract_channel(&pixels, locations, chan, ch))
+                .collect();
+            self.reference = Some(FoldReference { stars, planes });
+        }
+        Ok(())
+    }
+}
+
+/// Open `sidecar`: the master already in memory when nothing changed it on
+/// disk, otherwise the sidecar with its journal replayed. Any other open
+/// master is saved first.
+fn open_master<'a>(
+    slot: &'a mut Option<OpenMaster>,
+    sidecar: &Path,
+) -> Result<&'a mut OpenMaster, String> {
+    let current = slot
+        .as_ref()
+        .is_some_and(|m| m.sidecar == sidecar && m.stamp == disk_stamp(sidecar));
+    if !current {
+        if let Some(mut other) = slot.take() {
+            // Its folds are in its journal, so a master that cannot be saved
+            // now (its folder was moved or removed) loses nothing it had.
+            if other.sidecar != sidecar {
+                if let Err(e) = other.save() {
+                    tracing::warn!(
+                        "could not save '{}' before opening another master: {e}",
+                        other.sidecar.display()
+                    );
+                }
+            }
+        }
+        let bytes = std::fs::read(sidecar).map_err(|e| format!("failed to read sidecar: {e}"))?;
+        let master = IntegratedMaster::deserialize(&bytes).map_err(describe_sidecar_error)?;
+        let mut open = OpenMaster {
+            sidecar: sidecar.to_path_buf(),
+            master,
+            stamp: disk_stamp(sidecar),
+            pending: 0,
+            saved_at: std::time::Instant::now(),
+            reference: None,
+        };
+        replay_journal(&mut open)?;
+        *slot = Some(open);
+    }
+    Ok(slot.as_mut().expect("opened above"))
+}
+
+/// Re-fold the journaled requests the sidecar does not contain yet.
+fn replay_journal(open: &mut OpenMaster) -> Result<(), String> {
+    let journal = journal_path(&open.sidecar);
+    let Ok(text) = std::fs::read_to_string(&journal) else {
+        return Ok(());
+    };
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let Ok(entry) = serde_json::from_str::<serde_json::Value>(line) else {
+            // A line cut short by a crash: its add never returned success.
+            tracing::warn!("ignoring an incomplete line in '{}'", journal.display());
+            continue;
+        };
+        let before = entry["foldsBefore"].as_u64().unwrap_or(u64::MAX) as usize;
+        let folds = open.master.metadata.folds.len();
+        if before < folds {
+            continue;
+        }
+        if before > folds {
+            return Err(format!(
+                "the journal '{}' does not continue the sidecar ({before} folds expected, {folds} present)",
+                journal.display()
+            ));
+        }
+        let args: MasterAddArgs = serde_json::from_value(entry["args"].clone())
+            .map_err(|e| format!("unreadable journal entry: {e}"))?;
+        tracing::info!(
+            "replaying a journaled fold of {} subs into '{}'",
+            args.light_paths.len(),
+            open.sidecar.display()
+        );
+        fold_into(open, &args, None)?;
+        open.pending += 1;
+    }
+    Ok(())
+}
+
+/// Drop the open master and journal for `sidecar` without saving them.
+fn forget_open_master(sidecar: &Path) {
+    let mut slot = lock_open_master();
+    if slot.as_ref().is_some_and(|m| m.sidecar == sidecar) {
+        *slot = None;
+    }
+    let _ = std::fs::remove_file(journal_path(sidecar));
+}
+
+/// Drop the open master without saving it, as a crash would.
+#[cfg(test)]
+pub(crate) fn abandon_open_master() {
+    *lock_open_master() = None;
+}
+
+/// What one fold did.
+struct FoldOutcome {
+    report: skotiq_imaging::master_accumulation::AddReport,
+    weights: Vec<f64>,
+}
+
+/// Calibrate, register and normalize `args`'s lights and fold them into the
+/// open master. Calibration is in float with geometric warp coverage, as in a
+/// full build.
+fn fold_into(
+    open: &mut OpenMaster,
+    args: &MasterAddArgs,
+    cancel: Option<&RunCancelToken>,
+) -> Result<FoldOutcome, String> {
+    let exposures = exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
+    let geom = open.master.geometry.clone();
+    let (width, height) = (geom.width as usize, geom.height as usize);
+    let chan = geom.channels as usize;
+    let locations = width * height;
+    let masters = fold_masters(&args.calibration)?;
+    let reg_cfg = build_registration_config(&args.settings.align)?;
+    let q_cfg = FrameQualityConfig::default();
+    let norm_cfg = if args.settings.normalization.enabled {
+        Some(build_normalization_config(&args.settings.normalization)?)
+    } else {
+        None
+    };
+    open.prepare_reference(&reg_cfg)?;
+    let reference = open.reference.as_ref().expect("prepared above");
+
+    let mut buffers: Vec<Vec<f64>> = Vec::new();
+    let mut coverages: Vec<CoverageMask> = Vec::new();
+    let mut qualities: Vec<FrameQuality> = Vec::new();
+    let fold_total = args.light_paths.len() as u32;
+    for (i, path) in args.light_paths.iter().enumerate() {
+        if let Some(cancel) = cancel {
+            cancel.check("registering", Some(i as u32), Some(fold_total))?;
+        }
+        let exposure = (exposures[i] > 0.0).then_some(exposures[i]);
+        let calibrated = calibrate_for_fold(path, exposure, &args.calibration, &masters)?;
+        let (transform, _) = skotiq_imaging::registration::solve_registration_against(
+            &reference.stars,
+            &calibrated.detection,
+            &reg_cfg,
+        )
+        .map_err(|e| format!("registration of '{path}' failed: {e}"))?;
+        if (
+            calibrated.image.width,
+            calibrated.image.height,
+            calibrated.image.channels,
+        ) != (geom.width, geom.height, geom.channels)
+        {
+            return Err(format!(
+                "'{path}' is {}x{}x{}; the master is {}x{}x{}",
+                calibrated.image.width,
+                calibrated.image.height,
+                calibrated.image.channels,
+                geom.width,
+                geom.height,
+                geom.channels
+            ));
+        }
+        let mut on_grid = OnGrid::new(
+            &calibrated.image,
+            (geom.width, geom.height),
+            &transform,
+            reg_cfg.interpolator,
+        );
+        drop(calibrated);
+        let coverage = CoverageMask::new(width, height, on_grid.covered.clone())
+            .expect("the mask has one entry per pixel");
+        if let Some(cfg) = norm_cfg.as_ref() {
+            for (ch, ref_plane) in reference.planes.iter().enumerate() {
+                let mut plane = extract_channel(&on_grid.pixels, locations, chan, ch);
+                let coeffs =
+                    estimate_normalization(&plane, ref_plane, &coverage, width, height, cfg)
+                        .map_err(|e| format!("normalization of '{path}' failed: {e}"))?;
+                apply_normalization(&mut plane, &coeffs, width, height);
+                write_channel(&mut on_grid.pixels, locations, chan, ch, &plane);
+            }
+        }
+        let quality = aligned_quality(
+            &on_grid.detection(geom.width, geom.height, geom.channels),
+            &q_cfg,
+        )
+        .ok_or_else(|| format!("could not measure quality of '{path}'"))?;
+        buffers.push(on_grid.pixels);
+        coverages.push(coverage);
+        qualities.push(quality);
+    }
+
+    // Weight each fold's subs on a fixed, population-independent quality scale
+    // (`accumulation_weights`, anchored on `FrameQuality::neutral`) rather than
+    // renormalizing every night to its own best sub, so weights stay
+    // comparable across folds.
+    let weights: Vec<f64> = if args.settings.weighting.enabled {
+        let formula = build_weight_formula(&args.settings.weighting)?;
+        accumulation_weights(&qualities, &formula)
+    } else {
+        vec![1.0; qualities.len()]
+    };
+    let frames: Vec<IntegrationFrame<'_>> = buffers
+        .iter()
+        .zip(coverages.iter())
+        .zip(weights.iter())
+        .map(|((px, cov), &w)| IntegrationFrame {
+            pixels: px,
+            weight: w,
+            coverage: Some(cov),
+        })
+        .collect();
+    let label = if args.label.trim().is_empty() {
+        "fold".to_string()
+    } else {
+        args.label.clone()
+    };
+    // Last cancellation point: a committed fold must never be reported as
+    // cancelled.
+    if let Some(cancel) = cancel {
+        cancel.check("integrating", None, None)?;
+    }
+    let report = open
+        .master
+        .add_frames(&frames, &exposures, &label)
+        .map_err(|e| format!("add_frames failed: {e}"))?;
+    Ok(FoldOutcome { report, weights })
+}
+
+fn result_of(open: &OpenMaster, sidecar_path: String) -> MasterAccumulateResult {
+    MasterAccumulateResult {
+        sidecar_path,
+        master_path: None,
+        preview_path: None,
+        frame_count: open.master.metadata.total_frames,
+        total_integration_sec: open.master.metadata.total_integration_seconds,
+        width: open.master.geometry.width,
+        height: open.master.geometry.height,
+        channels: open.master.geometry.channels,
+        frames_added: 0,
+        rejected: 0,
+        frame_weights: Vec::new(),
+        calibration: None,
+        calibration_log_warning: None,
+    }
+}
+
 pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, String> {
     let args: MasterAddArgs =
         serde_json::from_str(args_json).map_err(|e| format!("invalid add args: {e}"))?;
@@ -220,7 +551,7 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
     // cancellation id or touches the sidecar: these seconds accumulate into the
     // master's `total_integration_seconds` and are stamped as its FITS `EXPTIME`
     // at finalize, so a short list must not be back-filled with zeros.
-    let exposures = exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
+    exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
 
     let cancel = RunCancelToken::register(&args.run_id)?;
     cancel.check("calibrating", None, None)?;
@@ -230,170 +561,61 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
     let calibration_report = build_calibration_report(&args.light_paths[0], &args.calibration);
 
     let sidecar = Path::new(&args.sidecar_path);
-    let bytes = std::fs::read(sidecar).map_err(|e| format!("failed to read sidecar: {e}"))?;
-    let mut master = IntegratedMaster::deserialize(&bytes).map_err(describe_sidecar_error)?;
-
-    let geom = master.geometry.clone();
-    let width = geom.width;
-    let height = geom.height;
-    let channels = geom.channels;
-    let locations = (width as usize) * (height as usize);
-    let chan = channels as usize;
-
-    // Load + calibrate masters once.
-    let dark = load_optional_master(&args.calibration.dark, "dark")?;
-    let flat = load_optional_flat(&args.calibration.flat)?;
-    let bias = load_optional_master(&args.calibration.bias, "bias")?;
-
-    // Register against the frozen reference companion written at `create` (the
-    // running mean is empty until the first fold, so we cannot use it as the
-    // alignment anchor — and using a frozen anchor keeps every night's geometry
-    // mutually consistent regardless of fold order).
-    let ref_companion = reference_companion_path(sidecar);
-    let ref_image = read_image(&ref_companion)
-        .map(|r| r.image)
-        .map_err(|e| {
-            format!(
-                "failed to read reference companion '{}': {e} (was the master created with this build?)",
-                ref_companion.display()
-            )
-        })?;
-
-    let reg_cfg = build_registration_config(&args.settings.align)?;
-    let q_cfg = FrameQualityConfig::default();
-
-    // Build the per-sub aligned + normalized f64 buffers and weights.
-    let mut buffers: Vec<Vec<f64>> = Vec::new();
-    let mut coverages: Vec<CoverageMask> = Vec::new();
-    let mut qualities: Vec<FrameQuality> = Vec::new();
-
-    let norm_cfg = if args.settings.normalization.enabled {
-        Some(build_normalization_config(&args.settings.normalization)?)
-    } else {
-        None
+    let mut slot = lock_open_master();
+    let open = open_master(&mut slot, sidecar)?;
+    let folds_before = open.master.metadata.folds.len();
+    let outcome = match fold_into(open, &args, Some(&cancel)) {
+        Ok(outcome) => outcome,
+        Err(e) => {
+            // A failed fold may have left the in-memory master partly
+            // updated; the next call reloads it from disk and journal.
+            *slot = None;
+            return Err(e);
+        }
     };
-    let ref_planes: Option<Vec<Vec<f64>>> = norm_cfg.as_ref().map(|_| {
-        let ref_f64 = image_to_f64(&ref_image);
-        (0..chan)
-            .map(|ch| extract_channel(&ref_f64, locations, chan, ch))
-            .collect()
-    });
 
-    let fold_total = args.light_paths.len() as u32;
-    for (i, path) in args.light_paths.iter().enumerate() {
-        // Each iteration registers and normalizes one full-sensor frame, so the
-        // flag is read before every sub rather than once for the fold.
-        cancel.check("registering", Some(i as u32), Some(fold_total))?;
-        let read =
-            read_image(Path::new(path)).map_err(|e| format!("failed to read '{path}': {e}"))?;
-        let mut image = read.image;
-        if image.pixel_type != PixelType::U16 {
-            return Err(format!(
-                "light '{path}' is {:?}; expected U16",
-                image.pixel_type
-            ));
-        }
-        if dark.is_some() || flat.is_some() || bias.is_some() {
-            image = calibrate_with_flat_state(&image, dark.as_ref(), flat.as_ref(), bias.as_ref())
-                .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
-        }
-        if args.calibration.cosmetic_correction {
-            // The returned report is advisory; the error is not. The fold's
-            // calibration record states `cosmetic correction: applied` from the
-            // request flag alone, so a swallowed failure here folds a frame that
-            // never got the repair into a master that claims it.
-            cosmetic_correct_transient(&mut image, CosmeticConfig::default())
-                .map_err(|e| format!("cosmetic correction of '{path}' failed: {e}"))?;
-        }
-
-        let reg = register_frame(&ref_image, &image, &reg_cfg)
-            .map_err(|e| format!("registration of '{path}' failed: {e}"))?;
-        // Geometry guard: aligned frame must match the master grid.
-        frame_buffer_for_master(i, &reg.aligned, &geom).map_err(|e| format!("'{path}': {e}"))?;
-
-        let mut pixels = image_to_f64(&reg.aligned);
-        let coverage = CoverageMask::from_zero_fill(
-            &derive_luma_f64(&pixels, locations, chan),
-            width as usize,
-            height as usize,
-        );
-
-        if let (Some(cfg), Some(planes)) = (norm_cfg.as_ref(), ref_planes.as_ref()) {
-            for (ch, ref_plane) in planes.iter().enumerate() {
-                let mut plane = extract_channel(&pixels, locations, chan, ch);
-                let coeffs = estimate_normalization(
-                    &plane,
-                    ref_plane,
-                    &coverage,
-                    width as usize,
-                    height as usize,
-                    cfg,
-                )
-                .map_err(|e| format!("normalization of '{path}' failed: {e}"))?;
-                apply_normalization(&mut plane, &coeffs, width as usize, height as usize);
-                write_channel(&mut pixels, locations, chan, ch, &plane);
-            }
-        }
-
-        let quality = aligned_quality(&reg.aligned, &q_cfg)
-            .ok_or_else(|| format!("could not measure quality of '{path}'"))?;
-
-        buffers.push(pixels);
-        coverages.push(coverage);
-        qualities.push(quality);
+    // The fold is durable once its request is in the journal; the sidecar is
+    // rewritten only every few folds.
+    let mut request: serde_json::Value =
+        serde_json::from_str(args_json).map_err(|e| format!("invalid add args: {e}"))?;
+    if let Some(obj) = request.as_object_mut() {
+        obj.remove("runId");
     }
-
-    // Weight each fold's subs on a fixed, population-independent quality scale
-    // (`accumulation_weights`, anchored on `FrameQuality::neutral`) rather than
-    // renormalizing every night to its own best sub. The accumulating master
-    // sums weights across folds, so a per-fold max-normalization (`weight_frames`)
-    // would reset each night's best sub to 1.0 and erase real cross-night quality
-    // differences — a uniformly worse night would contribute as much weight as a
-    // pristine one. Anchoring on a fixed reference keeps the weights comparable
-    // across folds while leaving a single-night master unchanged (a weighted mean
-    // is invariant to a global weight rescale).
-    let weights: Vec<f64> = if args.settings.weighting.enabled {
-        let formula = build_weight_formula(&args.settings.weighting)?;
-        accumulation_weights(&qualities, &formula)
-    } else {
-        vec![1.0; qualities.len()]
+    let line = serde_json::json!({"foldsBefore": folds_before, "args": request}).to_string();
+    let journaled = {
+        use std::io::Write;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(journal_path(sidecar))
+            .and_then(|mut f| {
+                f.write_all(line.as_bytes())?;
+                f.write_all(b"\n")?;
+                f.sync_data()
+            })
     };
+    open.pending += 1;
+    if journaled.is_err()
+        || open.pending >= SAVE_EVERY_FOLDS
+        || open.saved_at.elapsed() >= SAVE_AFTER
+    {
+        if let Err(e) = open.save() {
+            *slot = None;
+            return Err(e);
+        }
+    }
+    let mut result = result_of(open, args.sidecar_path.clone());
+    drop(slot);
 
-    let frames: Vec<IntegrationFrame<'_>> = buffers
-        .iter()
-        .zip(coverages.iter())
-        .zip(weights.iter())
-        .map(|((px, cov), &w)| IntegrationFrame {
-            pixels: px,
-            weight: w,
-            coverage: Some(cov),
-        })
-        .collect();
-
+    // The fold is committed above, and the caller records which subs went in
+    // only when this call succeeds. Returning Err here would therefore make the
+    // retry fold the same lights a second time, so a lost provenance record
+    // rides back as a warning instead.
     let label = if args.label.trim().is_empty() {
         "fold".to_string()
     } else {
         args.label.clone()
     };
-    // Last cancellation point: the fold commits to the sidecar below, and a
-    // committed fold must never be reported as cancelled.
-    cancel.check("integrating", None, None)?;
-    let report = master
-        .add_frames(&frames, &exposures, &label)
-        .map_err(|e| format!("add_frames failed: {e}"))?;
-
-    std::fs::write(sidecar, master.serialize())
-        .map_err(|e| format!("failed to write sidecar: {e}"))?;
-
-    // The sidecar carries no calibration, and the FITS is only written at
-    // `finalize` — possibly nights later, in another process. The log beside the
-    // sidecar is where this fold's calibration survives until then.
-    //
-    // The fold is committed above, and the caller records which subs went in
-    // only when this call succeeds. Returning Err here would therefore make the
-    // retry fold the same lights a second time — inflating the frame count and
-    // weighting the pixels with duplicated data — to punish a provenance file.
-    // The lost provenance rides back as a warning instead.
     let calibration_log_warning = append_fold_calibration(
         sidecar,
         FoldCalibration {
@@ -409,22 +631,12 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
             sidecar.display()
         );
     }
-
-    Ok(MasterAccumulateResult {
-        sidecar_path: args.sidecar_path,
-        master_path: None,
-        preview_path: None,
-        frame_count: master.metadata.total_frames,
-        total_integration_sec: master.metadata.total_integration_seconds,
-        width,
-        height,
-        channels,
-        frames_added: report.frames_added,
-        rejected: report.rejected,
-        frame_weights: weights,
-        calibration: Some(calibration_report),
-        calibration_log_warning,
-    })
+    result.frames_added = outcome.report.frames_added;
+    result.rejected = outcome.report.rejected;
+    result.frame_weights = outcome.weights;
+    result.calibration = Some(calibration_report);
+    result.calibration_log_warning = calibration_log_warning;
+    Ok(result)
 }
 
 pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult, String> {
@@ -434,12 +646,13 @@ pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult,
         return Err("finalize requires sidecarPath and masterFitsPath".to_string());
     }
     let sidecar = Path::new(&args.sidecar_path);
-    let bytes = std::fs::read(sidecar).map_err(|e| format!("failed to read sidecar: {e}"))?;
-    let master = IntegratedMaster::deserialize(&bytes).map_err(describe_sidecar_error)?;
+    let mut slot = lock_open_master();
+    let open = open_master(&mut slot, sidecar)?;
+    open.save()?;
+    let master = &open.master;
     // A provenance log that cannot be read is reported in the master's HISTORY,
     // not turned into a refusal: the sidecar holds every night already folded in
-    // and the log holds only the story of how they were calibrated. Blocking the
-    // FITS would cost the operator the data to protect the record of it.
+    // and the log holds only the story of how they were calibrated.
     let calibration_log = match read_fold_calibration_log(sidecar) {
         Ok(log) => Ok(log),
         Err(reason) => {
@@ -459,6 +672,7 @@ pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult,
     header.set_string("FRAMETYP", "MASTER");
     header.set_string("CALSTAT", "Skotiq accumulating master");
     header.set_int("NFRAMES", master.metadata.total_frames as i64);
+    header.set_int("NCOMBINE", master.metadata.total_frames as i64);
     header.set_float("EXPTIME", master.metadata.total_integration_seconds);
     if let Some(f) = &master.metadata.filter {
         header.set_string("FILTER", f);
@@ -482,55 +696,25 @@ pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult,
     write_fits(master_path, &image, &header)
         .map_err(|e| format!("failed to write master: {e:?}"))?;
 
-    let preview_path = if let Some(p) = args.preview_png_path.as_ref() {
-        if !p.trim().is_empty() {
+    let preview_path = match args.preview_png_path.as_deref().map(str::trim) {
+        Some(p) if !p.is_empty() => {
             write_preview_png(&image, Path::new(p))?;
-            Some(p.clone())
-        } else {
-            None
+            Some(p.to_string())
         }
-    } else {
-        None
+        _ => None,
     };
-
-    Ok(MasterAccumulateResult {
-        sidecar_path: args.sidecar_path,
-        master_path: Some(args.master_fits_path),
-        preview_path,
-        frame_count: master.metadata.total_frames,
-        total_integration_sec: master.metadata.total_integration_seconds,
-        width: master.geometry.width,
-        height: master.geometry.height,
-        channels: master.geometry.channels,
-        frames_added: 0,
-        rejected: 0,
-        frame_weights: Vec::new(),
-        calibration: None,
-        calibration_log_warning: None,
-    })
+    let mut result = result_of(open, args.sidecar_path.clone());
+    result.master_path = Some(args.master_fits_path);
+    result.preview_path = preview_path;
+    Ok(result)
 }
 
 pub(crate) fn master_info(args_json: &str) -> Result<MasterAccumulateResult, String> {
     let args: MasterInfoArgs =
         serde_json::from_str(args_json).map_err(|e| format!("invalid info args: {e}"))?;
-    let bytes =
-        std::fs::read(&args.sidecar_path).map_err(|e| format!("failed to read sidecar: {e}"))?;
-    let master = IntegratedMaster::deserialize(&bytes).map_err(describe_sidecar_error)?;
-    Ok(MasterAccumulateResult {
-        sidecar_path: args.sidecar_path,
-        master_path: None,
-        preview_path: None,
-        frame_count: master.metadata.total_frames,
-        total_integration_sec: master.metadata.total_integration_seconds,
-        width: master.geometry.width,
-        height: master.geometry.height,
-        channels: master.geometry.channels,
-        frames_added: 0,
-        rejected: 0,
-        frame_weights: Vec::new(),
-        calibration: None,
-        calibration_log_warning: None,
-    })
+    let mut slot = lock_open_master();
+    let open = open_master(&mut slot, Path::new(&args.sidecar_path))?;
+    Ok(result_of(open, args.sidecar_path))
 }
 
 /// Path of the frozen registration-reference companion FITS written next to a

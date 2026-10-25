@@ -484,6 +484,191 @@ fn a_filter_with_no_usable_sub_reports_a_typed_outcome() {
     assert_eq!(v["skipped"][0]["stage"], "geometry");
 }
 
+/// An accumulating add keeps the master in memory and journals the request;
+/// after a crash the journal is replayed, so no fold is lost or doubled.
+#[test]
+fn an_add_survives_a_crash_through_its_journal() {
+    let (w, h) = (320u32, 240u32);
+    let dir = scratch("journal");
+    let frames: Vec<String> = (0..3)
+        .map(|i| {
+            write_u16(
+                &dir.join(format!("j{i}.fits")),
+                w,
+                h,
+                &render(
+                    w,
+                    h,
+                    80,
+                    1000.0,
+                    10.0,
+                    (i as f64, -(i as f64)),
+                    false,
+                    70 + i,
+                    0,
+                ),
+                &light_header("L"),
+            )
+        })
+        .collect();
+    let sidecar = dir.join("L.nsm");
+    api_master_accumulate(
+        serde_json::json!({"op":"create","referencePath":frames[0],"sidecarPath":sidecar})
+            .to_string(),
+    )
+    .unwrap();
+    for frame in &frames[1..] {
+        api_master_accumulate(
+            serde_json::json!({"op":"add","sidecarPath":sidecar,"lightPaths":[frame],
+                "exposuresSec":[60],"label":"n",
+                "settings":{"normalization":{"enabled":true,"mode":"global"}}})
+            .to_string(),
+        )
+        .unwrap();
+    }
+    abandon_open_master();
+    let info: serde_json::Value = serde_json::from_str(
+        &api_master_accumulate(serde_json::json!({"op":"info","sidecarPath":sidecar}).to_string())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(info["frameCount"], 2, "{info}");
+    let done: serde_json::Value = serde_json::from_str(
+        &api_master_accumulate(
+            serde_json::json!({"op":"finalize","sidecarPath":sidecar,
+                "masterFitsPath":dir.join("m.fits")})
+            .to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(done["frameCount"], 2, "{done}");
+    abandon_open_master();
+    let info: serde_json::Value = serde_json::from_str(
+        &api_master_accumulate(serde_json::json!({"op":"info","sidecarPath":sidecar}).to_string())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        info["frameCount"], 2,
+        "a saved fold is not replayed again: {info}"
+    );
+    std::fs::remove_dir_all(dir).ok();
+}
+
+/// The common export writes linear masters as ADU / 65535 without clipping,
+/// a planar RGB composite and a linear LRGB composite in FITS and XISF, and
+/// carries the grid reference's WCS with the crop applied.
+#[test]
+fn delivery_writes_linear_masters_and_composites() {
+    let (w, h) = (320u32, 240u32);
+    let dir = scratch("composites");
+    let mut grid_header = light_header("L");
+    grid_header.set_string("CTYPE1", "RA---TAN");
+    grid_header.set_string("CTYPE2", "DEC--TAN");
+    grid_header.set_float("CRVAL1", 35.64);
+    grid_header.set_float("CRVAL2", 42.35);
+    grid_header.set_float("CRPIX1", 160.5);
+    grid_header.set_float("CRPIX2", 120.5);
+    grid_header.set_float("CD1_1", -2.9e-4);
+    grid_header.set_float("CD2_2", 2.9e-4);
+    grid_header.set_float("FOCALLEN", 530.0);
+    grid_header.set_float("XPIXSZ", 3.8);
+    let grid = write_u16(
+        &dir.join("grid.fits"),
+        w,
+        h,
+        &render(w, h, 80, 1000.0, 10.0, (0.0, 0.0), false, 1, 0),
+        &grid_header,
+    );
+    let mut masters = Vec::new();
+    for (k, filter) in ["L", "R", "G", "B"].iter().enumerate() {
+        let mut header = light_header(filter);
+        header.set_float("FOCALLEN", 530.0);
+        let lights: Vec<serde_json::Value> = (0..3)
+            .map(|i| {
+                let p = write_u16(
+                    &dir.join(format!("sub_{filter}{i}.fits")),
+                    w,
+                    h,
+                    &render(
+                        w,
+                        h,
+                        80,
+                        800.0 + 50.0 * k as f64,
+                        10.0,
+                        (i as f64, 0.5 * i as f64),
+                        false,
+                        10 * k as u64 + i,
+                        0,
+                    ),
+                    &header,
+                );
+                serde_json::json!({"path":p,"exposureSec":60})
+            })
+            .collect();
+        let built: serde_json::Value = serde_json::from_str(
+            &api_master_accumulate(
+                serde_json::json!({
+                    "op":"build","filter":filter,"target":"T",
+                    "gridReference":{"path":grid,"calibration":{}},
+                    "normalizationReference":{"path":lights[0]["path"],"calibration":{}},
+                    "groups":[{"label":"n","calibration":{},"lights":lights}],
+                    "settings":{"weighting":{"enabled":true,"formula":"noiseEvaluation"},
+                                "normalization":{"enabled":true,"mode":"global"}},
+                    "masterFitsPath":dir.join(format!("{filter}.fits")),
+                    "coverageFitsPath":dir.join(format!("{filter}.cov.fits"))
+                })
+                .to_string(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            built["wcsSource"]
+                .as_str()
+                .is_some_and(|s| s.contains("grid reference")),
+            "{built}"
+        );
+        masters.push(serde_json::json!({"path":built["masterPath"],
+            "coveragePath":built["coveragePath"],"filter":format!("{filter}-{k}")}));
+    }
+    let out = dir.join("export");
+    let r: serde_json::Value = serde_json::from_str(
+        &api_master_accumulate(
+            serde_json::json!({"op":"deliverUniform","masters":masters,"outputDir":out})
+                .to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let crop = r["crop"].as_array().unwrap();
+    let (x0, y0) = (crop[0].as_f64().unwrap(), crop[1].as_f64().unwrap());
+    let (l, header) = read_fits(&out.join("L-0_master_linear.fits")).unwrap();
+    assert_eq!(header.get_float("CRPIX1"), Some(160.5 - x0));
+    assert_eq!(header.get_float("CRPIX2"), Some(120.5 - y0));
+    assert_eq!(header.get_float("FOCALLEN"), Some(530.0));
+    let l = image_to_f64(&l);
+    let mut sorted = l.clone();
+    sorted.sort_by(f64::total_cmp);
+    let sky = sorted[sorted.len() / 2] * 65535.0;
+    assert!(
+        (sky - 800.0).abs() < 20.0,
+        "ADU / 65535 keeps the level, sky {sky}"
+    );
+    for key in ["rgbPath", "rgbXisfPath", "lrgbPath", "lrgbXisfPath"] {
+        let path = r["composites"][key]
+            .as_str()
+            .unwrap_or_else(|| panic!("{key}: {r}"));
+        assert!(Path::new(path).exists(), "{path}");
+    }
+    let (rgb, rgb_header) =
+        read_fits(Path::new(r["composites"]["rgbPath"].as_str().unwrap())).unwrap();
+    assert_eq!(rgb.channels, 3);
+    assert!(rgb_header.get_float("CRVAL1").is_some());
+    std::fs::remove_dir_all(dir).ok();
+}
+
 /// Full-size ASI1600 frames through the build. Run explicitly in release mode
 /// with `RV_FRAMES` set, under `/usr/bin/time -v` for the peak memory.
 #[test]
