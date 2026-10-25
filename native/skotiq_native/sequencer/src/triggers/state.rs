@@ -399,6 +399,12 @@ pub struct TriggerState {
     /// restored target must survive the run-start reset; a fresh run's must
     /// not.
     pub restored_from_checkpoint: bool,
+    /// Why the frame watch is holding autofocus: the latest frames are
+    /// trailed, starless or off target, and a sweep on them would move focus
+    /// on stars that are not there. Autofocus triggers do not fire while set.
+    pub autofocus_hold: Option<String>,
+    /// An autofocus trigger came due while autofocus was held.
+    pub autofocus_wanted_while_held: bool,
 }
 
 impl Default for TriggerState {
@@ -479,6 +485,8 @@ impl Default for TriggerState {
             current_transparency: None,
             transparency_last_update: None,
             restored_from_checkpoint: false,
+            autofocus_hold: None,
+            autofocus_wanted_while_held: false,
         }
     }
 }
@@ -670,6 +678,8 @@ impl TriggerState {
         self.baseline_temperature = None;
         self.current_temperature = None;
         self.baseline_focuser_position = None;
+        self.autofocus_hold = None;
+        self.autofocus_wanted_while_held = false;
         self.run.reset_for_new_run();
         // A resumed run carries on the guiding and target its checkpoint
         // recorded.
