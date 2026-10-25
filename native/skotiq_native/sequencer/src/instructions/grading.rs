@@ -289,11 +289,6 @@ pub(crate) async fn save_uncorrected_raw_frame(
     }
 }
 
-/// Resolve the directory where rejected frames go.
-///
-/// * `override_path = None`: use `<base>/Reject/`.
-/// * `override_path = Some(absolute)`: use that path verbatim.
-/// * `override_path = Some(relative)`: resolve against `base`.
 /// The current altitude of the run's target, for the airmass of a frame's
 /// baseline. `None` without a target or an observer location.
 pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
@@ -303,6 +298,11 @@ pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
     Some(alt)
 }
 
+/// Resolve the directory where rejected frames go.
+///
+/// * `override_path = None`: use `<base>/Reject/`.
+/// * `override_path = Some(absolute)`: use that path verbatim.
+/// * `override_path = Some(relative)`: resolve against `base`.
 pub fn resolve_reject_dir(base: &std::path::Path, override_path: Option<&str>) -> PathBuf {
     match override_path {
         Some(p) => {
