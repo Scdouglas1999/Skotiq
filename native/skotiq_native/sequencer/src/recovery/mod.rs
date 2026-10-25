@@ -419,6 +419,14 @@ pub enum AttemptOutcome {
     /// (10 min interval, 90 min cap) the operator gets nine identical failures
     /// spread over ninety minutes, presented as `recovering` at `progress 0.0`.
     Unrecoverable { message: String },
+    /// This cause cannot be worked on until another one is: a guide star
+    /// cannot be held on a mount that is not tracking. The loop carries on
+    /// as a recovery of `cause` with that cause's budget, and the attempts
+    /// spent so far are not counted against it.
+    HandOff {
+        cause: RecoveryCause,
+        message: String,
+    },
 }
 
 /// Record of a single completed recovery loop for the post-session report.

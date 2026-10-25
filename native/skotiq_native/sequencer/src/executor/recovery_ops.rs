@@ -89,40 +89,144 @@ pub(crate) fn guiding_is_settled(status: &crate::device_ops::GuidingStatus) -> b
     status.is_guiding && status.rms_total > 0.0 && status.rms_total <= REACQUIRE_SETTLE_PIXELS
 }
 
+/// How far guiding may move the mount, from where a guide-star recovery
+/// began, before the recovery stops restarting it. Guiding that locked on
+/// noise behind trees dragged the mount about 0.9 degrees in Dec over a
+/// night; a real star held through cloud moves it by arcseconds.
+pub(crate) const RECOVERY_MAX_DISPLACEMENT_ARCMIN: f64 = 5.0;
+
+/// The trigger state a recovery reads and records into, when it has one.
+async fn recovery_trigger_state(
+    trigger_manager: Option<&Arc<RwLock<TriggerManager>>>,
+) -> Option<Arc<RwLock<crate::triggers::TriggerState>>> {
+    match trigger_manager {
+        Some(manager) => Some(manager.read().await.state()),
+        None => None,
+    }
+}
+
+/// How far, in arcminutes, the mount is from where this recovery began.
+/// The first reading of a recovery is its origin.
+async fn recovery_displacement_arcmin(
+    device_ops: &SharedDeviceOps,
+    mount_id: Option<&str>,
+    trigger_state: Option<&Arc<RwLock<crate::triggers::TriggerState>>>,
+) -> Option<f64> {
+    let (id, state) = (mount_id?, trigger_state?);
+    let position = bounded_poll(
+        "mount_get_coordinates",
+        device_ops.mount_get_coordinates(id),
+    )
+    .await
+    .ok()?;
+    let mut state = state.write().await;
+    let origin = *state
+        .guide_recovery
+        .get_or_insert_with(Default::default)
+        .origin
+        .get_or_insert(position);
+    Some(crate::slew_arrival::separation_deg(origin, position) * 60.0)
+}
+
+/// Record a failed attempt, with where the mount pointed, for the run and
+/// the obstruction check.
+async fn record_guide_recovery_failure(
+    device_ops: &SharedDeviceOps,
+    mount_id: Option<&str>,
+    trigger_state: Option<&Arc<RwLock<crate::triggers::TriggerState>>>,
+) {
+    let Some(state) = trigger_state else {
+        return;
+    };
+    let position = match mount_id {
+        Some(id) => bounded_poll(
+            "mount_get_coordinates",
+            device_ops.mount_get_coordinates(id),
+        )
+        .await
+        .ok(),
+        None => None,
+    };
+    let now = chrono::Utc::now();
+    let mut state = state.write().await;
+    let site = state.observer_latitude.zip(state.observer_longitude);
+    let alt_az_deg = position
+        .zip(site)
+        .map(|((ra, dec), (lat, lon))| crate::meridian::calculate_alt_az(ra, dec, lat, lon, now));
+    state
+        .guide_recovery
+        .get_or_insert_with(Default::default)
+        .failures
+        .push(crate::triggers::GuideRecoveryFailure {
+            at_unix: now.timestamp(),
+            alt_az_deg,
+        });
+}
+
+fn displaced_message(arcmin: f64) -> String {
+    format!(
+        "Guiding has moved the mount {arcmin:.1}' from where the guide-star recovery began \
+         (limit {RECOVERY_MAX_DISPLACEMENT_ARCMIN:.0}'). Guiding is not restarted in this \
+         recovery so it cannot drag the mount further; the target needs centering again."
+    )
+}
+
 /// Actively re-acquire the guide star after a `GuideStarLost` event.
 ///
-/// Merely *querying* `is_guiding` never tells the guider to find a star again,
-/// so once a star is lost the recovery could only succeed if the guider
-/// happened to re-lock on its own. This mirrors the lock-on logic in
-/// `execute_start_guiding`: it issues `guider_start` (which, for PHD2, performs
-/// auto-select + calibrate-if-needed + guide, i.e. a real re-acquisition) and
-/// then polls `guider_get_status` until guiding is confirmed within a bounded
-/// deadline. Fails closed (returns `AttemptOutcome::Failed`) on start error or
-/// if the lock never re-establishes — the recovery driver then escalates per
-/// the configured retry policy rather than silently resuming exposures on an
-/// unguided mount.
+/// A mount that is not tracking cannot hold any star, so that is handed to
+/// the tracking-loss recovery first instead of spending guide-star attempts
+/// on it. Otherwise this restarts guiding on a star picked from a fresh frame
+/// (refusing one far fainter than the run's guide star, which behind trees
+/// or cloud is noise) and polls until guiding settles inside
+/// [`REACQUIRE_SETTLE_PIXELS`]. Guiding that has moved the mount more than
+/// [`RECOVERY_MAX_DISPLACEMENT_ARCMIN`] since the recovery began is stopped
+/// and not restarted. Every failed attempt is recorded in the trigger state's
+/// [`crate::triggers::GuideRecoveryStall`].
 pub(crate) async fn recover_guide_star(
     device_ops: &SharedDeviceOps,
+    mount_id: Option<&str>,
+    trigger_manager: Option<&Arc<RwLock<TriggerManager>>>,
 ) -> crate::recovery::AttemptOutcome {
     use crate::recovery::AttemptOutcome;
 
-    // Fast-path: maybe the guider already recovered on its own during the
-    // recovery wait window. Issuing guider_start when already guiding can force
-    // an unnecessary re-calibration on some setups, so honour an existing lock —
-    // but only a lock that is actually holding the star.
-    //
-    // `is_guiding` alone is not that. PHD2 reports guiding for as long as it is
-    // emitting GuideStep frames, including while it chases a star it has
-    // effectively lost: measured on the owner's rig at RA/Dec offsets of
-    // -56.8 / -54.4 px with SNR collapsed 126.7 → 11.8 and StarMass
-    // 2,962,797 → 5,902, all of it reported as `is_guiding: true`. Accepting
-    // that as recovered declares success, resumes the run and trails every
-    // frame.
-    //
-    // The bar is the one this function already applies to its own
-    // re-acquisition below — settled inside `REACQUIRE_SETTLE_PIXELS` — so the
-    // fast path cannot hold a worse situation to a laxer standard than a fresh
-    // start.
+    if let Some(id) = mount_id {
+        let tracking = bounded_poll("mount_is_tracking", device_ops.mount_is_tracking(id)).await;
+        let slewing = bounded_poll("mount_is_slewing", device_ops.mount_is_slewing(id)).await;
+        if matches!(tracking, Ok(false)) && !matches!(slewing, Ok(true)) {
+            return AttemptOutcome::HandOff {
+                cause: crate::recovery::RecoveryCause::MountTrackingLost,
+                message: format!(
+                    "The guide star cannot be re-acquired: mount {id} is not tracking. \
+                     Recovering tracking first; guiding restarts once the mount tracks."
+                ),
+            };
+        }
+    }
+
+    let trigger_state = recovery_trigger_state(trigger_manager).await;
+    let trigger_state = trigger_state.as_ref();
+    let outcome = reacquire_guide_star(device_ops, mount_id, trigger_state).await;
+    match (&outcome, trigger_state) {
+        (AttemptOutcome::Succeeded, Some(state)) => state.write().await.guide_recovery = None,
+        (AttemptOutcome::Failed { .. }, _) => {
+            record_guide_recovery_failure(device_ops, mount_id, trigger_state).await;
+        }
+        _ => {}
+    }
+    outcome
+}
+
+async fn reacquire_guide_star(
+    device_ops: &SharedDeviceOps,
+    mount_id: Option<&str>,
+    trigger_state: Option<&Arc<RwLock<crate::triggers::TriggerState>>>,
+) -> crate::recovery::AttemptOutcome {
+    use crate::recovery::AttemptOutcome;
+
+    // Honour an existing lock, but only one that is holding the star:
+    // `is_guiding` alone stays true while PHD2 chases a star it has lost.
+    // Issuing guider_start when already guiding can force an unnecessary
+    // re-calibration on some setups.
     if let Ok(status) = device_ops.guider_get_status().await {
         if guiding_is_settled(&status) {
             return AttemptOutcome::Succeeded;
@@ -137,12 +241,30 @@ pub(crate) async fn recover_guide_star(
         }
     }
 
+    if let Some(arcmin) = recovery_displacement_arcmin(device_ops, mount_id, trigger_state).await {
+        if arcmin > RECOVERY_MAX_DISPLACEMENT_ARCMIN {
+            if let Err(e) = device_ops.guider_stop().await {
+                tracing::warn!("[RECOVERY] The guider did not stop: {e}");
+            }
+            return AttemptOutcome::Failed {
+                message: displaced_message(arcmin),
+            };
+        }
+    }
+
+    let reference = match trigger_state {
+        Some(state) => state.read().await.guide_star_reference,
+        None => None,
+    };
+    let floor = crate::GuideStarFloor::for_recovery(reference);
+
     // Issue a real re-acquisition on a star picked from a fresh frame: PHD2's
     // guide RPC keeps the lock position it had, which after a move is empty
     // sky. The start can return Ok before the lock is truly settled, so we
     // verify below.
-    if let Err(e) = crate::instructions::start_guiding_on_fresh_star(
+    if let Err(e) = crate::instructions::start_guiding_on_fresh_star_above(
         device_ops,
+        Some(floor),
         REACQUIRE_SETTLE_PIXELS,
         REACQUIRE_SETTLE_TIME_SECS,
         REACQUIRE_SETTLE_TIMEOUT_SECS,
@@ -164,13 +286,37 @@ pub(crate) async fn recover_guide_star(
     let deadline = tokio::time::Instant::now()
         + std::time::Duration::from_secs_f64(REACQUIRE_SETTLE_TIMEOUT_SECS);
     while tokio::time::Instant::now() < deadline {
+        if let Some(arcmin) =
+            recovery_displacement_arcmin(device_ops, mount_id, trigger_state).await
+        {
+            if arcmin > RECOVERY_MAX_DISPLACEMENT_ARCMIN {
+                if let Err(e) = device_ops.guider_stop().await {
+                    tracing::warn!("[RECOVERY] The guider did not stop: {e}");
+                }
+                return AttemptOutcome::Failed {
+                    message: displaced_message(arcmin),
+                };
+            }
+        }
         match device_ops.guider_get_status().await {
             // Settled, not merely stepping. `rms_total` is in guide-camera
-            // PIXELS (PHD2 `RADistanceRaw`/`DECDistanceRaw`, quadrature-summed
-            // — see `Phd2GuideStats`), which is the same unit
-            // `REACQUIRE_SETTLE_PIXELS` and the GuidingFailed trigger's
-            // threshold are in. The old log line called it arcseconds.
+            // pixels, the unit of `REACQUIRE_SETTLE_PIXELS`.
             Ok(status) if guiding_is_settled(&status) => {
+                if let Ok(Some(star)) = device_ops.guider_star_quality().await {
+                    if !floor.accepts(&star) {
+                        if let Err(e) = device_ops.guider_stop().await {
+                            tracing::warn!("[RECOVERY] The guider did not stop: {e}");
+                        }
+                        return AttemptOutcome::Failed {
+                            message: format!(
+                                "The guider locked on a source far fainter than the run's guide \
+                                 star (SNR {:.1}, mass {:.0}; the least accepted is SNR {:.1}, \
+                                 mass {:.0}); guiding was stopped so it does not follow noise",
+                                star.snr, star.star_mass, floor.min_snr, floor.min_star_mass
+                            ),
+                        };
+                    }
+                }
                 tracing::info!(
                     "Guide star re-acquired: guiding settled (RMS total={:.2} px)",
                     status.rms_total
@@ -305,7 +451,9 @@ pub(crate) async fn run_recovery_attempt(
     use crate::recovery::RecoveryCause;
 
     match cause {
-        RecoveryCause::GuideStarLost => recover_guide_star(device_ops).await,
+        RecoveryCause::GuideStarLost => {
+            recover_guide_star(device_ops, mount_id, Some(trigger_manager)).await
+        }
         RecoveryCause::MountTrackingLost => match mount_id {
             // Parking stops tracking, so an operator who parks mid-run trips
             // this cause too. A park is a safe state someone chose; switching

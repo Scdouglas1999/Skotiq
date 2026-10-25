@@ -22,6 +22,11 @@ pub struct GuidingState {
     /// A move stopped this run's guiding; the next light frame starts it again
     /// on a fresh star.
     resume_pending: bool,
+    /// When the run last tried to start guiding while imaging unguided, or
+    /// went unguided.
+    last_unguided_attempt: Option<tokio::time::Instant>,
+    /// The operator has been told guiding waits for the mount to track.
+    tracking_wait_noted: bool,
 }
 
 /// What the monitor's guider poll changed.
@@ -31,6 +36,9 @@ pub enum GuiderObservation {
     /// The run had gone on unguided and the guider is guiding again, so this
     /// run's guiding is armed again.
     GuidingAgain,
+    /// The run is unguided and the guider reports guiding, but the mount is
+    /// not tracking. Reported once until guiding runs again.
+    GuidingWithoutTracking,
 }
 
 impl GuidingState {
@@ -69,14 +77,42 @@ impl GuidingState {
     }
 
     pub fn set_unguided(&mut self, unguided: bool) {
+        if unguided && !self.unguided {
+            self.last_unguided_attempt = Some(tokio::time::Instant::now());
+        }
         self.unguided = unguided;
+        if !unguided {
+            self.tracking_wait_noted = false;
+        }
     }
 
     /// The guide-star recovery gave up: carry on unguided with nothing armed.
     pub fn give_up_guiding(&mut self) {
-        self.unguided = true;
+        self.set_unguided(true);
         self.set_enabled(false);
         self.set_star_lost(false);
+    }
+
+    /// Whether a run imaging unguided should try to start guiding again: it
+    /// has been `interval` since it went unguided or last tried. Taking a
+    /// due attempt starts the next interval.
+    pub fn take_unguided_retry(&mut self, interval: std::time::Duration) -> bool {
+        if !self.unguided || self.in_motion() {
+            return false;
+        }
+        let due = self
+            .last_unguided_attempt
+            .is_none_or(|last| last.elapsed() >= interval);
+        if due {
+            self.last_unguided_attempt = Some(tokio::time::Instant::now());
+        }
+        due
+    }
+
+    /// Note that guiding waits for the mount to track. True the first time
+    /// since guiding was last running, so the operator is told once.
+    pub fn note_tracking_wait(&mut self) -> bool {
+        !std::mem::replace(&mut self.tracking_wait_noted, true)
     }
 
     /// Whether the run is moving the mount itself.
@@ -134,6 +170,24 @@ impl GuidingState {
     /// Apply the monitor's guider poll: `Ok(is_guiding)`, or `Err` when the
     /// guider could not be read.
     pub fn observe_guider(&mut self, poll: Result<bool, ()>) -> GuiderObservation {
+        self.observe_guider_on_mount(poll, None)
+    }
+
+    /// [`Self::observe_guider`] knowing whether the mount tracks. A guider
+    /// that reports guiding on a mount known not to track is chasing a star
+    /// the sky carries away, so it does not end the run's unguided imaging.
+    pub fn observe_guider_on_mount(
+        &mut self,
+        poll: Result<bool, ()>,
+        mount_tracking: Option<bool>,
+    ) -> GuiderObservation {
+        if self.unguided && poll == Ok(true) && mount_tracking == Some(false) {
+            return if self.note_tracking_wait() {
+                GuiderObservation::GuidingWithoutTracking
+            } else {
+                GuiderObservation::Unchanged
+            };
+        }
         if self.in_motion() {
             self.set_star_lost(false);
             return GuiderObservation::Unchanged;
@@ -143,7 +197,8 @@ impl GuidingState {
                 // A guider seen guiding does not arm the trigger by itself;
                 // only guiding this run started does.
                 self.set_star_lost(false);
-                if std::mem::take(&mut self.unguided) {
+                if self.unguided {
+                    self.set_unguided(false);
                     self.set_enabled(true);
                     return GuiderObservation::GuidingAgain;
                 }
@@ -277,5 +332,48 @@ mod tests {
         );
         guiding.reset_for_new_run(false);
         assert_eq!(guiding, GuidingState::default());
+    }
+
+    /// On 2026-10-24 the monitor logged "The guider is guiding again" at
+    /// 04:46:06 while the mount had stopped tracking at its limit and PHD2
+    /// was sending 2.5 s pulses after a star the sky carried away.
+    #[test]
+    fn a_guider_guiding_a_stopped_mount_does_not_end_unguided_imaging() {
+        let mut guiding = GuidingState::default();
+        guiding.give_up_guiding();
+        assert_eq!(
+            guiding.observe_guider_on_mount(Ok(true), Some(false)),
+            GuiderObservation::GuidingWithoutTracking
+        );
+        assert_eq!(
+            guiding.observe_guider_on_mount(Ok(true), Some(false)),
+            GuiderObservation::Unchanged,
+            "reported once"
+        );
+        assert!(guiding.is_unguided());
+        assert!(!guiding.is_enabled());
+        assert_eq!(
+            guiding.observe_guider_on_mount(Ok(true), Some(true)),
+            GuiderObservation::GuidingAgain
+        );
+        assert!(guiding.is_enabled());
+    }
+
+    #[test]
+    fn an_unguided_run_retries_guiding_once_per_interval() {
+        let mut guiding = GuidingState::default();
+        let interval = std::time::Duration::from_secs(600);
+        assert!(
+            !guiding.take_unguided_retry(interval),
+            "guided runs never retry"
+        );
+        guiding.give_up_guiding();
+        assert!(
+            !guiding.take_unguided_retry(interval),
+            "not straight after giving up"
+        );
+        assert!(guiding.take_unguided_retry(std::time::Duration::ZERO));
+        guiding.set_unguided(false);
+        assert!(!guiding.take_unguided_retry(std::time::Duration::ZERO));
     }
 }

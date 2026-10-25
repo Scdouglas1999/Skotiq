@@ -78,14 +78,63 @@ pub(crate) async fn start_guiding_on_fresh_star(
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), GuidingStartError> {
-    device_ops
-        .guider_select_fresh_star()
+    start_guiding_on_fresh_star_above(device_ops, None, settle_pixels, settle_time, settle_timeout)
         .await
-        .map_err(GuidingStartError::NoStar)?;
+}
+
+/// [`start_guiding_on_fresh_star`], refusing a star that measures below
+/// `floor`.
+pub(crate) async fn start_guiding_on_fresh_star_above(
+    device_ops: &SharedDeviceOps,
+    floor: Option<crate::GuideStarFloor>,
+    settle_pixels: f64,
+    settle_time: f64,
+    settle_timeout: f64,
+) -> Result<(), GuidingStartError> {
+    match floor {
+        Some(floor) => device_ops.guider_select_fresh_star_above(floor).await,
+        None => device_ops.guider_select_fresh_star().await,
+    }
+    .map_err(GuidingStartError::NoStar)?;
     device_ops
         .guider_start(settle_pixels, settle_time, settle_timeout)
         .await
         .map_err(GuidingStartError::Start)
+}
+
+/// Run a guider start, ending it when the run is cancelled.
+async fn cancelable<T>(
+    ctx: &InstructionContext,
+    start: impl std::future::Future<Output = T>,
+) -> Option<T> {
+    tokio::pin!(start);
+    loop {
+        tokio::select! {
+            result = &mut start => return Some(result),
+            _ = sleep(Duration::from_millis(250)) => {
+                if ctx.check_cancelled().is_some() {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+/// Take the star the run's guiding has settled on as the measure for stars
+/// selected later on this field, and drop a recovery's record now that
+/// guiding is back.
+async fn record_settled_guiding(ctx: &InstructionContext, replace_reference: bool) {
+    let Some(trigger_state) = &ctx.trigger_state else {
+        return;
+    };
+    let star = ctx.device_ops.guider_star_quality().await.ok().flatten();
+    let mut state = trigger_state.write().await;
+    state.guide_recovery = None;
+    if replace_reference || state.guide_star_reference.is_none() {
+        if let Some(star) = star {
+            state.guide_star_reference = Some(star);
+        }
+    }
 }
 
 /// A mount move the run is making: a slew, a center, a sync or a flip.
@@ -130,6 +179,12 @@ impl MountMotion {
             },
         };
         if start.outermost {
+            if let Some(state) = &trigger_state {
+                // A move the run makes is not guiding dragging the mount.
+                if let Some(stall) = state.write().await.guide_recovery.as_mut() {
+                    stall.origin = None;
+                }
+            }
             stop_an_active_guider(device_ops, what).await;
             if start.run_was_guiding {
                 if let Some(state) = &trigger_state {
@@ -191,8 +246,25 @@ impl Drop for MountMotion {
 /// How long a light frame waits for guiding a move stopped to settle again.
 const GUIDING_AFTER_MOTION_DEADLINE: Duration = Duration::from_secs(120);
 
-/// Start guiding again, on a fresh star, when a move stopped the guiding this
-/// run had started. Called before a light frame.
+/// How often a run imaging unguided tries to start guiding again.
+pub(crate) const UNGUIDED_RETRY_INTERVAL: Duration = Duration::from_secs(600);
+
+/// Why the run is starting guiding before a light frame.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum GuidingRestart {
+    /// A move stopped the guiding this run had started.
+    AfterMotion,
+    /// The run is imaging unguided and it is time to try again.
+    WhileUnguided,
+}
+
+/// Start guiding again, on a fresh star, before a light frame: when a move
+/// stopped the guiding this run had started, and every
+/// [`UNGUIDED_RETRY_INTERVAL`] while the run images unguided, so a night
+/// whose guiding was lost does not stay unguided.
+///
+/// Nothing is started on a mount that is not tracking: the guider would
+/// chase a star the sky carries away. The restart waits for the mount.
 ///
 /// A guider that does not come back is a notice and the run images unguided,
 /// unless the operator asked quality problems to stop the run; then the frame
@@ -201,26 +273,82 @@ pub(crate) async fn resume_guiding_after_motion(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {
     let trigger_state = ctx.trigger_state.as_ref()?;
-    if !trigger_state.write().await.guiding.take_resume_pending() {
-        return None;
+    let restart = {
+        let mut state = trigger_state.write().await;
+        if state.guiding.take_resume_pending() {
+            GuidingRestart::AfterMotion
+        } else if state.guiding.take_unguided_retry(UNGUIDED_RETRY_INTERVAL) {
+            GuidingRestart::WhileUnguided
+        } else {
+            return None;
+        }
+    };
+    if let Some(mount_id) = ctx.mount_id.as_deref() {
+        if matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+            let first_notice = {
+                let mut state = trigger_state.write().await;
+                if restart == GuidingRestart::AfterMotion {
+                    state.guiding.set_resume_pending(true);
+                }
+                state.guiding.note_tracking_wait()
+            };
+            if first_notice {
+                ctx.notify_quality_problem_continuing(
+                    "Resume guiding",
+                    "Guiding was not restarted because the mount is not tracking. It is \
+                     restarted before a light frame once the mount tracks.",
+                );
+            }
+            return None;
+        }
     }
+    let reference = trigger_state.read().await.guide_star_reference;
     let defaults = StartGuidingConfig::default();
-    tracing::info!("[GUIDING] Resuming guiding on a fresh star after the mount moved");
-    let problem = match start_guiding_on_fresh_star(
-        &ctx.device_ops,
-        defaults.settle_pixels,
-        defaults.settle_time,
-        defaults.settle_timeout,
+    tracing::info!(
+        "[GUIDING] {} guiding on a fresh star",
+        match restart {
+            GuidingRestart::AfterMotion => "Resuming guiding after the mount moved:",
+            GuidingRestart::WhileUnguided => "The run is imaging unguided; trying again:",
+        }
+    );
+    let started = cancelable(
+        ctx,
+        start_guiding_on_fresh_star_above(
+            &ctx.device_ops,
+            crate::GuideStarFloor::relative_to(reference),
+            defaults.settle_pixels,
+            defaults.settle_time,
+            defaults.settle_timeout,
+        ),
     )
-    .await
-    {
-        Err(error) => error.message().to_string(),
-        Ok(()) => {
+    .await;
+    let problem = match started {
+        None => {
+            if let Err(error) = ctx.device_ops.guider_stop().await {
+                tracing::warn!(
+                    "[GUIDING] The guider did not stop after a cancelled start: {error}"
+                );
+            }
+            return ctx.check_cancelled();
+        }
+        Some(Err(error)) => error.message().to_string(),
+        Some(Ok(())) => {
             let deadline = tokio::time::Instant::now() + GUIDING_AFTER_MOTION_DEADLINE;
             loop {
                 if let Ok(status) = ctx.device_ops.guider_get_status().await {
                     if crate::executor::guiding_is_settled(&status) {
-                        trigger_state.write().await.set_guiding_enabled(true);
+                        {
+                            let mut state = trigger_state.write().await;
+                            state.guiding.set_unguided(false);
+                            state.set_guiding_enabled(true);
+                        }
+                        record_settled_guiding(ctx, false).await;
+                        if restart == GuidingRestart::WhileUnguided {
+                            ctx.notify_quality_problem_continuing(
+                                "Resume guiding",
+                                "Guiding is running again; dithers and guiding checks resume.",
+                            );
+                        }
                         return None;
                     }
                 }
@@ -233,18 +361,29 @@ pub(crate) async fn resume_guiding_after_motion(
                 sleep(Duration::from_secs(2)).await;
             }
             format!(
-                "Guiding did not settle within {} s after the mount moved",
+                "Guiding did not settle within {} s",
                 GUIDING_AFTER_MOTION_DEADLINE.as_secs()
             )
         }
     };
+    if restart == GuidingRestart::WhileUnguided {
+        tracing::warn!(
+            "[GUIDING] Guiding is still not running ({problem}); trying again in {} min",
+            UNGUIDED_RETRY_INTERVAL.as_secs() / 60
+        );
+        return None;
+    }
     if ctx.stops_on_quality_problems().await {
         return Some(InstructionResult::failure(problem));
     }
     trigger_state.write().await.guiding.set_unguided(true);
     ctx.notify_quality_problem_continuing(
         "Resume guiding",
-        &format!("{problem}. Imaging continues unguided."),
+        &format!(
+            "{problem} after the mount moved. Imaging continues unguided; guiding is tried \
+             again every {} min.",
+            UNGUIDED_RETRY_INTERVAL.as_secs() / 60
+        ),
     );
     None
 }
@@ -371,23 +510,33 @@ async fn start_guiding(
         cb(60.0, "Waiting for guiding to stabilize".to_string());
     }
 
-    let started = if config.auto_select_star {
-        start_guiding_on_fresh_star(
-            &ctx.device_ops,
-            config.settle_pixels,
-            config.settle_time,
-            config.settle_timeout,
-        )
-        .await
-    } else {
-        ctx.device_ops
-            .guider_start(
+    let start = async {
+        if config.auto_select_star {
+            start_guiding_on_fresh_star(
+                &ctx.device_ops,
                 config.settle_pixels,
                 config.settle_time,
                 config.settle_timeout,
             )
             .await
-            .map_err(GuidingStartError::Start)
+        } else {
+            ctx.device_ops
+                .guider_start(
+                    config.settle_pixels,
+                    config.settle_time,
+                    config.settle_timeout,
+                )
+                .await
+                .map_err(GuidingStartError::Start)
+        }
+    };
+    let Some(started) = cancelable(ctx, start).await else {
+        if let Err(error) = ctx.device_ops.guider_stop().await {
+            tracing::warn!("[GUIDING] The guider did not stop after a cancelled start: {error}");
+        }
+        return ctx
+            .check_cancelled()
+            .unwrap_or_else(|| InstructionResult::cancelled("Operation cancelled"));
     };
     match started {
         Ok(_) => {
@@ -415,9 +564,12 @@ async fn start_guiding(
                     }
 
                     match ctx.device_ops.guider_get_status().await {
-                        Ok(status) if status.is_guiding => {
+                        // An RMS of exactly zero is an empty statistics window:
+                        // PHD2 empties it when guiding starts, so no guide step
+                        // has been measured yet.
+                        Ok(status) if status.is_guiding && status.rms_total > 0.0 => {
                             tracing::info!(
-                                "Guiding confirmed active: RMS total={:.2}\"",
+                                "Guiding confirmed active: RMS total={:.2} px",
                                 status.rms_total
                             );
                             guiding_confirmed = true;
@@ -425,8 +577,10 @@ async fn start_guiding(
                         }
                         Ok(status) => {
                             tracing::debug!(
-                                "Guiding not yet active (is_guiding={}), waiting...",
-                                status.is_guiding
+                                "Guiding not yet active (is_guiding={}, no guide step measured \
+                                 yet: {}), waiting...",
+                                status.is_guiding,
+                                status.rms_total <= 0.0
                             );
                         }
                         Err(e) => {
@@ -542,6 +696,7 @@ async fn start_guiding(
                 if let Some(trigger_state_lock) = &ctx.trigger_state {
                     trigger_state_lock.write().await.set_guiding_enabled(true);
                 }
+                record_settled_guiding(ctx, true).await;
 
                 if let Some(cb) = progress_callback {
                     cb(100.0, "Guiding active".to_string());
@@ -654,6 +809,8 @@ pub async fn execute_stop_guiding(
                 tstate.set_guiding_enabled(false);
                 tstate.set_guide_star_lost(false);
                 tstate.guiding.set_resume_pending(false);
+                // The run no longer wants guiding, so nothing retries it.
+                tstate.guiding.set_unguided(false);
             }
             if let Some(cb) = progress_callback {
                 cb(100.0, "Guiding stopped".to_string());

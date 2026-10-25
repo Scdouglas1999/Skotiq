@@ -96,6 +96,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 rc.recovery.stop_tracking_during_recovery,
             )
         };
+        let configured_cadence = (interval_secs, max_duration_secs);
 
         // A weather hold is not a repair with a budget: it checks the sky
         // often, never runs out, and never stops tracking. Weather alone must
@@ -105,7 +106,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // A lost guide star is most often cloud too: the mount keeps tracking
         // so it is still on the target when the stars return, and the star is
         // looked for often enough that the run resumes soon after they do.
-        let guide_star_hold = cause == crate::recovery::RecoveryCause::GuideStarLost;
+        let mut guide_star_hold = cause == crate::recovery::RecoveryCause::GuideStarLost;
         let (interval_secs, max_duration_secs, stop_tracking) = if weather_hold {
             (
                 WEATHER_HOLD_CHECK_SECS,
@@ -436,6 +437,26 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     recovered = false;
                     ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
                     break;
+                }
+                crate::recovery::AttemptOutcome::HandOff { cause, message } => {
+                    tracing::warn!(
+                        "[RECOVERY] {} (after {} attempt{} for {:?})",
+                        message,
+                        ctx.attempt_count,
+                        if ctx.attempt_count == 1 { "" } else { "s" },
+                        ctx.cause
+                    );
+                    let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
+                        message: message.clone(),
+                    });
+                    let (interval, max_duration) = configured_cadence;
+                    ctx = crate::recovery::RecoveryContext::new(cause, interval, max_duration);
+                    ctx.last_error = Some(message);
+                    guide_star_hold = false;
+                    *recovery_driver_current.write() = Some(ctx.clone());
+                    let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
+                        context: Box::new(ctx.clone()),
+                    });
                 }
                 crate::recovery::AttemptOutcome::PauseForOperator { message } => {
                     tracing::warn!(
@@ -941,6 +962,11 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
         let state_lock = manager.state();
         let mut state = state_lock.write().await;
         state.guiding.give_up_guiding();
+        // The failures stay for the obstruction check; the next recovery
+        // measures how far guiding moves the mount from where it begins.
+        if let Some(stall) = state.guide_recovery.as_mut() {
+            stall.origin = None;
+        }
         if let Some(history) = state.guiding_rms_history.as_mut() {
             history.clear();
         }
@@ -1244,6 +1270,8 @@ mod tests {
         warnings: Vec<String>,
         decisions: Vec<String>,
         trigger_state: crate::triggers::TriggerState,
+        /// The cause the recovery ended as.
+        ended_as: Option<RecoveryCause>,
     }
 
     /// Run a guide-star-lost recovery whose one attempt fails (the guider
@@ -1253,9 +1281,22 @@ mod tests {
         park_and_close: bool,
         tracking_limit: bool,
     ) -> GuideStarGiveUp {
+        guide_star_recovery(stop_on_quality, park_and_close, tracking_limit, false).await
+    }
+
+    async fn guide_star_recovery(
+        stop_on_quality: bool,
+        park_and_close: bool,
+        tracking_limit: bool,
+        mount_stopped: bool,
+    ) -> GuideStarGiveUp {
         let ops = Arc::new(ScriptedDeviceOps::new());
         ops.guiding.store(false, Ordering::SeqCst);
         ops.guider_start_fails.store(true, Ordering::SeqCst);
+        if mount_stopped {
+            use crate::device_ops::DeviceOps;
+            ops.mount_set_tracking("mount-1", false).await.unwrap();
+        }
         // A zero retry interval gives the ladder one attempt, so the budget is
         // spent as soon as that attempt fails.
         let runtime = RuntimeConfig {
@@ -1327,13 +1368,17 @@ mod tests {
 
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
+        let mut ended_as = None;
         let collect = async {
             loop {
                 match event_rx.recv().await {
                     Ok(ExecutorEvent::Error { message }) => errors.push(message),
                     Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
-                    Ok(ExecutorEvent::RecoveryGaveUp { .. })
-                    | Ok(ExecutorEvent::RecoveryCompleted { .. }) => break,
+                    Ok(ExecutorEvent::RecoveryGaveUp { context, .. })
+                    | Ok(ExecutorEvent::RecoveryCompleted { context }) => {
+                        ended_as = Some(context.cause.clone());
+                        break;
+                    }
                     Ok(_) => {}
                     Err(broadcast::error::RecvError::Lagged(_)) => {}
                     Err(broadcast::error::RecvError::Closed) => break,
@@ -1367,6 +1412,7 @@ mod tests {
             warnings,
             decisions,
             trigger_state,
+            ended_as,
         }
     }
 
@@ -1468,5 +1514,35 @@ mod tests {
             "{:?}",
             r.calls
         );
+    }
+
+    /// On 2026-10-22/23 a guide-star recovery ran 133 attempts against a
+    /// mount that had stopped tracking. A stopped mount is handed to the
+    /// tracking-loss recovery, which restores tracking, and no guide-star
+    /// attempt is spent on it.
+    #[tokio::test]
+    async fn a_guide_star_recovery_on_a_stopped_mount_hands_over_to_tracking() {
+        let r = guide_star_recovery(false, false, false, true).await;
+        assert_eq!(r.ended_as, Some(RecoveryCause::MountTrackingLost));
+        assert!(
+            !r.calls
+                .iter()
+                .any(|c| c == "guider_start" || c == "guider_select_fresh_star"),
+            "{:?}",
+            r.calls
+        );
+        assert!(
+            r.calls
+                .iter()
+                .any(|c| c == "mount_set_tracking:mount-1:true"),
+            "{:?}",
+            r.calls
+        );
+        assert!(
+            r.warnings.iter().any(|w| w.contains("not tracking")),
+            "the operator is told: {:?}",
+            r.warnings
+        );
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
     }
 }

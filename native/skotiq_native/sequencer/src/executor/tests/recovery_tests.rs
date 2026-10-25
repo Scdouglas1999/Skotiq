@@ -867,7 +867,7 @@ async fn guide_star_lost_recovery_actively_reacquires() {
     let guider = ReacquireGuiderOps::new(false, true);
     let started = guider.started.clone();
     let ops: SharedDeviceOps = std::sync::Arc::new(guider);
-    let outcome = recover_guide_star(&ops).await;
+    let outcome = recover_guide_star(&ops, None, None).await;
     assert!(
         matches!(outcome, crate::recovery::AttemptOutcome::Succeeded),
         "recovery should succeed once the guider re-locks after re-acquire"
@@ -883,7 +883,7 @@ async fn guide_star_lost_recovery_actively_reacquires() {
 async fn guide_star_lost_recovery_fails_closed_when_start_errors() {
     // guider_start itself errors → recovery must fail closed.
     let ops: SharedDeviceOps = std::sync::Arc::new(ReacquireGuiderOps::new(true, false));
-    let outcome = recover_guide_star(&ops).await;
+    let outcome = recover_guide_star(&ops, None, None).await;
     assert!(
         matches!(outcome, crate::recovery::AttemptOutcome::Failed { .. }),
         "recovery must fail closed when guider_start errors"
