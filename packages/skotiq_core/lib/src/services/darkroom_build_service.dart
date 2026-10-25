@@ -950,6 +950,7 @@ class DarkroomBuildService {
         ];
         if (jsonEncode(saved) != jsonEncode(built)) delivery = null;
       }
+      final newExport = delivery == null;
       if (delivery == null) {
         try {
           // Each attempt has its own folder, so a partial export is never overwritten.
@@ -980,12 +981,16 @@ class DarkroomBuildService {
         }
         await _write(deliveryReceipt, delivery);
       }
-      await _registerMasters(plan, groups, results, delivery);
+      await _registerMasters(directory, plan, groups, results, delivery);
+      final pruneFailures = newExport
+          ? await _pruneExports(directory)
+          : const <String>[];
       final report = {
         'plan': plan,
         'results': results,
         'failures': failures,
         'delivery': delivery,
+        if (pruneFailures.isNotEmpty) 'pruneFailures': pruneFailures,
       };
       await _write(File(p.join(directory.path, 'report.json')), report);
       await _writeAudit(directory, plan, results);
@@ -1041,7 +1046,74 @@ class DarkroomBuildService {
     return inputs;
   }
 
+  /// How many export folders a build folder keeps: the current one and the
+  /// one before it, as a backup.
+  static const int keptExports = 2;
+
+  static final RegExp _exportName = RegExp(r'^masters-(\d+)$');
+
+  /// The export folders in [directory], newest first.
+  static Future<List<Directory>> _exports(Directory directory) async {
+    final found = <(int, Directory)>[];
+    await for (final entry in directory.list(followLinks: false)) {
+      if (entry is! Directory) continue;
+      final match = _exportName.firstMatch(p.basename(entry.path));
+      if (match == null) continue;
+      found.add((int.parse(match.group(1)!), entry));
+    }
+    found.sort((a, b) => b.$1.compareTo(a.$1));
+    return [for (final (_, dir) in found) dir];
+  }
+
+  /// Whether [path] lies in one of [directory]'s export folders.
+  static bool _inExport(Directory directory, String? path) {
+    if (path == null || !p.isWithin(directory.path, path)) return false;
+    final first = p.split(p.relative(path, from: directory.path)).first;
+    return _exportName.hasMatch(first);
+  }
+
+  /// Delete all but the newest [keptExports] export folders of [directory],
+  /// and the library rows that point into them. Returns the folders that
+  /// could not be deleted, with the reason.
+  Future<List<String>> _pruneExports(Directory directory) async {
+    final failures = <String>[];
+    final stale = (await _exports(directory)).skip(keptExports).toList();
+    if (stale.isEmpty) return failures;
+    for (final row in await masters.getAll()) {
+      final path = row.masterFitsPath;
+      if (path != null && stale.any((d) => p.isWithin(d.path, path))) {
+        await masters.deleteMaster(row.id);
+      }
+    }
+    for (final dir in stale) {
+      try {
+        await dir.delete(recursive: true);
+      } on FileSystemException catch (e) {
+        failures.add('${dir.path}: ${e.message}');
+      }
+    }
+    return failures;
+  }
+
+  /// Drop the library rows for [filter] that an earlier export of
+  /// [directory] registered, now that [current] replaces them.
+  Future<void> _replaceEarlier(
+    Directory directory,
+    List<IntegratedMaster> library,
+    String filter,
+    String current,
+  ) async {
+    for (final row in library) {
+      if (row.filter == filter &&
+          row.masterFitsPath != current &&
+          _inExport(directory, row.masterFitsPath)) {
+        await masters.deleteMaster(row.id);
+      }
+    }
+  }
+
   Future<void> _registerMasters(
+    Directory directory,
     Map<String, dynamic> plan,
     List<Map<String, dynamic>> groups,
     List<Map<String, dynamic>> results,
@@ -1065,6 +1137,7 @@ class DarkroomBuildService {
           .where((m) => m.masterFitsPath == file['path'])
           .firstOrNull;
       if (existing != null) continue;
+      await _replaceEarlier(directory, library, filter, file['path'] as String);
       final masterId = await masters.insertMaster(
         name: '${plan['target']} $filter',
         masterFitsPath: file['path'] as String,
@@ -1102,7 +1175,7 @@ class DarkroomBuildService {
         );
       }
     }
-    await _registerComposites(plan, results, delivery, library);
+    await _registerComposites(directory, plan, results, delivery, library);
   }
 
   /// Register the RGB and LRGB composites the export wrote as color masters,
@@ -1111,6 +1184,7 @@ class DarkroomBuildService {
   /// A composite's frame count and integration are those of the masters it
   /// combines. Registered once per file, so a resumed build adds nothing.
   Future<void> _registerComposites(
+    Directory directory,
     Map<String, dynamic> plan,
     List<Map<String, dynamic>> results,
     Map<String, dynamic> delivery,
@@ -1136,6 +1210,7 @@ class DarkroomBuildService {
         );
       }
       if (library.any((m) => m.masterFitsPath == path)) continue;
+      await _replaceEarlier(directory, library, kind, path);
       final used = [
         for (final r in results)
           if (roles.contains(darkroomColorRole(r['filter'] as String))) r,

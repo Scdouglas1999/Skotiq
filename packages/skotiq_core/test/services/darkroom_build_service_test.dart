@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/integrated_masters_dao.dart';
@@ -797,6 +798,67 @@ void main() {
         (r) => r['op'] == 'deliverUniform',
       );
       expect(delivery['masters'], hasLength(3));
+    });
+
+    test('each fold keeps the latest export and the one before it, and the '
+        'library holds one current master per filter', () async {
+      final directory = Directory('${folder.path}/auto/NGC891');
+      Future<void> addNight(int night) async {
+        for (var i = 0; i < 2; i++) {
+          final file = File('${folder.path}/L_n${night}_$i.fits');
+          await file.writeAsString('raw input');
+          await db.imagesDao.createImage(
+            CapturedImagesCompanion.insert(
+              filePath: file.path,
+              fileName: 'L_n${night}_$i.fits',
+              exposureDuration: 90,
+              capturedAt: DateTime(2026, 10, 20 + night, 23),
+              filter: const Value('L'),
+            ),
+          );
+        }
+      }
+
+      List<String> exports() => [
+        for (final e in directory.listSync())
+          if (e is Directory && p.basename(e.path).startsWith('masters-'))
+            p.basename(e.path),
+      ]..sort();
+
+      final made = <String>[];
+      for (var fold = 0; fold < 3; fold++) {
+        if (fold > 0) await addNight(fold + 1);
+        final outcome = await service.buildUnattended(
+          target: 'NGC891',
+          frames: await frames(),
+          directory: directory,
+        );
+        expect(outcome.built, isTrue);
+        final delivery = native.requests.lastWhere(
+          (r) => r['op'] == 'deliverUniform',
+        );
+        made.add(p.basename(delivery['outputDir'] as String));
+        // Export folders are named by a microsecond stamp.
+        await Future<void>.delayed(const Duration(milliseconds: 2));
+      }
+
+      expect(made.toSet(), hasLength(3));
+      expect(
+        exports(),
+        [made[1], made[2]],
+        reason: 'the oldest export is pruned; the previous one is a backup',
+      );
+
+      final rows = await IntegratedMastersDao(db).getAll();
+      final byFilter = <String?, List<String?>>{};
+      for (final row in rows) {
+        byFilter.putIfAbsent(row.filter, () => []).add(row.masterFitsPath);
+      }
+      expect(byFilter.keys.toSet(), {'B', 'L', 'R'});
+      for (final entry in byFilter.entries) {
+        expect(entry.value, hasLength(1), reason: '${entry.key} once');
+        expect(entry.value.single, contains('/${made[2]}/'));
+      }
     });
 
     test('waits for review below the minimum and integrates nothing', () async {
