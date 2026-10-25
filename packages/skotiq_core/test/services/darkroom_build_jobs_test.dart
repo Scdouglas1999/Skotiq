@@ -221,6 +221,51 @@ void main() {
     },
   );
 
+  test('build progress counts only the subs the crop keeps', () async {
+    native.underOverlap = {'L_0.fits', 'L_1.fits', 'R_2.fits'};
+    final jobs = container.read(darkroomBuildJobsProvider.notifier);
+    await jobs.checkFraming(target: 'NGC891', plan: await planFor());
+    expect(
+      container.read(darkroomBuildJobsProvider)!.plan!.lights,
+      hasLength(6),
+    );
+    native.buildGate = Completer<void>();
+    final running = jobs.accept(Directory('${folder.path}/out'));
+    await native.buildStarted.future;
+    var job = container.read(darkroomBuildJobsProvider)!;
+    expect(job.overallTotal, 3, reason: 'six planned, three kept');
+    expect(job.filter, 'L');
+    expect(job.framesTotal, 1);
+
+    seam.events.add((phase: 'registering', fraction: 1));
+    await Future<void>.delayed(Duration.zero);
+    job = container.read(darkroomBuildJobsProvider)!;
+    expect(job.framesDone, 1);
+    expect(job.overallDone, 1);
+
+    native.buildGate!.complete();
+    await running;
+    job = container.read(darkroomBuildJobsProvider)!;
+    expect(job.overallDone, 3);
+    expect(job.overallTotal, 3);
+  });
+
+  test('an unattended build counts only the subs the crop keeps', () async {
+    native.underOverlap = {'R_0.fits'};
+    native.buildGate = Completer<void>();
+    final running = container
+        .read(darkroomBuildJobsProvider.notifier)
+        .startUnattended(
+          'NGC891',
+          outputRoot: Directory('${folder.path}/auto'),
+        );
+    await native.buildStarted.future;
+    final job = container.read(darkroomBuildJobsProvider)!;
+    expect(job.overallTotal, 5);
+    native.buildGate!.complete();
+    expect((await running).stage, DarkroomJobStage.done);
+  });
+
   test(
     'unattended builds every filter of a target from all its nights',
     () async {

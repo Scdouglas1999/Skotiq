@@ -279,6 +279,26 @@ Directory darkroomTargetBuildDirectory(Directory root, String target) =>
       p.join(root.path, target.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')),
     );
 
+/// The light ids of [plan] that go into the build, by filter: the lights the
+/// accepted framing [preview] includes, or every planned light when there is
+/// no preview. Lights the crop leaves out are not counted as build progress.
+Map<String, List<int>> darkroomBuildLightIds(
+  DarkroomBuildPlan plan,
+  DarkroomRegistrationPreview? preview,
+) {
+  final included = preview == null
+      ? null
+      : {for (final f in preview.included) f.path};
+  final byFilter = <String, List<int>>{};
+  for (final g in plan.toJson()['groups'] as List) {
+    for (final l in (g as Map)['lights'] as List) {
+      if (included != null && !included.contains(l['path'])) continue;
+      byFilter.putIfAbsent(g['filter'] as String, () => []).add(l['id'] as int);
+    }
+  }
+  return byFilter;
+}
+
 /// Where unattended builds go unless told otherwise: one folder per target
 /// under `Documents/Skotiq/Masters`.
 final darkroomMastersRootProvider = FutureProvider<Directory>(
@@ -757,14 +777,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     DarkroomBuildPlan plan,
     DarkroomRegistrationPreview? accepted,
   ) async {
-    final byFilter = <String, List<int>>{};
-    for (final g in plan.toJson()['groups'] as List) {
-      for (final l in (g as Map)['lights'] as List) {
-        byFilter
-            .putIfAbsent(g['filter'] as String, () => [])
-            .add(l['id'] as int);
-      }
-    }
+    final byFilter = darkroomBuildLightIds(plan, accepted);
     final total = byFilter.values.fold<int>(0, (n, v) => n + v.length);
     _finishedLights = 0;
     _rateStart = null;
@@ -846,7 +859,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         filterIndex: step.filterIndex,
         filterCount: step.filterCount,
         framesDone: 0,
-        framesTotal: step.filterLights,
+        framesTotal: byFilter[step.filter]?.length ?? step.filterLights,
         overallDone: _finishedLights,
         filterResults: step.filterResults,
       ),
@@ -902,13 +915,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         directory: directory,
         minRetainedArea: minRetainedArea,
         onPreview: (preview, plan) {
-          for (final g in plan.toJson()['groups'] as List) {
-            for (final l in (g as Map)['lights'] as List) {
-              byFilter
-                  .putIfAbsent(g['filter'] as String, () => [])
-                  .add(l['id'] as int);
-            }
-          }
+          byFilter
+            ..clear()
+            ..addAll(darkroomBuildLightIds(plan, preview));
           _finishedLights = 0;
           _rateStart = null;
           _set(

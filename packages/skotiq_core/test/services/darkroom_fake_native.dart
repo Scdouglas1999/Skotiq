@@ -14,6 +14,10 @@ class FakeDarkroomNative {
   double retained = .9;
   List<Map<String, dynamic>> limiting = const [];
 
+  /// File names the pre-pass reports as under the overlap minimum, so the
+  /// build leaves them out.
+  Set<String> underOverlap = const {};
+
   /// When set, every build waits for it, so a test can act mid-build.
   Completer<void>? buildGate;
 
@@ -39,8 +43,10 @@ class FakeDarkroomNative {
                   [97, 77],
                   [2, 77],
                 ],
-                'overlap': 1.0,
-                'included': true,
+                'overlap': underOverlap.contains(_name(l['path'])) ? .4 : 1.0,
+                'included': !underOverlap.contains(_name(l['path'])),
+                if (underOverlap.contains(_name(l['path'])))
+                  'reason': 'Overlap 40% is under the 75% minimum',
               },
         ];
         return {
@@ -126,3 +132,5 @@ class FakeDarkroomNative {
     throw StateError('unexpected op ${args['op']}');
   }
 }
+
+String _name(Object? path) => '$path'.split('/').last;
