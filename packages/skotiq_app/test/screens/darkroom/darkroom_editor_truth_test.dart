@@ -27,6 +27,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
+import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -202,6 +203,7 @@ void main() {
         GoRoute(
           path: '/darkroom',
           builder: (context, state) {
+            visited.add('/darkroom?${state.uri.query}');
             final rawRecipe = state.uri.queryParameters['recipe'];
             final rawMaster = state.uri.queryParameters['master'];
             final recipeId = rawRecipe == null ? null : int.tryParse(rawRecipe);
@@ -418,7 +420,7 @@ void main() {
 
   group('the way out of a load failure goes where its label says', () {
     // D3UI-3.
-    testWidgets('a master with no session offers the session list', (
+    testWidgets('a master with no session offers the image list', (
       tester,
     ) async {
       // A master row that exists but has written no linear FITS: the load
@@ -436,11 +438,11 @@ void main() {
       expect(find.text('Nothing to open in the Darkroom'), findsOneWidget);
       // It no longer promises a review it has not found.
       expect(find.text('Back to session review'), findsNothing);
-      expect(find.text('Browse sessions'), findsOneWidget);
+      expect(find.text('Choose another image'), findsOneWidget);
 
-      await tester.tap(find.text('Browse sessions'));
+      await tester.tap(find.text('Choose another image'));
       await settle(tester);
-      expect(visited, contains('/analytics?tab=history'));
+      expect(visited, contains('/darkroom?tab=edit'));
       await drain(tester);
     });
 
@@ -481,7 +483,7 @@ void main() {
       await settle(tester);
 
       expect(find.text('Nothing to open in the Darkroom'), findsOneWidget);
-      expect(find.text('Browse sessions'), findsNothing);
+      expect(find.text('Choose another image'), findsNothing);
       expect(
         find.text('Open this night\'s session review'),
         findsOneWidget,

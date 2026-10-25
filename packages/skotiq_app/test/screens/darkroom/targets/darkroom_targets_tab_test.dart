@@ -122,10 +122,10 @@ class _Service extends DarkroomBuildService {
 
 /// Records the build the framing check accepts instead of running it.
 class _Jobs extends DarkroomBuildJobs {
-  final accepted = <Directory>[];
+  final accepted = <Directory?>[];
 
   @override
-  Future<void> accept(Directory directory) async {
+  Future<void> accept([Directory? directory]) async {
     accepted.add(directory);
   }
 }
@@ -240,7 +240,8 @@ Future<_Harness> _pump(
       darkroomBuildJobsProvider.overrideWith(() => jobs),
       darkroomTargetCalibrationProvider
           .overrideWith((ref, key) async => _library()),
-      darkroomMastersRootProvider.overrideWith((ref) async => '/data/Masters'),
+      darkroomMastersRootProvider
+          .overrideWith((ref) async => Directory('/data/Masters')),
       subThumbnailProvider.overrideWith(
         (ref, id) => Future<Uint8List>.error(StateError('no thumbnail')),
       ),
@@ -479,7 +480,7 @@ void main() {
     await _settle(tester);
 
     expect(h.jobs.accepted, hasLength(1));
-    expect(h.jobs.accepted.single.path, startsWith('/data/Masters/NGC_891-'));
+    expect(h.jobs.accepted.single!.path, '/data/Masters/NGC_891');
     expect(h.location, '/darkroom?tab=targets&target=NGC+891');
   });
 

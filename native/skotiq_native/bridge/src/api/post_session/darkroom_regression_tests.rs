@@ -656,7 +656,14 @@ fn delivery_writes_linear_masters_and_composites() {
         (sky - 800.0).abs() < 20.0,
         "ADU / 65535 keeps the level, sky {sky}"
     );
-    for key in ["rgbPath", "rgbXisfPath", "lrgbPath", "lrgbXisfPath"] {
+    for key in [
+        "rgbPath",
+        "rgbXisfPath",
+        "rgbPreviewPath",
+        "lrgbPath",
+        "lrgbXisfPath",
+        "lrgbPreviewPath",
+    ] {
         let path = r["composites"][key]
             .as_str()
             .unwrap_or_else(|| panic!("{key}: {r}"));
@@ -666,6 +673,18 @@ fn delivery_writes_linear_masters_and_composites() {
         read_fits(Path::new(r["composites"]["rgbPath"].as_str().unwrap())).unwrap();
     assert_eq!(rgb.channels, 3);
     assert!(rgb_header.get_float("CRVAL1").is_some());
+    // The composites carry color thumbnails the size of the crop, so the
+    // library can show them like any other master.
+    for key in ["rgbPreviewPath", "lrgbPreviewPath"] {
+        let preview = image::open(r["composites"][key].as_str().unwrap())
+            .unwrap()
+            .to_rgb8();
+        assert_eq!(
+            (preview.width(), preview.height()),
+            (rgb.width, rgb.height),
+            "{key}"
+        );
+    }
     std::fs::remove_dir_all(dir).ok();
 }
 

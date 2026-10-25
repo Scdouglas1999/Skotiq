@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// The recipe as an ordered list of step cards.
 ///

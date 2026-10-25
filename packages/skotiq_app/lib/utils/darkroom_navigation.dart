@@ -339,3 +339,31 @@ Future<void> openDarkroomForSession(
   }
   openDarkroomForMaster(context, masterId);
 }
+
+/// Leave the Edit tab's editor the way it was entered.
+///
+/// Popping is what a pushed route deserves: it returns to the screen the image
+/// was opened from. An editor reached with nothing to pop to — a notification,
+/// a link from inside the Darkroom, a branch switch — returns to the Targets
+/// tab on [target], the Darkroom's own home for the image.
+void leaveDarkroomEdit(BuildContext context, {String? target}) {
+  final router = GoRouter.of(context);
+  if (router.canPop()) {
+    router.pop();
+    return;
+  }
+  router.go(
+    target == null
+        ? darkroomTabLocation(DarkroomTab.targets)
+        : darkroomTargetLocation(target),
+  );
+}
+
+/// Where [leaveDarkroomEdit] goes, in words, for the Back control's name.
+String darkroomEditBackDestination(BuildContext context, {String? target}) {
+  final canPop = GoRouter.maybeOf(context)?.canPop() ?? false;
+  if (canPop) return 'Back to where this image was opened from';
+  return target == null
+      ? 'Back to the Darkroom targets'
+      : 'Back to $target in the Darkroom targets';
+}

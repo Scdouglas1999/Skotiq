@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// Why "Compare" is unavailable while this master carries one recipe.
 ///
@@ -164,6 +164,11 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
   /// second one.
   final bool importBusy;
 
+  /// Whether the bar lists the other images of this night. The Edit tab's
+  /// image list already shows them beside a wide editor, so the bar only
+  /// repeats them when that list is hidden.
+  final bool showSiblings;
+
   const _DarkroomBranchBar({
     required this.scope,
     required this.editorScope,
@@ -178,6 +183,7 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
     required this.siblingsError,
     required this.onImportRecipe,
     required this.importBusy,
+    this.showSiblings = true,
   });
 
   @override
@@ -193,53 +199,88 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     final colors = SkotiqColors.of(context);
     final state = ref.watch(darkroomBranchControllerProvider(widget.scope));
 
+    final banners = <Widget>[
+      if (state.lineageError != null)
+        SkotiqBanner(
+          title: 'The branch history is incomplete',
+          tone: BannerTone.warning,
+          message: state.lineageError!,
+        ),
+      if (state.loadError != null)
+        SkotiqBanner(
+          title: 'The branches could not be read',
+          tone: BannerTone.error,
+          message: state.loadError!,
+        ),
+      if (state.actionError != null)
+        SkotiqBanner(
+          title: 'That branch action did not take effect',
+          tone: BannerTone.error,
+          message: state.actionError!,
+        ),
+      if (state.deleteRefusal != null) _refusal(state.deleteRefusal!),
+    ];
+    final siblings = widget.showSiblings ? _siblings(colors) : const <Widget>[];
+
     return Container(
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: colors.background,
         border: Border(bottom: BorderSide(color: colors.border)),
       ),
       padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.spaceMd,
+        horizontal: SkotiqTokens.spaceLg,
         vertical: SkotiqTokens.spaceSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _chips(colors, state),
+          // The variants and the actions on them share one row when there is
+          // room, so the image keeps the height; a narrow editor stacks them.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final variants = Row(
+                children: [
+                  Text(
+                    'VARIANTS',
+                    style: kDarkroomOverline.copyWith(color: colors.textMuted),
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  Expanded(child: _chips(colors, state)),
+                ],
+              );
+              if (constraints.maxWidth < 1150) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    variants,
+                    const SizedBox(height: SkotiqTokens.spaceSm),
+                    _actions(state),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: variants),
+                  const SizedBox(width: SkotiqTokens.spaceLg),
+                  Flexible(
+                    flex: 3,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _actions(state, alignEnd: true),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
           if (state.lineage.length > 1) ...[
             const SizedBox(height: SkotiqTokens.spaceXs),
             _lineage(colors, state),
           ],
-          if (state.lineageError != null) ...[
-            const SizedBox(height: SkotiqTokens.spaceXs),
-            SkotiqBanner(
-              title: 'The branch history is incomplete',
-              tone: BannerTone.warning,
-              message: state.lineageError!,
-            ),
-          ],
-          ..._siblings(colors),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          _actions(state),
-          if (state.loadError != null) ...[
+          ...siblings,
+          for (final banner in banners) ...[
             const SizedBox(height: SkotiqTokens.spaceSm),
-            SkotiqBanner(
-              title: 'The branches could not be read',
-              tone: BannerTone.error,
-              message: state.loadError!,
-            ),
-          ],
-          if (state.actionError != null) ...[
-            const SizedBox(height: SkotiqTokens.spaceSm),
-            SkotiqBanner(
-              title: 'That branch action did not take effect',
-              tone: BannerTone.error,
-              message: state.actionError!,
-            ),
-          ],
-          if (state.deleteRefusal != null) ...[
-            const SizedBox(height: SkotiqTokens.spaceSm),
-            _refusal(state.deleteRefusal!),
+            banner,
           ],
         ],
       ),
@@ -300,8 +341,9 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
           ? SkotiqIcons.sparkle
           : SkotiqIcons.user,
       selected: current,
-      onTap:
-          current ? null : () => context.go(darkroomRecipeLocation(branch.id)),
+      onTap: current
+          ? null
+          : () => context.go(darkroomEditLocation(recipeId: branch.id)),
     );
     return Tooltip(
       message: '${branch.label} — $author, $steps, $diverged.'
@@ -380,8 +422,8 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
                     ? '${sibling.label} — no recipe yet'
                     : sibling.label,
                 icon: darkroomSiblingIcon(sibling),
-                onTap: () =>
-                    context.go(darkroomMasterLocation(sibling.masterId)),
+                onTap: () => context
+                    .go(darkroomEditLocation(masterId: sibling.masterId)),
               ),
             ),
             const SizedBox(width: SkotiqTokens.spaceXs),
@@ -407,13 +449,14 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     );
   }
 
-  Widget _actions(DarkroomBranchState state) {
+  Widget _actions(DarkroomBranchState state, {bool alignEnd = false}) {
     final compareTargets = state.branches
         .where((branch) => branch.id != widget.recipeId)
         .toList(growable: false);
     final comparing = widget.compareRecipeId != null;
 
     return Wrap(
+      alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
       spacing: SkotiqTokens.spaceXs,
       runSpacing: SkotiqTokens.spaceXs,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -578,7 +621,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     if (id == null || !mounted) return;
     _branches.acknowledgeCreatedBranch();
     if (!context.mounted) return;
-    context.go(darkroomRecipeLocation(id));
+    context.go(darkroomEditLocation(recipeId: id));
   }
 
   Future<void> _promptRename() async {
@@ -729,11 +772,11 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     final after = ref.read(darkroomBranchControllerProvider(widget.scope));
     final fallback = parentId ?? _firstBranchId(after);
     if (fallback != null) {
-      context.go(darkroomRecipeLocation(fallback));
+      context.go(darkroomEditLocation(recipeId: fallback));
       return;
     }
     final masterId = widget.masterId;
-    if (masterId != null) context.go(darkroomMasterLocation(masterId));
+    if (masterId != null) context.go(darkroomEditLocation(masterId: masterId));
   }
 
   /// The id of the first recipe still in the family, or null when none is left.
@@ -762,7 +805,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     final after = ref.read(darkroomBranchControllerProvider(widget.scope));
     final fallback = _firstBranchId(after);
     if (fallback != null && context.mounted) {
-      context.go(darkroomRecipeLocation(fallback));
+      context.go(darkroomEditLocation(recipeId: fallback));
       return;
     }
     // The same tail [_promptDelete] has, and its absence here is what stranded
@@ -772,7 +815,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     // from offering a fresh start.
     final masterId = widget.masterId;
     if (masterId != null && context.mounted) {
-      context.go(darkroomMasterLocation(masterId));
+      context.go(darkroomEditLocation(masterId: masterId));
     }
   }
 

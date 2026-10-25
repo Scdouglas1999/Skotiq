@@ -658,7 +658,7 @@ class _FolderRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final root = session.folder ??
-        ref.watch(darkroomMastersRootProvider).valueOrNull ??
+        ref.watch(darkroomMastersRootProvider).valueOrNull?.path ??
         'Documents';
     return Tooltip(
       message: root,

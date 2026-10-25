@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
+import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -502,7 +503,7 @@ void main() {
     );
     // A recipe row that is gone names no master, so no session can be resolved
     // and the way out says where it actually goes.
-    expect(find.text('Browse sessions'), findsOneWidget);
+    expect(find.text('Choose another image'), findsOneWidget);
   });
 
   testWidgets('a recipe renders its stack, its picture and its outcomes', (
@@ -1596,13 +1597,13 @@ void main() {
     // node whose extents were the screen.
     final action = find.widgetWithText(
       SkotiqButton,
-      'Browse sessions',
+      'Choose another image',
     );
     final node = tester.getSemantics(action);
     final data = node.getSemanticsData();
     expect(data.hasFlag(SemanticsFlag.isButton), isTrue);
     expect(data.hasAction(SemanticsAction.tap), isTrue);
-    expect(data.label, contains('Browse sessions'));
+    expect(data.label, contains('Choose another image'));
     expect(data.label, isNot(contains('Nothing to open in the Darkroom')));
     expect(data.label, isNot(contains('no longer has a row')));
     expect(node.rect.size, tester.getSize(action));

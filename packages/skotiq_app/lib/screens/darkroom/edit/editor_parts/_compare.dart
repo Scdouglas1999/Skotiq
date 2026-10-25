@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// How long each side of a blink compare holds before the other takes over.
 ///

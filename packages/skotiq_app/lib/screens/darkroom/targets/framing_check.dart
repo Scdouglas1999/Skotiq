@@ -34,15 +34,6 @@ const double _limitThumb = 56;
 const String darkroomLeftOutReason = 'Left out at the framing check';
 const String darkroomNightLeftOutReason = 'Night left out at the framing check';
 
-/// Where a new build writes its folder when the operator has not chosen one.
-final darkroomMastersRootProvider = FutureProvider<String>(
-  (ref) async => p.join(
-    (await resolveSkotiqDocumentsDirectory()).path,
-    'Skotiq',
-    'Masters',
-  ),
-);
-
 /// Picks a folder; replaceable in tests.
 final darkroomFolderPickerProvider = Provider<Future<String?> Function()>(
   (ref) => () => getDirectoryPath(confirmButtonText: 'Save masters here'),
@@ -150,9 +141,11 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final job = ref.read(darkroomBuildJobsProvider);
-      if (job == null || (!job.active && job.target != _key)) {
-        unawaited(_start());
-      }
+      if (job != null && (job.active || job.target == _key)) return;
+      // A build held here by the night-end automation is reviewed, not
+      // checked again, so accepting it credits that night's run.
+      if (_jobs.reviewHeld(_key) != null) return;
+      unawaited(_start());
     });
   }
 
@@ -160,7 +153,8 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
   Future<void> _start() async {
     final job = ref.read(darkroomBuildJobsProvider);
     if (job?.active == true) return;
-    if (job != null) _jobs.dismiss();
+    // A finished build is archived and another target's build waiting for
+    // review is held by `checkFraming`, so neither is dismissed here.
     setState(() {
       _preparing = true;
       _error = null;
@@ -241,12 +235,13 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
 
   Future<void> _build(DarkroomBuildJob job, DarkroomFramingSession? session) =>
       _run(() async {
-        final String parent = session?.folder ??
-            await ref.read(darkroomMastersRootProvider.future);
-        final stamp =
-            DateTime.now().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
-        final name = _key.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-        final directory = Directory(p.join(parent, '$name-$stamp'));
+        final chosen = session?.folder;
+        final parent = chosen != null
+            ? Directory(chosen)
+            : await ref.read(darkroomMastersRootProvider.future);
+        // The same per-target folder the night-end builds use, so a build
+        // started here and the next night's fold update one set of masters.
+        final directory = darkroomTargetBuildDirectory(parent, _key);
         unawaited(
           _jobs.accept(directory).catchError((Object e) {
             if (mounted) setState(() => _error = '$e');

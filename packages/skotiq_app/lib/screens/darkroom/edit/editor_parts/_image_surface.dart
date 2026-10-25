@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// The Darkroom's picture. Widget tests count these to assert how many panes
 /// are mounted.

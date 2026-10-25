@@ -73,6 +73,34 @@ String describeFilterFailure(Object error) {
   return text;
 }
 
+/// The color role a filter name plays in an RGB or LRGB composite (`L`, `R`,
+/// `G`, `B`), or null for a filter that is none of them, such as Ha. The names
+/// are the ones the native composite classifies the same way.
+String? darkroomColorRole(String filter) {
+  final f = filter.toLowerCase().replaceAll(RegExp(r'[\s\-_/\[\]().]'), '');
+  if (const {
+    'l',
+    'lum',
+    'luma',
+    'luminance',
+    'clear',
+    'c',
+    'cl',
+    'uvircut',
+    'uvir',
+    'ircut',
+    'uvirblock',
+    'uvircutoff',
+    'lrgbl',
+  }.contains(f)) {
+    return 'L';
+  }
+  if (const {'r', 'red'}.contains(f)) return 'R';
+  if (const {'g', 'green'}.contains(f)) return 'G';
+  if (const {'b', 'blue'}.contains(f)) return 'B';
+  return null;
+}
+
 /// Integration time for display: minutes under an hour, else hours.
 String describeIntegration(num seconds) => seconds < 3600
     ? '${(seconds / 60).round()} min'
@@ -1073,6 +1101,68 @@ class DarkroomBuildService {
           rejectionReason: frame['reason'] as String,
         );
       }
+    }
+    await _registerComposites(plan, results, delivery, library);
+  }
+
+  /// Register the RGB and LRGB composites the export wrote as color masters,
+  /// so they open in the Darkroom like the per-filter masters they combine.
+  ///
+  /// A composite's frame count and integration are those of the masters it
+  /// combines. Registered once per file, so a resumed build adds nothing.
+  Future<void> _registerComposites(
+    Map<String, dynamic> plan,
+    List<Map<String, dynamic>> results,
+    Map<String, dynamic> delivery,
+    List<IntegratedMaster> library,
+  ) async {
+    final composites = delivery['composites'];
+    if (composites is! Map) return;
+    for (final (kind, pathKey, xisfKey, previewKey, roles) in const [
+      ('RGB', 'rgbPath', 'rgbXisfPath', 'rgbPreviewPath', {'R', 'G', 'B'}),
+      (
+        'LRGB',
+        'lrgbPath',
+        'lrgbXisfPath',
+        'lrgbPreviewPath',
+        {'L', 'R', 'G', 'B'},
+      ),
+    ]) {
+      final path = composites[pathKey];
+      if (path is! String) continue;
+      if (!await File(path).exists()) {
+        throw StateError(
+          'Exported $kind composite is missing. Restore it before resuming.',
+        );
+      }
+      if (library.any((m) => m.masterFitsPath == path)) continue;
+      final used = [
+        for (final r in results)
+          if (roles.contains(darkroomColorRole(r['filter'] as String))) r,
+      ];
+      final preview = composites[previewKey];
+      await masters.insertMaster(
+        name: '${plan['target']} $kind',
+        masterFitsPath: path,
+        previewPngPath: preview is String ? preview : null,
+        filter: kind,
+        channels: 3,
+        status: IntegratedMasterStatus.finalized,
+        accumulationMode: AccumulationMode.runningWeightedMean,
+        width: delivery['width'] as int,
+        height: delivery['height'] as int,
+        frameCount: used.fold<int>(0, (n, r) => n + (r['frameCount'] as int)),
+        totalIntegrationSeconds: used.fold<double>(
+          0,
+          (n, r) => n + (r['totalIntegrationSec'] as num).toDouble(),
+        ),
+        settingsJson: jsonEncode(plan),
+        statsJson: jsonEncode({
+          'composite': kind,
+          'filters': [for (final r in used) r['filter']],
+          if (composites[xisfKey] != null) 'xisfPath': composites[xisfKey],
+        }),
+      );
     }
   }
 

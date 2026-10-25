@@ -1,4 +1,4 @@
-part of '../darkroom_screen.dart';
+part of '../darkroom_editor.dart';
 
 /// The control that puts an operation into the recipe, and the chooser behind
 /// it.

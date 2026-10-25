@@ -212,6 +212,7 @@ export 'src/services/science/photometric_catalog_service.dart';
 export 'src/services/dark_library_service.dart';
 export 'src/services/dark_library_coverage_service.dart';
 export 'src/services/live_stacking_service.dart';
+export 'src/services/live_stack_master_library.dart';
 // Broadcast endpoint for EAA / outreach live-stack viewing.
 export 'src/services/live_stacking_broadcast_service.dart';
 // Stack-and-Share Loop (components C6/C8): orchestrator + share/export service.
