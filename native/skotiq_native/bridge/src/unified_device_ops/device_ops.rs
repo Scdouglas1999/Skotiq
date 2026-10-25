@@ -1186,9 +1186,13 @@ impl DeviceOps for UnifiedDeviceOps {
         let guider_id = get_active_guider_id_for_ops()
             .await
             .ok_or_else(|| "No active guider configured".to_string())?;
-        api_guider_stop(guider_id)
+        crate::api::phd2::guider_stop_for_run(guider_id)
             .await
             .map_err(|e| format!("Stop guiding failed: {}", e))
+    }
+
+    async fn guider_note_stop_reason(&self, reason: Option<skotiq_sequencer::GuidingStopReason>) {
+        crate::api::phd2::set_guiding_stop_reason(reason);
     }
 
     // Plate solving

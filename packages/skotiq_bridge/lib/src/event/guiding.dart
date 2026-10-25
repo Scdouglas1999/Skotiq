@@ -21,6 +21,18 @@ sealed class GuidingEvent with _$GuidingEvent {
   const factory GuidingEvent.settled({required double rms}) =
       GuidingEvent_Settled;
   const factory GuidingEvent.lostStar() = GuidingEvent_LostStar;
+
+  /// PHD2 gave up waiting for the guider to settle. The star may still be
+  /// locked; this is not a lost star.
+  const factory GuidingEvent.settleTimedOut({
+    /// PHD2's own words for the failure.
+    required String error,
+  }) = GuidingEvent_SettleTimedOut;
+
+  /// Why the guider is stopped changed: a snake_case reason, or `None`
+  /// once guiding runs again.
+  const factory GuidingEvent.stopReason({String? reason}) =
+      GuidingEvent_StopReason;
   const factory GuidingEvent.ditherStarted({required double pixels}) =
       GuidingEvent_DitherStarted;
   const factory GuidingEvent.ditherCompleted() = GuidingEvent_DitherCompleted;

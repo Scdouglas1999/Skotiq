@@ -57,6 +57,11 @@ Future<bool> mountCanPark({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesMountMountCanPark(deviceId: deviceId);
 
 /// Set mount tracking
+///
+/// A stop sent from here while a run is active is the operator's, so the run
+/// is told before the mount stops: it pauses instead of reading the stop as
+/// the mount's tracking limit. The run's own commands go through device ops,
+/// not this call.
 Future<void> mountSetTracking({
   required String deviceId,
   required int enabled,

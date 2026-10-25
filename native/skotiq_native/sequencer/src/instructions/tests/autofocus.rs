@@ -94,7 +94,7 @@ async fn autofocus_cleanup_restores_and_verifies_original_position() {
 
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
-async fn autofocus_restores_designated_filter_and_guiding_on_cancel() {
+async fn autofocus_restores_the_filter_but_leaves_guiding_stopped_when_the_run_stops() {
     let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guiding(true));
     let ctx = ctx_with_ops(ops.clone()).await;
@@ -120,13 +120,38 @@ async fn autofocus_restores_designated_filter_and_guiding_on_cancel() {
     assert_eq!(result.status, NodeStatus::Cancelled);
     assert_eq!(*ops.filter_moves.lock().unwrap(), vec![0, 1]);
     assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
-    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
     assert_eq!(
-        *ops.fresh_star_selections.lock().unwrap(),
-        vec![0],
-        "guiding resumes on a star picked after the autofocus run"
+        ops.guider_start_calls.load(Ordering::SeqCst),
+        0,
+        "a stopped run's autofocus cleanup must not start the guider again"
     );
-    assert!(ops.guiding.load(Ordering::SeqCst));
+    assert!(ops.fresh_star_selections.lock().unwrap().is_empty());
+    assert!(!ops.guiding.load(Ordering::SeqCst));
+    assert_eq!(
+        *ops.guider_stop_reasons.lock().unwrap(),
+        vec![
+            Some(crate::GuidingStopReason::Autofocus),
+            Some(crate::GuidingStopReason::RunStopped)
+        ],
+        "the guider status says why guiding stays stopped"
+    );
+    if let Some(state) = &ctx.trigger_state {
+        assert!(!state.read().await.guiding.is_enabled());
+    }
+}
+
+/// A Stop that lands while the guider is being restarted ends the wait at
+/// the start: the guider is not started for a run that is ending.
+#[tokio::test]
+async fn autofocus_guiding_resume_is_not_started_for_a_stopping_run() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let ctx = ctx_with_ops(ops.clone()).await;
+    ctx.cancellation_token.store(true, Ordering::SeqCst);
+
+    let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
 }
 
 #[tokio::test(start_paused = true)]

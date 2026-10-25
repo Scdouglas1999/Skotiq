@@ -100,6 +100,8 @@ struct ScriptedDomeRotatorOps {
     tracking_commands: Mutex<Vec<bool>>,
     guider_stop_calls: AtomicU32,
     guider_start_calls: AtomicU32,
+    /// Every reason the run gave for stopping the guider, in order.
+    guider_stop_reasons: Mutex<Vec<Option<crate::GuidingStopReason>>>,
     /// The guider lost its star and is searching for it (PHD2's LostLock):
     /// not guiding, but it guides again the moment it finds the star.
     guider_lost_lock: AtomicBool,
@@ -242,6 +244,7 @@ impl ScriptedDomeRotatorOps {
             slews_while_guider_active: AtomicU32::new(0),
             off_target_solves: AtomicU32::new(0),
             guider_start_calls: AtomicU32::new(0),
+            guider_stop_reasons: Mutex::new(Vec::new()),
             fresh_star_selections: Mutex::new(Vec::new()),
             fresh_star_floors: Mutex::new(Vec::new()),
             no_guide_star: false,
@@ -858,6 +861,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn guider_is_active(&self) -> DeviceResult<bool> {
         Ok(self.guider_active())
+    }
+    async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
+        self.guider_stop_reasons.lock().unwrap().push(reason);
     }
     async fn plate_solve(
         &self,

@@ -18481,32 +18481,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 7:
         return GuidingEvent_LostStar();
       case 8:
-        return GuidingEvent_DitherStarted(pixels: dco_decode_f_64(raw[1]));
+        return GuidingEvent_SettleTimedOut(error: dco_decode_String(raw[1]));
       case 9:
-        return GuidingEvent_DitherCompleted();
+        return GuidingEvent_StopReason(reason: dco_decode_opt_String(raw[1]));
       case 10:
+        return GuidingEvent_DitherStarted(pixels: dco_decode_f_64(raw[1]));
+      case 11:
+        return GuidingEvent_DitherCompleted();
+      case 12:
         return GuidingEvent_Correction(
           ra: dco_decode_f_64(raw[1]),
           dec: dco_decode_f_64(raw[2]),
           raRaw: dco_decode_f_64(raw[3]),
           decRaw: dco_decode_f_64(raw[4]),
         );
-      case 11:
-        return GuidingEvent_Looping();
-      case 12:
-        return GuidingEvent_Settling();
       case 13:
-        return GuidingEvent_Calibrating();
+        return GuidingEvent_Looping();
       case 14:
-        return GuidingEvent_CalibrationComplete();
+        return GuidingEvent_Settling();
       case 15:
+        return GuidingEvent_Calibrating();
+      case 16:
+        return GuidingEvent_CalibrationComplete();
+      case 17:
         return GuidingEvent_StarSelected(
           x: dco_decode_f_64(raw[1]),
           y: dco_decode_f_64(raw[2]),
         );
-      case 16:
+      case 18:
         return GuidingEvent_AppState(state: dco_decode_String(raw[1]));
-      case 17:
+      case 19:
         return GuidingEvent_GuideStats(
           snr: dco_decode_f_64(raw[1]),
           starMass: dco_decode_f_64(raw[2]),
@@ -19320,8 +19324,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Phd2Status dco_decode_phd_2_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return Phd2Status(
       connected: dco_decode_bool(arr[0]),
       state: dco_decode_String(arr[1]),
@@ -19331,6 +19335,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       snr: dco_decode_f_64(arr[5]),
       starMass: dco_decode_f_64(arr[6]),
       pixelScale: dco_decode_opt_box_autoadd_f_64(arr[7]),
+      stopReason: dco_decode_opt_String(arr[8]),
     );
   }
 
@@ -23235,11 +23240,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 7:
         return GuidingEvent_LostStar();
       case 8:
+        var var_error = sse_decode_String(deserializer);
+        return GuidingEvent_SettleTimedOut(error: var_error);
+      case 9:
+        var var_reason = sse_decode_opt_String(deserializer);
+        return GuidingEvent_StopReason(reason: var_reason);
+      case 10:
         var var_pixels = sse_decode_f_64(deserializer);
         return GuidingEvent_DitherStarted(pixels: var_pixels);
-      case 9:
+      case 11:
         return GuidingEvent_DitherCompleted();
-      case 10:
+      case 12:
         var var_ra = sse_decode_f_64(deserializer);
         var var_dec = sse_decode_f_64(deserializer);
         var var_raRaw = sse_decode_f_64(deserializer);
@@ -23250,22 +23261,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           raRaw: var_raRaw,
           decRaw: var_decRaw,
         );
-      case 11:
-        return GuidingEvent_Looping();
-      case 12:
-        return GuidingEvent_Settling();
       case 13:
-        return GuidingEvent_Calibrating();
+        return GuidingEvent_Looping();
       case 14:
-        return GuidingEvent_CalibrationComplete();
+        return GuidingEvent_Settling();
       case 15:
+        return GuidingEvent_Calibrating();
+      case 16:
+        return GuidingEvent_CalibrationComplete();
+      case 17:
         var var_x = sse_decode_f_64(deserializer);
         var var_y = sse_decode_f_64(deserializer);
         return GuidingEvent_StarSelected(x: var_x, y: var_y);
-      case 16:
+      case 18:
         var var_state = sse_decode_String(deserializer);
         return GuidingEvent_AppState(state: var_state);
-      case 17:
+      case 19:
         var var_snr = sse_decode_f_64(deserializer);
         var var_starMass = sse_decode_f_64(deserializer);
         return GuidingEvent_GuideStats(snr: var_snr, starMass: var_starMass);
@@ -24547,6 +24558,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_snr = sse_decode_f_64(deserializer);
     var var_starMass = sse_decode_f_64(deserializer);
     var var_pixelScale = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_stopReason = sse_decode_opt_String(deserializer);
     return Phd2Status(
       connected: var_connected,
       state: var_state,
@@ -24556,6 +24568,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       snr: var_snr,
       starMass: var_starMass,
       pixelScale: var_pixelScale,
+      stopReason: var_stopReason,
     );
   }
 
@@ -28567,39 +28580,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_f_64(rms, serializer);
       case GuidingEvent_LostStar():
         sse_encode_i_32(7, serializer);
-      case GuidingEvent_DitherStarted(pixels: final pixels):
+      case GuidingEvent_SettleTimedOut(error: final error):
         sse_encode_i_32(8, serializer);
+        sse_encode_String(error, serializer);
+      case GuidingEvent_StopReason(reason: final reason):
+        sse_encode_i_32(9, serializer);
+        sse_encode_opt_String(reason, serializer);
+      case GuidingEvent_DitherStarted(pixels: final pixels):
+        sse_encode_i_32(10, serializer);
         sse_encode_f_64(pixels, serializer);
       case GuidingEvent_DitherCompleted():
-        sse_encode_i_32(9, serializer);
+        sse_encode_i_32(11, serializer);
       case GuidingEvent_Correction(
         ra: final ra,
         dec: final dec,
         raRaw: final raRaw,
         decRaw: final decRaw,
       ):
-        sse_encode_i_32(10, serializer);
+        sse_encode_i_32(12, serializer);
         sse_encode_f_64(ra, serializer);
         sse_encode_f_64(dec, serializer);
         sse_encode_f_64(raRaw, serializer);
         sse_encode_f_64(decRaw, serializer);
       case GuidingEvent_Looping():
-        sse_encode_i_32(11, serializer);
-      case GuidingEvent_Settling():
-        sse_encode_i_32(12, serializer);
-      case GuidingEvent_Calibrating():
         sse_encode_i_32(13, serializer);
-      case GuidingEvent_CalibrationComplete():
+      case GuidingEvent_Settling():
         sse_encode_i_32(14, serializer);
-      case GuidingEvent_StarSelected(x: final x, y: final y):
+      case GuidingEvent_Calibrating():
         sse_encode_i_32(15, serializer);
+      case GuidingEvent_CalibrationComplete():
+        sse_encode_i_32(16, serializer);
+      case GuidingEvent_StarSelected(x: final x, y: final y):
+        sse_encode_i_32(17, serializer);
         sse_encode_f_64(x, serializer);
         sse_encode_f_64(y, serializer);
       case GuidingEvent_AppState(state: final state):
-        sse_encode_i_32(16, serializer);
+        sse_encode_i_32(18, serializer);
         sse_encode_String(state, serializer);
       case GuidingEvent_GuideStats(snr: final snr, starMass: final starMass):
-        sse_encode_i_32(17, serializer);
+        sse_encode_i_32(19, serializer);
         sse_encode_f_64(snr, serializer);
         sse_encode_f_64(starMass, serializer);
     }
@@ -29732,6 +29751,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.snr, serializer);
     sse_encode_f_64(self.starMass, serializer);
     sse_encode_opt_box_autoadd_f_64(self.pixelScale, serializer);
+    sse_encode_opt_String(self.stopReason, serializer);
   }
 
   @protected

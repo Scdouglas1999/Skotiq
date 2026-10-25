@@ -334,6 +334,7 @@ pub(crate) const CALIBRATION_PEDESTAL: f32 = 100.0;
 const DEFAULT_MEMORY_BUDGET: usize = 1 << 30;
 
 /// Calibration masters of one group, loaded once and shared.
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default, Clone)]
 pub(crate) struct GroupMasters {
     dark: Option<Arc<ImageData>>,
@@ -344,6 +345,7 @@ pub(crate) struct GroupMasters {
 }
 
 /// Calibration masters loaded once and shared by every group that names them.
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct MasterCache {
     images: HashMap<String, Arc<ImageData>>,

@@ -555,3 +555,47 @@ async fn guiding_without_a_measured_guide_step_is_not_confirmed() {
         run.result.message
     );
 }
+
+/// A tracking-limit hold stops the guider; a dither in that hold fails
+/// against the stopped guider and reads as a guider error. It is skipped.
+#[tokio::test]
+async fn a_dither_is_skipped_while_the_run_holds_the_guider_stopped() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let (ctx, trigger_state, _events) = restart_ctx(ops.clone()).await;
+    {
+        let mut state = trigger_state.write().await;
+        state
+            .run
+            .begin_hold(crate::triggers::RunHold::TrackingLimit);
+        state.guiding.guiding_stopped_by_motion();
+    }
+
+    let result = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(
+        result
+            .message
+            .as_deref()
+            .is_some_and(|m| m.starts_with("Dither skipped")),
+        "{:?}",
+        result.message
+    );
+    assert!(
+        ops.dithers_after_frame.lock().unwrap().is_empty(),
+        "the guider is not asked to dither"
+    );
+
+    // A move's stopped guiding, not started again yet, is held the same way.
+    trigger_state.write().await.run.end_hold();
+    let result = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
+    assert!(ops.dithers_after_frame.lock().unwrap().is_empty());
+    assert!(result
+        .message
+        .is_some_and(|m| m.starts_with("Dither skipped")));
+
+    // Guiding running again: the dither goes ahead.
+    trigger_state.write().await.guiding.take_resume_pending();
+    let _ = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
+    assert_eq!(ops.dithers_after_frame.lock().unwrap().len(), 1);
+}

@@ -57,6 +57,17 @@ final phd2StateProvider = StateProvider<Phd2State>((ref) => Phd2State.stopped);
 /// Provider for star lost events (timestamp of last star lost event)
 final starLostEventProvider = StateProvider<DateTime?>((ref) => null);
 
+/// Why the guider is stopped or held, as the native layer names it (the
+/// guider status's `stopReason`); null while guiding runs. Kept from the
+/// guider's StopReason events, so a planned stop (autofocus, a flip, a
+/// tracking-limit hold) is never shown as lost guiding.
+final guidingStopReasonProvider = StateProvider<String?>((ref) => null);
+
+/// When PHD2 last gave up waiting for the guider to settle, and its words.
+/// A settle that runs out is not a lost star: the star may still be locked.
+final guiderSettleTimeoutProvider =
+    StateProvider<({DateTime at, String error})?>((ref) => null);
+
 /// Provider for current guide stats with rolling RMS calculation
 final guideStatsProvider =
     StateNotifierProvider<GuideStatsNotifier, Phd2GuideStats>((ref) {

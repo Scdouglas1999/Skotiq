@@ -86,6 +86,38 @@ void main() {
       expect(inner, isA<bridge.GuidingEvent_LostStar>());
     });
 
+    test('a settle timeout and a stop reason cross the wire as themselves', () {
+      final settle = bridgeEventFromCoreEvent(
+        const core.SkotiqEvent(
+          timestamp: 1,
+          severity: core.EventSeverity.warning,
+          category: core.EventCategory.guiding,
+          eventType: 'SettleTimedOut',
+          data: {'error': 'timed-out waiting for guider to settle'},
+        ),
+      );
+      final settleInner =
+          (settle.payload as bridge.EventPayload_Guiding).field0;
+      expect(settleInner, isA<bridge.GuidingEvent_SettleTimedOut>());
+      expect(settleInner, isNot(isA<bridge.GuidingEvent_LostStar>()));
+
+      final reason = bridgeEventFromCoreEvent(
+        const core.SkotiqEvent(
+          timestamp: 1,
+          severity: core.EventSeverity.info,
+          category: core.EventCategory.guiding,
+          eventType: 'StopReason',
+          data: {'reason': 'meridian_flip'},
+        ),
+      );
+      final reasonInner =
+          (reason.payload as bridge.EventPayload_Guiding).field0;
+      expect(
+        (reasonInner as bridge.GuidingEvent_StopReason).reason,
+        'meridian_flip',
+      );
+    });
+
     test('reconstructs mount park completed for scheduler triggers', () {
       const coreEvent = core.SkotiqEvent(
         timestamp: 1,

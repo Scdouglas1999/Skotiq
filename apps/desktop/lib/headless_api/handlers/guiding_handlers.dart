@@ -223,6 +223,11 @@ class GuidingHandlers {
       // guider UI can render a real star list instead of an empty panel. Empty
       // for PHD2/external guiders (single aggregate lock star only).
       "trackedStars": [for (final s in status.trackedStars) s.toJson()],
+      // Why the guider is stopped or held (autofocus, meridian_flip,
+      // tracking_limit_hold, ...), so a planned stop never reads as lost
+      // guiding to a watcher. Null while guiding runs.
+      "stopReason": status.stopReason,
+      "stopReasonText": guidingStopReasonText(status.stopReason),
     });
   }
 

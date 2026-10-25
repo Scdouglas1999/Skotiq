@@ -416,6 +416,12 @@ pub struct TriggerState {
     pub autofocus_hold: Option<String>,
     /// An autofocus trigger came due while autofocus was held.
     pub autofocus_wanted_while_held: bool,
+    /// The settle bar for every restart of guiding in this run (dither,
+    /// autofocus, flip); see [`crate::GuiderSettle`].
+    pub guider_settle: crate::GuiderSettle,
+    /// The operator has been told this run's settle bar is tighter than the
+    /// guiding the rig achieves.
+    pub settle_bar_warning_given: bool,
 }
 
 impl Default for TriggerState {
@@ -500,6 +506,8 @@ impl Default for TriggerState {
             restored_from_checkpoint: false,
             autofocus_hold: None,
             autofocus_wanted_while_held: false,
+            guider_settle: crate::GuiderSettle::default(),
+            settle_bar_warning_given: false,
         }
     }
 }
@@ -694,6 +702,7 @@ impl TriggerState {
         self.baseline_focuser_position = None;
         self.autofocus_hold = None;
         self.autofocus_wanted_while_held = false;
+        self.settle_bar_warning_given = false;
         self.run.reset_for_new_run();
         // A resumed run carries on the guiding and target its checkpoint
         // recorded.

@@ -5485,14 +5485,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.tag = 7;
       return;
     }
+    if (apiObj is GuidingEvent_SettleTimedOut) {
+      var pre_error = cst_encode_String(apiObj.error);
+      wireObj.tag = 8;
+      wireObj.kind.SettleTimedOut.error = pre_error;
+      return;
+    }
+    if (apiObj is GuidingEvent_StopReason) {
+      var pre_reason = cst_encode_opt_String(apiObj.reason);
+      wireObj.tag = 9;
+      wireObj.kind.StopReason.reason = pre_reason;
+      return;
+    }
     if (apiObj is GuidingEvent_DitherStarted) {
       var pre_pixels = cst_encode_f_64(apiObj.pixels);
-      wireObj.tag = 8;
+      wireObj.tag = 10;
       wireObj.kind.DitherStarted.pixels = pre_pixels;
       return;
     }
     if (apiObj is GuidingEvent_DitherCompleted) {
-      wireObj.tag = 9;
+      wireObj.tag = 11;
       return;
     }
     if (apiObj is GuidingEvent_Correction) {
@@ -5500,7 +5512,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_dec = cst_encode_f_64(apiObj.dec);
       var pre_ra_raw = cst_encode_f_64(apiObj.raRaw);
       var pre_dec_raw = cst_encode_f_64(apiObj.decRaw);
-      wireObj.tag = 10;
+      wireObj.tag = 12;
       wireObj.kind.Correction.ra = pre_ra;
       wireObj.kind.Correction.dec = pre_dec;
       wireObj.kind.Correction.ra_raw = pre_ra_raw;
@@ -5508,39 +5520,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       return;
     }
     if (apiObj is GuidingEvent_Looping) {
-      wireObj.tag = 11;
-      return;
-    }
-    if (apiObj is GuidingEvent_Settling) {
-      wireObj.tag = 12;
-      return;
-    }
-    if (apiObj is GuidingEvent_Calibrating) {
       wireObj.tag = 13;
       return;
     }
-    if (apiObj is GuidingEvent_CalibrationComplete) {
+    if (apiObj is GuidingEvent_Settling) {
       wireObj.tag = 14;
+      return;
+    }
+    if (apiObj is GuidingEvent_Calibrating) {
+      wireObj.tag = 15;
+      return;
+    }
+    if (apiObj is GuidingEvent_CalibrationComplete) {
+      wireObj.tag = 16;
       return;
     }
     if (apiObj is GuidingEvent_StarSelected) {
       var pre_x = cst_encode_f_64(apiObj.x);
       var pre_y = cst_encode_f_64(apiObj.y);
-      wireObj.tag = 15;
+      wireObj.tag = 17;
       wireObj.kind.StarSelected.x = pre_x;
       wireObj.kind.StarSelected.y = pre_y;
       return;
     }
     if (apiObj is GuidingEvent_AppState) {
       var pre_state = cst_encode_String(apiObj.state);
-      wireObj.tag = 16;
+      wireObj.tag = 18;
       wireObj.kind.AppState.state = pre_state;
       return;
     }
     if (apiObj is GuidingEvent_GuideStats) {
       var pre_snr = cst_encode_f_64(apiObj.snr);
       var pre_star_mass = cst_encode_f_64(apiObj.starMass);
-      wireObj.tag = 17;
+      wireObj.tag = 19;
       wireObj.kind.GuideStats.snr = pre_snr;
       wireObj.kind.GuideStats.star_mass = pre_star_mass;
       return;
@@ -5954,6 +5966,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.snr = cst_encode_f_64(apiObj.snr);
     wireObj.star_mass = cst_encode_f_64(apiObj.starMass);
     wireObj.pixel_scale = cst_encode_opt_box_autoadd_f_64(apiObj.pixelScale);
+    wireObj.stop_reason = cst_encode_opt_String(apiObj.stopReason);
   }
 
   @protected
@@ -24154,6 +24167,14 @@ final class wire_cst_GuidingEvent_Settled extends ffi.Struct {
   external double rms;
 }
 
+final class wire_cst_GuidingEvent_SettleTimedOut extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error;
+}
+
+final class wire_cst_GuidingEvent_StopReason extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
 final class wire_cst_GuidingEvent_DitherStarted extends ffi.Struct {
   @ffi.Double()
   external double pixels;
@@ -24195,6 +24216,10 @@ final class wire_cst_GuidingEvent_GuideStats extends ffi.Struct {
 
 final class GuidingEventKind extends ffi.Union {
   external wire_cst_GuidingEvent_Settled Settled;
+
+  external wire_cst_GuidingEvent_SettleTimedOut SettleTimedOut;
+
+  external wire_cst_GuidingEvent_StopReason StopReason;
 
   external wire_cst_GuidingEvent_DitherStarted DitherStarted;
 
@@ -26466,6 +26491,8 @@ final class wire_cst_phd_2_status extends ffi.Struct {
   external double star_mass;
 
   external ffi.Pointer<ffi.Double> pixel_scale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> stop_reason;
 }
 
 final class wire_cst_plate_solve_result extends ffi.Struct {

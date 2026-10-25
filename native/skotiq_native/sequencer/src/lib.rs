@@ -28,6 +28,7 @@ pub mod focus_prediction;
 // for a figure the app has never been able to work out for itself.
 pub mod focuser_calibration;
 pub mod frame_watch;
+pub mod guiding_stop;
 pub mod instructions;
 pub mod meridian;
 pub mod meridian_events;
@@ -84,6 +85,7 @@ pub use focuser_calibration::{
     BacklashAnalysisThresholds, CalibrationConfidence, CalibrationRefusal, DirectionalScan,
     FocuserBacklashCalibration, MeasurementContext,
 };
+pub use guiding_stop::GuidingStopReason;
 pub use instructions::*;
 pub use meridian_events::*;
 pub use meridian_flip_executor::*;
@@ -2393,6 +2395,39 @@ impl Default for WarmConfig {
 
 const fn default_dither_pixels() -> f64 {
     5.0
+}
+
+/// The guider settle bar the run holds every restart of guiding to: after a
+/// dither, after autofocus and after a meridian flip. It comes from the
+/// run's dither settings, so one setting governs all three.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GuiderSettle {
+    /// Guide error, in guide-camera pixels, the guider must stay within.
+    pub pixels: f64,
+    /// Seconds it must stay within `pixels`.
+    pub time_secs: f64,
+    /// Seconds the guider is given to settle.
+    pub timeout_secs: f64,
+}
+
+impl Default for GuiderSettle {
+    fn default() -> Self {
+        Self {
+            pixels: default_dither_settle_pixels(),
+            time_secs: default_dither_settle_time(),
+            timeout_secs: default_dither_settle_timeout(),
+        }
+    }
+}
+
+impl From<&DitherConfig> for GuiderSettle {
+    fn from(config: &DitherConfig) -> Self {
+        Self {
+            pixels: config.settle_pixels,
+            time_secs: config.settle_time,
+            timeout_secs: config.settle_timeout,
+        }
+    }
 }
 
 const fn default_dither_settle_pixels() -> f64 {

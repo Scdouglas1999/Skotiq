@@ -55,7 +55,7 @@ extension GuidingEventPatterns on GuidingEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( GuidingEvent_Connected value)?  connected,TResult Function( GuidingEvent_Disconnected value)?  disconnected,TResult Function( GuidingEvent_GuidingStarted value)?  guidingStarted,TResult Function( GuidingEvent_GuidingStopped value)?  guidingStopped,TResult Function( GuidingEvent_Paused value)?  paused,TResult Function( GuidingEvent_Resumed value)?  resumed,TResult Function( GuidingEvent_Settled value)?  settled,TResult Function( GuidingEvent_LostStar value)?  lostStar,TResult Function( GuidingEvent_DitherStarted value)?  ditherStarted,TResult Function( GuidingEvent_DitherCompleted value)?  ditherCompleted,TResult Function( GuidingEvent_Correction value)?  correction,TResult Function( GuidingEvent_Looping value)?  looping,TResult Function( GuidingEvent_Settling value)?  settling,TResult Function( GuidingEvent_Calibrating value)?  calibrating,TResult Function( GuidingEvent_CalibrationComplete value)?  calibrationComplete,TResult Function( GuidingEvent_StarSelected value)?  starSelected,TResult Function( GuidingEvent_AppState value)?  appState,TResult Function( GuidingEvent_GuideStats value)?  guideStats,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( GuidingEvent_Connected value)?  connected,TResult Function( GuidingEvent_Disconnected value)?  disconnected,TResult Function( GuidingEvent_GuidingStarted value)?  guidingStarted,TResult Function( GuidingEvent_GuidingStopped value)?  guidingStopped,TResult Function( GuidingEvent_Paused value)?  paused,TResult Function( GuidingEvent_Resumed value)?  resumed,TResult Function( GuidingEvent_Settled value)?  settled,TResult Function( GuidingEvent_LostStar value)?  lostStar,TResult Function( GuidingEvent_SettleTimedOut value)?  settleTimedOut,TResult Function( GuidingEvent_StopReason value)?  stopReason,TResult Function( GuidingEvent_DitherStarted value)?  ditherStarted,TResult Function( GuidingEvent_DitherCompleted value)?  ditherCompleted,TResult Function( GuidingEvent_Correction value)?  correction,TResult Function( GuidingEvent_Looping value)?  looping,TResult Function( GuidingEvent_Settling value)?  settling,TResult Function( GuidingEvent_Calibrating value)?  calibrating,TResult Function( GuidingEvent_CalibrationComplete value)?  calibrationComplete,TResult Function( GuidingEvent_StarSelected value)?  starSelected,TResult Function( GuidingEvent_AppState value)?  appState,TResult Function( GuidingEvent_GuideStats value)?  guideStats,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case GuidingEvent_Connected() when connected != null:
@@ -66,7 +66,9 @@ return guidingStopped(_that);case GuidingEvent_Paused() when paused != null:
 return paused(_that);case GuidingEvent_Resumed() when resumed != null:
 return resumed(_that);case GuidingEvent_Settled() when settled != null:
 return settled(_that);case GuidingEvent_LostStar() when lostStar != null:
-return lostStar(_that);case GuidingEvent_DitherStarted() when ditherStarted != null:
+return lostStar(_that);case GuidingEvent_SettleTimedOut() when settleTimedOut != null:
+return settleTimedOut(_that);case GuidingEvent_StopReason() when stopReason != null:
+return stopReason(_that);case GuidingEvent_DitherStarted() when ditherStarted != null:
 return ditherStarted(_that);case GuidingEvent_DitherCompleted() when ditherCompleted != null:
 return ditherCompleted(_that);case GuidingEvent_Correction() when correction != null:
 return correction(_that);case GuidingEvent_Looping() when looping != null:
@@ -94,7 +96,7 @@ return guideStats(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( GuidingEvent_Connected value)  connected,required TResult Function( GuidingEvent_Disconnected value)  disconnected,required TResult Function( GuidingEvent_GuidingStarted value)  guidingStarted,required TResult Function( GuidingEvent_GuidingStopped value)  guidingStopped,required TResult Function( GuidingEvent_Paused value)  paused,required TResult Function( GuidingEvent_Resumed value)  resumed,required TResult Function( GuidingEvent_Settled value)  settled,required TResult Function( GuidingEvent_LostStar value)  lostStar,required TResult Function( GuidingEvent_DitherStarted value)  ditherStarted,required TResult Function( GuidingEvent_DitherCompleted value)  ditherCompleted,required TResult Function( GuidingEvent_Correction value)  correction,required TResult Function( GuidingEvent_Looping value)  looping,required TResult Function( GuidingEvent_Settling value)  settling,required TResult Function( GuidingEvent_Calibrating value)  calibrating,required TResult Function( GuidingEvent_CalibrationComplete value)  calibrationComplete,required TResult Function( GuidingEvent_StarSelected value)  starSelected,required TResult Function( GuidingEvent_AppState value)  appState,required TResult Function( GuidingEvent_GuideStats value)  guideStats,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( GuidingEvent_Connected value)  connected,required TResult Function( GuidingEvent_Disconnected value)  disconnected,required TResult Function( GuidingEvent_GuidingStarted value)  guidingStarted,required TResult Function( GuidingEvent_GuidingStopped value)  guidingStopped,required TResult Function( GuidingEvent_Paused value)  paused,required TResult Function( GuidingEvent_Resumed value)  resumed,required TResult Function( GuidingEvent_Settled value)  settled,required TResult Function( GuidingEvent_LostStar value)  lostStar,required TResult Function( GuidingEvent_SettleTimedOut value)  settleTimedOut,required TResult Function( GuidingEvent_StopReason value)  stopReason,required TResult Function( GuidingEvent_DitherStarted value)  ditherStarted,required TResult Function( GuidingEvent_DitherCompleted value)  ditherCompleted,required TResult Function( GuidingEvent_Correction value)  correction,required TResult Function( GuidingEvent_Looping value)  looping,required TResult Function( GuidingEvent_Settling value)  settling,required TResult Function( GuidingEvent_Calibrating value)  calibrating,required TResult Function( GuidingEvent_CalibrationComplete value)  calibrationComplete,required TResult Function( GuidingEvent_StarSelected value)  starSelected,required TResult Function( GuidingEvent_AppState value)  appState,required TResult Function( GuidingEvent_GuideStats value)  guideStats,}){
 final _that = this;
 switch (_that) {
 case GuidingEvent_Connected():
@@ -105,7 +107,9 @@ return guidingStopped(_that);case GuidingEvent_Paused():
 return paused(_that);case GuidingEvent_Resumed():
 return resumed(_that);case GuidingEvent_Settled():
 return settled(_that);case GuidingEvent_LostStar():
-return lostStar(_that);case GuidingEvent_DitherStarted():
+return lostStar(_that);case GuidingEvent_SettleTimedOut():
+return settleTimedOut(_that);case GuidingEvent_StopReason():
+return stopReason(_that);case GuidingEvent_DitherStarted():
 return ditherStarted(_that);case GuidingEvent_DitherCompleted():
 return ditherCompleted(_that);case GuidingEvent_Correction():
 return correction(_that);case GuidingEvent_Looping():
@@ -129,7 +133,7 @@ return guideStats(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( GuidingEvent_Connected value)?  connected,TResult? Function( GuidingEvent_Disconnected value)?  disconnected,TResult? Function( GuidingEvent_GuidingStarted value)?  guidingStarted,TResult? Function( GuidingEvent_GuidingStopped value)?  guidingStopped,TResult? Function( GuidingEvent_Paused value)?  paused,TResult? Function( GuidingEvent_Resumed value)?  resumed,TResult? Function( GuidingEvent_Settled value)?  settled,TResult? Function( GuidingEvent_LostStar value)?  lostStar,TResult? Function( GuidingEvent_DitherStarted value)?  ditherStarted,TResult? Function( GuidingEvent_DitherCompleted value)?  ditherCompleted,TResult? Function( GuidingEvent_Correction value)?  correction,TResult? Function( GuidingEvent_Looping value)?  looping,TResult? Function( GuidingEvent_Settling value)?  settling,TResult? Function( GuidingEvent_Calibrating value)?  calibrating,TResult? Function( GuidingEvent_CalibrationComplete value)?  calibrationComplete,TResult? Function( GuidingEvent_StarSelected value)?  starSelected,TResult? Function( GuidingEvent_AppState value)?  appState,TResult? Function( GuidingEvent_GuideStats value)?  guideStats,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( GuidingEvent_Connected value)?  connected,TResult? Function( GuidingEvent_Disconnected value)?  disconnected,TResult? Function( GuidingEvent_GuidingStarted value)?  guidingStarted,TResult? Function( GuidingEvent_GuidingStopped value)?  guidingStopped,TResult? Function( GuidingEvent_Paused value)?  paused,TResult? Function( GuidingEvent_Resumed value)?  resumed,TResult? Function( GuidingEvent_Settled value)?  settled,TResult? Function( GuidingEvent_LostStar value)?  lostStar,TResult? Function( GuidingEvent_SettleTimedOut value)?  settleTimedOut,TResult? Function( GuidingEvent_StopReason value)?  stopReason,TResult? Function( GuidingEvent_DitherStarted value)?  ditherStarted,TResult? Function( GuidingEvent_DitherCompleted value)?  ditherCompleted,TResult? Function( GuidingEvent_Correction value)?  correction,TResult? Function( GuidingEvent_Looping value)?  looping,TResult? Function( GuidingEvent_Settling value)?  settling,TResult? Function( GuidingEvent_Calibrating value)?  calibrating,TResult? Function( GuidingEvent_CalibrationComplete value)?  calibrationComplete,TResult? Function( GuidingEvent_StarSelected value)?  starSelected,TResult? Function( GuidingEvent_AppState value)?  appState,TResult? Function( GuidingEvent_GuideStats value)?  guideStats,}){
 final _that = this;
 switch (_that) {
 case GuidingEvent_Connected() when connected != null:
@@ -140,7 +144,9 @@ return guidingStopped(_that);case GuidingEvent_Paused() when paused != null:
 return paused(_that);case GuidingEvent_Resumed() when resumed != null:
 return resumed(_that);case GuidingEvent_Settled() when settled != null:
 return settled(_that);case GuidingEvent_LostStar() when lostStar != null:
-return lostStar(_that);case GuidingEvent_DitherStarted() when ditherStarted != null:
+return lostStar(_that);case GuidingEvent_SettleTimedOut() when settleTimedOut != null:
+return settleTimedOut(_that);case GuidingEvent_StopReason() when stopReason != null:
+return stopReason(_that);case GuidingEvent_DitherStarted() when ditherStarted != null:
 return ditherStarted(_that);case GuidingEvent_DitherCompleted() when ditherCompleted != null:
 return ditherCompleted(_that);case GuidingEvent_Correction() when correction != null:
 return correction(_that);case GuidingEvent_Looping() when looping != null:
@@ -167,7 +173,7 @@ return guideStats(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  connected,TResult Function()?  disconnected,TResult Function()?  guidingStarted,TResult Function()?  guidingStopped,TResult Function()?  paused,TResult Function()?  resumed,TResult Function( double rms)?  settled,TResult Function()?  lostStar,TResult Function( double pixels)?  ditherStarted,TResult Function()?  ditherCompleted,TResult Function( double ra,  double dec,  double raRaw,  double decRaw)?  correction,TResult Function()?  looping,TResult Function()?  settling,TResult Function()?  calibrating,TResult Function()?  calibrationComplete,TResult Function( double x,  double y)?  starSelected,TResult Function( String state)?  appState,TResult Function( double snr,  double starMass)?  guideStats,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  connected,TResult Function()?  disconnected,TResult Function()?  guidingStarted,TResult Function()?  guidingStopped,TResult Function()?  paused,TResult Function()?  resumed,TResult Function( double rms)?  settled,TResult Function()?  lostStar,TResult Function( String error)?  settleTimedOut,TResult Function( String? reason)?  stopReason,TResult Function( double pixels)?  ditherStarted,TResult Function()?  ditherCompleted,TResult Function( double ra,  double dec,  double raRaw,  double decRaw)?  correction,TResult Function()?  looping,TResult Function()?  settling,TResult Function()?  calibrating,TResult Function()?  calibrationComplete,TResult Function( double x,  double y)?  starSelected,TResult Function( String state)?  appState,TResult Function( double snr,  double starMass)?  guideStats,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case GuidingEvent_Connected() when connected != null:
 return connected();case GuidingEvent_Disconnected() when disconnected != null:
@@ -177,7 +183,9 @@ return guidingStopped();case GuidingEvent_Paused() when paused != null:
 return paused();case GuidingEvent_Resumed() when resumed != null:
 return resumed();case GuidingEvent_Settled() when settled != null:
 return settled(_that.rms);case GuidingEvent_LostStar() when lostStar != null:
-return lostStar();case GuidingEvent_DitherStarted() when ditherStarted != null:
+return lostStar();case GuidingEvent_SettleTimedOut() when settleTimedOut != null:
+return settleTimedOut(_that.error);case GuidingEvent_StopReason() when stopReason != null:
+return stopReason(_that.reason);case GuidingEvent_DitherStarted() when ditherStarted != null:
 return ditherStarted(_that.pixels);case GuidingEvent_DitherCompleted() when ditherCompleted != null:
 return ditherCompleted();case GuidingEvent_Correction() when correction != null:
 return correction(_that.ra,_that.dec,_that.raRaw,_that.decRaw);case GuidingEvent_Looping() when looping != null:
@@ -205,7 +213,7 @@ return guideStats(_that.snr,_that.starMass);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  connected,required TResult Function()  disconnected,required TResult Function()  guidingStarted,required TResult Function()  guidingStopped,required TResult Function()  paused,required TResult Function()  resumed,required TResult Function( double rms)  settled,required TResult Function()  lostStar,required TResult Function( double pixels)  ditherStarted,required TResult Function()  ditherCompleted,required TResult Function( double ra,  double dec,  double raRaw,  double decRaw)  correction,required TResult Function()  looping,required TResult Function()  settling,required TResult Function()  calibrating,required TResult Function()  calibrationComplete,required TResult Function( double x,  double y)  starSelected,required TResult Function( String state)  appState,required TResult Function( double snr,  double starMass)  guideStats,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  connected,required TResult Function()  disconnected,required TResult Function()  guidingStarted,required TResult Function()  guidingStopped,required TResult Function()  paused,required TResult Function()  resumed,required TResult Function( double rms)  settled,required TResult Function()  lostStar,required TResult Function( String error)  settleTimedOut,required TResult Function( String? reason)  stopReason,required TResult Function( double pixels)  ditherStarted,required TResult Function()  ditherCompleted,required TResult Function( double ra,  double dec,  double raRaw,  double decRaw)  correction,required TResult Function()  looping,required TResult Function()  settling,required TResult Function()  calibrating,required TResult Function()  calibrationComplete,required TResult Function( double x,  double y)  starSelected,required TResult Function( String state)  appState,required TResult Function( double snr,  double starMass)  guideStats,}) {final _that = this;
 switch (_that) {
 case GuidingEvent_Connected():
 return connected();case GuidingEvent_Disconnected():
@@ -215,7 +223,9 @@ return guidingStopped();case GuidingEvent_Paused():
 return paused();case GuidingEvent_Resumed():
 return resumed();case GuidingEvent_Settled():
 return settled(_that.rms);case GuidingEvent_LostStar():
-return lostStar();case GuidingEvent_DitherStarted():
+return lostStar();case GuidingEvent_SettleTimedOut():
+return settleTimedOut(_that.error);case GuidingEvent_StopReason():
+return stopReason(_that.reason);case GuidingEvent_DitherStarted():
 return ditherStarted(_that.pixels);case GuidingEvent_DitherCompleted():
 return ditherCompleted();case GuidingEvent_Correction():
 return correction(_that.ra,_that.dec,_that.raRaw,_that.decRaw);case GuidingEvent_Looping():
@@ -239,7 +249,7 @@ return guideStats(_that.snr,_that.starMass);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  connected,TResult? Function()?  disconnected,TResult? Function()?  guidingStarted,TResult? Function()?  guidingStopped,TResult? Function()?  paused,TResult? Function()?  resumed,TResult? Function( double rms)?  settled,TResult? Function()?  lostStar,TResult? Function( double pixels)?  ditherStarted,TResult? Function()?  ditherCompleted,TResult? Function( double ra,  double dec,  double raRaw,  double decRaw)?  correction,TResult? Function()?  looping,TResult? Function()?  settling,TResult? Function()?  calibrating,TResult? Function()?  calibrationComplete,TResult? Function( double x,  double y)?  starSelected,TResult? Function( String state)?  appState,TResult? Function( double snr,  double starMass)?  guideStats,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  connected,TResult? Function()?  disconnected,TResult? Function()?  guidingStarted,TResult? Function()?  guidingStopped,TResult? Function()?  paused,TResult? Function()?  resumed,TResult? Function( double rms)?  settled,TResult? Function()?  lostStar,TResult? Function( String error)?  settleTimedOut,TResult? Function( String? reason)?  stopReason,TResult? Function( double pixels)?  ditherStarted,TResult? Function()?  ditherCompleted,TResult? Function( double ra,  double dec,  double raRaw,  double decRaw)?  correction,TResult? Function()?  looping,TResult? Function()?  settling,TResult? Function()?  calibrating,TResult? Function()?  calibrationComplete,TResult? Function( double x,  double y)?  starSelected,TResult? Function( String state)?  appState,TResult? Function( double snr,  double starMass)?  guideStats,}) {final _that = this;
 switch (_that) {
 case GuidingEvent_Connected() when connected != null:
 return connected();case GuidingEvent_Disconnected() when disconnected != null:
@@ -249,7 +259,9 @@ return guidingStopped();case GuidingEvent_Paused() when paused != null:
 return paused();case GuidingEvent_Resumed() when resumed != null:
 return resumed();case GuidingEvent_Settled() when settled != null:
 return settled(_that.rms);case GuidingEvent_LostStar() when lostStar != null:
-return lostStar();case GuidingEvent_DitherStarted() when ditherStarted != null:
+return lostStar();case GuidingEvent_SettleTimedOut() when settleTimedOut != null:
+return settleTimedOut(_that.error);case GuidingEvent_StopReason() when stopReason != null:
+return stopReason(_that.reason);case GuidingEvent_DitherStarted() when ditherStarted != null:
 return ditherStarted(_that.pixels);case GuidingEvent_DitherCompleted() when ditherCompleted != null:
 return ditherCompleted();case GuidingEvent_Correction() when correction != null:
 return correction(_that.ra,_that.dec,_that.raRaw,_that.decRaw);case GuidingEvent_Looping() when looping != null:
@@ -556,6 +568,139 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class GuidingEvent_SettleTimedOut extends GuidingEvent {
+  const GuidingEvent_SettleTimedOut({required this.error}): super._();
+  
+
+/// PHD2's own words for the failure.
+ final  String error;
+
+/// Create a copy of GuidingEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$GuidingEvent_SettleTimedOutCopyWith<GuidingEvent_SettleTimedOut> get copyWith => _$GuidingEvent_SettleTimedOutCopyWithImpl<GuidingEvent_SettleTimedOut>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GuidingEvent_SettleTimedOut&&(identical(other.error, error) || other.error == error));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,error);
+
+@override
+String toString() {
+  return 'GuidingEvent.settleTimedOut(error: $error)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $GuidingEvent_SettleTimedOutCopyWith<$Res> implements $GuidingEventCopyWith<$Res> {
+  factory $GuidingEvent_SettleTimedOutCopyWith(GuidingEvent_SettleTimedOut value, $Res Function(GuidingEvent_SettleTimedOut) _then) = _$GuidingEvent_SettleTimedOutCopyWithImpl;
+@useResult
+$Res call({
+ String error
+});
+
+
+
+
+}
+/// @nodoc
+class _$GuidingEvent_SettleTimedOutCopyWithImpl<$Res>
+    implements $GuidingEvent_SettleTimedOutCopyWith<$Res> {
+  _$GuidingEvent_SettleTimedOutCopyWithImpl(this._self, this._then);
+
+  final GuidingEvent_SettleTimedOut _self;
+  final $Res Function(GuidingEvent_SettleTimedOut) _then;
+
+/// Create a copy of GuidingEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? error = null,}) {
+  return _then(GuidingEvent_SettleTimedOut(
+error: null == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class GuidingEvent_StopReason extends GuidingEvent {
+  const GuidingEvent_StopReason({this.reason}): super._();
+  
+
+ final  String? reason;
+
+/// Create a copy of GuidingEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$GuidingEvent_StopReasonCopyWith<GuidingEvent_StopReason> get copyWith => _$GuidingEvent_StopReasonCopyWithImpl<GuidingEvent_StopReason>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GuidingEvent_StopReason&&(identical(other.reason, reason) || other.reason == reason));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,reason);
+
+@override
+String toString() {
+  return 'GuidingEvent.stopReason(reason: $reason)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $GuidingEvent_StopReasonCopyWith<$Res> implements $GuidingEventCopyWith<$Res> {
+  factory $GuidingEvent_StopReasonCopyWith(GuidingEvent_StopReason value, $Res Function(GuidingEvent_StopReason) _then) = _$GuidingEvent_StopReasonCopyWithImpl;
+@useResult
+$Res call({
+ String? reason
+});
+
+
+
+
+}
+/// @nodoc
+class _$GuidingEvent_StopReasonCopyWithImpl<$Res>
+    implements $GuidingEvent_StopReasonCopyWith<$Res> {
+  _$GuidingEvent_StopReasonCopyWithImpl(this._self, this._then);
+
+  final GuidingEvent_StopReason _self;
+  final $Res Function(GuidingEvent_StopReason) _then;
+
+/// Create a copy of GuidingEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? reason = freezed,}) {
+  return _then(GuidingEvent_StopReason(
+reason: freezed == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
 
 /// @nodoc
 

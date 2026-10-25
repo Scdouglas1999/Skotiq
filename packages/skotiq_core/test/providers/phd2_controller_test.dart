@@ -112,6 +112,66 @@ void main() {
     },
   );
 
+  // A PHD2 settle that ran out of time while it held the star read as
+  // "Guide star lost — guiding suspended" on 2026-10-25.
+  test('a settle timeout is not a lost star', () async {
+    final events = StreamController<SkotiqEvent>.broadcast();
+    addTearDown(events.close);
+    final backend = _MockBackend();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    final container = _container(backend);
+    addTearDown(container.dispose);
+    _markConnected(container);
+    container.read(phd2ControllerProvider);
+    container.read(phd2StateProvider.notifier).state = Phd2State.guiding;
+
+    events.add(
+      _guidingEvent('SettleTimedOut', {
+        'error': 'timed-out waiting for guider to settle',
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final logs = container.read(loggingServiceProvider).getRecentLogs();
+    expect(logs.where((e) => e.message.contains('Guide star lost')), isEmpty);
+    expect(
+      logs.where((e) => e.message.contains('did not settle in time')),
+      hasLength(1),
+    );
+    expect(container.read(starLostEventProvider), isNull);
+    expect(container.read(phd2StateProvider), Phd2State.guiding);
+    expect(
+      container.read(guiderSettleTimeoutProvider)?.error,
+      'timed-out waiting for guider to settle',
+    );
+  });
+
+  test('the reason guiding is stopped follows the guider', () async {
+    final events = StreamController<SkotiqEvent>.broadcast();
+    addTearDown(events.close);
+    final backend = _MockBackend();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    final container = _container(backend);
+    addTearDown(container.dispose);
+    _markConnected(container);
+    container.read(phd2ControllerProvider);
+
+    events
+      ..add(_guidingEvent('StopReason', {'reason': 'autofocus'}))
+      ..add(_guidingEvent('GuidingStopped'));
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(guidingStopReasonProvider), 'autofocus');
+    expect(
+      guidingStopReasonText(container.read(guidingStopReasonProvider)),
+      'Guiding paused for autofocus',
+    );
+    expect(container.read(starLostEventProvider), isNull);
+
+    events.add(_guidingEvent('GuidingStarted'));
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(guidingStopReasonProvider), isNull);
+  });
+
   test('star loss reminders are bounded until sustained recovery', () async {
     var now = DateTime(2026, 10, 8);
     final events = StreamController<SkotiqEvent>.broadcast();

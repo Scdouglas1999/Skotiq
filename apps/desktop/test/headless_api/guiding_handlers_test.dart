@@ -151,6 +151,36 @@ void main() {
       expect(await scaleFor(null), isNull);
     });
 
+    // A watcher read an autofocus guiding stop as a lost star and ended the
+    // night early (2026-10-25): the status says why guiding is stopped.
+    test('status says why the guider is stopped', () async {
+      final backend = _MockBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(() => backend.phd2GetStatus()).thenAnswer(
+        (_) async => const Phd2Status(
+          state: 'Stopped',
+          connected: true,
+          stopReason: 'autofocus',
+        ),
+      );
+      final hostContainer = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+      final response = await GuidingHandlers(hostContainer).handlePhd2GetStatus(
+        Request('GET', Uri.parse('http://localhost/api/phd2/status')),
+      );
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['stopReason'], 'autofocus');
+      expect(body['stopReasonText'], 'Guiding paused for autofocus');
+    });
+
     test('connect forwards the requested host and port to the host', () async {
       final backend = _MockBackend();
       when(

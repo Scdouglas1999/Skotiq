@@ -465,6 +465,41 @@ impl InstructionContext {
         }
     }
 
+    /// The run's guider settle bar, or `fallback` outside a run.
+    pub async fn guider_settle_or(&self, fallback: crate::GuiderSettle) -> crate::GuiderSettle {
+        match &self.trigger_state {
+            Some(state) => state.read().await.guider_settle,
+            None => fallback,
+        }
+    }
+
+    /// Why the run itself holds the guider stopped right now, if it does: a
+    /// tracking-limit or pre-meridian hold, a mount move in progress, or a
+    /// move whose stopped guiding has not been started again yet.
+    pub async fn run_holds_guider_stopped(&self) -> Option<&'static str> {
+        let state = self.trigger_state.as_ref()?.read().await;
+        if let Some(hold) = state.run.hold() {
+            return Some(match hold {
+                crate::triggers::RunHold::TrackingLimit => {
+                    "the run is holding at the mount's tracking limit until the flip"
+                }
+                crate::triggers::RunHold::PreMeridian => {
+                    "the run is holding at the meridian until the flip"
+                }
+                crate::triggers::RunHold::RecoveryTracking => "a recovery has stopped tracking",
+            });
+        }
+        if state.guiding.in_motion() {
+            return Some("the mount is moving");
+        }
+        if state.guiding.resume_pending() {
+            return Some(
+                "guiding was stopped for a mount move and starts again before the next frame",
+            );
+        }
+        None
+    }
+
     /// Tell the operator about a quality problem the run carries on through:
     /// the decision row the app's "Problem noticed — the run continues"
     /// notification is raised from, and a Warning in the run's feed. A Warning,

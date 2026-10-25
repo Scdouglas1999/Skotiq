@@ -90,6 +90,8 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         GuidingEvent_Resumed,
         GuidingEvent_Settled,
         GuidingEvent_LostStar,
+        GuidingEvent_SettleTimedOut,
+        GuidingEvent_StopReason,
         GuidingEvent_DitherStarted,
         GuidingEvent_DitherCompleted,
         GuidingEvent_Correction,

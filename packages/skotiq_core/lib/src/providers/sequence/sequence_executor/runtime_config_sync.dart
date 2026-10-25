@@ -318,11 +318,15 @@ class RuntimeConfigSync {
 
     try {
       final defaults = _ref.read(sequencerDefaultsProvider);
+      // The guider settle settings (the Settle values the dither settings
+      // show) are the run's one settle bar: the native run holds every
+      // restart of guiding to them, after a dither, autofocus or a flip.
+      final settings = await _ref.read(appSettingsProvider.future);
       await backend.sequencerUpdateDitherConfig(
         pixels: defaults.ditherPixels,
-        settlePixels: defaults.ditherSettlePixels,
-        settleTime: defaults.ditherSettleTime,
-        settleTimeout: defaults.ditherSettleTimeout,
+        settlePixels: settings.settleThreshold,
+        settleTime: settings.settleTime.toDouble(),
+        settleTimeout: settings.settleTimeout.toDouble(),
         raOnly: defaults.ditherRaOnly,
       );
       _logger().debug(

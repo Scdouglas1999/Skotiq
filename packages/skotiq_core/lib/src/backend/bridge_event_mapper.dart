@@ -71,6 +71,8 @@ const Map<core.EventCategory, Set<String>> _faithfulCoreEventTypes = {
     'GuidingStarted',
     'GuidingStopped',
     'StarLost',
+    'SettleTimedOut',
+    'StopReason',
     'SettleDone',
     'GuideStep',
     'Connected',
@@ -656,6 +658,12 @@ bridge.GuidingEvent _guidingEventFromCore(
       return const bridge.GuidingEvent.guidingStopped();
     case 'StarLost':
       return const bridge.GuidingEvent.lostStar();
+    case 'SettleTimedOut':
+      return bridge.GuidingEvent.settleTimedOut(
+        error: data['error'] as String? ?? '',
+      );
+    case 'StopReason':
+      return bridge.GuidingEvent.stopReason(reason: data['reason'] as String?);
     case 'SettleDone':
       return bridge.GuidingEvent.settled(
         rms: (data['rms'] as num?)?.toDouble() ?? 0.0,

@@ -81,7 +81,12 @@ pub(crate) async fn hold_before_meridian(
         .target_name
         .clone()
         .unwrap_or_else(|| "the target".to_string());
-    let motion = MountMotion::begin(ctx, "pre-meridian hold").await;
+    let motion = MountMotion::begin_for(
+        ctx,
+        "pre-meridian hold",
+        crate::GuidingStopReason::PreMeridianHold,
+    )
+    .await;
     {
         let mut state = lock.write().await;
         state.run.begin_hold(crate::triggers::RunHold::PreMeridian);

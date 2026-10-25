@@ -125,6 +125,26 @@ List<GuideStar> decodeTrackedStars(Object? raw) {
   return const [];
 }
 
+/// Plain words for a guider stop reason (see [Phd2Status.stopReason]), or
+/// null for none. An unknown reason is shown as given rather than hidden.
+String? guidingStopReasonText(String? reason) {
+  return switch (reason) {
+    null || '' => null,
+    'autofocus' => 'Guiding paused for autofocus',
+    'meridian_flip' => 'Guiding paused for the meridian flip',
+    'tracking_limit_hold' =>
+      'Guiding paused: the mount is at its tracking limit and waits for the flip',
+    'mount_move' => 'Guiding paused while the mount moves',
+    'pre_meridian_hold' =>
+      'Guiding paused: the run waits at the meridian for the flip',
+    'sequence_step' => "Guiding stopped by the sequence's Stop Guiding step",
+    'dither_settle' => 'Guiding is settling after a dither',
+    'run_stopped' => 'Guiding stopped because the run was stopped',
+    'operator' => 'Guiding stopped from the guider controls',
+    _ => 'Guiding stopped ($reason)',
+  };
+}
+
 /// PHD2 guiding status
 class Phd2Status {
   /// Current PHD2 state (Stopped, Guiding, Calibrating, etc.)
@@ -162,6 +182,13 @@ class Phd2Status {
   /// as JSON (no FRB regen).
   final List<GuideStar> trackedStars;
 
+  /// Why the guider is stopped or held, as the native layer names it
+  /// (`autofocus`, `meridian_flip`, `tracking_limit_hold`, `mount_move`,
+  /// `pre_meridian_hold`, `sequence_step`, `dither_settle`, `run_stopped`,
+  /// `operator`). Null while guiding runs or when nothing recorded a reason.
+  /// A planned stop is not lost guiding; see [guidingStopReasonText].
+  final String? stopReason;
+
   const Phd2Status({
     required this.state,
     required this.connected,
@@ -173,6 +200,7 @@ class Phd2Status {
     this.avgDistance = 0.0,
     this.pixelScale,
     this.trackedStars = const [],
+    this.stopReason,
   });
 
   /// Create from JSON (for network transport)
@@ -188,6 +216,7 @@ class Phd2Status {
       avgDistance: (json['avgDistance'] as num?)?.toDouble() ?? 0.0,
       pixelScale: _positiveOrNull(json['pixelScale']),
       trackedStars: decodeTrackedStars(json['trackedStars']),
+      stopReason: json['stopReason'] as String?,
     );
   }
 
@@ -203,6 +232,7 @@ class Phd2Status {
     'avgDistance': avgDistance,
     'pixelScale': pixelScale,
     'trackedStars': trackedStars.map((s) => s.toJson()).toList(),
+    'stopReason': stopReason,
   };
 
   /// Check if PHD2 is actively guiding

@@ -7,10 +7,10 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `known_pixel_scale`, `phd2_client`, `resolve_guider_backend`
+// These functions are ignored because they are not marked as `pub`: `await_settle`, `finish_pending_settle`, `guide_exposure`, `guider_stop_for_run`, `known_pixel_scale`, `note_operator_stop`, `phd2_client`, `phd2_stop_guiding`, `resolve_guider_backend`, `settle_done_event`, `stop_capture_and_wait`, `stop_capture_completely`, `wait_for_looping_frame`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GuiderBackend`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`, `select_fresh_guide_star`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`, `guiding_stop_reason`, `select_fresh_guide_star`, `set_guiding_stop_reason`
 
 /// Check if PHD2 is running
 bool apiIsPhd2Running() => RustLib.instance.api.crateApiPhd2ApiIsPhd2Running();
@@ -23,7 +23,13 @@ Future<void> apiPhd2Connect({String? host, int? port}) =>
 Future<void> apiPhd2Disconnect() =>
     RustLib.instance.api.crateApiPhd2ApiPhd2Disconnect();
 
-/// Start guiding in PHD2
+/// Start guiding in PHD2 and wait for it to settle.
+///
+/// A settle that runs out while PHD2 is still guiding leaves it guiding and
+/// returns Ok: the star is held, only not yet inside the settle bound, and
+/// every caller judges the guiding RMS itself. Stopping it there left the
+/// rest of the night unguided. Any other failure is an error, and a PHD2
+/// that is not guiding is stopped so it does not keep looking for a star.
 Future<void> apiPhd2StartGuiding({
   required double settlePixels,
   required double settleTime,
@@ -34,7 +40,9 @@ Future<void> apiPhd2StartGuiding({
   settleTimeout: settleTimeout,
 );
 
-/// Stop guiding in PHD2
+/// Stop guiding in PHD2 and wait until its capture has ended, so the mount
+/// is not moved under a guide pulse and the next start is not refused. A
+/// settle another call is waiting on ends at once.
 Future<void> apiPhd2StopGuiding() =>
     RustLib.instance.api.crateApiPhd2ApiPhd2StopGuiding();
 
@@ -449,6 +457,13 @@ class Phd2Status {
   /// RPC failed. Never a placeholder 0.
   final double? pixelScale;
 
+  /// Why the guider is stopped or held, as the snake_case name of a
+  /// `GuidingStopReason` (`autofocus`, `meridian_flip`,
+  /// `tracking_limit_hold`, `mount_move`, `pre_meridian_hold`,
+  /// `sequence_step`, `dither_settle`, `run_stopped`, `operator`). `None`
+  /// while guiding runs or when nothing recorded a reason.
+  final String? stopReason;
+
   const Phd2Status({
     required this.connected,
     required this.state,
@@ -458,6 +473,7 @@ class Phd2Status {
     required this.snr,
     required this.starMass,
     this.pixelScale,
+    this.stopReason,
   });
 
   @override
@@ -469,7 +485,8 @@ class Phd2Status {
       rmsTotal.hashCode ^
       snr.hashCode ^
       starMass.hashCode ^
-      pixelScale.hashCode;
+      pixelScale.hashCode ^
+      stopReason.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -483,5 +500,6 @@ class Phd2Status {
           rmsTotal == other.rmsTotal &&
           snr == other.snr &&
           starMass == other.starMass &&
-          pixelScale == other.pixelScale;
+          pixelScale == other.pixelScale &&
+          stopReason == other.stopReason;
 }

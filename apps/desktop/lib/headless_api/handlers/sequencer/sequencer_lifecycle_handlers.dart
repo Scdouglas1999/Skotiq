@@ -74,8 +74,15 @@ extension _SequencerLifecycle on SequencerHandlers {
     final progressRecord = container.read(sequenceProgressProvider);
     final currentTarget = progressRecord.currentTarget;
 
+    // Why guiding is stopped or held, so a watcher never reads an
+    // autofocus, a flip or a tracking-limit hold as lost guiding. Null while
+    // guiding runs.
+    final guidingStopReason = container.read(guidingStopReasonProvider);
+
     return jsonOk({
       'state': status.state,
+      'guidingStopReason': guidingStopReason,
+      'guidingStopReasonText': guidingStopReasonText(guidingStopReason),
       'currentNodeId': status.currentNodeId,
       'currentNodeName': status.currentNodeName,
       'currentTarget': currentTarget,

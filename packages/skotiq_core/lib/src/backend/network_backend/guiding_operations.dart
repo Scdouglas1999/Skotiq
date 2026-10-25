@@ -120,6 +120,8 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
       // This field was added after the original status route, so its absence on
       // an older host is the one supported compatibility case.
       trackedStars: _networkTrackedStars(response),
+      // Why the guider is stopped; absent on hosts older than the field.
+      stopReason: response['stopReason'] as String?,
     );
   }
 

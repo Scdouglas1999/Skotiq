@@ -336,6 +336,9 @@ String _guidingTitle(GuidingEvent v) {
     GuidingEvent_Resumed() => 'Guiding resumed',
     GuidingEvent_Settled() => 'Guiding settled',
     GuidingEvent_LostStar() => 'Guide star lost',
+    GuidingEvent_SettleTimedOut() => 'Guiding did not settle in time',
+    GuidingEvent_StopReason(reason: null) => 'Guiding running',
+    GuidingEvent_StopReason() => 'Guiding stopped',
     GuidingEvent_DitherStarted() => 'Dither started',
     GuidingEvent_DitherCompleted() => 'Dither complete',
     GuidingEvent_Correction() => 'Guiding correction',
@@ -359,6 +362,8 @@ String _guidingDetail(GuidingEvent v) {
     GuidingEvent_Resumed() => '',
     GuidingEvent_Settled(rms: final rms) => 'RMS ${rms.toStringAsFixed(2)}"',
     GuidingEvent_LostStar() => '',
+    GuidingEvent_SettleTimedOut(error: final e) => e,
+    GuidingEvent_StopReason(reason: final r) => r ?? '',
     GuidingEvent_DitherStarted(pixels: final p) => '${p.toStringAsFixed(2)} px',
     GuidingEvent_DitherCompleted() => '',
     GuidingEvent_Correction(ra: final ra, dec: final dec) =>

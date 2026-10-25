@@ -490,6 +490,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
       // FRB Phd2Status carries no avgDistance; the legacy field reports 0.
       avgDistance: 0.0,
       trackedStars: trackedStars,
+      stopReason: status.stopReason,
     );
   }
 

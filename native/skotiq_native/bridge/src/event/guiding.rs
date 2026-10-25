@@ -14,6 +14,17 @@ pub enum GuidingEvent {
         rms: f64,
     },
     LostStar,
+    /// PHD2 gave up waiting for the guider to settle. The star may still be
+    /// locked; this is not a lost star.
+    SettleTimedOut {
+        /// PHD2's own words for the failure.
+        error: String,
+    },
+    /// Why the guider is stopped changed: a snake_case reason, or `None`
+    /// once guiding runs again.
+    StopReason {
+        reason: Option<String>,
+    },
     DitherStarted {
         pixels: f64,
     },

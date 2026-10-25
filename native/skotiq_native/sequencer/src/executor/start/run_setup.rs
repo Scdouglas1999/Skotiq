@@ -33,6 +33,8 @@ impl SequenceExecutor {
                 manager.state().write().await.restored_from_checkpoint = false;
             }
             manager.reset_for_new_run().await;
+            let settle = crate::GuiderSettle::from(&self.runtime_config.read().dither);
+            manager.state().write().await.guider_settle = settle;
         }
         if self.focuser_id.is_none() {
             let disarmed = {

@@ -888,6 +888,28 @@ void main() {
       expect(body['currentNodeName'], 'Exposure L');
     });
 
+    test('status says why guiding is stopped during the run', () async {
+      when(() => backend.sequencerGetStatus()).thenAnswer(
+        (_) async => const SequencerStatus(state: 'running', progress: 0.5),
+      );
+      container.read(guidingStopReasonProvider.notifier).state =
+          'tracking_limit_hold';
+
+      final body = await status();
+
+      expect(body['guidingStopReason'], 'tracking_limit_hold');
+      expect(
+        body['guidingStopReasonText'],
+        'Guiding paused: the mount is at its tracking limit and waits for the '
+        'flip',
+      );
+
+      container.read(guidingStopReasonProvider.notifier).state = null;
+      final guiding = await status();
+      expect(guiding.containsKey('guidingStopReason'), isTrue);
+      expect(guiding['guidingStopReason'], isNull);
+    });
+
     test('a started run at zero percent still reports zero', () async {
       when(() => backend.sequencerGetStatus()).thenAnswer(
         (_) async => const SequencerStatus(state: 'running', progress: 0.0),

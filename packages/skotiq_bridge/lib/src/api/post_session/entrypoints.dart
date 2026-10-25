@@ -6,6 +6,8 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `master_accumulate_op`
+
 /// One-shot batch integration of a sub list into a linear FITS master.
 ///
 /// Pipeline: optional calibration (dark/flat/bias) + cosmetic correction →
@@ -33,6 +35,16 @@ Future<String> apiIntegrateSession({required String argsJson}) => RustLib
 /// * `add`      `{ op, sidecarPath, lightPaths[], exposuresSec?, calibration?, settings? }`
 /// * `finalize` `{ op, sidecarPath, masterFitsPath, previewPngPath? }`
 /// * `info`     `{ op, sidecarPath }`
+/// * `build`    `{ op, gridReference, normalizationReference?, groups[], filter?, target?,
+///   settings?, clip?, masterFitsPath, previewPngPath?, runId? }` — one filter's master from
+///   every group (night) of subs in one call, folding a sub at a time; a sub that will not
+///   register is skipped and reported ([`MasterBuildResult`]).
+/// * `registrationPreview` `{ op, gridReference, groups[], settings?, minOverlap,
+///   minRetainedArea, runId? }` — register every light from its stars, without
+///   warping, and report each footprint and the common crop it allows.
+/// * `deliver`  `{ op, masters[], referenceFilter?, outputDir, target }` — register a target's
+///   per-filter masters onto one grid and write linear mono masters plus a planar RGB FITS
+///   for PixInsight ([`MasterDeliverResult`]).
 ///
 /// Returns a [`MasterAccumulateResult`]. The running accumulator state lives in
 /// the `.skmaster` sidecar; the FITS is the shareable artifact written on

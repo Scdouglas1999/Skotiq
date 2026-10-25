@@ -39,6 +39,86 @@ pub struct Phd2Status {
     /// when PHD2 has no scale to give: no profile values entered, or the
     /// RPC failed. Never a placeholder 0.
     pub pixel_scale: Option<f64>,
+    /// Why the guider is stopped or held, as the snake_case name of a
+    /// `GuidingStopReason` (`autofocus`, `meridian_flip`,
+    /// `tracking_limit_hold`, `mount_move`, `pre_meridian_hold`,
+    /// `sequence_step`, `dither_settle`, `run_stopped`, `operator`). `None`
+    /// while guiding runs or when nothing recorded a reason.
+    pub stop_reason: Option<String>,
+}
+
+/// Why the guider is stopped; see [`skotiq_sequencer::GuidingStopReason`].
+static GUIDING_STOP_REASON: std::sync::Mutex<Option<skotiq_sequencer::GuidingStopReason>> =
+    std::sync::Mutex::new(None);
+
+/// The recorded reason the guider is stopped, if any.
+#[flutter_rust_bridge::frb(ignore)]
+pub fn guiding_stop_reason() -> Option<skotiq_sequencer::GuidingStopReason> {
+    *GUIDING_STOP_REASON
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Record why the guider is stopped (`None` once it guides again) and tell
+/// the UI when that changes.
+#[flutter_rust_bridge::frb(ignore)]
+pub fn set_guiding_stop_reason(reason: Option<skotiq_sequencer::GuidingStopReason>) {
+    let previous = std::mem::replace(
+        &mut *GUIDING_STOP_REASON
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        reason,
+    );
+    if previous != reason {
+        if let Some(reason) = reason {
+            tracing::info!("[GUIDING] {}", reason.describe());
+        }
+        get_state().publish_guiding_event(
+            GuidingEvent::StopReason {
+                reason: reason.map(|reason| reason.as_wire().to_string()),
+            },
+            EventSeverity::Info,
+        );
+    }
+}
+
+/// An operator's stop: recorded as such unless the run already said why it
+/// is stopping the guider.
+fn note_operator_stop() {
+    let mut current = GUIDING_STOP_REASON
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if current.is_none() {
+        *current = Some(skotiq_sequencer::GuidingStopReason::Operator);
+        drop(current);
+        get_state().publish_guiding_event(
+            GuidingEvent::StopReason {
+                reason: Some(
+                    skotiq_sequencer::GuidingStopReason::Operator
+                        .as_wire()
+                        .to_string(),
+                ),
+            },
+            EventSeverity::Info,
+        );
+    }
+}
+
+/// The event for PHD2's SettleDone. A failed settle (non-zero status) must
+/// not masquerade as a clean "Settled" event, and it is not a lost star
+/// either: PHD2 reports a settle that ran out of time while it still holds
+/// the star.
+fn settle_done_event(status: i32, error: &str) -> GuidingEvent {
+    if status == 0 {
+        return GuidingEvent::Settled { rms: 0.0 };
+    }
+    GuidingEvent::SettleTimedOut {
+        error: if error.is_empty() {
+            "the guider did not settle in time".to_string()
+        } else {
+            error.to_string()
+        },
+    }
 }
 
 /// Turn PHD2's `get_pixel_scale` answer into a scale the UI can convert with.
@@ -299,19 +379,15 @@ pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result
                 dropped_frames: _,
             } => {
                 // The dither path waits on SettleDone explicitly (see
-                // api_phd2_dither); this stream mapping is for UI/telemetry. A
-                // failed settle (non-zero status) must not masquerade as a
-                // clean "Settled" event.
+                // api_phd2_dither); this stream mapping is for UI/telemetry.
                 if status != 0 {
                     tracing::warn!(
                         "PHD2: settle failed (status {}): {}",
                         status,
                         if error.is_empty() { "no detail" } else { error }
                     );
-                    GuidingEvent::LostStar
-                } else {
-                    GuidingEvent::Settled { rms: 0.0 }
                 }
+                settle_done_event(status, error)
             }
             skotiq_imaging::Phd2Event::CalibrationComplete => {
                 tracing::info!("PHD2: Calibration complete");
@@ -332,7 +408,9 @@ pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result
         };
 
         let severity = match &guiding_event {
-            GuidingEvent::LostStar | GuidingEvent::Disconnected => EventSeverity::Warning,
+            GuidingEvent::LostStar
+            | GuidingEvent::Disconnected
+            | GuidingEvent::SettleTimedOut { .. } => EventSeverity::Warning,
             _ => EventSeverity::Info,
         };
 
@@ -586,6 +664,7 @@ pub async fn api_phd2_start_guiding(
                  PHD2 is still guiding, so it is left guiding"
             );
             drop(client);
+            set_guiding_stop_reason(None);
             get_state().publish_guiding_event(GuidingEvent::GuidingStarted, EventSeverity::Info);
             return Ok(());
         }
@@ -599,6 +678,7 @@ pub async fn api_phd2_start_guiding(
         )));
     }
 
+    set_guiding_stop_reason(None);
     get_state().publish_guiding_event(GuidingEvent::GuidingStarted, EventSeverity::Info);
 
     Ok(())
@@ -608,6 +688,14 @@ pub async fn api_phd2_start_guiding(
 /// is not moved under a guide pulse and the next start is not refused. A
 /// settle another call is waiting on ends at once.
 pub async fn api_phd2_stop_guiding() -> Result<(), SkotiqError> {
+    phd2_stop_guiding().await?;
+    note_operator_stop();
+    Ok(())
+}
+
+/// [`api_phd2_stop_guiding`] without recording an operator's stop: the run's
+/// own stops state their reason first.
+async fn phd2_stop_guiding() -> Result<(), SkotiqError> {
     PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
     // A capture still ending after the grace period has been told to stop;
     // that is logged, not a failed stop.
@@ -726,6 +814,7 @@ pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
         snr: stats.snr,
         star_mass: stats.star_mass,
         pixel_scale,
+        stop_reason: guiding_stop_reason().map(|reason| reason.as_wire().to_string()),
     })
 }
 
@@ -968,14 +1057,25 @@ pub async fn api_guider_start_guiding(
             api_phd2_start_guiding(settle_pixels, settle_time, settle_timeout).await
         }
         GuiderBackend::Builtin => {
-            crate::builtin_guider::start_guiding(settle_pixels, settle_time, settle_timeout).await
+            crate::builtin_guider::start_guiding(settle_pixels, settle_time, settle_timeout)
+                .await?;
+            set_guiding_stop_reason(None);
+            Ok(())
         }
     }
 }
 
 pub async fn api_guider_stop(device_id: String) -> Result<(), SkotiqError> {
+    guider_stop_for_run(device_id).await?;
+    note_operator_stop();
+    Ok(())
+}
+
+/// Stop the guider for the run, which records its own reason through
+/// [`set_guiding_stop_reason`] before it stops it.
+pub(crate) async fn guider_stop_for_run(device_id: String) -> Result<(), SkotiqError> {
     match resolve_guider_backend(&device_id)? {
-        GuiderBackend::Phd2 => api_phd2_stop_guiding().await,
+        GuiderBackend::Phd2 => phd2_stop_guiding().await,
         GuiderBackend::Builtin => crate::builtin_guider::stop().await,
     }
 }
@@ -1200,10 +1300,12 @@ pub async fn api_guider_get_star_image(
 }
 
 pub async fn api_guider_get_status(device_id: String) -> Result<Phd2Status, SkotiqError> {
-    match resolve_guider_backend(&device_id)? {
-        GuiderBackend::Phd2 => api_phd2_get_status().await,
-        GuiderBackend::Builtin => crate::builtin_guider::get_status().await,
-    }
+    let mut status = match resolve_guider_backend(&device_id)? {
+        GuiderBackend::Phd2 => api_phd2_get_status().await?,
+        GuiderBackend::Builtin => crate::builtin_guider::get_status().await?,
+    };
+    status.stop_reason = guiding_stop_reason().map(|reason| reason.as_wire().to_string());
+    Ok(status)
 }
 
 /// Unified accessor for calibration data across all guider backends.
@@ -1822,5 +1924,47 @@ mod post_flip_protocol_tests {
         api_phd2_disconnect().await.unwrap();
         task.join().unwrap();
         assert!(result.is_err());
+    }
+}
+
+#[cfg(test)]
+mod stop_reason_tests {
+    use super::*;
+    use skotiq_sequencer::GuidingStopReason;
+
+    /// PHD2's "timed-out waiting for guider to settle" is not a lost star:
+    /// read as one it raised "Guide star lost" while the star stayed locked.
+    #[test]
+    fn a_failed_settle_is_a_settle_timeout_not_a_lost_star() {
+        match settle_done_event(1, "timed-out waiting for guider to settle") {
+            GuidingEvent::SettleTimedOut { error } => {
+                assert_eq!(error, "timed-out waiting for guider to settle")
+            }
+            other => panic!("expected SettleTimedOut, got {other:?}"),
+        }
+        assert!(matches!(
+            settle_done_event(0, ""),
+            GuidingEvent::Settled { .. }
+        ));
+    }
+
+    /// The run states its reason before it stops the guider; a stop from
+    /// the guider controls with no reason is the operator's; a start clears it.
+    #[test]
+    fn a_stop_reason_is_the_runs_unless_none_was_given() {
+        let _slot = PHD2_TEST_SLOT.blocking_lock();
+        set_guiding_stop_reason(None);
+        note_operator_stop();
+        assert_eq!(guiding_stop_reason(), Some(GuidingStopReason::Operator));
+
+        set_guiding_stop_reason(Some(GuidingStopReason::Autofocus));
+        note_operator_stop();
+        assert_eq!(
+            guiding_stop_reason(),
+            Some(GuidingStopReason::Autofocus),
+            "an autofocus stop is never relabelled as the operator's"
+        );
+        set_guiding_stop_reason(None);
+        assert_eq!(guiding_stop_reason(), None);
     }
 }

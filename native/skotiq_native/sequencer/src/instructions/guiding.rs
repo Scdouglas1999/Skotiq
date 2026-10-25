@@ -102,6 +102,95 @@ pub(crate) async fn start_guiding_on_fresh_star_above(
         .map_err(GuidingStartError::Start)
 }
 
+/// Whether a guider start failed only because the guider did not settle in
+/// time, as opposed to finding no star or not starting at all.
+pub(crate) fn is_settle_timeout(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    message.contains("did not settle")
+        || message.contains("settle failed")
+        || message.contains("waiting for guider to settle")
+}
+
+/// How a start of guiding on a fresh star ended when it did not fail.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum GuidingStarted {
+    Settled,
+    /// The settle ran out of time while the guider kept the star locked with
+    /// its RMS under the run's post-settle limit: guiding goes on, and the
+    /// note says so.
+    HeldWithoutSettling {
+        note: String,
+    },
+}
+
+/// [`start_guiding_on_fresh_star_above`] at the run's settle bar, taking a
+/// settle that ran out as a soft result when the guider still guides with
+/// the star locked and its RMS (guide-camera pixels) at or under
+/// `max_rms_pixels`.
+pub(crate) async fn start_guiding_holding_on_settle_timeout(
+    device_ops: &SharedDeviceOps,
+    floor: Option<crate::GuideStarFloor>,
+    settle: crate::GuiderSettle,
+    max_rms_pixels: f64,
+) -> Result<GuidingStarted, GuidingStartError> {
+    match start_guiding_on_fresh_star_above(
+        device_ops,
+        floor,
+        settle.pixels,
+        settle.time_secs,
+        settle.timeout_secs,
+    )
+    .await
+    {
+        Ok(()) => Ok(GuidingStarted::Settled),
+        Err(GuidingStartError::Start(message)) if is_settle_timeout(&message) => {
+            match device_ops.guider_get_status().await {
+                Ok(status)
+                    if status.is_guiding
+                        && status.rms_total > 0.0
+                        && status.rms_total <= max_rms_pixels =>
+                {
+                    let note = format!(
+                        "Guiding did not settle to {:.1} px within {:.0} s, but the guider holds                          the star at RMS {:.2} px (limit {:.1} px), so guiding carries on.",
+                        settle.pixels, settle.timeout_secs, status.rms_total, max_rms_pixels
+                    );
+                    tracing::warn!("[GUIDING] {note}");
+                    Ok(GuidingStarted::HeldWithoutSettling { note })
+                }
+                _ => Err(GuidingStartError::Start(message)),
+            }
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// Tell the operator, once per run, that the settle bar is tighter than the
+/// guiding this rig achieves: every settle then runs out of time. `rms` is
+/// the guider's measured RMS in guide-camera pixels.
+pub(crate) async fn settle_bar_warning(
+    trigger_state: Option<&Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>>,
+    settle: crate::GuiderSettle,
+    rms: f64,
+) -> Option<String> {
+    if !(rms.is_finite() && rms > 0.0 && rms > settle.pixels) {
+        return None;
+    }
+    if let Some(state) = trigger_state {
+        let mut state = state.write().await;
+        if std::mem::replace(&mut state.settle_bar_warning_given, true) {
+            return None;
+        }
+    }
+    let suggested = (rms * 1.5 * 10.0).ceil() / 10.0;
+    Some(format!(
+        "The guider settle threshold is {:.1} px, but this rig guides at about {:.2} px RMS, so \
+         the guider rarely settles in time and each settle waits out its full {:.0} s. A \
+         threshold of about {:.1} px suits this guiding; it is the settle setting in the dither \
+         settings.",
+        settle.pixels, rms, settle.timeout_secs, suggested
+    ))
+}
+
 /// Run a guider start, ending it when the run is cancelled.
 async fn cancelable<T>(
     ctx: &InstructionContext,
@@ -158,7 +247,17 @@ pub(crate) struct MountMotion {
 
 impl MountMotion {
     pub(crate) async fn begin(ctx: &InstructionContext, what: &str) -> Self {
-        Self::begin_with(&ctx.device_ops, ctx.trigger_state.clone(), what).await
+        Self::begin_for(ctx, what, crate::GuidingStopReason::MountMove).await
+    }
+
+    /// [`Self::begin`] naming why the guider is stopped, for a move that is
+    /// more than a slew.
+    pub(crate) async fn begin_for(
+        ctx: &InstructionContext,
+        what: &str,
+        reason: crate::GuidingStopReason,
+    ) -> Self {
+        Self::begin_with(&ctx.device_ops, ctx.trigger_state.clone(), what, reason).await
     }
 
     /// [`Self::begin`] for a caller with no instruction context (the
@@ -170,6 +269,7 @@ impl MountMotion {
         device_ops: &SharedDeviceOps,
         trigger_state: Option<Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>>,
         what: &str,
+        reason: crate::GuidingStopReason,
     ) -> Self {
         let start = match &trigger_state {
             Some(state) => state.write().await.guiding.begin_motion(),
@@ -185,7 +285,7 @@ impl MountMotion {
                     stall.origin = None;
                 }
             }
-            stop_an_active_guider(device_ops, what).await;
+            stop_an_active_guider(device_ops, what, reason).await;
             if start.run_was_guiding {
                 if let Some(state) = &trigger_state {
                     state.write().await.guiding.guiding_stopped_by_motion();
@@ -207,7 +307,11 @@ impl MountMotion {
 /// state cannot be read is stopped too: guiding through a move is the worse
 /// mistake, and stopping an idle guider costs nothing. A rig with no guider
 /// has nothing to stop.
-pub(crate) async fn stop_an_active_guider(device_ops: &SharedDeviceOps, what: &str) {
+pub(crate) async fn stop_an_active_guider(
+    device_ops: &SharedDeviceOps,
+    what: &str,
+    reason: crate::GuidingStopReason,
+) {
     let active = match device_ops.guider_is_active().await {
         Ok(active) => active,
         Err(error) if crate::device_ops::is_no_guider_configured(&error) => false,
@@ -225,6 +329,7 @@ pub(crate) async fn stop_an_active_guider(device_ops: &SharedDeviceOps, what: &s
     tracing::info!(
         "[GUIDING] Stopping the guider for the {what}: it cannot guide while the mount moves"
     );
+    device_ops.guider_note_stop_reason(Some(reason)).await;
     if let Err(error) = device_ops.guider_stop().await {
         tracing::warn!("[GUIDING] The guider did not stop for the {what}: {error}");
     }
@@ -796,6 +901,9 @@ pub async fn execute_stop_guiding(
         cb(50.0, "Sending stop command".to_string());
     }
 
+    ctx.device_ops
+        .guider_note_stop_reason(Some(crate::GuidingStopReason::SequenceStep))
+        .await;
     match ctx.device_ops.guider_stop().await {
         Ok(_) => {
             // Disarm the GuideStarLost trigger on an intentional stop, so the

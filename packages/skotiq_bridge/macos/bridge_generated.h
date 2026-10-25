@@ -834,6 +834,14 @@ typedef struct wire_cst_GuidingEvent_Settled {
   double rms;
 } wire_cst_GuidingEvent_Settled;
 
+typedef struct wire_cst_GuidingEvent_SettleTimedOut {
+  struct wire_cst_list_prim_u_8_strict *error;
+} wire_cst_GuidingEvent_SettleTimedOut;
+
+typedef struct wire_cst_GuidingEvent_StopReason {
+  struct wire_cst_list_prim_u_8_strict *reason;
+} wire_cst_GuidingEvent_StopReason;
+
 typedef struct wire_cst_GuidingEvent_DitherStarted {
   double pixels;
 } wire_cst_GuidingEvent_DitherStarted;
@@ -861,6 +869,8 @@ typedef struct wire_cst_GuidingEvent_GuideStats {
 
 typedef union GuidingEventKind {
   struct wire_cst_GuidingEvent_Settled Settled;
+  struct wire_cst_GuidingEvent_SettleTimedOut SettleTimedOut;
+  struct wire_cst_GuidingEvent_StopReason StopReason;
   struct wire_cst_GuidingEvent_DitherStarted DitherStarted;
   struct wire_cst_GuidingEvent_Correction Correction;
   struct wire_cst_GuidingEvent_StarSelected StarSelected;
@@ -2124,6 +2134,7 @@ typedef struct wire_cst_phd_2_status {
   double snr;
   double star_mass;
   double *pixel_scale;
+  struct wire_cst_list_prim_u_8_strict *stop_reason;
 } wire_cst_phd_2_status;
 
 typedef struct wire_cst_plate_solve_result {

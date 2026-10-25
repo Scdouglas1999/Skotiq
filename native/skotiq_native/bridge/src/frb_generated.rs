@@ -13495,13 +13495,21 @@ impl SseDecode for crate::event::guiding::GuidingEvent {
                 return crate::event::guiding::GuidingEvent::LostStar;
             }
             8 => {
+                let mut var_error = <String>::sse_decode(deserializer);
+                return crate::event::guiding::GuidingEvent::SettleTimedOut { error: var_error };
+            }
+            9 => {
+                let mut var_reason = <Option<String>>::sse_decode(deserializer);
+                return crate::event::guiding::GuidingEvent::StopReason { reason: var_reason };
+            }
+            10 => {
                 let mut var_pixels = <f64>::sse_decode(deserializer);
                 return crate::event::guiding::GuidingEvent::DitherStarted { pixels: var_pixels };
             }
-            9 => {
+            11 => {
                 return crate::event::guiding::GuidingEvent::DitherCompleted;
             }
-            10 => {
+            12 => {
                 let mut var_ra = <f64>::sse_decode(deserializer);
                 let mut var_dec = <f64>::sse_decode(deserializer);
                 let mut var_raRaw = <f64>::sse_decode(deserializer);
@@ -13513,28 +13521,28 @@ impl SseDecode for crate::event::guiding::GuidingEvent {
                     dec_raw: var_decRaw,
                 };
             }
-            11 => {
+            13 => {
                 return crate::event::guiding::GuidingEvent::Looping;
             }
-            12 => {
+            14 => {
                 return crate::event::guiding::GuidingEvent::Settling;
             }
-            13 => {
+            15 => {
                 return crate::event::guiding::GuidingEvent::Calibrating;
             }
-            14 => {
+            16 => {
                 return crate::event::guiding::GuidingEvent::CalibrationComplete;
             }
-            15 => {
+            17 => {
                 let mut var_x = <f64>::sse_decode(deserializer);
                 let mut var_y = <f64>::sse_decode(deserializer);
                 return crate::event::guiding::GuidingEvent::StarSelected { x: var_x, y: var_y };
             }
-            16 => {
+            18 => {
                 let mut var_state = <String>::sse_decode(deserializer);
                 return crate::event::guiding::GuidingEvent::AppState { state: var_state };
             }
-            17 => {
+            19 => {
                 let mut var_snr = <f64>::sse_decode(deserializer);
                 let mut var_starMass = <f64>::sse_decode(deserializer);
                 return crate::event::guiding::GuidingEvent::GuideStats {
@@ -14826,6 +14834,7 @@ impl SseDecode for crate::api::phd2::Phd2Status {
         let mut var_snr = <f64>::sse_decode(deserializer);
         let mut var_starMass = <f64>::sse_decode(deserializer);
         let mut var_pixelScale = <Option<f64>>::sse_decode(deserializer);
+        let mut var_stopReason = <Option<String>>::sse_decode(deserializer);
         return crate::api::phd2::Phd2Status {
             connected: var_connected,
             state: var_state,
@@ -14835,6 +14844,7 @@ impl SseDecode for crate::api::phd2::Phd2Status {
             snr: var_snr,
             star_mass: var_starMass,
             pixel_scale: var_pixelScale,
+            stop_reason: var_stopReason,
         };
     }
 }
@@ -18983,40 +18993,46 @@ impl flutter_rust_bridge::IntoDart for crate::event::guiding::GuidingEvent {
                 [6.into_dart(), rms.into_into_dart().into_dart()].into_dart()
             }
             crate::event::guiding::GuidingEvent::LostStar => [7.into_dart()].into_dart(),
-            crate::event::guiding::GuidingEvent::DitherStarted { pixels } => {
-                [8.into_dart(), pixels.into_into_dart().into_dart()].into_dart()
+            crate::event::guiding::GuidingEvent::SettleTimedOut { error } => {
+                [8.into_dart(), error.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::guiding::GuidingEvent::DitherCompleted => [9.into_dart()].into_dart(),
+            crate::event::guiding::GuidingEvent::StopReason { reason } => {
+                [9.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+            }
+            crate::event::guiding::GuidingEvent::DitherStarted { pixels } => {
+                [10.into_dart(), pixels.into_into_dart().into_dart()].into_dart()
+            }
+            crate::event::guiding::GuidingEvent::DitherCompleted => [11.into_dart()].into_dart(),
             crate::event::guiding::GuidingEvent::Correction {
                 ra,
                 dec,
                 ra_raw,
                 dec_raw,
             } => [
-                10.into_dart(),
+                12.into_dart(),
                 ra.into_into_dart().into_dart(),
                 dec.into_into_dart().into_dart(),
                 ra_raw.into_into_dart().into_dart(),
                 dec_raw.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::guiding::GuidingEvent::Looping => [11.into_dart()].into_dart(),
-            crate::event::guiding::GuidingEvent::Settling => [12.into_dart()].into_dart(),
-            crate::event::guiding::GuidingEvent::Calibrating => [13.into_dart()].into_dart(),
+            crate::event::guiding::GuidingEvent::Looping => [13.into_dart()].into_dart(),
+            crate::event::guiding::GuidingEvent::Settling => [14.into_dart()].into_dart(),
+            crate::event::guiding::GuidingEvent::Calibrating => [15.into_dart()].into_dart(),
             crate::event::guiding::GuidingEvent::CalibrationComplete => {
-                [14.into_dart()].into_dart()
+                [16.into_dart()].into_dart()
             }
             crate::event::guiding::GuidingEvent::StarSelected { x, y } => [
-                15.into_dart(),
+                17.into_dart(),
                 x.into_into_dart().into_dart(),
                 y.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::guiding::GuidingEvent::AppState { state } => {
-                [16.into_dart(), state.into_into_dart().into_dart()].into_dart()
+                [18.into_dart(), state.into_into_dart().into_dart()].into_dart()
             }
             crate::event::guiding::GuidingEvent::GuideStats { snr, star_mass } => [
-                17.into_dart(),
+                19.into_dart(),
                 snr.into_into_dart().into_dart(),
                 star_mass.into_into_dart().into_dart(),
             ]
@@ -19597,6 +19613,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::phd2::Phd2Status {
             self.snr.into_into_dart().into_dart(),
             self.star_mass.into_into_dart().into_dart(),
             self.pixel_scale.into_into_dart().into_dart(),
+            self.stop_reason.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -23187,12 +23204,20 @@ impl SseEncode for crate::event::guiding::GuidingEvent {
             crate::event::guiding::GuidingEvent::LostStar => {
                 <i32>::sse_encode(7, serializer);
             }
-            crate::event::guiding::GuidingEvent::DitherStarted { pixels } => {
+            crate::event::guiding::GuidingEvent::SettleTimedOut { error } => {
                 <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(error, serializer);
+            }
+            crate::event::guiding::GuidingEvent::StopReason { reason } => {
+                <i32>::sse_encode(9, serializer);
+                <Option<String>>::sse_encode(reason, serializer);
+            }
+            crate::event::guiding::GuidingEvent::DitherStarted { pixels } => {
+                <i32>::sse_encode(10, serializer);
                 <f64>::sse_encode(pixels, serializer);
             }
             crate::event::guiding::GuidingEvent::DitherCompleted => {
-                <i32>::sse_encode(9, serializer);
+                <i32>::sse_encode(11, serializer);
             }
             crate::event::guiding::GuidingEvent::Correction {
                 ra,
@@ -23200,35 +23225,35 @@ impl SseEncode for crate::event::guiding::GuidingEvent {
                 ra_raw,
                 dec_raw,
             } => {
-                <i32>::sse_encode(10, serializer);
+                <i32>::sse_encode(12, serializer);
                 <f64>::sse_encode(ra, serializer);
                 <f64>::sse_encode(dec, serializer);
                 <f64>::sse_encode(ra_raw, serializer);
                 <f64>::sse_encode(dec_raw, serializer);
             }
             crate::event::guiding::GuidingEvent::Looping => {
-                <i32>::sse_encode(11, serializer);
-            }
-            crate::event::guiding::GuidingEvent::Settling => {
-                <i32>::sse_encode(12, serializer);
-            }
-            crate::event::guiding::GuidingEvent::Calibrating => {
                 <i32>::sse_encode(13, serializer);
             }
-            crate::event::guiding::GuidingEvent::CalibrationComplete => {
+            crate::event::guiding::GuidingEvent::Settling => {
                 <i32>::sse_encode(14, serializer);
             }
-            crate::event::guiding::GuidingEvent::StarSelected { x, y } => {
+            crate::event::guiding::GuidingEvent::Calibrating => {
                 <i32>::sse_encode(15, serializer);
+            }
+            crate::event::guiding::GuidingEvent::CalibrationComplete => {
+                <i32>::sse_encode(16, serializer);
+            }
+            crate::event::guiding::GuidingEvent::StarSelected { x, y } => {
+                <i32>::sse_encode(17, serializer);
                 <f64>::sse_encode(x, serializer);
                 <f64>::sse_encode(y, serializer);
             }
             crate::event::guiding::GuidingEvent::AppState { state } => {
-                <i32>::sse_encode(16, serializer);
+                <i32>::sse_encode(18, serializer);
                 <String>::sse_encode(state, serializer);
             }
             crate::event::guiding::GuidingEvent::GuideStats { snr, star_mass } => {
-                <i32>::sse_encode(17, serializer);
+                <i32>::sse_encode(19, serializer);
                 <f64>::sse_encode(snr, serializer);
                 <f64>::sse_encode(star_mass, serializer);
             }
@@ -24225,6 +24250,7 @@ impl SseEncode for crate::api::phd2::Phd2Status {
         <f64>::sse_encode(self.snr, serializer);
         <f64>::sse_encode(self.star_mass, serializer);
         <Option<f64>>::sse_encode(self.pixel_scale, serializer);
+        <Option<String>>::sse_encode(self.stop_reason, serializer);
     }
 }
 
@@ -27644,13 +27670,25 @@ mod io {
                 }
                 7 => crate::event::guiding::GuidingEvent::LostStar,
                 8 => {
+                    let ans = unsafe { self.kind.SettleTimedOut };
+                    crate::event::guiding::GuidingEvent::SettleTimedOut {
+                        error: ans.error.cst_decode(),
+                    }
+                }
+                9 => {
+                    let ans = unsafe { self.kind.StopReason };
+                    crate::event::guiding::GuidingEvent::StopReason {
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                10 => {
                     let ans = unsafe { self.kind.DitherStarted };
                     crate::event::guiding::GuidingEvent::DitherStarted {
                         pixels: ans.pixels.cst_decode(),
                     }
                 }
-                9 => crate::event::guiding::GuidingEvent::DitherCompleted,
-                10 => {
+                11 => crate::event::guiding::GuidingEvent::DitherCompleted,
+                12 => {
                     let ans = unsafe { self.kind.Correction };
                     crate::event::guiding::GuidingEvent::Correction {
                         ra: ans.ra.cst_decode(),
@@ -27659,24 +27697,24 @@ mod io {
                         dec_raw: ans.dec_raw.cst_decode(),
                     }
                 }
-                11 => crate::event::guiding::GuidingEvent::Looping,
-                12 => crate::event::guiding::GuidingEvent::Settling,
-                13 => crate::event::guiding::GuidingEvent::Calibrating,
-                14 => crate::event::guiding::GuidingEvent::CalibrationComplete,
-                15 => {
+                13 => crate::event::guiding::GuidingEvent::Looping,
+                14 => crate::event::guiding::GuidingEvent::Settling,
+                15 => crate::event::guiding::GuidingEvent::Calibrating,
+                16 => crate::event::guiding::GuidingEvent::CalibrationComplete,
+                17 => {
                     let ans = unsafe { self.kind.StarSelected };
                     crate::event::guiding::GuidingEvent::StarSelected {
                         x: ans.x.cst_decode(),
                         y: ans.y.cst_decode(),
                     }
                 }
-                16 => {
+                18 => {
                     let ans = unsafe { self.kind.AppState };
                     crate::event::guiding::GuidingEvent::AppState {
                         state: ans.state.cst_decode(),
                     }
                 }
-                17 => {
+                19 => {
                     let ans = unsafe { self.kind.GuideStats };
                     crate::event::guiding::GuidingEvent::GuideStats {
                         snr: ans.snr.cst_decode(),
@@ -28376,6 +28414,7 @@ mod io {
                 snr: self.snr.cst_decode(),
                 star_mass: self.star_mass.cst_decode(),
                 pixel_scale: self.pixel_scale.cst_decode(),
+                stop_reason: self.stop_reason.cst_decode(),
             }
         }
     }
@@ -31129,6 +31168,7 @@ mod io {
                 snr: Default::default(),
                 star_mass: Default::default(),
                 pixel_scale: core::ptr::null_mut(),
+                stop_reason: core::ptr::null_mut(),
             }
         }
     }
@@ -38476,6 +38516,8 @@ mod io {
     #[derive(Clone, Copy)]
     pub union GuidingEventKind {
         Settled: wire_cst_GuidingEvent_Settled,
+        SettleTimedOut: wire_cst_GuidingEvent_SettleTimedOut,
+        StopReason: wire_cst_GuidingEvent_StopReason,
         DitherStarted: wire_cst_GuidingEvent_DitherStarted,
         Correction: wire_cst_GuidingEvent_Correction,
         StarSelected: wire_cst_GuidingEvent_StarSelected,
@@ -38487,6 +38529,16 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_GuidingEvent_Settled {
         rms: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_GuidingEvent_SettleTimedOut {
+        error: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_GuidingEvent_StopReason {
+        reason: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -39012,6 +39064,7 @@ mod io {
         snr: f64,
         star_mass: f64,
         pixel_scale: *mut f64,
+        stop_reason: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

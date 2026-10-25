@@ -286,7 +286,15 @@ class Phd2Controller {
             );
             _handleGuideStats(event.data);
             break;
+          case 'StopReason':
+            ref.read(guidingStopReasonProvider.notifier).state =
+                event.data['reason'] as String?;
+            break;
+          case 'SettleTimedOut':
+            _handleSettleTimedOut(event.data['error'] as String? ?? '');
+            break;
           case 'GuidingStarted':
+            ref.read(guidingStopReasonProvider.notifier).state = null;
             ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             guiderNotifier.setGuiding(true);
             unawaited(_refreshPixelScale());
@@ -312,6 +320,7 @@ class Phd2Controller {
             break;
           case 'SettleDone':
             // Settle complete - return to guiding state
+            ref.read(guiderSettleTimeoutProvider.notifier).state = null;
             ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             _logger.info('Settle complete', source: 'PHD2');
             break;
@@ -433,6 +442,22 @@ class Phd2Controller {
     _starLossActive = false;
     _stableGuidingSince = null;
     _lastStarLossWarning = null;
+  }
+
+  /// PHD2 gave up waiting for the guider to settle. That is not a lost
+  /// star: PHD2 keeps guiding, often with the star locked, and the run
+  /// judges the guiding itself. Recorded and logged in those words, never
+  /// as "Guide star lost".
+  void _handleSettleTimedOut(String error) {
+    ref.read(guiderSettleTimeoutProvider.notifier).state = (
+      at: _now(),
+      error: error,
+    );
+    _logger.warning(
+      'Guiding did not settle in time${error.isEmpty ? '' : ' ($error)'}. '
+      'This is not a lost star; the guider keeps guiding.',
+      source: 'PHD2',
+    );
   }
 
   void _handleStarLost() {

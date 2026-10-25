@@ -243,6 +243,7 @@ impl MeridianFlipExecutor {
                     &self.device_ops,
                     ctx.trigger_state.clone(),
                     "meridian flip",
+                    crate::GuidingStopReason::MeridianFlip,
                 )
                 .await,
             )
@@ -891,6 +892,9 @@ impl MeridianFlipExecutor {
         if matches!(self.device_ops.guider_is_active().await, Ok(false)) {
             return Ok(());
         }
+        self.device_ops
+            .guider_note_stop_reason(Some(crate::GuidingStopReason::MeridianFlip))
+            .await;
         match self.device_ops.guider_stop().await {
             Ok(()) => Ok(()),
             Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
@@ -958,6 +962,14 @@ impl MeridianFlipExecutor {
             let _ = tx.send(ExecutorEvent::Warning {
                 message: continuation.operator_message,
             });
+        }
+    }
+
+    /// A notice for the operator in the run's feed; the flip goes on.
+    fn warn_operator(&self, message: String) {
+        tracing::warn!("[MERIDIAN] {}", message);
+        if let Some(tx) = &self.executor_event_tx {
+            let _ = tx.send(ExecutorEvent::Warning { message });
         }
     }
 
@@ -1626,14 +1638,18 @@ impl MeridianFlipExecutor {
         }
         tracing::info!("[MERIDIAN] Resuming guider...");
 
-        // Post-flip guiding settles exactly like a normal Start Guiding: the
-        // settle threshold / time / timeout come from the user's guiding settle
-        // settings (plumbed onto MeridianFlipConfig from AppSettings), not a
-        // hardcoded constant, so a user who tunes settling gets it honoured
-        // after a flip too. The config defaults are 1.5 px / 10 s / 60 s.
-        let settle_pixels = self.config.guider_settle_pixels;
-        let settle_time = self.config.guider_settle_time;
-        let settle_timeout = self.config.guider_settle_timeout;
+        // Post-flip guiding settles at the run's one settle bar, the same one
+        // dithers and autofocus use. The flip config's own settle values only
+        // serve a flip outside a run.
+        let settle = match &ctx.trigger_state {
+            Some(state) => state.read().await.guider_settle,
+            None => crate::GuiderSettle {
+                pixels: self.config.guider_settle_pixels,
+                time_secs: self.config.guider_settle_time,
+                timeout_secs: self.config.guider_settle_timeout,
+            },
+        };
+        let settle_timeout = settle.timeout_secs;
         // Mirror `pause_guider`: with no guider configured there is nothing to
         // resume, so do not send the flip into its 120-second retry ladder over
         // a no-op. A real guider failure still fails closed below.
@@ -1645,16 +1661,29 @@ impl MeridianFlipExecutor {
             Some(state) => state.read().await.guide_star_reference,
             None => None,
         };
-        match crate::instructions::start_guiding_on_fresh_star_above(
+        match crate::instructions::start_guiding_holding_on_settle_timeout(
             &self.device_ops,
             crate::GuideStarFloor::relative_to(reference),
-            settle_pixels,
-            settle_time,
-            settle_timeout,
+            settle,
+            self.config.max_post_settle_rms_pixels,
         )
         .await
         {
-            Ok(()) => {}
+            Ok(crate::instructions::GuidingStarted::Settled) => {}
+            Ok(crate::instructions::GuidingStarted::HeldWithoutSettling { note }) => {
+                self.warn_operator(note);
+                if let Ok(status) = self.device_ops.guider_get_status().await {
+                    if let Some(warning) = crate::instructions::settle_bar_warning(
+                        ctx.trigger_state.as_ref(),
+                        settle,
+                        status.rms_total,
+                    )
+                    .await
+                    {
+                        self.warn_operator(warning);
+                    }
+                }
+            }
             Err(error) if crate::device_ops::is_no_guider_configured(error.message()) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to resume");
                 return Ok(());
@@ -2270,6 +2299,11 @@ mod tests {
         fresh_star_floors: Mutex<Vec<crate::GuideStarFloor>>,
         /// When true, `guider_start` fails, as a guider with no star does.
         guider_start_fails: AtomicBool,
+        /// When true, `guider_start` reports PHD2's settle timeout while the
+        /// guider goes on guiding with the star locked.
+        guider_settle_times_out: AtomicBool,
+        /// The settle bar (pixels, time, timeout) each `guider_start` got.
+        guider_start_settles: Mutex<Vec<(f64, f64, f64)>>,
         guider_start_failures_remaining: AtomicI32,
         post_flip_calls: Mutex<Vec<&'static str>>,
         /// For each guider-stop call, how many slews had been commanded when it
@@ -2553,13 +2587,26 @@ mod tests {
 
         async fn guider_start(
             &self,
-            _settle_pixels: f64,
-            _settle_time: f64,
-            _settle_timeout: f64,
+            settle_pixels: f64,
+            settle_time: f64,
+            settle_timeout: f64,
         ) -> DeviceResult<()> {
             self.state
                 .guider_start_calls
                 .fetch_add(1, Ordering::Relaxed);
+            self.state.guider_start_settles.lock().unwrap().push((
+                settle_pixels,
+                settle_time,
+                settle_timeout,
+            ));
+            if self.state.guider_settle_times_out.load(Ordering::Relaxed) {
+                self.state.guider_stopped.store(false, Ordering::Relaxed);
+                return Err(
+                    "Start guiding failed: Operation failed: Guiding did not settle: \
+                            PHD2 settle failed (status 1): timed-out waiting for guider to settle"
+                        .to_string(),
+                );
+            }
             self.state.post_flip_calls.lock().unwrap().push("guide");
             let transient_failure = self
                 .state
@@ -4281,6 +4328,88 @@ mod tests {
             }
             assert!(warned, "the post-flip problem must be told");
         }
+    }
+
+    /// A settle that runs out while the guider still guides with the star
+    /// locked and its RMS under the post-settle limit is a note, not a failed
+    /// flip step: guiding carries on, and the settle bar the guider got is the
+    /// run's one settle setting. The operator is told once that the bar is
+    /// tighter than the measured guiding.
+    #[tokio::test(start_paused = true)]
+    async fn a_settle_timeout_with_the_star_locked_continues_the_flip_with_a_note() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        state.guider_settle_times_out.store(true, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: true,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: true,
+            settle_time: 0.0,
+            max_retries: 3,
+            retry_delays_secs: vec![0.0],
+            failure_action: FlipFailureAction::PauseAndAlert,
+            guider_settle_pixels: 0.5,
+            guider_settle_time: 10.0,
+            guider_settle_timeout: 30.0,
+            max_post_settle_rms_pixels: 3.0,
+            ..Default::default()
+        };
+        let (tx, mut rx) = broadcast::channel(64);
+        let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+        let mut trigger_state = TriggerState::new();
+        trigger_state.guider_settle = crate::GuiderSettle {
+            pixels: 0.5,
+            time_secs: 10.0,
+            timeout_secs: 30.0,
+        };
+        let ts = Arc::new(RwLock::new(trigger_state));
+        let ctx = FlipContext {
+            trigger_state: Some(ts.clone()),
+            ..make_ctx(&state)
+        };
+
+        let result = executor.execute(&ctx).await;
+
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        assert_eq!(
+            executor.attempts_made, 1,
+            "the settle timeout is not retried"
+        );
+        assert!(
+            !state.guider_stopped.load(Ordering::Relaxed),
+            "guiding that holds the star is left guiding"
+        );
+        assert_eq!(
+            *state.guider_start_settles.lock().unwrap(),
+            vec![(0.5, 10.0, 30.0)],
+            "the guider is started at the run's settle bar"
+        );
+        let mut warnings = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            if let ExecutorEvent::Warning { message } = event {
+                warnings.push(message);
+            }
+        }
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("did not settle") && w.contains("carries on")),
+            "{warnings:?}"
+        );
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|w| w.contains("settle threshold is 0.5 px"))
+                .count(),
+            1,
+            "the bar below the measured RMS is told once: {warnings:?}"
+        );
+        assert!(!warnings.iter().any(|w| w.contains("lost")), "{warnings:?}");
     }
 
     /// The opt-in keeps the post-flip guiding check's failure too.

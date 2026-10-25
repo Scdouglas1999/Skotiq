@@ -469,6 +469,10 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return ('Resumed', {});
     } else if (guidingEvent is bridge.GuidingEvent_LostStar) {
       return ('StarLost', {});
+    } else if (guidingEvent is bridge.GuidingEvent_SettleTimedOut) {
+      return ('SettleTimedOut', {'error': guidingEvent.error});
+    } else if (guidingEvent is bridge.GuidingEvent_StopReason) {
+      return ('StopReason', {'reason': guidingEvent.reason});
     } else if (guidingEvent is bridge.GuidingEvent_Settled) {
       return ('SettleDone', {'rms': guidingEvent.rms});
     } else if (guidingEvent is bridge.GuidingEvent_DitherStarted) {

@@ -496,6 +496,9 @@ async fn run_autofocus_admitted(
             }
         };
         if guider_status.is_guiding {
+            ctx.device_ops
+                .guider_note_stop_reason(Some(crate::GuidingStopReason::Autofocus))
+                .await;
             if let Err(error) = ctx.device_ops.guider_stop().await {
                 return InstructionResult::failure(format!(
                     "Autofocus is configured to pause guiding, but guiding could not be stopped: {}",
@@ -701,9 +704,8 @@ pub(crate) async fn move_autofocus_filter(
         .map_err(|error| format!("focus offset failed: {}", error))
 }
 
-/// How long the autofocus cleanup waits for a resumed guider to settle: the
-/// 60 s settle timeout it asks the guider for, plus the time to loop, select a
-/// star and send the first guide frames before that clock starts.
+/// How long the autofocus cleanup watches a restarted guider, once the start
+/// has returned, for it to hold the star at the recovery bar.
 const GUIDING_RESUME_DEADLINE: Duration = Duration::from_secs(120);
 const GUIDING_RESUME_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
@@ -720,30 +722,55 @@ pub(crate) async fn resume_guiding_after_autofocus(
     ctx: &InstructionContext,
     result: InstructionResult,
 ) -> InstructionResult {
+    // Guiding is restored only for a run that goes on. A stopped run's
+    // cleanup leaves the guider stopped and says why.
+    if ctx.cancellation_token.load(Ordering::Relaxed) {
+        return leave_guiding_stopped_for_stopped_run(ctx, result).await;
+    }
     // A fresh star: the autofocus run may have moved the field under the
     // guider's old lock position. It must measure up to the run's guide star.
     let reference = match &ctx.trigger_state {
         Some(state) => state.read().await.guide_star_reference,
         None => None,
     };
-    if let Err(error) = start_guiding_on_fresh_star_above(
+    // The run's one settle bar, the same a dither and a flip use.
+    let settle = ctx.guider_settle_or(crate::GuiderSettle::default()).await;
+    match start_guiding_holding_on_settle_timeout(
         &ctx.device_ops,
         crate::GuideStarFloor::relative_to(reference),
-        1.0,
-        10.0,
-        60.0,
+        settle,
+        crate::executor::REACQUIRE_SETTLE_PIXELS,
     )
     .await
     {
-        return append_guiding_not_restored(
-            ctx,
-            result,
-            format!(
-                "failed to resume guiding after autofocus: {}",
-                error.message()
-            ),
-        )
-        .await;
+        Ok(GuidingStarted::Settled) => {}
+        Ok(GuidingStarted::HeldWithoutSettling { note }) => {
+            if let Some(event_tx) = &ctx.event_tx {
+                let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message: note });
+            }
+            if let Ok(status) = ctx.device_ops.guider_get_status().await {
+                if let Some(warning) =
+                    settle_bar_warning(ctx.trigger_state.as_ref(), settle, status.rms_total).await
+                {
+                    tracing::warn!("{warning}");
+                    if let Some(event_tx) = &ctx.event_tx {
+                        let _ = event_tx
+                            .send(crate::executor::ExecutorEvent::Warning { message: warning });
+                    }
+                }
+            }
+        }
+        Err(error) => {
+            return append_guiding_not_restored(
+                ctx,
+                result,
+                format!(
+                    "failed to resume guiding after autofocus: {}",
+                    error.message()
+                ),
+            )
+            .await;
+        }
     }
     let deadline = tokio::time::Instant::now() + GUIDING_RESUME_DEADLINE;
     let mut last_seen: Result<crate::GuidingStatus, String>;
@@ -760,18 +787,16 @@ pub(crate) async fn resume_guiding_after_autofocus(
         if tokio::time::Instant::now() >= deadline {
             break;
         }
-        // A Stop ends the wait. The run's end waits for this cleanup, so a
-        // guider that was never coming back held the operator's Stop for the
-        // whole two minutes. Nothing more is owed to a run that is ending
-        // than not claiming the guider is back.
+        // A Stop ends the wait, and the guider started for a run that is now
+        // ending is stopped again.
         if ctx.cancellation_token.load(Ordering::Relaxed) {
-            tracing::info!(
-                "Autofocus cleanup stopped waiting for the guider to settle: the run is stopping"
-            );
-            if let Some(trigger_state) = &ctx.trigger_state {
-                trigger_state.write().await.set_guiding_enabled(false);
+            ctx.device_ops
+                .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+                .await;
+            if let Err(error) = ctx.device_ops.guider_stop().await {
+                tracing::warn!("Autofocus cleanup could not stop the guider: {error}");
             }
-            return result;
+            return leave_guiding_stopped_for_stopped_run(ctx, result).await;
         }
         sleep(GUIDING_RESUME_POLL_INTERVAL).await;
     }
@@ -790,6 +815,22 @@ pub(crate) async fn resume_guiding_after_autofocus(
         ),
     };
     append_guiding_not_restored(ctx, result, failure).await
+}
+
+/// The run is stopping: the guider autofocus stopped stays stopped, the
+/// run's guiding is disarmed, and the guider's status says the run stopped.
+async fn leave_guiding_stopped_for_stopped_run(
+    ctx: &InstructionContext,
+    result: InstructionResult,
+) -> InstructionResult {
+    tracing::info!("Autofocus cleanup leaves guiding stopped: the run is stopping");
+    ctx.device_ops
+        .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+        .await;
+    if let Some(trigger_state) = &ctx.trigger_state {
+        trigger_state.write().await.set_guiding_enabled(false);
+    }
+    result
 }
 
 /// Record a cleanup failure that left the guider stopped: stamp the

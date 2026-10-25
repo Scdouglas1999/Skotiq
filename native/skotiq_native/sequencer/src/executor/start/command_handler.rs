@@ -167,6 +167,15 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                     rc.dither.settle_timeout = settle_timeout;
                     rc.dither.ra_only = ra_only;
                 }
+                {
+                    let manager = trigger_manager.read().await;
+                    let state_lock = manager.state();
+                    state_lock.write().await.guider_settle = crate::GuiderSettle {
+                        pixels: settle_pixels,
+                        time_secs: settle_time,
+                        timeout_secs: settle_timeout,
+                    };
+                }
                 tracing::info!(
                 "Runtime dither config updated: pixels={}, settle_pixels={}, settle_time={}, settle_timeout={}, ra_only={}",
                 pixels, settle_pixels, settle_time, settle_timeout, ra_only

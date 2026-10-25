@@ -34,6 +34,16 @@ pub async fn execute_dither(
         );
     }
 
+    // A dither needs a guider that is guiding. While the run itself holds the
+    // guider stopped, asking it only fails and reads as a guider error.
+    if let Some(why) = ctx.run_holds_guider_stopped().await {
+        tracing::info!("Dither skipped: {why}");
+        if let Some(cb) = progress_callback {
+            cb(100.0, "Dither skipped: guiding is held".to_string());
+        }
+        return InstructionResult::success_with_message(format!("Dither skipped: {why}"));
+    }
+
     let (dither_pixels, ra_only) = match config.pattern {
         crate::DitherPattern::Random => {
             tracing::info!("Dithering {} pixels (random)", config.pixels);
@@ -119,16 +129,40 @@ pub async fn execute_dither(
     // the secondary to clear its in-flight exposure, runs the closure (the
     // actual mount pulse + settle), then releases the barrier so the secondary
     // resumes. With no barrier installed this is a plain pass-through.
+    // The run's one settle bar, the same autofocus and a flip restart
+    // guiding to; the dither's own values only serve a dither outside a run.
+    let settle = ctx
+        .guider_settle_or(crate::GuiderSettle::from(config))
+        .await;
+    ctx.device_ops
+        .guider_note_stop_reason(Some(crate::GuidingStopReason::DitherSettle))
+        .await;
     let dither_result = dither_guarded(ctx, || {
         ctx.device_ops.guider_dither(
             dither_pixels,
-            config.settle_pixels,
-            config.settle_time,
-            config.settle_timeout,
+            settle.pixels,
+            settle.time_secs,
+            settle.timeout_secs,
             ra_only,
         )
     })
     .await;
+    ctx.device_ops.guider_note_stop_reason(None).await;
+    if let Err(error) = &dither_result {
+        if is_settle_timeout(error) {
+            if let Ok(status) = ctx.device_ops.guider_get_status().await {
+                if let Some(warning) =
+                    settle_bar_warning(ctx.trigger_state.as_ref(), settle, status.rms_total).await
+                {
+                    tracing::warn!("{warning}");
+                    if let Some(event_tx) = &ctx.event_tx {
+                        let _ = event_tx
+                            .send(crate::executor::ExecutorEvent::Warning { message: warning });
+                    }
+                }
+            }
+        }
+    }
 
     match dither_result {
         Ok(_) => {

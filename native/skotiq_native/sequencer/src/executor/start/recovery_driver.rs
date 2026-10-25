@@ -965,8 +965,12 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         "[WEATHER] Guiding is not holding a star after the weather hold; it starts again on a \
          fresh star before the next light frame"
     );
-    crate::instructions::stop_an_active_guider(exit.device_ops, "restart after the weather hold")
-        .await;
+    crate::instructions::stop_an_active_guider(
+        exit.device_ops,
+        "restart after the weather hold",
+        crate::GuidingStopReason::MountMove,
+    )
+    .await;
     let mut ts = state.write().await;
     ts.set_guiding_enabled(false);
     ts.set_guide_star_lost(false);

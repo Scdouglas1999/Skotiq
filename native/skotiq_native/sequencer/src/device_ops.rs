@@ -533,6 +533,11 @@ pub trait DeviceOps: Send + Sync {
     /// Stop guiding
     async fn guider_stop(&self) -> DeviceResult<()>;
 
+    /// Record why the run holds the guider stopped, before it stops it, so
+    /// the guider's status can say so; `None` withdraws the run's reason.
+    /// A successful start of guiding clears it as well.
+    async fn guider_note_stop_reason(&self, _reason: Option<crate::GuidingStopReason>) {}
+
     // Plate solving
 
     /// Plate solve an image

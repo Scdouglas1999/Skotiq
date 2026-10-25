@@ -281,7 +281,13 @@ void main() {
         ).thenAnswer((inv) async {
           pushedDither.add(inv.namedArguments);
         });
-        final c = buildContainer(settings: _gradingOn);
+        final c = buildContainer(
+          settings: _gradingOn.copyWith(
+            settleThreshold: 0.8,
+            settleTime: 7,
+            settleTimeout: 40,
+          ),
+        );
         final executor = c.read(sequenceExecutorProvider);
 
         await executor.seedRuntimeConfigForNativeStart();
@@ -289,8 +295,11 @@ void main() {
         expect(pushedIntervals, [60]);
         expect(pushedDither, hasLength(1));
         expect(pushedDither.single[#pixels], 3.0);
-        expect(pushedDither.single[#settleTime], 3.0);
-        expect(pushedDither.single[#settleTimeout], 30.0);
+        // The guider settle settings are the run's one settle bar, for
+        // dithers as for the guiding restarts after autofocus and a flip.
+        expect(pushedDither.single[#settlePixels], 0.8);
+        expect(pushedDither.single[#settleTime], 7.0);
+        expect(pushedDither.single[#settleTimeout], 40.0);
       },
     );
   });

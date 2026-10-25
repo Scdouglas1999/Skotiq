@@ -272,6 +272,9 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
 async fn abort_and_park(rig: &Rig, run: &RunControl, park: &mut ParkSignals) {
     park.parking_begins();
     park.stop_node_tree(&run.is_cancelled).await;
+    rig.device_ops
+        .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+        .await;
     if let Err(error) = rig.device_ops.guider_stop().await {
         let msg = format!(
             "FlipFailure AbortAndPark: failed to stop \
