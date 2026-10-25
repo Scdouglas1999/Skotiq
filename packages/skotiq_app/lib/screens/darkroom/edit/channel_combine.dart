@@ -585,7 +585,7 @@ class _DarkroomChannelCombineDialogState
       title: plan.combined
           ? 'Combines as ${plan.palette?.name ?? 'color'}'
           : 'These masters do not combine',
-      tone: plan.combined ? BannerTone.info : BannerTone.warning,
+      tone: plan.combined ? BannerTone.success : BannerTone.warning,
       message: lines.where((l) => l.trim().isNotEmpty).join('\n'),
     );
   }

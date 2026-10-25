@@ -30,7 +30,7 @@ class _NightEndHistoryPanelState extends ConsumerState<NightEndHistoryPanel> {
     return ActivityPanel(
       key: const ValueKey('darkroom_activity_history'),
       title: 'Night-end history',
-      note: 'calibrate, build, deliver, morning message',
+      note: 'what each night end did, step by step',
       trailing: runs.length > _nightsShown
           ? SkotiqButton(
               label: _all ? 'Show fewer' : 'Show all ${runs.length}',

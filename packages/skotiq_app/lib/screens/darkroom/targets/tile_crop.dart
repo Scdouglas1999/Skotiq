@@ -9,7 +9,7 @@ import 'darkroom_image.dart';
 
 /// The share of a master's shorter side a channel tile shows when the
 /// target's size on the sensor is not known.
-const double darkroomDefaultTileSpan = .32;
+const double darkroomDefaultTileSpan = .28;
 
 /// How much sky around the target a tile keeps, as a multiple of its size.
 const double _tileMargin = 1.4;

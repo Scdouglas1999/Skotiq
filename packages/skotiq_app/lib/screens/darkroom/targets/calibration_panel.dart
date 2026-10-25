@@ -27,8 +27,6 @@ final darkroomFlatPickerProvider = Provider<DarkroomFlatPicker>(
 );
 
 const double _filterColumn = 28;
-const double _darkColumn = 170;
-const double _biasColumn = 120;
 
 /// Narrower than this, a filter's row wraps instead of keeping columns.
 const double _wideRow = 640;
@@ -237,9 +235,11 @@ class _FilterRow extends ConsumerWidget {
               children: [
                 SizedBox(width: _filterColumn, child: filterLabel),
                 const SizedBox(width: SkotiqTokens.spaceMd),
-                SizedBox(width: _darkColumn, child: darkCell),
-                SizedBox(width: _biasColumn, child: biasCell),
-                Expanded(child: flatCell),
+                Expanded(flex: 4, child: darkCell),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(flex: 3, child: biasCell),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(flex: 3, child: flatCell),
                 for (final fix in fixes) ...[
                   const SizedBox(width: SkotiqTokens.spaceXs),
                   fix,
