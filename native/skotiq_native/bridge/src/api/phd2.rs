@@ -1701,7 +1701,9 @@ mod fresh_guide_star_tests {
 }
 
 #[cfg(test)]
-mod sim_tests;
+mod tests {
+    mod sim;
+}
 
 #[cfg(test)]
 mod post_flip_protocol_tests {

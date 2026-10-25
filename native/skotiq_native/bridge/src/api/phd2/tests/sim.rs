@@ -8,7 +8,7 @@
 //! stops); `find_star` runs on whatever image PHD2 last has; and looping
 //! frames carry the selected star's SNR and mass.
 
-use super::*;
+use super::super::*;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Mutex as StdMutex;
