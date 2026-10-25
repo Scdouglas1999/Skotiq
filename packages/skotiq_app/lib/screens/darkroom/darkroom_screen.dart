@@ -38,6 +38,7 @@ import '../../utils/exported_file_reveal.dart';
 import '../stack_result/stack_and_share_dialog.dart'
     show describeStackShareFailure;
 import 'darkroom_branch_controller.dart';
+import 'build_masters/build_job_banner.dart';
 import 'build_masters_dialog.dart';
 import 'darkroom_controller.dart';
 import 'darkroom_measured_values.dart';

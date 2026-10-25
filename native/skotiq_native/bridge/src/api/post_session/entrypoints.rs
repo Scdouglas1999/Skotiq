@@ -45,6 +45,9 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 ///   settings?, clip?, masterFitsPath, previewPngPath?, runId? }` — one filter's master from
 ///   every group (night) of subs in one call, folding a sub at a time; a sub that will not
 ///   register is skipped and reported ([`MasterBuildResult`]).
+/// * `registrationPreview` `{ op, gridReference, groups[], settings?, minOverlap,
+///   minRetainedArea, runId? }` — register every light from its stars, without
+///   warping, and report each footprint and the common crop it allows.
 /// * `deliver`  `{ op, masters[], referenceFilter?, outputDir, target }` — register a target's
 ///   per-filter masters onto one grid and write linear mono masters plus a planar RGB FITS
 ///   for PixInsight ([`MasterDeliverResult`]).
@@ -67,10 +70,13 @@ pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
         "build" => serde_json::to_string(&master_build(&args_json)?),
         "checkCalibration" => serde_json::to_string(&check_build_calibration(&args_json)?),
         "deliverUniform" => serde_json::to_string(&super::uniform_delivery::deliver(&args_json)?),
+        "registrationPreview" => serde_json::to_string(
+            &super::registration_preview::registration_preview(&args_json)?,
+        ),
         "deliver" => serde_json::to_string(&master_deliver(&args_json)?),
         other => {
             return Err(format!(
-                "unknown master op '{other}'; expected create/add/finalize/info/build/checkCalibration/deliver/deliverUniform"
+                "unknown master op '{other}'; expected create/add/finalize/info/build/checkCalibration/deliver/deliverUniform/registrationPreview"
             ))
         }
     };

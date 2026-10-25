@@ -152,6 +152,13 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
         .watch(_darkroomLandingProvider)
         .whenData((value) => value.withPasses(passes));
     final tab = _tabFor(data.valueOrNull);
+    // Finished masters belong in the Masters tab without a manual reload.
+    ref.listen(darkroomBuildJobsProvider, (previous, next) {
+      if (next?.stage == DarkroomJobStage.done &&
+          previous?.stage != DarkroomJobStage.done) {
+        ref.invalidate(_darkroomLandingProvider);
+      }
+    });
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -173,13 +180,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
           actions: [
             SkotiqButton(
               label: 'Build masters',
-              onPressed: () async {
-                await showDialog<void>(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (_) => const BuildMastersDialog());
-                if (mounted) ref.invalidate(_darkroomLandingProvider);
-              },
+              onPressed: _openBuild,
             ),
             SkotiqIconButton(
               icon: SkotiqIcons.refresh,
@@ -188,9 +189,15 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
             ),
           ],
         ),
+        BuildJobBanner(onOpen: _openBuild),
         Expanded(child: _body(data, tab)),
       ],
     );
+  }
+
+  Future<void> _openBuild() async {
+    await showBuildMastersDialog(context);
+    if (mounted) ref.invalidate(_darkroomLandingProvider);
   }
 
   /// The count chip on a tab, or null before the read answers.
