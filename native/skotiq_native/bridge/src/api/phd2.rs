@@ -82,6 +82,17 @@ pub fn set_guiding_stop_reason(reason: Option<skotiq_sequencer::GuidingStopReaso
     }
 }
 
+/// The stop reason a status in `state` reports. A guider that is guiding
+/// again (started outside the run, say) reports none, except while it
+/// settles after a dither.
+fn reported_stop_reason(state: &str) -> Option<String> {
+    guiding_stop_reason()
+        .filter(|reason| {
+            state != "Guiding" || *reason == skotiq_sequencer::GuidingStopReason::DitherSettle
+        })
+        .map(|reason| reason.as_wire().to_string())
+}
+
 /// An operator's stop: recorded as such unless the run already said why it
 /// is stopping the guider.
 fn note_operator_stop() {
@@ -804,6 +815,7 @@ pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
     // The Phd2Client already computes rms_total = sqrt(rms_ra^2 + rms_dec^2)
     // per guide frame; surface it.
     let stats = client.get_rolling_stats();
+    let stop_reason = reported_stop_reason(&state_str);
 
     Ok(Phd2Status {
         connected: client.is_connected(),
@@ -814,7 +826,7 @@ pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
         snr: stats.snr,
         star_mass: stats.star_mass,
         pixel_scale,
-        stop_reason: guiding_stop_reason().map(|reason| reason.as_wire().to_string()),
+        stop_reason,
     })
 }
 
@@ -1304,7 +1316,7 @@ pub async fn api_guider_get_status(device_id: String) -> Result<Phd2Status, Skot
         GuiderBackend::Phd2 => api_phd2_get_status().await?,
         GuiderBackend::Builtin => crate::builtin_guider::get_status().await?,
     };
-    status.stop_reason = guiding_stop_reason().map(|reason| reason.as_wire().to_string());
+    status.stop_reason = reported_stop_reason(&status.state);
     Ok(status)
 }
 
@@ -1963,6 +1975,20 @@ mod stop_reason_tests {
             guiding_stop_reason(),
             Some(GuidingStopReason::Autofocus),
             "an autofocus stop is never relabelled as the operator's"
+        );
+        assert_eq!(
+            reported_stop_reason("Stopped").as_deref(),
+            Some("autofocus")
+        );
+        assert_eq!(
+            reported_stop_reason("Guiding"),
+            None,
+            "a guider guiding again is not reported stopped"
+        );
+        set_guiding_stop_reason(Some(GuidingStopReason::DitherSettle));
+        assert_eq!(
+            reported_stop_reason("Guiding").as_deref(),
+            Some("dither_settle")
         );
         set_guiding_stop_reason(None);
         assert_eq!(guiding_stop_reason(), None);
