@@ -17,7 +17,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'generalAutoConnect': 'Auto-connect equipment',
     'generalAutoConnectDesc':
         'Connects the default startup profile on launch, falling back to the '
-            'last active profile when no default is set',
+        'last active profile when no default is set',
     'generalAutoSaveSequences': 'Auto-save sequences',
     'generalAutoSaveSequencesDesc': 'Automatically save sequence changes',
     'generalBehavior': 'Behavior',
@@ -32,7 +32,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     // is labelled "(beta)" in the picker for that reason.
     'generalLanguageDesc':
         'Translates menus, navigation, the status bar, Settings and the '
-            'Dashboard; Imaging, the Sequencer and Analytics stay in English',
+        'Dashboard; Imaging, the Sequencer and Analytics stay in English',
     'generalStartMinimized': 'Start minimized',
     'generalStartMinimizedDesc': 'Launch app minimized to system tray',
     'generalStartup': 'Startup',
@@ -221,11 +221,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsCameraReturned': 'Camera Returned',
     'analyticsExposureCountsLightOnly':
         'Exposure counts are light frames only. "Camera Returned" is what the '
-            'camera handed back; "Accepted" and "Rejected" are what the culling '
-            'decided about those frames.',
+        'camera handed back; "Accepted" and "Rejected" are what the culling '
+        'decided about those frames.',
     'analyticsGradingUnread':
         'Exposure counts are light frames only. Accepted and Rejected are '
-            'still being read from this session\'s frames.',
+        'still being read from this session\'s frames.',
     'analyticsRejectedLights': 'Rejected',
     'analyticsExposures': 'Exposures',
     'analyticsExportCsv': 'Export to CSV',
@@ -258,7 +258,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     // so a blanket "no frames are auto-rejected" was false the moment it ran.
     'analyticsQualityAdvisory':
         'Quality badges are advisory and never change acceptance on their own. '
-            'Nothing is deleted. Science > Grade frames is what rejects frames.',
+        'Nothing is deleted. Science > Grade frames is what rejects frames.',
     'analyticsQuickCapture': 'Quick Capture',
     'analyticsQuickCaptureSubtitle':
         'Standalone snapshots taken outside sequences',
@@ -287,18 +287,18 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAutoPark': 'Auto-park mount',
     'weatherSafetyAutoParkDesc':
         'Park the mount and close the cover and dome when a weather device '
-            'or safety monitor at the site reports unsafe. An internet '
-            'forecast never parks. When off, imaging stops and nothing is '
-            'parked or closed',
+        'or safety monitor at the site reports unsafe. An internet '
+        'forecast never parks. When off, imaging stops and nothing is '
+        'parked or closed',
     'weatherSafetyForecastHolds': 'Forecast clouds hold the run',
     'weatherSafetyForecastHoldsDesc':
         'When the internet forecast says cloudy, hold exposures with the '
-            'mount tracking, and resume once the sky has read clear for the '
-            'required safe duration. When off, a forecast only warns',
+        'mount tracking, and resume once the sky has read clear for the '
+        'required safe duration. When off, a forecast only warns',
     'weatherSafetyStarEvidence': 'Trust stars over the forecast',
     'weatherSafetyStarEvidenceDesc':
         'When the latest frame holds at least half the usual stars, a '
-            'cloudy forecast is not acted on',
+        'cloudy forecast is not acted on',
     'weatherSafetyAutoResume': 'Auto-resume after clear',
     'weatherSafetyAutoResumeDesc':
         'Resume once all weather sources return safe',
@@ -667,7 +667,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusTempCompActiveNoPrediction': 'Temp comp active: {slope} steps/°C',
     'statusLstLoading': 'Loading your observing site…',
     'statusLstTooltip': 'Local sidereal time at your observing site',
-    'statusLstNoSite': 'No observing site set — sidereal time is unknown. '
+    'statusLstNoSite':
+        'No observing site set — sidereal time is unknown. '
         'Set it in Settings → Location.',
     'statusDashboardOpen': 'Open local dashboard ({url})',
     'statusDashboardFilesMissing':
@@ -746,7 +747,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerNoSiteTitle': 'Set your observing site',
     'plannerNoSiteBody':
         'The planner scores targets from where you are; add your latitude and '
-            'longitude to start.',
+        'longitude to start.',
     'plannerNoSiteAction': 'Open settings',
     'plannerNoCatalogTitle': 'Install the object catalog',
     'plannerNoCatalogBody': 'OpenNGC lets the planner score 13000 targets.',
@@ -759,7 +760,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerSelectCandidateTitle': 'Pick a target',
     'plannerSelectCandidateBody':
         'Choose a candidate on the left to see its night and build a sequence '
-            'for it.',
+        'for it.',
     // Wave 3 Analytics: 06-screens names the tab "Equipment" and the copy
     // rules require sentence case, so this replaces 'Equipment Stats' at the
     // call site. The old key stays; other surfaces still read it.
@@ -1414,6 +1415,22 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideLostNone': 'No lost star this session',
     'nightScopeGuideLost': 'Lost this session: {count} · last {time}',
     'nightScopeGuideSettleBelow': 'Settle below {px} px',
+    'nightScopeGuideHeld_autofocus': 'Guiding paused for autofocus',
+    'nightScopeGuideHeld_meridian_flip': 'Guiding paused for the meridian flip',
+    'nightScopeGuideHeld_tracking_limit_hold':
+        'Guiding paused: the mount is at its tracking limit and waits for the flip',
+    'nightScopeGuideHeld_mount_move': 'Guiding paused while the mount moves',
+    'nightScopeGuideHeld_pre_meridian_hold':
+        'Guiding paused: the run waits at the meridian for the flip',
+    'nightScopeGuideHeld_sequence_step':
+        "Guiding stopped by the sequence's Stop Guiding step",
+    'nightScopeGuideHeld_dither_settle': 'Guiding is settling after a dither',
+    'nightScopeGuideHeld_run_stopped':
+        'Guiding stopped because the run was stopped',
+    'nightScopeGuideHeld_operator': 'Guiding stopped from the guider controls',
+    'nightScopeGuideHeldOther': 'Guiding stopped ({reason})',
+    'nightScopeGuideSettleTimedOut':
+        'Last settle ran out of time at {time}; not a lost star',
     'nightScopeGuideCalibration': 'Calibration',
     'nightScopeGuideNotCalibrated': 'Not calibrated',
     'nightScopeGuideCalibrated': 'Valid',
@@ -1505,14 +1522,14 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrViewStretch': 'Stretch',
     'nightCtrViewStretchTip':
         'On: the frame stretched to show faint detail. Off: linear, as '
-            'recorded. The saved file does not change.',
+        'recorded. The saved file does not change.',
     'nightCtrViewStars': 'Stars',
     'nightCtrViewStarsTip':
         'Circle the stars found in this frame, sized by their HFR',
     'nightCtrViewAnnotate': 'Annotate',
     'nightCtrViewAnnotateTip':
         'Label catalog objects. Each light frame is plate solved in the '
-            'background.',
+        'background.',
     'nightCtrViewZoom': 'Zoom 1:1',
     'nightCtrViewZoomTip': 'One image pixel per screen pixel',
     'nightCtrViewFit': 'Fit',
@@ -1598,7 +1615,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSetParkTitle': 'Set park here?',
     'nightScopeSetParkBody':
         'Park will go to where the mount points now, not to its current '
-            'park position. Nothing moves and the mount is not parked.',
+        'park position. Nothing moves and the mount is not parked.',
     'nightScopeWhyNoSetPark': 'This mount cannot store a park position',
     'nightCtrSemGuideArcsec': 'Guide error in arcseconds over {minutes} min',
     'nightCtrSemGuideNoSpanArcsec': 'Guide error in arcseconds',
@@ -1644,7 +1661,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'generalAutoConnect': 'Conectar equipo autom\u00E1ticamente',
     'generalAutoConnectDesc':
         'Conecta el perfil de inicio predeterminado al arrancar; si no hay '
-            'ninguno, usa el \u00FAltimo perfil activo',
+        'ninguno, usa el \u00FAltimo perfil activo',
     'generalAutoSaveSequences': 'Guardar secuencias autom\u00E1ticamente',
     'generalAutoSaveSequencesDesc':
         'Guardar los cambios de secuencia de forma autom\u00E1tica',
@@ -1660,7 +1677,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     // principal", que es precisamente lo que no hace.
     'generalLanguageDesc':
         'Traduce los menús, la navegación, la barra de estado, Ajustes y el '
-            'Panel; Captura, el Secuenciador y Analítica siguen en inglés',
+        'Panel; Captura, el Secuenciador y Analítica siguen en inglés',
     'generalStartMinimized': 'Iniciar minimizada',
     'generalStartMinimizedDesc':
         'Abrir la aplicaci\u00F3n minimizada en la bandeja del sistema',
@@ -1846,14 +1863,14 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsCameraReturned': 'Devueltas por la c\u00E1mara',
     'analyticsExposureCountsLightOnly':
         'Los recuentos de exposiciones incluyen solo cuadros de luz. '
-            '"Devueltas por la c\u00E1mara" es lo que entreg\u00F3 la '
-            'c\u00E1mara; '
-            '"Aceptadas" y "Rechazadas" son lo que decidi\u00F3 el descarte sobre '
-            'esos cuadros.',
+        '"Devueltas por la c\u00E1mara" es lo que entreg\u00F3 la '
+        'c\u00E1mara; '
+        '"Aceptadas" y "Rechazadas" son lo que decidi\u00F3 el descarte sobre '
+        'esos cuadros.',
     'analyticsGradingUnread':
         'Los recuentos de exposiciones incluyen solo cuadros de luz. '
-            'Aceptadas y Rechazadas a\u00FAn se est\u00E1n leyendo de los cuadros '
-            'de esta sesi\u00F3n.',
+        'Aceptadas y Rechazadas a\u00FAn se est\u00E1n leyendo de los cuadros '
+        'de esta sesi\u00F3n.',
     'analyticsRejectedLights': 'Rechazadas',
     'analyticsExposures': 'Exposiciones',
     'analyticsExportCsv': 'Exportar a CSV',
@@ -1883,7 +1900,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsProjects': 'Proyectos',
     'analyticsQualityAdvisory':
         'Las etiquetas de calidad son informativas y nunca cambian la aceptaci\u00F3n por s\u00ED solas. '
-            'No se elimina nada. Ciencia > Clasificar cuadros es lo que rechaza cuadros.',
+        'No se elimina nada. Ciencia > Clasificar cuadros es lo que rechaza cuadros.',
     'analyticsQuickCapture': 'Captura r\u00E1pida',
     'analyticsQuickCaptureSubtitle':
         'Instant\u00E1neas hechas fuera de las secuencias',
@@ -1912,21 +1929,22 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAutoPark': 'Aparcar la montura',
     'weatherSafetyAutoParkDesc':
         'Aparcar la montura y cerrar la tapa y la c\u00FApula cuando una '
-            'estaci\u00F3n meteorol\u00F3gica o un monitor de seguridad '
-            'indique condiciones inseguras. Una previsi\u00F3n de internet '
-            'nunca aparca. Desactivado, se detiene la captura sin aparcar ni '
-            'cerrar nada',
+        'estaci\u00F3n meteorol\u00F3gica o un monitor de seguridad '
+        'indique condiciones inseguras. Una previsi\u00F3n de internet '
+        'nunca aparca. Desactivado, se detiene la captura sin aparcar ni '
+        'cerrar nada',
     'weatherSafetyForecastHolds': 'Las nubes previstas pausan la sesi\u00F3n',
     'weatherSafetyForecastHoldsDesc':
         'Cuando la previsi\u00F3n de internet indica nubes, pausar las '
-            'exposiciones con la montura en seguimiento y reanudar cuando el '
-            'cielo lleve despejado el tiempo requerido. Desactivado, la '
-            'previsi\u00F3n solo avisa',
-    'weatherSafetyStarEvidence': 'Confiar en las estrellas antes que en la '
+        'exposiciones con la montura en seguimiento y reanudar cuando el '
+        'cielo lleve despejado el tiempo requerido. Desactivado, la '
+        'previsi\u00F3n solo avisa',
+    'weatherSafetyStarEvidence':
+        'Confiar en las estrellas antes que en la '
         'previsi\u00F3n',
     'weatherSafetyStarEvidenceDesc':
         'Si la \u00FAltima toma tiene al menos la mitad de las estrellas '
-            'habituales, no se act\u00FAa seg\u00FAn una previsi\u00F3n de nubes',
+        'habituales, no se act\u00FAa seg\u00FAn una previsi\u00F3n de nubes',
     'weatherSafetyAutoResume': 'Reanudar al despejar',
     'weatherSafetyAutoResumeDesc':
         'Reanudar cuando todas las fuentes vuelvan a estado seguro',
@@ -2297,11 +2315,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstTooltip': 'Hora sidérea local en tu lugar de observación',
     'statusLstNoSite':
         'No hay lugar de observación definido: la hora sidérea es desconocida. '
-            'Defínelo en Ajustes → Ubicación.',
+        'Defínelo en Ajustes → Ubicación.',
     'statusDashboardOpen': 'Abrir el panel local ({url})',
     'statusDashboardFilesMissing':
         'La API de acceso remoto está activa, pero los archivos del panel no '
-            'están disponibles',
+        'están disponibles',
     'statusDashboardOff': 'El acceso remoto no está activo',
 
     // Dashboard "Tonight's Briefing" — see the English block for why the
@@ -2373,7 +2391,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerNoSiteTitle': 'Define tu lugar de observación',
     'plannerNoSiteBody':
         'El planificador puntúa objetivos desde donde estás; añade tu latitud '
-            'y longitud para empezar.',
+        'y longitud para empezar.',
     'plannerNoSiteAction': 'Abrir ajustes',
     'plannerNoCatalogTitle': 'Instala el catálogo de objetos',
     'plannerNoCatalogBody':
@@ -2387,7 +2405,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerSelectCandidateTitle': 'Elige un objetivo',
     'plannerSelectCandidateBody':
         'Elige un candidato a la izquierda para ver su noche y crear una '
-            'secuencia.',
+        'secuencia.',
     'analyticsEquipmentTab': 'Equipo',
     'analyticsLive': 'En vivo',
     'nightPlanDrawer': 'Plan',
@@ -3058,6 +3076,26 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideLostNone': 'Ninguna estrella perdida en esta sesión',
     'nightScopeGuideLost': 'Perdida en esta sesión: {count} · última {time}',
     'nightScopeGuideSettleBelow': 'Estabiliza por debajo de {px} px',
+    'nightScopeGuideHeld_autofocus': 'Guiado en pausa por el autoenfoque',
+    'nightScopeGuideHeld_meridian_flip':
+        'Guiado en pausa por el cambio de meridiano',
+    'nightScopeGuideHeld_tracking_limit_hold':
+        'Guiado en pausa: la montura está en su límite de seguimiento y espera el cambio de meridiano',
+    'nightScopeGuideHeld_mount_move':
+        'Guiado en pausa mientras se mueve la montura',
+    'nightScopeGuideHeld_pre_meridian_hold':
+        'Guiado en pausa: la sesión espera en el meridiano al cambio',
+    'nightScopeGuideHeld_sequence_step':
+        'Guiado detenido por el paso Detener guiado de la secuencia',
+    'nightScopeGuideHeld_dither_settle':
+        'El guiado se estabiliza tras un dither',
+    'nightScopeGuideHeld_run_stopped':
+        'Guiado detenido porque se detuvo la sesión',
+    'nightScopeGuideHeld_operator':
+        'Guiado detenido desde los controles del guiador',
+    'nightScopeGuideHeldOther': 'Guiado detenido ({reason})',
+    'nightScopeGuideSettleTimedOut':
+        'La última estabilización agotó su tiempo a las {time}; no es una estrella perdida',
     'nightScopeGuideCalibration': 'Calibración',
     'nightScopeGuideNotCalibrated': 'Sin calibrar',
     'nightScopeGuideCalibrated': 'Válida',
@@ -3150,15 +3188,15 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrViewStretch': 'Estirar',
     'nightCtrViewStretchTip':
         'Activado: la toma estirada para mostrar el detalle débil. '
-            'Desactivado: lineal, tal como se grabó. El archivo guardado no '
-            'cambia.',
+        'Desactivado: lineal, tal como se grabó. El archivo guardado no '
+        'cambia.',
     'nightCtrViewStars': 'Estrellas',
     'nightCtrViewStarsTip':
         'Marca con un círculo las estrellas de esta toma, según su HFR',
     'nightCtrViewAnnotate': 'Anotar',
     'nightCtrViewAnnotateTip':
         'Etiqueta objetos del catálogo. Cada toma de luz se resuelve en '
-            'segundo plano.',
+        'segundo plano.',
     'nightCtrViewZoom': 'Zoom 1:1',
     'nightCtrViewZoomTip': 'Un píxel de imagen por píxel de pantalla',
     'nightCtrViewFit': 'Ajustar',
@@ -3248,7 +3286,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSetParkTitle': '¿Fijar el aparcado aquí?',
     'nightScopeSetParkBody':
         'Aparcar llevará la montura a donde apunta ahora, no a su posición '
-            'de aparcado actual. Nada se mueve y la montura no se aparca.',
+        'de aparcado actual. Nada se mueve y la montura no se aparca.',
     'nightScopeWhyNoSetPark':
         'Esta montura no puede guardar una posición de aparcado',
     'nightCtrSemGuideArcsec':

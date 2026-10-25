@@ -47,29 +47,36 @@ class _Samples extends NightGuideSamplesNotifier {
   }
 }
 
-List<Override> _connected(
-        {NightActionInputs? inputs, RecordingActionApi? api}) =>
-    [
-      ...panelOverrides(inputs: inputs, api: api),
-      guiderStateProvider.overrideWith(_Guider.new),
-      // Stopped, so the guide-star poll does not start in a widget test.
-      phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
-      nightGuideSamplesProvider.overrideWith(_Samples.new),
-    ];
+List<Override> _connected({
+  NightActionInputs? inputs,
+  RecordingActionApi? api,
+}) => [
+  ...panelOverrides(inputs: inputs, api: api),
+  guiderStateProvider.overrideWith(_Guider.new),
+  // Stopped, so the guide-star poll does not start in a widget test.
+  phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
+  nightGuideSamplesProvider.overrideWith(_Samples.new),
+];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('with no guider it says so and offers PHD2', (tester) async {
-    await pumpPanelTab(tester, const NightGuideTab(),
-        overrides: panelOverrides());
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: panelOverrides(),
+    );
     expectCleanLayout(tester);
     expect(find.text('PHD2'), findsOneWidget);
     expect(find.text('Not connected'), findsOneWidget);
     expect(find.text('Open PHD2'), findsOneWidget);
     expect(find.text('Connect…'), findsOneWidget);
-    expect(find.text('Guide star'), findsNothing,
-        reason: 'nothing pretends a guider is there');
+    expect(
+      find.text('Guide star'),
+      findsNothing,
+      reason: 'nothing pretends a guider is there',
+    );
     expect(find.text('RA RMS'), findsNothing);
   });
 
@@ -84,8 +91,9 @@ void main() {
     expect(find.text('±0.5 px'), findsOneWidget, reason: 'scatter scale');
   });
 
-  testWidgets('guide error reads in arcseconds once the scale is reported',
-      (tester) async {
+  testWidgets('guide error reads in arcseconds once the scale is reported', (
+    tester,
+  ) async {
     await pumpPanelTab(
       tester,
       const NightGuideTab(),
@@ -102,6 +110,40 @@ void main() {
     expect(find.text('0.30 px'), findsNothing);
   });
 
+  // On 2026-10-25 a watcher read an autofocus guiding stop as a lost star.
+  testWidgets('a planned guiding stop says what it is for', (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        guidingStopReasonProvider.overrideWith((ref) => 'autofocus'),
+        guiderSettleTimeoutProvider.overrideWith(
+          (ref) => (
+            at: DateTime.utc(2026, 10, 25, 5, 34),
+            error: 'timed-out waiting for guider to settle',
+          ),
+        ),
+      ],
+    );
+    expectCleanLayout(tester);
+    expect(find.text('Guiding paused for autofocus'), findsOneWidget);
+    expect(find.textContaining('not a lost star'), findsOneWidget);
+    expect(find.textContaining('Guide star lost'), findsNothing);
+  });
+
+  testWidgets('an unknown stop reason is shown as given', (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        guidingStopReasonProvider.overrideWith((ref) => 'new_reason'),
+      ],
+    );
+    expect(find.text('Guiding stopped (new_reason)'), findsOneWidget);
+  });
+
   testWidgets('no samples shows dashes, not zeros', (tester) async {
     await pumpPanelTab(
       tester,
@@ -116,8 +158,9 @@ void main() {
     expect(find.text('0'), findsNothing);
   });
 
-  testWidgets('a run owns guiding; Dither goes through the controller',
-      (tester) async {
+  testWidgets('a run owns guiding; Dither goes through the controller', (
+    tester,
+  ) async {
     final api = RecordingActionApi();
     await pumpPanelTab(
       tester,

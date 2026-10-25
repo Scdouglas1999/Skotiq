@@ -40,8 +40,11 @@ class NightGuideStarSection extends ConsumerWidget {
     );
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final clock = ref.watch(clockProvider);
+    final stopReason = ref.watch(guidingStopReasonProvider);
+    final settleTimeout = ref.watch(guiderSettleTimeoutProvider);
 
-    final acquiring = state == Phd2State.looping ||
+    final acquiring =
+        state == Phd2State.looping ||
         state == Phd2State.guiding ||
         state == Phd2State.calibrating ||
         state == Phd2State.settling;
@@ -93,9 +96,9 @@ class NightGuideStarSection extends ConsumerWidget {
 
     // The star view's empty state is an icon over a sentence, so the square
     // grows with the text size rather than clipping it.
-    final plotSize = MediaQuery.textScalerOf(context)
-        .scale(_plotSize)
-        .clamp(_plotSize, _plotSize * 1.4);
+    final plotSize = MediaQuery.textScalerOf(
+      context,
+    ).scale(_plotSize).clamp(_plotSize, _plotSize * 1.4);
 
     return NightPanelSection(
       title: l10n.text('nightScopeGuideStar'),
@@ -121,6 +124,24 @@ class NightGuideStarSection extends ConsumerWidget {
           spacing: SkotiqTokens.spaceMd,
           runSpacing: 2,
           children: [
+            // A planned stop says what it is for, so it is never read as
+            // lost guiding.
+            if (stopReason != null)
+              NightPanelNote(
+                key: const ValueKey<String>('nightGuide.stopReason'),
+                guideStopReasonLabel(l10n, stopReason),
+                color: colors.info,
+              ),
+            if (settleTimeout != null)
+              NightPanelNote(
+                key: const ValueKey<String>('nightGuide.settleTimedOut'),
+                l10n.text(
+                  'nightScopeGuideSettleTimedOut',
+                  params: {
+                    'time': _clockTime(clock.toNightClock(settleTimeout.at)),
+                  },
+                ),
+              ),
             NightPanelNote(
               lostText,
               color: lost.isEmpty ? null : colors.warning,
@@ -153,11 +174,11 @@ class NightGuideCalibrationSection extends ConsumerWidget {
     final status = !calibration.isCalibrated
         ? l10n.text('nightScopeGuideNotCalibrated')
         : at == null
-            ? l10n.text('nightScopeGuideCalibrated')
-            : l10n.text(
-                'nightScopeGuideCalibratedAt',
-                params: {'time': _clockTime(clock.toNightClock(at))},
-              );
+        ? l10n.text('nightScopeGuideCalibrated')
+        : l10n.text(
+            'nightScopeGuideCalibratedAt',
+            params: {'time': _clockTime(clock.toNightClock(at))},
+          );
     String? rate(double? value) =>
         value == null || !value.isFinite ? null : value.toStringAsFixed(2);
     final angle = calibration.rotationAngle;
@@ -258,6 +279,25 @@ class NightGuideDitherSection extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// The guide tab's words for why the guider is stopped (see
+/// `guidingStopReasonProvider`).
+String guideStopReasonLabel(SkotiqLocalizations l10n, String reason) {
+  const known = {
+    'autofocus',
+    'meridian_flip',
+    'tracking_limit_hold',
+    'mount_move',
+    'pre_meridian_hold',
+    'sequence_step',
+    'dither_settle',
+    'run_stopped',
+    'operator',
+  };
+  return known.contains(reason)
+      ? l10n.text('nightScopeGuideHeld_$reason')
+      : l10n.text('nightScopeGuideHeldOther', params: {'reason': reason});
 }
 
 String? _withUnit(String? value, String unit) =>
