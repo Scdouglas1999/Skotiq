@@ -5,6 +5,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequencer/widgets/run_dashboard/frame_detail_dialog.dart';
 import 'session_review_controller.dart';
+import 'widgets/build_in_darkroom_button.dart';
 import 'widgets/darkroom_pass_banner.dart';
 import 'widgets/growth_curve_panel.dart';
 import 'widgets/improvement_curve_panel.dart';
@@ -140,46 +141,11 @@ Future<void> _runFinishing(
   }
 }
 
-/// Wraps [child] in a [Tooltip] only when there is something to say — an empty
-/// tooltip would pop a blank bubble on hover.
-class _MaybeTooltip extends StatelessWidget {
-  final String? message;
-  final Widget child;
-
-  const _MaybeTooltip({required this.message, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final message = this.message;
-    if (message == null || message.isEmpty) return child;
-    return Tooltip(message: message, child: child);
-  }
-}
-
-/// Why "Integrate now" / "Re-integrate" cannot run for [state], or null when it
-/// can. Mirrors exactly the conditions that disable the button so the empty
-/// state and its tooltip can never disagree with whether the action fires.
-String? _integrateBlockedReason(SessionReviewState state) {
-  if (state.integrating) return 'An integration is already running.';
-  if (state.busy) {
-    return 'Another processing step is running — it has to finish first.';
-  }
-  if (state.lights.isEmpty) {
-    return 'This session captured no light frames, so there is nothing to '
-        'integrate.';
-  }
-  if (state.acceptedCount == 0) {
-    return 'Every one of this session’s ${state.lights.length} light frames is '
-        'rejected. Accept at least one sub to integrate.';
-  }
-  return null;
-}
-
 /// The narrative hero: the finished master rendered through [MasterOverlayView]
 /// (which extends the on-disk [MasterPreviewView] load/stretch path). The
 /// narrative shows annotations on by default and leaves the dense rejection /
 /// coverage toggles to the workbench. When no master exists yet it offers the
-/// primary Integrate action so the read-first narrative is never a dead end.
+/// Darkroom's guided build so the read-first narrative is never a dead end.
 class _HeroSection extends StatelessWidget {
   final SessionReviewState state;
   final SessionReviewController controller;
@@ -195,39 +161,23 @@ class _HeroSection extends StatelessWidget {
         outcome?.result.previewPath ?? state.reviewedMaster?.previewPngPath;
 
     if (previewPath == null) {
-      // Why the action cannot run, or null when it can. A dimmed button with no
-      // explanation is not an affordance at 2am — the workbench already knows
-      // this reason, so the narrative states it too.
-      final blockedReason = _integrateBlockedReason(state);
       return SkotiqPanel(
         padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            EmptyState(
+            const EmptyState(
               icon: SkotiqIcons.image,
               title: 'No finished master yet',
-              body: blockedReason ??
-                  'Run an integration to see tonight’s master here, '
-                      'annotated with the objects in frame.',
+              body: 'Masters are built in the Darkroom from every night of a '
+                  'target. Once they are, the master appears here, annotated '
+                  'with the objects in frame.',
             ),
             const SizedBox(height: SkotiqTokens.spaceLg),
             Align(
               alignment: Alignment.center,
-              child: _MaybeTooltip(
-                message: blockedReason,
-                child: SkotiqButton(
-                  label: state.lastOutcome == null
-                      ? 'Integrate now'
-                      : 'Re-integrate',
-                  icon: SkotiqIcons.play,
-                  isLoading: state.integrating,
-                  onPressed: blockedReason != null
-                      ? null
-                      : () => controller.reIntegrate(state.settings),
-                ),
-              ),
+              child: BuildInDarkroomButton(targetName: state.targetName),
             ),
           ],
         ),

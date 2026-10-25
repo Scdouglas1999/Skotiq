@@ -12,6 +12,7 @@ import '../../utils/confirm_dialog.dart';
 import '../../utils/darkroom_navigation.dart';
 import 'session_review_controller.dart';
 import 'widgets/ab_compare_panel.dart';
+import 'widgets/build_in_darkroom_button.dart';
 import 'widgets/darkroom_pass_banner.dart';
 import 'widgets/integration_settings_panel.dart';
 import 'widgets/master_library_panel.dart';
@@ -381,13 +382,9 @@ class _RightColumn extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
-        SkotiqButton(
-          label: state.lastOutcome == null ? 'Integrate now' : 'Re-integrate',
-          icon: SkotiqIcons.play,
-          isLoading: state.integrating,
-          onPressed: (state.integrating || state.acceptedCount == 0)
-              ? null
-              : () => controller.reIntegrate(state.settings),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: BuildInDarkroomButton(targetName: state.targetName),
         ),
       ],
     );
