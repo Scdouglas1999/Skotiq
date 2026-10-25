@@ -599,3 +599,46 @@ async fn a_dither_is_skipped_while_the_run_holds_the_guider_stopped() {
     let _ = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
     assert_eq!(ops.dithers_after_frame.lock().unwrap().len(), 1);
 }
+
+/// A dither whose settle runs out while the guider holds the star is a
+/// dither done: no failure, no failure streak, and the bar below the
+/// measured RMS is told once.
+#[tokio::test]
+async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_guiding(true)
+            .with_guider_rms(0.62)
+            .with_dither_failing("Dither did not settle: PHD2 settle failed (status 1): timed-out waiting for guider to settle"),
+    );
+    let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
+    trigger_state.write().await.guider_settle = crate::GuiderSettle {
+        pixels: 0.5,
+        time_secs: 10.0,
+        timeout_secs: 30.0,
+    };
+
+    for _ in 0..2 {
+        let result = execute_dither(&crate::DitherConfig::default(), &ctx, None).await;
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert!(
+            !result.message.as_deref().unwrap_or("").contains("failed"),
+            "{:?}",
+            result.message
+        );
+    }
+    assert_eq!(trigger_state.read().await.consecutive_dither_failures, 0);
+    let warnings = drain_warnings(&mut events);
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|w| w.contains("settle threshold is 0.5 px"))
+            .count(),
+        1,
+        "{warnings:?}"
+    );
+    assert!(
+        !warnings.iter().any(|w| w.contains("Dither failed")),
+        "{warnings:?}"
+    );
+}

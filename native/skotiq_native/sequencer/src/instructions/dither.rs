@@ -148,6 +148,9 @@ pub async fn execute_dither(
     })
     .await;
     ctx.device_ops.guider_note_stop_reason(None).await;
+    // A settle that ran out while the guider holds the star at the recovery
+    // bar is a dither done, not a failed one: the frames after it are guided.
+    let mut held_without_settling = None;
     if let Err(error) = &dither_result {
         if is_settle_timeout(error) {
             if let Ok(status) = ctx.device_ops.guider_get_status().await {
@@ -160,9 +163,27 @@ pub async fn execute_dither(
                             .send(crate::executor::ExecutorEvent::Warning { message: warning });
                     }
                 }
+                if status.is_guiding
+                    && status.rms_total > 0.0
+                    && status.rms_total <= crate::executor::REACQUIRE_SETTLE_PIXELS
+                {
+                    held_without_settling = Some(status.rms_total);
+                }
             }
         }
     }
+    let dither_result = match (dither_result, held_without_settling) {
+        (Err(_), Some(rms)) => {
+            tracing::info!(
+                "Dither settle ran out at {:.1} px, but the guider holds the star at RMS {:.2} px; \
+                 imaging goes on",
+                settle.pixels,
+                rms
+            );
+            Ok(())
+        }
+        (result, _) => result,
+    };
 
     match dither_result {
         Ok(_) => {
