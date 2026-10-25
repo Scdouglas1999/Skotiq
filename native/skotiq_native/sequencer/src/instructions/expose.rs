@@ -610,11 +610,11 @@ pub async fn execute_exposure_with_renderer(
         // reliable stars to form a stable median — which `grade_frame` treats
         // as "unknown, don't reject". With stars present this is a real
         // measurement, so a configured `eccentricity_threshold` now fires.
-        let measured_eccentricity = if !is_light_frame {
+        let measured_shape = if !is_light_frame {
             None
         } else {
-            match ctx.device_ops.measure_frame_eccentricity(&image_data).await {
-                Ok(ecc) => ecc,
+            match ctx.device_ops.measure_frame_star_shape(&image_data).await {
+                Ok(shape) => shape,
                 Err(e) => {
                     tracing::debug!(
                         "Frame {}/{} - eccentricity measurement failed for grading: {}",
@@ -626,6 +626,7 @@ pub async fn execute_exposure_with_renderer(
                 }
             }
         };
+        let measured_eccentricity = measured_shape.map(|shape| shape.eccentricity);
         let metrics = crate::quality::FrameMetrics {
             hfr: measured_hfr,
             eccentricity: measured_eccentricity,
@@ -784,6 +785,20 @@ pub async fn execute_exposure_with_renderer(
                 ),
                 None => (grade, save_dir, was_graded),
             };
+            // A tracked frame's star shape joins its filter's baseline on
+            // this side of the pier; a trailed frame says nothing about the
+            // optics.
+            if untracked_reason.is_none() {
+                if let Some(shape) = measured_shape {
+                    watch_star_shape(
+                        ctx,
+                        &star_count_baselines_handle,
+                        frame_filter_name.as_deref(),
+                        shape,
+                    )
+                    .await;
+                }
+            }
 
             // Ensure reject dir exists if grading routed us there. The dir
             // create error is fatal because writing into a non-existent path
@@ -1243,6 +1258,67 @@ async fn untracked_exposure_reason(
         }
     }
     None
+}
+
+/// Add a frame's star shape to its filter's baseline on the mount's current
+/// pier side, and tell the operator once when the stars on this side are
+/// clearly more elongated than on the other, with what the evidence points
+/// to. It only notifies: grading alone decides a frame, and nothing here
+/// stops the run.
+async fn watch_star_shape(
+    ctx: &InstructionContext,
+    baselines: &crate::quality::FilterBaselines,
+    filter: Option<&str>,
+    shape: crate::FrameStarShape,
+) {
+    let Some(trigger_state) = &ctx.trigger_state else {
+        return;
+    };
+    let (side, judge_rms) = {
+        let state = trigger_state.read().await;
+        (state.pier_side, state.guiding.judges_rms())
+    };
+    let Some(side) = side.filter(|side| *side != crate::PierSide::Unknown) else {
+        return;
+    };
+    let guiding_rms = if judge_rms {
+        ctx.device_ops
+            .guider_get_status()
+            .await
+            .ok()
+            .filter(|status| status.is_guiding && status.rms_total > 0.0)
+            .map(|status| status.rms_total)
+    } else {
+        None
+    };
+    let notice = {
+        let mut guard = baselines.write().await;
+        guard
+            .entry(crate::quality::filter_baseline_key(
+                ctx.target_name.as_deref(),
+                filter,
+            ))
+            .or_default()
+            .record_shape(
+                side,
+                crate::quality::filter_baseline::ShapeSample {
+                    eccentricity: shape.eccentricity,
+                    elongation: shape.elongation,
+                    guiding_rms,
+                },
+            );
+        crate::quality::filter_baseline::diagnose_shape_change(
+            &mut guard,
+            ctx.target_name.as_deref(),
+            side,
+        )
+    };
+    if let Some(message) = notice {
+        tracing::warn!("[GRADE] {message}");
+        if let Some(event_tx) = &ctx.event_tx {
+            let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+        }
+    }
 }
 
 /// Whether a burst skips its dither because the run is imaging unguided (the

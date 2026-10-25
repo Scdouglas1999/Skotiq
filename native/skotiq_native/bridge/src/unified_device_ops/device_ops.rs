@@ -1642,6 +1642,18 @@ impl DeviceOps for UnifiedDeviceOps {
         Ok(frame_shape(image_data).map(|shape| shape.eccentricity))
     }
 
+    async fn measure_frame_star_shape(
+        &self,
+        image_data: &ImageData,
+    ) -> DeviceResult<Option<skotiq_sequencer::FrameStarShape>> {
+        Ok(
+            frame_shape(image_data).map(|shape| skotiq_sequencer::FrameStarShape {
+                eccentricity: shape.eccentricity,
+                elongation: Some((shape.elongation_angle_deg, shape.elongation_consistency)),
+            }),
+        )
+    }
+
     // Cover calibrator (flat panel) operations
 
     async fn cover_calibrator_open_cover(&self, device_id: &str) -> DeviceResult<()> {

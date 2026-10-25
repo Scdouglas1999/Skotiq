@@ -90,6 +90,16 @@ pub struct GuidingStatus {
     pub rms_total: f64,
 }
 
+/// A light frame's star shape: the median eccentricity, and the mean
+/// direction of the stars' long axes with how well they agree on it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FrameStarShape {
+    pub eccentricity: f64,
+    /// `(degrees from the image +x axis toward +y in [0, 180), agreement 0
+    /// to 1)`, when the measurement gives one.
+    pub elongation: Option<(f64, f64)>,
+}
+
 /// How bright a guide star measures: PHD2's signal-to-noise ratio and its
 /// star mass (summed signal above background).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -710,6 +720,21 @@ pub trait DeviceOps: Send + Sync {
     ) -> DeviceResult<Option<f64>> {
         let _ = image_data;
         Ok(None)
+    }
+
+    /// The frame's star shape with the direction of elongation. A device
+    /// layer that measures only the eccentricity keeps this default.
+    async fn measure_frame_star_shape(
+        &self,
+        image_data: &ImageData,
+    ) -> DeviceResult<Option<FrameStarShape>> {
+        Ok(self
+            .measure_frame_eccentricity(image_data)
+            .await?
+            .map(|eccentricity| FrameStarShape {
+                eccentricity,
+                elongation: None,
+            }))
     }
 
     // Cover calibrator (flat panel / dust cover) operations
