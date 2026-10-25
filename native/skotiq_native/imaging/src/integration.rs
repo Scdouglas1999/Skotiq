@@ -785,7 +785,7 @@ fn generalized_esd(samples: &mut Vec<Sample>, outliers: f64, alpha: f64, low_rel
         let mean = sum / m;
         let var = ((sum_sq - sum * sum / m) / (m - 1.0)).max(0.0);
         let sd = var.sqrt();
-        if !(sd > 0.0) {
+        if sd.is_nan() || sd <= 0.0 {
             break;
         }
         let low_dev = (mean - samples[lo].value) / sd / relax;
@@ -843,7 +843,7 @@ fn normal_quantile(p: f64) -> f64 {
         -3.969683028665376e1,
         2.209460984245205e2,
         -2.759285104469687e2,
-        1.383577518672690e2,
+        1.38357751867269e2,
         -3.066479806614716e1,
         2.506628277459239,
     ];
