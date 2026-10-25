@@ -40,6 +40,9 @@ pub enum CalibrationError {
     },
     /// The input frame has no data
     EmptyFrame { frame_name: String },
+    /// A dark scale that is negative or not finite, or a scaled dark without
+    /// a bias to separate its thermal signal from its pedestal.
+    InvalidDarkScale { scale: f64 },
     /// The raw data buffer length does not match the expected size for the
     /// frame's dimensions and pixel type (e.g. odd byte count for U16 pixels)
     BufferLengthMismatch {
@@ -80,6 +83,10 @@ impl std::fmt::Display for CalibrationError {
                 f,
                 "Pixel type mismatch for {}: expected {:?}, got {:?}",
                 frame_name, expected, actual
+            ),
+            CalibrationError::InvalidDarkScale { scale } => write!(
+                f,
+                "Dark scale {scale} is invalid; a scaled dark needs a master bias and a finite scale >= 0"
             ),
             CalibrationError::EmptyFrame { frame_name } => {
                 write!(f, "Empty frame: {}", frame_name)
@@ -310,10 +317,15 @@ pub fn calibrate_frame(
         _ => None,
     };
 
-    // Step 2: Prepare the flat frame (subtract bias from flat if both provided)
+    // Step 2: Prepare the flat frame. Only an integer flat can still carry the
+    // bias pedestal; a floating-point flat is a normalized response map whose
+    // pedestal was removed when it was built, so subtracting ADU from it would
+    // corrupt it.
     let corrected_flat: Option<ImageData> = match (flat, bias) {
-        (Some(f), Some(b)) => Some(subtract_bias(f, b)?),
-        (Some(f), None) => Some(f.clone()),
+        (Some(f), Some(b)) if !is_float(f.pixel_type) => {
+            Some(subtract_bias(f, &convert_sample_type(b, f.pixel_type))?)
+        }
+        (Some(f), _) => Some(f.clone()),
         _ => None,
     };
 
@@ -342,6 +354,163 @@ pub fn calibrate_frame(
     }
 
     Ok(result)
+}
+
+fn is_float(pixel_type: PixelType) -> bool {
+    matches!(pixel_type, PixelType::F32 | PixelType::F64)
+}
+
+/// Whether a flat master still contains the bias pedestal of its raw frames.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FlatPedestal {
+    /// A raw or uncorrected flat: the bias is subtracted before normalizing.
+    Included,
+    /// A bias- or dark-flat-corrected master: used as it is.
+    Removed,
+}
+
+/// Masters and options for [`calibrate_frame_f32`].
+#[derive(Debug, Clone, Copy)]
+pub struct FloatCalibration<'a> {
+    pub bias: Option<&'a ImageData>,
+    /// A master dark. With a bias it is treated as bias plus thermal signal and
+    /// only its thermal part is scaled by `dark_scale`; without one it is
+    /// subtracted as it is and `dark_scale` must be 1.
+    pub dark: Option<&'a ImageData>,
+    /// Multiplier on the dark's thermal signal: the light's exposure over the
+    /// dark's when no exposure-matched dark exists, otherwise 1.
+    pub dark_scale: f64,
+    pub flat: Option<&'a ImageData>,
+    pub flat_pedestal: FlatPedestal,
+    /// Constant added to every calibrated sample so that sky pixels pulled
+    /// below zero by noise keep their value instead of being clipped.
+    pub output_pedestal: f32,
+}
+
+impl Default for FloatCalibration<'_> {
+    fn default() -> Self {
+        Self {
+            bias: None,
+            dark: None,
+            dark_scale: 1.0,
+            flat: None,
+            flat_pedestal: FlatPedestal::Removed,
+            output_pedestal: 0.0,
+        }
+    }
+}
+
+/// Calibrate `light` in floating point and return an `F32` frame:
+/// `(light - bias - k·(dark - bias)) / flat + pedestal`, never clamped.
+///
+/// Integer arithmetic clamps every sample that noise pulls below the bias to
+/// zero, which biases faint sky upward and leaves isolated zero samples; the
+/// float result keeps the full noise distribution as PixInsight's
+/// ImageCalibration does. The flat is normalized to unit mean per channel; flat
+/// samples at or below zero yield the pedestal.
+pub fn calibrate_frame_f32(
+    light: &ImageData,
+    cal: &FloatCalibration<'_>,
+) -> Result<ImageData, CalibrationError> {
+    if light.is_empty() {
+        return Err(CalibrationError::EmptyFrame {
+            frame_name: "light frame".to_string(),
+        });
+    }
+    validate_buffer_length(light, "light frame")?;
+    for (frame, name) in [
+        (cal.bias, "bias frame"),
+        (cal.dark, "dark frame"),
+        (cal.flat, "flat frame"),
+    ] {
+        if let Some(frame) = frame {
+            validate_frame_geometry(light, frame, name)?;
+        }
+    }
+    if !cal.dark_scale.is_finite()
+        || cal.dark_scale < 0.0
+        || (cal.bias.is_none() && cal.dark.is_some() && (cal.dark_scale - 1.0).abs() > 1e-9)
+    {
+        return Err(CalibrationError::InvalidDarkScale {
+            scale: cal.dark_scale,
+        });
+    }
+    let channels = (light.channels as usize).max(1);
+    let mut out = samples_f64(light);
+    let bias = cal.bias.map(samples_f64);
+    if let Some(bias) = &bias {
+        out.par_iter_mut()
+            .zip(bias.par_iter())
+            .for_each(|(v, b)| *v -= b);
+    }
+    if let Some(dark) = cal.dark {
+        let dark = samples_f64(dark);
+        let k = cal.dark_scale;
+        match &bias {
+            Some(bias) => out
+                .par_iter_mut()
+                .zip(dark.par_iter().zip(bias.par_iter()))
+                .for_each(|(v, (d, b))| *v -= k * (d - b)),
+            None => out
+                .par_iter_mut()
+                .zip(dark.par_iter())
+                .for_each(|(v, d)| *v -= d),
+        }
+    }
+    if let Some(flat) = cal.flat {
+        let mut response = samples_f64(flat);
+        if let (FlatPedestal::Included, Some(bias)) = (cal.flat_pedestal, &bias) {
+            response
+                .par_iter_mut()
+                .zip(bias.par_iter())
+                .for_each(|(f, b)| *f -= b);
+        }
+        let means = per_channel_means(&response, channels);
+        out.par_iter_mut().enumerate().for_each(|(i, v)| {
+            let mean = means[i % channels];
+            let normalized = if mean > 0.0 { response[i] / mean } else { 0.0 };
+            *v = if normalized > 0.0 {
+                *v / normalized
+            } else {
+                0.0
+            };
+        });
+    }
+    let pedestal = f64::from(cal.output_pedestal);
+    let data: Vec<f32> = out.par_iter().map(|&v| (v + pedestal) as f32).collect();
+    Ok(ImageData::from_f32(
+        light.width,
+        light.height,
+        light.channels,
+        &data,
+    ))
+}
+
+/// Every sample of `image` as `f64`, in buffer order.
+pub fn samples_f64(image: &ImageData) -> Vec<f64> {
+    match image.pixel_type {
+        PixelType::U8 => image.data.par_iter().map(|&v| f64::from(v)).collect(),
+        PixelType::U16 => image
+            .data
+            .par_chunks_exact(2)
+            .map(|c| f64::from(u16::from_le_bytes([c[0], c[1]])))
+            .collect(),
+        PixelType::U32 => image
+            .data
+            .par_chunks_exact(4)
+            .map(|c| f64::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]])))
+            .collect(),
+        PixelType::F32 => image
+            .data
+            .par_chunks_exact(4)
+            .map(|c| f64::from(f32::from_le_bytes([c[0], c[1], c[2], c[3]])))
+            .collect(),
+        PixelType::F64 => image
+            .data
+            .par_chunks_exact(8)
+            .map(|c| f64::from_le_bytes(c.try_into().expect("8-byte chunk")))
+            .collect(),
+    }
 }
 
 /// `master` re-encoded as `target` samples, or borrowed unchanged when it
@@ -780,6 +949,50 @@ fn divide_flat_f64(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Float calibration keeps samples below the bias, scales the dark's
+    /// thermal part by the exposure ratio, adds the pedestal, and only
+    /// subtracts the bias from a flat that still carries it.
+    #[test]
+    fn float_calibration_scales_darks_and_keeps_negative_sky() {
+        let light = ImageData::from_u16(2, 1, 1, &[295, 1300]);
+        let bias = ImageData::from_u16(2, 1, 1, &[300, 300]);
+        let dark = ImageData::from_u16(2, 1, 1, &[310, 310]); // 10 ADU thermal
+        let cal = FloatCalibration {
+            bias: Some(&bias),
+            dark: Some(&dark),
+            dark_scale: 2.0,
+            output_pedestal: 100.0,
+            ..Default::default()
+        };
+        let out = calibrate_frame_f32(&light, &cal).unwrap().as_f32().unwrap();
+        assert_eq!(
+            out,
+            vec![295.0 - 300.0 - 20.0 + 100.0, 1300.0 - 300.0 - 20.0 + 100.0]
+        );
+
+        let raw_flat = ImageData::from_u16(2, 1, 1, &[2300, 4300]);
+        let cal = FloatCalibration {
+            bias: Some(&bias),
+            flat: Some(&raw_flat),
+            flat_pedestal: FlatPedestal::Included,
+            ..Default::default()
+        };
+        let light = ImageData::from_u16(2, 1, 1, &[1300, 1300]);
+        let out = calibrate_frame_f32(&light, &cal).unwrap().as_f32().unwrap();
+        // Bias-corrected flat 2000 / 4000 normalizes to 2/3 and 4/3.
+        assert!(
+            (out[0] - 1500.0).abs() < 1e-3 && (out[1] - 750.0).abs() < 1e-3,
+            "{out:?}"
+        );
+
+        let scaled_without_bias = FloatCalibration {
+            dark: Some(&dark),
+            dark_scale: 2.0,
+            ..Default::default()
+        };
+        assert!(calibrate_frame_f32(&light, &scaled_without_bias).is_err());
+    }
 
     fn make_u16_image(width: u32, height: u32, values: &[u16]) -> ImageData {
         ImageData::from_u16(width, height, 1, values)

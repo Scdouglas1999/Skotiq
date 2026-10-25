@@ -1,5 +1,6 @@
 //! Export masters on one grid, cropped to full exposure support in every lane.
 use super::*;
+use rayon::prelude::*;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,10 +16,24 @@ struct Args {
     output_dir: String,
     #[serde(default = "minimum_area")]
     min_retained_area: f64,
+    /// `adu` (default): every filter's samples are its ADU / 65535, so ratios
+    /// and the zero point survive. `perFilter`: each filter spans 0..1 between
+    /// its own minimum and maximum.
+    #[serde(default)]
+    scale: Option<String>,
+    /// Write the RGB and LRGB composites when R, G and B (and L) are present.
+    #[serde(default = "yes")]
+    composites: bool,
 }
 fn minimum_area() -> f64 {
     0.8
 }
+fn yes() -> bool {
+    true
+}
+
+/// The divisor that maps ADU onto PixInsight's 0..1 float range.
+const ADU_FULL_SCALE: f64 = 65535.0;
 
 /// Largest all-true rectangle in O(width * height) time and O(width) memory.
 fn rectangle(mask: &[bool], width: usize, height: usize) -> Option<[usize; 4]> {
@@ -59,12 +74,19 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
     if args.masters.is_empty() || !(0.0..=1.0).contains(&args.min_retained_area) {
         return Err("delivery needs masters and a retained-area fraction between 0 and 1".into());
     }
+    let per_filter = match args.scale.as_deref().map(str::trim).unwrap_or("") {
+        "" | "adu" => false,
+        "perFilter" => true,
+        other => {
+            return Err(format!(
+                "unknown scale '{other}'; expected adu or perFilter"
+            ))
+        }
+    };
     let mut loaded = Vec::new();
     let mut mask = Vec::new();
     let mut geometry = (0, 0, 0);
     let mut grid = String::new();
-    let mut low = 0.0_f64;
-    let mut high = 1.0_f64;
     let mut filters = std::collections::HashSet::new();
     for input in &args.masters {
         if input.filter.is_empty()
@@ -76,11 +98,15 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         {
             return Err("each delivery filter must have a unique filename-safe label".into());
         }
-        let (image, header) = read_fits(Path::new(&input.path)).map_err(|e| e.to_string())?;
+        let header = read_fits_header(Path::new(&input.path)).map_err(|e| e.to_string())?;
         let (coverage, coverage_header) =
             read_fits(Path::new(&input.coverage_path)).map_err(|e| e.to_string())?;
-        let size = (image.width, image.height, image.channels);
-        let reference = header.get_string("GRIDREF").unwrap_or_default();
+        let size = (
+            header.get_int("NAXIS1").unwrap_or(0) as u32,
+            header.get_int("NAXIS2").unwrap_or(0) as u32,
+            header.get_int("NAXIS3").unwrap_or(1).max(1) as u32,
+        );
+        let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
         let count = header.get_int("NFRAMES").unwrap_or(0);
         if count <= 0
             || reference.is_empty()
@@ -95,23 +121,15 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         }
         if loaded.is_empty() {
             geometry = size;
-            grid = reference.to_string();
-            mask = vec![true; (image.width * image.height) as usize];
+            grid = reference.clone();
+            mask = vec![true; (size.0 * size.1) as usize];
         } else if size != geometry || reference != grid {
             return Err(
                 "masters must be built on the same reference grid before common cropping".into(),
             );
         }
-        let pixels = image_to_f64(&image);
-        if pixels.iter().any(|v| !v.is_finite()) {
-            return Err(format!("{} contains non-finite pixels", input.filter));
-        }
-        for &value in &pixels {
-            low = low.min(value);
-            high = high.max(value);
-        }
         let counts = image_to_f64(&coverage);
-        for (i, values) in counts.chunks(image.channels as usize).enumerate() {
+        for (i, values) in counts.chunks(size.2 as usize).enumerate() {
             mask[i] &= values.iter().all(|&v| v == count as f64);
         }
         loaded.push(header);
@@ -136,43 +154,233 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         }
     }
     let mut results = Vec::new();
+    // Cropped mono planes by color role, for the composites.
+    let mut planes: std::collections::HashMap<&'static str, (Vec<f32>, FitsHeader)> =
+        std::collections::HashMap::new();
     for (input, mut header) in args.masters.iter().zip(loaded) {
         let (image, _) = read_fits(Path::new(&input.path)).map_err(|e| e.to_string())?;
         let pixels = image_to_f64(&image);
         drop(image);
-        let path = out.join(format!("{}_master_linear.fits", input.filter));
-        let preview = out.join(format!("{}_master_linear.png", input.filter));
-        let mut cropped = Vec::with_capacity(cw * ch * channels as usize);
+        let c = channels as usize;
+        let mut cropped = Vec::with_capacity(cw * ch * c);
         for y in y0..y1 {
-            let start = (y * width as usize + x0) * channels as usize;
-            cropped.extend(
-                pixels[start..start + cw * channels as usize]
-                    .iter()
-                    .map(|&v| ((v - low) / (high - low)) as f32),
-            );
+            let start = (y * width as usize + x0) * c;
+            cropped.extend_from_slice(&pixels[start..start + cw * c]);
         }
-        for (key, offset) in [("CRPIX1", x0), ("CRPIX2", y0)] {
+        drop(pixels);
+        let (offset, divisor) = if per_filter {
+            let low = cropped.iter().copied().fold(f64::INFINITY, f64::min);
+            let high = cropped.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+            if !(low.is_finite() && high > low) {
+                return Err(format!("{} has no usable range", input.filter));
+            }
+            (low, high - low)
+        } else {
+            (0.0, ADU_FULL_SCALE)
+        };
+        let samples: Vec<f32> = cropped
+            .iter()
+            .map(|&v| ((v - offset) / divisor) as f32)
+            .collect();
+        if samples.iter().any(|v| !v.is_finite()) {
+            return Err(format!("{} contains non-finite pixels", input.filter));
+        }
+        for (key, origin) in [("CRPIX1", x0), ("CRPIX2", y0)] {
             if let Some(value) = header.get_float(key) {
-                header.set_float(key, value - offset as f64);
+                header.set_float(key, value - origin as f64);
             }
         }
-        header.set_float("SKLOW", low);
-        header.set_float("SKHIGH", high);
         header.add_history(&format!(
             "Common full-coverage crop x={x0}..{x1}, y={y0}..{y1}"
         ));
-        header.add_history(&format!(
-            "Linear samples = (ADU - {low}) / ({}); no clipping or stretch",
-            high - low
-        ));
-        let image = ImageData::from_f32(cw as u32, ch as u32, channels, &cropped);
+        if per_filter {
+            header.set_float("SKLOW", offset);
+            header.set_float("SKHIGH", offset + divisor);
+            header.add_history(&format!(
+                "Linear samples = (ADU - {offset}) / {divisor}, this filter's own range"
+            ));
+        } else {
+            header.set_float("SKSCALE", ADU_FULL_SCALE);
+            header.add_history(&format!(
+                "Linear samples = ADU / {ADU_FULL_SCALE}; no offset, clipping or stretch"
+            ));
+        }
+        let path = out.join(format!("{}_master_linear.fits", input.filter));
+        let preview = out.join(format!("{}_master_linear.png", input.filter));
+        let image = ImageData::from_f32(cw as u32, ch as u32, channels, &samples);
         write_fits(&path, &image, &header).map_err(|e| e.to_string())?;
         write_preview_png(&image, &preview)?;
         results.push(serde_json::json!({"filter":input.filter,"path":path,"previewPath":preview,"channels":channels}));
+        if channels == 1 {
+            let named = header
+                .get_string("FILTER")
+                .map(str::to_string)
+                .unwrap_or_else(|| input.filter.clone());
+            let role = match skotiq_imaging::color_composite::classify_filter(Some(&named), 1) {
+                skotiq_imaging::color_composite::FilterRole::Luminance => Some("L"),
+                skotiq_imaging::color_composite::FilterRole::Red => Some("R"),
+                skotiq_imaging::color_composite::FilterRole::Green => Some("G"),
+                skotiq_imaging::color_composite::FilterRole::Blue => Some("B"),
+                _ => None,
+            };
+            if let Some(role) = role.filter(|_| args.composites) {
+                planes.entry(role).or_insert((samples, header));
+            }
+        }
     }
-    Ok(
-        serde_json::json!({"masters":results,"crop":crop,"width":cw,"height":ch,"retainedArea":fraction,"linearRange":[low,high]}),
-    )
+    let composites = if args.composites {
+        write_composites(out, &planes, cw as u32, ch as u32, per_filter)?
+    } else {
+        serde_json::Value::Null
+    };
+    Ok(serde_json::json!({
+        "masters":results,"crop":crop,"width":cw,"height":ch,"retainedArea":fraction,
+        "scale": if per_filter { "perFilter" } else { "adu" },
+        "composites": composites,
+    }))
+}
+
+/// Header for a composite: the optics, site and WCS of one of its masters.
+fn composite_header(source: &FitsHeader, history: &[&str]) -> FitsHeader {
+    let mut header = FitsHeader::new();
+    copy_optics_cards(&mut header, source);
+    copy_wcs(&mut header, source);
+    for key in ["OBJECT", "GRIDREF"] {
+        if let Some(v) = source.get_string(key) {
+            header.set_string(key, v);
+        }
+    }
+    header.set_string("COLORSPC", "RGB");
+    for line in history {
+        header.add_history(line);
+    }
+    header
+}
+
+fn write_rgb(
+    path_stem: &Path,
+    rgb: &[f32],
+    width: u32,
+    height: u32,
+    header: &FitsHeader,
+) -> Result<(String, String), String> {
+    let image = ImageData::from_f32(width, height, 3, rgb);
+    let fits = path_stem.with_extension("fits");
+    let xisf = path_stem.with_extension("xisf");
+    write_fits(&fits, &image, header)
+        .map_err(|e| format!("failed to write '{}': {e:?}", fits.display()))?;
+    let metadata = skotiq_imaging::XisfMetadata {
+        fits_keywords: header
+            .keywords
+            .iter()
+            .map(|(k, v)| (k.clone(), v.to_header_string()))
+            .collect(),
+        ..Default::default()
+    };
+    skotiq_imaging::write_xisf(&xisf, &image, &metadata)
+        .map_err(|e| format!("failed to write '{}': {e:?}", xisf.display()))?;
+    Ok((
+        fits.to_string_lossy().to_string(),
+        xisf.to_string_lossy().to_string(),
+    ))
+}
+
+/// The planar RGB composite of the R, G and B masters and, with an L master,
+/// a linear LRGB composite, as FITS and XISF. Linear, no color calibration or
+/// background extraction.
+///
+/// The LRGB composite keeps each pixel's color ratios from RGB and takes its
+/// brightness from L: `c' = L · c̃ / Ỹ`, where `c̃` is the channel averaged over
+/// 3×3 pixels and `Ỹ` the mean of the three. Pixels where `Ỹ` is within the
+/// RGB noise of zero take L in every channel, so the ratio never divides noise
+/// by noise.
+fn write_composites(
+    out: &Path,
+    planes: &std::collections::HashMap<&'static str, (Vec<f32>, FitsHeader)>,
+    width: u32,
+    height: u32,
+    per_filter: bool,
+) -> Result<serde_json::Value, String> {
+    let (Some((r, rh)), Some((g, _)), Some((b, _))) =
+        (planes.get("R"), planes.get("G"), planes.get("B"))
+    else {
+        return Ok(serde_json::Value::Null);
+    };
+    let n = r.len();
+    let mut rgb = Vec::with_capacity(n * 3);
+    for i in 0..n {
+        rgb.extend_from_slice(&[r[i], g[i], b[i]]);
+    }
+    let scale_note = if per_filter {
+        "Channels keep each filter's own 0..1 scaling; color ratios are not physical"
+    } else {
+        "Channels are ADU / 65535 of each master; no color calibration or background extraction"
+    };
+    let header = composite_header(
+        rh,
+        &[
+            "Planes 1, 2, 3 are the R, G and B masters on the common crop",
+            scale_note,
+        ],
+    );
+    let (rgb_fits, rgb_xisf) = write_rgb(&out.join("RGB_linear"), &rgb, width, height, &header)?;
+    let mut result = serde_json::json!({"rgbPath": rgb_fits, "rgbXisfPath": rgb_xisf});
+
+    if let Some((l, lh)) = planes.get("L") {
+        let (w, h) = (width as usize, height as usize);
+        let smooth = |plane: &[f32]| -> Vec<f32> {
+            (0..w * h)
+                .into_par_iter()
+                .map(|i| {
+                    let (x, y) = (i % w, i / w);
+                    let (mut sum, mut count) = (0.0f32, 0.0f32);
+                    for yy in y.saturating_sub(1)..(y + 2).min(h) {
+                        for xx in x.saturating_sub(1)..(x + 2).min(w) {
+                            sum += plane[yy * w + xx];
+                            count += 1.0;
+                        }
+                    }
+                    sum / count
+                })
+                .collect()
+        };
+        let (rs, gs, bs) = (smooth(r), smooth(g), smooth(b));
+        let luma: Vec<f32> = (0..n).map(|i| (rs[i] + gs[i] + bs[i]) / 3.0).collect();
+        // The RGB noise floor: robust sigma of the smoothed luminance's
+        // neighbor differences.
+        let mut diffs: Vec<f32> = luma
+            .windows(2)
+            .step_by(7)
+            .map(|p| (p[1] - p[0]).abs())
+            .collect();
+        let floor = if diffs.is_empty() {
+            0.0
+        } else {
+            let mid = diffs.len() / 2;
+            3.0 * 1.4826 * *diffs.select_nth_unstable_by(mid, f32::total_cmp).1
+                / std::f32::consts::SQRT_2
+        };
+        let mut lrgb = Vec::with_capacity(n * 3);
+        for i in 0..n {
+            if luma[i] > floor && luma[i] > 0.0 {
+                let k = l[i] / luma[i];
+                lrgb.extend_from_slice(&[rs[i] * k, gs[i] * k, bs[i] * k]);
+            } else {
+                lrgb.extend_from_slice(&[l[i], l[i], l[i]]);
+            }
+        }
+        let header = composite_header(
+            lh,
+            &[
+                "Linear LRGB: brightness from the L master, color ratios from RGB averaged over 3x3 pixels",
+                scale_note,
+            ],
+        );
+        let (fits, xisf) = write_rgb(&out.join("LRGB_linear"), &lrgb, width, height, &header)?;
+        result["lrgbPath"] = serde_json::json!(fits);
+        result["lrgbXisfPath"] = serde_json::json!(xisf);
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

@@ -15,6 +15,44 @@ pub(crate) fn load_optional_master(
     }
 }
 
+/// A master flat and whether its bias pedestal is already removed.
+pub(crate) struct FlatMaster {
+    pub(crate) image: ImageData,
+    pub(crate) pedestal: skotiq_imaging::calibration::FlatPedestal,
+}
+
+/// Read an optional master flat with its header, so a bias-corrected integer
+/// master is not bias-subtracted a second time.
+pub(crate) fn load_optional_flat(path: &Option<String>) -> Result<Option<FlatMaster>, String> {
+    let Some(p) = path.as_deref().map(str::trim).filter(|p| !p.is_empty()) else {
+        return Ok(None);
+    };
+    let image = read_image(Path::new(p))
+        .map_err(|e| format!("failed to read flat master '{p}': {e}"))?
+        .image;
+    let header = read_fits_header(Path::new(p)).ok();
+    let pedestal = flat_pedestal_state(&image, header.as_ref());
+    Ok(Some(FlatMaster { image, pedestal }))
+}
+
+/// [`calibrate_frame`](skotiq_imaging::calibration::calibrate_frame) that
+/// honors the flat's pedestal state: a corrected master flat only divides.
+pub(crate) fn calibrate_with_flat_state(
+    light: &ImageData,
+    dark: Option<&ImageData>,
+    flat: Option<&FlatMaster>,
+    bias: Option<&ImageData>,
+) -> Result<ImageData, skotiq_imaging::calibration::CalibrationError> {
+    use skotiq_imaging::calibration::{calibrate_frame, divide_flat, FlatPedestal};
+    match flat {
+        Some(f) if f.pedestal == FlatPedestal::Removed => {
+            let corrected = calibrate_frame(light, dark, None, bias)?;
+            divide_flat(&corrected, &f.image)
+        }
+        _ => calibrate_frame(light, dark, flat.map(|f| &f.image), bias),
+    }
+}
+
 /// Expand the caller's `exposuresSec` into exactly one exposure per light,
 /// refusing any list that is neither empty nor as long as the frame list, and
 /// any entry that is not a real, non-negative number of seconds.
@@ -499,6 +537,11 @@ pub(crate) fn reject_label(reject: &Reject) -> String {
         Reject::LinearFitClip { low, high } => format!("linearFit({low},{high})"),
         Reject::PercentileClip { low, high } => format!("percentile({low},{high})"),
         Reject::MinMax { n_low, n_high } => format!("minMax({n_low},{n_high})"),
+        Reject::GeneralizedEsd {
+            outliers,
+            alpha,
+            low_relaxation,
+        } => format!("generalizedEsd({outliers},{alpha},{low_relaxation})"),
     }
 }
 

@@ -16,6 +16,7 @@
 use super::*;
 use sha2::{Digest, Sha256};
 
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -63,7 +64,9 @@ pub(crate) struct MasterBuildArgs {
     pub(crate) filter: Option<String>,
     pub(crate) target: Option<String>,
     pub(crate) settings: IntegrationSettingsArgs,
-    /// Online rejection thresholds (σ); both absent ⇒ a plain weighted mean.
+    /// Accepted for older callers and ignored: a build integrates every sub
+    /// in one batch with `rejection`.
+    #[allow(dead_code)]
     pub(crate) clip: MasterSettingsArgs,
     pub(crate) master_fits_path: String,
     pub(crate) preview_png_path: Option<String>,
@@ -72,6 +75,15 @@ pub(crate) struct MasterBuildArgs {
     pub(crate) min_overlap: f64,
     pub(crate) max_eccentricity: Option<f64>,
     pub(crate) validate_flats: bool,
+    /// `auto` (default: PixInsight's choice for the number of subs),
+    /// `percentile`, `winsorized`, `linearFit`, `esd` or `none`.
+    pub(crate) rejection: Option<String>,
+    /// Folder for the registered subs while they are integrated; removed
+    /// afterwards. Default: `<masterFitsPath>.subs` beside the master.
+    pub(crate) spool_dir: Option<String>,
+    /// Memory for registered subs and one band of integration, in MiB
+    /// (default 1024). Subs that do not fit are written to `spoolDir`.
+    pub(crate) memory_budget_mb: Option<u64>,
 }
 
 /// One sub that went into the master.
@@ -93,7 +105,7 @@ pub(crate) struct FoldedSub {
 }
 
 /// One sub that did not, and why.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[flutter_rust_bridge::frb(ignore)]
 pub(crate) struct SkippedSub {
@@ -115,6 +127,8 @@ pub(crate) struct GroupSummary {
     pub(crate) skipped: usize,
     pub(crate) integration_sec: f64,
     pub(crate) calibration: CalibrationReport,
+    /// The exposure ratio the group's dark was scaled by, when it was.
+    pub(crate) dark_scale: Option<f64>,
 }
 
 /// Response for `op: "build"`.
@@ -135,6 +149,14 @@ pub(crate) struct MasterBuildResult {
     pub(crate) groups: Vec<GroupSummary>,
     pub(crate) folded: Vec<FoldedSub>,
     pub(crate) skipped: Vec<SkippedSub>,
+    /// The rejection that ran, with its parameters.
+    pub(crate) rejection: String,
+    /// The sub the master's photometric scale comes from.
+    pub(crate) normalization_reference: String,
+    /// Set when the requested normalization reference could not be used.
+    pub(crate) normalization_fallback: Option<ReferenceFallback>,
+    /// Where the master's WCS came from, when it has one.
+    pub(crate) wcs_source: Option<String>,
 }
 
 /// The weighting formula that weighs each sub by its star signal over its noise.
@@ -302,22 +324,46 @@ impl ReferenceSignal {
     }
 }
 
+/// Constant added to every calibrated sample, in ADU, so that sky samples
+/// that noise pulls below zero keep their value through the 16-bit star
+/// detection. It is removed again from the finished master.
+pub(crate) const CALIBRATION_PEDESTAL: f32 = 100.0;
+
+/// Memory, in bytes, the batch integration may hold for one band of rows
+/// across every sub. Registered subs that do not fit are kept on disk.
+const DEFAULT_MEMORY_BUDGET: usize = 1 << 30;
+
+/// Calibration masters of one group, loaded once and shared.
+#[derive(Default, Clone)]
+pub(crate) struct GroupMasters {
+    dark: Option<Arc<ImageData>>,
+    /// The dark's exposure in seconds, when its header says.
+    dark_exposure: Option<f64>,
+    flat: Option<Arc<FlatMaster>>,
+    bias: Option<Arc<ImageData>>,
+}
+
 /// Calibration masters loaded once and shared by every group that names them.
 #[derive(Default)]
 struct MasterCache {
-    loaded: HashMap<String, Arc<ImageData>>,
+    images: HashMap<String, Arc<ImageData>>,
+    flats: HashMap<String, Arc<FlatMaster>>,
+}
+
+fn present(path: &Option<String>) -> Option<&str> {
+    path.as_deref().map(str::trim).filter(|p| !p.is_empty())
 }
 
 impl MasterCache {
-    fn get(
+    fn image(
         &mut self,
         path: &Option<String>,
         label: &str,
     ) -> Result<Option<Arc<ImageData>>, String> {
-        let Some(path) = path.as_deref().map(str::trim).filter(|p| !p.is_empty()) else {
+        let Some(path) = present(path) else {
             return Ok(None);
         };
-        if let Some(image) = self.loaded.get(path) {
+        if let Some(image) = self.images.get(path) {
             return Ok(Some(Arc::clone(image)));
         }
         let image = Arc::new(
@@ -325,68 +371,301 @@ impl MasterCache {
                 .map_err(|e| format!("failed to read {label} master '{path}': {e}"))?
                 .image,
         );
-        self.loaded.insert(path.to_string(), Arc::clone(&image));
+        self.images.insert(path.to_string(), Arc::clone(&image));
         Ok(Some(image))
     }
 
-    /// Dark, flat and bias for `calibration`.
-    fn masters(
-        &mut self,
-        calibration: &CalibrationArgs,
-    ) -> Result<[Option<Arc<ImageData>>; 3], String> {
-        Ok([
-            self.get(&calibration.dark, "dark")?,
-            self.get(&calibration.flat, "flat")?,
-            self.get(&calibration.bias, "bias")?,
-        ])
+    fn flat(&mut self, path: &Option<String>) -> Result<Option<Arc<FlatMaster>>, String> {
+        let Some(key) = present(path) else {
+            return Ok(None);
+        };
+        if let Some(flat) = self.flats.get(key) {
+            return Ok(Some(Arc::clone(flat)));
+        }
+        let Some(flat) = load_optional_flat(path)? else {
+            return Ok(None);
+        };
+        let flat = Arc::new(flat);
+        self.flats.insert(key.to_string(), Arc::clone(&flat));
+        Ok(Some(flat))
+    }
+
+    fn masters(&mut self, calibration: &CalibrationArgs) -> Result<GroupMasters, String> {
+        Ok(GroupMasters {
+            dark: self.image(&calibration.dark, "dark")?,
+            dark_exposure: present(&calibration.dark)
+                .and_then(fits_header_of)
+                .and_then(|h| h.get_float("EXPTIME")),
+            flat: self.flat(&calibration.flat)?,
+            bias: self.image(&calibration.bias, "bias")?,
+        })
     }
 }
 
-/// Read a light and apply its night's calibration.
+/// A light calibrated in floating point, and the 16-bit copy star detection
+/// and registration run on.
+pub(crate) struct CalibratedLight {
+    pub(crate) image: ImageData,
+    pub(crate) detection: ImageData,
+    /// The multiplier applied to the dark's thermal signal.
+    pub(crate) dark_scale: f64,
+}
+
+/// The calibrated samples rounded into 16 bits for star detection.
+fn detection_copy(image: &ImageData) -> ImageData {
+    let samples = skotiq_imaging::calibration::samples_f64(image);
+    let data: Vec<u16> = samples
+        .iter()
+        .map(|v| {
+            if v.is_finite() {
+                v.round().clamp(0.0, 65535.0) as u16
+            } else {
+                0
+            }
+        })
+        .collect();
+    ImageData::from_u16(image.width, image.height, image.channels, &data)
+}
+
+/// The dark multiplier for a light of `light_exposure` seconds: the exposure
+/// ratio when no exposure-matched dark exists. Scaling needs a bias, so the
+/// pedestal can be separated from the dark's thermal signal.
+fn dark_scale(masters: &GroupMasters, light_exposure: Option<f64>) -> Result<f64, String> {
+    let (Some(_), Some(dark_s), Some(light_s)) =
+        (&masters.dark, masters.dark_exposure, light_exposure)
+    else {
+        return Ok(1.0);
+    };
+    if dark_s <= 0.0 || light_s <= 0.0 || (light_s / dark_s - 1.0).abs() <= 0.01 {
+        return Ok(1.0);
+    }
+    if masters.bias.is_none() {
+        return Err(format!(
+            "the dark is {dark_s} s and the light {light_s} s; a dark of another exposure can only be scaled with a master bias"
+        ));
+    }
+    Ok(light_s / dark_s)
+}
+
+/// Read a light and apply its night's calibration in floating point.
 fn calibrated_light(
     path: &str,
+    exposure: Option<f64>,
     calibration: &CalibrationArgs,
-    masters: &[Option<Arc<ImageData>>; 3],
-) -> Result<ImageData, (&'static str, String)> {
-    let mut image = read_image(Path::new(path))
+    masters: &GroupMasters,
+) -> Result<CalibratedLight, (&'static str, String)> {
+    let image = read_image(Path::new(path))
         .map_err(|e| ("read", format!("cannot be read: {e}")))?
         .image;
-    if image.pixel_type != PixelType::U16 {
+    if !matches!(image.channels, 1 | 3) {
         return Err((
             "read",
             format!(
-                "is {:?}, and only 16-bit lights are integrated",
-                image.pixel_type
+                "has {} channels; only mono and RGB lights are integrated",
+                image.channels
             ),
         ));
     }
-    let [dark, flat, bias] = masters;
-    if dark.is_some() || flat.is_some() || bias.is_some() {
-        image = skotiq_imaging::calibration::calibrate_frame(
-            &image,
-            dark.as_deref(),
-            None,
-            bias.as_deref(),
-        )
+    let exposure = exposure
+        .filter(|s| *s > 0.0)
+        .or_else(|| fits_header_of(path).and_then(|h| h.get_float("EXPTIME")));
+    let dark_scale = dark_scale(masters, exposure).map_err(|e| ("calibration", e))?;
+    if calibration.scale_dark
+        && masters.dark.is_some()
+        && (masters.bias.is_none() || masters.dark_exposure.is_none() || exposure.is_none())
+    {
+        return Err((
+            "calibration",
+            "the dark is to be scaled, but scaling needs a master bias and the exposures of the dark and the light".to_string(),
+        ));
+    }
+    let cal = skotiq_imaging::calibration::FloatCalibration {
+        bias: masters.bias.as_deref(),
+        dark: masters.dark.as_deref(),
+        dark_scale,
+        flat: masters.flat.as_deref().map(|f| &f.image),
+        flat_pedestal: masters
+            .flat
+            .as_deref()
+            .map(|f| f.pedestal)
+            .unwrap_or(skotiq_imaging::calibration::FlatPedestal::Removed),
+        output_pedestal: CALIBRATION_PEDESTAL,
+    };
+    let mut image = skotiq_imaging::calibration::calibrate_frame_f32(&image, &cal)
         .map_err(|e| ("calibration", format!("calibration failed: {e}")))?;
-    }
-    // Library flats are already bias/dark-flat corrected response maps.
-    // A light's bias must never be subtracted from that normalized response.
-    if let Some(flat) = flat {
-        image = skotiq_imaging::calibration::divide_flat(&image, flat)
-            .map_err(|e| ("calibration", format!("flat correction failed: {e}")))?;
-    }
     if calibration.cosmetic_correction {
         cosmetic_correct_transient(&mut image, CosmeticConfig::default())
             .map_err(|e| ("calibration", format!("cosmetic correction failed: {e}")))?;
     }
-    Ok(image)
+    let detection = detection_copy(&image);
+    Ok(CalibratedLight {
+        image,
+        detection,
+        dark_scale,
+    })
+}
+
+/// A sub resampled onto the grid: samples with `NaN` where it has no
+/// coverage, and the covered locations.
+pub(crate) struct OnGrid {
+    pub(crate) pixels: Vec<f64>,
+    pub(crate) covered: Vec<bool>,
+}
+
+impl OnGrid {
+    pub(crate) fn new(
+        calibrated: &ImageData,
+        grid: (u32, u32),
+        transform: &TransformModel,
+        interp: Interpolator,
+    ) -> Self {
+        let warped = skotiq_imaging::registration::warp_to_grid(
+            calibrated, grid.0, grid.1, transform, interp,
+        );
+        let channels = calibrated.channels as usize;
+        let pixels = warped
+            .pixels
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| {
+                if warped.covered[i / channels] {
+                    f64::from(v)
+                } else {
+                    f64::NAN
+                }
+            })
+            .collect();
+        Self {
+            pixels,
+            covered: warped.covered,
+        }
+    }
+
+    fn overlap(&self) -> f64 {
+        self.covered.iter().filter(|&&c| c).count() as f64 / self.covered.len().max(1) as f64
+    }
+
+    /// The 16-bit copy quality measurement and star matching run on.
+    pub(crate) fn detection(&self, width: u32, height: u32, channels: u32) -> ImageData {
+        let data: Vec<u16> = self
+            .pixels
+            .iter()
+            .map(|v| {
+                if v.is_finite() {
+                    v.round().clamp(0.0, 65535.0) as u16
+                } else {
+                    0
+                }
+            })
+            .collect();
+        ImageData::from_u16(width, height, channels, &data)
+    }
+}
+
+/// The calibration masters `calibration` names, for one accumulating fold.
+pub(crate) fn fold_masters(calibration: &CalibrationArgs) -> Result<GroupMasters, String> {
+    MasterCache::default().masters(calibration)
+}
+
+/// A light calibrated as a build calibrates it, for one accumulating fold.
+pub(crate) fn calibrate_for_fold(
+    path: &str,
+    exposure: Option<f64>,
+    calibration: &CalibrationArgs,
+    masters: &GroupMasters,
+) -> Result<CalibratedLight, String> {
+    calibrated_light(path, exposure, calibration, masters).map_err(|(_, e)| format!("'{path}' {e}"))
+}
+
+/// The rejection the build applies, from the request token.
+fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
+    Ok(
+        match token
+            .map(str::trim)
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "" | "auto" => Reject::pixinsight_auto(frames),
+            "none" => Reject::None,
+            "percentile" => Reject::PercentileClip {
+                low: 0.2,
+                high: 0.1,
+            },
+            "winsorized" | "winsorizedsigma" => Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0,
+            },
+            "linearfit" => Reject::LinearFitClip {
+                low: 5.0,
+                high: 4.0,
+            },
+            "esd" | "generalizedesd" => Reject::GeneralizedEsd {
+                outliers: 0.3,
+                alpha: 0.05,
+                low_relaxation: 1.5,
+            },
+            other => return Err(format!("unknown rejection '{other}'")),
+        },
+    )
+}
+
+/// The weighting formula that weighs a sub by the inverse variance of its
+/// noise on the reference's scale (PixInsight's noise evaluation weight).
+pub(crate) const NOISE_FORMULA: &str = "noiseEvaluation";
+
+/// How each sub is weighted in the build.
+enum Weighting {
+    None,
+    StarSignal(ReferenceSignal),
+    Noise,
+    Quality(WeightFormula),
+}
+
+/// Why the normalization reference the caller asked for was not used.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct ReferenceFallback {
+    pub(crate) requested: String,
+    pub(crate) used: String,
+    pub(crate) reason: String,
+}
+
+/// One sub that passed every check, waiting for integration.
+struct Accepted {
+    sub: FoldedSub,
+    exposure_sec: f64,
+    group: usize,
 }
 
 /// Fold every group's subs into one master and write it.
+///
+/// Each sub is calibrated in floating point, registered onto the grid with
+/// coverage taken from the warp geometry, normalized to the filter's reference
+/// and weighted. The registered subs are then integrated in one batch with
+/// PixInsight's rejection for the number of subs, a band of rows at a time, so
+/// the result does not depend on the order of the subs and memory stays
+/// bounded.
 pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String> {
     let args: MasterBuildArgs =
         serde_json::from_str(args_json).map_err(|e| format!("invalid build args: {e}"))?;
+    let result = master_build_inner(&args);
+    match &result {
+        Ok(r) => tracing::info!(
+            "master build {:?}: {} of {} subs integrated, {} skipped, {:.0} s",
+            args.filter,
+            r.frame_count,
+            r.frame_count + r.skipped.len(),
+            r.skipped.len(),
+            r.total_integration_sec
+        ),
+        Err(e) => tracing::warn!("master build {:?} failed: {e}", args.filter),
+    }
+    result
+}
+
+fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, String> {
     if args.grid_reference.path.trim().is_empty() || args.master_fits_path.trim().is_empty() {
         return Err("build requires gridReference.path and masterFitsPath".to_string());
     }
@@ -424,8 +703,8 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
             .chain(std::iter::once(&args.grid_reference.calibration))
             .chain(args.normalization_reference.iter().map(|r| &r.calibration))
         {
-            if let Some(flat) = cache.get(&calibration.flat, "flat")? {
-                validate_flat_response(&flat).map_err(|e| {
+            if let Some(flat) = cache.flat(&calibration.flat)? {
+                validate_flat_response(&flat.image).map_err(|e| {
                     format!(
                         "Flat '{}': {e}. Select another flat or explicitly choose no flat.",
                         calibration.flat.as_deref().unwrap_or_default()
@@ -435,45 +714,48 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
         }
     }
     let reg_cfg = build_registration_config(&args.settings.align)?;
+    let interp = reg_cfg.interpolator;
     let grid_masters = cache.masters(&args.grid_reference.calibration)?;
     let grid = calibrated_light(
         &args.grid_reference.path,
+        None,
         &args.grid_reference.calibration,
         &grid_masters,
     )
     .map_err(|(_, reason)| format!("the grid reference '{}' {reason}", args.grid_reference.path))?;
+    let grid_stars =
+        skotiq_imaging::registration::ReferenceStars::detect(&grid.detection, &reg_cfg)
+            .map_err(|e| format!("the grid reference '{}': {e}", args.grid_reference.path))?;
     let min_stars = min_registration_stars(reg_cfg.transform_kind);
-    let grid_stars = registrable_star_count(&grid, &reg_cfg);
-    if grid_stars < min_stars {
+    if grid_stars.len() < min_stars {
         return Err(format!(
-            "the grid reference '{}' has only {grid_stars} detectable stars (need >= {min_stars})",
-            args.grid_reference.path
+            "the grid reference '{}' has only {} detectable stars (need >= {min_stars})",
+            args.grid_reference.path,
+            grid_stars.len()
         ));
     }
-
     let grid_id = format!(
         "{:x}",
         Sha256::digest(args.grid_reference.path.trim().as_bytes())
     );
-    let width = grid.width as usize;
-    let height = grid.height as usize;
-    let chan = grid.channels as usize;
+    let (gw, gh, gc) = (grid.image.width, grid.image.height, grid.image.channels);
+    let (width, height, chan) = (gw as usize, gh as usize, gc as usize);
     let locations = width * height;
+    drop(grid);
 
-    // The normalization reference, on the grid, with the pixels it covers.
+    // The normalization reference: a sub of this master's own filter, placed
+    // on the grid. When the requested one cannot serve, the next sub that can
+    // is used and the substitution is logged and reported.
     let norm_cfg = if args.settings.normalization.enabled {
         Some(build_normalization_config(&args.settings.normalization)?)
     } else {
         None
     };
-    // The reference of this master's own filter, as calibrated and as placed
-    // on the grid.
-    let mut candidates = Vec::new();
-    if let Some(reference) = &args.normalization_reference {
-        candidates.push(reference.clone());
-    } else {
-        candidates.push(args.grid_reference.clone());
-    }
+    let requested = args
+        .normalization_reference
+        .clone()
+        .unwrap_or_else(|| args.grid_reference.clone());
+    let mut candidates = vec![requested.clone()];
     for group in &args.groups {
         for light in &group.lights {
             if !candidates.iter().any(|r| r.path == light.path) {
@@ -485,101 +767,130 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
         }
     }
     let mut chosen = None;
+    let mut first_refusal: Option<String> = None;
     for reference in candidates {
         cancel.check("reference", None, None)?;
-        let masters = cache.masters(&reference.calibration)?;
-        let Ok(image) = calibrated_light(&reference.path, &reference.calibration, &masters) else {
-            continue;
-        };
-        let Ok(registered) = register_frame(&grid, &image, &reg_cfg) else {
-            continue;
-        };
-        let Some(quality) = aligned_quality(&registered.aligned, &FrameQualityConfig::default())
-        else {
-            continue;
-        };
-        if args
-            .max_eccentricity
-            .is_some_and(|limit| quality.eccentricity.is_none_or(|e| e > limit))
-        {
-            continue;
+        let refusal = (|| -> Result<_, String> {
+            let masters = cache.masters(&reference.calibration)?;
+            let light = calibrated_light(&reference.path, None, &reference.calibration, &masters)
+                .map_err(|(_, e)| e)?;
+            let (transform, _) = skotiq_imaging::registration::solve_registration_against(
+                &grid_stars,
+                &light.detection,
+                &reg_cfg,
+            )
+            .map_err(|e| format!("does not register: {e}"))?;
+            let on_grid = OnGrid::new(&light.image, (gw, gh), &transform, interp);
+            let detection = on_grid.detection(gw, gh, gc);
+            let quality = aligned_quality(&detection, &FrameQualityConfig::default())
+                .ok_or("its star shapes cannot be measured")?;
+            if let Some(limit) = args.max_eccentricity {
+                if quality.eccentricity.is_none_or(|e| e > limit) {
+                    return Err(format!(
+                        "star eccentricity {:?} exceeds {limit:.2}",
+                        quality.eccentricity
+                    ));
+                }
+            }
+            if on_grid.overlap() < args.min_overlap {
+                return Err(format!(
+                    "{:.1}% field overlap; need at least {:.1}%",
+                    on_grid.overlap() * 100.0,
+                    args.min_overlap * 100.0
+                ));
+            }
+            Ok((light, on_grid, detection))
+        })();
+        match refusal {
+            Ok(found) => {
+                chosen = Some((found, reference.path));
+                break;
+            }
+            Err(reason) => {
+                let reason = format!("'{}' {reason}", reference.path);
+                tracing::warn!("normalization reference refused: {reason}");
+                first_refusal.get_or_insert(reason);
+            }
         }
-        let pixels = image_to_f64(&registered.aligned);
-        let coverage =
-            CoverageMask::from_zero_fill(&derive_luma_f64(&pixels, locations, chan), width, height);
-        let overlap =
-            (0..locations).filter(|&i| coverage.is_valid_at(i)).count() as f64 / locations as f64;
-        if overlap < args.min_overlap {
-            continue;
-        }
-        chosen = Some((image, registered.aligned, reference.path));
-        break;
     }
-    let (filter_reference, filter_reference_on_grid, normalization_path) = chosen.ok_or("No normalization reference passes registration, overlap and star-shape limits. Review the reference and excluded frames.")?;
+    let ((reference_light, reference_on_grid, reference_detection), normalization_path) =
+        chosen.ok_or_else(|| {
+            format!(
+                "No normalization reference passes registration, overlap and star-shape limits ({}). Review the reference and excluded frames.",
+                first_refusal.clone().unwrap_or_default()
+            )
+        })?;
+    let normalization_fallback = (normalization_path != requested.path).then(|| {
+        let fallback = ReferenceFallback {
+            requested: requested.path.clone(),
+            used: normalization_path.clone(),
+            reason: first_refusal.clone().unwrap_or_default(),
+        };
+        tracing::warn!(
+            "normalizing {:?} to '{}' instead of the requested '{}': {}",
+            args.filter,
+            fallback.used,
+            fallback.requested,
+            fallback.reason
+        );
+        fallback
+    });
     let norm_planes: Option<(Vec<Vec<f64>>, Vec<bool>)> = norm_cfg.as_ref().map(|_| {
-        let pixels = image_to_f64(&filter_reference_on_grid);
-        let covered = derive_luma_f64(&pixels, locations, chan)
-            .iter()
-            .map(|v| v.is_finite() && *v != 0.0)
-            .collect();
         (
             (0..chan)
-                .map(|ch| extract_channel(&pixels, locations, chan, ch))
+                .map(|ch| extract_channel(&reference_on_grid.pixels, locations, chan, ch))
                 .collect(),
-            covered,
+            reference_on_grid.covered.clone(),
         )
     });
-    let star_weighting = args.settings.weighting.enabled
-        && args
-            .settings
-            .weighting
-            .formula
-            .trim()
-            .eq_ignore_ascii_case(STAR_SIGNAL_FORMULA);
-    let reference_signal = if star_weighting {
-        Some(
-            ReferenceSignal::measure(&filter_reference, &filter_reference_on_grid).ok_or_else(
+    let formula = args.settings.weighting.formula.trim();
+    let weighting = if !args.settings.weighting.enabled {
+        Weighting::None
+    } else if formula.eq_ignore_ascii_case(STAR_SIGNAL_FORMULA) {
+        Weighting::StarSignal(
+            ReferenceSignal::measure(&reference_light.detection, &reference_detection).ok_or_else(
                 || {
                     "the normalization reference has too few unsaturated stars to weight by"
                         .to_string()
                 },
             )?,
         )
+    } else if formula.eq_ignore_ascii_case(NOISE_FORMULA) {
+        Weighting::Noise
     } else {
-        None
+        Weighting::Quality(build_weight_formula(&args.settings.weighting)?)
     };
-    drop(filter_reference);
-    drop(filter_reference_on_grid);
-
-    let clip = match (args.clip.online_clip_low, args.clip.online_clip_high) {
-        (Some(low), Some(high)) => Some(OnlineClip { low, high }),
-        _ => None,
-    };
-    let mut master = IntegratedMaster::create(
-        &grid,
-        &MasterCreateConfig {
-            mode: AccumulationMode::RunningWeightedMean { clip },
-            filter: args.filter.clone(),
-            target: args.target.clone(),
-        },
-    )
-    .map_err(|e| format!("master create failed: {e}"))?;
-    let geom = master.geometry.clone();
+    drop((reference_light, reference_on_grid, reference_detection));
     drop(grid_masters);
 
-    let q_cfg = FrameQualityConfig::default();
-    let formula = if args.settings.weighting.enabled && !star_weighting {
-        Some(build_weight_formula(&args.settings.weighting)?)
-    } else {
-        None
-    };
+    let budget = args
+        .memory_budget_mb
+        .map(|mb| (mb as usize) << 20)
+        .unwrap_or(DEFAULT_MEMORY_BUDGET);
+    let spool_dir = args
+        .spool_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|d| !d.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            let mut dir = std::path::PathBuf::from(args.master_fits_path.trim());
+            let name = dir
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            dir.set_file_name(format!("{name}.subs"));
+            dir
+        });
+    let mut spool = super::spool::FrameSpool::new(width, height, chan, total, budget, &spool_dir)?;
 
-    let mut folded = Vec::new();
+    let q_cfg = FrameQualityConfig::default();
+    let mut accepted: Vec<Accepted> = Vec::new();
+    let mut weights = Vec::new();
     let mut skipped = Vec::new();
     let mut groups = Vec::new();
-    let mut rejected = 0u64;
     let mut done = 0u32;
-    for group in &args.groups {
+    for (group_index, group) in args.groups.iter().enumerate() {
         let label = if group.label.trim().is_empty() {
             "group".to_string()
         } else {
@@ -591,6 +902,7 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
             .map(|l| build_calibration_report(&l.path, &group.calibration))
             .unwrap_or_else(|| build_calibration_report("", &group.calibration));
         let masters = cache.masters(&group.calibration)?;
+        let skipped_before = skipped.len();
         let mut summary = GroupSummary {
             label: label.clone(),
             offered: group.lights.len(),
@@ -598,12 +910,13 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
             skipped: 0,
             integration_sec: 0.0,
             calibration,
+            dark_scale: None,
         };
         for light in &group.lights {
             cancel.check("registering", Some(done), Some(total as u32))?;
             emit_integration_progress(
                 "registering",
-                done as f32 / total as f32,
+                FRACTION_INTEGRATE * done as f32 / total as f32,
                 Some(done),
                 Some(total as u32),
             );
@@ -616,53 +929,77 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
                     reason,
                 });
             };
-            let image = match calibrated_light(&light.path, &group.calibration, &masters) {
-                Ok(image) => image,
-                Err((stage, reason)) => {
-                    skip(stage, reason);
-                    summary.skipped += 1;
-                    continue;
-                }
-            };
-            if image.width != grid.width
-                || image.height != grid.height
-                || image.channels != grid.channels
-            {
+            let exposure = (light.exposure_sec > 0.0).then_some(light.exposure_sec);
+            let calibrated =
+                match calibrated_light(&light.path, exposure, &group.calibration, &masters) {
+                    Ok(image) => image,
+                    Err((stage, reason)) => {
+                        skip(stage, reason);
+                        continue;
+                    }
+                };
+            if (calibrated.dark_scale - 1.0).abs() > 1e-9 {
+                summary.dark_scale = Some(calibrated.dark_scale);
+            }
+            let image = &calibrated.image;
+            if image.width != gw || image.height != gh || image.channels != gc {
                 skip(
                     "geometry",
                     format!(
-                        "is {}×{}×{}, the grid is {}×{}×{}",
-                        image.width,
-                        image.height,
-                        image.channels,
-                        grid.width,
-                        grid.height,
-                        grid.channels
+                        "is {}×{}×{}, the grid is {gw}×{gh}×{gc}",
+                        image.width, image.height, image.channels
                     ),
                 );
-                summary.skipped += 1;
                 continue;
             }
-            let registered = match register_frame(&grid, &image, &reg_cfg) {
+            let (transform, stats) = match skotiq_imaging::registration::solve_registration_against(
+                &grid_stars,
+                &calibrated.detection,
+                &reg_cfg,
+            ) {
                 Ok(r) => r,
                 Err(e) => {
                     skip("registration", e.to_string());
-                    summary.skipped += 1;
                     continue;
                 }
             };
-            let signal = reference_signal
-                .as_ref()
-                .map(|reference| reference.weigh(&image, &registered.transform));
-            drop(image);
-            if let Err(e) = frame_buffer_for_master(0, &registered.aligned, &geom) {
-                skip("geometry", e.to_string());
-                summary.skipped += 1;
+            let signal = match &weighting {
+                Weighting::StarSignal(reference) => {
+                    match reference.weigh(&calibrated.detection, &transform) {
+                        Some(s) => Some(s),
+                        None => {
+                            skip(
+                                "quality",
+                                format!(
+                                    "fewer than {MIN_SIGNAL_PAIRS} of its stars match the reference's, so its signal cannot be measured"
+                                ),
+                            );
+                            continue;
+                        }
+                    }
+                }
+                _ => None,
+            };
+            let noise = match weighting {
+                Weighting::Noise => noise_of(&calibrated.detection),
+                _ => None,
+            };
+            let mut on_grid = OnGrid::new(image, (gw, gh), &transform, interp);
+            drop(calibrated);
+            let overlap = on_grid.overlap();
+            if overlap < args.min_overlap {
+                skip(
+                    "framing",
+                    format!(
+                        "{:.1}% field overlap; need at least {:.1}%",
+                        overlap * 100.0,
+                        args.min_overlap * 100.0
+                    ),
+                );
                 continue;
             }
-            let Some(quality) = aligned_quality(&registered.aligned, &q_cfg) else {
+            let Some(quality) = aligned_quality(&on_grid.detection(gw, gh, gc), &q_cfg) else {
                 skip("quality", "its quality could not be measured".to_string());
-                summary.skipped += 1;
                 continue;
             };
             if let Some(limit) = args.max_eccentricity {
@@ -674,167 +1011,180 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
                             quality.eccentricity
                         ),
                     );
-                    summary.skipped += 1;
                     continue;
                 }
             }
-            let mut pixels = image_to_f64(&registered.aligned);
-            let coverage = CoverageMask::from_zero_fill(
-                &derive_luma_f64(&pixels, locations, chan),
-                width,
-                height,
-            );
-            let overlap = (0..locations).filter(|&i| coverage.is_valid_at(i)).count() as f64
-                / locations as f64;
-            if overlap < args.min_overlap {
-                skip(
-                    "framing",
-                    format!(
-                        "{:.1}% field overlap; need at least {:.1}%",
-                        overlap * 100.0,
-                        args.min_overlap * 100.0
-                    ),
-                );
-                summary.skipped += 1;
-                continue;
-            }
+            let mut scale = 1.0;
             if let (Some(cfg), Some((planes, covered))) = (norm_cfg.as_ref(), norm_planes.as_ref())
             {
                 let shared = CoverageMask::new(
                     width,
                     height,
                     (0..locations)
-                        .map(|i| covered[i] && coverage.is_valid_at(i))
+                        .map(|i| covered[i] && on_grid.covered[i])
                         .collect(),
                 )
                 .expect("the mask has one entry per pixel");
                 let mut failed = None;
                 for (ch, ref_plane) in planes.iter().enumerate() {
-                    let mut plane = extract_channel(&pixels, locations, chan, ch);
+                    let mut plane = extract_channel(&on_grid.pixels, locations, chan, ch);
                     match estimate_normalization(&plane, ref_plane, &shared, width, height, cfg) {
                         Ok(coeffs) => {
+                            scale = coeffs.scale;
                             apply_normalization(&mut plane, &coeffs, width, height);
-                            write_channel(&mut pixels, locations, chan, ch, &plane);
+                            write_channel(&mut on_grid.pixels, locations, chan, ch, &plane);
                         }
                         Err(e) => failed = Some(e.to_string()),
                     }
                 }
                 if let Some(reason) = failed {
                     skip("normalization", reason);
-                    summary.skipped += 1;
                     continue;
                 }
             }
-            let weight = match (&signal, &formula) {
-                (Some(Some(weight)), _) => weight.weight,
-                (Some(None), _) => {
-                    skip(
-                        "quality",
-                        format!(
-                            "fewer than {MIN_SIGNAL_PAIRS} of its stars match the reference's, so its signal cannot be measured"
-                        ),
-                    );
-                    summary.skipped += 1;
-                    continue;
-                }
-                (None, Some(formula)) => {
+            let weight = match &weighting {
+                Weighting::StarSignal(_) => signal.map(|s| s.weight).unwrap_or(0.0),
+                Weighting::Noise => match noise {
+                    Some(n) if n * scale > 0.0 => 1.0 / (n * scale).powi(2),
+                    _ => 0.0,
+                },
+                Weighting::Quality(formula) => {
                     accumulation_weights(std::slice::from_ref(&quality), formula)[0]
                 }
-                (None, None) => 1.0,
+                Weighting::None => 1.0,
             };
-            let frame = IntegrationFrame {
-                pixels: &pixels,
-                weight,
-                coverage: Some(&coverage),
-            };
-            let report = master
-                .add_frames(&[frame], &[light.exposure_sec], &label)
-                .map_err(|e| format!("folding '{}' failed: {e}", light.path))?;
-            rejected += report.rejected;
-            if report.frames_added == 0 {
+            if !(weight.is_finite() && weight > 0.0) {
                 skip("quality", "its integration weight is zero".to_string());
-                summary.skipped += 1;
                 continue;
             }
-            let m = registered.transform.matrix;
-            folded.push(FoldedSub {
-                path: light.path.clone(),
-                group: label.clone(),
-                weight,
-                transparency: signal.flatten().map(|s| s.transparency),
-                noise_ratio: signal.flatten().map(|s| s.noise_ratio),
-                stars_matched: registered.stats.inlier_count,
-                rms_px: registered.stats.rms_residual_px,
-                rotation_deg: m[1][0].atan2(m[0][0]).to_degrees(),
-                shift_px: [m[0][2], m[1][2]],
+            let samples: Vec<f32> = on_grid.pixels.iter().map(|&v| v as f32).collect();
+            drop(on_grid);
+            spool.push(&samples)?;
+            weights.push(weight);
+            let m = transform.matrix;
+            accepted.push(Accepted {
+                sub: FoldedSub {
+                    path: light.path.clone(),
+                    group: label.clone(),
+                    weight,
+                    transparency: signal.map(|s| s.transparency),
+                    noise_ratio: signal.map(|s| s.noise_ratio),
+                    stars_matched: stats.inlier_count,
+                    rms_px: stats.rms_residual_px,
+                    rotation_deg: m[1][0].atan2(m[0][0]).to_degrees(),
+                    shift_px: [m[0][2], m[1][2]],
+                },
+                exposure_sec: light.exposure_sec,
+                group: group_index,
             });
-            summary.folded += 1;
-            summary.integration_sec += light.exposure_sec;
         }
+        summary.skipped = skipped.len() - skipped_before;
         groups.push(summary);
     }
     cancel.check("integrating", Some(done), Some(total as u32))?;
 
-    if folded.is_empty() {
-        let reasons: Vec<String> = skipped
-            .iter()
-            .take(3)
-            .map(|s| format!("{}: {}", s.path, s.reason))
-            .collect();
-        return Err(format!(
-            "none of the {total} subs could be folded ({})",
-            reasons.join("; ")
-        ));
+    if accepted.is_empty() {
+        let outcome = NoSubsIntegrated {
+            kind: NO_SUBS_KIND.to_string(),
+            filter: args.filter.clone(),
+            offered: total,
+            skipped: skipped.clone(),
+        };
+        tracing::warn!(
+            "no sub of {:?} could be integrated; first reasons: {:?}",
+            args.filter,
+            skipped
+                .iter()
+                .take(3)
+                .map(|s| &s.reason)
+                .collect::<Vec<_>>()
+        );
+        return Err(serde_json::to_string(&outcome)
+            .unwrap_or_else(|_| format!("none of the {total} subs could be integrated")));
     }
 
+    let reject = build_rejection(args.rejection.as_deref(), spool.len())?;
+    let integrated = integrate_spool(&spool, &weights, reject, budget, &cancel, (done, total))?;
+    drop(spool);
+    for a in &accepted {
+        groups[a.group].folded += 1;
+        groups[a.group].integration_sec += a.exposure_sec;
+    }
+    let folded: Vec<FoldedSub> = accepted.into_iter().map(|a| a.sub).collect();
+
     emit_integration_progress("writing", FRACTION_WRITE, Some(done), Some(total as u32));
-    let image = master.finalize();
     if let Some(path) = &args.coverage_fits_path {
-        let counts: Vec<f32> = master
-            .state
-            .coverage
-            .iter()
-            .zip(&master.state.rejected)
-            .map(|(&accepted, &rejected)| (accepted as f64 + rejected as f64) as f32)
-            .collect();
         let mut header = FitsHeader::new();
         header.set_int("NFRAMES", folded.len() as i64);
         header.set_string("GRIDREF", &grid_id);
+        header.add_history("Subs whose warp covers each pixel, rejected samples included");
         ensure_parent_dir(Path::new(path))?;
         write_fits(
             Path::new(path),
-            &ImageData::from_f32(grid.width, grid.height, grid.channels, &counts),
+            &ImageData::from_f32(gw, gh, gc, &integrated.coverage),
             &header,
         )
         .map_err(|e| format!("failed to write coverage: {e:?}"))?;
     }
-    drop(master);
+    let image = ImageData::from_f32(gw, gh, gc, &integrated.master);
     let master_path = Path::new(&args.master_fits_path);
     ensure_parent_dir(master_path)?;
+    let seconds: f64 = groups.iter().map(|g| g.integration_sec).sum();
     let mut header = FitsHeader::new();
+    if let Some(source) = fits_header_of(&normalization_path) {
+        copy_optics_cards(&mut header, &source);
+    }
     header.set_string("IMAGETYP", "MASTER_LIGHT");
     header.set_string("FRAMETYP", "MASTER");
     header.set_string("CALSTAT", "Skotiq multi-night master");
     header.set_string("GRIDREF", &grid_id);
     header.set_int("NFRAMES", folded.len() as i64);
-    let seconds: f64 = groups.iter().map(|g| g.integration_sec).sum();
+    header.set_int("NCOMBINE", folded.len() as i64);
     header.set_float("EXPTIME", seconds);
+    header.set_float("TOTALEXP", seconds);
     if let Some(f) = &args.filter {
         header.set_string("FILTER", f);
     }
     if let Some(t) = &args.target {
         header.set_string("OBJECT", t);
     }
+    header.set_string("REJECTM", &reject_label(&reject));
     header.add_history(&format!(
         "Registered onto {}",
         args.grid_reference.path.trim()
     ));
-    header.add_history(&format!("Normalized to {}", normalization_path));
+    header.add_history(&format!("Normalized to {normalization_path}"));
+    if let Some(fallback) = &normalization_fallback {
+        header.add_history(&format!(
+            "Requested normalization reference {} not used: {}",
+            fallback.requested, fallback.reason
+        ));
+    }
+    header.add_history(&format!(
+        "Calibrated in 32-bit float with a {CALIBRATION_PEDESTAL} ADU pedestal, removed from this master"
+    ));
+    header.add_history(&format!(
+        "Batch integration: weighted mean, rejection {}, {} of {} samples rejected",
+        reject_label(&reject),
+        integrated.rejected,
+        integrated.samples
+    ));
+    header.add_history(&format!(
+        "Weights: {}",
+        if args.settings.weighting.enabled {
+            formula
+        } else {
+            "none"
+        }
+    ));
     for group in &groups {
         header.add_history(&format!(
-            "Group '{}': {} of {} subs folded, {:.0} s",
+            "Group '{}': {} of {} subs integrated, {:.0} s",
             group.label, group.folded, group.offered, group.integration_sec
         ));
+        if let Some(k) = group.dark_scale {
+            header.add_history(&format!("  dark scaled by the exposure ratio {k:.4}"));
+        }
         for applied in &group.calibration.masters {
             header.add_history(&format!(
                 "  {}: {}",
@@ -845,6 +1195,17 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
     }
     write_fits(master_path, &image, &header)
         .map_err(|e| format!("failed to write master: {e:?}"))?;
+    let wcs_source = attach_wcs(
+        &mut header,
+        &args.grid_reference.path,
+        master_path,
+        (gw, gh),
+    );
+    if let Some(source) = &wcs_source {
+        header.add_history(&format!("WCS: {source}"));
+        write_fits(master_path, &image, &header)
+            .map_err(|e| format!("failed to write master: {e:?}"))?;
+    }
     let preview_path = match args.preview_png_path.as_deref().map(str::trim) {
         Some(p) if !p.is_empty() => {
             write_preview_png(&image, Path::new(p))?;
@@ -857,23 +1218,141 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
     let mut rms: Vec<f64> = folded.iter().map(|f| f.rms_px).collect();
     rms.sort_by(f64::total_cmp);
     Ok(MasterBuildResult {
-        master_path: args.master_fits_path,
+        master_path: args.master_fits_path.clone(),
         preview_path,
-        filter: args.filter,
+        filter: args.filter.clone(),
         frame_count: folded.len(),
         total_integration_sec: seconds,
-        width: image.width,
-        height: image.height,
-        rejected,
-        coverage_path: args.coverage_fits_path,
+        width: gw,
+        height: gh,
+        rejected: integrated.rejected,
+        coverage_path: args.coverage_fits_path.clone(),
         median_rms_px: rms.get(rms.len() / 2).copied(),
         groups,
         folded,
         skipped,
+        rejection: reject_label(&reject),
+        normalization_reference: normalization_path,
+        normalization_fallback,
+        wcs_source,
     })
 }
 
-/// A broad near-black region cannot calibrate light reaching the sensor.
+/// The `kind` of the error a build returns when no sub could be integrated.
+pub(crate) const NO_SUBS_KIND: &str = "noSubsIntegrated";
+
+/// The error payload of a build in which no sub could be integrated, so the
+/// caller can report the filter and carry on with the others.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct NoSubsIntegrated {
+    pub(crate) kind: String,
+    pub(crate) filter: Option<String>,
+    pub(crate) offered: usize,
+    pub(crate) skipped: Vec<SkippedSub>,
+}
+
+/// The integrated master on the grid, its per-pixel coverage and the
+/// rejection totals.
+struct Integrated {
+    master: Vec<f32>,
+    coverage: Vec<f32>,
+    rejected: u64,
+    samples: u64,
+}
+
+/// Integrate every spooled sub, reading the same band of rows from each, with
+/// `reject` and a weighted mean. The calibration pedestal is removed and
+/// pixels no sub covers are 0.
+fn integrate_spool(
+    spool: &super::spool::FrameSpool,
+    weights: &[f64],
+    reject: Reject,
+    budget: usize,
+    cancel: &RunCancelToken,
+    progress: (u32, usize),
+) -> Result<Integrated, String> {
+    let (width, height, channels) = spool.geometry();
+    let n = spool.len();
+    let row_bytes = width * channels * 8 * n;
+    let rows = (budget / row_bytes.max(1)).clamp(1, height);
+    let config = IntegrationConfig {
+        combine: Combine::Mean,
+        reject,
+        output_type: PixelType::F32,
+        generate_rejection_map: false,
+        generate_weight_map: false,
+        min_coverage: 1,
+    };
+    let mut master = Vec::with_capacity(width * height * channels);
+    let mut coverage = Vec::with_capacity(width * height * channels);
+    let (mut rejected, mut samples) = (0u64, 0u64);
+    let mut buffers: Vec<Vec<f64>> = vec![Vec::new(); n];
+    let mut y0 = 0;
+    while y0 < height {
+        let band = rows.min(height - y0);
+        cancel.check("integrating", Some(progress.0), Some(progress.1 as u32))?;
+        emit_integration_progress(
+            "integrating",
+            FRACTION_INTEGRATE
+                + (FRACTION_INTEGRATE_DONE - FRACTION_INTEGRATE) * y0 as f32 / height as f32,
+            Some(progress.0),
+            Some(progress.1 as u32),
+        );
+        for (i, buffer) in buffers.iter_mut().enumerate() {
+            spool.read_rows(i, y0, band, buffer)?;
+        }
+        let frames: Vec<IntegrationFrame<'_>> = buffers
+            .iter()
+            .zip(weights)
+            .map(|(pixels, &weight)| IntegrationFrame {
+                pixels,
+                weight,
+                coverage: None,
+            })
+            .collect();
+        let out = integrate_frames(&frames, width as u32, band as u32, channels as u32, &config)
+            .map_err(|e| format!("integration failed: {e}"))?;
+        rejected += out.stats.total_rejected;
+        samples += out.stats.total_samples;
+        let values = out
+            .master
+            .as_f32()
+            .ok_or("integration returned no float master")?;
+        let mut counts = vec![0u32; values.len()];
+        counts
+            .par_chunks_mut(4096)
+            .enumerate()
+            .for_each(|(chunk, counts)| {
+                let start = chunk * 4096;
+                let len = counts.len();
+                for buffer in &buffers {
+                    for (count, v) in counts.iter_mut().zip(&buffer[start..start + len]) {
+                        *count += u32::from(v.is_finite());
+                    }
+                }
+            });
+        for (v, &count) in values.iter().zip(&counts) {
+            coverage.push(count as f32);
+            master.push(if count == 0 {
+                0.0
+            } else {
+                v - CALIBRATION_PEDESTAL
+            });
+        }
+        y0 += band;
+    }
+    Ok(Integrated {
+        master,
+        coverage,
+        rejected,
+        samples,
+    })
+}
+
+/// A broad near-black region or a banded readout cannot calibrate light
+/// reaching the sensor.
 fn validate_flat_response(image: &ImageData) -> Result<(), String> {
     let pixels = image_to_f64(image);
     let mut sampled: Vec<f64> = pixels
@@ -893,6 +1372,9 @@ fn validate_flat_response(image: &ImageData) -> Result<(), String> {
     if dark as f64 / sampled.len() as f64 > 0.005 {
         return Err(format!("{:.1}% of the flat has less than 10% of its median response (possible obstruction or shutter band)", 100.0 * dark as f64 / sampled.len() as f64));
     }
+    if let Some(bands) = skotiq_imaging::calibration_masters::flat_bands(image) {
+        return Err(format!("is banded: {bands}"));
+    }
     Ok(())
 }
 
@@ -900,14 +1382,20 @@ pub(crate) fn check_build_calibration(json: &str) -> Result<serde_json::Value, S
     let reference: BuildReferenceArgs = serde_json::from_str(json).map_err(|e| e.to_string())?;
     let mut cache = MasterCache::default();
     let masters = cache.masters(&reference.calibration)?;
-    if let Some(flat) = &masters[1] {
-        validate_flat_response(flat)?;
+    if let Some(flat) = &masters.flat {
+        validate_flat_response(&flat.image)?;
     }
-    let _ =
-        calibrated_light(&reference.path, &reference.calibration, &masters).map_err(|(_, e)| e)?;
+    let _ = calibrated_light(&reference.path, None, &reference.calibration, &masters)
+        .map_err(|(_, e)| e)?;
     let report = build_calibration_report(&reference.path, &reference.calibration);
+    // A build scales a dark of another exposure when a bias is present, so
+    // that difference does not block it.
+    let scales_darks = masters.bias.is_some();
     for master in &report.masters {
-        if master.mismatches.iter().any(|m| !m.within_tolerance) {
+        if master.mismatches.iter().any(|m| {
+            !m.within_tolerance
+                && !(scales_darks && master.kind == "dark" && m.dimension == "EXPTIME")
+        }) {
             return Err(format!(
                 "{} calibration mismatch: {:?}",
                 master.kind, master.mismatches

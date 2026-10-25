@@ -115,6 +115,17 @@ pub enum Reject {
     /// largest samples. Crude but predictable; handy when exactly one hot frame
     /// is known to exist.
     MinMax { n_low: usize, n_high: usize },
+    /// Generalized extreme Studentized deviate test (Rosner 1983): up to
+    /// `outliers` (a fraction of the column) samples are tested one at a time,
+    /// most extreme first, against the Student-t critical value at
+    /// significance `alpha`. Deviations below the mean are divided by
+    /// `low_relaxation` before testing, so dark samples are rejected less
+    /// readily. PixInsight's recommended rejector for large sets.
+    GeneralizedEsd {
+        outliers: f64,
+        alpha: f64,
+        low_relaxation: f64,
+    },
 }
 
 impl Default for Reject {
@@ -130,6 +141,30 @@ impl Reject {
     /// Maximum iterations for the iterated rejectors. Kept small because all of
     /// them converge fast (each iteration only removes the extreme tails).
     pub(crate) const MAX_ITERATIONS: usize = 8;
+
+    /// The rejector PixInsight recommends for `frames` subs, with its default
+    /// parameters: percentile clipping (0.2 / 0.1) below 8 frames, Winsorized
+    /// sigma clipping (4 / 3 sigma) up to 19, and the generalized ESD test
+    /// (30% outliers, alpha 0.05, low relaxation 1.5) from 20.
+    pub fn pixinsight_auto(frames: usize) -> Self {
+        if frames < 8 {
+            Reject::PercentileClip {
+                low: 0.2,
+                high: 0.1,
+            }
+        } else if frames < 20 {
+            Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0,
+            }
+        } else {
+            Reject::GeneralizedEsd {
+                outliers: 0.3,
+                alpha: 0.05,
+                low_relaxation: 1.5,
+            }
+        }
+    }
 }
 
 /// Tunables for [`integrate_frames`]. [`Default`] is a quality-first archival
@@ -578,6 +613,11 @@ fn apply_rejection(samples: &mut Vec<Sample>, reject: Reject, iteration_limit: u
         Reject::LinearFitClip { low, high } => linear_fit_clip(samples, low, high, iteration_limit),
         Reject::PercentileClip { low, high } => percentile_clip(samples, low, high),
         Reject::MinMax { n_low, n_high } => min_max_clip(samples, n_low, n_high),
+        Reject::GeneralizedEsd {
+            outliers,
+            alpha,
+            low_relaxation,
+        } => generalized_esd(samples, outliers, alpha, low_relaxation),
     }
     (before - samples.len()) as u32
 }
@@ -714,6 +754,135 @@ fn percentile_clip(samples: &mut Vec<Sample>, low: f64, high: f64) {
     let lo = med - low * scale;
     let hi = med + high * scale;
     samples.retain(|s| s.value >= lo && s.value <= hi);
+}
+
+/// Generalized ESD rejection. The samples are sorted once; the most extreme
+/// remaining sample is always at one end of the kept range, so each test step
+/// is O(1) with running sums and the whole column costs O(n log n).
+fn generalized_esd(samples: &mut Vec<Sample>, outliers: f64, alpha: f64, low_relaxation: f64) {
+    let n = samples.len();
+    if n < 4 {
+        return;
+    }
+    let max_outliers = ((outliers.clamp(0.0, 0.5) * n as f64).floor() as usize).min(n - 3);
+    if max_outliers == 0 {
+        return;
+    }
+    let relax = if low_relaxation > 0.0 {
+        low_relaxation
+    } else {
+        1.0
+    };
+    samples.sort_by(|a, b| a.value.total_cmp(&b.value));
+    let (mut lo, mut hi) = (0usize, n);
+    let mut sum: f64 = samples.iter().map(|s| s.value).sum();
+    let mut sum_sq: f64 = samples.iter().map(|s| s.value * s.value).sum();
+    // Ends removed at each step, and how many steps passed the test.
+    let mut removed_low = Vec::with_capacity(max_outliers);
+    let mut significant = 0usize;
+    for i in 1..=max_outliers {
+        let m = (hi - lo) as f64;
+        let mean = sum / m;
+        let var = ((sum_sq - sum * sum / m) / (m - 1.0)).max(0.0);
+        let sd = var.sqrt();
+        if sd.is_nan() || sd <= 0.0 {
+            break;
+        }
+        let low_dev = (mean - samples[lo].value) / sd / relax;
+        let high_dev = (samples[hi - 1].value - mean) / sd;
+        let (statistic, take_low) = if low_dev > high_dev {
+            (low_dev, true)
+        } else {
+            (high_dev, false)
+        };
+        let value = if take_low {
+            samples[lo].value
+        } else {
+            samples[hi - 1].value
+        };
+        if take_low {
+            lo += 1;
+        } else {
+            hi -= 1;
+        }
+        removed_low.push(take_low);
+        sum -= value;
+        sum_sq -= value * value;
+        let remaining = n - i + 1;
+        let p = 1.0 - alpha / (2.0 * remaining as f64);
+        let df = (remaining - 2) as f64;
+        let t = student_t_quantile(p, df);
+        let critical = (remaining - 1) as f64 * t / ((df + t * t) * remaining as f64).sqrt();
+        if statistic > critical {
+            significant = i;
+        }
+    }
+    let low_cut = removed_low[..significant].iter().filter(|&&l| l).count();
+    let high_cut = significant - low_cut;
+    samples.truncate(n - high_cut);
+    samples.drain(..low_cut);
+}
+
+/// Upper quantile `p` of Student's t distribution with `df` degrees of
+/// freedom, from the normal quantile by Hill's (1970) asymptotic expansion,
+/// accurate to a few parts in 10^4 for `df` >= 5.
+fn student_t_quantile(p: f64, df: f64) -> f64 {
+    let z = normal_quantile(p);
+    let (z2, v) = (z * z, df.max(1.0));
+    let g1 = (z2 + 1.0) * z / 4.0;
+    let g2 = ((5.0 * z2 + 16.0) * z2 + 3.0) * z / 96.0;
+    let g3 = (((3.0 * z2 + 19.0) * z2 + 17.0) * z2 - 15.0) * z / 384.0;
+    let g4 = ((((79.0 * z2 + 776.0) * z2 + 1482.0) * z2 - 1920.0) * z2 - 945.0) * z / 92160.0;
+    z + g1 / v + g2 / (v * v) + g3 / (v * v * v) + g4 / (v * v * v * v)
+}
+
+/// Standard normal quantile (Acklam's rational approximation, relative error
+/// below 1.2e-9).
+fn normal_quantile(p: f64) -> f64 {
+    const A: [f64; 6] = [
+        -3.969683028665376e1,
+        2.209460984245205e2,
+        -2.759285104469687e2,
+        1.38357751867269e2,
+        -3.066479806614716e1,
+        2.506628277459239,
+    ];
+    const B: [f64; 5] = [
+        -5.447609879822406e1,
+        1.615858368580409e2,
+        -1.556989798598866e2,
+        6.680131188771972e1,
+        -1.328068155288572e1,
+    ];
+    const C: [f64; 6] = [
+        -7.784894002430293e-3,
+        -3.223964580411365e-1,
+        -2.400758277161838,
+        -2.549732539343734,
+        4.374664141464968,
+        2.938163982698783,
+    ];
+    const D: [f64; 4] = [
+        7.784695709041462e-3,
+        3.224671290700398e-1,
+        2.445134137142996,
+        3.754408661907416,
+    ];
+    let p = p.clamp(1e-300, 1.0 - 1e-16);
+    let tail = |q: f64| {
+        (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
+            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
+    };
+    if p < 0.02425 {
+        tail((-2.0 * p.ln()).sqrt())
+    } else if p > 1.0 - 0.02425 {
+        -tail((-2.0 * (1.0 - p).ln()).sqrt())
+    } else {
+        let q = p - 0.5;
+        let r = q * q;
+        (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
+            / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
+    }
 }
 
 /// Min/max clipping: drop the `n_low` smallest and `n_high` largest samples.
@@ -888,6 +1057,78 @@ fn finalize_master(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn student_t_quantiles_match_tables() {
+        for (p, df, t) in [
+            (0.975, 10.0, 2.2281),
+            (0.995, 20.0, 2.8453),
+            (0.999, 50.0, 3.2614),
+        ] {
+            let got = student_t_quantile(p, df);
+            assert!((got - t).abs() < 2e-3, "t({p}, {df}) = {got}, table {t}");
+        }
+    }
+
+    #[test]
+    fn pixinsight_auto_picks_by_frame_count() {
+        assert!(matches!(
+            Reject::pixinsight_auto(5),
+            Reject::PercentileClip { .. }
+        ));
+        assert!(matches!(
+            Reject::pixinsight_auto(12),
+            Reject::WinsorizedSigmaClip { .. }
+        ));
+        assert!(matches!(
+            Reject::pixinsight_auto(50),
+            Reject::GeneralizedEsd { .. }
+        ));
+    }
+
+    /// ESD rejects a bright outlier and a moderately dark one, and keeps a
+    /// clean Gaussian column whole.
+    #[test]
+    fn generalized_esd_rejects_outliers_and_keeps_clean_columns() {
+        let reject = Reject::pixinsight_auto(40);
+        let mut state = 12345u64;
+        let mut gauss = || {
+            let mut u = || {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                ((state >> 11) as f64 + 0.5) / (1u64 << 53) as f64
+            };
+            let (a, b) = (u(), u());
+            (-2.0 * a.ln()).sqrt() * (2.0 * std::f64::consts::PI * b).cos()
+        };
+        let mut clean_rejections = 0;
+        for _ in 0..200 {
+            let mut column: Vec<Sample> = (0..40)
+                .map(|_| Sample {
+                    value: 1000.0 + 10.0 * gauss(),
+                    weight: 1.0,
+                })
+                .collect();
+            clean_rejections += apply_rejection(&mut column, reject, Reject::MAX_ITERATIONS);
+        }
+        // Alpha 0.05 bounds the chance that a clean column loses anything.
+        assert!(
+            clean_rejections <= 20,
+            "{clean_rejections} clean samples rejected"
+        );
+
+        let mut column: Vec<Sample> = (0..40)
+            .map(|i| Sample {
+                value: 1000.0 + 10.0 * gauss() + if i == 0 { 30000.0 } else { 0.0 },
+                weight: 1.0,
+            })
+            .collect();
+        column[1].value = 900.0;
+        let rejected = apply_rejection(&mut column, reject, Reject::MAX_ITERATIONS);
+        assert_eq!(rejected, 2);
+        assert!(column.iter().all(|s| s.value < 2000.0 && s.value > 950.0));
+    }
 
     /// Build an [`IntegrationFrame`] borrowing a buffer, full coverage.
     fn frame<'a>(pixels: &'a [f64], weight: f64) -> IntegrationFrame<'a> {

@@ -41,7 +41,7 @@ use skotiq_imaging::integration::{
     integrate_frames, Combine, IntegrationConfig, IntegrationFrame, Reject,
 };
 use skotiq_imaging::master_accumulation::{
-    frame_buffer_for_master, AccumulationMode, IntegratedMaster, MasterCreateConfig, OnlineClip,
+    AccumulationMode, IntegratedMaster, MasterCreateConfig, OnlineClip,
 };
 use skotiq_imaging::normalization::{
     apply_normalization, estimate_normalization, CoverageMask, NormMode, NormalizationConfig,
@@ -77,14 +77,19 @@ mod integrate;
 pub(crate) use integrate::*;
 mod masters;
 pub(crate) use masters::*;
+mod master_cards;
+pub(crate) use master_cards::*;
 mod multi_night;
 pub(crate) use multi_night::*;
 mod delivery;
 mod registration_preview;
+mod spool;
 mod uniform_delivery;
 pub(crate) use delivery::*;
 mod telemetry;
 pub(crate) use telemetry::*;
+#[cfg(test)]
+mod darkroom_regression_tests;
 #[cfg(test)]
 mod multi_night_tests;
 #[cfg(test)]
