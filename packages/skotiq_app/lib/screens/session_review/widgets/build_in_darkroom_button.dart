@@ -19,7 +19,7 @@ import '../../../utils/darkroom_navigation.dart';
 String sessionReviewBuildLocation(String? targetName) {
   final name = targetName?.trim();
   return name == null || name.isEmpty
-      ? darkroomTargetsLocation()
+      ? darkroomTabLocation(DarkroomTab.targets)
       : darkroomFramingLocation(name);
 }
 

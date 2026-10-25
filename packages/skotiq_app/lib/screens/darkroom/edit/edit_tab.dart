@@ -147,7 +147,8 @@ class _DarkroomImageList extends ConsumerWidget {
                 icon: SkotiqIcons.arrowLeft,
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
-                onPressed: () => context.go(darkroomTargetsLocation()),
+                onPressed: () =>
+                    context.go(darkroomTabLocation(DarkroomTab.targets)),
               ),
             )
           : _list(context, colors, ref, targets),
@@ -266,7 +267,7 @@ class _DarkroomImageList extends ConsumerWidget {
     );
     if (id == null || !context.mounted) return;
     ref.invalidate(darkroomImageLibraryProvider);
-    context.go(darkroomRecipeLocation(id));
+    context.go(darkroomEditLocation(recipeId: id));
   }
 }
 
@@ -306,7 +307,7 @@ class _DarkroomImageRow extends StatelessWidget {
         excludeSemantics: true,
         onTap: selected
             ? null
-            : () => context.go(darkroomMasterLocation(master.id)),
+            : () => context.go(darkroomEditLocation(masterId: master.id)),
         child: Material(
           color: selected ? colors.surfaceHover : Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -319,7 +320,7 @@ class _DarkroomImageRow extends StatelessWidget {
           child: InkWell(
             onTap: selected
                 ? null
-                : () => context.go(darkroomMasterLocation(master.id)),
+                : () => context.go(darkroomEditLocation(masterId: master.id)),
             child: Padding(
               padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
               child: Row(

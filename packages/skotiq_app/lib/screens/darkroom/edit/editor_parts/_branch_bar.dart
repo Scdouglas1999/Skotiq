@@ -341,8 +341,9 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
           ? SkotiqIcons.sparkle
           : SkotiqIcons.user,
       selected: current,
-      onTap:
-          current ? null : () => context.go(darkroomRecipeLocation(branch.id)),
+      onTap: current
+          ? null
+          : () => context.go(darkroomEditLocation(recipeId: branch.id)),
     );
     return Tooltip(
       message: '${branch.label} — $author, $steps, $diverged.'
@@ -421,8 +422,8 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
                     ? '${sibling.label} — no recipe yet'
                     : sibling.label,
                 icon: darkroomSiblingIcon(sibling),
-                onTap: () =>
-                    context.go(darkroomMasterLocation(sibling.masterId)),
+                onTap: () => context
+                    .go(darkroomEditLocation(masterId: sibling.masterId)),
               ),
             ),
             const SizedBox(width: SkotiqTokens.spaceXs),
@@ -620,7 +621,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     if (id == null || !mounted) return;
     _branches.acknowledgeCreatedBranch();
     if (!context.mounted) return;
-    context.go(darkroomRecipeLocation(id));
+    context.go(darkroomEditLocation(recipeId: id));
   }
 
   Future<void> _promptRename() async {
@@ -771,11 +772,11 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     final after = ref.read(darkroomBranchControllerProvider(widget.scope));
     final fallback = parentId ?? _firstBranchId(after);
     if (fallback != null) {
-      context.go(darkroomRecipeLocation(fallback));
+      context.go(darkroomEditLocation(recipeId: fallback));
       return;
     }
     final masterId = widget.masterId;
-    if (masterId != null) context.go(darkroomMasterLocation(masterId));
+    if (masterId != null) context.go(darkroomEditLocation(masterId: masterId));
   }
 
   /// The id of the first recipe still in the family, or null when none is left.
@@ -804,7 +805,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     final after = ref.read(darkroomBranchControllerProvider(widget.scope));
     final fallback = _firstBranchId(after);
     if (fallback != null && context.mounted) {
-      context.go(darkroomRecipeLocation(fallback));
+      context.go(darkroomEditLocation(recipeId: fallback));
       return;
     }
     // The same tail [_promptDelete] has, and its absence here is what stranded
@@ -814,7 +815,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     // from offering a fresh start.
     final masterId = widget.masterId;
     if (masterId != null && context.mounted) {
-      context.go(darkroomMasterLocation(masterId));
+      context.go(darkroomEditLocation(masterId: masterId));
     }
   }
 

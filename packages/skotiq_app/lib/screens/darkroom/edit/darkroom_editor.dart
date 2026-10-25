@@ -828,7 +828,8 @@ class _DarkroomStartOfferView extends StatelessWidget {
                   ? '${sibling.label} — no recipe yet'
                   : sibling.label,
               icon: darkroomSiblingIcon(sibling),
-              onTap: () => context.go(darkroomMasterLocation(sibling.masterId)),
+              onTap: () =>
+                  context.go(darkroomEditLocation(masterId: sibling.masterId)),
             ),
         ],
       ),
