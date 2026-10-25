@@ -11,7 +11,7 @@ import '../screens/sequencer/widgets/replay_debug_screen.dart';
 import '../screens/planetarium/planetarium_screen.dart';
 import '../screens/framing/framing_screen.dart';
 import '../screens/analytics/analytics_screen.dart';
-import '../screens/darkroom/darkroom_controller.dart' show DarkroomScope;
+import '../screens/darkroom/darkroom_route.dart' show DarkroomRoute;
 import '../screens/darkroom/darkroom_screen.dart';
 import '../screens/stack_result/stack_result_screen.dart';
 import '../screens/session_review/session_review_controller.dart';
@@ -279,40 +279,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          // The Darkroom editor. Reached from a master in the session review,
-          // from the morning "your draft is ready" notification, and from the
-          // recipe list, via `/darkroom?recipe=<id>` (one recipe) or
-          // `/darkroom?master=<id>` (that master's newest recipe, or the offer
-          // to create its first one). A `recipe` param takes precedence; a
-          // query that parses as neither leaves both ids null, and the screen
-          // renders its empty state rather than crashing on a bad deep link.
-          //
-          // Deliberately NOT a nav-rail destination: like session review, the
-          // mosaic viewer and the stack result, the Darkroom is always about a
-          // specific master, so a rail slot would lead to a screen with nothing
-          // to open. `primaryIndexForLocation('/darkroom')` therefore answers
-          // −1 and the rail lights nothing while it is up.
+          // The Darkroom: Targets, Calibration, Edit and Activity tabs. The
+          // query is parsed by `DarkroomRoute.fromUri`; links are built by the
+          // helpers in `utils/darkroom_navigation.dart`.
           GoRoute(
             path: '/darkroom',
             name: 'darkroom',
             pageBuilder: (context, state) {
-              final recipeParam = state.uri.queryParameters['recipe'];
-              final masterParam = state.uri.queryParameters['master'];
-              final passParam = state.uri.queryParameters['pass'];
-              final recipeId =
-                  recipeParam == null ? null : int.tryParse(recipeParam);
-              final masterId =
-                  masterParam == null ? null : int.tryParse(masterParam);
               return CustomTransitionPage(
-                child: DarkroomScreen(
-                  scope: recipeId != null
-                      ? DarkroomScope.recipe(recipeId)
-                      : (masterId != null
-                          ? DarkroomScope.master(masterId)
-                          : (passParam != null && passParam.isNotEmpty
-                              ? DarkroomScope.pass(passParam)
-                              : const DarkroomScope.empty())),
-                ),
+                child: DarkroomScreen.route(DarkroomRoute.fromUri(state.uri)),
                 transitionsBuilder: PageTransitions.slideFadeTransition,
                 transitionDuration: const Duration(milliseconds: 300),
               );

@@ -13,7 +13,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io' show Directory;
 import 'dart:math' as math;
@@ -38,11 +37,15 @@ import '../../utils/exported_file_reveal.dart';
 import '../stack_result/stack_and_share_dialog.dart'
     show describeStackShareFailure;
 import 'darkroom_branch_controller.dart';
-import 'build_masters/build_job_banner.dart';
-import 'build_masters_dialog.dart';
 import 'darkroom_controller.dart';
+import 'darkroom_route.dart';
 import 'darkroom_measured_values.dart';
 import 'pass_view/darkroom_pass_page.dart';
+import 'activity/activity_tab.dart';
+import 'calibration/calibration_tab.dart';
+import 'edit/edit_tab.dart';
+import 'targets/darkroom_status_chip.dart';
+import 'targets/targets_tab.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 part 'darkroom_screen_parts/_image_surface.dart';
@@ -55,12 +58,21 @@ part 'darkroom_screen_parts/_compare.dart';
 part 'darkroom_screen_parts/_export_sheet.dart';
 part 'darkroom_screen_parts/_histogram.dart';
 
-/// The Darkroom editor screen.
+/// The Darkroom: the Targets, Calibration, Edit and Activity tabs, and the
+/// recipe editor when a link names a master or a recipe.
 class DarkroomScreen extends ConsumerStatefulWidget {
-  /// What the route asked to open.
+  /// What the editor is scoped to; empty when no master, recipe or pass is
+  /// named.
   final DarkroomScope scope;
 
-  const DarkroomScreen({super.key, required this.scope});
+  /// The parsed location, or null when the screen was built from a scope.
+  final DarkroomRoute? route;
+
+  const DarkroomScreen({super.key, required this.scope}) : route = null;
+
+  /// The screen for a parsed `/darkroom` location.
+  DarkroomScreen.route(DarkroomRoute this.route, {super.key})
+      : scope = route.scope;
 
   @override
   ConsumerState<DarkroomScreen> createState() => _DarkroomScreenState();
@@ -147,14 +159,18 @@ class _DarkroomScreenState extends ConsumerState<DarkroomScreen> {
       );
     }
 
-    // A bare `/darkroom` is now a rail destination, so it lists what there is
-    // to open instead of refusing. Deliberately BEFORE the controller is
-    // watched: an empty scope fails that load by design, and watching it would
-    // put "this link named neither a recipe nor a master" back on screen.
+    // With no master, recipe or pass named, the screen is the four tabs.
+    // Deliberately BEFORE the controller is watched: an empty scope fails that
+    // load by design.
     if (widget.scope.isEmpty) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: const SafeArea(bottom: false, child: _DarkroomLandingView()),
+        body: SafeArea(
+          bottom: false,
+          child: _DarkroomTabsView(
+            route: widget.route ?? DarkroomRoute.forScope(widget.scope),
+          ),
+        ),
       );
     }
 
