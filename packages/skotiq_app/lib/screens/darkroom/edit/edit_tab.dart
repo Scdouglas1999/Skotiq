@@ -311,6 +311,7 @@ class _DarkroomImageRow extends StatelessWidget {
       child: Semantics(
         container: true,
         button: true,
+        enabled: !selected,
         selected: selected,
         label: '${image.target} ${image.kind}'
             '${image.isColor ? ' color image' : ' master'}'
@@ -459,6 +460,7 @@ class _DarkroomEditRemoteGate extends StatelessWidget {
           action: Semantics(
             container: true,
             button: true,
+            enabled: true,
             label: darkroomEditBackDestination(context),
             excludeSemantics: true,
             onTap: leave,

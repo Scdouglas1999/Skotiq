@@ -388,6 +388,20 @@ void main() {
 
     expect(masterCalls.map((c) => c.kind), ['bias', 'dark']);
     expect(container.read(calibrationLibraryRevisionProvider), 2);
+    // The list is read again after the last build; wait for that read.
+    for (
+      var i = 0;
+      i < 200 &&
+          (container
+                  .read(calibrationBacklogProvider)
+                  .groups
+                  .value
+                  ?.isNotEmpty ??
+              true);
+      i++
+    ) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
     expect(container.read(calibrationBacklogProvider).groups.value, isEmpty);
   });
 }

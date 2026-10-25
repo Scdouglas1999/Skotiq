@@ -281,6 +281,7 @@ class _Line extends StatelessWidget {
           else
             Semantics(
               button: true,
+              enabled: true,
               label: openLabel,
               excludeSemantics: true,
               child: InkWell(
@@ -402,6 +403,7 @@ class PassesPanel extends ConsumerWidget {
           for (final pass in passes.take(10))
             Semantics(
               button: true,
+              enabled: true,
               label: 'Open the pass of ${pass.target ?? pass.runId}',
               excludeSemantics: true,
               child: InkWell(
