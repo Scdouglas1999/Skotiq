@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/darkroom/calibration/calibration_match_panel.dart';
@@ -11,9 +10,6 @@ import 'package:skotiq_app/screens/darkroom/calibration/calibration_settings_pan
 import 'package:skotiq_app/screens/darkroom/calibration/calibration_tab.dart';
 import 'package:skotiq_app/screens/darkroom/calibration/calibration_waiting_panel.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
-import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
-import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -183,8 +179,9 @@ void main() {
       expect(find.text('Dark 90 s'), findsOneWidget);
       expect(find.text('Dark 120 s'), findsOneWidget);
       expect(find.text('Bias'), findsOneWidget);
-      expect(find.text('20 frames · night of Oct 21'), findsNWidgets(2));
-      expect(find.text('50 frames · night of Oct 21'), findsOneWidget);
+      expect(find.text('NIGHT OF OCT 21, 2026'), findsOneWidget);
+      expect(find.text('20 frames'), findsNWidgets(2));
+      expect(find.text('50 frames'), findsOneWidget);
       expect(
         find.text('gain 76 · offset 15 · bin 1x1 · -10 °C'),
         findsNWidgets(3),

@@ -26,9 +26,7 @@ class CalibrationWaitingPanel extends ConsumerWidget {
     }).length;
     final finished = [
       for (final e in state.builds.entries)
-        if (e.value.phase == CalibrationBuildPhase.built &&
-            !groups.any((g) => g.key == e.key))
-          e,
+        if (e.value.phase == CalibrationBuildPhase.built) e,
     ];
 
     return CalibrationSection(
@@ -104,16 +102,26 @@ class CalibrationWaitingPanel extends ConsumerWidget {
         ),
       ];
     }
-    return [
-      for (var i = 0; i < groups.length; i++)
+    final out = <Widget>[];
+    String? night;
+    for (var i = 0; i < groups.length; i++) {
+      final g = groups[i];
+      if (g.night != night) {
+        night = g.night;
+        out.add(CalibrationOverline('Night of ${_nightLabel(g.night)}'));
+      }
+      final next = i + 1 < groups.length ? groups[i + 1] : null;
+      out.add(
         _GroupRow(
-          group: groups[i],
-          status: state.builds[groups[i].key],
-          last: i == groups.length - 1,
-          onBuild: () => notifier.build(groups[i]),
-          onDismiss: () => notifier.dismiss(groups[i]),
+          group: g,
+          status: state.builds[g.key],
+          last: next == null || next.night != g.night,
+          onBuild: () => notifier.build(g),
+          onDismiss: () => notifier.dismiss(g),
         ),
-    ];
+      );
+    }
+    return out;
   }
 }
 
@@ -181,9 +189,9 @@ class _GroupRow extends StatelessWidget {
               ),
               const SizedBox(width: SkotiqTokens.spaceMd),
               SizedBox(
-                width: 150,
+                width: 72,
                 child: Text(
-                  '${group.frames.length} frames · ${_night(group.night)}',
+                  '${group.frames.length} frames',
                   style: SkotiqTypography.bodySm.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -264,26 +272,6 @@ class _GroupRow extends StatelessWidget {
         },
       ),
     );
-  }
-
-  static String _night(String night) {
-    final d = DateTime.tryParse(night);
-    if (d == null) return night;
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return 'night of ${months[d.month - 1]} ${d.day}';
   }
 }
 
@@ -412,4 +400,25 @@ class _ErrorLine extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Oct 21, 2026" from an observing night's `yyyy-mm-dd`.
+String _nightLabel(String night) {
+  final d = DateTime.tryParse(night);
+  if (d == null) return night;
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${months[d.month - 1]} ${d.day}, ${d.year}';
 }

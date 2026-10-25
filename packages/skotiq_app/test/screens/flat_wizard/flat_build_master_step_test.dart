@@ -6,9 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/flat_wizard/widgets/flat_build_master_step.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
-import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
-import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
