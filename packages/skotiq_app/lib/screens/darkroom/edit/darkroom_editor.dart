@@ -550,20 +550,15 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
 /// The way out of the "nothing to open" empty state, labelled with where it
 /// actually goes.
 ///
-/// It said "Back to session review" and went to Analytics > History — the
-/// session LIST, a different screen, showing every night rather than this
-/// master's. Two facts were wrong at once: the destination, and the word "back"
-/// over a screen the operator may never have been on.
-///
-/// So the master's own session is resolved first, through the fold record that
+/// The master's own session is resolved first, through the fold record that
 /// is the only thing joining a master to a night, and the label is written from
 /// the answer:
 ///
 ///  * a resolved session — the button says "session review" and opens THAT
 ///    night's review;
 ///  * no session, or no master to ask about (a recipe row that is gone names
-///    none) — the button says it is opening the session list, which is where it
-///    goes.
+///    none) — the button opens the Edit tab's list of every registered image,
+///    where the operator chooses another.
 ///
 /// Resolved on build rather than on press, because the label is the promise: a
 /// control that discovers where it can go only after being pressed is the same
@@ -603,12 +598,12 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
     try {
       sessionId = await resolveSessionForDarkroomMaster(ref, masterId);
     } catch (error) {
-      // The list route is the honest fallback: a database that cannot answer
+      // The image list is the honest fallback: a database that cannot answer
       // which night this master came from has not proved there is no night, so
       // the button stops claiming to know which one and says what it will open.
       developer.log(
         'The Darkroom could not resolve the session behind master $masterId, '
-        'so its way out offers the session list instead',
+        'so its way out offers the image list instead',
         name: 'DarkroomScreen',
         level: 900,
         error: error,
@@ -629,14 +624,14 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
     // of. It never promises a review it has not found.
     if (!_resolved || sessionId == null) {
       return SkotiqButton(
-        label: 'Browse sessions',
-        icon: SkotiqIcons.history,
+        label: 'Choose another image',
+        icon: SkotiqIcons.image,
         variant: ButtonVariant.secondary,
         size: ButtonSize.small,
         semanticsHint:
-            'Opens the session list in Analytics. This master has no '
-            'session review to open.',
-        onPressed: () => context.go('/analytics?tab=history'),
+            'Opens the list of every registered image in the Darkroom\'s '
+            'Edit tab. This one has no session review to open.',
+        onPressed: () => context.go(darkroomTabLocation(DarkroomTab.edit)),
       );
     }
     return SkotiqButton(
