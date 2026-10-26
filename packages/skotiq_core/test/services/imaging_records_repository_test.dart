@@ -63,6 +63,43 @@ void main() {
       await db.close();
     });
 
+    test('the solved-frame hook runs once per frame however often it is '
+        'solved or its stored solve reused', () async {
+      final fired = <int>[];
+      final hooked = ImagingRecordsRepository.local(
+        sessionsDao: sessionsDao,
+        imagesDao: imagesDao,
+        onSolvedFrameFold: (id) async => fired.add(id),
+      );
+      final id = await imagesDao.insertSequenceFrame(
+        filePath: '/lights/NGC0891_L_0001.fits',
+        fileName: 'NGC0891_L_0001.fits',
+        fileFormat: 'fits',
+        exposureDuration: 120,
+        capturedAt: DateTime.utc(2026, 10, 21, 3),
+        isAccepted: true,
+        producingNodeId: 'lights',
+      );
+      Future<void> solve() => hooked.updatePlateSolveResult(
+        id,
+        solvedRa: 2.3755,
+        solvedDec: 42.349,
+        solvedRotation: -21.37,
+        solvedPixelScale: 0.788,
+        solvedCd1_1: 2.0379e-4,
+        solvedCd1_2: 7.981e-5,
+        solvedCd2_1: -7.976e-5,
+        solvedCd2_2: 2.0386e-4,
+      );
+      // The science step solves the frame, a later step reuses the stored
+      // solve, and an annotation run solves it again.
+      await solve();
+      hooked.notifySolvedFrame(id);
+      await solve();
+      await Future<void>.delayed(Duration.zero);
+      expect(fired, [id]);
+    });
+
     test('startSession and getSessionById round-trip', () async {
       final id = await repository.startSession(name: 'Night 1');
       final session = await repository.getSessionById(id);

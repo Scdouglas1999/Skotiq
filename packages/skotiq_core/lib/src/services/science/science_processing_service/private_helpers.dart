@@ -474,10 +474,39 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     final image = capturedImageId == null
         ? null
         : (capturedImage ?? await _imagesRepo.getImageById(capturedImageId));
+    final stored =
+        capturedImageId == null ||
+            image == null ||
+            !image.isPlateSolved ||
+            image.solvedRa == null ||
+            image.solvedDec == null
+        ? null
+        : await _imagesRepo.getStoredWcsDistortion(capturedImageId);
+    final storedHasCd =
+        stored?.cd1_1 != null &&
+        stored?.cd1_2 != null &&
+        stored?.cd2_1 != null &&
+        stored?.cd2_2 != null;
+    // A stored solve without its CD matrix (the frame watch records only
+    // centre, scale and rotation) cannot tell a mirrored frame from a normal
+    // one, so the frame is solved again for the full WCS when solving is
+    // allowed. The stored solve is the fallback if that solve fails.
+    WcsSolution? solved;
     if (image != null &&
+        image.isPlateSolved &&
+        !storedHasCd &&
+        solveIfUnsolved) {
+      solved = await _scienceBackend.solveForScience(
+        imagePath,
+        const SolveOptions(),
+      );
+    }
+    if (solved == null &&
+        image != null &&
         image.isPlateSolved &&
         image.solvedRa != null &&
         image.solvedDec != null) {
+      if (storedHasCd) _imagesRepo.notifySolvedFrame(capturedImageId!);
       final pixelScale = image.solvedPixelScale ?? 1.5;
       var fieldWidth = 1.0;
       var fieldHeight = 1.0;
@@ -495,9 +524,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
           source: 'ScienceProcessingService',
         );
       }
-      final distortion = capturedImageId == null
-          ? null
-          : await _imagesRepo.getStoredWcsDistortion(capturedImageId);
+      final distortion = stored;
       final sip = decodeSolvedSip(distortion?.sip);
       return WcsSolution(
         raHours: image.solvedRa!,
@@ -522,12 +549,13 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       );
     }
 
-    if (!solveIfUnsolved) return null;
-
-    final solved = await _scienceBackend.solveForScience(
-      imagePath,
-      const SolveOptions(),
-    );
+    if (solved == null) {
+      if (!solveIfUnsolved) return null;
+      solved = await _scienceBackend.solveForScience(
+        imagePath,
+        const SolveOptions(),
+      );
+    }
 
     if (solved != null && capturedImageId != null) {
       await _imagesRepo.updatePlateSolveResult(

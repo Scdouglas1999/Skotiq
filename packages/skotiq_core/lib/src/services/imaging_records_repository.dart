@@ -48,6 +48,9 @@ class ImagingRecordsRepository {
   /// Optional sky-atlas fold hook, fired after a local plate-solve persist.
   final SolvedFrameFoldHook? _onSolvedFrameFold;
 
+  /// Frames the solved-frame hook has already run for in this process.
+  final Set<int> _solvedHookFired = <int>{};
+
   ImagingRecordsRepository._({
     SessionsDao? sessionsDao,
     ImagesDao? imagesDao,
@@ -420,19 +423,24 @@ class ImagingRecordsRepository {
       solvedSip: solvedSip,
     );
 
-    // Pillar A ("Your Sky"): fold the freshly solved light into the personal
-    // sky atlas. Best-effort and fire-and-forget — a fold failure must never
-    // roll back the solve persist or surface to the imaging path. The hook
-    // owns its own error handling; this guard is defensive belt-and-braces.
-    final foldHook = _onSolvedFrameFold;
-    if (foldHook != null) {
-      unawaited(
-        foldHook(id).catchError((Object _) {
-          // Swallowed: the atlas fold is an enhancement on top of the solve,
-          // not a precondition for it. Errors are logged inside the hook.
-        }),
-      );
-    }
+    notifySolvedFrame(id);
+  }
+
+  /// Run the solved-frame hook (First Light scan, Your Sky fold, co-imaging)
+  /// for the frame [id], whose solve with its CD matrix is on the row. It runs
+  /// once per frame however many times the frame is solved or its stored
+  /// solve reused, so a frame solved by the frame watch and then processed by
+  /// the science pipeline is scanned and folded exactly once. Fire-and-forget:
+  /// a hook failure never reaches the solve or the imaging path.
+  void notifySolvedFrame(int id) {
+    final hook = _onSolvedFrameFold;
+    if (_remote != null || hook == null) return;
+    if (!_solvedHookFired.add(id)) return;
+    unawaited(
+      hook(id).catchError((Object _) {
+        // Swallowed: the hook logs its own errors.
+      }),
+    );
   }
 
   /// Read the off-table v51 WCS distortion (CD matrix + SIP JSON) for [id].
@@ -555,6 +563,9 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
       try {
         final image = await imagesDao.getImageById(capturedImageId);
         if (image == null) return;
+        // A frame already folded had its First Light scan and co-imaging
+        // contribution with that fold, in this or an earlier session.
+        if (image.atlasFoldedAt != null) return;
         final fits = await apiReadFitsFile(filePath: image.filePath);
         final stored = await imagesDao.getStoredWcsDistortion(capturedImageId);
         final sip = decodeSolvedSip(stored?.sip);
