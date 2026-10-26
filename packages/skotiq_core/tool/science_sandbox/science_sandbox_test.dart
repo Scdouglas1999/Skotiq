@@ -754,7 +754,7 @@ Future<int> _ensureSession(
     return id;
   }
   await notifier.startSession(
-    targetName: sessionName,
+    targetName: targetName,
     targetRa: (frame.objRaDeg ?? 0) / 15.0,
     targetDec: frame.objDecDeg,
     targetId: targetId,
