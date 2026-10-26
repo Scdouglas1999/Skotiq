@@ -624,7 +624,8 @@ class AtlasGrowthPoint {
 
   /// Parse the fold label as a calendar day when it is an ISO date; null for a
   /// non-dated (session-id) label, so the chart can fall back to point index.
-  DateTime? get date => DateTime.tryParse(label);
+  // Batched folds append a file identity after the human-readable label.
+  DateTime? get date => DateTime.tryParse(label.split(' | ').first);
 }
 
 /// A region's deepening growth curve — the cumulative-integration-vs-night

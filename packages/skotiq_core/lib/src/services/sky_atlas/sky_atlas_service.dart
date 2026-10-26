@@ -150,10 +150,22 @@ class SkyAtlasService {
       decDeg: targetDecDeg,
       radiusDeg: regionRadiusDeg,
     );
+    final labels = <String, int>{};
+    for (final frame in usable) {
+      final label = frame.label ?? foldLabel;
+      labels.update(label, (count) => count + 1, ifAbsent: () => 1);
+    }
+    // The fold log uses labels as frame identities. Preserve the call label
+    // while distinguishing files that share it within a batch.
+    String frameLabel(SolvedFrameRef frame) {
+      final label = frame.label ?? foldLabel;
+      return labels[label]! > 1 ? '$label | ${frame.framePath}' : label;
+    }
+
     final items = [
       for (final f in usable)
         _PendingFold(
-          frame: f.label == null ? f.withLabel(foldLabel) : f,
+          frame: f.withLabel(frameLabel(f)),
           sessionId: sessionId,
           layer: atlasLayerKey(filter),
           region: region,

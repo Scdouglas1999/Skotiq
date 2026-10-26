@@ -236,6 +236,76 @@ void main() {
     expect(folds.single.framesAdded, 1);
   });
 
+  test(
+    'foldSession counts every unlabeled frame in a shared-label batch',
+    () async {
+      seam.onDispatch = (args) {
+        final frames = args['frames'] as List;
+        return {
+          'ok': true,
+          'tilesTouched': [42],
+          'foldsByTile': [
+            {
+              'tileId': 42,
+              'framesAdded': frames.length,
+              'weightAdded': 2.0,
+              'rejected': 0,
+              'coverageMean': 2.0,
+              'centerRa': 83.6,
+              'centerDec': -5.39,
+              'totalFrames': 2,
+              'integrationSeconds': 600.0,
+              'channels': 1,
+            },
+          ],
+          'frameFolds': [
+            for (var i = 0; i < frames.length; i++)
+              {
+                'frameIndex': i,
+                'label': frames[i]['label'],
+                'tileId': 42,
+                'weightAdded': 1.0,
+                'integrationSecondsAdded': 300.0,
+                'coverageAdded': 1.0,
+                'rejected': 0,
+              },
+          ],
+          'framesSkippedNoCoverage': 0,
+        };
+      };
+      await service.foldSession(
+        sessionId: 7,
+        frames: [
+          frame(path: '/night/L_001.fits'),
+          frame(path: '/night/L_002.fits'),
+        ],
+        label: '2026-06-11',
+      );
+      final totals = await dao.atlasTotals();
+      expect(totals.frames, 2);
+      expect(totals.seconds, 600);
+      final tile = await dao.getTile(42);
+      expect(tile!.totalFrames, 2);
+      expect(tile.integrationSeconds, 600);
+      final folds = await dao.listFoldsForTileOverTime(42);
+      expect(folds.map((f) => f.label).toSet(), hasLength(2));
+      expect(folds.every((f) => f.label.startsWith('2026-06-11')), isTrue);
+      for (final fold in folds) {
+        expect(
+          AtlasGrowthPoint(
+            label: fold.label,
+            cumulativeFrames: 2,
+            framesAdded: 1,
+            secondsAdded: 300,
+            cumulativeSeconds: 600,
+            contributor: '',
+          ).date,
+          DateTime(2026, 6, 11),
+        );
+      }
+    },
+  );
+
   test('foldSession drops degenerate-WCS frames before dispatch', () async {
     const bad = SolvedFrameRef(
       framePath: '/tmp/bad.fits',
