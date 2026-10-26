@@ -7,6 +7,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/plate_solver.dart';
 import '../../models/science/science_models.dart';
+import '../wcs/fits_image_size.dart';
 import '../wcs/gnomonic_projection.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
@@ -63,13 +64,25 @@ class DefaultScienceBackend implements ScienceBackend {
         timeoutSeconds: settings?.plateSolveTimeout,
       );
       if (!result.success) return null;
+      // ASTAP's .wcs names no image size; a solver result without a field
+      // size takes it from the frame, or the catalog cone shrinks to its
+      // minimum and misses the outer field.
+      var fieldWidth = result.fieldWidth;
+      var fieldHeight = result.fieldHeight;
+      if (!(fieldWidth > 0 && fieldHeight > 0) && result.pixelScale > 0) {
+        final size = await readFitsImageSize(imagePath);
+        if (size != null) {
+          fieldWidth = size.width * result.pixelScale / 3600.0;
+          fieldHeight = size.height * result.pixelScale / 3600.0;
+        }
+      }
       return WcsSolution(
         raHours: result.ra / 15.0,
         decDegrees: result.dec,
         pixelScaleArcsecPerPixel: result.pixelScale,
         rotationDegrees: result.rotation,
-        fieldWidthDegrees: result.fieldWidth,
-        fieldHeightDegrees: result.fieldHeight,
+        fieldWidthDegrees: fieldWidth,
+        fieldHeightDegrees: fieldHeight,
         solverId: (await _resolveSolver()).label,
         cd1_1: result.cd11,
         cd1_2: result.cd12,
