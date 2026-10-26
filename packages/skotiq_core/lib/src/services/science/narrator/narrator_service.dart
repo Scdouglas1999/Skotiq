@@ -41,9 +41,11 @@ import '../../../providers/database_provider.dart';
 import '../../../models/equipment/equipment_models.dart'
     show DeviceConnectionState;
 import '../../../models/imaging/imaging_models.dart' show ImageStats;
+import '../../../models/phd2_models.dart' show Phd2GuideStats, Phd2State;
 import '../../../providers/equipment_provider.dart'
-    show focuserStateProvider, weatherStateProvider;
-import '../../../providers/guiding_provider.dart' show guideStatsProvider;
+    show focuserStateProvider, guiderStateProvider, weatherStateProvider;
+import '../../../providers/guiding_provider.dart'
+    show guideStatsProvider, guidingStopReasonProvider, phd2StateProvider;
 import '../../../providers/narrator_provider.dart'
     show sessionFilterIntegrationProvider, sessionImagesStreamProvider;
 import '../../../providers/optical_train_diagnostics_provider.dart';
@@ -59,7 +61,12 @@ import '../../optical_train_diagnostics_service.dart'
     show OpticalTrainDiagnostics;
 import '../../transients/transient_candidate.dart' show TransientCandidate;
 import '../period_analysis_service.dart' show PeriodAnalysisResult;
-import '../science_status.dart' show ScienceStageOutcome, ScienceStageResult;
+import '../science_status.dart'
+    show
+        ScienceProcessingEvent,
+        ScienceStage,
+        ScienceStageOutcome,
+        ScienceStageResult;
 import 'narrator_context.dart';
 import 'narrator_detectors.dart';
 import 'narrator_engine.dart';
@@ -72,7 +79,13 @@ const int _kImageStatsCap = 400;
 const int _kGradeEventsCap = 200;
 const int _kSolveHistoryCap = 200;
 const int _kSkySamplesCap = 400;
-const int _kGuideRmsCap = 400;
+const int _kGuideRmsCap = 2000;
+
+/// Guide readings are held back for this long after a dither, a settle or a
+/// guiding (re)start, and until the guider's rolling RMS window has been
+/// refilled with steps taken after it, so the offset never reads as a rise.
+const Duration _kGuideQuietAfterDisturbance = Duration(seconds: 150);
+const int _kGuideRmsWindowSteps = 100;
 const int _kTransientCandidatesCap = 200;
 
 /// A cloud-cover percentage at/above this reads as "cloudy" for the
@@ -85,11 +98,21 @@ class NarratorService {
   final NarratorEngine _engine;
 
   // Pushed inputs (hooks) — also populated by the pulled streams below.
-  final Queue<NarratorImageStats> _imageStats = Queue<NarratorImageStats>();
+  // Per-frame stats, oldest → newest. A session frame's entry is refreshed
+  // when its row changes (the frame watch excludes it, a background arrives).
+  final List<NarratorImageStats> _imageStats = <NarratorImageStats>[];
   final Queue<NarratorGradeEvent> _gradeEvents = Queue<NarratorGradeEvent>();
   final Queue<bool> _solveHistory = Queue<bool>();
+  final Set<int> _seenSkyImageIds = <int>{};
   final Queue<NarratorSkySample> _skySamples = Queue<NarratorSkySample>();
-  final Queue<double> _guideRmsHistory = Queue<double>();
+  final Queue<NarratorGuideSample> _guideSamples = Queue<NarratorGuideSample>();
+
+  // Guiding disturbance tracking: when guiding last stopped, settled or
+  // restarted, and how many guide steps have arrived since.
+  DateTime? _lastGuideDisturbance;
+  int _guideStepsSinceDisturbance = 0;
+  int _lastGuideFrameCount = 0;
+  double? _guidePixelScale;
 
   // First Light (Pillar B) cross-matched candidates fed by the difference-image
   // scan. The narrator's transient detectors read this on the next context
@@ -102,6 +125,7 @@ class NarratorService {
   List<NarratorPeriodResult> _periodResults = const [];
   NarratorWeatherState? _weather;
   double? _autofocusHfrBaseline;
+  DateTime? _autofocusAt;
   ScienceStageResult? _lastStageFailure;
   String? _lastStageFailureKey;
 
@@ -110,8 +134,14 @@ class NarratorService {
   // re-append the same frame's stats/grade/solve.
   final Set<int> _seenStatsImageIds = <int>{};
   final Set<int> _seenGradeImageIds = <int>{};
-  final Set<int> _seenSolveImageIds = <int>{};
   int? _lastObservedImageId;
+
+  // Session light frames in capture order, as last emitted by the stream.
+  List<db.CapturedImage> _sessionLights = const [];
+  // Solve outcomes of frames whose solve has finished, by image id. A row is
+  // inserted before its solve runs, so its first unsolved state says nothing.
+  final Map<int, bool> _solveOutcomes = <int, bool>{};
+  StreamSubscription<ScienceProcessingEvent>? _scienceEventsSub;
 
   // Latest per-frame FWHM from `lastImageStatsProvider` (not persisted on the
   // image row), stamped onto the next image-stats entry derived from the stream.
@@ -186,6 +216,14 @@ class NarratorService {
         _onStageResult(next);
       }, fireImmediately: false),
     );
+    try {
+      _scienceEventsSub = _ref
+          .read(scienceProcessingStatusTrackerProvider)
+          .events
+          .listen(_onScienceEvent);
+    } catch (_) {
+      _scienceEventsSub = null;
+    }
 
     if (_sessionId == null) {
       // Sessionless captures still get the per-frame pushed detectors and the
@@ -282,14 +320,75 @@ class NarratorService {
 
   void _bindGuiding() {
     _subs.add(
-      _ref.listen(guideStatsProvider, (_, next) {
-        final rms = next.rmsTotal;
-        if (rms.isFinite && rms > 0) {
-          _push(_guideRmsHistory, rms, _kGuideRmsCap);
-          _onUpdate();
+      _ref.listen<Phd2State>(phd2StateProvider, (prev, next) {
+        if (next != Phd2State.guiding || prev != Phd2State.guiding) {
+          _markGuideDisturbance();
         }
+      }),
+    );
+    _subs.add(
+      _ref.listen<String?>(guidingStopReasonProvider, (_, next) {
+        if (next != null) _markGuideDisturbance();
+      }),
+    );
+    _subs.add(
+      _ref.listen(guiderStateProvider, (_, next) {
+        _guidePixelScale = next.pixelScaleArcsecPerPixel;
       }, fireImmediately: true),
     );
+    _subs.add(
+      _ref.listen<Phd2GuideStats>(guideStatsProvider, (_, next) {
+        _onGuideStats(next);
+      }),
+    );
+  }
+
+  void _markGuideDisturbance() {
+    _lastGuideDisturbance = _clock();
+    _guideStepsSinceDisturbance = 0;
+  }
+
+  /// Take one reading per guide step (the provider also updates on the
+  /// star-quality event of the same frame) and keep it only when guiding is
+  /// settled.
+  void _onGuideStats(Phd2GuideStats stats) {
+    final frameCount = stats.frameCount;
+    final isNewStep = frameCount != _lastGuideFrameCount;
+    _lastGuideFrameCount = frameCount;
+    if (!isNewStep || frameCount == 0) return;
+    _guideStepsSinceDisturbance++;
+    final rms = stats.rmsTotal;
+    if (!rms.isFinite || rms <= 0) return;
+    bool guiding;
+    try {
+      guiding =
+          _ref.read(phd2StateProvider) == Phd2State.guiding &&
+          _ref.read(guidingStopReasonProvider) == null;
+    } catch (_) {
+      guiding = false;
+    }
+    if (!guiding) {
+      _markGuideDisturbance();
+      return;
+    }
+    final now = _clock();
+    final since = _lastGuideDisturbance;
+    if (since == null) {
+      // Guiding was already running when the narrator started; count from
+      // here so the rolling window is refilled under observation.
+      _markGuideDisturbance();
+      return;
+    }
+    if (now.difference(since) < _kGuideQuietAfterDisturbance ||
+        _guideStepsSinceDisturbance < _kGuideRmsWindowSteps) {
+      return;
+    }
+    _push(
+      _guideSamples,
+      NarratorGuideSample(timestamp: now, rmsPx: rms),
+      _kGuideRmsCap,
+    );
+    _onUpdate();
   }
 
   void _bindWeather() {
@@ -335,6 +434,7 @@ class NarratorService {
         final hfr = result.bestHfr;
         if (hfr.isFinite && hfr > 0 && hfr != _autofocusHfrBaseline) {
           _autofocusHfrBaseline = hfr;
+          _autofocusAt = _clock();
           _onUpdate();
         }
       }, fireImmediately: true),
@@ -378,8 +478,7 @@ class NarratorService {
     // would pad the queue and let a detector average over holes.
     if (hfr == null && fwhm == null && starCount == null) return;
 
-    _push(
-      _imageStats,
+    _pushStats(
       NarratorImageStats(
         // The frame has just been analysed, so "now" is its capture time to
         // within the analysis latency. There is no captured_images row to read
@@ -390,7 +489,6 @@ class NarratorService {
         starCount: starCount,
         focuserTempC: _focuserTempC(),
       ),
-      _kImageStatsCap,
     );
     _onUpdate();
   }
@@ -448,9 +546,11 @@ class NarratorService {
     }
 
     db.CapturedImage? newest;
+    final lights = <db.CapturedImage>[];
     for (final img in images) {
       newest = img;
       if (img.frameType != 'light') continue;
+      lights.add(img);
 
       if (_seenStatsImageIds.add(img.id)) {
         // Only the newest new light row gets the pending FWHM; clear it after
@@ -460,37 +560,32 @@ class NarratorService {
           fwhm = _pendingFwhm;
           _pendingFwhm = null;
         }
-        _push(
-          _imageStats,
-          NarratorImageStats(
-            timestamp: img.capturedAt,
-            capturedImageId: img.id,
-            hfr: img.hfr,
-            fwhm: fwhm,
-            starCount: img.starCount,
-            focuserTempC: img.focuserTemp,
-          ),
-          _kImageStatsCap,
-        );
+        _pushStats(_statsForRow(img, fwhm: fwhm));
+      } else {
+        _refreshStats(img);
+      }
 
-        // Filter-aware sky-background sample, derived from data the imaging
-        // service already streams onto the captured row. Normalizing background
-        // by exposure makes it comparable frame-to-frame within one filter; the
-        // detector compares like-with-like so a filter change never reads as a
-        // sky-brightness swing. No absolute calibration is implied.
-        final background = img.background;
-        final exposure = img.exposureDuration;
-        if (background != null && background > 0 && exposure > 0) {
-          _push(
-            _skySamples,
-            NarratorSkySample(
-              timestamp: img.capturedAt,
-              aduPerSecond: background / exposure,
-              filter: img.filter,
-            ),
-            _kSkySamplesCap,
-          );
-        }
+      // Filter-aware sky-background sample, derived from data the imaging
+      // service already streams onto the captured row. Normalizing background
+      // by exposure makes it comparable frame-to-frame within one filter; the
+      // detector compares like-with-like so a filter change never reads as a
+      // sky-brightness swing. No absolute calibration is implied. The
+      // background can arrive after the row is inserted.
+      final background = img.background;
+      final exposure = img.exposureDuration;
+      if (background != null &&
+          background > 0 &&
+          exposure > 0 &&
+          _seenSkyImageIds.add(img.id)) {
+        _push(
+          _skySamples,
+          NarratorSkySample(
+            timestamp: img.capturedAt,
+            aduPerSecond: background / exposure,
+            filter: img.filter,
+          ),
+          _kSkySamplesCap,
+        );
       }
 
       if (_seenGradeImageIds.add(img.id)) {
@@ -506,12 +601,84 @@ class NarratorService {
         );
       }
 
-      if (_seenSolveImageIds.add(img.id)) {
-        _push(_solveHistory, img.isPlateSolved, _kSolveHistoryCap);
-      }
+      // A solved row is a finished, successful solve. An unsolved row may
+      // still be waiting for its solve; its failure is taken from the science
+      // pipeline's plate-solve stage instead (see [_onScienceEvent]).
+      if (img.isPlateSolved) _solveOutcomes[img.id] = true;
     }
+    _sessionLights = lights;
     _lastObservedImageId = newest?.id ?? _lastObservedImageId;
     _onUpdate(capturedImageId: _lastObservedImageId);
+  }
+
+  NarratorImageStats _statsForRow(db.CapturedImage img, {double? fwhm}) {
+    final background = img.background;
+    final exposure = img.exposureDuration;
+    return NarratorImageStats(
+      timestamp: img.capturedAt,
+      capturedImageId: img.id,
+      hfr: img.hfr,
+      fwhm: fwhm,
+      starCount: img.starCount,
+      focuserTempC: img.focuserTemp,
+      filter: img.filter,
+      backgroundPerSecond: background != null && background > 0 && exposure > 0
+          ? background / exposure
+          : null,
+      accepted: img.isAccepted,
+      rejectionReason: img.rejectionReason,
+    );
+  }
+
+  /// Bring a frame's stored stats up to date with its row: the frame watch
+  /// excludes frames and records their background after the row is inserted.
+  void _refreshStats(db.CapturedImage img) {
+    for (var i = _imageStats.length - 1; i >= 0; i--) {
+      final old = _imageStats[i];
+      if (old.capturedImageId != img.id) continue;
+      final next = _statsForRow(img, fwhm: old.fwhm);
+      if (next.accepted != old.accepted ||
+          next.rejectionReason != old.rejectionReason ||
+          next.hfr != old.hfr ||
+          next.starCount != old.starCount ||
+          next.backgroundPerSecond != old.backgroundPerSecond) {
+        _imageStats[i] = next;
+      }
+      return;
+    }
+  }
+
+  /// The science pipeline finished a frame's plate-solve stage. A frame that
+  /// ends the stage without a WCS is a failed solve.
+  void _onScienceEvent(ScienceProcessingEvent event) {
+    if (_disposed) return;
+    final result = event.stageResult;
+    final id = result.capturedImageId;
+    if (result.stage != ScienceStage.plateSolve || id == null) return;
+    switch (result.outcome) {
+      case ScienceStageOutcome.ok:
+        _solveOutcomes[id] = true;
+      case ScienceStageOutcome.noData:
+      case ScienceStageOutcome.failed:
+        _solveOutcomes.putIfAbsent(id, () => false);
+      case ScienceStageOutcome.running:
+      case ScienceStageOutcome.skipped:
+        return;
+    }
+    _onUpdate(capturedImageId: id);
+  }
+
+  /// Finished solve outcomes of the session's light frames, in capture order,
+  /// followed by any pushed by the test seam.
+  List<bool> _solveHistoryList() {
+    final out = <bool>[
+      for (final img in _sessionLights)
+        if (_solveOutcomes[img.id] case final solved?) solved,
+      ..._solveHistory,
+    ];
+    return out.length > _kSolveHistoryCap
+        ? out.sublist(out.length - _kSolveHistoryCap)
+        : out;
   }
 
   void _onStageResult(ScienceStageResult? result) {
@@ -535,7 +702,7 @@ class NarratorService {
   /// focuser temp).
   @visibleForTesting
   void ingestImageStats(NarratorImageStats stats) {
-    _push(_imageStats, stats, _kImageStatsCap);
+    _pushStats(stats);
     _onUpdate();
   }
 
@@ -560,11 +727,11 @@ class NarratorService {
     _onUpdate();
   }
 
-  /// Feed a guide RMS-total reading (arcsec).
+  /// Feed a settled guide RMS-total reading in guide-camera pixels.
   @visibleForTesting
-  void ingestGuideRms(double rmsTotalArcsec) {
-    if (!rmsTotalArcsec.isFinite || rmsTotalArcsec <= 0) return;
-    _push(_guideRmsHistory, rmsTotalArcsec, _kGuideRmsCap);
+  void ingestGuideSample(NarratorGuideSample sample) {
+    if (!sample.rmsPx.isFinite || sample.rmsPx <= 0) return;
+    _push(_guideSamples, sample, _kGuideRmsCap);
     _onUpdate();
   }
 
@@ -604,6 +771,13 @@ class NarratorService {
   void setPeriodResults(List<NarratorPeriodResult> results) {
     _periodResults = List.unmodifiable(results);
     _onUpdate();
+  }
+
+  void _pushStats(NarratorImageStats stats) {
+    _imageStats.add(stats);
+    if (_imageStats.length > _kImageStatsCap) {
+      _imageStats.removeRange(0, _imageStats.length - _kImageStatsCap);
+    }
   }
 
   static void _push<T>(Queue<T> queue, T value, int cap) {
@@ -698,15 +872,16 @@ class NarratorService {
       skySamples: _skySamples.toList(growable: false),
       weather: _weather,
       frameQuality: frameQuality,
-      imageStats: _imageStats.toList(growable: false),
+      imageStats: List<NarratorImageStats>.unmodifiable(_imageStats),
       diagnostics: diagnostics,
       autofocusHfrBaseline: _autofocusHfrBaseline,
-      guideRmsTotalHistory: _guideRmsHistory.toList(growable: false),
-      guideRmsTotal: _guideRmsHistory.isEmpty ? null : _guideRmsHistory.last,
+      autofocusAt: _autofocusAt,
+      guideSamples: _guideSamples.toList(growable: false),
+      guidePixelScaleArcsec: _guidePixelScale,
       transientCandidates: _transientCandidates.toList(growable: false),
       filterIntegration: filterIntegration,
       gradeEvents: _gradeEvents.toList(growable: false),
-      solveHistory: _solveHistory.toList(growable: false),
+      solveHistory: _solveHistoryList(),
       lastStageFailure: _lastStageFailure,
     );
   }
@@ -766,6 +941,7 @@ class NarratorService {
 
   void dispose() {
     _disposed = true;
+    _scienceEventsSub?.cancel();
     for (final sub in _subs) {
       sub.close();
     }

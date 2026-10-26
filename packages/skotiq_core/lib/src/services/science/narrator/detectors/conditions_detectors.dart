@@ -222,16 +222,25 @@ class SkyDarknessDetector extends NarratorDetector {
   }
 }
 
-/// 10. `conditions.clouds_vs_focus` — disambiguates a star-count collapse:
-///   * count drops > [countDropFraction] from its rolling median AND
-///     (transparency dropping OR weather reports clouds) → **clouds**;
-///   * count drops while transparency is stable and HFR rose ≥ [hfrRiseFraction]
-///     → **focus drift**.
-/// Fires once per episode (re-arms when star count recovers above the median).
+/// 10. `conditions.clouds_vs_focus` — explains a star-count collapse in one
+/// filter (the newest frame keeps less than [1 - countDropFraction] of the
+/// median of that filter's recent frames):
+///   * transparency samples falling or the weather layer reporting cloud →
+///     **clouds**;
+///   * sky background down [backgroundDropFraction] or more with it →
+///     **something blocking the view** (trees, a roof, dew);
+///   * HFR up [hfrRiseFraction] or more while measured transparency held →
+///     **focus drift**; with no transparency or weather data the card only
+///     states what was measured.
+/// Frames the frame watch already explained (off target, obstructed) and
+/// frames rejected for star shape (trailing) stay silent. Fires once per
+/// episode (re-arms when the filter's star count recovers).
 class CloudsVsFocusDetector extends NarratorDetector {
   static const double countDropFraction = 0.40;
   static const double hfrRiseFraction = 0.15;
+  static const double backgroundDropFraction = 0.30;
   static const int medianWindow = 10;
+  static const int minPriorFrames = 3;
 
   bool _open = false;
 
@@ -244,23 +253,31 @@ class CloudsVsFocusDetector extends NarratorDetector {
   @override
   List<NarratorEventDraft> evaluate(NarratorContext ctx) {
     final stats = ctx.imageStats;
-    if (stats.length < medianWindow + 1) return const [];
+    if (stats.isEmpty) return const [];
+    final latest = stats.last;
+    final latestCount = latest.starCount;
+    if (latestCount == null) return const [];
 
-    final counts = stats
-        .map((s) => s.starCount)
-        .whereType<int>()
-        .map((c) => c.toDouble())
+    final prior = stats
+        .sublist(0, stats.length - 1)
+        .where(
+          (s) =>
+              s.filter == latest.filter &&
+              s.accepted &&
+              !s.offTarget &&
+              !s.obstructed,
+        )
         .toList(growable: false);
-    if (counts.length < medianWindow + 1) return const [];
-
-    final latestCount = counts.last;
-    final baselineCounts = counts.sublist(0, counts.length - 1);
-    final medianCount = NarratorStats.median(
-      baselineCounts.sublist(
-        (baselineCounts.length - medianWindow).clamp(0, baselineCounts.length),
-      ),
+    final reference = prior.sublist(
+      (prior.length - medianWindow).clamp(0, prior.length),
     );
-    if (medianCount == null || medianCount <= 0) return const [];
+    final counts = reference
+        .map((s) => s.starCount?.toDouble())
+        .whereType<double>()
+        .toList(growable: false);
+    if (counts.length < minPriorFrames) return const [];
+    final medianCount = NarratorStats.median(counts)!;
+    if (medianCount <= 0) return const [];
 
     final drop = (medianCount - latestCount) / medianCount;
 
@@ -271,89 +288,124 @@ class CloudsVsFocusDetector extends NarratorDetector {
     }
     if (drop < countDropFraction) return const [];
 
-    // Transparency direction over the recent window.
-    final transparencyDropping = _transparencyDropping(ctx);
-    final cloudy = ctx.weather?.cloudy ?? false;
-
-    // HFR rise over the recent window.
-    final hfrs = stats
-        .map((s) => s.hfr)
-        .whereType<double>()
-        .where((v) => v.isFinite && v > 0)
-        .toList(growable: false);
-    var hfrRose = false;
-    if (hfrs.length >= medianWindow + 1) {
-      final latestHfr = hfrs.last;
-      final baseHfr = NarratorStats.median(
-        hfrs
-            .sublist(0, hfrs.length - 1)
-            .sublist(
-              (hfrs.length - 1 - medianWindow).clamp(0, hfrs.length - 1),
-            ),
-      );
-      if (baseHfr != null && baseHfr > 0) {
-        hfrRose = (latestHfr - baseHfr) / baseHfr >= hfrRiseFraction;
-      }
+    // The frame watch already reported these, with the right cause.
+    if (latest.offTarget || latest.obstructed) return const [];
+    final reason = latest.rejectionReason?.toLowerCase() ?? '';
+    if (reason.contains('eccentric') ||
+        reason.contains('trail') ||
+        reason.contains('tracking')) {
+      return const [];
     }
 
+    final measuredTransparency = _transparencyTrend(ctx);
+    final cloudy = ctx.weather?.cloudy ?? false;
+
+    double? ratioOf(double? value, Iterable<double?> refs) {
+      final base = NarratorStats.median(
+        refs
+            .whereType<double>()
+            .where((v) => v.isFinite && v > 0)
+            .toList(growable: false),
+      );
+      if (value == null || base == null || base <= 0) return null;
+      return value / base;
+    }
+
+    final bgRatio = ratioOf(
+      latest.backgroundPerSecond,
+      reference.map((s) => s.backgroundPerSecond),
+    );
+    final hfrRatio = ratioOf(latest.hfr, reference.map((s) => s.hfr));
+    final bgDropped =
+        bgRatio != null && bgRatio <= 1.0 - backgroundDropFraction;
+    final hfrRose = hfrRatio != null && hfrRatio - 1.0 >= hfrRiseFraction;
+
     final dropPct = (drop * 100).round();
-    if (transparencyDropping || cloudy) {
+    final filterLabel = latest.filter == null || latest.filter!.isEmpty
+        ? ''
+        : ' in ${latest.filter}';
+    final evidence = NarratorEvidence.scalar(
+      value: dropPct.toDouble(),
+      unit: '%',
+      context: 'star-count drop$filterLabel',
+    );
+    String key(String kind) =>
+        'conditions.clouds_vs_focus.$kind:'
+        '${narratorHourBucket(latest.timestamp)}';
+
+    NarratorEventDraft draft(String kind, String headline, String body) {
       _open = true;
+      return NarratorEventDraft(
+        eventType: id,
+        category: NarratorCategory.conditions,
+        severity: NarratorSeverity.warning,
+        headline: headline,
+        body: body,
+        evidence: evidence,
+        dedupeKey: key(kind),
+        capturedImageId: ctx.capturedImageId,
+      );
+    }
+
+    if (measuredTransparency == _Trend.falling || cloudy) {
       return [
-        NarratorEventDraft(
-          eventType: id,
-          category: NarratorCategory.conditions,
-          severity: NarratorSeverity.warning,
-          headline:
-              'Star count collapsed $dropPct% with the transparency drop — '
+        draft(
+          'clouds',
+          'Star count collapsed $dropPct%$filterLabel with '
+              '${cloudy ? 'clouds reported' : 'transparency falling'} — '
               'clouds, not focus',
-          body:
-              'The thinning is atmospheric. Keep the rig as-is; frames will '
+          'The thinning is atmospheric. Keep the rig as-is; frames will '
               'recover when the cloud passes.',
-          evidence: NarratorEvidence.scalar(
-            value: dropPct.toDouble(),
-            unit: '%',
-            context: 'star-count drop',
-          ),
-          dedupeKey:
-              'conditions.clouds_vs_focus.clouds:'
-              '${narratorHourBucket(stats.last.timestamp)}',
-          capturedImageId: ctx.capturedImageId,
+        ),
+      ];
+    }
+    if (bgDropped) {
+      final bgPct = ((1.0 - bgRatio) * 100).round();
+      return [
+        draft(
+          'blocked',
+          'Star count down $dropPct% and sky background down $bgPct%'
+              '$filterLabel — something may be blocking the view',
+          'Fewer stars on a darker sky usually means part of the beam is '
+              'blocked: trees or a building as the target sinks, a roof, or '
+              'dew on the optics. Refocusing will not help.',
+        ),
+      ];
+    }
+    if (hfrRose && measuredTransparency == _Trend.steady) {
+      return [
+        draft(
+          'focus',
+          'Star count dropped $dropPct%$filterLabel with transparency steady '
+              'and HFR up — looks like focus drift, not clouds',
+          'Measured transparency held but the stars softened. Run an '
+              'autofocus before more frames blur.',
         ),
       ];
     }
     if (hfrRose) {
-      _open = true;
+      final hfrPct = ((hfrRatio - 1.0) * 100).round();
       return [
-        NarratorEventDraft(
-          eventType: id,
-          category: NarratorCategory.conditions,
-          severity: NarratorSeverity.warning,
-          headline:
-              'Star count dropped $dropPct% with transparency steady and HFR up '
-              '— looks like focus drift, not clouds',
-          body:
-              'The sky is fine but the stars softened. Run an autofocus before '
-              'more frames blur.',
-          evidence: NarratorEvidence.scalar(
-            value: dropPct.toDouble(),
-            unit: '%',
-            context: 'star-count drop',
-          ),
-          dedupeKey:
-              'conditions.clouds_vs_focus.focus:'
-              '${narratorHourBucket(stats.last.timestamp)}',
-          capturedImageId: ctx.capturedImageId,
+        draft(
+          'measured',
+          'Star count down $dropPct% and HFR up $hfrPct%$filterLabel',
+          'There is no transparency or weather data to tell cloud from '
+              'focus. Look at the latest frame: soft but evenly spread '
+              'stars point at focus, a dim or patchy field at cloud.',
         ),
       ];
     }
     return const [];
   }
 
-  bool _transparencyDropping(NarratorContext ctx) {
-    final t = ctx.transparency;
-    if (t.length < 3) return false;
-    final recent = t.sublist((t.length - 5).clamp(0, t.length));
+  /// Transparency trend over the last 15 minutes, or [_Trend.unknown] when
+  /// fewer than three samples cover that window.
+  _Trend _transparencyTrend(NarratorContext ctx) {
+    final cutoff = ctx.now.subtract(const Duration(minutes: 15));
+    final recent = ctx.transparency
+        .where((p) => !p.timestamp.isBefore(cutoff))
+        .toList(growable: false);
+    if (recent.length < 3) return _Trend.unknown;
     final xs = <double>[];
     final ys = <double>[];
     for (final p in recent) {
@@ -361,9 +413,12 @@ class CloudsVsFocusDetector extends NarratorDetector {
       ys.add(p.transparencyPercent);
     }
     final slope = NarratorStats.slope(xs, ys);
-    return slope != null && slope < -0.2; // > ~0.2 pts/min downward
+    if (slope == null) return _Trend.unknown;
+    return slope < -0.2 ? _Trend.falling : _Trend.steady;
   }
 }
+
+enum _Trend { unknown, steady, falling }
 
 /// 11. `conditions.excellent` — transparency > [threshold]% sustained for ≥
 /// [sustainMinutes]. Once per session.

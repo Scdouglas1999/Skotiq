@@ -59,6 +59,19 @@ class NarratorImageStats {
   /// Null whenever no temperature-reporting focuser is connected.
   final double? focuserTempC;
 
+  /// The frame's filter, so star counts and HFR are compared like with like.
+  final String? filter;
+
+  /// Measured sky background divided by exposure time (ADU/s), when known.
+  final double? backgroundPerSecond;
+
+  /// Whether the frame still counts as integration: false once the grader
+  /// rejected it or the frame watch excluded it.
+  final bool accepted;
+
+  /// The grader's or frame watch's reason when [accepted] is false.
+  final String? rejectionReason;
+
   const NarratorImageStats({
     required this.timestamp,
     this.capturedImageId,
@@ -66,7 +79,27 @@ class NarratorImageStats {
     this.fwhm,
     this.starCount,
     this.focuserTempC,
+    this.filter,
+    this.backgroundPerSecond,
+    this.accepted = true,
+    this.rejectionReason,
   });
+
+  /// The frame watch found the frame off target.
+  bool get offTarget => rejectionReason?.contains('Off target') ?? false;
+
+  /// The frame watch confirmed an obstruction in front of the frame.
+  bool get obstructed => rejectionReason?.contains('Obstructed') ?? false;
+}
+
+/// One guide RMS reading taken while guiding was settled: not during a dither
+/// or its settle, not right after guiding (re)started, and with no dither
+/// offsets left in the rolling RMS window. [rmsPx] is in guide-camera pixels.
+class NarratorGuideSample {
+  final DateTime timestamp;
+  final double rmsPx;
+
+  const NarratorGuideSample({required this.timestamp, required this.rmsPx});
 }
 
 /// A single sky-background sample derived from a light frame's measured
@@ -194,12 +227,18 @@ class NarratorContext {
   /// HFR baseline captured at the most recent successful autofocus, when known.
   final double? autofocusHfrBaseline;
 
-  // ── Guiding ───────────────────────────────────────────────────────────────
-  /// Rolling guide RMS-total history (arcsec), oldest → newest.
-  final List<double> guideRmsTotalHistory;
+  /// When the most recent successful autofocus finished, when known.
+  final DateTime? autofocusAt;
 
-  /// Latest guide RMS total (arcsec), if guiding is active.
-  final double? guideRmsTotal;
+  // ── Guiding ───────────────────────────────────────────────────────────────
+  /// Settled guide RMS-total readings, oldest → newest. Readings taken while
+  /// a dither settles, right after guiding starts, or while guiding is
+  /// stopped for autofocus or a flip are never included.
+  final List<NarratorGuideSample> guideSamples;
+
+  /// Guide camera pixel scale in arcsec per pixel, when the guider reports
+  /// it. Without it guide RMS can only be stated in pixels.
+  final double? guidePixelScaleArcsec;
 
   // ── Integration ───────────────────────────────────────────────────────────
   /// Accumulated integration per filter.
@@ -209,7 +248,9 @@ class NarratorContext {
   /// Auto-grader accept/reject events, oldest → newest.
   final List<NarratorGradeEvent> gradeEvents;
 
-  /// Rolling plate-solve outcomes (true = solved), oldest → newest.
+  /// Plate-solve outcomes of frames whose solve has finished (true =
+  /// solved), oldest → newest by capture time. A frame whose solve is still
+  /// pending is not in the list.
   final List<bool> solveHistory;
 
   /// Most recent failed science stage, if any.
@@ -232,11 +273,65 @@ class NarratorContext {
     this.imageStats = const [],
     this.diagnostics,
     this.autofocusHfrBaseline,
-    this.guideRmsTotalHistory = const [],
-    this.guideRmsTotal,
+    this.autofocusAt,
+    this.guideSamples = const [],
+    this.guidePixelScaleArcsec,
     this.filterIntegration = const [],
     this.gradeEvents = const [],
     this.solveHistory = const [],
     this.lastStageFailure,
   });
+}
+
+/// Frames that say something about focus and seeing: still accepted, on
+/// target, unobstructed, and neither starved of stars nor darkened against
+/// recent frames of the same filter. A tree edge or a cloud bank lowers the
+/// star count and the background and inflates HFR; counting such a frame
+/// reads an obstruction as focus drift.
+List<NarratorImageStats> narratorFocusUsableFrames(
+  List<NarratorImageStats> stats,
+) {
+  const reference = 5;
+  final usable = <NarratorImageStats>[];
+  final byFilter = <String, List<NarratorImageStats>>{};
+  for (final s in stats) {
+    if (!s.accepted || s.offTarget || s.obstructed) continue;
+    final prior = byFilter[s.filter ?? ''] ?? const <NarratorImageStats>[];
+    if (narratorFrameLooksBlocked(
+      s,
+      prior.sublist((prior.length - reference).clamp(0, prior.length)),
+    )) {
+      continue;
+    }
+    usable.add(s);
+    (byFilter[s.filter ?? ''] ??= <NarratorImageStats>[]).add(s);
+  }
+  return usable;
+}
+
+/// Whether [frame] kept less than half the stars, or less than 70% of the
+/// sky background, of the median of [sameFilterPrior].
+bool narratorFrameLooksBlocked(
+  NarratorImageStats frame,
+  List<NarratorImageStats> sameFilterPrior,
+) {
+  double? median(Iterable<double> values) {
+    final list = values.where((v) => v.isFinite && v > 0).toList()..sort();
+    if (list.isEmpty) return null;
+    final mid = list.length ~/ 2;
+    return list.length.isOdd ? list[mid] : (list[mid - 1] + list[mid]) / 2;
+  }
+
+  final count = frame.starCount;
+  final countBase = median(
+    sameFilterPrior.map((s) => s.starCount?.toDouble() ?? double.nan),
+  );
+  if (count != null && countBase != null && count < 0.5 * countBase) {
+    return true;
+  }
+  final bg = frame.backgroundPerSecond;
+  final bgBase = median(
+    sameFilterPrior.map((s) => s.backgroundPerSecond ?? double.nan),
+  );
+  return bg != null && bgBase != null && bg < 0.7 * bgBase;
 }
