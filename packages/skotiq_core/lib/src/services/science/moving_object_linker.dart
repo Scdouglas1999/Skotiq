@@ -27,8 +27,9 @@ class FitsFrameSummary {
   DateTime? get midExposureUtc {
     final start = dateObs;
     if (start == null) return null;
-    final half = ((exposureSeconds ?? 0) * 500).round();
-    return start.add(Duration(milliseconds: half));
+    final exposure = exposureSeconds;
+    if (exposure == null) return start;
+    return start.add(Duration(milliseconds: (exposure * 500).round()));
   }
 }
 
@@ -47,12 +48,12 @@ Future<FitsFrameSummary?> readFitsFrameSummary(String path) async {
         final card = text.substring(c * 80, c * 80 + 80);
         final key = card.substring(0, 8).trim();
         if (key == 'END') {
-          final w = int.tryParse(cards['NAXIS1'] ?? '');
-          final h = int.tryParse(cards['NAXIS2'] ?? '');
+          final w = _parseCard(cards['NAXIS1'], int.tryParse);
+          final h = _parseCard(cards['NAXIS2'], int.tryParse);
           if (w == null || h == null) return null;
-          final exp = double.tryParse(
-            cards['EXPTIME'] ?? cards['EXPOSURE'] ?? '',
-          );
+          final exp =
+              _parseCard(cards['EXPTIME'], double.tryParse) ??
+              _parseCard(cards['EXPOSURE'], double.tryParse);
           return FitsFrameSummary(
             width: w,
             height: h,
@@ -83,6 +84,9 @@ Future<FitsFrameSummary?> readFitsFrameSummary(String path) async {
     await file?.close();
   }
 }
+
+T? _parseCard<T>(String? raw, T? Function(String) parse) =>
+    raw == null ? null : parse(raw);
 
 /// One source detected in one frame, already placed on the sky through that
 /// frame's own plate solve.
