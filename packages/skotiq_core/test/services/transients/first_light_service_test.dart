@@ -81,9 +81,11 @@ void main() {
   late SkotiqDatabase db;
   late TransientDetectionsDao dao;
 
-  setUp(() {
+  setUp(() async {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     dao = TransientDetectionsDao(db);
+    // Detections reference sessions and images these tests do not create.
+    await db.customStatement('PRAGMA foreign_keys = OFF');
   });
 
   tearDown(() async {

@@ -1331,6 +1331,9 @@ pub struct AtlasTileState {
     pub channels: u32,
 }
 
+/// One tile's contributions and post-fold state in a batch fold.
+type TileBatchFold = (Vec<AtlasFoldOutcome>, AtlasTileState);
+
 /// Result of [`SkyAtlas::fold_prepared_frames`].
 #[derive(Debug, Clone, Default)]
 pub struct AtlasBatchFold {
@@ -1626,47 +1629,45 @@ impl SkyAtlas {
         );
 
         let work: Vec<(TileId, Vec<usize>)> = by_tile.into_iter().collect();
-        let fold_tile = |(tid, idxs): &(TileId, Vec<usize>)| -> Result<
-            Option<(Vec<AtlasFoldOutcome>, AtlasTileState)>,
-            AtlasError,
-        > {
-            let channels = frames[idxs[0]].channels();
-            let mut tile = self.load_or_create(*tid, channels, mode)?;
-            let npix = (tile.width as f64) * (tile.height as f64);
-            let mut outcomes = Vec::new();
-            for &i in idxs {
-                let (rec, deposited) = tile.fold_prepared(&frames[i], interp, contributor)?;
-                if rec.frames_added > 0 {
-                    outcomes.push(AtlasFoldOutcome {
-                        frame_index: i,
-                        tile_id: *tid,
-                        record: rec,
-                        coverage_added: deposited as f64 / npix,
-                    });
+        let fold_tile =
+            |(tid, idxs): &(TileId, Vec<usize>)| -> Result<Option<TileBatchFold>, AtlasError> {
+                let channels = frames[idxs[0]].channels();
+                let mut tile = self.load_or_create(*tid, channels, mode)?;
+                let npix = (tile.width as f64) * (tile.height as f64);
+                let mut outcomes = Vec::new();
+                for &i in idxs {
+                    let (rec, deposited) = tile.fold_prepared(&frames[i], interp, contributor)?;
+                    if rec.frames_added > 0 {
+                        outcomes.push(AtlasFoldOutcome {
+                            frame_index: i,
+                            tile_id: *tid,
+                            record: rec,
+                            coverage_added: deposited as f64 / npix,
+                        });
+                    }
                 }
-            }
-            if outcomes.is_empty() {
-                return Ok(None);
-            }
-            self.store_tile(&tile)?;
-            let state = AtlasTileState {
-                tile_id: *tid,
-                coverage_mean: tile.coverage_mean(),
-                total_frames: tile.provenance.total_frames,
-                total_integration_seconds: tile.provenance.total_integration_seconds,
-                channels: tile.channels,
+                if outcomes.is_empty() {
+                    return Ok(None);
+                }
+                self.store_tile(&tile)?;
+                let state = AtlasTileState {
+                    tile_id: *tid,
+                    coverage_mean: tile.coverage_mean(),
+                    total_frames: tile.provenance.total_frames,
+                    total_integration_seconds: tile.provenance.total_integration_seconds,
+                    channels: tile.channels,
+                };
+                Ok(Some((outcomes, state)))
             };
-            Ok(Some((outcomes, state)))
-        };
 
-        type TileFold = Result<Option<(Vec<AtlasFoldOutcome>, AtlasTileState)>, AtlasError>;
-        let results: Vec<TileFold> = match rayon::ThreadPoolBuilder::new()
-            .num_threads(FOLD_WORKERS)
-            .build()
-        {
-            Ok(pool) => pool.install(|| work.par_iter().map(fold_tile).collect()),
-            Err(_) => work.iter().map(fold_tile).collect(),
-        };
+        let results: Vec<Result<Option<TileBatchFold>, AtlasError>> =
+            match rayon::ThreadPoolBuilder::new()
+                .num_threads(FOLD_WORKERS)
+                .build()
+            {
+                Ok(pool) => pool.install(|| work.par_iter().map(fold_tile).collect()),
+                Err(_) => work.iter().map(fold_tile).collect(),
+            };
 
         let mut out = AtlasBatchFold {
             frames_without_coverage,
@@ -1821,9 +1822,7 @@ pub fn eroded_coverage(
         let row = &base[y * width..(y + 1) * width];
         // Running count of uncovered pixels in the window.
         let mut holes = 0usize;
-        for &covered in row.iter().take(reach + 1) {
-            holes += usize::from(!covered);
-        }
+        holes += row.iter().take(reach + 1).filter(|&&c| !c).count();
         for x in 0..width {
             horiz[y * width + x] = holes == 0 && x >= reach && x + reach < width;
             let add = x + reach + 1;

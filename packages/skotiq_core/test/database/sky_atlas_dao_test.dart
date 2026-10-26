@@ -136,7 +136,7 @@ void main() {
     expect(await dao.getAllTiles(), hasLength(2));
   });
 
-  test('refreshRegionRollups sums the region tiles', () async {
+  test('refreshRegionRollups counts each frame in the region once', () async {
     final region = await dao.upsertRegion(
       name: 'rollup',
       kind: 'custom',
@@ -178,10 +178,27 @@ void main() {
       sidecarPath: '/c.skt',
     );
 
+    // One 600 s frame lands in both region tiles, a 900 s frame only in
+    // tile 2, and a frame outside the region in tile 3.
+    Future<void> fold(int tile, String label, double seconds) => dao.recordFold(
+      tileId: tile,
+      framesAdded: 1,
+      weightAdded: 1,
+      integrationSecondsAdded: seconds,
+      label: label,
+    );
+    await fold(1, '2026-10-24T01:00:00Z', 600);
+    await fold(2, '2026-10-24T01:00:00Z', 600);
+    await fold(2, '2026-10-24T01:10:00Z', 900);
+    await fold(3, '2026-10-24T01:20:00Z', 9999);
+
     await dao.refreshRegionRollups(region);
     final row = await dao.getRegion(region);
     expect(row!.tileCount, 2);
+    // Each frame counts once, although the first lands in two tiles.
     expect(row.integrationSeconds, 1500);
+    final totals = await dao.regionTotals(region);
+    expect(totals.frames, 2);
     expect(tileA, isNotNull);
   });
 
