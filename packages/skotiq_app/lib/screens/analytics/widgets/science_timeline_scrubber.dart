@@ -108,25 +108,34 @@ class _ScienceTimelineScrubberState extends State<ScienceTimelineScrubber> {
                 widget.onFrameSelected?.call(metrics[idx].capturedImageId);
               },
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: SkotiqTokens.spaceMd,
+                runSpacing: SkotiqTokens.spaceXs,
+                children: [
+                  Text(
                     selected == null
                         ? 'Frame --'
                         : 'Frame ${selectedIndex + 1}/${metrics.length}',
                     style: SkotiqTypography.caption
                         .copyWith(color: widget.colors.textSecondary),
                   ),
-                ),
-                if (selected != null)
-                  Text(
-                    'Sky/read noise ${selected.snr > 0 ? '${selected.snr.toStringAsFixed(1)}x' : kReadoutUnknown}'
-                    ' | Clip H ${selected.highClipPercent.toStringAsFixed(2)}%',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: widget.colors.textMuted),
-                  ),
-              ],
+                  if (selected != null) ...[
+                    Text(
+                      'Sky/read noise ${selected.snr > 0 ? '${selected.snr.toStringAsFixed(1)}x' : kReadoutUnknown}',
+                      style: SkotiqTypography.caption
+                          .copyWith(color: widget.colors.textMuted),
+                    ),
+                    Text(
+                      'Clip H ${selected.highClipPercent.toStringAsFixed(2)}%',
+                      style: SkotiqTypography.caption
+                          .copyWith(color: widget.colors.textMuted),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ],
