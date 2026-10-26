@@ -11,30 +11,37 @@ pub(in super::super) async fn switch_target_or_filter(
     run: &RunControl,
 ) -> ActionFlow {
     let plan_snapshot = backup.read().await.clone();
-    // No plan, or an empty one, pauses with the reason rather than doing
-    // nothing silently.
-    let Some(plan) = plan_snapshot else {
-        tracing::warn!(
-            "[SCIENCE] SwitchTargetOrFilter fired but no backup plan configured; falling back to PauseAndWaitForClear"
-        );
-        run.error(format!(
-            "Trigger '{}' requested SwitchTargetOrFilter but no transparency backup plan was configured. Sequence paused. Set a backup filter or backup target in the science settings before re-running.",
-            trigger_name,
-        ));
-        run.pause(None).await;
-        return ActionFlow::Finished;
+    let problem = match &plan_snapshot {
+        None => Some("no transparency backup plan is configured"),
+        Some(plan) if plan.backup_filter.is_none() && plan.backup_target_id.is_none() => {
+            Some("the transparency backup plan names neither a filter nor a target")
+        }
+        Some(_) => None,
     };
-    if plan.backup_filter.is_none() && plan.backup_target_id.is_none() {
-        tracing::warn!(
-            "[SCIENCE] SwitchTargetOrFilter: backup plan has neither filter nor target; falling back to PauseAndWaitForClear"
-        );
-        run.error(format!(
-            "Trigger '{}' requested SwitchTargetOrFilter but the configured backup plan is empty. Sequence paused.",
-            trigger_name,
-        ));
-        run.pause(None).await;
+    // Transparency judges the sky's quality, so with nothing to switch to it
+    // only notifies, unless the operator asked quality problems to stop the
+    // run.
+    if let Some(problem) = problem {
+        tracing::warn!("[SCIENCE] SwitchTargetOrFilter fired but {problem}");
+        if rig.trigger_state.read().await.stop_on_quality_problems {
+            run.error(format!(
+                "{trigger_name}: {problem}, so the run is paused because Stop the run for \
+                 quality problems is on. Set a backup filter or target in the science \
+                 settings, or resume."
+            ));
+            run.pause(None).await;
+        } else {
+            run.warning(format!(
+                "{trigger_name}: {problem}, so imaging continues on the current target and \
+                 filter. Set a backup filter or target in the science settings to switch \
+                 automatically."
+            ));
+        }
         return ActionFlow::Finished;
     }
+    let Some(plan) = plan_snapshot else {
+        return ActionFlow::Finished;
+    };
     tracing::warn!(
         "[SCIENCE] Trigger '{}' fired SwitchTargetOrFilter: filter={:?}, target={:?}, desc={:?}",
         trigger_name,

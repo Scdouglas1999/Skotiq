@@ -45,8 +45,12 @@ pub(super) fn select_dispatches(
         }
         // Park and quality settings first, so the mode judges what the
         // trigger will actually do.
+        let trigger_type = manager
+            .get_trigger(&trigger_id)
+            .map(|trigger| trigger.trigger_type.clone());
         let fired = apply_quality_policy(
             &trigger_id,
+            trigger_type.as_ref(),
             apply_park_policy(
                 &trigger_id,
                 firing.action().clone(),
@@ -111,5 +115,100 @@ impl NotifyEpisodes {
             });
         self.last_fired.insert(dispatch.trigger_id.clone(), now);
         !same_episode
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fired(action: RecoveryAction) -> FiredTriggerAction {
+        FiredTriggerAction {
+            action,
+            end_without_parking: false,
+            notify_only: false,
+        }
+    }
+
+    fn hfr_degraded() -> TriggerType {
+        TriggerType::HfrDegraded {
+            threshold_percent: 20.0,
+            absolute_threshold: 0.0,
+            consecutive_frames: 1,
+        }
+    }
+
+    fn notifies(trigger_type: TriggerType, action: RecoveryAction, stop: bool) -> bool {
+        apply_quality_policy("saved", Some(&trigger_type), fired(action), stop).notify_only
+    }
+
+    /// Saved configurations carry Pause or Retry for quality triggers (the rig
+    /// had Guide Star Lost on Pause). The rule overrides them: a quality or
+    /// guiding trigger only notifies unless the operator turned on Stop the
+    /// run for quality problems.
+    #[test]
+    fn quality_triggers_that_would_stop_the_run_only_notify() {
+        let quality = [
+            TriggerType::GuideStarLost,
+            TriggerType::GuidingFailed {
+                rms_threshold: 2.0,
+                duration_secs: 60.0,
+                rms_retention_secs: 300,
+            },
+            TriggerType::TransparencyDropped {
+                below_threshold: 0.6,
+                duration_secs: 60.0,
+            },
+            hfr_degraded(),
+            TriggerType::DriftLimit { max_pixels: 30.0 },
+        ];
+        for trigger_type in quality {
+            for action in [
+                RecoveryAction::Pause,
+                RecoveryAction::Retry { max_attempts: 3 },
+                RecoveryAction::PauseAndWaitForClear,
+                RecoveryAction::ParkAndAbort,
+            ] {
+                assert!(
+                    notifies(trigger_type.clone(), action.clone(), false),
+                    "{trigger_type:?} with {action:?}"
+                );
+                assert!(
+                    !notifies(trigger_type.clone(), action.clone(), true),
+                    "opt-in keeps {trigger_type:?} with {action:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn actions_that_keep_imaging_and_rig_safety_triggers_are_left_alone() {
+        assert!(!notifies(
+            hfr_degraded(),
+            RecoveryAction::Autofocus,
+            false
+        ));
+        assert!(!notifies(
+            TriggerType::DriftLimit { max_pixels: 30.0 },
+            RecoveryAction::Recenter,
+            false
+        ));
+        assert!(!notifies(
+            TriggerType::DawnApproaching {
+                minutes_before: 30.0
+            },
+            RecoveryAction::ParkAndAbort,
+            false
+        ));
+        assert!(!notifies(
+            TriggerType::MountTrackingLost,
+            RecoveryAction::Pause,
+            false
+        ));
+        assert!(!notifies(
+            TriggerType::WeatherUnsafe,
+            RecoveryAction::ParkAndAbort,
+            false
+        ));
     }
 }

@@ -386,26 +386,46 @@ pub(crate) fn apply_park_policy(
 /// The standard trigger that judges guiding by its RMS.
 pub(crate) const GUIDING_FAILED_TRIGGER_ID: &str = "guiding_failed";
 
-/// Apply the operator's "Stop the run for quality problems" setting to a fired
-/// standard trigger.
+/// Whether `action` stops the run: pauses it, hands it to the recovery driver
+/// (which freezes the node tree), or ends it.
+fn stops_the_run(action: &RecoveryAction) -> bool {
+    matches!(
+        action,
+        RecoveryAction::Pause
+            | RecoveryAction::Retry { .. }
+            | RecoveryAction::PauseAndWaitForClear
+            | RecoveryAction::ParkAndAbort
+    )
+}
+
+/// Whether a trigger judges image quality or guiding rather than a risk to the
+/// rig. The meridian flip protects the mount and is not a quality trigger.
+pub(crate) fn is_quality_trigger(trigger_type: &TriggerType) -> bool {
+    !crate::triggers::is_safety_class_trigger(trigger_type)
+        && !matches!(trigger_type, TriggerType::MeridianFlip { .. })
+}
+
+/// Apply the operator's "Stop the run for quality problems" setting to a
+/// fired trigger.
 ///
-/// The standard Guiding Failure trigger fires on guiding RMS over a threshold
-/// while the guider is still guiding. That is a judgment of the frames, and it
-/// handed the run to the recovery driver, which froze it for up to 90 minutes
-/// of re-acquisition and then ended it. Owner decision 2026-10-06: only a risk
-/// to the hardware stops a run by itself. So unless the operator turned the
-/// setting on, it notifies once per episode and the run keeps imaging. A lost
-/// guide star (the guider stopped guiding) is the Guide Star Lost trigger and
-/// keeps its recovery.
+/// Rule: a quality or guiding trigger (guide star lost, guiding RMS,
+/// transparency, HFR, focus drift, drift, ...) only ever notifies, whatever
+/// action its saved configuration carries, unless the operator turned that
+/// setting on. Only a risk to the rig (the safety-class triggers) stops a run
+/// by itself. A quality trigger whose action does not stop the run (an
+/// autofocus, a recenter, a dither) still runs it.
 pub(crate) fn apply_quality_policy(
     trigger_id: &str,
+    trigger_type: Option<&TriggerType>,
     fired: FiredTriggerAction,
     stop_on_quality_problems: bool,
 ) -> FiredTriggerAction {
+    let quality_stop = !stop_on_quality_problems
+        && stops_the_run(&fired.action)
+        && (trigger_type.is_some_and(is_quality_trigger)
+            || trigger_id == GUIDING_FAILED_TRIGGER_ID);
     // An operator-authored Notify always notifies.
-    if matches!(fired.action, RecoveryAction::Notify)
-        || (trigger_id == GUIDING_FAILED_TRIGGER_ID && !stop_on_quality_problems)
-    {
+    if matches!(fired.action, RecoveryAction::Notify) || quality_stop {
         FiredTriggerAction {
             notify_only: true,
             ..fired
@@ -449,6 +469,12 @@ pub(crate) fn quality_trigger_notice(
                 _ => "its condition holds".to_string(),
             }
         }
+        Some(TriggerType::GuideStarLost) => format!(
+            "the guider lost its star. Imaging continues unguided and every frame is graded; \
+             guiding is started on a fresh star before the next light frame and then every {} \
+             min until it holds",
+            crate::instructions::UNGUIDED_RETRY_INTERVAL.as_secs() / 60
+        ),
         Some(TriggerType::DriftLimit { max_pixels }) => match state.calculate_drift_pixels() {
             Some((ra, dec)) => format!(
                 "the last plate solve is {:.0} px from the target (limit {max_pixels:.0} px)",
