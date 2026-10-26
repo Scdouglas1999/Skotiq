@@ -119,29 +119,21 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
     }
   }
 
-  /// Reconstruct a [WcsOverlay] (cdelt/crota form) from a solved CD-matrix
-  /// [MasterWcsSolution], inverting the native sign convention
-  /// (`WcsInfo::from_plate_solve`, `imaging/src/fits.rs`):
-  /// `cdelt1 = -‖(cd1_1, cd2_1)‖` (RA negative), `cdelt2 = ‖(cd1_2, cd2_2)‖`,
-  /// `crota2 = atan2(cd2_1, cd2_2)` — the same derivation the UI's
-  /// `_resolveMasterWcs` uses to read the persisted v44 columns. The colour
-  /// calibrator needs this overlay to project detections onto the sky.
-  static WcsOverlay _overlayFromSolution(MasterWcsSolution wcs) {
-    final cdelt1 = -math.sqrt(
-      wcs.cd1_1 * wcs.cd1_1 + wcs.cd2_1 * wcs.cd2_1,
-    ); // RA: neg.
-    final cdelt2 = math.sqrt(wcs.cd1_2 * wcs.cd1_2 + wcs.cd2_2 * wcs.cd2_2);
-    final crota2 = math.atan2(wcs.cd2_1, wcs.cd2_2) * 180.0 / math.pi;
-    return WcsOverlay(
-      crpix1: wcs.crpix1,
-      crpix2: wcs.crpix2,
-      crval1: wcs.crval1,
-      crval2: wcs.crval2,
-      cdelt1: cdelt1,
-      cdelt2: cdelt2,
-      crota2: crota2,
-    );
-  }
+  /// The master's [WcsOverlay] from its solved CD matrix, parity included
+  /// ([WcsOverlay.fromCd]). The colour calibrator needs it to project
+  /// detections onto the sky.
+  static WcsOverlay _overlayFromSolution(MasterWcsSolution wcs) =>
+      WcsOverlay.fromCd(
+        crpix1: wcs.crpix1,
+        crpix2: wcs.crpix2,
+        crval1: wcs.crval1,
+        crval2: wcs.crval2,
+        cd1_1: wcs.cd1_1,
+        cd1_2: wcs.cd1_2,
+        cd2_1: wcs.cd2_1,
+        cd2_2: wcs.cd2_2,
+      );
+
 
   /// Run the gated optional finishing passes on the master in place, each
   /// fail-soft (log + continue): background extraction, colour calibration

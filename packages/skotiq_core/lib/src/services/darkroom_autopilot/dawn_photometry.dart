@@ -136,13 +136,8 @@ class DawnPhotometryResolver {
 }
 
 /// Rebuild a [WcsOverlay] from the CD-matrix scalars an `integrated_masters`
-/// row persists, or null when the master was never solved.
-///
-/// The inversion is the one `WcsInfo::from_plate_solve` implies:
-/// `cdelt1 = -‖(cd1_1, cd2_1)‖` (right ascension runs negative),
-/// `cdelt2 = ‖(cd1_2, cd2_2)‖`, `crota2 = atan2(cd2_1, cd2_2)`. It matches the
-/// derivation the post-session colour gate and the annotation overlay both use,
-/// so all three place a star at the same pixel.
+/// row persists, or null when the master was never solved. The inversion is
+/// [WcsOverlay.fromCd], which keeps the matrix's parity.
 WcsOverlay? overlayFromMasterWcs({
   required double? crval1,
   required double? crval2,
@@ -163,16 +158,15 @@ WcsOverlay? overlayFromMasterWcs({
       cd22 == null) {
     return null;
   }
-  final cdelt1 = -math.sqrt(cd11 * cd11 + cd21 * cd21);
-  final cdelt2 = math.sqrt(cd12 * cd12 + cd22 * cd22);
-  if (cdelt1 == 0.0 || cdelt2 == 0.0) return null;
-  return WcsOverlay(
+  if (cd11 * cd22 - cd12 * cd21 == 0.0) return null;
+  return WcsOverlay.fromCd(
     crpix1: crpix1,
     crpix2: crpix2,
     crval1: crval1,
     crval2: crval2,
-    cdelt1: cdelt1,
-    cdelt2: cdelt2,
-    crota2: math.atan2(cd21, cd22) * 180.0 / math.pi,
+    cd1_1: cd11,
+    cd1_2: cd12,
+    cd2_1: cd21,
+    cd2_2: cd22,
   );
 }

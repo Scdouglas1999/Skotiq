@@ -23,6 +23,37 @@ class WcsOverlay {
     this.crota2 = 0,
   });
 
+  /// The overlay equivalent to a CD matrix, parity included.
+  ///
+  /// The overlay maps through `CD = R(crota2) · diag(cdelt1, cdelt2)`, so
+  /// `cdelt2 = ‖(cd1_2, cd2_2)‖`, `crota2 = atan2(−cd1_2, cd2_2)` and
+  /// `cdelt1` is column one projected on the rotated x axis: negative for the
+  /// sky's own parity (east left of north) and positive for a frame seen
+  /// through one mirror, such as a Newtonian's.
+  factory WcsOverlay.fromCd({
+    required double crpix1,
+    required double crpix2,
+    required double crval1,
+    required double crval2,
+    required double cd1_1,
+    required double cd1_2,
+    required double cd2_1,
+    required double cd2_2,
+  }) {
+    final cdelt2 = math.sqrt(cd1_2 * cd1_2 + cd2_2 * cd2_2);
+    final rho = math.atan2(-cd1_2, cd2_2);
+    final cdelt1 = cd1_1 * math.cos(rho) + cd2_1 * math.sin(rho);
+    return WcsOverlay(
+      crpix1: crpix1,
+      crpix2: crpix2,
+      crval1: crval1,
+      crval2: crval2,
+      cdelt1: cdelt1,
+      cdelt2: cdelt2,
+      crota2: rho * 180 / math.pi,
+    );
+  }
+
   /// Convert pixel coordinates to celestial coordinates (RA/Dec)
   (double ra, double dec) pixelToCelestial(double x, double y) {
     // Simple TAN projection

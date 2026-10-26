@@ -367,16 +367,11 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
 
   /// Resolve the reviewed master's solved WCS, or null when none is persisted.
   ///
-  /// The master row now carries its plate-solved WCS as the eight CD-matrix
+  /// The master row carries its plate-solved WCS as the eight CD-matrix
   /// scalars (v44), written by the post-session integration's fail-soft
-  /// plate-solve step. `WcsOverlay` consumes the cdelt/crota form, so this
-  /// derives them from the CD matrix using the inverse of the native sign
-  /// convention (`WcsInfo::from_plate_solve`, `imaging/src/fits.rs`):
-  /// `cd1_1 = -scale·cosθ`, `cd2_1 = scale·sinθ`, `cd2_2 = scale·cosθ`, hence
-  /// `cdelt1 = -‖(cd1_1, cd2_1)‖` (RA negative), `cdelt2 = ‖(cd1_2, cd2_2)‖`,
-  /// and `crota2 = atan2(cd2_1, cd2_2)`. Returns null (the honest fail-soft)
-  /// until a WCS is persisted, which keeps the annotation overlay + colour
-  /// calibration cleanly un-lit.
+  /// plate-solve step; [WcsOverlay.fromCd] turns them into the overlay with
+  /// the matrix's parity. Returns null until a WCS is persisted, which keeps
+  /// the annotation overlay and colour calibration cleanly un-lit.
   WcsOverlay? _resolveMasterWcs(IntegratedMaster master) {
     if (!master.hasWcs) return null;
     final cd11 = master.wcsCd1_1;
@@ -387,18 +382,15 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
       return null;
     }
 
-    final cdelt1 = -math.sqrt(cd11 * cd11 + cd21 * cd21); // RA: negative.
-    final cdelt2 = math.sqrt(cd12 * cd12 + cd22 * cd22);
-    final crota2 = math.atan2(cd21, cd22) * 180.0 / math.pi;
-
-    return WcsOverlay(
+    return WcsOverlay.fromCd(
       crpix1: master.wcsCrpix1 ?? master.width / 2,
       crpix2: master.wcsCrpix2 ?? master.height / 2,
       crval1: master.wcsCrval1!,
       crval2: master.wcsCrval2!,
-      cdelt1: cdelt1,
-      cdelt2: cdelt2,
-      crota2: crota2,
+      cd1_1: cd11,
+      cd1_2: cd12,
+      cd2_1: cd21,
+      cd2_2: cd22,
     );
   }
 
