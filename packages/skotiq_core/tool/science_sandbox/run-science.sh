@@ -16,6 +16,8 @@
 #   --skip-done          skip frames whose per-frame JSON already exists in --out
 #   --fold-wait SECONDS  how long to wait for the atlas fold per solved frame (default 900)
 #   --memory-max SIZE    systemd scope memory cap (default 6G)
+#   --whatif-projection  run the WHAT-IF copy built by make-whatif.sh (catalog projection
+#                        fix from findings H1-1 applied); NOT production behavior
 #   --session-per-night  one imaging session per observing night (<name>-YYYY-MM-DD)
 #   --atlas on|off       off skips the Your Sky fold (about 4 GB of disk writes and
 #                        about 2 min per frame); First Light then has no template
@@ -36,7 +38,7 @@ SCI="${SKOTIQ_SCIENCE_ROOT:-$HOME/.cache/ns-science-1025}"
 
 DB=""; SESSION=""; OUT=""; MOVING=false; DIFF=""; KEEP=false; SKIPDONE=false
 RIGDB="$HOME/.cache/ns-review-2026-10-24/skotiq.db"; FOLDWAIT=900; MEM=6G
-SETS=(); INPUTS=(); ATLAS=on; PERNIGHT=false
+SETS=(); INPUTS=(); ATLAS=on; PERNIGHT=false; WHATIF=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --db) DB="$2"; shift 2;;
@@ -53,12 +55,13 @@ while [[ $# -gt 0 ]]; do
     --memory-max) MEM="$2"; shift 2;;
     --atlas) ATLAS="$2"; shift 2;;
     --session-per-night) PERNIGHT=true; shift;;
-    -h|--help) sed -n 2,23p "$0"; exit 0;;
+    --whatif-projection) WHATIF=true; shift;;
+    -h|--help) sed -n 2,25p "$0"; exit 0;;
     --*) echo "unknown option $1" >&2; exit 2;;
     *) INPUTS+=("$1"); shift;;
   esac
 done
-[[ -n "$DB" && -n "$SESSION" && ${#INPUTS[@]} -gt 0 ]] || { sed -n 2,23p "$0"; exit 2; }
+[[ -n "$DB" && -n "$SESSION" && ${#INPUTS[@]} -gt 0 ]] || { sed -n 2,25p "$0"; exit 2; }
 
 DB="$(mkdir -p "$DB" && cd "$DB" && pwd)"
 OUT="${OUT:-$DB/out/$SESSION}"; mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
@@ -110,6 +113,13 @@ json.dump({
 }, open(cfg, "w"), indent=1)
 PY
 
+if [[ "$WHATIF" == true ]]; then
+  PKG="${SKOTIQ_WHATIF_ROOT:-$SCI/whatif}/packages/skotiq_core"
+  [[ -d "$PKG" ]] || { echo "run make-whatif.sh first" >&2; exit 2; }
+  # The what-if copy carries this harness as of make-whatif.sh time; refresh it.
+  rsync -a "$HERE/" "$PKG/tool/science_sandbox/"
+  echo "WHAT-IF run: catalog projection fix applied (not production code)"
+fi
 mkdir -p "${TMPDIR:-/tmp}"
 echo "science sandbox: ${#FRAMES[@]} frames -> $OUT (db $DB/skotiq.db)"
 cd "$PKG"
