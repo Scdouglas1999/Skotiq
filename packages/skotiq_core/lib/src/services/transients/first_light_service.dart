@@ -39,14 +39,14 @@ String firstLightCropName({
 
 /// How much of a frame's footprint the atlas was deep enough to actually
 /// difference, decoded from the native difference envelope. Distinguishes a
-/// genuinely clean-sky result (tiles checked, nothing found) from a thin-atlas
-/// no-op (every covered tile too thin / not folded into yet) so the UI can say
-/// "atlas not deep enough here yet" rather than silently reading as broken.
+/// completed search from a thin atlas or an unreliable subtraction, so a
+/// skipped search is never reported as an absence of sources.
 class FirstLightCoverage {
   const FirstLightCoverage({
     required this.tilesChecked,
     required this.tilesSkippedThin,
     required this.tilesNoTemplate,
+    this.tilesUnnormalized = 0,
   });
 
   /// Tiles whose template was deep enough and were differenced.
@@ -58,22 +58,27 @@ class FirstLightCoverage {
   /// Tiles the frame footprint covered but which have not been folded into yet.
   final int tilesNoTemplate;
 
-  /// Every tile the frame footprint touched (deep, thin, or empty).
-  int get tilesCovered => tilesChecked + tilesSkippedThin + tilesNoTemplate;
+  /// Deep tiles whose registration, PSF, or flux scaling could not be validated.
+  final int tilesUnnormalized;
+
+  /// Every tile the frame footprint touched, including rejected subtractions.
+  int get tilesCovered =>
+      tilesChecked + tilesSkippedThin + tilesNoTemplate + tilesUnnormalized;
 
   /// True when the frame covered sky but not one tile was deep enough to scan —
   /// the "atlas not deep enough here yet" condition.
-  bool get isAtlasTooThin => tilesChecked == 0 && tilesCovered > 0;
+  bool get isAtlasTooThin =>
+      tilesChecked == 0 && tilesUnnormalized == 0 && tilesCovered > 0;
 
   static int _len(Object? v) => v is List ? v.length : 0;
 
-  /// Decode from the `{ tilesChecked, tilesSkippedThin, tilesNoTemplate }` lists
-  /// the native difference envelope carries (each is a list of tile ids).
+  /// Decode the native coverage lists, each containing tile ids.
   factory FirstLightCoverage.fromBridgeJson(Map<String, dynamic> json) {
     return FirstLightCoverage(
       tilesChecked: _len(json['tilesChecked']),
       tilesSkippedThin: _len(json['tilesSkippedThin']),
       tilesNoTemplate: _len(json['tilesNoTemplate']),
+      tilesUnnormalized: _len(json['tilesUnnormalized']),
     );
   }
 
@@ -316,8 +321,16 @@ class FirstLightService {
         )
         .toList(growable: false);
 
+    if (coverage.tilesUnnormalized > 0) {
+      _logger.info(
+        'First Light scan: subtraction could not be validated for '
+        '${coverage.tilesUnnormalized} of ${coverage.tilesCovered} tiles '
+        'in $framePath; ${coverage.tilesChecked} tiles were searched.',
+        source: _logSource,
+      );
+    }
     if (rawCandidates.isEmpty) {
-      if (coverage.tilesChecked == 0 && coverage.tilesCovered > 0) {
+      if (coverage.isAtlasTooThin) {
         _logger.info(
           'First Light scan: no deep $layer template here yet for $framePath '
           '(${coverage.tilesSkippedThin} '

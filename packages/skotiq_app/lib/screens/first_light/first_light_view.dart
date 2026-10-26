@@ -144,9 +144,7 @@ class _IntroStrip extends ConsumerWidget {
 }
 
 /// Live deep-tile readout from the most-recent scan's coverage envelope. Tells
-/// the user, in plain terms, whether tonight's field was deep enough to search —
-/// the "atlas not deep enough here yet" feedback that turns a silent thin-atlas
-/// no-op into an explained quiet night.
+/// the user which areas were searched and why others were skipped.
 class _CoverageReadout extends StatelessWidget {
   const _CoverageReadout({required this.coverage, required this.colors});
 
@@ -156,15 +154,22 @@ class _CoverageReadout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final thin = coverage.isAtlasTooThin;
-    final color = thin ? colors.warning : colors.success;
-    final icon = thin ? LucideIcons.layers : SkotiqIcons.check;
-    final text = thin
-        ? 'Atlas not deep enough here yet — '
-            '${coverage.tilesSkippedThin + coverage.tilesNoTemplate} of '
-            '${coverage.tilesCovered} covered tiles still need more frames '
-            'before differencing can run.'
-        : '${coverage.tilesChecked} of ${coverage.tilesCovered} covered tiles '
-            'were deep enough to search this scan.';
+    final unvalidated = coverage.tilesUnnormalized > 0;
+    final warning = thin || unvalidated;
+    final color = warning ? colors.warning : colors.success;
+    final icon = warning ? LucideIcons.layers : SkotiqIcons.check;
+    final text = unvalidated
+        ? '${coverage.tilesChecked} of ${coverage.tilesCovered} covered tiles '
+            'were searched. On ${coverage.tilesUnnormalized} tiles, subtraction '
+            'could not be validated from the reference stars; those areas were '
+            'not searched.'
+        : thin
+            ? 'Atlas not deep enough here yet — '
+                '${coverage.tilesSkippedThin + coverage.tilesNoTemplate} of '
+                '${coverage.tilesCovered} covered tiles still need more frames '
+                'before differencing can run.'
+            : '${coverage.tilesChecked} of ${coverage.tilesCovered} covered tiles '
+                'were searched this scan.';
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,

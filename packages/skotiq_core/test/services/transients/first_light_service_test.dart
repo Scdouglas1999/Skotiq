@@ -597,6 +597,27 @@ void main() {
     expect(clean!.isAtlasTooThin, isFalse);
   });
 
+  test(
+    'unvalidated subtraction counts as covered but not a thin atlas',
+    () async {
+      FirstLightCoverage? coverage;
+      final service = build(
+        diffResult: {
+          'ok': true,
+          'candidates': const [],
+          'tilesChecked': const [],
+          'tilesUnnormalized': [10, 11],
+          'tilesSkippedThin': [12],
+        },
+        onCoverage: (c) => coverage = c,
+      );
+      expect(await scan(service, 1), isEmpty);
+      expect(coverage!.tilesCovered, 3);
+      expect(coverage!.tilesChecked, 0);
+      expect(coverage!.isAtlasTooThin, isFalse);
+    },
+  );
+
   test('crop filename is deterministic and mirrors the native key', () {
     final name = firstLightCropName(
       tileId: 42,
