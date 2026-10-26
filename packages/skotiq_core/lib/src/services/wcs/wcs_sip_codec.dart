@@ -19,6 +19,19 @@ typedef DecodedSip = ({
   List<double> bpCoeffs,
 });
 
+/// The SIP block of a solve without distortion terms: zero orders and no
+/// coefficients, which the projection reads as a plain TAN solve.
+const DecodedSip noSolvedSip = (
+  aOrder: 0,
+  bOrder: 0,
+  aCoeffs: <double>[],
+  bCoeffs: <double>[],
+  apOrder: 0,
+  bpOrder: 0,
+  apCoeffs: <double>[],
+  bpCoeffs: <double>[],
+);
+
 /// Encode the SIP block to the `solved_sip` JSON string, or null when there
 /// is no forward distortion (`aOrder`/`bOrder` <= 0 or empty coefficients).
 String? encodeSolvedSip({

@@ -94,7 +94,7 @@ SolvedWcs? solvedWcsFromStored({
       pixelScaleArcsec == null) {
     return null;
   }
-  final distortion = decodeSolvedSip(sip);
+  final distortion = decodeSolvedSip(sip) ?? noSolvedSip;
   final wcs = SolvedWcs(
     raHours: raHours,
     decDegrees: decDegrees,
@@ -106,14 +106,14 @@ SolvedWcs? solvedWcsFromStored({
     cd1_2: cd1_2,
     cd2_1: cd2_1,
     cd2_2: cd2_2,
-    aOrder: distortion?.aOrder ?? 0,
-    bOrder: distortion?.bOrder ?? 0,
-    aCoeffs: distortion?.aCoeffs ?? const [],
-    bCoeffs: distortion?.bCoeffs ?? const [],
-    apOrder: distortion?.apOrder ?? 0,
-    bpOrder: distortion?.bpOrder ?? 0,
-    apCoeffs: distortion?.apCoeffs ?? const [],
-    bpCoeffs: distortion?.bpCoeffs ?? const [],
+    aOrder: distortion.aOrder,
+    bOrder: distortion.bOrder,
+    aCoeffs: distortion.aCoeffs,
+    bCoeffs: distortion.bCoeffs,
+    apOrder: distortion.apOrder,
+    bpOrder: distortion.bpOrder,
+    apCoeffs: distortion.apCoeffs,
+    bpCoeffs: distortion.bpCoeffs,
   );
   return wcs.isValid ? wcs : null;
 }
