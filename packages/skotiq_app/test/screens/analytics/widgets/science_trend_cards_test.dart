@@ -44,6 +44,7 @@ FramePhotometricCalibrationRow _calRow({
   bool isCalibrated = true,
 }) {
   return FramePhotometricCalibrationRow(
+    bandIsStandard: false,
     id: id,
     capturedImageId: id,
     sessionId: 1,

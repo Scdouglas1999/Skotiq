@@ -73,6 +73,7 @@ void main() {
 
   FramePhotometricCalibrationRow calib(int id) {
     return FramePhotometricCalibrationRow(
+      bandIsStandard: false,
       id: id,
       isCalibrated: true,
       matchedStarCount: 40,

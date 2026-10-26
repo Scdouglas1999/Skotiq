@@ -13,27 +13,43 @@ import '../../models/science/science_models.dart';
 import '../../providers/database_provider.dart';
 import '../logging_service.dart';
 import '../../utils/skotiq_data_directory.dart';
+import 'photometric_bands.dart';
 
 /// One catalog star usable for photometric work: position, Johnson V, and
-/// (when the catalog provides it) a B-V color index.
+/// (when the catalog provides them) a B-V color index and Sloan r'.
 class PhotometricCatalogStar {
   final double raDegrees;
   final double decDegrees;
   final double magV;
   final double? colorIndexBv;
 
+  /// Sloan r' magnitude (APASS), when known.
+  final double? magR;
+
   const PhotometricCatalogStar({
     required this.raDegrees,
     required this.decDegrees,
     required this.magV,
     this.colorIndexBv,
+    this.magR,
   });
+
+  /// Johnson B, when the B-V color is known.
+  double? get magB => colorIndexBv == null ? null : magV + colorIndexBv!;
+
+  /// This star's magnitude in [band], or null when the catalog lacks it.
+  double? magIn(PhotometricBand band) => switch (band) {
+    PhotometricBand.johnsonV => magV,
+    PhotometricBand.johnsonB => magB,
+    PhotometricBand.sloanR => magR,
+  };
 
   Map<String, dynamic> toJson() => {
     'ra': raDegrees,
     'dec': decDegrees,
     'v': magV,
     if (colorIndexBv != null) 'bv': colorIndexBv,
+    if (magR != null) 'r': magR,
   };
 
   factory PhotometricCatalogStar.fromJson(Map<String, dynamic> json) {
@@ -42,6 +58,7 @@ class PhotometricCatalogStar {
       decDegrees: (json['dec'] as num).toDouble(),
       magV: (json['v'] as num).toDouble(),
       colorIndexBv: (json['bv'] as num?)?.toDouble(),
+      magR: (json['r'] as num?)?.toDouble(),
     );
   }
 }
@@ -160,8 +177,12 @@ class PhotometricCatalogService {
     final gridDec = (decDegrees / _gridDeg).round() * _gridDeg;
     final paddedRadius =
         ((radiusDegrees + _radiusPaddingDeg) / 0.25).ceil() * 0.25;
-    final key =
-        'apass9_${gridRa.toStringAsFixed(1)}_${gridDec.toStringAsFixed(1)}_${paddedRadius.toStringAsFixed(2)}';
+    final cell =
+        '${gridRa.toStringAsFixed(1)}_${gridDec.toStringAsFixed(1)}_${paddedRadius.toStringAsFixed(2)}';
+    // Entries under the older key were fetched without r'; they still serve
+    // B and V when the current entry cannot be fetched.
+    final key = 'apass9r_$cell';
+    final legacyKey = 'apass9_$cell';
 
     return _inflight.putIfAbsent(key, () async {
       try {
@@ -170,7 +191,7 @@ class PhotometricCatalogService {
           return cached;
         }
         if (!await _onlineEnabled()) {
-          return null;
+          return await _readCache(legacyKey);
         }
         final fetched = await _fetchApass(
           raDegrees: gridRa,
@@ -179,8 +200,9 @@ class PhotometricCatalogService {
         );
         if (fetched != null) {
           await _writeCache(key, fetched);
+          return fetched;
         }
-        return fetched;
+        return await _readCache(legacyKey);
       } catch (error, stack) {
         _logger.warning(
           'APASS cone $key failed; falling back to bundled catalog: '
@@ -228,7 +250,7 @@ class PhotometricCatalogService {
             '${raDegrees.toStringAsFixed(5)} '
             '${decDegrees.toStringAsFixed(5)}',
         '-c.rd': radiusDegrees.toStringAsFixed(3),
-        '-out': 'RAJ2000 DEJ2000 Vmag Bmag',
+        '-out': "RAJ2000 DEJ2000 Vmag Bmag r'mag",
         '-out.max': '$_maxRows',
         // Drop rows without a V magnitude server-side.
         'Vmag': '>0',
@@ -291,12 +313,14 @@ class PhotometricCatalogService {
       final v = cell('Vmag');
       if (ra == null || dec == null || v == null || !v.isFinite) continue;
       final b = cell('Bmag');
+      final r = cell("r'mag");
       stars.add(
         PhotometricCatalogStar(
           raDegrees: ra,
           decDegrees: dec,
           magV: v,
           colorIndexBv: (b != null && b.isFinite) ? b - v : null,
+          magR: (r != null && r.isFinite) ? r : null,
         ),
       );
     }

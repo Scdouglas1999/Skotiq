@@ -40,6 +40,7 @@ ImagingSession _session() => ImagingSession(
 /// One science product is enough to take the full-layout branch rather than the
 /// shared "nothing captured yet" placeholder.
 TransparencySampleRow _transparency() => TransparencySampleRow(
+      extinctionMeasured: false,
       id: 1,
       sessionId: _sessionId,
       transparencyPercent: 82,

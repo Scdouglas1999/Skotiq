@@ -464,6 +464,55 @@ CREATE TABLE captured_images (
     }
   });
 
+  test('v63 adds the filter columns to the photometry tables', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'skotiq_filter_columns_migration_',
+    );
+    final file = File('${tempDir.path}/v62.db');
+    const added = {
+      'photometry_measurements': ['filter'],
+      'frame_photometric_calibration': [
+        'filter',
+        'photometric_band',
+        'band_is_standard',
+        'zero_point_error',
+      ],
+      'transparency_samples': ['filter', 'extinction_measured'],
+    };
+    try {
+      final setup = SkotiqDatabase.forTesting(NativeDatabase(file));
+      try {
+        for (final entry in added.entries) {
+          for (final column in entry.value) {
+            await setup.customStatement(
+              'ALTER TABLE ${entry.key} DROP COLUMN $column',
+            );
+          }
+        }
+        await setup.customStatement('PRAGMA user_version = 62');
+      } finally {
+        await setup.close();
+      }
+
+      final db = SkotiqDatabase.forTesting(NativeDatabase(file));
+      try {
+        for (final entry in added.entries) {
+          final columns =
+              (await db.customSelect('PRAGMA table_info(${entry.key})').get())
+                  .map((row) => row.read<String>('name'))
+                  .toSet();
+          expect(columns, containsAll(entry.value), reason: entry.key);
+        }
+      } finally {
+        await db.close();
+      }
+    } finally {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    }
+  });
+
   test('schema 12 database upgrades to the complete current table set', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'skotiq_schema12_upgrade_',
@@ -752,10 +801,10 @@ CREATE TABLE captured_images (
     },
   );
 
-  test('fresh database is at schema 62 with stacked_results table', () async {
+  test('fresh database is at schema 63 with stacked_results table', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     try {
-      expect(db.schemaVersion, equals(62));
+      expect(db.schemaVersion, equals(63));
 
       // v48 (Night Narrator): the narrator_events table must exist on a
       // fresh install (drift createAll) just like on the upgrade path.
@@ -869,7 +918,7 @@ CREATE TABLE captured_images (
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(upgradedVersion.data['user_version'], equals(db.schemaVersion));
-      expect(db.schemaVersion, equals(62));
+      expect(db.schemaVersion, equals(63));
 
       final tableRow = await db
           .customSelect(

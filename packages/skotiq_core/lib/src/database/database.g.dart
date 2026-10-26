@@ -13448,6 +13448,15 @@ class $PhotometryMeasurementsTable extends PhotometryMeasurements
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _filterMeta = const VerificationMeta('filter');
+  @override
+  late final GeneratedColumn<String> filter = GeneratedColumn<String>(
+    'filter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _timestampMeta = const VerificationMeta(
     'timestamp',
   );
@@ -13475,6 +13484,7 @@ class $PhotometryMeasurementsTable extends PhotometryMeasurements
     snr,
     uncertainty,
     isOutlier,
+    filter,
     timestamp,
   ];
   @override
@@ -13578,6 +13588,12 @@ class $PhotometryMeasurementsTable extends PhotometryMeasurements
         isOutlier.isAcceptableOrUnknown(data['is_outlier']!, _isOutlierMeta),
       );
     }
+    if (data.containsKey('filter')) {
+      context.handle(
+        _filterMeta,
+        filter.isAcceptableOrUnknown(data['filter']!, _filterMeta),
+      );
+    }
     if (data.containsKey('timestamp')) {
       context.handle(
         _timestampMeta,
@@ -13648,6 +13664,10 @@ class $PhotometryMeasurementsTable extends PhotometryMeasurements
         DriftSqlType.bool,
         data['${effectivePrefix}is_outlier'],
       )!,
+      filter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}filter'],
+      ),
       timestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}timestamp'],
@@ -13676,6 +13696,9 @@ class PhotometryMeasurementRow extends DataClass
   final double? snr;
   final double? uncertainty;
   final bool isOutlier;
+
+  /// The frame's filter, so light curves and exports keep bands apart.
+  final String? filter;
   final DateTime timestamp;
   const PhotometryMeasurementRow({
     required this.id,
@@ -13691,6 +13714,7 @@ class PhotometryMeasurementRow extends DataClass
     this.snr,
     this.uncertainty,
     required this.isOutlier,
+    this.filter,
     required this.timestamp,
   });
   @override
@@ -13721,6 +13745,9 @@ class PhotometryMeasurementRow extends DataClass
       map['uncertainty'] = Variable<double>(uncertainty);
     }
     map['is_outlier'] = Variable<bool>(isOutlier);
+    if (!nullToAbsent || filter != null) {
+      map['filter'] = Variable<String>(filter);
+    }
     map['timestamp'] = Variable<DateTime>(timestamp);
     return map;
   }
@@ -13750,6 +13777,9 @@ class PhotometryMeasurementRow extends DataClass
           ? const Value.absent()
           : Value(uncertainty),
       isOutlier: Value(isOutlier),
+      filter: filter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filter),
       timestamp: Value(timestamp),
     );
   }
@@ -13777,6 +13807,7 @@ class PhotometryMeasurementRow extends DataClass
       snr: serializer.fromJson<double?>(json['snr']),
       uncertainty: serializer.fromJson<double?>(json['uncertainty']),
       isOutlier: serializer.fromJson<bool>(json['isOutlier']),
+      filter: serializer.fromJson<String?>(json['filter']),
       timestamp: serializer.fromJson<DateTime>(json['timestamp']),
     );
   }
@@ -13799,6 +13830,7 @@ class PhotometryMeasurementRow extends DataClass
       'snr': serializer.toJson<double?>(snr),
       'uncertainty': serializer.toJson<double?>(uncertainty),
       'isOutlier': serializer.toJson<bool>(isOutlier),
+      'filter': serializer.toJson<String?>(filter),
       'timestamp': serializer.toJson<DateTime>(timestamp),
     };
   }
@@ -13817,6 +13849,7 @@ class PhotometryMeasurementRow extends DataClass
     Value<double?> snr = const Value.absent(),
     Value<double?> uncertainty = const Value.absent(),
     bool? isOutlier,
+    Value<String?> filter = const Value.absent(),
     DateTime? timestamp,
   }) => PhotometryMeasurementRow(
     id: id ?? this.id,
@@ -13838,6 +13871,7 @@ class PhotometryMeasurementRow extends DataClass
     snr: snr.present ? snr.value : this.snr,
     uncertainty: uncertainty.present ? uncertainty.value : this.uncertainty,
     isOutlier: isOutlier ?? this.isOutlier,
+    filter: filter.present ? filter.value : this.filter,
     timestamp: timestamp ?? this.timestamp,
   );
   PhotometryMeasurementRow copyWithCompanion(
@@ -13865,6 +13899,7 @@ class PhotometryMeasurementRow extends DataClass
           ? data.uncertainty.value
           : this.uncertainty,
       isOutlier: data.isOutlier.present ? data.isOutlier.value : this.isOutlier,
+      filter: data.filter.present ? data.filter.value : this.filter,
       timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
     );
   }
@@ -13885,6 +13920,7 @@ class PhotometryMeasurementRow extends DataClass
           ..write('snr: $snr, ')
           ..write('uncertainty: $uncertainty, ')
           ..write('isOutlier: $isOutlier, ')
+          ..write('filter: $filter, ')
           ..write('timestamp: $timestamp')
           ..write(')'))
         .toString();
@@ -13905,6 +13941,7 @@ class PhotometryMeasurementRow extends DataClass
     snr,
     uncertainty,
     isOutlier,
+    filter,
     timestamp,
   );
   @override
@@ -13924,6 +13961,7 @@ class PhotometryMeasurementRow extends DataClass
           other.snr == this.snr &&
           other.uncertainty == this.uncertainty &&
           other.isOutlier == this.isOutlier &&
+          other.filter == this.filter &&
           other.timestamp == this.timestamp);
 }
 
@@ -13942,6 +13980,7 @@ class PhotometryMeasurementsCompanion
   final Value<double?> snr;
   final Value<double?> uncertainty;
   final Value<bool> isOutlier;
+  final Value<String?> filter;
   final Value<DateTime> timestamp;
   const PhotometryMeasurementsCompanion({
     this.id = const Value.absent(),
@@ -13957,6 +13996,7 @@ class PhotometryMeasurementsCompanion
     this.snr = const Value.absent(),
     this.uncertainty = const Value.absent(),
     this.isOutlier = const Value.absent(),
+    this.filter = const Value.absent(),
     this.timestamp = const Value.absent(),
   });
   PhotometryMeasurementsCompanion.insert({
@@ -13973,6 +14013,7 @@ class PhotometryMeasurementsCompanion
     this.snr = const Value.absent(),
     this.uncertainty = const Value.absent(),
     this.isOutlier = const Value.absent(),
+    this.filter = const Value.absent(),
     this.timestamp = const Value.absent(),
   }) : objectId = Value(objectId),
        x = Value(x),
@@ -13992,6 +14033,7 @@ class PhotometryMeasurementsCompanion
     Expression<double>? snr,
     Expression<double>? uncertainty,
     Expression<bool>? isOutlier,
+    Expression<String>? filter,
     Expression<DateTime>? timestamp,
   }) {
     return RawValuesInsertable({
@@ -14009,6 +14051,7 @@ class PhotometryMeasurementsCompanion
       if (snr != null) 'snr': snr,
       if (uncertainty != null) 'uncertainty': uncertainty,
       if (isOutlier != null) 'is_outlier': isOutlier,
+      if (filter != null) 'filter': filter,
       if (timestamp != null) 'timestamp': timestamp,
     });
   }
@@ -14027,6 +14070,7 @@ class PhotometryMeasurementsCompanion
     Value<double?>? snr,
     Value<double?>? uncertainty,
     Value<bool>? isOutlier,
+    Value<String?>? filter,
     Value<DateTime>? timestamp,
   }) {
     return PhotometryMeasurementsCompanion(
@@ -14044,6 +14088,7 @@ class PhotometryMeasurementsCompanion
       snr: snr ?? this.snr,
       uncertainty: uncertainty ?? this.uncertainty,
       isOutlier: isOutlier ?? this.isOutlier,
+      filter: filter ?? this.filter,
       timestamp: timestamp ?? this.timestamp,
     );
   }
@@ -14092,6 +14137,9 @@ class PhotometryMeasurementsCompanion
     if (isOutlier.present) {
       map['is_outlier'] = Variable<bool>(isOutlier.value);
     }
+    if (filter.present) {
+      map['filter'] = Variable<String>(filter.value);
+    }
     if (timestamp.present) {
       map['timestamp'] = Variable<DateTime>(timestamp.value);
     }
@@ -14114,6 +14162,7 @@ class PhotometryMeasurementsCompanion
           ..write('snr: $snr, ')
           ..write('uncertainty: $uncertainty, ')
           ..write('isOutlier: $isOutlier, ')
+          ..write('filter: $filter, ')
           ..write('timestamp: $timestamp')
           ..write(')'))
         .toString();
@@ -14269,6 +14318,52 @@ class $FramePhotometricCalibrationTable extends FramePhotometricCalibration
     requiredDuringInsert: false,
     defaultValue: const Constant('unknown'),
   );
+  static const VerificationMeta _filterMeta = const VerificationMeta('filter');
+  @override
+  late final GeneratedColumn<String> filter = GeneratedColumn<String>(
+    'filter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _photometricBandMeta = const VerificationMeta(
+    'photometricBand',
+  );
+  @override
+  late final GeneratedColumn<String> photometricBand = GeneratedColumn<String>(
+    'photometric_band',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bandIsStandardMeta = const VerificationMeta(
+    'bandIsStandard',
+  );
+  @override
+  late final GeneratedColumn<bool> bandIsStandard = GeneratedColumn<bool>(
+    'band_is_standard',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("band_is_standard" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _zeroPointErrorMeta = const VerificationMeta(
+    'zeroPointError',
+  );
+  @override
+  late final GeneratedColumn<double> zeroPointError = GeneratedColumn<double>(
+    'zero_point_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _timestampMeta = const VerificationMeta(
     'timestamp',
   );
@@ -14294,6 +14389,10 @@ class $FramePhotometricCalibrationTable extends FramePhotometricCalibration
     calibrationRms,
     catalogSource,
     solverId,
+    filter,
+    photometricBand,
+    bandIsStandard,
+    zeroPointError,
     timestamp,
   ];
   @override
@@ -14392,6 +14491,39 @@ class $FramePhotometricCalibrationTable extends FramePhotometricCalibration
         solverId.isAcceptableOrUnknown(data['solver_id']!, _solverIdMeta),
       );
     }
+    if (data.containsKey('filter')) {
+      context.handle(
+        _filterMeta,
+        filter.isAcceptableOrUnknown(data['filter']!, _filterMeta),
+      );
+    }
+    if (data.containsKey('photometric_band')) {
+      context.handle(
+        _photometricBandMeta,
+        photometricBand.isAcceptableOrUnknown(
+          data['photometric_band']!,
+          _photometricBandMeta,
+        ),
+      );
+    }
+    if (data.containsKey('band_is_standard')) {
+      context.handle(
+        _bandIsStandardMeta,
+        bandIsStandard.isAcceptableOrUnknown(
+          data['band_is_standard']!,
+          _bandIsStandardMeta,
+        ),
+      );
+    }
+    if (data.containsKey('zero_point_error')) {
+      context.handle(
+        _zeroPointErrorMeta,
+        zeroPointError.isAcceptableOrUnknown(
+          data['zero_point_error']!,
+          _zeroPointErrorMeta,
+        ),
+      );
+    }
     if (data.containsKey('timestamp')) {
       context.handle(
         _timestampMeta,
@@ -14454,6 +14586,22 @@ class $FramePhotometricCalibrationTable extends FramePhotometricCalibration
         DriftSqlType.string,
         data['${effectivePrefix}solver_id'],
       )!,
+      filter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}filter'],
+      ),
+      photometricBand: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photometric_band'],
+      ),
+      bandIsStandard: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}band_is_standard'],
+      )!,
+      zeroPointError: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}zero_point_error'],
+      ),
       timestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}timestamp'],
@@ -14480,6 +14628,20 @@ class FramePhotometricCalibrationRow extends DataClass
   final double calibrationRms;
   final String catalogSource;
   final String solverId;
+
+  /// The frame's filter. Zero points of different filters are not comparable.
+  final String? filter;
+
+  /// Catalog band the zero point refers to ('B', 'V', 'r').
+  final String? photometricBand;
+
+  /// False when the filter has no catalog band of its own (L, clear,
+  /// narrowband) and the zero point is only a V-equivalent.
+  final bool bandIsStandard;
+
+  /// Standard error of [zeroPoint] in magnitudes. [calibrationRms] is the
+  /// per-star scatter.
+  final double? zeroPointError;
   final DateTime timestamp;
   const FramePhotometricCalibrationRow({
     required this.id,
@@ -14493,6 +14655,10 @@ class FramePhotometricCalibrationRow extends DataClass
     required this.calibrationRms,
     required this.catalogSource,
     required this.solverId,
+    this.filter,
+    this.photometricBand,
+    required this.bandIsStandard,
+    this.zeroPointError,
     required this.timestamp,
   });
   @override
@@ -14519,6 +14685,16 @@ class FramePhotometricCalibrationRow extends DataClass
     map['calibration_rms'] = Variable<double>(calibrationRms);
     map['catalog_source'] = Variable<String>(catalogSource);
     map['solver_id'] = Variable<String>(solverId);
+    if (!nullToAbsent || filter != null) {
+      map['filter'] = Variable<String>(filter);
+    }
+    if (!nullToAbsent || photometricBand != null) {
+      map['photometric_band'] = Variable<String>(photometricBand);
+    }
+    map['band_is_standard'] = Variable<bool>(bandIsStandard);
+    if (!nullToAbsent || zeroPointError != null) {
+      map['zero_point_error'] = Variable<double>(zeroPointError);
+    }
     map['timestamp'] = Variable<DateTime>(timestamp);
     return map;
   }
@@ -14546,6 +14722,16 @@ class FramePhotometricCalibrationRow extends DataClass
       calibrationRms: Value(calibrationRms),
       catalogSource: Value(catalogSource),
       solverId: Value(solverId),
+      filter: filter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filter),
+      photometricBand: photometricBand == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photometricBand),
+      bandIsStandard: Value(bandIsStandard),
+      zeroPointError: zeroPointError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zeroPointError),
       timestamp: Value(timestamp),
     );
   }
@@ -14571,6 +14757,10 @@ class FramePhotometricCalibrationRow extends DataClass
       calibrationRms: serializer.fromJson<double>(json['calibrationRms']),
       catalogSource: serializer.fromJson<String>(json['catalogSource']),
       solverId: serializer.fromJson<String>(json['solverId']),
+      filter: serializer.fromJson<String?>(json['filter']),
+      photometricBand: serializer.fromJson<String?>(json['photometricBand']),
+      bandIsStandard: serializer.fromJson<bool>(json['bandIsStandard']),
+      zeroPointError: serializer.fromJson<double?>(json['zeroPointError']),
       timestamp: serializer.fromJson<DateTime>(json['timestamp']),
     );
   }
@@ -14589,6 +14779,10 @@ class FramePhotometricCalibrationRow extends DataClass
       'calibrationRms': serializer.toJson<double>(calibrationRms),
       'catalogSource': serializer.toJson<String>(catalogSource),
       'solverId': serializer.toJson<String>(solverId),
+      'filter': serializer.toJson<String?>(filter),
+      'photometricBand': serializer.toJson<String?>(photometricBand),
+      'bandIsStandard': serializer.toJson<bool>(bandIsStandard),
+      'zeroPointError': serializer.toJson<double?>(zeroPointError),
       'timestamp': serializer.toJson<DateTime>(timestamp),
     };
   }
@@ -14605,6 +14799,10 @@ class FramePhotometricCalibrationRow extends DataClass
     double? calibrationRms,
     String? catalogSource,
     String? solverId,
+    Value<String?> filter = const Value.absent(),
+    Value<String?> photometricBand = const Value.absent(),
+    bool? bandIsStandard,
+    Value<double?> zeroPointError = const Value.absent(),
     DateTime? timestamp,
   }) => FramePhotometricCalibrationRow(
     id: id ?? this.id,
@@ -14624,6 +14822,14 @@ class FramePhotometricCalibrationRow extends DataClass
     calibrationRms: calibrationRms ?? this.calibrationRms,
     catalogSource: catalogSource ?? this.catalogSource,
     solverId: solverId ?? this.solverId,
+    filter: filter.present ? filter.value : this.filter,
+    photometricBand: photometricBand.present
+        ? photometricBand.value
+        : this.photometricBand,
+    bandIsStandard: bandIsStandard ?? this.bandIsStandard,
+    zeroPointError: zeroPointError.present
+        ? zeroPointError.value
+        : this.zeroPointError,
     timestamp: timestamp ?? this.timestamp,
   );
   FramePhotometricCalibrationRow copyWithCompanion(
@@ -14655,6 +14861,16 @@ class FramePhotometricCalibrationRow extends DataClass
           ? data.catalogSource.value
           : this.catalogSource,
       solverId: data.solverId.present ? data.solverId.value : this.solverId,
+      filter: data.filter.present ? data.filter.value : this.filter,
+      photometricBand: data.photometricBand.present
+          ? data.photometricBand.value
+          : this.photometricBand,
+      bandIsStandard: data.bandIsStandard.present
+          ? data.bandIsStandard.value
+          : this.bandIsStandard,
+      zeroPointError: data.zeroPointError.present
+          ? data.zeroPointError.value
+          : this.zeroPointError,
       timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
     );
   }
@@ -14673,6 +14889,10 @@ class FramePhotometricCalibrationRow extends DataClass
           ..write('calibrationRms: $calibrationRms, ')
           ..write('catalogSource: $catalogSource, ')
           ..write('solverId: $solverId, ')
+          ..write('filter: $filter, ')
+          ..write('photometricBand: $photometricBand, ')
+          ..write('bandIsStandard: $bandIsStandard, ')
+          ..write('zeroPointError: $zeroPointError, ')
           ..write('timestamp: $timestamp')
           ..write(')'))
         .toString();
@@ -14691,6 +14911,10 @@ class FramePhotometricCalibrationRow extends DataClass
     calibrationRms,
     catalogSource,
     solverId,
+    filter,
+    photometricBand,
+    bandIsStandard,
+    zeroPointError,
     timestamp,
   );
   @override
@@ -14708,6 +14932,10 @@ class FramePhotometricCalibrationRow extends DataClass
           other.calibrationRms == this.calibrationRms &&
           other.catalogSource == this.catalogSource &&
           other.solverId == this.solverId &&
+          other.filter == this.filter &&
+          other.photometricBand == this.photometricBand &&
+          other.bandIsStandard == this.bandIsStandard &&
+          other.zeroPointError == this.zeroPointError &&
           other.timestamp == this.timestamp);
 }
 
@@ -14724,6 +14952,10 @@ class FramePhotometricCalibrationCompanion
   final Value<double> calibrationRms;
   final Value<String> catalogSource;
   final Value<String> solverId;
+  final Value<String?> filter;
+  final Value<String?> photometricBand;
+  final Value<bool> bandIsStandard;
+  final Value<double?> zeroPointError;
   final Value<DateTime> timestamp;
   const FramePhotometricCalibrationCompanion({
     this.id = const Value.absent(),
@@ -14737,6 +14969,10 @@ class FramePhotometricCalibrationCompanion
     this.calibrationRms = const Value.absent(),
     this.catalogSource = const Value.absent(),
     this.solverId = const Value.absent(),
+    this.filter = const Value.absent(),
+    this.photometricBand = const Value.absent(),
+    this.bandIsStandard = const Value.absent(),
+    this.zeroPointError = const Value.absent(),
     this.timestamp = const Value.absent(),
   });
   FramePhotometricCalibrationCompanion.insert({
@@ -14751,6 +14987,10 @@ class FramePhotometricCalibrationCompanion
     this.calibrationRms = const Value.absent(),
     this.catalogSource = const Value.absent(),
     this.solverId = const Value.absent(),
+    this.filter = const Value.absent(),
+    this.photometricBand = const Value.absent(),
+    this.bandIsStandard = const Value.absent(),
+    this.zeroPointError = const Value.absent(),
     this.timestamp = const Value.absent(),
   });
   static Insertable<FramePhotometricCalibrationRow> custom({
@@ -14765,6 +15005,10 @@ class FramePhotometricCalibrationCompanion
     Expression<double>? calibrationRms,
     Expression<String>? catalogSource,
     Expression<String>? solverId,
+    Expression<String>? filter,
+    Expression<String>? photometricBand,
+    Expression<bool>? bandIsStandard,
+    Expression<double>? zeroPointError,
     Expression<DateTime>? timestamp,
   }) {
     return RawValuesInsertable({
@@ -14779,6 +15023,10 @@ class FramePhotometricCalibrationCompanion
       if (calibrationRms != null) 'calibration_rms': calibrationRms,
       if (catalogSource != null) 'catalog_source': catalogSource,
       if (solverId != null) 'solver_id': solverId,
+      if (filter != null) 'filter': filter,
+      if (photometricBand != null) 'photometric_band': photometricBand,
+      if (bandIsStandard != null) 'band_is_standard': bandIsStandard,
+      if (zeroPointError != null) 'zero_point_error': zeroPointError,
       if (timestamp != null) 'timestamp': timestamp,
     });
   }
@@ -14795,6 +15043,10 @@ class FramePhotometricCalibrationCompanion
     Value<double>? calibrationRms,
     Value<String>? catalogSource,
     Value<String>? solverId,
+    Value<String?>? filter,
+    Value<String?>? photometricBand,
+    Value<bool>? bandIsStandard,
+    Value<double?>? zeroPointError,
     Value<DateTime>? timestamp,
   }) {
     return FramePhotometricCalibrationCompanion(
@@ -14809,6 +15061,10 @@ class FramePhotometricCalibrationCompanion
       calibrationRms: calibrationRms ?? this.calibrationRms,
       catalogSource: catalogSource ?? this.catalogSource,
       solverId: solverId ?? this.solverId,
+      filter: filter ?? this.filter,
+      photometricBand: photometricBand ?? this.photometricBand,
+      bandIsStandard: bandIsStandard ?? this.bandIsStandard,
+      zeroPointError: zeroPointError ?? this.zeroPointError,
       timestamp: timestamp ?? this.timestamp,
     );
   }
@@ -14849,6 +15105,18 @@ class FramePhotometricCalibrationCompanion
     if (solverId.present) {
       map['solver_id'] = Variable<String>(solverId.value);
     }
+    if (filter.present) {
+      map['filter'] = Variable<String>(filter.value);
+    }
+    if (photometricBand.present) {
+      map['photometric_band'] = Variable<String>(photometricBand.value);
+    }
+    if (bandIsStandard.present) {
+      map['band_is_standard'] = Variable<bool>(bandIsStandard.value);
+    }
+    if (zeroPointError.present) {
+      map['zero_point_error'] = Variable<double>(zeroPointError.value);
+    }
     if (timestamp.present) {
       map['timestamp'] = Variable<DateTime>(timestamp.value);
     }
@@ -14869,6 +15137,10 @@ class FramePhotometricCalibrationCompanion
           ..write('calibrationRms: $calibrationRms, ')
           ..write('catalogSource: $catalogSource, ')
           ..write('solverId: $solverId, ')
+          ..write('filter: $filter, ')
+          ..write('photometricBand: $photometricBand, ')
+          ..write('bandIsStandard: $bandIsStandard, ')
+          ..write('zeroPointError: $zeroPointError, ')
           ..write('timestamp: $timestamp')
           ..write(')'))
         .toString();
@@ -14969,6 +15241,29 @@ class $TransparencySamplesTable extends TransparencySamples
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _filterMeta = const VerificationMeta('filter');
+  @override
+  late final GeneratedColumn<String> filter = GeneratedColumn<String>(
+    'filter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _extinctionMeasuredMeta =
+      const VerificationMeta('extinctionMeasured');
+  @override
+  late final GeneratedColumn<bool> extinctionMeasured = GeneratedColumn<bool>(
+    'extinction_measured',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("extinction_measured" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _timestampMeta = const VerificationMeta(
     'timestamp',
   );
@@ -14990,6 +15285,8 @@ class $TransparencySamplesTable extends TransparencySamples
     extinctionCoefficient,
     qualityBucket,
     confidence,
+    filter,
+    extinctionMeasured,
     timestamp,
   ];
   @override
@@ -15057,6 +15354,21 @@ class $TransparencySamplesTable extends TransparencySamples
         confidence.isAcceptableOrUnknown(data['confidence']!, _confidenceMeta),
       );
     }
+    if (data.containsKey('filter')) {
+      context.handle(
+        _filterMeta,
+        filter.isAcceptableOrUnknown(data['filter']!, _filterMeta),
+      );
+    }
+    if (data.containsKey('extinction_measured')) {
+      context.handle(
+        _extinctionMeasuredMeta,
+        extinctionMeasured.isAcceptableOrUnknown(
+          data['extinction_measured']!,
+          _extinctionMeasuredMeta,
+        ),
+      );
+    }
     if (data.containsKey('timestamp')) {
       context.handle(
         _timestampMeta,
@@ -15100,6 +15412,14 @@ class $TransparencySamplesTable extends TransparencySamples
         DriftSqlType.double,
         data['${effectivePrefix}confidence'],
       )!,
+      filter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}filter'],
+      ),
+      extinctionMeasured: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}extinction_measured'],
+      )!,
       timestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}timestamp'],
@@ -15122,6 +15442,13 @@ class TransparencySampleRow extends DataClass
   final double extinctionCoefficient;
   final String qualityBucket;
   final double confidence;
+
+  /// The filter this sample's zero points were taken in.
+  final String? filter;
+
+  /// True only when [extinctionCoefficient] is a zero point against airmass
+  /// fit over enough airmass range; otherwise it is not an extinction.
+  final bool extinctionMeasured;
   final DateTime timestamp;
   const TransparencySampleRow({
     required this.id,
@@ -15131,6 +15458,8 @@ class TransparencySampleRow extends DataClass
     required this.extinctionCoefficient,
     required this.qualityBucket,
     required this.confidence,
+    this.filter,
+    required this.extinctionMeasured,
     required this.timestamp,
   });
   @override
@@ -15147,6 +15476,10 @@ class TransparencySampleRow extends DataClass
     map['extinction_coefficient'] = Variable<double>(extinctionCoefficient);
     map['quality_bucket'] = Variable<String>(qualityBucket);
     map['confidence'] = Variable<double>(confidence);
+    if (!nullToAbsent || filter != null) {
+      map['filter'] = Variable<String>(filter);
+    }
+    map['extinction_measured'] = Variable<bool>(extinctionMeasured);
     map['timestamp'] = Variable<DateTime>(timestamp);
     return map;
   }
@@ -15164,6 +15497,10 @@ class TransparencySampleRow extends DataClass
       extinctionCoefficient: Value(extinctionCoefficient),
       qualityBucket: Value(qualityBucket),
       confidence: Value(confidence),
+      filter: filter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filter),
+      extinctionMeasured: Value(extinctionMeasured),
       timestamp: Value(timestamp),
     );
   }
@@ -15185,6 +15522,8 @@ class TransparencySampleRow extends DataClass
       ),
       qualityBucket: serializer.fromJson<String>(json['qualityBucket']),
       confidence: serializer.fromJson<double>(json['confidence']),
+      filter: serializer.fromJson<String?>(json['filter']),
+      extinctionMeasured: serializer.fromJson<bool>(json['extinctionMeasured']),
       timestamp: serializer.fromJson<DateTime>(json['timestamp']),
     );
   }
@@ -15199,6 +15538,8 @@ class TransparencySampleRow extends DataClass
       'extinctionCoefficient': serializer.toJson<double>(extinctionCoefficient),
       'qualityBucket': serializer.toJson<String>(qualityBucket),
       'confidence': serializer.toJson<double>(confidence),
+      'filter': serializer.toJson<String?>(filter),
+      'extinctionMeasured': serializer.toJson<bool>(extinctionMeasured),
       'timestamp': serializer.toJson<DateTime>(timestamp),
     };
   }
@@ -15211,6 +15552,8 @@ class TransparencySampleRow extends DataClass
     double? extinctionCoefficient,
     String? qualityBucket,
     double? confidence,
+    Value<String?> filter = const Value.absent(),
+    bool? extinctionMeasured,
     DateTime? timestamp,
   }) => TransparencySampleRow(
     id: id ?? this.id,
@@ -15222,6 +15565,8 @@ class TransparencySampleRow extends DataClass
     extinctionCoefficient: extinctionCoefficient ?? this.extinctionCoefficient,
     qualityBucket: qualityBucket ?? this.qualityBucket,
     confidence: confidence ?? this.confidence,
+    filter: filter.present ? filter.value : this.filter,
+    extinctionMeasured: extinctionMeasured ?? this.extinctionMeasured,
     timestamp: timestamp ?? this.timestamp,
   );
   TransparencySampleRow copyWithCompanion(TransparencySamplesCompanion data) {
@@ -15243,6 +15588,10 @@ class TransparencySampleRow extends DataClass
       confidence: data.confidence.present
           ? data.confidence.value
           : this.confidence,
+      filter: data.filter.present ? data.filter.value : this.filter,
+      extinctionMeasured: data.extinctionMeasured.present
+          ? data.extinctionMeasured.value
+          : this.extinctionMeasured,
       timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
     );
   }
@@ -15257,6 +15606,8 @@ class TransparencySampleRow extends DataClass
           ..write('extinctionCoefficient: $extinctionCoefficient, ')
           ..write('qualityBucket: $qualityBucket, ')
           ..write('confidence: $confidence, ')
+          ..write('filter: $filter, ')
+          ..write('extinctionMeasured: $extinctionMeasured, ')
           ..write('timestamp: $timestamp')
           ..write(')'))
         .toString();
@@ -15271,6 +15622,8 @@ class TransparencySampleRow extends DataClass
     extinctionCoefficient,
     qualityBucket,
     confidence,
+    filter,
+    extinctionMeasured,
     timestamp,
   );
   @override
@@ -15284,6 +15637,8 @@ class TransparencySampleRow extends DataClass
           other.extinctionCoefficient == this.extinctionCoefficient &&
           other.qualityBucket == this.qualityBucket &&
           other.confidence == this.confidence &&
+          other.filter == this.filter &&
+          other.extinctionMeasured == this.extinctionMeasured &&
           other.timestamp == this.timestamp);
 }
 
@@ -15296,6 +15651,8 @@ class TransparencySamplesCompanion
   final Value<double> extinctionCoefficient;
   final Value<String> qualityBucket;
   final Value<double> confidence;
+  final Value<String?> filter;
+  final Value<bool> extinctionMeasured;
   final Value<DateTime> timestamp;
   const TransparencySamplesCompanion({
     this.id = const Value.absent(),
@@ -15305,6 +15662,8 @@ class TransparencySamplesCompanion
     this.extinctionCoefficient = const Value.absent(),
     this.qualityBucket = const Value.absent(),
     this.confidence = const Value.absent(),
+    this.filter = const Value.absent(),
+    this.extinctionMeasured = const Value.absent(),
     this.timestamp = const Value.absent(),
   });
   TransparencySamplesCompanion.insert({
@@ -15315,6 +15674,8 @@ class TransparencySamplesCompanion
     this.extinctionCoefficient = const Value.absent(),
     this.qualityBucket = const Value.absent(),
     this.confidence = const Value.absent(),
+    this.filter = const Value.absent(),
+    this.extinctionMeasured = const Value.absent(),
     this.timestamp = const Value.absent(),
   }) : transparencyPercent = Value(transparencyPercent);
   static Insertable<TransparencySampleRow> custom({
@@ -15325,6 +15686,8 @@ class TransparencySamplesCompanion
     Expression<double>? extinctionCoefficient,
     Expression<String>? qualityBucket,
     Expression<double>? confidence,
+    Expression<String>? filter,
+    Expression<bool>? extinctionMeasured,
     Expression<DateTime>? timestamp,
   }) {
     return RawValuesInsertable({
@@ -15337,6 +15700,8 @@ class TransparencySamplesCompanion
         'extinction_coefficient': extinctionCoefficient,
       if (qualityBucket != null) 'quality_bucket': qualityBucket,
       if (confidence != null) 'confidence': confidence,
+      if (filter != null) 'filter': filter,
+      if (extinctionMeasured != null) 'extinction_measured': extinctionMeasured,
       if (timestamp != null) 'timestamp': timestamp,
     });
   }
@@ -15349,6 +15714,8 @@ class TransparencySamplesCompanion
     Value<double>? extinctionCoefficient,
     Value<String>? qualityBucket,
     Value<double>? confidence,
+    Value<String?>? filter,
+    Value<bool>? extinctionMeasured,
     Value<DateTime>? timestamp,
   }) {
     return TransparencySamplesCompanion(
@@ -15360,6 +15727,8 @@ class TransparencySamplesCompanion
           extinctionCoefficient ?? this.extinctionCoefficient,
       qualityBucket: qualityBucket ?? this.qualityBucket,
       confidence: confidence ?? this.confidence,
+      filter: filter ?? this.filter,
+      extinctionMeasured: extinctionMeasured ?? this.extinctionMeasured,
       timestamp: timestamp ?? this.timestamp,
     );
   }
@@ -15390,6 +15759,12 @@ class TransparencySamplesCompanion
     if (confidence.present) {
       map['confidence'] = Variable<double>(confidence.value);
     }
+    if (filter.present) {
+      map['filter'] = Variable<String>(filter.value);
+    }
+    if (extinctionMeasured.present) {
+      map['extinction_measured'] = Variable<bool>(extinctionMeasured.value);
+    }
     if (timestamp.present) {
       map['timestamp'] = Variable<DateTime>(timestamp.value);
     }
@@ -15406,6 +15781,8 @@ class TransparencySamplesCompanion
           ..write('extinctionCoefficient: $extinctionCoefficient, ')
           ..write('qualityBucket: $qualityBucket, ')
           ..write('confidence: $confidence, ')
+          ..write('filter: $filter, ')
+          ..write('extinctionMeasured: $extinctionMeasured, ')
           ..write('timestamp: $timestamp')
           ..write(')'))
         .toString();
@@ -46930,6 +47307,7 @@ typedef $$PhotometryMeasurementsTableCreateCompanionBuilder =
       Value<double?> snr,
       Value<double?> uncertainty,
       Value<bool> isOutlier,
+      Value<String?> filter,
       Value<DateTime> timestamp,
     });
 typedef $$PhotometryMeasurementsTableUpdateCompanionBuilder =
@@ -46947,6 +47325,7 @@ typedef $$PhotometryMeasurementsTableUpdateCompanionBuilder =
       Value<double?> snr,
       Value<double?> uncertainty,
       Value<bool> isOutlier,
+      Value<String?> filter,
       Value<DateTime> timestamp,
     });
 
@@ -47072,6 +47451,11 @@ class $$PhotometryMeasurementsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get filter => $composableBuilder(
+    column: $table.filter,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
     builder: (column) => ColumnFilters(column),
@@ -47188,6 +47572,11 @@ class $$PhotometryMeasurementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get filter => $composableBuilder(
+    column: $table.filter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
     builder: (column) => ColumnOrderings(column),
@@ -47287,6 +47676,9 @@ class $$PhotometryMeasurementsTableAnnotationComposer
 
   GeneratedColumn<bool> get isOutlier =>
       $composableBuilder(column: $table.isOutlier, builder: (column) => column);
+
+  GeneratedColumn<String> get filter =>
+      $composableBuilder(column: $table.filter, builder: (column) => column);
 
   GeneratedColumn<DateTime> get timestamp =>
       $composableBuilder(column: $table.timestamp, builder: (column) => column);
@@ -47390,6 +47782,7 @@ class $$PhotometryMeasurementsTableTableManager
                 Value<double?> snr = const Value.absent(),
                 Value<double?> uncertainty = const Value.absent(),
                 Value<bool> isOutlier = const Value.absent(),
+                Value<String?> filter = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
               }) => PhotometryMeasurementsCompanion(
                 id: id,
@@ -47405,6 +47798,7 @@ class $$PhotometryMeasurementsTableTableManager
                 snr: snr,
                 uncertainty: uncertainty,
                 isOutlier: isOutlier,
+                filter: filter,
                 timestamp: timestamp,
               ),
           createCompanionCallback:
@@ -47422,6 +47816,7 @@ class $$PhotometryMeasurementsTableTableManager
                 Value<double?> snr = const Value.absent(),
                 Value<double?> uncertainty = const Value.absent(),
                 Value<bool> isOutlier = const Value.absent(),
+                Value<String?> filter = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
               }) => PhotometryMeasurementsCompanion.insert(
                 id: id,
@@ -47437,6 +47832,7 @@ class $$PhotometryMeasurementsTableTableManager
                 snr: snr,
                 uncertainty: uncertainty,
                 isOutlier: isOutlier,
+                filter: filter,
                 timestamp: timestamp,
               ),
           withReferenceMapper: (p0) => p0
@@ -47537,6 +47933,10 @@ typedef $$FramePhotometricCalibrationTableCreateCompanionBuilder =
       Value<double> calibrationRms,
       Value<String> catalogSource,
       Value<String> solverId,
+      Value<String?> filter,
+      Value<String?> photometricBand,
+      Value<bool> bandIsStandard,
+      Value<double?> zeroPointError,
       Value<DateTime> timestamp,
     });
 typedef $$FramePhotometricCalibrationTableUpdateCompanionBuilder =
@@ -47552,6 +47952,10 @@ typedef $$FramePhotometricCalibrationTableUpdateCompanionBuilder =
       Value<double> calibrationRms,
       Value<String> catalogSource,
       Value<String> solverId,
+      Value<String?> filter,
+      Value<String?> photometricBand,
+      Value<bool> bandIsStandard,
+      Value<double?> zeroPointError,
       Value<DateTime> timestamp,
     });
 
@@ -47667,6 +48071,26 @@ class $$FramePhotometricCalibrationTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get filter => $composableBuilder(
+    column: $table.filter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photometricBand => $composableBuilder(
+    column: $table.photometricBand,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get bandIsStandard => $composableBuilder(
+    column: $table.bandIsStandard,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get zeroPointError => $composableBuilder(
+    column: $table.zeroPointError,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
     builder: (column) => ColumnFilters(column),
@@ -47773,6 +48197,26 @@ class $$FramePhotometricCalibrationTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get filter => $composableBuilder(
+    column: $table.filter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photometricBand => $composableBuilder(
+    column: $table.photometricBand,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get bandIsStandard => $composableBuilder(
+    column: $table.bandIsStandard,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get zeroPointError => $composableBuilder(
+    column: $table.zeroPointError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
     builder: (column) => ColumnOrderings(column),
@@ -47872,6 +48316,24 @@ class $$FramePhotometricCalibrationTableAnnotationComposer
 
   GeneratedColumn<String> get solverId =>
       $composableBuilder(column: $table.solverId, builder: (column) => column);
+
+  GeneratedColumn<String> get filter =>
+      $composableBuilder(column: $table.filter, builder: (column) => column);
+
+  GeneratedColumn<String> get photometricBand => $composableBuilder(
+    column: $table.photometricBand,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get bandIsStandard => $composableBuilder(
+    column: $table.bandIsStandard,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get zeroPointError => $composableBuilder(
+    column: $table.zeroPointError,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get timestamp =>
       $composableBuilder(column: $table.timestamp, builder: (column) => column);
@@ -47976,6 +48438,10 @@ class $$FramePhotometricCalibrationTableTableManager
                 Value<double> calibrationRms = const Value.absent(),
                 Value<String> catalogSource = const Value.absent(),
                 Value<String> solverId = const Value.absent(),
+                Value<String?> filter = const Value.absent(),
+                Value<String?> photometricBand = const Value.absent(),
+                Value<bool> bandIsStandard = const Value.absent(),
+                Value<double?> zeroPointError = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
               }) => FramePhotometricCalibrationCompanion(
                 id: id,
@@ -47989,6 +48455,10 @@ class $$FramePhotometricCalibrationTableTableManager
                 calibrationRms: calibrationRms,
                 catalogSource: catalogSource,
                 solverId: solverId,
+                filter: filter,
+                photometricBand: photometricBand,
+                bandIsStandard: bandIsStandard,
+                zeroPointError: zeroPointError,
                 timestamp: timestamp,
               ),
           createCompanionCallback:
@@ -48004,6 +48474,10 @@ class $$FramePhotometricCalibrationTableTableManager
                 Value<double> calibrationRms = const Value.absent(),
                 Value<String> catalogSource = const Value.absent(),
                 Value<String> solverId = const Value.absent(),
+                Value<String?> filter = const Value.absent(),
+                Value<String?> photometricBand = const Value.absent(),
+                Value<bool> bandIsStandard = const Value.absent(),
+                Value<double?> zeroPointError = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
               }) => FramePhotometricCalibrationCompanion.insert(
                 id: id,
@@ -48017,6 +48491,10 @@ class $$FramePhotometricCalibrationTableTableManager
                 calibrationRms: calibrationRms,
                 catalogSource: catalogSource,
                 solverId: solverId,
+                filter: filter,
+                photometricBand: photometricBand,
+                bandIsStandard: bandIsStandard,
+                zeroPointError: zeroPointError,
                 timestamp: timestamp,
               ),
           withReferenceMapper: (p0) => p0
@@ -48115,6 +48593,8 @@ typedef $$TransparencySamplesTableCreateCompanionBuilder =
       Value<double> extinctionCoefficient,
       Value<String> qualityBucket,
       Value<double> confidence,
+      Value<String?> filter,
+      Value<bool> extinctionMeasured,
       Value<DateTime> timestamp,
     });
 typedef $$TransparencySamplesTableUpdateCompanionBuilder =
@@ -48126,6 +48606,8 @@ typedef $$TransparencySamplesTableUpdateCompanionBuilder =
       Value<double> extinctionCoefficient,
       Value<String> qualityBucket,
       Value<double> confidence,
+      Value<String?> filter,
+      Value<bool> extinctionMeasured,
       Value<DateTime> timestamp,
     });
 
@@ -48221,6 +48703,16 @@ class $$TransparencySamplesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get filter => $composableBuilder(
+    column: $table.filter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get extinctionMeasured => $composableBuilder(
+    column: $table.extinctionMeasured,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
     builder: (column) => ColumnFilters(column),
@@ -48307,6 +48799,16 @@ class $$TransparencySamplesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get filter => $composableBuilder(
+    column: $table.filter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get extinctionMeasured => $composableBuilder(
+    column: $table.extinctionMeasured,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
     builder: (column) => ColumnOrderings(column),
@@ -48388,6 +48890,14 @@ class $$TransparencySamplesTableAnnotationComposer
 
   GeneratedColumn<double> get confidence => $composableBuilder(
     column: $table.confidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get filter =>
+      $composableBuilder(column: $table.filter, builder: (column) => column);
+
+  GeneratedColumn<bool> get extinctionMeasured => $composableBuilder(
+    column: $table.extinctionMeasured,
     builder: (column) => column,
   );
 
@@ -48484,6 +48994,8 @@ class $$TransparencySamplesTableTableManager
                 Value<double> extinctionCoefficient = const Value.absent(),
                 Value<String> qualityBucket = const Value.absent(),
                 Value<double> confidence = const Value.absent(),
+                Value<String?> filter = const Value.absent(),
+                Value<bool> extinctionMeasured = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
               }) => TransparencySamplesCompanion(
                 id: id,
@@ -48493,6 +49005,8 @@ class $$TransparencySamplesTableTableManager
                 extinctionCoefficient: extinctionCoefficient,
                 qualityBucket: qualityBucket,
                 confidence: confidence,
+                filter: filter,
+                extinctionMeasured: extinctionMeasured,
                 timestamp: timestamp,
               ),
           createCompanionCallback:
@@ -48504,6 +49018,8 @@ class $$TransparencySamplesTableTableManager
                 Value<double> extinctionCoefficient = const Value.absent(),
                 Value<String> qualityBucket = const Value.absent(),
                 Value<double> confidence = const Value.absent(),
+                Value<String?> filter = const Value.absent(),
+                Value<bool> extinctionMeasured = const Value.absent(),
                 Value<DateTime> timestamp = const Value.absent(),
               }) => TransparencySamplesCompanion.insert(
                 id: id,
@@ -48513,6 +49029,8 @@ class $$TransparencySamplesTableTableManager
                 extinctionCoefficient: extinctionCoefficient,
                 qualityBucket: qualityBucket,
                 confidence: confidence,
+                filter: filter,
+                extinctionMeasured: extinctionMeasured,
                 timestamp: timestamp,
               ),
           withReferenceMapper: (p0) => p0

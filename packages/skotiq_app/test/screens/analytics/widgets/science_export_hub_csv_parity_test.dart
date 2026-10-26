@@ -71,6 +71,7 @@ List<Override> _datasetOverrides() => [
       sessionlessTransparencySamplesExportProvider.overrideWith(
         (ref) => Future.value([
           TransparencySampleRow(
+            extinctionMeasured: false,
             id: 1,
             sessionId: 5,
             capturedImageId: 9,
@@ -118,6 +119,7 @@ List<Override> _datasetOverrides() => [
       sessionlessCalibrationsExportProvider.overrideWith(
         (ref) => Future.value([
           FramePhotometricCalibrationRow(
+            bandIsStandard: false,
             id: 1,
             sessionId: 5,
             capturedImageId: 9,

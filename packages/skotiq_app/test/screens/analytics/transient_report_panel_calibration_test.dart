@@ -46,6 +46,7 @@ void main() {
     dismissed: false,
   );
   final calibration = FramePhotometricCalibrationRow(
+    bandIsStandard: false,
     id: 7,
     capturedImageId: 44,
     sessionId: 3,

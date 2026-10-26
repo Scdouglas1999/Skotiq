@@ -24,6 +24,7 @@ FramePhotometricCalibrationRow _calib({
   double? limitingMag5Sigma,
 }) {
   return FramePhotometricCalibrationRow(
+    bandIsStandard: false,
     id: id,
     isCalibrated: isCalibrated,
     matchedStarCount: 40,
