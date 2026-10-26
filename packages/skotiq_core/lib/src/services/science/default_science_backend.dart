@@ -15,12 +15,18 @@ import '../../providers/settings_provider.dart';
 import '../../services/logging_service.dart';
 import '../plate_solve_service.dart';
 import '../../utils/utc_timestamp.dart';
+import 'astrometric_residuals.dart';
 import 'nearest_neighbour_matching.dart';
 import 'photometric_catalog_service.dart';
 import 'science_backend.dart';
 
 part 'default_science_backend/helpers.dart';
 part 'default_science_backend/value_types.dart';
+
+/// Catalog match radius for astrometric residuals. Wide enough to keep the
+/// corner stars of a linear solve, whose distortion is what the residual map
+/// exists to show.
+const double _residualMatchPx = 10.0;
 
 class DefaultScienceBackend implements ScienceBackend {
   final Ref _ref;
@@ -550,51 +556,26 @@ class DefaultScienceBackend implements ScienceBackend {
       wcs: wcs,
       detectedStars: stars,
       maxCatalogMag: 15.0,
-      maxMatchPx: 10.0,
+      maxMatchPx: _residualMatchPx,
     );
-    if (matches.length < 6) return null;
-
-    final scale = wcs.pixelScaleArcsecPerPixel;
-    final vectors = matches
-        .take(options.sampleCount)
-        .map((m) {
-          final dx = (m.detected.x - m.catalogX) * scale;
-          final dy = (m.detected.y - m.catalogY) * scale;
-          return ResidualVectorSample(
-            x: m.detected.x,
-            y: m.detected.y,
-            dxArcsec: dx,
-            dyArcsec: dy,
-            magnitudeArcsec: math.sqrt(dx * dx + dy * dy),
-          );
-        })
-        .toList(growable: false);
-    if (vectors.isEmpty) return null;
-
-    final rms = math.sqrt(
-      vectors.fold<double>(
-            0.0,
-            (s, v) => s + v.magnitudeArcsec * v.magnitudeArcsec,
-          ) /
-          vectors.length,
-    );
-    final meanX =
-        vectors.fold<double>(0.0, (s, v) => s + v.dxArcsec) / vectors.length;
-    final meanY =
-        vectors.fold<double>(0.0, (s, v) => s + v.dyArcsec) / vectors.length;
-    final suggestion = rms > 2.0
-        ? 'check_polar_alignment'
-        : meanX.abs() > 0.5 && meanY.abs() > 0.5
-        ? 'possible_field_rotation'
-        : meanX.abs() > 0.5
-        ? 'possible_cone_error'
-        : meanY.abs() > 0.5
-        ? 'possible_flexure'
-        : null;
-    return AstrometricResidualMap(
-      vectors: vectors,
-      rmsArcsec: rms,
-      suggestionCode: suggestion,
+    final size = await readFitsImageSize(imagePath);
+    if (size == null) return null;
+    return buildAstrometricResidualMap(
+      pairs: [
+        for (final m in matches)
+          (
+            detectedX: m.detected.x,
+            detectedY: m.detected.y,
+            catalogX: m.catalogX,
+            catalogY: m.catalogY,
+          ),
+      ],
+      pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
+      imageWidth: size.width,
+      imageHeight: size.height,
+      maxMatchPx: _residualMatchPx,
+      solveHasSip: wcs.aOrder > 0 && wcs.aCoeffs.isNotEmpty,
+      sampleCount: options.sampleCount,
     );
   }
 

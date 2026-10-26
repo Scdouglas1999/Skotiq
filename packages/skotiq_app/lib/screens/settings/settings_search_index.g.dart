@@ -631,7 +631,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Bot API key',
     'Bot id',
     'Bot name',
-    'Build residual heatmaps and mount feedback',
     'Camera',
     'Camera gain (e⁻/ADU)',
     'Camera read noise (e⁻)',
@@ -648,6 +647,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Frame quality maps',
     'Generate SII/Ha, OIII/Ha, and SII/OIII products',
     'Live differential photometry',
+    'Map catalog offsets across each solved frame',
     'Minor Planet Center (MPC)',
     'Mode',
     'Moving object mode',
@@ -1047,7 +1047,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'After each light frame, reject captures that exceed':
         'Auto-reject bad frames',
     'Analyze field-wide seeing and tilt patterns': 'PSF field map',
-    'Build residual heatmaps and mount feedback': 'Astrometric residuals',
     'Compute clipping, uniformity, background and SNR tile maps':
         'Frame quality maps',
     'Compute zeropoint and limiting magnitude':
@@ -1061,6 +1060,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Fetch B/V photometry to ~mag 16 from VizieR for zero-point':
         'Deep catalog lookups (APASS DR9)',
     'Generate SII/Ha, OIII/Ha, and SII/OIII products': 'Narrowband line ratios',
+    'Map catalog offsets across each solved frame': 'Astrometric residuals',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',
     'Reporter shown on TNS (falls back to observer': 'Reporter name',

@@ -83,19 +83,11 @@ The color scale is normalized to the 5th and 95th percentiles of your data, so i
 ''';
 
 const _kAstrometricResidualsInfo = '''
-Astrometric residuals measure the accuracy of the plate solution — how well the computed sky coordinates match the actual positions of known catalog stars in your image. After plate solving identifies stars and fits a coordinate model, the residual for each star is the angular distance between where the model says it should be and where it actually appears.
+Astrometric residuals show how well a frame's plate solution matches the catalog. For each catalog star found on the frame, the residual is the offset from where the star is to where the catalog and the solution put it, in arcseconds along the image axes.
 
-The RMS (Root Mean Square) value combines all individual residuals into a single accuracy metric, expressed in arcseconds. Lower RMS means a more accurate astrometric solution.
+A plate solution fits the whole frame at once, so pointing error, cone error and polar alignment are absorbed into it and do not show up here. What remains is what the solution cannot follow: optical distortion across the field, or a poor solve.
 
-Typical values:
-- Below 0.5": Excellent astrometry, suitable for scientific reporting.
-- 0.5" to 1.5": Good astrometry, adequate for most purposes.
-- 1.5" to 3.0": Acceptable, but may indicate optical distortion or a sparse star field.
-- Above 3.0": Poor fit — may indicate tracking issues, severe distortion at the field edges, or an incorrect focal length in the solver configuration.
-
-The "recommendation" code (when present) provides guidance from the astrometric solver about potential improvements, such as refining the distortion model, adjusting the focal length, or using a denser reference catalog.
-
-High residuals can result from: poor tracking (field rotation or drift), optical distortion not accounted for in the plate model, incorrectly specified pixel scale or focal length, or very few reference stars in the field.
+The RMS combines all residuals of a frame into one number. With the reference catalog used here (APASS), a good solve with distortion terms (SIP) typically gives 0.3" to 1". A linear solve without distortion terms shows a pattern that grows toward the edges of the field, often several arcseconds in the corners; when that happens a note says so.
 ''';
 
 const _kMovingObjectCandidatesInfo = '''

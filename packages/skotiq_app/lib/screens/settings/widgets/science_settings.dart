@@ -174,7 +174,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                 SettingRow(
                   icon: LucideIcons.map,
                   title: 'Astrometric residuals',
-                  subtitle: 'Build residual heatmaps and mount feedback',
+                  subtitle: 'Map catalog offsets across each solved frame',
                   trailing: SettingsSwitch(
                     value: science.astrometricResidualsEnabled,
                     onChanged: (value) => scienceNotifier.setFeatureEnabled(

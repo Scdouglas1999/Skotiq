@@ -572,9 +572,10 @@ class _ResidualCard extends StatelessWidget {
                 SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 8),
-          if (residuals.isNotEmpty)
+          if (residuals.isNotEmpty &&
+              residualSuggestionText(residuals.last.recommendationCode) != null)
             Text(
-              'Latest recommendation: ${residuals.last.recommendationCode ?? 'none'}',
+              residualSuggestionText(residuals.last.recommendationCode)!,
               style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
         ],

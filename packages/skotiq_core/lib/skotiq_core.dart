@@ -629,6 +629,7 @@ export 'src/services/target_suggestion_service.dart';
 export 'src/services/transient_alert_service.dart';
 export 'src/services/sequence_time_estimator.dart';
 export 'src/services/pre_session_simulator.dart';
+export 'src/services/science/astrometric_residuals.dart';
 export 'src/services/science/nearest_neighbour_matching.dart';
 export 'src/services/science/science_backend.dart';
 export 'src/services/science/default_science_backend.dart';

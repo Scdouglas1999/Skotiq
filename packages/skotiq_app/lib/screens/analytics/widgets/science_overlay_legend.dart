@@ -47,7 +47,7 @@ class ScienceOverlayLegend {
       label: 'Astrometric residuals',
       icon: LucideIcons.move,
       summary:
-          'Vector field of plate-solve residuals. Concentric patterns hint at tilt, swirls hint at distortion.',
+          'Each arrow points from a star to where the catalog and the solve place it. A pattern that grows toward the edges is optical distortion.',
       readMoreId: 'Astrometric Residuals',
     ),
     'moving': _LegendEntry(

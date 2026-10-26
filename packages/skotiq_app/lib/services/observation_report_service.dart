@@ -776,8 +776,9 @@ class ObservationReportService {
                 '${_listMax(magnitudes).toStringAsFixed(3)}"',
               ),
               _statCell(
-                'Recommendation',
-                residuals.last.recommendationCode ?? 'none',
+                'Pattern',
+                residualSuggestionText(residuals.last.recommendationCode) ??
+                    'No pattern',
               ),
             ]),
           ],
