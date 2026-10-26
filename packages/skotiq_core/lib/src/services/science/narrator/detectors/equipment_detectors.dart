@@ -55,7 +55,8 @@ class TiltDetector extends NarratorDetector {
     String direction,
     double score,
   ) {
-    final dirLabel = direction.isEmpty ? 'one corner' : 'the $direction corner';
+    final bearing = tiltBearingForDirection(direction);
+    final dirLabel = bearing == null ? 'one side' : 'the $direction';
     final bandLabel = severity == NarratorSeverity.critical
         ? 'critical'
         : 'elevated';
@@ -72,50 +73,61 @@ class TiltDetector extends NarratorDetector {
           'The PSF map is asymmetric across the field (tilt score '
           '${score.round()}). Open Diagnostics to inspect the tilt and adjust '
           'the tilt plate.',
-      evidence: NarratorEvidence.vector(
-        // Magnitude is just the arrow length (score/100, clamped), not a stat.
-        directionDeg: _directionToDegrees(direction),
-        magnitude: (score / 100.0).clamp(0.0, 1.0),
-        label: direction.isEmpty ? null : '$direction corner',
-      ),
+      evidence: bearing == null
+          ? NarratorEvidence.scalar(
+              value: score,
+              unit: '',
+              context: 'tilt score',
+            )
+          : NarratorEvidence.vector(
+              // Magnitude is just the arrow length (score/100, clamped), not
+              // a stat.
+              directionDeg: bearing,
+              magnitude: (score / 100.0).clamp(0.0, 1.0),
+              label: direction,
+            ),
       dedupeKey: 'equipment.tilt:$band',
       capturedImageId: ctx.capturedImageId,
     );
   }
-
-  /// Map a compass-ish direction label to degrees (0 = N, clockwise). Unknown
-  /// labels fall back to 0.
-  static double _directionToDegrees(String dir) {
-    switch (dir.toUpperCase()) {
-      case 'N':
-        return 0;
-      case 'NE':
-        return 45;
-      case 'E':
-        return 90;
-      case 'SE':
-        return 135;
-      case 'S':
-        return 180;
-      case 'SW':
-        return 225;
-      case 'W':
-        return 270;
-      case 'NW':
-        return 315;
-      default:
-        return 0;
-    }
-  }
 }
 
-/// 13. `equipment.focus_drift` — rolling-median HFR ≥ [riseFraction] above the
-/// post-autofocus baseline, sustained ≥ [sustainMinutes]. Mentions the focuser
-/// temperature delta when available. Re-arms when HFR returns near baseline.
+/// The arrow bearing (0° = up, clockwise, on the displayed frame) for the
+/// side the optical-train diagnostics name: 'top edge', 'right edge',
+/// 'bottom edge', 'left edge', or a corner such as 'top-left corner'. Null
+/// for 'unknown' or an empty label, so no arrow is drawn for a side nobody
+/// measured.
+double? tiltBearingForDirection(String direction) {
+  final d = direction.toLowerCase();
+  final top = d.contains('top');
+  final bottom = d.contains('bottom');
+  final left = d.contains('left');
+  final right = d.contains('right');
+  final dy = top ? -1.0 : (bottom ? 1.0 : 0.0);
+  final dx = right ? 1.0 : (left ? -1.0 : 0.0);
+  if (dx == 0 && dy == 0) return null;
+  return compassBearingForGradient(dx, dy);
+}
+
+/// 13. `equipment.focus_drift` — frame HFR [riseFraction] or more above
+/// what each filter measured right after the last autofocus, sustained for
+/// [sustainMinutes]. Mentions the focuser temperature change when known.
+/// Re-arms when HFR returns near its post-autofocus level.
+///
+/// Each frame is compared with its own filter: the median of that filter's
+/// first [baselineFrames] usable frames after the autofocus. The ratios of
+/// the latest [medianWindow] usable frames, any filter, give the rise. The
+/// autofocus sweep's own HFR is not the reference, because the sweep measures
+/// a different population of stars in one filter. Rejected, off-target,
+/// obstructed and starved or darkened frames are left out (see
+/// [narratorFocusUsableFrames]), so trees, cloud and a lost target never read
+/// as focus drift.
 class FocusDriftDetector extends NarratorDetector {
   static const double riseFraction = 0.10;
   static const double sustainMinutes = 15.0;
+  static const int baselineFrames = 2;
   static const int medianWindow = 5;
+  static const int minRatios = 3;
 
   DateTime? _aboveSince;
   bool _open = false;
@@ -131,22 +143,42 @@ class FocusDriftDetector extends NarratorDetector {
 
   @override
   List<NarratorEventDraft> evaluate(NarratorContext ctx) {
-    final baseline = ctx.autofocusHfrBaseline;
-    if (baseline == null || !baseline.isFinite || baseline <= 0) {
+    final afHfr = ctx.autofocusHfrBaseline;
+    if (afHfr == null || !afHfr.isFinite || afHfr <= 0) {
       return const [];
     }
-
-    final hfrs = ctx.imageStats
-        .map((s) => s.hfr)
-        .whereType<double>()
-        .where((v) => v.isFinite && v > 0)
+    final afAt = ctx.autofocusAt;
+    final frames = narratorFocusUsableFrames(ctx.imageStats)
+        .where(
+          (s) =>
+              (afAt == null || !s.timestamp.isBefore(afAt)) &&
+              s.hfr != null &&
+              s.hfr!.isFinite &&
+              s.hfr! > 0,
+        )
         .toList(growable: false);
-    if (hfrs.length < medianWindow) return const [];
-    final rollingHfr = NarratorStats.median(
-      hfrs.sublist(hfrs.length - medianWindow),
-    )!;
 
-    final rise = (rollingHfr - baseline) / baseline;
+    final baselineHfrs = <String, List<double>>{};
+    final ratios = <double>[];
+    double? lastBase;
+    for (final f in frames) {
+      final base = baselineHfrs[f.filter ?? ''] ??= <double>[];
+      if (base.length < baselineFrames) {
+        base.add(f.hfr!);
+        continue;
+      }
+      final reference = NarratorStats.median(base)!;
+      ratios.add(f.hfr! / reference);
+      lastBase = reference;
+    }
+    if (ratios.length < minRatios) {
+      // Not enough frames to tell; hold any open episode.
+      return const [];
+    }
+    final rolling = NarratorStats.median(
+      ratios.sublist((ratios.length - medianWindow).clamp(0, ratios.length)),
+    )!;
+    final rise = rolling - 1.0;
 
     if (rise < riseFraction) {
       // Recovered (e.g. after a refocus): re-arm.
@@ -180,21 +212,22 @@ class FocusDriftDetector extends NarratorDetector {
             '${delta.abs().toStringAsFixed(1)} °C';
       }
     }
-
     return [
       NarratorEventDraft(
         eventType: id,
         category: NarratorCategory.equipment,
         severity: NarratorSeverity.warning,
         headline:
-            'HFR up $risePct%$tempNote — likely focus drift; refocus soon',
+            'HFR up $risePct% since the last autofocus$tempNote — '
+            'likely focus drift; refocus soon',
         body:
-            'Rolling HFR has stayed ≥${(riseFraction * 100).round()}% above the '
-            'post-autofocus baseline for ${sustainMinutes.round()} min. A quick '
-            'autofocus will sharpen things back up.',
+            'Frames have measured ≥${(riseFraction * 100).round()}% softer '
+            'than the same filter right after the autofocus for '
+            '${sustainMinutes.round()} min, with star count and sky background '
+            'normal. A quick autofocus should sharpen things back up.',
         evidence: NarratorEvidence.delta(
-          from: baseline,
-          to: rollingHfr,
+          from: lastBase!,
+          to: lastBase * rolling,
           unit: 'px',
           direction: 'up',
         ),
@@ -289,11 +322,28 @@ class GradientDetector extends NarratorDetector {
   }
 }
 
-/// 15. `equipment.guiding_degraded` — guide RMS total ≥ [riseFraction] above the
-/// session median, sustained. Re-arms when guiding recovers below the median.
+/// 15. `equipment.guiding_degraded` — settled guide RMS at least
+/// [riseFactor] times its [baselineWindow] median, held for [sustain]. One
+/// card per episode; re-arms once the RMS is back at or below the median.
+///
+/// Only settled readings reach the detector ([NarratorContext.guideSamples]),
+/// so a dither offset, a guiding restart, autofocus or a flip never reads as
+/// a rise. The number is stated in arcsec only when the guider reports its
+/// pixel scale, otherwise in guide-camera pixels.
 class GuidingDegradedDetector extends NarratorDetector {
-  static const double riseFraction = 0.50;
-  static const int minSamples = 10;
+  static const double riseFactor = 1.5;
+  static const Duration baselineWindow = Duration(minutes: 30);
+  static const Duration sustain = Duration(minutes: 3);
+  static const int minBaselineSamples = 50;
+
+  /// Readings pause for a few minutes around every dither; a longer silence
+  /// means guiding stopped.
+  static const Duration maxGap = Duration(minutes: 10);
+
+  /// Beyond these the guider has lost hold of the star; wind or seeing do
+  /// not move a guide star tens of pixels.
+  static const double runawayFactor = 5.0;
+  static const double runawayPx = 10.0;
 
   bool _open = false;
 
@@ -305,43 +355,81 @@ class GuidingDegradedDetector extends NarratorDetector {
 
   @override
   List<NarratorEventDraft> evaluate(NarratorContext ctx) {
-    final history = ctx.guideRmsTotalHistory
-        .where((v) => v.isFinite && v > 0)
+    final samples = ctx.guideSamples
+        .where((s) => s.rmsPx.isFinite && s.rmsPx > 0)
         .toList(growable: false);
-    if (history.length < minSamples) return const [];
-
-    final median = NarratorStats.median(history)!;
+    if (samples.isEmpty) return const [];
+    final latest = samples.last;
+    final cutoff = latest.timestamp.subtract(baselineWindow);
+    final window = samples
+        .where((s) => !s.timestamp.isBefore(cutoff))
+        .map((s) => s.rmsPx)
+        .toList(growable: false);
+    if (window.length < minBaselineSamples) return const [];
+    final median = NarratorStats.median(window)!;
     if (median <= 0) return const [];
-    final latest = ctx.guideRmsTotal ?? history.last;
-    final rise = (latest - median) / median;
 
-    if (rise < riseFraction) {
-      if (_open && latest <= median) _open = false;
+    if (latest.rmsPx < riseFactor * median) {
+      if (_open && latest.rmsPx <= median) _open = false;
       return const [];
     }
     if (_open) return const [];
+
+    // The trailing run of readings that all stay above the limit. A gap
+    // longer than [maxGap] (guiding stopped) ends the run: what came before
+    // it was a different stretch of guiding.
+    var runStart = latest.timestamp;
+    final run = <double>[];
+    for (var i = samples.length - 1; i >= 0; i--) {
+      final s = samples[i];
+      if (s.rmsPx < riseFactor * median ||
+          s.timestamp.isBefore(cutoff) ||
+          runStart.difference(s.timestamp) > maxGap) {
+        break;
+      }
+      runStart = s.timestamp;
+      run.add(s.rmsPx);
+    }
+    final held = latest.timestamp.difference(runStart);
+    if (held < sustain) return const [];
     _open = true;
 
-    final deltaArcsec = latest - median;
+    final current = NarratorStats.median(run)!;
+    final scale = ctx.guidePixelScaleArcsec;
+    final hasScale = scale != null && scale.isFinite && scale > 0;
+    final factor = hasScale ? scale : 1.0;
+    final unit = hasScale ? '″' : ' px';
+    String fmt(double px) => '${(px * factor).toStringAsFixed(2)}$unit';
+    final minutes = held.inSeconds / 60.0;
+
     return [
       NarratorEventDraft(
         eventType: id,
         category: NarratorCategory.equipment,
         severity: NarratorSeverity.warning,
         headline:
-            'Guiding RMS up ${deltaArcsec.toStringAsFixed(2)}″ — wind, balance, '
-            'or seeing?',
-        body:
-            'Total RMS is ≥${(riseFraction * 100).round()}% above the session '
-            'median. Check the guide graph for a runaway axis before stars '
-            'start to elongate.',
+            'Guiding RMS rose to ${fmt(current)} from ${fmt(median)} '
+            'for ${minutes.round()} min',
+        body: current >= runawayFactor * median || current >= runawayPx
+            ? 'The guide star is wandering far from its lock position: '
+                  'guiding is not holding it. The mount may have stopped '
+                  'tracking, the guider calibration may not suit this side of '
+                  'the pier, or the guide star is being lost behind cloud or '
+                  'an obstruction.'
+            : 'Total guide RMS has stayed at least ${riseFactor}x its '
+                  '30-minute median for ${minutes.round()} min, outside '
+                  'dithers and settling. Check the guide graph: a steady '
+                  'drift on one axis usually points at balance or wind, a '
+                  'noisy trace on both axes at seeing.',
         evidence: NarratorEvidence.delta(
-          from: median,
-          to: latest,
-          unit: '″',
+          from: median * factor,
+          to: current * factor,
+          unit: hasScale ? '″' : 'px',
           direction: 'up',
         ),
-        dedupeKey: 'equipment.guiding_degraded:${latest.toStringAsFixed(2)}',
+        dedupeKey:
+            'equipment.guiding_degraded:'
+            '${runStart.toUtc().toIso8601String().substring(0, 16)}',
         capturedImageId: ctx.capturedImageId,
       ),
     ];

@@ -627,10 +627,27 @@ pub async fn execute_exposure_with_renderer(
             }
         };
         let measured_eccentricity = measured_shape.map(|shape| shape.eccentricity);
+        let measured_trail = if !is_light_frame {
+            None
+        } else {
+            match ctx.device_ops.measure_frame_trail(&image_data).await {
+                Ok(trail) => trail,
+                Err(e) => {
+                    tracing::debug!(
+                        "Frame {}/{} - trail measurement failed for grading: {}",
+                        frame,
+                        config.count,
+                        e
+                    );
+                    None
+                }
+            }
+        };
         let metrics = crate::quality::FrameMetrics {
             hfr: measured_hfr,
             eccentricity: measured_eccentricity,
             star_count: measured_star_count,
+            trail: measured_trail,
         };
 
         // Pick the (base_path, filename) pair. When a path_renderer

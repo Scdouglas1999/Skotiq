@@ -163,7 +163,7 @@ void main() {
         ),
         processedFrameCount: 10,
         solvedFrameCount: 3,
-        latestFrameQuality: _fq(highClipPercent: 2.0, snr: 8),
+        latestFrameQuality: _fq(highClipPercent: 2.0, snr: 1.5),
       ),
     );
     expect(result.first.severity, ScienceInsightSeverity.error);
@@ -174,5 +174,55 @@ void main() {
       (i) => i.severity == ScienceInsightSeverity.info,
     );
     expect(firstWarning < firstInfo || firstInfo == -1, isTrue);
+  });
+
+  group('read-noise advice', () {
+    // The rig's darkest NGC 891 subs (B, 120 s): robust sky noise about
+    // 169 ADU at a measured gain of 0.123 e-/ADU and 2.0 e- read noise.
+    test('a dark-sky sub that is sky-limited gets no "longer subs" advice', () {
+      final ratio = skyToReadNoiseRatio(
+        noiseAdu: 169,
+        gainEPerAdu: 0.123,
+        readNoiseE: 2.0,
+      )!;
+      expect(ratio, greaterThan(kSkyLimitedNoiseRatio));
+      final result = engine.evaluate(
+        ScienceInsightsInputs(
+          processedFrameCount: 1,
+          latestFrameQuality: _fq(snr: ratio),
+        ),
+      );
+      expect(
+        result.map((i) => i.id),
+        isNot(contains('frame.read_noise_limited')),
+      );
+    });
+
+    test('a read-noise-limited sub is told how much read noise costs', () {
+      final result = engine.evaluate(
+        ScienceInsightsInputs(
+          processedFrameCount: 1,
+          latestFrameQuality: _fq(snr: 1.0),
+        ),
+      );
+      final insight = result.firstWhere(
+        (i) => i.id == 'frame.read_noise_limited',
+      );
+      expect(insight.body, contains('1.0x the read noise'));
+      expect(insight.body, contains('41%'));
+    });
+
+    test('no advice when gain or read noise is unknown (stored as 0)', () {
+      final result = engine.evaluate(
+        ScienceInsightsInputs(
+          processedFrameCount: 1,
+          latestFrameQuality: _fq(snr: 0),
+        ),
+      );
+      expect(
+        result.map((i) => i.id),
+        isNot(contains('frame.read_noise_limited')),
+      );
+    });
   });
 }

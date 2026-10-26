@@ -89,6 +89,7 @@ async fn metrics(path: &Path) -> FrameMetrics {
                 .expect("stars")
                 .len() as u32,
         ),
+        trail: ops.measure_frame_trail(&image).await.expect("trail"),
     }
 }
 

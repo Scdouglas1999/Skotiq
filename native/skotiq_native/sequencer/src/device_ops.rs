@@ -722,6 +722,17 @@ pub trait DeviceOps: Send + Sync {
         Ok(None)
     }
 
+    /// How trailed the frame's stars are, measured from the image rather than
+    /// from detected stars (a trailed star is too long for the detector to
+    /// keep). `None` when not measured; the default measures nothing.
+    async fn measure_frame_trail(
+        &self,
+        image_data: &ImageData,
+    ) -> DeviceResult<Option<skotiq_imaging::FrameTrail>> {
+        let _ = image_data;
+        Ok(None)
+    }
+
     /// The frame's star shape with the direction of elongation. A device
     /// layer that measures only the eccentricity keeps this default.
     async fn measure_frame_star_shape(

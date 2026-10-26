@@ -69,26 +69,18 @@ extension _NightAnalysisDetectors on NightAnalysisService {
   }
 
   /// **Cloud / transparency loss.** A robust baseline (median + MAD) is built
-  /// from the brightest-throughput signal available — background-corrected SNR
-  /// when the science table is present, otherwise `starCount`. Subs that step
+  /// from the subs' star counts. Subs that step
   /// well below baseline are clustered into consecutive *events*; each event of
   /// sufficient length becomes one finding. This is the only detector that
   /// groups consecutive bad subs rather than reasoning over the whole night.
   List<NightFinding> _detectCloudTransparencyLoss(NightData data) {
-    // Choose one signal for the whole night up front. Science SNR is the better
-    // throughput proxy, but only when it covers (essentially) the full session —
-    // a defaulted-0.0 snr is already dropped at load, so `s.snr != null` here is
-    // a real reading. Picking SNR mode on partial coverage would (a) drop every
-    // sub the pipeline never reached, corrupting the baseline, and (b) fire on a
-    // single 0-SNR row. So switch to SNR only with >=80% positive coverage and a
-    // healthy absolute sample; otherwise use `starCount`, which is present for
-    // essentially every sub. Both signals are never mixed into one baseline.
-    final snrCount = data.subs.where((s) => s.snr != null).length;
-    final useSnr = snrCount >= 8 && snrCount >= (data.subs.length * 0.8).ceil();
-
+    // Star count is the throughput signal. The science `snr` column holds the
+    // sky-to-read-noise ratio of each sub, which says how long a sub should be,
+    // not how much light got through: cloud over a light-polluted sky can
+    // raise it.
     final pts = <({NightSub sub, double value})>[];
     for (final s in data.subs) {
-      final v = useSnr ? s.snr : s.starCount?.toDouble();
+      final v = s.starCount?.toDouble();
       if (v != null) pts.add((sub: s, value: v));
     }
     if (pts.length < 8) return const [];
@@ -140,7 +132,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
           for (var k = i; k < j; k++) pts[k].value,
         ].reduce(math.min);
         final dropPct = ((baseline - worst) / baseline * 100).clamp(0, 100);
-        final metric = useSnr ? 'SNR' : 'star count';
+        const metric = 'star count';
         final severity = runLen >= 4 || dropPct >= 60
             ? NightFindingSeverity.critical
             : NightFindingSeverity.warn;

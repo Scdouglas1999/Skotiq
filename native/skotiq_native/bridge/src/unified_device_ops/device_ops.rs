@@ -1642,6 +1642,19 @@ impl DeviceOps for UnifiedDeviceOps {
         Ok(frame_shape(image_data).map(|shape| shape.eccentricity))
     }
 
+    async fn measure_frame_trail(
+        &self,
+        image_data: &ImageData,
+    ) -> DeviceResult<Option<skotiq_imaging::FrameTrail>> {
+        let img = skotiq_imaging::ImageData::from_u16(
+            image_data.width,
+            image_data.height,
+            1,
+            &image_data.data,
+        );
+        Ok(skotiq_imaging::measure_frame_trail(&img))
+    }
+
     async fn measure_frame_star_shape(
         &self,
         image_data: &ImageData,

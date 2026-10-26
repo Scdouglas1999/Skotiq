@@ -17,6 +17,7 @@ import '../equipment_health_service.dart' show EquipmentHealthReport;
 import '../optical_train_diagnostics_service.dart'
     show OpticalIssueSeverity, OpticalTrainDiagnostics;
 import 'science_status.dart';
+import 'sub_exposure_noise.dart';
 
 /// Severity tier — matches the standard four-level palette used elsewhere
 /// in the app (Success / Info / Warning / Error). UI converts to a colour.
@@ -195,19 +196,28 @@ class ScienceInsightsEngine {
           const ScienceInsight(
             id: 'frame.uniformity',
             severity: ScienceInsightSeverity.warning,
-            headline: 'Background uniformity is uneven',
+            headline: 'Background is uneven across the frame',
             body:
-                'Check flats, gradients, and possible optical tilt — the field is brighter on one side.',
+                'The sky level differs a lot between parts of the frame: a '
+                'gradient, strong vignetting, or something blocking part of '
+                'the view. Flats correct vignetting; a one-sided drop can be '
+                'a tree or dew.',
           ),
         );
       }
-      if (fm.snr < 10) {
+      // `snr` holds the sky-to-read-noise ratio (sub_exposure_noise.dart);
+      // 0 means the camera's gain or read noise is not configured.
+      if (fm.snr > 0 && fm.snr < kSkyLimitedNoiseRatio) {
+        final penalty = (readNoisePenalty(fm.snr) * 100).round();
         out.add(
-          const ScienceInsight(
-            id: 'frame.low_snr',
+          ScienceInsight(
+            id: 'frame.read_noise_limited',
             severity: ScienceInsightSeverity.info,
-            headline: 'Frame SNR is low',
-            body: 'Longer subs or more total integration will help.',
+            headline: 'Subs are read-noise limited',
+            body:
+                'Sky noise is ${fm.snr.toStringAsFixed(1)}x the read noise, so '
+                'read noise adds about $penalty% to each sub\'s noise. Longer '
+                'subs (or higher gain) would make better use of the night.',
           ),
         );
       }

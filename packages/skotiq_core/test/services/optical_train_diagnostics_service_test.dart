@@ -8,10 +8,11 @@ void main() {
     test('reports stable optics for balanced field', () {
       final diagnostics = service.analyze(
         psfTiles: [
-          for (var row = 0; row < 2; row++)
-            for (var col = 0; col < 2; col++)
+          // 3x3 so the center tile can be compared with the corners.
+          for (var row = 0; row < 3; row++)
+            for (var col = 0; col < 3; col++)
               PsfFieldTileRow(
-                id: row * 2 + col,
+                id: row * 3 + col,
                 tileRow: row,
                 tileCol: col,
                 starCount: 25,

@@ -483,7 +483,9 @@ class ObservationReportService {
   pw.Widget _buildFrameQualityMetricsSection(
       List<ScienceFrameQualityMetricsRow> metrics) {
     final latest = metrics.last;
-    final List<double> snrValues = metrics.map<double>((m) => m.snr).toList();
+    // `snr` holds the sky-to-read-noise ratio; 0 means it was not measured.
+    final List<double> snrValues =
+        metrics.map<double>((m) => m.snr).where((v) => v > 0).toList();
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -498,10 +500,15 @@ class ObservationReportService {
           },
           children: [
             pw.TableRow(children: [
-              _statCell('Latest SNR', latest.snr.toStringAsFixed(1)),
               _statCell(
-                'Avg SNR',
-                _listMean(snrValues).toStringAsFixed(1),
+                'Sky/read noise',
+                latest.snr > 0 ? '${latest.snr.toStringAsFixed(1)}x' : '-',
+              ),
+              _statCell(
+                'Avg sky/read noise',
+                snrValues.isEmpty
+                    ? '-'
+                    : '${_listMean(snrValues).toStringAsFixed(1)}x',
               ),
               _statCell(
                 'Uniformity CV',

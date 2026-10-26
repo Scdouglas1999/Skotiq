@@ -359,7 +359,8 @@ class ScienceReportExporter {
         .length;
     return '## Field quality\n'
         '- **Latest frame:** background ${latest.background.toStringAsFixed(0)} ADU, '
-        'SNR ${latest.snr.toStringAsFixed(1)}, uniformity CV '
+        '${latest.snr > 0 ? 'sky noise ${latest.snr.toStringAsFixed(1)}x the read noise, ' : ''}'
+        'uniformity CV '
         '${latest.uniformityCv.toStringAsFixed(3)}\n'
         '- **Mean uniformity CV across session:** ${meanCv.toStringAsFixed(3)} '
         '(>0.28 is a gradient warning)\n'

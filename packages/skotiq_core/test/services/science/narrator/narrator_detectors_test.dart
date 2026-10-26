@@ -94,6 +94,10 @@ NarratorImageStats _stats({
   double? fwhm,
   int? starCount,
   double? temp,
+  String? filter,
+  double? bg,
+  bool accepted = true,
+  String? reason,
 }) {
   return NarratorImageStats(
     timestamp: _at(at),
@@ -101,6 +105,10 @@ NarratorImageStats _stats({
     fwhm: fwhm,
     starCount: starCount,
     focuserTempC: temp,
+    filter: filter,
+    backgroundPerSecond: bg,
+    accepted: accepted,
+    rejectionReason: reason,
   );
 }
 
@@ -440,42 +448,226 @@ void main() {
     });
   });
 
-  group('FocusDriftDetector', () {
-    test('fires once HFR sustained above baseline for the window', () {
-      final d = FocusDriftDetector();
-      // baseline 2.0; rolling HFR ~2.3 (15% up). Need >=10% rise sustained 15 min.
-      final stats = <NarratorImageStats>[];
-      for (var i = 0; i < 8; i++) {
-        stats.add(
+  group('CloudsVsFocusDetector without transparency or weather data', () {
+    // Interleaved L/R/G/B like the rig: L has ~1100 stars, B ~500.
+    List<NarratorImageStats> night({int frames = 16}) => [
+      for (var i = 0; i < frames; i++)
+        _stats(
+          at: Duration(minutes: 2 * i),
+          filter: const ['L', 'R', 'G', 'B'][i % 4],
+          starCount: const [1100, 1000, 900, 500][i % 4],
+          hfr: 2.5,
+          bg: const [180.0, 60.0, 100.0, 140.0][i % 4],
+        ),
+    ];
+
+    test('never claims transparency was steady when none was measured', () {
+      final d = CloudsVsFocusDetector();
+      final stats = night()
+        ..add(
           _stats(
-            at: Duration(minutes: i * 3),
-            hfr: 2.3,
-            temp: 5.0 - i * 0.5,
+            at: const Duration(minutes: 40),
+            filter: 'L',
+            starCount: 300,
+            hfr: 3.5,
+            bg: 175,
+          ),
+        );
+      final fired = d.evaluate(
+        NarratorContext(
+          now: _at(const Duration(minutes: 40)),
+          imageStats: stats,
+        ),
+      );
+      expect(fired, hasLength(1));
+      expect(fired.single.headline, isNot(contains('transparency')));
+      expect(fired.single.headline, isNot(contains('focus drift')));
+      expect(fired.single.headline, contains('in L'));
+    });
+
+    test('fewer stars on a darker sky reads as something blocking the view, '
+        'not focus drift (the 10-24 trees)', () {
+      final d = CloudsVsFocusDetector();
+      // L_0104 on 10-24: 72% fewer stars, sky 2-3x darker, HFR up.
+      final stats = night()
+        ..add(
+          _stats(
+            at: const Duration(minutes: 40),
+            filter: 'L',
+            starCount: 310,
+            hfr: 3.4,
+            bg: 70,
+          ),
+        );
+      final fired = d.evaluate(
+        NarratorContext(
+          now: _at(const Duration(minutes: 40)),
+          imageStats: stats,
+        ),
+      );
+      expect(fired, hasLength(1));
+      expect(fired.single.headline, contains('blocking the view'));
+      expect(fired.single.body, contains('Refocusing will not help'));
+    });
+
+    test('a frame the frame watch excluded, or a trailed reject, is left '
+        'to the frame watch and the grader', () {
+      for (final reason in [
+        'Off target: L_0063 is 93.0 arcmin from the target',
+        'Obstructed: stars lost at alt 64.8',
+        'eccentricity 0.97 exceeds threshold 0.80',
+      ]) {
+        final d = CloudsVsFocusDetector();
+        final stats = night()
+          ..add(
+            _stats(
+              at: const Duration(minutes: 40),
+              filter: 'L',
+              starCount: 180,
+              hfr: 4.0,
+              bg: 180,
+              accepted: false,
+              reason: reason,
+            ),
+          );
+        expect(
+          d.evaluate(
+            NarratorContext(
+              now: _at(const Duration(minutes: 40)),
+              imageStats: stats,
+            ),
+          ),
+          isEmpty,
+          reason: reason,
+        );
+      }
+    });
+
+    test('a filter change alone is not a star-count collapse', () {
+      final d = CloudsVsFocusDetector();
+      // B always has half the stars of L; the old any-filter median read
+      // every B frame as a 50% drop.
+      final stats = night();
+      for (var i = 4; i <= stats.length; i++) {
+        expect(
+          d.evaluate(
+            NarratorContext(
+              now: stats[i - 1].timestamp,
+              imageStats: stats.sublist(0, i),
+            ),
+          ),
+          isEmpty,
+        );
+      }
+    });
+  });
+
+  group('FocusDriftDetector', () {
+    // Frames in two filters after an autofocus at minute 0.
+    List<NarratorImageStats> frames(
+      double Function(int i) hfr, {
+      int count = 24,
+      NarratorImageStats Function(int i, NarratorImageStats s)? edit,
+    }) {
+      return [
+        for (var i = 0; i < count; i++)
+          () {
+            final s = _stats(
+              at: Duration(minutes: 2 * i + 1),
+              filter: i.isEven ? 'L' : 'B',
+              hfr: (i.isEven ? 2.0 : 1.7) * hfr(i),
+              starCount: i.isEven ? 1100 : 500,
+              bg: i.isEven ? 180 : 140,
+              temp: 9.0 - i * 0.1,
+            );
+            return edit == null ? s : edit(i, s);
+          }(),
+      ];
+    }
+
+    List<NarratorEventDraft> run(
+      FocusDriftDetector d,
+      List<NarratorImageStats> stats,
+    ) {
+      final out = <NarratorEventDraft>[];
+      for (var i = 1; i <= stats.length; i++) {
+        out.addAll(
+          d.evaluate(
+            NarratorContext(
+              now: stats[i - 1].timestamp,
+              imageStats: stats.sublist(0, i),
+              autofocusHfrBaseline: 1.6,
+              autofocusAt: _t0,
+            ),
           ),
         );
       }
-      // First eval establishes _aboveSince at now.
-      final first = d.evaluate(
-        NarratorContext(
-          now: _at(const Duration(minutes: 0)),
-          imageStats: stats,
-          autofocusHfrBaseline: 2.0,
-        ),
-      );
-      expect(first, isEmpty); // not sustained yet
+      return out;
+    }
 
-      final later = d.evaluate(
-        NarratorContext(
-          now: _at(const Duration(minutes: 16)),
-          imageStats: stats,
-          autofocusHfrBaseline: 2.0,
+    test('fires once a filter stays softer than after the autofocus', () {
+      // HFR creeps up 1.5% per frame from frame 6 on (10-24 06:12-06:50).
+      final fired = run(
+        FocusDriftDetector(),
+        frames((i) => i < 6 ? 1.0 : 1.0 + 0.015 * (i - 5)),
+      );
+      expect(fired, hasLength(1));
+      expect(fired.single.eventType, 'equipment.focus_drift');
+      expect(fired.single.headline, contains('focus drift'));
+      expect(fired.single.headline, contains('temperature'));
+    });
+
+    test('does not compare frame HFR with the autofocus sweep HFR', () {
+      // Frames measure 2.0 px all night against a 1.6 px sweep best: the
+      // two are measured differently, and nothing drifted.
+      expect(run(FocusDriftDetector(), frames((_) => 1.0)), isEmpty);
+    });
+
+    test('frames behind trees are not focus drift (10-24 07:20-07:49)', () {
+      final fired = run(
+        FocusDriftDetector(),
+        frames(
+          (i) => i < 10 ? 1.0 : 1.45,
+          edit: (i, s) => i < 10
+              ? s
+              : NarratorImageStats(
+                  timestamp: s.timestamp,
+                  filter: s.filter,
+                  hfr: s.hfr,
+                  starCount: (s.starCount! * 0.3).round(),
+                  backgroundPerSecond: s.backgroundPerSecond! * 0.4,
+                  focuserTempC: s.focuserTempC,
+                ),
         ),
       );
-      expect(later, hasLength(1));
-      expect(later.single.eventType, 'equipment.focus_drift');
-      expect(later.single.headline, contains('focus drift'));
-      // Temperature fell ~3.5C → mention it.
-      expect(later.single.headline, contains('temperature'));
+      expect(fired, isEmpty);
+    });
+
+    test('off-target, obstructed and rejected frames are left out', () {
+      for (final reason in [
+        'Off target: 31.6 arcmin from the target',
+        'Obstructed: stars lost at alt 64.8',
+        'eccentricity 0.97 exceeds threshold 0.80',
+      ]) {
+        final fired = run(
+          FocusDriftDetector(),
+          frames(
+            (i) => i < 10 ? 1.0 : 1.6,
+            edit: (i, s) => i < 10
+                ? s
+                : NarratorImageStats(
+                    timestamp: s.timestamp,
+                    filter: s.filter,
+                    hfr: s.hfr,
+                    starCount: s.starCount,
+                    backgroundPerSecond: s.backgroundPerSecond,
+                    accepted: false,
+                    rejectionReason: reason,
+                  ),
+          ),
+        );
+        expect(fired, isEmpty, reason: reason);
+      }
     });
   });
 
@@ -1034,7 +1226,7 @@ void main() {
   });
 
   group('TiltDetector', () {
-    OpticalTrainDiagnostics diag(double score, {String dir = 'NE'}) {
+    OpticalTrainDiagnostics diag(double score, {String dir = 'right edge'}) {
       return OpticalTrainDiagnostics(
         tiltScore: score,
         collimationScore: 5.0,
@@ -1043,10 +1235,11 @@ void main() {
       );
     }
 
-    NarratorContext ctx(double score, {String dir = 'NE'}) => NarratorContext(
-      now: _t0,
-      diagnostics: diag(score, dir: dir),
-    );
+    NarratorContext ctx(double score, {String dir = 'right edge'}) =>
+        NarratorContext(
+          now: _t0,
+          diagnostics: diag(score, dir: dir),
+        );
 
     test('below the warn band fires nothing', () {
       final d = TiltDetector();
@@ -1055,11 +1248,12 @@ void main() {
 
     test('warn band edge fires a warning naming the direction', () {
       final d = TiltDetector();
-      final fired = d.evaluate(ctx(18.0, dir: 'NE'));
+      final fired = d.evaluate(ctx(18.0, dir: 'right edge'));
       expect(fired, hasLength(1));
       expect(fired.single.eventType, 'equipment.tilt');
       expect(fired.single.severity, NarratorSeverity.warning);
-      expect(fired.single.headline, contains('NE corner'));
+      expect(fired.single.headline, contains('toward the right edge'));
+      expect(fired.single.evidence!.directionDeg, 90);
       expect(fired.single.dedupeKey, 'equipment.tilt:warn');
       // Once per band: no re-fire in the warn band.
       expect(d.evaluate(ctx(20.0)), isEmpty);
@@ -1067,10 +1261,11 @@ void main() {
 
     test('critical band edge fires critical and subsumes the warn band', () {
       final d = TiltDetector();
-      final fired = d.evaluate(ctx(30.0, dir: 'SW'));
+      final fired = d.evaluate(ctx(30.0, dir: 'left edge'));
       expect(fired, hasLength(1));
       expect(fired.single.severity, NarratorSeverity.critical);
-      expect(fired.single.headline, contains('SW corner'));
+      expect(fired.single.headline, contains('toward the left edge'));
+      expect(fired.single.evidence!.directionDeg, 270);
       expect(fired.single.dedupeKey, 'equipment.tilt:critical');
       // A subsequent warn-level reading does not re-fire (warn subsumed).
       expect(d.evaluate(ctx(20.0)), isEmpty);
@@ -1086,12 +1281,96 @@ void main() {
 
     test('headline reports the tilt score, not a fabricated % softer', () {
       final d = TiltDetector();
-      final fired = d.evaluate(ctx(32.0, dir: 'NE'));
+      final fired = d.evaluate(ctx(32.0));
       expect(fired.single.headline, contains('tilt score 32'));
       expect(fired.single.headline, contains('(critical)'));
       // Tilt score is not a percentage: no "% softer" phrasing.
       expect(fired.single.headline, isNot(contains('% softer')));
       expect(fired.single.body, isNot(contains('%')));
+    });
+  });
+
+  group('tiltBearingForDirection', () {
+    test('points the arrow at the side the diagnostics name', () {
+      expect(tiltBearingForDirection('top edge'), 0);
+      expect(tiltBearingForDirection('right edge'), 90);
+      expect(tiltBearingForDirection('bottom edge'), 180);
+      expect(tiltBearingForDirection('left edge'), 270);
+      expect(tiltBearingForDirection('top-right corner'), 45);
+      expect(tiltBearingForDirection('bottom-left corner'), 225);
+      expect(tiltBearingForDirection('unknown'), isNull);
+      expect(tiltBearingForDirection(''), isNull);
+    });
+  });
+
+  group('GuidingDegradedDetector', () {
+    // One settled reading every 3 s.
+    List<NarratorGuideSample> series(double Function(int i) rms, int n) => [
+      for (var i = 0; i < n; i++)
+        NarratorGuideSample(
+          timestamp: _at(Duration(seconds: 3 * i)),
+          rmsPx: rms(i),
+        ),
+    ];
+
+    List<NarratorEventDraft> run(
+      List<NarratorGuideSample> samples, {
+      double? scale = 1.41,
+    }) {
+      final d = GuidingDegradedDetector();
+      final out = <NarratorEventDraft>[];
+      for (var i = 1; i <= samples.length; i++) {
+        out.addAll(
+          d.evaluate(
+            NarratorContext(
+              now: samples[i - 1].timestamp,
+              guideSamples: samples.sublist(0, i),
+              guidePixelScaleArcsec: scale,
+            ),
+          ),
+        );
+      }
+      return out;
+    }
+
+    test('a short spike is not a sustained rise', () {
+      // 10 min at 0.6 px, then 30 s at 1.2 px, then back.
+      final fired = run(series((i) => i >= 200 && i < 210 ? 1.2 : 0.6, 400));
+      expect(fired, isEmpty);
+    });
+
+    test('a rise held for 3 min fires one card, in arcsec', () {
+      final fired = run(series((i) => i < 300 ? 0.6 : 1.2, 500));
+      expect(fired, hasLength(1));
+      // 1.2 px x 1.41"/px = 1.69", 0.6 px = 0.85".
+      expect(fired.single.headline, contains('1.69″'));
+      expect(fired.single.headline, contains('0.85″'));
+      expect(fired.single.headline, isNot(contains('wind')));
+      expect(fired.single.evidence!.unit, '″');
+    });
+
+    test('without a pixel scale the number is stated in pixels', () {
+      final fired = run(series((i) => i < 300 ? 0.6 : 1.2, 500), scale: null);
+      expect(fired, hasLength(1));
+      expect(fired.single.headline, contains('1.20 px'));
+      expect(fired.single.headline, isNot(contains('″')));
+    });
+
+    test('one episode is one card, and the key names the episode', () {
+      final d = GuidingDegradedDetector();
+      final samples = series((i) => i < 300 ? 0.6 : 1.2 + (i % 7) * 0.05, 600);
+      final keys = <String>{};
+      for (var i = 1; i <= samples.length; i++) {
+        for (final e in d.evaluate(
+          NarratorContext(
+            now: samples[i - 1].timestamp,
+            guideSamples: samples.sublist(0, i),
+          ),
+        )) {
+          keys.add(e.dedupeKey);
+        }
+      }
+      expect(keys, hasLength(1));
     });
   });
 

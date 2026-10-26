@@ -31,6 +31,13 @@ class OpticalTrainDiagnostics {
   /// centre denominator is a clamp floor rather than a measurement.
   final bool collimationMeasured;
 
+  /// Mean star size in the corner tiles divided by the mean in the inner
+  /// tiles: 1.0 is a flat field, 1.25 means the corners are 25% softer on
+  /// every side, which is field curvature or corrector spacing rather than
+  /// tilt. Null when the grid has no inner tiles or too few corner or inner
+  /// tiles held stars.
+  final double? cornerToCenterRatio;
+
   const OpticalTrainDiagnostics({
     required this.tiltScore,
     required this.collimationScore,
@@ -38,7 +45,10 @@ class OpticalTrainDiagnostics {
     required this.issues,
     this.tiltMeasured = true,
     this.collimationMeasured = true,
+    this.cornerToCenterRatio,
   });
+
+  bool get curvatureMeasured => cornerToCenterRatio != null;
 
   bool get hasIssues => issues.isNotEmpty;
 
@@ -194,6 +204,20 @@ class OpticalHealthScore {
 class OpticalTrainDiagnosticsService {
   const OpticalTrainDiagnosticsService();
 
+  /// A tile needs this many stars before its median star size counts. A
+  /// tile with no stars (a tree, a dark corner, a sparse field) stores a
+  /// star size of 0, which is no measurement at all.
+  static const int minTileStars = 3;
+
+  /// Corners this much softer than the inner field are reported as field
+  /// curvature or spacing.
+  static const double curvatureWarnRatio = 1.10;
+  static const double curvatureCriticalRatio = 1.30;
+
+  /// Residual vectors per frame needed to locate the frame's extent when
+  /// the vectors are stored in pixels.
+  static const int _minVectorsPerFrame = 8;
+
   OpticalTrainDiagnostics analyze({
     required List<PsfFieldTileRow> psfTiles,
     required List<AstrometryResidualVectorRow> residualVectors,
@@ -216,12 +240,9 @@ class OpticalTrainDiagnosticsService {
       );
     }
 
-    // Compare the OUTERMOST row/column on each side. Splitting the grid at its
-    // midpoint instead put the centre band on one side of every comparison
-    // (`>= mid` caught the middle column and row), which halved the apparent
-    // deviation of the right and bottom edges: a tilt running mostly top-to-
-    // bottom then scored lower on "bottom" than on "left" and the readout sent
-    // the user to the wrong adjustment screw.
+    // The grid's outer rows and columns come from every tile, measured or
+    // not, so an empty edge stays an edge rather than moving the comparison
+    // inward.
     final minCol = psfTiles
         .map((tile) => tile.tileCol)
         .reduce((a, b) => a < b ? a : b);
@@ -235,51 +256,90 @@ class OpticalTrainDiagnosticsService {
         .map((tile) => tile.tileRow)
         .reduce((a, b) => a > b ? a : b);
 
-    final left = _mean(
-      psfTiles.where((tile) => tile.tileCol == minCol).map((t) => t.medianHfr),
-    );
-    final right = _mean(
-      psfTiles.where((tile) => tile.tileCol == maxCol).map((t) => t.medianHfr),
-    );
-    final top = _mean(
-      psfTiles.where((tile) => tile.tileRow == minRow).map((t) => t.medianHfr),
-    );
-    final bottom = _mean(
-      psfTiles.where((tile) => tile.tileRow == maxRow).map((t) => t.medianHfr),
-    );
-    final global = _mean(
-      psfTiles.map((tile) => tile.medianHfr),
-    ).clamp(0.1, 100.0);
+    // Star size only from tiles that measured one.
+    bool measured(PsfFieldTileRow tile) =>
+        tile.starCount >= minTileStars &&
+        tile.medianHfr.isFinite &&
+        tile.medianHfr > 0;
+    final valid = psfTiles.where(measured).toList(growable: false);
 
-    final horizontalTilt = (left - right).abs() / global;
-    final verticalTilt = (top - bottom).abs() / global;
+    // An edge is measured when at least half of its tiles held stars.
+    double? edge(bool Function(PsfFieldTileRow) onEdge) {
+      final all = psfTiles.where(onEdge).length;
+      final hfrs = valid.where(onEdge).map((t) => t.medianHfr).toList();
+      final enough = hfrs.isNotEmpty && hfrs.length * 2 >= all;
+      return enough ? _mean(hfrs) : null;
+    }
+
+    final left = edge((t) => t.tileCol == minCol);
+    final right = edge((t) => t.tileCol == maxCol);
+    final top = edge((t) => t.tileRow == minRow);
+    final bottom = edge((t) => t.tileRow == maxRow);
+    final global = valid.isEmpty
+        ? 0.1
+        : _mean(valid.map((tile) => tile.medianHfr)).clamp(0.1, 100.0);
+
+    // A gradient needs two positions to run between and a measurement at
+    // each end.
+    final horizontalMeasured = maxCol > minCol && left != null && right != null;
+    final verticalMeasured = maxRow > minRow && top != null && bottom != null;
+    final tiltMeasured = horizontalMeasured || verticalMeasured;
+    final horizontalTilt = horizontalMeasured
+        ? (left - right).abs() / global
+        : 0.0;
+    final verticalTilt = verticalMeasured
+        ? (top - bottom).abs() / global
+        : 0.0;
     final tiltScore =
         ((horizontalTilt > verticalTilt ? horizontalTilt : verticalTilt) * 100)
             .clamp(0.0, 100.0);
-    // A gradient needs two positions to run between. With every tile in one
-    // column and one row, left==right and top==bottom by construction, so the
-    // resulting 0 says "the grid was 1x1", not "the field is flat".
-    final tiltMeasured = maxCol > minCol || maxRow > minRow;
 
-    final edgeSamples = residualVectors
+    // Field curvature: the corners against the inner tiles. A symmetric
+    // softening cancels in every edge-against-edge difference above, so it
+    // needs its own term.
+    final cornerHfrs = valid
         .where(
-          (row) => row.x < 0.25 || row.x > 0.75 || row.y < 0.25 || row.y > 0.75,
+          (t) =>
+              (t.tileRow == minRow || t.tileRow == maxRow) &&
+              (t.tileCol == minCol || t.tileCol == maxCol),
         )
-        .map((row) => row.magnitudeArcsec)
-        .where((value) => value.isFinite)
+        .map((t) => t.medianHfr)
         .toList(growable: false);
-    final centerSamples = residualVectors
+    final innerHfrs = valid
         .where(
-          (row) =>
-              row.x >= 0.25 && row.x <= 0.75 && row.y >= 0.25 && row.y <= 0.75,
+          (t) =>
+              t.tileRow > minRow &&
+              t.tileRow < maxRow &&
+              t.tileCol > minCol &&
+              t.tileCol < maxCol,
         )
-        .map((row) => row.magnitudeArcsec)
-        .where((value) => value.isFinite)
+        .map((t) => t.medianHfr)
+        .toList(growable: false);
+    final double? cornerToCenterRatio =
+        cornerHfrs.length >= 2 && innerHfrs.isNotEmpty
+        ? _mean(cornerHfrs) / _mean(innerHfrs)
+        : null;
+    final curvatureFlagged =
+        cornerToCenterRatio != null &&
+        cornerToCenterRatio >= curvatureWarnRatio;
+
+    // Residual positions are compared in fractions of the frame. Vectors
+    // stored in pixels are scaled by the extent of their own frame's
+    // vectors, which come from catalog matches spread over the whole field.
+    final normalized = _normalizedResiduals(residualVectors);
+    bool inCenter(({double x, double y, double magnitude}) v) =>
+        v.x >= 0.25 && v.x <= 0.75 && v.y >= 0.25 && v.y <= 0.75;
+    final edgeSamples = normalized
+        .where((v) => !inCenter(v))
+        .map((v) => v.magnitude)
+        .toList(growable: false);
+    final centerSamples = normalized
+        .where(inCenter)
+        .map((v) => v.magnitude)
         .toList(growable: false);
     // The score is a RATIO of edge to centre; with either side missing the
     // clamp below supplies the missing half and the answer is arithmetic, not
-    // measurement — an empty residual table produced a confident "centre and
-    // edge behaviour look balanced".
+    // measurement.
     final collimationMeasured =
         edgeSamples.isNotEmpty && centerSamples.isNotEmpty;
     final edgeResidual = _mean(edgeSamples);
@@ -290,15 +350,17 @@ class OpticalTrainDiagnosticsService {
           100.0,
         );
 
-    final dominantTiltDirection = _dominantTiltDirection(
-      left: left,
-      right: right,
-      top: top,
-      bottom: bottom,
-      horizontalTilt: horizontalTilt,
-      verticalTilt: verticalTilt,
-    );
+    // The direction comes from the axis that set the score, then the worse
+    // side of that axis, so it can never disagree with the score.
+    final dominantTiltDirection = !tiltMeasured
+        ? 'unknown'
+        : horizontalTilt >= verticalTilt && horizontalMeasured
+        ? (left >= right ? 'left edge' : 'right edge')
+        : (top! >= bottom! ? 'top edge' : 'bottom edge');
 
+    final softerPercent = cornerToCenterRatio == null
+        ? 0
+        : ((cornerToCenterRatio - 1.0) * 100).round();
     final issues = <OpticalDiagnosticIssue>[
       if (tiltMeasured && tiltScore >= 18)
         OpticalDiagnosticIssue(
@@ -306,6 +368,15 @@ class OpticalTrainDiagnosticsService {
           detail:
               'PSF size is uneven across the frame. Strongest degradation is toward $dominantTiltDirection.',
           severity: tiltScore >= 30
+              ? OpticalIssueSeverity.critical
+              : OpticalIssueSeverity.warning,
+        ),
+      if (curvatureFlagged)
+        OpticalDiagnosticIssue(
+          title: 'Corners are $softerPercent% softer than the center',
+          detail:
+              'Stars grow toward every corner, not toward one side. That points to field curvature or the spacing between the corrector or flattener and the sensor, not to tilt.',
+          severity: cornerToCenterRatio >= curvatureCriticalRatio
               ? OpticalIssueSeverity.critical
               : OpticalIssueSeverity.warning,
         ),
@@ -324,7 +395,14 @@ class OpticalTrainDiagnosticsService {
         const OpticalDiagnosticIssue(
           title: 'Tilt not measured',
           detail:
-              'PSF tiles cover a single row and column, so there is no across-field gradient to compare.',
+              'Too few PSF tiles along opposite edges of the frame held stars, so there is no across-field gradient to compare.',
+          severity: OpticalIssueSeverity.info,
+        ),
+      if (cornerToCenterRatio == null)
+        const OpticalDiagnosticIssue(
+          title: 'Field curvature not measured',
+          detail:
+              'Too few corner or inner PSF tiles held stars to compare the corners with the center.',
           severity: OpticalIssueSeverity.info,
         ),
       if (!collimationMeasured)
@@ -336,12 +414,14 @@ class OpticalTrainDiagnosticsService {
         ),
       if (tiltMeasured &&
           collimationMeasured &&
+          cornerToCenterRatio != null &&
+          !curvatureFlagged &&
           tiltScore < 18 &&
           collimationScore < 15)
         const OpticalDiagnosticIssue(
           title: 'Optical train looks stable',
           detail:
-              'Field HFR and residual patterns are balanced across the image.',
+              'Star size is even from side to side and from center to corner, and residuals do not grow toward the edges.',
           severity: OpticalIssueSeverity.info,
         ),
     ];
@@ -349,32 +429,62 @@ class OpticalTrainDiagnosticsService {
     return OpticalTrainDiagnostics(
       tiltScore: tiltScore,
       collimationScore: collimationScore,
-      dominantTiltDirection: tiltMeasured ? dominantTiltDirection : 'unknown',
+      dominantTiltDirection: dominantTiltDirection,
       tiltMeasured: tiltMeasured,
       collimationMeasured: collimationMeasured,
+      cornerToCenterRatio: cornerToCenterRatio,
       issues: issues,
     );
   }
 
-  /// The edge the field gradient actually runs towards.
+  /// Residual vectors with positions as fractions of their frame.
   ///
-  /// Decided on the same axis comparison that sets [tiltScore], so the reported
-  /// direction can never disagree with the score: pick the steeper axis first,
-  /// then the worse side of that axis. Ranking the four edge means against each
-  /// other instead let a shallow horizontal gradient outrank a steeper vertical
-  /// one whenever the horizontal edge happened to sit higher in absolute HFR.
-  String _dominantTiltDirection({
-    required double left,
-    required double right,
-    required double top,
-    required double bottom,
-    required double horizontalTilt,
-    required double verticalTilt,
-  }) {
-    if (horizontalTilt >= verticalTilt) {
-      return left >= right ? 'left edge' : 'right edge';
+  /// Positions already within 0..1 are taken as fractions. Pixel positions
+  /// are scaled by the extent of the same frame's vectors; a frame with too
+  /// few vectors to span the field is left out.
+  List<({double x, double y, double magnitude})> _normalizedResiduals(
+    List<AstrometryResidualVectorRow> rows,
+  ) {
+    final byFrame = <int?, List<AstrometryResidualVectorRow>>{};
+    for (final row in rows) {
+      if (!row.x.isFinite || !row.y.isFinite) continue;
+      if (!row.magnitudeArcsec.isFinite) continue;
+      byFrame.putIfAbsent(row.capturedImageId, () => []).add(row);
     }
-    return top >= bottom ? 'top edge' : 'bottom edge';
+    final out = <({double x, double y, double magnitude})>[];
+    for (final frame in byFrame.values) {
+      final inFractions = frame.every(
+        (r) => r.x >= 0 && r.x <= 1 && r.y >= 0 && r.y <= 1,
+      );
+      if (inFractions) {
+        out.addAll(
+          frame.map((r) => (x: r.x, y: r.y, magnitude: r.magnitudeArcsec)),
+        );
+        continue;
+      }
+      if (frame.length < _minVectorsPerFrame) continue;
+      var minX = double.infinity, maxX = -double.infinity;
+      var minY = double.infinity, maxY = -double.infinity;
+      for (final r in frame) {
+        if (r.x < minX) minX = r.x;
+        if (r.x > maxX) maxX = r.x;
+        if (r.y < minY) minY = r.y;
+        if (r.y > maxY) maxY = r.y;
+      }
+      final spanX = maxX - minX;
+      final spanY = maxY - minY;
+      if (spanX <= 0 || spanY <= 0) continue;
+      out.addAll(
+        frame.map(
+          (r) => (
+            x: (r.x - minX) / spanX,
+            y: (r.y - minY) / spanY,
+            magnitude: r.magnitudeArcsec,
+          ),
+        ),
+      );
+    }
+    return out;
   }
 
   double _mean(Iterable<double> values) {

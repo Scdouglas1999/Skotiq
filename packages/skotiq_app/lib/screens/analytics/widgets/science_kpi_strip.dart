@@ -204,12 +204,15 @@ class _UniformityKpi extends StatelessWidget {
     final trust = fq == null
         ? const <_TrustChip>[]
         : <_TrustChip>[
-            _TrustChip(
-              icon: LucideIcons.barChart3,
-              label: 'SNR ${fq.snr.toStringAsFixed(1)}',
-              tooltip: 'Frame SNR — higher is better',
-              tone: fq.snr < 10 ? colors.warning : null,
-            ),
+            if (fq.snr > 0)
+              _TrustChip(
+                icon: LucideIcons.barChart3,
+                label: 'Sky/RN ${fq.snr.toStringAsFixed(1)}x',
+                tooltip: 'Sky noise over camera read noise. Below 3 the '
+                    'subs are read-noise limited and longer subs help; above '
+                    '3 they are sky-limited.',
+                tone: fq.snr < kSkyLimitedNoiseRatio ? colors.warning : null,
+              ),
             _TrustChip(
               icon: LucideIcons.arrowUpRight,
               label: 'Clip↑ ${fq.highClipPercent.toStringAsFixed(2)}%',

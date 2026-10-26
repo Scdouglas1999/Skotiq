@@ -255,18 +255,79 @@ void main() {
     service.dispose();
   });
 
-  test('guide RMS history is pulled from guideStatsProvider', () async {
+  test('guide readings are taken only while guiding is settled, once per '
+      'step, and carry the guider pixel scale', () async {
+    final container = makeContainer();
+    addTearDown(container.dispose);
+    var now = t0;
+    final service = container.read(_testServiceProvider(sessionId));
+    service.setClock(() => now);
+    await service.start();
+    container.read(guiderStateProvider.notifier).setPixelScale(1.41);
+    final stats =
+        container.read(guideStatsProvider.notifier) as _FakeGuideStats;
+
+    var frame = 0;
+    void step(double rms) {
+      frame++;
+      now = now.add(const Duration(seconds: 3));
+      stats.set(Phd2GuideStats(rmsTotal: rms, frameCount: frame));
+      // The star-quality event of the same guide frame updates the provider
+      // again without a new step.
+      stats.set(Phd2GuideStats(rmsTotal: rms, frameCount: frame, snr: 30));
+    }
+
+    container.read(phd2StateProvider.notifier).state = Phd2State.guiding;
+    for (var i = 0; i < 120; i++) {
+      step(0.6);
+    }
+    // 150 s and 100 steps after guiding started: steps 100..120 count.
+    var ctx = service.buildContextForTest();
+    expect(ctx.guideSamples, hasLength(21));
+    expect(ctx.guidePixelScaleArcsec, 1.41);
+
+    // A dither: nothing while settling, nothing until the window refills.
+    container.read(phd2StateProvider.notifier).state = Phd2State.settling;
+    for (var i = 0; i < 5; i++) {
+      step(3.0);
+    }
+    container.read(phd2StateProvider.notifier).state = Phd2State.guiding;
+    for (var i = 0; i < 60; i++) {
+      step(1.5);
+    }
+    ctx = service.buildContextForTest();
+    expect(ctx.guideSamples, hasLength(21));
+    expect(ctx.guideSamples.every((s) => s.rmsPx == 0.6), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    service.dispose();
+  });
+
+  test('a frame whose solve is still pending is not a failed solve', () async {
     final container = makeContainer(
-      guideStats: const Phd2GuideStats(rmsTotal: 0.42),
+      images: [
+        for (var i = 1; i <= 10; i++)
+          image(id: i, hfr: 2.0, starCount: 800, solved: i <= 6),
+      ],
     );
     addTearDown(container.dispose);
     final service = startService(container);
     await service.start();
     await Future<void>.delayed(Duration.zero);
 
-    final ctx = service.buildContextForTest();
-    expect(ctx.guideRmsTotalHistory, isNotEmpty);
-    expect(ctx.guideRmsTotal, closeTo(0.42, 1e-9));
+    // Rows 7-10 were inserted before their solve ran.
+    expect(service.buildContextForTest().solveHistory, List.filled(6, true));
+
+    // The pipeline finished frame 8 without a WCS: that one failed.
+    final tracker = container.read(scienceProcessingStatusTrackerProvider);
+    tracker.beginFrame(imagePath: '/tmp/8.fits', capturedImageId: 8);
+    tracker.beginStage(ScienceStage.plateSolve);
+    tracker.endStage(ScienceStage.plateSolve, ScienceStageOutcome.noData);
+    await Future<void>.delayed(Duration.zero);
+    expect(service.buildContextForTest().solveHistory, [
+      ...List.filled(6, true),
+      false,
+    ]);
+    service.dispose();
   });
 
   test(
@@ -301,7 +362,10 @@ void main() {
       expect(ctx.gradeEvents.last.rejected, isTrue);
       expect(ctx.gradeEvents.last.reason, contains('HFR'));
 
-      expect(ctx.solveHistory, [true, true, false]);
+      // Frame 3's solve has not finished, so it is not counted either way.
+      expect(ctx.solveHistory, [true, true]);
+      expect(ctx.imageStats.last.accepted, isFalse);
+      expect(ctx.imageStats.last.filter, 'L');
     },
   );
 
@@ -369,4 +433,6 @@ class _FakeGuideStats extends GuideStatsNotifier {
   _FakeGuideStats(super.ref, Phd2GuideStats seed) {
     state = seed;
   }
+
+  void set(Phd2GuideStats next) => state = next;
 }

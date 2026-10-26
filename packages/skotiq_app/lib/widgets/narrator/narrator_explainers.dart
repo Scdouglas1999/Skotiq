@@ -106,11 +106,13 @@ const Map<String, String> narratorExplainers = <String, String>{
           "steadies. A darker sky directly extends how faint you can go. This is "
           "the window to chase your most demanding targets.",
   'conditions.clouds_vs_focus':
-      "Star counts dropped, and the Narrator cross-checked transparency, "
-          "weather, and HFR to tell you why. That distinction matters: clouds "
-          "pass on their own and you just wait them out, but focus drift needs a "
-          "refocus before you waste more subs. Knowing which is which saves the "
-          "session.",
+      "The star count in one filter dropped well below its recent frames. "
+          "The Narrator looks at what else changed: falling measured "
+          "transparency or reported cloud points at clouds, a darker sky "
+          "background points at something blocking the view, and softer stars "
+          "under steady measured transparency point at focus. Without "
+          "transparency or weather data it only reports what it measured, "
+          "because a star-count drop alone cannot tell cloud from focus.",
   'conditions.excellent':
       "Transparency has been excellent and steady for a good stretch — the "
           "kind of clean, dark window that doesn't come every night. This is when "
@@ -119,16 +121,17 @@ const Map<String, String> narratorExplainers = <String, String>{
 
   // Equipment
   'equipment.tilt':
-      "Stars in one corner of the frame are consistently softer than the "
+      "Stars toward one side of the frame are consistently softer than the "
           "rest, which points to the sensor sitting slightly out of plane with "
           "the optical axis — sensor tilt. It robs sharpness from part of every "
           "sub and won't fix itself. The Diagnostics screen shows the per-corner "
           "map you'd use to chase it down.",
   'equipment.focus_drift':
-      "Your rolling HFR has crept above the baseline you set at the last "
-          "autofocus, often as the temperature falls and the tube contracts. Left "
-          "alone, every new frame is a little softer than it should be. A quick "
-          "refocus pulls the stars back to where they belong.",
+      "Frames have been measuring softer than the same filter did right "
+          "after the last autofocus, often as the temperature falls and the "
+          "tube contracts. Frames that were rejected, off target, or dimmed by "
+          "cloud or an obstruction are left out, so this reflects focus. A "
+          "quick refocus pulls the stars back to where they belong.",
   'equipment.gradient':
       "A brightness gradient has been sitting on the same edge of your frames "
           "for several subs — typically stray light, a neighbour's window, or a "
@@ -136,11 +139,12 @@ const Map<String, String> narratorExplainers = <String, String>{
           "calibration and flattening later. Worth chasing the source or flagging "
           "the offending frames.",
   'equipment.guiding_degraded':
-      "Your guiding RMS has climbed well above its earlier baseline for this "
-          "session and stayed there. Loose guiding bloats stars and can trip your "
-          "frame grader into rejecting subs. Wind, balance, or worsening seeing "
-          "are the usual suspects — a glance at the guide graph usually tells you "
-          "which.",
+      "Your guiding RMS has stayed at least half again above its median of "
+          "the last 30 minutes for several minutes. Readings taken while a "
+          "dither settles, right after guiding starts, or around autofocus and "
+          "flips are left out, so this is a real change. Loose guiding bloats "
+          "stars and can trip your frame grader into rejecting subs; the guide "
+          "graph usually shows whether it is balance, wind, or seeing.",
 
   // Quality / pipeline
   'quality.clipping':
