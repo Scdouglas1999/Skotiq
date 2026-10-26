@@ -9,11 +9,13 @@ import '../sequencer_run_event.dart';
 /// pipeline, the same processing a manual capture gets.
 ///
 /// A frame is queued once its `captured_images` row exists and the frame
-/// watch has assessed it, so the pipeline reuses the frame watch's plate
-/// solve from the row instead of running a second solve of the same file.
-/// When no assessment arrives within [assessmentWait] the frame is queued
-/// anyway and the pipeline solves it itself. A frame whose solve the frame
-/// watch attempted and failed is processed without a solve.
+/// watch has assessed it, so its outcome is on the row. The frame watch
+/// stores centre, scale and rotation but no CD matrix, so the pipeline solves
+/// a frame it solved again for the full WCS (parity and SIP terms), and that
+/// solve runs the solved-frame hook. When no assessment arrives within
+/// [assessmentWait] the frame is queued anyway and the pipeline solves it
+/// itself. A frame whose solve the frame watch attempted and failed is
+/// processed without a solve.
 ///
 /// Science is informational: nothing here blocks, delays or fails the run or
 /// the frame's registration, and the pipeline runs one frame at a time.
