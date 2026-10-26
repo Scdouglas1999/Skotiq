@@ -38,6 +38,7 @@ FramePhotometricCalibrationRow _cal({
   double rms = 0.05,
 }) {
   return FramePhotometricCalibrationRow(
+    bandIsStandard: false,
     id: 1,
     capturedImageId: null,
     sessionId: null,
@@ -55,6 +56,7 @@ FramePhotometricCalibrationRow _cal({
 
 TransparencySampleRow _trans({double pct = 95}) {
   return TransparencySampleRow(
+    extinctionMeasured: false,
     id: 1,
     capturedImageId: null,
     sessionId: null,

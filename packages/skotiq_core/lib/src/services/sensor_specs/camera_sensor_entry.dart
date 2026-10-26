@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'published_figure.dart';
 
 /// One row of the curated sensor database: a camera model whose geometry and
@@ -22,6 +24,7 @@ class CameraSensorEntry {
     this.readNoiseE = const [],
     this.fullWellE = const [],
     this.qePeakFraction,
+    this.gainCurve,
     this.note,
   }) : assert(
          publishedPixelSizeMicrons != null || publishedImageAreaWidthMm != null,
@@ -81,6 +84,12 @@ class CameraSensorEntry {
   /// graphic and no peak value, which is the case for most of the QHY range.
   final double? qePeakFraction;
 
+  /// Conversion gain and read noise against the driver's gain setting, from
+  /// the manufacturer's gain chart. Null when the manufacturer publishes no
+  /// chart; the e⁻/ADU of such a camera is then unknown at any gain but the
+  /// one it was measured at.
+  final SensorGainCurve? gainCurve;
+
   /// Anything a user needs to know to read these figures correctly — a
   /// second readout mode, a crop that differs from the bare sensor, a field
   /// the manufacturer publishes only as a best case.
@@ -104,4 +113,130 @@ class CameraSensorEntry {
   /// Physical sensor height in millimetres.
   double get sensorHeightMm =>
       publishedImageAreaHeightMm ?? heightPx * pixelSizeMicrons / 1000;
+}
+
+/// One point of a manufacturer's gain chart.
+class SensorGainPoint {
+  const SensorGainPoint({
+    required this.gain,
+    required this.electronsPerAdu,
+    required this.readNoiseE,
+  });
+
+  /// Driver gain setting.
+  final int gain;
+
+  /// Conversion gain in electrons per ADC count, at the ADC's own resolution
+  /// (not the 16-bit pixel container the driver may shift samples into).
+  final double electronsPerAdu;
+
+  /// Read noise in electrons.
+  final double readNoiseE;
+}
+
+/// The value of a [SensorGainCurve] at one driver gain.
+class SensorGainReading {
+  const SensorGainReading({
+    required this.gain,
+    required this.electronsPerAdcCount,
+    required this.readNoiseE,
+    required this.isPublishedPoint,
+    required this.isClamped,
+  });
+
+  final int gain;
+  final double electronsPerAdcCount;
+  final double readNoiseE;
+
+  /// True when [gain] is one of the chart's own points.
+  final bool isPublishedPoint;
+
+  /// True when [gain] lies outside the chart and the nearest end was used.
+  final bool isClamped;
+
+  /// Electrons per count of a pixel container whose full scale is
+  /// [containerMaxAdu], for an ADC of [adcBitDepth] bits whose samples the
+  /// driver shifts up into that container.
+  double electronsPerContainerAdu({
+    required int containerMaxAdu,
+    required int adcBitDepth,
+  }) {
+    final adcMax = (1 << adcBitDepth) - 1;
+    final scale = containerMaxAdu > adcMax ? containerMaxAdu / adcMax : 1.0;
+    return electronsPerAdcCount / scale;
+  }
+}
+
+/// Conversion gain and read noise against the driver gain setting.
+///
+/// Between published points the conversion gain is interpolated
+/// exponentially in the gain setting (CMOS analog gain is set in decibel
+/// steps), and read noise as `rn² = a + b·(e⁻/ADU)²` — a fixed pixel noise
+/// plus a readout-chain noise that scales with the conversion gain. Outside
+/// the chart the nearest end is used and the reading says so.
+class SensorGainCurve {
+  const SensorGainCurve({
+    required this.adcBitDepth,
+    required this.points,
+    required this.source,
+  });
+
+  /// ADC resolution the [SensorGainPoint.electronsPerAdu] figures refer to.
+  final int adcBitDepth;
+
+  /// Published points, in increasing gain order.
+  final List<SensorGainPoint> points;
+
+  /// Where the points were read from.
+  final String source;
+
+  SensorGainReading? at(int gain) {
+    if (points.isEmpty) return null;
+    final first = points.first;
+    final last = points.last;
+    if (gain <= first.gain || gain >= last.gain) {
+      final end = gain <= first.gain ? first : last;
+      return SensorGainReading(
+        gain: gain,
+        electronsPerAdcCount: end.electronsPerAdu,
+        readNoiseE: end.readNoiseE,
+        isPublishedPoint: gain == end.gain,
+        isClamped: gain != end.gain,
+      );
+    }
+    for (var i = 0; i < points.length - 1; i++) {
+      final lo = points[i];
+      final hi = points[i + 1];
+      if (gain < lo.gain || gain > hi.gain) continue;
+      if (gain == lo.gain || gain == hi.gain) {
+        final p = gain == lo.gain ? lo : hi;
+        return SensorGainReading(
+          gain: gain,
+          electronsPerAdcCount: p.electronsPerAdu,
+          readNoiseE: p.readNoiseE,
+          isPublishedPoint: true,
+          isClamped: false,
+        );
+      }
+      final t = (gain - lo.gain) / (hi.gain - lo.gain);
+      final ePerAdu = math.exp(
+        math.log(lo.electronsPerAdu) +
+            t * (math.log(hi.electronsPerAdu) - math.log(lo.electronsPerAdu)),
+      );
+      final g2lo = lo.electronsPerAdu * lo.electronsPerAdu;
+      final g2hi = hi.electronsPerAdu * hi.electronsPerAdu;
+      final u = (ePerAdu * ePerAdu - g2lo) / (g2hi - g2lo);
+      final rn2 =
+          lo.readNoiseE * lo.readNoiseE +
+          u * (hi.readNoiseE * hi.readNoiseE - lo.readNoiseE * lo.readNoiseE);
+      return SensorGainReading(
+        gain: gain,
+        electronsPerAdcCount: ePerAdu,
+        readNoiseE: math.sqrt(math.max(rn2, 0.0)),
+        isPublishedPoint: false,
+        isClamped: false,
+      );
+    }
+    return null;
+  }
 }

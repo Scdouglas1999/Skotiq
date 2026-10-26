@@ -4,6 +4,8 @@
 /// excursion (possible eclipse/transit), and a confirmed periodic signal.
 library;
 
+import 'dart:math' as math;
+
 import '../narrator_context.dart';
 import '../narrator_detector.dart';
 import '../narrator_event.dart';
@@ -80,6 +82,11 @@ class LightCurveEventDetector extends NarratorDetector {
   static const double sigmaThreshold = 3.0;
   static const double recoverSigma = 1.0;
 
+  /// Smallest change announced, whatever the error bars say: below this a
+  /// sustained offset is more likely flat-field or seeing systematics than
+  /// the star.
+  static const double minAmplitudeMag = 0.05;
+
   bool _open = false;
 
   @override
@@ -92,8 +99,11 @@ class LightCurveEventDetector extends NarratorDetector {
   List<NarratorEventDraft> evaluate(NarratorContext ctx) {
     // Defensively ignore non-finite magnitudes (NaN / inf) so a junk point can
     // never masquerade as a giant excursion.
+    // One filter only: the newest frame's. Differential magnitudes of
+    // different filters differ by the target's color.
+    final filter = ctx.lightCurve.isEmpty ? null : ctx.lightCurve.last.filter;
     final points = ctx.lightCurve
-        .where((p) => p.differentialMagnitude.isFinite)
+        .where((p) => p.differentialMagnitude.isFinite && p.filter == filter)
         .toList(growable: false);
     if (points.length < minBaselinePoints + requiredConsecutive) {
       return const [];
@@ -123,10 +133,11 @@ class LightCurveEventDetector extends NarratorDetector {
         .map((p) => p.uncertainty)
         .where((u) => u.isFinite && u > 0)
         .toList(growable: false);
-    var sigma = NarratorStats.median(sigmas) ?? 0.0;
-    if (sigma <= 0) {
-      sigma = NarratorStats.stdDev(baselineMags) ?? 0.0;
-    }
+    // The larger of the stated error bars and the baseline's own scatter, so
+    // understated error bars cannot make noise look significant.
+    final stated = NarratorStats.median(sigmas) ?? 0.0;
+    final scatter = NarratorStats.stdDev(baselineMags) ?? 0.0;
+    final sigma = math.max(stated, scatter);
     if (sigma <= 0) return const [];
 
     final lastDev = tail.last.differentialMagnitude - baseline;
@@ -164,7 +175,7 @@ class LightCurveEventDetector extends NarratorDetector {
 
     // Need every point in the trailing window to deviate in the same direction
     // beyond the threshold.
-    final threshold = sigmaThreshold * sigma;
+    final threshold = math.max(sigmaThreshold * sigma, minAmplitudeMag);
     final allUp = tail.every(
       (p) => (p.differentialMagnitude - baseline) > threshold,
     );

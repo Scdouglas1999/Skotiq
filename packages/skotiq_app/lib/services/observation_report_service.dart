@@ -627,7 +627,7 @@ class ObservationReportService {
         pw.SizedBox(height: 4),
         pw.Text(
           'Latest quality: ${samples.last.qualityBucket} '
-          '(extinction ${samples.last.extinctionCoefficient.toStringAsFixed(3)})',
+          '${samples.last.extinctionMeasured ? '(extinction ${samples.last.extinctionCoefficient.toStringAsFixed(3)} mag/airmass)' : '(extinction not measured)'}',
           style: const pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600),
         ),
       ],

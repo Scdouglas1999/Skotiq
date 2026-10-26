@@ -70,9 +70,16 @@ class TransparencyTrendDetector extends NarratorDetector {
     final improving = change > 0;
     _state = improving ? 1 : -1;
 
-    final extinctionDelta =
-        (window.last.extinctionCoefficient - window.first.extinctionCoefficient)
-            .abs();
+    // Only measured extinctions of one filter are comparable.
+    final comparable =
+        window.first.extinctionMeasured &&
+        window.last.extinctionMeasured &&
+        window.first.filter == window.last.filter;
+    final extinctionDelta = comparable
+        ? (window.last.extinctionCoefficient -
+                  window.first.extinctionCoefficient)
+              .abs()
+        : double.nan;
     final extinctionNote = extinctionDelta.isFinite && extinctionDelta > 0.001
         ? ' (extinction ${improving ? 'down' : 'up'} '
               '${extinctionDelta.toStringAsFixed(2)} mag/airmass)'

@@ -132,6 +132,21 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .toSet();
   }
 
+  /// The check star a session's differential photometry already uses, so
+  /// every frame of the session is checked against the same star.
+  Future<String?> getSessionCheckStarId(int sessionId) async {
+    final row =
+        await (select(photometryMeasurements)
+              ..where(
+                (tbl) =>
+                    tbl.sessionId.equals(sessionId) & tbl.role.equals('check'),
+              )
+              ..orderBy([(tbl) => OrderingTerm.asc(tbl.timestamp)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row?.objectId;
+  }
+
   Future<List<PhotometryMeasurementRow>> getPhotometryForSession(
     int sessionId,
   ) {
@@ -241,18 +256,25 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// [atOrBefore], only frames calibrated at or before that time, so a frame
   /// processed after later ones (a reprocess) sees the history it was
   /// captured with.
+  /// The session's calibrated frames, newest first. With [filter], only
+  /// frames taken in that filter.
   Future<List<FramePhotometricCalibrationRow>> getRecentCalibrations(
     int sessionId, {
     int limit = 20,
     DateTime? atOrBefore,
+    String? filter,
   }) {
     return (select(framePhotometricCalibration)
           ..where((tbl) {
-            final inSession =
+            var where =
                 tbl.sessionId.equals(sessionId) & tbl.isCalibrated.equals(true);
-            return atOrBefore == null
-                ? inSession
-                : inSession & tbl.timestamp.isSmallerOrEqualValue(atOrBefore);
+            if (atOrBefore != null) {
+              where = where & tbl.timestamp.isSmallerOrEqualValue(atOrBefore);
+            }
+            if (filter != null) {
+              where = where & tbl.filter.equals(filter);
+            }
+            return where;
           })
           ..orderBy([(tbl) => OrderingTerm.desc(tbl.timestamp)])
           ..limit(limit))
@@ -273,6 +295,22 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
       )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
       await into(transparencySamples).insert(sample);
     });
+  }
+
+  /// Remove [capturedImageId]'s transparency sample, so a frame processed
+  /// again without one does not keep an old value.
+  Future<void> deleteTransparencySampleForImage(int capturedImageId) {
+    return (delete(
+      transparencySamples,
+    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+  }
+
+  /// Remove [capturedImageId]'s calibration, so a frame processed again
+  /// whose fit is refused does not keep an old zero point.
+  Future<void> deleteFrameCalibrationForImage(int capturedImageId) {
+    return (delete(
+      framePhotometricCalibration,
+    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
   }
 
   Stream<List<TransparencySampleRow>> watchTransparencyForSession(

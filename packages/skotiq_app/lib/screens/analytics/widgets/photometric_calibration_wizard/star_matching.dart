@@ -465,12 +465,17 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       }
       final matchedStar = projectedCatalog[bestIdx].star;
       final catalogV = matchedStar.magV;
+      // The frame's zero point is in its filter's catalog band.
+      final calibrationBand =
+          PhotometricBand.fromCode(calibration.photometricBand) ??
+              PhotometricBand.johnsonV;
+      final catalogInBand = matchedStar.magIn(calibrationBand) ?? catalogV;
 
       // Sanity gate on the pairing: the frame ZP predicts
       // V ≈ instMag + zp. A positional match whose brightness disagrees
       // by over ~1.5 mag is almost certainly the wrong star (blend,
       // double, or projection error) and would corrupt the fit.
-      if ((instMag + zp - catalogV).abs() > 1.5) {
+      if ((instMag + zp - catalogInBand).abs() > 1.5) {
         skippedImplausible++;
         continue;
       }
@@ -493,6 +498,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
         decDegrees: matchedStar.decDegrees,
         catalogMagV: catalogV,
         catalogMagB: catalogV + bv,
+        catalogMagR: matchedStar.magR,
         instrumentalFlux: normalizedFlux,
         snr: star.snr,
         airmass: airmass,

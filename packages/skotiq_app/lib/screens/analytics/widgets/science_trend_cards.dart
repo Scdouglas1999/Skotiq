@@ -32,18 +32,28 @@ class ZeroPointTrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final points = <_TrendPoint>[];
-    for (final c in calibrations) {
-      final zp = c.zeroPoint;
-      if (zp == null || !zp.isFinite || !c.isCalibrated) continue;
-      points.add(_TrendPoint(c.timestamp, zp));
-    }
-    points.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final usable = calibrations
+        .where(
+          (c) => c.isCalibrated && c.zeroPoint != null && c.zeroPoint!.isFinite,
+        )
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    // Zero points of different filters differ by up to 1.5 mag, so the card
+    // plots one filter: the newest frame's.
+    final filter = usable.isEmpty ? null : usable.last.filter;
+    final points = [
+      for (final c in usable)
+        if (c.filter == filter) _TrendPoint(c.timestamp, c.zeroPoint!),
+    ];
+    final band = usable.isEmpty ? null : usable.last.photometricBand;
 
     return _TrendCardShell(
       colors: colors,
       icon: LucideIcons.gauge,
-      title: 'Zero point over time',
+      title: filter == null || filter.isEmpty
+          ? 'Zero point over time'
+          : 'Zero point over time, $filter filter'
+              '${band == null ? '' : ' ($band band)'}',
       subtitle:
           'Higher = fainter stars detectable at the same exposure. Rises mean '
           'transparency is improving; sudden drops typically indicate '

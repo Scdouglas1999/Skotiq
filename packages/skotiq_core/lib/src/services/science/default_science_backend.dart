@@ -17,6 +17,10 @@ import '../plate_solve_service.dart';
 import '../../utils/utc_timestamp.dart';
 import 'astrometric_residuals.dart';
 import 'nearest_neighbour_matching.dart';
+import 'aperture_photometry.dart';
+import 'filter_transparency.dart';
+import 'frame_zero_point_fit.dart';
+import 'photometric_bands.dart';
 import 'photometric_catalog_service.dart';
 import 'science_backend.dart';
 
@@ -116,6 +120,11 @@ class DefaultScienceBackend implements ScienceBackend {
   Future<List<StarMeasurement>> measureStars(
     String imagePath,
     PhotometryOptions options,
+  ) async => (await _detect(imagePath, options))?.stars ?? const [];
+
+  Future<_DetectedField?> _detect(
+    String imagePath,
+    PhotometryOptions options,
   ) async {
     try {
       final config = StarDetectionConfigApi(
@@ -133,7 +142,7 @@ class DefaultScienceBackend implements ScienceBackend {
         filePath: imagePath,
         config: config,
       );
-      return result.stars
+      final stars = result.stars
           .where(
             (s) =>
                 s.snr >= options.minSnr &&
@@ -156,12 +165,17 @@ class DefaultScienceBackend implements ScienceBackend {
             ),
           )
           .toList(growable: false);
+      return _DetectedField(
+        stars: stars,
+        noiseAdu: result.noise,
+        medianFwhm: result.medianFwhm,
+      );
     } catch (error, stack) {
       _logger.warning(
         'Star measurement failed for $imagePath: $error\n$stack',
         source: 'ScienceBackend',
       );
-      return const [];
+      return null;
     }
   }
 
@@ -180,7 +194,6 @@ class DefaultScienceBackend implements ScienceBackend {
       );
       return null;
     }
-    final timestamp = context.capturedAt;
     final rawExposureSeconds = context.exposureSeconds;
     if (!rawExposureSeconds.isFinite || rawExposureSeconds <= 0) {
       _logger.warning(
@@ -191,10 +204,11 @@ class DefaultScienceBackend implements ScienceBackend {
     }
     final exposureSeconds = rawExposureSeconds.clamp(0.001, double.infinity);
 
-    final stars = await measureStars(
+    final field = await _detect(
       imagePath,
       const PhotometryOptions(minSnr: 5.0),
     );
+    final stars = field?.stars ?? const <StarMeasurement>[];
     // WHY: writing a sentinel-RMS isCalibrated:false row would let downstream
     // aggregations (transparency confidence, observation reports) treat the
     // row as data. Returning null instead means no DB row is inserted —
@@ -205,257 +219,218 @@ class DefaultScienceBackend implements ScienceBackend {
 
     // V≤15 reaches the depth APASS actually provides; the HYG fallback
     // simply has nothing fainter than ~9, so a deeper request costs nothing.
+    const maxMatchPx = 9.0;
     final (matches, matchedCatalog) = await _catalogMatches(
       imagePath: imagePath,
       wcs: wcs,
       detectedStars: stars,
       maxCatalogMag: 15.0,
-      maxMatchPx: 9.0,
+      maxMatchPx: maxMatchPx,
     );
     if (matches.length < 8) {
       return null;
     }
 
-    final zpSamples = matches
-        .map((m) {
-          final normalizedFlux = (m.detected.flux / exposureSeconds).clamp(
-            1e-9,
-            double.infinity,
-          );
-          return m.catalogMag + 2.5 * math.log(normalizedFlux) / math.ln10;
-        })
-        .where((v) => v.isFinite)
-        .toList(growable: false);
-    final clipped = _sigmaClip(zpSamples, sigma: 2.8, iterations: 4);
-    if (clipped.length < 6) {
-      return null;
-    }
-
-    final zeroPoint = _median(clipped);
-    final rms = math.sqrt(
-      clipped.map((v) => v - zeroPoint).fold<double>(0, (s, d) => s + d * d) /
-          clipped.length,
+    final apertureFluxes = await _calibrationApertureFluxes(
+      imagePath: imagePath,
+      matches: matches,
+      medianHfr: field!.medianFwhm / 2,
     );
-    // WHY: a non-finite zero-point or RMS means the fit is structurally
-    // broken (e.g. all magnitudes collapsed to the same value, or one slipped
-    // through the isFinite filter). Surface this as an error
-    // rather than persisting a poisoned calibration row.
-    if (!zeroPoint.isFinite || !rms.isFinite) {
-      throw ScienceCalibrationError(
-        code: ScienceCalibrationErrorCode.fitFailed,
-        message:
-            'Photometric fit produced non-finite zero-point=$zeroPoint rms=$rms '
-            'for $imagePath (matched=${matches.length} clipped=${clipped.length}).',
-      );
-    }
-
-    final bg = _median(
-      stars
-          .map((s) => s.background)
-          .where((v) => v.isFinite && v >= 0)
-          .toList(growable: false),
+    final fit = fitFrameZeroPoint(
+      matches:
+          apertureFluxes ??
+          [
+            for (final m in matches)
+              (
+                flux: m.detected.flux,
+                catalogStar: m.catalogStar,
+                separationPx: m.separationPx,
+              ),
+          ],
+      exposureSeconds: exposureSeconds,
+      mapping: filterBandFor(context.filterName),
+      maxMatchPx: maxMatchPx,
+      brighterHalfOnly: apertureFluxes == null,
     );
-    final fwhmEstimate = _median(
-      stars
-          .map((s) => s.fwhm)
-          .where((v) => v.isFinite && v > 0.0)
-          .toList(growable: false),
-    );
-    final apertureRadius = fwhmEstimate > 0
-        ? (1.35 * fwhmEstimate).clamp(3.5, 10.0).toDouble()
-        : 6.0;
-    final aperturePixels = math.pi * apertureRadius * apertureRadius;
-    final readNoise = await _readNoiseEstimate();
-    double? lim5;
-    double? lim3;
-    if (readNoise != null) {
-      // Photon statistics live in electrons, while the background and the
-      // fitted zero point are in ADU. Convert via the configured gain:
-      //   variance_e  = npix · (bg_adu·g + rn_e²)
-      //   sigma_adu   = sqrt(variance_e) / g
-      // With no gain configured we assume 1 e⁻/ADU, which understates the
-      // sky-noise term for high-gain CMOS settings (g < 1) — say so rather
-      // than silently producing an optimistic limit.
-      final gain = await _gainElectronsPerAdu();
-      if (gain == null) {
-        _logger.warning(
-          'science.camera.gain_e_per_adu is not configured; limiting '
-          'magnitude assumes 1 e-/ADU.',
-          source: 'ScienceBackend',
-        );
-      }
-      final g = gain ?? 1.0;
-      final noiseAdu =
-          (math.sqrt(aperturePixels * (bg * g + readNoise * readNoise)) / g)
-              .clamp(1e-6, double.infinity);
-      lim5 =
-          zeroPoint -
-          2.5 * math.log((5.0 * noiseAdu) / exposureSeconds) / math.ln10;
-      lim3 =
-          zeroPoint -
-          2.5 * math.log((3.0 * noiseAdu) / exposureSeconds) / math.ln10;
-    } else {
-      _logger.warning(
-        'Limiting magnitude omitted for $imagePath: camera read noise is not configured.',
+    final source = catalog == PhotometricCatalogSource.auto
+        ? matchedCatalog
+        : catalog;
+    if (fit.rejectionReason != null) {
+      _logger.info(
+        'Photometric calibration refused for $imagePath: ${fit.rejectionReason}',
         source: 'ScienceBackend',
       );
+      return FramePhotometricCalibration(
+        capturedImageId: context.capturedImageId,
+        sessionId: context.sessionId,
+        timestamp: context.capturedAt,
+        airmass: context.airmass,
+        exposureSeconds: exposureSeconds,
+        isCalibrated: false,
+        matchedStarCount: fit.starCount,
+        calibrationRms: fit.rms ?? 0.0,
+        solverId: wcs.solverId,
+        catalogSource: source,
+        filter: context.filterName,
+        photometricBand: fit.band.code,
+        bandIsStandard: fit.bandIsStandard,
+        rejectionReason: fit.rejectionReason,
+      );
     }
+    final zeroPoint = fit.zeroPoint!;
+    final rms = fit.rms!;
+
+    final limits = await _limitingMagnitudes(
+      imagePath: imagePath,
+      zeroPoint: zeroPoint,
+      exposureSeconds: exposureSeconds,
+      field: field,
+    );
 
     return FramePhotometricCalibration(
       capturedImageId: context.capturedImageId,
       sessionId: context.sessionId,
-      timestamp: timestamp,
+      timestamp: context.capturedAt,
       airmass: context.airmass,
       exposureSeconds: exposureSeconds,
       isCalibrated: true,
       zeroPoint: zeroPoint,
-      limitingMag3Sigma: lim3,
-      limitingMag5Sigma: lim5,
-      matchedStarCount: clipped.length,
-      // WHY: do NOT cap RMS at a sentinel ceiling — that would hide poor fits
-      // from observation-report aggregates and the science insights panel.
-      // High RMS is real data; downstream code already thresholds at 0.2.
+      limitingMag3Sigma: limits?.lim3,
+      limitingMag5Sigma: limits?.lim5,
+      matchedStarCount: fit.starCount,
       calibrationRms: rms,
       solverId: wcs.solverId,
       // Resolve the `auto` request to the catalog _catalogMatches actually
       // served the fit from (APASS online/cache, or the bundled HYG
       // fallback) so the persisted row and the MAGZPSRC FITS keyword
       // record real provenance.
-      catalogSource: catalog == PhotometricCatalogSource.auto
-          ? matchedCatalog
-          : catalog,
+      catalogSource: source,
+      filter: context.filterName,
+      photometricBand: fit.band.code,
+      bandIsStandard: fit.bandIsStandard,
+      zeroPointError: fit.zeroPointError,
     );
+  }
+
+  /// Total fluxes of the matched catalog stars, measured in one circular
+  /// aperture of three times the frame's median half-flux radius (about 1.5
+  /// FWHM) and scaled by an aperture correction: the median ratio of the
+  /// flux within twice that radius to the flux within it, over the brightest
+  /// matched stars. A radius that follows the seeing keeps the same fraction
+  /// of every star's light whatever the seeing, unlike the detector's
+  /// footprint. Null when the file cannot be read this way.
+  Future<List<ZeroPointMatch>?> _calibrationApertureFluxes({
+    required String imagePath,
+    required List<_CatalogMatch> matches,
+    required double medianHfr,
+  }) async {
+    if (!medianHfr.isFinite || medianHfr <= 0) return null;
+    final ranked = matches.toList()
+      ..sort((a, b) => b.detected.flux.compareTo(a.detected.flux));
+    final used = ranked.take(300).toList(growable: false);
+    final radius = (3.0 * medianHfr).clamp(3.0, 20.0).toDouble();
+    final inner = 2.5 * radius;
+    final outer = inner + math.max(6.0, radius);
+    final positions = [
+      for (final m in used) (x: m.detected.x, y: m.detected.y),
+    ];
+    final small = await measureApertures(
+      imagePath,
+      positions,
+      radius: radius,
+      innerSky: inner,
+      outerSky: outer,
+    );
+    if (small == null) return null;
+    final brightest = positions.take(30).toList(growable: false);
+    final large = await measureApertures(
+      imagePath,
+      brightest,
+      radius: 2 * radius,
+      innerSky: inner,
+      outerSky: outer,
+    );
+    if (large == null) return null;
+    final ratios = <double>[];
+    for (var i = 0; i < brightest.length; i++) {
+      final a = small[i], b = large[i];
+      if (a == null || b == null || a.flux <= 0 || b.flux <= 0) continue;
+      ratios.add(b.flux / a.flux);
+    }
+    if (ratios.length < 5) return null;
+    ratios.sort();
+    final correction = ratios[ratios.length ~/ 2];
+    if (!correction.isFinite || correction < 1 || correction > 1.5) {
+      return null;
+    }
+    return [
+      for (var i = 0; i < used.length; i++)
+        if (small[i] != null && small[i]!.flux > 0)
+          (
+            flux: small[i]!.flux * correction,
+            catalogStar: used[i].catalogStar,
+            separationPx: used[i].separationPx,
+          ),
+    ];
+  }
+
+  /// 3σ and 5σ point-source limits for a frame with [zeroPoint].
+  ///
+  /// The noise is the detector's measured per-pixel background noise summed
+  /// over a 1.5-FWHM aperture, and the limit is the total flux of a star
+  /// whose light inside that aperture is N times that noise. A seeing
+  /// profile (Moffat, beta about 3.5) holds about 93% of its light within
+  /// 1.5 FWHM. With no measured noise it falls back to a Poisson model from
+  /// the configured gain and read noise.
+  Future<({double lim3, double lim5})?> _limitingMagnitudes({
+    required String imagePath,
+    required double zeroPoint,
+    required double exposureSeconds,
+    required _DetectedField field,
+  }) async {
+    const apertureFwhm = 1.5;
+    const encircledFraction = 0.93;
+    final fwhm = field.medianFwhm.isFinite && field.medianFwhm > 0
+        ? field.medianFwhm
+        : 3.0;
+    final radius = (apertureFwhm * fwhm).clamp(2.0, 20.0).toDouble();
+    final aperturePixels = math.pi * radius * radius;
+    double? noiseAdu;
+    if (field.noiseAdu.isFinite && field.noiseAdu > 0) {
+      noiseAdu = field.noiseAdu * math.sqrt(aperturePixels);
+    } else {
+      final readNoise = await _readNoiseEstimate();
+      if (readNoise == null) {
+        _logger.warning(
+          'Limiting magnitude omitted for $imagePath: no measured background '
+          'noise and camera read noise is not configured.',
+          source: 'ScienceBackend',
+        );
+        return null;
+      }
+      final g = await _gainElectronsPerAdu() ?? 1.0;
+      final bg = _median(
+        field.stars
+            .map((s) => s.background)
+            .where((v) => v.isFinite && v >= 0)
+            .toList(growable: false),
+      );
+      noiseAdu =
+          math.sqrt(aperturePixels * (bg * g + readNoise * readNoise)) / g;
+    }
+    double limit(double sigmas) =>
+        zeroPoint -
+        2.5 *
+            math.log(sigmas * noiseAdu! / encircledFraction / exposureSeconds) /
+            math.ln10;
+    return (lim3: limit(3), lim5: limit(5));
   }
 
   @override
   Future<TransparencySample?> estimateTransparency(
     List<FramePhotometricCalibration> recentCalibrations,
     TransparencyOptions options,
-  ) async {
-    final calibrations =
-        recentCalibrations
-            .where(
-              (c) =>
-                  c.isCalibrated &&
-                  c.zeroPoint != null &&
-                  c.zeroPoint!.isFinite,
-            )
-            .toList(growable: false)
-          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-    if (calibrations.length < options.minimumSampleCount) return null;
-
-    final window = calibrations.length > options.rollingWindowSize
-        ? calibrations.sublist(calibrations.length - options.rollingWindowSize)
-        : calibrations;
-    if (window.length < options.minimumSampleCount) return null;
-
-    final withAirmass = window
-        .where((c) => c.airmass != null && c.airmass!.isFinite)
-        .toList(growable: false);
-    // Leave-one-out needs one additional sample beyond the minimum,
-    // because the latest sample is held out from the fit.
-    final useAirmassFit = withAirmass.length >= options.minimumSampleCount + 1;
-
-    double transparency = 100.0;
-    double extinction = 0.0;
-    double confidence = 0.0;
-    var extinctionFromAirmassFit = false;
-
-    if (useAirmassFit) {
-      // Leave-one-out: fit the airmass model on all samples EXCEPT
-      // the latest, then evaluate the residual of the held-out last
-      // point.  This avoids the self-inclusion bias that would
-      // suppress the residual and hide real transparency changes.
-      final fitData = withAirmass.sublist(0, withAirmass.length - 1);
-      final x = fitData.map((c) => c.airmass!).toList(growable: false);
-      final y = fitData.map((c) => c.zeroPoint!).toList(growable: false);
-      final allZps = withAirmass
-          .map((c) => c.zeroPoint!)
-          .toList(growable: false);
-      final yScatter = _robustStdDev(allZps);
-      final span = (x.reduce(math.max) - x.reduce(math.min)).abs();
-      if (span < options.minAirmassSpan) {
-        return null;
-      }
-
-      final fit = _weightedLinearFit(
-        x: x,
-        y: y,
-        weightBy: fitData
-            .map((c) => 1.0 / math.max(0.03, c.calibrationRms))
-            .toList(growable: false),
-      );
-      if (fit == null) {
-        return null;
-      }
-
-      final slope = fit.slope;
-      final intercept = fit.intercept;
-      extinction = math.max(0.0, -slope);
-      extinctionFromAirmassFit = true;
-
-      // Transparency = how much the ACTUAL latest ZP deviates from what
-      // the airmass model PREDICTS.  A clear sky gives residual ≈ 0 →
-      // transparency ≈ 100%, regardless of airmass.  Clouds / haze push
-      // the actual ZP below the prediction → transparency < 100%.
-      final currentAirmass = withAirmass.last.airmass!.clamp(1.0, 5.0);
-      final predictedZp = intercept + slope * currentAirmass;
-      final actualZp = withAirmass.last.zeroPoint!;
-      final residualMag =
-          predictedZp - actualZp; // positive ⇒ dimmer than expected
-      transparency = (math.pow(10.0, -0.4 * residualMag) * 100.0)
-          .clamp(0.0, 100.0)
-          .toDouble();
-
-      final sampleFactor = (withAirmass.length / options.rollingWindowSize)
-          .clamp(0.25, 1.0);
-      final fitPenalty = math.exp(-(fit.rms / 0.12).clamp(0.0, 4.0));
-      final scatterPenalty = math.exp(-(yScatter / 0.2).clamp(0.0, 4.0));
-      confidence = (sampleFactor * fitPenalty * scatterPenalty)
-          .clamp(0.1, 1.0)
-          .toDouble();
-    } else {
-      final zps = window.map((c) => c.zeroPoint!).toList(growable: false);
-      final baseline = _percentile(zps, 0.9);
-      final current = window.last.zeroPoint!;
-      final deltaMag = baseline - current;
-      transparency = (math.pow(10.0, -0.4 * deltaMag) * 100.0)
-          .clamp(0.0, 100.0)
-          .toDouble();
-      // Warm-up fallback: this is a zero-point depression vs the session
-      // baseline in magnitudes, NOT mag/airmass — flagged via
-      // extinctionFromAirmassFit=false so unit-bearing consumers skip it.
-      extinction = math.max(0.0, deltaMag);
-
-      final scatter = _robustStdDev(zps);
-      final sampleFactor = (window.length / options.rollingWindowSize)
-          .clamp(0.2, 1.0)
-          .toDouble();
-      final stabilityPenalty = math.exp(-(scatter / 0.25).clamp(0.0, 4.0));
-      confidence = (sampleFactor * stabilityPenalty)
-          .clamp(0.15, 1.0)
-          .toDouble();
-    }
-
-    final quality = transparency >= 95
-        ? 'Excellent'
-        : transparency >= 85
-        ? 'Good'
-        : transparency >= 70
-        ? 'Fair'
-        : 'Poor';
-
-    return TransparencySample(
-      capturedImageId: window.last.capturedImageId,
-      sessionId: window.last.sessionId,
-      timestamp: window.last.timestamp,
-      transparencyPercent: transparency,
-      extinctionCoefficient: extinction,
-      qualityBucket: quality,
-      confidence: confidence,
-      extinctionFromAirmassFit: extinctionFromAirmassFit,
-    );
-  }
+  ) async => estimateFilterTransparency(recentCalibrations, options);
 
   @override
   Future<PsfFieldMap> buildPsfFieldMap(

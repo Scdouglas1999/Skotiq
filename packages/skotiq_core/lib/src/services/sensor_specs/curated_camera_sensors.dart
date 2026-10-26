@@ -2,7 +2,8 @@ import 'camera_sensor_entry.dart';
 import 'published_figure.dart';
 
 /// Source documents for [kCuratedCameraSensors]. Every figure in a row comes
-/// from the document its `source` names; nothing here is measured, averaged,
+/// from the document its `source` names (a gain curve names its own chart);
+/// nothing here is measured, averaged,
 /// inferred from a sibling model or taken from a third-party sensor database.
 ///
 /// The ZWO manuals were retrieved 2026-09-14 and each states its own revision
@@ -12,6 +13,22 @@ import 'published_figure.dart';
 const _zwoAsi1600Manual =
     'ZWO "ASI1600 Manual" Rev 1.5, Aug 2021, sections 2 and 4 — '
     'https://i.zwoastro.com/zwo-website/manuals/ASI1600_Manual_EN_V1.5.pdf';
+const _zwoAsi1600GainChart =
+    'ZWO ASI1600 gain chart (e⁻/ADU and read noise against driver gain, '
+    '12-bit ADC) on the ASI1600MM Pro product page — '
+    'https://www.zwoastro.com/product/asi1600mm-pro/';
+
+/// The ASI1600 chart points, shared by the mono and colour rows (one sensor
+/// family, one readout chain). Gain 300 is the manual's "30 dB" figure.
+const _zwoAsi1600GainCurve = SensorGainCurve(
+  adcBitDepth: 12,
+  source: _zwoAsi1600GainChart,
+  points: [
+    SensorGainPoint(gain: 0, electronsPerAdu: 5.0, readNoiseE: 3.6),
+    SensorGainPoint(gain: 139, electronsPerAdu: 1.0, readNoiseE: 1.7),
+    SensorGainPoint(gain: 300, electronsPerAdu: 0.16, readNoiseE: 1.2),
+  ],
+);
 const _zwoAsi2600Manual =
     'ZWO "ASI2600 Manual" Rev 1.3, Jul 2021, sections 2, 3 and 4 — '
     'https://astronomy-imaging-camera.com/manuals/ASI2600_Manual_EN_V1.3.pdf';
@@ -74,6 +91,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     readNoiseE: [PublishedFigure.atLabel(1.2, label: '30 dB gain')],
     fullWellE: [PublishedFigure.unattributed(20000)],
     qePeakFraction: 0.60,
+    gainCurve: _zwoAsi1600GainCurve,
     source: _zwoAsi1600Manual,
     note:
         'ZWO quotes read noise only at 30 dB gain. The ASI1600 manual does not '
@@ -91,6 +109,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     publishedImageAreaHeightMm: 13.3,
     readNoiseE: [PublishedFigure.atLabel(1.2, label: '30 dB gain')],
     fullWellE: [PublishedFigure.unattributed(20000)],
+    gainCurve: _zwoAsi1600GainCurve,
     source: _zwoAsi1600Manual,
     note:
         'QE is omitted: section 5 of the manual gives a peak value only for '

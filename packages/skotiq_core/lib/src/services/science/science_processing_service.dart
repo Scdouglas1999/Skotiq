@@ -20,9 +20,12 @@ import '../../utils/utc_timestamp.dart';
 import '../wcs/gnomonic_projection.dart';
 import '../wcs/wcs_sip_codec.dart';
 import 'airmass.dart';
+import 'aperture_photometry.dart';
 import 'default_science_backend.dart';
 import 'fits_header_writer.dart';
+import 'photometric_catalog_service.dart';
 import 'photometric_transform_service.dart';
+import 'science_camera_auto_config.dart';
 import 'science_backend.dart';
 import 'frame_auto_grader.dart';
 import 'science_status.dart';
@@ -166,6 +169,83 @@ class ScienceProcessingService {
     return 1.0857 / safeSnr;
   }
 
+  /// One frame's differential photometry against a fixed comparison set.
+  ///
+  /// The check star is chosen once per session: [sessionCheckId] when the
+  /// session already has one, else (with three or more comparisons) the
+  /// comparison closest in flux to the target in this frame. Every other
+  /// comparison in [comparisonIds] forms the ensemble, whose reference flux
+  /// is their summed flux; a frame in which any of them was not found is
+  /// skipped rather than measured against a different ensemble.
+  ///
+  /// Flux errors combine the detector's background-limited SNR with the
+  /// star's own photon noise, `σ² = (F/SNR)² + F/g`, when the camera's
+  /// e⁻/ADU [gainElectronsPerAdu] is known.
+  static DifferentialFrame buildDifferentialFrame({
+    required StarMeasurement target,
+    required List<({String objectId, StarMeasurement star})> comparisons,
+    required List<String> comparisonIds,
+    required String? sessionCheckId,
+    required double? gainElectronsPerAdu,
+  }) {
+    final found = {for (final c in comparisons) c.objectId: c.star};
+    String? checkId;
+    if (sessionCheckId != null && comparisonIds.contains(sessionCheckId)) {
+      checkId = sessionCheckId;
+    } else if (comparisonIds.length >= 3 && comparisons.isNotEmpty) {
+      checkId = comparisons
+          .reduce(
+            (a, b) =>
+                (a.star.flux - target.flux).abs() <=
+                    (b.star.flux - target.flux).abs()
+                ? a
+                : b,
+          )
+          .objectId;
+    }
+    final ensembleIds = comparisonIds
+        .where((id) => id != checkId)
+        .toList(growable: false);
+    if (ensembleIds.length < 2) {
+      return const DifferentialFrame.skip(
+        'fewer than two comparison stars besides the check star',
+      );
+    }
+    final missing = ensembleIds.where((id) => !found.containsKey(id)).toList();
+    if (missing.isNotEmpty) {
+      return DifferentialFrame.skip(
+        'comparison ${missing.join(', ')} not found, so the ensemble would '
+        'differ from the other frames',
+      );
+    }
+    var sum = 0.0;
+    var variance = 0.0;
+    for (final id in ensembleIds) {
+      final star = found[id]!;
+      sum += star.flux;
+      final sigma = fluxSigma(star, gainElectronsPerAdu);
+      variance += sigma * sigma;
+    }
+    return DifferentialFrame(
+      checkObjectId: found.containsKey(checkId) ? checkId : null,
+      ensembleObjectIds: ensembleIds,
+      ensembleFlux: sum,
+      ensembleFluxSigma: math.sqrt(variance),
+      targetFluxSigma: fluxSigma(target, gainElectronsPerAdu),
+    );
+  }
+
+  /// 1-sigma flux error of [star] in ADU: the detector's background-limited
+  /// error plus the star's photon noise when e⁻/ADU is known.
+  static double fluxSigma(StarMeasurement star, double? gainElectronsPerAdu) {
+    final flux = star.flux.clamp(1e-6, double.infinity).toDouble();
+    final snr = star.snr.isFinite ? star.snr.clamp(1.0, 1e6).toDouble() : 1.0;
+    final background = flux / snr;
+    final g = gainElectronsPerAdu;
+    final photon = (g != null && g > 0) ? flux / g : 0.0;
+    return math.sqrt(background * background + photon);
+  }
+
   /// Build the `photometry_measurements` rows for one frame: the target,
   /// the optional check star, and every comparison star.
   ///
@@ -189,6 +269,9 @@ class ScienceProcessingService {
     required PhotometricTransformCoefficients? transform,
     required double? airmass,
     required double exposureSeconds,
+    String? filter,
+    double? gainElectronsPerAdu,
+    Map<String, double> colorIndexByObject = const {},
   }) {
     final safeComparisonFlux = comparisonFlux.clamp(1e-6, double.infinity);
     final differentialMag =
@@ -202,17 +285,22 @@ class ScienceProcessingService {
         1.0857 *
         math.sqrt(fractionalVariance.isFinite ? fractionalVariance : 0.0);
 
-    double? standardMagForFlux(double rawFlux) {
+    // A standard magnitude needs the star's own color whenever the
+    // transform has a color term: with B-V taken as 0 the term biased R by
+    // -0.3 and B by +0.5 mag. Without a known color none is written.
+    double? standardMagForFlux(double rawFlux, String objectId) {
       if (transform == null || airmass == null || airmass <= 0) return null;
+      final colorIndex = transform.colorTerm == 0
+          ? 0.0
+          : colorIndexByObject[objectId];
+      if (colorIndex == null) return null;
       final flux = (rawFlux / exposureSeconds).clamp(1e-6, double.infinity);
       final instMag =
           -2.5 * math.log(flux.clamp(1e-30, double.infinity)) / math.ln10;
-      // Use color index 0.0 as default when unknown — the color term
-      // contribution is typically small for broadband filters.
       final standard = transform.applyTransform(
         instrumentalMag: instMag,
         airmass: airmass,
-        colorIndex: 0.0,
+        colorIndex: colorIndex,
       );
       return standard.isFinite ? standard : null;
     }
@@ -227,9 +315,12 @@ class ScienceProcessingService {
         y: target.y,
         flux: targetFlux,
         differentialMagnitude: drift.Value(differentialMag),
-        standardMagnitude: drift.Value(standardMagForFlux(targetFlux)),
+        standardMagnitude: drift.Value(
+          standardMagForFlux(targetFlux, targetObjectId),
+        ),
         snr: drift.Value(target.snr),
         uncertainty: drift.Value(uncertainty),
+        filter: drift.Value(filter),
         timestamp: drift.Value(frameTimestamp),
       ),
     ];
@@ -253,11 +344,8 @@ class ScienceProcessingService {
               (checkFlux / safeComparisonFlux).clamp(1e-6, double.infinity),
             ) /
             math.ln10;
-        final checkSnr = star.snr.isFinite
-            ? star.snr.clamp(1.0, 1e6).toDouble()
-            : 1.0;
         final checkVariance =
-            math.pow(1.0 / checkSnr, 2) +
+            math.pow(fluxSigma(star, gainElectronsPerAdu) / checkFlux, 2) +
             math.pow(comparisonFluxUncertainty / safeComparisonFlux, 2);
         checkUncertainty =
             1.0857 * math.sqrt(checkVariance.isFinite ? checkVariance : 0.0);
@@ -273,7 +361,9 @@ class ScienceProcessingService {
           y: star.y,
           flux: star.flux,
           differentialMagnitude: drift.Value<double?>(checkDiffMag),
-          standardMagnitude: drift.Value(standardMagForFlux(star.flux)),
+          standardMagnitude: drift.Value(
+            standardMagForFlux(star.flux, objectId),
+          ),
           snr: drift.Value(star.snr),
           // A plain comparison star has no differential magnitude to
           // propagate, so its uncertainty is its own Poisson-limited magnitude
@@ -282,9 +372,15 @@ class ScienceProcessingService {
           // export publishes as MAGERR and the period analysis weights the
           // light curve by.
           uncertainty: drift.Value<double?>(
-            checkUncertainty ?? magnitudeSigmaFromSnr(star.snr),
+            checkUncertainty ??
+                (gainElectronsPerAdu == null
+                    ? magnitudeSigmaFromSnr(star.snr)
+                    : 1.0857 *
+                          fluxSigma(star, gainElectronsPerAdu) /
+                          star.flux.clamp(1e-6, double.infinity)),
           ),
           isOutlier: drift.Value(outlierObjectIds.contains(objectId)),
+          filter: drift.Value(filter),
           timestamp: drift.Value(frameTimestamp),
         ),
       );
@@ -317,7 +413,8 @@ class ScienceProcessingService {
     String buildTag = _skotiqBuildTag,
   }) {
     final updates = <FitsKeywordWrite>[];
-    if (calibration != null) {
+    // A refused fit (chance matches, large scatter) writes nothing.
+    if (calibration != null && calibration.isCalibrated) {
       if (calibration.zeroPoint != null && calibration.zeroPoint!.isFinite) {
         updates.add(
           FitsKeywordWrite.floating(
@@ -327,12 +424,34 @@ class ScienceProcessingService {
           ),
         );
       }
-      if (calibration.calibrationRms.isFinite) {
+      final zpError = calibration.zeroPointError;
+      if (zpError != null && zpError.isFinite) {
         updates.add(
           FitsKeywordWrite.floating(
             'MAGZPERR',
+            zpError,
+            comment: 'MAGZP standard error [mag]',
+          ),
+        );
+      }
+      if (calibration.calibrationRms.isFinite) {
+        updates.add(
+          FitsKeywordWrite.floating(
+            'MAGZPRMS',
             calibration.calibrationRms,
-            comment: 'MAGZP 1-sigma uncertainty [mag]',
+            comment: 'Star-to-star scatter about MAGZP [mag]',
+          ),
+        );
+      }
+      final band = calibration.photometricBand;
+      if (band != null) {
+        updates.add(
+          FitsKeywordWrite.string(
+            'MAGZPBND',
+            band,
+            comment: calibration.bandIsStandard
+                ? 'Catalog band of MAGZP'
+                : 'MAGZP is a V-equivalent, not a standard band',
           ),
         );
       }
@@ -429,4 +548,29 @@ class ScienceProcessingService {
       ),
     );
   }
+}
+
+/// Result of [ScienceProcessingService.buildDifferentialFrame].
+class DifferentialFrame {
+  const DifferentialFrame({
+    required this.checkObjectId,
+    required this.ensembleObjectIds,
+    required this.ensembleFlux,
+    required this.ensembleFluxSigma,
+    required this.targetFluxSigma,
+  }) : skipReason = null;
+
+  const DifferentialFrame.skip(String this.skipReason)
+    : checkObjectId = null,
+      ensembleObjectIds = const [],
+      ensembleFlux = null,
+      ensembleFluxSigma = null,
+      targetFluxSigma = null;
+
+  final String? checkObjectId;
+  final List<String> ensembleObjectIds;
+  final double? ensembleFlux;
+  final double? ensembleFluxSigma;
+  final double? targetFluxSigma;
+  final String? skipReason;
 }

@@ -265,9 +265,12 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
         _computedCoefficients = coefficients;
         _isComputing = false;
         if (coefficients == null) {
-          _statusMessage =
+          final reason = authority is NetworkBackend
+              ? null
+              : ref.read(photometricTransformServiceProvider).lastRefusalReason;
+          _statusMessage = reason ??
               'Failed to compute fit. Check that stars have sufficient '
-              'airmass and color index spread.';
+                  'airmass and color index spread.';
         }
       });
     } catch (error) {

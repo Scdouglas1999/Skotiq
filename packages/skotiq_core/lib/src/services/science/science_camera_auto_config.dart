@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,7 +14,9 @@ import '../../providers/equipment/camera_state_provider.dart';
 import '../../providers/profiles_provider.dart';
 import '../logging_service.dart';
 import '../sensor_specs/camera_sensor_spec_resolver.dart';
+import '../sensor_specs/camera_sensor_entry.dart';
 import '../sensor_specs/camera_sensor_specs.dart';
+import '../sensor_specs/published_figure.dart';
 import '../smart_night/hardware_specs_service.dart';
 
 /// Keeps the `science.camera.*` settings (read noise, gain in e⁻/ADU,
@@ -26,19 +29,13 @@ import '../smart_night/hardware_specs_service.dart';
 ///   2. The active equipment profile (camera name + default gain) when no
 ///      camera is connected.
 ///
-/// Sensor values come from [CameraSensorSpecResolver] — the same resolution
-/// chain (user entry, then the published specification database) that Smart
-/// Night's exposure model uses, so the two features can never disagree about
-/// the camera. Saturation and the e⁻/ADU conversion are derived from the
-/// driver-reported PIXEL-CONTAINER full scale (`CameraStatus.maxAdu`):
-///   maxAdu       = CameraStatus.maxAdu   (65535 when the camera is unreachable)
-///   gain e⁻/ADU  = fullWell_e / maxAdu
-///
-/// It must NOT be `2^bitDepth − 1`: bit depth is ADC resolution, and 12/14-bit
-/// astro CMOS drivers left-justify their samples into the 16-bit pixel word. On
-/// a live ASI1600MM (bitDepth 12, frames measurably reaching 65504) the
-/// bit-depth form wrote `saturation_adu = 4095` — so photometry treated every
-/// real star as unsaturated — and inflated e⁻/ADU by 16x.
+/// The values themselves come from [resolveScienceCameraValues]: e⁻/ADU and
+/// read noise at the driver gain in use (a flat-pair measurement for that
+/// camera and gain, else the model's published gain chart), and a saturation
+/// threshold just below the driver-reported pixel-container full scale
+/// (`CameraStatus.maxAdu`). A camera with no chart and no measurement keeps
+/// whatever e⁻/ADU and read noise were configured, and the source label says
+/// so.
 ///
 /// The sync is opt-out: `science.camera.auto_managed=false` (set when the
 /// user manually edits any of the three fields) freezes the values, and
@@ -52,6 +49,11 @@ class ScienceCameraAutoConfig {
   static const readNoiseKey = 'science.camera.read_noise_e';
   static const gainKey = 'science.camera.gain_e_per_adu';
   static const saturationKey = 'science.camera.saturation_adu';
+
+  /// JSON [ScienceGainMeasurement]: e⁻/ADU measured from flat pairs for one
+  /// camera at one driver gain. Preferred over the published gain chart when
+  /// the camera and gain match.
+  static const gainMeasurementKey = 'science.camera.gain_measurement';
 
   final Ref _ref;
   final SkotiqBackend _backend;
@@ -102,26 +104,33 @@ class ScienceCameraAutoConfig {
 
       final specs = await _resolveSensorSpecs(dao, identity);
       if (!_isCurrent(generation)) return;
-      final readNoise = specs.readNoiseE;
-      final fullWell = specs.fullWellE;
+      final measurement = ScienceGainMeasurement.tryParse(
+        await dao.getSetting(gainMeasurementKey),
+      );
+      if (!_isCurrent(generation)) return;
+      final values = resolveScienceCameraValues(
+        cameraName: identity.name,
+        driverGain: identity.gain,
+        maxAdu: maxAdu,
+        adcBitDepth: bitDepth,
+        entry: specs.databaseEntry,
+        readNoiseOverride:
+            specs.readNoiseE?.origin == SensorSpecOrigin.userOverride
+            ? specs.readNoiseE!.value
+            : null,
+        measurement: measurement,
+      );
 
-      final updates = <String, String>{saturationKey: maxAdu.toString()};
-      String source;
-      if (readNoise != null && fullWell != null) {
-        updates[readNoiseKey] = readNoise.value.toStringAsFixed(2);
-        updates[gainKey] = (fullWell.value / maxAdu).toStringAsFixed(3);
-        source =
-            '${specs.databaseEntry?.model ?? identity.name} ($bitDepth-bit) — '
-            'read noise ${readNoise.provenance}';
-      } else {
-        // Unknown sensor: the driver's full scale still gives a correct
-        // saturation level, but read noise / e-/ADU would be guesses — leave
-        // whatever the user (or a previous match) configured rather than
-        // overwrite with fabricated values.
-        source =
-            '${identity.name} ($bitDepth-bit) — no published read noise or '
-            'full well for this camera, read noise/gain unchanged';
+      final updates = <String, String>{
+        saturationKey: values.saturationAdu.toString(),
+      };
+      if (values.readNoiseE != null) {
+        updates[readNoiseKey] = values.readNoiseE!.toStringAsFixed(2);
       }
+      if (values.electronsPerAdu != null) {
+        updates[gainKey] = values.electronsPerAdu!.toStringAsFixed(4);
+      }
+      final source = values.source;
       updates[autoSourceKey] = source;
 
       final existing = await dao.getAllSettings();
@@ -279,3 +288,180 @@ final scienceCameraAutoConfigProvider = Provider<ScienceCameraAutoConfig>((
   Future.microtask(() => service.maybeSync(reason: 'startup'));
   return service;
 });
+
+/// e⁻/ADU measured from pairs of flat frames (photon transfer) for one camera
+/// at one driver gain.
+class ScienceGainMeasurement {
+  const ScienceGainMeasurement({
+    required this.cameraName,
+    required this.driverGain,
+    required this.electronsPerAdu,
+    required this.pairCount,
+    this.measuredAt,
+  });
+
+  final String cameraName;
+  final int driverGain;
+  final double electronsPerAdu;
+  final int pairCount;
+  final DateTime? measuredAt;
+
+  Map<String, Object?> toJson() => {
+    'camera': cameraName,
+    'gain': driverGain,
+    'ePerAdu': electronsPerAdu,
+    'pairs': pairCount,
+    if (measuredAt != null) 'measuredAt': measuredAt!.toUtc().toIso8601String(),
+  };
+
+  static ScienceGainMeasurement? tryParse(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final json = jsonDecode(raw);
+      if (json is! Map) return null;
+      final camera = json['camera'];
+      final gain = json['gain'];
+      final ePerAdu = json['ePerAdu'];
+      final pairs = json['pairs'];
+      if (camera is! String || gain is! num || ePerAdu is! num) return null;
+      if (!ePerAdu.isFinite || ePerAdu <= 0) return null;
+      return ScienceGainMeasurement(
+        cameraName: camera,
+        driverGain: gain.round(),
+        electronsPerAdu: ePerAdu.toDouble(),
+        pairCount: pairs is num ? pairs.round() : 0,
+        measuredAt: DateTime.tryParse('${json['measuredAt'] ?? ''}'),
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+}
+
+/// The science camera values for one camera at one driver gain, with a
+/// sentence saying where each came from.
+class ScienceCameraValues {
+  const ScienceCameraValues({
+    required this.saturationAdu,
+    required this.electronsPerAdu,
+    required this.readNoiseE,
+    required this.source,
+  });
+
+  final int saturationAdu;
+
+  /// Null when neither a measurement nor a gain chart covers this camera; the
+  /// stored value is then left alone.
+  final double? electronsPerAdu;
+
+  /// Null when no figure is known at the gain in use.
+  final double? readNoiseE;
+  final String source;
+}
+
+/// Resolve e⁻/ADU, read noise and the saturation threshold for [cameraName]
+/// at [driverGain].
+///
+/// e⁻/ADU is a flat-pair [measurement] for this camera at this gain when one
+/// exists, else the model's published gain chart scaled to the pixel
+/// container, else unknown. Read noise is a user override, else the chart's
+/// figure at this gain, else a published figure quoted at exactly this gain,
+/// else unknown: a figure quoted at another gain is not used.
+///
+/// The saturation threshold is two ADC steps below [maxAdu]. Sensors often
+/// stop one code short of the driver's full scale (an ASI1600 driver reports
+/// 65520 and its frames top out at 65504), and the star detector counts a
+/// star saturated only when its peak is above the threshold.
+ScienceCameraValues resolveScienceCameraValues({
+  required String cameraName,
+  required int? driverGain,
+  required int maxAdu,
+  required int adcBitDepth,
+  required CameraSensorEntry? entry,
+  double? readNoiseOverride,
+  ScienceGainMeasurement? measurement,
+}) {
+  final curve = entry?.gainCurve;
+  final bits = curve?.adcBitDepth ?? adcBitDepth;
+  final adcMax = (1 << bits) - 1;
+  final step = maxAdu > adcMax ? (maxAdu / adcMax).round() : 1;
+  final saturation = math.max(255, maxAdu - 2 * step);
+  final model = entry?.model ?? cameraName;
+  final gainLabel = driverGain == null ? 'unknown gain' : 'gain $driverGain';
+  final parts = <String>[];
+
+  double? ePerAdu;
+  final reading = (curve != null && driverGain != null)
+      ? curve.at(driverGain)
+      : null;
+  if (measurement != null &&
+      driverGain != null &&
+      measurement.driverGain == driverGain &&
+      measurement.cameraName.trim().toLowerCase() ==
+          cameraName.trim().toLowerCase()) {
+    ePerAdu = measurement.electronsPerAdu;
+    parts.add(
+      'e⁻/ADU ${ePerAdu.toStringAsFixed(4)} measured from '
+      '${measurement.pairCount} flat pairs at $gainLabel',
+    );
+  } else if (reading != null) {
+    ePerAdu = reading.electronsPerContainerAdu(
+      containerMaxAdu: maxAdu,
+      adcBitDepth: bits,
+    );
+    parts.add(
+      'e⁻/ADU ${ePerAdu.toStringAsFixed(4)} at $gainLabel '
+      '${_chartPhrase(reading)}',
+    );
+  } else {
+    parts.add(
+      driverGain == null
+          ? 'e⁻/ADU unchanged: the camera gain is unknown'
+          : 'e⁻/ADU unchanged: no published gain chart for $model; enter '
+                'it by hand',
+    );
+  }
+
+  double? readNoise;
+  if (readNoiseOverride != null) {
+    readNoise = readNoiseOverride;
+    parts.add('read noise ${readNoise.toStringAsFixed(2)} e⁻ entered by you');
+  } else if (reading != null) {
+    readNoise = reading.readNoiseE;
+    parts.add(
+      'read noise ${readNoise.toStringAsFixed(2)} e⁻ '
+      '${_chartPhrase(reading)}',
+    );
+  } else {
+    final atThisGain = entry?.readNoiseE.where(
+      (f) =>
+          f.kind == PublishedFigureKind.atDriverGain &&
+          f.driverGain == driverGain,
+    );
+    if (atThisGain != null && atThisGain.isNotEmpty) {
+      readNoise = atThisGain.first.low;
+      parts.add(
+        'read noise ${readNoise.toStringAsFixed(2)} e⁻ published at '
+        '$gainLabel',
+      );
+    } else {
+      parts.add('read noise unchanged: no published figure at $gainLabel');
+    }
+  }
+  parts.add('saturation $saturation ADU ($bits-bit ADC, full scale $maxAdu)');
+  return ScienceCameraValues(
+    saturationAdu: saturation,
+    electronsPerAdu: ePerAdu,
+    readNoiseE: readNoise,
+    source: '$model at $gainLabel: ${parts.join('; ')}',
+  );
+}
+
+String _chartPhrase(SensorGainReading reading) {
+  if (reading.isClamped) {
+    return "from the published gain chart's nearest end (gain "
+        '${reading.gain} is outside it)';
+  }
+  if (reading.isPublishedPoint) return 'from the published gain chart';
+  return 'interpolated from the published gain chart';
+}

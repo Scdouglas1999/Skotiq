@@ -124,6 +124,9 @@ void main() {
         limitingMag5Sigma: 20.85,
         matchedStarCount: 142,
         calibrationRms: 0.039,
+        zeroPointError: 0.0041,
+        photometricBand: 'V',
+        bandIsStandard: true,
         solverId: 'skotiq',
         catalogSource: PhotometricCatalogSource.localGaia,
         exposureSeconds: 120.0,
@@ -152,6 +155,8 @@ void main() {
       expect(updates.map((u) => u.keyword).toList(), [
         'MAGZP',
         'MAGZPERR',
+        'MAGZPRMS',
+        'MAGZPBND',
         'MAGZPSRC',
         'MAGZPNST',
         'MAGLIM5',
@@ -172,9 +177,18 @@ void main() {
       expect(_floatFromCard(magzp!), closeTo(24.317, 1e-6));
       expect(magzp, contains('Photometric zero point'));
 
+      // MAGZPERR is the zero point's standard error; the per-star scatter
+      // is MAGZPRMS.
       final magzperr = _firstCardFor(fixture, 'MAGZPERR');
       expect(magzperr, isNotNull);
-      expect(_floatFromCard(magzperr!), closeTo(0.039, 1e-6));
+      expect(_floatFromCard(magzperr!), closeTo(0.0041, 1e-6));
+
+      final magzprms = _firstCardFor(fixture, 'MAGZPRMS');
+      expect(magzprms, isNotNull);
+      expect(_floatFromCard(magzprms!), closeTo(0.039, 1e-6));
+
+      final magzpbnd = _firstCardFor(fixture, 'MAGZPBND');
+      expect(_stringFromCard(magzpbnd!), 'V');
 
       final magzpsrc = _firstCardFor(fixture, 'MAGZPSRC');
       expect(magzpsrc, isNotNull);
@@ -299,14 +313,32 @@ void main() {
       ),
       transparency: null,
     );
-    // Non-finite MAGZP and MAGLIM5 are dropped — but MAGZPSRC/MAGZPNST/MAGZPERR
+    // Non-finite MAGZP and MAGLIM5 are dropped — but MAGZPSRC/MAGZPNST/MAGZPRMS
     // remain since they ARE finite. We still stamp provenance.
     final keywords = updates.map((u) => u.keyword).toList();
     expect(keywords, contains('MAGZPSRC'));
     expect(keywords, contains('MAGZPNST'));
-    expect(keywords, contains('MAGZPERR'));
+    expect(keywords, contains('MAGZPRMS'));
     expect(keywords, contains('SKHA_VER'));
     expect(keywords, isNot(contains('MAGZP')));
     expect(keywords, isNot(contains('MAGLIM5')));
+  });
+
+  test('a refused calibration writes no zero point keywords', () {
+    final updates = ScienceProcessingService.buildScienceWritebackKeywords(
+      calibration: FramePhotometricCalibration(
+        capturedImageId: 1,
+        sessionId: 1,
+        timestamp: DateTime.utc(2026, 10, 26, 9),
+        isCalibrated: false,
+        matchedStarCount: 14,
+        calibrationRms: 1.4,
+        solverId: 'astap',
+        catalogSource: PhotometricCatalogSource.localApass,
+        rejectionReason: 'catalog stars do not line up',
+      ),
+      transparency: null,
+    );
+    expect(updates, isEmpty);
   });
 }

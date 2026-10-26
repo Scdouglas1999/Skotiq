@@ -166,10 +166,14 @@ class _LightCurveChartCard extends StatelessWidget {
   final List<LightCurvePoint> lightCurve;
   final Widget? hubExportButton;
 
+  /// The one filter [lightCurve] was taken in, when recorded.
+  final String? filter;
+
   const _LightCurveChartCard({
     required this.colors,
     required this.lightCurve,
     this.hubExportButton,
+    this.filter,
   });
 
   @override
@@ -232,7 +236,9 @@ class _LightCurveChartCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Differential Photometry',
+                  filter == null || filter!.isEmpty
+                      ? 'Differential Photometry'
+                      : 'Differential Photometry, $filter filter',
                   style: SkotiqTypography.bodyStrong
                       .copyWith(color: colors.textPrimary),
                 ),

@@ -1,14 +1,23 @@
 part of '../science_models.dart';
 
 class TransparencyOptions {
-  final int rollingWindowSize;
+  /// Calibrations of the current frame's filter needed before a sample.
   final int minimumSampleCount;
+
+  /// Airmass range the filter's calibrations must cover before an
+  /// extinction coefficient is fitted and reported.
   final double minAirmassSpan;
 
+  /// Range of fitted extinction (mag/airmass) accepted as atmospheric
+  /// extinction. A slope outside it means the sky changed during the night.
+  final double minPlausibleExtinction;
+  final double maxPlausibleExtinction;
+
   const TransparencyOptions({
-    this.rollingWindowSize = 12,
     this.minimumSampleCount = 4,
-    this.minAirmassSpan = 0.25,
+    this.minAirmassSpan = 0.3,
+    this.minPlausibleExtinction = 0.02,
+    this.maxPlausibleExtinction = 0.8,
   });
 }
 
@@ -21,13 +30,18 @@ class TransparencySample {
   final String qualityBucket;
   final double confidence;
 
-  /// True when [extinctionCoefficient] came from a real zero-point vs
-  /// airmass regression (units: mag/airmass). False for the warm-up
-  /// fallback path, where the value is a zero-point depression relative to
-  /// the session baseline (units: mag) — informative for trends but NOT a
-  /// physical extinction coefficient. Consumers that stamp the value with
-  /// physical units (the EXTINCT FITS keyword) must check this flag.
+  /// True only when [extinctionCoefficient] is a measured extinction: a
+  /// zero point against airmass fit for one filter over enough airmass range,
+  /// with a plausible slope. Otherwise [extinctionCoefficient] is 0 and must
+  /// not be shown or stamped as an extinction.
   final bool extinctionFromAirmassFit;
+
+  /// The filter whose zero points this sample compares.
+  final String? filter;
+
+  /// Plain sentence on how the sample was made, for the stage note and UI:
+  /// whether extinction was measured and, if not, why.
+  final String? note;
 
   const TransparencySample({
     required this.capturedImageId,
@@ -38,6 +52,8 @@ class TransparencySample {
     required this.qualityBucket,
     required this.confidence,
     this.extinctionFromAirmassFit = false,
+    this.filter,
+    this.note,
   });
 }
 

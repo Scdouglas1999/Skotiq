@@ -99,6 +99,17 @@ void main() {
         uncertainty: const Value(0.012),
         timestamp: Value(DateTime.utc(2026, 8, 1, 23, 30)),
       ),
+      PhotometryMeasurementsCompanion.insert(
+        capturedImageId: Value(imageId),
+        sessionId: const Value(_sessionId),
+        objectId: 'C1',
+        role: const Value('comparison'),
+        x: 700.0,
+        y: 512.0,
+        flux: 250000.0,
+        uncertainty: const Value(0.008),
+        timestamp: Value(DateTime.utc(2026, 8, 1, 23, 30)),
+      ),
     ]);
     return imageId;
   }

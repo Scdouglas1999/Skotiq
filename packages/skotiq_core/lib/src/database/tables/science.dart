@@ -73,6 +73,9 @@ class PhotometryMeasurements extends Table {
   RealColumn get uncertainty => real().nullable()();
   BoolColumn get isOutlier => boolean().withDefault(const Constant(false))();
 
+  /// The frame's filter, so light curves and exports keep bands apart.
+  TextColumn get filter => text().nullable()();
+
   DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -115,6 +118,21 @@ class FramePhotometricCalibration extends Table {
   TextColumn get catalogSource => text().withDefault(const Constant('auto'))();
   TextColumn get solverId => text().withDefault(const Constant('unknown'))();
 
+  /// The frame's filter. Zero points of different filters are not comparable.
+  TextColumn get filter => text().nullable()();
+
+  /// Catalog band the zero point refers to ('B', 'V', 'r').
+  TextColumn get photometricBand => text().nullable()();
+
+  /// False when the filter has no catalog band of its own (L, clear,
+  /// narrowband) and the zero point is only a V-equivalent.
+  BoolColumn get bandIsStandard =>
+      boolean().withDefault(const Constant(false))();
+
+  /// Standard error of [zeroPoint] in magnitudes. [calibrationRms] is the
+  /// per-star scatter.
+  RealColumn get zeroPointError => real().nullable()();
+
   DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -141,6 +159,14 @@ class TransparencySamples extends Table {
   TextColumn get qualityBucket =>
       text().withDefault(const Constant('Unknown'))();
   RealColumn get confidence => real().withDefault(const Constant(0.0))();
+
+  /// The filter this sample's zero points were taken in.
+  TextColumn get filter => text().nullable()();
+
+  /// True only when [extinctionCoefficient] is a zero point against airmass
+  /// fit over enough airmass range; otherwise it is not an extinction.
+  BoolColumn get extinctionMeasured =>
+      boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
 }

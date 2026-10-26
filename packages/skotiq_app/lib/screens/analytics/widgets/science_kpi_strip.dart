@@ -151,11 +151,20 @@ class _TransparencyKpi extends StatelessWidget {
               label: t.qualityBucket,
               tooltip: 'Bucketed quality label',
             ),
-            _TrustChip(
-              icon: LucideIcons.activity,
-              label: 'k=${t.extinctionCoefficient.toStringAsFixed(2)}',
-              tooltip: 'Atmospheric extinction coefficient (mag/airmass)',
-            ),
+            if (t.extinctionMeasured)
+              _TrustChip(
+                icon: LucideIcons.activity,
+                label: 'k=${t.extinctionCoefficient.toStringAsFixed(2)}',
+                tooltip: 'Atmospheric extinction in '
+                    '${t.filter ?? 'this filter'} (mag/airmass)',
+              )
+            else
+              const _TrustChip(
+                icon: LucideIcons.activity,
+                label: 'k not measured',
+                tooltip: 'Extinction needs frames in one filter spread over '
+                    'at least 0.3 airmass',
+              ),
             _TrustChip(
               icon: LucideIcons.percent,
               label: '${(t.confidence * 100).round()}% conf',
