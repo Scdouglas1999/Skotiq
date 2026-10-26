@@ -434,8 +434,8 @@ class ScienceSettingsPage extends ConsumerWidget {
                   settingKey: 'science.camera.read_noise_e',
                   icon: LucideIcons.zap,
                   title: 'Camera read noise (e⁻)',
-                  subtitle:
-                      'Used for limiting magnitude calculations (default 3.5)',
+                  subtitle: 'At the camera gain you image at. Used for '
+                      'limiting magnitude (default 3.5)',
                   defaultText: '3.5',
                   min: 0.5,
                   max: 30.0,
@@ -445,7 +445,8 @@ class ScienceSettingsPage extends ConsumerWidget {
                   settingKey: 'science.camera.gain_e_per_adu',
                   icon: LucideIcons.activity,
                   title: 'Camera gain (e⁻/ADU)',
-                  subtitle: 'Converts sky background to electrons for limiting '
+                  subtitle: 'Electrons per ADU at the camera gain you image '
+                      'at; it changes with that gain. Used for limiting '
                       'magnitude (assumes 1.0 when unset)',
                   defaultText: '1.0',
                   min: 0.01,
@@ -456,9 +457,9 @@ class ScienceSettingsPage extends ConsumerWidget {
                   settingKey: 'science.camera.saturation_adu',
                   icon: LucideIcons.sun,
                   title: 'Saturation level (ADU)',
-                  subtitle: 'White level used to reject saturated stars from '
-                      'photometry — 4095 for raw 12-bit, 16383 for 14-bit, '
-                      '65535 for 16-bit output',
+                  subtitle: 'Stars peaking above this are left out of '
+                      'photometry. Set it a little below the highest value '
+                      'your frames reach',
                   defaultText: '65535',
                   min: 255,
                   max: 65535,

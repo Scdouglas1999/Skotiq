@@ -626,6 +626,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Analyze field-wide seeing and tilt patterns',
     'Astrometric catalog',
     'Astrometric residuals',
+    'At the camera gain you image at. Used for',
     'Auto-configure from camera',
     'Auto-reject bad frames',
     'Bot API key',
@@ -637,10 +638,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Camera read noise (e⁻)',
     'Compute clipping, uniformity, background and SNR tile maps',
     'Compute zeropoint and limiting magnitude',
-    'Converts sky background to electrons for limiting',
     'Data source id',
     'Deep catalog lookups (APASS DR9)',
     'Detect and track moving candidates',
+    'Electrons per ADU at the camera gain you image',
     'Enable overlays such as PSF map, residual vectors, and tracks',
     'Enable surface explorer and interactive mesh rendering',
     'Features',
@@ -667,14 +668,13 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Science overlays',
     'Show advanced overlay controls',
     'Stamp MAGZP / MAGZPERR / TRANSPAR back into the FITS',
+    'Stars peaking above this are left out of',
     'Submit to the TNS sandbox instead of production (no public record).',
     'Target/comparison tracking and live light curves',
     'Track atmospheric transparency over time',
     'Transient Name Server (TNS)',
     'Transparency and extinction',
     'Use TNS sandbox',
-    'Used for limiting magnitude calculations (default 3.5)',
-    'White level used to reject saturated stars from',
     'Write science keywords to FITS',
     'Written into MPC ADES headers and the TNS reporter',
     'Your 3-character MPC observatory code (e.g.,',
@@ -1047,13 +1047,14 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'After each light frame, reject captures that exceed':
         'Auto-reject bad frames',
     'Analyze field-wide seeing and tilt patterns': 'PSF field map',
+    'At the camera gain you image at. Used for': 'Camera read noise (e⁻)',
     'Build residual heatmaps and mount feedback': 'Astrometric residuals',
     'Compute clipping, uniformity, background and SNR tile maps':
         'Frame quality maps',
     'Compute zeropoint and limiting magnitude':
         'Per-frame photometric calibration',
-    'Converts sky background to electrons for limiting': 'Camera gain (e⁻/ADU)',
     'Detect and track moving candidates': 'Moving object mode',
+    'Electrons per ADU at the camera gain you image': 'Camera gain (e⁻/ADU)',
     'Enable overlays such as PSF map, residual vectors, and tracks':
         'Science overlays',
     'Enable surface explorer and interactive mesh rendering':
@@ -1066,14 +1067,12 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Reporter shown on TNS (falls back to observer': 'Reporter name',
     'Stamp MAGZP / MAGZPERR / TRANSPAR back into the FITS':
         'Write science keywords to FITS',
+    'Stars peaking above this are left out of': 'Saturation level (ADU)',
     'Submit to the TNS sandbox instead of production (no public record).':
         'Use TNS sandbox',
     'Target/comparison tracking and live light curves':
         'Live differential photometry',
     'Track atmospheric transparency over time': 'Transparency and extinction',
-    'Used for limiting magnitude calculations (default 3.5)':
-        'Camera read noise (e⁻)',
-    'White level used to reject saturated stars from': 'Saturation level (ADU)',
     'Written into MPC ADES headers and the TNS reporter': 'Observer name',
     'Your 3-character MPC observatory code (e.g.,': 'MPC observatory code',
     'Your assigned AAVSO observer initials (1-5 chars,': 'AAVSO observer code',

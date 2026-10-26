@@ -35,8 +35,9 @@ CameraStateSnapshot _connectedCamera(String id, String name) {
 }
 
 /// Saturation comes from the driver's PIXEL-CONTAINER full scale
-/// (`CameraStatus.maxAdu`), never from `2^bitDepth - 1` — a 12-bit sensor whose
-/// driver left-justifies into 16 bits saturates at 65520, not 4095.
+/// (`CameraStatus.maxAdu`), never from `2^bitDepth - 1`: a 12-bit sensor whose
+/// driver left-justifies into 16 bits reports 65520, not 4095, and the
+/// threshold sits two 16-ADU steps below it (65488).
 CameraStatus _statusWithMaxAdu(int maxAdu) =>
     CameraStatus.fromJson({'connected': true, 'maxAdu': maxAdu});
 
@@ -144,7 +145,7 @@ void main() {
       await service.maybeSync(reason: 'camera B selected');
 
       var settings = await SettingsDao(database).getAllSettings();
-      expect(settings[ScienceCameraAutoConfig.saturationKey], '65520');
+      expect(settings[ScienceCameraAutoConfig.saturationKey], '65488');
       expect(
         settings[ScienceCameraAutoConfig.autoSourceKey],
         contains('Camera B'),
@@ -156,7 +157,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       settings = await SettingsDao(database).getAllSettings();
-      expect(settings[ScienceCameraAutoConfig.saturationKey], '65520');
+      expect(settings[ScienceCameraAutoConfig.saturationKey], '65488');
       expect(
         settings[ScienceCameraAutoConfig.autoSourceKey],
         contains('Camera B'),
