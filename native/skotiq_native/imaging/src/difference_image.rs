@@ -579,14 +579,14 @@ pub fn difference_against_decoded(
         let noise =
             (resid_ap_sigma.powi(2) + (opts.systematic_fraction * t_ap.max(0.0)).powi(2)).sqrt();
         let significance = if noise > 0.0 { r_ap / noise } else { 0.0 };
-        if !(significance >= opts.min_significance) {
+        if significance.is_nan() || significance < opts.min_significance {
             rejections.insignificant += 1;
             continue;
         }
         let backed = t_ap > 3.0 * tmpl_ap_sigma.max(f64::MIN_POSITIVE);
         let (kind, delta_mag) = if backed {
             let dm = -2.5 * ((t_ap + r_ap) / t_ap).log10();
-            if !(dm <= -opts.min_brightening_mag) {
+            if dm.is_nan() || dm > -opts.min_brightening_mag {
                 rejections.small_change += 1;
                 continue;
             }
@@ -836,7 +836,7 @@ fn template_reference_stars(
     let mut dev: Vec<f64> = vals.iter().map(|v| (v - med).abs()).collect();
     let sigma = MAD_TO_SIGMA * median(&mut dev);
     vals.clear();
-    if !(sigma > 0.0) {
+    if sigma.is_nan() || sigma <= 0.0 {
         return Vec::new();
     }
     let threshold = med + 25.0 * sigma;

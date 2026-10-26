@@ -1659,14 +1659,14 @@ impl SkyAtlas {
             Ok(Some((outcomes, state)))
         };
 
-        let results: Vec<Result<Option<(Vec<AtlasFoldOutcome>, AtlasTileState)>, AtlasError>> =
-            match rayon::ThreadPoolBuilder::new()
-                .num_threads(FOLD_WORKERS)
-                .build()
-            {
-                Ok(pool) => pool.install(|| work.par_iter().map(fold_tile).collect()),
-                Err(_) => work.iter().map(fold_tile).collect(),
-            };
+        type TileFold = Result<Option<(Vec<AtlasFoldOutcome>, AtlasTileState)>, AtlasError>;
+        let results: Vec<TileFold> = match rayon::ThreadPoolBuilder::new()
+            .num_threads(FOLD_WORKERS)
+            .build()
+        {
+            Ok(pool) => pool.install(|| work.par_iter().map(fold_tile).collect()),
+            Err(_) => work.iter().map(fold_tile).collect(),
+        };
 
         let mut out = AtlasBatchFold {
             frames_without_coverage,
@@ -1821,8 +1821,8 @@ pub fn eroded_coverage(
         let row = &base[y * width..(y + 1) * width];
         // Running count of uncovered pixels in the window.
         let mut holes = 0usize;
-        for x in 0..width.min(reach + 1) {
-            holes += usize::from(!row[x]);
+        for &covered in row.iter().take(reach + 1) {
+            holes += usize::from(!covered);
         }
         for x in 0..width {
             horiz[y * width + x] = holes == 0 && x >= reach && x + reach < width;
