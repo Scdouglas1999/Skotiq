@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -29,6 +30,32 @@ List<({String objectId, StarMeasurement star})> _comparisons() => [
 ];
 
 void main() {
+  test('unreadable aperture file preserves the comparison ensemble', () async {
+    final temp = await Directory.systemTemp.createTemp('photometry-fallback-');
+    addTearDown(() => temp.delete(recursive: true));
+    final comparisons = _comparisons();
+    final measured = await measureSharedApertureStars(
+      imagePath: '${temp.path}/missing.fits',
+      frameStars: [_star(125000), ...comparisons.map((c) => c.star)],
+      target: _star(125000),
+      comparisons: comparisons,
+    );
+    // The caller replaces its detected stars with the returned measurements.
+    comparisons
+      ..clear()
+      ..addAll(measured.comparisons);
+    final frame = ScienceProcessingService.buildDifferentialFrame(
+      target: measured.target,
+      comparisons: comparisons,
+      comparisonIds: _ids,
+      sessionCheckId: 'C4',
+      gainElectronsPerAdu: 0.1231,
+    );
+    expect(frame.skipReason, isNull);
+    expect(frame.ensembleFlux, 260000 + 310000 + 104000);
+    expect(measured.target.flux, 125000);
+  });
+
   test('the check star and ensemble stay the same as the target fades', () {
     final first = ScienceProcessingService.buildDifferentialFrame(
       target: _star(125000),
@@ -69,7 +96,7 @@ void main() {
     // A bright star whose detector SNR counts only the background: at
     // 0.1231 e-/ADU its own photon noise is larger than that.
     final star = _star(125000, snr: 400);
-    final backgroundOnly = 125000 / 400;
+    const backgroundOnly = 125000 / 400;
     final sigma = ScienceProcessingService.fluxSigma(star, 0.1231);
     expect(sigma, greaterThan(backgroundOnly * 1.5));
     expect(
