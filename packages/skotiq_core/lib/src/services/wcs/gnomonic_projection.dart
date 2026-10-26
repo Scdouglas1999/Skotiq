@@ -15,19 +15,22 @@ import 'dart:math' as math;
 ///
 /// - [raHours]      — image-centre right ascension (hours, J2000)
 /// - [decDegrees]   — image-centre declination (degrees, J2000)
-/// - [rotationDeg]  — sky-to-pixel rotation (degrees). Convention matches
-///                    the rest of Skotiq: positive rotation goes from
-///                    +RA toward +Dec on the image, measured CCW from
-///                    image-up.
-/// - [pixelScaleArcsec] — plate scale in arcseconds per pixel (assumed
-///                    isotropic; ASTAP / astrometry.net always report a
-///                    single CDELT for solved frames in this codebase).
+/// - [rotationDeg]  — field rotation in degrees as the native parser reports
+///                    it (ASTAP's CROTA2: east of north if not flipped).
+/// - [pixelScaleArcsec] — plate scale in arcseconds per pixel.
 /// - [imageWidth] / [imageHeight] — image dimensions in pixels.
 ///
-/// Pixel origin is the top-left of the image (Flutter / image convention),
-/// with +X to the right and +Y down. RA increases eastward (to the left
-/// on the sky); the projection accounts for that by flipping the sign of
-/// the standard coordinate before applying [rotationDeg].
+/// Pixel coordinates are FITS buffer coordinates, 0-based, with integer
+/// values at pixel centres: (0, 0) is the centre of the first stored pixel,
+/// x runs along a row and y along the stored row order. This is the frame the
+/// star detector reports in and the order the preview draws rows in. The
+/// reference pixel is the image centre, `((W - 1) / 2, (H - 1) / 2)`, which is
+/// ASTAP's CRPIX less one.
+///
+/// The sky-to-pixel mapping is the standard FITS one: `(xi, eta) = CD (u, v)`
+/// with `(u, v)` the offset from the reference pixel. When the CD matrix is
+/// absent it is rebuilt from [rotationDeg] and [pixelScaleArcsec], with the
+/// sky's own parity unless [mirrored] says the frame went through a mirror.
 class SolvedWcs {
   final double raHours;
   final double decDegrees;
@@ -36,14 +39,9 @@ class SolvedWcs {
   final int imageWidth;
   final int imageHeight;
 
-  /// Full anisotropic CD matrix (deg/pixel) as read from the WCS. When all
-  /// four are non-null the projection drives the (xi, eta) <-> pixel linear
-  /// mapping from the matrix directly instead of the isotropic
-  /// scale-plus-rotation collapse. Sign convention matches the native
-  /// `WcsInfo::from_plate_solve` (`cd1_1 = -scale*cos`, `cd1_2 = scale*sin`,
-  /// `cd2_1 = scale*sin`, `cd2_2 = scale*cos`) so the matrix is consistent
-  /// with the cdelt/crota reconstruction in `_resolveMasterWcs` and
-  /// `_overlayFromSolution`. Null -> behaves exactly as the isotropic path.
+  /// Full CD matrix (deg/pixel) exactly as the solver wrote it. When all four
+  /// are present the projection uses it; otherwise it rebuilds one from the
+  /// rotation, scale and [mirrored].
   final double? cd1_1;
   final double? cd1_2;
   final double? cd2_1;
@@ -61,6 +59,11 @@ class SolvedWcs {
   final int bpOrder;
   final List<double> apCoeffs;
   final List<double> bpCoeffs;
+
+  /// Whether the frame's parity is mirrored (det CD > 0), e.g. one reflection
+  /// in a Newtonian. Only consulted when no CD matrix is present, because the
+  /// matrix carries its own parity.
+  final bool mirrored;
 
   const SolvedWcs({
     required this.raHours,
@@ -81,6 +84,7 @@ class SolvedWcs {
     this.bpOrder = 0,
     this.apCoeffs = const [],
     this.bpCoeffs = const [],
+    this.mirrored = false,
   });
 
   /// True iff a full, finite, invertible CD matrix is present.
@@ -94,6 +98,59 @@ class SolvedWcs {
       cd2_1!.isFinite &&
       cd2_2!.isFinite &&
       (cd1_1! * cd2_2! - cd1_2! * cd2_1!).abs() > 1e-30;
+
+  /// The CD matrix the projection uses: the solver's own when present, else
+  /// one rebuilt from rotation and scale with the native parser's convention
+  /// (`rotation = atan2(cd2_1, -cd1_1)` for sky parity, `atan2(cd2_1, cd1_1)`
+  /// for a mirrored frame).
+  ({double cd1_1, double cd1_2, double cd2_1, double cd2_2}) get effectiveCd {
+    if (hasCdMatrix) {
+      return (cd1_1: cd1_1!, cd1_2: cd1_2!, cd2_1: cd2_1!, cd2_2: cd2_2!);
+    }
+    return cdFromRotation(
+      pixelScaleArcsec: pixelScaleArcsec,
+      rotationDeg: rotationDeg,
+      mirrored: mirrored,
+    );
+  }
+
+  /// True iff the effective CD matrix has mirrored parity (det > 0).
+  bool get isMirrored {
+    final cd = effectiveCd;
+    return cd.cd1_1 * cd.cd2_2 - cd.cd1_2 * cd.cd2_1 > 0;
+  }
+
+  /// Rebuild a CD matrix from an isotropic scale and rotation. The inverse of
+  /// the rotation the native `.wcs` parser reports.
+  static ({double cd1_1, double cd1_2, double cd2_1, double cd2_2})
+  cdFromRotation({
+    required double pixelScaleArcsec,
+    required double rotationDeg,
+    bool mirrored = false,
+  }) {
+    final s = pixelScaleArcsec / 3600.0;
+    final r = rotationDeg * math.pi / 180.0;
+    final c = math.cos(r);
+    final n = math.sin(r);
+    if (mirrored) {
+      return (cd1_1: s * c, cd1_2: -s * n, cd2_1: s * n, cd2_2: s * c);
+    }
+    return (cd1_1: -s * c, cd1_2: s * n, cd2_1: s * n, cd2_2: s * c);
+  }
+
+  /// Field rotation implied by a CD matrix, in the native parser's
+  /// convention, so a stored scalar rotation can be checked against its
+  /// matrix.
+  static double rotationFromCd({
+    required double cd1_1,
+    required double cd1_2,
+    required double cd2_1,
+    required double cd2_2,
+  }) {
+    final mirrored = cd1_1 * cd2_2 - cd1_2 * cd2_1 > 0;
+    final rad = mirrored ? math.atan2(cd2_1, cd1_1) : math.atan2(cd2_1, -cd1_1);
+    return rad * 180.0 / math.pi;
+  }
 
   /// True iff forward SIP coefficients are present.
   bool get hasForwardSip =>
@@ -206,33 +263,45 @@ class GnomonicProjection {
   final double _dec0Rad;
   final double _sinDec0;
   final double _cosDec0;
-  final double _sinRot;
-  final double _cosRot;
   final double _pixelScaleDegrees;
 
-  /// Inverse of the CD matrix (deg/pixel -> pixel/deg), cached when [wcs]
-  /// carries a full matrix. Null falls back to the isotropic scale+rotation.
-  final double? _invCd1_1;
-  final double? _invCd1_2;
-  final double? _invCd2_1;
-  final double? _invCd2_2;
+  /// The CD matrix in use and its inverse (pixel/deg).
+  final double _cd1_1;
+  final double _cd1_2;
+  final double _cd2_1;
+  final double _cd2_2;
+  final double _invCd1_1;
+  final double _invCd1_2;
+  final double _invCd2_1;
+  final double _invCd2_2;
 
-  GnomonicProjection(this.wcs)
-    : assert(wcs.isValid, 'GnomonicProjection requires a valid SolvedWcs'),
-      _ra0Rad = wcs.raHours * 15.0 * math.pi / 180.0,
+  /// 0-based reference pixel (the image centre).
+  final double _refX;
+  final double _refY;
+
+  factory GnomonicProjection(SolvedWcs wcs) {
+    assert(wcs.isValid, 'GnomonicProjection requires a valid SolvedWcs');
+    final cd = wcs.effectiveCd;
+    return GnomonicProjection._(wcs, cd.cd1_1, cd.cd1_2, cd.cd2_1, cd.cd2_2);
+  }
+
+  GnomonicProjection._(
+    this.wcs,
+    this._cd1_1,
+    this._cd1_2,
+    this._cd2_1,
+    this._cd2_2,
+  ) : _ra0Rad = wcs.raHours * 15.0 * math.pi / 180.0,
       _dec0Rad = wcs.decDegrees * math.pi / 180.0,
       _sinDec0 = math.sin(wcs.decDegrees * math.pi / 180.0),
       _cosDec0 = math.cos(wcs.decDegrees * math.pi / 180.0),
-      _sinRot = math.sin(wcs.rotationDeg * math.pi / 180.0),
-      _cosRot = math.cos(wcs.rotationDeg * math.pi / 180.0),
       _pixelScaleDegrees = wcs.pixelScaleArcsec / 3600.0,
-      _invCd1_1 = wcs.hasCdMatrix ? wcs.cd2_2! / _cdDet(wcs) : null,
-      _invCd1_2 = wcs.hasCdMatrix ? -wcs.cd1_2! / _cdDet(wcs) : null,
-      _invCd2_1 = wcs.hasCdMatrix ? -wcs.cd2_1! / _cdDet(wcs) : null,
-      _invCd2_2 = wcs.hasCdMatrix ? wcs.cd1_1! / _cdDet(wcs) : null;
-
-  static double _cdDet(SolvedWcs w) =>
-      w.cd1_1! * w.cd2_2! - w.cd1_2! * w.cd2_1!;
+      _invCd1_1 = _cd2_2 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
+      _invCd1_2 = -_cd1_2 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
+      _invCd2_1 = -_cd2_1 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
+      _invCd2_2 = _cd1_1 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
+      _refX = (wcs.imageWidth - 1) / 2.0,
+      _refY = (wcs.imageHeight - 1) / 2.0;
 
   /// Project (RA, Dec) to image pixels using the TAN (gnomonic) projection.
   ///
@@ -243,70 +312,28 @@ class GnomonicProjection {
     required double raDegrees,
     required double decDegrees,
   }) {
-    final raRad = raDegrees * math.pi / 180.0;
-    final decRad = decDegrees * math.pi / 180.0;
+    final standard = _standardCoordinates(raDegrees, decDegrees);
+    if (standard == null) return null;
+    final xiDeg = standard.$1;
+    final etaDeg = standard.$2;
 
-    // Wrap (ra - ra0) into [-pi, pi] so the cosine identity below is
-    // numerically well-behaved when the target is on the other side of
-    // RA = 0 from the projection centre.
-    var dRa = raRad - _ra0Rad;
-    while (dRa > math.pi) {
-      dRa -= 2 * math.pi;
+    // (u, v) = CD^-1 (xi, eta) is the offset from the reference pixel after
+    // distortion; SIP is undone on top of it.
+    var u = _invCd1_1 * xiDeg + _invCd1_2 * etaDeg;
+    var v = _invCd2_1 * xiDeg + _invCd2_2 * etaDeg;
+    if (wcs.hasForwardSip) {
+      final undistorted = _undistortIntermediate(u, v);
+      u = undistorted.$1;
+      v = undistorted.$2;
     }
-    while (dRa < -math.pi) {
-      dRa += 2 * math.pi;
-    }
-
-    final cosDec = math.cos(decRad);
-    final sinDec = math.sin(decRad);
-    final cosDRa = math.cos(dRa);
-    final sinDRa = math.sin(dRa);
-
-    // Standard gnomonic denominator. <= 0 means the point is on or behind
-    // the tangent plane's antipode — undefined pixel, skip.
-    final denom = _sinDec0 * sinDec + _cosDec0 * cosDec * cosDRa;
-    if (denom <= 0) return null;
-
-    // Standard (xi, eta) tangent-plane coordinates in radians. xi is +east
-    // (which is -X on a normal sky image where RA increases right-to-left).
-    final xi = cosDec * sinDRa / denom;
-    final eta = (_cosDec0 * sinDec - _sinDec0 * cosDec * cosDRa) / denom;
-
-    final xiDeg = xi * 180.0 / math.pi;
-    final etaDeg = eta * 180.0 / math.pi;
-
-    double x;
-    double y;
-    if (_invCd1_1 != null) {
-      // (intermediate-pixel) = CD^-1 * (xi, eta). Undo SIP forward (AP/BP, or
-      // Newton when the inverse coeffs are absent) before mapping to canvas.
-      var a = _invCd1_1 * xiDeg + _invCd1_2! * etaDeg;
-      var b = _invCd2_1! * xiDeg + _invCd2_2! * etaDeg;
-      if (wcs.hasForwardSip) {
-        final undistorted = _undistortIntermediate(a, b);
-        a = undistorted.$1;
-        b = undistorted.$2;
-      }
-      x = wcs.imageWidth / 2.0 - a;
-      y = wcs.imageHeight / 2.0 - b;
-    } else {
-      // Apply rotation. With rotationDeg = 0 we want +eta (north on the sky)
-      // to come out the top of the image (pixel Y up = pixel -Y on canvas)
-      // and +xi (east) to come out the left (pixel -X). This matches the
-      // existing _skyToPixel helper in live_preview_area.dart (used for
-      // moving-object tracks) so behavior is consistent across overlays.
-      final xRot = xiDeg * _cosRot - etaDeg * _sinRot;
-      final yRot = xiDeg * _sinRot + etaDeg * _cosRot;
-
-      final pxFromCenter = xRot / _pixelScaleDegrees;
-      final pyFromCenter = yRot / _pixelScaleDegrees;
-
-      x = wcs.imageWidth / 2.0 + pxFromCenter;
-      y = wcs.imageHeight / 2.0 - pyFromCenter;
-    }
+    final x = _refX + u;
+    final y = _refY + v;
 
     final onImage =
-        x >= 0 && x <= wcs.imageWidth && y >= 0 && y <= wcs.imageHeight;
+        x >= -0.5 &&
+        x <= wcs.imageWidth - 0.5 &&
+        y >= -0.5 &&
+        y <= wcs.imageHeight - 0.5;
     return ProjectedPoint(pixel: PixelPoint(x, y), onImage: onImage);
   }
 
@@ -317,32 +344,16 @@ class GnomonicProjection {
     required double x,
     required double y,
   }) {
-    double xiDeg;
-    double etaDeg;
-    if (_invCd1_1 != null) {
-      // Canvas -> intermediate-pixel (the negated CD^-1 frame), apply SIP
-      // forward (A/B) to that frame, then map through the CD matrix.
-      var a = wcs.imageWidth / 2.0 - x;
-      var b = wcs.imageHeight / 2.0 - y;
-      if (wcs.hasForwardSip) {
-        final fa = _sipPoly(wcs.aOrder, wcs.aCoeffs, a, b);
-        final fb = _sipPoly(wcs.bOrder, wcs.bCoeffs, a, b);
-        a += fa;
-        b += fb;
-      }
-      xiDeg = wcs.cd1_1! * a + wcs.cd1_2! * b;
-      etaDeg = wcs.cd2_1! * a + wcs.cd2_2! * b;
-    } else {
-      final pxFromCenter = x - wcs.imageWidth / 2.0;
-      final pyFromCenter = wcs.imageHeight / 2.0 - y;
-
-      final xRot = pxFromCenter * _pixelScaleDegrees;
-      final yRot = pyFromCenter * _pixelScaleDegrees;
-
-      // Inverse rotation.
-      xiDeg = xRot * _cosRot + yRot * _sinRot;
-      etaDeg = -xRot * _sinRot + yRot * _cosRot;
+    var u = x - _refX;
+    var v = y - _refY;
+    if (wcs.hasForwardSip) {
+      final fu = _sipPoly(wcs.aOrder, wcs.aCoeffs, u, v);
+      final fv = _sipPoly(wcs.bOrder, wcs.bCoeffs, u, v);
+      u += fu;
+      v += fv;
     }
+    final xiDeg = _cd1_1 * u + _cd1_2 * v;
+    final etaDeg = _cd2_1 * u + _cd2_2 * v;
 
     final xi = xiDeg * math.pi / 180.0;
     final eta = etaDeg * math.pi / 180.0;
@@ -370,6 +381,52 @@ class GnomonicProjection {
       raDegrees: _normaliseRaDeg(raRad * 180.0 / math.pi),
       decDegrees: decRad * 180.0 / math.pi,
     );
+  }
+
+  /// Direction of north and east on the image at the reference pixel, as
+  /// unit vectors in pixel coordinates (+x along a row, +y along the stored
+  /// row order). Overlays that draw a compass use these instead of a scalar
+  /// rotation, which cannot carry the frame's parity.
+  ({double northX, double northY, double eastX, double eastY})
+  get skyAxesOnImage {
+    // Pixel offset per unit eta (north) and per unit xi (east).
+    final nx = _invCd1_2;
+    final ny = _invCd2_2;
+    final ex = _invCd1_1;
+    final ey = _invCd2_1;
+    final nl = math.sqrt(nx * nx + ny * ny);
+    final el = math.sqrt(ex * ex + ey * ey);
+    return (northX: nx / nl, northY: ny / nl, eastX: ex / el, eastY: ey / el);
+  }
+
+  /// Tangent-plane (xi, eta) in degrees, or null behind the tangent plane.
+  (double, double)? _standardCoordinates(double raDegrees, double decDegrees) {
+    final raRad = raDegrees * math.pi / 180.0;
+    final decRad = decDegrees * math.pi / 180.0;
+
+    // Wrap (ra - ra0) into [-pi, pi] so the cosine identity below is
+    // numerically well-behaved when the target is on the other side of
+    // RA = 0 from the projection centre.
+    var dRa = raRad - _ra0Rad;
+    while (dRa > math.pi) {
+      dRa -= 2 * math.pi;
+    }
+    while (dRa < -math.pi) {
+      dRa += 2 * math.pi;
+    }
+
+    final cosDec = math.cos(decRad);
+    final sinDec = math.sin(decRad);
+    final cosDRa = math.cos(dRa);
+    final sinDRa = math.sin(dRa);
+
+    final denom = _sinDec0 * sinDec + _cosDec0 * cosDec * cosDRa;
+    if (denom <= 0) return null;
+
+    // xi is +east, eta is +north.
+    final xi = cosDec * sinDRa / denom;
+    final eta = (_cosDec0 * sinDec - _sinDec0 * cosDec * cosDRa) / denom;
+    return (xi * 180.0 / math.pi, eta * 180.0 / math.pi);
   }
 
   /// Compute a rectangular RA/Dec bounding box that fully encloses the
@@ -493,10 +550,11 @@ class GnomonicProjection {
     return acc;
   }
 
-  /// Recover the undistorted intermediate-pixel coordinate from a distorted
-  /// one. Uses the AP/BP inverse SIP when present; otherwise a few Newton
-  /// iterations against the forward A/B polynomials. Both branches operate in
-  /// the CD-companion frame so they invert [_sipPoly] applied in pixelToWorld.
+  /// Recover the pixel offset (u, v) from the reference pixel given the
+  /// distorted intermediate coordinate CD^-1 (xi, eta). Uses the AP/BP
+  /// inverse SIP when present; otherwise a few Newton iterations against the
+  /// forward A/B polynomials, so it inverts [_sipPoly] as applied in
+  /// [pixelToWorld].
   (double, double) _undistortIntermediate(double a, double b) {
     if (wcs.hasInverseSip) {
       return (

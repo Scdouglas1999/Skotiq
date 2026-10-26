@@ -702,11 +702,18 @@ class DefaultScienceBackend implements ScienceBackend {
 
       final dxPx = matched.x - star.x;
       final dyPx = matched.y - star.y;
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: dxPx,
-        dyPixels: dyPx,
-        wcsRotationDegrees: wcs.rotationDegrees,
-      );
+      // Through the frame's own WCS, so the angle carries its parity; a
+      // scalar rotation cannot tell a mirrored frame from a normal one.
+      final startSky = projection.pixelToWorld(x: star.x, y: star.y);
+      final endSky = projection.pixelToWorld(x: matched.x, y: matched.y);
+      final pa = (dxPx == 0 && dyPx == 0)
+          ? 0.0
+          : skyPositionAngleDegrees(
+              fromRaDegrees: startSky.raDegrees,
+              fromDecDegrees: startSky.decDegrees,
+              toRaDegrees: endSky.raDegrees,
+              toDecDegrees: endSky.decDegrees,
+            );
       final motion = (bestDist * wcs.pixelScaleArcsecPerPixel) / dtMin;
       final midSky = projection.pixelToWorld(
         x: (star.x + matched.x) / 2.0,

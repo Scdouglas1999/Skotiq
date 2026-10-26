@@ -8,7 +8,6 @@
 // / info results. Field names mirror the wire contract (camelCase) so the maps
 // round-trip straight through the FFI envelope.
 
-import 'dart:math' as math;
 
 import '../wcs/gnomonic_projection.dart';
 
@@ -129,11 +128,8 @@ class SolvedFrameRef {
   ///
   /// `crval` comes from the solved image centre (RA hours -> degrees), `crpix`
   /// from the image centre in 1-based FITS pixels. The CD matrix is taken
-  /// directly when present; otherwise it is reconstructed from the isotropic
-  /// pixel scale + rotation using the same sign convention as the native
-  /// `WcsInfo::from_plate_solve` (`cd1_1 = -scale*cos`, `cd1_2 = scale*sin`,
-  /// `cd2_1 = scale*sin`, `cd2_2 = scale*cos`), so a CD-only and a
-  /// scale+rotation solve fold onto identical geometry.
+  /// directly when present; otherwise it is [SolvedWcs.effectiveCd], rebuilt
+  /// from scale, rotation and parity with the native parser's convention.
   factory SolvedFrameRef.fromSolvedWcs({
     required String framePath,
     required SolvedWcs wcs,
@@ -146,23 +142,11 @@ class SolvedFrameRef {
     final crpix1 = wcs.imageWidth / 2.0 + 0.5;
     final crpix2 = wcs.imageHeight / 2.0 + 0.5;
 
-    final double cd11, cd12, cd21, cd22;
-    if (wcs.hasCdMatrix) {
-      cd11 = wcs.cd1_1!;
-      cd12 = wcs.cd1_2!;
-      cd21 = wcs.cd2_1!;
-      cd22 = wcs.cd2_2!;
-    } else {
-      // Reconstruct from isotropic scale (arcsec/px -> deg/px) + rotation.
-      final scaleDeg = wcs.pixelScaleArcsec / 3600.0;
-      final rot = wcs.rotationDeg * math.pi / 180.0;
-      final cosR = math.cos(rot);
-      final sinR = math.sin(rot);
-      cd11 = -scaleDeg * cosR;
-      cd12 = scaleDeg * sinR;
-      cd21 = scaleDeg * sinR;
-      cd22 = scaleDeg * cosR;
-    }
+    final cd = wcs.effectiveCd;
+    final cd11 = cd.cd1_1;
+    final cd12 = cd.cd1_2;
+    final cd21 = cd.cd2_1;
+    final cd22 = cd.cd2_2;
 
     return SolvedFrameRef(
       framePath: framePath,

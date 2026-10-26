@@ -16,8 +16,10 @@ void main() {
 
       final p = proj.worldToPixel(raDegrees: 5.5 * 15.0, decDegrees: -5.0)!;
 
-      expect(p.pixel.x, closeTo(1024.0, 1e-6));
-      expect(p.pixel.y, closeTo(512.0, 1e-6));
+      // 0-based pixel centres: the centre of a 2048 x 1024 frame is
+      // (1023.5, 511.5), ASTAP's CRPIX (1024.5, 512.5) less one.
+      expect(p.pixel.x, closeTo(1023.5, 1e-6));
+      expect(p.pixel.y, closeTo(511.5, 1e-6));
       expect(p.onImage, isTrue);
     });
 
@@ -100,9 +102,10 @@ void main() {
       expect(proj.worldToPixel(raDegrees: 180, decDegrees: 0), isNull);
     });
 
-    test('rotation correctly orients +Dec to image up', () {
-      // At rotation 0, a point one arcsecond north of the centre should
-      // land one pixel above the centre (pixel Y decreases upward).
+    test('rotation 0 with sky parity puts north at +y and east at -x', () {
+      // FITS convention with CD = [[-s, 0], [0, s]]: one arcsecond north of
+      // the centre is one row further along the stored row order, and one
+      // arcsecond east is one column toward x = 0.
       const wcs = SolvedWcs(
         raHours: 6.0,
         decDegrees: 30,
@@ -118,8 +121,15 @@ void main() {
         decDegrees: 30 + 1.0 / 3600.0,
       )!;
 
-      expect(p.pixel.x, closeTo(512.0, 1e-3));
-      expect(p.pixel.y, closeTo(511.0, 1e-3));
+      expect(p.pixel.x, closeTo(511.5, 1e-3));
+      expect(p.pixel.y, closeTo(512.5, 1e-3));
+
+      final east = proj.worldToPixel(
+        raDegrees: 6.0 * 15.0 + 1.0 / 3600.0 / 0.8660254,
+        decDegrees: 30,
+      )!;
+      expect(east.pixel.x, closeTo(510.5, 1e-2));
+      expect(east.pixel.y, closeTo(511.5, 1e-2));
     });
 
     test('360-degree rotation symmetry', () {

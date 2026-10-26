@@ -155,8 +155,9 @@ void main() {
         );
         final result = await svc.queryFov(wcs: _wcs, magnitudeLimit: 10);
         expect(result.objects.length, 1);
-        expect(result.objects.first.imageX, closeTo(1024, 1e-3));
-        expect(result.objects.first.imageY, closeTo(1024, 1e-3));
+        // 0-based pixel centres: the centre of a 2048 px frame is 1023.5.
+        expect(result.objects.first.imageX, closeTo(1023.5, 1e-3));
+        expect(result.objects.first.imageY, closeTo(1023.5, 1e-3));
       },
     );
 

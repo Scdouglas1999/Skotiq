@@ -65,25 +65,23 @@ final scienceBackendProvider = Provider<ScienceBackend>((ref) {
 ///
 /// Visible for tests so the convention can be verified against known WCS
 /// solutions and MPC astrometric reports.
-double computePixelMotionPositionAngle({
-  required double dxPixels,
-  required double dyPixels,
-  required double wcsRotationDegrees,
+/// Position angle in degrees (north through east, [0, 360)) of the motion
+/// from one sky position to another.
+double skyPositionAngleDegrees({
+  required double fromRaDegrees,
+  required double fromDecDegrees,
+  required double toRaDegrees,
+  required double toDecDegrees,
 }) {
-  // Pixel Y axis is flipped relative to celestial North.
-  final dxUp = dxPixels;
-  final dyUp = -dyPixels;
-  final rotRad = wcsRotationDegrees * math.pi / 180.0;
-  final cosR = math.cos(rotRad);
-  final sinR = math.sin(rotRad);
-  // Inverse rotation (transpose of standard 2D R) takes the image-up vector
-  // to the celestial-N/E frame.
-  final dxSky = dxUp * cosR + dyUp * sinR;
-  final dySky = -dxUp * sinR + dyUp * cosR;
-  // PA is measured from North (+sky-Y) through East (+sky-X), which is
-  // exactly atan2(east, north).
-  final pa = (math.atan2(dxSky, dySky) * 180.0 / math.pi + 360.0) % 360.0;
-  return pa;
+  const rad = math.pi / 180.0;
+  var dRa = (toRaDegrees - fromRaDegrees) % 360.0;
+  if (dRa > 180.0) dRa -= 360.0;
+  final d1 = fromDecDegrees * rad;
+  final d2 = toDecDegrees * rad;
+  final y = math.sin(dRa * rad) * math.cos(d2);
+  final x = math.cos(d1) * math.sin(d2) -
+      math.sin(d1) * math.cos(d2) * math.cos(dRa * rad);
+  return (math.atan2(y, x) / rad + 360.0) % 360.0;
 }
 
 /// Error codes emitted by photometric calibration when a structured failure

@@ -1,152 +1,55 @@
-import 'dart:math' as math;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/science/default_science_backend.dart';
 
 /// Unit tests for `default_science_backend.dart`:
-///   - the PA matrix convention (computePixelMotionPositionAngle)
+///   - the sky position angle (skyPositionAngleDegrees)
 ///   - the ScienceCalibrationError structured surface
 ///   - the LineRatioError structured surface
 void main() {
-  group('computePixelMotionPositionAngle', () {
-    // PA convention: measured from celestial North (0°) through East (90°).
-    // The pixel→sky transform negates pixel-Y (image Y-axis points "down" in
-    // the sky frame). The WCS rotation is interpreted as the angle from
-    // celestial North to image-up (matching FITS CROTA2 sense).
-    //
-    // For each case below, hand-compute the expected PA and verify the
-    // helper agrees to within 1e-6 degrees.
-
-    test('rotation 0: pixel +X (right) ⇒ celestial East (PA 90°)', () {
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: 1.0,
-        dyPixels: 0.0,
-        wcsRotationDegrees: 0.0,
+  group('skyPositionAngleDegrees', () {
+    // PA runs from celestial north (0) through east (90).
+    test('due north is 0 and due east is 90', () {
+      expect(
+        skyPositionAngleDegrees(
+          fromRaDegrees: 35.6,
+          fromDecDegrees: 42.3,
+          toRaDegrees: 35.6,
+          toDecDegrees: 42.31,
+        ),
+        closeTo(0, 1e-6),
       );
-      expect(pa, closeTo(90.0, 1e-9));
+      expect(
+        skyPositionAngleDegrees(
+          fromRaDegrees: 35.6,
+          fromDecDegrees: 42.3,
+          toRaDegrees: 35.61,
+          toDecDegrees: 42.3,
+        ),
+        closeTo(90, 0.01),
+      );
     });
 
-    test('rotation 0: pixel -Y (up in image) ⇒ celestial North (PA 0°)', () {
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: 0.0,
-        dyPixels: -1.0,
-        wcsRotationDegrees: 0.0,
+    test('south and west, across RA 0', () {
+      expect(
+        skyPositionAngleDegrees(
+          fromRaDegrees: 0.005,
+          fromDecDegrees: 10,
+          toRaDegrees: 359.995,
+          toDecDegrees: 10,
+        ),
+        closeTo(270, 0.01),
       );
-      expect(pa, closeTo(0.0, 1e-9));
-    });
-
-    test(
-      'rotation 0: pixel +Y (down in image) ⇒ celestial South (PA 180°)',
-      () {
-        final pa = computePixelMotionPositionAngle(
-          dxPixels: 0.0,
-          dyPixels: 1.0,
-          wcsRotationDegrees: 0.0,
-        );
-        expect(pa, closeTo(180.0, 1e-9));
-      },
-    );
-
-    test('rotation 0: pixel -X (left) ⇒ celestial West (PA 270°)', () {
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: -1.0,
-        dyPixels: 0.0,
-        wcsRotationDegrees: 0.0,
+      expect(
+        skyPositionAngleDegrees(
+          fromRaDegrees: 120,
+          fromDecDegrees: -30,
+          toRaDegrees: 120,
+          toDecDegrees: -30.01,
+        ),
+        closeTo(180, 1e-6),
       );
-      expect(pa, closeTo(270.0, 1e-9));
-    });
-
-    test('rotation 90 (image rotated CCW, image-up = celestial East): '
-        'pixel +X ⇒ celestial South (PA 180°)', () {
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: 1.0,
-        dyPixels: 0.0,
-        wcsRotationDegrees: 90.0,
-      );
-      expect(pa, closeTo(180.0, 1e-9));
-    });
-
-    test('rotation 90: pixel +Y (down in image, image-down = celestial West) '
-        '⇒ celestial West (PA 270°)', () {
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: 0.0,
-        dyPixels: 1.0,
-        wcsRotationDegrees: 90.0,
-      );
-      expect(pa, closeTo(270.0, 1e-9));
-    });
-
-    test('rotation -90: pixel +X ⇒ celestial North (PA 0°)', () {
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: 1.0,
-        dyPixels: 0.0,
-        wcsRotationDegrees: -90.0,
-      );
-      expect(pa, closeTo(0.0, 1e-9));
-    });
-
-    test('result is always in [0, 360)', () {
-      for (final dx in const [-3.0, -1.5, 0.0, 1.5, 3.0]) {
-        for (final dy in const [-3.0, -1.5, 0.0, 1.5, 3.0]) {
-          if (dx == 0.0 && dy == 0.0) continue;
-          for (final rot in const [-180.0, -45.0, 0.0, 17.5, 90.0, 270.0]) {
-            final pa = computePixelMotionPositionAngle(
-              dxPixels: dx,
-              dyPixels: dy,
-              wcsRotationDegrees: rot,
-            );
-            expect(pa, greaterThanOrEqualTo(0.0));
-            expect(pa, lessThan(360.0));
-            expect(pa.isFinite, isTrue);
-          }
-        }
-      }
-    });
-
-    test('rotating WCS by Δ rotates the reported PA by -Δ (mod 360) '
-        '— consistency check', () {
-      // For a fixed pixel motion, increasing the WCS rotation by Δ degrees
-      // must shift the PA by -Δ degrees (mod 360). This catches sign
-      // errors in the rotation matrix.
-      const dx = 1.7;
-      const dy = -0.9;
-      const baseRot = 12.5;
-      const delta = 37.0;
-      final paBase = computePixelMotionPositionAngle(
-        dxPixels: dx,
-        dyPixels: dy,
-        wcsRotationDegrees: baseRot,
-      );
-      final paShift = computePixelMotionPositionAngle(
-        dxPixels: dx,
-        dyPixels: dy,
-        wcsRotationDegrees: baseRot + delta,
-      );
-      final diff = (paBase - paShift + 540.0) % 360.0 - 180.0; // signed Δ
-      expect(diff, closeTo(-delta, 1e-9));
-    });
-
-    test('reference vector: dx=3, dy=-4, rot=30° matches hand calculation', () {
-      // Hand calculation:
-      //   dxUp = 3, dyUp = 4 (pixel-Y flipped)
-      //   rot  = 30°, c = √3/2, s = 1/2
-      //   dxSky = 3·c + 4·s = 3·(√3/2) + 2 = 1.5·√3 + 2
-      //   dySky = -3·s + 4·c = -1.5 + 4·(√3/2) = -1.5 + 2·√3
-      //   PA    = atan2(dxSky, dySky) (deg, mod 360)
-      final dxSky = 3.0 * (math.sqrt(3) / 2.0) + 2.0;
-      final dySky = -1.5 + 2.0 * math.sqrt(3);
-      final expected =
-          (math.atan2(dxSky, dySky) * 180.0 / math.pi + 360.0) % 360.0;
-
-      final pa = computePixelMotionPositionAngle(
-        dxPixels: 3.0,
-        dyPixels: -4.0,
-        wcsRotationDegrees: 30.0,
-      );
-      expect(pa, closeTo(expected, 1e-9));
     });
   });
-
   group('ScienceCalibrationError', () {
     test('exposes a structured error code', () {
       const err = ScienceCalibrationError(
