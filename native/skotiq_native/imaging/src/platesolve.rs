@@ -720,6 +720,9 @@ pub fn fits_scale_arcsec_per_px(path: &Path) -> Option<f64> {
 /// * `-wcs` — write the solution to a sibling `.wcs` FITS file. `-update` is
 ///   deliberately avoided: it writes only `.ini` and mutates the operator's
 ///   capture.
+/// * `-sip` — fit SIP distortion terms into the `.wcs`. A linear CD matrix
+///   cannot hold a corrector's radial distortion, which reaches several
+///   arcseconds in the corners of a one-degree field.
 ///
 /// This is the only argument vector ASTAP ever receives — desktop, headless API
 /// and sequencer all solve through it — and it lives outside
@@ -798,6 +801,7 @@ pub(crate) fn build_astap_args(
     // IMPORTANT: ASTAP exits 0 even on a failed solve. The result lives in
     // PLTSOLVD inside the .ini file. Do NOT gate on exit status.
     args.push(OsString::from("-wcs"));
+    args.push(OsString::from("-sip"));
 
     args
 }
@@ -3641,11 +3645,21 @@ mod astap_arg_tests {
         );
         assert_eq!(value_after(&args, "-z").as_deref(), Some("2"));
         assert_eq!(value_after(&args, "-d").as_deref(), Some("/catalog"));
-        assert_eq!(args.last().map(String::as_str), Some("-wcs"));
+        assert!(args.iter().any(|a| a == "-wcs"));
         assert!(
             !args.iter().any(|a| a == "-r"),
             "no radius without a position"
         );
+    }
+
+    /// Without `-sip` ASTAP writes a pure linear solution, which on the rig's
+    /// one-degree field is 5" off in the corners.
+    #[test]
+    fn astap_is_asked_for_sip_distortion_terms() {
+        assert!(args(None, None, None, None).iter().any(|a| a == "-sip"));
+        assert!(args(Some(30.0), Some(45.0), Some(1.29), Some(1000.0))
+            .iter()
+            .any(|a| a == "-sip"));
     }
 }
 
