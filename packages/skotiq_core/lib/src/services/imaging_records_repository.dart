@@ -302,17 +302,29 @@ class ImagingRecordsRepository {
   Future<List<db.CapturedImage>> getRecentImagesForSession(
     int sessionId, {
     int limit = 5,
+    DateTime? atOrBefore,
   }) async {
     if (_remote != null) {
       final rows = await _remote.getSessionImageRows(sessionId);
-      final images = rows.map(db.CapturedImage.fromJson).toList()
-        ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+      final images =
+          rows
+              .map(db.CapturedImage.fromJson)
+              .where(
+                (image) =>
+                    atOrBefore == null || !image.capturedAt.isAfter(atOrBefore),
+              )
+              .toList()
+            ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
       if (images.length <= limit) {
         return images;
       }
       return images.sublist(0, limit);
     }
-    return _imagesDao!.getRecentImagesForSession(sessionId, limit: limit);
+    return _imagesDao!.getRecentImagesForSession(
+      sessionId,
+      limit: limit,
+      atOrBefore: atOrBefore,
+    );
   }
 
   Stream<List<db.CapturedImage>> watchImagesForSession(int sessionId) {

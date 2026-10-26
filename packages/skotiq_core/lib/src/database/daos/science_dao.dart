@@ -82,14 +82,16 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     List<PhotometryMeasurementsCompanion> entries,
   ) async {
-    await (delete(
-      photometryMeasurements,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    if (entries.isEmpty) {
-      return;
-    }
-    await batch((batch) {
-      batch.insertAll(photometryMeasurements, entries);
+    await transaction(() async {
+      await (delete(
+        photometryMeasurements,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      if (entries.isEmpty) {
+        return;
+      }
+      await batch((batch) {
+        batch.insertAll(photometryMeasurements, entries);
+      });
     });
   }
 
@@ -172,6 +174,33 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
+  /// Ids of the session's captured frames that already have any per-frame
+  /// science product (frame quality, photometric calibration, PSF tiles or
+  /// photometry), keyed by the frame's own session.
+  Future<Set<int>> getCapturedImageIdsWithScience(int sessionId) async {
+    final rows = await customSelect(
+      'SELECT ci.id AS id FROM captured_images ci '
+      'WHERE ci.session_id = ? AND ('
+      'EXISTS (SELECT 1 FROM science_frame_quality_metrics m '
+      'WHERE m.captured_image_id = ci.id) OR '
+      'EXISTS (SELECT 1 FROM frame_photometric_calibration c '
+      'WHERE c.captured_image_id = ci.id) OR '
+      'EXISTS (SELECT 1 FROM psf_field_tiles t '
+      'WHERE t.captured_image_id = ci.id) OR '
+      'EXISTS (SELECT 1 FROM photometry_measurements p '
+      'WHERE p.captured_image_id = ci.id))',
+      variables: [Variable.withInt(sessionId)],
+      readsFrom: {
+        attachedDatabase.capturedImages,
+        scienceFrameQualityMetrics,
+        framePhotometricCalibration,
+        psfFieldTiles,
+        photometryMeasurements,
+      },
+    ).get();
+    return rows.map((row) => row.read<int>('id')).toSet();
+  }
+
   Future<void> insertFrameCalibration(
     FramePhotometricCalibrationCompanion calibration,
   ) {
@@ -182,10 +211,12 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     FramePhotometricCalibrationCompanion calibration,
   ) async {
-    await (delete(
-      framePhotometricCalibration,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    await into(framePhotometricCalibration).insert(calibration);
+    await transaction(() async {
+      await (delete(
+        framePhotometricCalibration,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      await into(framePhotometricCalibration).insert(calibration);
+    });
   }
 
   Stream<List<FramePhotometricCalibrationRow>> watchCalibrationsForSession(
@@ -206,15 +237,23 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
+  /// The session's newest calibrated frames, newest first. With
+  /// [atOrBefore], only frames calibrated at or before that time, so a frame
+  /// processed after later ones (a reprocess) sees the history it was
+  /// captured with.
   Future<List<FramePhotometricCalibrationRow>> getRecentCalibrations(
     int sessionId, {
     int limit = 20,
+    DateTime? atOrBefore,
   }) {
     return (select(framePhotometricCalibration)
-          ..where(
-            (tbl) =>
-                tbl.sessionId.equals(sessionId) & tbl.isCalibrated.equals(true),
-          )
+          ..where((tbl) {
+            final inSession =
+                tbl.sessionId.equals(sessionId) & tbl.isCalibrated.equals(true);
+            return atOrBefore == null
+                ? inSession
+                : inSession & tbl.timestamp.isSmallerOrEqualValue(atOrBefore);
+          })
           ..orderBy([(tbl) => OrderingTerm.desc(tbl.timestamp)])
           ..limit(limit))
         .get();
@@ -228,10 +267,12 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     TransparencySamplesCompanion sample,
   ) async {
-    await (delete(
-      transparencySamples,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    await into(transparencySamples).insert(sample);
+    await transaction(() async {
+      await (delete(
+        transparencySamples,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      await into(transparencySamples).insert(sample);
+    });
   }
 
   Stream<List<TransparencySampleRow>> watchTransparencyForSession(
@@ -254,14 +295,16 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     List<PsfFieldTilesCompanion> tiles,
   ) async {
-    await (delete(
-      psfFieldTiles,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    if (tiles.isEmpty) {
-      return;
-    }
-    await batch((batch) {
-      batch.insertAll(psfFieldTiles, tiles);
+    await transaction(() async {
+      await (delete(
+        psfFieldTiles,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      if (tiles.isEmpty) {
+        return;
+      }
+      await batch((batch) {
+        batch.insertAll(psfFieldTiles, tiles);
+      });
     });
   }
 
@@ -309,10 +352,12 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     ScienceFrameQualityMetricsCompanion metrics,
   ) async {
-    await (delete(
-      scienceFrameQualityMetrics,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    await into(scienceFrameQualityMetrics).insert(metrics);
+    await transaction(() async {
+      await (delete(
+        scienceFrameQualityMetrics,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      await into(scienceFrameQualityMetrics).insert(metrics);
+    });
   }
 
   Stream<List<ScienceFrameQualityMetricsRow>>
@@ -346,14 +391,16 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     List<ScienceTileMetricsCompanion> tiles,
   ) async {
-    await (delete(
-      scienceTileMetrics,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    if (tiles.isEmpty) {
-      return;
-    }
-    await batch((batch) {
-      batch.insertAll(scienceTileMetrics, tiles);
+    await transaction(() async {
+      await (delete(
+        scienceTileMetrics,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      if (tiles.isEmpty) {
+        return;
+      }
+      await batch((batch) {
+        batch.insertAll(scienceTileMetrics, tiles);
+      });
     });
   }
 
@@ -373,17 +420,19 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     String layerType,
     List<ScienceTileMetricsCompanion> tiles,
   ) async {
-    await (delete(scienceTileMetrics)..where(
-          (tbl) =>
-              tbl.capturedImageId.equals(capturedImageId) &
-              tbl.layerType.equals(layerType),
-        ))
-        .go();
-    if (tiles.isEmpty) {
-      return;
-    }
-    await batch((batch) {
-      batch.insertAll(scienceTileMetrics, tiles);
+    await transaction(() async {
+      await (delete(scienceTileMetrics)..where(
+            (tbl) =>
+                tbl.capturedImageId.equals(capturedImageId) &
+                tbl.layerType.equals(layerType),
+          ))
+          .go();
+      if (tiles.isEmpty) {
+        return;
+      }
+      await batch((batch) {
+        batch.insertAll(scienceTileMetrics, tiles);
+      });
     });
   }
 
@@ -431,14 +480,16 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     List<AstrometryResidualVectorsCompanion> vectors,
   ) async {
-    await (delete(
-      astrometryResidualVectors,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    if (vectors.isEmpty) {
-      return;
-    }
-    await batch((batch) {
-      batch.insertAll(astrometryResidualVectors, vectors);
+    await transaction(() async {
+      await (delete(
+        astrometryResidualVectors,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      if (vectors.isEmpty) {
+        return;
+      }
+      await batch((batch) {
+        batch.insertAll(astrometryResidualVectors, vectors);
+      });
     });
   }
 
@@ -475,14 +526,16 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     int capturedImageId,
     List<MovingObjectCandidatesCompanion> candidates,
   ) async {
-    await (delete(
-      movingObjectCandidates,
-    )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
-    if (candidates.isEmpty) {
-      return;
-    }
-    await batch((batch) {
-      batch.insertAll(movingObjectCandidates, candidates);
+    await transaction(() async {
+      await (delete(
+        movingObjectCandidates,
+      )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
+      if (candidates.isEmpty) {
+        return;
+      }
+      await batch((batch) {
+        batch.insertAll(movingObjectCandidates, candidates);
+      });
     });
   }
 

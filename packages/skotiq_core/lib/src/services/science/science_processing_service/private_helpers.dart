@@ -24,26 +24,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     const highClipAdu = 65520;
     (ScienceFrameQualityMetrics, List<ScienceTileMetric>) products;
 
-    try {
-      if (deviceId != null && deviceId.isNotEmpty) {
-        products = await _scienceBackend.computeLastCaptureQualityMaps(
-          deviceId: deviceId,
-          gridRows: _adaptiveLiveGridRows,
-          gridCols: _adaptiveLiveGridCols,
-          lowClipAdu: lowClipAdu,
-          highClipAdu: highClipAdu,
-          timestamp: timestamp,
-          capturedImageId: capturedImageId,
-          sessionId: sessionId,
-        );
-      } else {
-        throw StateError('No device ID available for live quality maps');
-      }
-    } catch (error, stack) {
-      _logger.warning(
-        'Live quality-map lane failed for $imagePath; falling back to FITS lane: $error\n$stack',
-        source: 'ScienceProcessingService',
-      );
+    if (deviceId == null || deviceId.isEmpty) {
       products = await _scienceBackend.computeFitsQualityMaps(
         filePath: imagePath,
         gridRows: prefs.analysisGridRows,
@@ -54,6 +35,34 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         capturedImageId: capturedImageId,
         sessionId: sessionId,
       );
+    } else {
+      try {
+        products = await _scienceBackend.computeLastCaptureQualityMaps(
+          deviceId: deviceId,
+          gridRows: _adaptiveLiveGridRows,
+          gridCols: _adaptiveLiveGridCols,
+          lowClipAdu: lowClipAdu,
+          highClipAdu: highClipAdu,
+          timestamp: timestamp,
+          capturedImageId: capturedImageId,
+          sessionId: sessionId,
+        );
+      } catch (error, stack) {
+        _logger.warning(
+          'Live quality-map lane failed for $imagePath; falling back to FITS lane: $error\n$stack',
+          source: 'ScienceProcessingService',
+        );
+        products = await _scienceBackend.computeFitsQualityMaps(
+          filePath: imagePath,
+          gridRows: prefs.analysisGridRows,
+          gridCols: prefs.analysisGridCols,
+          lowClipAdu: lowClipAdu,
+          highClipAdu: highClipAdu,
+          timestamp: timestamp,
+          capturedImageId: capturedImageId,
+          sessionId: sessionId,
+        );
+      }
     }
 
     final frameMetrics = products.$1.copyWith(
@@ -460,6 +469,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     required String imagePath,
     required int? capturedImageId,
     db.CapturedImage? capturedImage,
+    bool solveIfUnsolved = true,
   }) async {
     final image = capturedImageId == null
         ? null
@@ -511,6 +521,8 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         bpCoeffs: sip?.bpCoeffs ?? const [],
       );
     }
+
+    if (!solveIfUnsolved) return null;
 
     final solved = await _scienceBackend.solveForScience(
       imagePath,

@@ -267,12 +267,20 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     );
   }
 
+  /// The session's newest frames, newest first. With [atOrBefore], only
+  /// frames captured at or before that time.
   Future<List<CapturedImage>> getRecentImagesForSession(
     int sessionId, {
     int limit = 5,
+    DateTime? atOrBefore,
   }) {
     return (select(capturedImages)
-          ..where((i) => i.sessionId.equals(sessionId))
+          ..where(
+            (i) => atOrBefore == null
+                ? i.sessionId.equals(sessionId)
+                : i.sessionId.equals(sessionId) &
+                      i.capturedAt.isSmallerOrEqualValue(atOrBefore),
+          )
           ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])
           ..limit(limit))
         .get();

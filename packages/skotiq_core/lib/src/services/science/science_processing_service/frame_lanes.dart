@@ -1,11 +1,12 @@
 part of '../science_processing_service.dart';
 
 extension _ScienceProcessingFrameLanes on ScienceProcessingService {
-  Future<void> _processFrame({
+  Future<ScienceFrameOutcome> _processFrame({
     required String imagePath,
     String? deviceId,
     int? capturedImageId,
     int? sessionId,
+    bool solveIfUnsolved = true,
   }) async {
     bool frameBegun = false;
     // Snapshots gathered during processing and consumed by the FITS
@@ -22,7 +23,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
         // Science products in v1 are computed for light frames only.
         if (frameType != null && frameType != 'light') {
           _status.dequeue();
-          return;
+          return const ScienceFrameOutcome.skipped();
         }
       }
 
@@ -83,6 +84,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
           imagePath: imagePath,
           capturedImageId: capturedImageId,
           capturedImage: capturedImage,
+          solveIfUnsolved: solveIfUnsolved,
         );
         _status.endStage(
           ScienceStage.plateSolve,
@@ -186,6 +188,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
           final recentRows = await _scienceDao.getRecentCalibrations(
             sessionId,
             limit: 20,
+            atOrBefore: frameContext.capturedAt,
           );
           final recent = <FramePhotometricCalibration>[];
           for (final row in recentRows) {
@@ -537,6 +540,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
           final recent = await _imagesRepo.getRecentImagesForSession(
             sessionId,
             limit: 5,
+            atOrBefore: frameContext.capturedAt,
           );
           final recentPaths =
               recent
@@ -646,11 +650,13 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
       if (capturedImageId != null) {
         await _runAutoGrade(capturedImageId: capturedImageId);
       }
+      return const ScienceFrameOutcome.processed();
     } catch (error, stack) {
       _logger.error(
         'Science frame processing failed for $imagePath: $error\n$stack',
         source: 'ScienceProcessingService',
       );
+      return ScienceFrameOutcome.failed(error.toString());
     } finally {
       _queueDepth = math.max(0, _queueDepth - 1);
       if (frameBegun) {

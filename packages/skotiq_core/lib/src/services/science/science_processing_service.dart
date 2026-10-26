@@ -32,6 +32,25 @@ part 'science_processing_service/provider.dart';
 part 'science_processing_service/frame_lanes.dart';
 part 'science_processing_service/writeback.dart';
 
+/// What the science pipeline did with one frame.
+class ScienceFrameOutcome {
+  const ScienceFrameOutcome._(this.kind, [this.error]);
+
+  const ScienceFrameOutcome.processed()
+    : this._(ScienceFrameOutcomeKind.processed);
+
+  /// Not a light frame; science products are computed for lights only.
+  const ScienceFrameOutcome.skipped() : this._(ScienceFrameOutcomeKind.skipped);
+
+  const ScienceFrameOutcome.failed(String error)
+    : this._(ScienceFrameOutcomeKind.failed, error);
+
+  final ScienceFrameOutcomeKind kind;
+  final String? error;
+}
+
+enum ScienceFrameOutcomeKind { processed, skipped, failed }
+
 class ScienceProcessingService {
   final Ref _ref;
   int _adaptiveLiveGridRows = 12;
@@ -62,6 +81,26 @@ class ScienceProcessingService {
     String? deviceId,
     int? capturedImageId,
     int? sessionId,
+  }) => processFrame(
+    imagePath: imagePath,
+    deviceId: deviceId,
+    capturedImageId: capturedImageId,
+    sessionId: sessionId,
+  );
+
+  /// Queue one frame for science processing behind every frame already
+  /// queued, and complete with what became of it. Never throws.
+  ///
+  /// [deviceId] lets the frame-quality lane read the camera's last image
+  /// buffer instead of the file; pass it only when that buffer still holds
+  /// this frame. With [solveIfUnsolved] false, a frame whose row has no
+  /// stored solve is processed without one rather than solved here.
+  Future<ScienceFrameOutcome> processFrame({
+    required String imagePath,
+    String? deviceId,
+    int? capturedImageId,
+    int? sessionId,
+    bool solveIfUnsolved = true,
   }) {
     _queueDepth++;
     _status.enqueue();
@@ -76,12 +115,15 @@ class ScienceProcessingService {
         deviceId: deviceId,
         capturedImageId: capturedImageId,
         sessionId: sessionId,
+        solveIfUnsolved: solveIfUnsolved,
       ),
     );
     // _processFrame never throws (it catches and logs internally), but keep
     // the chain alive defensively so one broken link can't stall the queue.
-    _processingTail = run.catchError((_) {});
-    return run;
+    _processingTail = run.then<void>((_) {}).catchError((_) {});
+    return run.catchError(
+      (Object error) => ScienceFrameOutcome.failed(error.toString()),
+    );
   }
 
   /// Apparent magnitude for a moving-object candidate from its measured
