@@ -70,7 +70,6 @@ pub use difference_image::*; // NEW: Export difference-imaging (First Light) typ
 pub use drizzle::*; // NEW: Export drizzle types
 pub use fits::*;
 pub use frame_shape::*;
-pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
 pub use frame_weighting::*; // NEW: Export frame-weighting types
 pub use integration::*; // NEW: Export batch-integration types
 pub use master_accumulation::*; // NEW: Export accumulating-master types
@@ -88,6 +87,7 @@ pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types
 pub use stats::*;
 pub use stretch::*;
+pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
 pub use wcs_sip::*; // NEW: Export SIP-aware projection types
 pub use xisf::*;
 
