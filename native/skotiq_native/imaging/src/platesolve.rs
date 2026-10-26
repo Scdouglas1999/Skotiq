@@ -1407,6 +1407,7 @@ fn fits_header_cards(content: &str) -> Vec<&str> {
 /// Free-function form of WCS parsing so the test module can exercise it
 /// without instantiating an `AstapSolver` (which requires a real ASTAP
 /// install on PATH).
+#[cfg(test)]
 fn parse_wcs_file_inner(
     wcs_path: &Path,
     solve_time: f64,
