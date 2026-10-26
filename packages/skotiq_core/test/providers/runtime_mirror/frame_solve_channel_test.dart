@@ -7,7 +7,7 @@ import 'package:skotiq_core/src/providers/runtime_mirror/channels/frame_solve_ch
 // whether the frame is mirrored.
 void main() {
   test('the host sends the solve with its CD matrix and SIP block', () {
-    final encoded = FrameSolveChannel().encode((
+    final encoded = const FrameSolveChannel().encode((
       path: '/lights/NGC0891_L_0001.fits',
       solve: FrameSolveVm(
         frameCapturedAt: DateTime.utc(2026, 10, 21, 3),
