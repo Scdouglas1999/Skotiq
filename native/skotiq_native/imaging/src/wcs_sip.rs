@@ -132,6 +132,11 @@ impl SipWcs {
         let (crpix1, crpix2) = if scale_arcsec.is_finite() && scale_arcsec > 0.0 {
             let w = (r.field_width * 3600.0 / scale_arcsec).round();
             let h = (r.field_height * 3600.0 / scale_arcsec).round();
+            // Without a field size the centre is unknown; a reference pixel at
+            // the corner would misplace every star by half the diagonal.
+            if !(w >= 1.0 && h >= 1.0) {
+                return None;
+            }
             (w / 2.0, h / 2.0)
         } else {
             // No usable scale -> a CRPIX of zero is wrong; refuse rather than lie.

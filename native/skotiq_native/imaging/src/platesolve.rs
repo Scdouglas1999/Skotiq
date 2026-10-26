@@ -638,6 +638,16 @@ fn fits_naxis2(path: &Path) -> Option<f64> {
         .flatten()
 }
 
+/// Frame width and height in pixels from the primary FITS header. ASTAP's
+/// `.wcs` is a minimal header (`NAXIS = 0`) with no dimensions, so the solved
+/// field size has to come from the frame that was solved.
+fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
+    match fits_header_floats(path, &["NAXIS1", "NAXIS2"]).as_slice() {
+        [Some(w), Some(h)] if *w > 0.0 && *h > 0.0 => Some((*w, *h)),
+        _ => None,
+    }
+}
+
 /// Read numeric cards off a FITS primary header without decoding pixel data.
 ///
 /// Returns one slot per requested keyword, in the order asked for.
@@ -1202,6 +1212,7 @@ impl AstapSolver {
 
         let ini_path = scratch.artifact("ini");
         let wcs_path = scratch.artifact("wcs");
+        let image_size = fits_image_size(image_path);
 
         // Check .ini for PLTSOLVD flag — gives us the ASTAP-side result
         // and any error information before attempting to parse coordinates.
@@ -1259,7 +1270,7 @@ impl AstapSolver {
         // PLTSOLVD=T (or no .ini yet — proceed optimistically).
         // Parse the .wcs file for the full CD-matrix solution.
         if wcs_path.exists() {
-            let result = match self.parse_wcs_file(&wcs_path, solve_time) {
+            let result = match self.parse_wcs_file(&wcs_path, solve_time, image_size) {
                 Ok(r) => r,
                 Err(err) => {
                     let msg = format!(
@@ -1283,7 +1294,7 @@ impl AstapSolver {
         // No .wcs — fall back to .ini coordinates (produced by -update;
         // also present with -wcs for some ASTAP versions).
         if ini_path.exists() {
-            return self.parse_astap_ini(&ini_path, solve_time);
+            return self.parse_astap_ini(&ini_path, solve_time, image_size);
         }
 
         // No output artifacts at all — ASTAP produced neither .wcs nor .ini.
@@ -1305,9 +1316,20 @@ impl AstapSolver {
     }
 
     /// Parse ASTAP .ini result file
-    fn parse_astap_ini(&self, ini_path: &Path, solve_time: f64) -> PlateSolveResult {
+    fn parse_astap_ini(
+        &self,
+        ini_path: &Path,
+        solve_time: f64,
+        image_size: Option<(f64, f64)>,
+    ) -> PlateSolveResult {
         match parse_astap_ini_inner(ini_path, solve_time) {
-            Ok(result) => result,
+            Ok(mut result) => {
+                if let Some((w, h)) = image_size {
+                    result.field_width = w * result.pixel_scale / 3600.0;
+                    result.field_height = h * result.pixel_scale / 3600.0;
+                }
+                result
+            }
             Err(err) => PlateSolveResult {
                 success: false,
                 error: Some(err.to_string()),
@@ -1327,8 +1349,9 @@ impl AstapSolver {
         &self,
         wcs_path: &Path,
         solve_time: f64,
+        image_size: Option<(f64, f64)>,
     ) -> Result<PlateSolveResult, PlateSolveError> {
-        parse_wcs_file_inner(wcs_path, solve_time)
+        parse_wcs_file_with_image_size(wcs_path, solve_time, image_size)
     }
 }
 
@@ -1383,6 +1406,18 @@ fn fits_header_cards(content: &str) -> Vec<&str> {
 fn parse_wcs_file_inner(
     wcs_path: &Path,
     solve_time: f64,
+) -> Result<PlateSolveResult, PlateSolveError> {
+    parse_wcs_file_with_image_size(wcs_path, solve_time, None)
+}
+
+/// Parse a solver `.wcs`. `image_size` is the solved frame's (width, height)
+/// in pixels; it supplies the field size when the `.wcs` names no dimensions
+/// (ASTAP writes `NAXIS = 0`), and the `.wcs`'s own NAXISn/IMAGEW/IMAGEH win
+/// when present.
+fn parse_wcs_file_with_image_size(
+    wcs_path: &Path,
+    solve_time: f64,
+    image_size: Option<(f64, f64)>,
 ) -> Result<PlateSolveResult, PlateSolveError> {
     let path_display = wcs_path.display().to_string();
     let content = fs::read_to_string(wcs_path).map_err(|source| PlateSolveError::ReadOutput {
@@ -1533,8 +1568,10 @@ fn parse_wcs_file_inner(
     // Field extent in degrees, derived from the image dimensions and pixel
     // scale. Downstream WCS construction divides field_* back by the pixel
     // scale to place CRPIX at the image centre, so a zero here would anchor the
-    // reference pixel to the corner. Leave zero only if the solver emitted no
-    // dimension keywords at all (older output) — behaviour then matches before.
+    // reference pixel to the corner. Zero only when neither the `.wcs` nor the
+    // caller knows the frame size.
+    let naxis1 = naxis1.filter(|n| *n > 0.0).or(image_size.map(|s| s.0));
+    let naxis2 = naxis2.filter(|n| *n > 0.0).or(image_size.map(|s| s.1));
     let field_width = naxis1.map_or(0.0, |n| n * pixel_scale / 3600.0);
     let field_height = naxis2.map_or(0.0, |n| n * pixel_scale / 3600.0);
 
@@ -2045,7 +2082,7 @@ fn solve_with_astrometry(
         };
     }
 
-    match parse_wcs_file_inner(&wcs_path, solve_time) {
+    match parse_wcs_file_with_image_size(&wcs_path, solve_time, fits_image_size(image_path)) {
         Ok(result) => result,
         Err(error) => PlateSolveResult {
             success: false,
@@ -3625,6 +3662,7 @@ mod fits_naxis2_tests {
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
         assert_eq!(fits_naxis2(&path), Some(12.0));
+        assert_eq!(super::fits_image_size(&path), Some((16.0, 12.0)));
     }
 
     #[test]
@@ -3718,6 +3756,26 @@ mod rig_2026_09_14_tests {
         );
         let result = parse_wcs_file_inner(&wcs, 0.2).expect("ASTAP's own .wcs must parse");
         assert_is_the_rig_solution(&result, "wcs");
+    }
+
+    /// ASTAP's `.wcs` says `NAXIS = 0`, so the field size has to come from
+    /// the frame: the rig's 4656 x 3520 sensor at 0.788"/px.
+    #[test]
+    fn the_rig_wcs_takes_its_field_size_from_the_solved_frame() {
+        let wcs = fixture("solve-verify.wcs");
+        let bare = parse_wcs_file_inner(&wcs, 0.0).expect("parse");
+        assert_eq!(bare.field_width, 0.0, "the .wcs itself names no size");
+        let sized =
+            parse_wcs_file_with_image_size(&wcs, 0.0, Some((4656.0, 3520.0))).expect("parse");
+        assert!((sized.field_width - 4656.0 * SCALE / 3600.0).abs() < 1e-3);
+        assert!((sized.field_height - 3520.0 * SCALE / 3600.0).abs() < 1e-3);
+        let sip = crate::wcs_sip::SipWcs::from_plate_solve(&sized).expect("buildable");
+        assert!((sip.crpix1 - 2328.5).abs() < 0.6, "crpix1 {}", sip.crpix1);
+        assert!((sip.crpix2 - 1760.5).abs() < 0.6, "crpix2 {}", sip.crpix2);
+        assert!(
+            crate::wcs_sip::SipWcs::from_plate_solve(&bare).is_none(),
+            "no field size must not build a corner-anchored WCS"
+        );
     }
 
     #[test]
