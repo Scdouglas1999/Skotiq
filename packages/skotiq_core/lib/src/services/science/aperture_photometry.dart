@@ -67,10 +67,22 @@ Future<_FitsLayout?> _readLayout(RandomAccessFile file) async {
       final card = String.fromCharCodes(block.sublist(i, i + 80));
       final key = card.substring(0, 8).trim();
       if (key == 'END') {
-        final width = int.tryParse(values['NAXIS1'] ?? '');
-        final height = int.tryParse(values['NAXIS2'] ?? '');
-        final bitpix = int.tryParse(values['BITPIX'] ?? '');
-        final naxis = int.tryParse(values['NAXIS'] ?? '');
+        int? intOf(String key) {
+          final raw = values[key];
+          return raw == null ? null : int.tryParse(raw);
+        }
+
+        // FITS defines BZERO = 0 and BSCALE = 1 when a header omits them.
+        double scaling(String key, double fitsDefault) {
+          final raw = values[key];
+          final parsed = raw == null ? null : double.tryParse(raw);
+          return parsed ?? fitsDefault;
+        }
+
+        final width = intOf('NAXIS1');
+        final height = intOf('NAXIS2');
+        final bitpix = intOf('BITPIX');
+        final naxis = intOf('NAXIS');
         if (width == null || height == null || bitpix == null) return null;
         if (naxis != 2 || values.containsKey('ZIMAGE')) return null;
         if (![8, 16, 32, -32, -64].contains(bitpix)) return null;
@@ -78,8 +90,8 @@ Future<_FitsLayout?> _readLayout(RandomAccessFile file) async {
           width: width,
           height: height,
           bitpix: bitpix,
-          bzero: double.tryParse(values['BZERO'] ?? '') ?? 0,
-          bscale: double.tryParse(values['BSCALE'] ?? '') ?? 1,
+          bzero: scaling('BZERO', 0),
+          bscale: scaling('BSCALE', 1),
           dataOffset: offset,
         );
       }
