@@ -203,6 +203,9 @@ class CatalogStarMatch {
   final double decDegrees;
   final double catalogMagV;
   final double catalogMagB;
+
+  /// Sloan r' (APASS), when the catalog has it.
+  final double? catalogMagR;
   final double instrumentalFlux;
   final double snr;
   final double airmass;
@@ -214,6 +217,7 @@ class CatalogStarMatch {
     required this.decDegrees,
     required this.catalogMagV,
     required this.catalogMagB,
+    this.catalogMagR,
     required this.instrumentalFlux,
     required this.snr,
     required this.airmass,
@@ -238,6 +242,7 @@ class CatalogStarMatch {
       'decDegrees': decDegrees,
       'catalogMagV': catalogMagV,
       'catalogMagB': catalogMagB,
+      if (catalogMagR != null) 'catalogMagR': catalogMagR,
       'instrumentalFlux': instrumentalFlux,
       'snr': snr,
       'airmass': airmass,
@@ -252,6 +257,7 @@ class CatalogStarMatch {
       decDegrees: (json['decDegrees'] as num?)?.toDouble() ?? 0.0,
       catalogMagV: (json['catalogMagV'] as num?)?.toDouble() ?? 0.0,
       catalogMagB: (json['catalogMagB'] as num?)?.toDouble() ?? 0.0,
+      catalogMagR: (json['catalogMagR'] as num?)?.toDouble(),
       instrumentalFlux: (json['instrumentalFlux'] as num?)?.toDouble() ?? 0.0,
       snr: (json['snr'] as num?)?.toDouble() ?? 0.0,
       airmass: (json['airmass'] as num?)?.toDouble() ?? 1.0,

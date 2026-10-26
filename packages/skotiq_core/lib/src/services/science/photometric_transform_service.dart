@@ -9,6 +9,7 @@ import '../../database/database.dart' as db;
 import '../../models/science/science_models.dart';
 import '../../providers/database_provider.dart';
 import '../../services/logging_service.dart';
+import 'photometric_bands.dart';
 
 /// Service for computing and applying photometric transformation coefficients.
 ///
@@ -31,6 +32,13 @@ class PhotometricTransformService {
   ScienceDao get _scienceDao => _ref.read(scienceDaoProvider);
   LoggingService get _logger => _ref.read(loggingServiceProvider);
 
+  /// Why the last [computeTransformCoefficients] call returned null, in
+  /// words for the user; null after a successful fit.
+  String? lastRefusalReason;
+
+  /// Airmass range the stars must cover before extinction is fitted.
+  static const double minExtinctionAirmassSpan = 0.3;
+
   /// Compute transformation coefficients from a set of catalog star matches
   /// using ordinary least-squares regression.
   ///
@@ -47,6 +55,13 @@ class PhotometricTransformService {
     int? equipmentProfileId,
     String catalogSource = 'auto',
   }) {
+    lastRefusalReason = null;
+    final band = filterBandFor(filterName).band;
+    double? bandMag(CatalogStarMatch star) => switch (band) {
+      PhotometricBand.johnsonV => star.catalogMagV,
+      PhotometricBand.johnsonB => star.catalogMagB,
+      PhotometricBand.sloanR => star.catalogMagR,
+    };
     if (starMatches.length < 4) {
       _logger.warning(
         'Need at least 4 star matches for transform fit, got ${starMatches.length}',
@@ -62,12 +77,16 @@ class PhotometricTransformService {
               star.snr >= 5.0 &&
               star.catalogMagV.isFinite &&
               star.catalogMagB.isFinite &&
+              (bandMag(star)?.isFinite ?? false) &&
               star.airmass > 0 &&
               star.airmass < 10.0;
         })
         .toList(growable: false);
 
     if (validStars.length < 4) {
+      lastRefusalReason =
+          'Only ${validStars.length} stars have a usable ${band.code} '
+          'magnitude; 4 are needed.';
       _logger.warning(
         'After filtering, only ${validStars.length} valid stars remain (need 4)',
         source: 'PhotometricTransformService',
@@ -87,7 +106,8 @@ class PhotometricTransformService {
           -2.5 *
           math.log(star.instrumentalFlux.clamp(1e-30, double.infinity)) /
           math.ln10;
-      y[i] = star.catalogMagV - instMag;
+      // Fitted to the filter's own band, so a B transform gives B.
+      y[i] = bandMag(star)! - instMag;
       x1[i] = star.airmass;
       x2[i] = star.colorIndex;
     }
@@ -110,16 +130,19 @@ class PhotometricTransformService {
       if (x2[i] < x2Min) x2Min = x2[i];
       if (x2[i] > x2Max) x2Max = x2[i];
     }
-    // ~0.05 airmass ≈ a few degrees of altitude near zenith; below that the
-    // extinction slope is unconstrained. 0.1 mag of B-V spread is the
-    // minimum for a meaningful color term.
-    final fitAirmass = (x1Max - x1Min) >= 0.05;
+    // Below 0.3 airmass of range a cloud or dew trend of a few hundredths of
+    // a magnitude passes for extinction (a 0.09-airmass run fitted k = -3.5),
+    // so k is not fitted and the zero point holds the extinction at the
+    // observed airmass. 0.1 mag of B-V spread is the minimum for a
+    // meaningful color term.
+    final fitAirmass = (x1Max - x1Min) >= minExtinctionAirmassSpan;
     final fitColor = (x2Max - x2Min) >= 0.10;
 
     if (!fitAirmass) {
       _logger.warning(
         'Airmass spread ${(x1Max - x1Min).toStringAsFixed(4)} is too small to '
-        'fit extinction (single-frame data). Reporting k=0; the extinction at '
+        'fit extinction (below $minExtinctionAirmassSpan). Reporting k=0; the '
+        'extinction at '
         'X≈${x1[0].toStringAsFixed(2)} is absorbed into the zero point.',
         source: 'PhotometricTransformService',
       );
@@ -164,8 +187,8 @@ class PhotometricTransformService {
       sumSqResidual += residual * residual;
       fitData.add(
         TransformStarMatch(
-          catalogMag: validStars[i].catalogMagV,
-          instrumentalMag: validStars[i].catalogMagV - y[i], // m_inst
+          catalogMag: bandMag(validStars[i])!,
+          instrumentalMag: bandMag(validStars[i])! - y[i], // m_inst
           colorIndex: x2[i],
           airmass: x1[i],
           residual: residual,
@@ -197,13 +220,19 @@ class PhotometricTransformService {
       return null;
     }
 
-    // Sanity checks — extinction should be positive and reasonable
-    if (extinctionCoefficient < -0.5 || extinctionCoefficient > 2.0) {
+    // A negative or very large k is not atmospheric extinction: the sky
+    // changed during the run. Such a fit is refused rather than saved.
+    if (fitAirmass &&
+        (extinctionCoefficient < 0 || extinctionCoefficient > 1.0)) {
+      lastRefusalReason =
+          'The fitted extinction is ${extinctionCoefficient.toStringAsFixed(2)} '
+          'mag per airmass, outside 0 to 1: the sky changed during these '
+          'frames. Use frames from a clear stretch of the night.';
       _logger.warning(
-        'Extinction coefficient k=$extinctionCoefficient is outside '
-        'typical range [0, 1.5]. Fit may be unreliable.',
+        'Transform refused for $filterName: k=$extinctionCoefficient',
         source: 'PhotometricTransformService',
       );
+      return null;
     }
 
     _logger.info(
