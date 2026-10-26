@@ -27,8 +27,8 @@
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::registration::Interpolator;
 use skotiq_imaging::sky_atlas::{
-    merge_tiles, merge_tiles_subtract, tile_center, AtlasError, SkyAtlas, SkyTileAccumulator,
-    TileId, TileProvenance, ATLAS_HEALPIX_ORDER,
+    merge_tiles, merge_tiles_subtract, tile_center, AtlasError, PreparedFrame, SkyAtlas,
+    SkyTileAccumulator, TileId, TileProvenance, ATLAS_HEALPIX_ORDER,
 };
 use skotiq_imaging::wcs_sip::SipWcs;
 use skotiq_imaging::{
@@ -138,40 +138,14 @@ fn read_frame(path: &str) -> Result<ImageData, String> {
     Ok(read.image)
 }
 
-/// Enumerate every tile sidecar id present on disk for this atlas/order by
-/// walking `<root>/tiles/<order>/`. Returns an ascending, deduplicated id list.
+/// Enumerate every tile sidecar id present on disk for this atlas/order (the
+/// base layer and every filter layer). Returns an ascending, deduplicated id list.
 /// A missing directory (atlas never folded into) yields an empty list, not an
 /// error — a brand-new atlas legitimately has no tiles yet.
 fn list_tiles_on_disk(atlas: &SkyAtlas) -> Result<Vec<TileId>, String> {
-    // `tile_path(0)` gives `<root>/tiles/<order>/0.skt`; its parent is the dir.
-    let dir = match atlas.tile_path(0).parent() {
-        Some(p) => p.to_path_buf(),
-        None => return Ok(Vec::new()),
-    };
-    let entries = match std::fs::read_dir(&dir) {
-        Ok(e) => e,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(format!("failed to scan tile directory: {e}")),
-    };
-    let mut ids: Vec<TileId> = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("failed to read tile directory entry: {e}"))?;
-        let path = entry.path();
-        // Scan both the current and pre-rename sidecar extensions so an
-        // atlas folded before the rename still reports its coverage.
-        let ext = path.extension().and_then(|s| s.to_str());
-        if ext != Some("skt") && ext != Some("nst") {
-            continue;
-        }
-        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-            if let Ok(id) = stem.parse::<TileId>() {
-                ids.push(id);
-            }
-        }
-    }
-    ids.sort_unstable();
-    ids.dedup();
-    Ok(ids)
+    atlas
+        .tile_ids_on_disk()
+        .map_err(|e| format!("failed to scan tile directory: {e}"))
 }
 
 // api_sky_atlas — the dispatcher

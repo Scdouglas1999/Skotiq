@@ -34,9 +34,10 @@ abstract class ScienceBackend {
     AstrometryOptions options,
   );
 
+  /// Link sources that move in a straight line across [frames], each placed
+  /// on the sky through its own plate solve.
   Future<List<MovingObjectMatch>> detectMovingObjects(
-    List<String> imagePaths,
-    WcsSolution wcs,
+    List<MovingObjectFrame> frames,
     MovingObjectOptions options,
   );
 

@@ -580,33 +580,56 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
           sessionId != null) {
         final sw = _status.beginStage(ScienceStage.movingObjects);
         try {
+          const options = MovingObjectOptions();
           final recent = await _imagesRepo.getRecentImagesForSession(
             sessionId,
-            limit: 5,
+            limit: options.windowFrames,
             atOrBefore: frameContext.capturedAt,
           );
-          final recentPaths =
-              recent
-                  .where((image) => image.filePath.isNotEmpty)
-                  .toList(growable: false)
-                ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-          final paths = recentPaths
-              .map((image) => image.filePath)
-              .toList(growable: false);
-
-          if (paths.length >= 2) {
-            final candidates = await _scienceBackend.detectMovingObjects(
-              paths,
-              wcs,
-              const MovingObjectOptions(),
+          final frames = <MovingObjectFrame>[];
+          for (final image
+              in recent.toList()
+                ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt))) {
+            if (image.filePath.isEmpty ||
+                image.frameType.toLowerCase() != 'light') {
+              continue;
+            }
+            final frameWcs = image.id == capturedImageId
+                ? wcs
+                : await _storedWcsFor(image);
+            if (frameWcs == null) continue;
+            frames.add(
+              MovingObjectFrame(imagePath: image.filePath, wcs: frameWcs),
             );
+          }
 
-            final rows = candidates
+          if (frames.length >= options.minFrames) {
+            final found = await _scienceBackend.detectMovingObjects(
+              frames,
+              options,
+            );
+            final earlier = found.isEmpty
+                ? const <db.MovingObjectCandidateRow>[]
+                : await _scienceDao.getMovingObjectsForSession(sessionId);
+            final band = mpcBandForFilter(frameContext.filterName);
+
+            final rows = found
                 .map(
                   (candidate) => db.MovingObjectCandidatesCompanion.insert(
                     capturedImageId: drift.Value(capturedImageId),
                     sessionId: drift.Value(sessionId),
-                    candidateId: candidate.candidateId,
+                    candidateId: continuedCandidateId(candidate, [
+                      for (final row in earlier)
+                        if (row.capturedImageId != capturedImageId)
+                          (
+                            candidateId: row.candidateId,
+                            raDegrees: row.raDegrees,
+                            decDegrees: row.decDegrees,
+                            rateArcsecPerMinute: row.motionArcsecPerMinute,
+                            positionAngleDegrees: row.positionAngleDegrees,
+                            timestamp: row.timestamp,
+                          ),
+                    ]),
                     raDegrees: candidate.raDegrees,
                     decDegrees: candidate.decDegrees,
                     motionArcsecPerMinute: candidate.motionArcsecPerMinute,
@@ -615,19 +638,20 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
                     isKnownObject: drift.Value(candidate.isKnownObject),
                     objectName: drift.Value(candidate.objectName),
                     source: const drift.Value('local'),
+                    // A magnitude is reported only in a band the filter can
+                    // stand for; narrowband frames stay astrometry-only.
                     magnitude: drift.Value(
-                      ScienceProcessingService._candidateApparentMagnitude(
-                        fluxEstimate: candidate.fluxEstimate,
-                        calibration: writebackCalibration,
-                        exposureSeconds: frameContext.exposureSeconds,
-                      ),
+                      band == null
+                          ? null
+                          : ScienceProcessingService._candidateApparentMagnitude(
+                              fluxEstimate: candidate.fluxEstimate,
+                              calibration: writebackCalibration,
+                              exposureSeconds: frameContext.exposureSeconds,
+                            ),
                     ),
-                    // The zero point is fitted against catalog V magnitudes,
-                    // so the derived value approximates Johnson V.
-                    magnitudeBand: const drift.Value('V'),
-                    // The candidate's RA/Dec is a mid-stack position; store
-                    // its true astrometric epoch so MPC export lines pair
-                    // position and time correctly for fast movers.
+                    magnitudeBand: drift.Value(band),
+                    // The position is measured on this frame, at its
+                    // mid-exposure time.
                     timestamp: drift.Value(
                       candidate.epochUtc ?? frameContext.capturedAt,
                     ),
@@ -645,21 +669,24 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
             }
             _status.endStage(
               ScienceStage.movingObjects,
-              candidates.isEmpty
+              found.isEmpty
                   ? ScienceStageOutcome.noData
                   : ScienceStageOutcome.ok,
               stopwatch: sw,
-              note: candidates.isEmpty
-                  ? 'No candidates passed motion checks'
-                  : '${candidates.length} '
-                        'candidate${candidates.length == 1 ? '' : 's'}',
+              note: found.isEmpty
+                  ? 'No source moved in a straight line across '
+                        '${frames.length} frames'
+                  : '${found.length} '
+                        'candidate${found.length == 1 ? '' : 's'}',
             );
           } else {
             _status.endStage(
               ScienceStage.movingObjects,
               ScienceStageOutcome.noData,
               stopwatch: sw,
-              note: 'Need 2+ recent frames; have ${paths.length}',
+              note:
+                  'Need ${options.minFrames}+ solved frames; have '
+                  '${frames.length}',
             );
           }
         } catch (error) {

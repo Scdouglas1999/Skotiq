@@ -17,7 +17,10 @@
 //! geometry + photometry, leaving `catalogMatch` null for the Dart layer to fill.
 
 use serde::{Deserialize, Serialize};
-use skotiq_imaging::difference_image::{difference_against_template, TransientCandidate};
+use skotiq_imaging::difference_image::{
+    difference_against_decoded, DecodedFrame, DifferenceOptions, DifferenceRejections,
+    DifferenceResult, TransientCandidate,
+};
 use skotiq_imaging::registration::Interpolator;
 use skotiq_imaging::sky_atlas::{
     tile_center, tile_ids_for_frame, AtlasError, SkyAtlas, TileId, ATLAS_HEALPIX_ORDER,
@@ -30,6 +33,9 @@ use crate::api::post_session::write_preview_png;
 
 /// Default resident-tile memory budget (512 MiB) — matches the atlas surface.
 const DEFAULT_MEMORY_BUDGET_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Tiles differenced concurrently for one frame.
+const DIFFERENCE_WORKERS: usize = 4;
 
 /// Parse an interpolator token (`bilinear` | `catmullRom` | `lanczos3`), falling
 /// back to Lanczos-3 (the atlas / mosaic default) when unset or empty.
@@ -82,9 +88,26 @@ struct DifferenceArgs {
     /// `bilinear` | `catmullRom` | `lanczos3` (default lanczos3).
     #[serde(default)]
     interp: String,
-    /// Skip tiles whose template is thinner than this many frames (quality gate).
+    /// Compare only tile pixels whose template is at least this many frames
+    /// deep.
     #[serde(default = "default_min_coverage")]
     min_template_coverage: u32,
+    /// Filter layer of the template (the frame's filter). Templates of other
+    /// filters are never used.
+    #[serde(default)]
+    layer: Option<String>,
+    /// Minimum aperture significance of a reported source (default 7).
+    #[serde(default)]
+    min_significance: Option<f64>,
+    /// Smallest reported brightening of a source already in the template, mag.
+    #[serde(default)]
+    min_brightening_mag: Option<f64>,
+    /// Minimum distance (px) from the frame and compared-area edges.
+    #[serde(default)]
+    edge_margin_px: Option<f64>,
+    /// Raw saturation level of the frame; default 95% of its maximum.
+    #[serde(default)]
+    saturation_level: Option<f64>,
     /// Optional directory; when set, a residual PNG is written per checked tile.
     #[serde(default)]
     residual_out_dir: Option<String>,
@@ -216,6 +239,38 @@ struct DifferenceResultJson {
     tiles_skipped_thin: Vec<TileId>,
     /// Tiles the frame footprint covered but which have not been folded into yet.
     tiles_no_template: Vec<TileId>,
+    /// Deep-enough tiles skipped because too few template stars were available
+    /// to scale the frame to the template.
+    tiles_unnormalized: Vec<TileId>,
+    /// Residual sources dropped, by reason, summed over the checked tiles.
+    rejected: RejectionsJson,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+struct RejectionsJson {
+    edge: usize,
+    saturated: usize,
+    sharp: usize,
+    bright_star: usize,
+    dipole: usize,
+    elongated: usize,
+    insignificant: usize,
+    small_change: usize,
+}
+
+impl RejectionsJson {
+    fn add(&mut self, r: &DifferenceRejections) {
+        self.edge += r.edge;
+        self.saturated += r.saturated;
+        self.sharp += r.sharp;
+        self.bright_star += r.bright_star;
+        self.dipole += r.dipole;
+        self.elongated += r.elongated;
+        self.insignificant += r.insignificant;
+        self.small_change += r.small_change;
+    }
 }
 
 /// Difference one plate-solved frame against the atlas, returning residual
@@ -234,9 +289,23 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
             args.frame_path
         ));
     }
-    let atlas = open_atlas(&args.atlas_root, args.order)?;
+    let atlas = open_atlas(&args.atlas_root, args.order)?.with_layer(args.layer.as_deref());
     let interp = parse_interp(&args.interp)?;
     let frame = read_frame(&args.frame_path)?;
+    let mut opts = DifferenceOptions {
+        min_template_coverage: args.min_template_coverage,
+        saturation_level: args.saturation_level,
+        ..DifferenceOptions::default()
+    };
+    if let Some(v) = args.min_significance {
+        opts.min_significance = v;
+    }
+    if let Some(v) = args.min_brightening_mag {
+        opts.min_brightening_mag = v;
+    }
+    if let Some(v) = args.edge_margin_px {
+        opts.edge_margin_px = v;
+    }
 
     // The star-detection config for the residual extractor: detector defaults with
     // any explicit override applied.
@@ -286,48 +355,75 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
     let mut tiles_checked: Vec<TileId> = Vec::new();
     let mut tiles_skipped_thin: Vec<TileId> = Vec::new();
     let mut tiles_no_template: Vec<TileId> = Vec::new();
+    let mut tiles_unnormalized: Vec<TileId> = Vec::new();
+    let mut rejected = RejectionsJson::default();
 
-    for tid in tiles {
+    // The frame is decoded once; tiles are differenced on a small pool (each
+    // worker holds one ~42 MB template plus a few tile-sized planes).
+    let decoded = DecodedFrame::new(&frame);
+    enum TileOutcome {
+        NoTemplate,
+        Thin,
+        Unnormalized(DifferenceRejections),
+        Checked(Box<DifferenceResult>),
+    }
+    let run_tile = |tid: TileId| -> Result<TileOutcome, String> {
         let Some(template) = atlas.load_tile(tid).map_err(|e| describe_atlas_error(&e))? else {
-            tiles_no_template.push(tid);
-            continue;
+            return Ok(TileOutcome::NoTemplate);
         };
-        // Quality gate: skip a template thinner than the requested coverage. The
-        // tile-mean coverage is the deepest single number; gate on it so a tile only
-        // grazed by a couple of frames does not generate spurious residuals.
-        if (template.coverage_mean().round() as u32) < args.min_template_coverage {
-            tiles_skipped_thin.push(tid);
-            continue;
+        // A tile with no pixel as deep as the gate has nothing to compare.
+        let deepest = template.state.coverage.iter().copied().max().unwrap_or(0);
+        if deepest < args.min_template_coverage {
+            return Ok(TileOutcome::Thin);
         }
-
-        let result =
-            match difference_against_template(&template, &frame, &args.wcs, interp, &star_cfg) {
-                Ok(r) => r,
-                // A frame that does not actually overlap this tile (footprint clipped a
-                // neighbour) yields no candidates; treat as checked-but-empty.
-                Err(AtlasError::DegenerateWcs) => {
-                    return Err("frame WCS is degenerate".to_string());
-                }
-                Err(e) => return Err(describe_atlas_error(&e)),
-            };
-
-        // A residual whose template overlap was below the gate (the footprint only
-        // clipped a thin corner of this tile) is treated as skipped, not checked.
-        if result.template_coverage_min < args.min_template_coverage
-            && result.candidates.is_empty()
-            && result.template_coverage_min == 0
+        let result = match difference_against_decoded(
+            &template, &decoded, &args.wcs, interp, &star_cfg, &opts,
+        ) {
+            Ok(r) => r,
+            Err(AtlasError::DegenerateWcs) => return Err("frame WCS is degenerate".to_string()),
+            Err(e) => return Err(describe_atlas_error(&e)),
+        };
+        if result.compared_pixels == 0 {
+            return Ok(TileOutcome::Thin);
+        }
+        if result.normalization_stars < skotiq_imaging::difference_image::MIN_NORMALIZATION_STARS {
+            return Ok(TileOutcome::Unnormalized(result.rejections));
+        }
+        Ok(TileOutcome::Checked(Box::new(result)))
+    };
+    let outcomes: Vec<(TileId, Result<TileOutcome, String>)> = {
+        use rayon::prelude::*;
+        match rayon::ThreadPoolBuilder::new()
+            .num_threads(DIFFERENCE_WORKERS)
+            .build()
         {
-            tiles_skipped_thin.push(tid);
-            continue;
+            Ok(pool) => pool.install(|| tiles.par_iter().map(|&t| (t, run_tile(t))).collect()),
+            Err(_) => tiles.iter().map(|&t| (t, run_tile(t))).collect(),
         }
+    };
 
+    for (tid, outcome) in outcomes {
+        let result = match outcome? {
+            TileOutcome::NoTemplate => {
+                tiles_no_template.push(tid);
+                continue;
+            }
+            TileOutcome::Thin => {
+                tiles_skipped_thin.push(tid);
+                continue;
+            }
+            TileOutcome::Unnormalized(r) => {
+                rejected.add(&r);
+                tiles_unnormalized.push(tid);
+                continue;
+            }
+            TileOutcome::Checked(r) => r,
+        };
+        rejected.add(&result.rejections);
         tiles_checked.push(tid);
 
         for c in &result.candidates {
             candidates.push(candidate_json(tid, c));
-            // Real-pixel postage stamps around the detection: template / science /
-            // residual, auto-stretched, named deterministically so the Dart layer
-            // resolves them from the persisted row alone.
             if let Some(dir) = crop_dir {
                 for (stage, plane) in [
                     ("template", &result.template_image),
@@ -336,10 +432,8 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
                 ] {
                     if let Some(stamp) = crop_stamp(plane, c.tile_x, c.tile_y, crop_half) {
                         let path = Path::new(dir).join(crop_basename(tid, c.ra, c.dec, stage));
-                        // A crop write failure is non-fatal — the UI falls back to the
-                        // schematic — but it is logged with the path so a misconfigured
-                        // or full crop directory is diagnosable instead of silently
-                        // costing every stamp of the run.
+                        // A crop write failure is non-fatal (the UI falls back to the
+                        // schematic) but is logged with the path.
                         if let Err(e) = write_preview_png(&stamp, &path) {
                             tracing::warn!(
                                 path = %path.display(),
@@ -352,7 +446,6 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
             }
         }
 
-        // Optional per-tile residual PNG for the UI.
         if let Some(dir) = args
             .residual_out_dir
             .as_ref()
@@ -380,6 +473,8 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
         tiles_checked,
         tiles_skipped_thin,
         tiles_no_template,
+        tiles_unnormalized,
+        rejected,
     })
 }
 
@@ -537,6 +632,35 @@ mod tests {
         }
     }
 
+    /// A star field like a real sub: 30 stars on a sky pedestal with
+    /// deterministic Gaussian noise, plus `extra` stars.
+    fn field(w: usize, extra: &[(f64, f64, f64)], seed: u64) -> Vec<f32> {
+        let mut state = seed
+            .wrapping_mul(2862933555777941757)
+            .wrapping_add(3037000493);
+        let mut uniform = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((state >> 11) as f64 + 0.5) / (1u64 << 53) as f64
+        };
+        let mut buf = vec![0.0f32; w * w];
+        for v in buf.iter_mut() {
+            let (u1, u2) = (uniform(), uniform());
+            let n = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+            *v = (100.0 + 3.0 * n) as f32;
+        }
+        for i in 0..30 {
+            let x = 200.0 + (i % 6) as f64 * 120.0 + 7.0 * (i as f64).sin();
+            let y = 150.0 + (i / 6) as f64 * 150.0 + 5.0 * (i as f64).cos();
+            render_star(&mut buf, w, x, y, 2000.0 + 600.0 * i as f64);
+        }
+        for &(x, y, f) in extra {
+            render_star(&mut buf, w, x, y, f);
+        }
+        buf
+    }
+
     #[test]
     fn difference_detects_injected_source_via_ffi() {
         let dir = temp_dir("detect");
@@ -545,12 +669,7 @@ mod tests {
         let w = TILE_PIXELS as usize;
         let wcs = tile_wcs(tid, order);
 
-        // Build a template tile on disk: 6 folds of a field with two stable stars.
-        let bg = 100.0f32;
-        let mut tmpl_frame = vec![bg; w * w];
-        render_star(&mut tmpl_frame, w, 300.0, 320.0, 5000.0);
-        render_star(&mut tmpl_frame, w, 700.0, 250.0, 6000.0);
-        let tmpl_img = ImageData::from_f32(w as u32, w as u32, 1, &tmpl_frame);
+        // Build a template tile on disk: 6 folds of a 30-star field.
         let mut acc = SkyTileAccumulator::create(
             tid,
             order,
@@ -558,6 +677,7 @@ mod tests {
             AccumulationMode::RunningWeightedMean { clip: None },
         );
         for i in 0..6 {
+            let tmpl_img = ImageData::from_f32(w as u32, w as u32, 1, &field(w, &[], i));
             acc.fold_frame(
                 &tmpl_img,
                 &wcs,
@@ -572,11 +692,8 @@ mod tests {
         let atlas = SkyAtlas::open(&dir, order, DEFAULT_MEMORY_BUDGET_BYTES);
         atlas.store_tile(&acc).unwrap();
 
-        // Tonight's frame: the two stable stars plus a new source, written to FITS.
-        let mut frame = vec![bg; w * w];
-        render_star(&mut frame, w, 300.0, 320.0, 5000.0);
-        render_star(&mut frame, w, 700.0, 250.0, 6000.0);
-        render_star(&mut frame, w, 512.0, 600.0, 7000.0);
+        // Tonight's frame: the same field plus a new source, written to FITS.
+        let frame = field(w, &[(512.0, 600.0, 7000.0)], 99);
         let frame_img = ImageData::from_f32(w as u32, w as u32, 1, &frame);
         let frame_path = dir.join("light.fits");
         let mut header = FitsHeader::new();
@@ -591,7 +708,7 @@ mod tests {
             "interp": "bilinear",
             "minTemplateCoverage": 3,
             "minSnr": 4.0,
-            "minArea": 4
+            "minArea": 3
         });
         let out = api_difference_image(args.to_string()).expect("difference ok");
         let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
@@ -629,12 +746,7 @@ mod tests {
         let w = TILE_PIXELS as usize;
         let wcs = tile_wcs(tid, order);
 
-        // Template: 6 folds with two stable stars.
-        let bg = 100.0f32;
-        let mut tmpl_frame = vec![bg; w * w];
-        render_star(&mut tmpl_frame, w, 300.0, 320.0, 5000.0);
-        render_star(&mut tmpl_frame, w, 700.0, 250.0, 6000.0);
-        let tmpl_img = ImageData::from_f32(w as u32, w as u32, 1, &tmpl_frame);
+        // Template: 6 folds of a 30-star field.
         let mut acc = SkyTileAccumulator::create(
             tid,
             order,
@@ -642,6 +754,7 @@ mod tests {
             AccumulationMode::RunningWeightedMean { clip: None },
         );
         for i in 0..6 {
+            let tmpl_img = ImageData::from_f32(w as u32, w as u32, 1, &field(w, &[], i));
             acc.fold_frame(
                 &tmpl_img,
                 &wcs,
@@ -656,11 +769,8 @@ mod tests {
         let atlas = SkyAtlas::open(&dir, order, DEFAULT_MEMORY_BUDGET_BYTES);
         atlas.store_tile(&acc).unwrap();
 
-        // Tonight: the two stable stars + a new source.
-        let mut frame = vec![bg; w * w];
-        render_star(&mut frame, w, 300.0, 320.0, 5000.0);
-        render_star(&mut frame, w, 700.0, 250.0, 6000.0);
-        render_star(&mut frame, w, 512.0, 600.0, 7000.0);
+        // Tonight: the same field + a new source.
+        let frame = field(w, &[(512.0, 600.0, 7000.0)], 99);
         let frame_img = ImageData::from_f32(w as u32, w as u32, 1, &frame);
         let frame_path = dir.join("light.fits");
         let mut header = FitsHeader::new();
@@ -676,7 +786,7 @@ mod tests {
             "interp": "bilinear",
             "minTemplateCoverage": 3,
             "minSnr": 4.0,
-            "minArea": 4,
+            "minArea": 3,
             "cropOutDir": crop_dir.to_string_lossy(),
             "cropHalf": 20
         });

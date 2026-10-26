@@ -122,12 +122,16 @@ class YourSkyView extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(skyAtlasRegionsProvider);
             ref.invalidate(skyAtlasCoverageProvider);
+            ref.invalidate(skyAtlasTotalsProvider);
             await ref.read(skyAtlasCoverageProvider.future);
           },
           child: ListView(
             padding: padding,
             children: [
-              AtlasCoverageOverlay(coverage: coverage),
+              AtlasCoverageOverlay(
+                coverage: coverage,
+                totals: ref.watch(skyAtlasTotalsProvider).valueOrNull,
+              ),
               const SizedBox(height: SkotiqTokens.spaceLg),
               SectionHeader(
                 title: 'Regions',

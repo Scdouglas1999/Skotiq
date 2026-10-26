@@ -123,6 +123,8 @@ const Map<String, String> _defaultSettings = {
   'science.feature.narrowband_ratios': 'false',
   'science.feature.frame_quality_maps': 'true',
   'science.feature.surface3d': 'true',
+  // Your Sky: fold every accepted, solved light into the personal sky atlas.
+  'science.feature.sky_atlas': 'true',
   'science.retention.manual_purge_only': 'true',
   'science.photometry.differential_active': 'false',
   'science.photometry.target_anchor': '',

@@ -24,6 +24,8 @@ import 'aperture_photometry.dart';
 import 'default_science_backend.dart';
 import 'fits_header_writer.dart';
 import 'photometric_catalog_service.dart';
+import 'moving_object_linker.dart';
+import 'mpc_export_service.dart' show mpcBandForFilter;
 import 'photometric_transform_service.dart';
 import 'science_camera_auto_config.dart';
 import 'science_backend.dart';

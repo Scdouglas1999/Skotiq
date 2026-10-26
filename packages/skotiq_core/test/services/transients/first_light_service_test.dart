@@ -28,6 +28,7 @@ class _FakeCatalogMatcher implements TransientCatalogMatcher {
   _FakeCatalogMatcher(this.stars, {this.throwError = false});
   List<PhotometricCatalogStar> stars;
   bool throwError;
+  double? lastRadiusArcsec;
 
   @override
   Future<List<PhotometricCatalogStar>> coneStars({
@@ -36,6 +37,7 @@ class _FakeCatalogMatcher implements TransientCatalogMatcher {
     required double radiusDegrees,
     double maxMagnitude = 18.0,
   }) async {
+    lastRadiusArcsec = radiusDegrees * 3600.0;
     if (throwError) throw StateError('network down');
     return stars;
   }
@@ -106,7 +108,21 @@ void main() {
     );
   }
 
-  test('persists an unnamed new source as a possible transient', () async {
+  /// Scan frame [id] (filter R) of session 3.
+  Future<List<TransientDetectionRow>> scan(
+    FirstLightService service,
+    int id, {
+    String? filter = 'R',
+  }) => service.scanFrame(
+    framePath: '/tmp/light_$id.fits',
+    wcs: _wcs,
+    sessionId: 3,
+    capturedImageId: id,
+    filter: filter,
+  );
+
+  test('a single-frame sighting is held back; the second frame confirms '
+      'and persists it once', () async {
     final service = build(
       diffResult: {
         'ok': true,
@@ -115,119 +131,180 @@ void main() {
       },
     );
 
-    final rows = await service.scanFrame(
-      framePath: '/tmp/light_999.fits',
-      wcs: _wcs,
-      sessionId: null,
-    );
+    expect(await scan(service, 1), isEmpty);
+    expect(await dao.allDetections(), isEmpty);
 
+    final rows = await scan(service, 2);
     expect(rows, hasLength(1));
-    final row = rows.single;
-    expect(row.catalogMatch, isNull);
-    expect(row.kind, 'newSource');
-    expect(row.tileId, 42);
-    expect(row.confidence, greaterThan(0.0));
+    expect(rows.single.catalogMatch, isNull);
+    expect(rows.single.kind, 'newSource');
+    expect(rows.single.capturedImageId, 2);
 
-    final persisted = await dao.allDetections();
-    expect(persisted, hasLength(1));
+    // Later frames at the same position do not add rows again.
+    expect(await scan(service, 3), isEmpty);
+    expect(await dao.allDetections(), hasLength(1));
   });
 
-  test('a coincident catalog star with template backing names + reclassifies '
-      'to a brightening', () async {
+  test('the same frame scanned twice does not confirm itself', () async {
     final service = build(
       diffResult: {
         'ok': true,
-        // A finite deltaMag means the differencing measured template flux beneath
-        // the residual — the source pre-existed, so this IS a brightening.
-        'candidates': [_candidateJson(deltaMag: -1.2)],
+        'candidates': [_candidateJson()],
+        'tilesChecked': [42],
+      },
+    );
+    expect(await scan(service, 1), isEmpty);
+    expect(await scan(service, 1), isEmpty);
+  });
+
+  test('sightings in different filters or sessions do not confirm each '
+      'other', () async {
+    final service = build(
+      diffResult: {
+        'ok': true,
+        'candidates': [_candidateJson()],
+        'tilesChecked': [42],
+      },
+    );
+    expect(await scan(service, 1, filter: 'R'), isEmpty);
+    expect(await scan(service, 2, filter: 'G'), isEmpty);
+    expect(
+      await service.scanFrame(
+        framePath: '/tmp/light_5.fits',
+        wcs: _wcs,
+        sessionId: 4,
+        capturedImageId: 5,
+        filter: 'R',
+      ),
+      isEmpty,
+    );
+  });
+
+  test('a frame without a filter is not scanned', () async {
+    final seam = _FakeDifferenceSeam({
+      'ok': true,
+      'candidates': [_candidateJson()],
+    });
+    final service = FirstLightService(
+      dao: dao,
+      seam: seam,
+      catalog: _FakeCatalogMatcher(const []),
+      logger: LoggingService(),
+      atlasRootResolver: () async => '/tmp/test_atlas',
+    );
+    expect(await scan(service, 1, filter: null), isEmpty);
+    expect(seam.dispatched, isEmpty);
+  });
+
+  test('positions of a sighting more than 2.5 arcsec apart do not '
+      'confirm', () async {
+    final seam = _FakeDifferenceSeam({
+      'ok': true,
+      'candidates': [_candidateJson()],
+    });
+    final service = FirstLightService(
+      dao: dao,
+      seam: seam,
+      catalog: _FakeCatalogMatcher(const []),
+      logger: LoggingService(),
+      atlasRootResolver: () async => '/tmp/test_atlas',
+    );
+    await scan(service, 1);
+    seam.result = {
+      'ok': true,
+      'candidates': [_candidateJson(dec: 25.0 + 4.0 / 3600.0)],
+    };
+    expect(await scan(service, 2), isEmpty);
+  });
+
+  test('a brightening of a catalog star is named by the star, within '
+      '5 arcsec only', () async {
+    final service = build(
+      diffResult: {
+        'ok': true,
+        'candidates': [
+          _candidateJson(kind: 'pointBrightening', deltaMag: -1.2),
+        ],
         'tilesChecked': [42],
       },
       stars: const [
         PhotometricCatalogStar(raDegrees: 120.0, decDegrees: 25.0, magV: 14.2),
       ],
     );
-
-    final rows = await service.scanFrame(
-      framePath: '/tmp/light.fits',
-      wcs: _wcs,
-    );
-
+    await scan(service, 1);
+    final rows = await scan(service, 2);
     expect(rows, hasLength(1));
-    expect(rows.single.catalogMatch, isNotNull);
-    // The catalog brightness must be explicitly labelled APASS Johnson V at
-    // J2000 — not implied to be the residual's instrumental Δmag.
-    expect(rows.single.catalogMatch, contains('V (APASS, J2000)='));
-    // A residual on a known star WITH template flux is a brightening of it.
     expect(rows.single.kind, 'pointBrightening');
+    expect(rows.single.catalogMatch, 'APASS star V=14.2');
+    expect(rows.single.deltaMag, -1.2);
   });
 
-  test('a new source coincident with a faint catalog star but with NO template '
-      'backing is NOT demoted to a brightening', () async {
-    // The chance-coincidence case: a true newcomer (no template flux, deltaMag
-    // null) that happens to land within 5" of a faint background star must stay
-    // flagged as a possible transient, not silently renamed a "brightening".
+  test('a catalog star 8 arcsec away does not name the source (no '
+      'proper-motion cone)', () async {
+    final catalog = _FakeCatalogMatcher(const [
+      PhotometricCatalogStar(
+        raDegrees: 120.0,
+        decDegrees: 25.0 + 8.0 / 3600.0,
+        magV: 9.5,
+      ),
+    ]);
+    final service = FirstLightService(
+      dao: dao,
+      seam: _FakeDifferenceSeam({
+        'ok': true,
+        'candidates': [_candidateJson()],
+      }),
+      catalog: catalog,
+      logger: LoggingService(),
+      atlasRootResolver: () async => '/tmp/test_atlas',
+    );
+    await scan(service, 1);
+    final rows = await scan(service, 2);
+    expect(rows.single.catalogMatch, isNull);
+    expect(catalog.lastRadiusArcsec, closeTo(5.0, 1e-9));
+  });
+
+  test('streaks and dipoles are never reported', () async {
     final service = build(
       diffResult: {
         'ok': true,
         'candidates': [
-          _candidateJson(),
-        ], // deltaMag null -> no template backing
-        'tilesChecked': [42],
+          _candidateJson(kind: 'movingStreak', eccentricity: 0.95),
+          _candidateJson(kind: 'dipole', ra: 120.01),
+        ],
       },
-      stars: const [
-        PhotometricCatalogStar(raDegrees: 120.0, decDegrees: 25.0, magV: 17.8),
-      ],
     );
-
-    final rows = await service.scanFrame(framePath: '/tmp/c.fits', wcs: _wcs);
-    expect(rows, hasLength(1));
-    // Kept as a new source (not demoted), and named to disclose the coincidence.
-    expect(rows.single.kind, 'newSource');
-    expect(rows.single.catalogMatch, contains('New source near'));
+    await scan(service, 1);
+    expect(await scan(service, 2), isEmpty);
   });
 
-  test('a star only inside the proper-motion-widened band is flagged epoch '
-      'uncertain, not confidently named', () async {
-    // A catalog star ~8" away (beyond the 5" tight radius but inside the PM band)
-    // must be reported as a possible high-PM coincidence with the epoch caveat,
-    // and a clean new source there must not be demoted.
-    const decOffsetDeg = 8.0 / 3600.0; // 8 arcsec north
+  test('drops residuals below the significance floor', () async {
     final service = build(
       diffResult: {
         'ok': true,
-        'candidates': [_candidateJson()],
-        'tilesChecked': [42],
-      },
-      stars: const [
-        PhotometricCatalogStar(
-          raDegrees: 120.0,
-          decDegrees: 25.0 + decOffsetDeg,
-          magV: 9.5,
-        ),
-      ],
-    );
-
-    final rows = await service.scanFrame(framePath: '/tmp/d.fits', wcs: _wcs);
-    expect(rows, hasLength(1));
-    expect(rows.single.kind, 'newSource');
-    expect(rows.single.catalogMatch, contains('epoch uncertain'));
-  });
-
-  test('drops residuals below the SNR floor', () async {
-    final service = build(
-      diffResult: {
-        'ok': true,
-        'candidates': [_candidateJson(snr: 3.0)],
+        'candidates': [_candidateJson(snr: 6.0)],
         'tilesChecked': [42],
       },
     );
-    final rows = await service.scanFrame(framePath: '/tmp/a.fits', wcs: _wcs);
-    expect(rows, isEmpty);
+    await scan(service, 1);
+    expect(await scan(service, 2), isEmpty);
     expect(await dao.allDetections(), isEmpty);
   });
 
+  test('a frame with an implausible number of candidates keeps none', () async {
+    final service = build(
+      diffResult: {
+        'ok': true,
+        'candidates': [
+          for (var i = 0; i < 40; i++) _candidateJson(ra: 120.0 + i * 0.01),
+        ],
+      },
+    );
+    await scan(service, 1);
+    expect(await scan(service, 2), isEmpty);
+  });
+
   test('suppresses a residual at a previously-dismissed position', () async {
-    // Seed a dismissed detection at the candidate's position.
     final service = build(
       diffResult: {
         'ok': true,
@@ -235,19 +312,25 @@ void main() {
         'tilesChecked': [42],
       },
     );
-    final first = await service.scanFrame(framePath: '/tmp/a.fits', wcs: _wcs);
+    await scan(service, 1);
+    final first = await scan(service, 2);
     expect(first, hasLength(1));
     await service.markReviewed(first.single.id, dismissed: true);
 
-    // A new scan of the same residual is suppressed.
-    final second = await service.scanFrame(framePath: '/tmp/b.fits', wcs: _wcs);
-    expect(second, isEmpty);
+    final again = build(
+      diffResult: {
+        'ok': true,
+        'candidates': [_candidateJson()],
+        'tilesChecked': [42],
+      },
+    );
+    await scan(again, 3);
+    expect(await scan(again, 4), isEmpty);
   });
 
   test(
     'dismissed-suppression is scoped to the tiles a frame covers (index seek)',
     () async {
-      // Dismiss a residual on tile 42.
       final service = build(
         diffResult: {
           'ok': true,
@@ -255,17 +338,10 @@ void main() {
           'tilesChecked': [42],
         },
       );
-      final first = await service.scanFrame(
-        framePath: '/tmp/a.fits',
-        wcs: _wcs,
-      );
+      await scan(service, 1);
+      final first = await scan(service, 2);
       await service.markReviewed(first.single.id, dismissed: true);
 
-      // A frame that only produces a residual on a *different* tile (7) must
-      // not be suppressed by tile-42's dismissal — the suppression read is
-      // scoped to the covered tiles, not the all-time dismissed set. The
-      // dismissed signature is index-seeked by (dismissed, tile_id); seeking
-      // tile 7 returns nothing, so the new residual survives.
       final other = build(
         diffResult: {
           'ok': true,
@@ -273,15 +349,11 @@ void main() {
           'tilesChecked': [7],
         },
       );
-      final survived = await other.scanFrame(
-        framePath: '/tmp/c.fits',
-        wcs: _wcs,
-      );
+      await scan(other, 3);
+      final survived = await scan(other, 4);
       expect(survived, hasLength(1));
       expect(survived.single.tileId, 7);
 
-      // Sanity: the index-backed scoped read returns the dismissed row for its
-      // own tile, and empty for an unrelated/empty tile set.
       expect(await dao.dismissedDetectionsForTiles(const [42]), hasLength(1));
       expect(await dao.dismissedDetectionsForTiles(const [7]), isEmpty);
       expect(await dao.dismissedDetectionsForTiles(const []), isEmpty);
@@ -374,7 +446,8 @@ void main() {
         },
         catalogThrows: true,
       );
-      final rows = await service.scanFrame(framePath: '/tmp/a.fits', wcs: _wcs);
+      await scan(service, 1);
+      final rows = await scan(service, 2);
       expect(rows, hasLength(1));
       expect(rows.single.catalogMatch, isNull);
     },
@@ -398,32 +471,33 @@ void main() {
     );
   });
 
-  test(
-    'passes minSnr + a crop output dir to the difference call (single source '
-    'of truth, real-pixel stamps)',
-    () async {
-      final seam = _FakeDifferenceSeam({
-        'ok': true,
-        'candidates': [_candidateJson()],
-        'tilesChecked': [42],
-      });
-      final service = FirstLightService(
-        dao: dao,
-        seam: seam,
-        catalog: _FakeCatalogMatcher(const []),
-        logger: LoggingService(),
-        atlasRootResolver: () async => '/tmp/test_atlas',
-      );
+  test('passes the filter layer, the significance floor and a crop output dir '
+      'to the difference call', () async {
+    final seam = _FakeDifferenceSeam({
+      'ok': true,
+      'candidates': [_candidateJson()],
+      'tilesChecked': [42],
+    });
+    final service = FirstLightService(
+      dao: dao,
+      seam: seam,
+      catalog: _FakeCatalogMatcher(const []),
+      logger: LoggingService(),
+      atlasRootResolver: () async => '/tmp/test_atlas',
+      filterResolver: (id) async => id == 777 ? 'Ha' : null,
+    );
 
-      await service.scanFrame(framePath: '/tmp/light_777.fits', wcs: _wcs);
+    await service.scanFrame(
+      framePath: '/tmp/light_777.fits',
+      wcs: _wcs,
+      capturedImageId: 777,
+    );
 
-      final args = seam.dispatched.single;
-      // SNR floor passed explicitly so Dart + native share one constant.
-      expect(args['minSnr'], 5.0);
-      // Crops written under the atlas root so the endpoint/UI resolve them.
-      expect(args['cropOutDir'], firstLightCropDir('/tmp/test_atlas'));
-    },
-  );
+    final args = seam.dispatched.single;
+    expect(args['layer'], 'Ha');
+    expect(args['minSignificance'], 7.0);
+    expect(args['cropOutDir'], firstLightCropDir('/tmp/test_atlas'));
+  });
 
   test('publishes the coverage envelope; a thin atlas is flagged distinctly '
       'from a clean sky', () async {
@@ -439,10 +513,7 @@ void main() {
       },
       onCoverage: (c) => thin = c,
     );
-    final thinRows = await thinService.scanFrame(
-      framePath: '/tmp/thin.fits',
-      wcs: _wcs,
-    );
+    final thinRows = await scan(thinService, 1);
     expect(thinRows, isEmpty);
     expect(thin, isNotNull);
     expect(thin!.tilesChecked, 0);
@@ -459,7 +530,7 @@ void main() {
       },
       onCoverage: (c) => clean = c,
     );
-    await cleanService.scanFrame(framePath: '/tmp/clean.fits', wcs: _wcs);
+    await scan(cleanService, 2);
     expect(clean!.tilesChecked, 2);
     expect(clean!.isAtlasTooThin, isFalse);
   });

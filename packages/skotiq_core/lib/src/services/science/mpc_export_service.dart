@@ -13,6 +13,90 @@ import '../../utils/skotiq_data_directory.dart';
 /// positional data.
 ///
 /// Reference: https://www.minorplanetcenter.net/iau/info/OpticalObs.html
+/// The MPC/ADES photometric band a frame taken through [filter] reports, or
+/// null when the filter stands for no broadband (narrowband, unknown), in
+/// which case no magnitude is reported.
+///
+/// Unfiltered and luminance frames report `C` (clear), the MPC's band for
+/// unfiltered CCD photometry. A green RGB filter is closest to Johnson V.
+String? mpcBandForFilter(String? filter) {
+  final f = (filter ?? '').trim().toLowerCase();
+  switch (f) {
+    case '':
+    case 'l':
+    case 'lum':
+    case 'luminance':
+    case 'clear':
+    case 'c':
+    case 'none':
+    case 'uv/ir cut':
+    case 'uvir':
+      return 'C';
+    case 'r':
+    case 'red':
+      return 'R';
+    case 'v':
+    case 'g':
+    case 'green':
+      return 'V';
+    case 'b':
+    case 'blue':
+      return 'B';
+    case 'i':
+      return 'I';
+    case "sloan g":
+    case "g'":
+    case 'sg':
+      return 'g';
+    case "sloan r":
+    case "r'":
+    case 'sr':
+      return 'r';
+    case "sloan i":
+    case "i'":
+    case 'si':
+      return 'i';
+  }
+  return null;
+}
+
+/// Report formats the MPC accepts for optical astrometry.
+enum MpcReportFormat {
+  /// The legacy 80-column format (obs80).
+  obs80,
+
+  /// ADES 2017 in pipe-separated values, the MPC's current submission format.
+  adesPsv,
+}
+
+/// Observer details an ADES report header carries. The MPC's validator
+/// requires an observer, a measurer and the telescope; a report built with
+/// any of them empty must be completed by hand before it is submitted.
+class AdesReportHeader {
+  const AdesReportHeader({
+    required this.observatoryCode,
+    this.submitter = '',
+    this.observers = const [],
+    this.measurers = const [],
+    this.telescopeAperture,
+    this.telescopeDesign = 'reflector',
+    this.astCat = 'Gaia3',
+  });
+
+  final String observatoryCode;
+  final String submitter;
+  final List<String> observers;
+  final List<String> measurers;
+
+  /// Aperture in meters.
+  final double? telescopeAperture;
+  final String telescopeDesign;
+
+  /// Astrometric reference catalog of the plate solves (ASTAP's star
+  /// databases are built from Gaia DR3).
+  final String astCat;
+}
+
 class MpcExportService {
   /// Generate an MPC 80-column format report from selected moving object
   /// observations.
@@ -114,6 +198,107 @@ class MpcExportService {
     return groups;
   }
 
+  /// Build an ADES 2017 PSV report (one observation per row) for
+  /// [candidates]. Rows of one tracklet share a `trkSub`. Magnitudes are
+  /// written only with [photCat] (the photometric reference catalog),
+  /// because ADES requires one with every magnitude.
+  String generateAdesPsv({
+    required List<MovingObjectCandidateRow> candidates,
+    required AdesReportHeader header,
+    Map<String, String>? provisionalDesignations,
+    String? photCat,
+  }) {
+    if (candidates.isEmpty) {
+      throw ArgumentError('Cannot generate ADES report from empty candidates');
+    }
+    if (header.observatoryCode.length != 3) {
+      throw ArgumentError(
+        'MPC observatory code must be exactly 3 characters, '
+        'got "${header.observatoryCode}"',
+      );
+    }
+    final sorted = List<MovingObjectCandidateRow>.from(candidates)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final designations =
+        provisionalDesignations ?? _assignProvisionalDesignations(sorted);
+
+    final out = StringBuffer()
+      ..writeln('# version=2017')
+      ..writeln('# observatory')
+      ..writeln('! mpcCode ${header.observatoryCode}')
+      ..writeln('# submitter')
+      ..writeln('! name ${header.submitter}');
+    out.writeln('# observers');
+    for (final name in header.observers.isEmpty ? [''] : header.observers) {
+      out.writeln('! name $name');
+    }
+    out.writeln('# measurers');
+    for (final name in header.measurers.isEmpty ? [''] : header.measurers) {
+      out.writeln('! name $name');
+    }
+    out
+      ..writeln('# telescope')
+      ..writeln('! design ${header.telescopeDesign}');
+    final aperture = header.telescopeAperture;
+    if (aperture != null && aperture > 0) {
+      out.writeln('! aperture ${aperture.toStringAsFixed(3)}');
+    }
+    out.writeln('! detector CCD');
+
+    final withMag = photCat != null && photCat.trim().isNotEmpty;
+    final columns = [
+      'trkSub',
+      'mode',
+      'stn',
+      'obsTime',
+      'ra',
+      'dec',
+      'astCat',
+      if (withMag) ...['mag', 'band', 'photCat'],
+    ];
+    out.writeln(columns.join('|'));
+    for (final c in sorted) {
+      final trkSub = (designations[c.candidateId] ?? '').trim();
+      final mag = c.magnitude;
+      final band = c.magnitudeBand;
+      final hasMag =
+          withMag &&
+          mag != null &&
+          mag.isFinite &&
+          mag > 0 &&
+          mag < 35 &&
+          band != null &&
+          band.isNotEmpty;
+      var ra = c.raDegrees % 360.0;
+      if (ra < 0) ra += 360.0;
+      final fields = [
+        trkSub.length > 8 ? trkSub.substring(0, 8) : trkSub,
+        'CCD',
+        header.observatoryCode,
+        _adesTime(c.timestamp),
+        ra.toStringAsFixed(6),
+        (c.decDegrees >= 0 ? '+' : '') + c.decDegrees.toStringAsFixed(6),
+        header.astCat,
+        if (withMag) ...[
+          hasMag ? mag.toStringAsFixed(2) : '',
+          hasMag ? band : '',
+          hasMag ? photCat : '',
+        ],
+      ];
+      out.writeln(fields.join('|'));
+    }
+    return out.toString();
+  }
+
+  static String _adesTime(DateTime t) {
+    final u = t.toUtc();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final seconds = u.second + u.millisecond / 1000.0;
+    return '${u.year.toString().padLeft(4, '0')}-${two(u.month)}-'
+        '${two(u.day)}T${two(u.hour)}:${two(u.minute)}:'
+        '${seconds.toStringAsFixed(2).padLeft(5, '0')}Z';
+  }
+
   /// Export the MPC report to a file in the application documents directory.
   ///
   /// Returns the absolute path to the exported file.
@@ -121,12 +306,20 @@ class MpcExportService {
     required List<MovingObjectCandidateRow> candidates,
     required String observatoryCode,
     Map<String, String>? provisionalDesignations,
+    MpcReportFormat format = MpcReportFormat.obs80,
   }) async {
-    final report = generateReport(
-      candidates: candidates,
-      observatoryCode: observatoryCode,
-      provisionalDesignations: provisionalDesignations,
-    );
+    final report = switch (format) {
+      MpcReportFormat.obs80 => generateReport(
+        candidates: candidates,
+        observatoryCode: observatoryCode,
+        provisionalDesignations: provisionalDesignations,
+      ),
+      MpcReportFormat.adesPsv => generateAdesPsv(
+        candidates: candidates,
+        header: AdesReportHeader(observatoryCode: observatoryCode),
+        provisionalDesignations: provisionalDesignations,
+      ),
+    };
 
     final docsDir = await resolveSkotiqDocumentsDirectory();
     final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
@@ -139,7 +332,9 @@ class MpcExportService {
         .toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '-');
-    final fileName = 'mpc_report_$timestamp.txt';
+    final fileName = format == MpcReportFormat.adesPsv
+        ? 'ades_report_$timestamp.psv'
+        : 'mpc_report_$timestamp.txt';
     final filePath = path.join(exportDir.path, fileName);
 
     await File(filePath).writeAsString(report);
@@ -210,8 +405,9 @@ class MpcExportService {
         ? magValue.toStringAsFixed(1).padLeft(5)
         : '     ';
 
-    // Column 71: Band — blank when no magnitude. Single character; the
-    // pipeline stamps 'V' (zero point is fitted against catalog V mags).
+    // Column 71: Band — blank when no magnitude. Single character, from the
+    // frame's filter (see mpcBandForFilter); rows stored before the band was
+    // recorded read as V.
     final band = hasMagnitude
         ? (candidate.magnitudeBand ?? 'V').padRight(1).substring(0, 1)
         : ' ';

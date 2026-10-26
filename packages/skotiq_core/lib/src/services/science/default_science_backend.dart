@@ -14,8 +14,8 @@ import '../../providers/database_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/logging_service.dart';
 import '../plate_solve_service.dart';
-import '../../utils/utc_timestamp.dart';
 import 'astrometric_residuals.dart';
+import 'moving_object_linker.dart';
 import 'nearest_neighbour_matching.dart';
 import 'aperture_photometry.dart';
 import 'filter_transparency.dart';
@@ -36,6 +36,8 @@ class DefaultScienceBackend implements ScienceBackend {
   final Ref _ref;
 
   DefaultScienceBackend(this._ref);
+
+  final Map<String, MovingObjectFrameDetections> _movingObjectCache = {};
 
   ImagingBackend get _backend => _ref.read(imagingBackendProvider);
   LoggingService get _logger => _ref.read(loggingServiceProvider);
@@ -556,171 +558,69 @@ class DefaultScienceBackend implements ScienceBackend {
 
   @override
   Future<List<MovingObjectMatch>> detectMovingObjects(
-    List<String> imagePaths,
-    WcsSolution wcs,
+    List<MovingObjectFrame> frames,
     MovingObjectOptions options,
   ) async {
-    if (imagePaths.length < 2) return const [];
-    final firstPath = imagePaths.first;
-    final lastPath = imagePaths.last;
-    final first = await measureStars(
-      firstPath,
-      const PhotometryOptions(minSnr: 5.0),
-    );
-    final last = await measureStars(
-      lastPath,
-      const PhotometryOptions(minSnr: 5.0),
-    );
-    if (first.isEmpty || last.isEmpty) return const [];
+    if (frames.length < options.minFrames) return const [];
+    final perFrame = <MovingObjectFrameDetections>[];
+    for (final frame in frames) {
+      final detections = await _movingObjectDetections(frame);
+      if (detections != null) perFrame.add(detections);
+    }
+    return linkMovingObjects(perFrame, options);
+  }
 
-    final firstFits = await apiReadFitsFile(filePath: firstPath);
-    final lastFits = await apiReadFitsFile(filePath: lastPath);
-    final dtMin = _deltaMinutes(
-      firstFits.dateObs,
-      lastFits.dateObs,
-      imagePaths.length,
-    );
-    // The candidate position below is the midpoint between the first and
-    // last detections, so its astrometric epoch is the midpoint of the two
-    // frame times — not "now" and not the triggering frame's timestamp.
-    final epochUtc = _midpointEpochUtc(firstFits.dateObs, lastFits.dateObs);
-
+  /// One frame's detections placed on the sky through the frame's own solve,
+  /// cached by path so each frame is measured once while it stays in the
+  /// sliding window.
+  Future<MovingObjectFrameDetections?> _movingObjectDetections(
+    MovingObjectFrame frame,
+  ) async {
+    final cached = _movingObjectCache[frame.imagePath];
+    if (cached != null) return cached;
+    final header = await readFitsFrameSummary(frame.imagePath);
+    final when = frame.midExposureUtc ?? header?.midExposureUtc;
+    if (header == null || when == null) return null;
     final projection = _projectionFor(
-      wcs,
-      imageWidth: firstFits.width,
-      imageHeight: firstFits.height,
+      frame.wcs,
+      imageWidth: header.width,
+      imageHeight: header.height,
     );
     if (projection == null) {
       _logger.warning(
-        'Moving-object detection skipped: WCS/image geometry is not '
-        'projectable (scale=${wcs.pixelScaleArcsecPerPixel}, '
-        'dims=${firstFits.width}x${firstFits.height}).',
+        'Moving-object detection skipped ${frame.imagePath}: its WCS is not '
+        'projectable.',
         source: 'ScienceBackend',
       );
-      return const [];
+      return null;
     }
-
-    // When 3+ frames are available, measure the middle frame for linear
-    // motion validation — a candidate must also appear near the
-    // interpolated position in this frame.
-    final midIndex = imagePaths.length ~/ 2;
-    final bool hasMiddleFrame =
-        imagePaths.length >= 3 &&
-        midIndex > 0 &&
-        midIndex < imagePaths.length - 1;
-    List<StarMeasurement>? midStars;
-    double midFraction = 0.5; // interpolation factor (0 = first, 1 = last)
-    if (hasMiddleFrame) {
-      midStars = await measureStars(
-        imagePaths[midIndex],
-        const PhotometryOptions(minSnr: 5.0),
-      );
-      midFraction = midIndex / (imagePaths.length - 1);
-    }
-
-    // Maximum deviation from linear interpolation allowed in the middle
-    // frame, in pixels.  Generous enough for slight dithering / guiding
-    // drift but tight enough to reject random coincidences.
-    const midMatchTolerance = 4.0;
-
-    final usedLast = <int>{};
-    final matches = <MovingObjectMatch>[];
-    final firstSorted = first.toList(growable: false)
-      ..sort((a, b) => b.snr.compareTo(a.snr));
-    for (final star in firstSorted.take(280)) {
-      var bestIndex = -1;
-      var bestDist = double.infinity;
-      for (var i = 0; i < last.length; i++) {
-        if (usedLast.contains(i)) continue;
-        final dx = last[i].x - star.x;
-        final dy = last[i].y - star.y;
-        final dist = math.sqrt(dx * dx + dy * dy);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestIndex = i;
-        }
-      }
-      if (bestIndex < 0 ||
-          bestDist < options.minMotionPixels ||
-          bestDist > options.maxMotionPixels) {
-        continue;
-      }
-      final matched = last[bestIndex];
-      if (!_mutualNearest(star, matched, firstSorted)) continue;
-
-      // 3-frame linear motion validation: predict where the object
-      // should be in the middle frame and check for a nearby detection.
-      var passedMiddleValidation = false;
-      if (midStars != null && midStars.isNotEmpty) {
-        final expectedX = star.x + (matched.x - star.x) * midFraction;
-        final expectedY = star.y + (matched.y - star.y) * midFraction;
-        var foundMid = false;
-        for (final midStar in midStars) {
-          final mdx = midStar.x - expectedX;
-          final mdy = midStar.y - expectedY;
-          if (math.sqrt(mdx * mdx + mdy * mdy) <= midMatchTolerance) {
-            foundMid = true;
-            break;
-          }
-        }
-        if (!foundMid) continue;
-        passedMiddleValidation = true;
-      }
-
-      usedLast.add(bestIndex);
-
-      final dxPx = matched.x - star.x;
-      final dyPx = matched.y - star.y;
-      // Through the frame's own WCS, so the angle carries its parity; a
-      // scalar rotation cannot tell a mirrored frame from a normal one.
-      final startSky = projection.pixelToWorld(x: star.x, y: star.y);
-      final endSky = projection.pixelToWorld(x: matched.x, y: matched.y);
-      final pa = (dxPx == 0 && dyPx == 0)
-          ? 0.0
-          : skyPositionAngleDegrees(
-              fromRaDegrees: startSky.raDegrees,
-              fromDecDegrees: startSky.decDegrees,
-              toRaDegrees: endSky.raDegrees,
-              toDecDegrees: endSky.decDegrees,
-            );
-      final motion = (bestDist * wcs.pixelScaleArcsecPerPixel) / dtMin;
-      final midSky = projection.pixelToWorld(
-        x: (star.x + matched.x) / 2.0,
-        y: (star.y + matched.y) / 2.0,
-      );
-      final mid = (ra: midSky.raDegrees, dec: midSky.decDegrees);
-
-      final snrScore = (((star.snr + matched.snr) * 0.5) / 20.0)
-          .clamp(0.2, 1.0)
-          .toDouble();
-      final motionScore =
-          ((bestDist - options.minMotionPixels) /
-                  (options.maxMotionPixels - options.minMotionPixels))
-              .clamp(0.0, 1.0)
-              .toDouble();
-      // Boost confidence only when 3-frame validation actually passed.
-      final validationBonus = passedMiddleValidation ? 0.10 : 0.0;
-      final confidence =
-          (0.65 * snrScore + 0.35 * motionScore + validationBonus)
-              .clamp(0.15, 0.98)
-              .toDouble();
-      matches.add(
-        MovingObjectMatch(
-          candidateId:
-              'mo_${mid.ra.toStringAsFixed(5)}_${mid.dec.toStringAsFixed(5)}_${matches.length + 1}',
-          raDegrees: mid.ra,
-          decDegrees: mid.dec,
-          motionArcsecPerMinute: motion,
-          positionAngleDegrees: pa,
-          confidence: confidence,
-          isKnownObject: false,
-          epochUtc: epochUtc,
-          fluxEstimate: (star.flux + matched.flux) / 2.0,
+    final stars = await measureStars(
+      frame.imagePath,
+      const PhotometryOptions(minSnr: 5.0),
+    );
+    final detections = <MovingObjectDetection>[];
+    for (final s in stars) {
+      final sky = projection.pixelToWorld(x: s.x, y: s.y);
+      detections.add(
+        MovingObjectDetection(
+          raDegrees: sky.raDegrees,
+          decDegrees: sky.decDegrees,
+          x: s.x,
+          y: s.y,
+          flux: s.flux,
+          snr: s.snr,
         ),
       );
     }
-    matches.sort((a, b) => b.confidence.compareTo(a.confidence));
-    return matches.take(40).toList(growable: false);
+    final result = MovingObjectFrameDetections(
+      midExposureUtc: when,
+      detections: detections,
+    );
+    if (_movingObjectCache.length >= 16) {
+      _movingObjectCache.remove(_movingObjectCache.keys.first);
+    }
+    _movingObjectCache[frame.imagePath] = result;
+    return result;
   }
 
   @override

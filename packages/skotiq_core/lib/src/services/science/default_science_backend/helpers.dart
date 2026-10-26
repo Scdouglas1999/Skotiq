@@ -141,48 +141,6 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
     return GnomonicProjection(solved);
   }
 
-  /// Midpoint of the two frames' DATE-OBS values in UTC, or null when
-  /// either is missing/unparseable.
-  DateTime? _midpointEpochUtc(String? firstObs, String? lastObs) {
-    final t0Utc = tryParseUtcTimestamp(firstObs);
-    final t1Utc = tryParseUtcTimestamp(lastObs);
-    if (t0Utc == null || t1Utc == null) return null;
-    return t0Utc.add(
-      Duration(milliseconds: t1Utc.difference(t0Utc).inMilliseconds ~/ 2),
-    );
-  }
-
-  double _deltaMinutes(String? firstObs, String? lastObs, int frameCount) {
-    final t0 = tryParseUtcTimestamp(firstObs);
-    final t1 = tryParseUtcTimestamp(lastObs);
-    if (t0 != null && t1 != null) {
-      return math.max(
-        1.0 / 60.0,
-        t1.difference(t0).inMilliseconds.abs() / 60000.0,
-      );
-    }
-    return math.max(1.0, (frameCount - 1).toDouble());
-  }
-
-  bool _mutualNearest(
-    StarMeasurement first,
-    StarMeasurement last,
-    List<StarMeasurement> firstStars,
-  ) {
-    StarMeasurement? nearest;
-    var best = double.infinity;
-    for (final candidate in firstStars) {
-      final dx = candidate.x - last.x;
-      final dy = candidate.y - last.y;
-      final d = math.sqrt(dx * dx + dy * dy);
-      if (d < best) {
-        best = d;
-        nearest = candidate;
-      }
-    }
-    return nearest == first;
-  }
-
   double _robustMedian(List<double> values) {
     if (values.isEmpty) return 0.0;
     var working = values.where((v) => v.isFinite).toList(growable: true);

@@ -1,13 +1,53 @@
 part of '../science_models.dart';
 
+/// Linking limits for moving-object detection. Positions are compared on the
+/// sky, so the tolerances are in arcseconds, not pixels.
 class MovingObjectOptions {
-  final double minMotionPixels;
-  final double maxMotionPixels;
+  /// How far a detection may sit from the straight-line prediction, and from a
+  /// fixed source's position, and still count as the same object.
+  final double matchToleranceArcsec;
+
+  /// Fastest motion linked; faster objects trail into streaks the star
+  /// detector does not report.
+  final double maxRateArcsecPerMinute;
+
+  /// Fewest frames a tracklet needs.
+  final int minFrames;
+
+  /// Recent frames of the session searched together.
+  final int windowFrames;
+
+  /// Cap on candidates reported per frame.
+  final int maxCandidates;
+
+  /// A tracklet whose detections all sit within this many pixels of one
+  /// detector position is a sensor defect carried along by the dithers.
+  final double pixelStaticTolerance;
 
   const MovingObjectOptions({
-    this.minMotionPixels = 1.5,
-    this.maxMotionPixels = 18.0,
+    this.matchToleranceArcsec = 2.0,
+    this.maxRateArcsecPerMinute = 10.0,
+    this.minFrames = 3,
+    this.windowFrames = 8,
+    this.maxCandidates = 25,
+    this.pixelStaticTolerance = 1.5,
   });
+}
+
+/// One frame handed to moving-object detection, with the plate solve of that
+/// frame (not of the frame that triggered the search).
+class MovingObjectFrame {
+  const MovingObjectFrame({
+    required this.imagePath,
+    required this.wcs,
+    this.midExposureUtc,
+  });
+
+  final String imagePath;
+  final WcsSolution wcs;
+
+  /// Mid-exposure time; read from the FITS header when null.
+  final DateTime? midExposureUtc;
 }
 
 class MovingObjectMatch {
@@ -20,20 +60,20 @@ class MovingObjectMatch {
   final bool isKnownObject;
   final String? objectName;
 
-  /// UTC epoch the reported RA/Dec corresponds to. The detector reports the
-  /// *midpoint* position between the first and last frame of the stack, so
-  /// this is the midpoint of their DATE-OBS values — not the capture time of
-  /// the frame that triggered detection. Astrometric consumers (MPC export)
-  /// must pair the position with this epoch or fast movers pick up an error
-  /// of motion × (half the stack baseline). Null when the frames carried no
-  /// parseable DATE-OBS; callers then fall back to the trigger frame's time.
+  /// UTC mid-exposure time of the frame the reported RA/Dec was measured on
+  /// (the newest frame of the window). Astrometric consumers (MPC export)
+  /// must pair the position with this epoch. Null only when the frames
+  /// carried no time; callers then fall back to the trigger frame's time.
   final DateTime? epochUtc;
 
-  /// Mean measured flux (ADU) of the candidate across the first/last
-  /// detections. Combined with the frame's photometric zero point this
+  /// Measured flux (ADU) of the candidate on the frame its position comes
+  /// from. Combined with the frame's photometric zero point this
   /// yields the apparent magnitude for the MPC report; null/zero means the
   /// report line stays astrometry-only.
   final double? fluxEstimate;
+
+  /// Frames whose detections form the tracklet.
+  final int frameCount;
 
   const MovingObjectMatch({
     required this.candidateId,
@@ -46,6 +86,7 @@ class MovingObjectMatch {
     this.objectName,
     this.epochUtc,
     this.fluxEstimate,
+    this.frameCount = 0,
   });
 }
 

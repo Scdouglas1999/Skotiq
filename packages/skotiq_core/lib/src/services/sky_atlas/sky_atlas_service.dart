@@ -15,6 +15,10 @@ import '../../utils/skotiq_data_directory.dart';
 part 'sky_atlas_service/atlas_models.dart';
 part 'sky_atlas_service/internals.dart';
 
+/// App setting that turns the Your Sky atlas fold (and so First Light) on or
+/// off; anything but `false` means on.
+const String skyAtlasSettingKey = 'science.feature.sky_atlas';
+
 /// Orchestrates Pillar A ("Your Sky") — the personal sky atlas.
 ///
 /// Folds plate-solved light frames into the fixed HEALPix tiling via the native
@@ -33,13 +37,32 @@ class SkyAtlasService {
     required LoggingService logger,
     required Future<String> Function() atlasRootResolver,
     Future<AtlasTargetRef?> Function(int targetId)? targetResolver,
+    Future<bool> Function()? autoFoldEnabled,
     int order = skyAtlasHealpixOrder,
   }) : _dao = dao,
        _seam = seam,
        _logger = logger,
        _atlasRootResolver = atlasRootResolver,
        _targetResolver = targetResolver,
+       _autoFoldEnabled = autoFoldEnabled,
        _order = order;
+
+  /// Most frames one native fold call takes. Frames that arrive while a fold is
+  /// running wait and go together in the next call, which reads and writes
+  /// each tile once for the whole batch.
+  static const int maxFoldBatch = 4;
+
+  /// Auto-fold requests waiting beyond this are dropped (oldest first) and stay
+  /// unfolded, so a backlog can never grow without bound during a night.
+  static const int maxPendingAutoFolds = 64;
+
+  /// The `science.feature.sky_atlas` switch: when it reads false the solve hook
+  /// folds nothing. Null (tests, slaves) means always on.
+  final Future<bool> Function()? _autoFoldEnabled;
+
+  /// Auto-fold requests not yet handed to the native fold.
+  final List<_PendingFold> _pendingFolds = [];
+  bool _draining = false;
 
   final SkyAtlasDao _dao;
   final SkyAtlasSeam _seam;
@@ -84,18 +107,20 @@ class SkyAtlasService {
 
   /// Fold a session's solved frames into the atlas and persist the result.
   ///
-  /// Invertible-WCS frames are sent to the native fold in one batch; the
-  /// per-tile post-fold state the bridge returns is upserted into [SkyTiles] and
-  /// a [SkyAtlasFolds] timeline row is appended per touched tile. Frames with a
-  /// degenerate WCS are dropped before the call (the native side would reject
-  /// the whole batch otherwise) and noted in the log. Returns the decoded
-  /// summary; an empty frame list short-circuits to [AtlasFoldSummary.empty].
+  /// Invertible-WCS frames are sent to the native fold in one call; each tile
+  /// a frame is counted in gets a [SkyAtlasFolds] timeline row with that
+  /// frame's own exposure, and the [SkyTiles] index row is refreshed from the
+  /// timeline. Frames with a degenerate WCS are dropped before the call (the
+  /// native side would reject the whole batch otherwise) and noted in the log.
+  /// [filter] selects the filter layer. Returns the decoded summary; an empty
+  /// frame list short-circuits to [AtlasFoldSummary.empty].
   Future<AtlasFoldSummary> foldSession({
     required int sessionId,
     required List<SolvedFrameRef> frames,
     AtlasInterp interp = AtlasInterp.lanczos3,
     String label = '',
     String contributor = '',
+    String? filter,
     int? targetId,
     String? regionName,
     double? targetRaDeg,
@@ -115,49 +140,28 @@ class SkyAtlasService {
     if (usable.isEmpty) {
       return AtlasFoldSummary.empty;
     }
-
-    final root = await atlasRoot();
     final foldLabel = label.trim().isEmpty
         ? DateTime.now().toUtc().toIso8601String()
         : label.trim();
-
-    final args = <String, dynamic>{
-      'action': 'fold',
-      'atlasRoot': root,
-      'order': _order,
-      'contributor': contributor,
-      'interp': interp.wire,
-      'label': foldLabel,
-      'frames': usable.map((f) => f.toFoldFrameJson()).toList(),
-    };
-
-    final summary = await _serialized(() async {
-      final result = await _seam.dispatch(args);
-      final folded = AtlasFoldSummary.fromJson(result);
-      await _persistFold(
-        summary: folded,
-        sessionId: sessionId,
-        label: foldLabel,
-        contributor: contributor,
-        root: root,
-        targetId: targetId,
-        regionName: regionName,
-        targetRaDeg: targetRaDeg,
-        targetDecDeg: targetDecDeg,
-        regionRadiusDeg: regionRadiusDeg,
-      );
-      return folded;
-    });
-
-    _logger.info(
-      'foldSession($sessionId): folded ${summary.totalFramesFolded} '
-      'frame${summary.totalFramesFolded == 1 ? '' : 's'} across '
-      '${summary.tilesTouched.length} '
-      'tile${summary.tilesTouched.length == 1 ? '' : 's'}; '
-      '${summary.framesSkippedNoCoverage} off-sky.',
-      source: _logSource,
+    final region = _RegionRequest(
+      targetId: targetId,
+      name: regionName,
+      raDeg: targetRaDeg,
+      decDeg: targetDecDeg,
+      radiusDeg: regionRadiusDeg,
     );
-    return summary;
+    final items = [
+      for (final f in usable)
+        _PendingFold(
+          frame: f.label == null ? f.withLabel(foldLabel) : f,
+          sessionId: sessionId,
+          layer: atlasLayerKey(filter),
+          region: region,
+          interp: interp,
+          contributor: contributor,
+        ),
+    ];
+    return _serialized(() => _foldBatch(items));
   }
 
   /// Fold a single solved frame — the per-capture hook the imaging/live-stacking
@@ -168,6 +172,7 @@ class SkyAtlasService {
     AtlasInterp interp = AtlasInterp.lanczos3,
     String label = '',
     String contributor = '',
+    String? filter,
     int? targetId,
     String? regionName,
     double? targetRaDeg,
@@ -180,6 +185,7 @@ class SkyAtlasService {
       interp: interp,
       label: label,
       contributor: contributor,
+      filter: filter,
       targetId: targetId,
       regionName: regionName,
       targetRaDeg: targetRaDeg,
@@ -191,12 +197,14 @@ class SkyAtlasService {
   /// Fold an already-persisted, plate-solved captured-image row into the atlas.
   ///
   /// This is the auto-fold entry point the solve-persist hook calls: it gates on
-  /// the row being a light frame with a usable solve, builds the [SolvedFrameRef]
-  /// from the stored WCS (CD matrix + SIP when present, else scale+rotation), and
-  /// folds it under the image's session label. Returns null (folding nothing)
-  /// when the row is not a foldable light or lacks an invertible WCS — never
-  /// throws for those expected cases. [imageWidth]/[imageHeight] are the frame's
-  /// pixel dimensions (the FITS dims), needed for the reference pixel.
+  /// the atlas switch, on the row being an accepted light frame with a usable
+  /// solve, builds the [SolvedFrameRef] from the stored WCS (CD matrix + SIP
+  /// when present, else scale+rotation), and queues it into its filter's layer
+  /// under its capture-time label. Returns null (folding nothing) when the atlas
+  /// is off, the row is not foldable, or the request was dropped from a full
+  /// queue — never throws for those expected cases. [imageWidth]/[imageHeight]
+  /// are the frame's pixel dimensions (the FITS dims), needed for the reference
+  /// pixel.
   Future<AtlasFoldSummary?> autoFoldCapturedImage({
     required CapturedImage image,
     required int imageWidth,
@@ -204,7 +212,12 @@ class SkyAtlasService {
     SolvedWcsDistortion distortion = const SolvedWcsDistortion(),
     AtlasInterp interp = AtlasInterp.lanczos3,
   }) async {
+    final enabled = _autoFoldEnabled;
+    if (enabled != null && !await enabled()) return null;
     if (image.frameType.toLowerCase() != 'light') return null;
+    // A rejected frame (trailed, clouded, defocused) would degrade the deep
+    // template every later frame is compared against.
+    if (!image.isAccepted) return null;
     if (!image.isPlateSolved ||
         image.solvedRa == null ||
         image.solvedDec == null) {
@@ -241,15 +254,13 @@ class SkyAtlasService {
       framePath: image.filePath,
       wcs: solvedWcs,
       exposureSec: image.exposureDuration,
-    );
+    ).withLabel(_foldLabelFor(image));
     if (!frame.hasInvertibleWcs) return null;
 
-    // Region attach (Pillar A reachability): a captured-image solve carries a
-    // [targetId], so resolve the target's name + sky coordinates and pass them
-    // through so `_persistFold` ensures/updates ONE region for the target and
-    // links every touched tile to it — making the whole region UX reachable
-    // without any manual step. The resolver is host-only (null on a slave, which
-    // never folds), and a resolve failure degrades to a plain fold.
+    // Region attach: a captured-image solve carries a [targetId], so resolve
+    // the target's name + sky coordinates and let the fold ensure ONE region
+    // for it. The resolver is host-only (null on a slave, which never folds),
+    // and a resolve failure degrades to a plain fold.
     int? regionTargetId;
     String? regionName;
     double? regionRaDeg;
@@ -276,19 +287,105 @@ class SkyAtlasService {
     final widthDeg = imageWidth * solvedWcs.pixelScaleArcsec / 3600.0;
     final heightDeg = imageHeight * solvedWcs.pixelScaleArcsec / 3600.0;
     final diagDeg = math.sqrt(widthDeg * widthDeg + heightDeg * heightDeg);
-    final regionRadiusDeg = math.max(diagDeg / 2.0, 0.25);
 
-    return foldSession(
+    final pending = _PendingFold(
+      frame: frame,
       sessionId: image.sessionId ?? 0,
-      frames: [frame],
+      layer: atlasLayerKey(image.filter),
+      region: _RegionRequest(
+        targetId: regionTargetId,
+        name: regionName,
+        raDeg: regionRaDeg,
+        decDeg: regionDecDeg,
+        radiusDeg: math.max(diagDeg / 2.0, 0.25),
+      ),
       interp: interp,
-      label: _foldLabelFor(image),
-      targetId: regionTargetId,
-      regionName: regionName,
-      targetRaDeg: regionRaDeg,
-      targetDecDeg: regionDecDeg,
-      regionRadiusDeg: regionRadiusDeg,
+      contributor: '',
     );
+    _pendingFolds.add(pending);
+    while (_pendingFolds.length > maxPendingAutoFolds) {
+      final droppedFold = _pendingFolds.removeAt(0);
+      _logger.warning(
+        'Sky atlas: fold queue full ($maxPendingAutoFolds waiting); '
+        'leaving ${droppedFold.frame.framePath} unfolded.',
+        source: _logSource,
+      );
+      droppedFold.completer.complete(null);
+    }
+    unawaited(_drainPendingFolds());
+    return pending.completer.future;
+  }
+
+  /// Frames waiting for the auto-fold queue (for diagnostics and tests).
+  int get pendingAutoFolds => _pendingFolds.length;
+
+  /// Hand queued auto-folds to the native fold one call at a time, taking up
+  /// to [maxFoldBatch] same-layer frames per call.
+  Future<void> _drainPendingFolds() async {
+    if (_draining) return;
+    _draining = true;
+    try {
+      while (_pendingFolds.isNotEmpty) {
+        final layer = _pendingFolds.first.layer;
+        final interp = _pendingFolds.first.interp;
+        final batch = <_PendingFold>[];
+        for (final f in List<_PendingFold>.of(_pendingFolds)) {
+          if (batch.length >= maxFoldBatch) break;
+          if (f.layer == layer && f.interp == interp) batch.add(f);
+        }
+        _pendingFolds.removeWhere(batch.contains);
+        try {
+          final summary = await _serialized(() => _foldBatch(batch));
+          for (var i = 0; i < batch.length; i++) {
+            batch[i].completer.complete(
+              summary.foldedFrame(i) ? summary.forFrame(i) : null,
+            );
+          }
+        } catch (e, st) {
+          _logger.warning(
+            'Sky atlas fold of ${batch.length} '
+            'frame${batch.length == 1 ? '' : 's'} failed: $e\n$st',
+            source: _logSource,
+          );
+          for (final f in batch) {
+            f.completer.complete(null);
+          }
+        }
+      }
+    } finally {
+      _draining = false;
+    }
+  }
+
+  /// One native fold call for [items] (all in the same layer), then the DB
+  /// timeline and tile index. Runs inside [_serialized].
+  Future<AtlasFoldSummary> _foldBatch(List<_PendingFold> items) async {
+    final root = await atlasRoot();
+    final first = items.first;
+    final args = <String, dynamic>{
+      'action': 'fold',
+      'atlasRoot': root,
+      'order': _order,
+      'contributor': first.contributor,
+      'interp': first.interp.wire,
+      'label': first.frame.label ?? '',
+      if (first.layer != null) 'layer': first.layer,
+      'frames': items.map((f) => f.frame.toFoldFrameJson()).toList(),
+    };
+    final sw = Stopwatch()..start();
+    final result = await _seam.dispatch(args);
+    final summary = AtlasFoldSummary.fromJson(result);
+    await _persistFold(summary: summary, items: items, root: root);
+    _logger.info(
+      'Sky atlas: folded ${summary.totalFramesFolded} of ${items.length} '
+      'frame${items.length == 1 ? '' : 's'} into '
+      '${summary.tilesTouched.length} '
+      'tile${summary.tilesTouched.length == 1 ? '' : 's'} '
+      '(layer ${first.layer ?? 'base'}) in ${sw.elapsed.inSeconds} s; '
+      '${summary.framesSkippedNoCoverage} off-sky.',
+      source: _logSource,
+    );
+    return summary;
   }
 
   /// Render a finalized tile to a PNG under the atlas cache and return its path.

@@ -535,6 +535,40 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     return null;
   }
 
+  /// The stored plate solve of [image] as a [WcsSolution], without reading
+  /// the frame; null when the row was never solved. The field size is left
+  /// nominal because only the projection (centre, CD, SIP) is used.
+  Future<WcsSolution?> _storedWcsFor(db.CapturedImage image) async {
+    if (!image.isPlateSolved ||
+        image.solvedRa == null ||
+        image.solvedDec == null) {
+      return null;
+    }
+    final distortion = await _imagesRepo.getStoredWcsDistortion(image.id);
+    final sip = decodeSolvedSip(distortion?.sip);
+    return WcsSolution(
+      raHours: image.solvedRa!,
+      decDegrees: image.solvedDec!,
+      pixelScaleArcsecPerPixel: image.solvedPixelScale ?? 1.5,
+      rotationDegrees: image.solvedRotation ?? 0.0,
+      fieldWidthDegrees: 1.0,
+      fieldHeightDegrees: 1.0,
+      solverId: 'stored',
+      cd1_1: distortion?.cd1_1,
+      cd1_2: distortion?.cd1_2,
+      cd2_1: distortion?.cd2_1,
+      cd2_2: distortion?.cd2_2,
+      aOrder: sip?.aOrder ?? 0,
+      bOrder: sip?.bOrder ?? 0,
+      aCoeffs: sip?.aCoeffs ?? const [],
+      bCoeffs: sip?.bCoeffs ?? const [],
+      apOrder: sip?.apOrder ?? 0,
+      bpOrder: sip?.bpOrder ?? 0,
+      apCoeffs: sip?.apCoeffs ?? const [],
+      bpCoeffs: sip?.bpCoeffs ?? const [],
+    );
+  }
+
   Future<WcsSolution?> _resolveWcsSolution({
     required String imagePath,
     required int? capturedImageId,

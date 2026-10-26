@@ -57,7 +57,7 @@ use serde::{Deserialize, Serialize};
 static STORE_TILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
 use crate::master_accumulation::{AccumulationMode, NormalizationReference, PerPixelAccumulator};
-use crate::registration::{sample_interleaved, Interpolator};
+use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
 use crate::robust_stats::{percentile_nearest_rank as percentile_sorted, MAD_TO_SIGMA};
 use crate::wcs_sip::SipWcs;
 use crate::ImageData;
@@ -87,6 +87,93 @@ pub const TILE_PIXELS: u32 = 1024;
 /// cleanly into the neighbouring tile's interior (overlap is harmless — the sums
 /// are additive and `finalize` re-divides).
 const TILE_SCALE_MARGIN: f64 = 1.08;
+
+/// Lattice step (tile px) of the "does this frame cover the tile's own cell"
+/// probe. 8 px at the ~0.7"/px tile scale is ~6", far finer than any useful
+/// overlap.
+const CELL_PROBE_STEP: usize = 8;
+
+/// Upper bound on the samples used to estimate a frame's sky level and noise;
+/// a strided subset of a 16-Mpx frame gives the same median/MAD to well under
+/// a percent at a fraction of the sort cost.
+const NORM_SAMPLE_LIMIT: usize = 2_000_000;
+
+/// A plate-solved frame decoded once (linear f64, interleaved) together with its
+/// photometric baseline, ready to fold into any number of tiles without
+/// re-decoding or re-estimating per tile.
+#[derive(Debug, Clone)]
+pub struct PreparedFrame {
+    src: Vec<f64>,
+    width: usize,
+    height: usize,
+    channels: u32,
+    norm: NormalizationReference,
+    /// The frame's solved CD + SIP astrometry.
+    pub wcs: SipWcs,
+    /// Integration weight (≤ 0 folds as no contribution).
+    pub weight: f64,
+    /// Exposure seconds for the integration tally.
+    pub exposure_sec: f64,
+    /// Fold-log label (capture time, ISO).
+    pub label: String,
+}
+
+impl PreparedFrame {
+    /// Decode `frame` and estimate its photometric baseline. Fails only on a
+    /// degenerate WCS; an undecodable pixel type folds as no contribution.
+    pub fn new(
+        frame: &ImageData,
+        wcs: SipWcs,
+        weight: f64,
+        exposure_sec: f64,
+        label: &str,
+    ) -> Result<Self, AtlasError> {
+        if !wcs.is_invertible() {
+            return Err(AtlasError::DegenerateWcs);
+        }
+        let src = decode_to_f64(frame);
+        let ch = frame.channels as usize;
+        let decodable = src.len() == (frame.width as usize) * (frame.height as usize) * ch;
+        let norm = if decodable {
+            estimate_frame_norm(&src, ch)
+        } else {
+            NormalizationReference {
+                background: vec![0.0; ch.max(1)],
+                scale: vec![1.0; ch.max(1)],
+            }
+        };
+        Ok(Self {
+            src,
+            width: frame.width as usize,
+            height: frame.height as usize,
+            channels: frame.channels,
+            norm,
+            wcs,
+            weight,
+            exposure_sec,
+            label: label.to_string(),
+        })
+    }
+
+    fn is_decodable(&self) -> bool {
+        self.src.len() == self.width * self.height * self.channels as usize
+    }
+
+    /// Frame width in pixels.
+    pub fn width(&self) -> u32 {
+        self.width as u32
+    }
+
+    /// Frame height in pixels.
+    pub fn height(&self) -> u32 {
+        self.height as u32
+    }
+
+    /// Channel count.
+    pub fn channels(&self) -> u32 {
+        self.channels
+    }
+}
 
 // HEALPix NESTED addressing
 //
@@ -653,9 +740,11 @@ impl SkyTileAccumulator {
     /// the master. `contributor` tags provenance (`""` for local). Returns the
     /// [`TileFoldRecord`] for this fold.
     ///
-    /// Pixels whose source maps outside the frame (or to a degenerate sky
-    /// point) contribute nothing — the seam handling is automatic because the
-    /// sums are additive and `finalize` re-divides by coverage.
+    /// A frame counts toward this tile (and changes it) only when it covers part
+    /// of the tile's own HEALPix cell; the grid's margin beyond the cell is shared
+    /// with the neighbouring tiles and does not make the frame a contributor.
+    /// Samples whose interpolation kernel would reach past the frame edge are
+    /// skipped, so the frame border never folds in as a darkened rim.
     #[allow(clippy::too_many_arguments)]
     pub fn fold_frame(
         &mut self,
@@ -667,85 +756,82 @@ impl SkyTileAccumulator {
         label: &str,
         contributor: &str,
     ) -> Result<TileFoldRecord, AtlasError> {
-        if !wcs.is_invertible() {
-            return Err(AtlasError::DegenerateWcs);
-        }
         if frame.channels != self.channels {
             return Err(AtlasError::ChannelMismatch {
                 got: frame.channels,
                 expected: self.channels,
             });
         }
-        // Skip frames the weighting stage deemed worthless (mirrors the master).
-        if !weight.is_finite() || weight <= 0.0 {
-            let rec = TileFoldRecord {
-                frames_added: 0,
-                weight_added: 0.0,
-                integration_seconds_added: 0.0,
-                rejected: 0,
-                label: label.to_string(),
-                contributor: contributor.to_string(),
-            };
-            return Ok(rec);
+        let prepared = PreparedFrame::new(frame, wcs.clone(), weight, exposure_sec, label)?;
+        self.fold_prepared(&prepared, interp, contributor)
+            .map(|(rec, _)| rec)
+    }
+
+    /// Fold an already decoded [`PreparedFrame`]. Returns the fold record and the
+    /// number of tile samples the frame deposited (for the coverage tally).
+    pub fn fold_prepared(
+        &mut self,
+        frame: &PreparedFrame,
+        interp: Interpolator,
+        contributor: &str,
+    ) -> Result<(TileFoldRecord, u64), AtlasError> {
+        if frame.channels != self.channels {
+            return Err(AtlasError::ChannelMismatch {
+                got: frame.channels,
+                expected: self.channels,
+            });
+        }
+        let empty = |label: &str| TileFoldRecord {
+            frames_added: 0,
+            weight_added: 0.0,
+            integration_seconds_added: 0.0,
+            rejected: 0,
+            label: label.to_string(),
+            contributor: contributor.to_string(),
+        };
+        // Frames the weighting stage deemed worthless contribute nothing, and so
+        // does a frame whose pixel type cannot be decoded.
+        if !frame.weight.is_finite() || frame.weight <= 0.0 || !frame.is_decodable() {
+            return Ok((empty(&frame.label), 0));
+        }
+        if !self.frame_touches_cell(frame, interp) {
+            return Ok((empty(&frame.label), 0));
         }
 
-        let src = decode_to_f64(frame);
-        let sw = frame.width as usize;
-        let sh = frame.height as usize;
+        let src = &frame.src;
+        let sw = frame.width;
+        let sh = frame.height;
         let ch = self.channels as usize;
         let tw = self.width as usize;
         let th = self.height as usize;
-        // `decode_to_f64` yields an empty buffer for a pixel type the pipeline
-        // never emits (only U16/F32 are linear light); without this guard the
-        // resampler would index an empty buffer through nonzero width/height.
-        // A frame we cannot decode contributes nothing rather than panicking.
-        if src.len() != sw * sh * ch {
-            return Ok(TileFoldRecord {
-                frames_added: 0,
-                weight_added: 0.0,
-                integration_seconds_added: 0.0,
-                rejected: 0,
-                label: label.to_string(),
-                contributor: contributor.to_string(),
-            });
-        }
+        let weight = frame.weight;
 
         let clip = match self.mode {
             AccumulationMode::RunningWeightedMean { clip } => clip,
         };
 
-        // Photometric normalization. Estimate this frame's per-channel robust sky
-        // background + signal scale (median + 1.4826·MAD). On the FIRST fold this
-        // freezes the tile's reference; every later fold maps its samples onto that
-        // reference (`v' = (v - bg)·(ref_scale/scale) + ref_bg`) so contributors at
-        // different gains / focal ratios / sky pedestals deposit comparable surface
-        // brightness, not raw ADU. Without this the running mean is dominated by
-        // whichever rig has the larger ADU pedestal — additive but not
-        // photometrically valid (the Pillar C federation requirement).
-        let frame_norm = estimate_frame_norm(&src, ch);
+        // The first fold freezes the tile's reference; later folds map their
+        // samples onto it (`v' = (v - bg)·(ref_scale/scale) + ref_bg`).
+        let frame_norm = &frame.norm;
         if !self.norm_frozen {
             self.norm_reference = frame_norm.clone();
             self.norm_frozen = true;
         }
 
         let mut rejected: u64 = 0;
-        let mut any_contribution = false;
+        let mut deposited: u64 = 0;
 
         for ty in 0..th {
             for tx in 0..tw {
-                // Tile pixel -> sky (tile WCS is exact, no SIP).
                 let (ra, dec) = self.wcs.pixel_to_world(tx as f64, ty as f64);
-                // Sky -> source pixel (frame WCS, CD + SIP).
-                let Some((sx, sy)) = wcs.world_to_pixel(ra, dec) else {
+                let Some((sx, sy)) = frame.wcs.world_to_pixel(ra, dec) else {
                     continue;
                 };
-                // Reject samples whose support clearly leaves the frame so a
-                // border smear does not pollute the tile.
-                if sx < 0.0 || sy < 0.0 || sx > (sw as f64 - 1.0) || sy > (sh as f64 - 1.0) {
+                if !kernel_inside(sx, sy, sw, sh, interp) {
                     continue;
                 }
                 for c in 0..ch {
-                    let raw = sample_interleaved(&src, sw, sh, ch, c, sx, sy, interp);
+                    let raw = sample_interleaved(src, sw, sh, ch, c, sx, sy, interp);
                     if !raw.is_finite() {
                         continue;
                     }
@@ -761,7 +847,7 @@ impl SkyTileAccumulator {
                     }
                     let slot = (ty * tw + tx) * ch + c;
                     if self.fold_sample(slot, v, weight, clip) {
-                        any_contribution = true;
+                        deposited += 1;
                     } else {
                         rejected += 1;
                     }
@@ -769,12 +855,12 @@ impl SkyTileAccumulator {
             }
         }
 
-        let (frames_added, weight_added, seconds_added) = if any_contribution {
+        let (frames_added, weight_added, seconds_added) = if deposited > 0 {
             (
                 1usize,
                 weight,
-                if exposure_sec.is_finite() && exposure_sec > 0.0 {
-                    exposure_sec
+                if frame.exposure_sec.is_finite() && frame.exposure_sec > 0.0 {
+                    frame.exposure_sec
                 } else {
                     0.0
                 },
@@ -793,11 +879,36 @@ impl SkyTileAccumulator {
             weight_added,
             integration_seconds_added: seconds_added,
             rejected,
-            label: label.to_string(),
+            label: frame.label.clone(),
             contributor: contributor.to_string(),
         };
         self.provenance.folds.push(rec.clone());
-        Ok(rec)
+        Ok((rec, deposited / ch.max(1) as u64))
+    }
+
+    /// Whether `frame` covers any part of this tile's own HEALPix cell, tested on
+    /// a lattice of tile pixels (every [`CELL_PROBE_STEP`] px) that fall inside
+    /// the cell and whose interpolation kernel lies inside the frame.
+    fn frame_touches_cell(&self, frame: &PreparedFrame, interp: Interpolator) -> bool {
+        let tw = self.width as usize;
+        let th = self.height as usize;
+        let mut ty = 0usize;
+        while ty < th {
+            let mut tx = 0usize;
+            while tx < tw {
+                let (ra, dec) = self.wcs.pixel_to_world(tx as f64, ty as f64);
+                if radec_to_tile(ra, dec, self.order) == self.tile_id {
+                    if let Some((sx, sy)) = frame.wcs.world_to_pixel(ra, dec) {
+                        if kernel_inside(sx, sy, frame.width, frame.height, interp) {
+                            return true;
+                        }
+                    }
+                }
+                tx += CELL_PROBE_STEP;
+            }
+            ty += CELL_PROBE_STEP;
+        }
+        false
     }
 
     /// Fold a single sample at `slot` with `weight`, applying the online clip if
@@ -1182,6 +1293,70 @@ pub struct SkyAtlas {
     /// f64 accumulator is ~50 MB; the budget bounds how many are decoded at once
     /// so a wide frame touching dozens of tiles never blows the heap.
     memory_budget_bytes: u64,
+    /// Filter layer this handle folds into and differences against. `None` is
+    /// the base layer for writes and the all-layer combined view for reads.
+    layer: Option<String>,
+}
+
+/// Tiles folded concurrently by [`SkyAtlas::fold_prepared_frames`]. Each worker
+/// holds one ~42 MB tile buffer; the fold is disk-bound, so a few workers are
+/// enough to keep the disk busy without crowding the imaging host's memory.
+const FOLD_WORKERS: usize = 4;
+
+/// One frame's contribution to one tile in a batch fold.
+#[derive(Debug, Clone)]
+pub struct AtlasFoldOutcome {
+    /// Index of the frame in the batch.
+    pub frame_index: usize,
+    /// The tile the frame folded into.
+    pub tile_id: TileId,
+    /// The fold record (frames/weight/seconds this frame added to this tile).
+    pub record: TileFoldRecord,
+    /// Mean coverage depth this frame added to the tile (samples / tile pixels).
+    pub coverage_added: f64,
+}
+
+/// A tile's state after a batch fold.
+#[derive(Debug, Clone)]
+pub struct AtlasTileState {
+    /// Tile id.
+    pub tile_id: TileId,
+    /// Mean coverage depth of this layer's tile.
+    pub coverage_mean: f64,
+    /// Frames this layer's tile has counted.
+    pub total_frames: usize,
+    /// Seconds this layer's tile has counted.
+    pub total_integration_seconds: f64,
+    /// Channel count.
+    pub channels: u32,
+}
+
+/// Result of [`SkyAtlas::fold_prepared_frames`].
+#[derive(Debug, Clone, Default)]
+pub struct AtlasBatchFold {
+    /// Every (frame, tile) contribution, frame-major.
+    pub outcomes: Vec<AtlasFoldOutcome>,
+    /// Post-fold state of every tile that gained a frame.
+    pub tiles: Vec<AtlasTileState>,
+    /// Indices of frames whose footprint covered no tile.
+    pub frames_without_coverage: Vec<usize>,
+}
+
+/// Normalize a filter name into a layer directory key: ASCII letters, digits,
+/// `-` and `_` only, at most 32 characters. Returns `None` for a blank or
+/// unusable name, which folds into the base layer.
+pub fn layer_key(filter: &str) -> Option<String> {
+    let key: String = filter
+        .trim()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .take(32)
+        .collect();
+    if key.is_empty() {
+        None
+    } else {
+        Some(key)
+    }
 }
 
 impl SkyAtlas {
@@ -1192,7 +1367,20 @@ impl SkyAtlas {
             root: root.as_ref().to_path_buf(),
             order,
             memory_budget_bytes: memory_budget_bytes.max(tile_buffer_bytes(1)),
+            layer: None,
         }
+    }
+
+    /// This handle restricted to one filter layer (see [`layer_key`]); `None` or
+    /// an unusable name selects the base layer / combined view.
+    pub fn with_layer(mut self, filter: Option<&str>) -> Self {
+        self.layer = filter.and_then(layer_key);
+        self
+    }
+
+    /// The filter layer this handle is bound to, if any.
+    pub fn layer(&self) -> Option<&str> {
+        self.layer.as_deref()
     }
 
     /// The HEALPix order this atlas stores tiles at.
@@ -1200,44 +1388,143 @@ impl SkyAtlas {
         self.order
     }
 
-    /// Filesystem path of a tile's sidecar.
+    fn base_dir(&self) -> PathBuf {
+        self.root.join("tiles").join(self.order.to_string())
+    }
+
+    fn layers_dir(&self) -> PathBuf {
+        self.base_dir().join("layers")
+    }
+
+    fn path_in_layer(&self, layer: Option<&str>, tile_id: TileId) -> PathBuf {
+        match layer {
+            Some(l) => self.layers_dir().join(l).join(format!("{tile_id}.skt")),
+            None => self.base_dir().join(format!("{tile_id}.skt")),
+        }
+    }
+
+    /// Filesystem path of a tile's sidecar in this handle's layer.
     pub fn tile_path(&self, tile_id: TileId) -> PathBuf {
-        self.root
-            .join("tiles")
-            .join(self.order.to_string())
-            .join(format!("{tile_id}.skt"))
+        self.path_in_layer(self.layer.as_deref(), tile_id)
     }
 
     /// Path a tile's sidecar had before the rebrand's `.skt` rename.
     fn legacy_tile_path(&self, tile_id: TileId) -> PathBuf {
-        self.root
-            .join("tiles")
-            .join(self.order.to_string())
-            .join(format!("{tile_id}.nst"))
+        self.base_dir().join(format!("{tile_id}.nst"))
     }
 
-    /// Load a tile sidecar from disk, or `None` if it does not exist yet.
-    /// Atlases folded before the `.skt` rename hold `.nst` sidecars — read
-    /// them through the same loader so existing depth is never abandoned.
-    pub fn load_tile(&self, tile_id: TileId) -> Result<Option<SkyTileAccumulator>, AtlasError> {
-        for path in [self.tile_path(tile_id), self.legacy_tile_path(tile_id)] {
-            match std::fs::read(&path) {
-                Ok(bytes) => return Ok(Some(SkyTileAccumulator::deserialize(&bytes)?)),
+    /// Names of the filter layers present on disk, sorted.
+    pub fn layer_names(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(self.layers_dir()) {
+            for e in entries.flatten() {
+                if e.path().is_dir() {
+                    if let Some(name) = e.file_name().to_str() {
+                        if layer_key(name).as_deref() == Some(name) {
+                            out.push(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        out.sort();
+        out
+    }
+
+    /// Every tile id with a sidecar in this handle's view: its own layer, or for
+    /// the base handle the base layer plus every filter layer. Ascending, deduped.
+    pub fn tile_ids_on_disk(&self) -> Result<Vec<TileId>, AtlasError> {
+        let dirs: Vec<PathBuf> = match &self.layer {
+            Some(l) => vec![self.layers_dir().join(l)],
+            None => std::iter::once(self.base_dir())
+                .chain(
+                    self.layer_names()
+                        .into_iter()
+                        .map(|l| self.layers_dir().join(l)),
+                )
+                .collect(),
+        };
+        let mut ids: Vec<TileId> = Vec::new();
+        for dir in dirs {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(e) => return Err(AtlasError::Io(e.to_string())),
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let ext = path.extension().and_then(|s| s.to_str());
+                if ext != Some("skt") && ext != Some("nst") {
+                    continue;
+                }
+                if let Some(id) = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .and_then(|s| s.parse::<TileId>().ok())
+                {
+                    ids.push(id);
+                }
             }
+        }
+        ids.sort_unstable();
+        ids.dedup();
+        Ok(ids)
+    }
+
+    fn read_sidecar(path: &Path) -> Result<Option<SkyTileAccumulator>, AtlasError> {
+        match std::fs::read(path) {
+            Ok(bytes) => Ok(Some(SkyTileAccumulator::deserialize(&bytes)?)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(AtlasError::Io(e.to_string())),
+        }
+    }
+
+    /// Load this handle's own layer of a tile (the sidecar a fold would write),
+    /// or `None` if it does not exist yet. The base layer also reads `.nst`
+    /// sidecars from before the `.skt` rename.
+    pub fn load_own_tile(&self, tile_id: TileId) -> Result<Option<SkyTileAccumulator>, AtlasError> {
+        if let Some(t) = Self::read_sidecar(&self.tile_path(tile_id))? {
+            return Ok(Some(t));
+        }
+        if self.layer.is_none() {
+            return Self::read_sidecar(&self.legacy_tile_path(tile_id));
         }
         Ok(None)
     }
 
-    /// Load a tile, or create a fresh zeroed one if it does not exist.
+    /// Load a tile for reading. A layer handle reads its own layer; the base
+    /// handle returns the sum of the base layer and every filter layer (the
+    /// all-filter picture Your Sky shows). Layers whose channel count differs
+    /// from the first one found are left out of the sum.
+    pub fn load_tile(&self, tile_id: TileId) -> Result<Option<SkyTileAccumulator>, AtlasError> {
+        if self.layer.is_some() {
+            return self.load_own_tile(tile_id);
+        }
+        let mut combined = self.load_own_tile(tile_id)?;
+        for name in self.layer_names() {
+            let Some(t) = Self::read_sidecar(&self.path_in_layer(Some(&name), tile_id))? else {
+                continue;
+            };
+            match combined.as_mut() {
+                None => combined = Some(t),
+                Some(acc) => {
+                    if acc.channels == t.channels && acc.slot_count() == t.slot_count() {
+                        merge_tiles(acc, &t, 1.0)?;
+                    }
+                }
+            }
+        }
+        Ok(combined)
+    }
+
+    /// Load this handle's own layer of a tile, or create a fresh zeroed one.
     pub fn load_or_create(
         &self,
         tile_id: TileId,
         channels: u32,
         mode: AccumulationMode,
     ) -> Result<SkyTileAccumulator, AtlasError> {
-        match self.load_tile(tile_id)? {
+        match self.load_own_tile(tile_id)? {
             Some(t) => {
                 if t.channels != channels {
                     return Err(AtlasError::ChannelMismatch {
@@ -1253,8 +1540,8 @@ impl SkyAtlas {
         }
     }
 
-    /// Persist a tile sidecar to disk (atomically: write a temp file then
-    /// rename, so a crash mid-write never corrupts the existing tile).
+    /// Persist a tile sidecar to this handle's layer (atomically: write a temp
+    /// file then rename, so a crash mid-write never corrupts the existing tile).
     pub fn store_tile(&self, tile: &SkyTileAccumulator) -> Result<(), AtlasError> {
         let path = self.tile_path(tile.tile_id);
         if let Some(parent) = path.parent() {
@@ -1272,17 +1559,17 @@ impl SkyAtlas {
         std::fs::rename(&tmp, &path).map_err(|e| AtlasError::Io(e.to_string()))?;
         // Migrate on write: the sidecar now lives at its `.skt` path, so a
         // pre-rename `.nst` twin would only duplicate it.
-        let legacy = self.legacy_tile_path(tile.tile_id);
-        if legacy != path && legacy.exists() {
-            let _ = std::fs::remove_file(legacy);
+        if self.layer.is_none() {
+            let legacy = self.legacy_tile_path(tile.tile_id);
+            if legacy != path && legacy.exists() {
+                let _ = std::fs::remove_file(legacy);
+            }
         }
         Ok(())
     }
 
-    /// Fold one plate-solved frame into every tile its footprint covers. Tiles
-    /// are processed one at a time (load -> fold -> store), so the resident
-    /// memory never exceeds a handful of tile buffers regardless of how many the
-    /// frame touches. Returns the per-tile fold records.
+    /// Fold one plate-solved frame into every tile whose cell its footprint
+    /// covers. Returns the per-tile fold records of the tiles it counted in.
     #[allow(clippy::too_many_arguments)]
     pub fn fold_frame(
         &self,
@@ -1295,38 +1582,123 @@ impl SkyAtlas {
         label: &str,
         contributor: &str,
     ) -> Result<Vec<(TileId, TileFoldRecord)>, AtlasError> {
-        if !wcs.is_invertible() {
-            return Err(AtlasError::DegenerateWcs);
-        }
-        let tiles = tile_ids_for_frame(wcs, frame.width, frame.height, self.order);
-        if tiles.is_empty() {
+        let prepared = PreparedFrame::new(frame, wcs.clone(), weight, exposure_sec, label)?;
+        let batch = self.fold_prepared_frames(&[prepared], interp, mode, contributor)?;
+        if !batch.frames_without_coverage.is_empty() {
             return Err(AtlasError::NoCoverage);
         }
-        // The budget bounds how many *buffers* we may hold resident; we process
-        // tiles sequentially (one buffer) so the bound is structurally honoured,
-        // and we assert it to document the contract for future batched variants.
-        debug_assert!(self.memory_budget_bytes >= tile_buffer_bytes(frame.channels));
+        Ok(batch
+            .outcomes
+            .into_iter()
+            .map(|o| (o.tile_id, o.record))
+            .collect())
+    }
 
-        let mut out = Vec::new();
-        for tid in tiles {
-            let mut tile = self.load_or_create(tid, frame.channels, mode)?;
-            let rec =
-                tile.fold_frame(frame, wcs, weight, exposure_sec, interp, label, contributor)?;
-            if rec.frames_added > 0 || !tile_is_empty(&tile) {
-                self.store_tile(&tile)?;
+    /// Fold a batch of prepared frames, tile by tile: each touched tile is read
+    /// once, every frame that covers its cell is folded in (in batch order), and
+    /// the tile is written once, and only when a frame counted in it. Tiles run
+    /// on a small worker pool so the disk stays busy.
+    pub fn fold_prepared_frames(
+        &self,
+        frames: &[PreparedFrame],
+        interp: Interpolator,
+        mode: AccumulationMode,
+        contributor: &str,
+    ) -> Result<AtlasBatchFold, AtlasError> {
+        use rayon::prelude::*;
+        use std::collections::BTreeMap;
+
+        let mut by_tile: BTreeMap<TileId, Vec<usize>> = BTreeMap::new();
+        let mut frames_without_coverage = Vec::new();
+        for (i, f) in frames.iter().enumerate() {
+            let tiles = tile_ids_for_frame(&f.wcs, f.width(), f.height(), self.order);
+            if tiles.is_empty() {
+                frames_without_coverage.push(i);
+                continue;
             }
-            out.push((tid, rec));
+            for t in tiles {
+                by_tile.entry(t).or_default().push(i);
+            }
         }
+        debug_assert!(
+            self.memory_budget_bytes
+                >= tile_buffer_bytes(frames.first().map(|f| f.channels()).unwrap_or(1))
+        );
+
+        let work: Vec<(TileId, Vec<usize>)> = by_tile.into_iter().collect();
+        let fold_tile = |(tid, idxs): &(TileId, Vec<usize>)| -> Result<
+            Option<(Vec<AtlasFoldOutcome>, AtlasTileState)>,
+            AtlasError,
+        > {
+            let channels = frames[idxs[0]].channels();
+            let mut tile = self.load_or_create(*tid, channels, mode)?;
+            let npix = (tile.width as f64) * (tile.height as f64);
+            let mut outcomes = Vec::new();
+            for &i in idxs {
+                let (rec, deposited) = tile.fold_prepared(&frames[i], interp, contributor)?;
+                if rec.frames_added > 0 {
+                    outcomes.push(AtlasFoldOutcome {
+                        frame_index: i,
+                        tile_id: *tid,
+                        record: rec,
+                        coverage_added: deposited as f64 / npix,
+                    });
+                }
+            }
+            if outcomes.is_empty() {
+                return Ok(None);
+            }
+            self.store_tile(&tile)?;
+            let state = AtlasTileState {
+                tile_id: *tid,
+                coverage_mean: tile.coverage_mean(),
+                total_frames: tile.provenance.total_frames,
+                total_integration_seconds: tile.provenance.total_integration_seconds,
+                channels: tile.channels,
+            };
+            Ok(Some((outcomes, state)))
+        };
+
+        let results: Vec<Result<Option<(Vec<AtlasFoldOutcome>, AtlasTileState)>, AtlasError>> =
+            match rayon::ThreadPoolBuilder::new()
+                .num_threads(FOLD_WORKERS)
+                .build()
+            {
+                Ok(pool) => pool.install(|| work.par_iter().map(fold_tile).collect()),
+                Err(_) => work.iter().map(fold_tile).collect(),
+            };
+
+        let mut out = AtlasBatchFold {
+            frames_without_coverage,
+            ..Default::default()
+        };
+        for r in results {
+            if let Some((outcomes, state)) = r? {
+                out.outcomes.extend(outcomes);
+                out.tiles.push(state);
+            }
+        }
+        out.outcomes.sort_by_key(|o| (o.frame_index, o.tile_id));
+        // A frame whose footprint touched tiles but no tile's own cell (an
+        // off-edge sliver) counts as no coverage too.
+        for i in 0..frames.len() {
+            if !out.frames_without_coverage.contains(&i)
+                && !out.outcomes.iter().any(|o| o.frame_index == i)
+            {
+                out.frames_without_coverage.push(i);
+            }
+        }
+        out.frames_without_coverage.sort_unstable();
         Ok(out)
     }
 
     /// Query: the finalized co-added cutout over a cone, plus its coverage map.
     ///
-    /// The cone's tiles are loaded one at a time and each tile pixel whose centre
-    /// falls inside the cone is reprojected onto a fresh output TAN grid centred
-    /// on the cone (scale = the tile scale), accumulating a weighted mean so
-    /// overlapping tiles blend seamlessly. Returns `(cutout_f32, coverage_f32)`
-    /// at the requested `out_pixels` square edge.
+    /// The cone's tiles are loaded one at a time and each output pixel is
+    /// resampled from every tile that covers it, blended by coverage. A tile
+    /// sample is used only where the whole interpolation kernel sits on covered
+    /// tile pixels, so the zero fill beyond a tile's covered area never bleeds
+    /// in as a dark seam; the overlapping neighbour supplies those pixels.
     pub fn query_cone(
         &self,
         center_ra: f64,
@@ -1352,6 +1724,12 @@ impl SkyAtlas {
         let mut wsum = vec![0.0f64; len];
         let mut cover = vec![0.0f64; len];
 
+        let kernel_reach = match interp {
+            Interpolator::Bilinear => 1usize,
+            Interpolator::CatmullRom => 2,
+            Interpolator::Lanczos3 => 3,
+        };
+
         let tiles = tile_ids_for_cone(center_ra, center_dec, radius_deg, self.order);
         for tid in tiles {
             let Some(tile) = self.load_tile(tid)? else {
@@ -1363,16 +1741,15 @@ impl SkyAtlas {
                     expected: channels,
                 });
             }
-            // Finalized tile raster + its coverage (resident one tile at a time).
             let finalized = tile.finalize();
             let tile_f32 = finalized.as_f32().expect("finalize yields F32");
             let tile_cov = tile.coverage_map();
             let cov_f32 = tile_cov.as_f32().expect("coverage map is F32");
             let tw = tile.width as usize;
             let th = tile.height as usize;
-            // Interleave to f64 for the resampler.
             let tile_buf: Vec<f64> = tile_f32.iter().map(|&v| v as f64).collect();
             let cov_buf: Vec<f64> = cov_f32.iter().map(|&v| v as f64).collect();
+            let solid = eroded_coverage(&tile.state.coverage, tw, th, ch, kernel_reach);
 
             for oy in 0..out_h {
                 for ox in 0..out_w {
@@ -1380,10 +1757,13 @@ impl SkyAtlas {
                     let Some((sx, sy)) = tile.wcs.world_to_pixel(ra, dec) else {
                         continue;
                     };
-                    if sx < 0.0 || sy < 0.0 || sx > (tw as f64 - 1.0) || sy > (th as f64 - 1.0) {
+                    if !kernel_inside(sx, sy, tw, th, interp) {
                         continue;
                     }
-                    // Coverage at this tile pixel (nearest, since it is a count).
+                    let (ix, iy) = (sx.floor() as usize, sy.floor() as usize);
+                    if !solid[iy * tw + ix] {
+                        continue;
+                    }
                     let cov_here =
                         sample_interleaved(&cov_buf, tw, th, ch, 0, sx, sy, Interpolator::Bilinear);
                     if cov_here <= 0.0 {
@@ -1397,11 +1777,8 @@ impl SkyAtlas {
                         let slot = (oy * out_w + ox) * ch + c;
                         acc[slot] += cov_here * v;
                         wsum[slot] += cov_here;
-                        // Coverage is a DEPTH, not a flux: in the overlap band where
-                        // several tiles cover the same output pixel, the true depth is
-                        // the deepest contributor, not the sum (summing double-counts
-                        // the same sky and reports a fictitious depth at every seam).
-                        // The pixel VALUE stays the coverage-weighted mean (acc/wsum).
+                        // Coverage is a depth, not a flux: where tiles overlap the
+                        // true depth is the deepest contributor, not the sum.
                         cover[slot] = cover[slot].max(cov_here);
                     }
                 }
@@ -1424,17 +1801,65 @@ impl SkyAtlas {
     }
 }
 
+/// Per-pixel mask of tile pixels whose whole `(2·reach+1)²` neighbourhood has
+/// coverage (channel 0), i.e. where an interpolation kernel of that reach reads
+/// only real samples.
+pub fn eroded_coverage(
+    coverage: &[u32],
+    width: usize,
+    height: usize,
+    channels: usize,
+    reach: usize,
+) -> Vec<bool> {
+    let n = width * height;
+    let base: Vec<bool> = (0..n).map(|p| coverage[p * channels.max(1)] > 0).collect();
+    if reach == 0 {
+        return base;
+    }
+    let mut horiz = vec![false; n];
+    for y in 0..height {
+        let row = &base[y * width..(y + 1) * width];
+        // Running count of uncovered pixels in the window.
+        let mut holes = 0usize;
+        for x in 0..width.min(reach + 1) {
+            holes += usize::from(!row[x]);
+        }
+        for x in 0..width {
+            horiz[y * width + x] = holes == 0 && x >= reach && x + reach < width;
+            let add = x + reach + 1;
+            if add < width {
+                holes += usize::from(!row[add]);
+            }
+            if x >= reach {
+                holes -= usize::from(!row[x - reach]);
+            }
+        }
+    }
+    let mut out = vec![false; n];
+    for x in 0..width {
+        let mut holes = 0usize;
+        for y in 0..height.min(reach + 1) {
+            holes += usize::from(!horiz[y * width + x]);
+        }
+        for y in 0..height {
+            out[y * width + x] = holes == 0 && y >= reach && y + reach < height;
+            let add = y + reach + 1;
+            if add < height {
+                holes += usize::from(!horiz[add * width + x]);
+            }
+            if y >= reach {
+                holes -= usize::from(!horiz[(y - reach) * width + x]);
+            }
+        }
+    }
+    out
+}
+
 /// Bytes one resident tile accumulator buffer occupies (the six running vectors
 /// for a [`TILE_PIXELS`]² grid with `channels` channels): four f64 + two u32.
 fn tile_buffer_bytes(channels: u32) -> u64 {
     let slots = (TILE_PIXELS as u64) * (TILE_PIXELS as u64) * (channels as u64);
     slots * (8 * 4 + 4 * 2)
-}
-
-/// True if a tile has accumulated no samples (so storing it would only litter
-/// the atlas with empty sidecars).
-fn tile_is_empty(tile: &SkyTileAccumulator) -> bool {
-    tile.state.coverage.iter().all(|&c| c == 0)
 }
 
 /// Decode an [`ImageData`] to channel-interleaved f64 (the resampler's layout).
@@ -1461,7 +1886,9 @@ fn estimate_frame_norm(src: &[f64], channels: usize) -> NormalizationReference {
     let mut scale = vec![1.0; ch];
     let npix = src.len().checked_div(ch).unwrap_or(0);
     for c in 0..ch {
+        let stride = npix.div_ceil(NORM_SAMPLE_LIMIT).max(1);
         let mut vals: Vec<f64> = (0..npix)
+            .step_by(stride)
             .map(|p| src[p * ch + c])
             .filter(|v| v.is_finite())
             .collect();
@@ -2118,6 +2545,222 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A flat frame on a TAN grid at the tile scale, `size` px square, centred on
+    /// `(ra, dec)`.
+    fn flat_frame_at(ra: f64, dec: f64, size: u32, value: f32) -> (ImageData, SipWcs) {
+        let scale = 2.0 * tile_circum_radius_deg(ATLAS_HEALPIX_ORDER) * TILE_SCALE_MARGIN
+            / (TILE_PIXELS as f64);
+        let crpix = size as f64 / 2.0 + 0.5;
+        let wcs = SipWcs::tan_only(ra, dec, crpix, crpix, -scale, 0.0, 0.0, scale);
+        let data = vec![value; (size as usize) * (size as usize)];
+        (ImageData::from_f32(size, size, 1, &data), wcs)
+    }
+
+    fn scratch_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sk_atlas_{tag}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn frame_only_on_the_grid_margin_does_not_count_in_the_tile() {
+        let order = ATLAS_HEALPIX_ORDER;
+        let tid = radec_to_tile(60.0, 15.0, order);
+        let tw = tile_wcs(tid, order);
+        // The grid corner lies outside the tile's own (diamond) cell.
+        let (ra, dec) = tw.pixel_to_world(40.0, 40.0);
+        assert_ne!(
+            radec_to_tile(ra, dec, order),
+            tid,
+            "precondition: corner is outside the cell"
+        );
+        let (frame, wcs) = flat_frame_at(ra, dec, 48, 500.0);
+        let mut acc = SkyTileAccumulator::create(tid, order, 1, no_clip());
+        let rec = acc
+            .fold_frame(&frame, &wcs, 1.0, 60.0, Interpolator::Bilinear, "f", "")
+            .unwrap();
+        assert_eq!(rec.frames_added, 0);
+        assert_eq!(rec.integration_seconds_added, 0.0);
+        assert_eq!(acc.provenance.total_frames, 0);
+        assert!(
+            acc.state.coverage.iter().all(|&c| c == 0),
+            "tile must stay untouched"
+        );
+    }
+
+    #[test]
+    fn frame_border_is_not_folded_as_a_dark_rim() {
+        let order = ATLAS_HEALPIX_ORDER;
+        let tid = radec_to_tile(60.0, 15.0, order);
+        let (ra, dec) = tile_center(tid, order);
+        let (frame, wcs) = flat_frame_at(ra, dec, 200, 1000.0);
+        let mut acc = SkyTileAccumulator::create(tid, order, 1, no_clip());
+        acc.fold_frame(&frame, &wcs, 1.0, 60.0, Interpolator::Lanczos3, "f", "")
+            .unwrap();
+        let out = acc.finalize();
+        let out = out.as_f32().unwrap();
+        let covered: Vec<f32> = out
+            .iter()
+            .zip(acc.state.coverage.iter())
+            .filter(|(_, &c)| c > 0)
+            .map(|(&v, _)| v)
+            .collect();
+        assert!(!covered.is_empty());
+        let min = covered.iter().cloned().fold(f32::INFINITY, f32::min);
+        assert!(min > 990.0, "border sample darkened to {min}");
+    }
+
+    #[test]
+    fn cutout_across_tile_boundaries_has_no_seams() {
+        let dir = scratch_dir("seam");
+        let order = ATLAS_HEALPIX_ORDER;
+        let atlas = SkyAtlas::open(&dir, order, 256 * 1024 * 1024);
+        // Centre on a point between two neighbouring tiles so the cone crosses
+        // tile edges.
+        let a = radec_to_tile(60.0, 15.0, order);
+        let n = neighbours_nest(a, order)[0];
+        let (ra1, dec1) = tile_center(a, order);
+        let (ra2, dec2) = tile_center(n, order);
+        let (ra, dec) = ((ra1 + ra2) / 2.0, (dec1 + dec2) / 2.0);
+        let (frame, wcs) = flat_frame_at(ra, dec, 1024, 1000.0);
+        atlas
+            .fold_frame(
+                &frame,
+                &wcs,
+                1.0,
+                60.0,
+                Interpolator::Lanczos3,
+                no_clip(),
+                "f",
+                "",
+            )
+            .unwrap();
+        let (cut, cov) = atlas
+            .query_cone(ra, dec, 0.07, 1, 200, Interpolator::Lanczos3)
+            .unwrap();
+        let cut = cut.as_f32().unwrap();
+        let cov = cov.as_f32().unwrap();
+        let vals: Vec<f32> = cut
+            .iter()
+            .zip(cov.iter())
+            .filter(|(_, &c)| c > 0.0)
+            .map(|(&v, _)| v)
+            .collect();
+        assert!(vals.len() > 200 * 200 * 9 / 10, "cutout should be covered");
+        let min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        assert!(
+            min > 995.0 && max < 1005.0,
+            "seam: cutout spans {min}..{max}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn batch_fold_matches_sequential_and_records_each_frames_exposure() {
+        let order = ATLAS_HEALPIX_ORDER;
+        let tid = radec_to_tile(60.0, 15.0, order);
+        let (ra, dec) = tile_center(tid, order);
+        let (f1, w1) = flat_frame_at(ra, dec, 300, 100.0);
+        let (f2, w2) = flat_frame_at(ra + 0.01, dec, 300, 300.0);
+
+        let seq_dir = scratch_dir("seq");
+        let seq = SkyAtlas::open(&seq_dir, order, 256 * 1024 * 1024);
+        seq.fold_frame(
+            &f1,
+            &w1,
+            1.0,
+            15.0,
+            Interpolator::Bilinear,
+            no_clip(),
+            "a",
+            "",
+        )
+        .unwrap();
+        seq.fold_frame(
+            &f2,
+            &w2,
+            1.0,
+            2.0,
+            Interpolator::Bilinear,
+            no_clip(),
+            "b",
+            "",
+        )
+        .unwrap();
+
+        let batch_dir = scratch_dir("batch");
+        let batch = SkyAtlas::open(&batch_dir, order, 256 * 1024 * 1024);
+        let frames = vec![
+            PreparedFrame::new(&f1, w1.clone(), 1.0, 15.0, "a").unwrap(),
+            PreparedFrame::new(&f2, w2.clone(), 1.0, 2.0, "b").unwrap(),
+        ];
+        let res = batch
+            .fold_prepared_frames(&frames, Interpolator::Bilinear, no_clip(), "")
+            .unwrap();
+        for o in &res.outcomes {
+            let want = if o.frame_index == 0 { 15.0 } else { 2.0 };
+            assert_eq!(o.record.integration_seconds_added, want);
+            assert_eq!(o.record.label, if o.frame_index == 0 { "a" } else { "b" });
+        }
+        let s = seq.load_tile(tid).unwrap().unwrap();
+        let b = batch.load_tile(tid).unwrap().unwrap();
+        assert_eq!(s.state, b.state);
+        assert_eq!(b.provenance.total_frames, 2);
+        assert_eq!(b.provenance.total_integration_seconds, 17.0);
+        let _ = std::fs::remove_dir_all(&seq_dir);
+        let _ = std::fs::remove_dir_all(&batch_dir);
+    }
+
+    #[test]
+    fn filter_layers_fold_apart_and_read_back_combined() {
+        let dir = scratch_dir("layers");
+        let order = ATLAS_HEALPIX_ORDER;
+        let tid = radec_to_tile(60.0, 15.0, order);
+        let (ra, dec) = tile_center(tid, order);
+        let (fr, wr) = flat_frame_at(ra, dec, 200, 100.0);
+        let (fg, wg) = flat_frame_at(ra, dec, 200, 300.0);
+        let base = SkyAtlas::open(&dir, order, 256 * 1024 * 1024);
+        let red = base.clone().with_layer(Some("R"));
+        let green = base.clone().with_layer(Some(" G "));
+        red.fold_frame(
+            &fr,
+            &wr,
+            1.0,
+            60.0,
+            Interpolator::Bilinear,
+            no_clip(),
+            "r",
+            "",
+        )
+        .unwrap();
+        green
+            .fold_frame(
+                &fg,
+                &wg,
+                1.0,
+                60.0,
+                Interpolator::Bilinear,
+                no_clip(),
+                "g",
+                "",
+            )
+            .unwrap();
+        assert!(red.tile_path(tid).exists());
+        assert!(!base.tile_path(tid).exists(), "no base-layer write");
+        assert_eq!(base.layer_names(), vec!["G".to_string(), "R".to_string()]);
+        assert_eq!(base.tile_ids_on_disk().unwrap(), vec![tid]);
+
+        let mid = (TILE_PIXELS as usize / 2) * (TILE_PIXELS as usize) + TILE_PIXELS as usize / 2;
+        let r = red.load_tile(tid).unwrap().unwrap();
+        assert!((r.finalize().as_f32().unwrap()[mid] - 100.0).abs() < 0.5);
+        assert_eq!(r.provenance.total_frames, 1);
+        let all = base.load_tile(tid).unwrap().unwrap();
+        assert_eq!(all.provenance.total_frames, 2);
+        assert_eq!(all.state.coverage[mid], 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn store_tile_unique_temp_no_collision_under_concurrency() {
         // Many concurrent store_tile calls for the SAME tile must not collide on
@@ -2184,14 +2827,30 @@ mod tests {
         // Build clean history with a little scatter so the running σ is well
         // defined (a perfectly flat history has σ = 0 and the clip — correctly —
         // never fires, exactly like the master's online-clip test).
+        // Sky with a per-pixel pattern that shifts from frame to frame, so every
+        // pixel's history has scatter while each frame keeps the same sky level
+        // and noise (the fold normalizes frames on those).
+        let n = TILE_PIXELS as usize;
+        let sky = |k: usize| -> Vec<f32> {
+            (0..n * n)
+                .map(|i| 1000.0 + (((i + k) % 3) as f32 - 1.0) * 5.0)
+                .collect()
+        };
+        let wcs = tile_wcs(tid, order);
         for k in 0..10 {
-            let v = 1000.0 + ((k as f32 % 3.0) - 1.0) * 5.0;
-            let (f, w) = frame_on_tile(tid, order, v, 1);
-            tile.fold_frame(&f, &w, 1.0, 0.0, Interpolator::Bilinear, "clean", "")
+            let f = ImageData::from_f32(TILE_PIXELS, TILE_PIXELS, 1, &sky(k));
+            tile.fold_frame(&f, &wcs, 1.0, 0.0, Interpolator::Bilinear, "clean", "")
                 .unwrap();
         }
-        // A bright transient frame.
-        let (spike, sw) = frame_on_tile(tid, order, 50000.0, 1);
+        // A frame with a bright transient patch on the same sky.
+        let mut spiked = sky(10);
+        for y in n / 2 - 32..n / 2 + 32 {
+            for x in n / 2 - 32..n / 2 + 32 {
+                spiked[y * n + x] = 50000.0;
+            }
+        }
+        let spike = ImageData::from_f32(TILE_PIXELS, TILE_PIXELS, 1, &spiked);
+        let sw = wcs.clone();
         let rec = tile
             .fold_frame(&spike, &sw, 1.0, 0.0, Interpolator::Bilinear, "spike", "")
             .unwrap();
