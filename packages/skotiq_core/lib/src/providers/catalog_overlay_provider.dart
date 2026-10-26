@@ -58,6 +58,12 @@ class CatalogOverlayQuery {
         wcs.pixelScaleArcsec == other.wcs.pixelScaleArcsec &&
         wcs.imageWidth == other.wcs.imageWidth &&
         wcs.imageHeight == other.wcs.imageHeight &&
+        wcs.cd1_1 == other.wcs.cd1_1 &&
+        wcs.cd1_2 == other.wcs.cd1_2 &&
+        wcs.cd2_1 == other.wcs.cd2_1 &&
+        wcs.cd2_2 == other.wcs.cd2_2 &&
+        wcs.mirrored == other.wcs.mirrored &&
+        wcs.aOrder == other.wcs.aOrder &&
         magnitudeLimit == other.magnitudeLimit &&
         includeStars == other.includeStars &&
         includeDsos == other.includeDsos;
@@ -71,6 +77,12 @@ class CatalogOverlayQuery {
     wcs.pixelScaleArcsec,
     wcs.imageWidth,
     wcs.imageHeight,
+    wcs.cd1_1,
+    wcs.cd1_2,
+    wcs.cd2_1,
+    wcs.cd2_2,
+    wcs.mirrored,
+    wcs.aOrder,
     magnitudeLimit,
     includeStars,
     includeDsos,

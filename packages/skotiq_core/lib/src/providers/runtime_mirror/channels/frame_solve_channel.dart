@@ -40,6 +40,14 @@ class FrameSolveChannel extends RuntimeMirrorChannel<FrameSolveOnScreen> {
       'scale': finiteOrNull(solve.pixelScaleArcsec),
       'message': solve.message,
       'saved': solve.fromSavedSolution,
+      if (solve.cd != null)
+        'cd': [
+          solve.cd!.cd1_1,
+          solve.cd!.cd1_2,
+          solve.cd!.cd2_1,
+          solve.cd!.cd2_2,
+        ],
+      if (solve.sip != null) 'sip': solve.sip,
     };
   }
 
@@ -63,6 +71,8 @@ class FrameSolveChannel extends RuntimeMirrorChannel<FrameSolveOnScreen> {
       pixelScaleArcsec: jsonDouble(value['scale']),
       message: jsonString(value['message']),
       fromSavedSolution: value['saved'] == true,
+      cd: _cdFrom(value['cd']),
+      sip: jsonString(value['sip']),
     );
     final host = context.read(hostFrameSolvesProvider);
     host.byPath[path] = solve;
@@ -71,4 +81,12 @@ class FrameSolveChannel extends RuntimeMirrorChannel<FrameSolveOnScreen> {
     }
     context.read(frameAutoSolveProvider.notifier).adoptHostSolve(path, solve);
   }
+}
+
+/// The CD matrix a host sent, or null when it sent none or a malformed one.
+FrameSolveCd? _cdFrom(Object? raw) {
+  if (raw is! List || raw.length != 4) return null;
+  final v = [for (final e in raw) e is num && e.isFinite ? e.toDouble() : null];
+  if (v.any((e) => e == null)) return null;
+  return (cd1_1: v[0]!, cd1_2: v[1]!, cd2_1: v[2]!, cd2_2: v[3]!);
 }
