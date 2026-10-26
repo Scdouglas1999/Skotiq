@@ -287,9 +287,7 @@ class OpticalTrainDiagnosticsService {
     final horizontalTilt = horizontalMeasured
         ? (left - right).abs() / global
         : 0.0;
-    final verticalTilt = verticalMeasured
-        ? (top - bottom).abs() / global
-        : 0.0;
+    final verticalTilt = verticalMeasured ? (top - bottom).abs() / global : 0.0;
     final tiltScore =
         ((horizontalTilt > verticalTilt ? horizontalTilt : verticalTilt) * 100)
             .clamp(0.0, 100.0);
