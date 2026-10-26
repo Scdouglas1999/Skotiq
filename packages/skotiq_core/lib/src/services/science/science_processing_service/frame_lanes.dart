@@ -550,7 +550,11 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
                 : ScienceStageOutcome.ok,
             stopwatch: sw,
             note: photometryResult == 0
-                ? 'No target/comparison anchors matched in field'
+                ? (photometrySelection.differentialEnabled &&
+                          photometrySelection.target != null
+                      ? 'Target or comparison stars not measured on this '
+                            'frame'
+                      : 'No target star chosen for differential photometry')
                 : '$photometryResult '
                       'measurement${photometryResult == 1 ? '' : 's'}',
           );

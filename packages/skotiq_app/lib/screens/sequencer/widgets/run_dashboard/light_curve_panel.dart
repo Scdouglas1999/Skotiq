@@ -70,8 +70,8 @@ class LightCurvePanel extends ConsumerWidget {
       );
     }
 
-    final points = ref.watch(
-      sessionLightCurveProvider((sessionId, targetDesignation)),
+    final points = lightCurveInFilter(
+      ref.watch(sessionLightCurveProvider((sessionId, targetDesignation))),
     );
 
     return _buildShell(

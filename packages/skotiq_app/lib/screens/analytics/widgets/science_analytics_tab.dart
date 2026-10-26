@@ -273,6 +273,11 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       );
     }
 
+    // One filter per curve: the newest frame's.
+    lightCurve = lightCurveInFilter(lightCurve);
+    final lightCurveFilter =
+        lightCurve.isEmpty ? null : lightCurve.first.filter;
+
     // Photometry for the same object across every night that imaged this
     // target — the series a period search actually needs.
     final activeSession = allSessions
@@ -284,11 +289,14 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
     if (campaignTargetId != null) {
       // Same object as the single-night curve above, or the campaign strip
       // would report "no data" for the very star the night below it plots.
-      campaignLightCurve = ref
-              .watch(targetLightCurveProvider(
-                  (campaignTargetId, photometryObjectId)))
-              .valueOrNull ??
-          const [];
+      campaignLightCurve = lightCurveInFilter(
+        ref
+                .watch(targetLightCurveProvider(
+                    (campaignTargetId, photometryObjectId)))
+                .valueOrNull ??
+            const [],
+        filter: lightCurveFilter,
+      );
       campaignSessionCount = allSessions
           .where((session) => session.targetId == campaignTargetId)
           .length;
@@ -614,6 +622,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             _LightCurveChartCard(
               colors: colors,
               lightCurve: lightCurve,
+              filter: lightCurveFilter,
               hubExportButton: lightCurve.isEmpty
                   ? null
                   : const _CardHubExportButton(

@@ -161,6 +161,11 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     String? filterName,
     double? airmass,
   }) async {
+    if (!selection.differentialEnabled ||
+        selection.target == null ||
+        wcs == null) {
+      return 0;
+    }
     final stars = await _scienceBackend.measureStars(
       imagePath,
       const PhotometryOptions(minSnr: 4.0),
@@ -175,171 +180,123 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     final available = sortedByFlux.toList(growable: true);
 
     StarMeasurement? target;
-    String targetObjectId = 'target_primary';
+    var targetObjectId = selection.target!.objectId;
     final comparisonObjects = <({String objectId, StarMeasurement star})>[];
 
-    if (selection.differentialEnabled &&
-        selection.target != null &&
-        wcs != null) {
-      try {
-        final fits = await apiReadFitsFile(filePath: imagePath);
-        // Canonical TAN projection — same implementation the catalog
-        // overlay and science backend use (services/wcs).
-        final solved = SolvedWcs(
-          raHours: wcs.raHours,
-          decDegrees: wcs.decDegrees,
-          rotationDeg: wcs.rotationDegrees,
-          pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
-          imageWidth: fits.width,
-          imageHeight: fits.height,
-          cd1_1: wcs.cd1_1,
-          cd1_2: wcs.cd1_2,
-          cd2_1: wcs.cd2_1,
-          cd2_2: wcs.cd2_2,
-          aOrder: wcs.aOrder,
-          bOrder: wcs.bOrder,
-          aCoeffs: wcs.aCoeffs,
-          bCoeffs: wcs.bCoeffs,
-          apOrder: wcs.apOrder,
-          bpOrder: wcs.bpOrder,
-          apCoeffs: wcs.apCoeffs,
-          bpCoeffs: wcs.bpCoeffs,
+    try {
+      final fits = await apiReadFitsFile(filePath: imagePath);
+      // Canonical TAN projection — same implementation the catalog
+      // overlay and science backend use (services/wcs).
+      final solved = SolvedWcs(
+        raHours: wcs.raHours,
+        decDegrees: wcs.decDegrees,
+        rotationDeg: wcs.rotationDegrees,
+        pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
+        imageWidth: fits.width,
+        imageHeight: fits.height,
+        cd1_1: wcs.cd1_1,
+        cd1_2: wcs.cd1_2,
+        cd2_1: wcs.cd2_1,
+        cd2_2: wcs.cd2_2,
+        aOrder: wcs.aOrder,
+        bOrder: wcs.bOrder,
+        aCoeffs: wcs.aCoeffs,
+        bCoeffs: wcs.bCoeffs,
+        apOrder: wcs.apOrder,
+        bpOrder: wcs.bpOrder,
+        apCoeffs: wcs.apCoeffs,
+        bpCoeffs: wcs.bpCoeffs,
+      );
+      final projection = solved.isValid ? GnomonicProjection(solved) : null;
+      final targetPixel = projection
+          ?.worldToPixel(
+            raDegrees: selection.target!.raDegrees,
+            decDegrees: selection.target!.decDegrees,
+          )
+          ?.pixel;
+      if (targetPixel != null) {
+        final matchedTarget = _findNearestStar(
+          available,
+          x: targetPixel.x,
+          y: targetPixel.y,
+          maxDistancePixels: 20.0,
         );
-        final projection = solved.isValid ? GnomonicProjection(solved) : null;
-        final targetPixel = projection
+        if (matchedTarget != null) {
+          target = matchedTarget;
+          targetObjectId = selection.target!.objectId;
+          available.remove(matchedTarget);
+        }
+      }
+
+      for (final anchor in selection.comparisons) {
+        final anchorPixel = projection
             ?.worldToPixel(
-              raDegrees: selection.target!.raDegrees,
-              decDegrees: selection.target!.decDegrees,
+              raDegrees: anchor.raDegrees,
+              decDegrees: anchor.decDegrees,
             )
             ?.pixel;
-        if (targetPixel != null) {
-          final matchedTarget = _findNearestStar(
-            available,
-            x: targetPixel.x,
-            y: targetPixel.y,
-            maxDistancePixels: 20.0,
-          );
-          if (matchedTarget != null) {
-            target = matchedTarget;
-            targetObjectId = selection.target!.objectId;
-            available.remove(matchedTarget);
-          }
+        if (anchorPixel == null) {
+          continue;
         }
+        final matched = _findNearestStar(
+          available,
+          x: anchorPixel.x,
+          y: anchorPixel.y,
+          maxDistancePixels: 20.0,
+        );
+        if (matched == null) {
+          continue;
+        }
+        comparisonObjects.add((objectId: anchor.objectId, star: matched));
+        available.remove(matched);
+      }
+    } catch (error, stack) {
+      _logger.warning(
+        'Failed to resolve configured photometry anchors for $imagePath: $error\n$stack',
+        source: 'ScienceProcessingService',
+      );
+    }
 
-        for (final anchor in selection.comparisons) {
-          final anchorPixel = projection
-              ?.worldToPixel(
-                raDegrees: anchor.raDegrees,
-                decDegrees: anchor.decDegrees,
-              )
-              ?.pixel;
-          if (anchorPixel == null) {
-            continue;
-          }
-          final matched = _findNearestStar(
-            available,
-            x: anchorPixel.x,
-            y: anchorPixel.y,
-            maxDistancePixels: 20.0,
-          );
-          if (matched == null) {
-            continue;
-          }
-          comparisonObjects.add((objectId: anchor.objectId, star: matched));
-          available.remove(matched);
-          if (comparisonObjects.length >= 8) {
-            break;
-          }
-        }
-      } catch (error, stack) {
-        _logger.warning(
-          'Failed to resolve configured photometry anchors for $imagePath: $error\n$stack',
+    // Differential photometry needs a target the user chose: without one the
+    // "target" would be whichever star is brightest in each frame, a
+    // different star from frame to frame.
+    if (target == null) {
+      if (selection.differentialEnabled && selection.target != null) {
+        _logger.info(
+          'Differential photometry skipped for $imagePath: target '
+          '${selection.target!.label} not found within 20 px of its position.',
           source: 'ScienceProcessingService',
         );
       }
-    }
-
-    if (target == null) {
-      target = sortedByFlux.first;
-      available.remove(target);
-    }
-
-    if (comparisonObjects.length < 2) {
-      final fallback = available.take(4).toList(growable: false);
-      for (var index = 0; index < fallback.length; index++) {
-        comparisonObjects.add((
-          objectId: 'comparison_${index + 1}',
-          star: fallback[index],
-        ));
-      }
-    }
-
-    if (comparisonObjects.length < 2) {
       return 0;
     }
 
-    final comparisonFluxes =
-        comparisonObjects
-            .map((entry) => entry.star.flux)
-            .toList(growable: false)
-          ..sort();
-    final medianComparisonFlux = _median(comparisonFluxes);
-    final madComparisonFlux = _mad(comparisonFluxes, medianComparisonFlux);
-    final robustSigma = (1.4826 * madComparisonFlux).clamp(
-      0.0,
-      double.infinity,
+    final sessionCheckId = sessionId == null
+        ? null
+        : await _scienceDao.getSessionCheckStarId(sessionId);
+    final gain = await _photometryGainElectronsPerAdu();
+    final frame = ScienceProcessingService.buildDifferentialFrame(
+      target: target,
+      comparisons: comparisonObjects,
+      comparisonIds: selection.comparisons
+          .map((a) => a.objectId)
+          .toList(growable: false),
+      sessionCheckId: sessionCheckId,
+      gainElectronsPerAdu: gain,
     );
-
-    final inliers = <({String objectId, StarMeasurement star})>[];
-    final outlierObjectIds = <String>{};
-    for (final entry in comparisonObjects) {
-      if (robustSigma <= 0.0) {
-        inliers.add(entry);
-        continue;
-      }
-      final deviation = (entry.star.flux - medianComparisonFlux).abs();
-      if (deviation <= 3.0 * robustSigma) {
-        inliers.add(entry);
-      } else {
-        outlierObjectIds.add(entry.objectId);
-      }
-    }
-
-    final targetFlux = target.flux.clamp(1e-6, double.infinity);
-
-    // AAVSO-style check star: with 3+ inlier comparisons, promote the one
-    // whose brightness is closest to the target (the standard guidance for
-    // check-star choice) out of the ensemble. It is then measured exactly
-    // like the target — differential magnitude against the remaining
-    // ensemble — so a drifting zero point or a variable "comparison" shows
-    // up as scatter in the check star's light curve. With only 2
-    // comparisons the ensemble would collapse to a single star, so no
-    // check is designated.
-    String? checkObjectId;
-    var ensemble = inliers.length >= 2 ? inliers : comparisonObjects;
-    if (inliers.length >= 3) {
-      final checkEntry = inliers.reduce(
-        (a, b) =>
-            (a.star.flux - targetFlux).abs() <= (b.star.flux - targetFlux).abs()
-            ? a
-            : b,
+    if (frame.skipReason != null) {
+      _logger.info(
+        'Differential photometry skipped for $imagePath: ${frame.skipReason}',
+        source: 'ScienceProcessingService',
       );
-      checkObjectId = checkEntry.objectId;
-      ensemble = inliers
-          .where((entry) => entry.objectId != checkObjectId)
-          .toList(growable: false);
-    }
-
-    final weightedFluxTuple = _weightedComparisonFlux(ensemble);
-    final comparisonFlux = weightedFluxTuple.$1;
-    final comparisonFluxUncertainty = weightedFluxTuple.$2;
-    if (comparisonFlux <= 0 || !comparisonFlux.isFinite) {
       return 0;
     }
-    final targetSnr = target.snr.isFinite
-        ? target.snr.clamp(1.0, 1e6).toDouble()
-        : 1.0;
-    final targetFluxSigma = targetFlux / targetSnr;
+    final targetFlux = target.flux.clamp(1e-6, double.infinity).toDouble();
+    final checkObjectId = frame.checkObjectId;
+    final outlierObjectIds = <String>{};
+    final comparisonFlux = frame.ensembleFlux!;
+    final comparisonFluxUncertainty = frame.ensembleFluxSigma!;
+    final targetFluxSigma = frame.targetFluxSigma!;
 
     // Try to apply photometric transform for absolute magnitude
     PhotometricTransformCoefficients? transform;
@@ -352,6 +309,20 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
           'No photometric transform available for filter $filterName: $error',
           source: 'ScienceProcessingService',
         );
+      }
+    }
+
+    // A transform with a color term needs each star's own B-V; it comes from
+    // the catalog star at the anchor's position.
+    final colorIndexByObject = <String, double>{};
+    if (transform != null && transform.colorTerm != 0) {
+      final anchors = [selection.target!, ...selection.comparisons];
+      for (final anchor in anchors) {
+        final bv = await _catalogColorIndex(
+          raDegrees: anchor.raDegrees,
+          decDegrees: anchor.decDegrees,
+        );
+        if (bv != null) colorIndexByObject[anchor.objectId] = bv;
       }
     }
 
@@ -379,6 +350,9 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       transform: transform,
       airmass: airmass,
       exposureSeconds: safeExposure,
+      filter: filterName,
+      gainElectronsPerAdu: gain,
+      colorIndexByObject: colorIndexByObject,
     );
 
     if (capturedImageId != null) {
@@ -412,57 +386,50 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     return best;
   }
 
-  (double, double) _weightedComparisonFlux(
-    List<({String objectId, StarMeasurement star})> comparisons,
-  ) {
-    if (comparisons.isEmpty) {
-      return (0.0, 0.0);
+  /// B-V of the catalog star within 3 arcsec of a position, or null.
+  Future<double?> _catalogColorIndex({
+    required double raDegrees,
+    required double decDegrees,
+  }) async {
+    try {
+      final cone = await _ref
+          .read(photometricCatalogServiceProvider)
+          .coneSearch(
+            raDegrees: raDegrees,
+            decDegrees: decDegrees,
+            radiusDegrees: 0.05,
+            maxMagnitude: 20,
+          );
+      PhotometricCatalogStar? best;
+      var bestSep = 3.0 / 3600.0;
+      final cosDec = math.cos(decDegrees * math.pi / 180);
+      for (final star in cone.stars) {
+        final dRa = (star.raDegrees - raDegrees) * cosDec;
+        final dDec = star.decDegrees - decDegrees;
+        final sep = math.sqrt(dRa * dRa + dDec * dDec);
+        if (sep < bestSep) {
+          bestSep = sep;
+          best = star;
+        }
+      }
+      return best?.colorIndexBv;
+    } catch (_) {
+      return null;
     }
-
-    var weightedSum = 0.0;
-    var weightSum = 0.0;
-    for (final entry in comparisons) {
-      final star = entry.star;
-      final flux = star.flux.clamp(1e-6, double.infinity);
-      final safeSnr = star.snr.isFinite
-          ? star.snr.clamp(1.0, 1e6).toDouble()
-          : 1.0;
-      final sigma = flux / safeSnr;
-      final variance = math.max(1e-12, sigma * sigma);
-      final weight = 1.0 / variance;
-      weightedSum += flux * weight;
-      weightSum += weight;
-    }
-
-    if (weightSum <= 0.0) {
-      return (0.0, 0.0);
-    }
-
-    final flux = weightedSum / weightSum;
-    final sigma = math.sqrt(1.0 / weightSum);
-    return (flux, sigma);
   }
 
-  double _median(List<double> values) {
-    if (values.isEmpty) {
-      return 0.0;
+  /// The configured camera e⁻/ADU, or null when unset.
+  Future<double?> _photometryGainElectronsPerAdu() async {
+    try {
+      final stored = await _ref
+          .read(settingsDaoProvider)
+          .getSetting(ScienceCameraAutoConfig.gainKey);
+      final parsed = double.tryParse(stored ?? '');
+      if (parsed != null && parsed.isFinite && parsed > 0) return parsed;
+    } catch (_) {
+      // Unreadable setting: the error bars then carry background noise only.
     }
-    final sorted = values.toList(growable: false)..sort();
-    final middle = sorted.length ~/ 2;
-    if (sorted.length.isOdd) {
-      return sorted[middle];
-    }
-    return (sorted[middle - 1] + sorted[middle]) / 2.0;
-  }
-
-  double _mad(List<double> values, double median) {
-    if (values.isEmpty) {
-      return 0.0;
-    }
-    final deviations = values
-        .map((value) => (value - median).abs())
-        .toList(growable: false);
-    return _median(deviations);
+    return null;
   }
 
   Future<WcsSolution?> _resolveWcsSolution({

@@ -132,6 +132,21 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .toSet();
   }
 
+  /// The check star a session's differential photometry already uses, so
+  /// every frame of the session is checked against the same star.
+  Future<String?> getSessionCheckStarId(int sessionId) async {
+    final row =
+        await (select(photometryMeasurements)
+              ..where(
+                (tbl) =>
+                    tbl.sessionId.equals(sessionId) & tbl.role.equals('check'),
+              )
+              ..orderBy([(tbl) => OrderingTerm.asc(tbl.timestamp)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row?.objectId;
+  }
+
   Future<List<PhotometryMeasurementRow>> getPhotometryForSession(
     int sessionId,
   ) {

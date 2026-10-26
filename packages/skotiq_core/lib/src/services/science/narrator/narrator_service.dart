@@ -666,10 +666,14 @@ class NarratorService {
         () => _ref.read(sessionMovingObjectTrendProvider(sessionId)),
         const <MovingObjectCandidate>[],
       );
-      lightCurve = _readOr(
-        () => _ref.read(sessionLightCurveProvider((sessionId, _objectId()))),
-        const <LightCurvePoint>[],
-      );
+      // With no chosen target there is no light curve to narrate.
+      final objectId = _objectId();
+      lightCurve = objectId == 'target_primary'
+          ? const <LightCurvePoint>[]
+          : _readOr(
+              () => _ref.read(sessionLightCurveProvider((sessionId, objectId))),
+              const <LightCurvePoint>[],
+            );
       filterIntegration = _readOr(
         () =>
             _ref.read(sessionFilterIntegrationProvider(sessionId)).valueOrNull,

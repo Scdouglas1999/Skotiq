@@ -290,6 +290,7 @@ final targetLightCurveProvider =
                     differentialMagnitude: row.differentialMagnitude!,
                     snr: row.snr ?? 0.0,
                     uncertainty: row.uncertainty ?? 0.0,
+                    filter: row.filter,
                   ),
                 )
                 .toList(growable: false),
@@ -319,6 +320,7 @@ final sessionLightCurveProvider =
               differentialMagnitude: row.differentialMagnitude!,
               snr: row.snr ?? 0.0,
               uncertainty: row.uncertainty ?? 0.0,
+              filter: row.filter,
             ),
           )
           .toList(growable: false);
@@ -583,6 +585,7 @@ final sessionlessLightCurveProvider =
               differentialMagnitude: row.differentialMagnitude!,
               snr: row.snr ?? 0.0,
               uncertainty: row.uncertainty ?? 0.0,
+              filter: row.filter,
             ),
           )
           .toList(growable: false);

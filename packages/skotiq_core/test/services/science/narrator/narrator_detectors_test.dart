@@ -246,6 +246,58 @@ void main() {
       expect(fired, isEmpty);
     });
 
+    test('a 0.01 mag dip is not announced, however small the error bars', () {
+      // The replay of a constant field announced "faded 0.01 mag — possible
+      // eclipse" from error bars of a few millimag.
+      final d = LightCurveEventDetector();
+      final points = [
+        for (var i = 0; i < 13; i++)
+          LightCurvePoint(
+            timestamp: _at(Duration(minutes: i)),
+            flux: 1e5,
+            differentialMagnitude: i < 10 ? 0.500 : 0.512,
+            snr: 500,
+            uncertainty: 0.002,
+            filter: 'G',
+          ),
+      ];
+      expect(
+        d.evaluate(
+          NarratorContext(
+            now: _at(const Duration(minutes: 12)),
+            lightCurve: points,
+          ),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('frames of another filter are not part of the curve', () {
+      // A G run followed by R frames: the R points sit 0.3 mag fainter
+      // because of the target's color, which in one curve looks like a fade.
+      final d = LightCurveEventDetector();
+      final points = [
+        for (var i = 0; i < 16; i++)
+          LightCurvePoint(
+            timestamp: _at(Duration(minutes: i)),
+            flux: 1e5,
+            differentialMagnitude: i >= 13 ? 0.8 : 0.5,
+            snr: 200,
+            uncertainty: 0.01,
+            filter: i >= 13 ? 'R' : 'G',
+          ),
+      ];
+      expect(
+        d.evaluate(
+          NarratorContext(
+            now: _at(const Duration(minutes: 15)),
+            lightCurve: points,
+          ),
+        ),
+        isEmpty,
+      );
+    });
+
     test('non-finite magnitude tail is ignored (no false brightening)', () {
       final d = LightCurveEventDetector();
       // 12 clean baseline points at mag 15.0, then a tail of junk (NaN) points.
