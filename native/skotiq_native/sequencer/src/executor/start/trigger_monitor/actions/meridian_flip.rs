@@ -184,6 +184,18 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
             if early && !run.is_cancelled() {
                 // The mount would not take the east side this early. Wait for
                 // the configured window instead; tracking stays off.
+                //
+                // Nothing here forces the other side or restarts tracking.
+                // A GoTo leaves the side to the driver, which picks it from
+                // the hour angle and its own limits, so a slew to the same
+                // target, or to an hour angle past the meridian and back,
+                // lands on the side it refused. ASCOM's SideOfPier setter
+                // (CanSetPierSide) forces a flip only on drivers that offer it,
+                // and inside the same limits. The limit that stopped tracking
+                // is the mount's protection of the tube against the pier or
+                // tripod, so restarting tracking past it to keep imaging would
+                // drive the tube toward what the limit guards. The flip window
+                // is the earliest point the mount itself accepts.
                 let wait = {
                     let mut state = rig.trigger_state.write().await;
                     state.run.refuse_early_flip();
@@ -193,8 +205,10 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                     })
                 };
                 let message = format!(
-                    "The mount did not flip early ({reason}). Holding with tracking off until \
-                     the flip window, {:.0} min past the meridian{}.",
+                    "The mount did not flip early ({reason}). It stopped tracking at its own \
+                     limit and only takes the east side past the meridian, so tracking stays \
+                     off and nothing is exposed until the flip window, {:.0} min past the \
+                     meridian{}.",
                     crate::triggers::tracking_limit_flip_threshold(config) * 60.0,
                     match wait {
                         Some(minutes) => format!(", about {minutes:.0} min away"),
