@@ -22,24 +22,21 @@
 //!    ([`crate::wcs_sip::SipWcs`]) and the shared resampler
 //!    ([`crate::registration::sample_interleaved`]) — exactly the reprojection the
 //!    fold path uses, so the residual is registered to sub-pixel accuracy.
-//! 2. **Photometrically match** the reprojected frame to the template with a robust
-//!    Theil–Sen line fit (`template ≈ scale·frame + offset`) over the overlap: the
-//!    median of pairwise slopes has a ~29% breakdown point, so the very transients
-//!    we are hunting cannot bias the scale even on a sparse field with few shared
-//!    stars (where an iterated-OLS clip would be dragged by a high-leverage point).
-//! 3. **Subtract** to a signed `F32` residual `(matched_frame − template)`, only
-//!    where both the reprojected frame and the template have coverage (a thin
-//!    template region is a quality gate, not a fabricated zero).
-//! 4. **Extract sources** on the `+residual` (brightenings / new sources) and the
-//!    `−residual` (the negative lobe of a subtraction dipole — a registration or
-//!    PSF-mismatch artefact, flagged so the Dart layer can down-weight it). Source
-//!    extraction is a sigma-clipped-background, 8-connected-maxima detector with
-//!    HFR/FWHM/eccentricity measurement, the same estimator family as
-//!    [`crate::stats::detect_stars`] but operating on the signed residual plane
-//!    (which `detect_stars` cannot, as it decodes `U16`).
-//! 5. **Classify** each candidate ([`TransientKind`]) from its residual sign, the
-//!    presence of a paired opposite-sign lobe (dipole), and its elongation
-//!    (a streak), and convert its tile pixel to `(ra, dec)` through the tile WCS.
+//! 2. **Compare only deep pixels**: a tile pixel is compared only where the
+//!    template has at least `min_template_coverage` frames under it.
+//! 3. **Match**: remove the smooth sky from both planes, blur the sharper one to
+//!    the other's seeing, and scale the frame by the median template/frame
+//!    aperture-flux ratio of isolated, unsaturated template stars. Sky noise is
+//!    never used as the scale.
+//! 4. **Subtract** to a signed `F32` residual and extract sources on it.
+//! 5. **Gate** each source: frame and coverage edges, saturation, sharpness (hot
+//!    pixels, cosmic rays), bright-star halos, dipoles, elongation, then forced
+//!    aperture photometry on the residual and the template with an empirical
+//!    aperture noise plus a systematic floor. A source with template flux under
+//!    it is reported only as a clear brightening; one without as a new source.
+//!
+//! A single frame is never enough to announce anything: the Dart layer requires
+//! the same source in a second frame before it reports it.
 //!
 //! The catalog / photometric / moving-object cross-match that turns a residual
 //! source into a *named* known object (or a flagged unknown) happens Dart-side in
@@ -48,7 +45,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::registration::{sample_interleaved, Interpolator};
+use crate::registration::{kernel_inside, sample_interleaved, Interpolator};
 use crate::robust_stats::{
     median_in_place as median, percentile_nearest_rank as percentile_sorted, MAD_TO_SIGMA,
 };
@@ -63,12 +60,6 @@ use crate::ImageData;
 /// spans the separation a sub-pixel registration error or PSF mismatch produces at
 /// the atlas tile scale without reaching across to an unrelated source.
 const DIPOLE_SEARCH_RADIUS: f64 = 6.0;
-
-/// Eccentricity above which a residual source is read as a streak (a moving object
-/// trailed across the exposure) rather than a point source. Matches the spirit of
-/// the star detector's roundness gate, loosened because a genuine slow mover is
-/// only mildly elongated.
-const STREAK_ECCENTRICITY: f64 = 0.85;
 
 /// Classification of a residual detection, by shape and residual sign. Wire names
 /// are the contract's `camelCase` tokens (`pointBrightening` / `movingStreak` /
@@ -134,10 +125,71 @@ pub struct TransientCandidate {
     pub kind: TransientKind,
 }
 
+/// Gates a residual must pass before it is reported. Every gate exists because
+/// real frames produced false detections without it: hot pixels and cosmic
+/// rays, the frame and template-coverage edges, saturated star cores, halos of
+/// bright stars, PSF-mismatch dipoles and trails.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DifferenceOptions {
+    /// Per-pixel template depth (frames) below which a pixel is not compared.
+    pub min_template_coverage: u32,
+    /// Minimum distance (px) of a candidate from the frame edge and from the
+    /// edge of the compared (deep-enough) template area.
+    pub edge_margin_px: f64,
+    /// Minimum aperture significance of the residual, counting both the
+    /// measured aperture noise and [`Self::systematic_fraction`] of the
+    /// template flux under it.
+    pub min_significance: f64,
+    /// Fraction of the template flux treated as irreducible subtraction error
+    /// (PSF and normalization mismatch), added in quadrature to the noise.
+    pub systematic_fraction: f64,
+    /// Smallest brightening (mag) of a source already in the template that is
+    /// reported.
+    pub min_brightening_mag: f64,
+    /// Raw frame value at or above which a pixel counts as saturated; `None`
+    /// uses 95% of the frame's maximum.
+    pub saturation_level: Option<f64>,
+}
+
+impl Default for DifferenceOptions {
+    fn default() -> Self {
+        Self {
+            min_template_coverage: 5,
+            edge_margin_px: 16.0,
+            min_significance: 7.0,
+            systematic_fraction: 0.1,
+            min_brightening_mag: 0.3,
+            saturation_level: None,
+        }
+    }
+}
+
+/// Why residual sources were not reported, for diagnostics and evaluation.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DifferenceRejections {
+    /// Too close to the frame edge or the edge of the compared template area.
+    pub edge: usize,
+    /// On or next to saturated pixels.
+    pub saturated: usize,
+    /// Sharper than the PSF allows (hot pixel, cosmic ray).
+    pub sharp: usize,
+    /// In the halo or core of a bright template star.
+    pub bright_star: usize,
+    /// Paired with a negative lobe (registration / PSF mismatch).
+    pub dipole: usize,
+    /// Elongated (satellite / aircraft trail or subtraction artifact).
+    pub elongated: usize,
+    /// Below the aperture significance threshold.
+    pub insignificant: usize,
+    /// A source already in the template that changed by less than the
+    /// brightening threshold.
+    pub small_change: usize,
+}
+
 /// The full result of differencing one frame against one tile template.
 #[derive(Debug, Clone)]
 pub struct DifferenceResult {
-    /// Residual candidate sources, brightest (highest SNR) first.
+    /// Residual candidate sources, most significant first.
     pub candidates: Vec<TransientCandidate>,
     /// The signed residual `(matched_frame − template)` as an `F32` image on the
     /// tile grid. Pixels with no frame-or-template coverage are `0.0`.
@@ -145,29 +197,52 @@ pub struct DifferenceResult {
     /// The fresh frame reprojected + photometrically matched onto the tile grid
     /// (the "science" plane the residual was differenced from). Pixels the frame
     /// did not cover are `0.0`. Surfaced so the FFI layer can crop a real
-    /// per-detection science postage stamp alongside the template + residual ones,
-    /// instead of the UI painting a schematic.
+    /// per-detection science postage stamp alongside the template + residual ones.
     pub science: ImageData,
     /// The finalized template raster on the tile grid (the deep co-add the frame
     /// was differenced against), for the per-detection template crop.
     pub template_image: ImageData,
-    /// Multiplicative photometric scale applied to the reprojected frame.
+    /// Multiplicative photometric scale applied to the reprojected frame (the
+    /// median template/frame flux ratio of the matched stars).
     pub matched_scale: f64,
-    /// Additive photometric offset applied to the reprojected frame.
+    /// Additive offset applied to the reprojected frame (0: both planes are
+    /// background-subtracted before matching).
     pub matched_offset: f64,
-    /// Minimum template coverage depth across the pixels that overlapped the frame
-    /// (the quality gate the caller compares against `min_template_coverage`).
+    /// Stars the photometric scale was measured on; below
+    /// [`MIN_NORMALIZATION_STARS`] the tile is not differenced.
+    pub normalization_stars: usize,
+    /// Minimum template coverage depth across the pixels that overlapped the
+    /// frame.
     pub template_coverage_min: u32,
+    /// Tile pixels compared (frame covered and template deep enough).
+    pub compared_pixels: usize,
+    /// Residual sources dropped, by reason.
+    pub rejections: DifferenceRejections,
 }
 
+/// Fewest unsaturated, isolated template stars the frame-to-template flux scale
+/// is measured on. With fewer the scale is not trustworthy and the tile is
+/// skipped rather than differenced on a guess.
+pub const MIN_NORMALIZATION_STARS: usize = 6;
+
+/// Eccentricity at or above which a residual is treated as a trail or a
+/// subtraction artifact, never a point-source transient.
+const MAX_POINT_ECCENTRICITY: f64 = 0.75;
+
+/// Background mesh size (tile px) for the smooth sky removed from both planes.
+const BACKGROUND_MESH: usize = 64;
+
 /// Subtract the finalized atlas `template` (on its tile grid) from `frame`
-/// reprojected onto the same grid, photometrically matched via the robust line
-/// fit, then extract + classify residual sources.
+/// reprojected onto the same grid and report point sources that are new or
+/// clearly brighter than in the template.
 ///
-/// `frame_wcs` is the frame's solved CD + SIP astrometry; `interp` selects the
-/// resampling kernel for the reprojection; `star_cfg` tunes the residual source
-/// detector (detection σ, min area/SNR, roundness gates — reused verbatim from the
-/// star detector's configuration so a caller tunes both with one struct).
+/// Both planes have their smooth sky removed, the sharper one is blurred to the
+/// other's seeing, and the frame is scaled to the template by the median flux
+/// ratio of matched template stars (not by sky noise). Residual sources are then
+/// measured with forced aperture photometry on the residual and the template,
+/// and kept only if they pass every gate in [`DifferenceOptions`]. Only
+/// [`TransientKind::NewSource`] and [`TransientKind::PointBrightening`] are
+/// reported.
 ///
 /// Returns [`AtlasError::DegenerateWcs`] if the frame WCS cannot be inverted,
 /// [`AtlasError::ChannelMismatch`] if the frame and template channel counts differ.
@@ -177,6 +252,49 @@ pub fn difference_against_template(
     frame_wcs: &SipWcs,
     interp: Interpolator,
     star_cfg: &StarDetectionConfig,
+    opts: &DifferenceOptions,
+) -> Result<DifferenceResult, AtlasError> {
+    difference_against_decoded(
+        template,
+        &DecodedFrame::new(frame),
+        frame_wcs,
+        interp,
+        star_cfg,
+        opts,
+    )
+}
+
+/// A frame decoded once to linear f64 (channel-interleaved), for differencing
+/// against many tiles without re-decoding per tile.
+#[derive(Debug, Clone)]
+pub struct DecodedFrame {
+    src: Vec<f64>,
+    width: u32,
+    height: u32,
+    channels: u32,
+}
+
+impl DecodedFrame {
+    /// Decode `frame` (U16 or F32; other types decode empty and difference to
+    /// nothing).
+    pub fn new(frame: &ImageData) -> Self {
+        Self {
+            src: decode_to_f64(frame),
+            width: frame.width,
+            height: frame.height,
+            channels: frame.channels,
+        }
+    }
+}
+
+/// [`difference_against_template`] on an already decoded frame.
+pub fn difference_against_decoded(
+    template: &SkyTileAccumulator,
+    frame: &DecodedFrame,
+    frame_wcs: &SipWcs,
+    interp: Interpolator,
+    star_cfg: &StarDetectionConfig,
+    opts: &DifferenceOptions,
 ) -> Result<DifferenceResult, AtlasError> {
     if !frame_wcs.is_invertible() {
         return Err(AtlasError::DegenerateWcs);
@@ -193,26 +311,21 @@ pub fn difference_against_template(
     let ch = template.channels as usize;
     let npix = tw * th;
 
-    // The finalized template raster (weighted mean per pixel) + its coverage depth.
     let tmpl_img = template.finalize();
     let tmpl_f32 = tmpl_img
         .as_f32()
         .ok_or_else(|| AtlasError::Corrupt("finalized template is not F32".into()))?;
     let tmpl: Vec<f64> = tmpl_f32.iter().map(|&v| v as f64).collect();
-    // Per-tile-pixel template coverage (channel 0 carries the count; coverage is
-    // replicated across channels by the accumulator).
     let coverage = &template.state.coverage;
 
-    // Decode the source frame to interleaved f64 for the resampler.
-    let src = decode_to_f64(frame);
+    let src = &frame.src;
     let sw = frame.width as usize;
     let sh = frame.height as usize;
     let src_ok = !src.is_empty() && src.len() == sw * sh * ch;
 
-    // Reproject the frame onto the tile grid; track which tile pixels the frame
-    // validly covered so the normalization fit and the subtraction only use pixels
-    // backed by real data on both sides.
-    let mut warped = vec![f64::NAN; npix * ch];
+    // Reproject; a tile pixel is valid only where the whole interpolation
+    // kernel reads real frame pixels.
+    let mut warped = vec![0.0f64; npix * ch];
     let mut frame_valid = vec![false; npix];
     if src_ok {
         for ty in 0..th {
@@ -221,208 +334,282 @@ pub fn difference_against_template(
                 let Some((fx, fy)) = frame_wcs.world_to_pixel(ra, dec) else {
                     continue;
                 };
-                if fx < 0.0 || fy < 0.0 || fx > (sw as f64 - 1.0) || fy > (sh as f64 - 1.0) {
+                if !kernel_inside(fx, fy, sw, sh, interp) {
                     continue;
                 }
                 let p = ty * tw + tx;
-                let mut all_finite = true;
+                let mut ok = true;
                 for c in 0..ch {
-                    let v = sample_interleaved(&src, sw, sh, ch, c, fx, fy, interp);
+                    let v = sample_interleaved(src, sw, sh, ch, c, fx, fy, interp);
                     if v.is_finite() {
                         warped[p * ch + c] = v;
                     } else {
-                        all_finite = false;
+                        ok = false;
                     }
                 }
-                if all_finite {
-                    frame_valid[p] = true;
-                }
+                frame_valid[p] = ok;
             }
         }
     }
 
-    // Pixels usable for the photometric fit + subtraction: the frame covered them
-    // *and* the template has at least one sample under them. The min template
-    // coverage over that overlap is the quality gate the caller honours.
+    // Compared pixels: frame covered and the template deep enough right there.
     let mut overlap = vec![false; npix];
     let mut template_coverage_min = u32::MAX;
-    let mut any_overlap = false;
+    let mut compared_pixels = 0usize;
     for p in 0..npix {
-        let cov = coverage[p * ch]; // channel-0 count
+        let cov = coverage[p * ch];
         if frame_valid[p] && cov > 0 {
-            overlap[p] = true;
-            any_overlap = true;
-            if cov < template_coverage_min {
-                template_coverage_min = cov;
+            template_coverage_min = template_coverage_min.min(cov);
+            if cov >= opts.min_template_coverage.max(1) {
+                overlap[p] = true;
+                compared_pixels += 1;
             }
         }
     }
-    if !any_overlap {
+    if template_coverage_min == u32::MAX {
         template_coverage_min = 0;
     }
 
-    // PSF matching (Gaussian kernel) — applied BEFORE the photometric fit. A pure
-    // scalar match on PSF-mismatched planes leaves a residual whose shape is the
-    // *difference of two PSFs* — a dipole/ring — at every common star whenever
-    // tonight's seeing != the template's blended effective seeing (essentially
-    // always); worse, the flux-vs-flux regression that sets the photometric scale
-    // is itself biased by that shape mismatch. So we first measure the effective
-    // Gaussian σ of the common point sources in both the reprojected frame and the
-    // template, and convolve the SHARPER plane with the Gaussian that broadens it
-    // to the other's σ (`σ_kernel = sqrt(σ_broad² − σ_sharp²)`), per channel — the
-    // single-Gaussian case of Alard–Lupton matching — THEN fit + subtract on the
-    // PSF-matched planes. This removes the bulk of the dipoles the classifier would
-    // otherwise be flooded by on a typical mismatched-seeing night.
-    let mut frame_psf = warped.clone();
-    let mut tmpl_psf = tmpl.clone();
-    const MIN_MATCH_SIGMA: f64 = 0.35; // sub-pixel kernels are not worth applying.
-    if any_overlap {
-        for c in 0..ch {
-            let frame_sigma = estimate_psf_sigma(&warped, &overlap, tw, th, ch, c);
-            let tmpl_sigma = estimate_psf_sigma(&tmpl, &overlap, tw, th, ch, c);
-            if let (Some(fs), Some(ts)) = (frame_sigma, tmpl_sigma) {
-                if fs > ts + MIN_MATCH_SIGMA {
-                    // Frame is broader -> broaden the template to match the frame.
-                    let k = (fs * fs - ts * ts).sqrt();
-                    blur_channel_gaussian(&mut tmpl_psf, tw, th, ch, c, k);
-                } else if ts > fs + MIN_MATCH_SIGMA {
-                    // Template is broader -> broaden tonight's frame to match it.
-                    let k = (ts * ts - fs * fs).sqrt();
-                    blur_channel_gaussian(&mut frame_psf, tw, th, ch, c, k);
-                }
+    let empty_result = |rejections: DifferenceRejections, stars: usize| DifferenceResult {
+        candidates: Vec::new(),
+        residual: ImageData::from_f32(
+            template.width,
+            template.height,
+            template.channels,
+            &vec![0.0f32; npix * ch],
+        ),
+        science: ImageData::from_f32(
+            template.width,
+            template.height,
+            template.channels,
+            &vec![0.0f32; npix * ch],
+        ),
+        template_image: tmpl_img.clone(),
+        matched_scale: 1.0,
+        matched_offset: 0.0,
+        normalization_stars: stars,
+        template_coverage_min,
+        compared_pixels,
+        rejections,
+    };
+    if compared_pixels < 64 * 64 {
+        return Ok(empty_result(DifferenceRejections::default(), 0));
+    }
+
+    // Remove the smooth sky from both planes so the match is a pure scale.
+    let mut frame_bs = warped.clone();
+    let mut tmpl_bs = tmpl.clone();
+    for c in 0..ch {
+        subtract_mesh_background(&mut frame_bs, &overlap, tw, th, ch, c);
+        subtract_mesh_background(&mut tmpl_bs, &overlap, tw, th, ch, c);
+    }
+
+    // PSF matching: blur the sharper plane to the other's seeing.
+    let mut frame_psf = frame_bs.clone();
+    let mut tmpl_psf = tmpl_bs.clone();
+    const MIN_MATCH_SIGMA: f64 = 0.35;
+    let mut broad_sigma: f64 = 1.5;
+    for c in 0..ch {
+        let fs = estimate_psf_sigma(&frame_bs, &overlap, tw, th, ch, c);
+        let ts = estimate_psf_sigma(&tmpl_bs, &overlap, tw, th, ch, c);
+        if let (Some(fs), Some(ts)) = (fs, ts) {
+            if c == 0 {
+                broad_sigma = fs.max(ts);
+            }
+            if fs > ts + MIN_MATCH_SIGMA {
+                blur_channel_gaussian(&mut tmpl_psf, tw, th, ch, c, (fs * fs - ts * ts).sqrt());
+            } else if ts > fs + MIN_MATCH_SIGMA {
+                blur_channel_gaussian(&mut frame_psf, tw, th, ch, c, (ts * ts - fs * fs).sqrt());
             }
         }
     }
+    let aperture = (1.5 * 2.354_820_045 * broad_sigma).clamp(3.0, 12.0);
 
-    // Fit + apply a per-channel photometric match (template ≈ scale·frame + offset)
-    // over the overlap, on the PSF-matched planes, robustly clipping the transients
-    // we are about to detect. The reported scalar scale/offset are the channel-0
-    // fit (mono is the norm; for OSC the per-channel coefficients are applied but
-    // the headline pair is luminance channel 0).
-    let mut frame_match = frame_psf.clone();
-    let mut report_scale = 1.0;
-    let mut report_offset = 0.0;
-    if any_overlap {
-        for c in 0..ch {
-            // Collect the (frame, template) pairs over the overlap for this channel.
-            let mut pairs: Vec<(f64, f64)> = Vec::new();
-            for p in 0..npix {
-                if !overlap[p] {
-                    continue;
-                }
-                let f = frame_psf[p * ch + c];
-                let t = tmpl_psf[p * ch + c];
-                if f.is_finite() && t.is_finite() {
-                    pairs.push((f, t));
-                }
-            }
-            // Robust slope + offset via Theil–Sen. Plain iterated OLS (even κ-clipped)
-            // is pulled by a single bright transient on a SPARSE field: with few
-            // shared stars the transient is a high-leverage point that drags the slope
-            // before the clip can converge, biasing the whole subtraction and
-            // erasing/inflating the very residual we are hunting. Theil–Sen takes the
-            // median of pairwise slopes (≈29% breakdown point), so a handful of
-            // transient pixels among the shared structure cannot move the fit — the
-            // robust line difference imaging needs.
-            let (scale, offset) = robust_theil_sen(&pairs)
-                .filter(|&(s, o)| s.is_finite() && s > 0.0 && o.is_finite())
-                .unwrap_or((1.0, 0.0));
-            for p in 0..npix {
-                let v = frame_psf[p * ch + c];
-                if v.is_finite() {
-                    frame_match[p * ch + c] = scale * v + offset;
-                }
-            }
-            if c == 0 {
-                report_scale = scale;
-                report_offset = offset;
+    // Pixels far enough from the compared area's edge for a whole aperture
+    // and its sky annulus.
+    let edge_reach = opts.edge_margin_px.max(aperture + 8.0).ceil() as usize;
+    let interior = erode_mask(&overlap, tw, th, edge_reach);
+
+    // Photometric scale from matched template stars.
+    let lum = |plane: &[f64]| -> Vec<f64> {
+        (0..npix)
+            .map(|p| (0..ch).map(|c| plane[p * ch + c]).sum::<f64>() / ch as f64)
+            .collect()
+    };
+    let tmpl_lum = lum(&tmpl_psf);
+    let frame_lum = lum(&frame_psf);
+    let tmpl_raw_lum = lum(&tmpl);
+    let tmpl_max = (0..npix)
+        .filter(|&p| overlap[p])
+        .map(|p| tmpl_raw_lum[p])
+        .fold(f64::NEG_INFINITY, f64::max);
+    let stars = template_reference_stars(&tmpl_lum, &tmpl_raw_lum, &interior, tw, th, tmpl_max);
+    let mut ratios: Vec<f64> = Vec::new();
+    for &(x, y, _) in &stars {
+        let t = aperture_sum(&tmpl_lum, &overlap, tw, th, x as f64, y as f64, aperture);
+        let f = aperture_sum(&frame_lum, &overlap, tw, th, x as f64, y as f64, aperture);
+        if let (Some(t), Some(f)) = (t, f) {
+            if t > 0.0 && f > 0.0 {
+                ratios.push(t / f);
             }
         }
+    }
+    if ratios.len() < MIN_NORMALIZATION_STARS {
+        return Ok(empty_result(DifferenceRejections::default(), ratios.len()));
+    }
+    let scale = median(&mut ratios);
+    if !(scale.is_finite() && scale > 0.0) {
+        return Ok(empty_result(DifferenceRejections::default(), 0));
+    }
+    let normalization_stars = stars.len();
+
+    let mut frame_match = frame_psf;
+    for v in frame_match.iter_mut() {
+        *v *= scale;
     }
     let tmpl_match = tmpl_psf;
 
-    // Signed residual = PSF+photometrically matched frame − matched template, only
-    // on the overlap. Build the per-channel signed residual for the output image,
-    // plus a set of single-channel detection planes: the luminance mean AND each
-    // colour channel on its own.
     let mut residual = vec![0.0f32; npix * ch];
     let mut lum_plane = vec![0.0f64; npix];
-    // One detection plane per colour channel (OSC) — a single-colour outburst
-    // (e.g. an Hα brightening, or a transient bright in only one Bayer channel)
-    // lands at full amplitude in its own plane but is diluted by ~√ch in the
-    // luminance mean. Detecting per-channel and keeping the best-SNR hit per source
-    // recovers the ~√3 (OSC) sensitivity the mean-only detector threw away.
     let mut chan_planes: Vec<Vec<f64>> = vec![vec![0.0f64; npix]; ch];
     for p in 0..npix {
         if !overlap[p] {
             continue;
         }
-        let mut lum = 0.0;
+        let mut l = 0.0;
         for c in 0..ch {
             let d = frame_match[p * ch + c] - tmpl_match[p * ch + c];
             residual[p * ch + c] = d as f32;
-            lum += d;
+            l += d;
             chan_planes[c][p] = d;
         }
-        lum_plane[p] = lum / ch as f64;
+        lum_plane[p] = l / ch as f64;
     }
-
-    // Detection planes to search: the luminance mean first (so a panchromatic
-    // source's combined-SNR detection wins on ties), then each colour channel.
-    // For mono the per-channel plane is identical to the luminance plane, so search
-    // only one to avoid duplicate work.
     let mut detect_planes: Vec<&[f64]> = vec![&lum_plane];
     if ch > 1 {
         for plane in &chan_planes {
             detect_planes.push(plane);
         }
     }
-
-    // Extract sources on +residual (brightenings / new) and −residual (dipole
-    // negative lobes) across every detection plane, then keep the best-SNR
-    // detection per spatial source (a one-channel outburst is not lost to the mean).
     let pos_sources = extract_best_across_planes(&detect_planes, &overlap, tw, th, star_cfg, 1.0);
     let neg_sources = extract_best_across_planes(&detect_planes, &overlap, tw, th, star_cfg, -1.0);
 
-    // The template's robust sky pedestal (per-channel summed), so the template flux
-    // under a source is measured *above* the local sky — a source on bare sky has
-    // ~zero template flux (a NewSource) rather than the pedestal × footprint.
-    let tmpl_background = template_background(&tmpl, &overlap, ch);
+    // Aperture noise measured empirically on the residual and the template
+    // (resampling and PSF matching correlate neighbouring pixels, so a
+    // per-pixel σ·√N would understate it).
+    let resid_ap_sigma = empirical_aperture_sigma(&lum_plane, &interior, tw, th, aperture);
+    let tmpl_ap_sigma = empirical_aperture_sigma(&tmpl_lum, &interior, tw, th, aperture);
 
-    let mut candidates = Vec::with_capacity(pos_sources.len());
+    // Frame-space context for the pixel-level guards.
+    let frame_px_scale = frame_wcs.pixel_scale_arcsec();
+    let tile_px_scale = template.wcs.pixel_scale_arcsec();
+    let frame_sigma_px = if frame_px_scale > 0.0 {
+        broad_sigma * tile_px_scale / frame_px_scale
+    } else {
+        broad_sigma
+    };
+    let frame_max = if src_ok {
+        src.iter()
+            .cloned()
+            .filter(|v| v.is_finite())
+            .fold(f64::NEG_INFINITY, f64::max)
+    } else {
+        f64::INFINITY
+    };
+    let saturation = opts.saturation_level.unwrap_or(0.95 * frame_max);
+
+    let mut rejections = DifferenceRejections::default();
+    let mut candidates = Vec::new();
     for s in &pos_sources {
+        let (xi, yi) = (s.x.round() as isize, s.y.round() as isize);
+        if xi < 0 || yi < 0 || xi as usize >= tw || yi as usize >= th {
+            rejections.edge += 1;
+            continue;
+        }
+        if !interior[yi as usize * tw + xi as usize] {
+            rejections.edge += 1;
+            continue;
+        }
         let (ra, dec) = template.wcs.pixel_to_world(s.x, s.y);
-        // Template flux (above sky) under the source footprint -> a Δmag estimate.
-        let tmpl_flux = template_flux_under(&tmpl, &overlap, ch, tmpl_background, s);
-        let delta_mag = delta_magnitude(s.flux, tmpl_flux);
-        // Dipole if a comparable negative lobe sits within a PSF.
+        let Some((fx, fy)) = frame_wcs.world_to_pixel(ra, dec) else {
+            rejections.edge += 1;
+            continue;
+        };
+        if fx < opts.edge_margin_px
+            || fy < opts.edge_margin_px
+            || fx > sw as f64 - 1.0 - opts.edge_margin_px
+            || fy > sh as f64 - 1.0 - opts.edge_margin_px
+        {
+            rejections.edge += 1;
+            continue;
+        }
+        if s.eccentricity >= MAX_POINT_ECCENTRICITY {
+            rejections.elongated += 1;
+            continue;
+        }
         let dipole = neg_sources.iter().any(|n| {
             let dx = n.x - s.x;
             let dy = n.y - s.y;
-            (dx * dx + dy * dy).sqrt() <= DIPOLE_SEARCH_RADIUS && n.flux.abs() >= 0.5 * s.flux.abs()
+            (dx * dx + dy * dy).sqrt() <= DIPOLE_SEARCH_RADIUS && n.flux >= 0.3 * s.flux
         });
-        let kind = classify(s, tmpl_flux, dipole);
+        if dipole {
+            rejections.dipole += 1;
+            continue;
+        }
+        if src_ok {
+            if frame_window_max(src, sw, sh, ch, fx, fy, 4) >= saturation {
+                rejections.saturated += 1;
+                continue;
+            }
+            if too_sharp(src, sw, sh, ch, fx, fy, frame_sigma_px) {
+                rejections.sharp += 1;
+                continue;
+            }
+        }
+        if near_bright_star(&tmpl_raw_lum, &overlap, tw, th, s, tmpl_max) {
+            rejections.bright_star += 1;
+            continue;
+        }
+
+        let Some(r_ap) = aperture_sum(&lum_plane, &overlap, tw, th, s.x, s.y, aperture) else {
+            rejections.edge += 1;
+            continue;
+        };
+        let t_ap = aperture_sum(&tmpl_lum, &overlap, tw, th, s.x, s.y, aperture).unwrap_or(0.0);
+        let noise =
+            (resid_ap_sigma.powi(2) + (opts.systematic_fraction * t_ap.max(0.0)).powi(2)).sqrt();
+        let significance = if noise > 0.0 { r_ap / noise } else { 0.0 };
+        if !(significance >= opts.min_significance) {
+            rejections.insignificant += 1;
+            continue;
+        }
+        let backed = t_ap > 3.0 * tmpl_ap_sigma.max(f64::MIN_POSITIVE);
+        let (kind, delta_mag) = if backed {
+            let dm = -2.5 * ((t_ap + r_ap) / t_ap).log10();
+            if !(dm <= -opts.min_brightening_mag) {
+                rejections.small_change += 1;
+                continue;
+            }
+            (TransientKind::PointBrightening, dm)
+        } else {
+            (TransientKind::NewSource, f64::NEG_INFINITY)
+        };
         candidates.push(TransientCandidate {
             ra,
             dec,
             tile_x: s.x,
             tile_y: s.y,
-            residual_flux: s.flux,
+            residual_flux: r_ap,
             delta_mag,
-            snr: s.snr,
+            snr: significance,
             fwhm: s.fwhm,
             eccentricity: s.eccentricity,
             position_angle_deg: s.position_angle,
             kind,
         });
     }
-
-    // Brightest (highest SNR) first — the order the UI / narrator surfaces.
     candidates.sort_by(|a, b| b.snr.total_cmp(&a.snr));
 
-    // The matched science plane on the tile grid: the reprojected, PSF+photo-
-    // metrically matched frame the residual was differenced from. Non-overlap
-    // (or non-finite) pixels become 0.0 so the crop is defined everywhere.
     let mut science = vec![0.0f32; npix * ch];
     for p in 0..npix {
         if !overlap[p] {
@@ -446,10 +633,408 @@ pub fn difference_against_template(
         ),
         science: ImageData::from_f32(template.width, template.height, template.channels, &science),
         template_image: tmpl_img,
-        matched_scale: report_scale,
-        matched_offset: report_offset,
+        matched_scale: scale,
+        matched_offset: 0.0,
+        normalization_stars,
         template_coverage_min,
+        compared_pixels,
+        rejections,
     })
+}
+
+/// Subtract a smooth background from one channel: the median of each
+/// [`BACKGROUND_MESH`]² cell (over `mask` pixels), bilinearly interpolated
+/// between cell centres. Pixels outside `mask` are left unchanged.
+fn subtract_mesh_background(
+    plane: &mut [f64],
+    mask: &[bool],
+    width: usize,
+    height: usize,
+    channels: usize,
+    channel: usize,
+) {
+    let m = BACKGROUND_MESH;
+    let gw = width.div_ceil(m);
+    let gh = height.div_ceil(m);
+    let mut grid = vec![f64::NAN; gw * gh];
+    for gy in 0..gh {
+        for gx in 0..gw {
+            let mut vals: Vec<f64> = Vec::new();
+            for y in gy * m..((gy + 1) * m).min(height) {
+                for x in gx * m..((gx + 1) * m).min(width) {
+                    let p = y * width + x;
+                    if mask[p] {
+                        let v = plane[p * channels + channel];
+                        if v.is_finite() {
+                            vals.push(v);
+                        }
+                    }
+                }
+            }
+            if vals.len() >= m * m / 8 {
+                // Clip stars before the median: two passes of 3σ (MAD).
+                for _ in 0..2 {
+                    let med = median(&mut vals.clone());
+                    let mut dev: Vec<f64> = vals.iter().map(|v| (v - med).abs()).collect();
+                    let sigma = MAD_TO_SIGMA * median(&mut dev);
+                    if sigma > 0.0 {
+                        vals.retain(|v| (v - med).abs() <= 3.0 * sigma);
+                    }
+                }
+                if !vals.is_empty() {
+                    grid[gy * gw + gx] = median(&mut vals);
+                }
+            }
+        }
+    }
+    // Fill empty cells with the global median of the filled ones.
+    let mut filled: Vec<f64> = grid.iter().cloned().filter(|v| v.is_finite()).collect();
+    if filled.is_empty() {
+        return;
+    }
+    let fill = median(&mut filled);
+    for v in grid.iter_mut() {
+        if !v.is_finite() {
+            *v = fill;
+        }
+    }
+    for y in 0..height {
+        let gyf = ((y as f64 + 0.5) / m as f64 - 0.5).clamp(0.0, (gh - 1) as f64);
+        let gy0 = gyf.floor() as usize;
+        let gy1 = (gy0 + 1).min(gh - 1);
+        let ty = gyf - gy0 as f64;
+        for x in 0..width {
+            let p = y * width + x;
+            if !mask[p] {
+                continue;
+            }
+            let gxf = ((x as f64 + 0.5) / m as f64 - 0.5).clamp(0.0, (gw - 1) as f64);
+            let gx0 = gxf.floor() as usize;
+            let gx1 = (gx0 + 1).min(gw - 1);
+            let tx = gxf - gx0 as f64;
+            let b = (1.0 - tx) * (1.0 - ty) * grid[gy0 * gw + gx0]
+                + tx * (1.0 - ty) * grid[gy0 * gw + gx1]
+                + (1.0 - tx) * ty * grid[gy1 * gw + gx0]
+                + tx * ty * grid[gy1 * gw + gx1];
+            plane[p * channels + channel] -= b;
+        }
+    }
+}
+
+/// `mask` eroded by a square of half-width `reach`: true where every pixel
+/// within `reach` is set.
+fn erode_mask(mask: &[bool], width: usize, height: usize, reach: usize) -> Vec<bool> {
+    let cov: Vec<u32> = mask.iter().map(|&m| u32::from(m)).collect();
+    crate::sky_atlas::eroded_coverage(&cov, width, height, 1, reach)
+}
+
+/// Sum of `plane` within a circular aperture of `radius` around `(cx, cy)`,
+/// minus the median of an annulus `radius+3 .. radius+8` times the aperture
+/// area. `None` when any aperture pixel is outside `mask`.
+fn aperture_sum(
+    plane: &[f64],
+    mask: &[bool],
+    width: usize,
+    height: usize,
+    cx: f64,
+    cy: f64,
+    radius: f64,
+) -> Option<f64> {
+    let r_out = radius + 8.0;
+    let x0 = (cx - r_out).floor() as isize;
+    let x1 = (cx + r_out).ceil() as isize;
+    let y0 = (cy - r_out).floor() as isize;
+    let y1 = (cy + r_out).ceil() as isize;
+    let mut sum = 0.0;
+    let mut n = 0usize;
+    let mut sky: Vec<f64> = Vec::new();
+    for y in y0..=y1 {
+        for x in x0..=x1 {
+            let dx = x as f64 - cx;
+            let dy = y as f64 - cy;
+            let r = (dx * dx + dy * dy).sqrt();
+            if r > r_out {
+                continue;
+            }
+            let inside = x >= 0 && y >= 0 && (x as usize) < width && (y as usize) < height;
+            let p = if inside {
+                y as usize * width + x as usize
+            } else {
+                0
+            };
+            if r <= radius {
+                if !inside || !mask[p] {
+                    return None;
+                }
+                sum += plane[p];
+                n += 1;
+            } else if r >= radius + 3.0 && inside && mask[p] {
+                sky.push(plane[p]);
+            }
+        }
+    }
+    let bg = if sky.len() >= 8 {
+        median(&mut sky)
+    } else {
+        0.0
+    };
+    Some(sum - bg * n as f64)
+}
+
+/// Robust σ of aperture sums placed on a regular lattice over `mask`.
+fn empirical_aperture_sigma(
+    plane: &[f64],
+    mask: &[bool],
+    width: usize,
+    height: usize,
+    radius: f64,
+) -> f64 {
+    let step = ((2.0 * radius + 17.0).ceil() as usize).max(8);
+    let mut sums: Vec<f64> = Vec::new();
+    let mut y = step / 2;
+    while y < height {
+        let mut x = step / 2;
+        while x < width {
+            if mask[y * width + x] {
+                if let Some(s) =
+                    aperture_sum(plane, mask, width, height, x as f64, y as f64, radius)
+                {
+                    sums.push(s);
+                }
+            }
+            x += step;
+        }
+        y += step;
+    }
+    if sums.len() < 8 {
+        return 0.0;
+    }
+    let med = median(&mut sums.clone());
+    let mut dev: Vec<f64> = sums.iter().map(|s| (s - med).abs()).collect();
+    MAD_TO_SIGMA * median(&mut dev)
+}
+
+/// Bright, unsaturated, isolated template stars (local maxima of the
+/// background-subtracted template inside `mask`), as `(x, y, peak)`, brightest
+/// first, at most 60.
+fn template_reference_stars(
+    tmpl_bs: &[f64],
+    tmpl_raw: &[f64],
+    mask: &[bool],
+    width: usize,
+    height: usize,
+    tmpl_max: f64,
+) -> Vec<(usize, usize, f64)> {
+    let mut vals: Vec<f64> = (0..width * height)
+        .filter(|&p| mask[p])
+        .map(|p| tmpl_bs[p])
+        .collect();
+    if vals.len() < 64 {
+        return Vec::new();
+    }
+    let med = median(&mut vals.clone());
+    let mut dev: Vec<f64> = vals.iter().map(|v| (v - med).abs()).collect();
+    let sigma = MAD_TO_SIGMA * median(&mut dev);
+    vals.clear();
+    if !(sigma > 0.0) {
+        return Vec::new();
+    }
+    let threshold = med + 25.0 * sigma;
+    let mut peaks: Vec<(usize, usize, f64)> = Vec::new();
+    for y in 2..height.saturating_sub(2) {
+        for x in 2..width.saturating_sub(2) {
+            let p = y * width + x;
+            if !mask[p] || tmpl_bs[p] < threshold || tmpl_raw[p] >= 0.7 * tmpl_max {
+                continue;
+            }
+            let v = tmpl_bs[p];
+            let mut is_max = true;
+            'nb: for dy in -2isize..=2 {
+                for dx in -2isize..=2 {
+                    if dx == 0 && dy == 0 {
+                        continue;
+                    }
+                    let q = (y as isize + dy) as usize * width + (x as isize + dx) as usize;
+                    if tmpl_bs[q] > v {
+                        is_max = false;
+                        break 'nb;
+                    }
+                }
+            }
+            if is_max {
+                peaks.push((x, y, v));
+            }
+        }
+    }
+    peaks.sort_by(|a, b| b.2.total_cmp(&a.2));
+    // Isolated: no other peak above a tenth of this one within 12 px.
+    let mut out: Vec<(usize, usize, f64)> = Vec::new();
+    for (i, &(x, y, v)) in peaks.iter().enumerate() {
+        let crowded = peaks.iter().enumerate().any(|(j, &(x2, y2, v2))| {
+            j != i && {
+                let dx = x as f64 - x2 as f64;
+                let dy = y as f64 - y2 as f64;
+                dx * dx + dy * dy <= 144.0 && v2 >= 0.1 * v
+            }
+        });
+        if !crowded {
+            out.push((x, y, v));
+            if out.len() >= 60 {
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// Largest raw frame value within `radius` px of `(fx, fy)` (all channels).
+fn frame_window_max(
+    src: &[f64],
+    width: usize,
+    height: usize,
+    channels: usize,
+    fx: f64,
+    fy: f64,
+    radius: isize,
+) -> f64 {
+    let (cx, cy) = (fx.round() as isize, fy.round() as isize);
+    let mut best = f64::NEG_INFINITY;
+    for y in cy - radius..=cy + radius {
+        for x in cx - radius..=cx + radius {
+            if x < 0 || y < 0 || x as usize >= width || y as usize >= height {
+                continue;
+            }
+            for c in 0..channels {
+                best = best.max(src[(y as usize * width + x as usize) * channels + c]);
+            }
+        }
+    }
+    best
+}
+
+/// Whether the brightest frame pixel near `(fx, fy)` stands out from its four
+/// neighbours more than a PSF of σ `sigma_px` allows: a hot pixel or a cosmic
+/// ray rather than a star.
+fn too_sharp(
+    src: &[f64],
+    width: usize,
+    height: usize,
+    channels: usize,
+    fx: f64,
+    fy: f64,
+    sigma_px: f64,
+) -> bool {
+    let at = |x: isize, y: isize| -> f64 {
+        if x < 0 || y < 0 || x as usize >= width || y as usize >= height {
+            return f64::NAN;
+        }
+        (0..channels)
+            .map(|c| src[(y as usize * width + x as usize) * channels + c])
+            .sum::<f64>()
+            / channels as f64
+    };
+    let (cx, cy) = (fx.round() as isize, fy.round() as isize);
+    let (mut px, mut py, mut peak) = (cx, cy, f64::NEG_INFINITY);
+    for y in cy - 2..=cy + 2 {
+        for x in cx - 2..=cx + 2 {
+            let v = at(x, y);
+            if v > peak {
+                peak = v;
+                px = x;
+                py = y;
+            }
+        }
+    }
+    let mut ring: Vec<f64> = Vec::new();
+    for y in py - 9..=py + 9 {
+        for x in px - 9..=px + 9 {
+            let r2 = (x - px).pow(2) + (y - py).pow(2);
+            if (25..=81).contains(&r2) {
+                let v = at(x, y);
+                if v.is_finite() {
+                    ring.push(v);
+                }
+            }
+        }
+    }
+    if ring.len() < 8 || !peak.is_finite() {
+        return false;
+    }
+    let bg = median(&mut ring);
+    let excess = peak - bg;
+    if excess <= 0.0 {
+        return false;
+    }
+    let neighbours = [
+        at(px - 1, py),
+        at(px + 1, py),
+        at(px, py - 1),
+        at(px, py + 1),
+    ];
+    if neighbours.iter().any(|v| !v.is_finite()) {
+        return false;
+    }
+    let ratio = (neighbours.iter().sum::<f64>() / 4.0 - bg) / excess;
+    let sigma = sigma_px.max(0.5);
+    let expected = (-1.0 / (2.0 * sigma * sigma)).exp();
+    ratio < (0.5 * expected).max(0.15)
+}
+
+/// Whether a residual source sits on the core of a star near saturation in the
+/// template, or in the wings of a template star far brighter than the residual.
+fn near_bright_star(
+    tmpl_raw: &[f64],
+    mask: &[bool],
+    width: usize,
+    height: usize,
+    s: &ResidualSource,
+    tmpl_max: f64,
+) -> bool {
+    let (cx, cy) = (s.x.round() as isize, s.y.round() as isize);
+    let local_sky = {
+        let mut ring: Vec<f64> = Vec::new();
+        for y in cy - 30..=cy + 30 {
+            for x in cx - 30..=cx + 30 {
+                let r2 = (x - cx).pow(2) + (y - cy).pow(2);
+                if (r2 >= 26 * 26)
+                    && x >= 0
+                    && y >= 0
+                    && (x as usize) < width
+                    && (y as usize) < height
+                {
+                    let p = y as usize * width + x as usize;
+                    if mask[p] {
+                        ring.push(tmpl_raw[p]);
+                    }
+                }
+            }
+        }
+        if ring.is_empty() {
+            return false;
+        }
+        median(&mut ring)
+    };
+    let source_peak = s.peak.max(f64::MIN_POSITIVE);
+    for y in cy - 25..=cy + 25 {
+        for x in cx - 25..=cx + 25 {
+            if x < 0 || y < 0 || x as usize >= width || y as usize >= height {
+                continue;
+            }
+            let p = y as usize * width + x as usize;
+            if !mask[p] {
+                continue;
+            }
+            let v = tmpl_raw[p] - local_sky;
+            let d2 = ((x - cx).pow(2) + (y - cy).pow(2)) as f64;
+            if d2 <= 4.0 && tmpl_raw[p] >= 0.5 * tmpl_max {
+                return true;
+            }
+            if d2 > 4.0 && v > 30.0 * source_peak {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// A measured residual source on the detection plane (tile-grid pixels).
@@ -466,8 +1051,8 @@ struct ResidualSource {
     /// Major-axis position angle (deg, `[0, 180)`) from the second-moment
     /// covariance.
     position_angle: f64,
-    /// Footprint pixel indices, for the template-flux measurement.
-    footprint: Vec<usize>,
+    /// Highest residual value in the footprint above the background.
+    peak: f64,
 }
 
 /// Run [`extract_residual_sources`] over several detection planes (the luminance
@@ -725,6 +1310,10 @@ fn measure_residual_source(
     // direction.
     let position_angle = position_angle_deg(mxx, myy, mxy);
 
+    let peak = footprint
+        .iter()
+        .map(|&idx| plane[idx] - background)
+        .fold(0.0f64, f64::max);
     let flux = sum_w; // background-subtracted footprint flux
                       // SNR on the residual: peak signal over the residual noise scaled by the
                       // footprint (the standard √N background-noise propagation).
@@ -754,7 +1343,7 @@ fn measure_residual_source(
         fwhm,
         eccentricity,
         position_angle,
-        footprint,
+        peak,
     })
 }
 
@@ -773,72 +1362,6 @@ fn position_angle_deg(mxx: f64, myy: f64, mxy: f64) -> f64 {
     deg
 }
 
-/// Robust photometric line fit `y ≈ scale·x + offset` by the Theil–Sen estimator:
-/// `scale` = the median of pairwise slopes `(yj − yi)/(xj − xi)`, `offset` = the
-/// median of `yi − scale·xi`. With a ~29% breakdown point this is immune to the
-/// bright transients (and a sparse field's high-leverage points) that bias an
-/// iterated OLS fit. Returns `None` when there is too little spread to fit a slope.
-///
-/// The exact estimator is O(n²) in the number of pairs; over an atlas tile's
-/// ~10⁶-pixel overlap that is prohibitive, so we evenly subsample to a bounded
-/// number of points first (deterministic stride — no RNG, so the fit is
-/// reproducible), which preserves the median-of-slopes robustness while keeping the
-/// pairwise sweep cheap. Pairs whose x-separation is tiny are skipped (their slope
-/// is numerically unstable and carries no leverage).
-fn robust_theil_sen(pairs: &[(f64, f64)]) -> Option<(f64, f64)> {
-    if pairs.len() < 2 {
-        return None;
-    }
-    // Even-stride subsample to at most MAX_POINTS so the pairwise sweep stays cheap.
-    const MAX_POINTS: usize = 400;
-    let sampled: Vec<(f64, f64)> = if pairs.len() > MAX_POINTS {
-        let stride = pairs.len() / MAX_POINTS;
-        pairs.iter().step_by(stride.max(1)).copied().collect()
-    } else {
-        pairs.to_vec()
-    };
-    if sampled.len() < 2 {
-        return None;
-    }
-
-    // Minimum x-separation for a stable slope: a small fraction of the x-range so a
-    // near-vertical pair (two points at nearly the same frame value) is dropped.
-    let (mut xmin, mut xmax) = (f64::INFINITY, f64::NEG_INFINITY);
-    for &(x, _) in &sampled {
-        xmin = xmin.min(x);
-        xmax = xmax.max(x);
-    }
-    let span = xmax - xmin;
-    if !(span.is_finite() && span > 0.0) {
-        return None;
-    }
-    let min_dx = span * 1e-3;
-
-    let mut slopes: Vec<f64> = Vec::new();
-    for i in 0..sampled.len() {
-        let (xi, yi) = sampled[i];
-        for &(xj, yj) in &sampled[i + 1..] {
-            let dx = xj - xi;
-            if dx.abs() < min_dx {
-                continue;
-            }
-            let s = (yj - yi) / dx;
-            if s.is_finite() {
-                slopes.push(s);
-            }
-        }
-    }
-    if slopes.is_empty() {
-        return None;
-    }
-    let scale = median(&mut slopes);
-
-    // Offset = median residual, the robust intercept consistent with the slope.
-    let mut intercepts: Vec<f64> = sampled.iter().map(|&(x, y)| y - scale * x).collect();
-    let offset = median(&mut intercepts);
-    Some((scale, offset))
-}
-
 /// Eccentricity from the second central moments of a source's flux distribution.
 /// `e = √(1 − b²/a²)` with `a`/`b` the major/minor axis lengths from the moment
 /// eigenvalues — identical to the star detector's roundness measure.
@@ -853,88 +1376,6 @@ fn moment_eccentricity(mxx: f64, myy: f64, mxy: f64) -> f64 {
         return 0.0;
     }
     (1.0 - lambda2 / lambda1).max(0.0).sqrt()
-}
-
-/// The template's robust sky pedestal, summed across channels — the median
-/// template value over the overlap (per channel), summed. Used to measure source
-/// flux *above* sky so a source on bare sky reports no template backing.
-fn template_background(tmpl: &[f64], overlap: &[bool], channels: usize) -> f64 {
-    let npix = overlap.len();
-    let mut sum = 0.0;
-    for c in 0..channels {
-        let mut vals: Vec<f64> = (0..npix)
-            .filter(|&p| overlap[p])
-            .map(|p| tmpl[p * channels + c])
-            .filter(|v| v.is_finite())
-            .collect();
-        if vals.is_empty() {
-            continue;
-        }
-        vals.sort_unstable_by(f64::total_cmp);
-        sum += percentile_sorted(&vals, 0.5);
-    }
-    sum
-}
-
-/// Total template flux **above the sky pedestal** under a residual source's
-/// footprint, summed across channels. `background` is the per-footprint-pixel sky
-/// (the summed-channel template median); the per-pixel contribution is clamped at
-/// zero so faint negative excursions below sky do not subtract. The reference
-/// brightness the residual change is measured against; ~zero for a source sitting
-/// on bare sky (which `delta_magnitude` then reads as a new source).
-fn template_flux_under(
-    tmpl: &[f64],
-    overlap: &[bool],
-    channels: usize,
-    background: f64,
-    src: &ResidualSource,
-) -> f64 {
-    let mut total = 0.0;
-    for &idx in &src.footprint {
-        if idx >= overlap.len() || !overlap[idx] {
-            continue;
-        }
-        let mut pix = 0.0;
-        for c in 0..channels {
-            let v = tmpl[idx * channels + c];
-            if v.is_finite() {
-                pix += v;
-            }
-        }
-        total += (pix - background).max(0.0);
-    }
-    total
-}
-
-/// Estimated magnitude change of the source vs. the template flux beneath it.
-/// `Δmag = −2.5·log10((tmpl + residual) / tmpl)`; negative when the source is
-/// brighter than the template. Returns `NEG_INFINITY` when the template has no
-/// measurable flux under the source (a true new source — an undefined ratio).
-fn delta_magnitude(residual_flux: f64, template_flux: f64) -> f64 {
-    if template_flux <= 0.0 {
-        return f64::NEG_INFINITY;
-    }
-    let combined = template_flux + residual_flux;
-    if combined <= 0.0 {
-        return f64::NEG_INFINITY;
-    }
-    -2.5 * (combined / template_flux).log10()
-}
-
-/// Classify a positive residual source by its template backing, shape, and the
-/// presence of a paired negative lobe.
-fn classify(src: &ResidualSource, template_flux: f64, dipole: bool) -> TransientKind {
-    if dipole {
-        return TransientKind::Dipole;
-    }
-    if src.eccentricity >= STREAK_ECCENTRICITY {
-        return TransientKind::MovingStreak;
-    }
-    if template_flux <= 0.0 {
-        TransientKind::NewSource
-    } else {
-        TransientKind::PointBrightening
-    }
 }
 
 /// Estimate the effective Gaussian σ (px) of the point sources in one channel of
@@ -1140,35 +1581,75 @@ mod tests {
         }
     }
 
-    /// Build a template tile co-added from `n_frames` identical synthetic frames,
-    /// each a flat pedestal with a set of fixed stars. The frames share the tile's
-    /// own WCS so reprojection is the identity (isolating the differencing logic).
+    /// Deterministic standard-normal samples (LCG + Box–Muller).
+    struct Noise(u64);
+    impl Noise {
+        fn uniform(&mut self) -> f64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((self.0 >> 11) as f64 + 0.5) / (1u64 << 53) as f64
+        }
+        fn normal(&mut self) -> f64 {
+            let (u1, u2) = (self.uniform(), self.uniform());
+            (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
+        }
+    }
+
+    const W: usize = 400;
+
+    /// A star field like a real sub: 30 stars of 2,000–40,000 ADU total flux on
+    /// a sky pedestal with Gaussian noise.
+    fn field_stars() -> Vec<(f64, f64, f64)> {
+        let mut n = Noise(7);
+        (0..30)
+            .map(|i| {
+                let x = 40.0 + n.uniform() * (W as f64 - 80.0);
+                let y = 40.0 + n.uniform() * (W as f64 - 80.0);
+                (x, y, 2000.0 + 38000.0 * (i as f64 / 29.0).powi(2))
+            })
+            .collect()
+    }
+
+    fn render_field(
+        stars: &[(f64, f64, f64)],
+        sky: f64,
+        sigma_psf: f64,
+        noise: f64,
+        seed: u64,
+    ) -> Vec<f32> {
+        let mut buf = vec![0.0f32; W * W];
+        let mut n = Noise(seed);
+        for v in buf.iter_mut() {
+            *v = (sky + noise * n.normal()) as f32;
+        }
+        for &(cx, cy, flux) in stars {
+            render_star(&mut buf, W, W, cx, cy, flux, sigma_psf);
+        }
+        buf
+    }
+
+    /// A template co-added from `n_frames` independent noisy renderings of
+    /// `stars`, folded on the tile's own grid (reprojection is the identity).
     fn build_template(
-        order: u32,
         tile_id: u64,
-        w: usize,
-        h: usize,
-        background: f64,
         stars: &[(f64, f64, f64)],
         n_frames: usize,
     ) -> SkyTileAccumulator {
+        let order = ATLAS_HEALPIX_ORDER;
         let wcs = tile_wcs(tile_id, order);
-        // The synthetic "frame" raster (what each night looks like).
-        let mut frame = vec![background as f32; w * h];
-        for &(cx, cy, flux) in stars {
-            render_star(&mut frame, w, h, cx, cy, flux, 1.6);
-        }
-        let frame_img = ImageData::from_f32(w as u32, h as u32, 1, &frame);
-
         let mut acc = SkyTileAccumulator::create(tile_id, order, 1, no_clip());
         for i in 0..n_frames {
+            let buf = render_field(stars, 500.0, 1.6, 10.0, 100 + i as u64);
+            let img = ImageData::from_f32(W as u32, W as u32, 1, &buf);
             acc.fold_frame(
-                &frame_img,
+                &img,
                 &wcs,
                 1.0,
-                300.0,
+                120.0,
                 Interpolator::Bilinear,
-                &format!("2026-06-{:02}", i + 1),
+                &format!("t{i}"),
                 "",
             )
             .expect("fold");
@@ -1179,7 +1660,7 @@ mod tests {
     fn cfg() -> StarDetectionConfig {
         StarDetectionConfig {
             detection_sigma: 5.0,
-            min_area: 4,
+            min_area: 3,
             max_area: 2000,
             min_snr: 4.0,
             min_hfr: 1.0,
@@ -1187,247 +1668,160 @@ mod tests {
         }
     }
 
-    #[test]
-    fn injected_new_source_is_detected() {
-        let order = ATLAS_HEALPIX_ORDER;
-        let tile_id = crate::sky_atlas::radec_to_tile(120.0, 25.0, order);
-        let (w, h) = (256usize, 256usize);
-        let bg = 100.0;
-        // Template has two stable stars.
-        let stars = [(80.0, 90.0, 4000.0), (170.0, 60.0, 5000.0)];
-        let template = build_template(order, tile_id, w, h, bg, &stars, 8);
+    fn tile() -> u64 {
+        crate::sky_atlas::radec_to_tile(120.0, 25.0, ATLAS_HEALPIX_ORDER)
+    }
 
-        // Tonight's frame = the same two stars PLUS a brand-new source.
-        let wcs = tile_wcs(tile_id, order);
-        let mut frame = vec![bg as f32; w * h];
-        for &(cx, cy, flux) in &stars {
-            render_star(&mut frame, w, h, cx, cy, flux, 1.6);
-        }
-        let (nx, ny) = (128.0, 140.0);
-        render_star(&mut frame, w, h, nx, ny, 6000.0, 1.6);
-        let frame_img = ImageData::from_f32(w as u32, h as u32, 1, &frame);
-
-        let res = difference_against_template(
-            &template,
-            &frame_img,
-            &wcs,
-            Interpolator::Bilinear,
-            &cfg(),
-        )
-        .expect("difference");
-
-        // The new source must be detected near (nx, ny).
-        let found = res
-            .candidates
-            .iter()
-            .find(|c| (c.tile_x - nx).abs() < 2.0 && (c.tile_y - ny).abs() < 2.0);
-        let found = found.expect("injected new source detected");
-        assert!(found.residual_flux > 0.0);
-        assert!(found.snr >= cfg().min_snr);
-        // No template flux under a brand-new source -> NewSource + -inf delta_mag.
-        assert_eq!(found.kind, TransientKind::NewSource);
-        assert!(found.delta_mag.is_infinite() && found.delta_mag < 0.0);
-
-        // The two stable template stars must cancel: no spurious candidate sits on
-        // top of either of them.
-        for &(sx, sy, _) in &stars {
-            assert!(
-                !res.candidates
-                    .iter()
-                    .any(|c| { (c.tile_x - sx).abs() < 3.0 && (c.tile_y - sy).abs() < 3.0 }),
-                "a matching template star at ({sx},{sy}) must cancel, not appear as a candidate"
-            );
-        }
-        assert!(res.template_coverage_min >= 1);
+    fn run(
+        template: &SkyTileAccumulator,
+        frame: &[f32],
+        opts: &DifferenceOptions,
+    ) -> DifferenceResult {
+        let wcs = tile_wcs(template.tile_id, ATLAS_HEALPIX_ORDER);
+        let img = ImageData::from_f32(W as u32, W as u32, 1, frame);
+        difference_against_template(template, &img, &wcs, Interpolator::Bilinear, &cfg(), opts)
+            .expect("difference")
     }
 
     #[test]
-    fn matching_template_source_cancels_to_no_candidate() {
-        // A frame identical to the template (after photometric match) must yield no
-        // significant residual sources.
-        let order = ATLAS_HEALPIX_ORDER;
-        let tile_id = crate::sky_atlas::radec_to_tile(10.0, -20.0, order);
-        let (w, h) = (256usize, 256usize);
-        let bg = 200.0;
-        let stars = [(100.0, 100.0, 5000.0), (60.0, 180.0, 3000.0)];
-        let template = build_template(order, tile_id, w, h, bg, &stars, 6);
+    fn new_source_is_found_and_stable_stars_cancel() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let mut frame = render_field(&stars, 500.0, 1.6, 10.0, 999);
+        render_star(&mut frame, W, W, 205.0, 117.0, 2500.0, 1.6);
+        let res = run(&template, &frame, &DifferenceOptions::default());
+        assert!(res.normalization_stars >= MIN_NORMALIZATION_STARS);
+        assert_eq!(
+            res.candidates.len(),
+            1,
+            "{:?} {:?}",
+            res.candidates,
+            res.rejections
+        );
+        let c = &res.candidates[0];
+        assert!((c.tile_x - 205.0).abs() < 1.5 && (c.tile_y - 117.0).abs() < 1.5);
+        assert_eq!(c.kind, TransientKind::NewSource);
+        assert!(c.snr >= 7.0);
+    }
 
-        let wcs = tile_wcs(tile_id, order);
-        // Same field, but uniformly scaled brighter + a pedestal shift: the
-        // photometric match must absorb both, leaving a clean residual.
-        let mut frame = vec![(bg * 1.15 + 30.0) as f32; w * h];
-        for &(cx, cy, flux) in &stars {
-            render_star(&mut frame, w, h, cx, cy, flux * 1.15, 1.6);
-        }
-        let frame_img = ImageData::from_f32(w as u32, h as u32, 1, &frame);
-
-        let res = difference_against_template(
-            &template,
-            &frame_img,
-            &wcs,
-            Interpolator::Bilinear,
-            &cfg(),
-        )
-        .expect("difference");
-
-        // The fit regresses template ≈ scale·frame + offset, so a frame 1.15× the
-        // template's brightness recovers scale ≈ 1/1.15 and absorbs the pedestal.
+    #[test]
+    fn a_hazier_frame_scales_on_star_flux_and_cancels() {
+        // Thin cloud: 60% of the starlight and a brighter sky. A sky-noise
+        // normalization would turn every star into a residual.
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let dim: Vec<(f64, f64, f64)> = stars.iter().map(|&(x, y, f)| (x, y, 0.6 * f)).collect();
+        let frame = render_field(&dim, 900.0, 1.6, 14.0, 4242);
+        let res = run(&template, &frame, &DifferenceOptions::default());
         assert!(
-            (res.matched_scale - 1.0 / 1.15).abs() < 0.03,
+            (res.matched_scale - 1.0 / 0.6).abs() < 0.08,
             "scale {}",
             res.matched_scale
         );
-        // No bright positive candidate should survive on a matching field.
+        assert!(res.candidates.is_empty(), "{:?}", res.candidates);
+    }
+
+    #[test]
+    fn worse_seeing_alone_produces_no_candidates() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let frame = render_field(&stars, 500.0, 2.6, 10.0, 77);
+        let res = run(&template, &frame, &DifferenceOptions::default());
         assert!(
-            res.candidates.iter().all(|c| c.snr < 12.0),
-            "matching field produced a strong spurious candidate: {:?}",
-            res.candidates
+            res.candidates.is_empty(),
+            "{:?} {:?}",
+            res.candidates,
+            res.rejections
         );
     }
 
     #[test]
-    fn brightening_is_classified_against_template_flux() {
-        let order = ATLAS_HEALPIX_ORDER;
-        let tile_id = crate::sky_atlas::radec_to_tile(200.0, 40.0, order);
-        let (w, h) = (256usize, 256usize);
-        let bg = 100.0;
-        // A realistic field: several stable stars that pin the photometric scale,
-        // plus one star (index 0) that brightens. The stable stars are what let the
-        // κ-clip reject the brightening as an outlier rather than absorbing it.
-        let stars = [
-            (128.0, 128.0, 3000.0),
-            (60.0, 70.0, 4000.0),
-            (200.0, 90.0, 3500.0),
-            (90.0, 200.0, 4500.0),
-            (170.0, 190.0, 2800.0),
-            (40.0, 150.0, 3200.0),
-        ];
-        let template = build_template(order, tile_id, w, h, bg, &stars, 8);
-
-        // Tonight the star at (128,128) is much brighter (an outburst); the rest are
-        // unchanged.
-        let wcs = tile_wcs(tile_id, order);
-        let mut frame = vec![bg as f32; w * h];
-        for (i, &(cx, cy, flux)) in stars.iter().enumerate() {
-            let f = if i == 0 { 9000.0 } else { flux };
-            render_star(&mut frame, w, h, cx, cy, f, 1.6);
-        }
-        let frame_img = ImageData::from_f32(w as u32, h as u32, 1, &frame);
-
-        let res = difference_against_template(
-            &template,
-            &frame_img,
-            &wcs,
-            Interpolator::Bilinear,
-            &cfg(),
-        )
-        .expect("difference");
-
+    fn brightening_reports_the_measured_change() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let mut bright = stars.clone();
+        let (bx, by, bf) = bright[10];
+        bright[10] = (bx, by, bf * 3.0);
+        let frame = render_field(&bright, 500.0, 1.6, 10.0, 31);
+        let res = run(&template, &frame, &DifferenceOptions::default());
         let c = res
             .candidates
             .iter()
-            .find(|c| (c.tile_x - 128.0).abs() < 2.0 && (c.tile_y - 128.0).abs() < 2.0)
-            .expect("brightening detected");
+            .find(|c| (c.tile_x - bx).abs() < 2.0 && (c.tile_y - by).abs() < 2.0)
+            .expect("brightening found");
         assert_eq!(c.kind, TransientKind::PointBrightening);
-        // Brighter than the template -> a negative (finite) delta mag.
+        let want = -2.5 * 3.0f64.log10();
         assert!(
-            c.delta_mag.is_finite() && c.delta_mag < 0.0,
-            "delta_mag {}",
+            (c.delta_mag - want).abs() < 0.15,
+            "dm {} want {want}",
             c.delta_mag
         );
-        // The stable stars must cancel: only the brightening survives.
-        for &(sx, sy, _) in &stars[1..] {
-            assert!(
-                !res.candidates
-                    .iter()
-                    .any(|c| (c.tile_x - sx).abs() < 3.0 && (c.tile_y - sy).abs() < 3.0),
-                "stable star at ({sx},{sy}) must cancel"
-            );
-        }
+        assert_eq!(res.candidates.len(), 1, "{:?}", res.candidates);
     }
 
     #[test]
-    fn mismatched_seeing_stars_cancel_via_psf_matching() {
-        // The template's effective seeing (σ=1.6) differs from tonight's frame
-        // (σ=2.6, worse seeing). Without PSF matching every common star leaves a
-        // dipole/ring residual; with the Gaussian kernel match the stable stars
-        // must cancel and only a genuinely new source survives.
-        let order = ATLAS_HEALPIX_ORDER;
-        let tile_id = crate::sky_atlas::radec_to_tile(50.0, 15.0, order);
-        let (w, h) = (256usize, 256usize);
-        let bg = 100.0;
-        let stars = [
-            (80.0, 90.0, 9000.0),
-            (170.0, 60.0, 11000.0),
-            (120.0, 180.0, 8000.0),
-        ];
-        // Template co-added at σ=1.6.
-        let wcs = tile_wcs(tile_id, order);
-        let mut tframe = vec![bg as f32; w * h];
-        for &(cx, cy, flux) in &stars {
-            render_star(&mut tframe, w, h, cx, cy, flux, 1.6);
-        }
-        let timg = ImageData::from_f32(w as u32, h as u32, 1, &tframe);
-        let mut template = SkyTileAccumulator::create(tile_id, order, 1, no_clip());
-        for i in 0..8 {
-            template
-                .fold_frame(
-                    &timg,
-                    &wcs,
-                    1.0,
-                    300.0,
-                    Interpolator::Bilinear,
-                    &format!("2026-07-{:02}", i + 1),
-                    "",
-                )
-                .unwrap();
-        }
+    fn a_small_change_of_a_template_star_is_not_reported() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let mut changed = stars.clone();
+        let (bx, by, bf) = changed[29];
+        changed[29] = (bx, by, bf * 1.15);
+        let frame = render_field(&changed, 500.0, 1.6, 10.0, 5);
+        let res = run(&template, &frame, &DifferenceOptions::default());
+        assert!(res.candidates.is_empty(), "{:?}", res.candidates);
+    }
 
-        // Tonight: same stars at WORSE seeing (σ=2.6) + a new source.
-        let mut frame = vec![bg as f32; w * h];
-        for &(cx, cy, flux) in &stars {
-            render_star(&mut frame, w, h, cx, cy, flux, 2.6);
-        }
-        render_star(&mut frame, w, h, 200.0, 200.0, 9000.0, 2.6);
-        let frame_img = ImageData::from_f32(w as u32, h as u32, 1, &frame);
+    #[test]
+    fn hot_pixel_and_cosmic_ray_are_rejected() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let mut frame = render_field(&stars, 500.0, 1.6, 10.0, 8);
+        frame[150 * W + 300] = 30000.0;
+        frame[250 * W + 120] = 12000.0;
+        frame[250 * W + 121] = 9000.0;
+        let res = run(&template, &frame, &DifferenceOptions::default());
+        assert!(res.candidates.is_empty(), "{:?}", res.candidates);
+    }
 
-        let res = difference_against_template(
+    #[test]
+    fn sources_at_the_frame_edge_or_saturated_are_rejected() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let mut frame = render_field(&stars, 500.0, 1.6, 10.0, 9);
+        render_star(&mut frame, W, W, 6.0, 200.0, 8000.0, 1.6);
+        render_star(&mut frame, W, W, 300.0, 300.0, 400000.0, 1.6);
+        let res = run(
             &template,
-            &frame_img,
-            &wcs,
-            Interpolator::Bilinear,
-            &cfg(),
-        )
-        .expect("difference");
-
-        // The genuinely new source must be detected and must dominate the list —
-        // PSF matching keeps real transients from being buried under PSF-mismatch
-        // residuals.
-        let new_src = res
-            .candidates
-            .iter()
-            .find(|c| (c.tile_x - 200.0).abs() < 4.0 && (c.tile_y - 200.0).abs() < 4.0)
-            .expect("new source detected through mismatched seeing");
-        let strongest_snr = res.candidates.iter().map(|c| c.snr).fold(0.0f64, f64::max);
-        assert_eq!(
-            new_src.snr, strongest_snr,
-            "the real new source must be the strongest detection"
+            &frame,
+            &DifferenceOptions {
+                saturation_level: Some(20000.0),
+                ..DifferenceOptions::default()
+            },
         );
+        assert!(res.candidates.is_empty(), "{:?}", res.candidates);
+        assert!(res.rejections.saturated >= 1, "{:?}", res.rejections);
+    }
 
-        // Any residual that DOES survive on a stable star must be classified as a
-        // PSF-mismatch dipole (so the Dart layer down-weights it), never a clean
-        // newSource/brightening masquerading as a real transient.
-        for &(sx, sy, _) in &stars {
-            for c in &res.candidates {
-                if (c.tile_x - sx).abs() < 4.0 && (c.tile_y - sy).abs() < 4.0 {
-                    assert_eq!(
-                        c.kind,
-                        TransientKind::Dipole,
-                        "a surviving residual on the stable star at ({sx},{sy}) must be a dipole"
-                    );
-                }
-            }
-        }
+    #[test]
+    fn a_shallow_template_is_not_compared() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 3);
+        let mut frame = render_field(&stars, 500.0, 1.6, 10.0, 10);
+        render_star(&mut frame, W, W, 205.0, 117.0, 8000.0, 1.6);
+        let res = run(&template, &frame, &DifferenceOptions::default());
+        assert!(res.candidates.is_empty());
+        assert_eq!(res.compared_pixels, 0);
+    }
+
+    #[test]
+    fn a_field_without_enough_stars_is_not_differenced() {
+        let stars: Vec<(f64, f64, f64)> = field_stars().into_iter().take(3).collect();
+        let template = build_template(tile(), &stars, 8);
+        let mut frame = render_field(&stars, 500.0, 1.6, 10.0, 11);
+        render_star(&mut frame, W, W, 205.0, 117.0, 8000.0, 1.6);
+        let res = run(&template, &frame, &DifferenceOptions::default());
+        assert!(res.normalization_stars < MIN_NORMALIZATION_STARS);
+        assert!(res.candidates.is_empty());
     }
 
     #[test]
@@ -1437,9 +1831,15 @@ mod tests {
         let template = SkyTileAccumulator::create(tile_id, order, 1, no_clip());
         let wcs = tile_wcs(tile_id, order);
         let frame = ImageData::from_f32(16, 16, 3, &vec![0.0; 16 * 16 * 3]);
-        let err =
-            difference_against_template(&template, &frame, &wcs, Interpolator::Bilinear, &cfg())
-                .unwrap_err();
+        let err = difference_against_template(
+            &template,
+            &frame,
+            &wcs,
+            Interpolator::Bilinear,
+            &cfg(),
+            &DifferenceOptions::default(),
+        )
+        .unwrap_err();
         assert_eq!(
             err,
             AtlasError::ChannelMismatch {
@@ -1456,9 +1856,15 @@ mod tests {
         let template = SkyTileAccumulator::create(tile_id, order, 1, no_clip());
         let bad = SipWcs::tan_only(10.0, 20.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0);
         let frame = ImageData::from_f32(16, 16, 1, &vec![0.0; 16 * 16]);
-        let err =
-            difference_against_template(&template, &frame, &bad, Interpolator::Bilinear, &cfg())
-                .unwrap_err();
+        let err = difference_against_template(
+            &template,
+            &frame,
+            &bad,
+            Interpolator::Bilinear,
+            &cfg(),
+            &DifferenceOptions::default(),
+        )
+        .unwrap_err();
         assert_eq!(err, AtlasError::DegenerateWcs);
     }
 
