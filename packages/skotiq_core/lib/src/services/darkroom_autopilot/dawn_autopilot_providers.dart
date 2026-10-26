@@ -22,6 +22,7 @@ import '../color_calibration_service.dart' show StarConeSearch;
 import '../darkroom_delivery/delivery_providers.dart';
 import '../logging_service.dart';
 import '../notification_service.dart';
+import '../science/photometric_catalog_service.dart';
 import 'darkroom_seam.dart';
 import 'dawn_autopilot_service.dart';
 import 'dawn_draft_builder.dart';
@@ -52,12 +53,30 @@ final darkroomSeamProvider = Provider<DarkroomSeam>(
 
 /// The catalogue cone search the Darkroom's photometry comes from.
 ///
-/// Bound to the same on-disk catalogue `ColorCalibrationService` uses, so the
-/// stars the Darkroom fits against are the stars the post-session colour gate
-/// would have matched.
+/// Uses the same APASS cache and online preference as science photometry.
 final dawnCatalogConeSearchProvider = Provider<StarConeSearch>((ref) {
-  final catalog = HygStarCatalog();
-  return catalog.getStarsNear;
+  final catalog = ref.watch(photometricCatalogServiceProvider);
+  return (center, radiusDegrees, {maxMagnitude}) async {
+    final result = await catalog.coneSearch(
+      raDegrees: center.raDegrees,
+      decDegrees: center.dec,
+      radiusDegrees: radiusDegrees,
+      maxMagnitude: maxMagnitude ?? 17.0,
+    );
+    return [
+      for (final star in result.stars)
+        Star(
+          id: '${star.raDegrees}:${star.decDegrees}',
+          name: '',
+          coordinates: CelestialCoordinate(
+            ra: star.raDegrees / 15.0,
+            dec: star.decDegrees,
+          ),
+          magnitude: star.magV,
+          colorIndex: star.colorIndexBv,
+        ),
+    ];
+  };
 });
 
 /// Resolves the catalogue stars covering a master's field.

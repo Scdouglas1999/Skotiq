@@ -159,6 +159,7 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
 
   /// Read a `.skrecipe` sidecar and open it as a new recipe over this master.
   final VoidCallback onImportRecipe;
+  final VoidCallback onDraftForMe;
 
   /// True while an import is reading a file, so a second press cannot start a
   /// second one.
@@ -182,6 +183,7 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
     required this.siblings,
     required this.siblingsError,
     required this.onImportRecipe,
+    required this.onDraftForMe,
     required this.importBusy,
     this.showSiblings = true,
   });
@@ -461,6 +463,19 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
       runSpacing: SkotiqTokens.spaceXs,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
+        if (widget.masterId != null)
+          Tooltip(
+            message:
+                'Create a new automatic edit and keep the current variant.',
+            child: SkotiqButton(
+              label: 'New auto edit',
+              icon: SkotiqIcons.sparkle,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              isLoading: widget.importBusy,
+              onPressed: widget.importBusy ? null : widget.onDraftForMe,
+            ),
+          ),
         SkotiqButton(
           label: 'Duplicate as variant',
           icon: SkotiqIcons.copy,

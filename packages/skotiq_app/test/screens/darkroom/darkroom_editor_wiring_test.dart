@@ -192,10 +192,16 @@ class _ScriptedDarkroom implements DarkroomSeam {
       {'renderId': args['renderId'], 'running': false};
 }
 
-DawnPhotometryResolver _emptyPhotometry() {
-  return DawnPhotometryResolver(
-    coneSearch: (center, radiusDegrees, {maxMagnitude}) async => const [],
-  );
+class _EmptyPhotometry extends DawnPhotometryResolver {
+  _EmptyPhotometry()
+      : super(
+            coneSearch: (center, radiusDegrees, {maxMagnitude}) async =>
+                const []);
+
+  @override
+  Future<DawnPhotometry> resolve(
+          {required DawnMaster master, required WcsOverlay? wcs}) async =>
+      const DawnPhotometry.unavailable('no catalog stars in this test');
 }
 
 Map<String, dynamic> _step(
@@ -323,7 +329,7 @@ void main() {
           const AppVersionInfo(version: '0.0.0-test', buildNumber: 0),
         ),
         darkroomSeamProvider.overrideWithValue(darkroom),
-        dawnPhotometryResolverProvider.overrideWithValue(_emptyPhotometry()),
+        dawnPhotometryResolverProvider.overrideWithValue(_EmptyPhotometry()),
         darkroomSidecarReaderProvider.overrideWithValue(() async {
           sidecarCalls++;
           return sidecarAnswer;

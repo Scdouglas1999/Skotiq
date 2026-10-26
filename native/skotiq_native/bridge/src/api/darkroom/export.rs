@@ -48,16 +48,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::{json, Value};
-use skotiq_imaging::recipe::ops::stretch::{auto_params, StretchV1};
 use skotiq_imaging::recipe::{
-    canonical_json, fingerprint_hex, DarkroomOp, OpImage, OpRegistry, OpStage, Recipe,
-    RenderOptions, RenderReport, StepOutcome, RECIPE_SCHEMA_VERSION,
+    canonical_json, fingerprint_hex, OpImage, OpRegistry, OpStage, Recipe, RenderOptions,
+    RenderReport, StepOutcome, RECIPE_SCHEMA_VERSION,
 };
 use skotiq_imaging::{write_jpeg, write_png, write_tiff, FitsHeader, ImageData, PixelType};
 
 use super::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
 use super::render::{
     build_context, level_json, load_pyramid, parse_recipe, quantise_unit, run_render,
+    screen_transfer,
 };
 use super::state::{registry, RenderCancelToken};
 
@@ -236,11 +236,12 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
                 stage.as_prose()
             ));
         }
-        let params = auto_params(&image).map_err(|e| e.to_string())?;
-        let payload = params.to_params();
-        let transferred = StretchV1
-            .apply(&image, &payload, &ctx)
-            .map_err(|e| e.to_string())?;
+        let color_balanced = report.as_ref().is_some_and(|report| {
+            report.steps.iter().any(|step| {
+                step.op_id == "color_calibrate" && matches!(step.outcome, StepOutcome::Applied)
+            })
+        });
+        let (transferred, payload) = screen_transfer(&image, &ctx, color_balanced)?;
         (Arc::new(transferred), Some(payload))
     } else {
         (Arc::clone(&image), None)

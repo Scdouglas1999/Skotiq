@@ -65,6 +65,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
 
   /// Step indices the next preview reports as skipped, with the reason.
   Map<int, String> skipReasons = {};
+  Map<String, dynamic>? colorMeasurement;
 
   /// Completer the next preview waits on, so a test can hold a render inside
   /// the engine and act while it is there.
@@ -201,6 +202,9 @@ class _ScriptedDarkroom implements DarkroomSeam {
                         ? 'disabled'
                         : (skipReasons.containsKey(i) ? 'skipped' : 'applied'),
                 if (skipReasons.containsKey(i)) 'reason': skipReasons[i],
+                if (steps[i]['opId'] == 'color_calibrate' &&
+                    colorMeasurement != null)
+                  'measured': colorMeasurement,
               },
           ],
         },
@@ -800,6 +804,72 @@ void main() {
       statsJson: '{}',
     );
   }
+
+  test('editor draft proves and pins color without catalog photometry',
+      () async {
+    final masterId = await IntegratedMastersDao(db).insertMaster(
+      name: 'M67 RGB',
+      masterFitsPath: _masterPath,
+      status: IntegratedMasterStatus.finalized,
+      accumulationMode: AccumulationMode.batch,
+      channels: 3,
+      width: 4096,
+      height: 3096,
+    );
+    final scope = DarkroomScope.master(masterId);
+    await settle(scope);
+    final controller =
+        container.read(darkroomControllerProvider(scope).notifier);
+    darkroom.draftSteps = [
+      _step('color_calibrate', params: {'neutralizeBackground': true}),
+      _step('stretch',
+          params: {'blackPoint': 0.2, 'whitePoint': 1.4, 'd': 60.0}),
+    ];
+    darkroom.colorMeasurement = {
+      'source': 'averageStar',
+      'channelScale': [1.1, 1.0, 0.7],
+      'channelOffset': [0.02, 0.0, -0.04],
+    };
+    await controller.draftForMe();
+    final stored = (await recipes.listForMaster(_masterPath)).single;
+    final steps = jsonDecode(stored.stepsJson) as List;
+    final color = steps.firstWhere((s) => s['opId'] == 'color_calibrate');
+    expect(color['params']['whiteReference'], 'averageStar');
+    expect(color['params']['channelScale'], [1.1, 1.0, 0.7]);
+    expect(color['params']['channelOffset'], [0.02, 0.0, -0.04]);
+    expect(
+        darkroom.previewContexts
+            .any((c) => c['level'] == 0 && c['stopAfter'] == 0),
+        isTrue);
+  });
+
+  test('new automatic edit preserves the existing variant', () async {
+    final masterId = await seedMaster(width: 1920, height: 1080);
+    final original = await recipes.create(
+      masterId: masterId,
+      baseMasterPath: _masterPath,
+      name: 'My edit',
+      stepsJson: jsonEncode([
+        _step('stretch', params: {'d': 2.0})
+      ]),
+      createdBy: RecipeAuthor.user,
+    );
+    final scope = DarkroomScope.master(masterId);
+    await settle(scope);
+    final controller =
+        container.read(darkroomControllerProvider(scope).notifier);
+    darkroom.draftSteps = [
+      _step('stretch', params: {'d': 4.0})
+    ];
+    await controller.draftForMe();
+    expect((await recipes.listForMaster(_masterPath)), hasLength(2));
+    expect(controller.state.recipeId, isNot(original));
+    expect(
+        jsonDecode((await recipes.getById(original))!.stepsJson)[0]['params']
+            ['d'],
+        2.0);
+    expect(controller.state.steps.single.params['d'], 4.0);
+  });
 
   test('a drafted crop over the whole master is left out, with the reason',
       () async {

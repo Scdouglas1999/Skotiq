@@ -320,6 +320,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
           siblings: state.siblings,
           siblingsError: state.siblingsError,
           onImportRecipe: () => unawaited(_controller.importRecipe()),
+          onDraftForMe: () => unawaited(_controller.draftForMe()),
           importBusy: state.offerBusy,
           showSiblings: widget.showSiblings,
         ),
@@ -339,7 +340,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
               SkotiqTokens.spaceSm,
             ),
             child: SkotiqBanner(
-              title: 'That recipe file was not imported',
+              title: 'The recipe could not be created',
               key: const ValueKey('darkroom_import_refusal'),
               tone: BannerTone.error,
               message: state.offerError!,
@@ -715,7 +716,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
                 // operator had finished reading kept moving the controls it
                 // was telling them to use.
                 SkotiqBanner(
-                  title: 'That recipe file was not imported',
+                  title: 'The recipe could not be created',
                   key: const ValueKey('darkroom_import_refusal'),
                   tone: BannerTone.error,
                   message: message,

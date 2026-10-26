@@ -202,6 +202,48 @@ pub(crate) struct EncodedPreview {
     pub(crate) description: Value,
 }
 
+/// Uncalibrated RGB needs independent display transfers: filter throughput and
+/// sky offsets otherwise dominate the preview. A measured color balance keeps
+/// one shared transfer so viewing does not undo that balance.
+pub(crate) fn screen_transfer(
+    image: &OpImage,
+    ctx: &OpContext,
+    color_balanced: bool,
+) -> Result<(OpImage, Value), String> {
+    if image.channels() != 3 || color_balanced {
+        let params = auto_params(image).map_err(|e| e.to_string())?.to_params();
+        let result = StretchV1
+            .apply(image, &params, ctx)
+            .map_err(|e| e.to_string())?;
+        return Ok((result, params));
+    }
+    let mut data = vec![0.0; image.len()];
+    let mut transfers = Vec::with_capacity(3);
+    for channel in 0..3 {
+        ctx.check_cancel().map_err(|e| e.to_string())?;
+        let mono = OpImage::new(
+            image.width(),
+            image.height(),
+            1,
+            image.data().chunks_exact(3).map(|p| p[channel]).collect(),
+            image.header().clone(),
+        )
+        .map_err(|e| e.to_string())?;
+        let params = auto_params(&mono).map_err(|e| e.to_string())?.to_params();
+        let stretched = StretchV1
+            .apply(&mono, &params, ctx)
+            .map_err(|e| e.to_string())?;
+        for (pixel, &sample) in data.chunks_exact_mut(3).zip(stretched.data()) {
+            pixel[channel] = sample;
+        }
+        transfers.push(params);
+    }
+    Ok((
+        image.with_data(data).map_err(|e| e.to_string())?,
+        json!({"mode": "unlinked", "channels": transfers}),
+    ))
+}
+
 /// Encode a render as RGBA for the viewer.
 ///
 /// The chosen transfer is named in [`EncodedPreview::description`] together with
@@ -259,11 +301,10 @@ pub(crate) fn encode_preview(
 
     let (image, screen_params) = match resolved {
         PreviewEncoding::Screen => {
-            let params = auto_params(&output.image).map_err(|e| e.to_string())?;
-            let payload = params.to_params();
-            let stretched_image = StretchV1
-                .apply(&output.image, &payload, ctx)
-                .map_err(|e| e.to_string())?;
+            let color_balanced = output.report.steps.iter().any(|step| {
+                step.op_id == "color_calibrate" && matches!(step.outcome, StepOutcome::Applied)
+            });
+            let (stretched_image, payload) = screen_transfer(&output.image, ctx, color_balanced)?;
             (Arc::new(stretched_image), Some(payload))
         }
         _ => (Arc::clone(&output.image), None),

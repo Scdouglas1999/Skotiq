@@ -379,6 +379,68 @@ fn validate_refuses_a_payload_that_is_not_a_recipe() {
 // ---------------------------------------------------------------------------
 
 #[test]
+fn linear_color_preview_neutralizes_unequal_sky_backgrounds() {
+    let dir = tempfile::tempdir().unwrap();
+    let master = write_master(dir.path(), "cast.fits", 128, 128, 3);
+    let (image, header) = read_fits(&master).unwrap();
+    let mut data = image.as_f32().unwrap();
+    for pixel in data.chunks_exact_mut(3) {
+        pixel[0] *= 0.8;
+        pixel[2] *= 1.6;
+    }
+    write_fits(&master, &ImageData::from_f32(128, 128, 3, &data), &header).unwrap();
+    let preview = api_darkroom_render_preview(
+        recipe_json("color-sky", "cast", json!([])),
+        json!({"masterPath":master}).to_string(),
+    )
+    .unwrap();
+    let mut medians = [0u8; 3];
+    for c in 0..3 {
+        let mut samples: Vec<_> = preview.rgba.chunks_exact(4).map(|p| p[c]).collect();
+        samples.sort_unstable();
+        medians[c] = samples[samples.len() / 2];
+    }
+    assert!(
+        medians.iter().max().unwrap() - medians.iter().min().unwrap() <= 3,
+        "linear preview sky should be neutral, got RGB {medians:?}"
+    );
+    let png = dir.path().join("linear-preview.png");
+    let exported = parse(
+        &api_darkroom_render_export(
+            recipe_json("color-export", "cast", json!([])),
+            json!({"masterPath":master, "stage":{"kind":"linear"},
+            "screenTransfer":true, "outputs":[{"format":"png","path":png}]})
+            .to_string(),
+        )
+        .unwrap(),
+    );
+    let report = parse(&preview.report_json);
+    assert_eq!(
+        exported["screenTransfer"],
+        report["encoding"]["screenTransfer"]
+    );
+    assert_eq!(exported["screenTransfer"]["mode"], "unlinked");
+
+    let calibrated = api_darkroom_render_preview(
+        recipe_json(
+            "color-balanced",
+            "cast",
+            json!([{
+                "opId":"color_calibrate", "opVersion":1, "enabled":true,
+                "params":{"channelScale":[1.0,1.0,1.0]}
+            }]),
+        ),
+        json!({"masterPath":master}).to_string(),
+    )
+    .unwrap();
+    let report = parse(&calibrated.report_json);
+    assert!(
+        report["encoding"]["screenTransfer"]["blackPoint"].is_number(),
+        "a calibrated stack keeps a linked display transfer"
+    );
+}
+
+#[test]
 fn preview_returns_the_rgba_buffer_the_viewer_takes() {
     let dir = tempfile::tempdir().expect("temp dir");
     let master = write_master(dir.path(), "preview.fits", 64, 64, 1);

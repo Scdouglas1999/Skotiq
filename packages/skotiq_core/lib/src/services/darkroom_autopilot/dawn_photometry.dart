@@ -17,6 +17,7 @@ import 'dart:math' as math;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../color_calibration_service.dart' show StarConeSearch;
+import '../calibration/fits_header_reader.dart';
 import '../wcs_overlay.dart';
 import 'dawn_master_resolver.dart';
 
@@ -45,9 +46,7 @@ class DawnPhotometry {
 
 /// Reads the catalogue stars covering a master's field.
 class DawnPhotometryResolver {
-  /// The catalogue cone search. Production binds the on-disk HYG catalogue —
-  /// the same closure [ColorCalibrationService] takes — and a test binds an
-  /// in-memory list.
+  /// Production uses the shared APASS cache/online service with HYG fallback.
   final StarConeSearch _coneSearch;
 
   /// Faintest catalogue V magnitude requested, matching `color_calibrate@1`'s
@@ -62,12 +61,35 @@ class DawnPhotometryResolver {
 
   /// Catalogue stars for [master]'s field.
   ///
-  /// [wcs] is the master's solved astrometry; a null overlay means the master
-  /// was never plate-solved, which is a stated reason and not an empty result.
+  /// A library row may lack WCS even when the integrated FITS is solved.
+  /// Read its header before declaring the field unavailable.
   Future<DawnPhotometry> resolve({
     required DawnMaster master,
     required WcsOverlay? wcs,
   }) async {
+    if (wcs == null) {
+      try {
+        final header = await const FitsHeaderReader().readPrimaryHeader(
+          master.masterFitsPath,
+        );
+        double? value(String key) => FitsHeaderReader.doubleValue(header, key);
+        wcs = overlayFromMasterWcs(
+          crval1: value('CRVAL1'),
+          crval2: value('CRVAL2'),
+          crpix1: value('CRPIX1'),
+          crpix2: value('CRPIX2'),
+          cd11: value('CD1_1'),
+          cd12: value('CD1_2'),
+          cd21: value('CD2_1'),
+          cd22: value('CD2_2'),
+        );
+      } catch (error) {
+        return DawnPhotometry.unavailable(
+          'the library has no solved astrometry and the master FITS header '
+          'could not be read: $error',
+        );
+      }
+    }
     if (wcs == null) {
       return const DawnPhotometry.unavailable(
         'this master carries no solved astrometry, so its field cannot be '
@@ -158,7 +180,20 @@ WcsOverlay? overlayFromMasterWcs({
       cd22 == null) {
     return null;
   }
-  if (cd11 * cd22 - cd12 * cd21 == 0.0) return null;
+  if (![
+    crval1,
+    crval2,
+    crpix1,
+    crpix2,
+    cd11,
+    cd12,
+    cd21,
+    cd22,
+  ].every((v) => v.isFinite)) {
+    return null;
+  }
+  final determinant = cd11 * cd22 - cd12 * cd21;
+  if (!determinant.isFinite || determinant == 0.0) return null;
   return WcsOverlay.fromCd(
     crpix1: crpix1,
     crpix2: crpix2,

@@ -585,47 +585,77 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     );
   }
 
-  /// Ask the operation registry for a first draft measured from the offered
-  /// master, and open a user recipe carrying it.
+  /// Build a measured draft, prove its color balance, and open it as a new
+  /// variant without replacing the current edit.
   Future<void> draftForMe() async {
-    final offer = state.offer;
-    if (offer == null || state.offerBusy) return;
+    final masterId = state.offer?.masterId ?? state.masterId;
+    if (masterId == null || state.offerBusy) return;
+    late final DarkroomStartOffer offer;
     state = state.copyWith(offerBusy: true, clearOfferError: true);
 
     final List<DarkroomStep> steps;
     final List<RecipeDraftNote> notes;
+    late final String name;
     try {
-      final reply = await _darkroom.registry({
-        'masterPath': offer.masterFitsPath,
-        'baseMasterRef': offer.masterFitsPath,
-      });
+      final master = await _masters.getById(masterId);
       if (!mounted) return;
-      // A crop measured as the whole master trims nothing, so the draft states
-      // that decision instead of carrying a step whose card would read
-      // "Applied by the last render" over an operation that moved no pixel.
-      final drafted = darkroomDropIdentityCrop(
-        decodeDarkroomDraft(reply),
-        width: offer.width,
-        height: offer.height,
+      if (master == null) {
+        throw const DawnDraftException('the selected master no longer exists');
+      }
+      offer = state.offer ??
+          DarkroomStartOffer(
+            masterId: master.id,
+            targetId: master.targetId,
+            masterName: master.name,
+            masterFitsPath: state.baseMasterPath,
+            channels: master.channels,
+            width: master.width,
+            height: master.height,
+          );
+      await _resolvePhotometry(offer.masterId);
+      if (!mounted) return;
+      final draft = await DawnDraftBuilder(darkroom: _darkroom).build(
+        master: DawnMaster(
+          masterId: master.id,
+          targetId: master.targetId,
+          name: master.name,
+          filter: master.filter,
+          masterFitsPath: offer.masterFitsPath,
+          channels: master.channels,
+          width: master.width,
+          height: master.height,
+          frameCount: master.frameCount,
+          totalIntegrationSeconds: master.totalIntegrationSeconds,
+        ),
+        recipeId: 'editor-draft:${offer.masterId}',
+        photometry: _catalogStars.isEmpty
+            ? DawnPhotometry.unavailable(
+                state.photometryNote ?? 'no catalog photometry is available',
+              )
+            : DawnPhotometry.resolved(_catalogStars),
+        renderId: 'editor-draft:${offer.masterId}:$_renderGeneration',
       );
-      steps = drafted.steps;
-      // The registry decides about more operations than it ends up carrying,
-      // and records why it left each of the others out. Until this call the
-      // notes reached the night report on disk and nothing else: the offer
-      // promises "color where there is color to calibrate" and then a mono
-      // master got a four-step stack that never said the colour step was
-      // omitted, let alone why. The account is completed with the operations it
-      // DID carry, so the row records that the registry composed this stack.
-      final cropReason = drafted.omittedCropReason;
-      notes = darkroomComposedAccount(steps, [
-        ...decodeDarkroomDraftNotes(reply),
-        if (cropReason != null)
+      if (!mounted) return;
+      steps = [
+        for (var i = 0; i < draft.steps.length; i++)
+          DarkroomStep.fromJson(draft.steps[i], index: i),
+      ];
+      notes = [
+        for (final note in draft.notes)
           RecipeDraftNote(
-            opId: 'crop',
-            outcome: 'omitted',
-            reason: cropReason,
+            opId: note.opId,
+            outcome: note.outcome,
+            reason: note.reason,
           ),
-      ]);
+      ];
+      final previous = await _recipes.listForMaster(offer.masterFitsPath);
+      if (!mounted) return;
+      final baseName = _draftName(offer.masterName);
+      var candidate = baseName;
+      for (var number = 2; previous.any((r) => r.name == candidate); number++) {
+        candidate = '$baseName $number';
+      }
+      name = candidate;
     } on DarkroomCancelledOutcome catch (cancelled) {
       if (!mounted) return;
       state = state.copyWith(
@@ -649,18 +679,39 @@ class DarkroomController extends StateNotifier<DarkroomState> {
             '${nextStep == null ? '' : '. $nextStep'}',
       );
       return;
+    } on DawnDraftException catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(offerBusy: false, offerError: error.message);
+      return;
     } on DarkroomRecipeFormatException catch (error) {
       if (!mounted) return;
       state = state.copyWith(offerBusy: false, offerError: error.message);
       return;
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(
+        offerBusy: false,
+        offerError: 'The automatic edit could not be created: $error',
+      );
+      return;
     }
 
+    // Keep the open variant, including any edit still waiting to be saved.
+    if (_savePending) {
+      _saveDebounce?.cancel();
+      await _commitSteps();
+      if (!mounted) return;
+      if (state.saveError != null) {
+        state = state.copyWith(offerBusy: false, offerError: state.saveError);
+        return;
+      }
+    }
     await _createRecipe(
       masterId: offer.masterId,
       targetId: offer.targetId,
       masterFitsPath: offer.masterFitsPath,
       steps: steps,
-      name: _draftName(offer.masterName),
+      name: name,
       draftNotes: notes,
     );
   }
