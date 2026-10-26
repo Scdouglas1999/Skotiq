@@ -512,7 +512,7 @@ pub fn warp_to_grid(
 
 /// Whether every tap of `interp` around source position `(sx, sy)` lies inside
 /// a `w` × `h` frame.
-fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator) -> bool {
+pub fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator) -> bool {
     if !sx.is_finite() || !sy.is_finite() {
         return false;
     }

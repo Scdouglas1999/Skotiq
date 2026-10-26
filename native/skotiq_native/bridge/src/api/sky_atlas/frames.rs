@@ -22,6 +22,7 @@ pub fn api_sky_atlas_add_frame(args_json: String) -> Result<String, String> {
         contributor: one.contributor,
         interp: one.interp,
         label: one.label,
+        layer: one.layer,
         online_clip_low: one.online_clip_low,
         online_clip_high: one.online_clip_high,
         frames: vec![FoldFrameArgs {
@@ -29,6 +30,7 @@ pub fn api_sky_atlas_add_frame(args_json: String) -> Result<String, String> {
             weight: one.weight,
             exposure_sec: one.exposure_sec,
             wcs: one.wcs,
+            label: None,
         }],
     };
     let result = fold_impl(fold)?;
@@ -48,6 +50,8 @@ pub(crate) struct AddFrameArgs {
     pub(crate) interp: String,
     #[serde(default)]
     pub(crate) label: String,
+    #[serde(default)]
+    pub(crate) layer: Option<String>,
     #[serde(default)]
     pub(crate) online_clip_low: Option<f64>,
     #[serde(default)]
