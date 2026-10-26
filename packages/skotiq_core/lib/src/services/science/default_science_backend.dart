@@ -15,6 +15,7 @@ import '../../services/logging_service.dart';
 import '../plate_solve_service.dart';
 import '../../utils/utc_timestamp.dart';
 import 'nearest_neighbour_matching.dart';
+import 'aperture_photometry.dart';
 import 'filter_transparency.dart';
 import 'frame_zero_point_fit.dart';
 import 'photometric_bands.dart';
@@ -211,18 +212,26 @@ class DefaultScienceBackend implements ScienceBackend {
       return null;
     }
 
+    final apertureFluxes = await _calibrationApertureFluxes(
+      imagePath: imagePath,
+      matches: matches,
+      medianHfr: field!.medianFwhm / 2,
+    );
     final fit = fitFrameZeroPoint(
-      matches: [
-        for (final m in matches)
-          (
-            flux: m.detected.flux,
-            catalogStar: m.catalogStar,
-            separationPx: m.separationPx,
-          ),
-      ],
+      matches:
+          apertureFluxes ??
+          [
+            for (final m in matches)
+              (
+                flux: m.detected.flux,
+                catalogStar: m.catalogStar,
+                separationPx: m.separationPx,
+              ),
+          ],
       exposureSeconds: exposureSeconds,
       mapping: filterBandFor(context.filterName),
       maxMatchPx: maxMatchPx,
+      brighterHalfOnly: apertureFluxes == null,
     );
     final source = catalog == PhotometricCatalogSource.auto
         ? matchedCatalog
@@ -256,7 +265,7 @@ class DefaultScienceBackend implements ScienceBackend {
       imagePath: imagePath,
       zeroPoint: zeroPoint,
       exposureSeconds: exposureSeconds,
-      field: field!,
+      field: field,
     );
 
     return FramePhotometricCalibration(
@@ -282,6 +291,68 @@ class DefaultScienceBackend implements ScienceBackend {
       bandIsStandard: fit.bandIsStandard,
       zeroPointError: fit.zeroPointError,
     );
+  }
+
+  /// Total fluxes of the matched catalog stars, measured in one circular
+  /// aperture of three times the frame's median half-flux radius (about 1.5
+  /// FWHM) and scaled by an aperture correction: the median ratio of the
+  /// flux within twice that radius to the flux within it, over the brightest
+  /// matched stars. A radius that follows the seeing keeps the same fraction
+  /// of every star's light whatever the seeing, unlike the detector's
+  /// footprint. Null when the file cannot be read this way.
+  Future<List<ZeroPointMatch>?> _calibrationApertureFluxes({
+    required String imagePath,
+    required List<_CatalogMatch> matches,
+    required double medianHfr,
+  }) async {
+    if (!medianHfr.isFinite || medianHfr <= 0) return null;
+    final ranked = matches.toList()
+      ..sort((a, b) => b.detected.flux.compareTo(a.detected.flux));
+    final used = ranked.take(300).toList(growable: false);
+    final radius = (3.0 * medianHfr).clamp(3.0, 20.0).toDouble();
+    final inner = 2.5 * radius;
+    final outer = inner + math.max(6.0, radius);
+    final positions = [
+      for (final m in used) (x: m.detected.x, y: m.detected.y),
+    ];
+    final small = await measureApertures(
+      imagePath,
+      positions,
+      radius: radius,
+      innerSky: inner,
+      outerSky: outer,
+    );
+    if (small == null) return null;
+    final brightest = positions.take(30).toList(growable: false);
+    final large = await measureApertures(
+      imagePath,
+      brightest,
+      radius: 2 * radius,
+      innerSky: inner,
+      outerSky: outer,
+    );
+    if (large == null) return null;
+    final ratios = <double>[];
+    for (var i = 0; i < brightest.length; i++) {
+      final a = small[i], b = large[i];
+      if (a == null || b == null || a.flux <= 0 || b.flux <= 0) continue;
+      ratios.add(b.flux / a.flux);
+    }
+    if (ratios.length < 5) return null;
+    ratios.sort();
+    final correction = ratios[ratios.length ~/ 2];
+    if (!correction.isFinite || correction < 1 || correction > 1.5) {
+      return null;
+    }
+    return [
+      for (var i = 0; i < used.length; i++)
+        if (small[i] != null && small[i]!.flux > 0)
+          (
+            flux: small[i]!.flux * correction,
+            catalogStar: used[i].catalogStar,
+            separationPx: used[i].separationPx,
+          ),
+    ];
   }
 
   /// 3σ and 5σ point-source limits for a frame with [zeroPoint].

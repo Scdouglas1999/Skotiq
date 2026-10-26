@@ -271,6 +271,20 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       return 0;
     }
 
+    // Re-measure the target and comparisons in one shared aperture, so the
+    // differential magnitude compares like with like. Stars keep their
+    // detector flux when the file cannot be read this way.
+    final measured = await _measureInSharedAperture(
+      imagePath: imagePath,
+      frameStars: stars,
+      target: target,
+      comparisons: comparisonObjects,
+    );
+    target = measured.target;
+    comparisonObjects
+      ..clear()
+      ..addAll(measured.comparisons);
+
     final sessionCheckId = sessionId == null
         ? null
         : await _scienceDao.getSessionCheckStarId(sessionId);
@@ -384,6 +398,65 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       }
     }
     return best;
+  }
+
+  /// Replace the detector fluxes of [target] and [comparisons] with fluxes
+  /// in one circular aperture of three times the frame's median half-flux
+  /// radius (about 1.5 FWHM), sky from an annulus beyond twice that. The SNR
+  /// becomes the background-limited one of that aperture; the star's own
+  /// photon noise is added later with the camera's e-/ADU.
+  Future<
+    ({
+      StarMeasurement target,
+      List<({String objectId, StarMeasurement star})> comparisons,
+    })
+  >
+  _measureInSharedAperture({
+    required String imagePath,
+    required List<StarMeasurement> frameStars,
+    required StarMeasurement target,
+    required List<({String objectId, StarMeasurement star})> comparisons,
+  }) async {
+    final unchanged = (target: target, comparisons: comparisons);
+    final hfrs =
+        frameStars.map((s) => s.hfr).where((h) => h.isFinite && h > 0).toList()
+          ..sort();
+    if (hfrs.isEmpty) return unchanged;
+    final radius = (3.0 * hfrs[hfrs.length ~/ 2]).clamp(3.0, 25.0).toDouble();
+    final all = [target, ...comparisons.map((c) => c.star)];
+    final apertures = await measureApertures(
+      imagePath,
+      [for (final s in all) (x: s.x, y: s.y)],
+      radius: radius,
+      innerSky: 2 * radius,
+      outerSky: 2 * radius + math.max(6.0, radius),
+    );
+    if (apertures == null || apertures.any((a) => a == null || a.flux <= 0)) {
+      return unchanged;
+    }
+    StarMeasurement withFlux(StarMeasurement s, ApertureFlux a) =>
+        StarMeasurement(
+          x: s.x,
+          y: s.y,
+          flux: a.flux,
+          hfr: s.hfr,
+          fwhm: s.fwhm,
+          snr: a.backgroundSigma > 0 ? a.flux / a.backgroundSigma : s.snr,
+          eccentricity: s.eccentricity,
+          sharpness: s.sharpness,
+          background: a.sky,
+          peak: s.peak,
+        );
+    return (
+      target: withFlux(target, apertures.first!),
+      comparisons: [
+        for (var i = 0; i < comparisons.length; i++)
+          (
+            objectId: comparisons[i].objectId,
+            star: withFlux(comparisons[i].star, apertures[i + 1]!),
+          ),
+      ],
+    );
   }
 
   /// B-V of the catalog star within 3 arcsec of a position, or null.

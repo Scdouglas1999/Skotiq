@@ -20,6 +20,7 @@ import '../../utils/utc_timestamp.dart';
 import '../wcs/gnomonic_projection.dart';
 import '../wcs/wcs_sip_codec.dart';
 import 'airmass.dart';
+import 'aperture_photometry.dart';
 import 'default_science_backend.dart';
 import 'fits_header_writer.dart';
 import 'photometric_catalog_service.dart';

@@ -67,6 +67,7 @@ FrameZeroPointFit fitFrameZeroPoint({
   required double exposureSeconds,
   required FilterBandMapping mapping,
   required double maxMatchPx,
+  bool brighterHalfOnly = true,
 }) {
   var band = mapping.band;
   var standard = mapping.isStandard;
@@ -98,8 +99,23 @@ FrameZeroPointFit fitFrameZeroPoint({
     );
   }
 
+  // Detector fluxes are summed inside each star's own footprint, which
+  // reaches less far into the wings of a faint star, and less far still in
+  // poor seeing; low in the sky that biases the zero point faint. With such
+  // fluxes ([brighterHalfOnly]) only the brighter half of the matched stars
+  // is used, which carries much less of that loss.
+  final usable = matches
+      .where((m) => m.flux > 0 && m.flux.isFinite)
+      .toList(growable: false);
+  final List<ZeroPointMatch> fitted;
+  if (brighterHalfOnly && usable.length >= 2 * kMinZeroPointStars) {
+    final sorted = usable.toList()..sort((a, b) => b.flux.compareTo(a.flux));
+    fitted = sorted.sublist(0, (sorted.length + 1) ~/ 2);
+  } else {
+    fitted = usable;
+  }
   final samples = <double>[];
-  for (final m in matches) {
+  for (final m in fitted) {
     final catalogMag = m.catalogStar.magIn(band);
     if (catalogMag == null || !catalogMag.isFinite) continue;
     final bv = m.catalogStar.colorIndexBv;
