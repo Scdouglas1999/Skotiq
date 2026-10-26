@@ -20,83 +20,106 @@ extension _SkyAtlasInternals on SkyAtlasService {
     return TileProvenanceView.fromJson(tileId, result);
   }
 
+  /// Mirror a native fold into the DB: one timeline row per (frame, tile)
+  /// with that frame's own exposure, then each touched tile's index row with
+  /// totals recounted from the timeline (distinct frames, each frame's exposure
+  /// once) and its coverage depth advanced by what this fold added.
   Future<void> _persistFold({
     required AtlasFoldSummary summary,
-    required int sessionId,
-    required String label,
-    required String contributor,
+    required List<_PendingFold> items,
     required String root,
-    int? targetId,
-    String? regionName,
-    double? targetRaDeg,
-    double? targetDecDeg,
-    double regionRadiusDeg = 0.25,
   }) async {
     final foldedAt = DateTime.now();
     final tilesDir = _tilesDir(root);
-    final linkedSession = sessionId > 0 ? sessionId : null;
 
-    // Region attach (Pillar A): when this fold came from a known target, ensure
-    // ONE region for it (idempotent on targetId — nightly re-folds reuse the
-    // same region) BEFORE the per-tile loop, then link every touched tile to it
-    // in the same upsert. ensureRegion refreshes rollups; we refresh once more
-    // after the loop so the new tile membership is reflected.
-    int? regionId;
-    if (targetId != null &&
-        regionName != null &&
-        regionName.trim().isNotEmpty &&
-        targetRaDeg != null &&
-        targetDecDeg != null) {
-      regionId = await ensureRegion(
-        name: regionName.trim(),
-        centerRaDeg: targetRaDeg,
-        centerDecDeg: targetDecDeg,
-        radiusDeg: math.max(regionRadiusDeg, 0.25),
+    // Region attach: ensure ONE region per target (idempotent on targetId) so
+    // nightly re-folds reuse it, before the tiles are linked to it.
+    final regionByFrame = <int, int>{};
+    for (var i = 0; i < items.length; i++) {
+      final r = items[i].region;
+      if (r.targetId == null ||
+          r.name == null ||
+          r.name!.trim().isEmpty ||
+          r.raDeg == null ||
+          r.decDeg == null) {
+        continue;
+      }
+      regionByFrame[i] = await ensureRegion(
+        name: r.name!.trim(),
+        centerRaDeg: r.raDeg!,
+        centerDecDeg: r.decDeg!,
+        radiusDeg: math.max(r.radiusDeg, 0.25),
         kind: 'target',
-        targetId: targetId,
+        targetId: r.targetId,
+      );
+    }
+
+    final frameFolds = summary.frameFolds.isNotEmpty
+        ? summary.frameFolds
+        : [
+            // A bridge without per-frame records: one frame per call.
+            for (final t in summary.tiles)
+              if (t.framesAdded > 0)
+                AtlasFrameTileFold(
+                  frameIndex: 0,
+                  label: items.first.label,
+                  tileId: t.tileId,
+                  weightAdded: t.weightAdded,
+                  integrationSecondsAdded: t.integrationSecondsAdded > 0
+                      ? t.integrationSecondsAdded
+                      : items.first.frame.exposureSec,
+                  coverageAdded: t.coverageAdded,
+                  rejected: t.rejected,
+                ),
+          ];
+
+    final regionByTile = <int, int>{};
+    final sessionByTile = <int, int?>{};
+    for (final f in frameFolds) {
+      final item = items[f.frameIndex.clamp(0, items.length - 1)];
+      final session = item.sessionId > 0 ? item.sessionId : null;
+      sessionByTile[f.tileId] = session;
+      final region = regionByFrame[f.frameIndex];
+      if (region != null) regionByTile[f.tileId] = region;
+      await _dao.recordFold(
+        tileId: f.tileId,
+        healpixOrder: _order,
+        sessionId: session,
+        framesAdded: 1,
+        weightAdded: f.weightAdded,
+        integrationSecondsAdded: f.integrationSecondsAdded,
+        rejected: f.rejected,
+        contributor: item.contributor,
+        label: f.label.isEmpty ? item.label : f.label,
+        foldedAt: foldedAt,
       );
     }
 
     for (final tile in summary.tiles) {
-      // Phantom guard: a cone that overlaps a tile's footprint but contributes
-      // no accepted frames (e.g. an over-coverage edge tile) reports framesAdded
-      // == 0. Upserting it would seed an empty 0-frame SkyTiles row + a dangling
-      // sidecarPath to a never-written `.skt`, and recordFold would inject a
-      // "+0 frames" entry into the timeline. Skip those entirely.
       if (tile.framesAdded <= 0) continue;
-      final sidecarPath = p.join(tilesDir, '${tile.tileId}.skt');
+      final existing = await _dao.getTile(tile.tileId, healpixOrder: _order);
+      final totals = await _dao.tileTotals(tile.tileId, healpixOrder: _order);
       await _dao.upsertTile(
         tileId: tile.tileId,
         healpixOrder: _order,
         channels: tile.channels,
         centerRaDeg: tile.centerRaDeg,
         centerDecDeg: tile.centerDecDeg,
-        coverageMean: tile.coverageMean,
-        totalFrames: tile.totalFrames,
-        integrationSeconds: tile.integrationSeconds,
-        sidecarPath: sidecarPath,
-        lastFoldSessionId: linkedSession,
+        // Depth summed over filter layers; never below the folded layer's.
+        coverageMean: math.max(
+          (existing == null ? 0.0 : existing.coverageMean) + tile.coverageAdded,
+          tile.coverageMean,
+        ),
+        totalFrames: totals.frames,
+        integrationSeconds: totals.seconds,
+        sidecarPath: p.join(tilesDir, '${tile.tileId}.skt'),
+        lastFoldSessionId: sessionByTile[tile.tileId],
         lastFoldAt: foldedAt,
-        regionId: regionId,
-      );
-      await _dao.recordFold(
-        tileId: tile.tileId,
-        healpixOrder: _order,
-        sessionId: linkedSession,
-        framesAdded: tile.framesAdded,
-        weightAdded: tile.weightAdded,
-        integrationSecondsAdded: _integrationDeltaFor(tile),
-        rejected: tile.rejected,
-        contributor: contributor,
-        label: label,
-        foldedAt: foldedAt,
+        regionId: regionByTile[tile.tileId],
       );
     }
 
-    // The tiles just gained this region's id; recompute the denormalized
-    // tileCount / integrationSeconds rollups so the region card + detail render
-    // the true depth immediately.
-    if (regionId != null) {
+    for (final regionId in regionByFrame.values.toSet()) {
       await _dao.refreshRegionRollups(regionId);
     }
   }
@@ -117,22 +140,6 @@ extension _SkyAtlasInternals on SkyAtlasService {
     }
   }
 
-  /// Per-fold integration delta. The bridge's per-tile summary reports the
-  /// post-fold cumulative `integrationSeconds`; the timeline wants the increment
-  /// this fold added. We derive it from the prior tile total when available,
-  /// falling back to the cumulative value for a tile's very first fold.
-  double _integrationDeltaFor(AtlasFoldTile tile) {
-    // The native running total includes this fold; for the first fold of a tile
-    // that equals the increment. For subsequent folds we do not have the prior
-    // total in the summary, so we attribute the proportional share by frame
-    // count when frames are known, else the full cumulative (first-fold case).
-    if (tile.totalFrames <= 0 || tile.framesAdded >= tile.totalFrames) {
-      return tile.integrationSeconds;
-    }
-    final perFrame = tile.integrationSeconds / tile.totalFrames;
-    return perFrame * tile.framesAdded;
-  }
-
   String _tilesDir(String root) => p.join(root, 'tiles', '$_order');
 
   /// The swarm OVERLAY sidecar directory. A SEPARATE tree from the own-light
@@ -148,4 +155,45 @@ extension _SkyAtlasInternals on SkyAtlasService {
   String _overlayRoot(String root) => p.join(root, 'swarm_overlay');
 
   String _cacheDir(String root) => p.join(root, 'cache');
+}
+
+/// Region a fold should ensure and link its tiles to (all fields set), or none.
+class _RegionRequest {
+  const _RegionRequest({
+    this.targetId,
+    this.name,
+    this.raDeg,
+    this.decDeg,
+    this.radiusDeg = 0.25,
+  });
+
+  final int? targetId;
+  final String? name;
+  final double? raDeg;
+  final double? decDeg;
+  final double radiusDeg;
+}
+
+/// One frame waiting for (or inside) a native fold call.
+class _PendingFold {
+  _PendingFold({
+    required this.frame,
+    required this.sessionId,
+    required this.layer,
+    required this.region,
+    required this.interp,
+    required this.contributor,
+  });
+
+  final SolvedFrameRef frame;
+
+  /// The frame's fold-log label (its capture time); every queued frame
+  /// carries one.
+  String get label => frame.label!;
+  final int sessionId;
+  final String? layer;
+  final _RegionRequest region;
+  final AtlasInterp interp;
+  final String contributor;
+  final Completer<AtlasFoldSummary?> completer = Completer<AtlasFoldSummary?>();
 }

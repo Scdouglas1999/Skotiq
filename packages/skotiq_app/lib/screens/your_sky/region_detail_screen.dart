@@ -780,7 +780,11 @@ class _ProvenancePanel extends ConsumerWidget {
             for (final f in folds)
               if (f.contributor.trim().isNotEmpty) f.contributor.trim(),
           }.toList(growable: false);
-    final totalFrames = folds.fold<int>(0, (s, f) => s + f.framesAdded);
+    // One frame lands in many tiles; count each (label, contributor) once.
+    final totalFrames = {
+      for (final f in folds)
+        if (f.framesAdded > 0) '${f.contributor}\u0000${f.label}',
+    }.length;
     final provFolds = provenance?.folds ?? const <TileFoldView>[];
 
     return Column(

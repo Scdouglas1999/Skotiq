@@ -102,8 +102,13 @@ class SolvedFrameRef {
   final List<double> apCoeffs;
   final List<double> bpCoeffs;
 
+  /// Fold-log label for this frame (its capture time). Null takes the fold
+  /// call's label.
+  final String? label;
+
   const SolvedFrameRef({
     required this.framePath,
+    this.label,
     this.weight = 1.0,
     this.exposureSec = 0.0,
     required this.crval1,
@@ -123,6 +128,30 @@ class SolvedFrameRef {
     this.apCoeffs = const [],
     this.bpCoeffs = const [],
   });
+
+  /// A copy carrying [label] as its fold-log label.
+  SolvedFrameRef withLabel(String? label) => SolvedFrameRef(
+    framePath: framePath,
+    label: label,
+    weight: weight,
+    exposureSec: exposureSec,
+    crval1: crval1,
+    crval2: crval2,
+    crpix1: crpix1,
+    crpix2: crpix2,
+    cd1_1: cd1_1,
+    cd1_2: cd1_2,
+    cd2_1: cd2_1,
+    cd2_2: cd2_2,
+    aOrder: aOrder,
+    bOrder: bOrder,
+    aCoeffs: aCoeffs,
+    bCoeffs: bCoeffs,
+    apOrder: apOrder,
+    bpOrder: bpOrder,
+    apCoeffs: apCoeffs,
+    bpCoeffs: bpCoeffs,
+  );
 
   /// Build a fold reference from a [SolvedWcs] (the catalog-overlay / science
   /// WCS model) for the frame at [framePath].
@@ -214,6 +243,7 @@ class SolvedFrameRef {
     'weight': weight,
     'exposureSec': exposureSec,
     'wcs': toWcsJson(),
+    if (label != null) 'label': label,
   };
 
   /// True iff the CD matrix is finite and non-singular — a frame that would
@@ -237,6 +267,13 @@ class AtlasFoldTile {
   final int tileId;
   final int framesAdded;
   final double weightAdded;
+
+  /// Exposure seconds this fold added to the tile: the sum of the counted
+  /// frames' own exposures.
+  final double integrationSecondsAdded;
+
+  /// Mean coverage depth this fold added to the tile.
+  final double coverageAdded;
   final int rejected;
   final double coverageMean;
   final double centerRaDeg;
@@ -249,6 +286,8 @@ class AtlasFoldTile {
     required this.tileId,
     required this.framesAdded,
     required this.weightAdded,
+    this.integrationSecondsAdded = 0.0,
+    this.coverageAdded = 0.0,
     required this.rejected,
     required this.coverageMean,
     required this.centerRaDeg,
@@ -262,6 +301,9 @@ class AtlasFoldTile {
     tileId: (json['tileId'] as num).toInt(),
     framesAdded: (json['framesAdded'] as num?)?.toInt() ?? 0,
     weightAdded: (json['weightAdded'] as num?)?.toDouble() ?? 0.0,
+    integrationSecondsAdded:
+        (json['integrationSecondsAdded'] as num?)?.toDouble() ?? 0.0,
+    coverageAdded: (json['coverageAdded'] as num?)?.toDouble() ?? 0.0,
     rejected: (json['rejected'] as num?)?.toInt() ?? 0,
     coverageMean: (json['coverageMean'] as num?)?.toDouble() ?? 0.0,
     centerRaDeg: (json['centerRa'] as num?)?.toDouble() ?? 0.0,
@@ -272,25 +314,97 @@ class AtlasFoldTile {
   );
 }
 
+/// One frame's contribution to one tile within a fold call.
+class AtlasFrameTileFold {
+  /// Index of the frame in the fold call's `frames` list.
+  final int frameIndex;
+
+  /// The frame's fold-log label (its capture time).
+  final String label;
+  final int tileId;
+  final double weightAdded;
+
+  /// This frame's own exposure, counted once in this tile.
+  final double integrationSecondsAdded;
+  final double coverageAdded;
+  final int rejected;
+
+  const AtlasFrameTileFold({
+    required this.frameIndex,
+    required this.label,
+    required this.tileId,
+    required this.weightAdded,
+    required this.integrationSecondsAdded,
+    required this.coverageAdded,
+    required this.rejected,
+  });
+
+  factory AtlasFrameTileFold.fromJson(Map<String, dynamic> json) =>
+      AtlasFrameTileFold(
+        frameIndex: (json['frameIndex'] as num?)?.toInt() ?? 0,
+        label: json['label'] as String? ?? '',
+        tileId: (json['tileId'] as num).toInt(),
+        weightAdded: (json['weightAdded'] as num?)?.toDouble() ?? 0.0,
+        integrationSecondsAdded:
+            (json['integrationSecondsAdded'] as num?)?.toDouble() ?? 0.0,
+        coverageAdded: (json['coverageAdded'] as num?)?.toDouble() ?? 0.0,
+        rejected: (json['rejected'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Result of folding a session's frames into the atlas.
 class AtlasFoldSummary {
-  /// Ascending, deduplicated ids of every tile the fold touched.
+  /// Ascending, deduplicated ids of every tile a frame was counted in.
   final List<int> tilesTouched;
 
   /// Per-tile fold + post-fold-state summaries.
   final List<AtlasFoldTile> tiles;
 
+  /// Per (frame, tile) contributions, frame-major.
+  final List<AtlasFrameTileFold> frameFolds;
+
   /// Frames whose footprint covered no tiles (dropped, not fatal).
   final int framesSkippedNoCoverage;
+
+  /// The filter layer folded into (null = the base layer).
+  final String? layer;
 
   const AtlasFoldSummary({
     required this.tilesTouched,
     required this.tiles,
+    this.frameFolds = const [],
     required this.framesSkippedNoCoverage,
+    this.layer,
   });
 
-  /// Total frames folded across every touched tile.
-  int get totalFramesFolded => tiles.fold(0, (sum, t) => sum + t.framesAdded);
+  /// Distinct frames this fold counted in at least one tile.
+  int get totalFramesFolded {
+    if (frameFolds.isNotEmpty) {
+      return frameFolds.map((f) => f.frameIndex).toSet().length;
+    }
+    return tiles.isEmpty ? 0 : tiles.map((t) => t.framesAdded).reduce(math.max);
+  }
+
+  /// Whether the frame at [frameIndex] of the call was counted anywhere.
+  bool foldedFrame(int frameIndex) => frameFolds.isEmpty
+      ? tiles.any((t) => t.framesAdded > 0)
+      : frameFolds.any((f) => f.frameIndex == frameIndex);
+
+  /// The part of this summary that concerns the frame at [frameIndex].
+  AtlasFoldSummary forFrame(int frameIndex) {
+    if (frameFolds.isEmpty) return this;
+    final mine = frameFolds
+        .where((f) => f.frameIndex == frameIndex)
+        .toList(growable: false);
+    final ids = mine.map((f) => f.tileId).toSet();
+    return AtlasFoldSummary(
+      tilesTouched: ids.toList()..sort(),
+      tiles: tiles.where((t) => ids.contains(t.tileId)).toList(growable: false),
+      frameFolds: mine,
+      framesSkippedNoCoverage: mine.isEmpty ? 1 : 0,
+      layer: layer,
+    );
+  }
 
   factory AtlasFoldSummary.fromJson(Map<String, dynamic> json) {
     final touched = (json['tilesTouched'] as List? ?? const [])
@@ -299,11 +413,16 @@ class AtlasFoldSummary {
     final tiles = (json['foldsByTile'] as List? ?? const [])
         .map((e) => AtlasFoldTile.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);
+    final frameFolds = (json['frameFolds'] as List? ?? const [])
+        .map((e) => AtlasFrameTileFold.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
     return AtlasFoldSummary(
       tilesTouched: touched,
       tiles: tiles,
+      frameFolds: frameFolds,
       framesSkippedNoCoverage:
           (json['framesSkippedNoCoverage'] as num?)?.toInt() ?? 0,
+      layer: json['layer'] as String?,
     );
   }
 
@@ -312,6 +431,34 @@ class AtlasFoldSummary {
     tiles: [],
     framesSkippedNoCoverage: 0,
   );
+}
+
+/// Atlas-wide totals counted once per frame (a frame folds into ~100 tiles;
+/// summing per-tile totals would count it ~100 times).
+class AtlasTotals {
+  /// Distinct frames folded.
+  final int frames;
+
+  /// Their summed exposure, in seconds.
+  final double integrationSeconds;
+
+  const AtlasTotals({required this.frames, required this.integrationSeconds});
+
+  static const empty = AtlasTotals(frames: 0, integrationSeconds: 0);
+}
+
+/// The atlas layer key for a filter name, matching the native `layer_key`:
+/// ASCII letters, digits, `-` and `_`, at most 32 characters; null for a blank
+/// or unusable name (folds into the base layer).
+String? atlasLayerKey(String? filter) {
+  if (filter == null) return null;
+  final key = filter
+      .trim()
+      .split('')
+      .where((c) => RegExp(r'[A-Za-z0-9_-]').hasMatch(c))
+      .take(32)
+      .join();
+  return key.isEmpty ? null : key;
 }
 
 /// Coverage summary for one materialized tile (the heat-overlay / gallery row).

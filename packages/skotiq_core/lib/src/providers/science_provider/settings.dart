@@ -9,6 +9,10 @@ class ScienceSettings {
   final bool psfMapEnabled;
   final bool astrometricResidualsEnabled;
   final bool movingObjectsEnabled;
+
+  /// Whether solved lights fold into the Your Sky atlas (and First Light has
+  /// a template to compare against).
+  final bool skyAtlasEnabled;
   final bool narrowbandRatiosEnabled;
   final bool frameQualityMapsEnabled;
   final bool surface3dEnabled;
@@ -86,6 +90,7 @@ class ScienceSettings {
     this.psfMapEnabled = true,
     this.astrometricResidualsEnabled = true,
     this.movingObjectsEnabled = false,
+    this.skyAtlasEnabled = true,
     this.narrowbandRatiosEnabled = false,
     this.frameQualityMapsEnabled = true,
     this.surface3dEnabled = true,
@@ -123,6 +128,7 @@ class ScienceSettings {
     bool? psfMapEnabled,
     bool? astrometricResidualsEnabled,
     bool? movingObjectsEnabled,
+    bool? skyAtlasEnabled,
     bool? narrowbandRatiosEnabled,
     bool? frameQualityMapsEnabled,
     bool? surface3dEnabled,
@@ -154,6 +160,7 @@ class ScienceSettings {
       astrometricResidualsEnabled:
           astrometricResidualsEnabled ?? this.astrometricResidualsEnabled,
       movingObjectsEnabled: movingObjectsEnabled ?? this.movingObjectsEnabled,
+      skyAtlasEnabled: skyAtlasEnabled ?? this.skyAtlasEnabled,
       narrowbandRatiosEnabled:
           narrowbandRatiosEnabled ?? this.narrowbandRatiosEnabled,
       frameQualityMapsEnabled:
@@ -197,6 +204,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
     'narrowbandRatios': 'science.feature.narrowband_ratios',
     'frameQualityMaps': 'science.feature.frame_quality_maps',
     'surface3d': 'science.feature.surface3d',
+    'skyAtlas': 'science.feature.sky_atlas',
     'manualPurgeOnly': 'science.retention.manual_purge_only',
     'fitsHeaderWriteback': 'science.writeback.fits_header_enabled',
     'mpcObservatoryCode': 'science.mpc.observatory_code',
@@ -233,6 +241,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
         true,
       ),
       movingObjectsEnabled: _parseBool(settings[_keys['movingObjects']], false),
+      skyAtlasEnabled: _parseBool(settings[_keys['skyAtlas']], true),
       narrowbandRatiosEnabled: _parseBool(
         settings[_keys['narrowbandRatios']],
         false,
@@ -325,6 +334,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
       ScienceFeature.movingObjects => _keys['movingObjects']!,
       ScienceFeature.narrowbandRatios => _keys['narrowbandRatios']!,
       ScienceFeature.frameQualityMaps => _keys['frameQualityMaps']!,
+      ScienceFeature.skyAtlas => _keys['skyAtlas']!,
       ScienceFeature.surface3d => _keys['surface3d']!,
     };
     return _update({key: enabled.toString()}, (current) {
@@ -352,6 +362,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
           frameQualityMapsEnabled: enabled,
         ),
         ScienceFeature.surface3d => current.copyWith(surface3dEnabled: enabled),
+        ScienceFeature.skyAtlas => current.copyWith(skyAtlasEnabled: enabled),
       };
     });
   }

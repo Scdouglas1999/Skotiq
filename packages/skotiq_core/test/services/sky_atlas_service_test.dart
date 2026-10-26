@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -496,10 +498,10 @@ void main() {
                 'centerRa': 83.6,
                 'centerDec': -5.39,
                 'coverageMean': 4.0,
-                'totalFrames': 5,
-                'integrationSeconds': 1500.0,
-                'framesAdded': 5,
-                'weightAdded': 5.0,
+                'totalFrames': 1,
+                'integrationSeconds': 300.0,
+                'framesAdded': 1,
+                'weightAdded': 1.0,
                 'rejected': 0,
               },
             ],
@@ -511,7 +513,7 @@ void main() {
       await service.foldFrame(sessionId: 7, frame: frame());
 
       final before = await dao.getTile(99, healpixOrder: 9);
-      expect(before!.totalFrames, 5);
+      expect(before!.totalFrames, 1);
 
       await service.mergeSwarmDelta(
         tileId: 99,
@@ -521,8 +523,8 @@ void main() {
       // Own-light totals + base sidecar pointer are untouched; only the overlay
       // columns gained the community depth — no `info` seed dispatch needed.
       final after = await dao.getTile(99, healpixOrder: 9);
-      expect(after!.totalFrames, 5);
-      expect(after.integrationSeconds, closeTo(1500.0, 1e-9));
+      expect(after!.totalFrames, 1);
+      expect(after.integrationSeconds, closeTo(300.0, 1e-9));
       expect(after.sidecarPath, contains('tiles/9/99.skt'));
       expect(after.sidecarPath, isNot(contains('swarm_overlay')));
       expect(after.swarmOverlayFrames, 42);
@@ -583,6 +585,27 @@ void main() {
         return {
           'ok': true,
           'tilesTouched': [42, 7],
+          'frameFolds': [
+            for (var i = 0; i < 3; i++)
+              {
+                'frameIndex': i,
+                'label': '2026-06-21T0$i:00:00Z',
+                'tileId': 42,
+                'weightAdded': 1.0,
+                'integrationSecondsAdded': 300.0,
+                'coverageAdded': 0.85 / 3,
+                'rejected': 0,
+              },
+            {
+              'frameIndex': 0,
+              'label': '2026-06-21T00:00:00Z',
+              'tileId': 7,
+              'weightAdded': 1.0,
+              'integrationSecondsAdded': 300.0,
+              'coverageAdded': 0.4,
+              'rejected': 0,
+            },
+          ],
           'foldsByTile': [
             {
               'tileId': 42,
@@ -615,7 +638,12 @@ void main() {
 
       await service.foldSession(
         sessionId: 7,
-        frames: [frame()],
+        frames: [
+          for (var i = 0; i < 3; i++)
+            frame(
+              path: '/tmp/light_$i.fits',
+            ).withLabel('2026-06-21T0$i:00:00Z'),
+        ],
         label: '2026-06-21',
       );
 
@@ -821,4 +849,218 @@ void main() {
       expect(await service.exportRegionCutout(999999), isNull);
     },
   );
+
+  group('per-frame accounting, queue and switches', () {
+    DbCapturedImage light(
+      int id, {
+      String? filter = 'R',
+      bool accepted = true,
+      double exposure = 120.0,
+    }) => DbCapturedImage(
+      id: id,
+      filePath: '/tmp/light_$id.fits',
+      fileName: 'light_$id.fits',
+      fileFormat: 'fits',
+      frameType: 'light',
+      filter: filter,
+      exposureDuration: exposure,
+      binX: 1,
+      binY: 1,
+      isPlateSolved: true,
+      solvedRa: 2.37,
+      solvedDec: 42.35,
+      solvedPixelScale: 0.79,
+      capturedAt: DateTime.utc(2026, 10, 24, 1, id),
+      createdAt: DateTime.utc(2026, 10, 24, 1, id),
+      isAccepted: accepted,
+    );
+
+    /// A native fold result in which every frame of the call lands in the same
+    /// [tilesPerFrame] tiles, as a dithered sub does (~100 tiles each).
+    Map<String, dynamic> foldResult(
+      Map<String, dynamic> args, {
+      int tilesPerFrame = 100,
+    }) {
+      final frames = (args['frames'] as List).cast<Map<String, dynamic>>();
+      return {
+        'ok': true,
+        'tilesTouched': [for (var t = 0; t < tilesPerFrame; t++) 1000 + t],
+        'frameFolds': [
+          for (var i = 0; i < frames.length; i++)
+            for (var t = 0; t < tilesPerFrame; t++)
+              {
+                'frameIndex': i,
+                'label': frames[i]['label'],
+                'tileId': 1000 + t,
+                'weightAdded': 1.0,
+                'integrationSecondsAdded': frames[i]['exposureSec'],
+                'coverageAdded': 0.5,
+                'rejected': 0,
+              },
+        ],
+        'foldsByTile': [
+          for (var t = 0; t < tilesPerFrame; t++)
+            {
+              'tileId': 1000 + t,
+              'framesAdded': frames.length,
+              'weightAdded': frames.length.toDouble(),
+              'integrationSecondsAdded': frames.fold<double>(
+                0,
+                (a, f) => a + (f['exposureSec'] as num).toDouble(),
+              ),
+              'coverageAdded': 0.5 * frames.length,
+              'rejected': 0,
+              'coverageMean': 0.5 * frames.length,
+              'centerRa': 35.6,
+              'centerDec': 42.35,
+              'totalFrames': frames.length,
+              'integrationSeconds': 0.0,
+              'channels': 1,
+            },
+        ],
+        'framesSkippedNoCoverage': 0,
+        'layer': args['layer'],
+      };
+    }
+
+    test('each timeline row holds its own frame exposure and totals count '
+        'each frame once', () async {
+      seam.onDispatch = (args) => foldResult(args);
+      await service.autoFoldCapturedImage(
+        image: light(1, exposure: 15.0),
+        imageWidth: 4656,
+        imageHeight: 3520,
+      );
+      await service.autoFoldCapturedImage(
+        image: light(2, exposure: 2.0),
+        imageWidth: 4656,
+        imageHeight: 3520,
+      );
+
+      final rows = await dao.listFoldsForTileOverTime(1000);
+      expect(rows.map((r) => r.integrationSecondsAdded), [15.0, 2.0]);
+      final tile = await dao.getTile(1000);
+      expect(tile!.totalFrames, 2);
+      expect(tile.integrationSeconds, 17.0);
+
+      // Two frames of 17 s in all, although each landed in 100 tiles.
+      final totals = await dao.atlasTotals();
+      expect(totals.frames, 2);
+      expect(totals.seconds, 17.0);
+    });
+
+    test('frames arriving during a fold wait and fold together, one call '
+        'at a time', () async {
+      final gate = Completer<void>();
+      var inFlight = 0;
+      var maxInFlight = 0;
+      final batchSizes = <int>[];
+      final blocking = _FakeSkyAtlasSeam()
+        ..onDispatch = (args) => foldResult(args, tilesPerFrame: 3);
+      final svc = SkyAtlasService(
+        dao: dao,
+        seam: _GatedSeam(blocking, () async {
+          inFlight++;
+          maxInFlight = math.max(maxInFlight, inFlight);
+          await gate.future;
+          inFlight--;
+        }, batchSizes),
+        logger: LoggingService(),
+        atlasRootResolver: () async => '/tmp/test_atlas',
+      );
+
+      final futures = [
+        for (var i = 1; i <= 7; i++)
+          svc.autoFoldCapturedImage(
+            image: light(i),
+            imageWidth: 4656,
+            imageHeight: 3520,
+          ),
+      ];
+      await pumpEventQueue();
+      expect(batchSizes, [1], reason: 'the first frame folds alone');
+      expect(svc.pendingAutoFolds, 6);
+      gate.complete();
+      final results = await Future.wait(futures);
+
+      expect(batchSizes, [1, SkyAtlasService.maxFoldBatch, 2]);
+      expect(maxInFlight, 1);
+      expect(results.every((r) => r != null && r.totalFramesFolded == 1), true);
+      expect((await dao.atlasTotals()).frames, 7);
+    });
+
+    test('the atlas switch, rejected frames and the filter layer', () async {
+      var enabled = false;
+      final svc = SkyAtlasService(
+        dao: dao,
+        seam: seam,
+        logger: LoggingService(),
+        atlasRootResolver: () async => '/tmp/test_atlas',
+        autoFoldEnabled: () async => enabled,
+      );
+      seam.onDispatch = (args) => foldResult(args, tilesPerFrame: 2);
+
+      expect(
+        await svc.autoFoldCapturedImage(
+          image: light(1),
+          imageWidth: 4656,
+          imageHeight: 3520,
+        ),
+        isNull,
+      );
+      expect(seam.dispatched, isEmpty, reason: 'atlas switched off');
+
+      enabled = true;
+      expect(
+        await svc.autoFoldCapturedImage(
+          image: light(2, accepted: false),
+          imageWidth: 4656,
+          imageHeight: 3520,
+        ),
+        isNull,
+      );
+      expect(seam.dispatched, isEmpty, reason: 'rejected frames never fold');
+
+      await svc.autoFoldCapturedImage(
+        image: light(3, filter: 'Ha'),
+        imageWidth: 4656,
+        imageHeight: 3520,
+      );
+      expect(seam.dispatched.single['layer'], 'Ha');
+    });
+  });
+}
+
+/// Wraps a seam so each fold waits on [beforeFold] and records its batch size.
+class _GatedSeam implements SkyAtlasSeam {
+  _GatedSeam(this._inner, this._beforeFold, this._batchSizes);
+
+  final _FakeSkyAtlasSeam _inner;
+  final Future<void> Function() _beforeFold;
+  final List<int> _batchSizes;
+
+  @override
+  Future<Map<String, dynamic>> dispatch(Map<String, dynamic> args) async {
+    if (args['action'] == 'fold') {
+      _batchSizes.add((args['frames'] as List).length);
+      await _beforeFold();
+    }
+    return _inner.dispatch(args);
+  }
+
+  @override
+  Future<Map<String, dynamic>> queryCutout(Map<String, dynamic> args) =>
+      _inner.queryCutout(args);
+
+  @override
+  Future<Map<String, dynamic>> regionInfo(Map<String, dynamic> args) =>
+      _inner.regionInfo(args);
+
+  @override
+  Future<Map<String, dynamic>> growth(Map<String, dynamic> args) =>
+      _inner.growth(args);
+
+  @override
+  Future<Map<String, dynamic>> mergeDelta(Map<String, dynamic> args) =>
+      _inner.mergeDelta(args);
 }

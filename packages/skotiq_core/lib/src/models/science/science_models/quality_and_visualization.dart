@@ -17,6 +17,7 @@ enum ScienceFeature {
   narrowbandRatios,
   frameQualityMaps,
   surface3d,
+  skyAtlas,
 }
 
 enum ScienceLayerType {

@@ -9,8 +9,9 @@ import '../sky_atlas_format.dart';
 
 /// Atlas-wide coverage + growth summary card shown atop the Your Sky gallery.
 ///
-/// Rolls up every materialized tile into the headline numbers (total
-/// integration, tiles occupied, deepest tile) and renders an all-sky Aitoff
+/// Headline numbers: total integration and frames, each frame counted once
+/// ([totals], from the fold timeline; a frame lands in ~100 tiles, so summing
+/// per-tile totals would count it ~100 times), plus tiles occupied. Renders an all-sky Aitoff
 /// coverage map so the observer can see WHERE on the sphere their personal
 /// "deep field" is forming — each tile plotted at its true RA/Dec, brightness
 /// scaled by integration depth, tappable for the per-tile breakdown. Pure
@@ -18,15 +19,17 @@ import '../sky_atlas_format.dart';
 class AtlasCoverageOverlay extends StatelessWidget {
   final List<AtlasTileCoverage> coverage;
 
-  const AtlasCoverageOverlay({super.key, required this.coverage});
+  /// Distinct-frame totals; null when unknown (a companion), in which case the
+  /// card shows the deepest tile instead of a total.
+  final AtlasTotals? totals;
+
+  const AtlasCoverageOverlay({super.key, required this.coverage, this.totals});
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    final totalSeconds =
-        coverage.fold<double>(0, (sum, t) => sum + t.integrationSeconds);
-    final totalFrames = coverage.fold<int>(0, (sum, t) => sum + t.totalFrames);
+    final totals = this.totals;
     final maxSeconds = coverage.isEmpty
         ? 0.0
         : coverage
@@ -62,8 +65,10 @@ class AtlasCoverageOverlay extends StatelessWidget {
               stats: [
                 _Stat(
                   icon: LucideIcons.clock,
-                  label: 'Integration',
-                  value: formatIntegration(totalSeconds),
+                  label: totals == null ? 'Deepest tile' : 'Integration',
+                  value: formatIntegration(
+                    totals?.integrationSeconds ?? maxSeconds,
+                  ),
                   tint: colors.primary,
                 ),
                 _Stat(
@@ -72,12 +77,13 @@ class AtlasCoverageOverlay extends StatelessWidget {
                   value: '${coverage.length}',
                   tint: colors.info,
                 ),
-                _Stat(
-                  icon: LucideIcons.image,
-                  label: 'Frames',
-                  value: '$totalFrames',
-                  tint: colors.success,
-                ),
+                if (totals != null)
+                  _Stat(
+                    icon: LucideIcons.image,
+                    label: 'Frames',
+                    value: '${totals.frames}',
+                    tint: colors.success,
+                  ),
               ],
             ),
             if (coverage.isNotEmpty) ...[

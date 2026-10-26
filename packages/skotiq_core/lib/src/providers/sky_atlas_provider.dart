@@ -41,6 +41,12 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
     seam: ref.watch(skyAtlasSeamProvider),
     logger: ref.watch(loggingServiceProvider),
     atlasRootResolver: defaultAtlasRoot,
+    autoFoldEnabled: () async {
+      final value = await ref
+          .read(settingsDaoProvider)
+          .getSetting(skyAtlasSettingKey);
+      return value?.trim().toLowerCase() != 'false';
+    },
     targetResolver: (targetId) async {
       final target = await targetsDao.getTargetById(targetId);
       if (target == null) return null;
@@ -136,6 +142,18 @@ final skyAtlasCoverageProvider = StreamProvider<List<AtlasTileCoverage>>((ref) {
   return Stream.fromFuture(
     ref.watch(skyAtlasServiceProvider).coverageFromIndex(),
   );
+});
+
+/// Atlas-wide totals counted once per frame, for the Your Sky headline. Host
+/// only (the fold timeline lives in the host database); null on a companion,
+/// whose overlay then shows per-tile depth instead of a total.
+final skyAtlasTotalsProvider = FutureProvider<AtlasTotals?>((ref) async {
+  final backend = ref.watch(backendProvider);
+  if (backend is NetworkBackend) return null;
+  // Recount whenever coverage refreshes (a fold is what changes both).
+  ref.watch(skyAtlasCoverageProvider);
+  final totals = await ref.watch(skyAtlasDaoProvider).atlasTotals();
+  return AtlasTotals(frames: totals.frames, integrationSeconds: totals.seconds);
 });
 
 /// Reactive list of persisted atlas regions for the browser. Remote (companion)

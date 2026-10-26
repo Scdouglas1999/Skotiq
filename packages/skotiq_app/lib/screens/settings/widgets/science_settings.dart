@@ -185,6 +185,22 @@ class ScienceSettingsPage extends ConsumerWidget {
                   isMobile: isMobile,
                 ),
                 SettingRow(
+                  icon: LucideIcons.layers,
+                  title: 'Your Sky atlas',
+                  subtitle:
+                      'Add each accepted, solved light to your sky atlas. '
+                      'Uses about 40 MB of disk per sky tile; First Light '
+                      'needs it on.',
+                  trailing: SettingsSwitch(
+                    value: science.skyAtlasEnabled,
+                    onChanged: (value) => scienceNotifier.setFeatureEnabled(
+                      ScienceFeature.skyAtlas,
+                      value,
+                    ),
+                  ),
+                  isMobile: isMobile,
+                ),
+                SettingRow(
                   icon: LucideIcons.rocket,
                   title: 'Moving object mode',
                   subtitle: 'Detect and track moving candidates',
