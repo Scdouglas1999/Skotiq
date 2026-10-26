@@ -1188,9 +1188,18 @@ fn draft(
             json!({"neutralizeBackground": true, "whiteReference": "averageStar"})
         };
         steps.push(RecipeStep::new("color_calibrate", 1).with_params(white_reference));
-        steps.push(RecipeStep::new("chroma_denoise", 1));
+        steps.push(RecipeStep::new("chroma_denoise", 1).with_params(json!({"amount": 0.35})));
         steps.push(RecipeStep::new("scnr", 1));
-        steps.push(RecipeStep::new("denoise", 1).with_params(json!({"chromaStrength": 0.0})));
+        // A first draft should retain faint star wings. Full-strength shrinkage
+        // over four scales made rings conspicuous after the automatic stretch.
+        steps.push(RecipeStep::new("denoise", 1).with_params(json!({
+            "chromaStrength": 0.0, "scaleCount": 2,
+            "thresholdSigma": 2.0, "strength": 0.35,
+        })));
+        notes.push(json!({
+            "opId": "denoise", "outcome": "included",
+            "reason": "the automatic edit uses gentle reduction on the two finest noise scales to preserve star wings and faint detail; stronger smoothing remains available in the editor",
+        }));
         notes.push(json!({
             "opId": "scnr",
             "outcome": "included",
