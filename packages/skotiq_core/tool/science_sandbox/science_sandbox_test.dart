@@ -729,6 +729,16 @@ Future<int> _ensureSession(
       )
       .getSingleOrNull();
   final notifier = container.read(sessionStateProvider.notifier);
+  // One session at a time, as on the rig: close the previous night first.
+  final current = container.read(sessionStateProvider);
+  if (current.isActive && current.dbSessionId != null) {
+    try {
+      await notifier.endSession();
+    } catch (_) {
+      // A mirrored (resumed) session has no SessionService state to close.
+      notifier.mirrorHostSession(const SessionState());
+    }
+  }
   if (existing != null) {
     final id = existing.read<int>('id');
     notifier.mirrorHostSession(

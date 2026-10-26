@@ -21,7 +21,15 @@
 #                        about 2 min per frame); First Light then has no template
 set -euo pipefail
 
-HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# Run from a private copy: bash reads scripts as it goes, so editing this file
+# under a long run would otherwise break the run's last lines.
+if [[ -z "${SANDBOX_SCRIPT_COPY:-}" ]]; then
+  copy="$(mktemp "${TMPDIR:-/tmp}/run-science.XXXXXX.sh")"
+  cp "$(readlink -f "${BASH_SOURCE[0]}")" "$copy"
+  SANDBOX_SCRIPT_COPY="$(readlink -f "${BASH_SOURCE[0]}")" exec bash "$copy" "$@"
+fi
+
+HERE="$(cd "$(dirname "$SANDBOX_SCRIPT_COPY")" && pwd)"
 PKG="$(cd "$HERE/../.." && pwd)"
 REPO="$(cd "$PKG/../.." && pwd)"
 SCI="${SKOTIQ_SCIENCE_ROOT:-$HOME/.cache/ns-science-1025}"
