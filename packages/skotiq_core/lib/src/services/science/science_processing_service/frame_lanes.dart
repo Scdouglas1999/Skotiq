@@ -120,7 +120,7 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
             PhotometricCatalogSource.auto,
             frameContext,
           );
-          if (calibration != null) {
+          if (calibration != null && calibration.isCalibrated) {
             final calibrationRow =
                 db.FramePhotometricCalibrationCompanion.insert(
                   capturedImageId: drift.Value(capturedImageId),
@@ -133,6 +133,10 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
                   calibrationRms: drift.Value(calibration.calibrationRms),
                   catalogSource: drift.Value(calibration.catalogSource.name),
                   solverId: drift.Value(calibration.solverId),
+                  filter: drift.Value(calibration.filter),
+                  photometricBand: drift.Value(calibration.photometricBand),
+                  bandIsStandard: drift.Value(calibration.bandIsStandard),
+                  zeroPointError: drift.Value(calibration.zeroPointError),
                   timestamp: drift.Value(frameContext.capturedAt),
                 );
             if (capturedImageId != null) {
@@ -155,11 +159,17 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
                   '${calibration.matchedStarCount} stars',
             );
           } else {
+            if (capturedImageId != null) {
+              await _scienceDao.deleteFrameCalibrationForImage(capturedImageId);
+            }
+            final reason = calibration?.rejectionReason;
             _status.endStage(
               ScienceStage.calibration,
               ScienceStageOutcome.noData,
               stopwatch: sw,
-              note: 'Too few catalog matches for a reliable fit',
+              note: reason == null
+                  ? 'Too few catalog matches for a reliable fit'
+                  : 'No zero point: $reason',
             );
           }
         } catch (error) {
@@ -182,13 +192,27 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
 
       if (globalSettings.transparencyEnabled &&
           sessionConfig.transparencyEnabled &&
+          sessionId != null &&
+          writebackCalibration == null) {
+        // A transparency sample describes this frame's own zero point; a
+        // frame without one gets none rather than an earlier frame's value.
+        if (capturedImageId != null) {
+          await _scienceDao.deleteTransparencySampleForImage(capturedImageId);
+        }
+        _status.skipStage(
+          ScienceStage.transparency,
+          note: 'No zero point for this frame',
+        );
+      } else if (globalSettings.transparencyEnabled &&
+          sessionConfig.transparencyEnabled &&
           sessionId != null) {
         final transparencySw = _status.beginStage(ScienceStage.transparency);
         try {
           final recentRows = await _scienceDao.getRecentCalibrations(
             sessionId,
-            limit: 20,
+            limit: 400,
             atOrBefore: frameContext.capturedAt,
+            filter: writebackCalibration!.filter,
           );
           final recent = <FramePhotometricCalibration>[];
           for (final row in recentRows) {
@@ -227,13 +251,17 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
                 calibrationRms: row.calibrationRms,
                 solverId: row.solverId,
                 catalogSource: _catalogFromName(row.catalogSource),
+                filter: row.filter,
+                photometricBand: row.photometricBand,
+                bandIsStandard: row.bandIsStandard,
+                zeroPointError: row.zeroPointError,
               ),
             );
           }
 
           final sample = await _scienceBackend.estimateTransparency(
             recent,
-            const TransparencyOptions(rollingWindowSize: 12),
+            const TransparencyOptions(),
           );
 
           if (sample != null) {
@@ -244,6 +272,8 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
               extinctionCoefficient: drift.Value(sample.extinctionCoefficient),
               qualityBucket: drift.Value(sample.qualityBucket),
               confidence: drift.Value(sample.confidence),
+              filter: drift.Value(sample.filter),
+              extinctionMeasured: drift.Value(sample.extinctionFromAirmassFit),
               timestamp: drift.Value(frameContext.capturedAt),
             );
             if (capturedImageId != null) {
@@ -260,15 +290,24 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
               ScienceStageOutcome.ok,
               stopwatch: transparencySw,
               note:
-                  '${sample.transparencyPercent.toStringAsFixed(1)}% (${sample.qualityBucket})',
+                  '${sample.transparencyPercent.toStringAsFixed(1)}% '
+                  '(${sample.qualityBucket})'
+                  '${sample.note == null ? '' : '. ${sample.note}'}',
             );
           } else {
+            if (capturedImageId != null) {
+              await _scienceDao.deleteTransparencySampleForImage(
+                capturedImageId,
+              );
+            }
             _status.endStage(
               ScienceStage.transparency,
               ScienceStageOutcome.noData,
               stopwatch: transparencySw,
               note:
-                  'Need more calibrated frames before a transparency sample stabilises',
+                  'Need ${const TransparencyOptions().minimumSampleCount} '
+                  'calibrated frames in this filter before a transparency '
+                  'sample',
             );
           }
         } catch (error) {

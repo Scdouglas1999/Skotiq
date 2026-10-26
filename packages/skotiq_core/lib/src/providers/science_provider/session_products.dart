@@ -337,6 +337,8 @@ final sessionTransparencyTrendProvider =
               timestamp: row.timestamp,
               transparencyPercent: row.transparencyPercent,
               extinctionCoefficient: row.extinctionCoefficient,
+              extinctionMeasured: row.extinctionMeasured,
+              filter: row.filter,
             ),
           )
           .toList(growable: false);
@@ -597,6 +599,8 @@ final sessionlessTransparencyTrendProvider =
               timestamp: row.timestamp,
               transparencyPercent: row.transparencyPercent,
               extinctionCoefficient: row.extinctionCoefficient,
+              extinctionMeasured: row.extinctionMeasured,
+              filter: row.filter,
             ),
           )
           .toList(growable: false);

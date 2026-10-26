@@ -317,7 +317,8 @@ class ScienceProcessingService {
     String buildTag = _skotiqBuildTag,
   }) {
     final updates = <FitsKeywordWrite>[];
-    if (calibration != null) {
+    // A refused fit (chance matches, large scatter) writes nothing.
+    if (calibration != null && calibration.isCalibrated) {
       if (calibration.zeroPoint != null && calibration.zeroPoint!.isFinite) {
         updates.add(
           FitsKeywordWrite.floating(
@@ -327,12 +328,34 @@ class ScienceProcessingService {
           ),
         );
       }
-      if (calibration.calibrationRms.isFinite) {
+      final zpError = calibration.zeroPointError;
+      if (zpError != null && zpError.isFinite) {
         updates.add(
           FitsKeywordWrite.floating(
             'MAGZPERR',
+            zpError,
+            comment: 'MAGZP standard error [mag]',
+          ),
+        );
+      }
+      if (calibration.calibrationRms.isFinite) {
+        updates.add(
+          FitsKeywordWrite.floating(
+            'MAGZPRMS',
             calibration.calibrationRms,
-            comment: 'MAGZP 1-sigma uncertainty [mag]',
+            comment: 'Star-to-star scatter about MAGZP [mag]',
+          ),
+        );
+      }
+      final band = calibration.photometricBand;
+      if (band != null) {
+        updates.add(
+          FitsKeywordWrite.string(
+            'MAGZPBND',
+            band,
+            comment: calibration.bandIsStandard
+                ? 'Catalog band of MAGZP'
+                : 'MAGZP is a V-equivalent, not a standard band',
           ),
         );
       }

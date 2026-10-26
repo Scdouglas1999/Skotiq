@@ -4,13 +4,13 @@ class _ProjectedCatalogStar {
   final String id;
   final double x;
   final double y;
-  final double mag;
+  final PhotometricCatalogStar star;
 
   const _ProjectedCatalogStar({
     required this.id,
     required this.x,
     required this.y,
-    required this.mag,
+    required this.star,
   });
 }
 
@@ -18,25 +18,39 @@ class _CatalogMatch {
   final StarMeasurement detected;
   final double catalogX;
   final double catalogY;
-  final double catalogMag;
+  final PhotometricCatalogStar catalogStar;
 
   const _CatalogMatch({
     required this.detected,
     required this.catalogX,
     required this.catalogY,
-    required this.catalogMag,
+    required this.catalogStar,
   });
+
+  /// Johnson V, the magnitude astrometric matching ranks by.
+  double get catalogMag => catalogStar.magV;
+
+  double get separationPx {
+    final dx = detected.x - catalogX;
+    final dy = detected.y - catalogY;
+    return math.sqrt(dx * dx + dy * dy);
+  }
 }
 
-class _LinearFitResult {
-  final double slope;
-  final double intercept;
-  final double rms;
+/// Stars detected on a frame plus the detector's frame-level measurements.
+class _DetectedField {
+  final List<StarMeasurement> stars;
 
-  const _LinearFitResult({
-    required this.slope,
-    required this.intercept,
-    required this.rms,
+  /// Per-pixel background noise in ADU, measured by the detector.
+  final double noiseAdu;
+
+  /// Median star FWHM in pixels.
+  final double medianFwhm;
+
+  const _DetectedField({
+    required this.stars,
+    required this.noiseAdu,
+    required this.medianFwhm,
   });
 }
 

@@ -125,6 +125,23 @@ class FramePhotometricCalibration {
   final String solverId;
   final PhotometricCatalogSource catalogSource;
 
+  /// The frame's filter, as recorded.
+  final String? filter;
+
+  /// Catalog band code the zero point refers to ('B', 'V', 'r').
+  final String? photometricBand;
+
+  /// False when the filter has no catalog band of its own and the zero point
+  /// is only a V-equivalent.
+  final bool bandIsStandard;
+
+  /// Standard error of [zeroPoint] in magnitudes; [calibrationRms] is the
+  /// per-star scatter about it.
+  final double? zeroPointError;
+
+  /// Why the fit was refused, when [isCalibrated] is false.
+  final String? rejectionReason;
+
   const FramePhotometricCalibration({
     required this.capturedImageId,
     required this.sessionId,
@@ -139,5 +156,10 @@ class FramePhotometricCalibration {
     this.calibrationRms = 0.0,
     required this.solverId,
     this.catalogSource = PhotometricCatalogSource.auto,
+    this.filter,
+    this.photometricBand,
+    this.bandIsStandard = false,
+    this.zeroPointError,
+    this.rejectionReason,
   });
 }

@@ -21,10 +21,16 @@ class TransparencyTrendPoint {
   final double transparencyPercent;
   final double extinctionCoefficient;
 
+  /// Whether [extinctionCoefficient] is a measured extinction.
+  final bool extinctionMeasured;
+  final String? filter;
+
   const TransparencyTrendPoint({
     required this.timestamp,
     required this.transparencyPercent,
     required this.extinctionCoefficient,
+    this.extinctionMeasured = false,
+    this.filter,
   });
 }
 

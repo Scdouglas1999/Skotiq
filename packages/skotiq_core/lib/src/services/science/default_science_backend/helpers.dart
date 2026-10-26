@@ -60,7 +60,7 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
             id: '${star.raDegrees.toStringAsFixed(6)}_${star.decDegrees.toStringAsFixed(6)}',
             x: px.pixel.x,
             y: px.pixel.y,
-            mag: star.magV,
+            star: star,
           ),
         );
       }
@@ -94,7 +94,7 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
             detected: sorted[i],
             catalogX: star.x,
             catalogY: star.y,
-            catalogMag: star.mag,
+            catalogStar: star.star,
           ),
         );
       }
@@ -183,30 +183,6 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
     return nearest == first;
   }
 
-  List<double> _sigmaClip(
-    List<double> values, {
-    required double sigma,
-    required int iterations,
-  }) {
-    var working = values.where((v) => v.isFinite).toList(growable: true);
-    if (working.length < 3) return working;
-    for (var i = 0; i < iterations; i++) {
-      final med = _median(working);
-      final mad = _mad(working, med);
-      if (mad <= 0) break;
-      final limit = sigma * 1.4826 * mad;
-      final filtered = working
-          .where((v) => (v - med).abs() <= limit)
-          .toList(growable: true);
-      if (filtered.length == working.length || filtered.length < 3) {
-        working = filtered;
-        break;
-      }
-      working = filtered;
-    }
-    return working;
-  }
-
   double _robustMedian(List<double> values) {
     if (values.isEmpty) return 0.0;
     var working = values.where((v) => v.isFinite).toList(growable: true);
@@ -257,65 +233,6 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
 
   double _robustStdDev(List<double> values) =>
       1.4826 * _mad(values, _median(values));
-
-  _LinearFitResult? _weightedLinearFit({
-    required List<double> x,
-    required List<double> y,
-    required List<double> weightBy,
-  }) {
-    if (x.length != y.length || x.length != weightBy.length || x.length < 2) {
-      return null;
-    }
-
-    var sumW = 0.0;
-    var sumX = 0.0;
-    var sumY = 0.0;
-    var sumXX = 0.0;
-    var sumXY = 0.0;
-
-    for (var i = 0; i < x.length; i++) {
-      final xi = x[i];
-      final yi = y[i];
-      final wi = weightBy[i].clamp(1e-6, 1e6).toDouble();
-      if (!xi.isFinite || !yi.isFinite || !wi.isFinite) {
-        continue;
-      }
-      sumW += wi;
-      sumX += wi * xi;
-      sumY += wi * yi;
-      sumXX += wi * xi * xi;
-      sumXY += wi * xi * yi;
-    }
-
-    if (sumW <= 0.0) {
-      return null;
-    }
-
-    final denominator = sumW * sumXX - sumX * sumX;
-    if (denominator.abs() < 1e-12) {
-      return null;
-    }
-
-    final slope = (sumW * sumXY - sumX * sumY) / denominator;
-    final intercept = (sumY - slope * sumX) / sumW;
-
-    var weightedResidual = 0.0;
-    var residualWeight = 0.0;
-    for (var i = 0; i < x.length; i++) {
-      if (!x[i].isFinite || !y[i].isFinite) {
-        continue;
-      }
-      final wi = weightBy[i].clamp(1e-6, 1e6).toDouble();
-      final residual = y[i] - (intercept + slope * x[i]);
-      weightedResidual += wi * residual * residual;
-      residualWeight += wi;
-    }
-    final rms = residualWeight > 0
-        ? math.sqrt(weightedResidual / residualWeight)
-        : double.infinity;
-
-    return _LinearFitResult(slope: slope, intercept: intercept, rms: rms);
-  }
 
   double _percentile(List<double> values, double p) {
     final sorted = values.where((v) => v.isFinite).toList(growable: false)
