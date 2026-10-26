@@ -24,6 +24,11 @@
       "file": "trailed_R.fits",
       "source": "NGC7380/Reject/NGC0891_R_0001.fits (120 s with the mount moving: every source is a trail)",
       "independent": { "round_stars": 0 }
+    },
+    {
+      "file": "trailed_round_G.fits",
+      "source": "2026-10-NGC891/lights/NGC0891_G_0089.fits (120 s, 2026-10-24 04:41 UTC, 512 px crop at 3000,2200; the mount stopped tracking: every star is a 25 px streak, yet the grader read eccentricity 0.6 over 1,700 detections and accepted it)",
+      "independent": { "acf_trail_length_px": 24.5, "acf_trail_width_px": 2.1, "note": "full-frame values; the crop measures 23.5 by 1.5 px" }
     }
   ]
 }

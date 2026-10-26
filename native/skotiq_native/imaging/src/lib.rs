@@ -53,6 +53,7 @@ mod star_detect; // Star detection: background/noise maps, matched filter, deble
 pub mod star_reduction; // NEW: Star-size reduction (morphological + screen recombine)
 mod stats;
 mod stretch;
+mod trail; // Star trailing from the autocorrelation of the bright pixels
 pub mod wcs_sip; // NEW: SIP-aware (CD + forward/inverse SIP) gnomonic projection
 mod xisf;
 
@@ -69,6 +70,7 @@ pub use difference_image::*; // NEW: Export difference-imaging (First Light) typ
 pub use drizzle::*; // NEW: Export drizzle types
 pub use fits::*;
 pub use frame_shape::*;
+pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
 pub use frame_weighting::*; // NEW: Export frame-weighting types
 pub use integration::*; // NEW: Export batch-integration types
 pub use master_accumulation::*; // NEW: Export accumulating-master types

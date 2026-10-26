@@ -47,6 +47,7 @@ fn grade_night(rows: &[Row]) -> Vec<(u32, Option<String>)> {
                 hfr: row.hfr,
                 eccentricity: row.ecc,
                 star_count: row.stars,
+                trail: None,
             };
             let grade =
                 grade_frame_with_baselines(&check, &metrics, filter_hfr.or(global_hfr), stars);

@@ -181,6 +181,9 @@ pub struct FrameMetrics {
     pub eccentricity: Option<f64>,
     /// Number of detected stars. `None` when detection didn't run.
     pub star_count: Option<u32>,
+    /// Star trailing measured from the image's autocorrelation, which sees
+    /// streaks the star detector discards. `None` when not measured.
+    pub trail: Option<skotiq_imaging::FrameTrail>,
 }
 
 /// Grade a frame against the configured thresholds.
@@ -236,6 +239,27 @@ pub fn grade_frame_with_baselines(
             eccentricity: metrics.eccentricity,
             star_count: Some(0),
         };
+    }
+
+    // Trailing, when shape grading is on. A trailed frame defeats the star
+    // measurements below: the detector drops streaks longer than about 3:1,
+    // so the eccentricity and HFR are taken over compact fragments and faint
+    // stars and read like a good frame's.
+    if let (Some(_), Some(trail)) = (check.eccentricity_threshold, metrics.trail) {
+        if trail.is_trailed() {
+            return FrameGrade::Reject {
+                reason: format!(
+                    "stars trailed: {:.0} px long and {:.0} px wide ({:.1}:1, limit {:.0}:1)",
+                    trail.length_px,
+                    trail.width_px,
+                    trail.axis_ratio(),
+                    skotiq_imaging::TRAIL_MIN_AXIS_RATIO
+                ),
+                hfr: metrics.hfr,
+                eccentricity: metrics.eccentricity,
+                star_count: metrics.star_count,
+            };
+        }
     }
 
     // Absolute HFR. Only fires when HFR is actually measured — a None
@@ -390,6 +414,7 @@ mod tests {
             hfr: Some(5.0),
             eccentricity: Some(0.9),
             star_count: Some(2),
+            trail: None,
         };
         let grade = grade_frame(&check, &metrics, None);
         assert_eq!(grade, FrameGrade::Pass);
@@ -485,6 +510,7 @@ mod tests {
             hfr: Some(2.4),
             eccentricity: Some(0.85),
             star_count: Some(150),
+            trail: None,
         };
         match grade_frame(&check, &metrics, None) {
             FrameGrade::Reject {
@@ -510,6 +536,7 @@ mod tests {
             hfr: Some(2.1),
             eccentricity: Some(0.18),
             star_count: Some(220),
+            trail: None,
         };
         assert_eq!(grade_frame(&check, &metrics, None), FrameGrade::Pass);
         // Exact threshold passes (strict > comparison).
@@ -538,6 +565,7 @@ mod tests {
             hfr: Some(2.5),
             eccentricity: None,
             star_count: Some(120),
+            trail: None,
         };
         assert_eq!(
             grade_frame(&check, &metrics, None),
@@ -560,6 +588,7 @@ mod tests {
             hfr: None,
             eccentricity: None,
             star_count: Some(0),
+            trail: None,
         };
         match grade_frame(&check, &metrics, None) {
             FrameGrade::Reject {
@@ -589,6 +618,7 @@ mod tests {
             hfr: None,
             eccentricity: None,
             star_count: None,
+            trail: None,
         };
         assert_eq!(grade_frame(&check, &metrics, None), FrameGrade::Pass);
     }
@@ -735,6 +765,7 @@ mod tests {
             hfr: skotiq_imaging::calculate_median_hfr(image),
             eccentricity: skotiq_imaging::frame_eccentricity(&stars),
             star_count: Some(stars.len() as u32),
+            trail: None,
         }
     }
 
@@ -814,6 +845,7 @@ mod tests {
             hfr: Some(2.5),
             eccentricity: Some(0.5),
             star_count: Some(count),
+            trail: None,
         };
         // A trailed sub of the NGC 891 run against its filter's ~2,100.
         match grade_frame_with_baselines(&check, &frame(351), Some(2100.0), Some(2100.0)) {
@@ -870,6 +902,7 @@ mod tests {
             hfr: Some(3.0),
             eccentricity: Some(0.5),
             star_count: Some(20),
+            trail: None,
         };
         // Baseline 2.0 + 50% = a 3.0 px limit.
         assert!(grade_frame(&check, &at_limits, Some(2.0)).is_pass());
@@ -890,5 +923,60 @@ mod tests {
             ..at_limits
         })
         .is_reject());
+    }
+
+    /// The NGC 891 subs a stalled mount trailed 20-25 px measured round to the
+    /// star-based checks (eccentricity 0.54-0.72, thousands of "stars") and
+    /// passed; the trail measurement rejects them while shape grading is on.
+    #[test]
+    fn a_trailed_frame_that_reads_round_is_rejected() {
+        let check = ImageQualityCheck {
+            eccentricity_threshold: Some(DEFAULT_ECCENTRICITY_THRESHOLD),
+            ..Default::default()
+        };
+        let trailed = FrameMetrics {
+            hfr: Some(2.4),
+            eccentricity: Some(0.58),
+            star_count: Some(1850),
+            trail: Some(skotiq_imaging::FrameTrail {
+                length_px: 24.5,
+                width_px: 2.1,
+                angle_deg: 21.5,
+            }),
+        };
+        let grade = grade_frame(&check, &trailed, None);
+        let reason = grade.reject_reason().expect("trailed frame rejected");
+        assert!(reason.starts_with("stars trailed"), "{reason}");
+
+        let round = FrameMetrics {
+            trail: Some(skotiq_imaging::FrameTrail {
+                length_px: 3.4,
+                width_px: 2.6,
+                angle_deg: 120.0,
+            }),
+            ..trailed
+        };
+        assert!(grade_frame(&check, &round, None).is_pass());
+    }
+
+    /// The trail check belongs to shape grading: with no eccentricity limit
+    /// set, a trail alone does not reject.
+    #[test]
+    fn the_trail_check_is_off_without_shape_grading() {
+        let check = ImageQualityCheck {
+            hfr_threshold: Some(3.5),
+            ..Default::default()
+        };
+        let trailed = FrameMetrics {
+            hfr: Some(2.4),
+            eccentricity: Some(0.58),
+            star_count: Some(1850),
+            trail: Some(skotiq_imaging::FrameTrail {
+                length_px: 24.5,
+                width_px: 2.1,
+                angle_deg: 21.5,
+            }),
+        };
+        assert!(grade_frame(&check, &trailed, None).is_pass());
     }
 }
