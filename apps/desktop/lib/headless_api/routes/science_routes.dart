@@ -1,7 +1,7 @@
 /// Declarative route table for the science / photometry surface.
 ///
 /// Counterpart to `handlers/science_handlers.dart`. Covers session
-/// bundles, photometric calibration, line-ratio products, AAVSO export,
+/// bundles, reprocessing a recorded session, photometric calibration, line-ratio products, AAVSO export,
 /// and the PDF observation report. The sessionless-recent endpoint
 /// surfaces measurements that landed before a session was open (rare
 /// but real).
@@ -16,6 +16,16 @@ List<HeadlessRoute> buildScienceRoutes(ScienceHandlers h) => <HeadlessRoute>[
     HttpMethod.get,
     '/api/science/session/<sessionId>/bundle',
     h.handleGetSessionBundle,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/science/session/<sessionId>/reprocess',
+    h.handleStartSessionReprocess,
+  ),
+  HeadlessRoute(
+    HttpMethod.get,
+    '/api/science/session/<sessionId>/reprocess',
+    h.handleGetSessionReprocess,
   ),
   HeadlessRoute(
     HttpMethod.get,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,24 @@ import 'handler_test_helpers.dart';
 
 class _MockScienceCameraAutoConfig extends Mock
     implements ScienceCameraAutoConfig {}
+
+class _FakePipeline extends ScienceProcessingService {
+  _FakePipeline(super.ref);
+
+  final processed = <int?>[];
+
+  @override
+  Future<ScienceFrameOutcome> processFrame({
+    required String imagePath,
+    String? deviceId,
+    int? capturedImageId,
+    int? sessionId,
+    bool solveIfUnsolved = true,
+  }) async {
+    processed.add(capturedImageId);
+    return const ScienceFrameOutcome.processed();
+  }
+}
 
 void main() {
   group('ScienceHandlers', () {
@@ -253,5 +272,120 @@ void main() {
         ).called(1);
       },
     );
+
+    group('session reprocess', () {
+      late SkotiqDatabase database;
+      late _FakePipeline pipeline;
+
+      setUp(() async {
+        database = SkotiqDatabase.forTesting(NativeDatabase.memory());
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(database),
+            scienceProcessingServiceProvider.overrideWith(
+              (ref) => pipeline = _FakePipeline(ref),
+            ),
+            scienceReprocessServiceProvider.overrideWith(
+              (ref) => ScienceReprocessService(
+                images: () => ref.read(imagesDaoProvider),
+                science: () => ref.read(scienceDaoProvider),
+                pipeline: () => ref.read(scienceProcessingServiceProvider),
+                logger: () => ref.read(loggingServiceProvider),
+                fileExists: (path) async => !path.contains('missing'),
+              ),
+            ),
+          ],
+        );
+        handlers = ScienceHandlers(container);
+        await database
+            .into(database.imagingSessions)
+            .insert(
+              ImagingSessionsCompanion.insert(
+                id: const Value(92),
+                startTime: DateTime.utc(2026, 10, 25, 1),
+              ),
+            );
+        final images = ImagesDao(database);
+        for (final (i, name) in ['L_1.fits', 'L_missing.fits'].indexed) {
+          await images.insertSequenceFrame(
+            filePath: '/lights/$name',
+            fileName: name,
+            fileFormat: 'fits',
+            exposureDuration: 120,
+            capturedAt: DateTime.utc(2026, 10, 25, 2, i),
+            isAccepted: true,
+            producingNodeId: 'n',
+            sessionId: 92,
+          );
+        }
+      });
+
+      tearDown(() => database.close());
+
+      Request post(String body) => Request(
+        'POST',
+        Uri.parse('http://localhost/api/science/session/92/reprocess'),
+        body: body,
+      );
+      Request get() => Request(
+        'GET',
+        Uri.parse('http://localhost/api/science/session/92/reprocess'),
+      );
+
+      test('progress is 404 before any reprocess ran', () async {
+        final response = await translateHandlerErrors(
+          handlers.handleGetSessionReprocess(get(), '92'),
+        );
+        expect(response.statusCode, HttpStatus.notFound);
+      });
+
+      test('starts in the background and reports progress', () async {
+        final response = await handlers.handleStartSessionReprocess(
+          post(''),
+          '92',
+        );
+        expect(response.statusCode, HttpStatus.accepted);
+        final started = jsonDecode(await response.readAsString()) as Map;
+        expect(started['started'], isTrue);
+        expect(started['total'], 2);
+        expect(started['jobId'], isA<String>());
+
+        await container.read(scienceReprocessServiceProvider).jobFuture(92);
+        final progress = await handlers.handleGetSessionReprocess(get(), '92');
+        expect(progress.statusCode, HttpStatus.ok);
+        final body = jsonDecode(await progress.readAsString()) as Map;
+        expect(body['state'], 'completed');
+        expect(body['done'], 2);
+        expect(body['processed'], 1);
+        expect(body['failed'], 1);
+        expect(body['lastError'], contains('L_missing.fits'));
+        expect(pipeline.processed, hasLength(1));
+
+        // Run again: the processed frame is not redone unless forced.
+        final again = await handlers.handleStartSessionReprocess(
+          post(jsonEncode({'force': false})),
+          '92',
+        );
+        final againBody = jsonDecode(await again.readAsString()) as Map;
+        expect(againBody['force'], isFalse);
+        expect(againBody['lightOnly'], isTrue);
+        await container.read(scienceReprocessServiceProvider).jobFuture(92);
+      });
+
+      test('rejects a malformed session id and option types', () async {
+        final badId = await translateHandlerErrors(
+          handlers.handleStartSessionReprocess(post(''), 'x'),
+        );
+        expect(badId.statusCode, HttpStatus.badRequest);
+        final badForce = await translateHandlerErrors(
+          handlers.handleStartSessionReprocess(
+            post(jsonEncode({'force': 'sometimes'})),
+            '92',
+          ),
+        );
+        expect(badForce.statusCode, HttpStatus.badRequest);
+      });
+    });
   });
 }

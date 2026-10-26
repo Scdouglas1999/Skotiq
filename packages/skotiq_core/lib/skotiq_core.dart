@@ -632,6 +632,7 @@ export 'src/services/science/nearest_neighbour_matching.dart';
 export 'src/services/science/science_backend.dart';
 export 'src/services/science/default_science_backend.dart';
 export 'src/services/science/science_processing_service.dart';
+export 'src/services/science/science_reprocess_service.dart';
 export 'src/services/science/science_status.dart';
 export 'src/services/science/science_insights_engine.dart';
 // Night Narrator — stateful/temporal sibling of the insights engine. The app

@@ -393,6 +393,8 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/files/validate',
     // Science
     'GET /api/science/session/<sessionId>/bundle',
+    'POST /api/science/session/<sessionId>/reprocess',
+    'GET /api/science/session/<sessionId>/reprocess',
     'GET /api/science/sessionless/recent',
     'GET /api/science/settings',
     'POST /api/science/settings',

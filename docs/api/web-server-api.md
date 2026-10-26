@@ -454,6 +454,58 @@ List recent images.
 }
 ```
 
+## Science
+
+### POST /api/science/session/{sessionId}/reprocess
+
+Runs a recorded session's frames through the per-frame science pipeline (frame
+quality, plate solve, photometric calibration, transparency, PSF map,
+astrometric residuals, photometry) in capture order, one frame at a time, in
+the background. Frames that already have science results are left alone
+unless `force` is true; a frame processed again replaces its earlier results.
+A frame whose file is missing is counted as failed with the reason. Moving-object
+detection follows the session's own science settings and is never turned on
+by this call. FITS header writeback follows the science settings, so the
+frames' headers gain MAGZP/TRANSPAR keywords when it is on.
+
+**Body (optional):**
+```json
+{ "force": false, "lightOnly": true }
+```
+
+**Response:** `202` with the job's progress (below) and `"started": true`. If a
+job is already running for the session it is returned with `200` and
+`"started": false`.
+
+### GET /api/science/session/{sessionId}/reprocess
+
+Progress of the session's latest reprocess, or `404` when none has run since
+the server started.
+
+```json
+{
+  "jobId": "92-1793000000000",
+  "sessionId": 92,
+  "state": "running",
+  "total": 398,
+  "done": 120,
+  "processed": 117,
+  "skipped": 0,
+  "failed": 3,
+  "alreadyProcessed": 0,
+  "currentFile": "D:/Astro/NGC891/L_0121.fits",
+  "lastError": "File not found: D:/Astro/NGC891/L_0040.fits",
+  "failures": [
+    { "capturedImageId": 9120, "filePath": "D:/Astro/NGC891/L_0040.fits", "reason": "File not found: D:/Astro/NGC891/L_0040.fits" }
+  ],
+  "startedAt": "2026-10-26T13:00:00.000Z",
+  "finishedAt": null
+}
+```
+
+`state` is `running`, `completed`, or `failed` (the walk itself stopped).
+`failures` keeps the most recent 50.
+
 ## Darkroom Delivery (peer pull)
 
 A rig publishes each dawn job's artifacts for a paired desktop to collect. The

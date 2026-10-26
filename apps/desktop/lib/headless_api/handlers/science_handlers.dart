@@ -67,6 +67,53 @@ class ScienceHandlers {
     });
   }
 
+  /// Run the session's recorded frames through the per-frame science
+  /// pipeline in the background. Body (optional): `force` reprocesses frames
+  /// that already have results, `lightOnly` (default true) walks light frames
+  /// only. Answers at once with the job's progress; a job already running for
+  /// the session is returned rather than started again.
+  Future<Response> handleStartSessionReprocess(
+    Request request,
+    String sessionId,
+  ) async {
+    _logInfo('[API] POST /api/science/session/$sessionId/reprocess');
+    final sid = _parsePathId(sessionId, 'sessionId');
+    final payload = await readJsonObjectOrEmpty(request);
+    final force = optionalBool(payload, 'force') ?? false;
+    final lightOnly = optionalBool(payload, 'lightOnly') ?? true;
+    final service = container.read(scienceReprocessServiceProvider);
+    final wasRunning = service.progress(sid)?.isRunning ?? false;
+    final progress = await service.start(
+      sid,
+      force: force,
+      lightOnly: lightOnly,
+    );
+    return jsonResponse({
+      'started': !wasRunning,
+      ...progress.toJson(),
+    }, statusCode: wasRunning ? HttpStatus.ok : HttpStatus.accepted);
+  }
+
+  /// Progress of the session's latest science reprocess.
+  Future<Response> handleGetSessionReprocess(
+    Request request,
+    String sessionId,
+  ) async {
+    _logInfo('[API] GET /api/science/session/$sessionId/reprocess');
+    final sid = _parsePathId(sessionId, 'sessionId');
+    final progress = container
+        .read(scienceReprocessServiceProvider)
+        .progress(sid);
+    if (progress == null) {
+      return jsonError(
+        code: 'reprocess_not_found',
+        message: 'No science reprocess has run for session $sid',
+        statusCode: HttpStatus.notFound,
+      );
+    }
+    return jsonOk(progress.toJson());
+  }
+
   Future<Response> handleGetScienceSettings(Request request) async {
     _logInfo('[API] GET /api/science/settings');
     final settings = await container.read(settingsDaoProvider).getAllSettings();
