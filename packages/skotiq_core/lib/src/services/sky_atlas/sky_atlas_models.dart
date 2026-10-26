@@ -8,7 +8,6 @@
 // / info results. Field names mirror the wire contract (camelCase) so the maps
 // round-trip straight through the FFI envelope.
 
-
 import '../wcs/gnomonic_projection.dart';
 
 /// Interpolator selection for atlas reprojection. The wire token is the

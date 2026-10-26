@@ -134,7 +134,6 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
         cd2_2: wcs.cd2_2,
       );
 
-
   /// Run the gated optional finishing passes on the master in place, each
   /// fail-soft (log + continue): background extraction, colour calibration
   /// (delegated to the injected [MasterColorCalibrator] when present and the

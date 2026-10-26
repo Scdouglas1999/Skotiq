@@ -79,7 +79,8 @@ double skyPositionAngleDegrees({
   final d1 = fromDecDegrees * rad;
   final d2 = toDecDegrees * rad;
   final y = math.sin(dRa * rad) * math.cos(d2);
-  final x = math.cos(d1) * math.sin(d2) -
+  final x =
+      math.cos(d1) * math.sin(d2) -
       math.sin(d1) * math.cos(d2) * math.cos(dRa * rad);
   return (math.atan2(y, x) / rad + 360.0) % 360.0;
 }
