@@ -41,7 +41,7 @@ List<ZeroPointMatch> _realField({
 }
 
 /// Catalog stars that fell within the 9 px match radius of unrelated
-/// detections, as the mirrored projection produced on M67: 11-18 pairs whose
+/// detections, as a mirrored projection gives on M67: 11-18 pairs whose
 /// magnitudes have nothing to do with the detected fluxes.
 List<ZeroPointMatch> _chancePairs({int count = 15}) {
   final random = math.Random(891);

@@ -247,8 +247,8 @@ void main() {
     });
 
     test('a 0.01 mag dip is not announced, however small the error bars', () {
-      // The replay of a constant field announced "faded 0.01 mag — possible
-      // eclipse" from error bars of a few millimag.
+      // A constant star with error bars of a few millimag must not be
+      // announced as an eclipse for a 0.01 mag offset.
       final d = LightCurveEventDetector();
       final points = [
         for (var i = 0; i < 13; i++)
