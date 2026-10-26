@@ -621,6 +621,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     '3D science surfaces',
     'AAVSO',
     'AAVSO observer code',
+    'Add each accepted, solved light to your sky atlas.',
     'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.',
     'After each light frame, reject captures that exceed',
     'Analyze field-wide seeing and tilt patterns',
@@ -679,6 +680,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Written into MPC ADES headers and the TNS reporter',
     'Your 3-character MPC observatory code (e.g.,',
     'Your assigned AAVSO observer initials (1-5 chars,',
+    'Your Sky atlas',
     'Your TNS bot id (tns_marker tns_id).',
     'Your TNS bot name (tns_marker name).',
     'Your TNS discovery_data_source_id.',
@@ -1042,6 +1044,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Replay decision logging',
   },
   'science': {
+    'Add each accepted, solved light to your sky atlas.': 'Your Sky atlas',
     'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.':
         'Show advanced overlay controls',
     'After each light frame, reject captures that exceed':
