@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../backend/frame_capture_metadata.dart';
+import '../../../backend/network_backend.dart' show NetworkBackend;
 import '../../../backend/skotiq_backend.dart';
 import '../../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
 import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';
 import '../../../services/logging_service.dart';
+import '../../../services/science/science_processing_service.dart'
+    show scienceProcessingServiceProvider;
 import '../../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../../database_provider.dart' show imagesDaoProvider;
 import '../../equipment_provider.dart';
@@ -22,6 +25,7 @@ import '../sequence_progress.dart' show sequenceProgressProvider;
 import '../sequencer_run_event.dart';
 import '../../sequence_provider.dart' show currentSequenceProvider;
 import 'frame_attribution.dart';
+import 'run_frame_science.dart';
 import 'run_stats_ledger.dart';
 import 'run_target_binding.dart';
 
@@ -59,6 +63,9 @@ class RunFrameRecorder {
   final LoggingService Function() _loggerFn;
   final bool Function() _isDisposed;
   LoggingService get _logger => _loggerFn();
+
+  /// Light frames' hand-off to the per-frame science pipeline.
+  late final RunFrameScience _science = RunFrameScience(logger: _loggerFn);
 
   /// Verdicts already counted, by frame index, awaiting their
   /// `ExposureCompleted`.
@@ -232,6 +239,8 @@ class RunFrameRecorder {
           'Could not record the frame assessment of $path: $e',
           source: 'SequenceExecutor',
         );
+      } finally {
+        _science.assessed(path, event);
       }
     }();
     _inFlight.add(update);
@@ -335,7 +344,8 @@ class RunFrameRecorder {
   }
 
   /// Write [event]'s frame as a `captured_images` row tagged with its
-  /// producing node, and advance the session counters. Fire-and-forget;
+  /// producing node, advance the session counters, and hand a light frame to
+  /// the science pipeline (see [RunFrameScience]). Fire-and-forget;
   /// failures are logged and never block the run. A frame with no producing
   /// node (a wizard capture) has nothing to hang a row off and is skipped.
   void register(FrameGraded event, {required String grade}) {
@@ -421,6 +431,16 @@ class RunFrameRecorder {
     final darkLibrary = frameType == 'dark' || frameType == 'bias'
         ? _ref.read(darkLibraryServiceProvider)
         : null;
+    // A linked client has no access to the host's files; the host processes
+    // its own frames.
+    final scienceAssessment =
+        _backend is! NetworkBackend &&
+            RunFrameScience.appliesTo(frameType, filePath)
+        ? _science.expectAssessment(filePath, exposureSecs)
+        : null;
+    final science = scienceAssessment == null
+        ? null
+        : _ref.read(scienceProcessingServiceProvider);
     final registration = () async {
       try {
         final rowId = await dao.insertSequenceFrame(
@@ -462,6 +482,17 @@ class RunFrameRecorder {
           logger: logger,
           sidecarService: sidecarService,
         );
+        if (science != null && scienceAssessment != null) {
+          unawaited(
+            _science.queue(
+              science: science,
+              assessment: scienceAssessment,
+              filePath: filePath,
+              capturedImageId: rowId,
+              sessionId: sessionId,
+            ),
+          );
+        }
         // The live "recent frames" list shows the row as persisted. Accepted
         // frames only: that strip has no way to mark a reject.
         if (darkLibrary != null) {
