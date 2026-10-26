@@ -6,7 +6,7 @@ use crate::triggers::Firing;
 /// The operator settings that turn a firing into what is dispatched.
 pub(super) struct DispatchPolicy {
     /// The sequence ends itself at dawn, so the Dawn Approaching trigger
-    /// stands down.
+    /// stands down while the run is not held.
     pub explicit_end: bool,
     pub calibration_run: bool,
     pub park_policy: ParkPolicy,
@@ -35,7 +35,10 @@ pub(super) fn select_dispatches(
     let mut dispatches = Vec::new();
     for firing in fired {
         let trigger_id = firing.trigger_id().to_string();
-        if policy.explicit_end && trigger_id == "dawn_approaching" {
+        // A plan that owns its finish time reaches it only while its node
+        // tree runs. Paused or recovering, its end never comes, so dawn ends
+        // the night as for any plan.
+        if policy.explicit_end && trigger_id == "dawn_approaching" && !mode.executor_held() {
             continue;
         }
         if policy.calibration_run

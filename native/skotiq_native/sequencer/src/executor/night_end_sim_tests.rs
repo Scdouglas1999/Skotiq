@@ -243,6 +243,65 @@ fn target_plan(end_when: crate::scheduling::TargetTrigger) -> SequenceDefinition
     sequence
 }
 
+/// The rig on 2026-10-26: a plan whose target stops at 06:00 owns its end, so
+/// the Dawn Approaching trigger stood down, and the run was paused at 05:25.
+/// Paused, the target's stop time is never reached, so the run sat paused and
+/// tracking until a human came. A held run cannot reach its own end: dawn
+/// ends the night, parks, and runs the plan's shutdown steps.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_ends_a_paused_plan_that_owns_its_end_time() {
+    use crate::scheduling::TargetTrigger;
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let in_two_hours = chrono::Utc::now().timestamp() + 2 * 3600;
+    let plan = target_plan(TargetTrigger::TimeAfter(in_two_hours));
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    wait_for_monitor(&ops).await;
+    executor.pause().await.expect("pause");
+    let paused = wait_for_state(&executor, Duration::from_secs(5), |s| {
+        s == super::ExecutorState::Paused
+    })
+    .await;
+    assert_eq!(paused, super::ExecutorState::Paused);
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "the plan's Warm camera must run; calls={calls:?}"
+    );
+}
+
+/// Running, the same plan keeps its own end: dawn does not cut it short.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_leaves_a_running_plan_that_owns_its_end_time() {
+    use crate::scheduling::TargetTrigger;
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let in_two_hours = chrono::Utc::now().timestamp() + 2 * 3600;
+    let plan = target_plan(TargetTrigger::TimeAfter(in_two_hours));
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let state = executor.get_state().await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")),
+        "calls={calls:?}"
+    );
+}
+
 /// A plan that kept last night's absolute stop time images tonight: the time
 /// is moved to tonight and the operator is told, instead of the target being
 /// skipped and the camera warmed at dusk.
