@@ -140,6 +140,9 @@ impl Dispatcher {
     }
 
     async fn dispatch(&mut self, dispatch: Dispatch) -> Flow {
+        if dispatch.fired.notify_only {
+            self.continue_without_guide_star(&dispatch.trigger_id).await;
+        }
         // A notify-only trigger tells the operator once per episode.
         if dispatch.fired.notify_only && !self.notify_episodes.is_new_episode(&dispatch) {
             tracing::debug!(
@@ -212,6 +215,29 @@ impl Dispatcher {
                     reason,
                 ))
             }
+        }
+    }
+
+    /// A lost guide star that only notifies leaves the run imaging unguided:
+    /// dithers are skipped and guiding RMS is not judged, and guiding is
+    /// started on a fresh star before the next light frame, then retried on
+    /// the unguided interval until it holds.
+    async fn continue_without_guide_star(&self, trigger_id: &str) {
+        let is_guide_star_lost = matches!(
+            self.trigger_manager
+                .read()
+                .await
+                .get_trigger(trigger_id)
+                .map(|trigger| &trigger.trigger_type),
+            Some(TriggerType::GuideStarLost)
+        );
+        if !is_guide_star_lost {
+            return;
+        }
+        let mut state = self.rig.trigger_state.write().await;
+        state.guiding.lose_star_and_continue_unguided();
+        if let Some(history) = state.guiding_rms_history.as_mut() {
+            history.clear();
         }
     }
 

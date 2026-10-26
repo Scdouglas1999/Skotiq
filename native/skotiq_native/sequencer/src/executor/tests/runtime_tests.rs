@@ -2225,6 +2225,8 @@ async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(ops));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The recovery holds the run only when quality problems stop it.
+    executor.set_stop_on_quality_problems(true).await;
     let mut events = executor.subscribe();
     executor
         .load_sequence(guided_delay_sequence(true))

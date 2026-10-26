@@ -106,6 +106,7 @@ void main() {
     double latitude = _latitude,
     double longitude = _longitude,
     Sequence? running,
+    SequenceExecutionState execution = SequenceExecutionState.idle,
   }) async {
     _RecordingSafeRigService? safeRig;
     final provider =
@@ -151,8 +152,7 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(sequenceExecutionStateProvider.notifier).state = execution;
     final mount = container.read(mountStateProvider.notifier);
     mount.setConnecting('mount-1');
     mount.setConnected();
@@ -181,8 +181,7 @@ void main() {
     );
   }
 
-  test('twenty minutes before dawn a clear night is held unsafe and the '
-      'rig is parked', () async {
+  test('twenty minutes before dawn an idle rig is put away', () async {
     final result = await evaluateAt(
       _dawn().subtract(const Duration(minutes: 20)),
     );
@@ -191,11 +190,32 @@ void main() {
     expect(result.state.actions.reason, 'Astronomical dawn is approaching');
     expect(result.state.actions.shouldPark, isTrue);
     expect(result.safeRigReasons, isNotEmpty);
-    // The in-sequencer WeatherUnsafe trigger hears it too.
-    verify(
-      () => backend.sequencerUpdateWeatherVerdict(unsafeOverride: true),
-    ).called(greaterThan(0));
   });
+
+  // The rig on 2026-10-26: this rule paused a running plan at 05:25 and the
+  // run sat paused and tracking until 06:51, so the plan's shutdown steps and
+  // the night-end calibration never ran. The sequencer's own dawn rule ends a
+  // run; this one neither pauses it nor tells it dawn is unsafe weather.
+  for (final execution in [
+    SequenceExecutionState.running,
+    SequenceExecutionState.paused,
+    SequenceExecutionState.recovering,
+  ]) {
+    test('twenty minutes before dawn a ${execution.name} run is left to the '
+        "sequencer's dawn rule", () async {
+      final result = await evaluateAt(
+        _dawn().subtract(const Duration(minutes: 20)),
+        execution: execution,
+      );
+
+      expect(result.state.status, WeatherSafetyStatus.unsafe);
+      expect(result.state.actions.reason, 'Astronomical dawn is approaching');
+      expect(result.safeRigReasons, isEmpty);
+      verifyNever(
+        () => backend.sequencerUpdateWeatherVerdict(unsafeOverride: true),
+      );
+    });
+  }
 
   test('with no observing site there is no dawn to park before', () async {
     // The unset site reads as 0°, 0°. Twenty minutes before dawn THERE, a
@@ -258,6 +278,7 @@ void main() {
     final result = await evaluateAt(
       _dawn().subtract(const Duration(minutes: 20)),
       running: darks,
+      execution: SequenceExecutionState.running,
     );
 
     expect(result.state.status, WeatherSafetyStatus.unsafe);

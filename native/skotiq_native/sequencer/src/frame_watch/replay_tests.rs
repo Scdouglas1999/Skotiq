@@ -9,7 +9,9 @@
 //! 31.6 arcmin from the target for two hours. From row 688 (alt 65.2, az 286)
 //! the target set behind the trees east of the pier and the stars collapsed.
 
-use super::fixture::{rows, Row, FIELD_SHORT_SIDE_ARCMIN, TARGET_DEC_DEG, TARGET_RA_DEG};
+use super::fixture::{
+    rows, rows_from, Row, FIELD_SHORT_SIDE_ARCMIN, TARGET_DEC_DEG, TARGET_RA_DEG,
+};
 use super::*;
 use crate::quality::{
     filter_baseline_key, grade_frame_with_baselines, update_hfr_baseline, FilterBaseline,
@@ -139,7 +141,15 @@ fn replay(
     ids: std::ops::RangeInclusive<u32>,
     probe_finds_stars: bool,
 ) -> Replay {
-    let rows = rows();
+    replay_rows(rows(), config, ids, probe_finds_stars)
+}
+
+fn replay_rows(
+    rows: Vec<Row>,
+    config: FrameWatchConfig,
+    ids: std::ops::RangeInclusive<u32>,
+    probe_finds_stars: bool,
+) -> Replay {
     let graded = grade_night(&rows);
     let mut watch = FrameWatch::new(config);
     let mut verdicts = Vec::new();
@@ -167,6 +177,7 @@ fn replay(
             guide_rms: None,
             guide_rms_samples: 0,
             guiding_lost: false,
+            mount_not_tracking: false,
         };
         let mut verdict = watch.observe(&obs);
         let mut follow_ups = Vec::new();
@@ -356,6 +367,7 @@ fn cloud_over_a_rising_target_is_reported_and_imaging_carries_on() {
         guide_rms: None,
         guide_rms_samples: 0,
         guiding_lost: true,
+        mount_not_tracking: false,
     };
     let mut actions = Vec::new();
     for i in 0..5 {
@@ -367,8 +379,11 @@ fn cloud_over_a_rising_target_is_reported_and_imaging_carries_on() {
         assert_eq!(v.exclusion_reason, None, "cloud is graded, not excluded");
         actions.extend(v.actions);
     }
-    let recovered = watch.observe(&frame(10, 2050, true));
-    assert_eq!(recovered.degraded, None);
+    // One clean frame could be a gap in the cloud; two in a row end the run.
+    let first_clean = watch.observe(&frame(10, 2050, true));
+    assert_eq!(first_clean.degraded, None);
+    assert!(first_clean.actions.is_empty(), "{:?}", first_clean.actions);
+    let recovered = watch.observe(&frame(11, 2040, true));
     actions.extend(recovered.actions);
     assert_eq!(actions.len(), 2, "{actions:?}");
     assert!(matches!(
@@ -376,4 +391,162 @@ fn cloud_over_a_rising_target_is_reported_and_imaging_carries_on() {
         WatchAction::PossibleObstructionOrCloud { frames: 2, .. }
     ));
     assert_eq!(actions[1], WatchAction::Recovered { frames: 5 });
+}
+
+fn watch_actions(replay: &Replay) -> Vec<(u32, WatchAction)> {
+    replay
+        .actions()
+        .into_iter()
+        .filter(|(_, a)| !matches!(a, WatchAction::Recenter { .. }))
+        .collect()
+}
+
+/// 10-22: the target sank into the same trees. G_0035 (row 334) kept 0.64 of
+/// its stars between frames that kept under half, and the operator was told
+/// "Stars are back" while the target sank further in. A partly blocked frame
+/// does not end the run of collapsed frames.
+#[test]
+fn a_partly_blocked_frame_does_not_report_the_stars_back() {
+    let rows = rows_from(include_str!("fixtures/ngc891_2026_10_22_trees.csv"));
+    let replay = replay_rows(rows, FrameWatchConfig::default(), 315..=335, true);
+    let actions = watch_actions(&replay);
+    assert!(
+        !actions
+            .iter()
+            .any(|(_, a)| matches!(a, WatchAction::Recovered { .. })),
+        "{actions:?}"
+    );
+    assert!(matches!(
+        actions.first(),
+        Some((
+            333,
+            WatchAction::PossibleObstructionOrCloud { frames: 2, .. }
+        ))
+    ));
+    let partial = replay.verdict(334);
+    assert!(!partial.collapsed, "{partial:?}");
+    assert!(replay.verdict(335).collapsed);
+}
+
+/// 10-23: the mount stopped tracking at alt 83. B_0058 (row 525) lost half its
+/// stars; the next three frames, 91 min later, were trails. That was reported
+/// as "Possible obstruction or cloud" from "the last 2 frames". Frames an hour
+/// apart are not one run, and trails are not an obstruction.
+#[test]
+fn trails_and_frames_an_hour_apart_are_not_an_obstruction() {
+    let rows = rows_from(include_str!("fixtures/ngc891_2026_10_23_untracked.csv"));
+    let replay = replay_rows(rows, FrameWatchConfig::default(), 505..=528, true);
+    let actions = watch_actions(&replay);
+    assert!(actions.is_empty(), "{actions:?}");
+    assert!(replay.verdict(525).collapsed);
+    for id in 526..=528 {
+        let v = replay.verdict(id);
+        assert!(v.trailed, "row {id}: {v:?}");
+        assert_eq!(
+            v.degraded.as_deref(),
+            Some("the last frame lost most of its stars"),
+            "row {id}: autofocus is held on it"
+        );
+    }
+}
+
+/// The same frames without the trails, an hour apart: the pause alone starts
+/// a new run.
+#[test]
+fn a_long_pause_starts_a_new_run_of_collapsed_frames() {
+    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let frame = |i: u32, start: f64, stars: u32| FrameObservation {
+        save_path: format!("f{i}"),
+        target_name: Some("NGC0891".to_string()),
+        filter: Some("L".to_string()),
+        exposure_secs: 120.0,
+        exposure_started_secs: start,
+        accepted_by_grader: stars > 1000,
+        grader_reason: None,
+        star_count: Some(stars),
+        hfr: Some(2.0),
+        eccentricity: Some(0.5),
+        altitude_deg: Some(60.0),
+        azimuth_deg: Some(280.0),
+        pier_side: Some("East".to_string()),
+        solve: SolveOutcome::NotAttempted,
+        target_ra_deg: None,
+        target_dec_deg: None,
+        field_short_side_arcmin: None,
+        background_adu: None,
+        guide_rms: None,
+        guide_rms_samples: 0,
+        guiding_lost: false,
+        mount_not_tracking: false,
+    };
+    for i in 0..5 {
+        assert!(watch
+            .observe(&frame(i, f64::from(i) * 130.0, 2000))
+            .actions
+            .is_empty());
+    }
+    assert!(watch.observe(&frame(5, 650.0, 400)).actions.is_empty());
+    let later = watch.observe(&frame(6, 650.0 + 91.0 * 60.0, 400));
+    assert!(later.actions.is_empty(), "{:?}", later.actions);
+    let next = watch.observe(&frame(7, 650.0 + 93.0 * 60.0, 400));
+    assert!(matches!(
+        next.actions.as_slice(),
+        [WatchAction::PossibleObstructionOrCloud { frames: 2, .. }]
+    ));
+}
+
+/// The night ends on an obstruction only after a second confirmation: the
+/// first probe that finds stars above starless frames, with nothing else in
+/// the plan up, starts a new watch.
+#[test]
+fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
+    let rows = rows();
+    let graded = grade_night(&rows);
+    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut confirmations = Vec::new();
+    for row in rows.iter().filter(|r| r.id >= 529) {
+        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
+        let obs = FrameObservation {
+            save_path: format!("row-{}", row.id),
+            target_name: Some("NGC0891".to_string()),
+            filter: Some(row.filter.clone()),
+            exposure_secs: row.exposure_secs,
+            exposure_started_secs: row.captured_at - row.exposure_secs,
+            accepted_by_grader: reason.is_none(),
+            grader_reason: reason,
+            star_count: row.stars,
+            hfr: row.hfr,
+            eccentricity: row.ecc,
+            altitude_deg: Some(row.alt),
+            azimuth_deg: Some(row.az),
+            pier_side: Some(row.pier.clone()),
+            solve: row.solve.clone(),
+            target_ra_deg: None,
+            target_dec_deg: None,
+            field_short_side_arcmin: None,
+            background_adu: None,
+            guide_rms: None,
+            guide_rms_samples: 0,
+            guiding_lost: false,
+            mount_not_tracking: false,
+        };
+        let verdict = watch.observe(&obs);
+        for action in verdict.actions {
+            if let WatchAction::Probe { .. } = action {
+                if let Some(WatchAction::Obstruction { .. }) = watch.probe_result(true) {
+                    confirmations.push((row.id, watch.confirm_before_ending()));
+                }
+            }
+        }
+    }
+    assert_eq!(
+        confirmations.first(),
+        Some(&(691, false)),
+        "{confirmations:?}"
+    );
+    let ends = confirmations.iter().find(|(_, end)| *end);
+    assert!(
+        ends.is_some_and(|(id, _)| *id > 693),
+        "the second confirmation needs a new run of frames: {confirmations:?}"
+    );
 }

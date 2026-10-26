@@ -50,6 +50,8 @@ struct Harness {
     events: broadcast::Sender<ExecutorEvent>,
     seen: broadcast::Receiver<ExecutorEvent>,
     ops: Arc<ScriptedDeviceOps>,
+    /// The target id the capture loop stamps on each frame.
+    target_id: Option<String>,
 }
 
 impl Harness {
@@ -138,6 +140,7 @@ impl Harness {
             events,
             seen,
             ops,
+            target_id: None,
         }
     }
 
@@ -158,6 +161,7 @@ impl Harness {
             bin_x: 1,
             bin_y: 1,
             frame_type: "Light".to_string(),
+            target_id: self.target_id.clone(),
             ..Default::default()
         };
         let path = format!("row-{}.fits", row.id);
@@ -357,28 +361,41 @@ async fn the_night_replayed_recenters_after_the_flip_and_ends_at_the_trees() {
     assert!(w
         .iter()
         .any(|w| w.starts_with("Checking the sky higher up")));
+    // The first confirmation (row 691) would end the night, so it is checked
+    // once more before anything ends or is saved to the horizon.
+    let deferred = w
+        .iter()
+        .position(|w| {
+            w.starts_with("Possible obstruction: NGC0891 looks blocked from alt 65.2°, az 286.2°")
+        })
+        .unwrap_or_else(|| panic!("no deferral notice: {w:?}"));
     let report = log
         .iter()
         .find_map(obstruction)
         .unwrap_or_else(|| panic!("no obstruction report: {:?}", warnings(&log)));
-    assert!((report.altitude_deg - 65.15).abs() < 0.05);
-    assert!((report.azimuth_deg - 286.22).abs() < 0.05);
+    assert!(
+        w.iter()
+            .position(|x| x.starts_with("Obstruction:"))
+            .unwrap()
+            > deferred,
+        "{w:?}"
+    );
+    assert!(report.altitude_deg < 65.15, "{report:?}");
+    assert!((report.azimuth_deg - 286.5).abs() < 2.0, "{report:?}");
     assert_eq!(report.action, "end_of_night");
     assert_eq!(report.latitude, Some(SITE_LAT));
-    // The frames leading up to it are re-marked as obstructed.
-    for id in [688, 689, 690, 691] {
-        assert!(
-            log.iter()
-                .filter_map(assessed)
-                .any(|a| a.save_path == format!("row-{id}.fits") && a.obstructed),
-            "row {id}"
-        );
-    }
-    // Single-target plan: the night ends through the end-of-night trigger.
+    // Single-target plan: on the second confirmation the night ends through
+    // the end-of-night trigger, and that run of frames is marked obstructed.
     let (ended_at, end) = ended.expect("the run ended");
-    assert_eq!(ended_at, 691);
+    assert!(ended_at > 693, "ended at {ended_at}");
     assert!(end.iter().any(|(id, action)| id == OBSTRUCTION_TRIGGER_ID
         && matches!(action, RecoveryAction::ParkAndAbort)));
+    assert!(
+        log.iter()
+            .filter_map(assessed)
+            .any(|a| a.save_path == format!("row-{ended_at}.fits") && a.obstructed),
+        "row {ended_at}"
+    );
     // Autofocus was held once the frames went bad.
     assert!(hold_seen_at.is_some());
 }
@@ -438,4 +455,57 @@ async fn autofocus_is_held_on_trailed_and_starless_frames_and_runs_once_they_rec
     assert!(warnings(&log)
         .iter()
         .any(|w| w.starts_with("Frames have recovered; the autofocus that was waiting runs now")));
+}
+
+/// The rig at 08:55 on 2026-10-26: NGC 891's last frame (one star, behind the
+/// trees) was reported after the run had moved on to M67. Judged as an M67
+/// frame it had no baseline, so it read as clean, released the autofocus hold
+/// and a focus sweep ran on a starless sky. A frame is judged against the
+/// target it was taken on, and a frame with too few stars to measure holds
+/// autofocus whatever the baseline.
+#[tokio::test(start_paused = true)]
+async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
+    let mut h = Harness::new().await;
+    h.target_id = Some("ngc891".to_string());
+    let mut log = Vec::new();
+    let all = rows();
+    let row = |id: u32| all.iter().find(|r| r.id == id).unwrap().clone();
+    for id in 620..=630 {
+        h.save(&row(id)).await;
+        h.tick_until_reported(&format!("row-{id}.fits"), &mut log)
+            .await;
+    }
+    assert!(h
+        .dispatcher
+        .rig
+        .trigger_state
+        .read()
+        .await
+        .autofocus_hold
+        .is_none());
+
+    // The run moves on to M67 before NGC 891's last frame is reported.
+    {
+        let mut state = h.dispatcher.rig.trigger_state.write().await;
+        state.set_target(8.8567 * 15.0, 11.8);
+        state.current_target_name = Some("M67".to_string());
+    }
+    let mut last = row(706);
+    assert_eq!(last.stars, Some(1));
+    last.filter = "G".to_string();
+    h.save(&last).await;
+    h.tick_until_reported("row-706.fits", &mut log).await;
+
+    let hold = h
+        .dispatcher
+        .rig
+        .trigger_state
+        .read()
+        .await
+        .autofocus_hold
+        .clone();
+    assert_eq!(
+        hold.as_deref(),
+        Some("the last frame lost most of its stars")
+    );
 }

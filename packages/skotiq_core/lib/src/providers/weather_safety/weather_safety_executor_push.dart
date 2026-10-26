@@ -53,10 +53,14 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
   ///     permissive fail mode with no data — and when only a forecast says
   ///     cloudy and forecasts only warn. Abstaining never suppresses a
   ///     hardware safety monitor, which the sequencer polls itself.
-  ///   * `true` when a weather device at the site is outside its limits,
-  ///     dawn is near, the fail-closed no-data path is active, or the forecast
-  ///     says cloudy and the operator chose to have forecasts hold the run.
+  ///   * `true` when a weather device at the site is outside its limits, the
+  ///     fail-closed no-data path is active, or the forecast says cloudy and
+  ///     the operator chose to have forecasts hold the run.
   ///   * `false` otherwise.
+  ///
+  /// Dawn is not weather and is never sent as it: the sequencer has its own
+  /// Dawn Approaching rule, which ends the night through the plan's shutdown
+  /// steps. Sent as unsafe weather it held the run instead.
   ///
   /// `advisory` is true when the UNSAFE verdict rests only on the forecast:
   /// the sequencer then holds the run and never parks it or ends it.
@@ -68,7 +72,6 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     required bool hardwareWeatherSafe,
     required bool forecastActs,
     required bool forecastHoldsRun,
-    required bool dawnParkDue,
   }) {
     if (!weatherSettings.weatherSafetyEnabled ||
         finalStatus == WeatherSafetyStatus.snoozed) {
@@ -88,7 +91,7 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     }
 
     // The safety monitor is left out: the sequencer polls it itself.
-    if (!hardwareWeatherSafe || dawnParkDue) {
+    if (!hardwareWeatherSafe) {
       return (unsafe: true, advisory: false);
     }
     if (forecastActs) {

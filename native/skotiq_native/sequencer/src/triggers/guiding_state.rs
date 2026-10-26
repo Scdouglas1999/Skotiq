@@ -93,6 +93,14 @@ impl GuidingState {
         self.set_star_lost(false);
     }
 
+    /// The guide star was lost and the run images on without it: nothing is
+    /// armed, and guiding is due to be started again before the next light
+    /// frame.
+    pub fn lose_star_and_continue_unguided(&mut self) {
+        self.give_up_guiding();
+        self.last_unguided_attempt = None;
+    }
+
     /// Whether a run imaging unguided is due to try starting guiding again:
     /// it has been `interval` since it went unguided or last tried.
     pub fn unguided_retry_due(&self, interval: std::time::Duration) -> bool {

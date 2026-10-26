@@ -2100,6 +2100,8 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The recovery holds the run only when quality problems stop it.
+    executor.set_stop_on_quality_problems(true).await;
     executor.set_dome(Some("dome-1".to_string()));
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
@@ -2185,6 +2187,8 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The recovery holds the run only when quality problems stop it.
+    executor.set_stop_on_quality_problems(true).await;
     executor.set_safety_check_interval_secs(5);
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
@@ -2254,6 +2258,9 @@ pub(crate) async fn start_run_in_guide_star_recovery(
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // A lost guide star holds the run for its recovery only when the operator
+    // asked quality problems to stop the run.
+    executor.set_stop_on_quality_problems(true).await;
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
             retry_interval_secs,
@@ -2282,6 +2289,122 @@ pub(crate) async fn start_run_in_guide_star_recovery(
         ops.calls()
     );
     executor
+}
+
+/// The rig on 2026-10-26 03:22 EDT: Guide Star Lost fired with its saved
+/// action Pause, and the recovery it started held the run for 92 min. By
+/// default a lost guide star only notifies: the run keeps running, the
+/// operator is told, and the run images unguided with a fresh guiding start
+/// due before the next light frame.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    ops.guiding.store(false, Ordering::SeqCst);
+    let mut fired = Vec::new();
+    let mut warnings = Vec::new();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !fired.iter().any(|id: &String| id == "guide_star_lost")
+        && tokio::time::Instant::now() < deadline
+    {
+        while let Ok(event) = events.try_recv() {
+            match event {
+                super::ExecutorEvent::TriggerFired { trigger_id, .. } => fired.push(trigger_id),
+                super::ExecutorEvent::Warning { message } => warnings.push(message),
+                _ => {}
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    // Long enough for a recovery to have frozen the run, as it did on the rig.
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Warning { message } = event {
+            warnings.push(message);
+        }
+    }
+    let state = executor.get_state().await;
+    let recovery = executor.current_recovery();
+    let guiding = trigger_state_of(&executor.trigger_manager).await.guiding;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert!(
+        fired.iter().any(|id| id == "guide_star_lost"),
+        "fired={fired:?}"
+    );
+    assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(recovery.is_none(), "recovery={recovery:?}");
+    assert!(
+        warnings
+            .iter()
+            .any(|m| m.starts_with("Guide Star Lost:") && m.contains("Imaging continues")),
+        "warnings={warnings:?}"
+    );
+    assert!(guiding.is_unguided());
+    assert!(
+        !guiding.is_enabled(),
+        "the trigger is disarmed while unguided"
+    );
+    assert!(
+        guiding.unguided_retry_due(crate::instructions::UNGUIDED_RETRY_INTERVAL),
+        "guiding is started again before the next light frame"
+    );
+}
+
+/// A transparency drop with no backup plan to switch to used to pause the run
+/// for the operator. Transparency is a quality judgment: it notifies and the
+/// run keeps imaging the current target and filter.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.trigger_manager.write().await.add_trigger(
+        crate::triggers::Trigger::new(
+            "transparency_dropped",
+            "Transparency Dropped",
+            crate::TriggerType::TransparencyDropped {
+                below_threshold: 0.6,
+                duration_secs: 0.0,
+            },
+            crate::RecoveryAction::SwitchTargetOrFilter,
+        )
+        .with_cooldown(600),
+    );
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    executor
+        .update_trigger_state(|ts| ts.current_transparency = Some(0.3))
+        .await;
+    let mut warnings = Vec::new();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while warnings.is_empty() && tokio::time::Instant::now() < deadline {
+        while let Ok(event) = events.try_recv() {
+            if let super::ExecutorEvent::Warning { message } = event {
+                if message.starts_with("Transparency Dropped") {
+                    warnings.push(message);
+                }
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let state = executor.get_state().await;
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Running);
+    assert!(
+        warnings.iter().any(|m| m.contains("imaging continues")),
+        "warnings={warnings:?}"
+    );
 }
 
 /// Resume is the answer to a pause, not to a recovery. Pressed while the
@@ -2401,51 +2524,31 @@ async fn a_guide_star_give_up_leaves_tracking_on_and_says_nothing_about_it() {
     );
 }
 
-/// The default ending of the same night: the guide star never comes back, the
-/// run images on unguided (owner decision 2026-10-06), and tracking was never
-/// switched off, so no frame after it trails for a second reason.
+/// The default ending of the same night: the guide star never comes back and
+/// the guider never restarts. Nothing holds the run: it images on unguided,
+/// tracking is never switched off, and nothing is parked.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 1.0,
-            max_duration_secs: 2.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
-        })
-        .await;
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-    while ops.call_count("guider_get_status") < 2 {
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "monitor never polled the guider"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    wait_for_monitor(&ops).await;
     ops.guiding.store(false, Ordering::SeqCst);
-    let recovered = tokio::time::timeout(std::time::Duration::from_secs(30), async {
-        loop {
-            match events.recv().await {
-                Ok(super::ExecutorEvent::RecoveryCompleted { .. }) => return true,
-                Ok(super::ExecutorEvent::RecoveryGaveUp { .. }) => return false,
-                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => return false,
-            }
-        }
-    })
-    .await
-    .expect("the recovery never ended");
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     let state = executor.get_state().await;
     let calls = ops.calls();
     let _ = executor.stop().await;
+    let mut recovery_started = false;
+    while let Ok(event) = events.try_recv() {
+        if matches!(event, super::ExecutorEvent::RecoveryStarted { .. }) {
+            recovery_started = true;
+        }
+    }
 
-    assert!(recovered, "the run must not give up; calls={calls:?}");
+    assert!(!recovery_started, "calls={calls:?}");
     assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
     assert!(
         !calls
@@ -2453,10 +2556,7 @@ async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
             .any(|c| c == "mount_set_tracking:mount-1:false"),
         "a lost guide star must not stop tracking; calls={calls:?}"
     );
-    assert!(
-        ops.mount_tracking.load(Ordering::SeqCst),
-        "tracking must be back on for the unguided frames; calls={calls:?}"
-    );
+    assert!(ops.mount_tracking.load(Ordering::SeqCst), "calls={calls:?}");
     assert!(
         !calls.iter().any(|c| c.starts_with("mount_park")),
         "{calls:?}"
@@ -2619,6 +2719,8 @@ async fn unsafe_weather_during_recovery_does_not_park_when_parking_is_off() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_park_policy(WEATHER_OFF);
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The recovery holds the run only when quality problems stop it.
+    executor.set_stop_on_quality_problems(true).await;
     executor.set_dome(Some("dome-1".to_string()));
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
@@ -2956,6 +3058,8 @@ async fn recovery_leaves_tracking_on_while_the_mount_slews() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The recovery holds the run only when quality problems stop it.
+    executor.set_stop_on_quality_problems(true).await;
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -3207,15 +3311,18 @@ fn only_fail_closed_keeps_holding_on_a_stale_verdict() {
     assert!(!super::stale_unsafe_verdict_holds(SafetyFailMode::WarnOnly));
 }
 
-/// A passing cloud: the guide star is lost, the run holds with the mount still
-/// tracking and nothing reads the hold as lost tracking, and once the stars are
-/// back the guider holds a star again and the run resumes by itself.
+/// A passing cloud with Stop the run for quality problems on: the guide star is
+/// lost, the run holds with the mount still tracking and nothing reads the hold
+/// as lost tracking, and once the stars are back the guider holds a star again
+/// and the run resumes by itself.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars_return() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The recovery holds the run only when quality problems stop it.
+    executor.set_stop_on_quality_problems(true).await;
     // The shipped interval is 10 min; the hold looks for the star at least
     // every GUIDE_STAR_RECHECK_SECS. A short interval keeps the test short.
     executor

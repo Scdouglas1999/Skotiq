@@ -28,8 +28,12 @@ pub(crate) struct Row {
 }
 
 pub(crate) fn rows() -> Vec<Row> {
-    include_str!("fixtures/ngc891_2026_10_24.csv")
-        .lines()
+    rows_from(include_str!("fixtures/ngc891_2026_10_24.csv"))
+}
+
+/// The rows of a fixture in the same format.
+pub(crate) fn rows_from(csv: &str) -> Vec<Row> {
+    csv.lines()
         .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
         .map(|line| {
             let f: Vec<&str> = line.split(',').collect();
