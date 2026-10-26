@@ -14,7 +14,7 @@
 #   --set KEY=VALUE      extra app_settings override (repeatable)
 #   --keep-frames        keep every working copy of the frames (default keeps the last 6)
 #   --skip-done          skip frames whose per-frame JSON already exists in --out
-#   --fold-wait SECONDS  how long to wait for the atlas fold per solved frame (default 180)
+#   --fold-wait SECONDS  how long to wait for the atlas fold per solved frame (default 900)
 #   --memory-max SIZE    systemd scope memory cap (default 6G)
 #   --session-per-night  one imaging session per observing night (<name>-YYYY-MM-DD)
 #   --atlas on|off       off skips the Your Sky fold (about 4 GB of disk writes and
@@ -27,7 +27,7 @@ REPO="$(cd "$PKG/../.." && pwd)"
 SCI="${SKOTIQ_SCIENCE_ROOT:-$HOME/.cache/ns-science-1025}"
 
 DB=""; SESSION=""; OUT=""; MOVING=false; DIFF=""; KEEP=false; SKIPDONE=false
-RIGDB="$HOME/.cache/ns-review-2026-10-24/skotiq.db"; FOLDWAIT=180; MEM=6G
+RIGDB="$HOME/.cache/ns-review-2026-10-24/skotiq.db"; FOLDWAIT=900; MEM=6G
 SETS=(); INPUTS=(); ATLAS=on; PERNIGHT=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
