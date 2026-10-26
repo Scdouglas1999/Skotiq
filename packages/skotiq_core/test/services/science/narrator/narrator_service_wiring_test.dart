@@ -102,6 +102,7 @@ void main() {
     List<FramePhotometricCalibrationRow> calibrations = const [],
     double? cloudCover,
     Phd2GuideStats guideStats = const Phd2GuideStats(),
+    String targetId = 'AH_Cnc',
   }) {
     return ProviderContainer(
       overrides: [
@@ -117,6 +118,7 @@ void main() {
           return Stream.value(filterIntegration);
         }),
         sessionLightCurveProvider.overrideWith((ref, args) => lightCurve),
+        activePhotometryTargetObjectIdProvider.overrideWithValue(targetId),
         sessionFrameCalibrationsProvider.overrideWith(
           (ref, sid) => Stream.value(calibrations),
         ),
@@ -146,6 +148,19 @@ void main() {
 
     final ctx = service.buildContextForTest();
     expect(ctx.lightCurve, hasLength(12));
+  });
+
+  test('with no chosen target there is no light curve to narrate', () async {
+    final container = makeContainer(
+      lightCurve: [for (var i = 0; i < 12; i++) lc(i)],
+      targetId: 'target_primary',
+    );
+    addTearDown(container.dispose);
+    final service = startService(container);
+    await service.start();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(service.buildContextForTest().lightCurve, isEmpty);
   });
 
   test(
