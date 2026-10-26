@@ -106,8 +106,10 @@ class PhotometricCatalogService {
 
   static const _requestTimeout = Duration(seconds: 12);
 
-  /// Hard ceiling on rows requested from VizieR per cone.
-  static const _maxRows = 5000;
+  /// Hard ceiling on rows requested from VizieR per cone. A padded cone
+  /// around a rich field holds about 6000 APASS stars; a response that
+  /// reaches the ceiling is truncated, so it is used but not cached.
+  static const _maxRows = 20000;
 
   final Ref _ref;
   final http.Client _client;
@@ -199,7 +201,9 @@ class PhotometricCatalogService {
           radiusDegrees: paddedRadius,
         );
         if (fetched != null) {
-          await _writeCache(key, fetched);
+          // A truncated cone is used for this frame but not kept, so the
+          // next frame asks again rather than reusing an incomplete list.
+          if (fetched.length < _maxRows) await _writeCache(key, fetched);
           return fetched;
         }
         return await _readCache(legacyKey);
@@ -267,6 +271,14 @@ class PhotometricCatalogService {
       return null;
     }
     final stars = _parseVizierTsv(response.body);
+    if (stars.length >= _maxRows) {
+      _logger.warning(
+        'APASS cone ${raDegrees.toStringAsFixed(2)}/'
+        '${decDegrees.toStringAsFixed(2)} hit the $_maxRows-row limit; the '
+        'cone is incomplete and is not cached.',
+        source: 'PhotometricCatalogService',
+      );
+    }
     _logger.info(
       'APASS cone ${raDegrees.toStringAsFixed(2)}/'
       '${decDegrees.toStringAsFixed(2)} r=${radiusDegrees.toStringAsFixed(2)}° '
