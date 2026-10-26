@@ -191,6 +191,22 @@ class ScienceTileMetric {
     required this.p95,
     required this.auxValue,
   });
+
+  /// This tile with its [value] (and p05/p50/p95) replaced by [newValue].
+  ScienceTileMetric withValue(double newValue) => ScienceTileMetric(
+    capturedImageId: capturedImageId,
+    sessionId: sessionId,
+    timestamp: timestamp,
+    layerType: layerType,
+    tileRow: tileRow,
+    tileCol: tileCol,
+    sampleCount: sampleCount,
+    value: newValue,
+    p05: newValue,
+    p50: newValue,
+    p95: newValue,
+    auxValue: auxValue,
+  );
 }
 
 class ScienceVisualizationPrefs {

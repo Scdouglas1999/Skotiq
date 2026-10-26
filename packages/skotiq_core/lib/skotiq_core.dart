@@ -635,6 +635,7 @@ export 'src/services/science/science_processing_service.dart';
 export 'src/services/science/science_reprocess_service.dart';
 export 'src/services/science/science_status.dart';
 export 'src/services/science/science_insights_engine.dart';
+export 'src/services/science/sub_exposure_noise.dart';
 // Night Narrator — stateful/temporal sibling of the insights engine. The app
 // only needs the public event value type + evidence codecs and the Riverpod
 // providers (feed streams + keepalive service). The engine/context/detector

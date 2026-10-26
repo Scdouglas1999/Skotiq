@@ -176,14 +176,15 @@ void main() {
       expect(_finding(report, 'dew_hfr_collapse'), isNull);
     });
 
-    test('cloud/transparency-step clusters consecutive low-SNR subs into an '
-        'event', () {
-      // SNR ~40 baseline; subs 6,7,8 collapse to ~10 (clouds), then recover.
+    test('cloud/transparency-step clusters consecutive star-count dropouts '
+        'into an event', () {
+      // Star count ~1000; subs 6,7,8 collapse to a quarter (clouds), then
+      // recover.
       final data = NightData(
         _series(
           count: 16,
-          snr: (i) => (i >= 6 && i <= 8) ? 10.0 : 40.0,
-          starCount: (i) => 1000,
+          snr: (i) => 12.0,
+          starCount: (i) => (i >= 6 && i <= 8) ? 250 : 1000,
         ),
       );
       final report = svc.analyze(data, sessionId: 1);
@@ -215,8 +216,7 @@ void main() {
         final data = NightData(
           _series(
             count: 16,
-            snr: (i) => i == 8 ? 8.0 : 40.0, // one bad sub only
-            starCount: (i) => 1000,
+            starCount: (i) => i == 8 ? 200 : 1000, // one bad sub only
           ),
         );
         final report = svc.analyze(data, sessionId: 1);
@@ -243,20 +243,19 @@ void main() {
       expect(_finding(report, 'cloud_transparency'), isNull);
     });
 
-    test('cloud-step uses SNR mode only with near-complete coverage and fires '
-        'on a real run', () {
-      // 15/16 subs carry SNR (>=80%); subs 6,7,8 collapse — a genuine event.
+    test('the sky-to-read-noise ratio never reads as a transparency loss', () {
+      // The science snr column is the sky-to-read-noise ratio: it falls when
+      // the sky darkens (the best frames of the night), with every star still
+      // there. Star count is flat, so nothing fires.
       final data = NightData(
         _series(
           count: 16,
-          snr: (i) => i == 0 ? null : ((i >= 6 && i <= 8) ? 10.0 : 40.0),
+          snr: (i) => (i >= 6 && i <= 8) ? 4.0 : 15.0,
           starCount: (i) => 1000,
         ),
       );
       final report = svc.analyze(data, sessionId: 1);
-      final f = _finding(report, 'cloud_transparency');
-      expect(f, isNotNull);
-      expect(f!.evidenceSubIds, containsAll([7, 8, 9]));
+      expect(_finding(report, 'cloud_transparency'), isNull);
     });
 
     test('a signal-less night is NOT graded (no findings, no score)', () {

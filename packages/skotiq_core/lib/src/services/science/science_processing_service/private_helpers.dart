@@ -1,6 +1,18 @@
 part of '../science_processing_service.dart';
 
 extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
+  /// A positive camera setting from `science.camera.*`, or null when unset or
+  /// invalid.
+  Future<double?> _cameraSetting(String key) async {
+    try {
+      final stored = await _ref.read(settingsDaoProvider).getSetting(key);
+      final parsed = stored == null ? null : double.tryParse(stored);
+      return parsed != null && parsed.isFinite && parsed > 0 ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _processImmediateQualityLane({
     required String imagePath,
     required String? deviceId,
@@ -65,10 +77,28 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
       }
     }
 
+    // The stored `snr` is the sky-to-read-noise ratio of the sub (see
+    // skyToReadNoiseRatio); 0 when the camera's gain or read noise is unknown.
+    final gain = await _cameraSetting('science.camera.gain_e_per_adu');
+    final readNoise = await _cameraSetting('science.camera.read_noise_e');
+    double noiseRatio(double noiseAdu) =>
+        skyToReadNoiseRatio(
+          noiseAdu: noiseAdu,
+          gainEPerAdu: gain,
+          readNoiseE: readNoise,
+        ) ??
+        0.0;
     final frameMetrics = products.$1.copyWith(
       processingMs: laneStopwatch.elapsedMilliseconds,
+      snr: noiseRatio(products.$1.noise),
     );
-    final tileMetrics = products.$2;
+    final tileMetrics = products.$2
+        .map(
+          (tile) => tile.layerType == ScienceLayerType.snr
+              ? tile.withValue(noiseRatio(tile.auxValue))
+              : tile,
+        )
+        .toList(growable: false);
     final frameCompanion = db.ScienceFrameQualityMetricsCompanion.insert(
       capturedImageId: drift.Value(capturedImageId),
       sessionId: drift.Value(sessionId),

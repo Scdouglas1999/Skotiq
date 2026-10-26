@@ -226,7 +226,10 @@ class ScienceSessionSummary extends ConsumerWidget {
                         : latestFrameQuality.uniformityCv.toStringAsFixed(3),
                     sub: latestFrameQuality == null
                         ? null
-                        : 'SNR ${latestFrameQuality.snr.toStringAsFixed(1)}',
+                        : latestFrameQuality.snr > 0
+                            ? 'Sky/read noise '
+                                '${latestFrameQuality.snr.toStringAsFixed(1)}x'
+                            : null,
                     tone: latestFrameQuality == null
                         ? colors.textMuted
                         : latestFrameQuality.uniformityCv > 0.28

@@ -26,6 +26,7 @@ import 'photometric_transform_service.dart';
 import 'science_backend.dart';
 import 'frame_auto_grader.dart';
 import 'science_status.dart';
+import 'sub_exposure_noise.dart';
 
 part 'science_processing_service/private_helpers.dart';
 part 'science_processing_service/provider.dart';

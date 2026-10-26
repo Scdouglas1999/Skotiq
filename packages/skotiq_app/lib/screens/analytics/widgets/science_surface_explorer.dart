@@ -492,7 +492,7 @@ class _ScienceSurfaceExplorerState extends State<ScienceSurfaceExplorer> {
       case 'background':
         return 'Background';
       case 'snr':
-        return 'SNR';
+        return 'Sky/read noise';
       case 'fwhm':
         return 'FWHM';
       case 'hfr':

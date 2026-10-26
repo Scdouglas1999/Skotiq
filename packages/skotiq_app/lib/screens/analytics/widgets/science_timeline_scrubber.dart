@@ -121,7 +121,8 @@ class _ScienceTimelineScrubberState extends State<ScienceTimelineScrubber> {
                 ),
                 if (selected != null)
                   Text(
-                    'SNR ${selected.snr.toStringAsFixed(1)} | Clip H ${selected.highClipPercent.toStringAsFixed(2)}%',
+                    'Sky/read noise ${selected.snr > 0 ? '${selected.snr.toStringAsFixed(1)}x' : kReadoutUnknown}'
+                    ' | Clip H ${selected.highClipPercent.toStringAsFixed(2)}%',
                     style: SkotiqTypography.caption
                         .copyWith(color: widget.colors.textMuted),
                   ),
