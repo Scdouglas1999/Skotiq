@@ -8,6 +8,7 @@ import '../../database/daos/science_dao.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../database/database.dart';
 import 'airmass.dart';
+import 'photometric_bands.dart';
 import '../../utils/skotiq_data_directory.dart';
 
 // Surfaced through the science-services barrel, which already exports this
@@ -50,8 +51,9 @@ class AavsoExportService {
   ///
   /// [sessionId] — the imaging session containing photometry measurements.
   /// [targetStarName] — the AAVSO star designation (e.g., "SS CYG").
-  /// [filterBand] — the photometric filter band (e.g., "V", "B", "R", "I",
-  ///   "CV", "CR", "TG"). If null, defaults to "CV" (clear with V zeropoint).
+  /// [filterBand] — AAVSO filter code for frames whose filter was never
+  ///   recorded. Frames with a recorded filter use that filter's code (TB,
+  ///   TG, TR, V, CV); frames in a filter AAVSO has no code for are left out.
   /// [chartId] — optional AAVSO chart ID used for comparison stars.
   ///
   /// Returns the path to the saved file.
@@ -86,32 +88,12 @@ class AavsoExportService {
       );
     }
 
-    final calibrations = await _scienceDao.getCalibrationsForSession(sessionId);
-
-    // Build a lookup from capturedImageId -> calibration for zero-point access
-    final calibrationByImage = <int, FramePhotometricCalibrationRow>{};
-    for (final cal in calibrations) {
-      if (cal.capturedImageId != null && cal.isCalibrated) {
-        calibrationByImage[cal.capturedImageId!] = cal;
-      }
-    }
-
-    // Partition measurements by role
+    final byFrame = <int, List<PhotometryMeasurementRow>>{};
     final targetMeasurements = <PhotometryMeasurementRow>[];
-    final compStars = <String, PhotometryMeasurementRow>{};
-    final checkStars = <String, PhotometryMeasurementRow>{};
-
     for (final m in measurements) {
-      switch (m.role) {
-        case 'target':
-          targetMeasurements.add(m);
-          break;
-        case 'comparison':
-          compStars.putIfAbsent(m.objectId, () => m);
-          break;
-        case 'check':
-          checkStars.putIfAbsent(m.objectId, () => m);
-          break;
+      if (m.role == 'target') targetMeasurements.add(m);
+      if (m.capturedImageId != null) {
+        byFrame.putIfAbsent(m.capturedImageId!, () => []).add(m);
       }
     }
 
@@ -122,11 +104,22 @@ class AavsoExportService {
       );
     }
 
-    final effectiveFilter = filterBand ?? 'CV';
-
-    // Determine comparison/check star labels from the first occurrence
-    final compLabel = compStars.isNotEmpty ? compStars.keys.first : 'na';
-    final checkLabel = checkStars.isNotEmpty ? checkStars.keys.first : 'na';
+    // MTYPE=DIF reports the target against ONE named comparison star, with
+    // its instrumental magnitude in CMAG. The comparison measured in the most
+    // frames is used for the whole file.
+    final compFrames = <String, int>{};
+    for (final m in measurements.where((m) => m.role == 'comparison')) {
+      compFrames[m.objectId] = (compFrames[m.objectId] ?? 0) + 1;
+    }
+    if (compFrames.isEmpty) {
+      throw AavsoExportError(
+        'No comparison star measurements found in session $sessionId. '
+        'A differential (DIF) report needs a comparison star.',
+      );
+    }
+    final compName = compFrames.entries
+        .reduce((a, b) => b.value > a.value ? b : a)
+        .key;
 
     final buffer = StringBuffer();
 
@@ -142,90 +135,78 @@ class AavsoExportService {
     // Extended format columns:
     // NAME,DATE,MAG,MERR,FILT,TRANS,MTYPE,CNAME,CMAG,KNAME,KMAG,AMASS,GROUP,CHART,NOTES
     for (final m in targetMeasurements) {
-      final jd = _dateTimeToJd(m.timestamp);
-
-      // Magnitude: use differential magnitude if available, otherwise skip
-      if (m.differentialMagnitude == null) {
-        continue;
+      final frameId = m.capturedImageId;
+      if (frameId == null) continue;
+      final frameRows = byFrame[frameId] ?? const [];
+      PhotometryMeasurementRow? rowFor(
+        bool Function(PhotometryMeasurementRow) test,
+      ) {
+        for (final row in frameRows) {
+          if (test(row)) return row;
+        }
+        return null;
       }
-      final mag = m.differentialMagnitude!.toStringAsFixed(4);
 
-      // Magnitude error from uncertainty field
-      final merr = m.uncertainty != null && m.uncertainty! > 0
-          ? m.uncertainty!.toStringAsFixed(4)
+      final comp = rowFor(
+        (r) => r.role == 'comparison' && r.objectId == compName,
+      );
+      final targetMag = _instrumentalMagnitude(m);
+      final compMag = comp == null ? null : _instrumentalMagnitude(comp);
+      if (targetMag == null || compMag == null) continue;
+
+      final capturedImage = await _imagesDao.getImageById(frameId);
+
+      // FILT: the frame's own filter, as an AAVSO filter code.
+      final filterName = m.filter ?? capturedImage?.filter;
+      final String? filt = filterName != null && filterName.trim().isNotEmpty
+          ? filterBandFor(filterName).aavsoFilterCode
+          : filterBand;
+      if (filt == null) continue;
+
+      // DATE: mid-exposure. The row's timestamp is when the frame was
+      // recorded, at the end of the exposure.
+      final exposure = capturedImage?.exposureDuration;
+      final mid = exposure != null && exposure.isFinite && exposure > 0
+          ? m.timestamp.subtract(
+              Duration(microseconds: (exposure * 1e6 / 2).round()),
+            )
+          : m.timestamp;
+      final jd = _dateTimeToJd(mid);
+
+      final mag = (targetMag - compMag).toStringAsFixed(4);
+      // Target error (which already includes the ensemble's) combined with the
+      // comparison's own: an upper bound on the error of target − comparison.
+      final tErr = m.uncertainty;
+      final cErr = comp!.uncertainty;
+      final merr = tErr != null && tErr > 0 && cErr != null && cErr >= 0
+          ? math.sqrt(tErr * tErr + cErr * cErr).toStringAsFixed(4)
           : 'na';
 
-      // Transformation status: NO = untransformed (we report raw differential)
       const trans = 'NO';
+      const mtype = 'DIF';
+      final cmag = compMag.toStringAsFixed(4);
 
-      // Measurement type: STD = standardized, DIFF = differential
-      // Our photometry is differential by default
-      const mtype = 'DIFF';
-
-      // Comparison star magnitude — find a comp measurement for the same
-      // capturedImageId to get a frame-matched value. Per the Extended
-      // Format spec, for MTYPE=DIFF the CMAG/KMAG columns carry the
-      // *instrumental* magnitude of the comp/check star. The pipeline
-      // stores comparison rows with a null differentialMagnitude (only the
-      // target gets one), so derive the instrumental magnitude from the
-      // stored flux instead of reading a field that is always null.
-      String cmag = 'na';
-      if (compStars.isNotEmpty) {
-        final compForFrame = measurements
-            .where(
-              (row) =>
-                  row.role == 'comparison' &&
-                  row.capturedImageId == m.capturedImageId,
-            )
-            .toList();
-        if (compForFrame.isNotEmpty) {
-          final instMag = _instrumentalMagnitude(compForFrame.first);
-          if (instMag != null) {
-            cmag = instMag.toStringAsFixed(4);
-          }
-        }
-      }
-
-      // Check star magnitude — same logic
-      String kmag = 'na';
-      if (checkStars.isNotEmpty) {
-        final checkForFrame = measurements
-            .where(
-              (row) =>
-                  row.role == 'check' &&
-                  row.capturedImageId == m.capturedImageId,
-            )
-            .toList();
-        if (checkForFrame.isNotEmpty) {
-          final instMag = _instrumentalMagnitude(checkForFrame.first);
-          if (instMag != null) {
-            kmag = instMag.toStringAsFixed(4);
-          }
-        }
-      }
+      final check = rowFor((r) => r.role == 'check');
+      final checkMag = check == null ? null : _instrumentalMagnitude(check);
+      final kname = check == null || checkMag == null ? 'na' : check.objectId;
+      final kmag = checkMag == null ? 'na' : checkMag.toStringAsFixed(4);
 
       // Derive AMASS only from the frame's recorded altitude with the canonical
       // model. Missing or sub-horizon altitude is represented as AAVSO `na`.
       String amass = 'na';
-      if (m.capturedImageId != null) {
-        final capturedImage = await _imagesDao.getImageById(m.capturedImageId!);
-        final altitudeDeg = capturedImage?.mountAltitude;
-        final airmass = altitudeDeg == null
-            ? null
-            : airmassForTrueAltitude(altitudeDeg);
-        if (airmass != null) {
-          amass = airmass.toStringAsFixed(3);
-        }
+      final altitudeDeg = capturedImage?.mountAltitude;
+      final airmass = altitudeDeg == null
+          ? null
+          : airmassForTrueAltitude(altitudeDeg);
+      if (airmass != null) {
+        amass = airmass.toStringAsFixed(3);
       }
 
-      // Group: all measurements from the same frame get the same group number.
-      // Use the capturedImageId as the group identifier.
-      final group = m.capturedImageId?.toString() ?? 'na';
+      // GROUP is at most 5 characters; the frame id ties a line to its frame.
+      final groupId = '$frameId';
+      final group = groupId.length <= 5 ? groupId : 'na';
 
-      // Chart reference
       final chartRef = chartId ?? 'na';
-
-      // Notes: include SNR if available
       final notes = m.snr != null ? 'SNR=${m.snr!.toStringAsFixed(1)}' : 'na';
 
       buffer.writeln(
@@ -233,12 +214,12 @@ class AavsoExportService {
         '${jd.toStringAsFixed(5)},'
         '$mag,'
         '$merr,'
-        '$effectiveFilter,'
+        '$filt,'
         '$trans,'
         '$mtype,'
-        '${_sanitize(compLabel)},'
+        '${_sanitize(compName)},'
         '$cmag,'
-        '${_sanitize(checkLabel)},'
+        '${_sanitize(kname)},'
         '$kmag,'
         '$amass,'
         '$group,'
@@ -256,8 +237,8 @@ class AavsoExportService {
         .length;
     if (lineCount <= 6) {
       throw const AavsoExportError(
-        'No exportable measurements found. All target measurements lack '
-        'differential magnitude values.',
+        'No exportable measurements found: no frame has both the target '
+        'and the comparison star measured in a filter AAVSO has a code for.',
       );
     }
 
@@ -314,15 +295,9 @@ class AavsoExportService {
     return jdn.toDouble() + dayFraction;
   }
 
-  /// Instrumental magnitude of a comp/check measurement, preferring an
-  /// explicit differential magnitude when a future pipeline version stores
-  /// one, otherwise -2.5·log10(flux). Returns null when the flux is
-  /// unusable so the column falls back to 'na' rather than a bogus value.
+  /// Instrumental magnitude, −2.5·log10(flux), or null when the flux is
+  /// unusable so the line is left out rather than given a bogus value.
   static double? _instrumentalMagnitude(PhotometryMeasurementRow row) {
-    final differential = row.differentialMagnitude;
-    if (differential != null && differential.isFinite) {
-      return differential;
-    }
     if (row.flux.isFinite && row.flux > 0) {
       return -2.5 * math.log(row.flux) / math.ln10;
     }
