@@ -109,7 +109,7 @@ class AavsoExportService {
     // frames is used for the whole file.
     final compFrames = <String, int>{};
     for (final m in measurements.where((m) => m.role == 'comparison')) {
-      compFrames[m.objectId] = (compFrames[m.objectId] ?? 0) + 1;
+      compFrames.update(m.objectId, (n) => n + 1, ifAbsent: () => 1);
     }
     if (compFrames.isEmpty) {
       throw AavsoExportError(

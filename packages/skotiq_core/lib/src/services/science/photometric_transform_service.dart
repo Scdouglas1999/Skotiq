@@ -77,7 +77,7 @@ class PhotometricTransformService {
               star.snr >= 5.0 &&
               star.catalogMagV.isFinite &&
               star.catalogMagB.isFinite &&
-              (bandMag(star)?.isFinite ?? false) &&
+              (bandMag(star)?.isFinite == true) &&
               star.airmass > 0 &&
               star.airmass < 10.0;
         })
