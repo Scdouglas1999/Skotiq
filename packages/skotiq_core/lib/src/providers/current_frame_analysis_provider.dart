@@ -21,6 +21,8 @@ import '../services/imaging_service.dart';
 import '../services/logging_service.dart';
 import '../services/plate_solve_service.dart';
 import '../services/wcs/gnomonic_projection.dart';
+import '../services/wcs/plate_solve_data_from_result.dart';
+import '../services/wcs/wcs_sip_codec.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/mount_state_provider.dart';
@@ -60,6 +62,8 @@ class FrameSolveVm {
     this.pixelScaleArcsec,
     this.message,
     this.fromSavedSolution = false,
+    this.cd,
+    this.sip,
   });
 
   final DateTime frameCapturedAt;
@@ -77,6 +81,11 @@ class FrameSolveVm {
   /// The solution was already saved with the frame, so no solver ran.
   final bool fromSavedSolution;
 
+  /// The solver's CD matrix, which carries the frame's parity, and its SIP
+  /// block (`solved_sip` encoding); null when the solve recorded none.
+  final FrameSolveCd? cd;
+  final String? sip;
+
   bool get isSolved => status == FrameSolveStatus.solved;
 
   /// The same solve, recorded against another window's copy of the frame.
@@ -89,6 +98,8 @@ class FrameSolveVm {
     pixelScaleArcsec: pixelScaleArcsec,
     message: message,
     fromSavedSolution: fromSavedSolution,
+    cd: cd,
+    sip: sip,
   );
 
   /// The solution as the catalog overlay takes it; null unless solved.
@@ -104,15 +115,19 @@ class FrameSolveVm {
         scale == null) {
       return null;
     }
-    final wcs = SolvedWcs(
+    return solvedWcsFromStored(
       raHours: ra / 15,
       decDegrees: dec,
       rotationDeg: rot,
       pixelScaleArcsec: scale,
       imageWidth: width,
       imageHeight: height,
+      cd1_1: cd?.cd1_1,
+      cd1_2: cd?.cd1_2,
+      cd2_1: cd?.cd2_1,
+      cd2_2: cd?.cd2_2,
+      sip: sip,
     );
-    return wcs.isValid ? wcs : null;
   }
 
   @override
@@ -125,7 +140,9 @@ class FrameSolveVm {
       other.rotationDeg == rotationDeg &&
       other.pixelScaleArcsec == pixelScaleArcsec &&
       other.message == message &&
-      other.fromSavedSolution == fromSavedSolution;
+      other.fromSavedSolution == fromSavedSolution &&
+      other.cd == cd &&
+      other.sip == sip;
 
   @override
   int get hashCode => Object.hash(
@@ -164,7 +181,23 @@ typedef SavedFrameSolution = ({
   double decDegrees,
   double rotationDeg,
   double pixelScaleArcsec,
+  FrameSolveCd? cd,
+  String? sip,
 });
+
+/// A solve's CD matrix in degrees per pixel.
+typedef FrameSolveCd = ({
+  double cd1_1,
+  double cd1_2,
+  double cd2_1,
+  double cd2_2,
+});
+
+/// The CD matrix of a native solve result, or null when it reported none.
+FrameSolveCd? frameSolveCdOf(bridge.PlateSolveResult r) =>
+    (r.cd11 == 0 && r.cd12 == 0 && r.cd21 == 0 && r.cd22 == 0)
+    ? null
+    : (cd1_1: r.cd11, cd1_2: r.cd12, cd2_1: r.cd21, cd2_2: r.cd22);
 
 /// Looks up a solution saved with a frame's database row, so a frame that
 /// was solved already (by the science pipeline, or an earlier session) is
@@ -184,12 +217,21 @@ final savedFrameSolutionProvider =
         if (ra == null || dec == null || rot == null || scale == null) {
           return null;
         }
+        final distortion = await dao.getStoredWcsDistortion(row.id);
+        final c11 = distortion?.cd1_1;
+        final c12 = distortion?.cd1_2;
+        final c21 = distortion?.cd2_1;
+        final c22 = distortion?.cd2_2;
         // The row keeps RA in hours.
         return (
           raDegrees: ra * 15,
           decDegrees: dec,
           rotationDeg: rot,
           pixelScaleArcsec: scale,
+          cd: c11 == null || c12 == null || c21 == null || c22 == null
+              ? null
+              : (cd1_1: c11, cd1_2: c12, cd2_1: c21, cd2_2: c22),
+          sip: distortion?.sip,
         );
       };
     });
@@ -309,6 +351,8 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
             rotationDeg: saved.rotationDeg,
             pixelScaleArcsec: saved.pixelScaleArcsec,
             fromSavedSolution: true,
+            cd: saved.cd,
+            sip: saved.sip,
           ),
         );
         return;
@@ -343,6 +387,17 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
           decDegrees: result.dec,
           rotationDeg: result.rotation,
           pixelScaleArcsec: result.pixelScale,
+          cd: frameSolveCdOf(result),
+          sip: encodeSolvedSip(
+            aOrder: result.sipAOrder,
+            bOrder: result.sipBOrder,
+            aCoeffs: result.sipACoeffs.toList(),
+            bCoeffs: result.sipBCoeffs.toList(),
+            apOrder: result.sipApOrder,
+            bpOrder: result.sipBpOrder,
+            apCoeffs: result.sipApCoeffs.toList(),
+            bpCoeffs: result.sipBpCoeffs.toList(),
+          ),
         );
         _lastSolved = solved;
         _put(solved);

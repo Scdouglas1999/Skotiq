@@ -14,6 +14,7 @@ import '../annotation_service.dart';
 import '../imaging_service.dart';
 import '../logging_service.dart';
 import '../plate_solve_service.dart';
+import '../wcs/plate_solve_data_from_result.dart';
 
 /// Builds catalog annotations for a captured frame given its plate solve.
 ///
@@ -513,15 +514,16 @@ class FirstLightOrchestrator {
       );
     }
 
-    final plateSolveData = PlateSolveData(
-      ra: solveResult.ra,
-      dec: solveResult.dec,
-      pixelScale: solveResult.pixelScale,
-      rotation: solveResult.rotation,
-      fieldWidth: solveResult.fieldWidth,
-      fieldHeight: solveResult.fieldHeight,
+    final plateSolveData = plateSolveDataFromResult(
+      solveResult,
       imageWidth: captured.width,
       imageHeight: captured.height,
+      fieldWidth: solveResult.fieldWidth > 0
+          ? solveResult.fieldWidth
+          : captured.width * solveResult.pixelScale / 3600.0,
+      fieldHeight: solveResult.fieldHeight > 0
+          ? solveResult.fieldHeight
+          : captured.height * solveResult.pixelScale / 3600.0,
     );
 
     final ImageAnnotation annotation;

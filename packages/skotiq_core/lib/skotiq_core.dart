@@ -449,6 +449,7 @@ export 'src/services/import/target_library_importer.dart';
 export 'src/services/wcs_overlay.dart';
 export 'src/services/wcs/gnomonic_projection.dart';
 export 'src/services/wcs/wcs_sip_codec.dart';
+export 'src/services/wcs/plate_solve_data_from_result.dart';
 export 'src/services/hips/healpix_nested.dart';
 export 'src/services/catalog_overlay_service.dart';
 export 'src/providers/catalog_overlay_provider.dart';

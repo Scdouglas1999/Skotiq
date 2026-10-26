@@ -7,12 +7,18 @@ class ProjectedMovingTrack {
   final double motionArcsecPerMinute;
   final double confidence;
 
+  /// Direction of motion on the image as a unit vector in pixel coordinates,
+  /// from the frame's WCS. Null falls back to drawing the position angle
+  /// with north up and east left.
+  final Offset? imageDirection;
+
   const ProjectedMovingTrack({
     required this.imageX,
     required this.imageY,
     required this.positionAngleDegrees,
     required this.motionArcsecPerMinute,
     required this.confidence,
+    this.imageDirection,
   });
 }
 
@@ -71,8 +77,10 @@ class ScienceMovingTrackOverlayPainter extends CustomPainter {
       final trailLength =
           (8.0 + track.motionArcsecPerMinute * 1.8).clamp(8.0, 44.0).toDouble();
       final paRad = track.positionAngleDegrees * math.pi / 180.0;
-      final dx = math.sin(paRad) * trailLength;
-      final dy = -math.cos(paRad) * trailLength;
+      final direction =
+          track.imageDirection ?? Offset(-math.sin(paRad), -math.cos(paRad));
+      final dx = direction.dx * trailLength;
+      final dy = direction.dy * trailLength;
       final start = Offset(x - dx * 0.45, y - dy * 0.45);
       final end = Offset(x + dx * 0.55, y + dy * 0.55);
 

@@ -176,22 +176,18 @@ String _normalisePath(String value) => value
 
 SolvedWcs? _solvedWcs(CapturedImageWcsData? data, Size size) {
   if (data == null || !data.isPlateSolved) return null;
-  final ra = data.solvedRaHours;
-  final dec = data.solvedDecDegrees;
-  final rotation = data.solvedRotationDegrees;
-  final scale = data.solvedPixelScaleArcsecPerPixel;
-  if (ra == null || dec == null || rotation == null || scale == null) {
-    return null;
-  }
-  final wcs = SolvedWcs(
-    raHours: ra,
-    decDegrees: dec,
-    rotationDeg: rotation,
-    pixelScaleArcsec: scale,
+  return solvedWcsFromStored(
+    raHours: data.solvedRaHours,
+    decDegrees: data.solvedDecDegrees,
+    rotationDeg: data.solvedRotationDegrees,
+    pixelScaleArcsec: data.solvedPixelScaleArcsecPerPixel,
     imageWidth: size.width.round(),
     imageHeight: size.height.round(),
+    cd1_1: data.cd1_1,
+    cd1_2: data.cd1_2,
+    cd2_1: data.cd2_1,
+    cd2_2: data.cd2_2,
   );
-  return wcs.isValid ? wcs : null;
 }
 
 /// A refusal the create path can explain to the operator in one sentence.

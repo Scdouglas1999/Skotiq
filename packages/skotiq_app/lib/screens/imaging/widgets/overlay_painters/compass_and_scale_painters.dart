@@ -40,8 +40,14 @@ const Color namedCompassNorth = Color(0xFFFF4444);
 const Color namedCompassEast = Color(0xFF44AAFF);
 
 class CompassOverlayPainter extends CustomPainter {
-  /// WCS rotation angle in degrees (position angle, North through East).
+  /// WCS rotation angle in degrees, as the solver reports it. Only used when
+  /// [axes] is null, and then read with the sky's own parity.
   final double rotationDegrees;
+
+  /// North and east on the image as unit vectors in pixel coordinates (+y
+  /// along the stored row order, which is screen-down), from the frame's CD
+  /// matrix. A scalar rotation cannot carry the parity of a mirrored frame.
+  final ({double northX, double northY, double eastX, double eastY})? axes;
 
   /// Radius of the compass circle in logical pixels.
   final double radius;
@@ -66,6 +72,7 @@ class CompassOverlayPainter extends CustomPainter {
   CompassOverlayPainter({
     required this.rotationDegrees,
     required SkotiqColors colors,
+    this.axes,
     this.radius = 60.0,
     this.margin = 20.0,
     this.bottomMargin,
@@ -107,20 +114,16 @@ class CompassOverlayPainter extends CustomPainter {
       ..strokeWidth = 1.0;
     canvas.drawCircle(center, radius, borderPaint);
 
-    // The plate solve rotation is the angle from image-up to celestial North,
-    // measured East of North (counter-clockwise on-sky, but clockwise in
-    // screen-Y-down coordinates). We negate so that the N arrow points in
-    // the direction of North within the image.
-    final rotRad = -rotationDegrees * (math.pi / 180.0);
+    final dirs = axes ?? _axesFromRotation(rotationDegrees);
 
     // Arrow length: slightly shorter than radius to leave room for labels
     final arrowLength = radius * 0.65;
     const arrowHeadSize = 8.0;
 
-    // North arrow
-    final nDx = math.sin(rotRad) * arrowLength;
-    final nDy = -math.cos(rotRad) * arrowLength;
-    final nTip = Offset(centerX + nDx, centerY + nDy);
+    final nTip = Offset(
+      centerX + dirs.northX * arrowLength,
+      centerY + dirs.northY * arrowLength,
+    );
 
     final nPaint = Paint()
       ..color = northColor
@@ -130,15 +133,12 @@ class CompassOverlayPainter extends CustomPainter {
 
     canvas.drawLine(center, nTip, nPaint);
     _drawArrowHead(canvas, center, nTip, arrowHeadSize, nPaint);
+    _drawLabel(canvas, 'N', nTip, Offset(dirs.northX, dirs.northY), northColor);
 
-    // "N" label at tip
-    _drawLabel(canvas, 'N', nTip, rotRad, radius, northColor);
-
-    // East arrow (perpendicular to north, 90 degrees clockwise on sky)
-    final eRotRad = rotRad + (math.pi / 2.0);
-    final eDx = math.sin(eRotRad) * arrowLength;
-    final eDy = -math.cos(eRotRad) * arrowLength;
-    final eTip = Offset(centerX + eDx, centerY + eDy);
+    final eTip = Offset(
+      centerX + dirs.eastX * arrowLength,
+      centerY + dirs.eastY * arrowLength,
+    );
 
     final ePaint = Paint()
       ..color = eastColor
@@ -149,9 +149,20 @@ class CompassOverlayPainter extends CustomPainter {
     canvas.drawLine(center, eTip, ePaint);
     _drawArrowHead(canvas, center, eTip, arrowHeadSize, ePaint);
 
-    // "E" label at tip
-    _drawLabel(canvas, 'E', eTip, eRotRad, radius, eastColor);
+    _drawLabel(canvas, 'E', eTip, Offset(dirs.eastX, dirs.eastY), eastColor);
   }
+
+  static ({double northX, double northY, double eastX, double eastY})
+      _axesFromRotation(double rotationDegrees) => GnomonicProjection(
+            SolvedWcs(
+              raHours: 0,
+              decDegrees: 0,
+              rotationDeg: rotationDegrees,
+              pixelScaleArcsec: 1,
+              imageWidth: 100,
+              imageHeight: 100,
+            ),
+          ).skyAxesOnImage;
 
   void _drawArrowHead(
       Canvas canvas, Offset from, Offset to, double headSize, Paint paint) {
@@ -178,7 +189,7 @@ class CompassOverlayPainter extends CustomPainter {
   }
 
   void _drawLabel(Canvas canvas, String text, Offset tipPosition,
-      double arrowAngleRad, double compassRadius, Color color) {
+      Offset direction, Color color) {
     final textSpan = TextSpan(
       text: text,
       style: SkotiqTypography.bodySm
@@ -195,8 +206,8 @@ class CompassOverlayPainter extends CustomPainter {
 
     // Place label just beyond the arrow tip, pushed outward along the arrow direction
     const labelOffset = 10.0;
-    final labelDx = math.sin(arrowAngleRad) * labelOffset;
-    final labelDy = -math.cos(arrowAngleRad) * labelOffset;
+    final labelDx = direction.dx * labelOffset;
+    final labelDy = direction.dy * labelOffset;
 
     textPainter.paint(
       canvas,
@@ -210,6 +221,7 @@ class CompassOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CompassOverlayPainter oldDelegate) {
     return oldDelegate.rotationDegrees != rotationDegrees ||
+        oldDelegate.axes != axes ||
         oldDelegate.radius != radius ||
         oldDelegate.margin != margin ||
         oldDelegate.bottomMargin != bottomMargin;

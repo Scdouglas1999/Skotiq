@@ -257,15 +257,12 @@ extension AnnotationPipeline on AnnotationService {
         return;
       }
 
-      final plateSolveData = PlateSolveData(
-        ra: result.ra,
-        dec: result.dec,
-        pixelScale: result.pixelScale,
-        rotation: result.rotation,
-        fieldWidth: fieldSize.width,
-        fieldHeight: fieldSize.height,
+      final plateSolveData = plateSolveDataFromResult(
+        result,
         imageWidth: image.width,
         imageHeight: image.height,
+        fieldWidth: fieldSize.width,
+        fieldHeight: fieldSize.height,
       );
 
       // Store plate solve for progressive re-annotation

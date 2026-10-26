@@ -180,6 +180,14 @@ class CapturedImageWcsData {
   final double? solvedRotationDegrees;
   final double? solvedPixelScaleArcsecPerPixel;
 
+  /// The stored CD matrix (deg/pixel) and SIP block (`solved_sip`
+  /// encoding), when the solve recorded them.
+  final double? cd1_1;
+  final double? cd1_2;
+  final double? cd2_1;
+  final double? cd2_2;
+  final String? sip;
+
   const CapturedImageWcsData({
     required this.id,
     required this.isPlateSolved,
@@ -187,6 +195,11 @@ class CapturedImageWcsData {
     required this.solvedDecDegrees,
     required this.solvedRotationDegrees,
     required this.solvedPixelScaleArcsecPerPixel,
+    this.cd1_1,
+    this.cd1_2,
+    this.cd2_1,
+    this.cd2_2,
+    this.sip,
   });
 }
 
@@ -194,10 +207,22 @@ final capturedImageWcsProvider =
     FutureProvider.family<CapturedImageWcsData?, int>((ref, imageId) async {
       final backend = ref.watch(backendProvider);
       db.CapturedImage? row;
+      ({
+        double? cd1_1,
+        double? cd1_2,
+        double? cd2_1,
+        double? cd2_2,
+        String? sip,
+      })?
+      distortion;
       if (backend is NetworkBackend) {
         row = await ref.watch(capturedImageByIdProvider(imageId).future);
       } else {
-        row = await ref.watch(imagesDaoProvider).getImageById(imageId);
+        final dao = ref.watch(imagesDaoProvider);
+        row = await dao.getImageById(imageId);
+        if (row != null && row.isPlateSolved) {
+          distortion = await dao.getStoredWcsDistortion(imageId);
+        }
       }
       if (row == null) {
         return null;
@@ -209,6 +234,11 @@ final capturedImageWcsProvider =
         solvedDecDegrees: row.solvedDec,
         solvedRotationDegrees: row.solvedRotation,
         solvedPixelScaleArcsecPerPixel: row.solvedPixelScale,
+        cd1_1: distortion?.cd1_1,
+        cd1_2: distortion?.cd1_2,
+        cd2_1: distortion?.cd2_1,
+        cd2_2: distortion?.cd2_2,
+        sip: distortion?.sip,
       );
     });
 

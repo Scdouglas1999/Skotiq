@@ -217,6 +217,8 @@ void main() {
       decDegrees: 40.0,
       rotationDeg: 5.0,
       pixelScaleArcsec: 2.0,
+      cd: null,
+      sip: null,
     );
     show(_frame(1, path: '/lights/a.fits'));
     await settle();

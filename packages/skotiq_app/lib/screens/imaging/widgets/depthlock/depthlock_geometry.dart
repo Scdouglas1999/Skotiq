@@ -26,20 +26,10 @@ Rect depthLockNormalizedRect(Offset a, Offset b) => Rect.fromLTRB(
 ///
 /// The native side speaks FITS: 1-based `CRPIX`, and a CD matrix that maps
 /// `(x − (crpix1−1), y − (crpix2−1))` straight to the tangent-plane
-/// `(xi, eta)` in degrees. [SolvedWcs] speaks the preview's language instead —
-/// 0-based pixels with +Y down, a reference pixel hard-coded at the image
-/// centre, and either a full CD matrix in its own negated frame or an
-/// isotropic scale-and-rotation collapse. This converts between them, so the
-/// two describe the same sky for the same pixel.
-///
-/// Derivation for the isotropic path, which is the one the app actually
-/// populates today: `gnomonic_projection.dart` computes
-/// `xi = s·(u·cosR − v·sinR)` and `eta = s·(−u·sinR − v·cosR)` for
-/// `u = x − W/2`, `v = y − H/2` and `s` the plate scale in degrees, which is
-/// exactly `cd1_1 = s·cosR, cd1_2 = −s·sinR, cd2_1 = −s·sinR,
-/// cd2_2 = −s·cosR`. The determinant is `−s²`: negative, because a sky image
-/// has flipped parity, which the native validator accepts (it asks for square,
-/// orthogonal pixels, not for a handedness).
+/// `(xi, eta)` in degrees. [SolvedWcs] uses the same mapping in 0-based
+/// pixels with the reference pixel at the image centre `((W−1)/2, (H−1)/2)`,
+/// so its effective CD matrix (the solver's own, or one rebuilt from scale,
+/// rotation and parity) carries straight over.
 ReferenceGeometry? depthLockReferenceFromSolvedWcs(SolvedWcs wcs) {
   if (!wcs.isValid) return null;
   final double crval1 = _normaliseRaDeg(wcs.raHours * 15.0);
@@ -49,44 +39,18 @@ ReferenceGeometry? depthLockReferenceFromSolvedWcs(SolvedWcs wcs) {
   // call fail with geometry the operator cannot see anything wrong with.
   if (crval2.abs() > 85.0) return null;
 
-  // 0-based image centre, expressed in the FITS 1-based convention the
-  // reference stores.
-  final double crpix1 = wcs.imageWidth / 2.0 + 1.0;
-  final double crpix2 = wcs.imageHeight / 2.0 + 1.0;
-
-  if (wcs.hasCdMatrix) {
-    // The projection's CD path works in `a = W/2 − x`, `b = H/2 − y` — both
-    // axes negated relative to the frame the native side uses — so the matrix
-    // carries straight over with its sign flipped.
-    return ReferenceGeometry(
-      width: wcs.imageWidth,
-      height: wcs.imageHeight,
-      crval1: crval1,
-      crval2: crval2,
-      crpix1: crpix1,
-      crpix2: crpix2,
-      cd1_1: -wcs.cd1_1!,
-      cd1_2: -wcs.cd1_2!,
-      cd2_1: -wcs.cd2_1!,
-      cd2_2: -wcs.cd2_2!,
-    );
-  }
-
-  final double scaleDeg = wcs.pixelScaleArcsec / 3600.0;
-  final double rot = wcs.rotationDeg * math.pi / 180.0;
-  final double cosR = math.cos(rot);
-  final double sinR = math.sin(rot);
+  final cd = wcs.effectiveCd;
   return ReferenceGeometry(
     width: wcs.imageWidth,
     height: wcs.imageHeight,
     crval1: crval1,
     crval2: crval2,
-    crpix1: crpix1,
-    crpix2: crpix2,
-    cd1_1: scaleDeg * cosR,
-    cd1_2: -scaleDeg * sinR,
-    cd2_1: -scaleDeg * sinR,
-    cd2_2: -scaleDeg * cosR,
+    crpix1: (wcs.imageWidth + 1) / 2.0,
+    crpix2: (wcs.imageHeight + 1) / 2.0,
+    cd1_1: cd.cd1_1,
+    cd1_2: cd.cd1_2,
+    cd2_1: cd.cd2_1,
+    cd2_2: cd.cd2_2,
   );
 }
 

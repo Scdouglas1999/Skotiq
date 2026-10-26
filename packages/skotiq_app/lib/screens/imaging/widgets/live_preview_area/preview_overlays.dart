@@ -152,6 +152,7 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
   /// draw would put that resolve on every frame.
   late final CompassOverlayPainter _compass = CompassOverlayPainter(
     rotationDegrees: plateSolve.rotation,
+    axes: _compassAxes(plateSolve),
     bottomMargin: bottomRightOccupied
         ? PreviewReadoutInsets.bottomRight + bottomRightLift
         : null,
@@ -182,6 +183,15 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
         oldDelegate.bottomRightLift != bottomRightLift ||
         oldDelegate.colors != colors;
   }
+}
+
+/// North and east on the frame from the solve's full WCS, or null when it
+/// cannot be projected.
+({double northX, double northY, double eastX, double eastY})? _compassAxes(
+  PlateSolveData plateSolve,
+) {
+  final wcs = plateSolve.toSolvedWcs();
+  return wcs.isValid ? GnomonicProjection(wcs).skyAxesOnImage : null;
 }
 
 /// Translate the database WCS row + image dimensions into the form the
@@ -243,44 +253,25 @@ SolvedWcs? _solvedWcsFromImage({
   required int height,
 }) {
   if (wcs == null || !wcs.isPlateSolved) return null;
-  final ra = wcs.solvedRaHours;
-  final dec = wcs.solvedDecDegrees;
-  final rot = wcs.solvedRotationDegrees;
-  final scale = wcs.solvedPixelScaleArcsecPerPixel;
-  if (ra == null || dec == null || rot == null || scale == null) {
-    return null;
-  }
-  return SolvedWcs(
-    raHours: ra,
-    decDegrees: dec,
-    rotationDeg: rot,
-    pixelScaleArcsec: scale,
+  return solvedWcsFromStored(
+    raHours: wcs.solvedRaHours,
+    decDegrees: wcs.solvedDecDegrees,
+    rotationDeg: wcs.solvedRotationDegrees,
+    pixelScaleArcsec: wcs.solvedPixelScaleArcsecPerPixel,
     imageWidth: width,
     imageHeight: height,
+    cd1_1: wcs.cd1_1,
+    cd1_2: wcs.cd1_2,
+    cd2_1: wcs.cd2_1,
+    cd2_2: wcs.cd2_2,
+    sip: wcs.sip,
   );
 }
 
 SolvedWcs? _solvedWcsFromPlateSolve(PlateSolveData plateSolve) {
-  final solved = SolvedWcs(
-    raHours: plateSolve.ra,
-    decDegrees: plateSolve.dec,
-    rotationDeg: plateSolve.rotation,
-    pixelScaleArcsec: plateSolve.pixelScale,
-    imageWidth: plateSolve.imageWidth,
-    imageHeight: plateSolve.imageHeight,
-  );
+  final solved = plateSolve.toSolvedWcs();
   return solved.isValid ? solved : null;
 }
 
-PlateSolveData _plateSolveFromSolvedWcs(SolvedWcs wcs) {
-  return PlateSolveData(
-    ra: wcs.raHours,
-    dec: wcs.decDegrees,
-    pixelScale: wcs.pixelScaleArcsec,
-    rotation: wcs.rotationDeg,
-    fieldWidth: wcs.imageWidth * wcs.pixelScaleArcsec / 3600.0,
-    fieldHeight: wcs.imageHeight * wcs.pixelScaleArcsec / 3600.0,
-    imageWidth: wcs.imageWidth,
-    imageHeight: wcs.imageHeight,
-  );
-}
+PlateSolveData _plateSolveFromSolvedWcs(SolvedWcs wcs) =>
+    plateSolveDataFromSolvedWcs(wcs);

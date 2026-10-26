@@ -249,18 +249,14 @@ extension _LivePreviewAreaFrameSelection on _LivePreviewAreaState {
     }
 
     final tracks = <ProjectedMovingTrack>[];
-    final centerRaDeg = wcs.raHours * 15.0;
+    final projection = GnomonicProjection(wcs);
     for (final candidate in candidates.take(200)) {
-      final projected = _skyToPixel(
+      final point = projection.worldToPixel(
         raDegrees: candidate.raDegrees,
         decDegrees: candidate.decDegrees,
-        centerRaDegrees: centerRaDeg,
-        centerDecDegrees: wcs.decDegrees,
-        rotationDegrees: wcs.rotationDeg,
-        pixelScaleArcsecPerPixel: wcs.pixelScaleArcsec,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
       );
+      final projected =
+          point == null ? null : Offset(point.pixel.x, point.pixel.y);
       if (projected == null) {
         continue;
       }
@@ -271,57 +267,30 @@ extension _LivePreviewAreaFrameSelection on _LivePreviewAreaState {
           positionAngleDegrees: candidate.positionAngleDegrees,
           motionArcsecPerMinute: candidate.motionArcsecPerMinute,
           confidence: candidate.confidence,
+          imageDirection: _imageDirectionOf(projection, candidate, projected),
         ),
       );
     }
     return tracks;
   }
 
-  Offset? _skyToPixel({
-    required double raDegrees,
-    required double decDegrees,
-    required double centerRaDegrees,
-    required double centerDecDegrees,
-    required double rotationDegrees,
-    required double pixelScaleArcsecPerPixel,
-    required double imageWidth,
-    required double imageHeight,
-  }) {
-    final raRad = raDegrees * math.pi / 180.0;
-    final decRad = decDegrees * math.pi / 180.0;
-    final centerRaRad = centerRaDegrees * math.pi / 180.0;
-    final centerDecRad = centerDecDegrees * math.pi / 180.0;
-
-    var dRa = raRad - centerRaRad;
-    while (dRa > math.pi) {
-      dRa -= 2 * math.pi;
-    }
-    while (dRa < -math.pi) {
-      dRa += 2 * math.pi;
-    }
-
-    final cosDec = math.cos(decRad);
-    final sinDec = math.sin(decRad);
-    final cosCenterDec = math.cos(centerDecRad);
-    final sinCenterDec = math.sin(centerDecRad);
-    final denom = sinCenterDec * sinDec + cosCenterDec * cosDec * math.cos(dRa);
-    if (denom <= 0) {
-      return null;
-    }
-
-    final xi = cosDec * math.sin(dRa) / denom;
-    final eta =
-        (cosCenterDec * sinDec - sinCenterDec * cosDec * math.cos(dRa)) / denom;
-    final xiDeg = xi * 180.0 / math.pi;
-    final etaDeg = eta * 180.0 / math.pi;
-    final rot = rotationDegrees * math.pi / 180.0;
-    final xr = xiDeg * math.cos(rot) - etaDeg * math.sin(rot);
-    final yr = xiDeg * math.sin(rot) + etaDeg * math.cos(rot);
-    final x = xr * 3600.0 / pixelScaleArcsecPerPixel + imageWidth / 2.0;
-    final y = imageHeight / 2.0 - yr * 3600.0 / pixelScaleArcsecPerPixel;
-    if (!x.isFinite || !y.isFinite) {
-      return null;
-    }
-    return Offset(x, y);
+  /// The on-image direction of a candidate's motion: the pixel step toward a
+  /// point 30" along its position angle, through the frame's WCS.
+  Offset? _imageDirectionOf(
+    GnomonicProjection projection,
+    MovingObjectCandidateRow candidate,
+    Offset at,
+  ) {
+    const stepDeg = 30.0 / 3600.0;
+    final pa = candidate.positionAngleDegrees * math.pi / 180.0;
+    final dec = candidate.decDegrees * math.pi / 180.0;
+    final ahead = projection.worldToPixel(
+      raDegrees: candidate.raDegrees + stepDeg * math.sin(pa) / math.cos(dec),
+      decDegrees: candidate.decDegrees + stepDeg * math.cos(pa),
+    );
+    if (ahead == null) return null;
+    final step = Offset(ahead.pixel.x - at.dx, ahead.pixel.y - at.dy);
+    final length = step.distance;
+    return length > 0 ? step / length : null;
   }
 }

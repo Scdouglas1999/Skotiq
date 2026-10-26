@@ -210,6 +210,8 @@ class NightStageSolveVm {
     required this.rotationDeg,
     required this.pixelScaleArcsec,
     this.offTargetArcmin,
+    this.cd,
+    this.sip,
   });
 
   /// [CapturedImageData.capturedAt] of the frame that was solved.
@@ -222,6 +224,11 @@ class NightStageSolveVm {
   /// Distance from the plan's target; null without a target.
   final double? offTargetArcmin;
 
+  /// The solver's CD matrix and SIP block, which carry the frame's parity
+  /// and distortion; null when the solve reported none.
+  final FrameSolveCd? cd;
+  final String? sip;
+
   @override
   bool operator ==(Object other) =>
       other is NightStageSolveVm &&
@@ -230,11 +237,13 @@ class NightStageSolveVm {
       other.decDegrees == decDegrees &&
       other.rotationDeg == rotationDeg &&
       other.pixelScaleArcsec == pixelScaleArcsec &&
-      other.offTargetArcmin == offTargetArcmin;
+      other.offTargetArcmin == offTargetArcmin &&
+      other.cd == cd &&
+      other.sip == sip;
 
   @override
   int get hashCode => Object.hash(frameCapturedAt, raDegrees, decDegrees,
-      rotationDeg, pixelScaleArcsec, offTargetArcmin);
+      rotationDeg, pixelScaleArcsec, offTargetArcmin, cd, sip);
 }
 
 /// Pairs each successful solve with the frame that was on screen when it
@@ -270,6 +279,8 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
     required double dec,
     required double rotation,
     required double scale,
+    FrameSolveCd? cd,
+    String? sip,
   }) =>
       NightStageSolveVm(
         frameCapturedAt: image.capturedAt,
@@ -277,6 +288,8 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
         decDegrees: dec,
         rotationDeg: rotation,
         pixelScaleArcsec: scale,
+        cd: cd,
+        sip: sip,
         offTargetArcmin: target == null
             ? null
             : nightSeparationDegrees(
@@ -296,6 +309,8 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
       dec: auto.decDegrees!,
       rotation: auto.rotationDeg!,
       scale: auto.pixelScaleArcsec!,
+      cd: auto.cd,
+      sip: auto.sip,
     );
   }
   final solved = ref.watch(_solvedFrameProvider);
@@ -307,6 +322,17 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
     dec: result.dec,
     rotation: result.rotation,
     scale: result.pixelScale,
+    cd: frameSolveCdOf(result),
+    sip: encodeSolvedSip(
+      aOrder: result.sipAOrder,
+      bOrder: result.sipBOrder,
+      aCoeffs: result.sipACoeffs.toList(),
+      bCoeffs: result.sipBCoeffs.toList(),
+      apOrder: result.sipApOrder,
+      bpOrder: result.sipBpOrder,
+      apCoeffs: result.sipApCoeffs.toList(),
+      bpCoeffs: result.sipBpCoeffs.toList(),
+    ),
   );
 });
 
@@ -553,37 +579,38 @@ class _LiveFrame extends ConsumerWidget {
     final id = _stripFrameFor(ref.watch(nightSessionFramesProvider), image)?.id;
     if (id != null) {
       final wcs = ref.watch(capturedImageWcsProvider(id)).valueOrNull;
-      final ra = wcs?.solvedRaHours;
-      final dec = wcs?.solvedDecDegrees;
-      final rot = wcs?.solvedRotationDegrees;
-      final scale = wcs?.solvedPixelScaleArcsecPerPixel;
-      if (wcs != null &&
-          wcs.isPlateSolved &&
-          ra != null &&
-          dec != null &&
-          rot != null &&
-          scale != null) {
-        return SolvedWcs(
-          raHours: ra,
-          decDegrees: dec,
-          rotationDeg: rot,
-          pixelScaleArcsec: scale,
+      if (wcs != null && wcs.isPlateSolved) {
+        final stored = solvedWcsFromStored(
+          raHours: wcs.solvedRaHours,
+          decDegrees: wcs.solvedDecDegrees,
+          rotationDeg: wcs.solvedRotationDegrees,
+          pixelScaleArcsec: wcs.solvedPixelScaleArcsecPerPixel,
           imageWidth: image.width,
           imageHeight: image.height,
+          cd1_1: wcs.cd1_1,
+          cd1_2: wcs.cd1_2,
+          cd2_1: wcs.cd2_1,
+          cd2_2: wcs.cd2_2,
+          sip: wcs.sip,
         );
+        if (stored != null) return stored;
       }
     }
     final solve = ref.watch(nightStageSolveProvider);
     if (solve == null) return null;
-    final solved = SolvedWcs(
+    return solvedWcsFromStored(
       raHours: solve.raDegrees / 15,
       decDegrees: solve.decDegrees,
       rotationDeg: solve.rotationDeg,
       pixelScaleArcsec: solve.pixelScaleArcsec,
       imageWidth: image.width,
       imageHeight: image.height,
+      cd1_1: solve.cd?.cd1_1,
+      cd1_2: solve.cd?.cd1_2,
+      cd2_1: solve.cd?.cd2_1,
+      cd2_2: solve.cd?.cd2_2,
+      sip: solve.sip,
     );
-    return solved.isValid ? solved : null;
   }
 }
 

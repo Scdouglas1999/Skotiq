@@ -41,6 +41,11 @@ _PlateSolveData _$PlateSolveDataFromJson(Map<String, dynamic> json) =>
       fieldHeight: (json['fieldHeight'] as num).toDouble(),
       imageWidth: (json['imageWidth'] as num).toInt(),
       imageHeight: (json['imageHeight'] as num).toInt(),
+      cd1_1: (json['cd1_1'] as num?)?.toDouble(),
+      cd1_2: (json['cd1_2'] as num?)?.toDouble(),
+      cd2_1: (json['cd2_1'] as num?)?.toDouble(),
+      cd2_2: (json['cd2_2'] as num?)?.toDouble(),
+      sip: json['sip'] as String?,
     );
 
 Map<String, dynamic> _$PlateSolveDataToJson(_PlateSolveData instance) =>
@@ -53,6 +58,11 @@ Map<String, dynamic> _$PlateSolveDataToJson(_PlateSolveData instance) =>
       'fieldHeight': instance.fieldHeight,
       'imageWidth': instance.imageWidth,
       'imageHeight': instance.imageHeight,
+      'cd1_1': instance.cd1_1,
+      'cd1_2': instance.cd1_2,
+      'cd2_1': instance.cd2_1,
+      'cd2_2': instance.cd2_2,
+      'sip': instance.sip,
     };
 
 _CelestialObjectAnnotation _$CelestialObjectAnnotationFromJson(
