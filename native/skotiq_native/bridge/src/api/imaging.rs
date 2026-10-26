@@ -2105,8 +2105,13 @@ pub async fn api_detect_stars_in_file(
 
     let result = skotiq_imaging::detect_stars_with_stats(&image_data, &detection_config);
 
+    // The star list honors the caller's own eccentricity ceiling. A caller
+    // that asks for more than the working-star ceiling is measuring the field
+    // (PSF and eccentricity maps, photometry), and a list narrowed to round
+    // stars cannot show a trailed field. At the default ceiling the two
+    // populations are the same.
     let stars: Vec<DetectedStarInfo> = result
-        .stars
+        .sources
         .iter()
         .map(|s| DetectedStarInfo {
             x: s.x,
@@ -2129,8 +2134,8 @@ pub async fn api_detect_stars_in_file(
     );
 
     Ok(StarDetectionResultApi {
+        star_count: stars.len() as u32,
         stars,
-        star_count: result.star_count,
         median_hfr: result.median_hfr,
         median_fwhm: result.median_fwhm,
         median_snr: result.median_snr,
@@ -5396,3 +5401,6 @@ mod frame_stats_tests;
 
 #[cfg(test)]
 mod fits_thumbnail_tests;
+
+#[cfg(test)]
+mod detect_stars_in_file_tests;
