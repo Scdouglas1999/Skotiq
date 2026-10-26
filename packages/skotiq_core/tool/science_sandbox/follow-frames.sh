@@ -25,6 +25,7 @@ done
 [[ -n "$DIR" ]] || { sed -n 2,12p "$0"; exit 2; }
 
 last_new=$(date +%s)
+retry=0
 declare -A seen=()
 while true; do
   frames=()
@@ -39,10 +40,15 @@ while true; do
     frames+=("$f")
     if [[ -z "${seen[$base]:-}" ]]; then seen[$base]=1; new=$((new + 1)); fi
   done < <(find "$DIR" -type f \( -iname '*.fits' -o -iname '*.fit' \) -print0)
-  if (( new > 0 )); then
-    last_new=$(date +%s)
+  if (( new > 0 || retry )); then
+    (( new > 0 )) && last_new=$(date +%s)
     echo "$(date -Is) follow: $new new, ${#frames[@]} total matching $MATCH"
-    "$HERE/run-science.sh" --skip-done "${PASS[@]}" "${frames[@]}"
+    if "$HERE/run-science.sh" --skip-done "${PASS[@]}" "${frames[@]}"; then
+      retry=0
+    else
+      echo "$(date -Is) follow: run failed, retrying next round"
+      retry=1
+    fi
   fi
   if (( $(date +%s) - last_new > IDLE )); then
     echo "$(date -Is) follow: no new frames for ${IDLE}s, exiting"
