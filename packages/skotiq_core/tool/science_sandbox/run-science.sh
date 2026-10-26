@@ -107,5 +107,5 @@ echo "science sandbox: ${#FRAMES[@]} frames -> $OUT (db $DB/skotiq.db)"
 cd "$PKG"
 systemd-run --user --scope --quiet -p MemoryMax="$MEM" \
   env SKOTIQ_SANDBOX_CONFIG="$CFG" SKOTIQ_DATABASE_DIR="$DB" SKOTIQ_DATA_DIR="$DATA" \
-  flutter test tool/science_sandbox/science_sandbox_test.dart --timeout=none -r expanded \
+  flutter test tool/science_sandbox/science_sandbox_test.dart --no-pub --timeout=none -r expanded \
   2>&1 | tee -a "$OUT/run.log"
