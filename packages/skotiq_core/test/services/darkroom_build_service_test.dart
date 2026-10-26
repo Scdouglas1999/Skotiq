@@ -693,25 +693,58 @@ void main() {
       expect(native.built, ['B', 'L', 'R', 'B']);
     });
 
-    test('a different reference is a different build', () async {
-      final preview = await service.previewRegistration(plan);
-      final output = Directory('${folder.path}/run');
-      await service.run(plan, output, accepted: preview);
-      final json = plan.toJson()..['referencePath'] = paths['B0'];
-      await expectLater(
-        service.run(
-          DarkroomBuildPlan.fromJson(json),
+    test(
+      'a new framing check rebuilds every filter when its reference changes',
+      () async {
+        final output = Directory('${folder.path}/run');
+        await service.run(
+          plan,
           output,
-          accepted: preview,
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('Start a new build'),
-          ),
-        ),
+          accepted: await service.previewRegistration(plan),
+        );
+        final changed = DarkroomBuildPlan.fromJson(
+          plan.toJson()..['referencePath'] = paths['B0'],
+        );
+        await expectLater(service.run(changed, output), throwsStateError);
+        expect(native.built, ['B', 'L', 'R']);
+        await service.run(
+          changed,
+          output,
+          accepted: await service.previewRegistration(changed),
+        );
+        expect(native.built, ['B', 'L', 'R', 'B', 'L', 'R']);
+        final exports = native.requests
+            .where((r) => r['op'] == 'deliverUniform')
+            .toList();
+        expect(exports, hasLength(2));
+        expect(exports.first['outputDir'], isNot(exports.last['outputDir']));
+        expect(
+          await Directory(exports.first['outputDir'] as String).exists(),
+          isTrue,
+          reason: 'the previous exported masters remain on disk',
+        );
+      },
+    );
+
+    test('adding the missing flats updates the build after framing', () async {
+      final before = DarkroomBuildPlan.fromJson(
+        plan.toJson()..['noFlatFilters'] = ['B', 'L', 'R'],
       );
+      final output = Directory('${folder.path}/run');
+      await service.run(
+        before,
+        output,
+        accepted: await service.previewRegistration(before),
+      );
+      final json = before.toJson()..['noFlatFilters'] = ['L', 'R'];
+      (json['groups'] as List).first['calibration'] = {'flat': paths['B0']};
+      final changed = DarkroomBuildPlan.fromJson(json);
+      await service.run(
+        changed,
+        output,
+        accepted: await service.previewRegistration(changed),
+      );
+      expect(native.built, ['B', 'L', 'R', 'B']);
     });
   });
 

@@ -685,11 +685,18 @@ class DarkroomBuildService {
     return '$safe-${hash.toRadixString(16)}';
   }
 
-  /// Whether [next] is the same build as [saved]: same target, reference and
-  /// limits. Its lights, calibration and crop minimum may differ; the filters
-  /// whose inputs differ are built again.
+  /// Whether a fresh framing check may update this target's build. Changes
+  /// to the reference, limits or calibration invalidate the filters they affect.
   static bool _sameBuild(Map saved, Map next) {
-    const free = {'groups', 'excluded', 'minRetainedArea'};
+    const free = {
+      'groups',
+      'excluded',
+      'minRetainedArea',
+      'noFlatFilters',
+      'referencePath',
+      'minOverlap',
+      'maxEccentricity',
+    };
     for (final key in {...saved.keys, ...next.keys}) {
       if (free.contains(key)) continue;
       if (jsonEncode(saved[key]) != jsonEncode(next[key])) return false;
@@ -722,13 +729,29 @@ class DarkroomBuildService {
         'files': {for (final f in files) f: inputs[f]},
       });
     }
+    final referenceGroup = (plan['groups'] as List).cast<Map>().firstWhere(
+      (g) =>
+          (g['lights'] as List).any((l) => l['path'] == plan['referencePath']),
+    );
+    final referenceCalibration = referenceGroup['calibration'] as Map;
     return {
       for (final entry in groups.entries)
-        entry.key: jsonEncode(
-          entry.value..sort(
-            (a, b) => (a['label'] as String).compareTo(b['label'] as String),
-          ),
-        ),
+        entry.key: jsonEncode({
+          'referencePath': plan['referencePath'],
+          'referenceInput': inputs[plan['referencePath']],
+          'referenceCalibration': referenceCalibration,
+          'referenceCalibrationInputs': {
+            for (final kind in ['dark', 'bias', 'flat'])
+              if (referenceCalibration[kind] is String)
+                kind: inputs[referenceCalibration[kind]],
+          },
+          'minOverlap': plan['minOverlap'],
+          'maxEccentricity': plan['maxEccentricity'],
+          'groups': entry.value
+            ..sort(
+              (a, b) => (a['label'] as String).compareTo(b['label'] as String),
+            ),
+        }),
     };
   }
 
@@ -741,7 +764,8 @@ class DarkroomBuildService {
   /// exposure twice. A plan for the same target and reference whose lights,
   /// calibration or input files differ (frames left out, a new night folded
   /// in) replaces the saved one after a framing check: filters whose inputs
-  /// changed are built again from all their lights, the others are kept. A
+  /// changed are built again from all their lights, the others are kept. If the
+  /// reference or registration limits change, every filter is rebuilt. A
   /// filter that fails is reported and the others continue.
   Future<Map<String, dynamic>> run(
     DarkroomBuildPlan buildPlan,
