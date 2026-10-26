@@ -90,7 +90,7 @@ class _RecordingDiffSeam implements DifferenceImageSeam {
           'tileY': 600.0,
           'residualFlux': 5000.0,
           'deltaMag': null,
-          'snr': 5.5, // faint: just above the _minSnr=5.0 persist gate
+          'snr': 7.5, // faint: just above the 7.0 significance gate
           'fwhm': 2.1,
           'eccentricity': 0.1,
           'kind': 'newSource',
@@ -156,12 +156,13 @@ void main() {
     await db.close();
   });
 
-  Future<int> insertSolvedLight() {
+  Future<int> insertSolvedLight([int n = 1]) {
     return imagesDao.createImage(
       CapturedImagesCompanion.insert(
-        filePath: '/tmp/light_0001.fits',
-        fileName: 'light_0001.fits',
+        filePath: '/tmp/light_000$n.fits',
+        fileName: 'light_000$n.fits',
         frameType: const Value('light'),
+        filter: const Value('R'),
         exposureDuration: 300.0,
         capturedAt: DateTime.utc(2026, 6, 21, 22),
         isPlateSolved: const Value(true),
@@ -194,6 +195,7 @@ void main() {
       framePath: image.filePath,
       wcs: wcs,
       capturedImageId: image.id,
+      filter: image.filter,
     );
 
     // (A) fold second: deepen the template for the NEXT frame.
@@ -233,16 +235,17 @@ void main() {
     },
   );
 
-  test('a faint SNR~5.5 injected transient survives the persist gate '
-      '(self-subtraction would have dropped it below SNR 5.0)', () async {
-    final id = await insertSolvedLight();
-    await solveHook(id);
+  test('a faint 7.5-sigma source seen in two frames survives the gate '
+      '(self-subtraction would have dropped it below 7 sigma)', () async {
+    await solveHook(await insertSolvedLight(1));
+    expect(await transientDao.allDetections(), isEmpty);
+    await solveHook(await insertSolvedLight(2));
 
-    // The faint survivor was persisted — not suppressed by folding its own
-    // flux into the template (which would have pushed SNR below the floor).
+    // Confirmed by the second frame and persisted, not suppressed by folding
+    // its own flux into the template first.
     final persisted = await transientDao.allDetections();
     expect(persisted, hasLength(1));
-    expect(persisted.single.snr, closeTo(5.5, 1e-9));
+    expect(persisted.single.snr, closeTo(7.5, 1e-9));
     expect(persisted.single.kind, 'newSource');
   });
 }

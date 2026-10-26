@@ -389,12 +389,13 @@ class FirstLightService {
       source: _logSource,
     );
 
-    if (sessionId != null) {
-      final rows = await _dao.detectionsForSession(sessionId);
-      return rows.take(companions.length).toList(growable: false);
-    }
-    final all = await _dao.allDetections();
-    return all.take(companions.length).toList(growable: false);
+    // Newest rows by id: detectedAt has one-second resolution, so ordering by
+    // it can hand back an earlier frame's rows.
+    final rows = sessionId != null
+        ? await _dao.detectionsForSession(sessionId)
+        : await _dao.allDetections();
+    final newest = rows.toList()..sort((a, b) => b.id.compareTo(a.id));
+    return newest.take(companions.length).toList(growable: false);
   }
 
   /// Keep the candidates seen at the same sky position in an earlier frame of
