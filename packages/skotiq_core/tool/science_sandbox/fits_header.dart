@@ -80,6 +80,17 @@ class FitsFrameInfo {
   DateTime get captureEnd =>
       captureStart.add(Duration(milliseconds: (exposure * 1000).round()));
 
+  /// Observing night as YYYY-MM-DD of the evening it started: noon-to-noon
+  /// local, with local time taken from SITELONG (15 deg per hour).
+  String get nightKey {
+    final lon = _d('SITELONG') ?? 0;
+    final local = captureEnd.add(
+      Duration(minutes: (lon / 15 * 60).round() - 12 * 60),
+    );
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)}';
+  }
+
   static double? _sexagesimal(String? s, {required bool hours}) {
     if (s == null) return null;
     final parts = s.trim().split(RegExp(r'[\s:]+'));

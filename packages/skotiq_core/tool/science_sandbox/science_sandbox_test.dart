@@ -91,7 +91,13 @@ class _ObservedSkyAtlasService extends SkyAtlasService {
     required super.logger,
     required super.atlasRootResolver,
     super.targetResolver,
+    required this.foldEnabled,
   });
+
+  /// False skips the fold itself (sandbox `--atlas off`): each fold rewrites
+  /// gigabytes of tile sidecars, too slow for bulk replays. The First Light
+  /// scan still runs; with no atlas it reports "not deep enough".
+  final bool foldEnabled;
 
   final _done =
       StreamController<
@@ -108,6 +114,10 @@ class _ObservedSkyAtlasService extends SkyAtlasService {
     SolvedWcsDistortion distortion = const SolvedWcsDistortion(),
     AtlasInterp interp = AtlasInterp.lanczos3,
   }) async {
+    if (!foldEnabled) {
+      _done.add((imageId: image.id, summary: null, error: null));
+      return null;
+    }
     try {
       final summary = await super.autoFoldCapturedImage(
         image: image,
@@ -210,6 +220,7 @@ Future<void> _run(SandboxConfig cfg) async {
           seam: ref.watch(skyAtlasSeamProvider),
           logger: ref.watch(loggingServiceProvider),
           atlasRootResolver: defaultAtlasRoot,
+          foldEnabled: cfg.atlasFold,
           targetResolver: (targetId) async {
             final target = await targetsDao.getTargetById(targetId);
             if (target == null) return null;
@@ -293,29 +304,35 @@ Future<void> _run(SandboxConfig cfg) async {
   final first = frames.first;
   final targetName = first.object ?? cfg.sessionName;
   final targetId = await _ensureTarget(database, targetName, first);
-  final sessionId = await _ensureSession(
-    container,
-    database,
-    cfg.sessionName,
-    targetName,
-    targetId,
-    first,
-  );
-  say(
-    'session ${cfg.sessionName} id=$sessionId target=$targetName id=$targetId',
-  );
-
-  if (cfg.movingObjects) {
-    await container
-        .read(scienceDaoProvider)
-        .upsertSessionConfig(
-          ScienceSessionConfig(
-            sessionId: sessionId,
-            movingObjectsEnabled: true,
-          ),
-        );
-    say('moving objects ON for session $sessionId (sandbox only)');
+  final sessionIds = <String, int>{};
+  Future<int> sessionFor(FitsFrameInfo frame) async {
+    final name = cfg.sessionPerNight
+        ? '${cfg.sessionName}-${frame.nightKey}'
+        : cfg.sessionName;
+    final known = sessionIds[name];
+    if (known != null) return known;
+    final id = await _ensureSession(
+      container,
+      database,
+      name,
+      targetName,
+      targetId,
+      frame,
+    );
+    sessionIds[name] = id;
+    say('session $name id=$id target=$targetName id=$targetId');
+    if (cfg.movingObjects) {
+      await container
+          .read(scienceDaoProvider)
+          .upsertSessionConfig(
+            ScienceSessionConfig(sessionId: id, movingObjectsEnabled: true),
+          );
+      say('moving objects ON for session $id (sandbox only)');
+    }
+    return id;
   }
+
+  var sessionId = await sessionFor(first);
 
   // Narrator: keep the session's service alive and pin its clock to the frame
   // being processed, so cooldowns and windows see night time, not replay time.
@@ -372,6 +389,7 @@ Future<void> _run(SandboxConfig cfg) async {
       maxIds[t] = await _maxId(database, t);
     }
 
+    sessionId = await sessionFor(frame);
     simNow = frame.captureEnd;
     final imageId = await imagesDao.insertSequenceFrame(
       filePath: workPath,
@@ -521,62 +539,25 @@ Future<void> _run(SandboxConfig cfg) async {
     }
   }
 
-  // Session bundle exactly as GET /api/science/session/<id>/bundle builds it.
-  final scienceDao = database.scienceDao;
-  final bundle = {
-    'photometry': (await scienceDao.getPhotometryForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'calibrations': (await scienceDao.getCalibrationsForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'transparency': (await scienceDao.getTransparencyForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'psfTiles': (await scienceDao.getPsfTilesForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'frameQuality': (await scienceDao.getFrameQualityMetricsForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'tileMetrics': (await scienceDao.getTileMetricsForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'residuals': (await scienceDao.getResidualsForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'movingObjects': (await scienceDao.getMovingObjectsForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-    'lineRatios': (await scienceDao.getLineRatiosForSession(
-      sessionId,
-    )).map((r) => r.toJson()).toList(),
-  };
-  File(
-    '${out.path}/session-bundle.json',
-  ).writeAsStringSync(jsonEncode(_jsonSafe(bundle)));
-  final narrator = await database
-      .customSelect(
-        'SELECT * FROM narrator_events WHERE session_id = ? ORDER BY id',
-        variables: [drift.Variable<int>(sessionId)],
-      )
-      .get();
-  File(
-    '${out.path}/narrator-events.json',
-  ).writeAsStringSync(_json(narrator.map(_rowMap).toList()));
+  final bundleCounts = <String, Object?>{};
+  for (final entry in sessionIds.entries) {
+    final suffix = sessionIds.length == 1 ? '' : '-${entry.key}';
+    bundleCounts[entry.key] = await _writeSessionOutputs(
+      database,
+      out.path,
+      entry.value,
+      suffix,
+    );
+  }
   File('${out.path}/summary.json').writeAsStringSync(
     _json({
-      'sessionId': sessionId,
-      'sessionName': cfg.sessionName,
+      'sessions': sessionIds,
       'dbDir': cfg.dbDir,
+      'bundleCounts': bundleCounts,
       'frames': summary,
-      'bundleCounts': bundle.map((k, v) => MapEntry(k, v.length)),
-      'narratorEvents': narrator.length,
     }),
   );
-  say(
-    'DONE session=$sessionId bundle=${jsonEncode(bundle.map((k, v) => MapEntry(k, v.length)))} narrator=${narrator.length}',
-  );
+  say('DONE sessions=${jsonEncode(sessionIds)} ${jsonEncode(bundleCounts)}');
 
   await logSub.cancel();
   narratorSub.close();
@@ -591,6 +572,46 @@ Map<String, Object?> _foldSummaryJson(AtlasFoldSummary s) => {
   'totalFramesFolded': s.totalFramesFolded,
   'framesSkippedNoCoverage': s.framesSkippedNoCoverage,
 };
+
+/// Writes the `/api/science/session/<id>/bundle` content (built with the same
+/// DAO calls as the handler) and the session's narrator events.
+Future<Map<String, int>> _writeSessionOutputs(
+  db.SkotiqDatabase database,
+  String outDir,
+  int sessionId,
+  String suffix,
+) async {
+  final dao = database.scienceDao;
+  List<Object?> rows(List<dynamic> list) =>
+      list.map((r) => _jsonSafe(r.toJson())).toList();
+  final bundle = <String, List<Object?>>{
+    'photometry': rows(await dao.getPhotometryForSession(sessionId)),
+    'calibrations': rows(await dao.getCalibrationsForSession(sessionId)),
+    'transparency': rows(await dao.getTransparencyForSession(sessionId)),
+    'psfTiles': rows(await dao.getPsfTilesForSession(sessionId)),
+    'frameQuality': rows(await dao.getFrameQualityMetricsForSession(sessionId)),
+    'tileMetrics': rows(await dao.getTileMetricsForSession(sessionId)),
+    'residuals': rows(await dao.getResidualsForSession(sessionId)),
+    'movingObjects': rows(await dao.getMovingObjectsForSession(sessionId)),
+    'lineRatios': rows(await dao.getLineRatiosForSession(sessionId)),
+  };
+  File(
+    '$outDir/session-bundle$suffix.json',
+  ).writeAsStringSync(jsonEncode(bundle));
+  final narrator = await database
+      .customSelect(
+        'SELECT * FROM narrator_events WHERE session_id = ? ORDER BY id',
+        variables: [drift.Variable<int>(sessionId)],
+      )
+      .get();
+  File(
+    '$outDir/narrator-events$suffix.json',
+  ).writeAsStringSync(_json(narrator.map(_rowMap).toList()));
+  return {
+    ...bundle.map((k, v) => MapEntry(k, v.length)),
+    'narratorEvents': narrator.length,
+  };
+}
 
 Future<int> _maxId(db.SkotiqDatabase database, String table) async {
   final row = await database

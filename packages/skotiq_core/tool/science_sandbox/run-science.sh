@@ -16,6 +16,9 @@
 #   --skip-done          skip frames whose per-frame JSON already exists in --out
 #   --fold-wait SECONDS  how long to wait for the atlas fold per solved frame (default 180)
 #   --memory-max SIZE    systemd scope memory cap (default 6G)
+#   --session-per-night  one imaging session per observing night (<name>-YYYY-MM-DD)
+#   --atlas on|off       off skips the Your Sky fold (about 4 GB of disk writes and
+#                        about 2 min per frame); First Light then has no template
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
@@ -25,7 +28,7 @@ SCI="${SKOTIQ_SCIENCE_ROOT:-$HOME/.cache/ns-science-1025}"
 
 DB=""; SESSION=""; OUT=""; MOVING=false; DIFF=""; KEEP=false; SKIPDONE=false
 RIGDB="$HOME/.cache/ns-review-2026-10-24/skotiq.db"; FOLDWAIT=180; MEM=6G
-SETS=(); INPUTS=()
+SETS=(); INPUTS=(); ATLAS=on; PERNIGHT=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --db) DB="$2"; shift 2;;
@@ -40,12 +43,14 @@ while [[ $# -gt 0 ]]; do
     --skip-done) SKIPDONE=true; shift;;
     --fold-wait) FOLDWAIT="$2"; shift 2;;
     --memory-max) MEM="$2"; shift 2;;
-    -h|--help) sed -n 2,20p "$0"; exit 0;;
+    --atlas) ATLAS="$2"; shift 2;;
+    --session-per-night) PERNIGHT=true; shift;;
+    -h|--help) sed -n 2,23p "$0"; exit 0;;
     --*) echo "unknown option $1" >&2; exit 2;;
     *) INPUTS+=("$1"); shift;;
   esac
 done
-[[ -n "$DB" && -n "$SESSION" && ${#INPUTS[@]} -gt 0 ]] || { sed -n 2,20p "$0"; exit 2; }
+[[ -n "$DB" && -n "$SESSION" && ${#INPUTS[@]} -gt 0 ]] || { sed -n 2,23p "$0"; exit 2; }
 
 DB="$(mkdir -p "$DB" && cd "$DB" && pwd)"
 OUT="${OUT:-$DB/out/$SESSION}"; mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
@@ -53,6 +58,7 @@ DATA="$DB/data"; mkdir -p "$DATA"
 
 FRAMES=()
 for in in "${INPUTS[@]}"; do
+  [[ -e "$in" ]] || { echo "not found: $in" >&2; exit 2; }
   if [[ -d "$in" ]]; then
     while IFS= read -r -d '' f; do FRAMES+=("$f"); done < <(find "$in" -maxdepth 1 -type f \( -iname '*.fits' -o -iname '*.fit' -o -iname '*.fts' \) -print0 | sort -z)
   else
@@ -80,11 +86,11 @@ if [[ ! -e "$LIB" ]]; then
 fi
 
 CFG="$OUT/config.json"
-python3 - "$CFG" "$DB" "$DATA" "$OUT" "$SESSION" "$ASTAP" "$ASTAPDB" "$RIGCOPY" "$MOVING" "$DIFF" "$KEEP" "$SKIPDONE" "$FOLDWAIT" "${#SETS[@]}" "${SETS[@]}" "${FRAMES[@]}" <<'PY'
+python3 - "$CFG" "$DB" "$DATA" "$OUT" "$SESSION" "$ASTAP" "$ASTAPDB" "$RIGCOPY" "$MOVING" "$DIFF" "$KEEP" "$SKIPDONE" "$FOLDWAIT" "$ATLAS" "$PERNIGHT" "${#SETS[@]}" "${SETS[@]}" "${FRAMES[@]}" <<'PY'
 import json, sys
 a = sys.argv[1:]
-cfg, db, data, out, session, astap, astapdb, rig, moving, diff, keep, skip, fold, nsets = a[:14]
-rest = a[14:]
+cfg, db, data, out, session, astap, astapdb, rig, moving, diff, keep, skip, fold, atlas, pernight, nsets = a[:16]
+rest = a[16:]
 sets = dict(s.split('=', 1) for s in rest[:int(nsets)])
 frames = rest[int(nsets):]
 json.dump({
@@ -92,7 +98,7 @@ json.dump({
   "astapPath": astap, "astapDbDir": astapdb, "rigDb": rig,
   "movingObjects": moving == "true", "differential": diff,
   "keepFrames": keep == "true", "skipDone": skip == "true",
-  "foldWaitSeconds": int(fold), "settings": sets, "frames": frames,
+  "foldWaitSeconds": int(fold), "atlasFold": atlas != "off", "sessionPerNight": pernight == "true", "settings": sets, "frames": frames,
 }, open(cfg, "w"), indent=1)
 PY
 

@@ -20,6 +20,8 @@ class SandboxConfig {
     this.foldWaitSeconds = 180,
     this.settleMs = 400,
     this.skipDone = false,
+    this.atlasFold = true,
+    this.sessionPerNight = false,
   });
 
   final String dbDir;
@@ -38,6 +40,8 @@ class SandboxConfig {
   final int foldWaitSeconds;
   final int settleMs;
   final bool skipDone;
+  final bool atlasFold;
+  final bool sessionPerNight;
 
   static SandboxConfig load(String path) {
     final j = jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
@@ -68,6 +72,8 @@ class SandboxConfig {
       foldWaitSeconds: j['foldWaitSeconds'] as int? ?? 180,
       settleMs: j['settleMs'] as int? ?? 400,
       skipDone: j['skipDone'] as bool? ?? false,
+      atlasFold: j['atlasFold'] as bool? ?? true,
+      sessionPerNight: j['sessionPerNight'] as bool? ?? false,
     );
   }
 }
