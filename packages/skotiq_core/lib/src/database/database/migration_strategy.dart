@@ -55,6 +55,18 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         // the ones already sitting at the current version.
         await _pruneRetiredSettings();
 
+        // A solved row's scalar rotation must agree with its own CD matrix;
+        // rows written before the parser handled mirrored frames do not.
+        final rotationsRepaired = await repairSolvedRotationFromCd(this);
+        if (rotationsRepaired > 0) {
+          // ignore: avoid_print
+          print(
+            '[skotiq_db] Rewrote the solved rotation of $rotationsRepaired '
+            "frame${rotationsRepaired == 1 ? '' : 's'} to match "
+            'the stored CD matrix.',
+          );
+        }
+
         // Close out runs a previous process left mid-flight.
         //
         // A `sequence_runs` row is only 'running' while THIS process's
