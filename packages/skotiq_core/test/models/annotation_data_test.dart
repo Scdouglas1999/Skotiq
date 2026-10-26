@@ -15,7 +15,8 @@ void main() {
         imageHeight: 3000,
       );
 
-      final coords = plateSolve.pixelToSky(2000, 1500);
+      // 0-based pixel centres: the centre of a 4000 x 3000 frame.
+      final coords = plateSolve.pixelToSky(1999.5, 1499.5);
       expect(coords.ra, closeTo(123.456, 1e-9));
       expect(coords.dec, closeTo(-22.75, 1e-9));
     });
