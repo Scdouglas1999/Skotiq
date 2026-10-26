@@ -17,6 +17,7 @@ import '../services/transients/difference_image_seam.dart';
 import '../services/transients/first_light_service.dart';
 import '../services/transients/transient_submission_service.dart';
 import 'backend_provider.dart';
+import 'database_provider.dart' show imagesDaoProvider;
 
 /// Riverpod surface for Pillar B ("First Light") — difference-imaging transients.
 ///
@@ -52,6 +53,10 @@ final firstLightServiceProvider = Provider<FirstLightService>((ref) {
     logger: ref.watch(loggingServiceProvider),
     atlasRootResolver: defaultAtlasRoot,
     retention: ref.watch(livingSkyRetentionDaoProvider),
+    // The scan compares a frame only against its own filter's template.
+    filterResolver: (capturedImageId) async =>
+        (await ref.read(imagesDaoProvider).getImageById(capturedImageId))
+            ?.filter,
     // Publish each scan's coverage so the discovery surface can explain a
     // thin-atlas quiet night. Guard the read: the container may be mid-dispose
     // when a late scan completes.

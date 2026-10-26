@@ -6,10 +6,11 @@
 /// `docs/skotiq_5_0_contracts.md`:
 ///
 ///   * `first_light.transient`  — celebrate, pinned: a clean, *unnamed* point
-///     source (`catalogMatch == null`, round PSF, `newSource`). The headline
-///     possible-transient.
-///   * `first_light.brightening` — celebrate: a known/point source that brightened
-///     by more than [BrighteningDetector.minDeltaMag].
+///     source (`catalogMatch == null`, round PSF, `newSource`) that First Light
+///     has already confirmed in a second frame.
+///   * `first_light.brightening` — celebrate: a source that measured brighter
+///     than its template by more than [BrighteningDetector.minDeltaMag], also
+///     confirmed in a second frame.
 ///   * `first_light.mover`       — success: an elongated residual classified as a
 ///     moving streak.
 ///
@@ -63,13 +64,14 @@ class TransientDiscoveryDetector extends NarratorDetector {
           category: NarratorCategory.discovery,
           severity: NarratorSeverity.celebrate,
           headline:
-              'Possible transient — a new source at '
-              '${_formatRa(c.ra)} ${_formatDec(c.dec)} '
-              '(SNR ${c.snr.toStringAsFixed(0)})',
+              'Possible new source at '
+              '${_formatRa(c.ra)} ${_formatDec(c.dec)}, seen in two frames',
           body:
-              'This point source is not in the catalog and was not in your '
-              'deep template of this field. Re-image to confirm, then submit '
-              'it to AAVSO / TNS from the science export hub.',
+              'A point source at this position is in at least two of '
+              "tonight's frames but not in your template for this filter, and "
+              'no catalog star lies within 5 arcsec. Slow asteroids and '
+              'variable stars look the same at first: check the MPC and VSX '
+              'at this position and keep imaging before reporting it.',
           evidence: NarratorEvidence.scalar(
             value: c.snr,
             unit: 'σ',
@@ -111,25 +113,25 @@ class BrighteningDetector extends NarratorDetector {
 
     for (final c in candidates.take(maxPerTick)) {
       final magnitudeChange = c.deltaMag!.abs();
-      final subject = c.catalogMatch ?? 'a source';
+      final subject = c.catalogMatch ?? 'an uncatalogued star';
       out.add(
         NarratorEventDraft(
           eventType: id,
           category: NarratorCategory.discovery,
           severity: NarratorSeverity.celebrate,
           headline:
-              'Brightening detected — $subject is '
-              '${magnitudeChange.toStringAsFixed(2)} Δinstr brighter than your '
+              '${_capitalize(subject)} measured '
+              '${magnitudeChange.toStringAsFixed(1)} mag brighter than in your '
               'template',
           body:
-              'A source at ${_formatRa(c.ra)} ${_formatDec(c.dec)} jumped in '
-              'brightness versus your deep stack. The change is an instrumental '
-              '(luminance) Δmag, not standard Johnson V. Could be an outburst, '
-              'flare, or nova — keep imaging to capture the light curve.',
+              'Measured with the same aperture on this frame and on your deep '
+              'template of the same filter, in two frames. It is an '
+              'instrumental change in that filter, not a calibrated V '
+              'magnitude. Keep imaging this field to follow it.',
           evidence: NarratorEvidence.delta(
             from: 0.0,
             to: c.deltaMag!,
-            unit: 'Δinstr',
+            unit: 'mag',
             direction: 'up',
           ),
           dedupeKey: 'first_light.brightening:${_positionKey(c)}',
@@ -212,6 +214,9 @@ class MoverDetector extends NarratorDetector {
     );
   }
 }
+
+String _capitalize(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
 /// Format RA (degrees) as `HHhMMm` for a compact headline.
 String _formatRa(double raDeg) => CoordinateFormat.raHmFromDegrees(

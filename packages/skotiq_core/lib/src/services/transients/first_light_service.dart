@@ -153,8 +153,10 @@ class FirstLightService {
     required Future<String> Function() atlasRootResolver,
     LivingSkyRetentionDao? retention,
     void Function(FirstLightCoverage coverage)? onCoverage,
+    Future<String?> Function(int capturedImageId)? filterResolver,
     int order = 9,
   }) : _dao = dao,
+       _filterResolver = filterResolver,
        _seam = seam,
        _catalog = catalog,
        _logger = logger,
@@ -177,6 +179,27 @@ class FirstLightService {
 
   final int _order;
 
+  /// Looks up a captured image's filter when the caller does not pass one.
+  final Future<String?> Function(int capturedImageId)? _filterResolver;
+
+  /// Single-frame sightings waiting for a second frame, per session + layer.
+  final Map<String, List<_Sighting>> _sightings = {};
+
+  /// Positions already reported this session, per session + layer, so a
+  /// confirmed source is persisted once rather than on every later frame.
+  final Map<String, List<({double ra, double dec})>> _reported = {};
+
+  /// Distinct earlier frames a sighting can be confirmed against.
+  static const int confirmWithinFrames = 6;
+
+  /// Same-position radius (arcsec) for confirming a sighting in another frame.
+  static const double confirmRadiusArcsec = 2.5;
+
+  /// More candidates than this from one frame means the subtraction failed
+  /// for that frame (registration, cloud, a template mismatch); none of them
+  /// is kept.
+  static const int maxCandidatesPerFrame = 25;
+
   /// Default retention horizon: triaged-artefact transient history older than
   /// this is reclaimable by [pruneOldDetections]. Long enough that a season's
   /// worth of dismissals stays available for review; short enough that the
@@ -190,22 +213,9 @@ class FirstLightService {
   /// detection. ~APASS/typical-seeing centroid agreement.
   static const _matchRadiusArcsec = 5.0;
 
-  /// J2000 reference epoch (decimal year) of the APASS catalog positions. The
-  /// catalog cone search returns fixed RAJ2000/DEJ2000 with no proper-motion
-  /// columns, so a star that has moved since J2000 will not sit at its catalog
-  /// position today.
-  static const _catalogEpochYear = 2000.0;
-
-  /// Worst-case proper motion (arcsec/yr) the match radius is widened to bound,
-  /// so a high-PM star is still *associated* with its catalog entry (and thus not
-  /// mis-announced as a brand-new transient) rather than missed entirely. Bounds
-  /// the great majority of nearby stars; the rare hyper-PM star (Barnard's) is
-  /// surfaced with the epoch caveat below.
-  static const _maxProperMotionArcsecPerYear = 10.0;
-
-  /// Residuals fainter than this SNR never persist — below it the difference is
-  /// dominated by subtraction noise.
-  static const _minSnr = 5.0;
+  /// Minimum aperture significance (residual flux over the measured aperture
+  /// noise plus a 10% template-flux systematic) the native gate applies.
+  static const _minSnr = 7.0;
 
   String? _cachedAtlasRoot;
 
@@ -218,14 +228,20 @@ class FirstLightService {
     return root;
   }
 
-  /// Difference [framePath] (solved to [wcs]) against the atlas, cross-match,
-  /// suppress dismissed positions, persist, and return the new rows
-  /// (newest-first, already filtered to the persisted survivors).
+  /// Difference [framePath] (solved to [wcs]) against the same-filter atlas
+  /// layer, cross-match, suppress dismissed positions, and persist what is
+  /// confirmed.
+  ///
+  /// A source is reported only when it is found at the same sky position in at
+  /// least two frames of the session; a first sighting is held in memory and
+  /// returns nothing. A frame without a filter is not scanned (no template can
+  /// be filter-matched to it). Returns the newly persisted rows.
   Future<List<TransientDetectionRow>> scanFrame({
     required String framePath,
     required SolvedWcs wcs,
     int? sessionId,
     int? capturedImageId,
+    String? filter,
     int minTemplateCoverage = 5,
   }) async {
     if (!wcs.isValid) {
@@ -236,10 +252,23 @@ class FirstLightService {
       );
     }
 
+    var frameFilter = filter;
+    if (frameFilter == null && capturedImageId != null) {
+      frameFilter = await _filterResolver?.call(capturedImageId);
+    }
+    final layer = atlasLayerKey(frameFilter);
+    if (layer == null) {
+      _logger.info(
+        'First Light scan skipped for $framePath: the frame has no filter, so '
+        'no template can be matched to it.',
+        source: _logSource,
+      );
+      return const [];
+    }
+
     final atlasRoot = await _atlasRoot();
     // Reuse the atlas SipWcs-JSON builder so the difference call sees the exact
-    // CD + SIP geometry the fold path uses (CD reconstructed from scale+rotation
-    // when the solve carried no matrix).
+    // CD + SIP geometry the fold path uses.
     final frameRef = SolvedFrameRef.fromSolvedWcs(
       framePath: framePath,
       wcs: wcs,
@@ -258,76 +287,74 @@ class FirstLightService {
       'framePath': framePath,
       'wcs': frameRef.toWcsJson(),
       'interp': AtlasInterp.lanczos3.wire,
+      'layer': layer,
       'minTemplateCoverage': minTemplateCoverage,
-      // Pass the SNR floor + cross-tile dedup/match radius explicitly so Dart and
-      // native share one source of truth (no silent-drift between the two 5.0s).
-      'minSnr': _minSnr,
-      // Write real-pixel template/science/residual postage stamps per detection
-      // into a stable cache dir, named deterministically by tile id + position so
-      // the UI (and the /api/firstlight/<id>/crops endpoint) resolve them from the
-      // persisted row alone — replacing the schematic cutout strip with real
-      // pixels.
+      'minSignificance': _minSnr,
+      // Real-pixel template/science/residual postage stamps per detection,
+      // named by tile id + position so the UI and the
+      // /api/firstlight/<id>/crops endpoint resolve them from the row alone.
       'cropOutDir': firstLightCropDir(atlasRoot),
     };
 
     final result = await _seam.difference(args);
+    final coverage = FirstLightCoverage.fromBridgeJson(result);
+    _onCoverage?.call(coverage);
     final rawCandidates = (result['candidates'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(TransientCandidate.fromBridgeJson)
-        .where((c) => c.snr >= _minSnr)
+        .where(
+          (c) =>
+              c.snr >= _minSnr &&
+              (c.kind == TransientKind.newSource ||
+                  c.kind == TransientKind.pointBrightening),
+        )
         .toList(growable: false);
 
-    // Coverage envelope: how much of the frame's footprint the atlas was actually
-    // deep enough to difference. A thin-atlas no-op (every covered tile too thin /
-    // no template yet) is otherwise indistinguishable from a genuinely clean sky;
-    // logging + surfacing it lets the UI say "atlas not deep enough here yet"
-    // instead of silently reading as broken.
-    final coverage = FirstLightCoverage.fromBridgeJson(result);
-    _onCoverage?.call(coverage);
     if (rawCandidates.isEmpty) {
       if (coverage.tilesChecked == 0 && coverage.tilesCovered > 0) {
         _logger.info(
-          'First Light scan: atlas not deep enough here yet for $framePath — '
-          '${coverage.tilesSkippedThin} '
-          'tile${coverage.tilesSkippedThin == 1 ? '' : 's'} below the '
-          '$minTemplateCoverage-frame depth gate, '
-          '${coverage.tilesNoTemplate} not folded into yet '
-          '(0 of ${coverage.tilesCovered} deep enough)',
-          source: _logSource,
-        );
-      } else {
-        _logger.debug(
-          'First Light scan: no residuals above SNR $_minSnr for $framePath '
-          '(${coverage.tilesChecked} '
-          'tile${coverage.tilesChecked == 1 ? '' : 's'} checked)',
+          'First Light scan: no deep $layer template here yet for $framePath '
+          '(${coverage.tilesSkippedThin} '
+          'tile${coverage.tilesSkippedThin == 1 ? '' : 's'} under '
+          '$minTemplateCoverage frames, ${coverage.tilesNoTemplate} not '
+          'folded into yet)',
           source: _logSource,
         );
       }
       return const [];
     }
-
-    // Drop residuals that coincide with a previously-dismissed detection. Only
-    // the dismissed rows on the handful of tiles this frame actually produced a
-    // residual on can match, so seek those by tile (index-backed) instead of
-    // full-scanning the all-time dismissed set on every frame.
-    final candidateTiles = rawCandidates.map((c) => c.tileId).toSet();
-    final dismissed = await _dao.dismissedDetectionsForTiles(candidateTiles);
-    final surviving = rawCandidates
-        .where((c) => !_isDismissed(c, dismissed))
-        .toList(growable: false);
-
-    if (surviving.isEmpty) {
-      _logger.debug(
-        'First Light scan: all ${rawCandidates.length} residuals matched a '
-        'dismissed position for $framePath',
+    if (rawCandidates.length > maxCandidatesPerFrame) {
+      _logger.warning(
+        'First Light scan: ${rawCandidates.length} candidates on $framePath '
+        'is more than a real sky produces; treating the subtraction as failed '
+        'for this frame and keeping none.',
         source: _logSource,
       );
       return const [];
     }
 
-    // Cross-match each survivor against the photometric catalog at its position.
+    final candidateTiles = rawCandidates.map((c) => c.tileId).toSet();
+    final dismissed = await _dao.dismissedDetectionsForTiles(candidateTiles);
+    final surviving = rawCandidates
+        .where((c) => !_isDismissed(c, dismissed))
+        .toList(growable: false);
+    final confirmed = _confirm(
+      surviving,
+      key: '${sessionId == null ? '-' : '$sessionId'}|$layer',
+      frameKey: capturedImageId?.toString() ?? framePath,
+    );
+    if (confirmed.isEmpty) {
+      _logger.debug(
+        'First Light scan: ${surviving.length} single-frame sighting'
+        '${surviving.length == 1 ? '' : 's'} on $framePath waiting for a '
+        'second frame',
+        source: _logSource,
+      );
+      return const [];
+    }
+
     final matched = <TransientCandidate>[];
-    for (final candidate in surviving) {
+    for (final candidate in confirmed) {
       matched.add(await _crossMatch(candidate));
     }
 
@@ -355,21 +382,62 @@ class FirstLightService {
     await _dao.insertDetections(companions);
 
     _logger.info(
-      'First Light scan: persisted ${companions.length} transient '
-      'detection${companions.length == 1 ? '' : 's'} '
-      'for $framePath (${matched.where((c) => c.catalogMatch == null).length} '
+      'First Light scan: ${companions.length} source'
+      '${companions.length == 1 ? '' : 's'} confirmed in a second frame for '
+      '$framePath (${matched.where((c) => c.catalogMatch == null).length} '
       'unnamed)',
       source: _logSource,
     );
 
-    // Return the freshly-persisted rows. Scoped to the session when known,
-    // otherwise the global newest-first list trimmed to this batch's size.
     if (sessionId != null) {
       final rows = await _dao.detectionsForSession(sessionId);
       return rows.take(companions.length).toList(growable: false);
     }
     final all = await _dao.allDetections();
     return all.take(companions.length).toList(growable: false);
+  }
+
+  /// Keep the candidates seen at the same sky position in an earlier frame of
+  /// the same session and layer (within [confirmWithinFrames] frames), record
+  /// the rest as sightings, and drop positions already reported.
+  List<TransientCandidate> _confirm(
+    List<TransientCandidate> candidates, {
+    required String key,
+    required String frameKey,
+  }) {
+    final sightings = _sightings.putIfAbsent(key, () => []);
+    final reported = _reported.putIfAbsent(key, () => []);
+    final recentFrames = <String>[];
+    for (final s in sightings.reversed) {
+      if (s.frameKey == frameKey || recentFrames.contains(s.frameKey)) continue;
+      recentFrames.add(s.frameKey);
+      if (recentFrames.length >= confirmWithinFrames) break;
+    }
+    sightings.removeWhere((s) => !recentFrames.contains(s.frameKey));
+
+    final confirmed = <TransientCandidate>[];
+    for (final c in candidates) {
+      final already = reported.any(
+        (r) =>
+            _angularSeparationArcsec(c.ra, c.dec, r.ra, r.dec) <=
+            confirmRadiusArcsec,
+      );
+      if (already) continue;
+      final seenBefore = sightings.any(
+        (s) =>
+            s.frameKey != frameKey &&
+            _angularSeparationArcsec(c.ra, c.dec, s.ra, s.dec) <=
+                confirmRadiusArcsec,
+      );
+      if (seenBefore) {
+        confirmed.add(c);
+        reported.add((ra: c.ra, dec: c.dec));
+      }
+    }
+    for (final c in candidates) {
+      sightings.add(_Sighting(frameKey: frameKey, ra: c.ra, dec: c.dec));
+    }
+    return confirmed;
   }
 
   /// Mark a detection reviewed; [dismissed] flags it as a triaged artefact so
@@ -411,29 +479,22 @@ class FirstLightService {
     return reclaimed;
   }
 
-  /// Cross-match a residual against the photometric catalog.
+  /// Cross-match a residual against the photometric catalog within
+  /// [_matchRadiusArcsec].
   ///
-  /// A coincident catalog star (within [_matchRadiusArcsec]) names the residual
-  /// and reclassifies a `newSource` as a `pointBrightening` of that known star;
-  /// the confidence then reflects the SNR. No coincident star on a clean point
-  /// source keeps it unnamed and bumps confidence (the exciting case). A network
-  /// failure inside the catalog degrades gracefully to "no match" — a transient
-  /// that may be unnamed simply because the uplink is down is still surfaced,
-  /// flagged with a slightly lower confidence so it sorts below a clean,
-  /// catalog-confirmed unknown.
+  /// A coincident catalog star names the residual. A confirmed brightening of
+  /// a catalog star keeps its measured change; a new source that coincides
+  /// with a catalog star (no template flux under it) is named as that star not
+  /// being in the template. No match leaves it unnamed. A network failure
+  /// degrades to "no match" with a slightly lower confidence.
   Future<TransientCandidate> _crossMatch(TransientCandidate candidate) async {
     _NearestStar? nearest;
     var degraded = false;
-    // Widen the cone so a high-proper-motion star is still associated with its
-    // (now-displaced) J2000 catalog entry rather than mistaken for a new source.
-    final elapsedYears = (_observationEpochYear() - _catalogEpochYear).abs();
-    final pmBoundArcsec =
-        _maxProperMotionArcsecPerYear * elapsedYears + _matchRadiusArcsec;
     try {
       final stars = await _catalog.coneStars(
         raDegrees: candidate.ra,
         decDegrees: candidate.dec,
-        radiusDegrees: pmBoundArcsec / 3600.0,
+        radiusDegrees: _matchRadiusArcsec / 3600.0,
         maxMagnitude: 18.0,
       );
       nearest = _nearestStar(candidate, stars);
@@ -447,103 +508,23 @@ class FirstLightService {
       );
     }
 
-    if (nearest != null) {
+    if (nearest != null && nearest.separationArcsec <= _matchRadiusArcsec) {
       final star = nearest.star;
-      // A star inside the tight radius is a confident positional match; one only
-      // inside the widened proper-motion band is an epoch-uncertain association
-      // (APASS carries no proper motions, so we cannot propagate it to tonight's
-      // epoch — we flag the limitation rather than name it with false confidence).
-      final tight = nearest.separationArcsec <= _matchRadiusArcsec;
-      // Whether the differencing itself agrees a source pre-existed here: a finite
-      // deltaMag means there was measurable template flux beneath the residual.
-      final hasTemplateBacking = candidate.deltaMag != null;
-
-      if (!tight) {
-        // Epoch-uncertain: do NOT demote a clean new source, and do not claim a
-        // confident name. Surface it as a possible high-PM star coincidence so a
-        // genuine transient near a displaced star is still reviewed.
-        final name =
-            'Possible high-PM star '
-            'V (APASS, J2000)=${star.magV.toStringAsFixed(1)} '
-            '(${nearest.separationArcsec.toStringAsFixed(1)}" off J2000, '
-            'epoch uncertain)';
+      final v = star.magV.toStringAsFixed(1);
+      if (candidate.kind == TransientKind.newSource) {
         return candidate.withCrossMatch(
-          catalogMatch: name,
-          confidence: _confidenceForUnknown(candidate, degraded: degraded),
+          catalogMatch: 'APASS star V=$v, not in your template',
+          confidence: _confidenceForKnown(candidate),
         );
       }
-
-      // Tight match. Only reclassify a `newSource` into a brightening of the
-      // known star when the differencing agrees a source pre-existed beneath it
-      // (finite deltaMag). A new source with NO template backing that merely
-      // coincides with a faint catalog star is exactly the chance-coincidence a
-      // real nova/SN near a background star produces — keep it flagged as a new
-      // source coincident with a known star, not silently demoted.
-      if (candidate.kind == TransientKind.newSource && !hasTemplateBacking) {
-        final name =
-            'New source near Star '
-            'V (APASS, J2000)=${star.magV.toStringAsFixed(1)} '
-            '(no template flux — possible transient)';
-        return candidate.withCrossMatch(
-          catalogMatch: name,
-          confidence: _confidenceForUnknown(candidate, degraded: degraded),
-        );
-      }
-
-      // A genuine brightening of a known catalog source. Label the catalog
-      // brightness explicitly as APASS Johnson V at J2000; the residual deltaMag
-      // carried on the candidate is an instrumental quantity (see Transient
-      // candidate / brightening surfaces), not standard-system V.
-      final name =
-          'Star V (APASS, J2000)=${star.magV.toStringAsFixed(1)} @ '
-          '${candidate.ra.toStringAsFixed(4)},'
-          '${candidate.dec.toStringAsFixed(4)}';
-      final named = candidate.withCrossMatch(
-        catalogMatch: name,
+      return candidate.withCrossMatch(
+        catalogMatch: 'APASS star V=$v',
         confidence: _confidenceForKnown(candidate),
       );
-      return named.kind == TransientKind.newSource
-          ? _asPointBrightening(named)
-          : named;
     }
 
-    // Unmatched. A clean point source with no catalog star is the headline
-    // possible-transient; a dipole/streak stays low-confidence (artefact-leaning
-    // or already-named-by-shape).
     final confidence = _confidenceForUnknown(candidate, degraded: degraded);
     return candidate.withCrossMatch(catalogMatch: null, confidence: confidence);
-  }
-
-  /// Observation epoch as a decimal year. The differencing runs against tonight's
-  /// frame, so "now" is the honest epoch; the elapsed time since J2000 bounds how
-  /// far a high-PM star may have drifted from its catalog position.
-  static double _observationEpochYear() {
-    final now = DateTime.now().toUtc();
-    final yearStart = DateTime.utc(now.year);
-    final yearEnd = DateTime.utc(now.year + 1);
-    final frac =
-        now.difference(yearStart).inSeconds /
-        yearEnd.difference(yearStart).inSeconds;
-    return now.year + frac;
-  }
-
-  TransientCandidate _asPointBrightening(TransientCandidate c) {
-    return TransientCandidate(
-      ra: c.ra,
-      dec: c.dec,
-      tileId: c.tileId,
-      tileX: c.tileX,
-      tileY: c.tileY,
-      residualFlux: c.residualFlux,
-      deltaMag: c.deltaMag,
-      snr: c.snr,
-      fwhm: c.fwhm,
-      eccentricity: c.eccentricity,
-      positionAngleDeg: c.positionAngleDeg,
-      kind: TransientKind.pointBrightening,
-      catalogMatch: c.catalogMatch,
-      confidence: c.confidence,
-    );
   }
 
   /// Confidence for a named (catalog-confirmed) residual: a smooth SNR ramp,
@@ -654,4 +635,17 @@ class _NearestStar {
 
   final PhotometricCatalogStar star;
   final double separationArcsec;
+}
+
+/// A single-frame candidate position waiting for confirmation.
+class _Sighting {
+  const _Sighting({
+    required this.frameKey,
+    required this.ra,
+    required this.dec,
+  });
+
+  final String frameKey;
+  final double ra;
+  final double dec;
 }
