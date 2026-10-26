@@ -140,10 +140,7 @@ impl FrameObservation {
     /// Whether the frame's stars are trails: the mount was not tracking or
     /// the shapes are lines.
     pub fn trailed(&self) -> bool {
-        self.mount_not_tracking
-            || self
-                .eccentricity
-                .is_some_and(|e| e >= TRAILED_ECCENTRICITY)
+        self.mount_not_tracking || self.eccentricity.is_some_and(|e| e >= TRAILED_ECCENTRICITY)
     }
 
     fn pointing(&self) -> Option<Pointing> {

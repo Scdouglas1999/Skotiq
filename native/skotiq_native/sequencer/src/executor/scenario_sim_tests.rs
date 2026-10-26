@@ -2347,7 +2347,10 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
         "warnings={warnings:?}"
     );
     assert!(guiding.is_unguided());
-    assert!(!guiding.is_enabled(), "the trigger is disarmed while unguided");
+    assert!(
+        !guiding.is_enabled(),
+        "the trigger is disarmed while unguided"
+    );
     assert!(
         guiding.unguided_retry_due(crate::instructions::UNGUIDED_RETRY_INTERVAL),
         "guiding is started again before the next light frame"

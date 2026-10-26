@@ -418,7 +418,10 @@ fn a_partly_blocked_frame_does_not_report_the_stars_back() {
     );
     assert!(matches!(
         actions.first(),
-        Some((333, WatchAction::PossibleObstructionOrCloud { frames: 2, .. }))
+        Some((
+            333,
+            WatchAction::PossibleObstructionOrCloud { frames: 2, .. }
+        ))
     ));
     let partial = replay.verdict(334);
     assert!(!partial.collapsed, "{partial:?}");
@@ -477,7 +480,10 @@ fn a_long_pause_starts_a_new_run_of_collapsed_frames() {
         mount_not_tracking: false,
     };
     for i in 0..5 {
-        assert!(watch.observe(&frame(i, f64::from(i) * 130.0, 2000)).actions.is_empty());
+        assert!(watch
+            .observe(&frame(i, f64::from(i) * 130.0, 2000))
+            .actions
+            .is_empty());
     }
     assert!(watch.observe(&frame(5, 650.0, 400)).actions.is_empty());
     let later = watch.observe(&frame(6, 650.0 + 91.0 * 60.0, 400));
@@ -533,7 +539,11 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
             }
         }
     }
-    assert_eq!(confirmations.first(), Some(&(691, false)), "{confirmations:?}");
+    assert_eq!(
+        confirmations.first(),
+        Some(&(691, false)),
+        "{confirmations:?}"
+    );
     let ends = confirmations.iter().find(|(_, end)| *end);
     assert!(
         ends.is_some_and(|(id, _)| *id > 693),

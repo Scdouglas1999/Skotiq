@@ -365,14 +365,19 @@ async fn the_night_replayed_recenters_after_the_flip_and_ends_at_the_trees() {
     // once more before anything ends or is saved to the horizon.
     let deferred = w
         .iter()
-        .position(|w| w.starts_with("Possible obstruction: NGC0891 looks blocked from alt 65.2°, az 286.2°"))
+        .position(|w| {
+            w.starts_with("Possible obstruction: NGC0891 looks blocked from alt 65.2°, az 286.2°")
+        })
         .unwrap_or_else(|| panic!("no deferral notice: {w:?}"));
     let report = log
         .iter()
         .find_map(obstruction)
         .unwrap_or_else(|| panic!("no obstruction report: {:?}", warnings(&log)));
     assert!(
-        w.iter().position(|x| x.starts_with("Obstruction:")).unwrap() > deferred,
+        w.iter()
+            .position(|x| x.starts_with("Obstruction:"))
+            .unwrap()
+            > deferred,
         "{w:?}"
     );
     assert!(report.altitude_deg < 65.15, "{report:?}");
@@ -499,5 +504,8 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
         .await
         .autofocus_hold
         .clone();
-    assert_eq!(hold.as_deref(), Some("the last frame lost most of its stars"));
+    assert_eq!(
+        hold.as_deref(),
+        Some("the last frame lost most of its stars")
+    );
 }

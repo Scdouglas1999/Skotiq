@@ -186,11 +186,7 @@ mod tests {
 
     #[test]
     fn actions_that_keep_imaging_and_rig_safety_triggers_are_left_alone() {
-        assert!(!notifies(
-            hfr_degraded(),
-            RecoveryAction::Autofocus,
-            false
-        ));
+        assert!(!notifies(hfr_degraded(), RecoveryAction::Autofocus, false));
         assert!(!notifies(
             TriggerType::DriftLimit { max_pixels: 30.0 },
             RecoveryAction::Recenter,
