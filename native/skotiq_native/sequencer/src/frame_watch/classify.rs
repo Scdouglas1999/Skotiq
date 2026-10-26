@@ -50,6 +50,30 @@ pub const CLOUD_BACKOFF_FRAMES: u64 = 8;
 /// setting.
 const SETTING_MIN_DROP_DEG: f64 = 0.2;
 
+/// A frame keeping at least this fraction of its baseline's stars is clean.
+/// Between [`COLLAPSE_RATIO`] and this a frame is partly blocked: a run of
+/// collapsed frames goes on through it.
+pub const RECOVERED_RATIO: f64 = 0.8;
+
+/// Clean frames in a row that end a run of collapsed frames.
+pub const CLEAN_FRAMES_TO_RECOVER: usize = 2;
+
+/// Fewer stars than this is no field to judge or focus on, whatever the
+/// baseline (the autofocus's own minimum).
+pub const MIN_USABLE_STARS: u32 = 10;
+
+/// Eccentricity at and above which a frame's stars are trails, not stars a
+/// tree or cloud dimmed. Trees thin a field to noisy shapes up to about 0.9;
+/// an untracked mount draws trails near 1.
+pub const TRAILED_ECCENTRICITY: f64 = 0.95;
+
+/// The longest a run of collapsed frames may pause between two of its frames,
+/// as a multiple of the exposure, and never less than
+/// [`STREAK_MIN_GAP_SECS`]. A frame after a longer pause starts a new run:
+/// frames an hour apart say nothing together.
+const STREAK_GAP_EXPOSURES: f64 = 5.0;
+const STREAK_MIN_GAP_SECS: f64 = 15.0 * 60.0;
+
 /// Prefix of the exclusion reason of an off-target frame. The app matches on
 /// it.
 pub const OFF_TARGET_PREFIX: &str = "Off target:";
@@ -107,9 +131,21 @@ pub struct FrameObservation {
     /// imaging unguided, or guide-star recovery kept failing here. Counts as
     /// corroboration of an obstruction.
     pub guiding_lost: bool,
+    /// The mount reported it was not tracking when the frame was saved: its
+    /// stars are trails, whatever else dimmed them.
+    pub mount_not_tracking: bool,
 }
 
 impl FrameObservation {
+    /// Whether the frame's stars are trails: the mount was not tracking or
+    /// the shapes are lines.
+    pub fn trailed(&self) -> bool {
+        self.mount_not_tracking
+            || self
+                .eccentricity
+                .is_some_and(|e| e >= TRAILED_ECCENTRICITY)
+    }
+
     fn pointing(&self) -> Option<Pointing> {
         Some(Pointing {
             altitude_deg: self.altitude_deg?,
@@ -167,6 +203,9 @@ pub struct FrameVerdict {
     /// Star count over the airmass-scaled baseline of its filter.
     pub star_ratio: Option<f64>,
     pub collapsed: bool,
+    /// The stars are trails (see [`FrameObservation::trailed`]). A trailed
+    /// frame says nothing about an obstruction.
+    pub trailed: bool,
     pub obstructed: bool,
     /// Why the frame is no good to focus on, if it is not.
     pub degraded: Option<String>,
@@ -179,6 +218,9 @@ struct StreakFrame {
     save_path: String,
     at: Option<Pointing>,
     corroborated: bool,
+    /// When the frame's exposure ended, on the watch's clock.
+    ended_secs: f64,
+    pier_side: Option<String>,
 }
 
 /// The per-run frame judge.
@@ -188,7 +230,12 @@ pub struct FrameWatch {
     backgrounds: HashMap<String, VecDeque<f64>>,
     target: Option<String>,
     streak: Vec<StreakFrame>,
+    /// Clean frames in a row since the last collapsed one of the streak.
+    clean_run: usize,
     told_possible: bool,
+    /// An obstruction was confirmed once and nothing else in the plan is up:
+    /// the night ends only when a second check confirms it.
+    confirmed_once: Option<Pointing>,
     probe_pending: bool,
     obstructed_from: Option<Pointing>,
     frames_seen: u64,
@@ -205,7 +252,9 @@ impl FrameWatch {
             backgrounds: HashMap::new(),
             target: None,
             streak: Vec::new(),
+            clean_run: 0,
             told_possible: false,
+            confirmed_once: None,
             probe_pending: false,
             obstructed_from: None,
             frames_seen: 0,
@@ -255,11 +304,26 @@ impl FrameWatch {
         })
     }
 
+    /// An obstruction confirmed by a probe would end the night (nothing else
+    /// in the plan is up). One 10 s probe into a gap in passing cloud is not
+    /// enough for that: the first confirmation only starts a second watch,
+    /// with a new run of collapsed frames and a new probe. Returns whether
+    /// the night may end now, which is on the second confirmation.
+    pub fn confirm_before_ending(&mut self) -> bool {
+        if self.confirmed_once.is_some() {
+            return true;
+        }
+        self.confirmed_once = self.obstructed_from.take();
+        self.reset_streak();
+        false
+    }
+
     pub fn observe(&mut self, obs: &FrameObservation) -> FrameVerdict {
         if obs.target_name != self.target {
             self.target = obs.target_name.clone();
             self.reset_streak();
             self.obstructed_from = None;
+            self.confirmed_once = None;
             self.recenter_pending = false;
         }
         self.frames_seen += 1;
@@ -276,14 +340,16 @@ impl FrameWatch {
             (Some(count), Some(expected)) if expected > 0.0 => Some(f64::from(count) / expected),
             _ => None,
         };
-        verdict.collapsed =
-            obs.star_count == Some(0) || verdict.star_ratio.is_some_and(|r| r < COLLAPSE_RATIO);
+        verdict.collapsed = obs.star_count.is_some_and(|n| n < MIN_USABLE_STARS)
+            || verdict.star_ratio.is_some_and(|r| r < COLLAPSE_RATIO);
+        verdict.trailed = obs.trailed();
 
         let background_shifted = self.background_shifted(&key, obs.background_adu);
-        let trailed = obs
-            .grader_reason
-            .as_deref()
-            .is_some_and(|r| r.contains("eccentricity"));
+        let trailed = verdict.trailed
+            || obs
+                .grader_reason
+                .as_deref()
+                .is_some_and(|r| r.contains("eccentricity"));
         if !verdict.collapsed && !verdict.off_target && obs.accepted_by_grader {
             self.baselines.entry(key.clone()).or_default().record(
                 obs.star_count,
@@ -369,22 +435,49 @@ impl FrameWatch {
             }
             return;
         }
+        // Trails say the mount, not the sky: such a frame neither extends nor
+        // ends a run of collapsed frames.
+        if verdict.trailed {
+            return;
+        }
+        let ended_secs = obs.exposure_started_secs + obs.exposure_secs;
+        if let Some(last) = self.streak.last() {
+            let gap_limit = (STREAK_GAP_EXPOSURES * obs.exposure_secs).max(STREAK_MIN_GAP_SECS);
+            let paused = obs.exposure_started_secs - last.ended_secs > gap_limit;
+            let flipped = obs.pier_side.is_some()
+                && last.pier_side.is_some()
+                && obs.pier_side != last.pier_side;
+            if paused || flipped {
+                self.reset_streak();
+            }
+        }
         if !verdict.collapsed {
-            if !self.streak.is_empty() {
+            if self.streak.is_empty() {
+                return;
+            }
+            // A partly blocked frame keeps the run going; only clean frames
+            // in a row end it.
+            let clean = verdict.star_ratio.is_none_or(|r| r >= RECOVERED_RATIO);
+            self.clean_run = if clean { self.clean_run + 1 } else { 0 };
+            if self.clean_run >= CLEAN_FRAMES_TO_RECOVER {
                 if self.told_possible {
                     verdict.actions.push(WatchAction::Recovered {
                         frames: self.streak.len(),
                     });
                 }
                 self.reset_streak();
+                self.confirmed_once = None;
             }
             return;
         }
 
+        self.clean_run = 0;
         self.streak.push(StreakFrame {
             save_path: obs.save_path.clone(),
             at: obs.pointing(),
             corroborated: obs.solve.failed() || obs.guiding_lost || background_shifted,
+            ended_secs,
+            pier_side: obs.pier_side.clone(),
         });
         let frames = self.streak.len();
         let at = obs.pointing();
@@ -458,6 +551,7 @@ impl FrameWatch {
 
     fn reset_streak(&mut self) {
         self.streak.clear();
+        self.clean_run = 0;
         self.told_possible = false;
         self.probe_pending = false;
     }

@@ -94,7 +94,13 @@ pub(super) struct FrameWatchStage {
     recenters_without_success: u32,
     recenter_limit_told: bool,
     autofocus_hold_told: bool,
+    /// Each target id's name and coordinates, as they were while it was
+    /// current.
+    frame_targets: std::collections::HashMap<String, FrameTarget>,
 }
+
+/// A target's name, RA and Dec (degrees).
+type FrameTarget = (Option<String>, Option<f64>, Option<f64>);
 
 impl FrameWatchStage {
     /// Start the measuring worker. `events` is a fresh subscription to the
@@ -159,6 +165,7 @@ impl FrameWatchStage {
             recenters_without_success: 0,
             recenter_limit_told: false,
             autofocus_hold_told: false,
+            frame_targets: std::collections::HashMap::new(),
         }
     }
 
@@ -249,9 +256,19 @@ impl FrameWatchStage {
                 .as_deref()
                 .map(|history| assess::guide_rms_over(history, window))
                 .unwrap_or((None, 0));
+            // A frame saved as its target ended is reported after the run has
+            // moved on: judge it against the target it was taken on.
+            let (target_name, target_ra_deg, target_dec_deg) = self.frame_target(
+                capture.target_id.as_deref(),
+                (
+                    state.current_target_name.clone(),
+                    state.target_ra,
+                    state.target_dec,
+                ),
+            );
             let observation = FrameObservation {
                 save_path: path,
-                target_name: state.current_target_name.clone(),
+                target_name,
                 filter: state.current_filter.clone(),
                 exposure_secs: capture.exposure_secs,
                 exposure_started_secs: self.clock.elapsed().as_secs_f64() - capture.exposure_secs,
@@ -264,13 +281,14 @@ impl FrameWatchStage {
                 azimuth_deg: capture.mount_azimuth_deg,
                 pier_side: capture.pier_side.clone(),
                 solve: SolveOutcome::NotAttempted,
-                target_ra_deg: state.target_ra,
-                target_dec_deg: state.target_dec,
+                target_ra_deg,
+                target_dec_deg,
                 field_short_side_arcmin: None,
                 background_adu: None,
                 guide_rms,
                 guide_rms_samples,
                 guiding_lost: guiding_lost(&state),
+                mount_not_tracking: state.mount_is_tracking == Some(false),
             };
             drop(state);
             // Until the frame is measured, a grader reject for trailed or lost
@@ -286,6 +304,18 @@ impl FrameWatchStage {
             }
             let _ = self.jobs.send(FrameJob { observation });
         }
+    }
+
+    /// The target a frame was taken on: the one its capture names, as first
+    /// seen while it was current, else the current one.
+    fn frame_target(&mut self, target_id: Option<&str>, current: FrameTarget) -> FrameTarget {
+        let Some(id) = target_id else {
+            return current;
+        };
+        self.frame_targets
+            .entry(id.to_string())
+            .or_insert(current)
+            .clone()
     }
 
     fn report(&mut self, dispatcher: &Dispatcher, obs: &FrameObservation, verdict: &FrameVerdict) {
@@ -615,21 +645,6 @@ impl FrameWatchStage {
         onset: Pointing,
         learned: bool,
     ) -> Option<Vec<(String, RecoveryAction)>> {
-        // The frames that led up to the confirmation are obstructed too.
-        let reason = crate::frame_watch::classify::obstructed_reason(onset);
-        for path in self.watch.streak_paths() {
-            if let Some(frame) = self.recent.iter_mut().find(|f| f.save_path == path) {
-                frame.obstructed = true;
-                frame.exclusion_reason = Some(reason.clone());
-                dispatcher.run.send(ExecutorEvent::FrameWatch(Box::new(
-                    FrameWatchEvent::FrameAssessed(frame.clone()),
-                )));
-            }
-        }
-        if !learned {
-            self.watch.learn(HorizonPoint::from(onset));
-        }
-
         let (lat, lon) = {
             let rc = dispatcher.rig.runtime_config.read();
             (
@@ -648,6 +663,39 @@ impl FrameWatchStage {
             ),
             _ => AfterObstruction::NextTarget(None),
         };
+        // Ending the night on one probe could be a gap in passing cloud.
+        // Unless an earlier night saw this obstruction, it is checked again
+        // with a new run of starless frames and a new probe first.
+        if matches!(next, AfterObstruction::EndOfNight)
+            && !learned
+            && !self.watch.confirm_before_ending()
+        {
+            let message = format!(
+                "Possible obstruction: {} looks blocked from {} on and no other target in \
+                 the plan is up and clear. Imaging continues; the sky is checked once more \
+                 before the night is ended.",
+                obs.target_name.as_deref().unwrap_or("the target"),
+                onset.describe()
+            );
+            self.notice(dispatcher, "Obstruction to be confirmed", message, onset);
+            self.recenter_after_probe(dispatcher).await;
+            return None;
+        }
+        // The frames that led up to the confirmation are obstructed too.
+        let reason = crate::frame_watch::classify::obstructed_reason(onset);
+        for path in self.watch.streak_paths() {
+            if let Some(frame) = self.recent.iter_mut().find(|f| f.save_path == path) {
+                frame.obstructed = true;
+                frame.exclusion_reason = Some(reason.clone());
+                dispatcher.run.send(ExecutorEvent::FrameWatch(Box::new(
+                    FrameWatchEvent::FrameAssessed(frame.clone()),
+                )));
+            }
+        }
+        if !learned {
+            self.watch.learn(HorizonPoint::from(onset));
+        }
+
         let target = obs.target_name.as_deref().unwrap_or("the target");
         let seen = if learned {
             "where an obstruction was learned before"
