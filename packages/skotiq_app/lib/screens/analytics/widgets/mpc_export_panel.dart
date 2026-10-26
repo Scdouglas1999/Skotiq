@@ -28,6 +28,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
   final Set<int> _selectedIds = {};
   bool _isExporting = false;
   String? _lastExportPath;
+  MpcReportFormat _format = MpcReportFormat.adesPsv;
 
   @override
   Widget build(BuildContext context) {
@@ -196,6 +197,41 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
 
           const SizedBox(height: 8),
 
+          // Report format: ADES PSV is the MPC's current submission format;
+          // the 80-column report remains for older tools.
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Format',
+                style: SkotiqTypography.caption
+                    .copyWith(color: widget.colors.textMuted),
+              ),
+              SkotiqChip(
+                label: 'ADES (PSV)',
+                selected: _format == MpcReportFormat.adesPsv,
+                onTap: () => setState(() => _format = MpcReportFormat.adesPsv),
+              ),
+              SkotiqChip(
+                label: 'MPC 80-column',
+                selected: _format == MpcReportFormat.obs80,
+                onTap: () => setState(() => _format = MpcReportFormat.obs80),
+              ),
+            ],
+          ),
+          if (_format == MpcReportFormat.adesPsv) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Fill in the observer, measurer and telescope lines of the '
+              'header before submitting. Rows carry astrometry only.',
+              style: SkotiqTypography.caption
+                  .copyWith(color: widget.colors.textMuted),
+            ),
+          ],
+          const SizedBox(height: 8),
+
           // Export actions
           Row(
             children: [
@@ -275,6 +311,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
       final filePath = await service.exportToFile(
         candidates: selected,
         observatoryCode: obsCode,
+        format: _format,
       );
       if (mounted) {
         setState(() => _lastExportPath = filePath);
@@ -304,10 +341,15 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
     try {
       final service = MpcExportService();
       final selected = _getSelectedCandidates();
-      final report = service.generateReport(
-        candidates: selected,
-        observatoryCode: obsCode,
-      );
+      final report = _format == MpcReportFormat.adesPsv
+          ? service.generateAdesPsv(
+              candidates: selected,
+              header: AdesReportHeader(observatoryCode: obsCode),
+            )
+          : service.generateReport(
+              candidates: selected,
+              observatoryCode: obsCode,
+            );
       await Clipboard.setData(ClipboardData(text: report));
       if (mounted) {
         context.showSuccessSnackBar(
