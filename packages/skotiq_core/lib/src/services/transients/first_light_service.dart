@@ -185,6 +185,9 @@ class FirstLightService {
   /// Single-frame sightings waiting for a second frame, per session + layer.
   final Map<String, List<_Sighting>> _sightings = {};
 
+  /// Recent distinct scans, including frames with no usable subtraction.
+  final Map<String, List<String>> _recentFrames = {};
+
   /// Positions already reported this session, per session + layer, so a
   /// confirmed source is persisted once rather than on every later frame.
   final Map<String, List<({double ra, double dec})>> _reported = {};
@@ -296,6 +299,9 @@ class FirstLightService {
       'cropOutDir': firstLightCropDir(atlasRoot),
     };
 
+    final confirmationKey = '${sessionId == null ? '-' : '$sessionId'}|$layer';
+    final frameKey = capturedImageId?.toString() ?? framePath;
+    _recordScan(confirmationKey, frameKey);
     final result = await _seam.difference(args);
     final coverage = FirstLightCoverage.fromBridgeJson(result);
     _onCoverage?.call(coverage);
@@ -340,8 +346,8 @@ class FirstLightService {
         .toList(growable: false);
     final confirmed = _confirm(
       surviving,
-      key: '${sessionId == null ? '-' : '$sessionId'}|$layer',
-      frameKey: capturedImageId?.toString() ?? framePath,
+      key: confirmationKey,
+      frameKey: frameKey,
     );
     if (confirmed.isEmpty) {
       _logger.debug(
@@ -398,6 +404,15 @@ class FirstLightService {
     return newest.take(companions.length).toList(growable: false);
   }
 
+  void _recordScan(String key, String frameKey) {
+    final frames = _recentFrames.putIfAbsent(key, () => []);
+    if (!frames.contains(frameKey)) {
+      frames.add(frameKey);
+      if (frames.length > confirmWithinFrames + 1) frames.removeAt(0);
+    }
+    _sightings[key]?.removeWhere((s) => !frames.contains(s.frameKey));
+  }
+
   /// Keep the candidates seen at the same sky position in an earlier frame of
   /// the same session and layer (within [confirmWithinFrames] frames), record
   /// the rest as sightings, and drop positions already reported.
@@ -408,13 +423,6 @@ class FirstLightService {
   }) {
     final sightings = _sightings.putIfAbsent(key, () => []);
     final reported = _reported.putIfAbsent(key, () => []);
-    final recentFrames = <String>[];
-    for (final s in sightings.reversed) {
-      if (s.frameKey == frameKey || recentFrames.contains(s.frameKey)) continue;
-      recentFrames.add(s.frameKey);
-      if (recentFrames.length >= confirmWithinFrames) break;
-    }
-    sightings.removeWhere((s) => !recentFrames.contains(s.frameKey));
 
     final confirmed = <TransientCandidate>[];
     for (final c in candidates) {
@@ -435,6 +443,7 @@ class FirstLightService {
         reported.add((ra: c.ra, dec: c.dec));
       }
     }
+    sightings.removeWhere((s) => s.frameKey == frameKey);
     for (final c in candidates) {
       sightings.add(_Sighting(frameKey: frameKey, ra: c.ra, dec: c.dec));
     }

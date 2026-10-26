@@ -8,10 +8,12 @@ class _FakeDifferenceSeam implements DifferenceImageSeam {
   _FakeDifferenceSeam(this.result);
   Map<String, dynamic> result;
   final List<Map<String, dynamic>> dispatched = [];
+  bool throws = false;
 
   @override
   Future<Map<String, dynamic>> difference(Map<String, dynamic> args) async {
     dispatched.add(args);
+    if (throws) throw StateError('difference failed');
     return result;
   }
 
@@ -157,6 +159,64 @@ void main() {
     );
     expect(await scan(service, 1), isEmpty);
     expect(await scan(service, 1), isEmpty);
+  });
+
+  for (final gap in ['clean', 'failed subtraction', 'native error']) {
+    test('$gap frames expire an old sighting', () async {
+      final result = <String, dynamic>{
+        'candidates': [_candidateJson()],
+      };
+      final seam = _FakeDifferenceSeam(result);
+      final service = FirstLightService(
+        dao: dao,
+        seam: seam,
+        catalog: _FakeCatalogMatcher(const []),
+        logger: LoggingService(),
+        atlasRootResolver: () async => '/tmp/test_atlas',
+      );
+      expect(await scan(service, 1), isEmpty);
+      seam.result = {
+        'candidates': gap == 'failed subtraction'
+            ? List.generate(26, (i) => _candidateJson(ra: 121.0 + i))
+            : <Map<String, dynamic>>[],
+      };
+      seam.throws = gap == 'native error';
+      for (var id = 2; id <= 8; id++) {
+        if (seam.throws) {
+          await expectLater(scan(service, id), throwsStateError);
+        } else {
+          expect(await scan(service, id), isEmpty);
+        }
+      }
+      seam.throws = false;
+      seam.result = result;
+      expect(await scan(service, 9), isEmpty);
+      expect(await scan(service, 10), hasLength(1));
+    });
+  }
+
+  test('duplicate clean scans do not age a sighting twice', () async {
+    final result = <String, dynamic>{
+      'candidates': [_candidateJson()],
+    };
+    final seam = _FakeDifferenceSeam(result);
+    final service = FirstLightService(
+      dao: dao,
+      seam: seam,
+      catalog: _FakeCatalogMatcher(const []),
+      logger: LoggingService(),
+      atlasRootResolver: () async => '/tmp/test_atlas',
+    );
+    await scan(service, 1);
+    seam.result = {'candidates': <Map<String, dynamic>>[]};
+    for (var attempt = 0; attempt < 20; attempt++) {
+      expect(await scan(service, 2), isEmpty);
+    }
+    for (var id = 3; id <= 6; id++) {
+      expect(await scan(service, id), isEmpty);
+    }
+    seam.result = result;
+    expect(await scan(service, 7), hasLength(1));
   });
 
   test('sightings in different filters or sessions do not confirm each '

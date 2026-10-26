@@ -5,9 +5,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/screens/first_light/widgets/transient_candidate_card.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+class _RecordingMount implements MountCommandService {
+  int slewCalls = 0;
+
+  @override
+  bool get isConnected => true;
+
+  @override
+  Future<CommandActionResult> slewTo(
+    double ra,
+    double dec, {
+    bool showFeedback = true,
+  }) async {
+    slewCalls++;
+    return const CommandActionResult.success();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _FixedMount extends MountStateNotifier {
   _FixedMount(super.ref, MountState fixed) {
@@ -53,6 +75,7 @@ Future<void> _pumpCard(
   WidgetTester tester, {
   required SequenceExecutionState runState,
   String? runTarget,
+  _RecordingMount? commands,
 }) async {
   tester.view.physicalSize = const Size(1200, 1600);
   tester.view.devicePixelRatio = 1.0;
@@ -60,6 +83,8 @@ Future<void> _pumpCard(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        if (commands != null)
+          mountCommandServiceProvider.overrideWithValue(commands),
         mountStateProvider.overrideWith((ref) => _FixedMount(ref, _connected)),
         sequenceExecutionStateProvider.overrideWith((ref) => runState),
         sequenceProgressProvider.overrideWith(
@@ -106,6 +131,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chase this candidate?'), findsNothing);
+    expect(find.textContaining('A sequence is running.'), findsOne);
+  });
+
+  testWidgets('a run beginning during confirmation blocks the slew', (
+    tester,
+  ) async {
+    final commands = _RecordingMount();
+    await _pumpCard(
+      tester,
+      runState: SequenceExecutionState.idle,
+      commands: commands,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TransientCandidateCard)),
+    );
+    await tester.tap(find.text('Chase'));
+    await tester.pumpAndSettle();
+    expect(find.text('Chase this candidate?'), findsOne);
+
+    container.read(sequenceExecutionStateProvider.notifier).state =
+        SequenceExecutionState.running;
+    await tester.pump();
+    await tester.tap(find.text('Slew'));
+    await tester.pumpAndSettle();
+
+    expect(commands.slewCalls, 0);
     expect(find.textContaining('A sequence is running.'), findsOne);
   });
 

@@ -324,13 +324,7 @@ class _ActionsRow extends StatelessWidget {
     }
   }
 
-  /// Slew the mount to the candidate so the user can grab confirmation frames
-  /// before it fades — the "Re-image to confirm" loop the Narrator copy promises.
-  /// Routes through [mountCommandServiceProvider], which is backend-routed: on a
-  /// companion tablet (slave) the slew is forwarded to the imaging host. Refused
-  /// while a sequence owns the mount; otherwise confirms first because moving the
-  /// mount is consequential.
-  Future<void> _chase(BuildContext context) async {
+  bool _runBlocksChase(BuildContext context) {
     // A run that owns the mount is never interrupted from here: the slew would
     // pull the scope off the run's target in the middle of its exposures.
     final runState = ref.read(sequenceExecutionStateProvider);
@@ -343,8 +337,19 @@ class _ActionsRow extends StatelessWidget {
         '$runLabel. Chase is unavailable until the run ends or is stopped, '
         'because the slew would move the mount away from it.',
       );
-      return;
+      return true;
     }
+    return false;
+  }
+
+  /// Slew the mount to the candidate so the user can grab confirmation frames
+  /// before it fades — the "Re-image to confirm" loop the Narrator copy promises.
+  /// Routes through [mountCommandServiceProvider], which is backend-routed: on a
+  /// companion tablet (slave) the slew is forwarded to the imaging host. Refused
+  /// while a sequence owns the mount; otherwise confirms first because moving the
+  /// mount is consequential.
+  Future<void> _chase(BuildContext context) async {
+    if (_runBlocksChase(context)) return;
 
     final mount = ref.read(mountCommandServiceProvider);
     if (!mount.isConnected) {
@@ -383,6 +388,7 @@ class _ActionsRow extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
+    if (_runBlocksChase(context)) return;
 
     // RA stored in degrees on the row; slewTo expects hours.
     final result = await mount.slewTo(
