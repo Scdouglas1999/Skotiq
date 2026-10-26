@@ -42,9 +42,11 @@ FramePhotometricCalibrationRow _calRow({
   required Duration offset,
   required double zp,
   bool isCalibrated = true,
+  String? filter,
 }) {
   return FramePhotometricCalibrationRow(
     bandIsStandard: false,
+    filter: filter,
     id: id,
     capturedImageId: id,
     sessionId: 1,
@@ -136,6 +138,26 @@ void main() {
     // value, not the uncalibrated zero.
     expect(find.text('24.10'), findsOneWidget);
     expect(find.text('0.00'), findsNothing);
+  });
+
+  testWidgets('ZeroPointTrendCard plots only the newest filter',
+      (tester) async {
+    // An LRGB rotation: L zero points sit about 1.1 mag above B ones, which
+    // in one series reads as a sawtooth of clouds.
+    final rows = <FramePhotometricCalibrationRow>[
+      _calRow(id: 1, offset: Duration.zero, zp: 23.30, filter: 'L'),
+      _calRow(
+          id: 2, offset: const Duration(minutes: 2), zp: 22.15, filter: 'B'),
+      _calRow(
+          id: 3, offset: const Duration(minutes: 4), zp: 23.28, filter: 'L'),
+      _calRow(
+          id: 4, offset: const Duration(minutes: 6), zp: 22.18, filter: 'B'),
+    ];
+    await pumpZpCard(tester, rows);
+    expect(find.text('Zero point over time, B filter'), findsOneWidget);
+    expect(find.text('22.18'), findsWidgets);
+    expect(find.textContaining('23.'), findsNothing,
+        reason: 'no L zero point on the B card or its axis');
   });
 
   testWidgets('SolveRateTrendCard with two solved frames reads 100%',
