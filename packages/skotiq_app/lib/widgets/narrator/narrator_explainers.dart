@@ -121,7 +121,7 @@ const Map<String, String> narratorExplainers = <String, String>{
 
   // Equipment
   'equipment.tilt':
-      "Stars in one corner of the frame are consistently softer than the "
+      "Stars toward one side of the frame are consistently softer than the "
           "rest, which points to the sensor sitting slightly out of plane with "
           "the optical axis — sensor tilt. It robs sharpness from part of every "
           "sub and won't fix itself. The Diagnostics screen shows the per-corner "

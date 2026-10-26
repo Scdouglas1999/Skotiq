@@ -1173,7 +1173,7 @@ void main() {
   });
 
   group('TiltDetector', () {
-    OpticalTrainDiagnostics diag(double score, {String dir = 'NE'}) {
+    OpticalTrainDiagnostics diag(double score, {String dir = 'right edge'}) {
       return OpticalTrainDiagnostics(
         tiltScore: score,
         collimationScore: 5.0,
@@ -1182,10 +1182,11 @@ void main() {
       );
     }
 
-    NarratorContext ctx(double score, {String dir = 'NE'}) => NarratorContext(
-      now: _t0,
-      diagnostics: diag(score, dir: dir),
-    );
+    NarratorContext ctx(double score, {String dir = 'right edge'}) =>
+        NarratorContext(
+          now: _t0,
+          diagnostics: diag(score, dir: dir),
+        );
 
     test('below the warn band fires nothing', () {
       final d = TiltDetector();
@@ -1194,11 +1195,12 @@ void main() {
 
     test('warn band edge fires a warning naming the direction', () {
       final d = TiltDetector();
-      final fired = d.evaluate(ctx(18.0, dir: 'NE'));
+      final fired = d.evaluate(ctx(18.0, dir: 'right edge'));
       expect(fired, hasLength(1));
       expect(fired.single.eventType, 'equipment.tilt');
       expect(fired.single.severity, NarratorSeverity.warning);
-      expect(fired.single.headline, contains('NE corner'));
+      expect(fired.single.headline, contains('toward the right edge'));
+      expect(fired.single.evidence!.directionDeg, 90);
       expect(fired.single.dedupeKey, 'equipment.tilt:warn');
       // Once per band: no re-fire in the warn band.
       expect(d.evaluate(ctx(20.0)), isEmpty);
@@ -1206,10 +1208,11 @@ void main() {
 
     test('critical band edge fires critical and subsumes the warn band', () {
       final d = TiltDetector();
-      final fired = d.evaluate(ctx(30.0, dir: 'SW'));
+      final fired = d.evaluate(ctx(30.0, dir: 'left edge'));
       expect(fired, hasLength(1));
       expect(fired.single.severity, NarratorSeverity.critical);
-      expect(fired.single.headline, contains('SW corner'));
+      expect(fired.single.headline, contains('toward the left edge'));
+      expect(fired.single.evidence!.directionDeg, 270);
       expect(fired.single.dedupeKey, 'equipment.tilt:critical');
       // A subsequent warn-level reading does not re-fire (warn subsumed).
       expect(d.evaluate(ctx(20.0)), isEmpty);
@@ -1225,12 +1228,25 @@ void main() {
 
     test('headline reports the tilt score, not a fabricated % softer', () {
       final d = TiltDetector();
-      final fired = d.evaluate(ctx(32.0, dir: 'NE'));
+      final fired = d.evaluate(ctx(32.0));
       expect(fired.single.headline, contains('tilt score 32'));
       expect(fired.single.headline, contains('(critical)'));
       // Tilt score is not a percentage: no "% softer" phrasing.
       expect(fired.single.headline, isNot(contains('% softer')));
       expect(fired.single.body, isNot(contains('%')));
+    });
+  });
+
+  group('tiltBearingForDirection', () {
+    test('points the arrow at the side the diagnostics name', () {
+      expect(tiltBearingForDirection('top edge'), 0);
+      expect(tiltBearingForDirection('right edge'), 90);
+      expect(tiltBearingForDirection('bottom edge'), 180);
+      expect(tiltBearingForDirection('left edge'), 270);
+      expect(tiltBearingForDirection('top-right corner'), 45);
+      expect(tiltBearingForDirection('bottom-left corner'), 225);
+      expect(tiltBearingForDirection('unknown'), isNull);
+      expect(tiltBearingForDirection(''), isNull);
     });
   });
 

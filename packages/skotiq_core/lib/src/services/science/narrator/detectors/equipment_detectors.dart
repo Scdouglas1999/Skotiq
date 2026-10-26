@@ -55,7 +55,8 @@ class TiltDetector extends NarratorDetector {
     String direction,
     double score,
   ) {
-    final dirLabel = direction.isEmpty ? 'one corner' : 'the $direction corner';
+    final bearing = tiltBearingForDirection(direction);
+    final dirLabel = bearing == null ? 'one side' : 'the $direction';
     final bandLabel = severity == NarratorSeverity.critical
         ? 'critical'
         : 'elevated';
@@ -72,41 +73,40 @@ class TiltDetector extends NarratorDetector {
           'The PSF map is asymmetric across the field (tilt score '
           '${score.round()}). Open Diagnostics to inspect the tilt and adjust '
           'the tilt plate.',
-      evidence: NarratorEvidence.vector(
-        // Magnitude is just the arrow length (score/100, clamped), not a stat.
-        directionDeg: _directionToDegrees(direction),
-        magnitude: (score / 100.0).clamp(0.0, 1.0),
-        label: direction.isEmpty ? null : '$direction corner',
-      ),
+      evidence: bearing == null
+          ? NarratorEvidence.scalar(
+              value: score,
+              unit: '',
+              context: 'tilt score',
+            )
+          : NarratorEvidence.vector(
+              // Magnitude is just the arrow length (score/100, clamped), not
+              // a stat.
+              directionDeg: bearing,
+              magnitude: (score / 100.0).clamp(0.0, 1.0),
+              label: direction,
+            ),
       dedupeKey: 'equipment.tilt:$band',
       capturedImageId: ctx.capturedImageId,
     );
   }
+}
 
-  /// Map a compass-ish direction label to degrees (0 = N, clockwise). Unknown
-  /// labels fall back to 0.
-  static double _directionToDegrees(String dir) {
-    switch (dir.toUpperCase()) {
-      case 'N':
-        return 0;
-      case 'NE':
-        return 45;
-      case 'E':
-        return 90;
-      case 'SE':
-        return 135;
-      case 'S':
-        return 180;
-      case 'SW':
-        return 225;
-      case 'W':
-        return 270;
-      case 'NW':
-        return 315;
-      default:
-        return 0;
-    }
-  }
+/// The arrow bearing (0° = up, clockwise, on the displayed frame) for the
+/// side the optical-train diagnostics name: 'top edge', 'right edge',
+/// 'bottom edge', 'left edge', or a corner such as 'top-left corner'. Null
+/// for 'unknown' or an empty label, so no arrow is drawn for a side nobody
+/// measured.
+double? tiltBearingForDirection(String direction) {
+  final d = direction.toLowerCase();
+  final top = d.contains('top');
+  final bottom = d.contains('bottom');
+  final left = d.contains('left');
+  final right = d.contains('right');
+  final dy = top ? -1.0 : (bottom ? 1.0 : 0.0);
+  final dx = right ? 1.0 : (left ? -1.0 : 0.0);
+  if (dx == 0 && dy == 0) return null;
+  return compassBearingForGradient(dx, dy);
 }
 
 /// 13. `equipment.focus_drift` — frame HFR [riseFraction] or more above
