@@ -22,6 +22,8 @@ import '../wcs/wcs_sip_codec.dart';
 import 'airmass.dart';
 import 'default_science_backend.dart';
 import 'fits_header_writer.dart';
+import 'moving_object_linker.dart';
+import 'mpc_export_service.dart' show mpcBandForFilter;
 import 'photometric_transform_service.dart';
 import 'science_backend.dart';
 import 'frame_auto_grader.dart';
