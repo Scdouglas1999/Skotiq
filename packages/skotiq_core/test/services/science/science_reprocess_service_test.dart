@@ -225,4 +225,22 @@ void main() {
     expect(await dao.getCalibrationsForSession(92), hasLength(1));
     expect(await dao.getCapturedImageIdsWithScience(92), {id});
   });
+
+  test('moving-object detection is off unless the session turns it on, and '
+      'a reprocess never writes the session config', () async {
+    expect(const ScienceSettings().movingObjectsEnabled, isFalse);
+    expect(const ScienceSessionConfig().movingObjectsEnabled, isFalse);
+
+    await frame('L_0001.fits', minute: 1);
+    final svc = service(_FakePipeline(container.read(_refProbe)));
+    await svc.start(92, force: true);
+    await svc.jobFuture(92);
+    expect(await db.scienceDao.watchSessionConfig(92).first, isNull);
+
+    await db.scienceDao.upsertSessionConfig(
+      const ScienceSessionConfig(sessionId: 93),
+    );
+    final row = await db.scienceDao.watchSessionConfig(93).first;
+    expect(row!.movingObjectsEnabled, isFalse);
+  });
 }
