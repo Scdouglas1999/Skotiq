@@ -184,6 +184,12 @@ pub struct DifferenceRejections {
     /// A source already in the template that changed by less than the
     /// brightening threshold.
     pub small_change: usize,
+    /// Tiles with no measurable PSF in both images.
+    pub unmeasured_psf: usize,
+    /// Tiles whose reference stars are not registered within a quarter FWHM.
+    pub misregistered: usize,
+    /// Tiles whose reference flux ratios exceed the subtraction error budget.
+    pub inconsistent_scale: usize,
 }
 
 /// The full result of differencing one frame against one tile template.
@@ -412,15 +418,22 @@ pub fn difference_against_decoded(
     for c in 0..ch {
         let fs = estimate_psf_sigma(&frame_bs, &overlap, tw, th, ch, c);
         let ts = estimate_psf_sigma(&tmpl_bs, &overlap, tw, th, ch, c);
-        if let (Some(fs), Some(ts)) = (fs, ts) {
-            if c == 0 {
-                broad_sigma = fs.max(ts);
-            }
-            if fs > ts + MIN_MATCH_SIGMA {
-                blur_channel_gaussian(&mut tmpl_psf, tw, th, ch, c, (fs * fs - ts * ts).sqrt());
-            } else if ts > fs + MIN_MATCH_SIGMA {
-                blur_channel_gaussian(&mut frame_psf, tw, th, ch, c, (ts * ts - fs * fs).sqrt());
-            }
+        let (Some(fs), Some(ts)) = (fs, ts) else {
+            return Ok(empty_result(
+                DifferenceRejections {
+                    unmeasured_psf: 1,
+                    ..DifferenceRejections::default()
+                },
+                0,
+            ));
+        };
+        if c == 0 {
+            broad_sigma = fs.max(ts);
+        }
+        if fs > ts + MIN_MATCH_SIGMA {
+            blur_channel_gaussian(&mut tmpl_psf, tw, th, ch, c, (fs * fs - ts * ts).sqrt());
+        } else if ts > fs + MIN_MATCH_SIGMA {
+            blur_channel_gaussian(&mut frame_psf, tw, th, ch, c, (ts * ts - fs * fs).sqrt());
         }
     }
     let aperture = (1.5 * 2.354_820_045 * broad_sigma).clamp(3.0, 12.0);
@@ -445,7 +458,14 @@ pub fn difference_against_decoded(
         .fold(f64::NEG_INFINITY, f64::max);
     let stars = template_reference_stars(&tmpl_lum, &tmpl_raw_lum, &interior, tw, th, tmpl_max);
     let mut ratios: Vec<f64> = Vec::new();
+    let mut offsets = Vec::new();
     for &(x, y, _) in &stars {
+        if let (Some(t), Some(f)) = (
+            reference_centroid(&tmpl_lum, tw, th, x, y, aperture),
+            reference_centroid(&frame_lum, tw, th, x, y, aperture),
+        ) {
+            offsets.push((t.0 - f.0).hypot(t.1 - f.1));
+        }
         let t = aperture_sum(&tmpl_lum, &overlap, tw, th, x as f64, y as f64, aperture);
         let f = aperture_sum(&frame_lum, &overlap, tw, th, x as f64, y as f64, aperture);
         if let (Some(t), Some(f)) = (t, f) {
@@ -461,7 +481,34 @@ pub fn difference_against_decoded(
     if !(scale.is_finite() && scale > 0.0) {
         return Ok(empty_result(DifferenceRejections::default(), 0));
     }
-    let normalization_stars = stars.len();
+    // A scalar flux ratio cannot repair astrometric distortion or spatially
+    // inconsistent photometry. Require the reference field to agree before
+    // interpreting an isolated positive residual as a source.
+    if offsets.len() < MIN_NORMALIZATION_STARS
+        || median(&mut offsets) > 0.25 * 2.354_820_045 * broad_sigma
+    {
+        return Ok(empty_result(
+            DifferenceRejections {
+                misregistered: 1,
+                ..DifferenceRejections::default()
+            },
+            0,
+        ));
+    }
+    let mut deviations: Vec<f64> = ratios.iter().map(|r| (r / scale - 1.0).abs()).collect();
+    deviations.sort_by(f64::total_cmp);
+    // Most reference stars must support the common scale; a few variables or
+    // contaminated apertures may disagree without vetoing the whole field.
+    if deviations[3 * deviations.len() / 4] > 3.0 * opts.systematic_fraction {
+        return Ok(empty_result(
+            DifferenceRejections {
+                inconsistent_scale: 1,
+                ..DifferenceRejections::default()
+            },
+            0,
+        ));
+    }
+    let normalization_stars = ratios.len();
 
     let mut frame_match = frame_psf;
     for v in frame_match.iter_mut() {
@@ -812,6 +859,40 @@ fn empirical_aperture_sigma(
     let med = median(&mut sums.clone());
     let mut dev: Vec<f64> = sums.iter().map(|s| (s - med).abs()).collect();
     MAD_TO_SIGMA * median(&mut dev)
+}
+
+/// Positive-flux centroid inside the same aperture in two sky-subtracted planes.
+fn reference_centroid(
+    plane: &[f64],
+    width: usize,
+    height: usize,
+    x: usize,
+    y: usize,
+    radius: f64,
+) -> Option<(f64, f64)> {
+    let reach = radius.ceil() as usize;
+    if x < reach || y < reach || x + reach >= width || y + reach >= height {
+        return None;
+    }
+    let (mut flux, mut sx, mut sy) = (0.0, 0.0, 0.0);
+    for yy in y - reach..=y + reach {
+        for xx in x - reach..=x + reach {
+            let dx = xx as f64 - x as f64;
+            let dy = yy as f64 - y as f64;
+            if dx * dx + dy * dy > radius * radius {
+                continue;
+            }
+            let value = plane[yy * width + xx];
+            if !value.is_finite() {
+                return None;
+            }
+            let weight = value.max(0.0);
+            flux += weight;
+            sx += weight * xx as f64;
+            sy += weight * yy as f64;
+        }
+    }
+    (flux > 0.0).then_some((sx / flux, sy / flux))
 }
 
 /// Bright, unsaturated, isolated template stars (local maxima of the
@@ -1702,6 +1783,46 @@ mod tests {
         assert!((c.tile_x - 205.0).abs() < 1.5 && (c.tile_y - 117.0).abs() < 1.5);
         assert_eq!(c.kind, TransientKind::NewSource);
         assert!(c.snr >= 7.0);
+    }
+
+    #[test]
+    fn an_unregistered_reference_field_is_not_a_valid_subtraction() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let shifted: Vec<_> = stars
+            .iter()
+            .map(|&(x, y, f)| (x + 3.0, y + 2.0, f))
+            .collect();
+        let mut frame = render_field(&shifted, 500.0, 1.6, 10.0, 999);
+        render_star(&mut frame, W, W, 205.0, 117.0, 8000.0, 1.6);
+        let result = run(&template, &frame, &DifferenceOptions::default());
+        assert_eq!(
+            result.rejections.misregistered, 1,
+            "{:?}",
+            result.rejections
+        );
+        assert_eq!(result.normalization_stars, 0);
+        assert!(result.candidates.is_empty());
+    }
+
+    #[test]
+    fn spatially_inconsistent_reference_flux_is_not_a_valid_scale() {
+        let stars = field_stars();
+        let template = build_template(tile(), &stars, 8);
+        let changed: Vec<_> = stars
+            .iter()
+            .enumerate()
+            .map(|(i, &(x, y, f))| (x, y, f * if i % 2 == 0 { 0.25 } else { 2.0 }))
+            .collect();
+        let frame = render_field(&changed, 500.0, 1.6, 10.0, 999);
+        let result = run(&template, &frame, &DifferenceOptions::default());
+        assert_eq!(
+            result.rejections.inconsistent_scale, 1,
+            "{:?}",
+            result.rejections
+        );
+        assert_eq!(result.normalization_stars, 0);
+        assert!(result.candidates.is_empty());
     }
 
     #[test]

@@ -239,8 +239,8 @@ struct DifferenceResultJson {
     tiles_skipped_thin: Vec<TileId>,
     /// Tiles the frame footprint covered but which have not been folded into yet.
     tiles_no_template: Vec<TileId>,
-    /// Deep-enough tiles skipped because too few template stars were available
-    /// to scale the frame to the template.
+    /// Deep-enough tiles without enough usable reference stars, a measured
+    /// PSF, or consistent registration and photometric scaling.
     tiles_unnormalized: Vec<TileId>,
     /// Residual sources dropped, by reason, summed over the checked tiles.
     rejected: RejectionsJson,
@@ -258,6 +258,9 @@ struct RejectionsJson {
     elongated: usize,
     insignificant: usize,
     small_change: usize,
+    unmeasured_psf: usize,
+    misregistered: usize,
+    inconsistent_scale: usize,
 }
 
 impl RejectionsJson {
@@ -270,6 +273,9 @@ impl RejectionsJson {
         self.elongated += r.elongated;
         self.insignificant += r.insignificant;
         self.small_change += r.small_change;
+        self.unmeasured_psf += r.unmeasured_psf;
+        self.misregistered += r.misregistered;
+        self.inconsistent_scale += r.inconsistent_scale;
     }
 }
 
