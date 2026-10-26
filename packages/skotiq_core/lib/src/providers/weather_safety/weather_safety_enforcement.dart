@@ -40,6 +40,19 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
         _ref.read(calibrationOnlyRunActiveProvider)) {
       return true;
     }
+    // A run owns its own end of the night: the sequencer's Dawn Approaching
+    // rule, or the plan's own stop times, end imaging and run the plan's
+    // shutdown steps and the night-end automation. A pause here would hold
+    // the run where neither can happen. Dawn only puts away an idle rig.
+    if (state.decisionSource == WeatherDecisionSource.dawn &&
+        switch (_ref.read(sequenceExecutionStateProvider)) {
+          SequenceExecutionState.running ||
+          SequenceExecutionState.paused ||
+          SequenceExecutionState.recovering => true,
+          _ => false,
+        }) {
+      return true;
+    }
     _enforceInFlight = true;
     final executionBefore = _ref.read(sequenceExecutionStateProvider);
     final mountBefore = _ref.read(mountStateProvider);

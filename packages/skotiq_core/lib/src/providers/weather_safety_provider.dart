@@ -607,7 +607,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       hardwareWeatherSafe: hardwareWeatherSafe,
       forecastActs: forecastActs,
       forecastHoldsRun: policy.forecastHoldsRun,
-      dawnParkDue: dawnParkDue,
     );
     if (_decisionPolicyWatched) {
       _lastResumeAfterSecs = policy.requiredSafeDurationSeconds;
