@@ -1,11 +1,10 @@
 //! One filter's master from every night of a target, in one call.
 //!
-//! [`master_build`] folds subs into an [`IntegratedMaster`] one at a time, so
-//! its memory is the accumulator (about 40 bytes per sample) plus one sub in
-//! flight, whatever the number of nights. Each night (a "group") brings its own
-//! calibration masters. A sub that cannot be read, has the wrong geometry or
-//! will not register is skipped and reported with its reason; the master is
-//! built from the rest.
+//! [`master_build`] calibrates and registers one sub at a time, then spools
+//! normalized pixels for row-band batch rejection and weighted integration.
+//! Large stacks spill to disk; source images and final master/coverage buffers
+//! remain in memory. Each night (a "group") supplies its own calibration masters.
+//! Unreadable, incompatible or unregistered subs are skipped with a reason.
 //!
 //! Registration and normalization use separate references. Every filter of a
 //! target can register onto one grid reference (typically the best L sub), so
@@ -15,6 +14,9 @@
 
 use super::*;
 use sha2::{Digest, Sha256};
+use skotiq_imaging::drizzle::{drizzle_frame_rows, DrizzleConfig, DrizzleFrame, DrizzleKernel};
+use skotiq_imaging::integration::integrate_frames_with_spatial_weights;
+use skotiq_imaging::normalization::NormalizationCoeffs;
 
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -48,6 +50,30 @@ pub(crate) struct BuildReferenceArgs {
     pub(crate) calibration: CalibrationArgs,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct BuildDrizzleArgs {
+    pub(crate) scale: u32,
+    pub(crate) pixfrac: f64,
+}
+
+impl BuildDrizzleArgs {
+    fn config(&self) -> Result<DrizzleConfig, String> {
+        if !(1..=4).contains(&self.scale)
+            || !self.pixfrac.is_finite()
+            || !(0.5..=1.0).contains(&self.pixfrac)
+        {
+            return Err("Drizzle requires scale 1, 2, 3 or 4 and pixfrac from 0.5 to 1".into());
+        }
+        Ok(DrizzleConfig {
+            scale: self.scale as f64,
+            pixfrac: self.pixfrac,
+            kernel: DrizzleKernel::Square,
+        })
+    }
+}
+
 /// Request for `op: "build"`.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -64,6 +90,7 @@ pub(crate) struct MasterBuildArgs {
     pub(crate) filter: Option<String>,
     pub(crate) target: Option<String>,
     pub(crate) settings: IntegrationSettingsArgs,
+    pub(crate) drizzle: Option<BuildDrizzleArgs>,
     /// Accepted for older callers and ignored: a build integrates every sub
     /// in one batch with `rejection`.
     #[allow(dead_code)]
@@ -98,6 +125,7 @@ pub(crate) struct FoldedSub {
     pub(crate) transparency: Option<f64>,
     /// Its noise over the reference's.
     pub(crate) noise_ratio: Option<f64>,
+    pub(crate) normalization_warning: Option<String>,
     pub(crate) stars_matched: usize,
     pub(crate) rms_px: f64,
     pub(crate) rotation_deg: f64,
@@ -157,6 +185,8 @@ pub(crate) struct MasterBuildResult {
     pub(crate) normalization_fallback: Option<ReferenceFallback>,
     /// Where the master's WCS came from, when it has one.
     pub(crate) wcs_source: Option<String>,
+    pub(crate) drizzle_scale: u32,
+    pub(crate) normalization_mode: String,
 }
 
 /// The weighting formula that weighs each sub by its star signal over its noise.
@@ -647,8 +677,8 @@ struct Accepted {
 /// coverage taken from the warp geometry, normalized to the filter's reference
 /// and weighted. The registered subs are then integrated in one batch with
 /// PixInsight's rejection for the number of subs, a band of rows at a time, so
-/// the result does not depend on the order of the subs and memory stays
-/// bounded.
+/// the result does not depend on the order of the subs. The batch workspace is
+/// bounded; source images and output buffers still scale with image dimensions.
 pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String> {
     let args: MasterBuildArgs =
         serde_json::from_str(args_json).map_err(|e| format!("invalid build args: {e}"))?;
@@ -668,6 +698,12 @@ pub(crate) fn master_build(args_json: &str) -> Result<MasterBuildResult, String>
 }
 
 fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, String> {
+    let drizzle = args
+        .drizzle
+        .as_ref()
+        .map(BuildDrizzleArgs::config)
+        .transpose()?;
+    let scale = args.drizzle.as_ref().map_or(1, |d| d.scale);
     if args.grid_reference.path.trim().is_empty() || args.master_fits_path.trim().is_empty() {
         return Err("build requires gridReference.path and masterFitsPath".to_string());
     }
@@ -743,6 +779,10 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     let (gw, gh, gc) = (grid.image.width, grid.image.height, grid.image.channels);
     let (width, height, chan) = (gw as usize, gh as usize, gc as usize);
     let locations = width * height;
+    let (ow, oh) = (
+        gw.checked_mul(scale).ok_or("Drizzle width overflows")?,
+        gh.checked_mul(scale).ok_or("Drizzle height overflows")?,
+    );
     drop(grid);
 
     // The normalization reference: a sub of this master's own filter, placed
@@ -884,7 +924,31 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             dir.set_file_name(format!("{name}.subs"));
             dir
         });
-    let mut spool = super::spool::FrameSpool::new(width, height, chan, total, budget, &spool_dir)?;
+    let spool_budget = if drizzle.is_some() {
+        budget / 2
+    } else {
+        budget
+    };
+    let mut spool = super::spool::FrameSpool::new(
+        ow as usize,
+        oh as usize,
+        chan,
+        total,
+        spool_budget,
+        &spool_dir,
+    )?;
+    let mut overlap_spool = if drizzle.is_some() {
+        Some(super::spool::FrameSpool::new(
+            ow as usize,
+            oh as usize,
+            1,
+            total,
+            budget / 2,
+            &spool_dir.with_extension("overlap"),
+        )?)
+    } else {
+        None
+    };
 
     let q_cfg = FrameQualityConfig::default();
     let mut accepted: Vec<Accepted> = Vec::new();
@@ -987,7 +1051,6 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 _ => None,
             };
             let mut on_grid = OnGrid::new(image, (gw, gh), &transform, interp);
-            drop(calibrated);
             let overlap = on_grid.overlap();
             if overlap < args.min_overlap {
                 skip(
@@ -1017,6 +1080,8 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 }
             }
             let mut scale = 1.0;
+            let mut coefficients = vec![NormalizationCoeffs::identity(); chan];
+            let mut normalization_warning = None;
             if let (Some(cfg), Some((planes, covered))) = (norm_cfg.as_ref(), norm_planes.as_ref())
             {
                 let shared = CoverageMask::new(
@@ -1033,6 +1098,13 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                     match estimate_normalization(&plane, ref_plane, &shared, width, height, cfg) {
                         Ok(coeffs) => {
                             scale = coeffs.scale;
+                            if let Some(warning) = &coeffs.warning {
+                                let message = format!("Channel {}: {}", ch + 1, warning.as_str());
+                                normalization_warning
+                                    .get_or_insert_with(String::new)
+                                    .push_str(&format!("{message}; "));
+                            }
+                            coefficients[ch] = coeffs.clone();
                             apply_normalization(&mut plane, &coeffs, width, height);
                             write_channel(&mut on_grid.pixels, locations, chan, ch, &plane);
                         }
@@ -1059,9 +1131,50 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 skip("quality", "its integration weight is zero".to_string());
                 continue;
             }
-            let samples: Vec<f32> = on_grid.pixels.iter().map(|&v| v as f32).collect();
-            drop(on_grid);
-            spool.push(&samples)?;
+            if let Some(config) = &drizzle {
+                drop(on_grid);
+                let mut pixels = image_to_f64(&calibrated.image);
+                for y in 0..height {
+                    for x in 0..width {
+                        let (rx, ry) = transform.apply(x as f64, y as f64);
+                        for ch in 0..chan {
+                            let index = (y * width + x) * chan + ch;
+                            pixels[index] =
+                                coefficients[ch].apply_at(pixels[index], rx, ry, width, height);
+                        }
+                    }
+                }
+                drop(calibrated);
+                let frame = DrizzleFrame {
+                    pixels: &pixels,
+                    width: gw,
+                    height: gh,
+                    channels: gc,
+                    transform: &transform,
+                    weight: 1.0,
+                };
+                // Flux, overlap and returned f32 bands share at most a quarter
+                // of the working budget. Source and final-master buffers are separate.
+                let band_rows =
+                    (budget / 4 / (ow as usize * (chan + 1) * 16)).clamp(1, oh as usize);
+                for y0 in (0..oh as usize).step_by(band_rows) {
+                    cancel.check("drizzling", Some(done), Some(total as u32))?;
+                    let band = drizzle_frame_rows(
+                        &frame,
+                        gw,
+                        gh,
+                        config,
+                        y0,
+                        band_rows.min(oh as usize - y0),
+                    )
+                    .map_err(|e| format!("drizzle failed: {e}"))?;
+                    spool.push_rows(&band.pixels)?;
+                    overlap_spool.as_mut().unwrap().push_rows(&band.weights)?;
+                }
+            } else {
+                let samples: Vec<f32> = on_grid.pixels.iter().map(|&v| v as f32).collect();
+                spool.push(&samples)?;
+            }
             weights.push(weight);
             let m = transform.matrix;
             accepted.push(Accepted {
@@ -1071,6 +1184,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                     weight,
                     transparency: signal.map(|s| s.transparency),
                     noise_ratio: signal.map(|s| s.noise_ratio),
+                    normalization_warning,
                     stars_matched: stats.inlier_count,
                     rms_px: stats.rms_residual_px,
                     rotation_deg: m[1][0].atan2(m[0][0]).to_degrees(),
@@ -1106,8 +1220,17 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     }
 
     let reject = build_rejection(args.rejection.as_deref(), spool.len())?;
-    let integrated = integrate_spool(&spool, &weights, reject, budget, &cancel, (done, total))?;
+    let integrated = integrate_spool(
+        &spool,
+        overlap_spool.as_ref(),
+        &weights,
+        reject,
+        budget,
+        &cancel,
+        (done, total),
+    )?;
     drop(spool);
+    drop(overlap_spool);
     for a in &accepted {
         groups[a.group].folded += 1;
         groups[a.group].integration_sec += a.exposure_sec;
@@ -1123,12 +1246,12 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         ensure_parent_dir(Path::new(path))?;
         write_fits(
             Path::new(path),
-            &ImageData::from_f32(gw, gh, gc, &integrated.coverage),
+            &ImageData::from_f32(ow, oh, gc, &integrated.coverage),
             &header,
         )
         .map_err(|e| format!("failed to write coverage: {e:?}"))?;
     }
-    let image = ImageData::from_f32(gw, gh, gc, &integrated.master);
+    let image = ImageData::from_f32(ow, oh, gc, &integrated.master);
     let master_path = Path::new(&args.master_fits_path);
     ensure_parent_dir(master_path)?;
     let seconds: f64 = groups.iter().map(|g| g.integration_sec).sum();
@@ -1151,6 +1274,12 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         header.set_string("OBJECT", t);
     }
     header.set_string("REJECTM", &reject_label(&reject));
+    header.set_int("DRIZSCAL", scale as i64);
+    header.set_string("NORMMODE", &args.settings.normalization.mode);
+    if let Some(d) = &drizzle {
+        header.set_float("PIXFRAC", d.pixfrac);
+        header.add_history("Drizzled calibrated source pixels; geometric overlap and quality weighted, batch rejection on the output grid");
+    }
     header.add_history(&format!(
         "Registered onto {}",
         args.grid_reference.path.trim()
@@ -1201,8 +1330,36 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         &mut header,
         &args.grid_reference.path,
         master_path,
-        (gw, gh),
+        (ow, oh),
     );
+    // A copied reference WCS describes the original grid; a fresh ASTAP solve
+    // already describes the output dimensions.
+    if scale != 1 && wcs_source.as_ref().is_some_and(|s| s.inherited) {
+        for key in ["CRPIX1", "CRPIX2"] {
+            if let Some(v) = header.get_float(key) {
+                header.set_float(key, (v - 0.5) * scale as f64 + 0.5);
+            }
+        }
+        for key in ["CD1_1", "CD1_2", "CD2_1", "CD2_2", "CDELT1", "CDELT2"] {
+            if let Some(v) = header.get_float(key) {
+                header.set_float(key, v / scale as f64);
+            }
+        }
+        let keys: Vec<String> = header.keywords.keys().cloned().collect();
+        for key in keys {
+            let parts: Vec<&str> = key.split('_').collect();
+            if parts.len() == 3 && matches!(parts[0], "A" | "B" | "AP" | "BP") {
+                if let (Ok(i), Ok(j), Some(v)) = (
+                    parts[1].parse::<i32>(),
+                    parts[2].parse::<i32>(),
+                    header.get_float(&key),
+                ) {
+                    header.set_float(&key, v * (scale as f64).powi(1 - i - j));
+                }
+            }
+        }
+    }
+    let wcs_source = wcs_source.map(|s| s.description);
     if let Some(source) = &wcs_source {
         header.add_history(&format!("WCS: {source}"));
         write_fits(master_path, &image, &header)
@@ -1225,8 +1382,8 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         filter: args.filter.clone(),
         frame_count: folded.len(),
         total_integration_sec: seconds,
-        width: gw,
-        height: gh,
+        width: ow,
+        height: oh,
         rejected: integrated.rejected,
         coverage_path: args.coverage_fits_path.clone(),
         median_rms_px: rms.get(rms.len() / 2).copied(),
@@ -1237,6 +1394,8 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         normalization_reference: normalization_path,
         normalization_fallback,
         wcs_source,
+        drizzle_scale: args.drizzle.as_ref().map_or(0, |d| d.scale),
+        normalization_mode: args.settings.normalization.mode.clone(),
     })
 }
 
@@ -1269,6 +1428,7 @@ struct Integrated {
 /// pixels no sub covers are 0.
 fn integrate_spool(
     spool: &super::spool::FrameSpool,
+    overlap_spool: Option<&super::spool::FrameSpool>,
     weights: &[f64],
     reject: Reject,
     budget: usize,
@@ -1277,7 +1437,7 @@ fn integrate_spool(
 ) -> Result<Integrated, String> {
     let (width, height, channels) = spool.geometry();
     let n = spool.len();
-    let row_bytes = width * channels * 8 * n;
+    let row_bytes = width * (channels + usize::from(overlap_spool.is_some())) * 8 * n;
     let rows = (budget / row_bytes.max(1)).clamp(1, height);
     let config = IntegrationConfig {
         combine: Combine::Mean,
@@ -1291,6 +1451,11 @@ fn integrate_spool(
     let mut coverage = Vec::with_capacity(width * height * channels);
     let (mut rejected, mut samples) = (0u64, 0u64);
     let mut buffers: Vec<Vec<f64>> = vec![Vec::new(); n];
+    let mut overlaps: Vec<Vec<f64>> = if overlap_spool.is_some() {
+        vec![Vec::new(); n]
+    } else {
+        Vec::new()
+    };
     let mut y0 = 0;
     while y0 < height {
         let band = rows.min(height - y0);
@@ -1305,6 +1470,12 @@ fn integrate_spool(
         for (i, buffer) in buffers.iter_mut().enumerate() {
             spool.read_rows(i, y0, band, buffer)?;
         }
+        if let Some(spool) = overlap_spool {
+            for (i, buffer) in overlaps.iter_mut().enumerate() {
+                spool.read_rows(i, y0, band, buffer)?;
+            }
+        }
+        let spatial: Vec<&[f64]> = overlaps.iter().map(|v| v.as_slice()).collect();
         let frames: Vec<IntegrationFrame<'_>> = buffers
             .iter()
             .zip(weights)
@@ -1314,8 +1485,15 @@ fn integrate_spool(
                 coverage: None,
             })
             .collect();
-        let out = integrate_frames(&frames, width as u32, band as u32, channels as u32, &config)
-            .map_err(|e| format!("integration failed: {e}"))?;
+        let out = integrate_frames_with_spatial_weights(
+            &frames,
+            &spatial,
+            width as u32,
+            band as u32,
+            channels as u32,
+            &config,
+        )
+        .map_err(|e| format!("integration failed: {e}"))?;
         rejected += out.stats.total_rejected;
         samples += out.stats.total_samples;
         let values = out

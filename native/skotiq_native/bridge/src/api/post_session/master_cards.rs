@@ -76,6 +76,11 @@ pub(crate) fn copy_wcs(header: &mut FitsHeader, source: &FitsHeader) {
     }
 }
 
+pub(crate) struct WcsAttachment {
+    pub(crate) description: String,
+    pub(crate) inherited: bool,
+}
+
 /// Give a master on the grid of `grid_path` a WCS, and say where it came from.
 ///
 /// Every master is resampled onto the grid reference, so the reference's own
@@ -87,15 +92,21 @@ pub(crate) fn attach_wcs(
     grid_path: &str,
     master_path: &Path,
     size: (u32, u32),
-) -> Option<String> {
+) -> Option<WcsAttachment> {
     if let Some(grid) = fits_header_of(grid_path).filter(has_wcs) {
         copy_wcs(header, &grid);
-        return Some(format!("WCS of the grid reference {}", grid_path.trim()));
+        return Some(WcsAttachment {
+            description: format!("WCS of the grid reference {}", grid_path.trim()),
+            inherited: true,
+        });
     }
     let sidecar = Path::new(grid_path.trim()).with_extension("wcs");
     if let Some(solve) = read_fits_header(&sidecar).ok().filter(has_wcs) {
         copy_wcs(header, &solve);
-        return Some(format!("WCS from {}", sidecar.display()));
+        return Some(WcsAttachment {
+            description: format!("WCS from {}", sidecar.display()),
+            inherited: true,
+        });
     }
     let solver = skotiq_imaging::AstapSolver::with_default_config()?;
     let hint = |key: &str| header.get_float(key);
@@ -122,5 +133,8 @@ pub(crate) fn attach_wcs(
     wcs.cd2_1 = result.cd2_1;
     wcs.cd2_2 = result.cd2_2;
     add_wcs_headers(header, &wcs);
-    Some("ASTAP solve of the integrated master".to_string())
+    Some(WcsAttachment {
+        description: "ASTAP solve of the integrated master".to_string(),
+        inherited: false,
+    })
 }

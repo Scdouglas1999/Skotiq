@@ -374,6 +374,48 @@ void main() {
     },
   );
 
+  test(
+    'narrowband flats use their recorded gain, not the usual light preset',
+    () async {
+      await addMaster(frameType: 'bias', exposure: .001, createdAt: night);
+      for (final filter in ['SII', 'OIII', 'Ha']) {
+        await addFrames(
+          'flat',
+          20,
+          start: night,
+          exposure: .3,
+          filter: filter,
+          gain: filter == 'Ha' ? 139 : 76,
+          offset: filter == 'Ha' ? 21 : 15,
+        );
+      }
+      final groups = await service.pending();
+      for (final filter in ['SII', 'OIII']) {
+        final built = await service.build(
+          groups.singleWhere((g) => g.filter == filter),
+        );
+        final entry = await flatDao.getEntryById(built.libraryId);
+        expect(entry!.gain, 76);
+        expect(entry.offset, 15);
+      }
+      await expectLater(
+        service.build(groups.singleWhere((g) => g.filter == 'Ha')),
+        throwsA(
+          isA<CalibrationBacklogException>().having(
+            (e) => e.message,
+            'actionable capture settings',
+            allOf(
+              contains('gain 139, offset 21'),
+              contains('recorded in the flats'),
+              contains('dark-flat'),
+            ),
+          ),
+        ),
+      );
+      expect(seam.flatCalls, hasLength(2));
+    },
+  );
+
   test('flats without a matching bias are refused with the reason', () async {
     await addFrames('flat', 15, start: night, exposure: 1.5, filter: 'L');
     final group = (await service.pending()).single;

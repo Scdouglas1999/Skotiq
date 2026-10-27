@@ -326,6 +326,7 @@ pub fn drizzle_integrate(
             out_h,
             &mut flux,
             &mut weight,
+            0,
         );
     }
 
@@ -338,6 +339,68 @@ pub fn drizzle_integrate(
     );
 
     Ok(DrizzleOutput { master, coverage })
+}
+
+/// One output band of a source exposure, before cross-exposure rejection.
+pub struct DrizzleBand {
+    pub pixels: Vec<f32>,
+    pub weights: Vec<f32>,
+}
+
+/// Deposit a single calibrated source into a bounded band of output rows.
+/// Empty drops are NaN so the integration stage excludes them.
+pub fn drizzle_frame_rows(
+    frame: &DrizzleFrame<'_>,
+    ref_w: u32,
+    ref_h: u32,
+    cfg: &DrizzleConfig,
+    y0: usize,
+    rows: usize,
+) -> Result<DrizzleBand, DrizzleError> {
+    cfg.validate()?;
+    let (out_w, out_h) = output_dims(ref_w, ref_h, cfg.scale);
+    let c = frame.channels as usize;
+    if ref_w == 0
+        || ref_h == 0
+        || c == 0
+        || rows == 0
+        || y0 >= out_h
+        || rows > out_h - y0
+        || frame.pixels.len() != frame.width as usize * frame.height as usize * c
+    {
+        return Err(DrizzleError::DimMismatch);
+    }
+    let cells = out_w * rows;
+    let mut flux = vec![0.0; cells * c];
+    let mut weights = vec![0.0; cells];
+    if frame.weight.is_finite() && frame.weight > 0.0 {
+        deposit_frame(
+            frame.pixels,
+            frame.width as usize,
+            frame.height as usize,
+            c,
+            frame.transform,
+            frame.weight,
+            cfg,
+            out_w,
+            out_h,
+            &mut flux,
+            &mut weights,
+            y0,
+        );
+    }
+    let pixels = flux
+        .chunks(c)
+        .zip(&weights)
+        .flat_map(|(v, &w)| {
+            v.iter()
+                .map(move |&p| if w > 0.0 { (p / w) as f32 } else { f32::NAN })
+        })
+        .collect();
+    Ok(DrizzleBand {
+        pixels,
+        weights: weights.into_iter().map(|w| w as f32).collect(),
+    })
 }
 
 /// Bayer-drizzle a population of raw CFA mosaics onto a `scale`× **3-channel RGB**
@@ -464,13 +527,53 @@ fn deposit_frame(
     out_h: usize,
     flux: &mut [f64],
     weight: &mut [f64],
+    row_start: usize,
 ) {
     let half = drop_half_width(cfg);
-    for iy in 0..height {
+    let reach = if cfg.kernel == DrizzleKernel::Gaussian {
+        3.0 * (half * 0.5).max(1e-6) + 1.0
+    } else {
+        half
+    };
+    let row_end = row_start + weight.len() / out_w;
+    // For an affine transform, inverse-map the expanded output band to avoid
+    // scanning unrelated sensor rows on each pass. Projective input scans all rows.
+    let (mut first_y, mut last_y) = (0, height);
+    if transform.matrix[2] == [0.0, 0.0, 1.0] {
+        if let Some(inverse) = transform.inverse() {
+            let ys: Vec<f64> = [-reach, out_w as f64 + reach]
+                .iter()
+                .flat_map(|&x| {
+                    [row_start as f64 - reach, row_end as f64 + reach]
+                        .map(|y| inverse.apply(x / cfg.scale - 0.5, y / cfg.scale - 0.5).1)
+                })
+                .collect();
+            if ys.iter().all(|y| y.is_finite()) {
+                first_y = ys
+                    .iter()
+                    .copied()
+                    .fold(f64::INFINITY, f64::min)
+                    .floor()
+                    .max(0.0) as usize;
+                last_y = (ys
+                    .iter()
+                    .copied()
+                    .fold(f64::NEG_INFINITY, f64::max)
+                    .ceil()
+                    .max(0.0) as usize
+                    + 1)
+                .min(height);
+            }
+        }
+    }
+    for iy in first_y..last_y {
         for ix in 0..width {
             // Input pixel CENTRE maps to reference, then to the output grid.
             let (ox, oy) = map_center(transform, ix, iy, cfg.scale);
             if !(ox.is_finite() && oy.is_finite()) {
+                continue;
+            }
+            if oy + reach < row_start as f64 || oy - reach > row_end as f64 {
                 continue;
             }
             let base = (iy * width + ix) * c;
@@ -489,6 +592,10 @@ fn deposit_frame(
             // Distribute the drop once, accumulating geometric weight separately
             // (shared across channels) and flux per channel.
             for_each_overlapped_cell(ox, oy, half, cfg.kernel, out_w, out_h, |cell, overlap| {
+                if cell < row_start * out_w || cell >= row_end * out_w {
+                    return;
+                }
+                let cell = cell - row_start * out_w;
                 let w = frame_weight * overlap;
                 weight[cell] += w;
                 for ch in 0..c {
@@ -772,6 +879,53 @@ mod tests {
     }
 
     // (1) identity / scale=1 / pixfrac=1 ⇒ output ≈ input (flux-conserving).
+
+    #[test]
+    fn banded_drizzle_matches_full_frame_at_all_scales_and_fractional_shifts() {
+        let pixels: Vec<f64> = (0..16 * 12).map(|i| (i % 17) as f64).collect();
+        let transform = translation(0.37, -0.23);
+        let frame = DrizzleFrame {
+            pixels: &pixels,
+            width: 16,
+            height: 12,
+            channels: 1,
+            transform: &transform,
+            weight: 1.0,
+        };
+        for kernel in [
+            DrizzleKernel::Square,
+            DrizzleKernel::Gaussian,
+            DrizzleKernel::Point,
+        ] {
+            for scale in [1.0, 2.0, 3.0, 4.0] {
+                let cfg = DrizzleConfig {
+                    scale,
+                    pixfrac: 0.7,
+                    kernel,
+                };
+                let full = drizzle_integrate(&[frame], 16, 12, &cfg).unwrap();
+                let expected = full.master.as_f32().unwrap();
+                let coverage = full.coverage.as_f32().unwrap();
+                let mut actual = Vec::new();
+                let mut weights = Vec::new();
+                for y in (0..full.master.height as usize).step_by(3) {
+                    let rows = 3.min(full.master.height as usize - y);
+                    let band = drizzle_frame_rows(&frame, 16, 12, &cfg, y, rows).unwrap();
+                    assert_eq!(band.pixels.len(), full.master.width as usize * rows);
+                    actual.extend(band.pixels);
+                    weights.extend(band.weights);
+                }
+                assert_eq!(weights, coverage);
+                for ((a, b), w) in actual.iter().zip(&expected).zip(&weights) {
+                    if *w > 0.0 {
+                        assert_eq!(a, b);
+                    } else {
+                        assert!(a.is_nan());
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn identity_scale1_pixfrac1_reproduces_input() {

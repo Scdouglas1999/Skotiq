@@ -279,6 +279,8 @@ pub enum IntegrationError {
         mask: usize,
         expected: usize,
     },
+    #[error("spatial weights must contain one finite nonnegative weight per pixel per frame")]
+    InvalidSpatialWeights,
     #[error("output pixel type {0:?} is not supported; use F32 or U16")]
     UnsupportedOutputType(PixelType),
 }
@@ -304,8 +306,22 @@ pub fn integrate_frames(
     channels: u32,
     config: &IntegrationConfig,
 ) -> Result<IntegrationOutput, IntegrationError> {
-    let columns = integrate_columns(
+    integrate_frames_with_spatial_weights(frames, &[], width, height, channels, config)
+}
+
+/// Integrate with geometric overlap weights, one per pixel location per frame.
+/// Empty weights preserve scalar-only integration. Zero overlap excludes a sample.
+pub fn integrate_frames_with_spatial_weights(
+    frames: &[IntegrationFrame<'_>],
+    spatial_weights: &[&[f64]],
+    width: u32,
+    height: u32,
+    channels: u32,
+    config: &IntegrationConfig,
+) -> Result<IntegrationOutput, IntegrationError> {
+    let columns = integrate_columns_weighted(
         frames,
+        spatial_weights,
         width,
         height,
         channels,
@@ -356,6 +372,26 @@ pub(crate) fn integrate_columns(
     config: &IntegrationConfig,
     iteration_limit: usize,
 ) -> Result<IntegratedColumns, IntegrationError> {
+    integrate_columns_weighted(
+        frames,
+        &[],
+        width,
+        height,
+        channels,
+        config,
+        iteration_limit,
+    )
+}
+
+fn integrate_columns_weighted(
+    frames: &[IntegrationFrame<'_>],
+    spatial_weights: &[&[f64]],
+    width: u32,
+    height: u32,
+    channels: u32,
+    config: &IntegrationConfig,
+    iteration_limit: usize,
+) -> Result<IntegratedColumns, IntegrationError> {
     if frames.is_empty() {
         return Err(IntegrationError::NoFrames);
     }
@@ -371,6 +407,15 @@ pub(crate) fn integrate_columns(
     let c = channels as usize;
     let locations = w * h;
     let expected_len = locations * c;
+
+    if !spatial_weights.is_empty()
+        && (spatial_weights.len() != frames.len()
+            || spatial_weights
+                .iter()
+                .any(|w| w.len() != locations || w.iter().any(|v| !v.is_finite() || *v < 0.0)))
+    {
+        return Err(IntegrationError::InvalidSpatialWeights);
+    }
 
     // Validate every frame's geometry up front so the per-pixel loop can index
     // without bounds anxiety (and so the caller gets a precise error, not a
@@ -398,14 +443,18 @@ pub(crate) fn integrate_columns(
     // Keep only the frames that can contribute. A non-positive weight means the
     // weighting stage already decided the frame is worthless; including it with
     // weight 0 would just add coverage noise.
-    let contributing: Vec<&IntegrationFrame<'_>> =
-        frames.iter().filter(|f| f.weight > 0.0).collect();
+    let contributing: Vec<(usize, &IntegrationFrame<'_>)> = frames
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.weight.is_finite() && f.weight > 0.0)
+        .collect();
     if contributing.is_empty() {
         return Err(IntegrationError::NoWeightedFrames);
     }
 
     let frames_integrated = contributing.len();
-    let mean_weight = contributing.iter().map(|f| f.weight).sum::<f64>() / frames_integrated as f64;
+    let mean_weight =
+        contributing.iter().map(|(_, f)| f.weight).sum::<f64>() / frames_integrated as f64;
 
     // Output buffers (per channel interleaved, matching ImageData layout).
     let mut master = vec![0.0f64; expected_len];
@@ -441,7 +490,7 @@ pub(crate) fn integrate_columns(
                 let loc = y * w + x;
                 for ch in 0..c {
                     samples.clear();
-                    for f in &contributing {
+                    for &(index, f) in &contributing {
                         // Coverage is per location, shared across all channels.
                         let covered = f.coverage.map(|m| m.is_valid_at(loc)).unwrap_or(true);
                         if !covered {
@@ -451,10 +500,10 @@ pub(crate) fn integrate_columns(
                         if !v.is_finite() {
                             continue;
                         }
-                        samples.push(Sample {
-                            value: v,
-                            weight: f.weight,
-                        });
+                        let weight = f.weight * spatial_weights.get(index).map_or(1.0, |w| w[loc]);
+                        if weight > 0.0 {
+                            samples.push(Sample { value: v, weight });
+                        }
                     }
                     row_out[x * c + ch] =
                         combine_column(&mut samples, &mut intact, config, iteration_limit);
@@ -1057,6 +1106,48 @@ fn finalize_master(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spatial_weights_preserve_drizzle_overlap_and_exclude_empty_drops() {
+        let a = [10.0, 30.0, 99.0];
+        let b = [30.0, 10.0, 20.0];
+        let frames = [
+            IntegrationFrame {
+                pixels: &a,
+                weight: 2.0,
+                coverage: None,
+            },
+            IntegrationFrame {
+                pixels: &b,
+                weight: 1.0,
+                coverage: None,
+            },
+        ];
+        let overlap_a = [0.25, 1.0, 0.0];
+        let overlap_b = [1.0, 0.5, 1.0];
+        let cfg = IntegrationConfig {
+            reject: Reject::None,
+            ..Default::default()
+        };
+        let out = integrate_frames_with_spatial_weights(
+            &frames,
+            &[&overlap_a, &overlap_b],
+            3,
+            1,
+            1,
+            &cfg,
+        )
+        .unwrap();
+        let values = out.master.as_f32().unwrap();
+        assert!((values[0] - 23.333333).abs() < 0.0001);
+        assert!((values[1] - 26.0).abs() < 0.0001);
+        assert_eq!(values[2], 20.0);
+        assert_eq!(out.stats.total_samples, 5);
+        assert_eq!(out.weight_map.unwrap().as_f32().unwrap(), &[1.5, 2.5, 1.0]);
+        assert!(
+            integrate_frames_with_spatial_weights(&frames, &[&overlap_a], 3, 1, 1, &cfg).is_err()
+        );
+    }
 
     #[test]
     fn student_t_quantiles_match_tables() {

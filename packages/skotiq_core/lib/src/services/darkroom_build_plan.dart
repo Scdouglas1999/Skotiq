@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'darkroom_processing_options.dart';
+export 'darkroom_processing_options.dart';
 
 /// Smallest crop, as a fraction of the field, a build accepts by default.
 const double defaultMinRetainedArea = .8;
@@ -85,13 +87,29 @@ class DarkroomBuildPlan {
     if (!paths.contains(value['referencePath'])) {
       throw const FormatException('Reference must be an included light.');
     }
+    final options = value['processing'];
+    if (options != null && options is! Map) {
+      throw const FormatException('Invalid processing options.');
+    }
+    final processing = DarkroomProcessingOptions.fromJson(
+      options as Map? ?? {},
+    );
     return DarkroomBuildPlan._(
-      jsonEncode({...value, 'minRetainedArea': retained}),
+      jsonEncode({
+        ...value,
+        'minRetainedArea': retained,
+        'processing': processing.toJson(),
+      }),
     );
   }
 
   Map<String, dynamic> toJson() =>
       Map<String, dynamic>.from(jsonDecode(_json) as Map);
+
+  DarkroomProcessingOptions get processing =>
+      DarkroomProcessingOptions.fromJson(toJson()['processing'] as Map);
+  DarkroomBuildPlan withProcessing(DarkroomProcessingOptions options) =>
+      DarkroomBuildPlan.fromJson({...toJson(), 'processing': options.toJson()});
 
   String get target => toJson()['target'] as String;
   String get referencePath => toJson()['referencePath'] as String;

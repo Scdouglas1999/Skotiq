@@ -354,6 +354,20 @@ pub struct NormalizationCoeffs {
 }
 
 impl NormalizationCoeffs {
+    /// Normalize a source sample at its registered reference-grid position.
+    /// Drizzle uses this before depositing the original, unresampled pixel.
+    pub fn apply_at(&self, value: f64, x: f64, y: f64, width: usize, height: usize) -> f64 {
+        let (scale, offset) = match &self.local {
+            None => (self.scale, self.offset),
+            Some(grid) => {
+                let gx = grid_coord(x, width, grid.cols);
+                let gy = grid_coord(y, height, grid.rows);
+                bilinear_coeffs(grid, gx, gy)
+            }
+        };
+        scale * value + offset
+    }
+
     /// The identity normalization (`scale = 1`, `offset = 0`, no local grid).
     /// Returned when there is too little overlapping signal to fit honestly.
     pub fn identity() -> Self {
@@ -936,14 +950,14 @@ fn apply_local_grid(frame: &mut [f64], grid: &LocalGrid, width: usize, height: u
     for y in 0..height {
         // Map pixel y to a fractional cell-centre coordinate. Cell `c` spans
         // pixel rows `[c·H/rows, (c+1)·H/rows)`; its centre is at the midpoint.
-        let gy = grid_coord(y, height, grid.rows);
+        let gy = grid_coord(y as f64, height, grid.rows);
         for x in 0..width {
             let idx = y * width + x;
             let v = frame[idx];
             if !v.is_finite() {
                 continue;
             }
-            let gx = grid_coord(x, width, grid.cols);
+            let gx = grid_coord(x as f64, width, grid.cols);
             let (s, o) = bilinear_coeffs(grid, gx, gy);
             frame[idx] = s * v + o;
         }
@@ -954,14 +968,14 @@ fn apply_local_grid(frame: &mut [f64], grid: &LocalGrid, width: usize, height: u
 /// axis: cell centres sit at integer values `0..n-1`, and a pixel at a cell
 /// centre maps exactly to that integer. Pixels outside the first/last centre
 /// clamp (no extrapolation of the correction beyond the fitted lattice).
-fn grid_coord(pixel: usize, extent: usize, cells: usize) -> f64 {
+fn grid_coord(pixel: f64, extent: usize, cells: usize) -> f64 {
     if cells <= 1 {
         return 0.0;
     }
     // Centre of cell c (in pixel units): (c + 0.5) · extent / cells - 0.5.
     // Invert to get the fractional cell coordinate g such that
     // pixel = (g + 0.5) · extent / cells - 0.5.
-    let g = (pixel as f64 + 0.5) * cells as f64 / extent as f64 - 0.5;
+    let g = (pixel + 0.5) * cells as f64 / extent as f64 - 0.5;
     g.clamp(0.0, (cells - 1) as f64)
 }
 

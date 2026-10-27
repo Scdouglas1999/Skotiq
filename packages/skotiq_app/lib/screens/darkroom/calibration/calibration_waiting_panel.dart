@@ -33,7 +33,8 @@ class CalibrationWaitingPanel extends ConsumerWidget {
       title: 'Waiting to be built',
       note:
           'Select Night end only for flats taken with the intended optical setup. '
-          'They will be built after darks and bias, before the matching lights.',
+          'They will be built after darks and bias, before the matching lights. '
+          'Gain and offset below describe the captured flat files, not your light-frame presets.',
       actions: [
         if (buildable > 1)
           SkotiqButton(

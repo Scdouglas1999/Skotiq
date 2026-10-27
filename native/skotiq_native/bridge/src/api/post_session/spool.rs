@@ -16,6 +16,7 @@ pub(crate) struct FrameSpool {
     channels: usize,
     store: Store,
     count: usize,
+    partial_samples: usize,
 }
 
 enum Store {
@@ -53,6 +54,7 @@ impl FrameSpool {
             channels,
             store,
             count: 0,
+            partial_samples: 0,
         })
     }
 
@@ -74,26 +76,52 @@ impl FrameSpool {
         if pixels.len() != self.width * self.height * self.channels {
             return Err("a registered sub does not match the grid".into());
         }
+        if self.partial_samples != 0 {
+            return Err("A partial frame is still being written".into());
+        }
+        self.push_rows(pixels)
+    }
+
+    /// Append consecutive bands; a frame becomes readable only when complete.
+    pub(crate) fn push_rows(&mut self, pixels: &[f32]) -> Result<(), String> {
+        let expected = self.width * self.height * self.channels;
+        if pixels.is_empty()
+            || pixels.len() % (self.width * self.channels) != 0
+            || self.partial_samples + pixels.len() > expected
+        {
+            return Err("Invalid band of registered pixels".into());
+        }
         match &mut self.store {
-            Store::Memory(frames) => frames.push(pixels.to_vec()),
+            Store::Memory(frames) => {
+                if self.partial_samples == 0 {
+                    frames.push(Vec::with_capacity(expected));
+                }
+                frames[self.count].extend_from_slice(pixels);
+            }
             Store::Disk(dir) => {
                 let path = Self::file(dir, self.count);
-                let mut bytes = Vec::with_capacity(pixels.len() * 4);
-                for v in pixels {
-                    bytes.extend_from_slice(&v.to_le_bytes());
+                let file = if self.partial_samples == 0 {
+                    std::fs::File::create(&path)
+                } else {
+                    std::fs::OpenOptions::new().append(true).open(&path)
                 }
-                std::fs::File::create(&path)
-                    .and_then(|mut f| f.write_all(&bytes))
-                    .map_err(|e| {
-                        format!(
-                            "cannot write the registered sub '{}' ({} MB; is the disk full?): {e}",
-                            path.display(),
-                            bytes.len() / 1_000_000
-                        )
-                    })?;
+                .map_err(|e| format!("Cannot open spool '{}': {e}", path.display()))?;
+                let mut writer = std::io::BufWriter::new(file);
+                for value in pixels {
+                    writer
+                        .write_all(&value.to_le_bytes())
+                        .map_err(|e| format!("Cannot write spool '{}': {e}", path.display()))?;
+                }
+                writer
+                    .flush()
+                    .map_err(|e| format!("Cannot flush spool '{}': {e}", path.display()))?;
             }
         }
-        self.count += 1;
+        self.partial_samples += pixels.len();
+        if self.partial_samples == expected {
+            self.count += 1;
+            self.partial_samples = 0;
+        }
         Ok(())
     }
 
@@ -139,7 +167,7 @@ impl FrameSpool {
 impl Drop for FrameSpool {
     fn drop(&mut self) {
         if let Store::Disk(dir) = &self.store {
-            for index in 0..self.count {
+            for index in 0..=self.count {
                 let _ = std::fs::remove_file(Self::file(dir, index));
             }
             let _ = std::fs::remove_dir(dir);
@@ -150,6 +178,33 @@ impl Drop for FrameSpool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn streamed_bands_match_in_memory_and_disk_and_remove_partial_files() {
+        let dir = std::env::temp_dir().join(format!("sk_spool_bands_{}", std::process::id()));
+        let frame: Vec<f32> = (0..24).map(|v| v as f32).collect();
+        let mut memory = FrameSpool::new(4, 3, 2, 2, usize::MAX, &dir).unwrap();
+        let mut disk = FrameSpool::new(4, 3, 2, 2, 0, &dir).unwrap();
+        for spool in [&mut memory, &mut disk] {
+            spool.push_rows(&frame[..8]).unwrap();
+            assert_eq!(spool.len(), 0);
+            assert!(spool.push(&frame).is_err());
+            assert!(spool.push_rows(&frame[..7]).is_err());
+            spool.push_rows(&frame[8..]).unwrap();
+            assert_eq!(spool.len(), 1);
+            spool.push_rows(&frame[..8]).unwrap();
+        }
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        memory.read_rows(0, 1, 2, &mut a).unwrap();
+        disk.read_rows(0, 1, 2, &mut b).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a, (8..24).map(|v| v as f64).collect::<Vec<_>>());
+        drop(disk);
+        assert!(
+            !dir.exists(),
+            "a cancelled partial write must also be removed"
+        );
+    }
 
     #[test]
     fn memory_and_disk_spools_return_the_same_rows() {

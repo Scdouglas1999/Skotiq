@@ -54,7 +54,9 @@ void main() {
   late DarkroomBuildPlan plan;
   late Map<String, String> paths;
 
-  DarkroomBuildService makeService() => DarkroomBuildService(
+  DarkroomBuildService makeService({
+    Future<DarkroomProcessingOptions> Function()? processingSettings,
+  }) => DarkroomBuildService(
     library: CalibrationLibraryService(
       db: db,
       flatLibraryDao: FlatLibraryDao(db),
@@ -68,6 +70,7 @@ void main() {
       'NAXIS2': '80',
     },
     operation: native.call,
+    processingSettings: processingSettings,
   );
 
   setUp(() async {
@@ -118,6 +121,43 @@ void main() {
     native = FakeDarkroomNative(paths);
     service = makeService();
   });
+
+  test(
+    'saved processing options reject unsupported scales and survive execution',
+    () async {
+      expect(
+        () => DarkroomBuildPlan.fromJson({
+          ...plan.toJson(),
+          'processing': {
+            'normalization': 'local',
+            'drizzleScale': 5,
+            'pixfrac': .9,
+          },
+        }),
+        throwsFormatException,
+      );
+      final advanced = DarkroomBuildPlan.fromJson({
+        ...plan.toJson(),
+        'processing': {
+          'normalization': 'local',
+          'drizzleScale': 4,
+          'pixfrac': .9,
+        },
+      });
+      await service.run(
+        advanced,
+        Directory('${folder.path}/advanced'),
+        accepted: await service.previewRegistration(advanced),
+      );
+      final request = native.requests.firstWhere((r) => r['op'] == 'build');
+      expect(request['settings']['normalization']['mode'], 'local');
+      expect(request['drizzle'], {'scale': 4, 'pixfrac': .9});
+      final report = jsonDecode(
+        await File('${folder.path}/advanced/report.json').readAsString(),
+      );
+      expect(report['plan']['processing']['drizzleScale'], 4);
+    },
+  );
 
   tearDown(() async {
     await db.close();
@@ -424,6 +464,34 @@ void main() {
       expect(native.built, isEmpty);
     });
 
+    test(
+      '4x drizzle reserves enlarged masters even when subs fit in memory',
+      () async {
+        final asked = <String>[];
+        final svc = sized(1400, 1100, asked);
+        final enlarged = plan.withProcessing(
+          const DarkroomProcessingOptions(drizzleScale: 4),
+        );
+        final preview = await svc.previewRegistration(enlarged);
+        await expectLater(
+          svc.run(enlarged, Directory('${folder.path}/run'), accepted: preview),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('needs'),
+                contains('2.0 GB is free'),
+                isNot(contains('null')),
+              ),
+            ),
+          ),
+        );
+        expect(asked, hasLength(1));
+        expect(native.built, isEmpty);
+      },
+    );
+
     test('a build with room for its working folder runs, and asks the '
         'native side to keep the same memory budget', () async {
       final asked = <String>[];
@@ -650,6 +718,36 @@ void main() {
       },
     );
 
+    test(
+      'changing processing rebuilds cached filters and saves the new choice',
+      () async {
+        final output = Directory('${folder.path}/processing-change');
+        await service.run(
+          plan,
+          output,
+          accepted: await service.previewRegistration(plan),
+        );
+        final changed = plan.withProcessing(
+          plan.processing.copyWith(normalization: 'local', drizzleScale: 3),
+        );
+        await expectLater(service.run(changed, output), throwsStateError);
+        await service.run(
+          changed,
+          output,
+          accepted: await service.previewRegistration(changed),
+        );
+        expect(native.built, ['B', 'L', 'R', 'B', 'L', 'R']);
+        await service.run(changed, output);
+        expect(native.built, hasLength(6));
+        expect(
+          jsonDecode(
+            await File('${output.path}/plan.json').readAsString(),
+          )['plan']['processing']['drizzleScale'],
+          3,
+        );
+      },
+    );
+
     test('resume refuses changed source files', () async {
       final preview = await service.previewRegistration(plan);
       final output = Directory('${folder.path}/run');
@@ -823,6 +921,56 @@ void main() {
         everyElement(contains('/approved_')),
       );
     });
+
+    test(
+      'night-end loads persisted processing choices and refuses invalid settings',
+      () async {
+        final defaults = await DarkroomProcessingOptions.load(db.settingsDao);
+        expect(defaults.drizzleScale, 0);
+        await db.settingsDao.setSetting(
+          DarkroomProcessingOptions.settingsKey,
+          jsonEncode(
+            const DarkroomProcessingOptions(
+              normalization: 'local',
+              drizzleScale: 3,
+              pixfrac: .8,
+            ).toJson(),
+          ),
+        );
+        service = makeService(
+          processingSettings: () =>
+              DarkroomProcessingOptions.load(db.settingsDao),
+        );
+        final result = await service.buildUnattended(
+          requireCalibration: false,
+          target: 'NGC891',
+          frames: await frames(),
+          directory: Directory('${folder.path}/saved-options'),
+        );
+        expect(result.built, isTrue);
+        for (final request in native.requests.where(
+          (r) => r['op'] == 'build',
+        )) {
+          expect(request['drizzle'], {'scale': 3, 'pixfrac': .8});
+          expect(request['settings']['normalization']['mode'], 'local');
+        }
+        await db.settingsDao.setSetting(
+          DarkroomProcessingOptions.settingsKey,
+          '{"drizzleScale":9}',
+        );
+        native.requests.clear();
+        await expectLater(
+          service.buildUnattended(
+            requireCalibration: false,
+            target: 'NGC891',
+            frames: await frames(),
+            directory: Directory('${folder.path}/invalid-options'),
+          ),
+          throwsFormatException,
+        );
+        expect(native.requests.where((r) => r['op'] == 'build'), isEmpty);
+      },
+    );
 
     test('builds every filter when the crop meets the minimum', () async {
       final outcome = await service.buildUnattended(

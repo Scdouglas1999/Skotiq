@@ -703,6 +703,18 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     }
   }
 
+  /// Processing does not change registration footprints. Commit immediately so
+  /// rapid edits cannot race with a later edit or acceptance of the build.
+  void setProcessing(DarkroomProcessingOptions options) {
+    final job = state;
+    if (job?.plan == null || job!.stage != DarkroomJobStage.awaitingReview) {
+      return;
+    }
+    _set(
+      job.copyWith(plan: job.plan!.withProcessing(options), clearError: true),
+    );
+  }
+
   /// Change the smallest acceptable crop.
   Future<void> setMinRetainedArea(double value) async {
     final job = state;

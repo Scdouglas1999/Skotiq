@@ -181,6 +181,16 @@ class _Aside extends ConsumerWidget {
                     : 'No flat for ${missingFlats.join(', ')}',
                 tone: missingFlats.isEmpty ? null : colors.warning,
               ),
+              ProcessingOptionsPanel(
+                  value: plan.processing,
+                  enabled: !busy,
+                  width: preview.width,
+                  height: preview.height,
+                  frames: included,
+                  onChanged: (value) => ref
+                      .read(darkroomBuildJobsProvider.notifier)
+                      .setProcessing(value)),
+              const SizedBox(height: SkotiqTokens.spaceLg),
               const _SettingRow(
                 label: 'Rejection',
                 value: 'Chosen by sub count',

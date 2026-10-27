@@ -127,6 +127,50 @@ void main() {
   }
 
   test(
+    'processing edits are immediate, preserve the latest choice, and cannot change a running job',
+    () async {
+      final jobs = container.read(darkroomBuildJobsProvider.notifier);
+      await jobs.checkFraming(target: 'NGC891', plan: await planFor());
+      final requests = native.requests.length;
+      jobs.setProcessing(
+        const DarkroomProcessingOptions(
+          normalization: 'local',
+          drizzleScale: 2,
+        ),
+      );
+      jobs.setProcessing(
+        const DarkroomProcessingOptions(
+          normalization: 'local',
+          drizzleScale: 4,
+        ),
+      );
+      expect(
+        container
+            .read(darkroomBuildJobsProvider)!
+            .plan!
+            .processing
+            .drizzleScale,
+        4,
+      );
+      expect(native.requests.length, requests);
+      native.buildGate = Completer<void>();
+      final running = jobs.accept(Directory('${folder.path}/processing'));
+      await native.buildStarted.future;
+      jobs.setProcessing(const DarkroomProcessingOptions(drizzleScale: 1));
+      expect(
+        container
+            .read(darkroomBuildJobsProvider)!
+            .plan!
+            .processing
+            .drizzleScale,
+        4,
+      );
+      native.buildGate!.complete();
+      await running;
+    },
+  );
+
+  test(
     'the pre-pass waits for review and exclusions update the plan',
     () async {
       final jobs = container.read(darkroomBuildJobsProvider.notifier);

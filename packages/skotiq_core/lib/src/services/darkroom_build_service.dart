@@ -11,6 +11,7 @@ import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../providers/dark_library_provider.dart';
+import '../providers/database_provider.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration_library_service.dart';
 import 'calibration_master_builder.dart';
@@ -255,6 +256,7 @@ class DarkroomBuildService {
     DarkroomBuildOperation? buildFlat,
     this.darkLibrary,
     this.flatLibrary,
+    this.processingSettings,
     DarkroomFreeSpace? freeSpace,
   }) : _readHeader =
            readHeader ??
@@ -269,6 +271,7 @@ class DarkroomBuildService {
   final DarkroomBuildOperation operation;
   final CalibrationLibraryService library;
   final IntegratedMastersDao masters;
+  final Future<DarkroomProcessingOptions> Function()? processingSettings;
   final DarkLibraryService? darkLibrary;
   final FlatLibraryDao? flatLibrary;
   final DarkroomHeaderReader _readHeader;
@@ -607,6 +610,7 @@ class DarkroomBuildService {
     required String target,
     required List<DarkroomBuildGroup> groups,
     required String referencePath,
+    DarkroomProcessingOptions processing = const DarkroomProcessingOptions(),
     double minOverlap = .95,
     double maxEccentricity = .65,
     double minRetainedArea = defaultMinRetainedArea,
@@ -624,6 +628,7 @@ class DarkroomBuildService {
     }
     return DarkroomBuildPlan.fromJson({
       'version': 1,
+      'processing': processing.toJson(),
       'target': target,
       'excluded': excluded,
       'groups': [for (final g in groups) g.toJson()],
@@ -716,6 +721,7 @@ class DarkroomBuildService {
       'referencePath',
       'minOverlap',
       'maxEccentricity',
+      'processing',
     };
     for (final key in {...saved.keys, ...next.keys}) {
       if (free.contains(key)) continue;
@@ -767,6 +773,7 @@ class DarkroomBuildService {
           },
           'minOverlap': plan['minOverlap'],
           'maxEccentricity': plan['maxEccentricity'],
+          'processing': plan['processing'],
           'groups': entry.value
             ..sort(
               (a, b) => (a['label'] as String).compareTo(b['label'] as String),
@@ -862,6 +869,7 @@ class DarkroomBuildService {
       await _checkWorkingSpace(
         directory,
         referencePath: referencePath,
+        processing: buildPlan.processing,
         lightsPerFilter: {
           for (final filter in filters)
             if (!await File(
@@ -938,12 +946,14 @@ class DarkroomBuildService {
             'settings': {
               'align': _align(),
               'weighting': {'enabled': true, 'formula': darkroomWeightFormula},
-              'normalization': {'enabled': true, 'mode': 'global'},
+              'normalization': buildPlan.processing.nativeNormalization,
             },
             // PixInsight's default: the rejection algorithm is chosen by the
             // number of frames. Native builds that still fold online use the
             // clip thresholds instead.
             'rejection': 'auto',
+            if (buildPlan.processing.nativeDrizzle != null)
+              'drizzle': buildPlan.processing.nativeDrizzle,
             'memoryBudgetMb': darkroomSpoolMemoryBudgetMb,
             'clip': {'onlineClipLow': 4, 'onlineClipHigh': 4},
             'masterFitsPath': p.join(directory.path, 'full-$key.fits'),
@@ -1420,6 +1430,8 @@ class DarkroomBuildService {
           ? saved.referencePath!
           : chooseReference(groups),
       minRetainedArea: minRetainedArea,
+      processing:
+          await processingSettings?.call() ?? const DarkroomProcessingOptions(),
       excluded: [
         for (final f in frames.where((f) => !f.isAccepted))
           {
@@ -1505,6 +1517,7 @@ class DarkroomBuildService {
     Directory directory, {
     required String referencePath,
     required Map<String, int> lightsPerFilter,
+    DarkroomProcessingOptions processing = const DarkroomProcessingOptions(),
   }) async {
     if (lightsPerFilter.isEmpty) return;
     final header = await _readHeader(referencePath);
@@ -1517,7 +1530,13 @@ class DarkroomBuildService {
       );
     }
     final channels = FitsHeaderReader.intValue(header, 'NAXIS3') ?? 1;
-    final subBytes = width * height * channels * 4;
+    final subBytes =
+        width *
+        height *
+        (channels + (processing.drizzleScale > 0 ? 1 : 0)) *
+        4 *
+        processing.outputScale *
+        processing.outputScale;
     const budget = darkroomSpoolMemoryBudgetMb << 20;
     var largest = 0;
     var largestFilter = '';
@@ -1528,14 +1547,21 @@ class DarkroomBuildService {
         largestFilter = entry.key;
       }
     }
-    if (largest == 0) return;
-    final needed = largest + darkroomSpoolHeadroomBytes;
+    if (largest == 0 && processing.drizzleScale == 0) return;
+    // Keep room for full masters/coverage, cropped exports and RGB/LRGB output.
+    final outputBytes = processing.drizzleScale == 0
+        ? 0
+        : subBytes * (lightsPerFilter.length * 2 + 4);
+    final needed = largest + outputBytes + darkroomSpoolHeadroomBytes;
     final free = await _freeSpace(directory.path);
     if (free >= needed) return;
+    final spoolDetail = largest == 0
+        ? ''
+        : ' (${lightsPerFilter[largestFilter]} subs of ${_mb(subBytes)} each)';
     throw StateError(
       'Not enough free disk space to build masters in ${directory.path}: '
-      '$largestFilter needs ${_gb(needed)} for its registered subs '
-      '(${lightsPerFilter[largestFilter]} subs of ${_mb(subBytes)} each) and '
+      'This build needs ${_gb(needed)} for registered subs and outputs'
+      '$spoolDetail and '
       '${_gb(free)} is free. Free up space on that drive or choose an '
       'output folder on a larger one.',
     );
@@ -1563,6 +1589,8 @@ final darkroomBuildServiceProvider = Provider(
           )
           as Map,
     ),
+    processingSettings: () =>
+        DarkroomProcessingOptions.load(ref.read(settingsDaoProvider)),
     library: ref.watch(calibrationLibraryServiceProvider),
     masters: ref.watch(integratedMastersDaoProvider),
     buildMaster: ref.watch(calibrationMasterBuildProvider),

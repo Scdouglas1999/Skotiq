@@ -569,8 +569,10 @@ class CalibrationBacklogService {
     if (pedestal == null) {
       throw CalibrationBacklogException(
         'No master bias at ${[if (gain != null) 'gain $gain', if (offset != null) 'offset $offset', 'bin ${binX}x$binY'].join(', ')}. '
-        'Build or take bias frames at these settings first; flats are '
-        'bias-subtracted before they are normalized.',
+        'These are the settings recorded in the flats, independent of your light-frame preset. '
+        'Build bias frames at these settings, or a matching ${exposureSeconds.toStringAsPrecision(4)} s dark-flat, '
+        'then retry. Flats must have their pedestal removed before normalization. '
+        'Selecting Night end schedules processing of these existing flats; it does not capture new flats.',
       );
     }
     final output = p.join(

@@ -470,3 +470,165 @@ fn guided_preflight_blocks_obstructed_flat_but_accepts_advisory_gain() {
         .contains("possible obstruction"));
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn drizzle_build_honors_scales_and_preserves_calibrated_signal() {
+    let dir = scratch("advanced_drizzle");
+    let light = write_u16(
+        &dir.join("light.fits"),
+        &render(1.0, 900.0, (0.0, 0.0), false, 81),
+    );
+    let bias = write_u16(&dir.join("bias.fits"), &vec![100.0; (W * H) as usize]);
+    let (raw, mut h) = read_fits(Path::new(&light)).unwrap();
+    add_wcs_headers(
+        &mut h,
+        &WcsInfo::from_plate_solve(35.0, 42.0, 0.0, 1.2, W, H),
+    );
+    h.set_int("A_ORDER", 2);
+    h.set_float("A_2_0", 0.0001);
+    let crpix = h.get_float("CRPIX1").unwrap();
+    let cd = h.get_float("CD1_1").unwrap();
+    write_fits(Path::new(&light), &raw, &h).unwrap();
+    for scale in [1, 2, 3, 4] {
+        let master = dir.join(format!("master-{scale}.fits"));
+        let coverage = dir.join(format!("coverage-{scale}.fits"));
+        let request = serde_json::json!({
+            "op": "build", "gridReference": {"path": light, "calibration": {"bias": bias}},
+            "groups": [{"label": "n", "calibration": {"bias": bias},
+                "lights": [{"path": light, "exposureSec": 180.0}]}],
+            "settings": {"normalization": {"enabled": false}, "weighting": {"enabled": false}},
+            "drizzle": {"scale": scale, "pixfrac": 1.0},
+            "rejection": "none", "masterFitsPath": master, "coverageFitsPath": coverage,
+            "memoryBudgetMb": 1
+        });
+        let result: serde_json::Value =
+            serde_json::from_str(&api_master_accumulate(request.to_string()).unwrap()).unwrap();
+        let (image, header) = read_fits(&master).unwrap();
+        assert_eq!((image.width, image.height), (W * scale, H * scale));
+        let background = median(image.as_f32().unwrap().iter().map(|v| *v as f64).collect());
+        assert!(
+            (background - 800.0).abs() < 15.0,
+            "scale {scale}: {background}"
+        );
+        assert_eq!(header.get_int("NFRAMES"), Some(1));
+        assert_eq!(result["drizzleScale"], scale);
+        assert!(
+            (header.get_float("CRPIX1").unwrap() - ((crpix - 0.5) * scale as f64 + 0.5)).abs()
+                < 1e-7
+        );
+        assert!((header.get_float("CD1_1").unwrap() - cd / scale as f64).abs() < 1e-10);
+        assert!((header.get_float("A_2_0").unwrap() - 0.0001 / scale as f64).abs() < 1e-10);
+        let delivery: serde_json::Value = serde_json::from_str(&api_master_accumulate(serde_json::json!({
+            "op": "deliverUniform", "outputDir": dir.join(format!("delivery-{scale}")),
+            "masters": [{"path": master, "coveragePath": dir.join(format!("coverage-{scale}.fits")), "filter": "Ha"}],
+            "minRetainedArea": 0.95
+        }).to_string()).unwrap()).unwrap();
+        assert_eq!(delivery["width"], W * scale);
+        assert_eq!(delivery["height"], H * scale);
+        let (delivered, dh) =
+            read_fits(Path::new(delivery["masters"][0]["path"].as_str().unwrap())).unwrap();
+        assert!(delivered.as_f32().unwrap().iter().all(|v| v.is_finite()));
+        assert_eq!(dh.get_float("CD1_1"), header.get_float("CD1_1"));
+
+        let (coverage, _) = read_fits(&coverage).unwrap();
+        assert_eq!(
+            (coverage.width, coverage.height),
+            (image.width, image.height)
+        );
+        assert!(coverage.as_f32().unwrap().iter().all(|v| *v == 1.0));
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn local_drizzle_build_preserves_faint_structure_and_removes_changing_gradients() {
+    let dir = scratch("local_drizzle_signal");
+    let scene = |seed, gradient: f64| {
+        let mut pixels = render(1.0, 900.0, (0.0, 0.0), false, seed);
+        for y in 0..H {
+            for x in 0..W {
+                let radius =
+                    ((x as f64 - 192.0) / 38.0).powi(2) + ((y as f64 - 144.0) / 18.0).powi(2);
+                pixels[(y * W + x) as usize] +=
+                    50.0 * (-0.5 * radius).exp() + gradient * x as f64 / W as f64;
+            }
+        }
+        pixels
+    };
+    let reference = write_u16(&dir.join("ref.fits"), &scene(401, 0.0));
+    let mut paths = Vec::new();
+    for i in 0..8 {
+        let mut pixels = scene(410 + i, 120.0 + 20.0 * i as f64);
+        // Re-render only the stars at fractional detector phases. The faint
+        // diffuse signal is smooth enough that these subpixel shifts are negligible.
+        let phase = ((i % 4) as f64 * 0.23, (i % 3) as f64 * 0.19);
+        let shifted = render(1.0, 900.0, phase, false, 410 + i);
+        let unshifted = render(1.0, 900.0, (0.0, 0.0), false, 410 + i);
+        for ((p, s), u) in pixels.iter_mut().zip(shifted).zip(unshifted) {
+            *p += s - u;
+        }
+        if i == 2 {
+            pixels[(50 * W + 70) as usize] = 60000.0;
+        }
+        paths.push(write_u16(&dir.join(format!("light-{i}.fits")), &pixels));
+    }
+    let master = dir.join("local.fits");
+    let result: serde_json::Value = serde_json::from_str(&api_master_accumulate(serde_json::json!({
+        "op": "build", "gridReference": {"path": reference},
+        "normalizationReference": {"path": reference},
+        "groups": [{"label": "variable sky", "lights": paths.iter().map(|p| serde_json::json!({"path": p, "exposureSec": 180})).collect::<Vec<_>>()}],
+        "settings": {"normalization": {"enabled": true, "mode": "local", "localRows": 8, "localCols": 8}, "weighting": {"enabled": true, "formula": "starSignal"}},
+        "drizzle": {"scale": 2, "pixfrac": 0.9}, "masterFitsPath": master,
+        "coverageFitsPath": dir.join("coverage.fits"), "memoryBudgetMb": 1
+    }).to_string()).unwrap()).unwrap();
+    let (image, _) = read_fits(&master).unwrap();
+    let pixels = image.as_f32().unwrap();
+    let sample = |x: u32, y: u32| pixels[(y * 2 * image.width + x * 2) as usize] as f64;
+    let empty = |x: u32, y: u32| {
+        stars()
+            .iter()
+            .all(|(sx, sy, _)| (*sx - x as f64).hypot(*sy - y as f64) > 9.0)
+    };
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+    let mut faint = Vec::new();
+    for y in 30..H - 30 {
+        for x in 30..W - 30 {
+            if !empty(x, y) {
+                continue;
+            }
+            if x < 80 {
+                left.push(sample(x, y));
+            }
+            if x > W - 80 {
+                right.push(sample(x, y));
+            }
+            if (x as f64 - 192.0).abs() < 15.0 && (y as f64 - 144.0).abs() < 8.0 {
+                faint.push(sample(x, y));
+            }
+        }
+    }
+    let (l, r, f) = (median(left), median(right), median(faint));
+    assert!((l - r).abs() < 8.0, "remaining gradient {l} -> {r}");
+    assert!((l - 900.0).abs() < 12.0, "sky level {l}");
+    assert!(
+        f - l > 30.0 && f - l < 65.0,
+        "50 ADU diffuse signal must survive: {}",
+        f - l
+    );
+    assert!(sample(70, 50) < 2000.0, "cosmic ray survived");
+    assert!(result["rejected"].as_u64().unwrap() > 0);
+    assert_eq!(result["normalizationMode"], "local");
+    assert!(result["folded"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["shiftPx"][0].as_f64().unwrap().abs() > 0.3));
+    let delivered: serde_json::Value = serde_json::from_str(&api_master_accumulate(serde_json::json!({
+        "op": "deliverUniform", "outputDir": dir.join("delivered"), "minRetainedArea": 0.9,
+        "masters": [{"path": master, "coveragePath": dir.join("coverage.fits"), "filter": "Ha"}]
+    }).to_string()).unwrap()).unwrap();
+    assert!(delivered["retainedArea"].as_f64().unwrap() > 0.9);
+    println!("local+2x drizzle: background left={l:.3}, right={r:.3}, faint contrast={:.3}, rejected={}, retained={}", f-l, result["rejected"], delivered["retainedArea"]);
+    std::fs::remove_dir_all(dir).unwrap();
+}

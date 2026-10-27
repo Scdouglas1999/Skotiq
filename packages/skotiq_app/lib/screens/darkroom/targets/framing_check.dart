@@ -14,6 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/darkroom_navigation.dart';
 import '../../session_review/widgets/sub_cull_rail.dart'
     show subThumbnailProvider;
+import '../processing_options_panel.dart';
 import '../build_masters/job_views.dart' show describeEta, percent;
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
@@ -247,6 +248,7 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
       await service.checkCalibration(groups);
       final plan = service.plan(
         target: _key,
+        processing: await ref.read(darkroomProcessingOptionsProvider.future),
         groups: groups,
         referencePath: DarkroomBuildService.chooseReference(groups),
         excluded: [
@@ -306,6 +308,7 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
           'minOverlap': current['minOverlap'],
           'maxEccentricity': current['maxEccentricity'],
           'minRetainedArea': current['minRetainedArea'],
+          'processing': current['processing'],
         });
         await _jobs.replan(plan, known: next.known(job.preview));
       });
