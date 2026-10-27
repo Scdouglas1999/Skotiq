@@ -156,30 +156,7 @@ fn replay_rows(
     let mut verdicts = Vec::new();
     for row in rows.iter().filter(|r| ids.contains(&r.id)) {
         let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
-        let obs = FrameObservation {
-            save_path: format!("row-{}", row.id),
-            target_name: Some("NGC0891".to_string()),
-            filter: Some(row.filter.clone()),
-            exposure_secs: row.exposure_secs,
-            exposure_started_secs: row.captured_at - row.exposure_secs,
-            accepted_by_grader: reason.is_none(),
-            grader_reason: reason,
-            star_count: row.stars,
-            hfr: row.hfr,
-            eccentricity: row.ecc,
-            altitude_deg: Some(row.alt),
-            azimuth_deg: Some(row.az),
-            pier_side: Some(row.pier.clone()),
-            solve: row.solve.clone(),
-            target_ra_deg: Some(TARGET_RA_DEG),
-            target_dec_deg: Some(TARGET_DEC_DEG),
-            field_short_side_arcmin: Some(FIELD_SHORT_SIDE_ARCMIN),
-            background_adu: None,
-            guide_rms: None,
-            guide_rms_samples: 0,
-            guiding_lost: false,
-            mount_not_tracking: false,
-        };
+        let obs = observation(row, reason);
         let mut verdict = watch.observe(&obs);
         let mut follow_ups = Vec::new();
         for action in &verdict.actions {
@@ -199,11 +176,40 @@ fn replay_rows(
     Replay { verdicts }
 }
 
+fn observation(row: &Row, reason: Option<String>) -> FrameObservation {
+    FrameObservation {
+        save_path: format!("row-{}", row.id),
+        target_id: None,
+        target_name: Some("NGC0891".to_string()),
+        filter: Some(row.filter.clone()),
+        exposure_secs: row.exposure_secs,
+        exposure_started_secs: row.captured_at - row.exposure_secs,
+        accepted_by_grader: reason.is_none(),
+        grader_reason: reason,
+        star_count: row.stars,
+        hfr: row.hfr,
+        eccentricity: row.ecc,
+        altitude_deg: Some(row.alt),
+        azimuth_deg: Some(row.az),
+        pier_side: Some(row.pier.clone()),
+        solve: row.solve.clone(),
+        target_ra_deg: Some(TARGET_RA_DEG),
+        target_dec_deg: Some(TARGET_DEC_DEG),
+        field_short_side_arcmin: Some(FIELD_SHORT_SIDE_ARCMIN),
+        background_adu: None,
+        guide_rms: None,
+        guide_rms_samples: 0,
+        guiding_lost: false,
+        mount_not_tracking: false,
+    }
+}
+
 #[test]
 fn the_post_flip_offset_is_caught_on_the_first_solved_frame() {
     // Replay this historical night with its original field-relative threshold.
     let config = FrameWatchConfig {
         drift_limit_arcsec: None,
+        use_first_frame_reference: false,
         ..Default::default()
     };
     let replay = replay(config, 529..=687, true);
@@ -246,7 +252,12 @@ fn the_post_flip_offset_is_caught_on_the_first_solved_frame() {
 
 #[test]
 fn the_trees_are_reported_at_their_altitude_and_azimuth_then_confirmed() {
-    let replay = replay(FrameWatchConfig::default(), 529..=720, true);
+    let config = FrameWatchConfig {
+        drift_limit_arcsec: None,
+        use_first_frame_reference: false,
+        ..Default::default()
+    };
+    let replay = replay(config, 529..=720, true);
     let obstruction_actions: Vec<(u32, WatchAction)> = replay
         .actions()
         .into_iter()
@@ -344,6 +355,7 @@ fn cloud_over_a_rising_target_is_reported_and_imaging_carries_on() {
     let mut watch = FrameWatch::new(FrameWatchConfig::default());
     let frame = |i: u32, stars: u32, solved: bool| FrameObservation {
         save_path: format!("f{i}"),
+        target_id: None,
         target_name: Some("M 33".to_string()),
         filter: Some("L".to_string()),
         exposure_secs: 120.0,
@@ -463,6 +475,7 @@ fn a_long_pause_starts_a_new_run_of_collapsed_frames() {
     let mut watch = FrameWatch::new(FrameWatchConfig::default());
     let frame = |i: u32, start: f64, stars: u32| FrameObservation {
         save_path: format!("f{i}"),
+        target_id: None,
         target_name: Some("NGC0891".to_string()),
         filter: Some("L".to_string()),
         exposure_secs: 120.0,
@@ -514,6 +527,7 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
         let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
         let obs = FrameObservation {
             save_path: format!("row-{}", row.id),
+            target_id: None,
             target_name: Some("NGC0891".to_string()),
             filter: Some(row.filter.clone()),
             exposure_secs: row.exposure_secs,
@@ -557,59 +571,104 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
     );
 }
 
-#[test]
-fn two_arcminutes_of_drift_requests_a_recenter_with_default_settings() {
-    let mut row = rows().remove(0);
-    row.solve = SolveOutcome::Solved {
+fn drift_frame(offset_arcsec: f64) -> FrameObservation {
+    let mut obs = observation(&rows()[0], None);
+    obs.solve = SolveOutcome::Solved {
         ra_deg: TARGET_RA_DEG,
-        dec_deg: TARGET_DEC_DEG + 2.0 / 60.0,
+        dec_deg: TARGET_DEC_DEG + offset_arcsec / 3600.0,
         pixel_scale_arcsec: 0.79,
         rotation_deg: 0.0,
     };
-    let id = row.id;
-    let replay = replay_rows(vec![row], FrameWatchConfig::default(), id..=id, true);
+    obs
+}
+
+#[test]
+fn first_solved_frame_is_the_fixed_reference_and_recenter_destination() {
+    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut failed = drift_frame(0.0);
+    failed.solve = SolveOutcome::Failed;
+    assert_eq!(watch.observe(&failed).offset_arcmin, None);
+    // Deliberately away from the catalog center: the first frame defines
+    // framing, so that initial offset must not cause a correction.
+    let first = drift_frame(120.0);
+    let initial = watch.observe(&first);
+    assert!(!initial.off_target);
+    assert!(initial.offset_arcmin.unwrap() < 1e-6);
+    for drift in [10.0, 20.0, 29.0] {
+        let v = watch.observe(&drift_frame(120.0 + drift));
+        assert!(!v.off_target);
+        assert!((v.offset_arcmin.unwrap() * 60.0 - drift).abs() < 1e-4);
+    }
+    let v = watch.observe(&drift_frame(151.0));
+    assert!(v.off_target);
     assert!(
-        replay.verdict(id).off_target,
-        "two arcminutes must not pass the default drift limit"
+        matches!(v.actions.as_slice(), [WatchAction::Recenter { ra_deg, dec_deg, .. }]
+        if (*ra_deg - TARGET_RA_DEG).abs() < 1e-9
+        && (*dec_deg - (TARGET_DEC_DEG + 120.0 / 3600.0)).abs() < 1e-9)
     );
-    assert!(matches!(
-        replay.actions().as_slice(),
-        [(_, WatchAction::Recenter { .. })]
-    ));
+
+    watch.recentered(first.exposure_started_secs + 1.0);
+    let mut later = drift_frame(151.0);
+    later.filter = Some("R".into());
+    later.pier_side = Some("East".into());
+    // A frame already exposing during the correction is assessed, but
+    // cannot request another correction.
+    assert!(watch.observe(&later).actions.is_empty());
+    later.exposure_started_secs += 300.0;
+    assert!(
+        watch.observe(&later).off_target,
+        "recentering, filters and flips must not reset the reference"
+    );
+    assert_eq!(watch.observe(&first).offset_arcmin, initial.offset_arcmin);
 }
 
 #[test]
 fn angular_limit_distinguishes_small_drift_and_respects_disable() {
     for (offset_arcsec, limit_arcsec, expected) in [
-        (30.0, 60.0, false),
-        (61.0, 60.0, true),
+        (29.0, 30.0, false),
+        (31.0, 30.0, true),
+        (120.0, 30.0, true),
         (120.0, 180.0, false),
         (120.0, 0.0, false),
     ] {
-        let mut row = rows().remove(0);
-        row.solve = SolveOutcome::Solved {
-            ra_deg: TARGET_RA_DEG,
-            dec_deg: TARGET_DEC_DEG + offset_arcsec / 3600.0,
-            pixel_scale_arcsec: 0.79,
-            rotation_deg: 0.0,
-        };
-        let id = row.id;
         let config = FrameWatchConfig {
             drift_limit_arcsec: Some(limit_arcsec),
             ..Default::default()
         };
-        let replay = replay_rows(vec![row], config, id..=id, true);
+        let mut watch = FrameWatch::new(config);
+        watch.observe(&drift_frame(15.0));
+        let v = watch.observe(&drift_frame(15.0 + offset_arcsec));
         assert_eq!(
-            replay.verdict(id).off_target,
-            expected,
+            v.off_target, expected,
             "offset {offset_arcsec}, limit {limit_arcsec}"
         );
         assert_eq!(
-            replay
-                .actions()
+            v.actions
                 .iter()
-                .any(|(_, a)| matches!(a, WatchAction::Recenter { .. })),
+                .any(|a| matches!(a, WatchAction::Recenter { .. })),
             expected
         );
+        assert!(
+            (v.offset_arcmin.unwrap() * 60.0 - offset_arcsec).abs() < 1e-4,
+            "drift is still measured when recentering is disabled"
+        );
     }
+}
+
+#[test]
+fn references_are_separate_per_target_and_survive_revisiting() {
+    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut a = drift_frame(0.0);
+    a.target_id = Some("panel-a".into());
+    watch.observe(&a);
+    let mut b = drift_frame(120.0);
+    b.target_id = Some("panel-b".into());
+    assert!(!watch.observe(&b).off_target);
+    let mut returning = drift_frame(60.0);
+    returning.target_id = a.target_id.clone();
+    assert!(watch.observe(&returning).off_target);
+    assert!(!watch.observe(&b).off_target);
+    // A new run gets a fresh reference.
+    let mut next_run = FrameWatch::new(FrameWatchConfig::default());
+    assert!(!next_run.observe(&returning).off_target);
 }

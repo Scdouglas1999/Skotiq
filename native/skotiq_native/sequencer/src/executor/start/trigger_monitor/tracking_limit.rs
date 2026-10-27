@@ -390,6 +390,7 @@ mod tests {
                 trigger_action_in_flight_for_triggers: Arc::new(AtomicBool::new(false)),
                 trigger_manager: Arc::new(RwLock::new(manager)),
                 triggers_enabled: true,
+                finish_frames: watch::channel(false).1,
             })
             .await;
             Self {

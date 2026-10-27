@@ -958,6 +958,7 @@ impl SequenceExecutor {
                 let sequence_for_custom_recovery_triggers = sequence_for_custom_recovery.clone();
                 let custom_recovery_context_for_triggers = custom_recovery_context.clone();
 
+                let (finish_frames_tx, finish_frames) = watch::channel(false);
                 let trigger_monitor_poll_loop = run_trigger_monitor_poll_loop(TriggerMonitorArgs {
                     active_run_id_for_decisions: active_run_id_for_decisions.clone(),
                     cloud_motion_for_recovery: cloud_motion_for_recovery.clone(),
@@ -986,6 +987,7 @@ impl SequenceExecutor {
                     trigger_action_in_flight_for_triggers,
                     trigger_manager: trigger_manager.clone(),
                     triggers_enabled,
+                    finish_frames,
                 });
 
                 // A hung poll is indistinguishable from a healthy monitor to the
@@ -1028,6 +1030,7 @@ impl SequenceExecutor {
                 // keep driving the monitor after this select! resolves. See
                 // `TriggerActionInFlightGuard`.
                 tokio::pin!(trigger_monitor);
+                let mut monitor_finished = false;
                 let result = tokio::select! {
                     _ = command_handler => {
                         is_cancelled.store(true, Ordering::Release);
@@ -1050,6 +1053,7 @@ impl SequenceExecutor {
                         (&mut execution).await
                     },
                     _triggers = &mut trigger_monitor => {
+                        monitor_finished = true;
                         if triggers_enabled && !is_cancelled.load(Ordering::Relaxed) {
                             tracing::error!(
                                 "Safety monitoring (trigger monitor) exited unexpectedly! \
@@ -1091,7 +1095,10 @@ impl SequenceExecutor {
                         + std::time::Duration::from_secs(TRIGGER_ACTION_QUIESCE_MAX_SECS);
                     while trigger_action_in_flight.load(Ordering::Acquire) {
                         tokio::select! {
-                            _ = &mut trigger_monitor => break,
+                            _ = &mut trigger_monitor => {
+                                monitor_finished = true;
+                                break;
+                            },
                             _ = tokio::time::sleep_until(deadline) => {
                                 let message = format!(
                                     "A trigger recovery action was still running {}s after the \
@@ -1107,6 +1114,28 @@ impl SequenceExecutor {
                         }
                     }
                     tracing::info!("In-flight trigger recovery action quiesced; ending run");
+                }
+
+                // The final science frame can still be queued or solving when
+                // the capture node ends. Finish its assessment before reporting
+                // completion, with all recovery actions disabled during draining.
+                if triggers_enabled
+                    && !monitor_finished
+                    && result == NodeStatus::Success
+                    && !is_cancelled.load(Ordering::Acquire)
+                {
+                    let _ = finish_frames_tx.send(true);
+                    if tokio::time::timeout(
+                        std::time::Duration::from_secs(120),
+                        &mut trigger_monitor,
+                    )
+                    .await
+                    .is_err()
+                    {
+                        let _ = event_tx.send(ExecutorEvent::Warning {
+                            message: "Final frame plate solves did not finish within 120 seconds; some saved frames have no drift assessment.".into(),
+                        });
+                    }
                 }
 
                 // when recovery exhausted on a real failure it set

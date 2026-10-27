@@ -376,6 +376,11 @@ async fn run_center(keep: &[&str]) -> CenterRun {
         for id in ids {
             manager.remove_trigger(&id);
         }
+        // Exercise an explicit pixel-drift trigger as well as the new
+        // first-frame watcher; only the built-in default is replaced.
+        if let Some(trigger) = manager.get_trigger_mut("drift_limit") {
+            trigger.id = "test_drift".into();
+        }
     }
     let mut events = executor.subscribe();
     executor

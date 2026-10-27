@@ -106,6 +106,7 @@ impl SolveOutcome {
 pub struct FrameObservation {
     pub save_path: String,
     pub target_name: Option<String>,
+    pub target_id: Option<String>,
     pub filter: Option<String>,
     pub exposure_secs: f64,
     /// When the exposure began, in seconds on the clock
@@ -179,6 +180,8 @@ pub enum WatchAction {
     Recenter {
         offset_arcmin: f64,
         limit_arcmin: f64,
+        ra_deg: f64,
+        dec_deg: f64,
     },
     /// Tell the operator; nothing is decided yet.
     PossibleObstructionOrCloud { at: Pointing, frames: usize },
@@ -239,6 +242,9 @@ pub struct FrameWatch {
     cloud_backoff_until: u64,
     recenter_pending: bool,
     recentered_at_secs: Option<f64>,
+    /// Target node (or name) plus planned coordinates distinguishes mosaic
+    /// panels and preserves the original reference when a target is revisited.
+    drift_references: HashMap<(Option<String>, u64, u64), (f64, f64)>,
 }
 
 impl FrameWatch {
@@ -258,6 +264,7 @@ impl FrameWatch {
             cloud_backoff_until: 0,
             recenter_pending: false,
             recentered_at_secs: None,
+            drift_references: HashMap::new(),
         }
     }
 
@@ -390,7 +397,26 @@ impl FrameWatch {
         let (Some(target_ra), Some(target_dec)) = (obs.target_ra_deg, obs.target_dec_deg) else {
             return;
         };
-        let offset = angular_separation_deg(ra_deg, dec_deg, target_ra, target_dec) * 60.0;
+        if ![ra_deg, dec_deg, target_ra, target_dec]
+            .iter()
+            .all(|v| v.is_finite())
+        {
+            return;
+        }
+        let (reference_ra, reference_dec) = if self.config.use_first_frame_reference {
+            let key = (
+                obs.target_id.clone().or_else(|| obs.target_name.clone()),
+                target_ra.to_bits(),
+                target_dec.to_bits(),
+            );
+            *self
+                .drift_references
+                .entry(key)
+                .or_insert((ra_deg, dec_deg))
+        } else {
+            (target_ra, target_dec)
+        };
+        let offset = angular_separation_deg(ra_deg, dec_deg, reference_ra, reference_dec) * 60.0;
         verdict.offset_arcmin = Some(offset);
         let Some(limit) = self.config.drift_limit_arcmin(obs.field_short_side_arcmin) else {
             return;
@@ -401,7 +427,12 @@ impl FrameWatch {
         }
         verdict.off_target = true;
         verdict.exclusion_reason = Some(format!(
-            "{OFF_TARGET_PREFIX} center {offset:.1} arcmin from the target (limit {limit:.1} arcmin)"
+            "{OFF_TARGET_PREFIX} center {offset:.1} arcmin from {} (limit {limit:.1} arcmin)",
+            if self.config.use_first_frame_reference {
+                "the first frame"
+            } else {
+                "the target"
+            }
         ));
         let began_after_last_recenter = self
             .recentered_at_secs
@@ -411,6 +442,8 @@ impl FrameWatch {
             verdict.actions.push(WatchAction::Recenter {
                 offset_arcmin: offset,
                 limit_arcmin: limit,
+                ra_deg: reference_ra,
+                dec_deg: reference_dec,
             });
         }
     }

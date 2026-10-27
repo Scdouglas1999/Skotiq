@@ -43,6 +43,26 @@ pub(super) struct Dispatcher {
 
 impl Dispatcher {
     pub(super) async fn new(args: TriggerMonitorArgs) -> Self {
+        let frame_watch_config = args
+            .sequence_for_custom_recovery_triggers
+            .as_ref()
+            .map(|s| crate::frame_watch::FrameWatchConfig::from_metadata(&s.metadata))
+            .unwrap_or_default();
+        if frame_watch_config.use_first_frame_reference {
+            // The frame-watch trigger replaces the built-in pixel threshold;
+            // otherwise that trigger would pull framing back to catalog coords.
+            // Keep explicitly customized pixel triggers, including callers
+            // that reuse the built-in ID with different settings.
+            let mut manager = args.trigger_manager.write().await;
+            let is_default = manager.get_trigger("drift_limit").is_some_and(|trigger| {
+                matches!(trigger.trigger_type, TriggerType::DriftLimit { max_pixels } if max_pixels == 30.0)
+                    && matches!(trigger.recovery_action, RecoveryAction::Recenter)
+                    && trigger.cooldown_secs == Some(120)
+            });
+            if is_default {
+                manager.remove_trigger("drift_limit");
+            }
+        }
         let trigger_state = args.trigger_manager.read().await.state();
         Self {
             run: RunControl {
@@ -115,7 +135,7 @@ impl Dispatcher {
             if self.run.is_cancelled() {
                 break;
             }
-            if let Flow::Terminate(fired) = self.dispatch(dispatch).await {
+            if let Flow::Terminate(fired) = self.dispatch(dispatch, None).await {
                 return Flow::Terminate(fired);
             }
         }
@@ -130,16 +150,46 @@ impl Dispatcher {
         trigger_name: &str,
         fired: FiredTriggerAction,
     ) -> Flow {
-        self.dispatch(Dispatch {
-            trigger_id: trigger_id.to_string(),
-            trigger_name: trigger_name.to_string(),
-            fired,
-            cooldown_secs: None,
-        })
+        self.dispatch(
+            Dispatch {
+                trigger_id: trigger_id.to_string(),
+                trigger_name: trigger_name.to_string(),
+                fired,
+                cooldown_secs: None,
+            },
+            None,
+        )
         .await
     }
 
-    async fn dispatch(&mut self, dispatch: Dispatch) -> Flow {
+    /// Recenter to a measured reference through the normal trigger/camera claim.
+    pub(super) async fn run_frame_recenter(
+        &mut self,
+        trigger_id: &str,
+        trigger_name: &str,
+        reference: recenter::FrameReference,
+    ) -> Flow {
+        self.dispatch(
+            Dispatch {
+                trigger_id: trigger_id.to_string(),
+                trigger_name: trigger_name.to_string(),
+                fired: FiredTriggerAction {
+                    action: RecoveryAction::Recenter,
+                    end_without_parking: false,
+                    notify_only: false,
+                },
+                cooldown_secs: None,
+            },
+            Some(reference),
+        )
+        .await
+    }
+
+    async fn dispatch(
+        &mut self,
+        dispatch: Dispatch,
+        reference: Option<recenter::FrameReference>,
+    ) -> Flow {
         if dispatch.fired.notify_only {
             self.continue_without_guide_star(&dispatch.trigger_id).await;
         }
@@ -195,6 +245,7 @@ impl Dispatcher {
                 &action,
                 end_without_parking,
                 &mut camera_claim,
+                reference,
             )
             .await;
         match flow {
@@ -287,6 +338,7 @@ impl Dispatcher {
         action: &RecoveryAction,
         end_without_parking: bool,
         camera_claim: &mut TriggerCameraClaim,
+        reference: Option<recenter::FrameReference>,
     ) -> ActionFlow {
         let run = &self.run;
         let rig = &self.rig;
@@ -369,6 +421,7 @@ impl Dispatcher {
                     decisions: &self.decisions,
                     failure_told: &mut self.recenter_failure_told,
                     camera_claim,
+                    reference,
                 })
                 .await
             }

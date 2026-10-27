@@ -93,6 +93,7 @@ pub(super) struct FrameWatchStage {
     clock: tokio::time::Instant,
     recenters_without_success: u32,
     recenter_limit_told: bool,
+    pending_frames: usize,
     autofocus_hold_told: bool,
     /// Each target id's name and coordinates, as they were while it was
     /// current.
@@ -164,6 +165,7 @@ impl FrameWatchStage {
             clock: tokio::time::Instant::now(),
             recenters_without_success: 0,
             recenter_limit_told: false,
+            pending_frames: 0,
             autofocus_hold_told: false,
             frame_targets: std::collections::HashMap::new(),
         }
@@ -178,6 +180,7 @@ impl FrameWatchStage {
     ) -> Option<Vec<(String, RecoveryAction)>> {
         self.queue_saved_frames(dispatcher).await;
         while let Ok(observation) = self.measured.try_recv() {
+            self.pending_frames -= 1;
             let verdict = self.watch.observe(&observation);
             self.report(dispatcher, &observation, &verdict);
             self.update_autofocus_hold(dispatcher, &verdict).await;
@@ -193,6 +196,18 @@ impl FrameWatchStage {
         }
         self.tell_held_autofocus(dispatcher).await;
         None
+    }
+
+    /// Drain final saved frames without moving the rig after the node tree
+    /// finishes. Called on monitor ticks, keeping its heartbeat responsive.
+    pub(super) async fn finish_tick(&mut self, dispatcher: &Dispatcher) -> bool {
+        self.queue_saved_frames(dispatcher).await;
+        while let Ok(observation) = self.measured.try_recv() {
+            self.pending_frames -= 1;
+            let verdict = self.watch.observe(&observation);
+            self.report(dispatcher, &observation, &verdict);
+        }
+        self.pending_frames == 0
     }
 
     async fn queue_saved_frames(&mut self, dispatcher: &Dispatcher) {
@@ -269,6 +284,7 @@ impl FrameWatchStage {
             let observation = FrameObservation {
                 save_path: path,
                 target_name,
+                target_id: capture.target_id.clone(),
                 filter: state.current_filter.clone(),
                 exposure_secs: capture.exposure_secs,
                 exposure_started_secs: self.clock.elapsed().as_secs_f64() - capture.exposure_secs,
@@ -302,7 +318,9 @@ impl FrameWatchStage {
             {
                 dispatcher.rig.trigger_state.write().await.autofocus_hold = Some(reason);
             }
-            let _ = self.jobs.send(FrameJob { observation });
+            if self.jobs.send(FrameJob { observation }).is_ok() {
+                self.pending_frames += 1;
+            }
         }
     }
 
@@ -312,9 +330,26 @@ impl FrameWatchStage {
         let Some(id) = target_id else {
             return current;
         };
+        let target = self
+            .sequence
+            .as_ref()
+            .and_then(|sequence| sequence.nodes.iter().find(|node| node.id == id))
+            .and_then(|node| match &node.node_type {
+                crate::NodeType::TargetHeader(header)
+                    if current.0.as_deref() != Some(header.target_name.as_str()) =>
+                {
+                    Some((
+                        Some(header.target_name.clone()),
+                        Some(header.ra_hours * 15.0),
+                        Some(header.dec_degrees),
+                    ))
+                }
+                _ => None,
+            })
+            .unwrap_or(current);
         self.frame_targets
             .entry(id.to_string())
-            .or_insert(current)
+            .or_insert(target)
             .clone()
     }
 
@@ -394,9 +429,18 @@ impl FrameWatchStage {
             WatchAction::Recenter {
                 offset_arcmin,
                 limit_arcmin,
+                ra_deg,
+                dec_deg,
             } => {
-                self.recenter(dispatcher, mode, obs, offset_arcmin, limit_arcmin)
-                    .await;
+                self.recenter(
+                    dispatcher,
+                    mode,
+                    obs,
+                    offset_arcmin,
+                    limit_arcmin,
+                    (ra_deg, dec_deg),
+                )
+                .await;
                 None
             }
             WatchAction::PossibleObstructionOrCloud { at, frames } => {
@@ -474,6 +518,7 @@ impl FrameWatchStage {
         obs: &FrameObservation,
         offset_arcmin: f64,
         limit_arcmin: f64,
+        reference: (f64, f64),
     ) {
         let clock = self.clock;
         let done_at = move || clock.elapsed().as_secs_f64();
@@ -497,9 +542,19 @@ impl FrameWatchStage {
             self.watch.recentered(done_at());
             return;
         }
+        let (Some(target_ra_deg), Some(target_dec_deg)) = (obs.target_ra_deg, obs.target_dec_deg)
+        else {
+            self.watch.recentered(done_at());
+            return;
+        };
         self.recenters_without_success += 1;
+        let reference_label = if self.watch.config().use_first_frame_reference {
+            "the first frame"
+        } else {
+            "the target"
+        };
         let message = format!(
-            "{} is {offset_arcmin:.1} arcmin from the target (limit {limit_arcmin:.1} arcmin). \
+            "{} is {offset_arcmin:.1} arcmin from {reference_label} (limit {limit_arcmin:.1} arcmin). \
              Recentering before the next frame; frames this far off do not count as \
              integration.",
             file_label(&obs.save_path)
@@ -507,13 +562,14 @@ impl FrameWatchStage {
         tracing::warn!("[FRAME_WATCH] {}", message);
         dispatcher.run.warning(message);
         let _ = dispatcher
-            .run_synthetic(
+            .run_frame_recenter(
                 TARGET_DRIFT_TRIGGER_ID,
-                "Target drift",
-                FiredTriggerAction {
-                    action: RecoveryAction::Recenter,
-                    end_without_parking: false,
-                    notify_only: false,
+                "Recenter after drift",
+                super::actions::recenter::FrameReference {
+                    target_ra_deg,
+                    target_dec_deg,
+                    ra_deg: reference.0,
+                    dec_deg: reference.1,
                 },
             )
             .await;

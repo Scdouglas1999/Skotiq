@@ -55,9 +55,9 @@ class _FrameWatchSettingsSectionState
       children: [
         SettingRow(
           icon: LucideIcons.crosshair,
-          title: 'Automatic recentering',
+          title: 'Recenter after drift trigger',
           subtitle:
-              'Plate solve saved light frames and recenter between exposures '
+              'Plate solve every saved light frame and recenter between exposures '
               'when the target drifts too far. Applies to the next run; '
               'saved for all sequences.',
           trailing: SettingsSwitch(
@@ -71,8 +71,9 @@ class _FrameWatchSettingsSectionState
           icon: LucideIcons.move,
           title: 'Maximum drift',
           subtitle:
-              'Default: 60 arcseconds (1 arcminute). Measured from the planned '
-              'target center, not the previous frame. Frames beyond the limit '
+              'Default: 30 arcseconds. Measured from the first successfully solved '
+              'light frame after initial centering, separately for each target. '
+              'The reference stays fixed for the run. Frames beyond the limit '
               'are marked Off target while automatic recentering is enabled.',
           trailing: SettingsNumberInput(
             key: const ValueKey('frame-watch-drift-limit'),

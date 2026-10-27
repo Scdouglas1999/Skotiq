@@ -11,8 +11,8 @@ pub const FRAME_WATCH_METADATA_KEY: &str = "frame_watch";
 /// target before the run recenters.
 pub const DEFAULT_DRIFT_LIMIT_FRACTION: f64 = 0.10;
 
-/// One arcminute, independent of camera pixel scale or field of view.
-pub const DEFAULT_DRIFT_LIMIT_ARCSEC: f64 = 60.0;
+/// Half an arcminute, independent of camera pixel scale or field of view.
+pub const DEFAULT_DRIFT_LIMIT_ARCSEC: f64 = 30.0;
 
 /// How far either side of a learned obstruction point's azimuth the point
 /// blocks the sky.
@@ -49,6 +49,10 @@ pub struct FrameWatchConfig {
     /// values in older serialized plans retain the field-fraction setting.
     #[serde(default)]
     pub drift_limit_arcsec: Option<f64>,
+    /// Keep the first solved light as the run's reference for each target.
+    /// Older serialized plans retain their planned-coordinate reference.
+    #[serde(default)]
+    pub use_first_frame_reference: bool,
     /// Legacy threshold for plans without an angular limit. Zero disables it.
     pub drift_limit_fraction: f64,
     /// Whether a run looks for obstructions at all.
@@ -61,6 +65,7 @@ impl Default for FrameWatchConfig {
     fn default() -> Self {
         Self {
             drift_limit_arcsec: Some(DEFAULT_DRIFT_LIMIT_ARCSEC),
+            use_first_frame_reference: true,
             drift_limit_fraction: DEFAULT_DRIFT_LIMIT_FRACTION,
             obstruction_detection: true,
             learned_horizon: Vec::new(),
@@ -161,7 +166,7 @@ mod tests {
         assert!(!config.obstruction_detection);
         assert_eq!(
             FrameWatchConfig::default().drift_limit_arcmin(None),
-            Some(1.0)
+            Some(0.5)
         );
     }
 

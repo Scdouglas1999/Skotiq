@@ -2,6 +2,16 @@
 
 use super::*;
 
+/// Solved reference and the planned target it belongs to. The target is
+/// checked after acquiring the camera so a late frame cannot slew back to
+/// a target the sequence has already left.
+pub(in super::super) struct FrameReference {
+    pub target_ra_deg: f64,
+    pub target_dec_deg: f64,
+    pub ra_deg: f64,
+    pub dec_deg: f64,
+}
+
 /// What a trigger-fired recenter needs.
 pub(in super::super) struct RecenterRequest<'a> {
     pub trigger_id: &'a str,
@@ -13,6 +23,7 @@ pub(in super::super) struct RecenterRequest<'a> {
     /// that could not solve; a successful recenter ends that run.
     pub failure_told: &'a mut bool,
     pub camera_claim: &'a mut TriggerCameraClaim,
+    pub reference: Option<FrameReference>,
 }
 
 pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
@@ -24,12 +35,22 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         decisions,
         failure_told,
         camera_claim,
+        reference,
     } = request;
     tracing::info!(
         "[DRIFT] Trigger '{}' fired - executing recenter",
         trigger_name
     );
-    let target = rig.target().await;
+    let mut target = rig.target().await;
+    if let Some(reference) = reference {
+        if target.ra_hours != Some(reference.target_ra_deg / 15.0)
+            || target.dec_degrees != Some(reference.target_dec_deg)
+        {
+            return ActionFlow::NotRun;
+        }
+        target.ra_hours = Some(reference.ra_deg / 15.0);
+        target.dec_degrees = Some(reference.dec_deg);
+    }
     if target.ra_hours.is_none() || target.dec_degrees.is_none() {
         tracing::error!(
             "[DRIFT] Recenter requested but no target RA/Dec set; pausing for operator intervention"

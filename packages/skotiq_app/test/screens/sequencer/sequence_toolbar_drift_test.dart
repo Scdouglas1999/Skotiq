@@ -28,7 +28,7 @@ void main() {
       of: find.byKey(const ValueKey('frame-watch-drift-limit')),
       matching: find.byType(TextField),
     );
-    expect(tester.widget<TextField>(input).controller!.text, '60');
+    expect(tester.widget<TextField>(input).controller!.text, '30');
     expect(
         handle.container
             .read(frameWatchSettingsProvider)

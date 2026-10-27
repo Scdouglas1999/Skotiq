@@ -22,7 +22,7 @@ const String learnedHorizonPointsKey = 'learned_horizon_points_json';
 
 /// How far the solved center may drift from the target before the run
 /// recenters, in arcseconds.
-const double frameWatchDriftLimitDefaultArcsec = 60;
+const double frameWatchDriftLimitDefaultArcsec = 30;
 const double frameWatchDriftLimitMinArcsec = 10;
 const double frameWatchDriftLimitMaxArcsec = 600;
 
@@ -203,6 +203,7 @@ class FrameWatchSettings {
     required double? longitude,
   }) => {
     'drift_limit_arcsec': recenterEnabled ? driftLimitArcsec : 0,
+    'use_first_frame_reference': true,
     'obstruction_detection': obstructionDetection,
     'learned_horizon': [
       for (final p in pointsForSite(latitude, longitude))

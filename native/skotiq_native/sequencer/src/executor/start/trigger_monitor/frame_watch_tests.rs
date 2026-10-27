@@ -137,6 +137,7 @@ impl Harness {
             trigger_action_in_flight_for_triggers: Arc::new(AtomicBool::new(false)),
             trigger_manager: Arc::new(RwLock::new(manager)),
             triggers_enabled: true,
+            finish_frames: watch::channel(false).1,
         })
         .await;
         Self {
@@ -522,29 +523,136 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn two_arcminutes_of_drift_runs_centering_with_the_default_limit() {
-    let mut row = rows().remove(0);
-    row.solve = crate::frame_watch::SolveOutcome::Solved {
+async fn drift_from_first_frame_runs_centering_to_that_reference() {
+    let mut first = rows().remove(0);
+    let reference_dec = TARGET_DEC_DEG + 15.0 / 3600.0;
+    first.solve = crate::frame_watch::SolveOutcome::Solved {
         ra_deg: TARGET_RA_DEG,
-        dec_deg: TARGET_DEC_DEG + 2.0 / 60.0,
+        dec_deg: reference_dec,
         pixel_scale_arcsec: 0.79,
         rotation_deg: 0.0,
     };
-    let mut h = Harness::with_plan_and_rows(plan(), vec![row.clone()]).await;
+    let mut drifted = first.clone();
+    drifted.id += 1;
+    drifted.solve = crate::frame_watch::SolveOutcome::Solved {
+        ra_deg: TARGET_RA_DEG,
+        dec_deg: reference_dec + 31.0 / 3600.0,
+        pixel_scale_arcsec: 0.79,
+        rotation_deg: 0.0,
+    };
+    let mut h = Harness::with_plan_and_rows(plan(), vec![first.clone(), drifted.clone()]).await;
     let mut log = Vec::new();
-    h.save(&row).await;
-    assert!(h
-        .tick_until_reported(&format!("row-{}.fits", row.id), &mut log)
-        .await
-        .is_none());
-    let frame = log.iter().find_map(assessed).expect("saved frame assessed");
-    assert!(frame.off_target);
+    for row in [&first, &drifted] {
+        h.save(row).await;
+        assert!(h
+            .tick_until_reported(&format!("row-{}.fits", row.id), &mut log)
+            .await
+            .is_none());
+    }
+    let frames: Vec<_> = log.iter().filter_map(assessed).collect();
+    assert_eq!(frames.len(), 2);
+    assert!(!frames[0].off_target);
+    assert!(frames[1].off_target);
+    assert!((frames[1].offset_arcmin.unwrap() * 60.0 - 31.0).abs() < 1e-4);
     assert_eq!(fired(&log, TARGET_DRIFT_TRIGGER_ID), 1);
-    assert!(
-        h.ops.calls().iter().any(|c| c.starts_with("plate_solve")),
-        "centering must run, not merely emit a trigger"
+    assert!(h.ops.calls().iter().any(|c| c.starts_with("plate_solve")));
+    // Center's final solve is reported to trigger state, proving the actual
+    // instruction received the measured reference rather than catalog Dec.
+    let state = h.dispatcher.rig.trigger_state.read().await;
+    assert_eq!(state.last_plate_solve_dec, Some(reference_dec));
+    assert_eq!(
+        state.target_dec,
+        Some(TARGET_DEC_DEG),
+        "the planned target stays unchanged"
     );
     assert!(warnings(&log)
         .iter()
-        .any(|w| w.contains("2.0 arcmin from the target (limit 1.0 arcmin)")));
+        .any(|w| w.contains("from the first frame (limit 0.5 arcmin)")));
+}
+
+#[tokio::test(start_paused = true)]
+async fn final_frames_all_finish_solving_without_starting_a_recenter() {
+    let mut frames: Vec<_> = rows().into_iter().take(3).collect();
+    for (i, row) in frames.iter_mut().enumerate() {
+        row.solve = crate::frame_watch::SolveOutcome::Solved {
+            ra_deg: TARGET_RA_DEG,
+            dec_deg: TARGET_DEC_DEG + i as f64 / 60.0,
+            pixel_scale_arcsec: 0.79,
+            rotation_deg: 0.0,
+        };
+    }
+    frames[2].db_accepted = false;
+    let mut h = Harness::with_plan_and_rows(plan(), frames.clone()).await;
+    assert!(
+        h.dispatcher
+            .trigger_manager
+            .read()
+            .await
+            .get_trigger("drift_limit")
+            .is_none(),
+        "the built-in catalog/pixel trigger must not override the first-frame reference"
+    );
+    h.target_id = Some("ngc891".into());
+    for row in &frames {
+        h.save(row).await;
+    }
+    h.dispatcher
+        .rig
+        .trigger_state
+        .write()
+        .await
+        .clear_target_state();
+    let mut done = false;
+    for _ in 0..200 {
+        if h.stage.finish_tick(&h.dispatcher).await {
+            done = true;
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+    assert!(done, "the last frames must drain");
+    let mut log = Vec::new();
+    h.drain(&mut log);
+    let assessed: Vec<_> = log.iter().filter_map(assessed).collect();
+    assert_eq!(assessed.len(), frames.len());
+    assert!(assessed
+        .iter()
+        .all(|frame| frame.solve_attempted && frame.plate_solved));
+    assert!(assessed[2].off_target);
+    assert_eq!(fired(&log, TARGET_DRIFT_TRIGGER_ID), 0);
+    assert!(
+        !h.ops
+            .calls()
+            .iter()
+            .any(|c| c.starts_with("plate_solve") || c.starts_with("mount_slew")),
+        "finishing measurements must not move the rig or take more exposures"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_late_drift_result_does_not_recenter_the_previous_target() {
+    let mut h = Harness::new().await;
+    h.dispatcher
+        .rig
+        .trigger_state
+        .write()
+        .await
+        .set_target(120.0, 10.0);
+    h.dispatcher
+        .run_frame_recenter(
+            TARGET_DRIFT_TRIGGER_ID,
+            "Recenter after drift",
+            super::actions::recenter::FrameReference {
+                target_ra_deg: TARGET_RA_DEG,
+                target_dec_deg: TARGET_DEC_DEG,
+                ra_deg: TARGET_RA_DEG,
+                dec_deg: TARGET_DEC_DEG + 15.0 / 3600.0,
+            },
+        )
+        .await;
+    assert!(!h
+        .ops
+        .calls()
+        .iter()
+        .any(|c| c.starts_with("plate_solve") || c.starts_with("mount_slew")));
 }

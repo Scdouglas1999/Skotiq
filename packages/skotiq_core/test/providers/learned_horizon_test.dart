@@ -246,7 +246,7 @@ void main() {
     test('old percent values are not interpreted as arcseconds', () async {
       await db.settingsDao.setSetting('frame_watch_drift_limit_percent', '10');
       final c = await container();
-      expect(c.read(frameWatchSettingsProvider).value!.driftLimitArcsec, 60);
+      expect(c.read(frameWatchSettingsProvider).value!.driftLimitArcsec, 30);
     });
 
     test(
@@ -282,6 +282,7 @@ void main() {
             jsonDecode(metadata['frame_watch'] as String)
                 as Map<String, dynamic>;
         expect(frameWatch['drift_limit_arcsec'], 90);
+        expect(frameWatch['use_first_frame_reference'], isTrue);
         expect(frameWatch['obstruction_detection'], isTrue);
         expect(frameWatch['learned_horizon'], [
           {'azimuth_deg': 286.2, 'altitude_deg': 64.0},

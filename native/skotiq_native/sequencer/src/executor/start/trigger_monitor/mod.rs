@@ -57,6 +57,7 @@ pub(super) struct TriggerMonitorArgs {
     pub trigger_action_in_flight_for_triggers: Arc<AtomicBool>,
     pub trigger_manager: Arc<RwLock<TriggerManager>>,
     pub triggers_enabled: bool,
+    pub finish_frames: watch::Receiver<bool>,
 }
 
 /// Run the monitor until a trigger ends the run or the run is cancelled.
@@ -78,6 +79,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         .sequence_for_custom_recovery_triggers
         .as_ref()
         .is_some_and(super::calibration_run::is_calibration_only);
+    let finish_frames = args.finish_frames.clone();
     let executor_state = args.state_clone.clone();
     let is_cancelled = args.is_cancelled_clone.clone();
     let heartbeat_tx = args.heartbeat_tx.clone();
@@ -105,6 +107,15 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // paused run still reports a live monitor.
         heartbeat = heartbeat.wrapping_add(1);
         let _ = heartbeat_tx.send(heartbeat);
+        if is_cancelled.load(Ordering::Relaxed) {
+            break;
+        }
+        if *finish_frames.borrow() {
+            if frame_watch.finish_tick(&dispatcher).await {
+                break;
+            }
+            continue;
+        }
 
         // A held run still has a telescope under the open sky, so the monitor
         // keeps polling and evaluating while it is paused or recovering; what
