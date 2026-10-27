@@ -18,6 +18,7 @@ use std::time::Instant as StdInstant;
 struct SimConfig {
     /// How long a capture takes to end after `stop_capture`.
     stop_delay: Duration,
+    stop_never_finishes: bool,
     /// Time between frames while capturing.
     frame_interval: Duration,
     /// How long a `guide` or `dither` takes to settle.
@@ -40,6 +41,7 @@ impl Default for SimConfig {
     fn default() -> Self {
         Self {
             stop_delay: Duration::from_millis(300),
+            stop_never_finishes: false,
             frame_interval: Duration::from_millis(100),
             settle_delay: Duration::from_millis(200),
             guide_settle_status: 0,
@@ -137,6 +139,9 @@ impl Sim {
     }
 
     fn end_capture(self: &Arc<Self>) {
+        if self.config.stop_never_finishes {
+            return;
+        }
         let sim = self.clone();
         std::thread::spawn(move || {
             std::thread::sleep(sim.config.stop_delay);
@@ -541,4 +546,23 @@ async fn a_dither_during_a_restart_waits_for_its_settle() {
     assert!(restarted.is_ok(), "{restarted:?} {methods:?}");
     assert!(dithered.is_ok(), "{dithered:?} {methods:?}");
     assert_eq!(refused, 0, "{methods:?}");
+}
+
+/// An acknowledgement is not proof that capture stopped. The flip must not
+/// advance to moving the mount when PHD2 is still issuing guide pulses.
+#[tokio::test]
+async fn an_acknowledged_stop_that_never_finishes_is_an_error() {
+    let _slot = PHD2_TEST_SLOT.lock().await;
+    let (_sim, done) = connect(SimConfig {
+        initial: Capture::Guiding,
+        stop_never_finishes: true,
+        ..SimConfig::default()
+    })
+    .await;
+    let result = api_phd2_stop_guiding().await;
+    finish(done).await;
+    assert!(
+        result.is_err(),
+        "a still-guiding PHD2 must not report a successful stop"
+    );
 }

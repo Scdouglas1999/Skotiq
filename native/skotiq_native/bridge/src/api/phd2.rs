@@ -553,15 +553,10 @@ async fn guide_exposure() -> Result<Duration, SkotiqError> {
 /// the earlier guide's settle open and refuses a new `guide`, and a looping
 /// frame from the old capture can still arrive.
 async fn stop_capture_and_wait(exposure: Duration) -> Result<bool, SkotiqError> {
-    {
-        let mut client = phd2_client().await?;
-        if let Err(first) = client.stop_capture() {
-            tracing::warn!("PHD2 stop_capture did not complete ({first}); trying again");
-            client.stop_capture().map_err(|e| {
-                SkotiqError::OperationFailed(format!("Failed to stop PHD2 capture: {e}"))
-            })?;
-        }
-    }
+    phd2_client()
+        .await?
+        .stop_capture()
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to stop PHD2 capture: {e}")))?;
     let deadline = tokio::time::Instant::now() + exposure + STOP_GRACE;
     loop {
         let state = {
@@ -708,9 +703,9 @@ pub async fn api_phd2_stop_guiding() -> Result<(), SkotiqError> {
 /// own stops state their reason first.
 async fn phd2_stop_guiding() -> Result<(), SkotiqError> {
     PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
-    // A capture still ending after the grace period has been told to stop;
-    // that is logged, not a failed stop.
-    stop_capture_and_wait(guide_exposure().await?)
+    // Acknowledging stop_capture is not enough: callers may move the mount
+    // once this returns, so capture must actually have ended.
+    stop_capture_completely(guide_exposure().await?)
         .await
         .map_err(|e| match e {
             SkotiqError::OperationFailed(message) => {
@@ -771,10 +766,9 @@ pub async fn api_phd2_dither(
 pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    // A PHD2 that is slow to answer (busy with a capture under cloud) is not a
-    // disconnected PHD2. The status says it did not answer, and keeps the
-    // socket's own connection state, rather than failing; a failed status read
-    // was turned into "Disconnected" upstream while PHD2 was guiding.
+    // The client retries a stalled status request on a fresh connection.
+    // If an RPC error arrives on a live socket, report it as unknown state;
+    // exhausted transport recovery is a connection failure.
     let state = match client.get_app_state() {
         Ok(state) => state,
         Err(e) if client.is_connected() => {
@@ -1817,6 +1811,7 @@ mod fresh_guide_star_tests {
 #[cfg(test)]
 mod tests {
     mod sim;
+    mod transport;
 }
 
 #[cfg(test)]

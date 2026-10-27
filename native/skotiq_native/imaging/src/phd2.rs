@@ -545,6 +545,9 @@ impl LoopingFrames {
 pub struct Phd2Client {
     /// Write half of the TCP stream for sending commands
     write_stream: Option<TcpStream>,
+    /// Explicit disconnect disables automatic transport recovery.
+    connection_wanted: bool,
+    received_lines: Arc<std::sync::atomic::AtomicU64>,
     host: String,
     port: u16,
     request_id: u32,
@@ -574,6 +577,8 @@ impl Phd2Client {
     pub fn new(host: &str, port: u16) -> Self {
         Self {
             write_stream: None,
+            connection_wanted: false,
+            received_lines: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             host: normalize_phd2_tcp_host(host),
             port,
             request_id: 0,
@@ -594,6 +599,8 @@ impl Phd2Client {
     pub fn with_config(host: &str, port: u16, config: Phd2ConnectionConfig) -> Self {
         Self {
             write_stream: None,
+            connection_wanted: false,
+            received_lines: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             host: normalize_phd2_tcp_host(host),
             port,
             request_id: 0,
@@ -735,8 +742,8 @@ impl Phd2Client {
 
     /// Connect to PHD2
     pub fn connect(&mut self) -> Result<(), String> {
-        self.suppress_disconnect_events
-            .store(false, std::sync::atomic::Ordering::SeqCst);
+        self.close_transport();
+        self.connection_wanted = true;
 
         let addr = format!("{}:{}", self.host, self.port);
         tracing::info!("Connecting to PHD2 at {}", addr);
@@ -749,6 +756,10 @@ impl Phd2Client {
         )
         .map_err(|e| format!("Failed to connect to PHD2: {}", e))?;
 
+        stream
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .map_err(|e| format!("Failed to set write timeout: {e}"))?;
+
         // Clone the stream: one for reading (event listener), one for writing (commands)
         let read_stream = stream
             .try_clone()
@@ -757,13 +768,18 @@ impl Phd2Client {
             .set_read_timeout(Some(Duration::from_millis(100)))
             .map_err(|e| format!("Failed to set read timeout: {}", e))?;
 
+        // A retired reader and any outstanding settle waiter retain the old
+        // connection's state. They must never mark a replacement disconnected
+        // or complete a settle belonging to the new connection.
+        self.running = Arc::new(AtomicBool::new(true));
+        self.suppress_disconnect_events = Arc::new(AtomicBool::new(false));
+        self.state = Arc::new(Mutex::new(Phd2State::Connected));
+        self.response_registry = Arc::new(Mutex::new(HashMap::new()));
+        self.settle_tracker = Arc::new(Mutex::new(SettleTracker::default()));
+        self.looping = Arc::new(LoopingFrames::default());
+        self.rolling_stats = Arc::new(Mutex::new(RollingGuideStats::default()));
+        self.received_lines = Arc::new(std::sync::atomic::AtomicU64::new(0));
         self.write_stream = Some(stream);
-        self.running.store(true, Ordering::SeqCst);
-
-        // Update connection state
-        if let Ok(mut state) = self.state.lock() {
-            *state = Phd2State::Connected;
-        }
 
         // Start event listener thread with the dedicated read stream
         self.start_event_listener(read_stream);
@@ -774,6 +790,12 @@ impl Phd2Client {
 
     /// Disconnect from PHD2
     pub fn disconnect(&mut self) {
+        self.connection_wanted = false;
+        self.close_transport();
+    }
+
+    /// Retire this connection without changing the operator's connect intent.
+    fn close_transport(&mut self) {
         self.suppress_disconnect_events
             .store(true, std::sync::atomic::Ordering::SeqCst);
         self.running.store(false, Ordering::SeqCst);
@@ -819,6 +841,7 @@ impl Phd2Client {
         let suppress_disconnect_events = Arc::clone(&self.suppress_disconnect_events);
         let settle_tracker = Arc::clone(&self.settle_tracker);
         let looping = Arc::clone(&self.looping);
+        let received_lines = Arc::clone(&self.received_lines);
 
         thread::spawn(move || {
             tracing::info!("PHD2: Reader thread started");
@@ -835,15 +858,29 @@ impl Phd2Client {
                     break;
                 }
 
-                match reader.read_line(&mut line_buf) {
+                let result = reader.read_line(&mut line_buf);
+                if !running.load(Ordering::SeqCst) {
+                    break;
+                }
+                match result {
                     Ok(0) => {
                         // EOF - connection closed
                         tracing::info!("PHD2: Reader thread got EOF, connection closed");
                         running.store(false, Ordering::SeqCst);
+                        let request_waiting = response_registry
+                            .lock()
+                            .map(|mut registry| {
+                                let waiting = !registry.is_empty();
+                                registry.clear();
+                                waiting
+                            })
+                            .unwrap_or(false);
                         if let Ok(mut s) = state.lock() {
                             *s = Phd2State::Disconnected;
                         }
-                        if !suppress_disconnect_events.load(Ordering::SeqCst) {
+                        // A waiting RPC owns its bounded recovery. Emitting a
+                        // disconnect now would make the UI tear down its replacement.
+                        if !request_waiting && !suppress_disconnect_events.load(Ordering::SeqCst) {
                             if let Some(ref cb) = callback {
                                 if let Ok(cb) = cb.lock() {
                                     cb(Phd2Event::Disconnected);
@@ -867,6 +904,7 @@ impl Phd2Client {
                             continue;
                         }
 
+                        received_lines.fetch_add(1, Ordering::Relaxed);
                         // Process the complete line
                         Self::process_line(
                             json,
@@ -897,12 +935,22 @@ impl Phd2Client {
                         tracing::warn!("PHD2: Read error (kind={:?}): {}", e.kind(), e);
 
                         running.store(false, Ordering::SeqCst);
+                        let request_waiting = response_registry
+                            .lock()
+                            .map(|mut registry| {
+                                let waiting = !registry.is_empty();
+                                registry.clear();
+                                waiting
+                            })
+                            .unwrap_or(false);
                         // Update state to disconnected
                         if let Ok(mut s) = state.lock() {
                             *s = Phd2State::Disconnected;
                         }
 
-                        if !suppress_disconnect_events.load(Ordering::SeqCst) {
+                        // A waiting RPC owns its bounded recovery. Emitting a
+                        // disconnect now would make the UI tear down its replacement.
+                        if !request_waiting && !suppress_disconnect_events.load(Ordering::SeqCst) {
                             if let Some(ref cb) = callback {
                                 if let Ok(cb) = cb.lock() {
                                     cb(Phd2Event::Disconnected);
@@ -1070,62 +1118,55 @@ impl Phd2Client {
         method: &str,
         params: Option<serde_json::Value>,
     ) -> Result<serde_json::Value, String> {
-        let stream = self
-            .write_stream
-            .as_mut()
-            .ok_or_else(|| "Not connected to PHD2".to_string())?;
+        self.ensure_connected()?;
+        self.send_request_connected(method, params)
+    }
 
-        self.request_id += 1;
-        let request_id = self.request_id;
-        let request = JsonRpcRequest {
-            method: method.to_string(),
-            params,
-            id: request_id,
-        };
-
-        // Register a response channel BEFORE sending so there is no race window
-        let (tx, rx) = mpsc::channel::<String>();
-        {
-            let mut registry = self
-                .response_registry
-                .lock()
-                .map_err(|e| format!("Failed to lock response registry: {}", e))?;
-            registry.insert(request_id, tx);
+    fn ensure_connected(&mut self) -> Result<(), String> {
+        if !self.is_connected() {
+            if !self.connection_wanted || !self.config.auto_reconnect {
+                return Err("Not connected to PHD2".to_string());
+            }
+            self.connect()?;
         }
+        Ok(())
+    }
 
-        let json = serde_json::to_string(&request)
-            .map_err(|e| format!("Failed to serialize request: {}", e))?;
-
-        tracing::debug!("PHD2 send_request: {} (id={})", method, request_id);
-
-        stream
-            .write_all(json.as_bytes())
-            .map_err(|e| format!("Failed to send request: {}", e))?;
-        stream
-            .write_all(b"\r\n")
-            .map_err(|e| format!("Failed to send newline: {}", e))?;
-        stream
-            .flush()
-            .map_err(|e| format!("Failed to flush: {}", e))?;
-
-        // Wait for the response from the reader thread with a timeout
-        let response_line = rx
-            .recv_timeout(Duration::from_secs(10))
-            .map_err(|e| match e {
-                mpsc::RecvTimeoutError::Timeout => {
-                    // Clean up the registry entry on timeout
-                    if let Ok(mut registry) = self.response_registry.lock() {
-                        registry.remove(&request_id);
+    fn send_request_connected(
+        &mut self,
+        method: &str,
+        params: Option<serde_json::Value>,
+    ) -> Result<serde_json::Value, String> {
+        // Reads and stopping capture are idempotent. A timed-out dither or
+        // guide may already have executed, so never replay those implicitly.
+        let can_retry = method.starts_with("get_") || method == "stop_capture";
+        let response = self.request_response(method, params.clone());
+        let response_line = match response {
+            Ok(line) => line,
+            Err(first) => {
+                tracing::warn!("PHD2 transport failed: {first}; retiring socket");
+                self.close_transport();
+                if !can_retry || !self.config.auto_reconnect {
+                    self.report_disconnect();
+                    return Err(first);
+                }
+                if let Err(error) = self.connect() {
+                    self.report_disconnect();
+                    return Err(format!("{first}; reconnect failed: {error}"));
+                }
+                match self.request_response(method, params) {
+                    Ok(line) => {
+                        tracing::info!("PHD2 RPC recovered on a new connection: {method}");
+                        line
                     }
-                    format!("Request '{}' timed out (id={})", method, request_id)
+                    Err(error) => {
+                        self.close_transport();
+                        self.report_disconnect();
+                        return Err(format!("{first}; fresh connection also failed: {error}"));
+                    }
                 }
-                mpsc::RecvTimeoutError::Disconnected => {
-                    format!(
-                        "Response channel disconnected for '{}' (id={})",
-                        method, request_id
-                    )
-                }
-            })?;
+            }
+        };
 
         // Parse the response
         let resp: JsonRpcResponse = serde_json::from_str(&response_line)
@@ -1145,6 +1186,57 @@ impl Phd2Client {
         // already fail on `Null` with a clear "expected …" error rather than
         // bubbling a confusing "missing result" message.
         Ok(resp.result.unwrap_or(serde_json::Value::Null))
+    }
+
+    fn report_disconnect(&self) {
+        if let Some(callback) = &self.event_callback {
+            if let Ok(callback) = callback.lock() {
+                callback(Phd2Event::Disconnected);
+            }
+        }
+    }
+
+    /// Send once, returning only transport errors here. JSON-RPC application
+    /// errors are handled by the caller and never cause a reconnect/replay.
+    fn request_response(
+        &mut self,
+        method: &str,
+        params: Option<serde_json::Value>,
+    ) -> Result<String, String> {
+        self.request_id = self.request_id.wrapping_add(1);
+        let request_id = self.request_id;
+        let request = JsonRpcRequest {
+            method: method.to_string(),
+            params,
+            id: request_id,
+        };
+        let mut json = serde_json::to_string(&request)
+            .map_err(|e| format!("Failed to serialize request: {e}"))?;
+        json.push_str("\r\n");
+        let (tx, rx) = mpsc::channel::<String>();
+        self.response_registry
+            .lock()
+            .map_err(|e| format!("Failed to lock response registry: {e}"))?
+            .insert(request_id, tx);
+        let lines_before = self.received_lines.load(Ordering::Relaxed);
+        let stream = self.write_stream.as_mut().ok_or("Not connected to PHD2")?;
+        // Submit the JSON and its delimiter together, with a bounded write.
+        stream
+            .write_all(json.as_bytes())
+            .map_err(|e| format!("Failed to send '{method}' (id={request_id}): {e}"))?;
+        tracing::debug!("PHD2 sent {method} (id={request_id}, bytes={})", json.len());
+        rx.recv_timeout(Duration::from_secs(10)).map_err(|e| {
+            let received = self.received_lines.load(Ordering::Relaxed) - lines_before;
+            match e {
+                mpsc::RecvTimeoutError::Timeout => format!(
+                    "Request '{method}' timed out (id={request_id}, {} bytes written, {received} incoming lines while waiting)",
+                    json.len()
+                ),
+                mpsc::RecvTimeoutError::Disconnected => format!(
+                    "PHD2 connection closed waiting for '{method}' (id={request_id})"
+                ),
+            }
+        })
     }
 
     // PHD2 commands
@@ -1199,8 +1291,14 @@ impl Phd2Client {
         time: f64,
         timeout: f64,
     ) -> Result<SettleWaiter, String> {
+        self.ensure_connected()?;
         let waiter = self.arm_settle();
-        self.guide(pixels, time, timeout)?;
+        self.send_request_connected(
+            "guide",
+            Some(serde_json::json!({
+                "settle": { "pixels": pixels, "time": time, "timeout": timeout }
+            })),
+        )?;
         Ok(waiter)
     }
 
@@ -1308,8 +1406,9 @@ impl Phd2Client {
 
         // Arm settle tracking BEFORE sending the RPC so the reader thread
         // cannot miss an early SettleDone (no race window).
+        self.ensure_connected()?;
         let waiter = self.arm_settle();
-        self.send_request("dither", Some(params))?;
+        self.send_request_connected("dither", Some(params))?;
         Ok(waiter)
     }
 
@@ -2343,6 +2442,237 @@ mod tests {
         assert!(!json.contains("params"));
         assert!(json.contains("\"method\":\"get_app_state\""));
         assert!(json.contains("\"id\":1"));
+    }
+
+    /// Replay the overnight failure: TCP stays open, but that connection no
+    /// longer services commands. A new connection to the same PHD2 is healthy.
+    #[test]
+    fn stalled_rpc_connection_is_replaced_for_a_safe_retry() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (stalled, _) = listener.accept().unwrap();
+            let mut old_reader = BufReader::new(stalled.try_clone().unwrap());
+            let mut request = String::new();
+            old_reader.read_line(&mut request).unwrap();
+            assert!(request.contains("get_app_state"));
+            listener.set_nonblocking(true).unwrap();
+            let deadline = Instant::now() + Duration::from_secs(25);
+            while Instant::now() < deadline {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream
+                            .set_read_timeout(Some(Duration::from_secs(3)))
+                            .unwrap();
+                        let mut reader = BufReader::new(stream.try_clone().unwrap());
+                        let mut line = String::new();
+                        reader.read_line(&mut line).unwrap();
+                        let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+                        assert_eq!(request["method"], "get_app_state");
+                        writeln!(
+                            stream,
+                            "{}",
+                            serde_json::json!({
+                                "jsonrpc": "2.0", "result": "Guiding", "id": request["id"]
+                            })
+                        )
+                        .unwrap();
+                        return;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(10))
+                    }
+                    Err(e) => panic!("accept: {e}"),
+                }
+            }
+            panic!("client never replaced the stalled socket");
+        });
+        let mut client = Phd2Client::new("127.0.0.1", port);
+        client.connect().unwrap();
+        let reply = client.get_app_state();
+        client.disconnect();
+        assert_eq!(reply.unwrap(), Phd2State::Guiding);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn recovery_is_bounded_and_respects_auto_reconnect_disabled() {
+        for auto_reconnect in [false, true] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = thread::spawn(move || {
+                for _ in 0..if auto_reconnect { 2 } else { 1 } {
+                    let (stream, _) = listener.accept().unwrap();
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(3)))
+                        .unwrap();
+                    let mut reader = BufReader::new(stream);
+                    assert_eq!(read_rpc(&mut reader)["method"], "get_app_state");
+                    // Neither connection can service the request.
+                }
+            });
+            let mut client = Phd2Client::with_config(
+                "127.0.0.1",
+                port,
+                Phd2ConnectionConfig {
+                    auto_reconnect,
+                    ..Default::default()
+                },
+            );
+            client.connect().unwrap();
+            let error = client.get_app_state().unwrap_err();
+            assert_eq!(
+                error.contains("fresh connection also failed"),
+                auto_reconnect
+            );
+            assert!(!client.is_connected());
+            client.disconnect();
+            server.join().unwrap();
+        }
+    }
+
+    fn read_rpc(reader: &mut BufReader<TcpStream>) -> serde_json::Value {
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        serde_json::from_str(&line).unwrap()
+    }
+
+    #[test]
+    fn stop_capture_recovers_a_stalled_connection_and_confirms_stopped() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (stalled, _) = listener.accept().unwrap();
+            stalled
+                .set_read_timeout(Some(Duration::from_secs(15)))
+                .unwrap();
+            let mut reader = BufReader::new(stalled);
+            assert_eq!(read_rpc(&mut reader)["method"], "stop_capture");
+            // The client must close the stale socket, not send another stop on it.
+            let mut line = String::new();
+            assert_eq!(reader.read_line(&mut line).unwrap(), 0);
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            for (method, result) in [
+                ("stop_capture", serde_json::json!(0)),
+                ("get_app_state", serde_json::json!("Stopped")),
+            ] {
+                let request = read_rpc(&mut reader);
+                assert_eq!(request["method"], method);
+                writeln!(
+                    stream,
+                    "{}",
+                    serde_json::json!({
+                        "jsonrpc": "2.0", "result": result, "id": request["id"]
+                    })
+                )
+                .unwrap();
+            }
+        });
+        let mut client = Phd2Client::new("127.0.0.1", port);
+        client.connect().unwrap();
+        client.stop_capture().unwrap();
+        assert_eq!(client.get_app_state_name().unwrap(), "Stopped");
+        client.disconnect();
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn uncertain_dither_is_not_replayed_and_old_settle_cannot_complete_after_reconnect() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream);
+            assert_eq!(read_rpc(&mut reader)["method"], "dither");
+            // The dither may have run; lose the reply and the connection.
+            drop(reader);
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let request = read_rpc(&mut reader);
+            assert_eq!(request["method"], "get_app_state", "must not replay dither");
+            writeln!(
+                stream,
+                "{}",
+                serde_json::json!({
+                    "jsonrpc": "2.0", "result": "Guiding", "id": request["id"]
+                })
+            )
+            .unwrap();
+            let request = read_rpc(&mut reader);
+            assert_eq!(request["method"], "guide");
+            writeln!(
+                stream,
+                "{}",
+                serde_json::json!({
+                    "jsonrpc": "2.0", "result": 0, "id": request["id"]
+                })
+            )
+            .unwrap();
+            writeln!(stream, "{{\"Event\":\"SettleDone\",\"Status\":0}}").unwrap();
+            // Keep the connection alive until the client finishes checking settle.
+            let mut end = String::new();
+            assert_eq!(reader.read_line(&mut end).unwrap(), 0);
+        });
+        let mut client = Phd2Client::new("127.0.0.1", port);
+        client.connect().unwrap();
+        let old_waiter = client.arm_settle();
+        let start = Instant::now();
+        assert!(client.dither_arm(2.0, false, 1.0, 1.0, 5.0).is_err());
+        assert!(
+            start.elapsed() < Duration::from_secs(3),
+            "EOF must wake the waiter"
+        );
+        assert_eq!(client.get_app_state().unwrap(), Phd2State::Guiding);
+        let waiter = client.guide_arm(1.0, 1.0, 5.0).unwrap();
+        waiter.wait(Duration::from_secs(2)).unwrap();
+        assert!(old_waiter.wait(Duration::from_millis(50)).is_err());
+        client.disconnect();
+        assert!(client
+            .get_app_state()
+            .unwrap_err()
+            .contains("Not connected"));
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn rpc_error_and_fragmented_response_do_not_reconnect() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let request = read_rpc(&mut reader);
+            writeln!(stream, "{}", serde_json::json!({
+                "jsonrpc": "2.0", "error": {"code": 1, "message": "no star"}, "id": request["id"]
+            })).unwrap();
+            let request = read_rpc(&mut reader);
+            let response = format!(
+                "{}\r\n",
+                serde_json::json!({
+                    "jsonrpc": "2.0", "result": "Guiding", "id": request["id"]
+                })
+            );
+            let split = response.len() / 2;
+            stream.write_all(&response.as_bytes()[..split]).unwrap();
+            thread::sleep(Duration::from_millis(200));
+            stream.write_all(&response.as_bytes()[split..]).unwrap();
+        });
+        let mut client = Phd2Client::new("127.0.0.1", port);
+        client.connect().unwrap();
+        assert!(client.find_star().unwrap_err().contains("no star"));
+        assert_eq!(client.get_app_state().unwrap(), Phd2State::Guiding);
+        client.disconnect();
+        server.join().unwrap();
     }
 
     #[test]

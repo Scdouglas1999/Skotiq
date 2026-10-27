@@ -565,7 +565,7 @@ impl MeridianFlipExecutor {
                         duration_secs: duration,
                     };
                 }
-                Err(e) => {
+                Err((failed_step, e)) => {
                     // Record every failed attempt, whether or not a retry
                     // follows. A recenter that failed once and then succeeded
                     // is still a framing risk the operator must be told about,
@@ -586,7 +586,15 @@ impl MeridianFlipExecutor {
 
                     // The pier side is verified once `next_step` has moved past it.
                     let pier_verified = next_step > 0;
-                    if self.early_tracking_limit_flip && !pier_verified {
+                    // A guider or tracking error before the slew says nothing
+                    // about whether the mount accepts an early flip.
+                    if self.early_tracking_limit_flip
+                        && !pier_verified
+                        && matches!(
+                            failed_step,
+                            FlipStep::SlewingToTarget | FlipStep::VerifyingPierSide
+                        )
+                    {
                         let reason = format!("the mount did not take the east side: {e}");
                         tracing::warn!("[MERIDIAN] Early tracking-limit flip refused: {}", e);
                         self.emit_event(MeridianFlipEvent::Aborted {
@@ -787,10 +795,10 @@ impl MeridianFlipExecutor {
         pre_flip_pier_side: PierSide,
         next_step: &mut usize,
         new_pier_side: &mut PierSide,
-    ) -> Result<PierSide, String> {
+    ) -> Result<PierSide, (FlipStep, String)> {
         for (idx, step) in steps.iter().enumerate().skip(*next_step) {
             if self.is_cancelled(ctx) {
-                return Err("Abort requested".to_string());
+                return Err((*step, "Abort requested".to_string()));
             }
 
             // Why: idx is bounded by steps.len() which build_step_sequence caps at
@@ -865,7 +873,7 @@ impl MeridianFlipExecutor {
                         step: *step,
                         error: e.clone(),
                     });
-                    return Err(format!("{}: {}", step.description(), e));
+                    return Err((*step, format!("{}: {}", step.description(), e)));
                 }
             }
         }
@@ -2297,6 +2305,7 @@ mod tests {
         fresh_star_floors: Mutex<Vec<crate::GuideStarFloor>>,
         /// When true, `guider_start` fails, as a guider with no star does.
         guider_start_fails: AtomicBool,
+        guider_stop_fails: AtomicBool,
         /// When true, `guider_start` reports PHD2's settle timeout while the
         /// guider goes on guiding with the star locked.
         guider_settle_times_out: AtomicBool,
@@ -2645,6 +2654,10 @@ mod tests {
         }
 
         async fn guider_stop(&self) -> DeviceResult<()> {
+            if self.state.guider_stop_fails.load(Ordering::Relaxed) {
+                return Err("PHD2 stop_capture timed out".to_string());
+            }
+
             self.state
                 .slews_before_guider_stop
                 .lock()
@@ -4569,6 +4582,31 @@ mod tests {
             !tracking.is_empty() && tracking.iter().all(|on| *on),
             "{tracking:?}"
         );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_early_flip_guider_failure_retries_instead_of_claiming_mount_refusal() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.guider_stop_fails.store(true, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: true,
+            max_retries: 1,
+            retry_delays_secs: vec![0.01],
+            failure_action: FlipFailureAction::PauseAndAlert,
+            ..Default::default()
+        };
+        let mut executor =
+            MeridianFlipExecutor::new(config, ops).with_early_tracking_limit_flip(true);
+        let result = executor.execute(&make_ctx(&state)).await;
+        assert!(matches!(result, FlipResult::Failed { .. }), "{result:?}");
+        assert_eq!(executor.attempts_made(), 2);
+        assert!(executor
+            .failed_attempts()
+            .iter()
+            .all(|e| e.contains("Pausing guider")));
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
     }
 
     /// An early tracking-limit flip that the mount does not take (it stays
