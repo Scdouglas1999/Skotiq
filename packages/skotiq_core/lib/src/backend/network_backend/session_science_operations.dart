@@ -807,9 +807,53 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
+  // Only the currently viewed sessions retain spatial maps. Old hosts return
+  // no versions and continue using their full GET response.
+  final _scienceSessionCache =
+      <int, ({Map<String, dynamic> versions, RemoteScienceBundle bundle})>{};
+
   Future<RemoteScienceBundle> getScienceSessionBundle(int sessionId) async {
-    final response = await _get('science/session/$sessionId/bundle');
-    return RemoteScienceBundle(
+    final cached = _scienceSessionCache[sessionId];
+    final response = cached == null
+        ? await _get('science/session/$sessionId/bundle')
+        : await _post('science/session/$sessionId/bundle', {
+            'spatialVersions': cached.versions,
+          });
+    final versions = (response['spatialVersions'] as Map?)
+        ?.cast<String, dynamic>();
+    List<T> spatialRows<T>(
+      String product,
+      List<T> previous,
+      T Function(Map<String, dynamic>) decode,
+      int? Function(T) imageId,
+      DateTime Function(T) timestamp, {
+      bool descending = true,
+    }) {
+      final rows = _rowsFromJson<T>(response[product], decode);
+      if (versions == null || cached == null) return rows;
+      final current = (versions[product] as Map).cast<String, dynamic>();
+      final old = (cached.versions[product] as Map).cast<String, dynamic>();
+      if (current.length == old.length &&
+          current.entries.every((e) => old[e.key] == e.value)) {
+        return previous;
+      }
+      final merged = [
+        for (final row in previous)
+          if (current.containsKey(imageId(row)?.toString() ?? 'none') &&
+              current[imageId(row)?.toString() ?? 'none'] ==
+                  old[imageId(row)?.toString() ?? 'none'])
+            row,
+        ...rows,
+      ];
+      merged.sort(
+        (a, b) => descending
+            ? timestamp(b).compareTo(timestamp(a))
+            : timestamp(a).compareTo(timestamp(b)),
+      );
+      return merged;
+    }
+
+    final bundle = RemoteScienceBundle(
       photometry: _rowsFromJson<PhotometryMeasurementRow>(
         response['photometry'],
         PhotometryMeasurementRow.fromJson,
@@ -822,21 +866,33 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
         response['transparency'],
         TransparencySampleRow.fromJson,
       ),
-      psfTiles: _rowsFromJson<PsfFieldTileRow>(
-        response['psfTiles'],
+      psfTiles: spatialRows<PsfFieldTileRow>(
+        'psfTiles',
+        cached?.bundle.psfTiles ?? const [],
         PsfFieldTileRow.fromJson,
+        (row) => row.capturedImageId,
+        (row) => row.timestamp,
+        descending: true,
       ),
       frameQuality: _rowsFromJson<ScienceFrameQualityMetricsRow>(
         response['frameQuality'],
         ScienceFrameQualityMetricsRow.fromJson,
       ),
-      tileMetrics: _rowsFromJson<ScienceTileMetricRow>(
-        response['tileMetrics'],
+      tileMetrics: spatialRows<ScienceTileMetricRow>(
+        'tileMetrics',
+        cached?.bundle.tileMetrics ?? const [],
         ScienceTileMetricRow.fromJson,
+        (row) => row.capturedImageId,
+        (row) => row.timestamp,
+        descending: true,
       ),
-      residuals: _rowsFromJson<AstrometryResidualVectorRow>(
-        response['residuals'],
+      residuals: spatialRows<AstrometryResidualVectorRow>(
+        'residuals',
+        cached?.bundle.residuals ?? const [],
         AstrometryResidualVectorRow.fromJson,
+        (row) => row.capturedImageId,
+        (row) => row.timestamp,
+        descending: false,
       ),
       movingObjects: _rowsFromJson<MovingObjectCandidateRow>(
         response['movingObjects'],
@@ -847,6 +903,16 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
         LineRatioProductRow.fromJson,
       ),
     );
+    if (versions != null) {
+      _scienceSessionCache.remove(sessionId);
+      _scienceSessionCache[sessionId] = (versions: versions, bundle: bundle);
+      while (_scienceSessionCache.length > 2) {
+        _scienceSessionCache.remove(_scienceSessionCache.keys.first);
+      }
+    } else {
+      _scienceSessionCache.remove(sessionId);
+    }
+    return bundle;
   }
 
   Future<RemoteScienceBundle> getSessionlessScienceBundle() async {

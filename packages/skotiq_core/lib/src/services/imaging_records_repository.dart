@@ -45,7 +45,7 @@ class ImagingRecordsRepository {
   final NetworkBackend? _remote;
   final Duration _remotePollInterval;
 
-  /// Optional sky-atlas fold hook, fired after a local plate-solve persist.
+  /// Optional scan/fold hook, fired after local Science grading.
   final SolvedFrameFoldHook? _onSolvedFrameFold;
 
   /// Frames the solved-frame hook has already run for in this process.
@@ -422,23 +422,26 @@ class ImagingRecordsRepository {
       solvedCd2_2: solvedCd2_2,
       solvedSip: solvedSip,
     );
-
-    notifySolvedFrame(id);
   }
 
-  /// Run the solved-frame hook (First Light scan, Your Sky fold, co-imaging)
-  /// for the frame [id], whose solve with its CD matrix is on the row. It runs
-  /// once per frame however many times the frame is solved or its stored
-  /// solve reused, so a frame solved by the frame watch and then processed by
-  /// the science pipeline is scanned and folded exactly once. Fire-and-forget:
-  /// a hook failure never reaches the solve or the imaging path.
-  void notifySolvedFrame(int id) {
+  /// Publish a solved frame after Science has finished grading it. Solving
+  /// alone must not start the scan/fold: the deferred PSF grade may reject it.
+  /// The hook runs in the background and cannot delay the next exposure.
+  void notifyGradedFrame(int id) {
     final hook = _onSolvedFrameFold;
     if (_remote != null || hook == null) return;
     if (!_solvedHookFired.add(id)) return;
     unawaited(
-      hook(id).catchError((Object _) {
-        // Swallowed: the hook logs its own errors.
+      () async {
+        final image = await _imagesDao!.getImageById(id);
+        if (image == null || !image.isAccepted || !image.isPlateSolved) {
+          _solvedHookFired.remove(id);
+          return;
+        }
+        await hook(id);
+      }().catchError((Object _) {
+        _solvedHookFired.remove(id);
+        // The hook logs its own errors; a failed attempt may be retried.
       }),
     );
   }
@@ -542,8 +545,8 @@ class ImagingRecordsRepository {
 }
 
 /// In local mode the repository is wired with the Pillar A ("Your Sky") fold
-/// hook: every solve persisted through [ImagingRecordsRepository.updatePlateSolveResult]
-/// auto-folds that light into the personal sky atlas. The hook reads the stored
+/// hook: [ImagingRecordsRepository.notifyGradedFrame] publishes each accepted
+/// light only after the Science pipeline has graded it. The hook reads the stored
 /// WCS distortion + the frame's FITS dimensions, then delegates to
 /// [SkyAtlasService.autoFoldCapturedImage]; remote companions skip it (the
 /// appliance host owns the authoritative atlas).
@@ -562,7 +565,12 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
       final logger = ref.read(loggingServiceProvider);
       try {
         final image = await imagesDao.getImageById(capturedImageId);
-        if (image == null) return;
+        if (image == null ||
+            !image.isAccepted ||
+            !image.isPlateSolved ||
+            image.frameType.toLowerCase() != 'light') {
+          return;
+        }
         // A frame already folded had its First Light scan and co-imaging
         // contribution with that fold, in this or an earlier session.
         if (image.atlasFoldedAt != null) return;

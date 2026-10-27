@@ -193,6 +193,43 @@ void main() {
     expect(json['cd1_1'] as double, closeTo(-1.5 / 3600.0, 1e-12));
   });
 
+  test('a fold publishes its tile index atomically', () async {
+    seam.onDispatch = (args) => {
+      'ok': true,
+      'tilesTouched': [for (var i = 0; i < 80; i++) i],
+      'foldsByTile': [
+        for (var i = 0; i < 80; i++)
+          {
+            'tileId': i,
+            'framesAdded': 1,
+            'weightAdded': 1.0,
+            'rejected': 0,
+            'coverageMean': 1.0,
+            'centerRa': 83.6,
+            'centerDec': -5.39,
+            'totalFrames': 1,
+            'integrationSeconds': 300.0,
+            'channels': 1,
+          },
+      ],
+      'framesSkippedNoCoverage': 0,
+    };
+    final counts = <int>[];
+    final subscription = dao.watchAllTiles().listen(
+      (tiles) => counts.add(tiles.length),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    final timer = Stopwatch()..start();
+    await service.foldSession(sessionId: 7, frames: [frame()], label: 'atomic');
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await subscription.cancel();
+    print(
+      '80-tile persistence: ${timer.elapsedMilliseconds} ms; ${counts.length} index emissions',
+    );
+    expect(counts, [0, 80]);
+    expect((await dao.atlasTotals()).frames, 1);
+  });
+
   test('foldSession dispatches a fold and persists tiles + timeline', () async {
     seam.onDispatch = (args) => {
       'ok': true,

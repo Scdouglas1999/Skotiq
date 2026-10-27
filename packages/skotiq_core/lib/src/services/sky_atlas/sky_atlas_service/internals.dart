@@ -28,7 +28,7 @@ extension _SkyAtlasInternals on SkyAtlasService {
     required AtlasFoldSummary summary,
     required List<_PendingFold> items,
     required String root,
-  }) async {
+  }) => _dao.transaction(() async {
     final foldedAt = DateTime.now();
     final tilesDir = _tilesDir(root);
 
@@ -44,7 +44,7 @@ extension _SkyAtlasInternals on SkyAtlasService {
           r.decDeg == null) {
         continue;
       }
-      regionByFrame[i] = await ensureRegion(
+      regionByFrame[i] = await _dao.upsertRegion(
         name: r.name!.trim(),
         centerRaDeg: r.raDeg!,
         centerDecDeg: r.decDeg!,
@@ -122,7 +122,7 @@ extension _SkyAtlasInternals on SkyAtlasService {
     for (final regionId in regionByFrame.values.toSet()) {
       await _dao.refreshRegionRollups(regionId);
     }
-  }
+  });
 
   /// Delete one cache file, swallowing the race where it vanished mid-sweep so
   /// one unlucky file cannot sink the whole pass. Returns whether it was removed.

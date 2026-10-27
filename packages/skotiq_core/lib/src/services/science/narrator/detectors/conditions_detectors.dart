@@ -481,16 +481,15 @@ class ExcellentTransparencyDetector extends NarratorDetector {
         eventType: id,
         category: NarratorCategory.conditions,
         severity: NarratorSeverity.success,
-        headline:
-            'Exceptional transparency right now — a great window for your '
-            'faintest filters',
+        headline: 'Transparency is holding near this session’s best',
         body:
-            'Transparency has held above ${threshold.round()}% for '
-            '${span.round()} min. Push the dim stuff while it lasts.',
+            'Relative transparency has held above ${threshold.round()}% for '
+            '${span.round()} min against each filter’s session baseline. '
+            'This measures stability, not absolute sky clarity.',
         evidence: NarratorEvidence.scalar(
           value: avg,
           unit: '%',
-          context: 'sustained transparency',
+          context: 'relative to this session’s filter baselines',
         ),
         dedupeKey: 'conditions.excellent',
         capturedImageId: ctx.capturedImageId,

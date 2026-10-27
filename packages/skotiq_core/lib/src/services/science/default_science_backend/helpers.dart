@@ -593,62 +593,6 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
     );
   }
 
-  /// Returns the camera read-noise setting in electrons.
-  /// Null means the value is unavailable/invalid and dependent metrics
-  /// should be omitted instead of guessed.
-  Future<double?> _readNoiseEstimate() async {
-    try {
-      final dao = _ref.read(settingsDaoProvider);
-      final stored = await dao.getSetting('science.camera.read_noise_e');
-      if (stored != null && stored.isNotEmpty) {
-        final parsed = double.tryParse(stored);
-        if (parsed != null && parsed.isFinite && parsed > 0) {
-          return parsed.clamp(0.5, 30.0);
-        }
-        _logger.warning(
-          'Invalid science.camera.read_noise_e setting "$stored"; limiting magnitude will be omitted.',
-          source: 'ScienceBackend',
-        );
-      } else {
-        _logger.warning(
-          'science.camera.read_noise_e is not configured; limiting magnitude will be omitted.',
-          source: 'ScienceBackend',
-        );
-      }
-    } catch (error, stack) {
-      _logger.warning(
-        'Failed to read science.camera.read_noise_e; limiting magnitude will be omitted: $error\n$stack',
-        source: 'ScienceBackend',
-      );
-    }
-    return null;
-  }
-
-  /// Returns the camera gain setting in electrons per ADU, or null when
-  /// not configured / invalid. Callers fall back to 1 e⁻/ADU and say so.
-  Future<double?> _gainElectronsPerAdu() async {
-    try {
-      final dao = _ref.read(settingsDaoProvider);
-      final stored = await dao.getSetting('science.camera.gain_e_per_adu');
-      if (stored != null && stored.isNotEmpty) {
-        final parsed = double.tryParse(stored);
-        if (parsed != null && parsed.isFinite && parsed > 0) {
-          return parsed.clamp(0.01, 50.0);
-        }
-        _logger.warning(
-          'Invalid science.camera.gain_e_per_adu setting "$stored"; assuming 1 e-/ADU.',
-          source: 'ScienceBackend',
-        );
-      }
-    } catch (error, stack) {
-      _logger.warning(
-        'Failed to read science.camera.gain_e_per_adu; assuming 1 e-/ADU: $error\n$stack',
-        source: 'ScienceBackend',
-      );
-    }
-    return null;
-  }
-
   /// Camera full-well / white level in ADU used to flag saturated stars.
   /// Defaults to 65535 (16-bit). 12/14-bit cameras whose drivers do not
   /// scale to 16 bits clip at 4095/16383, and stars saturated there are

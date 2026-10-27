@@ -39,32 +39,66 @@ class ScienceHandlers {
     Request request,
     String sessionId,
   ) async {
-    _logInfo('[API] GET /api/science/session/$sessionId/bundle');
+    _logInfo('[API] ${request.method} /api/science/session/$sessionId/bundle');
     final sid = _parsePathId(sessionId, 'sessionId');
     final database = container.read(databaseProvider);
     final scienceDao = database.scienceDao;
 
-    final photometry = await scienceDao.getPhotometryForSession(sid);
-    final calibrations = await scienceDao.getCalibrationsForSession(sid);
-    final transparency = await scienceDao.getTransparencyForSession(sid);
-    final psfTiles = await scienceDao.getPsfTilesForSession(sid);
-    final frameQuality = await scienceDao.getFrameQualityMetricsForSession(sid);
-    final tileMetrics = await scienceDao.getTileMetricsForSession(sid);
-    final residuals = await scienceDao.getResidualsForSession(sid);
-    final movingObjects = await scienceDao.getMovingObjectsForSession(sid);
-    final lineRatios = await scienceDao.getLineRatiosForSession(sid);
+    final payload = request.method == 'POST'
+        ? await readJsonObject(request)
+        : <String, dynamic>{};
+    final known =
+        optionalObject(payload, 'spatialVersions') ?? <String, dynamic>{};
+    final snapshot = await scienceDao.transaction(() async {
+      final versions = <String, Map<String, String>>{};
+      final changed = <String, Set<int?>?>{};
+      for (final product in ['psfTiles', 'tileMetrics', 'residuals']) {
+        final current = await scienceDao.spatialMapVersions(sid, product);
+        versions[product] = current;
+        final previous = known[product];
+        changed[product] = previous is! Map
+            ? null
+            : {
+                for (final entry in current.entries)
+                  if (previous[entry.key] != entry.value)
+                    entry.key == 'none' ? null : int.parse(entry.key),
+              };
+      }
+      final photometry = await scienceDao.getPhotometryForSession(sid);
+      final calibrations = await scienceDao.getCalibrationsForSession(sid);
+      final transparency = await scienceDao.getTransparencyForSession(sid);
+      final psfTiles = await scienceDao.getPsfTilesForSession(
+        sid,
+        imageIds: changed['psfTiles'],
+      );
+      final frameQuality = await scienceDao.getFrameQualityMetricsForSession(
+        sid,
+      );
+      final tileMetrics = await scienceDao.getTileMetricsForSession(
+        sid,
+        imageIds: changed['tileMetrics'],
+      );
+      final residuals = await scienceDao.getResidualsForSession(
+        sid,
+        imageIds: changed['residuals'],
+      );
+      final movingObjects = await scienceDao.getMovingObjectsForSession(sid);
+      final lineRatios = await scienceDao.getLineRatiosForSession(sid);
 
-    return jsonOk({
-      'photometry': photometry.map((row) => row.toJson()).toList(),
-      'calibrations': calibrations.map((row) => row.toJson()).toList(),
-      'transparency': transparency.map((row) => row.toJson()).toList(),
-      'psfTiles': psfTiles.map((row) => row.toJson()).toList(),
-      'frameQuality': frameQuality.map((row) => row.toJson()).toList(),
-      'tileMetrics': tileMetrics.map((row) => row.toJson()).toList(),
-      'residuals': residuals.map((row) => row.toJson()).toList(),
-      'movingObjects': movingObjects.map((row) => row.toJson()).toList(),
-      'lineRatios': lineRatios.map((row) => row.toJson()).toList(),
+      return {
+        'spatialVersions': versions,
+        'photometry': photometry.map((row) => row.toJson()).toList(),
+        'calibrations': calibrations.map((row) => row.toJson()).toList(),
+        'transparency': transparency.map((row) => row.toJson()).toList(),
+        'psfTiles': psfTiles.map((row) => row.toJson()).toList(),
+        'frameQuality': frameQuality.map((row) => row.toJson()).toList(),
+        'tileMetrics': tileMetrics.map((row) => row.toJson()).toList(),
+        'residuals': residuals.map((row) => row.toJson()).toList(),
+        'movingObjects': movingObjects.map((row) => row.toJson()).toList(),
+        'lineRatios': lineRatios.map((row) => row.toJson()).toList(),
+      };
     });
+    return jsonOk(snapshot);
   }
 
   /// Run the session's recorded frames through the per-frame science

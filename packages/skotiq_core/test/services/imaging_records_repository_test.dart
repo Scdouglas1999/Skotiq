@@ -94,7 +94,12 @@ void main() {
       // The science step solves the frame, a later step reuses the stored
       // solve, and an annotation run solves it again.
       await solve();
-      hooked.notifySolvedFrame(id);
+      expect(
+        fired,
+        isEmpty,
+        reason: 'A solve must not publish an ungraded frame',
+      );
+      hooked.notifyGradedFrame(id);
       await solve();
       await Future<void>.delayed(Duration.zero);
       expect(fired, [id]);

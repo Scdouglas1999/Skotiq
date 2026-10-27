@@ -718,7 +718,15 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
       );
 
       if (capturedImageId != null) {
-        await _runAutoGrade(capturedImageId: capturedImageId);
+        final graded = await _runAutoGrade(capturedImageId: capturedImageId);
+        if (!graded) {
+          return const ScienceFrameOutcome.failed(
+            'Frame grading failed; atlas publication skipped',
+          );
+        }
+        if (wcs != null) {
+          _imagesRepo.notifyGradedFrame(capturedImageId);
+        }
       }
       return const ScienceFrameOutcome.processed();
     } catch (error, stack) {

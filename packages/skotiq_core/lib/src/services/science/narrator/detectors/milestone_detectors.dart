@@ -11,7 +11,7 @@ import '../narrator_event.dart';
 class LimitingMagDetector extends NarratorDetector {
   static const double beatBy = 0.2;
 
-  double? _sessionBest;
+  final _sessionBest = <(String?, String?, bool), double>{};
   bool _announcedFirst = false;
 
   @override
@@ -19,7 +19,7 @@ class LimitingMagDetector extends NarratorDetector {
 
   @override
   void reset() {
-    _sessionBest = null;
+    _sessionBest.clear();
     _announcedFirst = false;
   }
 
@@ -30,17 +30,24 @@ class LimitingMagDetector extends NarratorDetector {
     final mag = latest.limitingMag5Sigma;
     if (mag == null || !mag.isFinite || !latest.isCalibrated) return const [];
 
+    final key = (latest.filter, latest.photometricBand, latest.bandIsStandard);
+    final band = latest.photometricBand ?? 'unclassified';
+    final label =
+        '${latest.filter ?? "unfiltered"} / $band${latest.bandIsStandard ? "" : "-equivalent"}';
+    final best = _sessionBest[key];
+    _sessionBest.putIfAbsent(key, () => mag);
+
     // First calibration of the night.
     if (!_announcedFirst) {
       _announcedFirst = true;
-      _sessionBest = mag;
+      _sessionBest[key] = mag;
       return [
         NarratorEventDraft(
           eventType: id,
           category: NarratorCategory.milestone,
           severity: NarratorSeverity.success,
           headline:
-              "You're reaching magnitude ${mag.toStringAsFixed(1)} stars (5σ)",
+              "You're reaching magnitude ${mag.toStringAsFixed(1)} stars ($label, 5σ)",
           body:
               'First photometric calibration is in. Limiting magnitude is a '
               'good proxy for how faint tonight will go.',
@@ -56,26 +63,27 @@ class LimitingMagDetector extends NarratorDetector {
     }
 
     // New session best (deeper = larger limiting magnitude).
-    final best = _sessionBest;
     if (best != null && mag >= best + beatBy) {
-      _sessionBest = mag;
+      _sessionBest[key] = mag;
       return [
         NarratorEventDraft(
           eventType: id,
           category: NarratorCategory.milestone,
           severity: NarratorSeverity.success,
           headline:
-              'New depth record — magnitude ${mag.toStringAsFixed(1)} stars (5σ)',
+              'New $label depth record — magnitude ${mag.toStringAsFixed(1)} stars (5σ)',
           body:
-              'Conditions or focus just improved your limiting magnitude by '
-              '≥${beatBy.toStringAsFixed(1)} mag. Faint targets are in reach.',
+              'The measured 5σ limit in $label is at least '
+              '${beatBy.toStringAsFixed(1)} mag deeper than its previous record this session. '
+              'Exposure length, conditions and focus can all affect this measurement.',
           evidence: NarratorEvidence.delta(
             from: best,
             to: mag,
             unit: 'mag',
             direction: 'up',
           ),
-          dedupeKey: 'milestone.limiting_mag.best:${mag.toStringAsFixed(2)}',
+          dedupeKey:
+              'milestone.limiting_mag.best:$key:${mag.toStringAsFixed(2)}',
           capturedImageId: ctx.capturedImageId,
         ),
       ];

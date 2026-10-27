@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'frame_camera_noise.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -27,7 +28,6 @@ import 'photometric_catalog_service.dart';
 import 'moving_object_linker.dart';
 import 'mpc_export_service.dart' show mpcBandForFilter;
 import 'photometric_transform_service.dart';
-import 'science_camera_auto_config.dart';
 import 'science_backend.dart';
 import 'frame_auto_grader.dart';
 import 'science_status.dart';

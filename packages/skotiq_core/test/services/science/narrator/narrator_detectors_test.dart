@@ -22,8 +22,12 @@ FramePhotometricCalibrationRow _calib({
   bool isCalibrated = true,
   double? zeroPoint,
   double? limitingMag5Sigma,
+  String? filter,
+  String? photometricBand,
 }) {
   return FramePhotometricCalibrationRow(
+    filter: filter,
+    photometricBand: photometricBand,
     bandIsStandard: false,
     id: id,
     isCalibrated: isCalibrated,
@@ -672,6 +676,35 @@ void main() {
   });
 
   group('LimitingMagDetector', () {
+    test('does not compare L V-equivalent depth with B depth', () {
+      final detector = LimitingMagDetector();
+      List<NarratorEventDraft> measure(
+        String filter,
+        String band,
+        double mag,
+      ) => detector.evaluate(
+        NarratorContext(
+          now: _t0,
+          calibrations: [
+            _calib(
+              id: 1,
+              timestamp: _t0,
+              filter: filter,
+              photometricBand: band,
+              limitingMag5Sigma: mag,
+            ),
+          ],
+        ),
+      );
+      expect(measure('L', 'V', 16.4), hasLength(1));
+      expect(measure('B', 'B', 16.7), isEmpty);
+      expect(measure('L', 'V', 16.5), isEmpty);
+      final record = measure('B', 'B', 17.0);
+      expect(record, hasLength(1));
+      expect(record.single.headline, contains('B'));
+      expect(record.single.body, isNot(contains('focus just improved')));
+    });
+
     test('announces first calibration, then a new depth record', () {
       final d = LimitingMagDetector();
       final first = d.evaluate(
@@ -965,6 +998,8 @@ void main() {
       );
       expect(fired, hasLength(1));
       expect(fired.single.eventType, 'conditions.excellent');
+      expect(fired.single.headline, contains('session'));
+      expect(fired.single.body, contains('not absolute sky clarity'));
       expect(fired.single.severity, NarratorSeverity.success);
       // Once per session.
       expect(

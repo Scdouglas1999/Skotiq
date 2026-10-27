@@ -19,6 +19,11 @@ List<HeadlessRoute> buildScienceRoutes(ScienceHandlers h) => <HeadlessRoute>[
   ),
   HeadlessRoute(
     HttpMethod.post,
+    '/api/science/session/<sessionId>/bundle',
+    h.handleGetSessionBundle,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
     '/api/science/session/<sessionId>/reprocess',
     h.handleStartSessionReprocess,
   ),

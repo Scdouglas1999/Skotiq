@@ -23,6 +23,7 @@ import 'frame_zero_point_fit.dart';
 import 'photometric_bands.dart';
 import 'photometric_catalog_service.dart';
 import 'science_backend.dart';
+import 'frame_camera_noise.dart';
 
 part 'default_science_backend/helpers.dart';
 part 'default_science_backend/value_types.dart';
@@ -401,8 +402,12 @@ class DefaultScienceBackend implements ScienceBackend {
     if (field.noiseAdu.isFinite && field.noiseAdu > 0) {
       noiseAdu = field.noiseAdu * math.sqrt(aperturePixels);
     } else {
-      final readNoise = await _readNoiseEstimate();
-      if (readNoise == null) {
+      final cameraNoise = await frameCameraNoise(
+        _ref.read(settingsDaoProvider),
+        imagePath,
+      );
+      final readNoise = cameraNoise.readNoise;
+      if (readNoise == null || cameraNoise.gain == null) {
         _logger.warning(
           'Limiting magnitude omitted for $imagePath: no measured background '
           'noise and camera read noise is not configured.',
@@ -410,7 +415,7 @@ class DefaultScienceBackend implements ScienceBackend {
         );
         return null;
       }
-      final g = await _gainElectronsPerAdu() ?? 1.0;
+      final g = cameraNoise.gain!;
       final bg = _median(
         field.stars
             .map((s) => s.background)

@@ -123,65 +123,75 @@ void main() {
     });
   });
 
-  test(
-    'auto-config writes the gain-76 values for the connected ASI1600',
-    () async {
-      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(database.close);
-      final backend = _MockBackend();
-      when(() => backend.getCameraStatus('asi')).thenAnswer(
-        (_) async =>
-            CameraStatus.fromJson({'connected': true, 'maxAdu': _rigMaxAdu}),
-      );
-      final container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(database),
-          loggingServiceProvider.overrideWithValue(LoggingService()),
-          backendProvider.overrideWith(
-            (ref) => _FixedBackendNotifier(ref, backend),
-          ),
-          cameraStateProvider.overrideWith(
-            (ref) => _SeededCameraNotifier(
-              ref,
-              const CameraStateSnapshot(
-                connectionState: DeviceConnectionState.connected,
-                deviceId: 'asi',
-                deviceName: _rigCamera,
-                gain: _rigGain,
+  for (final stateGain in <int?>[76, null]) {
+    test(
+      'auto-config resolves gain 76 when camera state gain is $stateGain',
+      () async {
+        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(database.close);
+        await SettingsDao(database).setSettings({
+          ScienceCameraAutoConfig.gainKey: '0.0625',
+          ScienceCameraAutoConfig.readNoiseKey: '1.70',
+        });
+        final backend = _MockBackend();
+        when(() => backend.getCameraStatus('asi')).thenAnswer(
+          (_) async => CameraStatus.fromJson({
+            'connected': true,
+            'gain': 76,
+            'canSetGain': true,
+            'maxAdu': _rigMaxAdu,
+          }),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(database),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            cameraStateProvider.overrideWith(
+              (ref) => _SeededCameraNotifier(
+                ref,
+                CameraStateSnapshot(
+                  connectionState: DeviceConnectionState.connected,
+                  deviceId: 'asi',
+                  deviceName: _rigCamera,
+                  gain: stateGain,
+                ),
               ),
             ),
-          ),
-          cameraCapabilitiesProvider.overrideWith(
-            (ref, deviceId) async => const CameraCapabilities(
-              maxWidth: 4656,
-              maxHeight: 3520,
-              bitDepth: 12,
+            cameraCapabilitiesProvider.overrideWith(
+              (ref, deviceId) async => const CameraCapabilities(
+                maxWidth: 4656,
+                maxHeight: 3520,
+                bitDepth: 12,
+              ),
             ),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final service = container.read(scienceCameraAutoConfigProvider);
-      // Let the provider's own startup pass run first so it cannot retire ours.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      await service.maybeSync(reason: 'test', force: true);
+        final service = container.read(scienceCameraAutoConfigProvider);
+        // Let the provider's own startup pass run first so it cannot retire ours.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await service.maybeSync(reason: 'test', force: true);
 
-      final settings = await SettingsDao(database).getAllSettings();
-      final gain = double.parse(settings[ScienceCameraAutoConfig.gainKey]!);
-      expect(gain, closeTo(_measuredEPerAdu, 0.0074));
-      expect(
-        int.parse(settings[ScienceCameraAutoConfig.saturationKey]!),
-        lessThan(_realMaxPixel),
-      );
-      expect(
-        double.parse(settings[ScienceCameraAutoConfig.readNoiseKey]!),
-        inInclusiveRange(1.9, 2.4),
-      );
-      expect(
-        settings[ScienceCameraAutoConfig.autoSourceKey],
-        contains('at gain 76'),
-      );
-    },
-  );
+        final settings = await SettingsDao(database).getAllSettings();
+        final gain = double.parse(settings[ScienceCameraAutoConfig.gainKey]!);
+        expect(gain, closeTo(_measuredEPerAdu, 0.0074));
+        expect(
+          int.parse(settings[ScienceCameraAutoConfig.saturationKey]!),
+          lessThan(_realMaxPixel),
+        );
+        expect(
+          double.parse(settings[ScienceCameraAutoConfig.readNoiseKey]!),
+          inInclusiveRange(1.9, 2.4),
+        );
+        expect(
+          settings[ScienceCameraAutoConfig.autoSourceKey],
+          contains('at gain 76'),
+        );
+      },
+    );
+  }
 }

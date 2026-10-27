@@ -1,18 +1,6 @@
 part of '../science_processing_service.dart';
 
 extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
-  /// A positive camera setting from `science.camera.*`, or null when unset or
-  /// invalid.
-  Future<double?> _cameraSetting(String key) async {
-    try {
-      final stored = await _ref.read(settingsDaoProvider).getSetting(key);
-      final parsed = stored == null ? null : double.tryParse(stored);
-      return parsed != null && parsed.isFinite && parsed > 0 ? parsed : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<void> _processImmediateQualityLane({
     required String imagePath,
     required String? deviceId,
@@ -79,8 +67,16 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
 
     // The stored `snr` is the sky-to-read-noise ratio of the sub (see
     // skyToReadNoiseRatio); 0 when the camera's gain or read noise is unknown.
-    final gain = await _cameraSetting('science.camera.gain_e_per_adu');
-    final readNoise = await _cameraSetting('science.camera.read_noise_e');
+    final image = capturedImageId == null
+        ? null
+        : await _imagesRepo.getImageById(capturedImageId);
+    final cameraNoise = await frameCameraNoise(
+      _ref.read(settingsDaoProvider),
+      imagePath,
+      capturedGain: image?.gain,
+    );
+    final gain = cameraNoise.gain;
+    final readNoise = cameraNoise.readNoise;
     double noiseRatio(double noiseAdu) =>
         skyToReadNoiseRatio(
           noiseAdu: noiseAdu,
@@ -318,7 +314,10 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     final sessionCheckId = sessionId == null
         ? null
         : await _scienceDao.getSessionCheckStarId(sessionId);
-    final gain = await _photometryGainElectronsPerAdu();
+    final gain = (await frameCameraNoise(
+      _ref.read(settingsDaoProvider),
+      imagePath,
+    )).gain;
     final frame = ScienceProcessingService.buildDifferentialFrame(
       target: target,
       comparisons: comparisonObjects,
@@ -462,20 +461,6 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     }
   }
 
-  /// The configured camera e⁻/ADU, or null when unset.
-  Future<double?> _photometryGainElectronsPerAdu() async {
-    try {
-      final stored = await _ref
-          .read(settingsDaoProvider)
-          .getSetting(ScienceCameraAutoConfig.gainKey);
-      final parsed = double.tryParse(stored ?? '');
-      if (parsed != null && parsed.isFinite && parsed > 0) return parsed;
-    } catch (_) {
-      // Unreadable setting: the error bars then carry background noise only.
-    }
-    return null;
-  }
-
   /// The stored plate solve of [image] as a [WcsSolution], without reading
   /// the frame; null when the row was never solved. The field size is left
   /// nominal because only the projection (centre, CD, SIP) is used.
@@ -551,7 +536,6 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
         image.isPlateSolved &&
         image.solvedRa != null &&
         image.solvedDec != null) {
-      if (storedHasCd) _imagesRepo.notifySolvedFrame(capturedImageId!);
       final pixelScale = image.solvedPixelScale ?? 1.5;
       var fieldWidth = 1.0;
       var fieldHeight = 1.0;

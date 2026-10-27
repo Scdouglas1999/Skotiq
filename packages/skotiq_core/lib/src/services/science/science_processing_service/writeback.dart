@@ -1,24 +1,15 @@
 part of '../science_processing_service.dart';
 
 extension _ScienceProcessingWriteback on ScienceProcessingService {
-  /// Stamp the science measurements gathered for this frame back into the
-  /// captured FITS file's header so external pipelines can use them. This
-  /// is a no-op when:
-  ///   * the user has disabled writeback in settings,
-  ///   * the file isn't a FITS (.fits/.fts/.fit) on disk,
-  ///   * no science fields were produced (calibration + transparency both
-  ///     came back empty).
-  ///
-  /// Errors here are logged but never rethrown — a failed writeback must
-  /// not retroactively fail a capture that has already been recorded.
-  Future<void> _runAutoGrade({required int capturedImageId}) async {
+  /// False means grading failed, so the frame must not enter the atlas.
+  Future<bool> _runAutoGrade({required int capturedImageId}) async {
     final settings = await _ref.read(scienceSettingsProvider.future);
     if (!settings.autoFrameGradingEnabled) {
       _status.skipStage(
         ScienceStage.autoGrade,
         note: 'Auto frame grading disabled in settings',
       );
-      return;
+      return true;
     }
 
     final sw = _status.beginStage(ScienceStage.autoGrade);
@@ -29,7 +20,7 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
           ScienceStage.autoGrade,
           note: 'Captured image row not found',
         );
-        return;
+        return false;
       }
       final rejected = await _ref
           .read(frameAutoGraderProvider)
@@ -51,6 +42,7 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
           note: 'Frame passed quality thresholds',
         );
       }
+      return true;
     } catch (error) {
       _status.endStage(
         ScienceStage.autoGrade,
@@ -58,9 +50,20 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
         stopwatch: sw,
         note: error.toString(),
       );
+      return false;
     }
   }
 
+  /// Stamp the science measurements gathered for this frame back into the
+  /// captured FITS file's header so external pipelines can use them. This
+  /// is a no-op when:
+  ///   * the user has disabled writeback in settings,
+  ///   * the file isn't a FITS (.fits/.fts/.fit) on disk,
+  ///   * no science fields were produced (calibration + transparency both
+  ///     came back empty).
+  ///
+  /// Errors here are logged but never rethrown — a failed writeback must
+  /// not retroactively fail a capture that has already been recorded.
   Future<void> _runFitsHeaderWriteback({
     required String imagePath,
     required db.CapturedImage? capturedImage,

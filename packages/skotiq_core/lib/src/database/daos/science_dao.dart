@@ -357,9 +357,51 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  Future<List<PsfFieldTileRow>> getPsfTilesForSession(int sessionId) {
+  /// Replaced spatial maps have new autoincrement row IDs. A count/max-ID
+  /// fingerprint per image detects additions, replacements and deletions
+  /// without materializing hundreds of thousands of pixel-map rows.
+  Future<Map<String, String>> spatialMapVersions(
+    int sessionId,
+    String product,
+  ) async {
+    final TableInfo<Table, dynamic> table = switch (product) {
+      'psfTiles' => psfFieldTiles,
+      'tileMetrics' => scienceTileMetrics,
+      'residuals' => astrometryResidualVectors,
+      _ => throw ArgumentError.value(product, 'product'),
+    };
+    final rows = await customSelect(
+      'SELECT captured_image_id, COUNT(*) AS n, MAX(id) AS last_id '
+      'FROM ${table.actualTableName} WHERE session_id = ? GROUP BY captured_image_id',
+      variables: [Variable.withInt(sessionId)],
+      readsFrom: {table},
+    ).get();
+    return {
+      for (final row in rows)
+        (row.readNullable<int>('captured_image_id')?.toString() ?? 'none'):
+            '${row.read<int>('n')}:${row.read<int>('last_id')}',
+    };
+  }
+
+  Expression<bool> _spatialImages(
+    GeneratedColumn<int> column,
+    Set<int?> images,
+  ) =>
+      column.isIn(images.whereType<int>()) |
+      (images.contains(null) ? column.isNull() : const Constant(false));
+
+  Future<List<PsfFieldTileRow>> getPsfTilesForSession(
+    int sessionId, {
+    Set<int?>? imageIds,
+  }) {
     return (select(psfFieldTiles)
-          ..where((tbl) => tbl.sessionId.equals(sessionId))
+          ..where(
+            (tbl) =>
+                tbl.sessionId.equals(sessionId) &
+                (imageIds == null
+                    ? const Constant(true)
+                    : _spatialImages(tbl.capturedImageId, imageIds)),
+          )
           ..orderBy([
             (tbl) => OrderingTerm.desc(tbl.timestamp),
             (tbl) => OrderingTerm.asc(tbl.tileRow),
@@ -485,9 +527,18 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  Future<List<ScienceTileMetricRow>> getTileMetricsForSession(int sessionId) {
+  Future<List<ScienceTileMetricRow>> getTileMetricsForSession(
+    int sessionId, {
+    Set<int?>? imageIds,
+  }) {
     return (select(scienceTileMetrics)
-          ..where((tbl) => tbl.sessionId.equals(sessionId))
+          ..where(
+            (tbl) =>
+                tbl.sessionId.equals(sessionId) &
+                (imageIds == null
+                    ? const Constant(true)
+                    : _spatialImages(tbl.capturedImageId, imageIds)),
+          )
           ..orderBy([
             (tbl) => OrderingTerm.desc(tbl.timestamp),
             (tbl) => OrderingTerm.asc(tbl.tileRow),
@@ -541,10 +592,17 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   Future<List<AstrometryResidualVectorRow>> getResidualsForSession(
-    int sessionId,
-  ) {
+    int sessionId, {
+    Set<int?>? imageIds,
+  }) {
     return (select(astrometryResidualVectors)
-          ..where((tbl) => tbl.sessionId.equals(sessionId))
+          ..where(
+            (tbl) =>
+                tbl.sessionId.equals(sessionId) &
+                (imageIds == null
+                    ? const Constant(true)
+                    : _spatialImages(tbl.capturedImageId, imageIds)),
+          )
           ..orderBy([(tbl) => OrderingTerm.asc(tbl.timestamp)]))
         .get();
   }

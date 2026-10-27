@@ -89,14 +89,27 @@ class ScienceCameraAutoConfig {
         return;
       }
 
-      final identity = _resolveCameraIdentity();
+      var identity = _resolveCameraIdentity();
       if (identity == null) {
         return;
       }
 
       final bitDepth = await _resolveBitDepth(identity.deviceId);
       if (!_isCurrent(generation)) return;
-      final maxAdu = await _resolveMaxAdu(identity.deviceId);
+      final status = await _resolveCameraStatus(identity.deviceId);
+      final maxAdu = status != null && status.maxAdu > 0
+          ? status.maxAdu
+          : 65535;
+      if (identity.gain == null &&
+          status != null &&
+          status.connected &&
+          status.canSetGain) {
+        identity = (
+          name: identity.name,
+          deviceId: identity.deviceId,
+          gain: status.gain,
+        );
+      }
       if (!_isCurrent(generation)) return;
       if (!force && _lastApplied == (identity.name, identity.gain, maxAdu)) {
         return;
@@ -206,24 +219,17 @@ class ScienceCameraAutoConfig {
     return 16;
   }
 
-  /// Pixel-container full scale — the value photometry compares real pixels
-  /// against. Comes from the driver (`CameraStatus.maxAdu`).
-  ///
-  /// When the camera cannot be queried (offline, or only a profile name is
-  /// known) we fall back to the 16-bit container rather than to
-  /// `2^bitDepth - 1`, for the reason [_resolveBitDepth] already documents:
-  /// virtually all drivers scale sub-16-bit sensors into the 16-bit pixel word.
-  /// No frames are being measured in that state anyway.
-  Future<int> _resolveMaxAdu(String? deviceId) async {
+  /// Read the driver once for both the current gain and pixel-container full
+  /// scale. A missing UI gain must not leave the profile's defaults in use.
+  Future<CameraStatus?> _resolveCameraStatus(String? deviceId) async {
     if (deviceId != null && deviceId.isNotEmpty) {
       try {
-        final status = await _backend.getCameraStatus(deviceId);
-        if (status.maxAdu > 0) return status.maxAdu;
+        return await _backend.getCameraStatus(deviceId);
       } catch (_) {
         // Camera offline / status unavailable — fall through.
       }
     }
-    return 65535;
+    return null;
   }
 
   Future<ResolvedCameraSensorSpecs> _resolveSensorSpecs(

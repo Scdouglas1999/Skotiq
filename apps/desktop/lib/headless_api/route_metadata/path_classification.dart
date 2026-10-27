@@ -459,6 +459,15 @@ String requiredAuthScopeNameForEndpoint({
     return 'admin';
   }
 
+  // A POST carries the client's map revisions; it only reads the same
+  // session products as GET and must remain available to viewing clients.
+  if (normalizedMethod == 'POST' &&
+      RegExp(
+        r'^/api/science/session/(?:[0-9]+|<sessionId>)/bundle$',
+      ).hasMatch(normalizedPath)) {
+    return 'view';
+  }
+
   if (normalizedMethod == 'GET' || normalizedMethod == 'WS') {
     return 'view';
   }
