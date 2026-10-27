@@ -6,7 +6,7 @@
 //! [`FrameObservation`] per frame and acts on the [`WatchAction`]s it returns.
 //!
 //! * **Off target.** A solved center farther from the target than
-//!   [`FrameWatchConfig::drift_limit_fraction`] of the frame's shorter side
+//!   the configured angular drift limit
 //!   marks the frame off target (it no longer counts as integration) and asks
 //!   for one recenter. Frames whose exposure began before that recenter
 //!   finished are off target too, but ask for nothing more.
@@ -392,13 +392,9 @@ impl FrameWatch {
         };
         let offset = angular_separation_deg(ra_deg, dec_deg, target_ra, target_dec) * 60.0;
         verdict.offset_arcmin = Some(offset);
-        if self.config.drift_limit_fraction <= 0.0 {
-            return;
-        }
-        let Some(field) = obs.field_short_side_arcmin.filter(|f| *f > 0.0) else {
+        let Some(limit) = self.config.drift_limit_arcmin(obs.field_short_side_arcmin) else {
             return;
         };
-        let limit = self.config.drift_limit_fraction * field;
         verdict.drift_limit_arcmin = Some(limit);
         if offset <= limit {
             return;

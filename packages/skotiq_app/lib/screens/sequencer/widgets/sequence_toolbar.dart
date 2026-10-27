@@ -11,6 +11,7 @@ import '../../../models/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
+import '../../settings/widgets/frame_watch_settings_section.dart';
 import '../../../utils/sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'run_dashboard/run_dashboard_providers.dart';
@@ -632,6 +633,29 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               icon: LucideIcons.compass,
               label: 'Polar alignment',
               onPressed: () => context.push('/polar-alignment'),
+            ),
+            _ToolbarAction(
+              icon: LucideIcons.crosshair,
+              label: 'Recenter after drift…',
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  content: const SizedBox(
+                    width: 600,
+                    child: SingleChildScrollView(
+                      child: FrameWatchSettingsSection(
+                        showObstructionDetection: false,
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
             ),
             _ToolbarAction(
               icon: LucideIcons.bellRing,

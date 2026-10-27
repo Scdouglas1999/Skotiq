@@ -10,9 +10,14 @@ import 'settings_widgets.dart';
 /// target before the run recenters, and whether frames are checked for an
 /// obstruction. Both are read when a run starts.
 class FrameWatchSettingsSection extends ConsumerStatefulWidget {
-  const FrameWatchSettingsSection({super.key, this.isMobile = false});
+  const FrameWatchSettingsSection({
+    super.key,
+    this.isMobile = false,
+    this.showObstructionDetection = true,
+  });
 
   final bool isMobile;
+  final bool showObstructionDetection;
 
   @override
   ConsumerState<FrameWatchSettingsSection> createState() =>
@@ -43,47 +48,64 @@ class _FrameWatchSettingsSectionState
         const FrameWatchSettings();
     final notifier = ref.read(frameWatchSettingsProvider.notifier);
     return SettingsSection(
-      title: 'Frame watch',
+      title: widget.showObstructionDetection
+          ? 'Frame watch'
+          : 'Recenter after drift',
       isMobile: widget.isMobile,
       children: [
         SettingRow(
           icon: LucideIcons.crosshair,
-          title: 'Recenter after drift',
+          title: 'Automatic recentering',
           subtitle:
-              'When a solved frame is farther from the target than this share '
-              'of the shorter side of the field, the run recenters. Frames '
-              'taken off target are marked Off target and do not count as '
-              'integration.',
-          trailing: SettingsNumberInput(
-            key: const ValueKey('frame-watch-drift-limit'),
-            controller: _driftController,
-            authoritativeValue: settings.driftLimitPercent,
-            authorityKey: ref.watch(backendProvider),
-            suffix: '%',
-            min: frameWatchDriftLimitMinPercent,
-            max: frameWatchDriftLimitMaxPercent,
-            decimals: 0,
+              'Plate solve saved light frames and recenter between exposures '
+              'when the target drifts too far. Applies to the next run; '
+              'saved for all sequences.',
+          trailing: SettingsSwitch(
+            key: const ValueKey('frame-watch-recenter-enabled'),
+            value: settings.recenterEnabled,
             onChanged: (value) =>
-                _save(() => notifier.setDriftLimitPercent(value)),
-            isMobile: widget.isMobile,
+                _save(() => notifier.setRecenterEnabled(value)),
           ),
         ),
         SettingRow(
-          icon: LucideIcons.mountain,
-          title: 'Detect obstructions',
+          icon: LucideIcons.move,
+          title: 'Maximum drift',
           subtitle:
-              'Watch for trees or a roof entering the field: stars fade while '
-              'the sky background stays the same. A confirmed obstruction is '
-              'learned for this site, its frames are marked Obstructed, and '
-              'the run moves to the next target. Clouds are not obstructions.',
-          trailing: SettingsSwitch(
-            key: const ValueKey('frame-watch-obstruction-detection'),
-            value: settings.obstructionDetection,
+              'Default: 60 arcseconds (1 arcminute). Measured from the planned '
+              'target center, not the previous frame. Frames beyond the limit '
+              'are marked Off target while automatic recentering is enabled.',
+          trailing: SettingsNumberInput(
+            key: const ValueKey('frame-watch-drift-limit'),
+            controller: _driftController,
+            authoritativeValue: settings.driftLimitArcsec,
+            authorityKey: ref.watch(backendProvider),
+            suffix: 'arcsec',
+            min: frameWatchDriftLimitMinArcsec,
+            max: frameWatchDriftLimitMaxArcsec,
+            decimals: 0,
             onChanged: (value) =>
-                _save(() => notifier.setObstructionDetection(value)),
+                _save(() => notifier.setDriftLimitArcsec(value)),
+            isMobile: widget.isMobile,
           ),
-          isLast: true,
+          isLast: !widget.showObstructionDetection,
         ),
+        if (widget.showObstructionDetection)
+          SettingRow(
+            icon: LucideIcons.mountain,
+            title: 'Detect obstructions',
+            subtitle:
+                'Watch for trees or a roof entering the field: stars fade while '
+                'the sky background stays the same. A confirmed obstruction is '
+                'learned for this site, its frames are marked Obstructed, and '
+                'the run moves to the next target. Clouds are not obstructions.',
+            trailing: SettingsSwitch(
+              key: const ValueKey('frame-watch-obstruction-detection'),
+              value: settings.obstructionDetection,
+              onChanged: (value) =>
+                  _save(() => notifier.setObstructionDetection(value)),
+            ),
+            isLast: true,
+          ),
       ],
     );
   }

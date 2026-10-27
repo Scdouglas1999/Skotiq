@@ -201,7 +201,12 @@ fn replay_rows(
 
 #[test]
 fn the_post_flip_offset_is_caught_on_the_first_solved_frame() {
-    let replay = replay(FrameWatchConfig::default(), 529..=687, true);
+    // Replay this historical night with its original field-relative threshold.
+    let config = FrameWatchConfig {
+        drift_limit_arcsec: None,
+        ..Default::default()
+    };
+    let replay = replay(config, 529..=687, true);
     // Before the flip the solved centers sit within about 1 arcmin.
     for id in 529..=639 {
         let v = replay.verdict(id);
@@ -550,4 +555,61 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
         ends.is_some_and(|(id, _)| *id > 693),
         "the second confirmation needs a new run of frames: {confirmations:?}"
     );
+}
+
+#[test]
+fn two_arcminutes_of_drift_requests_a_recenter_with_default_settings() {
+    let mut row = rows().remove(0);
+    row.solve = SolveOutcome::Solved {
+        ra_deg: TARGET_RA_DEG,
+        dec_deg: TARGET_DEC_DEG + 2.0 / 60.0,
+        pixel_scale_arcsec: 0.79,
+        rotation_deg: 0.0,
+    };
+    let id = row.id;
+    let replay = replay_rows(vec![row], FrameWatchConfig::default(), id..=id, true);
+    assert!(
+        replay.verdict(id).off_target,
+        "two arcminutes must not pass the default drift limit"
+    );
+    assert!(matches!(
+        replay.actions().as_slice(),
+        [(_, WatchAction::Recenter { .. })]
+    ));
+}
+
+#[test]
+fn angular_limit_distinguishes_small_drift_and_respects_disable() {
+    for (offset_arcsec, limit_arcsec, expected) in [
+        (30.0, 60.0, false),
+        (61.0, 60.0, true),
+        (120.0, 180.0, false),
+        (120.0, 0.0, false),
+    ] {
+        let mut row = rows().remove(0);
+        row.solve = SolveOutcome::Solved {
+            ra_deg: TARGET_RA_DEG,
+            dec_deg: TARGET_DEC_DEG + offset_arcsec / 3600.0,
+            pixel_scale_arcsec: 0.79,
+            rotation_deg: 0.0,
+        };
+        let id = row.id;
+        let config = FrameWatchConfig {
+            drift_limit_arcsec: Some(limit_arcsec),
+            ..Default::default()
+        };
+        let replay = replay_rows(vec![row], config, id..=id, true);
+        assert_eq!(
+            replay.verdict(id).off_target,
+            expected,
+            "offset {offset_arcsec}, limit {limit_arcsec}"
+        );
+        assert_eq!(
+            replay
+                .actions()
+                .iter()
+                .any(|(_, a)| matches!(a, WatchAction::Recenter { .. })),
+            expected
+        );
+    }
 }

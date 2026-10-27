@@ -181,21 +181,72 @@ void main() {
       expect(settings.learnedPoints, hasLength(1));
     });
 
-    test('drift limit is clamped to 2-50 percent and persists', () async {
+    test('overlapping threshold and enable edits both survive', () async {
+      final c = await container();
+      final notifier = c.read(frameWatchSettingsProvider.notifier);
+      await Future.wait([
+        notifier.setDriftLimitArcsec(45),
+        notifier.setRecenterEnabled(false),
+      ]);
+      final settings = c.read(frameWatchSettingsProvider).value!;
+      expect(settings.driftLimitArcsec, 45);
+      expect(settings.recenterEnabled, isFalse);
+      c.invalidate(frameWatchSettingsProvider);
+      final reloaded = await c.read(frameWatchSettingsProvider.future);
+      expect(reloaded.driftLimitArcsec, 45);
+      expect(reloaded.recenterEnabled, isFalse);
+    });
+
+    test('drift limit is clamped to 10-600 arcseconds and persists', () async {
       final c = await container();
       final notifier = c.read(frameWatchSettingsProvider.notifier);
       expect(
-        c.read(frameWatchSettingsProvider).value!.driftLimitPercent,
-        frameWatchDriftLimitDefaultPercent,
+        c.read(frameWatchSettingsProvider).value!.driftLimitArcsec,
+        frameWatchDriftLimitDefaultArcsec,
       );
-      await notifier.setDriftLimitPercent(80);
-      expect(c.read(frameWatchSettingsProvider).value!.driftLimitPercent, 50);
-      await notifier.setDriftLimitPercent(15);
+      await notifier.setDriftLimitArcsec(800);
+      expect(c.read(frameWatchSettingsProvider).value!.driftLimitArcsec, 600);
+      await notifier.setDriftLimitArcsec(45);
       await notifier.setObstructionDetection(false);
       c.invalidate(frameWatchSettingsProvider);
       final reloaded = await c.read(frameWatchSettingsProvider.future);
-      expect(reloaded.driftLimitPercent, 15);
+      expect(reloaded.driftLimitArcsec, 45);
       expect(reloaded.obstructionDetection, isFalse);
+    });
+
+    test('recenter can be disabled without losing its threshold', () async {
+      final c = await container();
+      final notifier = c.read(frameWatchSettingsProvider.notifier);
+      await notifier.setDriftLimitArcsec(45);
+      await notifier.setRecenterEnabled(false);
+      c.invalidate(frameWatchSettingsProvider);
+      final saved = await c.read(frameWatchSettingsProvider.future);
+      expect(saved.recenterEnabled, isFalse);
+      expect(saved.driftLimitArcsec, 45);
+      expect(
+        saved.sequenceMetadata(
+          latitude: null,
+          longitude: null,
+        )['drift_limit_arcsec'],
+        0,
+      );
+      await notifier.setRecenterEnabled(true);
+      expect(
+        c
+            .read(frameWatchSettingsProvider)
+            .value!
+            .sequenceMetadata(
+              latitude: null,
+              longitude: null,
+            )['drift_limit_arcsec'],
+        45,
+      );
+    });
+
+    test('old percent values are not interpreted as arcseconds', () async {
+      await db.settingsDao.setSetting('frame_watch_drift_limit_percent', '10');
+      final c = await container();
+      expect(c.read(frameWatchSettingsProvider).value!.driftLimitArcsec, 60);
     });
 
     test(
@@ -203,7 +254,7 @@ void main() {
       () async {
         final c = await container();
         final notifier = c.read(frameWatchSettingsProvider.notifier);
-        await notifier.setDriftLimitPercent(12);
+        await notifier.setDriftLimitArcsec(90);
         await notifier.addLearnedPoint(_point());
         await notifier.addLearnedPoint(_point(az: 90, lat: 10, lon: 10));
 
@@ -230,7 +281,7 @@ void main() {
         final frameWatch =
             jsonDecode(metadata['frame_watch'] as String)
                 as Map<String, dynamic>;
-        expect(frameWatch['drift_limit_fraction'], closeTo(0.12, 1e-9));
+        expect(frameWatch['drift_limit_arcsec'], 90);
         expect(frameWatch['obstruction_detection'], isTrue);
         expect(frameWatch['learned_horizon'], [
           {'azimuth_deg': 286.2, 'altitude_deg': 64.0},

@@ -56,6 +56,10 @@ struct Harness {
 
 impl Harness {
     async fn new() -> Self {
+        Self::with_plan_and_rows(plan(), rows()).await
+    }
+
+    async fn with_plan_and_rows(plan: SequenceDefinition, frames: Vec<Row>) -> Self {
         let ops = Arc::new(ScriptedDeviceOps::new());
         *ops.pointing.lock().unwrap() = Some((TARGET_RA_DEG / 15.0, TARGET_DEC_DEG));
         let mut manager = TriggerManager::new();
@@ -79,7 +83,7 @@ impl Harness {
             ..RuntimeConfig::default()
         };
         // Each frame is "measured" from the night's logged solve.
-        let solves: HashMap<String, Row> = rows()
+        let solves: HashMap<String, Row> = frames
             .into_iter()
             .map(|r| (format!("row-{}.fits", r.id), r))
             .collect();
@@ -97,7 +101,8 @@ impl Harness {
                 })
             })
         });
-        let stage = FrameWatchStage::with_measurer(events.subscribe(), measurer, Some(plan()));
+        let stage =
+            FrameWatchStage::with_measurer(events.subscribe(), measurer, Some(plan.clone()));
         let dispatcher = Dispatcher::new(TriggerMonitorArgs {
             active_run_id_for_decisions: Arc::new(StdRwLock::new(None)),
             cloud_motion_for_recovery: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
@@ -117,7 +122,7 @@ impl Harness {
             progress_for_triggers: Arc::new(StdRwLock::new(SequenceProgress::default())),
             recovery_request_tx: requests,
             runtime_config: Arc::new(StdRwLock::new(runtime_config)),
-            sequence_for_custom_recovery_triggers: Some(plan()),
+            sequence_for_custom_recovery_triggers: Some(plan),
             skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
             skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),
             state_clone: Arc::new(RwLock::new(ExecutorState::Running)),
@@ -280,7 +285,13 @@ fn warnings(log: &[ExecutorEvent]) -> Vec<&str> {
 
 #[tokio::test(start_paused = true)]
 async fn the_night_replayed_recenters_after_the_flip_and_ends_at_the_trees() {
-    let mut h = Harness::new().await;
+    // Keep the original night's threshold for this historical replay.
+    let mut legacy_plan = plan();
+    legacy_plan.metadata.insert(
+        "frame_watch".into(),
+        r#"{"drift_limit_fraction":0.10}"#.into(),
+    );
+    let mut h = Harness::with_plan_and_rows(legacy_plan, rows()).await;
     let mut log = Vec::new();
     let mut ended = None;
     let mut drift_fired_after = None;
@@ -508,4 +519,32 @@ async fn the_last_frame_of_a_target_holds_autofocus_after_the_run_moves_on() {
         hold.as_deref(),
         Some("the last frame lost most of its stars")
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn two_arcminutes_of_drift_runs_centering_with_the_default_limit() {
+    let mut row = rows().remove(0);
+    row.solve = crate::frame_watch::SolveOutcome::Solved {
+        ra_deg: TARGET_RA_DEG,
+        dec_deg: TARGET_DEC_DEG + 2.0 / 60.0,
+        pixel_scale_arcsec: 0.79,
+        rotation_deg: 0.0,
+    };
+    let mut h = Harness::with_plan_and_rows(plan(), vec![row.clone()]).await;
+    let mut log = Vec::new();
+    h.save(&row).await;
+    assert!(h
+        .tick_until_reported(&format!("row-{}.fits", row.id), &mut log)
+        .await
+        .is_none());
+    let frame = log.iter().find_map(assessed).expect("saved frame assessed");
+    assert!(frame.off_target);
+    assert_eq!(fired(&log, TARGET_DRIFT_TRIGGER_ID), 1);
+    assert!(
+        h.ops.calls().iter().any(|c| c.starts_with("plate_solve")),
+        "centering must run, not merely emit a trigger"
+    );
+    assert!(warnings(&log)
+        .iter()
+        .any(|w| w.contains("2.0 arcmin from the target (limit 1.0 arcmin)")));
 }

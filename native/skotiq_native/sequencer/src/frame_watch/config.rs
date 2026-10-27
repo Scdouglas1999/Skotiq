@@ -11,6 +11,9 @@ pub const FRAME_WATCH_METADATA_KEY: &str = "frame_watch";
 /// target before the run recenters.
 pub const DEFAULT_DRIFT_LIMIT_FRACTION: f64 = 0.10;
 
+/// One arcminute, independent of camera pixel scale or field of view.
+pub const DEFAULT_DRIFT_LIMIT_ARCSEC: f64 = 60.0;
+
 /// How far either side of a learned obstruction point's azimuth the point
 /// blocks the sky.
 pub const LEARNED_AZIMUTH_HALF_WIDTH_DEG: f64 = 6.0;
@@ -42,8 +45,11 @@ impl HorizonPoint {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct FrameWatchConfig {
-    /// See [`DEFAULT_DRIFT_LIMIT_FRACTION`]. Zero or less turns the drift
-    /// check off.
+    /// Angular threshold for new runs. Zero disables recentering. Missing
+    /// values in older serialized plans retain the field-fraction setting.
+    #[serde(default)]
+    pub drift_limit_arcsec: Option<f64>,
+    /// Legacy threshold for plans without an angular limit. Zero disables it.
     pub drift_limit_fraction: f64,
     /// Whether a run looks for obstructions at all.
     pub obstruction_detection: bool,
@@ -54,6 +60,7 @@ pub struct FrameWatchConfig {
 impl Default for FrameWatchConfig {
     fn default() -> Self {
         Self {
+            drift_limit_arcsec: Some(DEFAULT_DRIFT_LIMIT_ARCSEC),
             drift_limit_fraction: DEFAULT_DRIFT_LIMIT_FRACTION,
             obstruction_detection: true,
             learned_horizon: Vec::new(),
@@ -73,13 +80,22 @@ impl FrameWatchConfig {
             Err(e) => {
                 tracing::warn!(
                     "[FRAME_WATCH] The sequence's frame-watch settings could not be read ({e}); \
-                     using the defaults (recenter past {:.0}% of the field, obstruction \
+                     using the defaults (recenter past {:.0} arcsec, obstruction \
                      detection on, no learned horizon)",
-                    DEFAULT_DRIFT_LIMIT_FRACTION * 100.0
+                    DEFAULT_DRIFT_LIMIT_ARCSEC
                 );
                 Self::default()
             }
         }
+    }
+
+    /// The angular limit, or the old field-relative limit for a saved legacy plan.
+    pub fn drift_limit_arcmin(&self, field_short_side_arcmin: Option<f64>) -> Option<f64> {
+        let limit = match self.drift_limit_arcsec {
+            Some(arcsec) => arcsec / 60.0,
+            None => self.drift_limit_fraction * field_short_side_arcmin?,
+        };
+        (limit.is_finite() && limit > 0.0).then_some(limit)
     }
 
     /// The learned point that blocks `altitude_deg`, `azimuth_deg`, if any.
@@ -116,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn metadata_from_the_app_parses() {
+    fn legacy_metadata_retains_its_field_relative_limit() {
         let mut metadata = HashMap::new();
         metadata.insert(
             FRAME_WATCH_METADATA_KEY.to_string(),
@@ -126,7 +142,38 @@ mod tests {
         );
         let config = FrameWatchConfig::from_metadata(&metadata);
         assert_eq!(config.drift_limit_fraction, 0.15);
+        assert_eq!(config.drift_limit_arcsec, None);
+        assert_eq!(config.drift_limit_arcmin(Some(40.0)), Some(6.0));
+        assert_eq!(config.drift_limit_arcmin(None), None);
         assert_eq!(config.learned_horizon.len(), 1);
+    }
+
+    #[test]
+    fn angular_metadata_does_not_depend_on_field_size() {
+        let metadata = HashMap::from([(
+            FRAME_WATCH_METADATA_KEY.to_string(),
+            r#"{"drift_limit_arcsec":90,"obstruction_detection":false}"#.to_string(),
+        )]);
+        let config = FrameWatchConfig::from_metadata(&metadata);
+        assert_eq!(config.drift_limit_arcmin(None), Some(1.5));
+        assert_eq!(config.drift_limit_arcmin(Some(20.0)), Some(1.5));
+        assert_eq!(config.drift_limit_arcmin(Some(120.0)), Some(1.5));
+        assert!(!config.obstruction_detection);
+        assert_eq!(
+            FrameWatchConfig::default().drift_limit_arcmin(None),
+            Some(1.0)
+        );
+    }
+
+    #[test]
+    fn disabled_or_invalid_angular_limit_never_falls_back_to_fraction() {
+        for limit in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            let config = FrameWatchConfig {
+                drift_limit_arcsec: Some(limit),
+                ..Default::default()
+            };
+            assert_eq!(config.drift_limit_arcmin(Some(40.0)), None);
+        }
     }
 
     #[test]
