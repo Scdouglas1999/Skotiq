@@ -148,6 +148,103 @@ void main() {
 
   final night = DateTime(2026, 10, 22, 2);
 
+  test(
+    'night-end uses only approved exact batches for matching lights',
+    () async {
+      await addFrames(
+        'flat',
+        3,
+        start: night,
+        filter: 'Ha',
+        gain: 139,
+        offset: 21,
+      );
+      await addFrames('flat', 3, start: night, filter: 'R');
+      await addFrames(
+        'light',
+        2,
+        start: night,
+        filter: 'Ha',
+        gain: 139,
+        offset: 21,
+      );
+      final lights = (await db.imagesDao.getAllImages())
+          .where((f) => f.frameType == 'light')
+          .toList();
+      expect(await service.scheduledForLights(lights), isEmpty);
+      final ha = (await service.pending()).singleWhere((g) => g.filter == 'Ha');
+      await service.scheduleFlat(ha, true);
+      service = makeService();
+      expect((await service.scheduledForLights(lights)).single.key, ha.key);
+      await service.scheduleFlat(ha, false);
+      expect(await service.scheduledForLights(lights), isEmpty);
+      await service.scheduleFlat(ha, true);
+      await service.dismiss(ha.key);
+      expect(await service.scheduledForLights(lights), isEmpty);
+    },
+  );
+
+  test(
+    'new frames need renewed approval and competing batches need a choice',
+    () async {
+      await addFrames('flat', 3, start: night, filter: 'Ha');
+      await addFrames('light', 2, start: night, filter: 'Ha');
+      final lights = (await db.imagesDao.getAllImages())
+          .where((f) => f.frameType == 'light')
+          .toList();
+      await service.scheduleFlat((await service.pending()).single, true);
+      await addFrames('flat', 2, start: night, filter: 'Ha', dir: 'More');
+      await expectLater(
+        service.scheduledForLights(lights),
+        throwsA(isA<CalibrationBacklogException>()),
+      );
+      await service.scheduleFlat((await service.pending()).single, true);
+      await addFrames(
+        'flat',
+        3,
+        start: night.add(const Duration(days: 1)),
+        filter: 'Ha',
+        dir: 'Other',
+      );
+      await service.scheduleFlat((await service.pending()).first, true);
+      await expectLater(
+        service.scheduledForLights(lights),
+        throwsA(isA<CalibrationBacklogException>()),
+      );
+    },
+  );
+
+  test(
+    'concurrent selections persist and unrelated masters do not cover approval',
+    () async {
+      await addFrames('flat', 3, start: night, filter: 'Ha');
+      await addFrames('flat', 3, start: night, filter: 'L');
+      await addFrames('light', 2, start: night, filter: 'Ha');
+      final groups = await service.pending();
+      await Future.wait(groups.map((g) => service.scheduleFlat(g, true)));
+      expect(await service.scheduledFlats(), hasLength(2));
+      await Future.wait([
+        service.scheduleFlat(groups.first, false),
+        service.scheduleFlat(groups.last, true),
+      ]);
+      expect((await service.scheduledFlats()).keys, [groups.last.key]);
+      final ha = groups.singleWhere((g) => g.filter == 'Ha');
+      await service.scheduleFlat(ha, true);
+      await flatDao.addEntry(
+        filePath: '/unrelated.fits',
+        filter: 'Ha',
+        gain: 76,
+        offset: 15,
+        createdAt: night.add(const Duration(days: 1)),
+      );
+      final lights = (await db.imagesDao.getAllImages())
+          .where((f) => f.frameType == 'light')
+          .toList();
+      expect((await service.scheduledForLights(lights)).single.key, ha.key);
+      expect(await service.scheduledMaster(ha), isNull);
+    },
+  );
+
   test('groups raw frames by kind, night, exposure and temperature', () async {
     await addFrames('dark', 20, start: night);
     await addFrames('dark', 20, start: night, exposure: 120);
@@ -346,6 +443,40 @@ void main() {
     expect(group.kind, CalibrationFrameKind.flat);
     expect(group.frames, hasLength(2));
   });
+
+  test(
+    'scheduled flats wait for bias then register once before integration',
+    () async {
+      await addFrames('flat', 20, start: night, exposure: 0.32, filter: 'Ha');
+      await addFrames('light', 2, start: night, exposure: 180, filter: 'Ha');
+      final lights = (await db.imagesDao.getAllImages())
+          .where((f) => f.frameType == 'light')
+          .toList();
+      await service.scheduleFlat((await service.pending()).single, true);
+      final container = ProviderContainer(
+        overrides: [
+          calibrationBacklogServiceProvider.overrideWithValue(service),
+          calibrationBacklogProvider.overrideWith(
+            (ref) => CalibrationBacklogNotifier(ref, remote: false),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(calibrationBacklogProvider.notifier);
+      await expectLater(
+        notifier.prepareForLights(lights),
+        throwsA(isA<CalibrationBacklogException>()),
+      );
+      expect(seam.flatCalls, isEmpty);
+      expect(await service.scheduledFlats(), isNotEmpty);
+      await addMaster(frameType: 'bias', exposure: 0.001, createdAt: night);
+      await notifier.prepareForLights(lights);
+      expect(seam.flatCalls, hasLength(1));
+      expect((await flatDao.getAllEntries()).single.filter, 'Ha');
+      await notifier.prepareForLights(lights);
+      expect(seam.flatCalls, hasLength(1));
+    },
+  );
 
   test('the notifier builds in turn and bumps the library revision', () async {
     await addFrames('dark', 20, start: night);

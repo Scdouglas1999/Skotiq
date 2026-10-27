@@ -48,6 +48,7 @@ class NightEndTarget {
     this.deliver = NightEndStep.pending,
     this.nights,
     this.directory,
+    this.waitingForCalibration = false,
   });
 
   /// The target's name, the Darkroom's key for it.
@@ -58,18 +59,21 @@ class NightEndTarget {
   /// How many nights the build combined.
   final int? nights;
   final String? directory;
+  final bool waitingForCalibration;
 
   NightEndTarget copyWith({
     NightEndStep? build,
     NightEndStep? deliver,
     int? nights,
     String? directory,
+    bool? waitingForCalibration,
   }) => NightEndTarget(
     target: target,
     build: build ?? this.build,
     deliver: deliver ?? this.deliver,
     nights: nights ?? this.nights,
     directory: directory ?? this.directory,
+    waitingForCalibration: waitingForCalibration ?? this.waitingForCalibration,
   );
 
   Map<String, dynamic> toJson() => {
@@ -78,6 +82,7 @@ class NightEndTarget {
     'deliver': deliver.toJson(),
     if (nights != null) 'nights': nights,
     if (directory != null) 'directory': directory,
+    'waitingForCalibration': waitingForCalibration,
   };
 
   factory NightEndTarget.fromJson(Map<String, dynamic> json) => NightEndTarget(
@@ -86,6 +91,7 @@ class NightEndTarget {
     deliver: NightEndStep.fromJson(json['deliver']),
     nights: (json['nights'] as num?)?.toInt(),
     directory: json['directory'] as String?,
+    waitingForCalibration: json['waitingForCalibration'] == true,
   );
 }
 
@@ -162,6 +168,7 @@ class NightEndRun {
 
   NightEndRun copyWith({
     DateTime? finishedAt,
+    bool clearFinishedAt = false,
     NightEndStep? calibrate,
     List<NightEndTarget>? targets,
     NightEndStep? message,
@@ -170,7 +177,7 @@ class NightEndRun {
     sessionId: sessionId,
     startedAt: startedAt,
     reason: reason,
-    finishedAt: finishedAt ?? this.finishedAt,
+    finishedAt: clearFinishedAt ? null : finishedAt ?? this.finishedAt,
     calibrate: calibrate ?? this.calibrate,
     targets: targets ?? this.targets,
     message: message ?? this.message,

@@ -186,7 +186,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a finished build is titled as the last build, not a running '
+  testWidgets(
+      'a finished build is titled as the last build, not a running '
       'one', (tester) async {
     await pump(
       tester,
@@ -323,8 +324,7 @@ void main() {
   });
 
   group('night-end automation', () {
-    testWidgets(
-        'a fresh install takes darks and bias and builds masters', (
+    testWidgets('a fresh install takes darks and bias and builds masters', (
       tester,
     ) async {
       await pump(tester);
@@ -332,6 +332,7 @@ void main() {
           tester.widget<SkotiqSwitch>(find.byKey(ValueKey(key)));
       expect(toggle('night_end_calibrate').value, isTrue);
       expect(toggle('night_end_build').value, isTrue);
+      expect(toggle('night_end_incomplete_calibration').value, isFalse);
       expect(toggle('night_end_deliver').enabled, isTrue);
       expect(find.textContaining('Needs Build masters.'), findsNothing);
       expect(find.text('80%'), findsOneWidget);

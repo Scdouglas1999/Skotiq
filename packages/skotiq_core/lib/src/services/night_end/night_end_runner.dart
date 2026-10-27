@@ -7,6 +7,8 @@ import '../../models/notification/notification_categories.dart';
 import '../../providers/database_provider.dart';
 import '../darkroom_autopilot/guided_build_delivery.dart';
 import '../darkroom_build_jobs.dart';
+import '../darkroom_build_service.dart';
+import '../calibration_backlog_service.dart';
 import '../darkroom_state_store.dart';
 import '../end_of_night_calibration/eon_service.dart';
 import '../logging_service.dart';
@@ -225,6 +227,33 @@ class NightEndRunner {
     };
   }
 
+  /// Retry only calibration holds; completed targets and imaging stay alone.
+  Future<void> retryCalibration(String id) async {
+    await start();
+    _enqueue(() async {
+      final run = _run(id);
+      if (run == null || !run.finished) return;
+      _put(
+        run.copyWith(
+          clearFinishedAt: true,
+          targets: [
+            for (final target in run.targets)
+              if (target.waitingForCalibration &&
+                  target.build.state == NightEndStepState.waiting)
+                target.copyWith(
+                  build: NightEndStep.pending,
+                  waitingForCalibration: false,
+                )
+              else
+                target,
+          ],
+        ),
+      );
+      await _carryOn(id);
+    });
+    await idle();
+  }
+
   /// Do whatever [id] still owes: builds, deliveries, the morning message.
   Future<void> _carryOn(String id) async {
     final settings = await NightEndAutomationSettings.load(
@@ -233,6 +262,9 @@ class NightEndRunner {
     var run = _run(id);
     if (run == null || run.finished) return;
     final jobs = <String, DarkroomBuildJob>{};
+    final framesByTarget = await loadDarkroomTargets(
+      _ref.read(databaseProvider),
+    );
     for (final target in run.targets) {
       final state = target.build.state;
       if (state != NightEndStepState.pending &&
@@ -246,6 +278,34 @@ class NightEndRunner {
         (t) => t.copyWith(build: const NightEndStep(NightEndStepState.running)),
       );
       _put(run);
+      Map<String, String> selectedFlats;
+      // Bias/dark capture has completed before this runner is invoked. Build
+      // the operator's selected flats now, before the library is matched.
+      try {
+        final frames = framesByTarget[target.target] ?? [];
+        selectedFlats = await _ref
+            .read(calibrationBacklogProvider.notifier)
+            .prepareForLights(frames);
+        if (!settings.allowIncompleteCalibration) {
+          await _ref
+              .read(darkroomBuildServiceProvider)
+              .requireCompleteCalibration(frames, selectedFlats: selectedFlats);
+        }
+      } catch (e) {
+        _put(
+          _run(id)!.withTarget(
+            target.target,
+            (t) => t.copyWith(
+              build: NightEndStep(
+                NightEndStepState.waiting,
+                'Calibration needed: $e',
+              ),
+              waitingForCalibration: true,
+            ),
+          ),
+        );
+        continue;
+      }
       NightEndTarget updated;
       try {
         final job = await _jobs.startUnattended(
@@ -253,6 +313,8 @@ class NightEndRunner {
           announce: false,
           nightRunId: id,
           minRetainedArea: settings.minRetainedArea,
+          requireCalibration: !settings.allowIncompleteCalibration,
+          selectedFlats: selectedFlats,
         );
         jobs[target.target] = job;
         updated = _afterBuild(target, job, settings);
@@ -277,11 +339,16 @@ class NightEndRunner {
         // still holds every filter and the export, so this only reads them.
         await _jobs.whenIdle();
         try {
+          final selectedFlats = await _ref
+              .read(calibrationBacklogProvider.notifier)
+              .prepareForLights(framesByTarget[target.target] ?? []);
           job = await _jobs.startUnattended(
             target.target,
             announce: false,
             nightRunId: id,
             minRetainedArea: settings.minRetainedArea,
+            requireCalibration: !settings.allowIncompleteCalibration,
+            selectedFlats: selectedFlats,
           );
         } catch (e) {
           _log.warning(
@@ -320,6 +387,7 @@ class NightEndRunner {
               NightEndStepState.skipped,
               'Folded into a later night\'s build.',
             ),
+            waitingForCalibration: false,
             deliver: const NightEndStep(NightEndStepState.skipped),
           ),
         ),
@@ -453,7 +521,9 @@ class NightEndRunner {
     if (built.length == 1 && waiting.isEmpty && failed.isEmpty) {
       title = 'Masters ready: ${built.single.target}';
     } else if (built.isEmpty && waiting.length == 1 && failed.isEmpty) {
-      title = 'Masters wait for the framing check: ${waiting.single.target}';
+      title = waiting.single.waitingForCalibration
+          ? 'Masters wait for calibration: ${waiting.single.target}'
+          : 'Masters wait for the framing check: ${waiting.single.target}';
     } else {
       title =
           [
@@ -485,7 +555,9 @@ class NightEndRunner {
     ].whereType<String>();
     final String deepLink;
     if (waiting.isNotEmpty) {
-      deepLink = darkroomFramingPayload(waiting.first.target);
+      deepLink = waiting.first.waitingForCalibration
+          ? kDarkroomActivityPayloadType
+          : darkroomFramingPayload(waiting.first.target);
     } else if (built.length + failed.length == 1) {
       deepLink = darkroomTargetPayload([...built, ...failed].single.target);
     } else {
@@ -523,7 +595,8 @@ class NightEndRunner {
         .firstOrNull;
     if (run == null ||
         target == null ||
-        target.build.state != NightEndStepState.waiting) {
+        target.build.state != NightEndStepState.waiting ||
+        target.waitingForCalibration) {
       return;
     }
     _enqueue(() async {

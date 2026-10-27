@@ -55,14 +55,14 @@ class _NightEndHistoryPanelState extends ConsumerState<NightEndHistoryPanel> {
   }
 }
 
-class _NightRun extends StatelessWidget {
+class _NightRun extends ConsumerWidget {
   const _NightRun({required this.run, required this.last});
 
   final NightEndRun run;
   final bool last;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.skotiqColors;
     final finished = run.finishedAt;
     return Container(
@@ -138,6 +138,17 @@ class _NightRun extends StatelessWidget {
             ],
           ),
           _StepRow(label: 'Morning message', step: run.message),
+          if (run.finished &&
+              run.targets.any((t) =>
+                  t.waitingForCalibration &&
+                  t.build.state == NightEndStepState.waiting))
+            Align(
+                alignment: Alignment.centerLeft,
+                child: SkotiqButton(
+                  label: 'Retry after calibration',
+                  onPressed: () =>
+                      ref.read(nightEndRunnerProvider).retryCalibration(run.id),
+                )),
         ],
       ),
     );
@@ -226,7 +237,8 @@ class _TargetLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final waiting = target.build.state == NightEndStepState.waiting;
+    final waiting = target.build.state == NightEndStepState.waiting &&
+        !target.waitingForCalibration;
     final nights = target.nights;
     return _Line(
       lead: nights == null
@@ -235,11 +247,17 @@ class _TargetLine extends StatelessWidget {
       text: target.build.detail ?? stepWord(target.build.state),
       state: target.build.state,
       onOpen: () => context.go(
-        waiting
-            ? darkroomFramingRoute(target.target)
-            : darkroomTargetRoute(target.target),
+        target.waitingForCalibration
+            ? '/darkroom?tab=calibration'
+            : waiting
+                ? darkroomFramingRoute(target.target)
+                : darkroomTargetRoute(target.target),
       ),
-      openLabel: waiting ? 'Open the framing check' : 'Open ${target.target}',
+      openLabel: target.waitingForCalibration
+          ? 'Open Calibration'
+          : waiting
+              ? 'Open the framing check'
+              : 'Open ${target.target}',
     );
   }
 }

@@ -31,7 +31,9 @@ class CalibrationWaitingPanel extends ConsumerWidget {
 
     return CalibrationSection(
       title: 'Waiting to be built',
-      note: 'Raw frames Skotiq captured that no master covers yet',
+      note:
+          'Select Night end only for flats taken with the intended optical setup. '
+          'They will be built after darks and bias, before the matching lights.',
       actions: [
         if (buildable > 1)
           SkotiqButton(
@@ -50,6 +52,15 @@ class CalibrationWaitingPanel extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          for (final key in state.scheduled
+              .where((key) => !groups.any((g) => g.key == key)))
+            Row(children: [
+              Checkbox(
+                  value: true, onChanged: (_) => notifier.unscheduleFlat(key)),
+              Expanded(
+                  child: Text(
+                      'Night end: ${key.split('|')[2]} flats · ${key.split('|')[1]}')),
+            ]),
           for (final e in finished)
             _BuiltRow(
               status: e.value,
@@ -117,6 +128,8 @@ class CalibrationWaitingPanel extends ConsumerWidget {
           status: state.builds[g.key],
           last: next == null || next.night != g.night,
           onBuild: () => notifier.build(g),
+          scheduled: state.scheduled.contains(g.key),
+          onSchedule: (on) => notifier.scheduleFlat(g, on),
           onDismiss: () => notifier.dismiss(g),
         ),
       );
@@ -132,12 +145,16 @@ class _GroupRow extends StatelessWidget {
     required this.last,
     required this.onBuild,
     required this.onDismiss,
+    required this.scheduled,
+    required this.onSchedule,
   });
 
   final CalibrationBacklogGroup group;
   final CalibrationBuildStatus? status;
   final bool last;
   final VoidCallback onBuild;
+  final bool scheduled;
+  final ValueChanged<bool> onSchedule;
   final VoidCallback onDismiss;
 
   @override
@@ -205,6 +222,14 @@ class _GroupRow extends StatelessWidget {
           final action = Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (group.kind == CalibrationFrameKind.flat) ...[
+                Checkbox(
+                  value: scheduled,
+                  onChanged: busy ? null : (on) => onSchedule(on!),
+                ),
+                const Text('Night end'),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+              ],
               if (busy)
                 _Progress(
                   label: phase == CalibrationBuildPhase.building

@@ -880,6 +880,8 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     double minRetainedArea = defaultMinRetainedArea,
     bool announce = true,
     String? nightRunId,
+    bool requireCalibration = true,
+    Map<String, String> selectedFlats = const {},
   }) async {
     _guardIdle();
     final frames = (await loadDarkroomTargets(
@@ -914,6 +916,8 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         frames: frames,
         directory: directory,
         minRetainedArea: minRetainedArea,
+        requireCalibration: requireCalibration,
+        selectedFlats: selectedFlats,
         onPreview: (preview, plan) {
           byFilter
             ..clear()

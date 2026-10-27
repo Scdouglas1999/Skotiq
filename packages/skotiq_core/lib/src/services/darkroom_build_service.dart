@@ -237,6 +237,14 @@ class DarkroomUnattendedOutcome {
   bool get built => report != null;
 }
 
+String flatSetupKey(
+  String? filter,
+  int? gain,
+  int? offset,
+  int binX,
+  int binY,
+) => '${filter ?? ''}|$gain|$offset|${binX}x$binY';
+
 class DarkroomBuildService {
   DarkroomBuildService({
     required this.operation,
@@ -283,7 +291,11 @@ class DarkroomBuildService {
   /// Group accepted lights by observing night, equipment and acquisition
   /// settings, and match calibration masters from the local library. A filter's
   /// flat is applied to every group of that filter that has no flat of its own.
-  Future<List<DarkroomBuildGroup>> prepare(List<CapturedImage> frames) async {
+  Future<List<DarkroomBuildGroup>> prepare(
+    List<CapturedImage> frames, {
+    bool shareFlats = true,
+    Map<String, String> selectedFlats = const {},
+  }) async {
     final lights = frames
         .where((f) => f.isAccepted && f.frameType.toLowerCase() == 'light')
         .toList();
@@ -348,6 +360,15 @@ class DarkroomBuildService {
           ),
           includeRemote: false,
         );
+        final flat =
+            selectedFlats[flatSetupKey(
+              f.filter,
+              f.gain,
+              f.offset,
+              f.binX,
+              f.binY,
+            )] ??
+            matches.flat?.record.filePath;
         final dark = matches.dark?.record;
         final exactDark =
             dark != null && dark.exposureSeconds == f.exposureDuration;
@@ -369,8 +390,7 @@ class DarkroomBuildService {
             calibration: {
               if (exactDark || scaledDark) 'dark': dark.filePath,
               if (scaledDark) 'scaleDark': true,
-              if (matches.flat?.record.filePath != null)
-                'flat': matches.flat!.record.filePath,
+              if (flat != null) 'flat': flat,
               if (!exactDark && bias != null) 'bias': bias,
               'cosmeticCorrection': true,
             },
@@ -385,7 +405,7 @@ class DarkroomBuildService {
         );
       }
     }
-    shareFlatsWithinFilters(result);
+    if (shareFlats) shareFlatsWithinFilters(result);
     return result;
   }
 
@@ -1305,12 +1325,37 @@ class DarkroomBuildService {
     ).writeAsString(audit.toString());
   }
 
-  /// Build every filter of [target] from all of [frames] with default choices
-  /// and no questions: library calibration (a filter's flat shared across its
-  /// nights, filters without flats built without), the best luminance light
-  /// as reference, and the registration pre-pass. Integration starts only when
-  /// the common crop keeps at least [minRetainedArea]; otherwise the outcome
-  /// carries the pre-pass for review and nothing is integrated.
+  /// Preflight an unattended build without registering or integrating lights.
+  Future<void> requireCompleteCalibration(
+    List<CapturedImage> frames, {
+    Map<String, String> selectedFlats = const {},
+  }) async {
+    await _requireCalibration(
+      await prepare(frames, shareFlats: false, selectedFlats: selectedFlats),
+    );
+  }
+
+  Future<void> _requireCalibration(List<DarkroomBuildGroup> groups) async {
+    for (final group in groups) {
+      final missing = [
+        if (!group.hasFlat) 'master flat',
+        if (group.calibration['dark'] == null) 'master dark',
+        if (group.calibration['scaleDark'] == true)
+          'dark at the light exposure (automatic dark scaling is disabled)',
+      ];
+      if (missing.isNotEmpty) {
+        throw StateError(
+          '${group.label}: needs ${missing.join(' and ')}. '
+          'Add matching calibration in Darkroom, then retry the night-end build.',
+        );
+      }
+    }
+    await checkCalibration(groups);
+  }
+
+  /// Build every filter from all nights, retaining a uniform common field.
+  /// Missing or invalid calibration stops the build unless the operator
+  /// explicitly permits incomplete calibration. Selected flats stay pinned.
   Future<DarkroomUnattendedOutcome> buildUnattended({
     required String target,
     required List<CapturedImage> frames,
@@ -1318,15 +1363,21 @@ class DarkroomBuildService {
     double minRetainedArea = defaultMinRetainedArea,
     void Function(DarkroomBuildStep)? onStep,
     void Function(DarkroomRegistrationPreview, DarkroomBuildPlan)? onPreview,
+    bool requireCalibration = true,
+    Map<String, String> selectedFlats = const {},
   }) async {
-    final groups = await prepare(frames);
+    final groups = await prepare(
+      frames,
+      shareFlats: !requireCalibration,
+      selectedFlats: selectedFlats,
+    );
     if (groups.isEmpty) {
       throw StateError('$target has no accepted light frames.');
     }
     final warnings = <String>[];
-    // A master that fails the calibration check is left out, one at a time,
-    // so a bad flat costs flat correction rather than the night.
-    for (final g in [...groups]) {
+    if (requireCalibration) await _requireCalibration(groups);
+    // Omitting invalid masters is allowed only by explicit provisional-build policy.
+    for (final g in requireCalibration ? <DarkroomBuildGroup>[] : [...groups]) {
       Object? failure;
       var usable = false;
       for (final kind in [null, 'flat', 'dark', 'bias']) {

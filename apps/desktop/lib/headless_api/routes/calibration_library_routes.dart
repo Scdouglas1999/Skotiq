@@ -17,6 +17,11 @@ List<HeadlessRoute> buildCalibrationLibraryRoutes(
 ) => <HeadlessRoute>[
   HeadlessRoute(HttpMethod.get, '/api/calibration-library', h.handleList),
   HeadlessRoute(
+    HttpMethod.get,
+    '/api/calibration-library/backlog',
+    h.handleBacklog,
+  ),
+  HeadlessRoute(
     HttpMethod.post,
     '/api/calibration-library/match',
     h.handleMatch,

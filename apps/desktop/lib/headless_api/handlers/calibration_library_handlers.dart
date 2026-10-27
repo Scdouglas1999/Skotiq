@@ -63,6 +63,32 @@ class CalibrationLibraryHandlers {
   CalibrationLibraryService get _service =>
       container.read(calibrationLibraryServiceProvider);
 
+  /// Captured calibration batches and the exact frames selected for night end.
+  Future<Response> handleBacklog(Request request) async {
+    final backlog = container.read(calibrationBacklogServiceProvider);
+    final scheduled = await backlog.scheduledFlats();
+    return jsonOk({
+      'groups': [
+        for (final group in await backlog.pending())
+          {
+            'key': group.key,
+            'kind': group.kind.name,
+            'filter': group.filter,
+            'gain': group.gain,
+            'offset': group.offset,
+            'binX': group.binX,
+            'binY': group.binY,
+            'night': group.night,
+            'lastCapturedAt': group.lastCapturedAt.toIso8601String(),
+            'frameIds': group.frames.map((f) => f.id).toList(),
+            'buildable': group.buildable,
+            'missingFiles': group.missingFiles,
+            'scheduled': scheduled.containsKey(group.key),
+          },
+      ],
+    });
+  }
+
   /// Largest page [handleList] will return in one response.
   static const int _maxListLimit = 1000;
 

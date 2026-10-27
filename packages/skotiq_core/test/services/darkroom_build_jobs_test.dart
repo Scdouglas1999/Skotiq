@@ -257,6 +257,7 @@ void main() {
         .read(darkroomBuildJobsProvider.notifier)
         .startUnattended(
           'NGC891',
+          requireCalibration: false,
           outputRoot: Directory('${folder.path}/auto'),
         );
     await native.buildStarted.future;
@@ -273,6 +274,7 @@ void main() {
           .read(darkroomBuildJobsProvider.notifier)
           .startUnattended(
             'NGC891',
+            requireCalibration: false,
             outputRoot: Directory('${folder.path}/auto'),
           );
       expect(job.stage, DarkroomJobStage.done);
@@ -296,6 +298,7 @@ void main() {
           .read(darkroomBuildJobsProvider.notifier)
           .startUnattended(
             'NGC891',
+            requireCalibration: false,
             outputRoot: Directory('${folder.path}/auto'),
           );
       expect(job.stage, DarkroomJobStage.awaitingReview);
@@ -336,6 +339,7 @@ void main() {
           .read(darkroomBuildJobsProvider.notifier)
           .startUnattended(
             'NGC891',
+            requireCalibration: false,
             outputRoot: Directory('${folder.path}/auto'),
           );
       expect(job.stage, DarkroomJobStage.failed);
@@ -366,6 +370,7 @@ void main() {
         .read(darkroomBuildJobsProvider.notifier)
         .startUnattended(
           'NGC891',
+          requireCalibration: false,
           outputRoot: Directory('${folder.path}/auto'),
           announce: false,
         );
@@ -442,6 +447,7 @@ void main() {
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
       await jobs.startUnattended(
         'NGC891',
+        requireCalibration: false,
         outputRoot: Directory('${folder.path}/auto'),
       );
       await jobs.flush();
@@ -468,6 +474,7 @@ void main() {
       native.buildGate = Completer<void>();
       final running = jobs.startUnattended(
         'NGC891',
+        requireCalibration: false,
         outputRoot: Directory('${folder.path}/auto'),
       );
       await native.buildStarted.future;
@@ -506,11 +513,13 @@ void main() {
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
       await jobs.startUnattended(
         'NGC891',
+        requireCalibration: false,
         outputRoot: Directory('${folder.path}/auto'),
       );
       native.retained = .9;
       await jobs.startUnattended(
         'M81',
+        requireCalibration: false,
         outputRoot: Directory('${folder.path}/auto'),
       );
       expect(container.read(darkroomBuildJobsProvider)!.target, 'M81');

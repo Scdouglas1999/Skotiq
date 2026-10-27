@@ -11,6 +11,7 @@ class NightEndAutomationSettings {
   const NightEndAutomationSettings({
     this.calibrate = true,
     this.build = true,
+    this.allowIncompleteCalibration = false,
     this.deliver = true,
     this.morningMessage = true,
     this.minRetainedArea = defaultMinRetainedArea,
@@ -25,6 +26,9 @@ class NightEndAutomationSettings {
   /// fresh install and on one that never touched the switch.
   final bool build;
 
+  /// Explicit permission to omit or scale calibration in unattended builds.
+  final bool allowIncompleteCalibration;
+
   /// Hand finished masters, previews and the report to the delivery
   /// destinations.
   final bool deliver;
@@ -38,6 +42,8 @@ class NightEndAutomationSettings {
 
   static const calibrateKey = EonSettings.enabledKey;
   static const buildKey = 'post_session.auto_integrate';
+  static const allowIncompleteCalibrationKey =
+      'darkroom.night_end.allow_incomplete_calibration';
   static const deliverKey = 'darkroom.night_end.deliver';
   static const morningMessageKey = 'darkroom.night_end.morning_message';
   static const minRetainedAreaKey = 'darkroom.night_end.min_field';
@@ -55,6 +61,8 @@ class NightEndAutomationSettings {
     return NightEndAutomationSettings(
       calibrate: await dao.getSetting(calibrateKey) != 'false',
       build: await dao.getSetting(buildKey) != 'false',
+      allowIncompleteCalibration:
+          await dao.getSetting(allowIncompleteCalibrationKey) == 'true',
       deliver: await dao.getSetting(deliverKey) != 'false',
       morningMessage: await dao.getSetting(morningMessageKey) != 'false',
       minRetainedArea: field == null || !field.isFinite
@@ -101,6 +109,8 @@ class NightEndAutomationActions {
       _write(NightEndAutomationSettings.calibrateKey, '$on');
   Future<void> setBuild(bool on) =>
       _write(NightEndAutomationSettings.buildKey, '$on');
+  Future<void> setAllowIncompleteCalibration(bool on) =>
+      _write(NightEndAutomationSettings.allowIncompleteCalibrationKey, '$on');
   Future<void> setDeliver(bool on) =>
       _write(NightEndAutomationSettings.deliverKey, '$on');
   Future<void> setMorningMessage(bool on) =>

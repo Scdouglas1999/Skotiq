@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,7 +17,7 @@ import 'calibration_library_service.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
 import 'darkroom_build_service.dart'
-    show darkroomTemperatureGapC, observingNight;
+    show darkroomTemperatureGapC, observingNight, flatSetupKey;
 import 'flat_library_service.dart';
 
 /// The kinds of raw calibration frame the backlog builds masters from.
@@ -204,6 +205,147 @@ class CalibrationBacklogService {
   final DateTime Function() _now;
 
   static const String dismissedKey = 'calibration.backlog.dismissed';
+  static const scheduledFlatsKey = 'calibration.backlog.night_end_flats';
+
+  Future<void> _selectionWrites = Future.value();
+
+  Future<Map<String, dynamic>> _selections() async {
+    final raw = await _settings?.getSetting(scheduledFlatsKey);
+    return raw == null ? {} : jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  /// Approval is for these exact raw frames, not future captures with the
+  /// same settings. Camera rotation and dust changes cannot be inferred.
+  Future<Map<String, List<int>>> scheduledFlats() async =>
+      (await _selections()).map(
+        (key, value) => MapEntry(key, (value['frameIds'] as List).cast<int>()),
+      );
+
+  Future<void> _updateSelection(void Function(Map<String, dynamic>) update) {
+    final result = _selectionWrites.then((_) async {
+      final settings = _settings;
+      if (settings == null) {
+        throw StateError('Calibration settings unavailable.');
+      }
+      final selected = await _selections();
+      update(selected);
+      await settings.setSetting(scheduledFlatsKey, jsonEncode(selected));
+    });
+    _selectionWrites = result.catchError((Object _) {});
+    return result;
+  }
+
+  Future<void> scheduleFlat(CalibrationBacklogGroup group, bool on) {
+    if (group.kind != CalibrationFrameKind.flat) {
+      throw const CalibrationBacklogException(
+        'Only flats can be scheduled here.',
+      );
+    }
+    return _updateSelection((selected) {
+      if (on) {
+        selected[group.key] = {
+          'frameIds': group.frames.map((f) => f.id).toList(),
+          'setup': flatSetupKey(
+            group.filter,
+            group.gain,
+            group.offset,
+            group.binX,
+            group.binY,
+          ),
+        };
+      } else {
+        selected.remove(group.key);
+      }
+    });
+  }
+
+  Future<void> unscheduleFlat(String key) =>
+      _updateSelection((selected) => selected.remove(key));
+
+  /// Reuse only a master produced from the approved raw IDs. Matching
+  /// metadata or a newer creation date do not establish that provenance.
+  Future<String?> scheduledMaster(CalibrationBacklogGroup group) async {
+    final entry = (await _selections())[group.key] as Map?;
+    final path = entry?['masterPath'] as String?;
+    if (path == null || !await _fileExists(path)) return null;
+    final masters = await _library.listMasters();
+    return masters.any((m) => m.filePath == path) ? path : null;
+  }
+
+  /// Resolve selected raw batches independently of metadata-based library
+  /// coverage. No different batch or master can stand in for this approval.
+  Future<List<CalibrationBacklogGroup>> scheduledForLights(
+    List<CapturedImage> lights,
+  ) async {
+    final entries = await _selections();
+    final selected = entries.map(
+      (key, value) => MapEntry(key, (value['frameIds'] as List).cast<int>()),
+    );
+    if (selected.isEmpty) return [];
+    final result = <CalibrationBacklogGroup>[];
+    final rows = await (_db.select(
+      _db.capturedImages,
+    )..where((t) => t.frameType.lower().equals('flat'))).get();
+    final dismissed = await dismissedKeys();
+    for (final group in await groupFrames(rows)) {
+      if (dismissed.contains(group.key)) continue;
+      final ids =
+          selected[group.key] ??
+          selected.values
+              .where((ids) => group.frames.any((f) => ids.contains(f.id)))
+              .firstOrNull;
+      if (ids == null ||
+          !lights.any(
+            (f) =>
+                f.isAccepted &&
+                f.frameType.toLowerCase() == 'light' &&
+                f.filter == group.filter &&
+                f.gain == group.gain &&
+                f.offset == group.offset &&
+                f.binX == group.binX &&
+                f.binY == group.binY,
+          )) {
+        continue;
+      }
+      final current = group.frames.map((f) => f.id).toSet();
+      if (!selected.containsKey(group.key) ||
+          ids.length != current.length ||
+          !current.containsAll(ids)) {
+        throw CalibrationBacklogException(
+          '${group.title}: the raw batch changed. Select it again in Calibration before automatic use.',
+        );
+      }
+      result.add(group);
+    }
+    for (final entry in entries.entries) {
+      if (dismissed.contains(entry.key)) continue;
+      if (!result.any((g) => g.key == entry.key) &&
+          lights.any(
+            (f) =>
+                f.isAccepted &&
+                f.frameType.toLowerCase() == 'light' &&
+                flatSetupKey(f.filter, f.gain, f.offset, f.binX, f.binY) ==
+                    entry.value['setup'],
+          )) {
+        throw const CalibrationBacklogException(
+          'A selected flat batch is no longer in the captured library. Review the Night end selections in Calibration.',
+        );
+      }
+    }
+    // Two approved optical setups with identical acquisition settings need a
+    // human choice; never silently pick whichever finishes last.
+    final setups = <String>{};
+    for (final group in result) {
+      final setup =
+          '${group.filter}|${group.gain}|${group.offset}|${group.binX}x${group.binY}';
+      if (!setups.add(setup)) {
+        throw CalibrationBacklogException(
+          '${group.title}: more than one batch is selected for the same settings. Keep only the intended batch selected in Calibration.',
+        );
+      }
+    }
+    return result;
+  }
 
   /// Raw calibration frames waiting for a master, newest night first.
   Future<List<CalibrationBacklogGroup>> pending() async {
@@ -323,6 +465,22 @@ class CalibrationBacklogService {
 
   /// Build [group]'s master and register it in the library.
   Future<CalibrationBacklogBuild> build(CalibrationBacklogGroup group) async {
+    final result = await _build(group);
+    if (group.kind == CalibrationFrameKind.flat && _settings != null) {
+      await _updateSelection((selected) {
+        final entry = selected[group.key] as Map?;
+        final ids = (entry?['frameIds'] as List?)?.cast<int>();
+        if (ids != null &&
+            ids.length == group.frames.length &&
+            group.frames.every((f) => ids.contains(f.id))) {
+          entry!['masterPath'] = result.outputPath;
+        }
+      });
+    }
+    return result;
+  }
+
+  Future<CalibrationBacklogBuild> _build(CalibrationBacklogGroup group) async {
     if (group.missingFiles > 0) {
       throw CalibrationBacklogException(
         '${group.missingFiles} of ${group.frames.length} frames are not on '
@@ -634,6 +792,7 @@ class CalibrationBacklogState {
     this.groups = const AsyncValue.loading(),
     this.builds = const {},
     this.remote = false,
+    this.scheduled = const {},
   });
 
   final AsyncValue<List<CalibrationBacklogGroup>> groups;
@@ -644,14 +803,17 @@ class CalibrationBacklogState {
 
   /// This app drives a remote imaging computer, whose frames it cannot build.
   final bool remote;
+  final Set<String> scheduled;
 
   CalibrationBacklogState copyWith({
     AsyncValue<List<CalibrationBacklogGroup>>? groups,
     Map<String, CalibrationBuildStatus>? builds,
+    Set<String>? scheduled,
   }) => CalibrationBacklogState(
     groups: groups ?? this.groups,
     builds: builds ?? this.builds,
     remote: remote,
+    scheduled: scheduled ?? this.scheduled,
   );
 }
 
@@ -671,6 +833,7 @@ class CalibrationBacklogNotifier
   final Ref _ref;
   final List<CalibrationBacklogGroup> _queue = [];
   bool _draining = false;
+  final Map<String, Completer<CalibrationBuildStatus>> _completion = {};
 
   CalibrationBacklogService get _service =>
       _ref.read(calibrationBacklogServiceProvider);
@@ -682,8 +845,12 @@ class CalibrationBacklogNotifier
     }
     try {
       final groups = await _service.pending();
+      final scheduled = (await _service.scheduledFlats()).keys.toSet();
       if (!mounted) return;
-      state = state.copyWith(groups: AsyncValue.data(groups));
+      state = state.copyWith(
+        groups: AsyncValue.data(groups),
+        scheduled: scheduled,
+      );
     } catch (e, st) {
       if (!mounted) return;
       state = state.copyWith(groups: AsyncValue.error(e, st));
@@ -697,9 +864,69 @@ class CalibrationBacklogNotifier
         current == CalibrationBuildPhase.building) {
       return;
     }
+    _completion[group.key] = Completer<CalibrationBuildStatus>();
     _queue.add(group);
     _set(group.key, const CalibrationBuildStatus(CalibrationBuildPhase.queued));
     _drain();
+  }
+
+  Future<void> scheduleFlat(CalibrationBacklogGroup group, bool on) async {
+    try {
+      await _service.scheduleFlat(group, on);
+      await refresh();
+    } catch (e) {
+      _set(
+        group.key,
+        CalibrationBuildStatus(
+          CalibrationBuildPhase.failed,
+          error: 'Could not save the night-end selection: $e',
+        ),
+      );
+    }
+  }
+
+  Future<void> unscheduleFlat(String key) async {
+    try {
+      await _service.unscheduleFlat(key);
+      await refresh();
+    } catch (e) {
+      _set(
+        key,
+        CalibrationBuildStatus(
+          CalibrationBuildPhase.failed,
+          error: 'Could not remove the night-end selection: $e',
+        ),
+      );
+    }
+  }
+
+  Future<Map<String, String>> prepareForLights(
+    List<CapturedImage> lights,
+  ) async {
+    if (state.remote) {
+      throw StateError('Build calibration on the imaging computer.');
+    }
+    final masters = <String, String>{};
+    for (final group in await _service.scheduledForLights(lights)) {
+      var path = await _service.scheduledMaster(group);
+      if (path == null) {
+        build(group);
+        final result = await _completion[group.key]!.future;
+        if (result.phase != CalibrationBuildPhase.built) {
+          throw CalibrationBacklogException('${group.title}: ${result.error}');
+        }
+        path = result.build!.outputPath;
+      }
+      masters[flatSetupKey(
+            group.filter,
+            group.gain,
+            group.offset,
+            group.binX,
+            group.binY,
+          )] =
+          path;
+    }
+    return masters;
   }
 
   /// Queue every buildable group, oldest first so bias lands before the
@@ -760,6 +987,7 @@ class CalibrationBacklogNotifier
             ),
           );
         }
+        _completion.remove(group.key)?.complete(state.builds[group.key]!);
         await refresh();
       }
     } finally {

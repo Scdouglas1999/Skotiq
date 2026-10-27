@@ -110,7 +110,9 @@ class _Service extends DarkroomBuildService {
         );
 
   @override
-  Future<List<DarkroomBuildGroup>> prepare(List<DbCapturedImage> frames) async {
+  Future<List<DarkroomBuildGroup>> prepare(List<DbCapturedImage> frames,
+      {bool shareFlats = true,
+      Map<String, String> selectedFlats = const {}}) async {
     final groups = await super.prepare(frames);
     for (final g in groups) {
       if (g.filter == 'L' || g.filter == 'B') {

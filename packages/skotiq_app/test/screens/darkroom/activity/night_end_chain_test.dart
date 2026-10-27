@@ -117,6 +117,8 @@ void main() {
     native = FakeBuildNative();
     notifications = RecordingNotifications();
     calibration = InstantCalibration();
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'true');
     target = await db.targetsDao.createTarget(
       TargetsCompanion.insert(name: 'NGC891', ra: 2.4, dec: 42.3),
     );
@@ -137,6 +139,48 @@ void main() {
   tearDown(() async {
     await db.close();
     await folder.delete(recursive: true);
+  });
+
+  test('missing calibration holds durably; explicit opt-in can resume',
+      () async {
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'false');
+    final session = await night(DateTime(2026, 10, 27, 20), ['Ha']);
+    final app = launch();
+    await app
+        .read(nightEndRunnerProvider)
+        .nightEnded(sessionId: session, reason: 'plan completed');
+    final held = app.read(nightEndRunsProvider).single;
+    expect(held.targets.single.waitingForCalibration, isTrue);
+    expect(held.targets.single.build.state, NightEndStepState.waiting);
+    expect(native.built, isEmpty);
+    expect(notifications.sent.single.title, contains('calibration'));
+    expect(notifications.sent.single.deepLink, kDarkroomActivityPayloadType);
+    await app.read(nightEndRunnerProvider).idle();
+    final later = launch();
+    await later.read(nightEndRunnerProvider).start();
+    expect(
+        later
+            .read(nightEndRunsProvider)
+            .single
+            .targets
+            .single
+            .waitingForCalibration,
+        isTrue);
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'true');
+    await later.read(nightEndRunnerProvider).retryCalibration(held.id);
+    expect(later.read(nightEndRunsProvider).single.targets.single.build.state,
+        NightEndStepState.done);
+    expect(
+        later
+            .read(nightEndRunsProvider)
+            .single
+            .targets
+            .single
+            .waitingForCalibration,
+        isFalse);
+    expect(native.built, ['Ha']);
   });
 
   test(

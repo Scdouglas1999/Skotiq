@@ -754,8 +754,79 @@ void main() {
         f.copyWith(sensorTemp: const Value(-10)),
     ];
 
+    test(
+      'default unattended build waits instead of omitting calibration',
+      () async {
+        await expectLater(
+          service.buildUnattended(
+            target: 'NGC891',
+            frames: await frames(),
+            directory: Directory('${folder.path}/strict'),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'reason',
+              contains('master flat'),
+            ),
+          ),
+        );
+        expect(native.built, isEmpty);
+        expect(await Directory('${folder.path}/strict').exists(), isFalse);
+      },
+    );
+
+    test('approved flat is pinned through checks and integration', () async {
+      await File('${folder.path}/dark.fits').writeAsString('dark');
+      for (final filter in ['B', 'L', 'R']) {
+        await File(
+          '${folder.path}/approved_$filter.fits',
+        ).writeAsString('flat');
+      }
+      await DarkLibraryDao(db).addEntry(
+        DarkLibraryCompanion.insert(
+          filePath: '${folder.path}/dark.fits',
+          exposureTime: 90,
+          masterDarkPath: Value('${folder.path}/dark.fits'),
+          temperature: const Value(-10),
+        ),
+      );
+      for (final filter in ['B', 'L', 'R']) {
+        await FlatLibraryDao(db).addEntry(
+          filePath: '/newer_$filter.fits',
+          filter: filter,
+          temperature: -10,
+        );
+      }
+      final selected = {
+        for (final filter in ['B', 'L', 'R'])
+          flatSetupKey(filter, null, null, 1, 1):
+              '${folder.path}/approved_$filter.fits',
+      };
+      final result = await service.buildUnattended(
+        target: 'NGC891',
+        frames: await frames(),
+        directory: Directory('${folder.path}/approved'),
+        selectedFlats: selected,
+      );
+      expect(result.built, isTrue);
+      for (final group in result.plan!.toJson()['groups'] as List) {
+        expect(
+          group['calibration']['flat'],
+          '${folder.path}/approved_${group['filter']}.fits',
+        );
+      }
+      expect(
+        native.requests
+            .where((r) => r['op'] == 'checkCalibration')
+            .map((r) => (r['calibration'] as Map)['flat']),
+        everyElement(contains('/approved_')),
+      );
+    });
+
     test('builds every filter when the crop meets the minimum', () async {
       final outcome = await service.buildUnattended(
+        requireCalibration: false,
         target: 'NGC891',
         frames: await frames(),
         directory: Directory('${folder.path}/auto'),
@@ -775,6 +846,7 @@ void main() {
         'again', () async {
       final directory = Directory('${folder.path}/auto/NGC891');
       final first = await service.buildUnattended(
+        requireCalibration: false,
         target: 'NGC891',
         frames: await frames(),
         directory: directory,
@@ -800,6 +872,7 @@ void main() {
       }
       native.requests.clear();
       final second = await service.buildUnattended(
+        requireCalibration: false,
         target: 'NGC891',
         frames: await frames(),
         directory: directory,
@@ -877,6 +950,7 @@ void main() {
         }
         if (fold > 0) await addNight(fold + 1);
         final outcome = await service.buildUnattended(
+          requireCalibration: false,
           target: 'NGC891',
           frames: await frames(),
           directory: directory,
@@ -917,6 +991,7 @@ void main() {
     test('waits for review below the minimum and integrates nothing', () async {
       native.retained = .5;
       final outcome = await service.buildUnattended(
+        requireCalibration: false,
         target: 'NGC891',
         frames: await frames(),
         directory: Directory('${folder.path}/auto'),

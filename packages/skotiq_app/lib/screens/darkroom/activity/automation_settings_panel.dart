@@ -145,19 +145,44 @@ class _AutomationSettingsPanelState
             title: 'Build masters',
             body: 'For every target imaged that night, from all of its nights. '
                 'New nights fold into the target\'s existing build; filters '
-                'with no new subs are kept as they are.',
+                'with no new subs are kept as they are. First builds the flat '
+                'batches you selected for Night end in Calibration.',
             value: s.build,
             enabled: loaded,
             onChanged: (on) => _save((a) => a.setBuild(on)),
-            footer: _FieldSlider(
-              value: field,
-              enabled: loaded && s.build,
-              onChanged: (v) => setState(() => _field = v),
-              onChangeEnd: (v) async {
-                await _save((a) => a.setMinRetainedArea(v));
-                if (mounted) setState(() => _field = null);
-              },
-            ),
+            footer: Column(children: [
+              Row(children: [
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text('Allow incomplete calibration',
+                          style: SkotiqTypography.bodyStrong
+                              .copyWith(color: colors.textPrimary)),
+                      Text(
+                          'Off by default: wait for matching flats and exact-exposure darks. '
+                          'Turn on to permit omitted calibration and scaled darks; image quality may suffer.',
+                          style: SkotiqTypography.bodySm
+                              .copyWith(color: colors.textSecondary)),
+                    ])),
+                SkotiqSwitch(
+                  key: const ValueKey('night_end_incomplete_calibration'),
+                  value: s.allowIncompleteCalibration,
+                  enabled: loaded && s.build,
+                  onChanged: (on) =>
+                      _save((a) => a.setAllowIncompleteCalibration(on)),
+                ),
+              ]),
+              _FieldSlider(
+                value: field,
+                enabled: loaded && s.build,
+                onChanged: (v) => setState(() => _field = v),
+                onChangeEnd: (v) async {
+                  await _save((a) => a.setMinRetainedArea(v));
+                  if (mounted) setState(() => _field = null);
+                },
+              ),
+            ]),
           ),
           _Step(
             number: 3,
