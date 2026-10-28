@@ -150,6 +150,8 @@ pub struct TriggerState {
     /// via `update_hfr`. The HfrDegraded trigger gates its consecutive-bad-frame
     /// counter on a change here so it counts frames, not ~1Hz monitor ticks.
     pub hfr_sample_seq: u64,
+    /// HFR samples available when the last sweep ended cannot request another sweep.
+    pub autofocus_hfr_seq: Option<u64>,
     pub autofocus_invalidated: bool,
     pub autofocus_invalidation_reason: Option<String>,
 
@@ -432,6 +434,7 @@ impl Default for TriggerState {
             baseline_hfr: None,
             current_hfr: None,
             hfr_sample_seq: 0,
+            autofocus_hfr_seq: None,
             autofocus_invalidated: false,
             autofocus_invalidation_reason: None,
             current_hour_angle: None,
@@ -625,6 +628,7 @@ impl TriggerState {
     /// for the rest of the night (rig, 2026-10-20: every 10 min after
     /// 2 °C).
     pub fn mark_autofocus_performed(&mut self) {
+        self.autofocus_hfr_seq = Some(self.hfr_sample_seq);
         self.last_autofocus_frame = self.completed_exposures;
         self.autofocus_invalidated = false;
         self.autofocus_invalidation_reason = None;
@@ -647,6 +651,7 @@ impl TriggerState {
     /// reason as the cadence anchor: left behind, the Temperature Shift
     /// trigger re-fires the failing sweep at every cooldown.
     pub fn mark_autofocus_attempted(&mut self) {
+        self.autofocus_hfr_seq = Some(self.hfr_sample_seq);
         self.last_autofocus_frame = self.completed_exposures;
         self.clear_autofocus_invalidation();
         self.reset_baseline_temperature();
@@ -692,6 +697,7 @@ impl TriggerState {
         self.last_applied_filter_offset = 0;
         self.completed_exposures = 0;
         self.last_autofocus_frame = 0;
+        self.autofocus_hfr_seq = None;
         self.last_dither_frame = 0;
         self.consecutive_dither_failures = 0;
         self.dither_cadence_owners = 0;
@@ -778,6 +784,7 @@ impl TriggerState {
     pub fn reset_exposure_counters(&mut self) {
         self.completed_exposures = 0;
         self.last_autofocus_frame = 0;
+        self.autofocus_hfr_seq = None;
         self.last_dither_frame = 0;
     }
 

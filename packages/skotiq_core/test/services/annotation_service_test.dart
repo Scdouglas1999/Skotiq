@@ -218,117 +218,137 @@ void main() {
     },
   );
 
-  test(
-    'annotation pipeline uses annotation catalog when only annotation catalog is installed',
-    () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'annotation_service_test_',
-      );
-      addTearDown(() async => tempDir.delete(recursive: true));
+  for (final frameType in FrameType.values) {
+    test(
+      'automatic annotation handles $frameType without solving calibration frames',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'annotation_service_test_',
+        );
+        addTearDown(() async => tempDir.delete(recursive: true));
 
-      await CatalogManager.instance.initialize(tempDir.path);
+        await CatalogManager.instance.initialize(tempDir.path);
 
-      final annotationCatalogFile = File(
-        CatalogManager.instance.annotationCatalogPath,
-      );
-      await annotationCatalogFile.writeAsString(
-        'RAJ2000,DEJ2000,Bmag,zhelio,PGC\n'
-        '10.0,20.0,12.3,7000,12345\n',
-      );
+        final annotationCatalogFile = File(
+          CatalogManager.instance.annotationCatalogPath,
+        );
+        await annotationCatalogFile.writeAsString(
+          'RAJ2000,DEJ2000,Bmag,zhelio,PGC\n'
+          '10.0,20.0,12.3,7000,12345\n',
+        );
 
-      final mockBackend = MockSkotiqBackend();
-      stubSolverDetection(mockBackend);
-      when(
-        () => mockBackend.eventStream,
-      ).thenAnswer((_) => const Stream.empty());
-      when(
-        () => mockBackend.polarAlignmentEvents,
-      ).thenAnswer((_) => const Stream.empty());
-      when(
-        () => mockBackend.plateSolve(
-          imagePath: any(named: 'imagePath'),
-          ra: any(named: 'ra'),
-          dec: any(named: 'dec'),
-          fovDegrees: any(named: 'fovDegrees'),
-          timeoutSeconds: any(named: 'timeoutSeconds'),
-        ),
-      ).thenAnswer(
-        (_) async => PlateSolveResult(
-          success: true,
-          ra: 10.0,
-          dec: 20.0,
-          pixelScale: 1.5,
-          rotation: 0.0,
-          fieldWidth: 1.0,
-          fieldHeight: 1.0,
-          solveTimeSecs: 0.1,
-          cd11: 0,
-          cd12: 0,
-          cd21: 0,
-          cd22: 0,
-          sipAOrder: 0,
-          sipBOrder: 0,
-          sipACoeffs: Float64List(0),
-          sipBCoeffs: Float64List(0),
-          sipApOrder: 0,
-          sipBpOrder: 0,
-          sipApCoeffs: Float64List(0),
-          sipBpCoeffs: Float64List(0),
-        ),
-      );
-
-      final container = ProviderContainer(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          backendProvider.overrideWith(
-            (ref) => TestBackendNotifier(ref, mockBackend),
+        final mockBackend = MockSkotiqBackend();
+        stubSolverDetection(mockBackend);
+        when(
+          () => mockBackend.eventStream,
+        ).thenAnswer((_) => const Stream.empty());
+        when(
+          () => mockBackend.polarAlignmentEvents,
+        ).thenAnswer((_) => const Stream.empty());
+        when(
+          () => mockBackend.plateSolve(
+            imagePath: any(named: 'imagePath'),
+            ra: any(named: 'ra'),
+            dec: any(named: 'dec'),
+            fovDegrees: any(named: 'fovDegrees'),
+            timeoutSeconds: any(named: 'timeoutSeconds'),
           ),
-          annotationSettingsProvider.overrideWith(
-            () => TestAnnotationSettingsNotifier(),
+        ).thenAnswer(
+          (_) async => PlateSolveResult(
+            success: true,
+            ra: 10.0,
+            dec: 20.0,
+            pixelScale: 1.5,
+            rotation: 0.0,
+            fieldWidth: 1.0,
+            fieldHeight: 1.0,
+            solveTimeSecs: 0.1,
+            cd11: 0,
+            cd12: 0,
+            cd21: 0,
+            cd22: 0,
+            sipAOrder: 0,
+            sipBOrder: 0,
+            sipACoeffs: Float64List(0),
+            sipBCoeffs: Float64List(0),
+            sipApOrder: 0,
+            sipBpOrder: 0,
+            sipApCoeffs: Float64List(0),
+            sipBpCoeffs: Float64List(0),
           ),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
 
-      container.read(annotationServiceProvider);
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => TestBackendNotifier(ref, mockBackend),
+            ),
+            annotationSettingsProvider.overrideWith(
+              () => TestAnnotationSettingsNotifier(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final imagePath = path.join(tempDir.path, 'test.fits');
-      await File(imagePath).writeAsString('test');
+        container.read(annotationServiceProvider);
 
-      final imageData = CapturedImageData(
-        width: 100,
-        height: 100,
-        displayData: Uint8List(100 * 100 * 4),
-        histogram: List.filled(256, 0),
-        stats: const ImageStats(mean: 0),
-        capturedAt: DateTime.now(),
-        settings: const ExposureSettings(
-          exposureTime: 1.0,
-          gain: 100,
-          offset: 10,
-        ),
-        filePath: imagePath,
-      );
+        final imagePath = path.join(tempDir.path, 'test.fits');
+        await File(imagePath).writeAsString('test');
 
-      final terminalState = Completer<AnnotationState>();
-      container.listen(annotationStateProvider, (previous, next) {
-        if (!next.isProcessing &&
-            next.status != AnnotationStatus.idle &&
-            !terminalState.isCompleted) {
-          terminalState.complete(next);
+        final imageData = CapturedImageData(
+          width: 100,
+          height: 100,
+          displayData: Uint8List(100 * 100 * 4),
+          histogram: List.filled(256, 0),
+          stats: const ImageStats(mean: 0),
+          capturedAt: DateTime.now(),
+          settings: ExposureSettings(
+            frameType: frameType,
+            exposureTime: 1.0,
+            gain: 100,
+            offset: 10,
+          ),
+          filePath: imagePath,
+        );
+
+        final skyFrame =
+            frameType == FrameType.light || frameType == FrameType.snapshot;
+        if (skyFrame) {
+          final terminal = Completer<void>();
+          container.listen(annotationStateProvider, (_, next) {
+            if (!next.isProcessing &&
+                next.status != AnnotationStatus.idle &&
+                !terminal.isCompleted) {
+              terminal.complete();
+            }
+          });
+          container.read(currentImageProvider.notifier).state = imageData;
+          await terminal.future.timeout(const Duration(seconds: 2));
+        } else {
+          await container
+              .read(annotationServiceProvider)
+              .processNewImage(imageData);
         }
-      });
-
-      container.read(currentImageProvider.notifier).state = imageData;
-
-      final state = await terminalState.future.timeout(
-        const Duration(seconds: 2),
-      );
-
-      expect(state.status, AnnotationStatus.complete);
-      expect(state.objectsFound, greaterThan(0));
-    },
-  );
+        final state = container.read(annotationStateProvider);
+        if (skyFrame) {
+          expect(state.status, AnnotationStatus.complete);
+          expect(state.objectsFound, greaterThan(0));
+        } else {
+          expect(state.status, AnnotationStatus.idle);
+          verifyNever(
+            () => mockBackend.plateSolve(
+              imagePath: any(named: 'imagePath'),
+              ra: any(named: 'ra'),
+              dec: any(named: 'dec'),
+              fovDegrees: any(named: 'fovDegrees'),
+              timeoutSeconds: any(named: 'timeoutSeconds'),
+            ),
+          );
+        }
+      },
+    );
+  }
 
   test(
     'annotation service converts mount RA hint from hours to degrees before plate solve',

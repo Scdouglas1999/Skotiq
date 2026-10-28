@@ -36,6 +36,14 @@ extension AnnotationPipeline on AnnotationService {
     final backend = _ref.read(backendProvider);
     bool isCurrent() => _isCurrentAnnotationRun(generation, backend);
 
+    if (image.settings.frameType != FrameType.light &&
+        image.settings.frameType != FrameType.snapshot) {
+      _ref.read(currentAnnotationProvider.notifier).state = null;
+      _ref.read(annotationStateProvider.notifier).state =
+          const AnnotationState.idle();
+      return;
+    }
+
     if (image.filePath == null) {
       _logger.debug('Skipping annotation - no file path', source: 'Annotation');
       return;

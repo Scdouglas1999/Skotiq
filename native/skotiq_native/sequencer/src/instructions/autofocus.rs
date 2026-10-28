@@ -750,7 +750,7 @@ pub(crate) async fn resume_guiding_after_autofocus(
             }
             if let Ok(status) = ctx.device_ops.guider_get_status().await {
                 if let Some(warning) =
-                    settle_bar_warning(ctx.trigger_state.as_ref(), settle, status.rms_total).await
+                    settle_bar_warning(ctx.trigger_state.as_ref(), settle, &status).await
                 {
                     tracing::warn!("{warning}");
                     if let Some(event_tx) = &ctx.event_tx {

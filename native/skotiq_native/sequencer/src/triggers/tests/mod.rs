@@ -1454,3 +1454,44 @@ async fn a_new_target_does_not_inherit_the_previous_targets_plate_solve() {
         "the previous target's solve fired a recenter on the new target"
     );
 }
+
+#[tokio::test]
+async fn autofocus_attempt_consumes_old_hfr_but_requires_new_bad_frames() {
+    for successful in [false, true] {
+        let mut trigger = Trigger::new(
+            "hfr",
+            "HFR",
+            TriggerType::HfrDegraded {
+                threshold_percent: 20.0,
+                absolute_threshold: 0.0,
+                consecutive_frames: 3,
+            },
+            RecoveryAction::Autofocus,
+        );
+        let mut state = TriggerState::new();
+        state.baseline_hfr = Some(2.0);
+        for _ in 0..3 {
+            state.update_hfr(3.0);
+            trigger.check(&state).await;
+        }
+        assert!(trigger.check(&state).await);
+        if successful {
+            state.mark_autofocus_performed();
+        } else {
+            state.mark_autofocus_attempted();
+        }
+        assert!(
+            !trigger.check(&state).await,
+            "a completed sweep must consume the old HFR verdict"
+        );
+        for _ in 0..2 {
+            state.update_hfr(3.0);
+            assert!(!trigger.check(&state).await);
+        }
+        state.update_hfr(3.0);
+        assert!(
+            trigger.check(&state).await,
+            "fresh degradation must still refocus"
+        );
+    }
+}

@@ -400,8 +400,6 @@ pub struct SettleOutcome {
 #[derive(Clone)]
 pub struct SettleWaiter {
     settle_tracker: Arc<Mutex<SettleTracker>>,
-    running: Arc<AtomicBool>,
-    state: Arc<Mutex<Phd2State>>,
     generation: u64,
 }
 
@@ -439,20 +437,31 @@ impl SettleWaiter {
                 )));
             }
         }
-        if !self.running.load(Ordering::SeqCst) {
+        let tracker = self
+            .settle_tracker
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        if !tracker.recovering
+            && !tracker
+                .connection
+                .as_ref()
+                .is_some_and(|c| c.running.load(Ordering::SeqCst))
+        {
             return Some(Err("PHD2 disconnected while waiting for settle".to_string()));
         }
         None
     }
 
-    /// Whether PHD2 is calibrating. PHD2 starts its settle clock only once
-    /// calibration is done, so a wait for the settle must not count it.
+    /// PHD2 starts the settle clock only after calibration finishes.
     pub fn is_calibrating(&self) -> bool {
-        let state = match self.state.lock() {
-            Ok(state) => state,
-            Err(poison) => poison.into_inner(),
-        };
-        matches!(*state, Phd2State::Calibrating)
+        let tracker = self
+            .settle_tracker
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        tracker.connection.as_ref().is_some_and(|connection| {
+            let state = connection.state.lock().unwrap_or_else(|p| p.into_inner());
+            matches!(*state, Phd2State::Calibrating)
+        })
     }
 
     /// Block until the armed settle completes or [timeout] elapses.
@@ -494,6 +503,16 @@ struct SettleTracker {
     awaiting: bool,
     /// The outcome of the most recent settle for the armed generation.
     outcome: Option<SettleOutcome>,
+    /// A read-only RPC may replace the transport without replacing the
+    /// acknowledged guide/dither operation running inside PHD2.
+    recovering: bool,
+    connection: Option<SettleConnection>,
+}
+
+#[derive(Debug)]
+struct SettleConnection {
+    running: Arc<AtomicBool>,
+    state: Arc<Mutex<Phd2State>>,
 }
 
 /// The star PHD2 measured in a looping frame once a star is selected.
@@ -742,6 +761,13 @@ impl Phd2Client {
 
     /// Connect to PHD2
     pub fn connect(&mut self) -> Result<(), String> {
+        self.connect_with_settle(None)
+    }
+
+    fn connect_with_settle(
+        &mut self,
+        settle: Option<Arc<Mutex<SettleTracker>>>,
+    ) -> Result<(), String> {
         self.close_transport();
         self.connection_wanted = true;
 
@@ -768,14 +794,25 @@ impl Phd2Client {
             .set_read_timeout(Some(Duration::from_millis(100)))
             .map_err(|e| format!("Failed to set read timeout: {}", e))?;
 
-        // A retired reader and any outstanding settle waiter retain the old
-        // connection's state. They must never mark a replacement disconnected
-        // or complete a settle belonging to the new connection.
+        // Reader state is transport-local. An acknowledged settle may follow
+        // read-only recovery, but explicit reconnect starts a new operation.
         self.running = Arc::new(AtomicBool::new(true));
         self.suppress_disconnect_events = Arc::new(AtomicBool::new(false));
         self.state = Arc::new(Mutex::new(Phd2State::Connected));
         self.response_registry = Arc::new(Mutex::new(HashMap::new()));
-        self.settle_tracker = Arc::new(Mutex::new(SettleTracker::default()));
+        self.settle_tracker =
+            settle.unwrap_or_else(|| Arc::new(Mutex::new(SettleTracker::default())));
+        {
+            let mut tracker = self
+                .settle_tracker
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            tracker.connection = Some(SettleConnection {
+                running: Arc::clone(&self.running),
+                state: Arc::clone(&self.state),
+            });
+            tracker.recovering = false;
+        }
         self.looping = Arc::new(LoopingFrames::default());
         self.rolling_stats = Arc::new(Mutex::new(RollingGuideStats::default()));
         self.received_lines = Arc::new(std::sync::atomic::AtomicU64::new(0));
@@ -1062,7 +1099,12 @@ impl Phd2Client {
                     } = event
                     {
                         if let Ok(mut tracker) = settle_tracker.lock() {
-                            if tracker.awaiting {
+                            if tracker.awaiting
+                                && tracker
+                                    .connection
+                                    .as_ref()
+                                    .is_some_and(|connection| Arc::ptr_eq(&connection.state, state))
+                            {
                                 tracker.awaiting = false;
                                 tracker.outcome = Some(SettleOutcome {
                                     status,
@@ -1145,12 +1187,29 @@ impl Phd2Client {
             Ok(line) => line,
             Err(first) => {
                 tracing::warn!("PHD2 transport failed: {first}; retiring socket");
+                let pending_settle = if method.starts_with("get_") && self.config.auto_reconnect {
+                    let mut tracker = self
+                        .settle_tracker
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner());
+                    if tracker.awaiting || tracker.outcome.is_some() {
+                        tracker.recovering = true;
+                        Some(Arc::clone(&self.settle_tracker))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
                 self.close_transport();
                 if !can_retry || !self.config.auto_reconnect {
                     self.report_disconnect();
                     return Err(first);
                 }
-                if let Err(error) = self.connect() {
+                if let Err(error) = self.connect_with_settle(pending_settle.clone()) {
+                    if let Some(tracker) = pending_settle {
+                        tracker.lock().unwrap_or_else(|p| p.into_inner()).recovering = false;
+                    }
                     self.report_disconnect();
                     return Err(format!("{first}; reconnect failed: {error}"));
                 }
@@ -1366,8 +1425,6 @@ impl Phd2Client {
         tracker.outcome = None;
         SettleWaiter {
             settle_tracker: Arc::clone(&self.settle_tracker),
-            running: Arc::clone(&self.running),
-            state: Arc::clone(&self.state),
             generation: tracker.generation,
         }
     }
@@ -2352,11 +2409,14 @@ mod tests {
                 total_frames: 0,
                 dropped_frames: 0,
             }),
+            recovering: false,
+            connection: Some(SettleConnection {
+                running: Arc::new(AtomicBool::new(true)),
+                state: Arc::new(Mutex::new(Phd2State::Guiding)),
+            }),
         }));
         let waiter = SettleWaiter {
             settle_tracker: tracker,
-            running: Arc::new(AtomicBool::new(true)),
-            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 1,
         };
         let err = waiter
@@ -2377,11 +2437,14 @@ mod tests {
                 total_frames: 4,
                 dropped_frames: 0,
             }),
+            recovering: false,
+            connection: Some(SettleConnection {
+                running: Arc::new(AtomicBool::new(true)),
+                state: Arc::new(Mutex::new(Phd2State::Guiding)),
+            }),
         }));
         let waiter = SettleWaiter {
             settle_tracker: tracker,
-            running: Arc::new(AtomicBool::new(true)),
-            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 5,
         };
         let outcome = waiter
@@ -2397,11 +2460,14 @@ mod tests {
             generation: 1,
             awaiting: true,
             outcome: None,
+            recovering: false,
+            connection: Some(SettleConnection {
+                running: Arc::new(AtomicBool::new(true)),
+                state: Arc::new(Mutex::new(Phd2State::Guiding)),
+            }),
         }));
         let waiter = SettleWaiter {
             settle_tracker: tracker,
-            running: Arc::new(AtomicBool::new(true)),
-            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 1,
         };
         let err = waiter
@@ -2417,11 +2483,14 @@ mod tests {
             generation: 1,
             awaiting: true,
             outcome: None,
+            recovering: false,
+            connection: Some(SettleConnection {
+                running: Arc::new(AtomicBool::new(false)),
+                state: Arc::new(Mutex::new(Phd2State::Guiding)),
+            }),
         }));
         let waiter = SettleWaiter {
             settle_tracker: tracker,
-            running: Arc::new(AtomicBool::new(false)),
-            state: Arc::new(Mutex::new(Phd2State::Guiding)),
             generation: 1,
         };
         let err = waiter
@@ -2493,6 +2562,112 @@ mod tests {
         client.disconnect();
         assert_eq!(reply.unwrap(), Phd2State::Guiding);
         server.join().unwrap();
+    }
+
+    #[test]
+    fn acknowledged_dither_settle_survives_status_connection_recovery() {
+        let outcome = settle_after_read_recovery(Some(0));
+        assert_eq!(
+            outcome
+                .expect("acknowledged settle must survive read-only recovery")
+                .total_frames,
+            12
+        );
+    }
+
+    #[test]
+    fn retired_reader_cannot_complete_a_recovered_settle() {
+        let client = Phd2Client::new("127.0.0.1", 4400);
+        let waiter = client.arm_settle();
+        let old_state = Arc::new(Mutex::new(Phd2State::Guiding));
+        client.settle_tracker.lock().unwrap().connection = Some(SettleConnection {
+            running: Arc::new(AtomicBool::new(true)),
+            state: Arc::clone(&client.state),
+        });
+        let event = r#"{"Event":"SettleDone","Status":0}"#;
+        for (state, should_complete) in [(&old_state, false), (&client.state, true)] {
+            Phd2Client::process_line(
+                event,
+                &client.response_registry,
+                &client.rolling_stats,
+                state,
+                &None,
+                &client.settle_tracker,
+                &client.looping,
+            );
+            assert_eq!(waiter.check().is_some(), should_complete);
+        }
+    }
+
+    #[test]
+    fn recovered_connection_still_requires_a_successful_settle_event() {
+        let error = settle_after_read_recovery(Some(1)).unwrap_err();
+        assert!(error.contains("status 1"), "{error}");
+    }
+
+    #[test]
+    fn recovered_guiding_state_without_settle_done_is_not_success() {
+        let error = settle_after_read_recovery(None).unwrap_err();
+        assert!(error.contains("did not complete"), "{error}");
+    }
+
+    fn settle_after_read_recovery(status: Option<i32>) -> Result<SettleOutcome, String> {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(15)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let request = read_rpc(&mut reader);
+            assert_eq!(request["method"], "dither");
+            writeln!(
+                stream,
+                "{}",
+                serde_json::json!({"result": 0, "id": request["id"]})
+            )
+            .unwrap();
+            assert_eq!(read_rpc(&mut reader)["method"], "get_app_state");
+            // Keep the old socket open but stop answering RPC, as overnight.
+            let mut line = String::new();
+            assert_eq!(reader.read_line(&mut line).unwrap(), 0);
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let request = read_rpc(&mut reader);
+            assert_eq!(
+                request["method"], "get_app_state",
+                "never replay the dither"
+            );
+            writeln!(
+                stream,
+                "{}",
+                serde_json::json!({"result": "Guiding", "id": request["id"]})
+            )
+            .unwrap();
+            thread::sleep(Duration::from_millis(100));
+            if let Some(status) = status {
+                let _ = writeln!(
+                    stream,
+                    "{}",
+                    serde_json::json!({"Event":"SettleDone","Status":status,"TotalFrames":12})
+                );
+            }
+            let mut end = String::new();
+            let _ = reader.read_line(&mut end);
+        });
+        let mut client = Phd2Client::new("127.0.0.1", port);
+        client.connect().unwrap();
+        let waiter = client.dither_arm(5.0, false, 1.5, 30.0, 120.0).unwrap();
+        let waiting = thread::spawn(move || waiter.wait(Duration::from_secs(12)));
+        assert_eq!(client.get_app_state().unwrap(), Phd2State::Guiding);
+        let outcome = waiting.join().unwrap();
+        client.disconnect();
+        server.join().unwrap();
+        outcome
     }
 
     #[test]

@@ -247,6 +247,15 @@ impl Trigger {
                     self.hfr_bad_frame_count = (*consecutive_frames).max(1);
                     true
                 } else {
+                    if let Some(evaluated) = state.autofocus_hfr_seq {
+                        if self.last_hfr_seq.is_none_or(|seq| seq <= evaluated) {
+                            self.hfr_bad_frame_count = 0;
+                        }
+                        if state.hfr_sample_seq == evaluated {
+                            self.last_hfr_seq = Some(evaluated);
+                            return false;
+                        }
+                    }
                     let current = match state.current_hfr {
                         Some(v) => v,
                         None => return false,

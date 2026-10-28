@@ -99,7 +99,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
     );
     let mut dispatcher = Dispatcher::new(args).await;
 
-    let mut check_interval = tokio::time::interval(std::time::Duration::from_secs(1));
+    let mut check_interval = monitor_interval();
     let mut heartbeat: u64 = 0;
     loop {
         check_interval.tick().await;
@@ -174,4 +174,32 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         }
     }
     dispatcher.into_fired()
+}
+
+fn monitor_interval() -> tokio::time::Interval {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+    // Recovery actions can take minutes. Poll current device state once when
+    // they finish; replaying missed ticks floods the guider with stale work.
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    interval
+}
+
+#[cfg(test)]
+mod cadence_tests {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn slow_recovery_does_not_replay_hundreds_of_device_polls() {
+        let mut interval = monitor_interval();
+        interval.tick().await;
+        // A five-minute autofocus/flip owns this task before it resumes polling.
+        tokio::time::advance(std::time::Duration::from_secs(300)).await;
+        interval.tick().await;
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(500), interval.tick())
+                .await
+                .is_err(),
+            "missed status polls must not be replayed in a burst"
+        );
+    }
 }

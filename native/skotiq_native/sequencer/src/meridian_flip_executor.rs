@@ -1682,7 +1682,7 @@ impl MeridianFlipExecutor {
                     if let Some(warning) = crate::instructions::settle_bar_warning(
                         ctx.trigger_state.as_ref(),
                         settle,
-                        status.rms_total,
+                        &status,
                     )
                     .await
                     {
@@ -4471,7 +4471,7 @@ mod tests {
         assert_eq!(
             warnings
                 .iter()
-                .filter(|w| w.contains("settle threshold is 0.5 px"))
+                .filter(|w| w.contains("did not settle below 0.5 px"))
                 .count(),
             1,
             "the bar below the measured RMS is told once: {warnings:?}"

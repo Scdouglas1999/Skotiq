@@ -164,15 +164,20 @@ pub(crate) async fn start_guiding_holding_on_settle_timeout(
     }
 }
 
-/// Tell the operator, once per run, that the settle bar is tighter than the
-/// guiding this rig achieves: every settle then runs out of time. `rms` is
-/// the guider's measured RMS in guide-camera pixels.
+/// Report a missed settle against a currently usable guide lock. An instant
+/// RMS sample after a failed settle is not a baseline for recommending settings.
 pub(crate) async fn settle_bar_warning(
     trigger_state: Option<&Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>>,
     settle: crate::GuiderSettle,
-    rms: f64,
+    status: &GuidingStatus,
 ) -> Option<String> {
-    if !(rms.is_finite() && rms > 0.0 && rms > settle.pixels) {
+    let rms = status.rms_total;
+    if !status.is_guiding
+        || !rms.is_finite()
+        || rms <= 0.0
+        || rms <= settle.pixels
+        || rms > crate::executor::REACQUIRE_SETTLE_PIXELS
+    {
         return None;
     }
     if let Some(state) = trigger_state {
@@ -181,13 +186,11 @@ pub(crate) async fn settle_bar_warning(
             return None;
         }
     }
-    let suggested = (rms * 1.5 * 10.0).ceil() / 10.0;
     Some(format!(
-        "The guider settle threshold is {:.1} px, but this rig guides at about {:.2} px RMS, so \
-         the guider rarely settles in time and each settle waits out its full {:.0} s. A \
-         threshold of about {:.1} px suits this guiding; it is the settle setting in the dither \
-         settings.",
-        settle.pixels, rms, settle.timeout_secs, suggested
+        "Guiding did not settle below {:.1} px within {:.0} s. The guider currently \
+         reports {:.2} px RMS while holding the star. Check tracking, the guide star \
+         and sky conditions before adjusting the settle threshold.",
+        settle.pixels, settle.timeout_secs, rms
     ))
 }
 

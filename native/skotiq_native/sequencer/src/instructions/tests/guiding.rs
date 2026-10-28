@@ -633,7 +633,7 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
     assert_eq!(
         warnings
             .iter()
-            .filter(|w| w.contains("settle threshold is 0.5 px"))
+            .filter(|w| w.contains("did not settle below 0.5 px"))
             .count(),
         1,
         "{warnings:?}"
@@ -642,4 +642,41 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
         !warnings.iter().any(|w| w.contains("Dither failed")),
         "{warnings:?}"
     );
+}
+
+#[tokio::test]
+async fn lost_star_rms_does_not_recommend_hundreds_of_pixels_for_settling() {
+    let state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    let settle = crate::GuiderSettle {
+        pixels: 0.5,
+        ..Default::default()
+    };
+    for (is_guiding, rms) in [(true, 134.89), (false, 1.0), (true, f64::NAN), (true, 0.0)] {
+        let status = GuidingStatus {
+            is_guiding,
+            rms_ra: rms,
+            rms_dec: 0.0,
+            rms_total: rms,
+        };
+        assert!(settle_bar_warning(Some(&state), settle, &status)
+            .await
+            .is_none());
+        assert!(!state.read().await.settle_bar_warning_given);
+    }
+    let held = GuidingStatus {
+        is_guiding: true,
+        rms_ra: 1.0,
+        rms_dec: 0.0,
+        rms_total: 1.0,
+    };
+    let warning = settle_bar_warning(Some(&state), settle, &held)
+        .await
+        .unwrap();
+    assert!(warning.contains("currently reports 1.00 px"));
+    assert!(!warning.contains("suits this guiding"));
+    assert!(settle_bar_warning(Some(&state), settle, &held)
+        .await
+        .is_none());
 }
