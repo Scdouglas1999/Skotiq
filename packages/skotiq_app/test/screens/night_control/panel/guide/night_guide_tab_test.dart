@@ -50,13 +50,14 @@ class _Samples extends NightGuideSamplesNotifier {
 List<Override> _connected({
   NightActionInputs? inputs,
   RecordingActionApi? api,
-}) => [
-  ...panelOverrides(inputs: inputs, api: api),
-  guiderStateProvider.overrideWith(_Guider.new),
-  // Stopped, so the guide-star poll does not start in a widget test.
-  phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
-  nightGuideSamplesProvider.overrideWith(_Samples.new),
-];
+}) =>
+    [
+      ...panelOverrides(inputs: inputs, api: api),
+      guiderStateProvider.overrideWith(_Guider.new),
+      // Stopped, so the guide-star poll does not start in a widget test.
+      phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
+      nightGuideSamplesProvider.overrideWith(_Samples.new),
+    ];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

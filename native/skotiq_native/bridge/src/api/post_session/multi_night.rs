@@ -1137,10 +1137,10 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 for y in 0..height {
                     for x in 0..width {
                         let (rx, ry) = transform.apply(x as f64, y as f64);
-                        for ch in 0..chan {
+                        for (ch, coefficient) in coefficients.iter().enumerate().take(chan) {
                             let index = (y * width + x) * chan + ch;
                             pixels[index] =
-                                coefficients[ch].apply_at(pixels[index], rx, ry, width, height);
+                                coefficient.apply_at(pixels[index], rx, ry, width, height);
                         }
                     }
                 }

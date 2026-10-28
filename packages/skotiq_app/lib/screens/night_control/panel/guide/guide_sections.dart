@@ -43,8 +43,7 @@ class NightGuideStarSection extends ConsumerWidget {
     final stopReason = ref.watch(guidingStopReasonProvider);
     final settleTimeout = ref.watch(guiderSettleTimeoutProvider);
 
-    final acquiring =
-        state == Phd2State.looping ||
+    final acquiring = state == Phd2State.looping ||
         state == Phd2State.guiding ||
         state == Phd2State.calibrating ||
         state == Phd2State.settling;
@@ -174,11 +173,11 @@ class NightGuideCalibrationSection extends ConsumerWidget {
     final status = !calibration.isCalibrated
         ? l10n.text('nightScopeGuideNotCalibrated')
         : at == null
-        ? l10n.text('nightScopeGuideCalibrated')
-        : l10n.text(
-            'nightScopeGuideCalibratedAt',
-            params: {'time': _clockTime(clock.toNightClock(at))},
-          );
+            ? l10n.text('nightScopeGuideCalibrated')
+            : l10n.text(
+                'nightScopeGuideCalibratedAt',
+                params: {'time': _clockTime(clock.toNightClock(at))},
+              );
     String? rate(double? value) =>
         value == null || !value.isFinite ? null : value.toStringAsFixed(2);
     final angle = calibration.rotationAngle;

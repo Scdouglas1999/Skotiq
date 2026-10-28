@@ -384,7 +384,7 @@ fn linear_color_preview_neutralizes_unequal_sky_backgrounds() {
     let master = write_master(dir.path(), "cast.fits", 128, 128, 3);
     let (image, header) = read_fits(&master).unwrap();
     let mut data = image.as_f32().unwrap();
-    for pixel in data.chunks_exact_mut(3) {
+    for pixel in data.as_chunks_mut::<3>().0.iter_mut() {
         pixel[0] *= 0.8;
         pixel[2] *= 1.6;
     }
@@ -396,7 +396,13 @@ fn linear_color_preview_neutralizes_unequal_sky_backgrounds() {
     .unwrap();
     let mut medians = [0u8; 3];
     for c in 0..3 {
-        let mut samples: Vec<_> = preview.rgba.chunks_exact(4).map(|p| p[c]).collect();
+        let mut samples: Vec<_> = preview
+            .rgba
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|p| p[c])
+            .collect();
         samples.sort_unstable();
         medians[c] = samples[samples.len() / 2];
     }

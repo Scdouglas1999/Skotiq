@@ -66,8 +66,7 @@ class _FilterChecklist extends ConsumerWidget {
       children: [
         Text(
             'Set gain and offset to match each filter’s lights. Clear a field to inherit the camera defaults below.',
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
         const SizedBox(height: SkotiqTokens.spaceMd),
         LayoutBuilder(builder: (context, constraints) {
           if (constraints.maxWidth < 480) return const SizedBox.shrink();

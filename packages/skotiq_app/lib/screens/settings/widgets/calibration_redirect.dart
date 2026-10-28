@@ -20,8 +20,8 @@ const Set<String> calibrationSettingsSectionKeys = {
 /// of the old calibration sections, null for every other section.
 String? calibrationSettingsRedirect(Uri uri) =>
     calibrationSettingsSectionKeys.contains(uri.queryParameters['section'])
-    ? calibrationTabLocation
-    : null;
+        ? calibrationTabLocation
+        : null;
 
 /// The Settings Calibration entry: opening it goes to the Darkroom's
 /// Calibration tab. The pointer stays visible in case navigation is not

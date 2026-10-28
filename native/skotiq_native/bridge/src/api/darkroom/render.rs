@@ -225,7 +225,13 @@ pub(crate) fn screen_transfer(
             image.width(),
             image.height(),
             1,
-            image.data().chunks_exact(3).map(|p| p[channel]).collect(),
+            image
+                .data()
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .map(|p| p[channel])
+                .collect(),
             image.header().clone(),
         )
         .map_err(|e| e.to_string())?;
@@ -233,7 +239,7 @@ pub(crate) fn screen_transfer(
         let stretched = StretchV1
             .apply(&mono, &params, ctx)
             .map_err(|e| e.to_string())?;
-        for (pixel, &sample) in data.chunks_exact_mut(3).zip(stretched.data()) {
+        for (pixel, &sample) in data.as_chunks_mut::<3>().0.iter_mut().zip(stretched.data()) {
             pixel[channel] = sample;
         }
         transfers.push(params);

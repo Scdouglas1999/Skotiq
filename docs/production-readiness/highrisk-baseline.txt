@@ -219,3 +219,30 @@ native/skotiq_native/sequencer/src/instructions/autofocus.rs:365:    let focuser
 native/skotiq_native/sequencer/src/instructions/device_retry.rs:171:    "not implemented",
 native/skotiq_native/sequencer/src/node/instructions/expose.rs:544:        .unwrap_or_default();
 native/skotiq_native/sequencer/src/node/instructions/expose.rs:833:        measured.map(|m| format!(": {m}")).unwrap_or_default(),
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:177:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:223:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:272:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:365:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:436:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:480:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:556:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:688:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:764:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs:826:    std::fs::remove_dir_all(dir).ok();
+native/skotiq_native/bridge/src/api/post_session/helpers.rs:33:    let header = read_fits_header(Path::new(p)).ok();
+native/skotiq_native/bridge/src/api/post_session/master_cards.rs:118:            result.error.unwrap_or_default()
+native/skotiq_native/bridge/src/api/post_session/masters.rs:821:        .unwrap_or_default()
+native/skotiq_native/bridge/src/api/post_session/masters.rs:868:            .unwrap_or_default()
+native/skotiq_native/bridge/src/api/post_session/multi_night.rs:748:                        calibration.flat.as_deref().unwrap_or_default()
+native/skotiq_native/bridge/src/api/post_session/multi_night.rs:862:                first_refusal.clone().unwrap_or_default()
+native/skotiq_native/bridge/src/api/post_session/multi_night.rs:869:            reason: first_refusal.clone().unwrap_or_default(),
+native/skotiq_native/bridge/src/api/post_session/multi_night.rs:923:                .unwrap_or_default();
+native/skotiq_native/bridge/src/api/post_session/real_frame_harness_tests.rs:203:    std::fs::remove_dir_all(&out).ok();
+native/skotiq_native/bridge/src/api/post_session/registration_preview.rs:837:        std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs:109:        let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
+native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs:114:            || coverage_header.get_string("GRIDREF").unwrap_or_default() != reference
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/dispatch.rs:50:            .unwrap_or_default();
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:129:            .unwrap_or_default();
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:410:                .unwrap_or_default(),
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:637:                slew.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:659:                Err(center.message.unwrap_or_default())
