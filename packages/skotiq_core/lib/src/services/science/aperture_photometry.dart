@@ -8,6 +8,7 @@
 library;
 
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -127,6 +128,22 @@ double _sample(ByteData data, int index, _FitsLayout layout) {
 /// Returns null when the file cannot be read as an uncompressed 2-D image;
 /// an entry is null when its aperture or annulus leaves the image.
 Future<List<ApertureFlux?>?> measureApertures(
+  String path,
+  List<({double x, double y})> stars, {
+  required double radius,
+  required double innerSky,
+  required double outerSky,
+}) => Isolate.run(
+  () => _measureApertures(
+    path,
+    stars,
+    radius: radius,
+    innerSky: innerSky,
+    outerSky: outerSky,
+  ),
+);
+
+Future<List<ApertureFlux?>?> _measureApertures(
   String path,
   List<({double x, double y})> stars, {
   required double radius,

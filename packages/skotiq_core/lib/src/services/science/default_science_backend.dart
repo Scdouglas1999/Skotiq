@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -26,6 +27,7 @@ import 'science_backend.dart';
 import 'frame_camera_noise.dart';
 
 part 'default_science_backend/helpers.dart';
+part 'default_science_backend/cpu_measurements.dart';
 part 'default_science_backend/value_types.dart';
 
 /// Catalog match radius for astrometric residuals. Wide enough to keep the
@@ -468,7 +470,10 @@ class DefaultScienceBackend implements ScienceBackend {
       );
     }
 
-    final fits = await apiReadFitsFile(filePath: imagePath);
+    final fits = await readFitsImageSize(imagePath);
+    if (fits == null) {
+      throw StateError('FITS dimensions are unavailable: $imagePath');
+    }
     final tileW = fits.width / options.gridCols;
     final tileH = fits.height / options.gridRows;
     final buckets = <(int, int), List<StarMeasurement>>{};
@@ -572,7 +577,7 @@ class DefaultScienceBackend implements ScienceBackend {
       final detections = await _movingObjectDetections(frame);
       if (detections != null) perFrame.add(detections);
     }
-    return linkMovingObjects(perFrame, options);
+    return linkMovingObjectsInBackground(perFrame, options);
   }
 
   /// One frame's detections placed on the sky through the frame's own solve,
@@ -675,7 +680,7 @@ class DefaultScienceBackend implements ScienceBackend {
       throw StateError('Last raw buffer too small: ${raw.length} < $expected');
     }
 
-    final result = _computeQualityMetricsFromBuffer(
+    final result = await _qualityInBackground(
       width: lastImage.width,
       height: lastImage.height,
       gridRows: gridRows,
@@ -686,7 +691,7 @@ class DefaultScienceBackend implements ScienceBackend {
       capturedImageId: capturedImageId,
       sessionId: sessionId,
       processingTier: 'live',
-      sampleAt: (index) => raw[index].toDouble(),
+      pixels: raw,
     );
     final processingMs = stopwatch.elapsedMilliseconds;
 
@@ -740,7 +745,7 @@ class DefaultScienceBackend implements ScienceBackend {
       );
     }
 
-    final result = _computeQualityMetricsFromBuffer(
+    final result = await _qualityInBackground(
       width: linear.width,
       height: linear.height,
       gridRows: gridRows,
@@ -751,7 +756,7 @@ class DefaultScienceBackend implements ScienceBackend {
       capturedImageId: capturedImageId,
       sessionId: sessionId,
       processingTier: 'deferred',
-      sampleAt: (index) => linear.linearData[index],
+      pixels: linear.linearData,
     );
     final processingMs = stopwatch.elapsedMilliseconds;
 
@@ -766,177 +771,6 @@ class DefaultScienceBackend implements ScienceBackend {
     final ha = await apiReadFitsLinearData(filePath: set.hAlphaPath);
     final oiii = await apiReadFitsLinearData(filePath: set.oiiiPath);
     final sii = await apiReadFitsLinearData(filePath: set.siiPath);
-    // WHY: writing fake-zero ratios into line_ratio_products would corrupt
-    // BPT diagrams and any downstream classification. Throw a structured
-    // error so the UI/handler renders an explicit error tile and the row is
-    // never inserted.
-    final dimsOk =
-        ha.width == oiii.width &&
-        ha.width == sii.width &&
-        ha.height == oiii.height &&
-        ha.height == sii.height;
-    if (options.requireMatchingDimensions && !dimsOk) {
-      throw LineRatioError(
-        code: LineRatioErrorCode.dimensionMismatch,
-        message:
-            'Narrowband frame dimensions differ: '
-            'Ha=${ha.width}x${ha.height} OIII=${oiii.width}x${oiii.height} '
-            'SII=${sii.width}x${sii.height}.',
-      );
-    }
-    final len = math.min(
-      ha.linearData.length,
-      math.min(oiii.linearData.length, sii.linearData.length),
-    );
-    if (len <= 0) {
-      throw LineRatioError(
-        code: LineRatioErrorCode.emptyPixelData,
-        message:
-            'Narrowband frame has no usable pixel data: '
-            'Ha=${ha.linearData.length} OIII=${oiii.linearData.length} '
-            'SII=${sii.linearData.length}.',
-      );
-    }
-
-    final stride = math.max(1, len ~/ 220000);
-    final haRawSamples = <double>[];
-    final oiiiRawSamples = <double>[];
-    final siiRawSamples = <double>[];
-    for (var i = 0; i < len; i += stride) {
-      haRawSamples.add(ha.linearData[i]);
-      oiiiRawSamples.add(oiii.linearData[i]);
-      siiRawSamples.add(sii.linearData[i]);
-    }
-
-    final haBackground = _percentile(haRawSamples, 0.2);
-    final oiiiBackground = _percentile(oiiiRawSamples, 0.2);
-    final siiBackground = _percentile(siiRawSamples, 0.2);
-    final haNoise = _robustStdDev(
-      haRawSamples.map((value) => value - haBackground).toList(growable: false),
-    ).clamp(1e-6, double.infinity);
-    final oiiiNoise = _robustStdDev(
-      oiiiRawSamples
-          .map((value) => value - oiiiBackground)
-          .toList(growable: false),
-    ).clamp(1e-6, double.infinity);
-    final siiNoise = _robustStdDev(
-      siiRawSamples
-          .map((value) => value - siiBackground)
-          .toList(growable: false),
-    ).clamp(1e-6, double.infinity);
-
-    final haSamples = <double>[];
-    final oiiiSamples = <double>[];
-    final siiSamples = <double>[];
-    final siiHa = <double>[];
-    final oiiiHa = <double>[];
-    final siiOiii = <double>[];
-    final haExp = _requireExposureTime(
-      label: 'H-alpha',
-      exposureTime: ha.exposureTime,
-      filePath: set.hAlphaPath,
-    );
-    final oiiiExp = _requireExposureTime(
-      label: 'OIII',
-      exposureTime: oiii.exposureTime,
-      filePath: set.oiiiPath,
-    );
-    final siiExp = _requireExposureTime(
-      label: 'SII',
-      exposureTime: sii.exposureTime,
-      filePath: set.siiPath,
-    );
-    final haThreshold = options.snrFloor * haNoise / haExp;
-    final oiiiThreshold = options.snrFloor * oiiiNoise / oiiiExp;
-    final siiThreshold = options.snrFloor * siiNoise / siiExp;
-
-    for (var i = 0; i < len; i += stride) {
-      var h =
-          ((ha.linearData[i] - haBackground).clamp(0.0, double.infinity)) /
-          haExp;
-      var o =
-          ((oiii.linearData[i] - oiiiBackground).clamp(0.0, double.infinity)) /
-          oiiiExp;
-      var s =
-          ((sii.linearData[i] - siiBackground).clamp(0.0, double.infinity)) /
-          siiExp;
-      if (options.continuumCorrection) {
-        final c = math.min(h, math.min(o, s)) * 0.2;
-        h = (h - c).clamp(0.0, double.infinity);
-        o = (o - c).clamp(0.0, double.infinity);
-        s = (s - c).clamp(0.0, double.infinity);
-      }
-      haSamples.add(h);
-      oiiiSamples.add(o);
-      siiSamples.add(s);
-      if (h > haThreshold && s > siiThreshold) {
-        siiHa.add(s / h);
-      }
-      if (h > haThreshold && o > oiiiThreshold) {
-        oiiiHa.add(o / h);
-      }
-      if (o > oiiiThreshold && s > siiThreshold) {
-        siiOiii.add(s / o);
-      }
-    }
-
-    final previewStrideX = math.max(1, ha.width ~/ 512);
-    final previewStrideY = math.max(1, ha.height ~/ 512);
-    final previewWidth = (ha.width / previewStrideX).floor();
-    final previewHeight = (ha.height / previewStrideY).floor();
-    final preview = Uint8List(previewWidth * previewHeight * 4);
-    final hn = _percentile(haSamples, 0.99).clamp(1e-6, double.infinity);
-    final on = _percentile(oiiiSamples, 0.99).clamp(1e-6, double.infinity);
-    final sn = _percentile(siiSamples, 0.99).clamp(1e-6, double.infinity);
-
-    var previewOffset = 0;
-    for (var y = 0; y < previewHeight; y++) {
-      final srcY = y * previewStrideY;
-      for (var x = 0; x < previewWidth; x++) {
-        final srcX = x * previewStrideX;
-        final index = srcY * ha.width + srcX;
-        if (index >= len) {
-          preview[previewOffset] = 0;
-          preview[previewOffset + 1] = 0;
-          preview[previewOffset + 2] = 0;
-          preview[previewOffset + 3] = 255;
-          previewOffset += 4;
-          continue;
-        }
-        final h =
-            ((ha.linearData[index] - haBackground).clamp(
-              0.0,
-              double.infinity,
-            )) /
-            haExp;
-        final o =
-            ((oiii.linearData[index] - oiiiBackground).clamp(
-              0.0,
-              double.infinity,
-            )) /
-            oiiiExp;
-        final s =
-            ((sii.linearData[index] - siiBackground).clamp(
-              0.0,
-              double.infinity,
-            )) /
-            siiExp;
-        preview[previewOffset] = ((h / hn).clamp(0.0, 1.0) * 255).round();
-        preview[previewOffset + 1] = ((o / on).clamp(0.0, 1.0) * 255).round();
-        preview[previewOffset + 2] = ((s / sn).clamp(0.0, 1.0) * 255).round();
-        preview[previewOffset + 3] = 255;
-        previewOffset += 4;
-      }
-    }
-
-    return LineRatioProduct(
-      createdAt: DateTime.now(),
-      previewImage: preview,
-      metrics: [
-        LineRatioMetric(label: 'SII/Ha', value: _robustMedian(siiHa)),
-        LineRatioMetric(label: 'OIII/Ha', value: _robustMedian(oiiiHa)),
-        LineRatioMetric(label: 'SII/OIII', value: _robustMedian(siiOiii)),
-      ],
-    );
+    return _lineRatiosInBackground(set, options, ha, oiii, sii);
   }
 }

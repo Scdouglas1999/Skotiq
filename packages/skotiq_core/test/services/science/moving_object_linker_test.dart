@@ -5,6 +5,7 @@
 // 94-99% of them static stars); on the sky the field stands still.
 
 import 'dart:io';
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -95,6 +96,34 @@ void main() {
   test('a dithered static field yields no moving objects', () {
     expect(linkMovingObjects(frames, const MovingObjectOptions()), isEmpty);
   });
+
+  test(
+    'background linking yields the event loop and preserves a real-field track',
+    () async {
+      final withMover = _withMover(
+        frames,
+        ra0: center.raDegrees + .004,
+        dec0: center.decDegrees + .003,
+        rate: .6,
+        paDeg: 250,
+      );
+      var yielded = false;
+      Timer.run(() => yielded = true);
+      final found = await linkMovingObjectsInBackground(
+        withMover,
+        const MovingObjectOptions(),
+      );
+      expect(
+        yielded,
+        isTrue,
+        reason: 'Linking must not monopolize the UI isolate',
+      );
+      expect(found, hasLength(1));
+      expect(found.single.motionArcsecPerMinute, closeTo(.6, .08));
+      expect(found.single.positionAngleDegrees, closeTo(250, 5));
+      expect(found.single.frameCount, 8);
+    },
+  );
 
   test('a slow main-belt mover across the real field is found', () {
     final withMover = _withMover(

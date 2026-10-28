@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import '../../models/science/science_models.dart';
@@ -137,6 +138,12 @@ class _Point {
   bool isStatic = false;
   bool used = false;
 }
+
+/// Link a frame window without blocking the UI isolate.
+Future<List<MovingObjectMatch>> linkMovingObjectsInBackground(
+  List<MovingObjectFrameDetections> frames,
+  MovingObjectOptions options,
+) => Isolate.run(() => linkMovingObjects(frames, options));
 
 /// Links detections into moving-object tracklets in sky coordinates.
 ///
