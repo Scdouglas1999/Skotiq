@@ -155,11 +155,47 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     if (_running) return;
 
     final fwState = ref.read(filterWheelStateProvider);
-    if (fwState.filterNames.isEmpty) return;
+    if (fwState.filterNames.isEmpty) {
+      _filterRevision++;
+      if (_loadedFilterKey != null) {
+        _loadedFilterKey = null;
+        state = state.copyWith(filterSettings: const [], currentFilterIndex: 0);
+      }
+      return;
+    }
 
     final backend = ref.read(backendProvider);
     final db = ref.read(databaseProvider);
     final profileId = ref.read(activeEquipmentProfileProvider)?.id;
+    final key = _filterPreferencesKey();
+    final revision = ++_filterRevision;
+    if (_loadedFilterKey != null && _loadedFilterKey != key) {
+      state = state.copyWith(filterSettings: const [], currentFilterIndex: 0);
+    }
+    final saved = <String, FlatFilterSettings>{};
+    if (_loadedFilterKey == key) {
+      for (final filter in state.filterSettings) {
+        saved['${filter.filterPosition}:${filter.filterName}'] = filter;
+      }
+    } else {
+      try {
+        final raw = await ref.read(settingsDaoProvider).getSetting(key);
+        if (raw != null) {
+          for (final entry in jsonDecode(raw) as List) {
+            final filter = FlatFilterSettings.fromJson(
+              Map<String, dynamic>.from(entry as Map),
+            );
+            saved['${filter.filterPosition}:${filter.filterName}'] = filter;
+          }
+        }
+      } catch (error) {
+        developer.log(
+          'Could not restore flat filter settings: $error',
+          name: 'FlatWizardNotifier',
+          level: 900,
+        );
+      }
+    }
 
     final filterSettings = <FlatFilterSettings>[];
     for (int i = 0; i < fwState.filterNames.length; i++) {
@@ -185,13 +221,18 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       }
 
       filterSettings.add(
-        FlatFilterSettings(
-          filterName: filterName,
-          filterPosition: i,
-          suggestedExposure: suggested,
-        ),
+        (saved['$i:$filterName'] ??
+                FlatFilterSettings(filterName: filterName, filterPosition: i))
+            .copyWith(suggestedExposure: suggested),
       );
     }
+
+    if (_running ||
+        revision != _filterRevision ||
+        key != _filterPreferencesKey()) {
+      return;
+    }
+    _loadedFilterKey = key;
 
     // Point the quick-capture selection at the wheel's PHYSICAL position so a
     // fresh screen shoots the loaded filter, not row 0. `currentFilterIndex` is
@@ -261,6 +302,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     final updated = [...state.filterSettings];
     updated[index] = updated[index].copyWith(enabled: enabled);
     state = state.copyWith(filterSettings: updated);
+    _persistFilterSettings();
   }
 
   /// Update per-filter settings. No-op while capturing (see [toggleFilter]).
@@ -271,6 +313,42 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     final updated = [...state.filterSettings];
     updated[index] = settings;
     state = state.copyWith(filterSettings: updated);
+    _persistFilterSettings();
+  }
+
+  String _filterPreferencesKey() =>
+      'flat_wizard_filters.v1.${jsonEncode([ref.read(activeEquipmentProfileProvider)?.id, ref.read(cameraStateProvider).deviceId, ref.read(filterWheelStateProvider).deviceId])}';
+
+  void _persistFilterSettings() {
+    _filterRevision++;
+    final key = _filterPreferencesKey();
+    _loadedFilterKey = key;
+    // Only user choices survive a restart, never a previous run's progress.
+    final payload = jsonEncode([
+      for (final f in state.filterSettings)
+        {
+          'filterName': f.filterName,
+          'filterPosition': f.filterPosition,
+          'enabled': f.enabled,
+          'gainOverride': f.gainOverride,
+          'offsetOverride': f.offsetOverride,
+          'frameCountOverride': f.frameCountOverride,
+          'histogramTargetOverride': f.histogramTargetOverride,
+          'toleranceOverride': f.toleranceOverride,
+          'minExposureOverride': f.minExposureOverride,
+          'maxExposureOverride': f.maxExposureOverride,
+        },
+    ]);
+    final dao = ref.read(settingsDaoProvider);
+    _filterSettingsWrite = _filterSettingsWrite
+        .then((_) => dao.setSetting(key, payload))
+        .catchError((Object error) {
+          developer.log(
+            'Could not save flat filter settings: $error',
+            name: 'FlatWizardNotifier',
+            level: 900,
+          );
+        });
   }
 
   /// Auto-order filters for twilight. No-op while capturing (reorder guard).

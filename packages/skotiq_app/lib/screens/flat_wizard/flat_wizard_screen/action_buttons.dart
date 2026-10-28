@@ -19,6 +19,24 @@ class _ActionButtons extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Row(children: [
+          const Icon(LucideIcons.folder, size: 16),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Expanded(
+              child: Text(
+            state.globalSettings.savePath ?? 'Choose where to save flats',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.bodySm,
+          )),
+          SkotiqButton(
+              label: 'Folder',
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed:
+                  state.isCapturing ? null : () => _chooseFolder(context, ref)),
+        ]),
+        const SizedBox(height: SkotiqTokens.spaceSm),
         // The one banner style (05 §11): both of these were bespoke tinted,
         // outlined boxes with a bare IconButton for a dismiss.
         if (state.errorMessage != null) ...[
@@ -82,6 +100,34 @@ class _ActionButtons extends ConsumerWidget {
         ],
       ],
     );
+  }
+
+  Future<void> _chooseFolder(BuildContext context, WidgetRef ref) async {
+    final notifier = ref.read(flatWizardProvider.notifier);
+    if (!notifier.reserveStartPrompt()) return;
+    final authority = ref.read(backendProvider);
+    final settings = ref.read(flatWizardProvider).globalSettings;
+    try {
+      final result = await SavePathDialog.show(context,
+          currentPath: settings.savePath,
+          createDateSubfolder: settings.createDateSubfolder,
+          createFilterSubfolders: settings.createFilterSubfolders);
+      if (result == null || !context.mounted) return;
+      if (!identical(authority, ref.read(backendProvider))) {
+        notifier.setWarningMessage(
+            'The imaging host changed. Choose the folder again.');
+        return;
+      }
+      notifier.updateGlobalSettings(ref
+          .read(flatWizardProvider)
+          .globalSettings
+          .copyWith(
+              savePath: result.path,
+              createDateSubfolder: result.createDateSubfolder,
+              createFilterSubfolders: result.createFilterSubfolders));
+    } finally {
+      notifier.releaseStartPrompt();
+    }
   }
 
   Future<void> _startCapture(BuildContext context, WidgetRef ref) async {

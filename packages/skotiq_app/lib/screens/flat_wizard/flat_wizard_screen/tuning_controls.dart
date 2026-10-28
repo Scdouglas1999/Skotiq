@@ -130,9 +130,9 @@ class _CaptureConfigSummary extends ConsumerWidget {
           // The one banner style (05 §11), not a bespoke emphasis surface.
           SkotiqBanner(
             tone: BannerTone.warning,
-            title: 'These flats will not match your lights',
-            message: '${mismatches.join(', ')}. Flats are only usable with '
-                'lights taken at the same gain, offset and binning.',
+            title: 'Inherited settings differ from current light settings',
+            message: '${mismatches.join(', ')}. Set per-filter overrides above '
+                'to match the lights you want to calibrate.',
           ),
         ],
       ],

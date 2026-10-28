@@ -2,13 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Split view layout for flat wizard.
-///
-/// On tablet/desktop the controls sit in a fixed-fraction column on the left
-/// with the preview filling the rest. On a phone the preview is the dominant
-/// region and the capture/tuning controls collapse into a bottom sheet (or a
-/// side-by-side split in landscape) via [AdaptivePanelLayout], so the narrow
-/// controls column never squishes the sliders/inputs into overflow.
+/// Prioritize batch setup; keep the preview alongside it on wide screens and
+/// available in an adaptive panel on smaller screens.
 class FlatWizardSplitView extends StatelessWidget {
   final Widget controlsPanel;
   final Widget previewPanel;
@@ -18,7 +13,7 @@ class FlatWizardSplitView extends StatelessWidget {
     super.key,
     required this.controlsPanel,
     required this.previewPanel,
-    this.controlsWidth = 0.4, // 40% for controls
+    this.controlsWidth = 0.62,
   });
 
   @override
@@ -29,24 +24,24 @@ class FlatWizardSplitView extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
 
-        // Phone tier: preview dominant, controls in a sheet / landscape split.
-        if (width < 600) {
+        // Keep setup visible without opening a sheet.
+        if (width < 900) {
           return AdaptivePanelLayout(
             primary: Container(
               color: colors.background,
-              child: previewPanel,
+              child: controlsPanel,
             ),
             phoneStrategy: PhonePanelStrategy.bottomSheet,
             panelSide: PanelSide.start,
-            primarySegmentLabel: 'Preview',
-            primarySegmentIcon: LucideIcons.image,
+            primarySegmentLabel: 'Capture controls',
+            primarySegmentIcon: LucideIcons.sliders,
             secondary: [
               AdaptivePanel(
-                title: 'Capture controls',
-                icon: LucideIcons.sliders,
+                title: 'Preview',
+                icon: LucideIcons.image,
                 child: Container(
                   color: colors.surface,
-                  child: controlsPanel,
+                  child: previewPanel,
                 ),
               ),
             ],
@@ -55,7 +50,7 @@ class FlatWizardSplitView extends StatelessWidget {
 
         // Tablet / desktop: fixed-fraction controls column on the left.
         final controlsPixelWidth =
-            (constraints.maxWidth * controlsWidth).clamp(280.0, 460.0);
+            (constraints.maxWidth * controlsWidth).clamp(480.0, 900.0);
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,

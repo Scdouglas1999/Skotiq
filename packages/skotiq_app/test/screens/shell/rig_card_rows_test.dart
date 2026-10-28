@@ -5,6 +5,7 @@
 // rows carry the same sentence — a row that publishes only "Disconnected"
 // answers a question nobody asked.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
 
@@ -35,7 +36,7 @@ Future<void> _disposeCard(WidgetTester tester) async {
 /// Semantic labels published anywhere inside the card.
 Set<String> _labelsIn(WidgetTester tester) {
   final found = <String>{};
-  final card = find.byType(RigCard).evaluate().single;
+  final card = find.byType(MaterialApp).evaluate().single;
   void walk(Element element) {
     final widget = element.widget;
     if (widget is Semantics) {
@@ -74,10 +75,13 @@ void main() {
     await _disposeCard(tester);
   });
 
-  testWidgets('the collapsed card still publishes every device',
+  testWidgets(
+      'the collapsed summary opens every device and dismisses with Escape',
       (tester) async {
     final semantics = tester.ensureSemantics();
     await _pumpCard(tester, expanded: false);
+    await tester.tap(find.byKey(const ValueKey('rig.summary')));
+    await tester.pumpAndSettle();
 
     final labels = _labelsIn(tester);
     for (final device in const ['Camera', 'Mount', 'Guider', 'Focus']) {
@@ -87,6 +91,10 @@ void main() {
         reason: 'the icon-only row for $device still has to say what it is',
       );
     }
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(MenuItemButton), findsNothing);
 
     semantics.dispose();
     await _disposeCard(tester);

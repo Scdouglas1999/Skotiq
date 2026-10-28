@@ -5,7 +5,7 @@ import '../../localization/skotiq_localizations.dart';
 
 /// The three things an operator does with this app, in the order a night runs.
 ///
-/// The rail is grouped by them rather than being one flat list of nine, because
+/// The rail is grouped by them rather than being one flat list, because
 /// a flat list makes "Weather" and "Guiding" look like peers of equal weight
 /// when one is a thing you check before you start and the other is a thing you
 /// watch while running.
@@ -101,6 +101,12 @@ abstract final class ShellNavigation {
       group: ShellNavGroup.prepare,
     ),
     ShellPrimaryDestination(
+      route: '/flat-wizard',
+      icon: LucideIcons.sun,
+      label: _navFlatWizard,
+      group: ShellNavGroup.prepare,
+    ),
+    ShellPrimaryDestination(
       route: '/weather',
       icon: LucideIcons.cloudSun,
       label: _navWeather,
@@ -156,7 +162,7 @@ abstract final class ShellNavigation {
   ];
 
   /// Everything the More sheet lists: every primary destination without a
-  /// fixed slot (Plan, Equipment, Weather, Darkroom, Analytics) plus
+  /// fixed slot (Plan, Equipment, Flat wizard, Weather, Darkroom, Analytics) plus
   /// [settings], which has no rail slot either.
   static List<ShellPrimaryDestination> get overflowDestinations {
     final bottomRoutes =
@@ -184,7 +190,6 @@ abstract final class ShellNavigation {
     '/stack-result': '/darkroom',
     '/mosaic': '/darkroom',
     '/polar-alignment': '/equipment',
-    '/flat-wizard': '/equipment',
     '/tonight': '/dashboard',
     '/settings': null,
     '/onboarding': null,
@@ -262,6 +267,8 @@ abstract final class ShellNavigation {
   static String _navGuidingShort(SkotiqLocalizations l10n) =>
       l10n.text('navGuidingShort');
   static String _navPlan(SkotiqLocalizations l10n) => l10n.text('navPlan');
+  static String _navFlatWizard(SkotiqLocalizations l10n) =>
+      l10n.text('navFlatWizard');
   static String _navWeather(SkotiqLocalizations l10n) =>
       l10n.text('navWeather');
   static String _navDarkroom(SkotiqLocalizations l10n) =>

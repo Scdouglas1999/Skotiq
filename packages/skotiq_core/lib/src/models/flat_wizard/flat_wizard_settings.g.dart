@@ -46,6 +46,8 @@ _FlatFilterSettings _$FlatFilterSettingsFromJson(Map<String, dynamic> json) =>
       filterName: json['filterName'] as String,
       filterPosition: (json['filterPosition'] as num).toInt(),
       enabled: json['enabled'] as bool? ?? true,
+      gainOverride: (json['gainOverride'] as num?)?.toInt(),
+      offsetOverride: (json['offsetOverride'] as num?)?.toInt(),
       histogramTargetOverride: (json['histogramTargetOverride'] as num?)
           ?.toDouble(),
       toleranceOverride: (json['toleranceOverride'] as num?)?.toDouble(),
@@ -69,6 +71,8 @@ Map<String, dynamic> _$FlatFilterSettingsToJson(_FlatFilterSettings instance) =>
       'filterName': instance.filterName,
       'filterPosition': instance.filterPosition,
       'enabled': instance.enabled,
+      'gainOverride': instance.gainOverride,
+      'offsetOverride': instance.offsetOverride,
       'histogramTargetOverride': instance.histogramTargetOverride,
       'toleranceOverride': instance.toleranceOverride,
       'minExposureOverride': instance.minExposureOverride,

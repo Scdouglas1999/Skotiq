@@ -114,21 +114,16 @@ extension FlatWizardRun on FlatWizardNotifier {
       final runMode = state.mode;
       final runTwilightMode = state.twilightMode;
 
-      // Resolve ONE effective capture configuration from the connected camera
-      // (host-authoritative on a NetworkBackend) + active profile, and publish
-      // it so the UI preview, this capture command, the FITS header, and the DB
-      // record all agree. maxAdu drives the target so a 12/14-bit camera does
-      // not chase an impossible ADU; gain/offset are `null` (camera default)
-      // rather than a stale zero when unset; binning honours the profile and
-      // camera capability.
-      final config = await ref
+      // Resolve camera defaults once, then validate every filter override before
+      // any capture. Each immutable result drives tuning, capture and metadata.
+      final baseConfig = await ref
           .read(flatCameraConfigProvider.notifier)
           .resolve(
             fallbackBinX: runSettings.binning,
             fallbackBinY: runSettings.binning,
             failIfStale: true,
           );
-      if (!config.rangeKnown) {
+      if (!baseConfig.rangeKnown) {
         setErrorMessage(
           'Could not determine the connected camera\'s ADU range. '
           'Reconnect the camera or refresh its capabilities before starting '
@@ -150,6 +145,20 @@ extension FlatWizardRun on FlatWizardNotifier {
         return;
       }
 
+      for (final queued in queue) {
+        final count =
+            queued.settings.frameCountOverride ?? runSettings.frameCount;
+        if (count < 1 || count > 999) {
+          throw StateError(
+            '${queued.settings.filterName}: frame count must be 1–999.',
+          );
+        }
+      }
+      final filterConfigs = {
+        for (final queued in queue)
+          queued.originalIndex: baseConfig.forFilter(queued.settings),
+      };
+
       // Committed: from here we are truly capturing
       _prepareFiltersForRun(queue);
       ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
@@ -163,7 +172,6 @@ extension FlatWizardRun on FlatWizardNotifier {
         aduHistory: const [],
         currentFrameIndex: 0,
       );
-      final historyGain = config.gain ?? cameraState.gain ?? 0;
 
       // Base save path with optional date subfolder.
       // On a linked client the folder is the host's, joined in its style.
@@ -204,6 +212,8 @@ extension FlatWizardRun on FlatWizardNotifier {
 
         final idx = queued.originalIndex;
         final filterSetting = queued.settings;
+        final config = filterConfigs[idx]!;
+        final historyGain = config.gain ?? cameraState.gain ?? 0;
         setCurrentFilterIndex(idx);
         updateFilterStatus(idx, FilterCalibrationStatus.calibrating);
         setStatusMessage('Calibrating ${filterSetting.filterName}...');
@@ -489,7 +499,9 @@ extension FlatWizardRun on FlatWizardNotifier {
             brightnessTracker: brightnessTracker,
             runMode: runMode,
             runTwilightMode: runTwilightMode,
-            histogramTarget: runSettings.histogramTarget,
+            histogramTarget:
+                filterSetting.histogramTargetOverride ??
+                runSettings.histogramTarget,
           );
         }
 
@@ -870,6 +882,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           exposureTime: exposure,
           histogramTarget: histogramTarget,
           actualAdu: adu.toInt(),
+          gain: gain,
           equipmentProfileId: profileId,
           skyAduRate: skyAduRate,
           twilightPhase: twilightPhase,

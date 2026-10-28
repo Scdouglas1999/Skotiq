@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting, listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../utils/host_paths.dart';
@@ -77,9 +77,24 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   /// user (or a run) has already touched the settings is discarded so it cannot
   /// clobber a live edit — mirrors PolarAlignmentConfigNotifier's load guard.
   int _settingsRevision = 0;
+  int _filterRevision = 0;
+  String? _loadedFilterKey;
+  Future<void> _filterSettingsWrite = Future.value();
 
   FlatWizardNotifier(this.ref) : super(const FlatWizardState()) {
     unawaited(_hydrateGlobalSettings());
+    ref.listen(filterWheelStateProvider, (previous, next) {
+      if (previous?.deviceId != next.deviceId ||
+          !listEquals(previous?.filterNames, next.filterNames)) {
+        unawaited(loadFiltersFromWheel());
+      }
+    });
+    ref.listen(activeEquipmentProfileProvider.select((p) => p?.id), (_, _) {
+      unawaited(loadFiltersFromWheel());
+    });
+    ref.listen(cameraStateProvider.select((c) => c.deviceId), (_, _) {
+      unawaited(loadFiltersFromWheel());
+    });
   }
 
   // Capture control

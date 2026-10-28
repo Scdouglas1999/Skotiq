@@ -68,6 +68,10 @@ abstract class FlatFilterSettings with _$FlatFilterSettings {
     /// Whether this filter is enabled for capture
     @Default(true) bool enabled,
 
+    /// Null inherits the resolved camera/profile setting; zero is explicit.
+    int? gainOverride,
+    int? offsetOverride,
+
     /// Override histogram target (null = use global)
     double? histogramTargetOverride,
 

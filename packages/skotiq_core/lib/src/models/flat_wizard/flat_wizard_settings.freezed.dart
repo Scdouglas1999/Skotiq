@@ -351,7 +351,8 @@ mixin _$FlatFilterSettings {
 
  String get filterName;/// Filter position in wheel (0-indexed)
  int get filterPosition;/// Whether this filter is enabled for capture
- bool get enabled;/// Override histogram target (null = use global)
+ bool get enabled;/// Null inherits the resolved camera/profile setting; zero is explicit.
+ int? get gainOverride; int? get offsetOverride;/// Override histogram target (null = use global)
  double? get histogramTargetOverride;/// Override tolerance (null = use global)
  double? get toleranceOverride;/// Override min exposure (null = use global)
  double? get minExposureOverride;/// Override max exposure (null = use global)
@@ -374,16 +375,16 @@ $FlatFilterSettingsCopyWith<FlatFilterSettings> get copyWith => _$FlatFilterSett
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FlatFilterSettings&&(identical(other.filterName, filterName) || other.filterName == filterName)&&(identical(other.filterPosition, filterPosition) || other.filterPosition == filterPosition)&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.histogramTargetOverride, histogramTargetOverride) || other.histogramTargetOverride == histogramTargetOverride)&&(identical(other.toleranceOverride, toleranceOverride) || other.toleranceOverride == toleranceOverride)&&(identical(other.minExposureOverride, minExposureOverride) || other.minExposureOverride == minExposureOverride)&&(identical(other.maxExposureOverride, maxExposureOverride) || other.maxExposureOverride == maxExposureOverride)&&(identical(other.frameCountOverride, frameCountOverride) || other.frameCountOverride == frameCountOverride)&&(identical(other.suggestedExposure, suggestedExposure) || other.suggestedExposure == suggestedExposure)&&(identical(other.calibratedExposure, calibratedExposure) || other.calibratedExposure == calibratedExposure)&&(identical(other.capturedCount, capturedCount) || other.capturedCount == capturedCount)&&(identical(other.currentAdu, currentAdu) || other.currentAdu == currentAdu)&&(identical(other.status, status) || other.status == status));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FlatFilterSettings&&(identical(other.filterName, filterName) || other.filterName == filterName)&&(identical(other.filterPosition, filterPosition) || other.filterPosition == filterPosition)&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.gainOverride, gainOverride) || other.gainOverride == gainOverride)&&(identical(other.offsetOverride, offsetOverride) || other.offsetOverride == offsetOverride)&&(identical(other.histogramTargetOverride, histogramTargetOverride) || other.histogramTargetOverride == histogramTargetOverride)&&(identical(other.toleranceOverride, toleranceOverride) || other.toleranceOverride == toleranceOverride)&&(identical(other.minExposureOverride, minExposureOverride) || other.minExposureOverride == minExposureOverride)&&(identical(other.maxExposureOverride, maxExposureOverride) || other.maxExposureOverride == maxExposureOverride)&&(identical(other.frameCountOverride, frameCountOverride) || other.frameCountOverride == frameCountOverride)&&(identical(other.suggestedExposure, suggestedExposure) || other.suggestedExposure == suggestedExposure)&&(identical(other.calibratedExposure, calibratedExposure) || other.calibratedExposure == calibratedExposure)&&(identical(other.capturedCount, capturedCount) || other.capturedCount == capturedCount)&&(identical(other.currentAdu, currentAdu) || other.currentAdu == currentAdu)&&(identical(other.status, status) || other.status == status));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,filterName,filterPosition,enabled,histogramTargetOverride,toleranceOverride,minExposureOverride,maxExposureOverride,frameCountOverride,suggestedExposure,calibratedExposure,capturedCount,currentAdu,status);
+int get hashCode => Object.hash(runtimeType,filterName,filterPosition,enabled,gainOverride,offsetOverride,histogramTargetOverride,toleranceOverride,minExposureOverride,maxExposureOverride,frameCountOverride,suggestedExposure,calibratedExposure,capturedCount,currentAdu,status);
 
 @override
 String toString() {
-  return 'FlatFilterSettings(filterName: $filterName, filterPosition: $filterPosition, enabled: $enabled, histogramTargetOverride: $histogramTargetOverride, toleranceOverride: $toleranceOverride, minExposureOverride: $minExposureOverride, maxExposureOverride: $maxExposureOverride, frameCountOverride: $frameCountOverride, suggestedExposure: $suggestedExposure, calibratedExposure: $calibratedExposure, capturedCount: $capturedCount, currentAdu: $currentAdu, status: $status)';
+  return 'FlatFilterSettings(filterName: $filterName, filterPosition: $filterPosition, enabled: $enabled, gainOverride: $gainOverride, offsetOverride: $offsetOverride, histogramTargetOverride: $histogramTargetOverride, toleranceOverride: $toleranceOverride, minExposureOverride: $minExposureOverride, maxExposureOverride: $maxExposureOverride, frameCountOverride: $frameCountOverride, suggestedExposure: $suggestedExposure, calibratedExposure: $calibratedExposure, capturedCount: $capturedCount, currentAdu: $currentAdu, status: $status)';
 }
 
 
@@ -394,7 +395,7 @@ abstract mixin class $FlatFilterSettingsCopyWith<$Res>  {
   factory $FlatFilterSettingsCopyWith(FlatFilterSettings value, $Res Function(FlatFilterSettings) _then) = _$FlatFilterSettingsCopyWithImpl;
 @useResult
 $Res call({
- String filterName, int filterPosition, bool enabled, double? histogramTargetOverride, double? toleranceOverride, double? minExposureOverride, double? maxExposureOverride, int? frameCountOverride, double? suggestedExposure, double? calibratedExposure, int capturedCount, double? currentAdu, FilterCalibrationStatus status
+ String filterName, int filterPosition, bool enabled, int? gainOverride, int? offsetOverride, double? histogramTargetOverride, double? toleranceOverride, double? minExposureOverride, double? maxExposureOverride, int? frameCountOverride, double? suggestedExposure, double? calibratedExposure, int capturedCount, double? currentAdu, FilterCalibrationStatus status
 });
 
 
@@ -411,12 +412,14 @@ class _$FlatFilterSettingsCopyWithImpl<$Res>
 
 /// Create a copy of FlatFilterSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? filterName = null,Object? filterPosition = null,Object? enabled = null,Object? histogramTargetOverride = freezed,Object? toleranceOverride = freezed,Object? minExposureOverride = freezed,Object? maxExposureOverride = freezed,Object? frameCountOverride = freezed,Object? suggestedExposure = freezed,Object? calibratedExposure = freezed,Object? capturedCount = null,Object? currentAdu = freezed,Object? status = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? filterName = null,Object? filterPosition = null,Object? enabled = null,Object? gainOverride = freezed,Object? offsetOverride = freezed,Object? histogramTargetOverride = freezed,Object? toleranceOverride = freezed,Object? minExposureOverride = freezed,Object? maxExposureOverride = freezed,Object? frameCountOverride = freezed,Object? suggestedExposure = freezed,Object? calibratedExposure = freezed,Object? capturedCount = null,Object? currentAdu = freezed,Object? status = null,}) {
   return _then(_self.copyWith(
 filterName: null == filterName ? _self.filterName : filterName // ignore: cast_nullable_to_non_nullable
 as String,filterPosition: null == filterPosition ? _self.filterPosition : filterPosition // ignore: cast_nullable_to_non_nullable
 as int,enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
-as bool,histogramTargetOverride: freezed == histogramTargetOverride ? _self.histogramTargetOverride : histogramTargetOverride // ignore: cast_nullable_to_non_nullable
+as bool,gainOverride: freezed == gainOverride ? _self.gainOverride : gainOverride // ignore: cast_nullable_to_non_nullable
+as int?,offsetOverride: freezed == offsetOverride ? _self.offsetOverride : offsetOverride // ignore: cast_nullable_to_non_nullable
+as int?,histogramTargetOverride: freezed == histogramTargetOverride ? _self.histogramTargetOverride : histogramTargetOverride // ignore: cast_nullable_to_non_nullable
 as double?,toleranceOverride: freezed == toleranceOverride ? _self.toleranceOverride : toleranceOverride // ignore: cast_nullable_to_non_nullable
 as double?,minExposureOverride: freezed == minExposureOverride ? _self.minExposureOverride : minExposureOverride // ignore: cast_nullable_to_non_nullable
 as double?,maxExposureOverride: freezed == maxExposureOverride ? _self.maxExposureOverride : maxExposureOverride // ignore: cast_nullable_to_non_nullable
@@ -511,10 +514,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String filterName,  int filterPosition,  bool enabled,  double? histogramTargetOverride,  double? toleranceOverride,  double? minExposureOverride,  double? maxExposureOverride,  int? frameCountOverride,  double? suggestedExposure,  double? calibratedExposure,  int capturedCount,  double? currentAdu,  FilterCalibrationStatus status)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String filterName,  int filterPosition,  bool enabled,  int? gainOverride,  int? offsetOverride,  double? histogramTargetOverride,  double? toleranceOverride,  double? minExposureOverride,  double? maxExposureOverride,  int? frameCountOverride,  double? suggestedExposure,  double? calibratedExposure,  int capturedCount,  double? currentAdu,  FilterCalibrationStatus status)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _FlatFilterSettings() when $default != null:
-return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.histogramTargetOverride,_that.toleranceOverride,_that.minExposureOverride,_that.maxExposureOverride,_that.frameCountOverride,_that.suggestedExposure,_that.calibratedExposure,_that.capturedCount,_that.currentAdu,_that.status);case _:
+return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.gainOverride,_that.offsetOverride,_that.histogramTargetOverride,_that.toleranceOverride,_that.minExposureOverride,_that.maxExposureOverride,_that.frameCountOverride,_that.suggestedExposure,_that.calibratedExposure,_that.capturedCount,_that.currentAdu,_that.status);case _:
   return orElse();
 
 }
@@ -532,10 +535,10 @@ return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.histog
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String filterName,  int filterPosition,  bool enabled,  double? histogramTargetOverride,  double? toleranceOverride,  double? minExposureOverride,  double? maxExposureOverride,  int? frameCountOverride,  double? suggestedExposure,  double? calibratedExposure,  int capturedCount,  double? currentAdu,  FilterCalibrationStatus status)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String filterName,  int filterPosition,  bool enabled,  int? gainOverride,  int? offsetOverride,  double? histogramTargetOverride,  double? toleranceOverride,  double? minExposureOverride,  double? maxExposureOverride,  int? frameCountOverride,  double? suggestedExposure,  double? calibratedExposure,  int capturedCount,  double? currentAdu,  FilterCalibrationStatus status)  $default,) {final _that = this;
 switch (_that) {
 case _FlatFilterSettings():
-return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.histogramTargetOverride,_that.toleranceOverride,_that.minExposureOverride,_that.maxExposureOverride,_that.frameCountOverride,_that.suggestedExposure,_that.calibratedExposure,_that.capturedCount,_that.currentAdu,_that.status);case _:
+return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.gainOverride,_that.offsetOverride,_that.histogramTargetOverride,_that.toleranceOverride,_that.minExposureOverride,_that.maxExposureOverride,_that.frameCountOverride,_that.suggestedExposure,_that.calibratedExposure,_that.capturedCount,_that.currentAdu,_that.status);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -552,10 +555,10 @@ return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.histog
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String filterName,  int filterPosition,  bool enabled,  double? histogramTargetOverride,  double? toleranceOverride,  double? minExposureOverride,  double? maxExposureOverride,  int? frameCountOverride,  double? suggestedExposure,  double? calibratedExposure,  int capturedCount,  double? currentAdu,  FilterCalibrationStatus status)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String filterName,  int filterPosition,  bool enabled,  int? gainOverride,  int? offsetOverride,  double? histogramTargetOverride,  double? toleranceOverride,  double? minExposureOverride,  double? maxExposureOverride,  int? frameCountOverride,  double? suggestedExposure,  double? calibratedExposure,  int capturedCount,  double? currentAdu,  FilterCalibrationStatus status)?  $default,) {final _that = this;
 switch (_that) {
 case _FlatFilterSettings() when $default != null:
-return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.histogramTargetOverride,_that.toleranceOverride,_that.minExposureOverride,_that.maxExposureOverride,_that.frameCountOverride,_that.suggestedExposure,_that.calibratedExposure,_that.capturedCount,_that.currentAdu,_that.status);case _:
+return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.gainOverride,_that.offsetOverride,_that.histogramTargetOverride,_that.toleranceOverride,_that.minExposureOverride,_that.maxExposureOverride,_that.frameCountOverride,_that.suggestedExposure,_that.calibratedExposure,_that.capturedCount,_that.currentAdu,_that.status);case _:
   return null;
 
 }
@@ -567,7 +570,7 @@ return $default(_that.filterName,_that.filterPosition,_that.enabled,_that.histog
 @JsonSerializable()
 
 class _FlatFilterSettings implements FlatFilterSettings {
-  const _FlatFilterSettings({required this.filterName, required this.filterPosition, this.enabled = true, this.histogramTargetOverride, this.toleranceOverride, this.minExposureOverride, this.maxExposureOverride, this.frameCountOverride, this.suggestedExposure, this.calibratedExposure, this.capturedCount = 0, this.currentAdu, this.status = FilterCalibrationStatus.pending});
+  const _FlatFilterSettings({required this.filterName, required this.filterPosition, this.enabled = true, this.gainOverride, this.offsetOverride, this.histogramTargetOverride, this.toleranceOverride, this.minExposureOverride, this.maxExposureOverride, this.frameCountOverride, this.suggestedExposure, this.calibratedExposure, this.capturedCount = 0, this.currentAdu, this.status = FilterCalibrationStatus.pending});
   factory _FlatFilterSettings.fromJson(Map<String, dynamic> json) => _$FlatFilterSettingsFromJson(json);
 
 @override final  String filterName;
@@ -575,6 +578,9 @@ class _FlatFilterSettings implements FlatFilterSettings {
 @override final  int filterPosition;
 /// Whether this filter is enabled for capture
 @override@JsonKey() final  bool enabled;
+/// Null inherits the resolved camera/profile setting; zero is explicit.
+@override final  int? gainOverride;
+@override final  int? offsetOverride;
 /// Override histogram target (null = use global)
 @override final  double? histogramTargetOverride;
 /// Override tolerance (null = use global)
@@ -609,16 +615,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FlatFilterSettings&&(identical(other.filterName, filterName) || other.filterName == filterName)&&(identical(other.filterPosition, filterPosition) || other.filterPosition == filterPosition)&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.histogramTargetOverride, histogramTargetOverride) || other.histogramTargetOverride == histogramTargetOverride)&&(identical(other.toleranceOverride, toleranceOverride) || other.toleranceOverride == toleranceOverride)&&(identical(other.minExposureOverride, minExposureOverride) || other.minExposureOverride == minExposureOverride)&&(identical(other.maxExposureOverride, maxExposureOverride) || other.maxExposureOverride == maxExposureOverride)&&(identical(other.frameCountOverride, frameCountOverride) || other.frameCountOverride == frameCountOverride)&&(identical(other.suggestedExposure, suggestedExposure) || other.suggestedExposure == suggestedExposure)&&(identical(other.calibratedExposure, calibratedExposure) || other.calibratedExposure == calibratedExposure)&&(identical(other.capturedCount, capturedCount) || other.capturedCount == capturedCount)&&(identical(other.currentAdu, currentAdu) || other.currentAdu == currentAdu)&&(identical(other.status, status) || other.status == status));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FlatFilterSettings&&(identical(other.filterName, filterName) || other.filterName == filterName)&&(identical(other.filterPosition, filterPosition) || other.filterPosition == filterPosition)&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.gainOverride, gainOverride) || other.gainOverride == gainOverride)&&(identical(other.offsetOverride, offsetOverride) || other.offsetOverride == offsetOverride)&&(identical(other.histogramTargetOverride, histogramTargetOverride) || other.histogramTargetOverride == histogramTargetOverride)&&(identical(other.toleranceOverride, toleranceOverride) || other.toleranceOverride == toleranceOverride)&&(identical(other.minExposureOverride, minExposureOverride) || other.minExposureOverride == minExposureOverride)&&(identical(other.maxExposureOverride, maxExposureOverride) || other.maxExposureOverride == maxExposureOverride)&&(identical(other.frameCountOverride, frameCountOverride) || other.frameCountOverride == frameCountOverride)&&(identical(other.suggestedExposure, suggestedExposure) || other.suggestedExposure == suggestedExposure)&&(identical(other.calibratedExposure, calibratedExposure) || other.calibratedExposure == calibratedExposure)&&(identical(other.capturedCount, capturedCount) || other.capturedCount == capturedCount)&&(identical(other.currentAdu, currentAdu) || other.currentAdu == currentAdu)&&(identical(other.status, status) || other.status == status));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,filterName,filterPosition,enabled,histogramTargetOverride,toleranceOverride,minExposureOverride,maxExposureOverride,frameCountOverride,suggestedExposure,calibratedExposure,capturedCount,currentAdu,status);
+int get hashCode => Object.hash(runtimeType,filterName,filterPosition,enabled,gainOverride,offsetOverride,histogramTargetOverride,toleranceOverride,minExposureOverride,maxExposureOverride,frameCountOverride,suggestedExposure,calibratedExposure,capturedCount,currentAdu,status);
 
 @override
 String toString() {
-  return 'FlatFilterSettings(filterName: $filterName, filterPosition: $filterPosition, enabled: $enabled, histogramTargetOverride: $histogramTargetOverride, toleranceOverride: $toleranceOverride, minExposureOverride: $minExposureOverride, maxExposureOverride: $maxExposureOverride, frameCountOverride: $frameCountOverride, suggestedExposure: $suggestedExposure, calibratedExposure: $calibratedExposure, capturedCount: $capturedCount, currentAdu: $currentAdu, status: $status)';
+  return 'FlatFilterSettings(filterName: $filterName, filterPosition: $filterPosition, enabled: $enabled, gainOverride: $gainOverride, offsetOverride: $offsetOverride, histogramTargetOverride: $histogramTargetOverride, toleranceOverride: $toleranceOverride, minExposureOverride: $minExposureOverride, maxExposureOverride: $maxExposureOverride, frameCountOverride: $frameCountOverride, suggestedExposure: $suggestedExposure, calibratedExposure: $calibratedExposure, capturedCount: $capturedCount, currentAdu: $currentAdu, status: $status)';
 }
 
 
@@ -629,7 +635,7 @@ abstract mixin class _$FlatFilterSettingsCopyWith<$Res> implements $FlatFilterSe
   factory _$FlatFilterSettingsCopyWith(_FlatFilterSettings value, $Res Function(_FlatFilterSettings) _then) = __$FlatFilterSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- String filterName, int filterPosition, bool enabled, double? histogramTargetOverride, double? toleranceOverride, double? minExposureOverride, double? maxExposureOverride, int? frameCountOverride, double? suggestedExposure, double? calibratedExposure, int capturedCount, double? currentAdu, FilterCalibrationStatus status
+ String filterName, int filterPosition, bool enabled, int? gainOverride, int? offsetOverride, double? histogramTargetOverride, double? toleranceOverride, double? minExposureOverride, double? maxExposureOverride, int? frameCountOverride, double? suggestedExposure, double? calibratedExposure, int capturedCount, double? currentAdu, FilterCalibrationStatus status
 });
 
 
@@ -646,12 +652,14 @@ class __$FlatFilterSettingsCopyWithImpl<$Res>
 
 /// Create a copy of FlatFilterSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? filterName = null,Object? filterPosition = null,Object? enabled = null,Object? histogramTargetOverride = freezed,Object? toleranceOverride = freezed,Object? minExposureOverride = freezed,Object? maxExposureOverride = freezed,Object? frameCountOverride = freezed,Object? suggestedExposure = freezed,Object? calibratedExposure = freezed,Object? capturedCount = null,Object? currentAdu = freezed,Object? status = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? filterName = null,Object? filterPosition = null,Object? enabled = null,Object? gainOverride = freezed,Object? offsetOverride = freezed,Object? histogramTargetOverride = freezed,Object? toleranceOverride = freezed,Object? minExposureOverride = freezed,Object? maxExposureOverride = freezed,Object? frameCountOverride = freezed,Object? suggestedExposure = freezed,Object? calibratedExposure = freezed,Object? capturedCount = null,Object? currentAdu = freezed,Object? status = null,}) {
   return _then(_FlatFilterSettings(
 filterName: null == filterName ? _self.filterName : filterName // ignore: cast_nullable_to_non_nullable
 as String,filterPosition: null == filterPosition ? _self.filterPosition : filterPosition // ignore: cast_nullable_to_non_nullable
 as int,enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
-as bool,histogramTargetOverride: freezed == histogramTargetOverride ? _self.histogramTargetOverride : histogramTargetOverride // ignore: cast_nullable_to_non_nullable
+as bool,gainOverride: freezed == gainOverride ? _self.gainOverride : gainOverride // ignore: cast_nullable_to_non_nullable
+as int?,offsetOverride: freezed == offsetOverride ? _self.offsetOverride : offsetOverride // ignore: cast_nullable_to_non_nullable
+as int?,histogramTargetOverride: freezed == histogramTargetOverride ? _self.histogramTargetOverride : histogramTargetOverride // ignore: cast_nullable_to_non_nullable
 as double?,toleranceOverride: freezed == toleranceOverride ? _self.toleranceOverride : toleranceOverride // ignore: cast_nullable_to_non_nullable
 as double?,minExposureOverride: freezed == minExposureOverride ? _self.minExposureOverride : minExposureOverride // ignore: cast_nullable_to_non_nullable
 as double?,maxExposureOverride: freezed == maxExposureOverride ? _self.maxExposureOverride : maxExposureOverride // ignore: cast_nullable_to_non_nullable

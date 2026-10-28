@@ -474,7 +474,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                                         // order in ShellNavigation
                                         // .primaryDestinations (04 §3.2):
                                         // Tonight, Imaging, Sequencer,
-                                        // Guiding | Plan, Equipment, Weather
+                                        // Guiding | Plan, Equipment, Flat wizard, Weather
                                         // | Darkroom, Analytics.
                                         tutorialKeys: [
                                           TutorialKeys.navDashboard,
@@ -483,6 +483,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                                           TutorialKeys.navGuiding,
                                           TutorialKeys.navPlanner,
                                           TutorialKeys.navEquipment,
+                                          null,
                                           null,
                                           null,
                                           TutorialKeys.navAnalytics,

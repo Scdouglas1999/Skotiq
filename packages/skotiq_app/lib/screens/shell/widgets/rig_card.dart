@@ -196,8 +196,7 @@ String formatFreeSpace(int freeBytes) {
 /// operation strip.
 ///
 /// Expanded it is a card of labelled rows; collapsed to the 64 px rail it is
-/// a column of icons with dots whose tooltips carry the same sentences, so
-/// nothing the strip reported is lost at either width.
+/// a rig summary that opens the full device list beside the rail.
 class RigCard extends ConsumerWidget {
   /// Whether the enclosing sidebar is expanded (shows labels).
   final bool isExpanded;
@@ -309,12 +308,7 @@ class RigCard extends ConsumerWidget {
         ? (focuserState.position?.toString() ?? l10n.text('statusReady'))
         : l10n.text('statusNoFocuser');
 
-    final rows = <Widget>[
-      // 1. Run state: the only row whose word is the whole story, and the
-      // only thing in the chrome allowed a live halo.
-      _RunStateRow(isExpanded: isExpanded),
-
-      // 2-5. What is attached, each opening the screen that deals with it.
+    final deviceRows = <Widget>[
       _RigRow(
         icon: SkotiqIcons.camera,
         dotTone: _connectionTone(cameraState.connectionState),
@@ -325,7 +319,8 @@ class RigCard extends ConsumerWidget {
           value: cameraValue,
           l10n: l10n,
         ),
-        isExpanded: isExpanded,
+        isExpanded: true,
+        isMenuItem: !isExpanded,
         route: '/equipment',
         // Only for a COOLED camera: a DSLR has no sensor setpoint, and an em
         // dash where a temperature should be is a permanent question.
@@ -348,7 +343,8 @@ class RigCard extends ConsumerWidget {
           value: mountValue,
           l10n: l10n,
         ),
-        isExpanded: isExpanded,
+        isExpanded: true,
+        isMenuItem: !isExpanded,
         route: '/equipment',
       ),
       _RigRow(
@@ -365,7 +361,8 @@ class RigCard extends ConsumerWidget {
           value: guiderValue,
           l10n: l10n,
         ),
-        isExpanded: isExpanded,
+        isExpanded: true,
+        isMenuItem: !isExpanded,
         route: '/guiding',
         // Guiding RMS is the one live figure a guiding row can carry that
         // the glyph cannot; it trails the word the way temperature trails
@@ -393,7 +390,8 @@ class RigCard extends ConsumerWidget {
           value: focuserValue,
           l10n: l10n,
         ),
-        isExpanded: isExpanded,
+        isExpanded: true,
+        isMenuItem: !isExpanded,
         route: '/equipment',
         mono: focuserConnected && focuserState.position != null,
         trailingChild: const _TempCompMark(),
@@ -411,14 +409,12 @@ class RigCard extends ConsumerWidget {
               dotTone: InstrumentTone.success,
               value: filter,
               semanticLabel: '${l10n.text('statusFilterWheel')}, $filter',
-              isExpanded: isExpanded,
+              isExpanded: true,
+              isMenuItem: !isExpanded,
               route: '/equipment',
             );
           },
         ),
-
-      // 6. Where frames land, and whether there is room for tonight's.
-      _SavePathRow(isExpanded: isExpanded),
     ];
 
     return Padding(
@@ -447,7 +443,21 @@ class RigCard extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ...rows,
+              _RunStateRow(isExpanded: isExpanded),
+              if (isExpanded)
+                ...deviceRows
+              else
+                _RigSummary(
+                  connectedCount: [
+                    cameraConnected,
+                    mountConnected,
+                    guiderConnected,
+                    focuserConnected,
+                    filterWheelConnected,
+                  ].where((connected) => connected).length,
+                  deviceRows: deviceRows,
+                ),
+              _SavePathRow(isExpanded: isExpanded),
               // The in-flight operation strip, in the same style it wore in
               // the old bar: icon, step, progress, elapsed, cancel.
               const OperationStatusBar(),
@@ -485,6 +495,92 @@ class RigCard extends ConsumerWidget {
           : InstrumentTone.idle;
 }
 
+class _RigSummary extends StatefulWidget {
+  final int connectedCount;
+  final List<Widget> deviceRows;
+
+  const _RigSummary({required this.connectedCount, required this.deviceRows});
+
+  @override
+  State<_RigSummary> createState() => _RigSummaryState();
+}
+
+class _RigSummaryState extends State<_RigSummary> {
+  final _buttonFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _buttonFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final connectedCount = widget.connectedCount;
+    final deviceRows = widget.deviceRows;
+    final colors = SkotiqColors.of(context);
+    final l10n = context.l10n;
+    final missingCount = deviceRows.length - connectedCount;
+    final label = '${l10n.text('navEquipment')}: '
+        '$connectedCount ${l10n.text('statusConnected').toLowerCase()}, '
+        '$missingCount ${l10n.text('disconnected').toLowerCase()}';
+    final color = connectedCount == 0
+        ? colors.textMuted
+        : missingCount == 0
+            ? colors.success
+            : colors.warning;
+
+    return MenuAnchor(
+      childFocusNode: _buttonFocusNode,
+      alignmentOffset: const Offset(60, 0),
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(colors.surface),
+        padding: const WidgetStatePropertyAll(EdgeInsets.all(8)),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: SkotiqTokens.borderRadiusLg,
+            side: BorderSide(color: colors.border),
+          ),
+        ),
+      ),
+      menuChildren: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Text(l10n.text('navEquipment'),
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
+        ),
+        ...deviceRows,
+      ],
+      builder: (context, controller, child) => Tooltip(
+        message: label,
+        child: Semantics(
+          label: label,
+          child: IconButton(
+            key: const ValueKey('rig.summary'),
+            focusNode: _buttonFocusNode,
+            onPressed: () =>
+                controller.isOpen ? controller.close() : controller.open(),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+            icon: ExcludeSemantics(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(LucideIcons.plug, size: 20, color: color),
+                  const SizedBox(height: 4),
+                  Text('$connectedCount/${deviceRows.length}',
+                      style:
+                          SkotiqTypography.monoCaption.copyWith(color: color)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// What a rig row is called to assistive tech.
 ///
 /// "Camera, Simulated Camera" when there is one; "Camera, not connected" when
@@ -520,6 +616,7 @@ class _RigRow extends StatefulWidget {
   final String? trailingSemanticLabel;
   final Widget? trailingChild;
   final bool mono;
+  final bool isMenuItem;
 
   /// Runs before the row navigates — for the save-path row, which raises the
   /// section request that moves an already-open Settings detail pane.
@@ -537,6 +634,7 @@ class _RigRow extends StatefulWidget {
     this.trailingSemanticLabel,
     this.trailingChild,
     this.mono = false,
+    this.isMenuItem = false,
     this.onNavigate,
   });
 
@@ -617,7 +715,7 @@ class _RigRowState extends State<_RigRow> {
       );
     } else {
       row = SizedBox(
-        height: RigCard.rowHeight + 6,
+        height: 32,
         child: Center(
           child: SizedBox(
             width: 32,
@@ -648,6 +746,19 @@ class _RigRowState extends State<_RigRow> {
               ],
             ),
           ),
+        ),
+      );
+    }
+
+    if (widget.isMenuItem) {
+      return Semantics(
+        label: label,
+        child: MenuItemButton(
+          onPressed: widget.route != null ? () => _go(context) : null,
+          style: const ButtonStyle(
+            minimumSize: WidgetStatePropertyAll(Size(264, 40)),
+          ),
+          child: ExcludeSemantics(child: SizedBox(width: 240, child: row)),
         ),
       );
     }

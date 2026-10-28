@@ -3,10 +3,10 @@ import 'package:skotiq_app/screens/shell/shell_navigation.dart';
 
 void main() {
   group('ShellNavigation', () {
-    test('the rail is nine destinations grouped Observe/Prepare/Review', () {
+    test('the rail is ten destinations grouped Observe/Prepare/Review', () {
       // 04-shell §3.2. Order and grouping are the spec; the route paths do not
       // change. Settings is deliberately absent — it lives in the top bar.
-      expect(ShellNavigation.primaryDestinations, hasLength(9));
+      expect(ShellNavigation.primaryDestinations, hasLength(10));
       expect(ShellNavigation.primaryRoutes, [
         '/dashboard',
         '/imaging',
@@ -14,6 +14,7 @@ void main() {
         '/guiding',
         '/planner',
         '/equipment',
+        '/flat-wizard',
         '/weather',
         '/darkroom',
         '/analytics',
@@ -25,6 +26,7 @@ void main() {
           ShellNavGroup.observe,
           ShellNavGroup.observe,
           ShellNavGroup.observe,
+          ShellNavGroup.prepare,
           ShellNavGroup.prepare,
           ShellNavGroup.prepare,
           ShellNavGroup.prepare,
@@ -65,6 +67,7 @@ void main() {
         [
           '/planner',
           '/equipment',
+          '/flat-wizard',
           '/weather',
           '/darkroom',
           '/analytics',
@@ -105,8 +108,8 @@ void main() {
         ShellNavigation.primaryIndexForLocation('/polar-alignment'),
         equipment,
       );
-      expect(
-          ShellNavigation.primaryIndexForLocation('/flat-wizard'), equipment);
+      expect(ShellNavigation.primaryIndexForLocation('/flat-wizard'),
+          ShellNavigation.primaryRoutes.indexOf('/flat-wizard'));
       expect(ShellNavigation.primaryIndexForLocation('/tonight'), tonight);
     });
 

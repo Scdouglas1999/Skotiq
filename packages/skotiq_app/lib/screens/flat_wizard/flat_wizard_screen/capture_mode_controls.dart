@@ -1,10 +1,10 @@
 part of '../flat_wizard_screen.dart';
 
 /// Padding shared by the three mode columns.
-const EdgeInsets _controlsPadding = EdgeInsets.all(SkotiqTokens.space2xl);
+const EdgeInsets _controlsPadding = EdgeInsets.all(SkotiqTokens.spaceLg);
 
 /// Gap between two groups in a controls column (03 §3.1: section gap).
-const double _groupGap = SkotiqTokens.space3xl;
+const double _groupGap = SkotiqTokens.spaceLg;
 
 // Quick capture controls
 
@@ -25,9 +25,15 @@ class _QuickCaptureControls extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const FormRow(label: 'Filter', child: _FilterSelector()),
+          if (state.filterSettings.isNotEmpty)
+            _FilterSettingsRow(
+                index: state.currentFilterIndex
+                    .clamp(0, state.filterSettings.length - 1)),
           const SizedBox(height: FormRow.rowGap),
           // Camera settings the run will actually command.
-          const FormRow(label: 'Camera', child: _CaptureConfigSummary()),
+          const FormRow(
+              label: 'Inherited camera settings',
+              child: _CaptureConfigSummary()),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Histogram target',
@@ -54,7 +60,6 @@ class _QuickCaptureControls extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: _groupGap),
-          const _ActionButtons(mode: FlatWizardMode.quick),
         ],
       ),
     );
@@ -91,7 +96,9 @@ class _BatchCaptureControls extends ConsumerWidget {
             icon: LucideIcons.sliders,
             title: 'Capture settings',
           ),
-          const FormRow(label: 'Camera', child: _CaptureConfigSummary()),
+          const FormRow(
+              label: 'Inherited camera settings',
+              child: _CaptureConfigSummary()),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Histogram target',
@@ -120,7 +127,6 @@ class _BatchCaptureControls extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: _groupGap),
-          const _ActionButtons(mode: FlatWizardMode.batch),
         ],
       ),
     );
@@ -172,7 +178,9 @@ class _SkyFlatsControls extends ConsumerWidget {
             icon: LucideIcons.sliders,
             title: 'Capture settings',
           ),
-          const FormRow(label: 'Camera', child: _CaptureConfigSummary()),
+          const FormRow(
+              label: 'Inherited camera settings',
+              child: _CaptureConfigSummary()),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Histogram target',
@@ -201,7 +209,6 @@ class _SkyFlatsControls extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: _groupGap),
-          const _ActionButtons(mode: FlatWizardMode.skyFlats),
         ],
       ),
     );

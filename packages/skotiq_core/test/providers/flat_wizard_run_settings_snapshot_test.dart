@@ -62,6 +62,8 @@ class _AutoBackend extends Mock implements SkotiqBackend {
 
   final StreamController<SkotiqEvent> _events =
       StreamController<SkotiqEvent>.broadcast();
+  final commands = <({int? gain, int? offset})>[];
+  final savedHeaders = <FitsWriteHeader>[];
   int saveCount = 0;
   int _seq = 0;
 
@@ -78,7 +80,12 @@ class _AutoBackend extends Mock implements SkotiqBackend {
 
   @override
   Future<CameraStatus> getCameraStatus(String deviceId) async =>
-      CameraStatus.fromJson({'connected': true, 'maxAdu': 65535});
+      CameraStatus.fromJson({
+        'connected': true,
+        'maxAdu': 65535,
+        'canSetGain': true,
+        'canSetOffset': true,
+      });
 
   @override
   Future<CameraCapabilities?> getCameraCapabilities(String deviceId) async =>
@@ -86,6 +93,12 @@ class _AutoBackend extends Mock implements SkotiqBackend {
         'maxWidth': 100,
         'maxHeight': 100,
         'bitDepth': 16,
+        'canSetGain': true,
+        'canSetOffset': true,
+        'gainMin': 0,
+        'gainMax': 600,
+        'offsetMin': 0,
+        'offsetMax': 255,
       });
 
   @override
@@ -102,6 +115,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     int? width,
     int? height,
   }) async {
+    commands.add((gain: gain, offset: offset));
     scheduleMicrotask(() {
       if (_events.isClosed) return;
       _events.add(
@@ -126,6 +140,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     required String filePath,
     required FitsWriteHeader headerData,
   }) async {
+    savedHeaders.add(headerData);
     saveCount++;
     onSave?.call(saveCount);
   }
@@ -266,4 +281,180 @@ void main() {
       );
     },
   );
+  test(
+    'each filter tunes, captures and saves its own gain and offset',
+    () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, filterNames: const ['L', 'Ha']);
+      final notifier = await primeWizard(container, frameCount: 1);
+      notifier.setMode(FlatWizardMode.batch);
+      for (var i = 0; i < 2; i++) {
+        final filter = container.read(flatWizardProvider).filterSettings[i];
+        notifier.updateFilterSettings(
+          i,
+          FlatFilterSettings.fromJson({
+            ...filter.toJson(),
+            'gainOverride': i == 0 ? 76 : 139,
+            'offsetOverride': i == 0 ? 15 : 21,
+          }),
+        );
+      }
+      await notifier.runCapture();
+      expect(backend.savedHeaders.map((h) => (h.gain, h.offset)), [
+        (76, 15),
+        (139, 21),
+      ]);
+      expect(
+        backend.commands,
+        [
+          (gain: 76, offset: 15),
+          (gain: 76, offset: 15),
+          (gain: 139, offset: 21),
+          (gain: 139, offset: 21),
+        ],
+        reason:
+            'tuning and saved exposures must use the same per-filter settings',
+      );
+      final history = await db.flatHistoryDao.getRecentCalibrations(
+        filterName: 'Ha',
+      );
+      expect(history.single.gain, 139);
+    },
+  );
+
+  test(
+    'invalid later-filter override prevents the entire run from starting',
+    () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend);
+      final notifier = await primeWizard(container, frameCount: 1);
+      notifier.setMode(FlatWizardMode.batch);
+      notifier.updateFilterSettings(
+        1,
+        container
+            .read(flatWizardProvider)
+            .filterSettings[1]
+            .copyWith(gainOverride: 601),
+      );
+      await notifier.runCapture();
+      expect(backend.commands, isEmpty);
+      expect(backend.savedHeaders, isEmpty);
+      expect(
+        container.read(flatWizardProvider).errorMessage,
+        contains('gain 601'),
+      );
+    },
+  );
+
+  test(
+    'filter settings survive reload and restart without carrying run progress',
+    () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend);
+      final notifier = await primeWizard(container, frameCount: 1);
+      notifier.updateFilterSettings(
+        1,
+        container
+            .read(flatWizardProvider)
+            .filterSettings[1]
+            .copyWith(
+              gainOverride: 139,
+              offsetOverride: 21,
+              frameCountOverride: 2,
+            ),
+      );
+      await notifier.loadFiltersFromWheel();
+      expect(
+        container.read(flatWizardProvider).filterSettings[1].gainOverride,
+        139,
+      );
+      const key = 'flat_wizard_filters.v1.[null,"native:cam:0",null]';
+      for (var i = 0; i < 100; i++) {
+        if ((await db.settingsDao.getSetting(key))?.contains('139') == true) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(await db.settingsDao.getSetting(key), contains('139'));
+      final fresh = makeContainer(backend);
+      await fresh.read(flatWizardProvider.notifier).loadFiltersFromWheel();
+      final restored = fresh.read(flatWizardProvider).filterSettings[1];
+      expect(
+        (
+          restored.gainOverride,
+          restored.offsetOverride,
+          restored.frameCountOverride,
+        ),
+        (139, 21, 2),
+      );
+      expect(restored.status, FilterCalibrationStatus.pending);
+      expect(restored.capturedCount, 0);
+      final freshNotifier = fresh.read(flatWizardProvider.notifier);
+      freshNotifier.updateFilterSettings(
+        1,
+        restored.copyWith(gainOverride: null),
+      );
+      await freshNotifier.loadFiltersFromWheel();
+      expect(
+        fresh.read(flatWizardProvider).filterSettings[1].gainOverride,
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'explicit zero is captured while a cleared override inherits the camera',
+    () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend);
+      final notifier = await primeWizard(container, frameCount: 1);
+      notifier.setMode(FlatWizardMode.batch);
+      notifier.updateFilterSettings(
+        0,
+        container
+            .read(flatWizardProvider)
+            .filterSettings[0]
+            .copyWith(gainOverride: 0, offsetOverride: 0),
+      );
+      await notifier.runCapture();
+      expect(backend.savedHeaders.map((h) => (h.gain, h.offset)), [
+        (0, 0),
+        (100, 20),
+      ]);
+    },
+  );
+  test('unsupported overrides fail instead of being silently ignored', () {
+    const camera = FlatCaptureConfig(
+      capabilitiesKnown: true,
+      canSetGain: false,
+    );
+    expect(
+      () => camera.forFilter(
+        const FlatFilterSettings(
+          filterName: 'Ha',
+          filterPosition: 4,
+          gainOverride: 139,
+        ),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('cannot set gain'),
+        ),
+      ),
+    );
+    expect(
+      camera
+          .forFilter(
+            const FlatFilterSettings(filterName: 'Ha', filterPosition: 4),
+          )
+          .gain,
+      isNull,
+    );
+  });
 }

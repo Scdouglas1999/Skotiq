@@ -52,7 +52,6 @@ class _FilterChecklist extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<SkotiqColors>()!;
     final state = ref.watch(flatWizardProvider);
-    final notifier = ref.read(flatWizardProvider.notifier);
 
     if (state.filterSettings.isEmpty) {
       return const EmptyState.compact(
@@ -62,85 +61,214 @@ class _FilterChecklist extends ConsumerWidget {
       );
     }
 
-    // While a capture run is active the filter set must not change (the run
-    // captured its filter list with stable indices at start), so the toggles
-    // are visibly disabled — not just silently ignored by the notifier guard.
-    final interactable = !state.isCapturing;
-
-    // A well inside the controls column, not a card: this is a data inset,
-    // and a panel inside a panel does not exist (02 rule 2).
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.well,
-        borderRadius: SkotiqTokens.borderRadiusSm,
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < state.filterSettings.length; i++)
-            _FilterChecklistItem(
-              filter: state.filterSettings[i],
-              isLast: i == state.filterSettings.length - 1,
-              onToggle: interactable
-                  ? (enabled) => notifier.toggleFilter(i, enabled)
-                  : null,
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+            'Set gain and offset to match each filter’s lights. Clear a field to inherit the camera defaults below.',
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        LayoutBuilder(builder: (context, constraints) {
+          if (constraints.maxWidth < 480) return const SizedBox.shrink();
+          return Row(children: [
+            const SizedBox(width: 110, child: Text('Filter')),
+            for (final label in ['Gain', 'Offset', 'Frames'])
+              Expanded(
+                  child: Text(label,
+                      style: SkotiqTypography.caption
+                          .copyWith(color: colors.textMuted))),
+          ]);
+        }),
+        for (var i = 0; i < state.filterSettings.length; i++)
+          _FilterSettingsRow(
+            key: ValueKey(
+                'flat-filter-row-${state.filterSettings[i].filterPosition}'),
+            index: i,
+            showToggle: true,
+          ),
+      ],
     );
   }
 }
 
-class _FilterChecklistItem extends StatelessWidget {
-  final FlatFilterSettings filter;
-  final bool isLast;
+class _FilterSettingsRow extends ConsumerWidget {
+  final int index;
+  final bool showToggle;
 
-  /// Null while a capture run is active — disables the checkbox so the filter
-  /// set cannot change mid-run.
-  final ValueChanged<bool>? onToggle;
-
-  const _FilterChecklistItem({
-    required this.filter,
-    required this.isLast,
-    required this.onToggle,
-  });
+  const _FilterSettingsRow(
+      {super.key, required this.index, this.showToggle = false});
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<SkotiqColors>()!;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(flatWizardProvider);
+    final filter = state.filterSettings[index];
+    final config = ref.watch(flatCameraConfigProvider);
+    final notifier = ref.read(flatWizardProvider.notifier);
+    final colors = SkotiqColors.of(context);
+    final editable = !state.isCapturing && (!showToggle || filter.enabled);
+    FlatFilterSettings current() =>
+        ref.read(flatWizardProvider).filterSettings[index];
+    void update(FlatFilterSettings value) =>
+        notifier.updateFilterSettings(index, value);
+
+    Widget field(
+        String name, int? value, int? inherited, ValueChanged<int?> change,
+        {bool supported = true, bool showLabel = true, int? min, int? max}) {
+      final invalid = value != null &&
+          ((min != null && value < min) || (max != null && value > max));
+      return Semantics(
+        label: '${filter.filterName} $name',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showLabel) ...[
+              Text(name,
+                  style: SkotiqTypography.caption
+                      .copyWith(color: colors.textMuted)),
+              const SizedBox(height: SkotiqTokens.spaceXs),
+            ],
+            _FilterNumberField(
+              key: ValueKey(
+                  'flat-filter-${name.toLowerCase()}-${filter.filterPosition}'),
+              value: value,
+              hint: supported ? '${inherited ?? "Default"}' : 'Unavailable',
+              enabled: editable && (supported || value != null),
+              onChanged: change,
+              error: !supported && value != null
+                  ? 'Unsupported; clear'
+                  : invalid
+                      ? '${min ?? "?"}–${max ?? "?"}'
+                      : null,
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.spaceMd,
-        vertical: SkotiqTokens.spaceSm,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
       decoration: BoxDecoration(
-        border:
-            isLast ? null : Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: Row(
-        children: [
-          SkotiqCheckbox(
-            value: filter.enabled,
-            onChanged: onToggle == null ? null : (v) => onToggle!(v ?? false),
-          ),
-          const SizedBox(width: SkotiqTokens.spaceMd),
-          Expanded(
-            child: Text(
-              filter.filterName,
-              style: SkotiqTypography.bodySm.copyWith(
-                color: filter.enabled ? colors.textPrimary : colors.textMuted,
-              ),
+          border: Border(bottom: BorderSide(color: colors.border))),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 480;
+        final fields = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+                child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: field('Gain', filter.gainOverride, config.gain,
+                        (v) => update(current().copyWith(gainOverride: v)),
+                        showLabel: !wide || !showToggle,
+                        supported:
+                            !config.capabilitiesKnown || config.canSetGain,
+                        min: config.gainMin,
+                        max: config.gainMax))),
+            Expanded(
+                child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: field('Offset', filter.offsetOverride, config.offset,
+                        (v) => update(current().copyWith(offsetOverride: v)),
+                        showLabel: !wide || !showToggle,
+                        supported:
+                            !config.capabilitiesKnown || config.canSetOffset,
+                        min: config.offsetMin,
+                        max: config.offsetMax))),
+            Expanded(
+                child: field(
+                    'Frames',
+                    filter.frameCountOverride,
+                    state.globalSettings.frameCount,
+                    (v) => update(current().copyWith(frameCountOverride: v)),
+                    showLabel: !wide || !showToggle,
+                    min: 1,
+                    max: 999)),
+          ],
+        );
+        final label = Row(mainAxisSize: MainAxisSize.min, children: [
+          if (showToggle)
+            SkotiqCheckbox(
+              value: filter.enabled,
+              onChanged: state.isCapturing
+                  ? null
+                  : (v) => notifier.toggleFilter(index, v ?? false),
             ),
-          ),
-          if (filter.suggestedExposure != null)
-            Text(
-              '~${filter.suggestedExposure!.toStringAsFixed(1)} s',
-              style: SkotiqTypography.monoCaption.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-        ],
-      ),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Flexible(
+              child: Text(filter.filterName,
+                  overflow: TextOverflow.ellipsis,
+                  style: SkotiqTypography.bodySm
+                      .copyWith(color: colors.textPrimary))),
+        ]);
+        if (constraints.maxWidth < 480) {
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                label,
+                const SizedBox(height: SkotiqTokens.spaceSm),
+                fields
+              ]);
+        }
+        return Row(children: [
+          SizedBox(width: 110, child: label),
+          Expanded(child: fields)
+        ]);
+      }),
     );
   }
+}
+
+/// Blank means inherit; numeric zero remains an explicit camera setting.
+class _FilterNumberField extends StatefulWidget {
+  final int? value;
+  final String hint;
+  final bool enabled;
+  final String? error;
+  final ValueChanged<int?> onChanged;
+  const _FilterNumberField(
+      {super.key,
+      required this.value,
+      required this.hint,
+      required this.enabled,
+      required this.onChanged,
+      this.error});
+
+  @override
+  State<_FilterNumberField> createState() => _FilterNumberFieldState();
+}
+
+class _FilterNumberFieldState extends State<_FilterNumberField> {
+  late final controller =
+      TextEditingController(text: widget.value?.toString() ?? '');
+  @override
+  void didUpdateWidget(covariant _FilterNumberField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value &&
+        int.tryParse(controller.text) != widget.value) {
+      controller.text = widget.value?.toString() ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SkotiqTextField(
+        controller: controller,
+        hint: widget.hint,
+        enabled: widget.enabled,
+        mono: true,
+        errorText: widget.error,
+        keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(6)
+        ],
+        onChanged: (text) =>
+            widget.onChanged(text.isEmpty ? null : int.parse(text)),
+      );
 }

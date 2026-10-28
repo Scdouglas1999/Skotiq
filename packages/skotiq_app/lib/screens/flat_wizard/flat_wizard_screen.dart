@@ -31,7 +31,10 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+        length: 3,
+        vsync: this,
+        initialIndex: ref.read(flatWizardProvider).mode.index);
     _tabController.addListener(_onTabChanged);
 
     // Load filters on first build
@@ -101,14 +104,21 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
         // Split view content
         Expanded(
           child: FlatWizardSplitView(
-            controlsPanel: TabBarView(
-              controller: _tabController,
-              children: const [
-                _QuickCaptureControls(),
-                _BatchCaptureControls(),
-                _SkyFlatsControls(),
-              ],
-            ),
+            controlsPanel: Column(children: [
+              Expanded(
+                  child: TabBarView(
+                controller: _tabController,
+                children: const [
+                  _QuickCaptureControls(),
+                  _BatchCaptureControls(),
+                  _SkyFlatsControls(),
+                ],
+              )),
+              Padding(
+                padding: _controlsPadding,
+                child: _ActionButtons(mode: state.mode),
+              ),
+            ]),
             previewPanel: FlatPreviewPanel(key: FlatWizardTutorialKeys.preview),
           ),
         ),

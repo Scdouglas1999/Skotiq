@@ -1,14 +1,13 @@
 import 'package:equatable/equatable.dart';
 
 import '../../services/flat_exposure_calculator.dart';
+import 'flat_wizard_settings.dart';
 
 /// The effective, capability-resolved capture configuration for a flat run.
 ///
-/// Resolved ONCE from the connected camera (host-authoritative on a
-/// [NetworkBackend], where `getCameraStatus`/`getCameraCapabilities` route to
-/// the master) plus the active equipment profile. The SAME resolved config
-/// drives the UI preview, the backend capture command, the FITS header, and the
-/// flat-history record so they can never drift.
+/// Camera defaults come from the connected backend and active profile.
+/// [forFilter] applies explicit overrides; that immutable configuration drives
+/// exposure tuning, capture, FITS metadata and flat history for the filter.
 ///
 /// Resolution rules (see `FlatWizardService.resolveCaptureConfig`):
 ///   * [maxAdu] is the PIXEL-CONTAINER full scale — the largest value that can
@@ -112,6 +111,36 @@ class FlatCaptureConfig extends Equatable {
   /// camera's effective full scale.
   double percentForAdu(num adu) =>
       FlatExposureCalculator.aduToHistogramPercent(adu.round(), maxAdu: maxAdu);
+
+  /// Apply explicit filter settings without silently changing calibration values.
+  /// Validate the entire queue before moving the wheel or taking exposures.
+  FlatCaptureConfig forFilter(FlatFilterSettings filter) {
+    void validate(String name, int? value, bool supported, int? min, int? max) {
+      if (value == null) return;
+      if (!supported) {
+        throw StateError(
+          '${filter.filterName}: camera cannot set $name. '
+          'Clear the override to use the camera default.',
+        );
+      }
+      if ((min != null && value < min) || (max != null && value > max)) {
+        throw StateError(
+          '${filter.filterName}: $name $value is outside '
+          'the camera range ${min ?? "?"}–${max ?? "?"}.',
+        );
+      }
+    }
+
+    validate('gain', filter.gainOverride, canSetGain, gainMin, gainMax);
+    validate(
+      'offset',
+      filter.offsetOverride,
+      canSetOffset,
+      offsetMin,
+      offsetMax,
+    );
+    return copyWith(gain: filter.gainOverride, offset: filter.offsetOverride);
+  }
 
   FlatCaptureConfig copyWith({
     int? maxAdu,
