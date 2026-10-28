@@ -15,7 +15,7 @@
 [![Companion](https://img.shields.io/badge/companion-Android-7c3aed)](#running-it-from-somewhere-else)
 [![License](https://img.shields.io/badge/license-source_available-64748b)](LICENSE)
 
-[**Download 8.0.0**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [Release notes](docs/release/v8.0.0.md) · [Known limitations](docs/known-limitations.md) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
+[**Download 8.1.0**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [Release notes](docs/release/v8.1.0.md) · [Known limitations](docs/known-limitations.md) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
 
 <img src="assets/screenshots/desktop-dashboard.png" width="900" alt="Skotiq Tonight on a real imaging laptop, with the NGC 891 plan staged for the night: the target's altitude curve against the Moon at 85%, each step's clock time through the meridian flip and camera warm-up, and a before-you-start checklist showing the camera connected, mount unparked and guider connected">
 
@@ -296,7 +296,7 @@ the bridge misbehaves, are in the [developer docs](docs/index.md) and the
 | [Installation](docs/getting-started/installation.md) | [Supported hardware](docs/supported-hardware-by-platform.md) | [Architecture](docs/architecture.md) |
 | [First connection](docs/getting-started/first-connection.md) | [Known limitations](docs/known-limitations.md) | [Plugin SDK](docs/plugin_sdk/README.md) |
 | [First image](docs/getting-started/first-image.md) | [Securing a headless host](docs/headless-secure-setup.md) | [HTTP API](docs/api/README.md) |
-| [8.0.0 release notes](docs/release/v8.0.0.md) | [Backup and moving machines](docs/migration-backup-restore.md) | [Contributing](.github/CONTRIBUTING.md) |
+| [8.0.0 release notes](docs/release/v8.1.0.md) | [Backup and moving machines](docs/migration-backup-restore.md) | [Contributing](.github/CONTRIBUTING.md) |
 | [The rename](docs/release/rebrand-skotiq.md) | [Remote control](docs/remote-control.md) | [Changelog](docs/CHANGELOG.md) |
 
 The [Plugin SDK](docs/plugin_sdk/README.md) covers plugins built into the app, with
