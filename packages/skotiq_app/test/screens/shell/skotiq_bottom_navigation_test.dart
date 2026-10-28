@@ -69,12 +69,11 @@ void main() {
     // the bar silent on a screen it can reach.
     expect(await _selectedLabels(tester, '/settings'), ['More']);
     expect(await _selectedLabels(tester, '/settings/plate-solving'), ['More']);
+    expect(await _selectedLabels(tester, '/flat-wizard'), ['More']);
   });
 
   testWidgets('a route nothing owns lights nothing', (tester) async {
-    // The Flat Wizard is pushed from inside Equipment: no slot owns it and the
-    // More sheet does not list it, so no slot may borrow its highlight.
-    expect(await _selectedLabels(tester, '/flat-wizard'), isEmpty);
+    expect(await _selectedLabels(tester, '/unknown-route'), isEmpty);
     expect(await _selectedLabels(tester, '/polar-alignment'), isEmpty);
   });
 

@@ -393,6 +393,7 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/files/validate',
     // Science
     'GET /api/science/session/<sessionId>/bundle',
+    'POST /api/science/session/<sessionId>/bundle',
     'POST /api/science/session/<sessionId>/reprocess',
     'GET /api/science/session/<sessionId>/reprocess',
     'GET /api/science/sessionless/recent',
@@ -701,6 +702,7 @@ List<String> availableHeadlessEndpoints() {
     // v46 — unified Calibration Library Manager (hyphenated prefix so it
     // does not collide with the per-table /api/calibration/ surface).
     'GET /api/calibration-library',
+    'GET /api/calibration-library/backlog',
     'POST /api/calibration-library/match',
     'POST /api/calibration-library/accept',
     'POST /api/calibration-library/publish',
