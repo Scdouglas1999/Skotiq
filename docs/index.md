@@ -4,8 +4,8 @@ Plan your targets, connect your rig, capture the night and review the results.
 Skotiq runs on Windows and Linux, with an Android companion and remote access
 from another desktop or browser.
 
-**[Download Skotiq 8.0](https://github.com/Scdouglas1999/Skotiq/releases/tag/v8.0.0)** ·
-**[What's new](release/v8.0.0.md)** · **[Installation](getting-started/installation.md)** ·
+**[Download Skotiq 8.1](https://github.com/Scdouglas1999/Skotiq/releases/tag/v8.1.0)** ·
+**[What's new](release/v8.1.0.md)** · **[Installation](getting-started/installation.md)** ·
 **[Supported hardware](supported-hardware-by-platform.md)** ·
 **[Help and support](../.github/SUPPORT.md)**
 
@@ -18,7 +18,7 @@ from another desktop or browser.
 - **Reviewing results:** open Analytics for session history and the Darkroom for your masters and processing recipes.
 
 The owner has completed two full imaging nights on a Windows rig. See the
-[release notes](release/v8.0.0.md) for the exercised equipment and the
+[release notes](release/v8.1.0.md) for the exercised equipment and the
 [compatibility matrix](supported-hardware-by-platform.md) for other backends.
 
 ## Getting Started

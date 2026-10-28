@@ -199,9 +199,9 @@ building a profile.
 
 | File | Platform | Notes |
 |---|---|---|
-| `skotiq-8.0.0-windows-x64.zip` | Windows x64 | Portable — extract and run. Not code-signed yet |
-| `skotiq-8.0.0-linux-x64.tar.gz` | Linux x64 | Portable bundle, needs glibc 2.35 or newer |
-| `skotiq-8.0.0-android-arm64-v8a.apk` | Android | The companion app. Also built for `armeabi-v7a` and `x86_64` |
+| `skotiq-8.1.0-windows-x64.zip` | Windows x64 | Portable — extract and run. Not code-signed yet |
+| `skotiq-8.1.0-linux-x64.tar.gz` | Linux x64 | Portable bundle, needs glibc 2.35 or newer |
+| `skotiq-8.1.0-android-arm64-v8a.apk` | Android | The companion app. Also built for `armeabi-v7a` and `x86_64` |
 
 **There's no macOS or iOS build.** The Mac version compiles, but nothing is packaged
 and neither has ever been run against hardware. Treat them as source only.
@@ -296,7 +296,7 @@ the bridge misbehaves, are in the [developer docs](docs/index.md) and the
 | [Installation](docs/getting-started/installation.md) | [Supported hardware](docs/supported-hardware-by-platform.md) | [Architecture](docs/architecture.md) |
 | [First connection](docs/getting-started/first-connection.md) | [Known limitations](docs/known-limitations.md) | [Plugin SDK](docs/plugin_sdk/README.md) |
 | [First image](docs/getting-started/first-image.md) | [Securing a headless host](docs/headless-secure-setup.md) | [HTTP API](docs/api/README.md) |
-| [8.0.0 release notes](docs/release/v8.1.0.md) | [Backup and moving machines](docs/migration-backup-restore.md) | [Contributing](.github/CONTRIBUTING.md) |
+| [8.1.0 release notes](docs/release/v8.1.0.md) | [Backup and moving machines](docs/migration-backup-restore.md) | [Contributing](.github/CONTRIBUTING.md) |
 | [The rename](docs/release/rebrand-skotiq.md) | [Remote control](docs/remote-control.md) | [Changelog](docs/CHANGELOG.md) |
 
 The [Plugin SDK](docs/plugin_sdk/README.md) covers plugins built into the app, with
