@@ -8,18 +8,21 @@
 
 # Skotiq
 
-**Astrophotography capture software that runs the whole night from one app.**
+**Your whole night, in focus.**
+
+Plan, capture, calibrate and integrate in one astrophotography workspace.
+**Free to use. All features included. Optional support through Patreon.**
 
 [![Latest release](https://img.shields.io/github/v/release/Scdouglas1999/Skotiq?label=latest&color=2ea44f)](https://github.com/Scdouglas1999/Skotiq/releases/latest)
 [![Desktop](https://img.shields.io/badge/desktop-Windows_%7C_Linux-2563eb)](#downloads)
 [![Companion](https://img.shields.io/badge/companion-Android-7c3aed)](#running-it-from-somewhere-else)
 [![License](https://img.shields.io/badge/license-source_available-64748b)](LICENSE)
 
-[**Download 8.1.0**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [Release notes](docs/release/v8.1.0.md) · [Known limitations](docs/known-limitations.md) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
+[**Download 8.1.0**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [Release notes](docs/release/v8.1.0.md) · [Known limitations](docs/known-limitations.md) · [Patreon](https://www.patreon.com/c/SeanDouglas)
 
-<img src="assets/screenshots/desktop-dashboard.png" width="900" alt="Skotiq Tonight on a real imaging laptop, with the NGC 891 plan staged for the night: the target's altitude curve against the Moon at 85%, each step's clock time through the meridian flip and camera warm-up, and a before-you-start checklist showing the camera connected, mount unparked and guider connected">
+<img src="assets/screenshots/live-dashboard.png" width="1000" alt="Skotiq Tonight during an active NGC 891 imaging run: live exposure progress, frame quality, guide history, focus and connected equipment">
 
-<sub>Tonight, on a real imaging laptop the morning after a night's imaging: the target, the plan with its clock times, the gear's live state, and the checklist before you start — one screen.</sub>
+<sub>An actual imaging session on October 26, 2026. The displayed light frame is raw, before calibration.</sub>
 
 </div>
 
@@ -251,11 +254,13 @@ skotiq --headless --require-auth
 
 ## Tested under the night sky
 
-The imaging workflow has completed **two nights on real hardware** during development
-in October 2026: a Pegasus NYX-101 mount, ZWO ASI1600MM-Cool camera, ZWO EAF focuser,
-eight-slot filter wheel and PHD2 guiding on Windows. The screenshots above were
-captured from that laptop's running session, including its session history and an
-L-filter master of NGC 891 in the Darkroom.
+NGC 891 data from **eight nights in October 2026** has been captured and integrated
+with Skotiq on the owner's Windows rig: a Pegasus NYX-101 mount, ZWO ASI1600MM-Cool
+camera, ZWO EAF focuser, eight-slot filter wheel and PHD2 guiding. The finished
+LRGB + Hα image combines 824 accepted exposures totaling 27h 19m 30s, with 2× drizzle.
+Final image finishing was performed in PixInsight with GraXpert and RC Astro tools;
+it is not an automatic Darkroom result. This evidence describes that rig, not every
+supported hardware combination.
 
 See [compatibility and known limitations](docs/known-limitations.md) for hardware
 coverage, platform availability and remaining limitations. Subsequent integration
@@ -305,8 +310,14 @@ into a released build isn't supported.
 
 ## Support and contribute
 
-Skotiq is free to use. [Support development on Patreon](https://www.patreon.com/cw/SeanDouglas)
-to help fund hardware testing, compatibility work and continued development.
+Skotiq is independently developed by Sean Douglas. **All features are free to use;
+Patreon is entirely optional.** There is no feature unlock or required subscription.
+
+[**Support Skotiq on Patreon →**](https://www.patreon.com/c/SeanDouglas)
+
+Support helps fund development, hardware testing and compatibility work. Membership
+options are described on Patreon. Reporting reproducible issues, improving the docs
+and sharing your imaging experience also help the project.
 
 [Report a bug](https://github.com/Scdouglas1999/Skotiq/issues) with your operating
 system, equipment and driver versions, reproduction steps and relevant logs.
@@ -323,6 +334,6 @@ redistributing it or building something on top of it.
 
 <div align="center">
 
-[Download](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Docs](docs/index.md) · [Issues](https://github.com/Scdouglas1999/Skotiq/issues) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
+[Download](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Docs](docs/index.md) · [Issues](https://github.com/Scdouglas1999/Skotiq/issues) · [Patreon](https://www.patreon.com/c/SeanDouglas)
 
 </div>
