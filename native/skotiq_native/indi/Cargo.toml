@@ -19,7 +19,7 @@ quick-xml = { version = "0.31", features = ["async-tokio"] }
 base64.workspace = true
 
 # mDNS discovery
-mdns-sd = "0.11"
+mdns-sd = "0.21"
 if-addrs = "0.13"
 
 # Per-instance PRNG for reconnect/restart jitter. fastrand 2.x is small,
