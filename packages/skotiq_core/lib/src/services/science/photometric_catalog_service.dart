@@ -95,10 +95,10 @@ class PhotometricConeResult {
 class PhotometricCatalogService {
   static const onlineEnabledSettingKey = 'science.catalog.online_apass_enabled';
 
-  /// VizieR mirror used for the APASS cone search.
+  /// Official VizieR mirrors used for the APASS cone search.
   static const _vizierBases = [
     'https://vizier.cds.unistra.fr/viz-bin/asu-tsv',
-    'https://vizier.cfa.harvard.edu/viz-bin/asu-tsv',
+    'https://vizier.idia.ac.za/viz-bin/asu-tsv',
   ];
 
   /// Cache grid: pointing rounded to this many degrees, radius rounded UP

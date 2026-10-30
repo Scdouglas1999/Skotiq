@@ -142,7 +142,7 @@ void main() {
         );
         expect(result.source, PhotometricCatalogSource.localApass);
       }
-      expect(hosts, ['vizier.cds.unistra.fr', 'vizier.cfa.harvard.edu']);
+      expect(hosts, ['vizier.cds.unistra.fr', 'vizier.idia.ac.za']);
     },
   );
 
