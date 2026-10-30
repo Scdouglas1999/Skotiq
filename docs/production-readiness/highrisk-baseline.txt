@@ -246,3 +246,5 @@ native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:410:                .unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:637:                slew.message.unwrap_or_default()
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:659:                Err(center.message.unwrap_or_default())
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/meridian_flip.rs:74:            .unwrap_or_default(),
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/dispatch.rs:244:                    slew.message.unwrap_or_default()

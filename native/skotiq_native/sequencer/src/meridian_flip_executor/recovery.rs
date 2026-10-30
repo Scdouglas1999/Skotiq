@@ -161,6 +161,9 @@ impl MeridianFlipExecutor {
     /// Reacquire after a probe without ever requesting another meridian flip.
     /// The caller owns the imaging train until this returns and handles failure.
     pub(crate) async fn recover_target(&mut self, ctx: &FlipContext) -> Result<(), String> {
+        if self.config.max_retries > 0 && self.config.retry_delays_secs.is_empty() {
+            return Err("Target recovery configuration error: retry_delays_secs is empty".into());
+        }
         *self.original_recovery_filter.lock() = None;
         let mut problem = String::new();
         for attempt in 1..=self.config.max_retries + 1 {
@@ -187,8 +190,9 @@ impl MeridianFlipExecutor {
                     .config
                     .retry_delays_secs
                     .get((attempt - 1) as usize)
+                    .or_else(|| self.config.retry_delays_secs.last())
                     .copied()
-                    .unwrap_or(30.0);
+                    .ok_or("Target recovery configuration error: retry_delays_secs is empty")?;
                 self.warn_operator(format!("Target recovery attempt {attempt} failed: {problem}. Retrying in {delay:.0}s; light capture remains held."));
                 let until = tokio::time::Instant::now() + std::time::Duration::from_secs_f64(delay);
                 while tokio::time::Instant::now() < until {

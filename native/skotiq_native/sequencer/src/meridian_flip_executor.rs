@@ -4800,4 +4800,52 @@ mod tests {
             assert_eq!(coordinates, (ctx.target_ra_hours, ctx.target_dec_degrees));
         }
     }
+    #[tokio::test(start_paused = true)]
+    async fn target_recovery_rejects_empty_retry_schedule_before_equipment_commands() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        let ctx = make_ctx(&state);
+        let mut executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                max_retries: 1,
+                retry_delays_secs: vec![],
+                pause_guiding: false,
+                resume_guiding: false,
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            Arc::new(MockDeviceOps::new(state.clone())),
+        );
+        let result = executor.recover_target(&ctx).await;
+        assert!(result.is_err(), "{result:?}");
+        assert!(result.unwrap_err().contains("retry_delays_secs is empty"));
+        assert!(state.exposure_starts.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn target_recovery_repeats_last_configured_retry_delay() {
+        let mut elapsed = Vec::new();
+        for delays in [vec![2.0], vec![2.0, 2.0]] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state
+                .plate_solve_failures_remaining
+                .store(6, Ordering::Relaxed);
+            let ctx = make_ctx(&state);
+            let mut executor = MeridianFlipExecutor::new(
+                MeridianFlipConfig {
+                    max_retries: 2,
+                    retry_delays_secs: delays,
+                    pause_guiding: false,
+                    resume_guiding: false,
+                    settle_time: 0.0,
+                    ..Default::default()
+                },
+                Arc::new(MockDeviceOps::new(state.clone())),
+            );
+            let start = tokio::time::Instant::now();
+            executor.recover_target(&ctx).await.unwrap();
+            elapsed.push(start.elapsed());
+            assert_eq!(executor.attempts_made, 3);
+        }
+        assert_eq!(elapsed[0], elapsed[1]);
+    }
 }
