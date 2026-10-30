@@ -16,7 +16,7 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive"] }
 
 # ZIP extraction
-zip = "0.6"
+zip = "9.0"
 
 # Error handling
 anyhow.workspace = true
