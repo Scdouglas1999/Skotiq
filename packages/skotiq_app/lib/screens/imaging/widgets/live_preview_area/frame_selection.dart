@@ -4,44 +4,13 @@ extension _LivePreviewAreaFrameSelection on _LivePreviewAreaState {
   List<PsfFieldTileRow> _selectCurrentFramePsfTiles({
     required List<PsfFieldTileRow> sessionTiles,
     required int? capturedImageId,
-  }) {
-    if (sessionTiles.isEmpty) {
-      return const <PsfFieldTileRow>[];
-    }
-    if (capturedImageId != null) {
-      final matched = sessionTiles
-          .where((tile) => tile.capturedImageId == capturedImageId)
-          .toList(growable: false);
-      if (matched.isNotEmpty) {
-        return matched;
-      }
-    }
-    final latestImageId = sessionTiles
-        .where((tile) => tile.capturedImageId != null)
-        .map((tile) => tile.capturedImageId!)
-        .fold<int?>(null, (latest, id) {
-      if (latest == null) {
-        return id;
-      }
-      final latestTimestamp = sessionTiles
-          .where((tile) => tile.capturedImageId == latest)
-          .map((tile) => tile.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      final idTimestamp = sessionTiles
-          .where((tile) => tile.capturedImageId == id)
-          .map((tile) => tile.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      return idTimestamp.isAfter(latestTimestamp) ? id : latest;
-    });
-    if (latestImageId == null) {
-      return sessionTiles;
-    }
-    return sessionTiles
-        .where((tile) => tile.capturedImageId == latestImageId)
-        .toList(growable: false);
-  }
+  }) =>
+      selectFrameScienceRows(
+        sessionTiles,
+        capturedImageId: capturedImageId,
+        imageIdOf: (row) => row.capturedImageId,
+        timestampOf: (row) => row.timestamp,
+      );
 
   int? _resolveCurrentFrameImageId({
     required List<CapturedImage> sessionImages,
@@ -81,128 +50,35 @@ extension _LivePreviewAreaFrameSelection on _LivePreviewAreaState {
   List<AstrometryResidualVectorRow> _selectCurrentFrameResidualVectors({
     required List<AstrometryResidualVectorRow> sessionVectors,
     required int? capturedImageId,
-  }) {
-    if (sessionVectors.isEmpty) {
-      return const <AstrometryResidualVectorRow>[];
-    }
-    if (capturedImageId != null) {
-      final matched = sessionVectors
-          .where((vector) => vector.capturedImageId == capturedImageId)
-          .toList(growable: false);
-      if (matched.isNotEmpty) {
-        return matched;
-      }
-    }
-    final latestImageId = sessionVectors
-        .where((vector) => vector.capturedImageId != null)
-        .map((vector) => vector.capturedImageId!)
-        .fold<int?>(null, (latest, id) {
-      if (latest == null) {
-        return id;
-      }
-      final latestTimestamp = sessionVectors
-          .where((vector) => vector.capturedImageId == latest)
-          .map((vector) => vector.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      final idTimestamp = sessionVectors
-          .where((vector) => vector.capturedImageId == id)
-          .map((vector) => vector.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      return idTimestamp.isAfter(latestTimestamp) ? id : latest;
-    });
-    if (latestImageId == null) {
-      return sessionVectors;
-    }
-    return sessionVectors
-        .where((vector) => vector.capturedImageId == latestImageId)
-        .toList(growable: false);
-  }
+  }) =>
+      selectFrameScienceRows(
+        sessionVectors,
+        capturedImageId: capturedImageId,
+        imageIdOf: (row) => row.capturedImageId,
+        timestampOf: (row) => row.timestamp,
+      );
 
   List<ScienceTileMetricRow> _selectCurrentFrameTileMetrics({
     required List<ScienceTileMetricRow> sessionTiles,
     required int? capturedImageId,
-  }) {
-    if (sessionTiles.isEmpty) {
-      return const <ScienceTileMetricRow>[];
-    }
-    if (capturedImageId != null) {
-      final matched = sessionTiles
-          .where((tile) => tile.capturedImageId == capturedImageId)
-          .toList(growable: false);
-      if (matched.isNotEmpty) {
-        return matched;
-      }
-    }
-    final latestImageId = sessionTiles
-        .where((tile) => tile.capturedImageId != null)
-        .map((tile) => tile.capturedImageId!)
-        .fold<int?>(null, (latest, id) {
-      if (latest == null) {
-        return id;
-      }
-      final latestTimestamp = sessionTiles
-          .where((tile) => tile.capturedImageId == latest)
-          .map((tile) => tile.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      final idTimestamp = sessionTiles
-          .where((tile) => tile.capturedImageId == id)
-          .map((tile) => tile.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      return idTimestamp.isAfter(latestTimestamp) ? id : latest;
-    });
-    if (latestImageId == null) {
-      return sessionTiles;
-    }
-    return sessionTiles
-        .where((tile) => tile.capturedImageId == latestImageId)
-        .toList(growable: false);
-  }
+  }) =>
+      selectFrameScienceRows(
+        sessionTiles,
+        capturedImageId: capturedImageId,
+        imageIdOf: (row) => row.capturedImageId,
+        timestampOf: (row) => row.timestamp,
+      );
 
   List<MovingObjectCandidateRow> _selectCurrentFrameMovingCandidates({
     required List<MovingObjectCandidateRow> sessionCandidates,
     required int? capturedImageId,
-  }) {
-    if (sessionCandidates.isEmpty) {
-      return const <MovingObjectCandidateRow>[];
-    }
-    if (capturedImageId != null) {
-      final matched = sessionCandidates
-          .where((candidate) => candidate.capturedImageId == capturedImageId)
-          .toList(growable: false);
-      if (matched.isNotEmpty) {
-        return matched;
-      }
-    }
-    final latestImageId = sessionCandidates
-        .where((candidate) => candidate.capturedImageId != null)
-        .map((candidate) => candidate.capturedImageId!)
-        .fold<int?>(null, (latest, id) {
-      if (latest == null) {
-        return id;
-      }
-      final latestTimestamp = sessionCandidates
-          .where((candidate) => candidate.capturedImageId == latest)
-          .map((candidate) => candidate.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      final idTimestamp = sessionCandidates
-          .where((candidate) => candidate.capturedImageId == id)
-          .map((candidate) => candidate.timestamp)
-          .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
-              (a, b) => a.isAfter(b) ? a : b);
-      return idTimestamp.isAfter(latestTimestamp) ? id : latest;
-    });
-    if (latestImageId == null) {
-      return sessionCandidates;
-    }
-    return sessionCandidates
-        .where((candidate) => candidate.capturedImageId == latestImageId)
-        .toList(growable: false);
-  }
+  }) =>
+      selectFrameScienceRows(
+        sessionCandidates,
+        capturedImageId: capturedImageId,
+        imageIdOf: (row) => row.capturedImageId,
+        timestampOf: (row) => row.timestamp,
+      );
 
   /// Median eccentricity across the current frame's eccentricity-layer tile
   /// metrics, or `null` when no such tiles exist for the frame.

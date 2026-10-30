@@ -15,6 +15,7 @@ import 'depthlock/depthlock_region_layer.dart';
 import 'depthlock/depthlock_selection.dart';
 
 import 'frame_science_chip.dart';
+import 'frame_science_selection.dart';
 import 'fullscreen_image_viewer.dart';
 import 'guiding_active_chip.dart';
 import 'image_display.dart';
