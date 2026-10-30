@@ -59,12 +59,12 @@ class AnnotationMiniChips extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   // absolute: chip overlay scrim over the live image canvas
-                  color: Colors.black.withValues(alpha: 0.6),
+                  color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
                   borderRadius:
                       BorderRadius.circular(SkotiqTokens.radiusInline8),
                   border: Border.all(
                     // absolute: chip border over the live image canvas
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: ImageOverlayColors.foreground.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Text(
@@ -72,7 +72,7 @@ class AnnotationMiniChips extends ConsumerWidget {
                   style: SkotiqTypography.caption.copyWith(
                       fontWeight: FontWeight
                           .w500, // absolute: chip label over the live image canvas
-                      color: Colors.white),
+                      color: ImageOverlayColors.foreground),
                 ),
               ),
             );

@@ -123,7 +123,7 @@ class _CoordHud extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         // absolute: HUD scrim over the dark sky planner canvas
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
       ),
       child: Text(
@@ -132,7 +132,7 @@ class _CoordHud extends StatelessWidget {
         style: TextStyle(
           color: colors.textPrimary,
           fontSize: SkotiqTypography.fontSize11,
-          fontFamily: 'monospace',
+          fontFamily: SkotiqTypography.fontFamilyMono,
         ),
       ),
     );
@@ -149,7 +149,7 @@ class _Legend extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         // absolute: HUD scrim over the dark sky planner canvas
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
       ),
       child: Row(
@@ -160,7 +160,7 @@ class _Legend extends StatelessWidget {
           // absolute: HUD label over the dark sky planner canvas
           const Text('Drag centre',
               style: TextStyle(
-                  color: Colors.white70,
+                  color: ImageOverlayColors.secondary,
                   fontSize: SkotiqTypography.fontSize10)),
           const SizedBox(width: 12),
           Icon(LucideIcons.mousePointerClick, size: 11, color: colors.accent),
@@ -168,7 +168,7 @@ class _Legend extends StatelessWidget {
           // absolute: HUD label over the dark sky planner canvas
           const Text('Tap panel to toggle',
               style: TextStyle(
-                  color: Colors.white70,
+                  color: ImageOverlayColors.secondary,
                   fontSize: SkotiqTypography.fontSize10)),
         ],
       ),
@@ -194,7 +194,7 @@ class _ZoomControls extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         // absolute: HUD scrim over the dark sky planner canvas
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
       ),
       child: Column(
@@ -205,20 +205,21 @@ class _ZoomControls extends StatelessWidget {
             onPressed: onZoomIn,
             tooltip: 'Zoom in',
             // absolute: HUD control over the dark sky planner canvas
-            color: Colors.white70,
+            color: ImageOverlayColors.secondary,
             padding: const EdgeInsets.all(2),
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
           ),
           Text('${(zoom * 100).round()}%',
               // absolute: HUD label over the dark sky planner canvas
               style: const TextStyle(
-                  color: Colors.white54, fontSize: SkotiqTypography.fontSize9)),
+                  color: ImageOverlayColors.faint,
+                  fontSize: SkotiqTypography.fontSize9)),
           IconButton(
             icon: const Icon(SkotiqIcons.remove, size: 14),
             onPressed: onZoomOut,
             tooltip: 'Zoom out',
             // absolute: HUD control over the dark sky planner canvas
-            color: Colors.white70,
+            color: ImageOverlayColors.secondary,
             padding: const EdgeInsets.all(2),
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
           ),
@@ -227,7 +228,7 @@ class _ZoomControls extends StatelessWidget {
             onPressed: onReset,
             tooltip: 'Reset zoom',
             // absolute: HUD control over the dark sky planner canvas
-            color: Colors.white70,
+            color: ImageOverlayColors.secondary,
             padding: const EdgeInsets.all(2),
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
           ),
@@ -384,12 +385,12 @@ class _PanelLayer extends StatelessWidget {
               color: p.enabled
                   ? colors.primary.withValues(alpha: 0.18)
                   // absolute: disabled panel over the dark sky planner canvas
-                  : Colors.grey.withValues(alpha: 0.05),
+                  : colors.textMuted.withValues(alpha: 0.05),
               border: Border.all(
                 color: p.enabled
                     ? colors.primary
                     // absolute: disabled panel over the dark sky planner canvas
-                    : Colors.grey.withValues(alpha: 0.5),
+                    : colors.textMuted.withValues(alpha: 0.5),
                 width: 1.5,
               ),
             ),
@@ -428,16 +429,19 @@ class _PanelLayer extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     // absolute: label scrim over the dark sky planner canvas
-                    color: Colors.black.withValues(alpha: 0.55),
+                    color: ImageOverlayColors.shadow.withValues(alpha: 0.55),
                     borderRadius:
                         BorderRadius.circular(SkotiqTokens.radiusInline4),
                   ),
                   child: Text(
                     '${p.index + 1}',
                     style: TextStyle(
-                      fontSize: math.max(10, g.size.width * 0.12),
+                      fontSize: math.max(
+                          SkotiqTypography.fontSize10, g.size.width * 0.12),
                       // absolute: disabled panel index over the dark sky canvas
-                      color: p.enabled ? colors.textPrimary : Colors.white24,
+                      color: p.enabled
+                          ? colors.textPrimary
+                          : ImageOverlayColors.divider,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

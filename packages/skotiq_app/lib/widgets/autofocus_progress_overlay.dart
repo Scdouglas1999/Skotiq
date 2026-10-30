@@ -153,7 +153,7 @@ class _AutofocusProgressOverlayState
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -217,7 +217,7 @@ class _AutofocusProgressOverlayState
                               ? 'AF: HFR ${overlayState.result!.bestHfr.toStringAsFixed(2)}'
                               : 'AF: ${overlayState.status}'),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: SkotiqTypography.fontSize11,
                         color: colors.textPrimary,
                         fontWeight: FontWeight.w500,
                       ),
@@ -266,7 +266,7 @@ class _AutofocusProgressOverlayState
                                 Text(
                                   'Waiting for data...',
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: SkotiqTypography.fontSize10,
                                     color: colors.textMuted,
                                   ),
                                 ),
@@ -275,7 +275,7 @@ class _AutofocusProgressOverlayState
                           : Text(
                               'No data',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: SkotiqTypography.fontSize10,
                                 color: colors.textMuted,
                               ),
                             ),
@@ -326,7 +326,7 @@ class _AutofocusProgressOverlayState
           child: Text(
             overlayState.status,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: SkotiqTypography.fontSize10,
               color: overlayState.hasError ? colors.error : colors.textMuted,
             ),
             overflow: TextOverflow.ellipsis,
@@ -372,7 +372,7 @@ class _AutofocusProgressOverlayState
           Text(
             'Autofocus',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               fontWeight: FontWeight.w600,
               color: colors.textPrimary,
             ),
@@ -531,14 +531,14 @@ class _StatBadge extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: SkotiqTypography.fontSize9,
                 color: colors.textMuted,
               ),
             ),
             Text(
               value,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: SkotiqTypography.fontSize11,
                 fontWeight: FontWeight.w600,
                 color: highlight ? colors.primary : colors.textPrimary,
               ),

@@ -1,3 +1,4 @@
+import '../theme/skotiq_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -223,7 +224,9 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
                           color: theme.colorScheme.surface.withValues(
                             alpha: 0.85,
                           ),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            SkotiqTokens.radiusXs,
+                          ),
                         ),
                         child: Text(
                           widget.confirmText!,

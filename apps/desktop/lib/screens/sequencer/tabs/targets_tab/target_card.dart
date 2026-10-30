@@ -66,7 +66,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: widget.colors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
           border: Border.all(
             color: _isHovered
                 ? typeColor.withValues(alpha: 0.5)
@@ -79,7 +79,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
             // Main content
             InkWell(
               onTap: () => setState(() => _isExpanded = !_isExpanded),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -90,7 +90,9 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                       height: 48,
                       decoration: SkotiqDecorations.iconChip(
                         typeColor,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusLg,
+                        ),
                         bordered: false,
                       ),
                       child: Icon(_getTypeIcon(), size: 24, color: typeColor),
@@ -108,7 +110,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                                 child: Text(
                                   widget.target.catalogId ?? widget.target.name,
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: SkotiqTypography.fontSize16,
                                     fontWeight: FontWeight.w700,
                                     color: widget.colors.textPrimary,
                                   ),
@@ -122,7 +124,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                                   child: Text(
                                     widget.target.name,
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: SkotiqTypography.fontSize14,
                                       color: widget.colors.textSecondary,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -138,12 +140,14 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: typeColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(
+                                    SkotiqTokens.radiusXs,
+                                  ),
                                 ),
                                 child: Text(
                                   widget.target.objectType ?? 'Object',
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: SkotiqTypography.fontSize10,
                                     fontWeight: FontWeight.w600,
                                     color: typeColor,
                                   ),
@@ -214,7 +218,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                             Text(
                               '${widget.target.capturedSubs ?? 0} subs',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: SkotiqTypography.fontSize11,
                                 color: widget.colors.textSecondary,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures(),
@@ -237,7 +241,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                                 widget.target.totalIntegrationSecs ?? 0,
                               ),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: SkotiqTypography.fontSize11,
                                 color: widget.colors.textSecondary,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures(),
@@ -336,7 +340,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                       Text(
                         'Notes',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: SkotiqTypography.fontSize11,
                           fontWeight: FontWeight.w600,
                           color: widget.colors.textMuted,
                         ),
@@ -345,7 +349,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                       Text(
                         widget.target.notes!,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: SkotiqTypography.fontSize12,
                           color: widget.colors.textSecondary,
                         ),
                       ),

@@ -1361,6 +1361,13 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
+  skotiq_design:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/skotiq_design"
+      relative: true
+    source: path
+    version: "1.0.0"
   skotiq_planetarium:
     dependency: "direct main"
     description:

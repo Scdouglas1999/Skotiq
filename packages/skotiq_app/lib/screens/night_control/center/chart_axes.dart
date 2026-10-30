@@ -16,7 +16,7 @@ import 'center_format.dart';
 /// The axis label style: 9 px mono, line height 1.
 TextStyle nightAxisStyle(BuildContext context) =>
     SkotiqTypography.monoXs.copyWith(
-      fontSize: 9,
+      fontSize: SkotiqTypography.fontSize9,
       height: 1,
       color: context.skotiqColors.textMuted,
     );

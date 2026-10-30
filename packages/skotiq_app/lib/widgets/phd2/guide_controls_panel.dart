@@ -474,15 +474,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
             ),
             Expanded(
               child: SliderTheme(
-                data: SliderThemeData(
-                  trackHeight: 4,
-                  activeTrackColor: colors.primary,
-                  inactiveTrackColor: colors.well,
-                  thumbColor: colors.primary,
-                  overlayColor: colors.primary.withValues(alpha: 0.2),
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 6),
-                ),
+                data: SkotiqSliderStyle.theme(colors),
                 child: Slider(
                   value: widget.ditherAmount,
                   min: 1,
@@ -667,14 +659,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
         ),
         Expanded(
           child: SliderTheme(
-            data: SliderThemeData(
-              trackHeight: 3,
-              activeTrackColor: colors.primary.withValues(alpha: 0.7),
-              inactiveTrackColor: colors.surfaceHover,
-              thumbColor: colors.primary,
-              overlayColor: colors.primary.withValues(alpha: 0.1),
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-            ),
+            data: SkotiqSliderStyle.theme(colors),
             child: Slider(
               value: value,
               min: min,

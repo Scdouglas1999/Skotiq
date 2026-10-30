@@ -162,14 +162,14 @@ class _PulseCirclePainter extends CustomPainter {
     final ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
-      ..color = Colors.white.withValues(alpha: opacity);
+      ..color = ImageOverlayColors.foreground.withValues(alpha: opacity);
     canvas.drawCircle(center, radius, ringPaint);
 
     // Glow
     final glowPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6.0
-      ..color = Colors.white.withValues(alpha: opacity * 0.3)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: opacity * 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
     canvas.drawCircle(center, radius, glowPaint);
   }

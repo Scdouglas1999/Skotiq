@@ -24,7 +24,9 @@ class _FilterOffsetsStrip extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             Text('Loading filter offsets…',
-                style: TextStyle(fontSize: 11, color: colors.textMuted)),
+                style: TextStyle(
+                    fontSize: SkotiqTypography.fontSize11,
+                    color: colors.textMuted)),
           ],
         ),
       );
@@ -32,14 +34,16 @@ class _FilterOffsetsStrip extends ConsumerWidget {
     if (offsets.error != null) {
       return Text(
         offsets.error!,
-        style: TextStyle(fontSize: 11, color: colors.error),
+        style: TextStyle(
+            fontSize: SkotiqTypography.fontSize11, color: colors.error),
       );
     }
     if (offsets.offsets.isEmpty) {
       return Text(
         'No filter offsets yet — collect autofocus data on multiple filters '
         'and pick a reference to populate.',
-        style: TextStyle(fontSize: 11, color: colors.textMuted),
+        style: TextStyle(
+            fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
       );
     }
     final entries = offsets.offsets.entries.toList()
@@ -165,7 +169,7 @@ class _FilterOffsetEditorSheetState extends State<_FilterOffsetEditorSheet> {
           Text(
             'Edit "${widget.filterName}" offset',
             style: TextStyle(
-              fontSize: 15,
+              fontSize: SkotiqTypography.fontSize15,
               fontWeight: FontWeight.w600,
               color: colors.textPrimary,
             ),
@@ -264,7 +268,7 @@ class _FilterChip extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     fontWeight: FontWeight.w600,
                     color: textColour,
                   ),
@@ -273,7 +277,7 @@ class _FilterChip extends StatelessWidget {
                 Text(
                   valueText,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: SkotiqTypography.fontSize11,
                     color: isReference
                         ? colors.background.withValues(alpha: 0.8)
                         : colors.textSecondary,

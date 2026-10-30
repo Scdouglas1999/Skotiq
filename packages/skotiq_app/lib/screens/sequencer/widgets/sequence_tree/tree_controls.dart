@@ -50,8 +50,8 @@ class _NodeValidationWrapper extends StatelessWidget {
 
     final badgeForeground =
         ThemeData.estimateBrightnessForColor(badgeColor) == Brightness.dark
-            ? const Color(0xFFFFFFFF)
-            : const Color(0xFF000000);
+            ? ImageOverlayColors.foreground
+            : ImageOverlayColors.shadow;
 
     return Stack(
       clipBehavior: Clip.none,

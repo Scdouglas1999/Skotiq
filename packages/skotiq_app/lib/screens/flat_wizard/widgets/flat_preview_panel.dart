@@ -208,7 +208,7 @@ class _ImagePreview extends StatelessWidget {
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize9,
                   color: colors.textSecondary,
-                  fontFamily: 'monospace',
+                  fontFamily: SkotiqTypography.fontFamilyMono,
                 ),
               ),
             ],
@@ -229,7 +229,7 @@ class _ImagePreview extends StatelessWidget {
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize8,
                   color: colors.textMuted,
-                  fontFamily: 'monospace',
+                  fontFamily: SkotiqTypography.fontFamilyMono,
                 ),
               ),
               Text(
@@ -237,7 +237,7 @@ class _ImagePreview extends StatelessWidget {
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize8,
                   color: colors.textMuted,
-                  fontFamily: 'monospace',
+                  fontFamily: SkotiqTypography.fontFamilyMono,
                 ),
               ),
             ],

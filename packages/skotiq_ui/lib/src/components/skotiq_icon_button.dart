@@ -1,3 +1,4 @@
+import '../theme/skotiq_control_styles.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -105,29 +106,17 @@ class _SkotiqIconButtonState extends State<SkotiqIconButton> {
     final colors = context.skotiqColors;
     final disabled = widget.onPressed == null;
 
-    final Color foreground;
-    if (widget.selected) {
-      foreground = colors.primary;
-    } else if (widget.color != null) {
-      foreground = widget.color!;
-    } else if (_hovered && !disabled) {
-      foreground = colors.textPrimary;
-    } else {
-      foreground = colors.textSecondary;
-    }
-
-    final Color fill;
-    if (widget.selected) {
-      fill = colors.primary.withValues(
-        alpha: _hovered && !disabled
-            ? SkotiqTokens.opacityAccentTintHover
-            : SkotiqTokens.opacityAccentTint,
-      );
-    } else if (_hovered && !disabled) {
-      fill = colors.surfaceHover;
-    } else {
-      fill = Colors.transparent;
-    }
+    final states = <WidgetState>{
+      if (disabled) WidgetState.disabled,
+      if (_hovered) WidgetState.hovered,
+      if (widget.selected) WidgetState.selected,
+    };
+    final foreground = SkotiqControlStyles.iconForeground(
+      colors,
+      states,
+      override: widget.color,
+    );
+    final fill = SkotiqControlStyles.iconFill(colors, states);
 
     // The BOX is a SizedBox and the FILL is the animated part. Animating the
     // width and height instead would make a size change tween — and a size is
@@ -234,12 +223,7 @@ class _SkotiqIconButtonState extends State<SkotiqIconButton> {
                 // bridge reports as an enabled button.
                 child: GestureDetector(
                   onTap: disabled ? null : widget.onPressed,
-                  child: ExcludeSemantics(
-                    child: Opacity(
-                      opacity: disabled ? SkotiqTokens.opacityDisabled : 1,
-                      child: button,
-                    ),
-                  ),
+                  child: ExcludeSemantics(child: button),
                 ),
               ),
             ),

@@ -1,3 +1,5 @@
+import 'skotiq_slider_style.dart';
+import 'skotiq_control_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../components/skotiq_switch_style.dart';
@@ -37,14 +39,13 @@ abstract final class AppearanceAccents {
   AppearanceAccents._();
 
   /// Ink 5.83–9.23:1, as link text 5.83–8.68:1 on the dark canvas.
-  /// Violet leads — it is the brand accent and the palette's own primary;
-  /// the old blue stays second so the previous look remains one tap away.
+  /// Red leads; existing accent choices remain available.
   static const List<Color> dark = <Color>[
+    Color(0xFFE86A6A),
     Color(0xFFA48CF2),
     Color(0xFF6EB3EC),
     Color(0xFF43B67A),
     Color(0xFFE0A53E),
-    Color(0xFFE86A6A),
     Color(0xFFE77FB3),
     Color(0xFF4FC3C8),
   ];
@@ -52,11 +53,11 @@ abstract final class AppearanceAccents {
   /// The same seven hues taken down to where white ink and a white ground both
   /// work: ink 5.46–5.75:1, as link text 5.00–5.27:1.
   static const List<Color> light = <Color>[
+    Color(0xFFBC3838),
     Color(0xFF6A4FD1),
     Color(0xFF256F9E),
     Color(0xFF277549),
     Color(0xFF8F5D14),
-    Color(0xFFBC3838),
     Color(0xFFB03A7A),
     Color(0xFF1B7278),
   ];
@@ -216,41 +217,82 @@ class SkotiqTheme {
     return theme;
   }
 
+  static final _imageSurfaceThemes = Expando<ThemeData>();
+
+  static ThemeData imageSurface(ThemeData parent) {
+    final colors = parent.extension<SkotiqColors>() ?? SkotiqColors.dark;
+    if (parent.brightness == Brightness.dark) return parent;
+    final cached = _imageSurfaceThemes[parent];
+    if (cached != null) return cached;
+    final imageColors = colors.onImage;
+    final imageTheme = _buildTheme(imageColors, Brightness.dark);
+    final result = imageTheme.copyWith(
+      extensions: [
+        ...parent.extensions.values.where((e) => e is! SkotiqColors),
+        imageColors,
+      ],
+    );
+    _imageSurfaceThemes[parent] = result;
+    return result;
+  }
+
   static ThemeData _buildTheme(SkotiqColors colors, Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
     final onPrimary = colors.onPrimary;
     final textTheme = SkotiqTypography.textTheme(colors);
     final shape = RoundedRectangleBorder(
       borderRadius: SkotiqTokens.borderRadiusMd,
     );
 
-    final colorScheme = isDark
-        ? ColorScheme.dark(
-            primary: colors.primary,
-            onPrimary: onPrimary,
-            secondary: colors.accent,
-            onSecondary: onPrimary,
-            surface: colors.surface,
-            onSurface: colors.textPrimary,
-            error: colors.error,
-            onError: onPrimary,
-            outline: colors.border,
-            outlineVariant: colors.borderHighlight,
-            surfaceContainerHighest: colors.surfaceElevated,
-          )
-        : ColorScheme.light(
-            primary: colors.primary,
-            onPrimary: onPrimary,
-            secondary: colors.accent,
-            onSecondary: onPrimary,
-            surface: colors.surface,
-            onSurface: colors.textPrimary,
-            error: colors.error,
-            onError: onPrimary,
-            outline: colors.border,
-            outlineVariant: colors.borderHighlight,
-            surfaceContainerHighest: colors.surfaceElevated,
-          );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: colors.primary,
+          brightness: brightness,
+        ).copyWith(
+          primary: colors.primary,
+          onPrimary: onPrimary,
+          primaryContainer: colors.primary.withValues(alpha: 0.16),
+          onPrimaryContainer: colors.link,
+          secondary: colors.accent,
+          onSecondary: colors.inkOn(colors.accent),
+          secondaryContainer: colors.surfaceHover,
+          onSecondaryContainer: colors.textPrimary,
+          tertiary: colors.primary,
+          onTertiary: onPrimary,
+          tertiaryContainer: colors.surfaceHover,
+          onTertiaryContainer: colors.textPrimary,
+          surface: colors.surface,
+          onSurface: colors.textPrimary,
+          onSurfaceVariant: colors.textSecondary,
+          error: colors.error,
+          onError: colors.inkOn(colors.error),
+          outline: colors.border,
+          outlineVariant: colors.borderHighlight,
+          surfaceContainerLowest: colors.well,
+          surfaceContainerLow: colors.surface,
+          surfaceContainer: colors.surfaceElevated,
+          surfaceContainerHigh: colors.surfaceOverlay,
+          surfaceContainerHighest: colors.surfaceElevated,
+          surfaceBright: colors.surfaceOverlay,
+          surfaceDim: colors.well,
+          inverseSurface: colors.textPrimary,
+          onInverseSurface: colors.background,
+          inversePrimary: colors.primary,
+          errorContainer: colors.error.withValues(alpha: 0.16),
+          onErrorContainer: colors.error,
+          primaryFixed: colors.primary,
+          primaryFixedDim: colors.accent,
+          onPrimaryFixed: onPrimary,
+          onPrimaryFixedVariant: onPrimary,
+          secondaryFixed: colors.accent,
+          secondaryFixedDim: colors.primary,
+          onSecondaryFixed: onPrimary,
+          onSecondaryFixedVariant: onPrimary,
+          tertiaryFixed: colors.primary,
+          tertiaryFixedDim: colors.accent,
+          onTertiaryFixed: onPrimary,
+          onTertiaryFixedVariant: onPrimary,
+          surfaceTint: Colors.transparent,
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -353,16 +395,67 @@ class SkotiqTheme {
           borderRadius: SkotiqTokens.borderRadiusXs,
         ),
       ),
-      sliderTheme: SliderThemeData(
-        activeTrackColor: colors.primary,
-        inactiveTrackColor: colors.border,
-        thumbColor: colors.primary,
-        overlayColor: colors.primary.withValues(alpha: 0.12),
-        trackHeight: 4,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-      ),
+      sliderTheme: SkotiqSliderStyle.theme(colors),
       // Fallback for Material `Switch` only — prefer [SkotiqSwitch].
       switchTheme: SkotiqSwitchStyle.switchThemeData(colors, onPrimary),
+      iconButtonTheme: IconButtonThemeData(
+        style:
+            IconButton.styleFrom(
+              foregroundColor: colors.textSecondary,
+              disabledForegroundColor: colors.textMuted,
+              hoverColor: Colors.transparent,
+              focusColor: colors.primary.withValues(alpha: 0.16),
+              highlightColor: colors.primary.withValues(alpha: 0.12),
+              shape: shape,
+              iconSize: SkotiqTokens.iconGlyphMd,
+              minimumSize: const Size.square(SkotiqTokens.iconButtonSize),
+            ).copyWith(
+              foregroundColor: WidgetStateProperty.resolveWith(
+                (states) => SkotiqControlStyles.iconForeground(colors, states),
+              ),
+              backgroundColor: WidgetStateProperty.resolveWith(
+                (states) => SkotiqControlStyles.iconFill(colors, states),
+              ),
+            ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => SkotiqControlStyles.segmentFill(colors, states),
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => SkotiqControlStyles.segmentForeground(colors, states),
+          ),
+          side: const WidgetStatePropertyAll(BorderSide.none),
+          shape: WidgetStatePropertyAll(shape),
+          textStyle: const WidgetStatePropertyAll(SkotiqTypography.buttonSm),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: colors.surface,
+        selectedColor: colors.primary.withValues(alpha: 0.16),
+        disabledColor: colors.surface,
+        checkmarkColor: colors.primary,
+        deleteIconColor: colors.textSecondary,
+        labelStyle: SkotiqTypography.label.copyWith(color: colors.textPrimary),
+        shape: RoundedRectangleBorder(
+          borderRadius: SkotiqTokens.borderRadiusXs,
+        ),
+        side: BorderSide(color: colors.border),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) return colors.textMuted;
+          return states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.textSecondary;
+        }),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colors.primary,
+        linearTrackColor: colors.border,
+        circularTrackColor: colors.border,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colors.primary,
@@ -451,4 +544,14 @@ class SkotiqTheme {
       extensions: [colors],
     );
   }
+}
+
+/// Shared theme for controls drawn over dark astronomical images.
+class SkotiqImageSurface extends StatelessWidget {
+  const SkotiqImageSurface({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      Theme(data: SkotiqTheme.imageSurface(Theme.of(context)), child: child);
 }

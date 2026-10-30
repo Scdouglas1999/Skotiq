@@ -738,7 +738,8 @@ class DepthLockRegionPainter extends CustomPainter {
       painter.height + 4,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(plate, const Radius.circular(3)),
+      RRect.fromRectAndRadius(
+          plate, const Radius.circular(SkotiqTokens.radiusXs)),
       Paint()..color = SkotiqColors.dark.background.withValues(alpha: 0.7),
     );
     painter.paint(canvas, at);

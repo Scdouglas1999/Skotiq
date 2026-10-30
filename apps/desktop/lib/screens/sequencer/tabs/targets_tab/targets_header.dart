@@ -30,7 +30,7 @@ class _TargetsHeaderState extends ConsumerState<_TargetsHeader> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: widget.colors.surfaceAlt,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusXl),
               border: Border.all(color: widget.colors.border),
             ),
             child: Row(
@@ -49,13 +49,13 @@ class _TargetsHeaderState extends ConsumerState<_TargetsHeader> {
                           value;
                     },
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: SkotiqTypography.fontSize13,
                       color: widget.colors.textPrimary,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search targets...',
                       hintStyle: TextStyle(
-                        fontSize: 13,
+                        fontSize: SkotiqTypography.fontSize13,
                         color: widget.colors.textMuted,
                       ),
                       border: InputBorder.none,
@@ -88,7 +88,7 @@ class _TargetsHeaderState extends ConsumerState<_TargetsHeader> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: widget.colors.surfaceAlt,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusXl),
             border: Border.all(color: widget.colors.border),
           ),
           child: DropdownButtonHideUnderline(
@@ -97,7 +97,7 @@ class _TargetsHeaderState extends ConsumerState<_TargetsHeader> {
               hint: Text(
                 'All Types',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: SkotiqTypography.fontSize13,
                   color: widget.colors.textSecondary,
                 ),
               ),
@@ -107,7 +107,10 @@ class _TargetsHeaderState extends ConsumerState<_TargetsHeader> {
                 color: widget.colors.textMuted,
               ),
               dropdownColor: widget.colors.surface,
-              style: TextStyle(fontSize: 13, color: widget.colors.textPrimary),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: widget.colors.textPrimary,
+              ),
               items: const [
                 DropdownMenuItem(value: null, child: Text('All Types')),
                 DropdownMenuItem(value: 'Galaxy', child: Text('Galaxies')),

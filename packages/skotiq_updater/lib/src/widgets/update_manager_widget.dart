@@ -453,11 +453,11 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
                 constraints: const BoxConstraints(maxWidth: 350),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade900,
-                  borderRadius: BorderRadius.circular(8),
+                  color: context.skotiqColors.error,
+                  borderRadius: SkotiqTokens.borderRadiusLg,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -466,17 +466,25 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.white),
+                    Icon(
+                      Icons.error_outline,
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
                     const SizedBox(width: 12),
                     Flexible(
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Icon(
+                        Icons.close,
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
                       onPressed: _hideBanner,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),

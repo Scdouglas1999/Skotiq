@@ -18,12 +18,15 @@ class _InfoChip extends StatelessWidget {
       children: [
         Text(
           '$label: ',
-          style: TextStyle(fontSize: 11, color: colors.textMuted),
+          style: TextStyle(
+            fontSize: SkotiqTypography.fontSize11,
+            color: colors.textMuted,
+          ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w500,
             color: colors.textPrimary,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -76,7 +79,7 @@ class _IconButtonState extends State<_IconButton> {
               color: _isHovered
                   ? color.withValues(alpha: 0.1)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
             ),
             child: Icon(
               widget.icon,

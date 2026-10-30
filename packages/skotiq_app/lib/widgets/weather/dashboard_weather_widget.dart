@@ -48,7 +48,7 @@ class DashboardWeatherWidget extends ConsumerWidget {
                 border: Border.all(color: colors.border),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: ImageOverlayColors.shadow.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -554,7 +554,7 @@ class _RadarLoadingCard extends StatelessWidget {
             Text(
               'Loading radar...',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: SkotiqTypography.fontSize10,
                 color: colors.textMuted,
               ),
             ),
@@ -596,7 +596,7 @@ class _AlertBanner extends StatelessWidget {
                 Text(
                   _getAlertTitle(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: SkotiqTypography.fontSize11,
                     fontWeight: FontWeight.w600,
                     color: iconColor,
                   ),
@@ -605,7 +605,7 @@ class _AlertBanner extends StatelessWidget {
                   Text(
                     _formatEta(alert.eta!),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: SkotiqTypography.fontSize10,
                       color: colors.textSecondary,
                     ),
                   ),
@@ -712,7 +712,7 @@ class _WeatherHeader extends StatelessWidget {
           child: Text(
             'Weather',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: SkotiqTypography.fontSize16,
               fontWeight: FontWeight.w600,
               color: colors.textPrimary,
             ),
@@ -765,7 +765,9 @@ class _StatusBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-                fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+                fontSize: SkotiqTypography.fontSize10,
+                fontWeight: FontWeight.w600,
+                color: textColor),
           ),
         ],
       ),
@@ -840,14 +842,16 @@ class _CompactStatus extends StatelessWidget {
               Text(
                 text,
                 style: TextStyle(
-                    fontSize: 13,
+                    fontSize: SkotiqTypography.fontSize13,
                     fontWeight: FontWeight.w500,
                     color: colors.textPrimary),
               ),
               if (subtext != null)
                 Text(
                   subtext!,
-                  style: TextStyle(fontSize: 11, color: colors.textMuted),
+                  style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize11,
+                      color: colors.textMuted),
                 ),
             ],
           ),
@@ -879,14 +883,16 @@ class _WeatherStatusDisplay extends StatelessWidget {
               Text(
                 statusText,
                 style: TextStyle(
-                    fontSize: 13,
+                    fontSize: SkotiqTypography.fontSize13,
                     fontWeight: FontWeight.w500,
                     color: colors.textPrimary),
               ),
               if (subtext != null)
                 Text(
                   subtext,
-                  style: TextStyle(fontSize: 11, color: colors.textMuted),
+                  style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize11,
+                      color: colors.textMuted),
                 ),
             ],
           ),

@@ -294,7 +294,7 @@ class _RunRow extends StatelessWidget {
                       run.sequenceName ?? 'Untitled sequence',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                        fontSize: SkotiqTypography.fontSize15,
                         color: colors.textPrimary,
                       ),
                       maxLines: 1,
@@ -304,7 +304,7 @@ class _RunRow extends StatelessWidget {
                     Text(
                       _subtitle(targetName, run.startedAt, duration),
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: SkotiqTypography.fontSize12,
                         color: colors.textSecondary,
                       ),
                       maxLines: 1,
@@ -407,7 +407,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: colors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
         border: Border.all(color: colors.border),
       ),
       child: Row(
@@ -418,7 +418,7 @@ class _Chip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               color: color,
               fontWeight: FontWeight.w500,
             ),
@@ -487,7 +487,7 @@ class _ErrorRetry extends StatelessWidget {
             Text(
               'Failed to load run history',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: SkotiqTypography.fontSize16,
                 fontWeight: FontWeight.w600,
                 color: colors.textPrimary,
               ),
@@ -496,7 +496,10 @@ class _ErrorRetry extends StatelessWidget {
             Text(
               error.toString(),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize12,
+                color: colors.textSecondary,
+              ),
             ),
             const SizedBox(height: 16),
             SkotiqButton(label: 'Retry', onPressed: onRetry),

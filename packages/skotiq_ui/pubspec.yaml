@@ -8,6 +8,8 @@ environment:
   flutter: ">=3.0.0"
 
 dependencies:
+  skotiq_design:
+    path: ../skotiq_design
   flutter:
     sdk: flutter
   lucide_icons: ^0.257.0

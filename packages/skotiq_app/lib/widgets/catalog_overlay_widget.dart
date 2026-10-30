@@ -27,10 +27,10 @@ import '../utils/preview_transform.dart';
 part 'catalog_overlay_widget/details_panel.dart';
 
 const _markerStrokeWidth = 1.5;
-const _markerColor = Color(0xFFFFE082); // soft amber
-const _markerStarColor = Color(0xFFB3E5FC); // light blue for stars
-const _labelColor = Color(0xFFFFFFFF);
-const _labelShadow = Color(0xFF000000);
+const _markerColor = ImageOverlayColors.catalogMarker; // soft amber
+const _markerStarColor = ImageOverlayColors.catalogStar; // light blue for stars
+const _labelColor = ImageOverlayColors.foreground;
+const _labelShadow = ImageOverlayColors.shadow;
 
 /// Widget that paints the catalog overlay on top of the captured image.
 ///
@@ -382,7 +382,7 @@ class CatalogOverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const labelStyle = TextStyle(
       color: _labelColor,
-      fontSize: 11,
+      fontSize: SkotiqTypography.fontSize11,
       fontWeight: FontWeight.w500,
       shadows: [
         Shadow(blurRadius: 3, color: _labelShadow, offset: Offset(1, 1)),
@@ -580,7 +580,7 @@ class _CatalogObjectTooltip extends StatelessWidget {
             object.displayName,
             style: const TextStyle(
               color: _labelColor,
-              fontSize: 13,
+              fontSize: SkotiqTypography.fontSize13,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -588,8 +588,8 @@ class _CatalogObjectTooltip extends StatelessWidget {
             Text(
               object.id,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
-                fontSize: 11,
+                color: ImageOverlayColors.foreground.withValues(alpha: 0.65),
+                fontSize: SkotiqTypography.fontSize11,
               ),
             ),
           if (object.magnitude != null)
@@ -611,15 +611,15 @@ class _CatalogObjectTooltip extends StatelessWidget {
           Text(
             '$k: ',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.65),
-              fontSize: 11,
+              color: ImageOverlayColors.foreground.withValues(alpha: 0.65),
+              fontSize: SkotiqTypography.fontSize11,
             ),
           ),
           Text(
             v,
             style: const TextStyle(
               color: _labelColor,
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -651,8 +651,8 @@ class _CatalogOverlayHud extends StatelessWidget {
           Text(
             'Catalog overlay',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: 10,
+              color: ImageOverlayColors.foreground.withValues(alpha: 0.75),
+              fontSize: SkotiqTypography.fontSize10,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.6,
             ),
@@ -664,7 +664,7 @@ class _CatalogOverlayHud extends StatelessWidget {
             ' ≤ mag ${result.appliedMagnitudeLimit.toStringAsFixed(1)}',
             style: const TextStyle(
               color: _labelColor,
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -673,8 +673,8 @@ class _CatalogOverlayHud extends StatelessWidget {
               'Showing brightest (cutoff mag '
               '${result.downsampleMagnitudeCutoff!.toStringAsFixed(2)})',
               style: TextStyle(
-                color: Colors.amber.withValues(alpha: 0.9),
-                fontSize: 10,
+                color: ImageOverlayColors.catalogMarker.withValues(alpha: 0.9),
+                fontSize: SkotiqTypography.fontSize10,
               ),
             ),
         ],
@@ -751,7 +751,7 @@ class CatalogOverlayBanner extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: _labelColor,
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -759,8 +759,8 @@ class CatalogOverlayBanner extends StatelessWidget {
                 Text(
                   message,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 11,
+                    color: ImageOverlayColors.foreground.withValues(alpha: 0.7),
+                    fontSize: SkotiqTypography.fontSize11,
                   ),
                 ),
               ],

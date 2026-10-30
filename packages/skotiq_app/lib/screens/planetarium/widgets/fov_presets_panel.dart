@@ -11,12 +11,12 @@ import 'sidebar_shared_widgets.dart';
 /// read cleanly over the dark sky canvas and stay distinct when several rigs
 /// are shown at once.
 const List<Color> _kPresetColors = [
-  Color(0xFF00E676), // green
-  Color(0xFF42A5F5), // blue
-  Color(0xFFFFB300), // amber
-  Color(0xFFFF5252), // red
-  Color(0xFFAB47BC), // purple
-  Color(0xFF26C6DA), // cyan
+  FieldOfViewColors.green, // green
+  FieldOfViewColors.blue, // blue
+  FieldOfViewColors.amber, // amber
+  FieldOfViewColors.red, // red
+  FieldOfViewColors.violet, // purple
+  FieldOfViewColors.cyan, // cyan
 ];
 
 /// Manager for multi-rig FOV framing presets shown on the planetarium sky.

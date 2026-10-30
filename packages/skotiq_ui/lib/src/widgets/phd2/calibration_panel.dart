@@ -1,3 +1,5 @@
+import '../../theme/skotiq_tokens.dart';
+import '../../theme/skotiq_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../theme/skotiq_colors.dart';
@@ -61,7 +63,7 @@ class CalibrationPanel extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -134,7 +136,9 @@ class CalibrationPanel extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: colors.surfaceAlt,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(SkotiqTokens.radiusLg),
+            ),
           ),
           child: Row(
             children: [
@@ -142,7 +146,7 @@ class CalibrationPanel extends StatelessWidget {
                 padding: EdgeInsets.all(iconPadding),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
                 child: Icon(statusIcon, color: statusColor, size: iconSize),
               ),
@@ -165,7 +169,7 @@ class CalibrationPanel extends StatelessWidget {
                   padding: statusPadding,
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                     border: Border.all(
                       color: statusColor.withValues(alpha: 0.3),
                     ),
@@ -194,7 +198,7 @@ class CalibrationPanel extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.surfaceAlt.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.border.withValues(alpha: 0.5)),
       ),
       child: Column(
@@ -214,7 +218,7 @@ class CalibrationPanel extends StatelessWidget {
               height: 4,
               decoration: BoxDecoration(
                 color: colors.surfaceHover,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
               ),
               child: FractionallySizedBox(
                 widthFactor: progress!,
@@ -222,7 +226,7 @@ class CalibrationPanel extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: colors.primary,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   ),
                 ),
               ),
@@ -233,13 +237,16 @@ class CalibrationPanel extends StatelessWidget {
               style: TextStyle(
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w600,
-                fontSize: 16,
+                fontSize: SkotiqTypography.fontSize16,
               ),
             ),
           ] else
             Text(
               'Calibrating mount...',
-              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: SkotiqTypography.fontSize13,
+              ),
             ),
         ],
       ),
@@ -251,7 +258,7 @@ class CalibrationPanel extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.success.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.success.withValues(alpha: 0.2)),
       ),
       child: Column(
@@ -266,7 +273,7 @@ class CalibrationPanel extends StatelessWidget {
                 style: TextStyle(
                   color: colors.success,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: SkotiqTypography.fontSize13,
                 ),
               ),
             ],
@@ -305,7 +312,10 @@ class CalibrationPanel extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   _formatTime(data.calibrationTime!),
-                  style: TextStyle(color: colors.textMuted, fontSize: 11),
+                  style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: SkotiqTypography.fontSize11,
+                  ),
                 ),
               ],
             ),
@@ -320,7 +330,7 @@ class CalibrationPanel extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.warning.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
       ),
       child: Column(
@@ -343,13 +353,16 @@ class CalibrationPanel extends StatelessWidget {
             style: TextStyle(
               color: colors.warning,
               fontWeight: FontWeight.w600,
-              fontSize: 14,
+              fontSize: SkotiqTypography.fontSize14,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'PHD2 will calibrate your mount automatically when you start guiding.',
-            style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: SkotiqTypography.fontSize12,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -363,13 +376,16 @@ class CalibrationPanel extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(color: colors.textSecondary, fontSize: 12),
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: SkotiqTypography.fontSize12,
+          ),
         ),
         Text(
           value,
           style: TextStyle(
             color: colors.textPrimary,
-            fontSize: 12,
+            fontSize: SkotiqTypography.fontSize12,
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
@@ -428,7 +444,10 @@ class CalibrationPanel extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 'Use "Flip" after a meridian flip',
-                style: TextStyle(color: colors.textMuted, fontSize: 10),
+                style: TextStyle(
+                  color: colors.textMuted,
+                  fontSize: SkotiqTypography.fontSize10,
+                ),
               ),
             ],
           ),
@@ -458,7 +477,7 @@ class CalibrationPanel extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
           child: ConstrainedBox(
             // Ensure minimum 44px touch target height for accessibility
             constraints: const BoxConstraints(minHeight: 44),
@@ -471,7 +490,7 @@ class CalibrationPanel extends StatelessWidget {
                     : (isDisabled
                           ? colors.surfaceAlt
                           : color.withValues(alpha: 0.15)),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 border: Border.all(
                   color: isDisabled
                       ? colors.border
@@ -493,7 +512,7 @@ class CalibrationPanel extends StatelessWidget {
                     child: Text(
                       label,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: SkotiqTypography.fontSize12,
                         fontWeight: FontWeight.w600,
                         color: isPrimary
                             ? (isDisabled ? colors.textMuted : onPrimary)

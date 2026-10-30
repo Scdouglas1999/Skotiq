@@ -112,7 +112,10 @@ class TargetsTab extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(
                         error.toString(),
-                        style: TextStyle(color: colors.textMuted, fontSize: 12),
+                        style: TextStyle(
+                          color: colors.textMuted,
+                          fontSize: SkotiqTypography.fontSize12,
+                        ),
                         textAlign: TextAlign.center,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,

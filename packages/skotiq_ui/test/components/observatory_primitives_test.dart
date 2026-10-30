@@ -267,8 +267,10 @@ void main() {
       final semantics = tester.getSemantics(find.byType(SkotiqIconButton));
       expect(semantics.hasFlag(SemanticsFlag.isEnabled), isFalse);
       expect(
-        tester.widget<Opacity>(find.byType(Opacity)).opacity,
-        SkotiqTokens.opacityDisabled,
+        tester.widget<Icon>(find.byIcon(LucideIcons.trash2)).color,
+        SkotiqColors.dark.textSecondary.withValues(
+          alpha: SkotiqTokens.opacityDisabled,
+        ),
       );
     });
 

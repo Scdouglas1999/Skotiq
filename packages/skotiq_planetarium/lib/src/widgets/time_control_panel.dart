@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -63,15 +64,15 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     final timeState = ref.watch(observationTimeProvider);
     final twilight = ref.watch(twilightTimesProvider);
 
-    final bgColor = widget.backgroundColor ?? const Color(0xFF1A1A2E);
-    final txtColor = widget.textColor ?? Colors.white;
-    final accent = widget.accentColor ?? const Color(0xFF00E676);
+    final bgColor = widget.backgroundColor ?? context.skotiqColors.surface;
+    final txtColor = widget.textColor ?? context.skotiqColors.textPrimary;
+    final accent = widget.accentColor ?? context.skotiqColors.primary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: txtColor.withValues(alpha: 0.1)),
       ),
       child: widget.compact
@@ -250,9 +251,9 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         displayTime,
         style: TextStyle(
           color: txtColor,
-          fontSize: 18,
+          fontSize: SkotiqTypography.fontSize18,
           fontWeight: FontWeight.w500,
-          fontFamily: 'monospace',
+          fontFamily: SkotiqTypography.fontFamilyMono,
         ),
       ),
     );
@@ -270,12 +271,12 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         hint: 'Choose a date',
         child: InkWell(
           onTap: () => _showDatePicker(time),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               border: Border.all(color: txtColor.withValues(alpha: 0.3)),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -284,7 +285,10 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
                 const SizedBox(width: 4),
                 Text(
                   dateFormat.format(time),
-                  style: TextStyle(color: txtColor, fontSize: 12),
+                  style: TextStyle(
+                    color: txtColor,
+                    fontSize: SkotiqTypography.fontSize12,
+                  ),
                 ),
               ],
             ),
@@ -303,14 +307,14 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.orange.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(4),
+            color: context.skotiqColors.warning.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
           ),
-          child: const Text(
+          child: Text(
             'PAUSED',
             style: TextStyle(
-              color: Colors.orange,
-              fontSize: 11,
+              color: context.skotiqColors.warning,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -339,19 +343,22 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: speed != 1.0
-              ? (speed > 0 ? Colors.green : Colors.orange).withValues(
-                  alpha: 0.2,
-                )
+              ? (speed > 0
+                        ? context.skotiqColors.success
+                        : context.skotiqColors.warning)
+                    .withValues(alpha: 0.2)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
         ),
         child: Text(
           speedText,
           style: TextStyle(
             color: speed != 1.0
-                ? (speed > 0 ? Colors.green : Colors.orange)
+                ? (speed > 0
+                      ? context.skotiqColors.success
+                      : context.skotiqColors.warning)
                 : txtColor.withValues(alpha: 0.7),
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -421,7 +428,10 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     final button = TextButton.icon(
       icon: Icon(LucideIcons.clock, size: 14, color: accent),
       // Title case, like every other button in the build.
-      label: Text('Now', style: TextStyle(color: accent, fontSize: 11)),
+      label: Text(
+        'Now',
+        style: TextStyle(color: accent, fontSize: SkotiqTypography.fontSize11),
+      ),
       onPressed: _jumpToNow,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -461,7 +471,7 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
         'Tonight',
         style: TextStyle(
           color: hasDusk ? accent : accent.withValues(alpha: 0.5),
-          fontSize: 11,
+          fontSize: SkotiqTypography.fontSize11,
         ),
       ),
       onPressed: hasDusk ? () => _jumpToTonight(twilight) : null,

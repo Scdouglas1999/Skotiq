@@ -42,7 +42,7 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
                     object.displayName,
                     style: TextStyle(
                       color: colors.textPrimary,
-                      fontSize: 18,
+                      fontSize: SkotiqTypography.fontSize18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -62,7 +62,9 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   object.id,
-                  style: TextStyle(color: colors.textMuted, fontSize: 12),
+                  style: TextStyle(
+                      color: colors.textMuted,
+                      fontSize: SkotiqTypography.fontSize12),
                 ),
               ),
             const SizedBox(height: 12),
@@ -85,14 +87,16 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
                       'Alternate identifiers',
                       style: TextStyle(
                         color: colors.textSecondary,
-                        fontSize: 12,
+                        fontSize: SkotiqTypography.fontSize12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       object.alternateIds!,
-                      style: TextStyle(color: colors.textPrimary, fontSize: 12),
+                      style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: SkotiqTypography.fontSize12),
                     ),
                   ],
                 ),
@@ -113,7 +117,9 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
             width: 90,
             child: Text(
               label,
-              style: TextStyle(color: colors.textMuted, fontSize: 12),
+              style: TextStyle(
+                  color: colors.textMuted,
+                  fontSize: SkotiqTypography.fontSize12),
             ),
           ),
           Expanded(
@@ -121,7 +127,7 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
               value,
               style: TextStyle(
                 color: colors.textPrimary,
-                fontSize: 12,
+                fontSize: SkotiqTypography.fontSize12,
                 fontWeight: FontWeight.w500,
               ),
             ),

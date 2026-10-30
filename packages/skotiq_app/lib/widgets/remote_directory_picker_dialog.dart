@@ -226,7 +226,7 @@ class _RemoteDirectoryPickerDialogState
                 ),
                 child: Text(
                   _listing?.currentPath ?? 'Host roots',
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: SkotiqTypography.fontSize12),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -355,7 +355,8 @@ class _ValidationBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: colors.error, fontSize: 12),
+              style: TextStyle(
+                  color: colors.error, fontSize: SkotiqTypography.fontSize12),
             ),
           ),
         ],

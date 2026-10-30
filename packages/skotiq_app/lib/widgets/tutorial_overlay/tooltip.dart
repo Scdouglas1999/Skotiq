@@ -391,7 +391,7 @@ class _TooltipWidget extends StatelessWidget {
                         '${currentIndex + 1} / $totalSteps',
                         style: TextStyle(
                           color: colors.textMuted,
-                          fontSize: 11,
+                          fontSize: SkotiqTypography.fontSize11,
                         ),
                       ),
                     ],

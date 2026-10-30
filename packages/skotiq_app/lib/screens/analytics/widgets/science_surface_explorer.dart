@@ -20,10 +20,10 @@ import 'adaptive_chart_container.dart';
 /// should own the whole ramp so the surface and the scale bar that explains it
 /// come from a single declaration instead of agreeing by convention.
 @visibleForTesting
-const Color namedSurfaceLowValue = Color(0xFF1D4ED8);
+const Color namedSurfaceLowValue = SciencePlotColors.surfaceLow;
 
 @visibleForTesting
-const Color namedSurfaceHighValue = Color(0xFFDC2626);
+const Color namedSurfaceHighValue = SciencePlotColors.surfaceHigh;
 
 /// Lowest / highest elevation the surface can be tipped to, in radians.
 const double _minPitch = 0.1;

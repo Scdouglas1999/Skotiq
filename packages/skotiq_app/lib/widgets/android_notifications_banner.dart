@@ -51,7 +51,7 @@ class AndroidNotificationsBanner extends ConsumerWidget {
                   '→ Skotiq → Notifications.',
                   style: TextStyle(
                     color: onWarning,
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

@@ -196,7 +196,7 @@ class _TargetDisplayPainter extends CustomPainter {
         text: label,
         style: TextStyle(
           color: colors.textMuted.withValues(alpha: 0.7),
-          fontSize: 9,
+          fontSize: SkotiqTypography.fontSize9,
           fontWeight: FontWeight.w500,
         ),
       );

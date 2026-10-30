@@ -40,6 +40,7 @@
 // rather than re-issuing dozens of doomed requests on every pan. No banner, no
 // dialog, no exception.
 
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -74,7 +75,7 @@ const Duration kPlanetariumSkyImageryOfflineBackoff = Duration(seconds: 60);
 /// astronomical-night zenith colour keeps the transition invisible and means a
 /// region the mosaic has not covered yet reads as empty sky rather than as a
 /// hole punched through the app.
-const Color kPlanetariumSkyImageryBackdrop = Color(0xFF0A0A1A);
+const Color kPlanetariumSkyImageryBackdrop = ImageOverlayColors.skyBackground;
 
 /// Streams HiPS survey imagery behind the planetarium star chart.
 ///

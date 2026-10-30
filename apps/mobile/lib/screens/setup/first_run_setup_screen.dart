@@ -522,7 +522,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         Text(
           'Choose where Skotiq should save captured images on the imaging '
           'host. The folder must already exist and be writable.',
-          style: TextStyle(color: colors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: SkotiqTypography.fontSize13,
+          ),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -601,7 +604,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           'Pick catalogs to install. Plate-solving will not work until at '
           'least one star catalog is installed. Downloads run in the '
           'background; you can finish setup before they complete.',
-          style: TextStyle(color: colors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: SkotiqTypography.fontSize13,
+          ),
         ),
         const SizedBox(height: 12),
         for (final c in catalogs)
@@ -630,13 +636,15 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: colors.primary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(
+                        SkotiqTokens.radiusXs,
+                      ),
                     ),
                     child: Text(
                       'plate-solve',
                       style: TextStyle(
                         color: colors.primary,
-                        fontSize: 10,
+                        fontSize: SkotiqTypography.fontSize10,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -645,7 +653,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
             ),
             subtitle: Text(
               '${c.description} (${_formatSize(c.sizeBytes)})',
-              style: TextStyle(color: colors.textMuted, fontSize: 11),
+              style: TextStyle(
+                color: colors.textMuted,
+                fontSize: SkotiqTypography.fontSize11,
+              ),
             ),
           ),
         const SizedBox(height: 16),
@@ -667,7 +678,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           const SizedBox(height: 12),
           Text(
             'Downloading: ${_catalogsInFlight.join(", ")}',
-            style: TextStyle(color: colors.textMuted, fontSize: 11),
+            style: TextStyle(
+              color: colors.textMuted,
+              fontSize: SkotiqTypography.fontSize11,
+            ),
           ),
         ],
       ],
@@ -721,7 +735,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           Text(
             'You already have ${profiles.length} equipment profile'
             '${profiles.length == 1 ? "" : "s"}. The wizard is done.',
-            style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: SkotiqTypography.fontSize13,
+            ),
           ),
           const SizedBox(height: 12),
           for (final p in profiles)
@@ -730,7 +747,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
               title: Text(p.name),
               subtitle: Text(
                 p.description ?? 'No description',
-                style: TextStyle(color: colors.textMuted, fontSize: 11),
+                style: TextStyle(
+                  color: colors.textMuted,
+                  fontSize: SkotiqTypography.fontSize11,
+                ),
               ),
               contentPadding: EdgeInsets.zero,
             ),
@@ -750,7 +770,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           'paired desktop or host — once you set one up there it appears '
           'here automatically. You can finish setup now and pick a profile '
           'later.',
-          style: TextStyle(color: colors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: SkotiqTypography.fontSize13,
+          ),
         ),
         const SizedBox(height: 16),
         SkotiqButton(

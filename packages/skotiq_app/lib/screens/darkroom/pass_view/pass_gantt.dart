@@ -173,7 +173,8 @@ class _GanttPainter extends CustomPainter {
     }
 
     // Blocks.
-    final ink = SkotiqTypography.monoXs.copyWith(fontSize: 9.5, height: 1);
+    final ink = SkotiqTypography.monoXs
+        .copyWith(fontSize: SkotiqTypography.fontSize9_5, height: 1);
     var stageIndex = <String?, int>{};
     for (final s in schedule) {
       if (s.state == PassStepState.notRun) continue;

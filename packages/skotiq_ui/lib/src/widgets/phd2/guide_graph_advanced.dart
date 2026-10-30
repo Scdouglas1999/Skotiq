@@ -1,3 +1,4 @@
+import '../../theme/skotiq_tokens.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/skotiq_colors.dart';
@@ -132,7 +133,7 @@ class GuideGraphAdvanced extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.background,
               border: Border.all(color: colors.border),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             ),
             padding: const EdgeInsets.all(8),
             child: LayoutBuilder(
@@ -172,7 +173,7 @@ class GuideGraphAdvanced extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: colors.surfaceAlt,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
           ),
           child: Row(
             children: [
@@ -348,7 +349,7 @@ class GuideGraphAdvanced extends StatelessWidget {
                   padding: padding,
                   decoration: BoxDecoration(
                     color: colors.surfaceHover,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -524,7 +525,7 @@ class _GraphPainter extends CustomPainter {
     // other readout uses.
     final style = TextStyle(
       color: colors.textMuted,
-      fontSize: 9,
+      fontSize: SkotiqTypography.fontSize9,
       fontFamily: SkotiqTypography.fontFamilyMono,
     );
 
@@ -580,7 +581,7 @@ class _GraphPainter extends CustomPainter {
         text: label,
         style: TextStyle(
           color: colors.textMuted,
-          fontSize: 9,
+          fontSize: SkotiqTypography.fontSize9,
           fontFamily: SkotiqTypography.fontFamilyMono,
         ),
       );

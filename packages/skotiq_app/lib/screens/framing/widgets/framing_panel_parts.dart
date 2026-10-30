@@ -253,20 +253,10 @@ class FramingSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final slider = SliderTheme(
-      data: SliderThemeData(
-        trackHeight: 3,
-        activeTrackColor: colors.primary,
-        inactiveTrackColor: colors.surfaceHover,
-        thumbColor: colors.primary,
-        overlayColor: colors.primary.withValues(alpha: 0.16),
-        disabledActiveTrackColor: colors.border,
-        disabledInactiveTrackColor: colors.well,
-        disabledThumbColor: colors.textMuted,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+      data: SkotiqSliderStyle.theme(colors).copyWith(
         tickMarkShape: SliderTickMarkShape.noTickMark,
         showValueIndicator: ShowValueIndicator.never,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: SkotiqTokens.radiusSm),
       ),
       child: SizedBox(
         height: height,

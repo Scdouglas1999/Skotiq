@@ -1,11 +1,5 @@
 part of '../mobile_widgets.dart';
 
-// NOTE (design tokens): the `Colors.white*` literals in this file are
-// canvas-absolute HUD colors for the mobile planetarium top overlay drawn over
-// the sky. The planetarium is wrapped in `_NightVisionFilter` (luminance→red
-// conversion for dark adaptation), so they are intentionally NOT mapped to the
-// theme-relative semantic palette.
-
 /// Compact top overlay for mobile screens
 /// Adapts layout for very narrow screens (below 360px)
 class MobileTopOverlay extends ConsumerWidget {
@@ -135,14 +129,16 @@ class MobileToggleButton extends StatelessWidget {
             height: inner,
             decoration: BoxDecoration(
               color: isActive
-                  ? Colors.white.withValues(alpha: 0.2)
+                  ? ImageOverlayColors.foreground.withValues(alpha: 0.2)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
             ),
             child: Icon(
               icon,
               size: inner * 0.5,
-              color: isActive ? Colors.white : Colors.white70,
+              color: isActive
+                  ? ImageOverlayColors.foreground
+                  : ImageOverlayColors.secondary,
             ),
           ),
         ),

@@ -100,7 +100,8 @@ class AnnotationObjectListItem extends StatelessWidget {
                 child: Text(
                   'm${object.magnitude!.toStringAsFixed(1)}',
                   style: SkotiqTypography.monoCaption.copyWith(
-                      color: colors.textMuted, fontFamily: 'monospace'),
+                      color: colors.textMuted,
+                      fontFamily: SkotiqTypography.fontFamilyMono),
                 ),
               ),
           ],

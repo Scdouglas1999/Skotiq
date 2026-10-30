@@ -442,7 +442,8 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                                   height: 8,
                                   decoration: BoxDecoration(
                                     // absolute: lightening sheen over the filled progress bar
-                                    color: Colors.white.withValues(alpha: 0.1),
+                                    color: ImageOverlayColors.foreground
+                                        .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(
                                         SkotiqTokens.radiusInline4),
                                   ),

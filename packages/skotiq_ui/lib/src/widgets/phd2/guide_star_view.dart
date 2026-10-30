@@ -1,3 +1,4 @@
+import '../../theme/skotiq_tokens.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -104,10 +105,10 @@ class _GuideStarViewState extends State<GuideStarView> {
                 color: _frameColor(colors).withValues(alpha: 0.5),
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
               child: Stack(
                 children: [
                   // Star image or empty state
@@ -125,7 +126,7 @@ class _GuideStarViewState extends State<GuideStarView> {
                         starY: widget.starY,
                         imageWidth: widget.width,
                         imageHeight: widget.height,
-                        color: Colors.red.withValues(alpha: 0.7),
+                        color: colors.error.withValues(alpha: 0.7),
                       ),
                     ),
 
@@ -141,7 +142,9 @@ class _GuideStarViewState extends State<GuideStarView> {
                         ),
                         decoration: BoxDecoration(
                           color: colors.surface.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(
+                            SkotiqTokens.radiusSm,
+                          ),
                           border: Border.all(
                             color: _getSnrColor(colors).withValues(alpha: 0.3),
                           ),
@@ -159,7 +162,7 @@ class _GuideStarViewState extends State<GuideStarView> {
                               'SNR: $_snrLabel',
                               style: TextStyle(
                                 color: _getSnrColor(colors),
-                                fontSize: 10,
+                                fontSize: SkotiqTypography.fontSize10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -233,8 +236,7 @@ class _GuideStarViewState extends State<GuideStarView> {
 
   /// The palette to draw ON the frame with: the dark one, or the red-night one
   /// when that is active (red night keeps its own axis over imagery too).
-  static SkotiqColors _frameInk(SkotiqColors colors) =>
-      colors.isRedNight ? colors : SkotiqColors.dark;
+  static SkotiqColors _frameInk(SkotiqColors colors) => colors.onImage;
 
   Future<ui.Image> _createImage() async {
     if (_cachedImage != null && widget.pixels == _lastPixels) {

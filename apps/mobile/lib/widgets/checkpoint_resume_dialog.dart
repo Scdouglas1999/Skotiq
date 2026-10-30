@@ -79,7 +79,7 @@ class CheckpointResumeDialog extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: SkotiqDecorations.emphasisSurface(
         colors.primary,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

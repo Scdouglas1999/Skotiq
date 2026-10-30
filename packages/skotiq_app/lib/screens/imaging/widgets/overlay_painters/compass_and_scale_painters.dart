@@ -24,20 +24,20 @@ abstract final class PreviewReadoutInsets {
 /// The same rule that makes glass borrow the dark palette applies to a label
 /// drawn straight onto a photograph — there is no surface behind it to take a
 /// colour from.
-const Color _overlayInk = Colors.white;
+const Color _overlayInk = ImageOverlayColors.foreground;
 
 /// The drop shadow that keeps [_overlayInk] legible over a bright nebula.
 ///
 /// image-anchored: painted over the frame, theme-blind by design (05 §14).
-const Color _overlayShadow = Colors.black;
+const Color _overlayShadow = ImageOverlayColors.shadow;
 
 /// Compass rose: the North axis.
 @visibleForTesting
-const Color namedCompassNorth = Color(0xFFFF4444);
+const Color namedCompassNorth = ImageOverlayColors.north;
 
 /// Compass rose: the East axis.
 @visibleForTesting
-const Color namedCompassEast = Color(0xFF44AAFF);
+const Color namedCompassEast = ImageOverlayColors.east;
 
 class CompassOverlayPainter extends CustomPainter {
   /// WCS rotation angle in degrees, as the solver reports it. Only used when
@@ -103,13 +103,13 @@ class CompassOverlayPainter extends CustomPainter {
 
     // Semi-transparent background circle
     final bgPaint = Paint()
-      ..color = const Color(0xAA000000)
+      ..color = ImageOverlayColors.labelBackground
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, bgPaint);
 
     // Border
     final borderPaint = Paint()
-      ..color = const Color(0x55FFFFFF)
+      ..color = ImageOverlayColors.labelBorder
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     canvas.drawCircle(center, radius, borderPaint);
@@ -350,7 +350,7 @@ class ScaleBarPainter extends CustomPainter {
       const Radius.circular(SkotiqTokens.radiusInline4),
     );
     final bgPaint = Paint()
-      ..color = const Color(0xAA000000)
+      ..color = ImageOverlayColors.labelBackground
       ..style = PaintingStyle.fill;
     canvas.drawRRect(bgRect, bgPaint);
 

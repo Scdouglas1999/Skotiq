@@ -719,26 +719,5 @@ class ImagingHistorySection extends ConsumerWidget {
   /// values used by the project-tracking filter chips for visual consistency.
   /// The neutral L/default cases resolve from theme semantics so they still
   /// re-tint under red-night mode.
-  Color _filterColor(String name) {
-    final lower = name.toLowerCase();
-    if (lower == 'l' || lower == 'luminance' || lower == 'lum') {
-      return colors.textSecondary;
-    } else if (lower == 'r' || lower == 'red') {
-      return const Color(0xFFF87171);
-    } else if (lower == 'g' || lower == 'green') {
-      return const Color(0xFF4ADE80);
-    } else if (lower == 'b' || lower == 'blue') {
-      return const Color(0xFF60A5FA);
-    } else if (lower == 'ha' || lower.contains('alpha')) {
-      return const Color(0xFFB91C1C);
-    } else if (lower == 'oiii' || lower.contains('oxygen')) {
-      return const Color(0xFF2DD4BF);
-    } else if (lower == 'sii' ||
-        lower.contains('sulphur') ||
-        lower.contains('sulfur')) {
-      return const Color(0xFFFB923C);
-    } else {
-      return colors.textSecondary;
-    }
-  }
+  Color _filterColor(String name) => FilterColors.forName(name, colors: colors);
 }

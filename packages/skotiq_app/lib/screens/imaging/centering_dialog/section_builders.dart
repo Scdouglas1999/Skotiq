@@ -128,7 +128,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   // absolute: HUD badge scrim over the preview image canvas
-                  color: Colors.black.withValues(alpha: 0.7),
+                  color: ImageOverlayColors.shadow.withValues(alpha: 0.7),
                   borderRadius:
                       BorderRadius.circular(SkotiqTokens.radiusInline4),
                 ),
@@ -136,7 +136,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
                   '${imageData.width}x${imageData.height}',
                   style: SkotiqTypography.monoCaption.copyWith(
                       // absolute: HUD label over the preview image canvas
-                      color: Colors.white70),
+                      color: ImageOverlayColors.secondary),
                 ),
               ),
             ),

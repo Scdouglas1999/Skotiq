@@ -1,3 +1,4 @@
+import '../theme/skotiq_typography.dart';
 import 'package:flutter/material.dart';
 import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_tokens.dart';
@@ -160,7 +161,7 @@ class _StatusPillState extends State<StatusPill>
                       : '${widget.label}: ${widget.value}',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: SkotiqTypography.fontSize11,
                     color: colors.textSecondary,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),

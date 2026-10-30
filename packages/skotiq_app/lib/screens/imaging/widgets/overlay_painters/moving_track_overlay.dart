@@ -24,11 +24,11 @@ class ProjectedMovingTrack {
 
 /// Moving-track confidence ramp: a weak candidate.
 @visibleForTesting
-const Color namedTrackLowConfidence = Color(0xFFF59E0B);
+const Color namedTrackLowConfidence = SciencePlotColors.lowConfidence;
 
 /// Moving-track confidence ramp: a confident detection.
 @visibleForTesting
-const Color namedTrackHighConfidence = Color(0xFF22C55E);
+const Color namedTrackHighConfidence = SciencePlotColors.highConfidence;
 
 class ScienceMovingTrackOverlayPainter extends CustomPainter {
   final List<ProjectedMovingTrack> tracks;
@@ -99,7 +99,7 @@ class ScienceMovingTrackOverlayPainter extends CustomPainter {
         3.6,
         Paint()
           // absolute: track point outline over the image canvas
-          ..color = Colors.black.withValues(alpha: 0.35)
+          ..color = ImageOverlayColors.shadow.withValues(alpha: 0.35)
           ..style = PaintingStyle.fill,
       );
       canvas.drawCircle(

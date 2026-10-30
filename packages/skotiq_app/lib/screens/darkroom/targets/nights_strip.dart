@@ -324,7 +324,7 @@ class _NightPainter extends CustomPainter {
             _tickWidth,
             size.height - 2 * _tickInset,
           ),
-          const Radius.circular(1),
+          const Radius.circular(SkotiqTokens.radiusXs),
         ),
         Paint()
           ..color = darkroomFilterColor(s.filter, colors)

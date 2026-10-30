@@ -24,7 +24,8 @@ class _MeasurementOverlayPainter extends CustomPainter {
   /// Observer latitude (degrees), required for the horizontal-frame projection.
   final double latitude;
 
-  static const Color _lineColor = Color(0xFF7DD3FC); // sky-300, schematic cyan
+  static const Color _lineColor =
+      SkyPlotColors.schematic; // sky-300, schematic cyan
 
   _MeasurementOverlayPainter({
     required this.viewState,
@@ -111,7 +112,7 @@ class _MeasurementOverlayPainter extends CustomPainter {
             'PA ${positionAngleDeg.toStringAsFixed(1)}°',
         style: const TextStyle(
           color: _lineColor,
-          fontSize: 11,
+          fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w500,
           height: 1.3,
         ),
@@ -145,9 +146,9 @@ class _MeasurementOverlayPainter extends CustomPainter {
       boxHeight,
     );
 
-    final bgPaint = Paint()..color = const Color(0xCC0B1622);
+    final bgPaint = Paint()..color = SkyPlotColors.annotationBackground;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(bg, const Radius.circular(4)),
+      RRect.fromRectAndRadius(bg, const Radius.circular(SkotiqTokens.radiusXs)),
       bgPaint,
     );
     final borderPaint = Paint()
@@ -155,7 +156,7 @@ class _MeasurementOverlayPainter extends CustomPainter {
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(bg, const Radius.circular(4)),
+      RRect.fromRectAndRadius(bg, const Radius.circular(SkotiqTokens.radiusXs)),
       borderPaint,
     );
 

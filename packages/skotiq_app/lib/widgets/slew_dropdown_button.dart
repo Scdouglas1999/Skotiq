@@ -684,7 +684,7 @@ class _CenteringDialogWithResultState
                         Text(
                           'Centering Target',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: SkotiqTypography.fontSize18,
                             fontWeight: FontWeight.bold,
                             color: colors.textPrimary,
                           ),
@@ -692,7 +692,7 @@ class _CenteringDialogWithResultState
                         Text(
                           widget.targetName,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: SkotiqTypography.fontSize12,
                             color: colors.textSecondary,
                           ),
                         ),
@@ -713,13 +713,17 @@ class _CenteringDialogWithResultState
                 const SizedBox(height: 8),
                 Text(
                   'Iteration ${centeringStatus.currentIteration}/${centeringStatus.maxIterations}',
-                  style: TextStyle(fontSize: 12, color: colors.textMuted),
+                  style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize12,
+                      color: colors.textMuted),
                 ),
                 if (centeringStatus.currentOffsetArcmin != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Offset: ${centeringStatus.currentOffsetArcmin!.toStringAsFixed(2)} arcmin',
-                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                    style: TextStyle(
+                        fontSize: SkotiqTypography.fontSize12,
+                        color: colors.textSecondary),
                   ),
                 ],
               ],

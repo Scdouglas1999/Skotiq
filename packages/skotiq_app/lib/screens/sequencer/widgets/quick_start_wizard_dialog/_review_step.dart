@@ -365,7 +365,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
                     style: TextStyle(
                       color: colors.textPrimary,
                       fontSize: SkotiqTypography.fontSize12,
-                      fontFamily: 'monospace',
+                      fontFamily: SkotiqTypography.fontFamilyMono,
                     ),
                   ),
                 ],

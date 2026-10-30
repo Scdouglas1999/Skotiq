@@ -447,7 +447,7 @@ class QuickStartDialog extends ConsumerWidget {
             'Nothing to load: that session recorded no equipment profile, '
             'no sequence and no camera settings.',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               color: colors.textMuted,
             ),
             textAlign: TextAlign.center,
@@ -555,7 +555,7 @@ class _EquipmentChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: SkotiqTypography.fontSize13,
               color: colors.textPrimary,
             ),
           ),

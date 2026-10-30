@@ -33,7 +33,7 @@ class _StarZoomPanel extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             // absolute: drop-shadow scrim (theme-independent)
-            color: Colors.black.withValues(alpha: 0.3),
+            color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
             blurRadius: 4,
             offset: const Offset(1, 1),
           ),

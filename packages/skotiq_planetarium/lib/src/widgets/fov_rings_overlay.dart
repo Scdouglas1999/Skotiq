@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -45,7 +46,7 @@ class FovRingsOverlay extends StatelessWidget {
     required this.centerRA,
     required this.centerDec,
     this.finderDiameterDeg = 5.0,
-    this.color = const Color(0xFFFF5252),
+    this.color = FieldOfViewColors.red,
   });
 
   @override
@@ -158,7 +159,7 @@ class _FovRingsPainter extends CustomPainter {
         text: text,
         style: TextStyle(
           color: color.withValues(alpha: 0.85),
-          fontSize: 9,
+          fontSize: SkotiqTypography.fontSize9,
           fontWeight: FontWeight.w500,
         ),
       ),

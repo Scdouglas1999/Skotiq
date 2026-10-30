@@ -382,7 +382,7 @@ class _PerFilterRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize11,
                 color: colors.textPrimary,
-                fontFamily: 'monospace',
+                fontFamily: SkotiqTypography.fontFamilyMono,
               ),
             ),
           ),

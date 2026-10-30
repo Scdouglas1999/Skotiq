@@ -617,7 +617,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                                 style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize12,
                                   color: widget.colors.textPrimary,
-                                  fontFamily: 'monospace',
+                                  fontFamily: SkotiqTypography.fontFamilyMono,
                                 ),
                               ),
                             ),

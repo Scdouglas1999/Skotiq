@@ -219,7 +219,7 @@ class _UrlCard extends StatelessWidget {
                     fontSize: SkotiqTypography.fontSize13,
                     fontWeight: FontWeight.w500,
                     color: colors.primary,
-                    fontFamily: 'monospace',
+                    fontFamily: SkotiqTypography.fontFamilyMono,
                   ),
                 ),
               ),

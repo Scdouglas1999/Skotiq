@@ -5,12 +5,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import '../../../widgets/tutorial_keys/planetarium_keys.dart';
 
-// NOTE (design tokens): the `Colors.white*` / `Colors.black*` literals in this
-// file are canvas-absolute HUD colors for the floating slew controls over the
-// planetarium sky. The planetarium is wrapped in `_NightVisionFilter` (red
-// luminance conversion for dark adaptation), so they are intentionally NOT
-// mapped to the theme-relative semantic palette.
-
 /// Slew control buttons
 class SlewControls extends ConsumerWidget {
   final SkotiqColors colors;
@@ -37,7 +31,7 @@ class SlewControls extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
         border: slewMode ? Border.all(color: colors.warning, width: 2) : null,
       ),
@@ -114,7 +108,7 @@ class _SlewControlButtonState extends State<SlewControlButton> {
         ? colors.error
         : widget.isActive
             ? colors.warning
-            : Colors.white70;
+            : ImageOverlayColors.secondary;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -130,14 +124,14 @@ class _SlewControlButtonState extends State<SlewControlButton> {
                 ? colors.warning
                     .withValues(alpha: SkotiqTokens.opacityStatusFill)
                 : _isHovered && widget.isEnabled
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? ImageOverlayColors.foreground.withValues(alpha: 0.1)
                     : Colors.transparent,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
           ),
           child: Icon(
             widget.icon,
             size: 16,
-            color: widget.isEnabled ? color : Colors.white24,
+            color: widget.isEnabled ? color : ImageOverlayColors.divider,
           ),
         ),
       ),

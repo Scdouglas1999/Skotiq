@@ -46,7 +46,7 @@ class _Section extends StatelessWidget {
           padding: EdgeInsets.all(sectionPadding),
           decoration: BoxDecoration(
             color: colors.surface,
-            borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+            borderRadius: SkotiqTokens.borderRadiusXl,
             border: Border.all(color: colors.border),
           ),
           child: Column(
@@ -249,31 +249,10 @@ class _FilterChip extends StatelessWidget {
     required this.name,
   });
 
-  Color _getFilterColor(SkotiqColors colors, String name) {
-    final lowerName = name.toLowerCase();
-    if (lowerName.contains('red') ||
-        lowerName == 'r' ||
-        lowerName == 'ha' ||
-        lowerName.contains('h-alpha')) {
-      return colors.error;
-    } else if (lowerName.contains('green') || lowerName == 'g') {
-      return colors.success;
-    } else if (lowerName.contains('blue') || lowerName == 'b') {
-      return colors.info;
-    } else if (lowerName.contains('lum') || lowerName == 'l') {
-      return colors.textMuted;
-    } else if (lowerName.contains('oiii') || lowerName.contains('o3')) {
-      return colors.accent;
-    } else if (lowerName.contains('sii') || lowerName.contains('s2')) {
-      return colors.warning;
-    }
-    return colors.primary;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final filterColor = _getFilterColor(colors, name);
+    final filterColor = FilterColors.forName(name, colors: colors);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

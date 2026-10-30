@@ -1,3 +1,4 @@
+import '../theme/skotiq_control_styles.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/skotiq_colors.dart';
@@ -107,9 +108,10 @@ class _SegmentState extends State<_Segment> {
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    final foreground = widget.selected
-        ? colors.textPrimary
-        : (_hovered ? colors.textSecondary : colors.textMuted);
+    final foreground = SkotiqControlStyles.segmentForeground(colors, {
+      if (widget.selected) WidgetState.selected,
+      if (_hovered) WidgetState.hovered,
+    });
 
     return Semantics(
       button: true,
@@ -168,9 +170,10 @@ class _SegmentState extends State<_Segment> {
     // No `alignment:` — it would make the segment expand to the width of
     // the row instead of to its own label.
     decoration: BoxDecoration(
-      color: widget.selected || _hovered
-          ? colors.surfaceHover
-          : Colors.transparent,
+      color: SkotiqControlStyles.segmentFill(colors, {
+        if (widget.selected) WidgetState.selected,
+        if (_hovered) WidgetState.hovered,
+      }),
       borderRadius: SkotiqTokens.borderRadiusSm,
     ),
     child: Center(

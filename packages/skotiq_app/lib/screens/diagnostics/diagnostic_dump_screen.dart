@@ -355,7 +355,7 @@ class _LastResultCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize12,
                     color: colors.textSecondary,
-                    fontFamily: 'monospace',
+                    fontFamily: SkotiqTypography.fontFamilyMono,
                   ),
                 ),
                 if (bytes != null) ...[

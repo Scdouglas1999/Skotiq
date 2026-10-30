@@ -1,3 +1,4 @@
+import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
@@ -171,7 +172,7 @@ void main(List<String> args) async {
     // Opaque theme background — Colors.transparent + TitleBarStyle.hidden
     // composites to an undraggable black hole on Linux/Wayland when the first
     // Flutter frame is delayed. Match SkotiqColors.dark.background.
-    backgroundColor: Color(0xFF0B0D12),
+    backgroundColor: SkotiqColors.dark.background,
     skipTaskbar: false,
     titleBarStyle: ShellChrome.usesSystemDecorations
         ? TitleBarStyle.normal

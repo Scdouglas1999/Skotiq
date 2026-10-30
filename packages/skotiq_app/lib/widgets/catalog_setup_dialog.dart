@@ -236,7 +236,7 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
                     'About $kInstalledCatalogApproxSizeMB MB on disk.',
                     style: TextStyle(
                       color: colors.textSecondary,
-                      fontSize: 12,
+                      fontSize: SkotiqTypography.fontSize12,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -264,7 +264,9 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
                   const SizedBox(height: 8),
                   Text(
                     '${(_progress * 100).toStringAsFixed(0)}%',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: SkotiqTypography.fontSize12),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -284,7 +286,9 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: TextStyle(color: colors.error, fontSize: 13),
+                            style: TextStyle(
+                                color: colors.error,
+                                fontSize: SkotiqTypography.fontSize13),
                           ),
                         ),
                       ],
@@ -343,7 +347,7 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
                 detail,
                 style: TextStyle(
                   color: colors.textSecondary,
-                  fontSize: 13,
+                  fontSize: SkotiqTypography.fontSize13,
                 ),
               ),
             ],
@@ -393,7 +397,7 @@ class CatalogRequiredBanner extends StatelessWidget {
                   'Download star and DSO catalogs to enable full planetarium functionality.',
                   style: TextStyle(
                     color: colors.textSecondary,
-                    fontSize: 13,
+                    fontSize: SkotiqTypography.fontSize13,
                   ),
                 ),
               ],

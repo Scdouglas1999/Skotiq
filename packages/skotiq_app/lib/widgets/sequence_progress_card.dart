@@ -59,7 +59,7 @@ class SequenceProgressCard extends ConsumerWidget {
               Text(
                 _getStatusText(progress.state),
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: SkotiqTypography.fontSize14,
                   fontWeight: FontWeight.w600,
                   color: textColor,
                 ),
@@ -69,7 +69,7 @@ class SequenceProgressCard extends ConsumerWidget {
               Text(
                 '${(progressPercent * 100).toStringAsFixed(0)}%',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: SkotiqTypography.fontSize14,
                   fontWeight: FontWeight.w600,
                   color: primaryColor,
                 ),
@@ -89,7 +89,7 @@ class SequenceProgressCard extends ConsumerWidget {
                   child: Text(
                     progress.currentTarget!,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: SkotiqTypography.fontSize13,
                       color: textColor,
                       fontWeight: FontWeight.w500,
                     ),
@@ -110,7 +110,7 @@ class SequenceProgressCard extends ConsumerWidget {
                   child: Text(
                     progress.currentNodeName!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: SkotiqTypography.fontSize12,
                       color: textSecondary,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -145,7 +145,7 @@ class SequenceProgressCard extends ConsumerWidget {
                   Text(
                     'Frames',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: SkotiqTypography.fontSize10,
                       color: textSecondary,
                     ),
                   ),
@@ -153,7 +153,7 @@ class SequenceProgressCard extends ConsumerWidget {
                   Text(
                     '${progress.completedExposures}/${progress.totalExposures}',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: SkotiqTypography.fontSize14,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -168,7 +168,7 @@ class SequenceProgressCard extends ConsumerWidget {
                   Text(
                     'Integration',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: SkotiqTypography.fontSize10,
                       color: textSecondary,
                     ),
                   ),
@@ -177,7 +177,7 @@ class SequenceProgressCard extends ConsumerWidget {
                     DurationFormat.seconds(progress.completedIntegrationSecs,
                         style: DurationStyle.hoursMinutes),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: SkotiqTypography.fontSize14,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -193,7 +193,7 @@ class SequenceProgressCard extends ConsumerWidget {
                     Text(
                       'Remaining',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: SkotiqTypography.fontSize10,
                         color: textSecondary,
                       ),
                     ),
@@ -202,7 +202,7 @@ class SequenceProgressCard extends ConsumerWidget {
                       DurationFormat.seconds(estimatedRemaining,
                           style: DurationStyle.hoursMinutes),
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: SkotiqTypography.fontSize14,
                         fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
@@ -222,7 +222,7 @@ class SequenceProgressCard extends ConsumerWidget {
                 Text(
                   progress.currentFilter!,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: SkotiqTypography.fontSize11,
                     color: textSecondary,
                     fontStyle: FontStyle.italic,
                   ),
@@ -243,7 +243,7 @@ class SequenceProgressCard extends ConsumerWidget {
               child: Text(
                 progress.message!,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: SkotiqTypography.fontSize11,
                   color: textSecondary,
                 ),
                 maxLines: 2,

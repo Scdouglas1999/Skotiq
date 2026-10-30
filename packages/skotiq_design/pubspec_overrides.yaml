@@ -1,0 +1,4 @@
+# melos_managed_dependency_overrides: lucide_icons
+dependency_overrides:
+  lucide_icons:
+    path: ../../third_party/lucide_icons

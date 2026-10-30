@@ -348,7 +348,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
     );
     if (widget.onClose == null) return dialog;
     return Stack(children: [
-      const ModalBarrier(dismissible: false, color: Colors.black54),
+      const ModalBarrier(dismissible: false, color: ImageOverlayColors.scrim),
       FocusScope(
         autofocus: true,
         child: CallbackShortcuts(

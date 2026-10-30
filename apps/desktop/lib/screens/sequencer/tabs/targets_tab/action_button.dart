@@ -42,7 +42,7 @@ class _ActionButtonState extends State<_ActionButton> {
                 : _isHovered
                 ? widget.colors.surfaceAlt
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
             border: widget.isPrimary
                 ? null
                 : Border.all(color: widget.colors.border),
@@ -61,7 +61,7 @@ class _ActionButtonState extends State<_ActionButton> {
               Text(
                 widget.label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: SkotiqTypography.fontSize12,
                   fontWeight: FontWeight.w500,
                   color: widget.isPrimary
                       ? primaryForeground

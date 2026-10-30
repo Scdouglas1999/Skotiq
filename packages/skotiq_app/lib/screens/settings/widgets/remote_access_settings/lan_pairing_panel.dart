@@ -118,7 +118,7 @@ class _RemotePairingQrPanel extends StatelessWidget {
                 child: QrImageView(
                   data: qrPayload,
                   size: 200,
-                  backgroundColor: const Color(0xFFFFFFFF),
+                  backgroundColor: ImageOverlayColors.foreground,
                   semanticsLabel:
                       'Skotiq pairing QR for $host:${webState.actualPort}',
                 ),

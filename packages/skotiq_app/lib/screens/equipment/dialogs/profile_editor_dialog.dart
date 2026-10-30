@@ -216,15 +216,15 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
 
   // Available accent colors
   static const List<Color> _accentColors = [
-    Color(0xFF5B9EC4), // Cyan-blue (default)
-    Color(0xFF3A9BC4), // Sky
-    Color(0xFFEC4899), // Pink
-    Color(0xFFEF4444), // Red
-    Color(0xFFF97316), // Orange
-    Color(0xFFEAB308), // Yellow
-    Color(0xFF22C55E), // Green
-    Color(0xFF06B6D4), // Cyan
-    Color(0xFF4A7FB8), // Blue
+    EquipmentProfileColors.defaultProfile, // Cyan-blue (default)
+    EquipmentProfileColors.sky, // Sky
+    EquipmentProfileColors.pink, // Pink
+    SciencePlotColors.clipHigh, // Red
+    EquipmentProfileColors.orange, // Orange
+    EquipmentProfileColors.yellow, // Yellow
+    SciencePlotColors.highConfidence, // Green
+    EquipmentProfileColors.cyan, // Cyan
+    EquipmentProfileColors.blue, // Blue
   ];
 
   @override

@@ -68,7 +68,7 @@ class LiveStackCanvas extends ConsumerWidget {
             ? colors.background
             : SkotiqColors.dark.background,
         child: Center(
-          child: _OnCanvas(
+          child: SkotiqImageSurface(
             child: EmptyState(
               icon: SkotiqIcons.layers,
               title: stack.status == LiveStackingStatus.running
@@ -403,7 +403,7 @@ class _StackedImageSourceState extends State<StackedImageSource> {
             ? widget.colors.background
             : SkotiqColors.dark.background,
         child: Center(
-          child: _OnCanvas(
+          child: SkotiqImageSurface(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -429,25 +429,5 @@ class _StackedImageSourceState extends State<StackedImageSource> {
       );
     }
     return widget.builder(context, image);
-  }
-}
-
-/// Puts its child on the dark ladder, because what is behind it is a
-/// photograph of the night sky in every theme but red night.
-class _OnCanvas extends StatelessWidget {
-  const _OnCanvas({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.skotiqColors;
-    final inner = colors.isRedNight ? colors : SkotiqColors.dark;
-    return Theme(
-      data: Theme.of(
-        context,
-      ).copyWith(extensions: <ThemeExtension<dynamic>>[inner]),
-      child: child,
-    );
   }
 }

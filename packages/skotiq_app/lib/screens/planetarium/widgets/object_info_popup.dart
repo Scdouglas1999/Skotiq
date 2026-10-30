@@ -12,7 +12,7 @@ import '../../../widgets/slew_dropdown_button.dart';
 import '../../../widgets/tutorial_keys/planetarium_keys.dart';
 import '../planetarium_screen.dart';
 
-// NOTE (design tokens): the `Colors.white*` text/icons and `Colors.black*`
+// NOTE (design tokens): the `ImageOverlayColors.foreground*` text/icons and `ImageOverlayColors.shadow*`
 // scrim/shadow in this floating object popup are canvas-absolute HUD colors
 // drawn over the planetarium sky. The planetarium is wrapped in
 // `_NightVisionFilter` (luminance→red conversion for dark adaptation), so these
@@ -232,7 +232,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -341,7 +341,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                   style: const TextStyle(
                     fontSize: SkotiqTypography.fontSize16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: ImageOverlayColors.foreground,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -379,7 +379,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                         'mag ${obj.magnitude!.toStringAsFixed(1)}',
                         style: const TextStyle(
                           fontSize: SkotiqTypography.fontSize11,
-                          color: Colors.white60,
+                          color: ImageOverlayColors.muted,
                         ),
                       ),
                     ],
@@ -397,11 +397,11 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: ImageOverlayColors.foreground.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   ),
                   child: const Icon(LucideIcons.fileDown,
-                      size: 14, color: Colors.white60),
+                      size: 14, color: ImageOverlayColors.muted),
                 ),
               ),
             ),
@@ -413,11 +413,11 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
+                color: ImageOverlayColors.foreground.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
               ),
               child: const Icon(SkotiqIcons.close,
-                  size: 14, color: Colors.white60),
+                  size: 14, color: ImageOverlayColors.muted),
             ),
           ),
         ],
@@ -485,7 +485,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,
-            color: Colors.white38,
+            color: ImageOverlayColors.disabled,
             letterSpacing: 0.5,
           ),
         ),
@@ -547,7 +547,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,
-            color: Colors.white38,
+            color: ImageOverlayColors.disabled,
             letterSpacing: 0.5,
           ),
         ),
@@ -587,7 +587,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               'Az ${az.toStringAsFixed(1)}\u00b0',
               style: const TextStyle(
                 fontSize: SkotiqTypography.fontSize11,
-                color: Colors.white60,
+                color: ImageOverlayColors.muted,
                 fontFeatures: [ui.FontFeature.tabularFigures()],
               ),
             ),

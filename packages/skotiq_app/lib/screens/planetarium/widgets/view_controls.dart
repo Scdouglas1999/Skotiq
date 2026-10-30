@@ -13,12 +13,6 @@ import '../../../utils/coordinate_format_utils.dart';
 import '../../../widgets/tutorial_keys/planetarium_keys.dart';
 import '../providers/finder_chart_catalog_provider.dart';
 
-// NOTE (design tokens): every `Colors.white*` / `Colors.black*` and the
-// `0xFF00E676` accent in this file are canvas-absolute HUD colors drawn over the
-// planetarium sky. The whole planetarium is wrapped in `_NightVisionFilter`,
-// which applies the luminance→red conversion for night-vision dark adaptation,
-// so these are intentionally NOT mapped to the theme-relative semantic palette.
-
 /// Floating zoom/overlay control cluster drawn over the planetarium sky canvas.
 ///
 /// Its translucent-black panel and white text/dividers are a deliberate fixed
@@ -26,7 +20,7 @@ import '../providers/finder_chart_catalog_provider.dart';
 /// wrapped in `_NightVisionFilter`, which applies the luminance→red conversion
 /// for night-vision mode. Mapping these to semantic theme colors would both
 /// double-up with that filter and break the over-sky contrast, so the
-/// `Colors.white*` / `Colors.black*` literals here are intentionally kept.
+/// shared [ImageOverlayColors] keep this contrast independent of page surfaces.
 class ViewControls extends ConsumerWidget {
   final SkotiqColors colors;
   final bool showFOV;
@@ -46,7 +40,7 @@ class ViewControls extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
       ),
       child: Column(
@@ -63,7 +57,7 @@ class ViewControls extends ConsumerWidget {
               CoordinateFormatUtils.formatFOVCompact(viewState.fieldOfView),
               style: const TextStyle(
                 fontSize: SkotiqTypography.fontSize10,
-                color: Colors.white70,
+                color: ImageOverlayColors.secondary,
                 fontFeatures: [ui.FontFeature.tabularFigures()],
               ),
             ),
@@ -73,7 +67,7 @@ class ViewControls extends ConsumerWidget {
             icon: SkotiqIcons.remove,
             onTap: ref.read(skyViewStateProvider.notifier).zoomOut,
           ),
-          const Divider(height: 16, color: Colors.white24),
+          const Divider(height: 16, color: ImageOverlayColors.divider),
           ViewControlButton(
             icon: SkotiqIcons.home,
             onTap: () {
@@ -181,7 +175,7 @@ class ViewControls extends ConsumerWidget {
               );
             },
           ),
-          const Divider(height: 16, color: Colors.white24),
+          const Divider(height: 16, color: ImageOverlayColors.divider),
           // Compass HUD toggle - wrapped in Consumer to scope rebuilds
           Consumer(
             builder: (context, ref, _) {
@@ -266,7 +260,7 @@ class ViewControls extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           QualitySettingsButton(colors: colors),
-          const Divider(height: 16, color: Colors.white24),
+          const Divider(height: 16, color: ImageOverlayColors.divider),
           // Alt/Az ("tonight from my site") view-mode toggle. Reframes the sky
           // horizon-up / zenith-centered as the observer sees it; tap again to
           // return to the equatorial (star-atlas) frame.
@@ -289,7 +283,7 @@ class ViewControls extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           ProjectionSelectorButton(colors: colors),
-          const Divider(height: 16, color: Colors.white24),
+          const Divider(height: 16, color: ImageOverlayColors.divider),
           ExportChartButton(colors: colors),
         ],
       ),
@@ -450,7 +444,8 @@ class _ExportChartButtonState extends ConsumerState<ExportChartButton> {
         height: 28,
         child: const Padding(
           padding: const EdgeInsets.all(6),
-          child: const SkotiqSpinner(size: 16, color: Colors.white70),
+          child: const SkotiqSpinner(
+              size: 16, color: ImageOverlayColors.secondary),
         ),
       );
     }
@@ -459,7 +454,7 @@ class _ExportChartButtonState extends ConsumerState<ExportChartButton> {
       icon: const Icon(
         LucideIcons.fileDown,
         size: 18,
-        color: Colors.white70,
+        color: ImageOverlayColors.secondary,
       ),
       tooltip: 'Export finder chart',
       color: widget.colors.surface,
@@ -560,7 +555,7 @@ class QualitySettingsButton extends ConsumerWidget {
         icon: const Icon(
           SkotiqIcons.settings2,
           size: 18,
-          color: Colors.white70,
+          color: ImageOverlayColors.secondary,
         ),
         // Empty, deliberately: see [_namedCommandBarPopup].
         tooltip: '',
@@ -695,7 +690,7 @@ class ProjectionSelectorButton extends ConsumerWidget {
         icon: Icon(
           _projectionIcon(currentProjection),
           size: 18,
-          color: Colors.white70,
+          color: ImageOverlayColors.secondary,
           semanticLabel: name,
         ),
         // Empty, deliberately: see [_namedCommandBarPopup].
@@ -820,7 +815,7 @@ class _ViewControlButtonState extends State<ViewControlButton> {
                 ? colors.primary
                     .withValues(alpha: SkotiqTokens.opacityAccentTintHover)
                 : (_isHovered
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? ImageOverlayColors.foreground.withValues(alpha: 0.1)
                     : Colors.transparent),
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             border: widget.isActive
@@ -830,7 +825,8 @@ class _ViewControlButtonState extends State<ViewControlButton> {
           child: Icon(
             widget.icon,
             size: 14,
-            color: widget.isActive ? colors.primary : Colors.white70,
+            color:
+                widget.isActive ? colors.primary : ImageOverlayColors.secondary,
           ),
         ),
       ),

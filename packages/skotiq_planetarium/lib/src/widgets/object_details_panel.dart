@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,9 +72,9 @@ class ObjectDetailsPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bgColor = backgroundColor ?? const Color(0xFF1A1A2E);
-    final txtColor = textColor ?? Colors.white;
-    final accent = accentColor ?? const Color(0xFF00E676);
+    final bgColor = backgroundColor ?? context.skotiqColors.surface;
+    final txtColor = textColor ?? context.skotiqColors.textPrimary;
+    final accent = accentColor ?? context.skotiqColors.primary;
 
     // Null until an observing site is on record. Altitude, rise/set and the
     // visibility grade are all measured from the observer's horizon, so those
@@ -97,7 +98,7 @@ class ObjectDetailsPanel extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusXl),
         border: Border.all(color: txtColor.withValues(alpha: 0.1)),
       ),
       child: SingleChildScrollView(

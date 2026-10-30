@@ -115,7 +115,9 @@ class _PillTabState extends State<PillTab> {
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: widget.dense ? 9 : 10,
+                      fontSize: widget.dense
+                          ? SkotiqTypography.fontSize9
+                          : SkotiqTypography.fontSize10,
                       fontWeight:
                           widget.isSelected ? FontWeight.w600 : FontWeight.w500,
                       color: widget.isSelected

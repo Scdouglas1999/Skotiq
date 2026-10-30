@@ -195,7 +195,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                           style: TextStyle(
                             fontSize: SkotiqTypography.fontSize11,
                             color: colors.textPrimary,
-                            fontFamily: 'monospace',
+                            fontFamily: SkotiqTypography.fontFamilyMono,
                           ),
                         ),
                         Text(
@@ -203,7 +203,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                           style: TextStyle(
                             fontSize: SkotiqTypography.fontSize11,
                             color: colors.textPrimary,
-                            fontFamily: 'monospace',
+                            fontFamily: SkotiqTypography.fontFamilyMono,
                           ),
                         ),
                       ],

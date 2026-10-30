@@ -803,7 +803,7 @@ void main() {
       );
     }
 
-    test('the default violet accent reproduces the approved colorway', () {
+    test('the violet accent reproduces the approved colorway', () {
       // Approved violet lanes, outermost first.
       const approved = [
         Color(0xFF6E56CF),
@@ -812,7 +812,7 @@ void main() {
         Color(0xFFE4DEFF),
       ];
       final dark = themeTrailsRamp(
-        SkotiqColors.dark.primary,
+        const Color(0xFFA48CF2),
         brandWarm: SkotiqColors.dark.brandWarm,
         lightGround: false,
       );
@@ -831,7 +831,7 @@ void main() {
         Color(0xFF2B2347),
       ];
       final light = themeTrailsRamp(
-        SkotiqColors.light.primary,
+        const Color(0xFF6A4FD1),
         brandWarm: SkotiqColors.light.brandWarm,
         lightGround: true,
       );

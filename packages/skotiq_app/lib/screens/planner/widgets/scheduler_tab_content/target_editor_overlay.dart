@@ -29,7 +29,7 @@ class _TargetEditorOverlay extends ConsumerWidget {
         onTap: onClose,
         child: Container(
           // absolute: modal barrier scrim dimming the screen behind the dialog
-          color: Colors.black.withValues(alpha: 0.55),
+          color: ImageOverlayColors.shadow.withValues(alpha: 0.55),
           alignment: Alignment.center,
           child: GestureDetector(
             onTap: () => FocusScope.of(context).unfocus(),
@@ -58,7 +58,8 @@ class _TargetEditorOverlay extends ConsumerWidget {
                           boxShadow: [
                             BoxShadow(
                               // absolute: dialog drop shadow cast on the canvas
-                              color: Colors.black.withValues(alpha: 0.35),
+                              color: ImageOverlayColors.shadow
+                                  .withValues(alpha: 0.35),
                               blurRadius: 24,
                               offset: const Offset(0, 8),
                             ),

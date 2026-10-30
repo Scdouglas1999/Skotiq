@@ -432,13 +432,7 @@ class _WeightSlider extends StatelessWidget {
         ),
         Expanded(
           child: SliderTheme(
-            data: SliderThemeData(
-              activeTrackColor: channelColor,
-              inactiveTrackColor: colors.border.withValues(alpha: 0.5),
-              thumbColor: channelColor,
-              overlayColor: channelColor.withValues(alpha: 0.15),
-              trackHeight: 3,
-            ),
+            data: SkotiqSliderStyle.theme(colors, accent: channelColor),
             child: Slider(
               value: value.clamp(0.0, 1.0),
               onChanged: onChanged,

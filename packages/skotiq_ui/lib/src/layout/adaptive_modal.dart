@@ -74,7 +74,9 @@ Future<T?> showAdaptiveModal<T>({
                         height: 4,
                         decoration: BoxDecoration(
                           color: sheetContext.skotiqColors.border,
-                          borderRadius: BorderRadius.circular(2),
+                          borderRadius: BorderRadius.circular(
+                            SkotiqTokens.radiusXs,
+                          ),
                         ),
                       ),
                     ),

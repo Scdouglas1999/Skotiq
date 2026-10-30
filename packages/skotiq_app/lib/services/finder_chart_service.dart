@@ -171,7 +171,7 @@ class FinderChartService {
         // transparent (a transparent PNG prints as whatever is behind it).
         canvas.drawRect(
           Offset.zero & size,
-          Paint()..color = const Color(0xFF000000),
+          Paint()..color = ImageOverlayColors.shadow,
         );
       }
 
@@ -246,12 +246,12 @@ class FinderChartService {
       showMilkyWay: false,
       showMountPosition: false,
       // Light lines on the dark render invert to dark lines on paper.
-      gridColor: const Color(0x80FFFFFF),
-      constellationLineColor: const Color(0x90CCCCCC),
-      eclipticColor: const Color(0x80FFD700),
-      galacticPlaneColor: const Color(0x8000CED1),
-      horizonColor: const Color(0xA0FF6633),
-      mountPositionColor: const Color(0xFFFF4444),
+      gridColor: ImageOverlayColors.finderGrid,
+      constellationLineColor: ImageOverlayColors.finderConstellation,
+      eclipticColor: ImageOverlayColors.finderEcliptic,
+      galacticPlaneColor: ImageOverlayColors.finderGalacticPlane,
+      horizonColor: ImageOverlayColors.finderHorizon,
+      mountPositionColor: ImageOverlayColors.north,
     );
   }
 

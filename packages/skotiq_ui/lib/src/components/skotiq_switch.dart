@@ -1,3 +1,4 @@
+import '../theme/skotiq_data_colors.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/skotiq_colors.dart';
@@ -137,7 +138,9 @@ class _SkotiqSwitchState extends State<SkotiqSwitch> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
+                          color: ImageOverlayColors.shadow.withValues(
+                            alpha: 0.18,
+                          ),
                           blurRadius: 2,
                           offset: const Offset(0, 1),
                         ),

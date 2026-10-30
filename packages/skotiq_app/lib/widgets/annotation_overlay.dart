@@ -14,8 +14,8 @@ part 'annotation_overlay/marker_pulse_overlay.dart';
 part 'annotation_overlay/enhanced_annotation_painter.dart';
 part 'annotation_overlay/object_info_tooltip.dart';
 
-const _annotationOverlayTextColor = Color(0xFFFFFFFF);
-const _annotationOverlayShadowColor = Color(0xFF000000);
+const _annotationOverlayTextColor = ImageOverlayColors.foreground;
+const _annotationOverlayShadowColor = ImageOverlayColors.shadow;
 
 /// Enhanced annotation overlay with fade effects, click-to-identify, hover tooltips, and customizable styles
 class AnnotationOverlay extends ConsumerStatefulWidget {

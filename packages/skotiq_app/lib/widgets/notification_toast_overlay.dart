@@ -400,7 +400,7 @@ class _NotificationToastState extends State<_NotificationToast>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -451,7 +451,8 @@ class _NotificationToastState extends State<_NotificationToast>
                                           style: TextStyle(
                                             color: colors.textPrimary,
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 12,
+                                            fontSize:
+                                                SkotiqTypography.fontSize12,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -460,7 +461,7 @@ class _NotificationToastState extends State<_NotificationToast>
                                         widget.notification.message,
                                         style: TextStyle(
                                           color: colors.textSecondary,
-                                          fontSize: 11,
+                                          fontSize: SkotiqTypography.fontSize11,
                                         ),
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,

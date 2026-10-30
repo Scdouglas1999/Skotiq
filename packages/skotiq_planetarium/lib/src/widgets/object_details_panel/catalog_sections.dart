@@ -25,7 +25,7 @@ extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
           'Coordinates',
           style: TextStyle(
             color: txtColor.withValues(alpha: 0.7),
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -57,7 +57,7 @@ extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
           'Catalog Designations',
           style: TextStyle(
             color: txtColor.withValues(alpha: 0.7),
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -72,11 +72,11 @@ extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
 
             Color tagColor;
             if (isMessier) {
-              tagColor = Colors.amber;
+              tagColor = SkyPlotColors.caution;
             } else if (isNgc) {
-              tagColor = Colors.blue;
+              tagColor = SkyPlotColors.openCluster;
             } else if (isIc) {
-              tagColor = Colors.purple;
+              tagColor = SkyPlotColors.galaxy;
             } else {
               tagColor = txtColor;
             }
@@ -85,14 +85,14 @@ extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: tagColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 border: Border.all(color: tagColor.withValues(alpha: 0.3)),
               ),
               child: Text(
                 id,
                 style: TextStyle(
                   color: tagColor,
-                  fontSize: 11,
+                  fontSize: SkotiqTypography.fontSize11,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -141,7 +141,7 @@ extension _ObjectDetailsPanelCatalogSections on ObjectDetailsPanel {
           'Physical Properties',
           style: TextStyle(
             color: txtColor.withValues(alpha: 0.7),
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w600,
           ),
         ),

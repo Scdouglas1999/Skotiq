@@ -373,7 +373,7 @@ class _PathFallback extends StatelessWidget {
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize10,
               color: colors.textMuted,
-              fontFamily: 'monospace',
+              fontFamily: SkotiqTypography.fontFamilyMono,
             ),
           ),
         ],

@@ -203,7 +203,7 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
             child: Text(
               operation.currentStep ?? operation.description,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: SkotiqTypography.fontSize11,
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
@@ -233,9 +233,9 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
           Text(
             operation.elapsedFormatted,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: SkotiqTypography.fontSize10,
               color: colors.textMuted,
-              fontFamily: 'monospace',
+              fontFamily: SkotiqTypography.fontFamilyMono,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
@@ -326,7 +326,7 @@ class OperationIndicator extends ConsumerWidget {
           Text(
             operation.currentStep ?? type.activeLabel,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               color: colors.primary,
             ),
           ),

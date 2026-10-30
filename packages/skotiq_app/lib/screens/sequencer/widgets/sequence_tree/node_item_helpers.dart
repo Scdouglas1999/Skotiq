@@ -314,7 +314,7 @@ Color nodeStatusColor(NodeStatus? status, SkotiqColors colors) {
     case NodeStatus.cancelled:
       return colors.warning;
     default:
-      return const Color(0x00000000);
+      return Colors.transparent;
   }
 }
 

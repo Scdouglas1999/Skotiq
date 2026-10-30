@@ -117,7 +117,7 @@ class FramingStarBackgroundPainter extends CustomPainter {
       final radius = random.nextDouble() * 1.5 + 0.3;
 
       // absolute: stars painted on the sky-background canvas
-      paint.color = Colors.white.withValues(alpha: brightness);
+      paint.color = ImageOverlayColors.foreground.withValues(alpha: brightness);
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
 

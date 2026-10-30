@@ -277,7 +277,7 @@ class EquipmentStatusIndicator extends ConsumerWidget {
           child: Text(
             'No devices configured',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               color: colors.textMuted,
               fontStyle: FontStyle.italic,
             ),
@@ -334,7 +334,7 @@ class EquipmentStatusIndicator extends ConsumerWidget {
             Text(
               'Disconnect all',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: SkotiqTypography.fontSize13,
                 color: canDisconnect ? colors.textPrimary : colors.textMuted,
               ),
             ),
@@ -354,7 +354,7 @@ class EquipmentStatusIndicator extends ConsumerWidget {
             Text(
               'Equipment',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: SkotiqTypography.fontSize13,
                 color: colors.textPrimary,
               ),
             ),
@@ -589,7 +589,7 @@ class _CompactStatus extends StatelessWidget {
             child: Text(
               profileName,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: SkotiqTypography.fontSize12,
                 color: colors.textSecondary,
               ),
               overflow: TextOverflow.ellipsis,
@@ -609,7 +609,7 @@ class _CompactStatus extends StatelessWidget {
           Text(
             counts.label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               color: statusColor,
               fontWeight: FontWeight.w600,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -653,7 +653,7 @@ class _DropdownHeader extends StatelessWidget {
           child: Text(
             profileName,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: SkotiqTypography.fontSize14,
               fontWeight: FontWeight.w600,
               color: colors.textPrimary,
             ),
@@ -672,7 +672,7 @@ class _DropdownHeader extends StatelessWidget {
         Text(
           counts.label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: SkotiqTypography.fontSize13,
             color: statusColor,
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -716,7 +716,7 @@ class _DeviceRow extends StatelessWidget {
           child: Text(
             name,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               color: textColor,
             ),
             overflow: TextOverflow.ellipsis,
@@ -736,7 +736,7 @@ class _DeviceRow extends StatelessWidget {
           child: Text(
             status,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               color: isConnected ? colors.textSecondary : colors.textMuted,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),

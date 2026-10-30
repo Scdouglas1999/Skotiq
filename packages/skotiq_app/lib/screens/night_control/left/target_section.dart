@@ -317,7 +317,7 @@ class _AltitudeAxes extends StatelessWidget {
     final colors = context.skotiqColors;
     final style = SkotiqTypography.captionSm.copyWith(
       color: colors.textMuted,
-      fontSize: 9,
+      fontSize: SkotiqTypography.fontSize9,
       height: 1,
     );
     const height = NightTargetSection.chartHeight;

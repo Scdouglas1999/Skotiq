@@ -943,7 +943,7 @@ class _EstimateSummary extends ConsumerWidget {
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 11),
                 color: colors.textMuted,
-                fontFamily: 'monospace',
+                fontFamily: SkotiqTypography.fontFamilyMono,
               ),
             ),
           ],

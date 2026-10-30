@@ -285,7 +285,7 @@ class _VariableRow extends StatelessWidget {
                       Text(
                         entry.placeholder,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'monospace',
+                          fontFamily: SkotiqTypography.fontFamilyMono,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -310,7 +310,7 @@ class _VariableRow extends StatelessWidget {
                   child: Text(
                     entry.example,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
+                      fontFamily: SkotiqTypography.fontFamilyMono,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),

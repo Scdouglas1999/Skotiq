@@ -236,7 +236,7 @@ class _ContextCard extends StatelessWidget {
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textSecondary,
-              fontFamily: 'monospace',
+              fontFamily: SkotiqTypography.fontFamilyMono,
             ),
           ),
           const Divider(height: 14),
@@ -317,7 +317,7 @@ class _RotationControls extends StatelessWidget {
                   fontSize: SkotiqTypography.fontSize14,
                   color: colors.primary,
                   fontWeight: FontWeight.w700,
-                  fontFamily: 'monospace',
+                  fontFamily: SkotiqTypography.fontFamilyMono,
                 ),
               ),
             ],

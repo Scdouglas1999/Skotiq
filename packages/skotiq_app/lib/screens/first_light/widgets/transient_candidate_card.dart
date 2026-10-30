@@ -465,9 +465,6 @@ class _ActionsRow extends StatelessWidget {
             detection.dismissed ? null : () => _triage(context, dismiss: true),
         style: IconButton.styleFrom(
           backgroundColor: colors.surfaceAlt,
-          shape: RoundedRectangleBorder(
-            borderRadius: SkotiqTokens.borderRadiusSm,
-          ),
         ),
       ),
     );

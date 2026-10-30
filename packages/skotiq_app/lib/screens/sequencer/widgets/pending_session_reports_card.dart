@@ -53,7 +53,7 @@ class PendingSessionReportsCard extends ConsumerWidget {
                       : '${ordered.length} session reports from unattended '
                           'imaging',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: SkotiqTypography.fontSize15,
                     fontWeight: FontWeight.w600,
                     color: colors.textPrimary,
                   ),
@@ -72,7 +72,9 @@ class PendingSessionReportsCard extends ConsumerWidget {
           Text(
             'These ran while the autopilot held the rig, so they were not '
             'opened over your work.',
-            style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           for (final report in ordered)
@@ -84,7 +86,7 @@ class PendingSessionReportsCard extends ConsumerWidget {
                     child: Text(
                       'Finished ${time.format(report.endedAt)}',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: SkotiqTypography.fontSize13,
                         color: colors.textPrimary,
                       ),
                     ),

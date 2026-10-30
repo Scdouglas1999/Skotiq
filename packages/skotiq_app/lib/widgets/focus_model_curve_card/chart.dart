@@ -140,7 +140,8 @@ class _HfrCurvePainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: v.toStringAsFixed(1),
-          style: TextStyle(fontSize: 9, color: textColor),
+          style:
+              TextStyle(fontSize: SkotiqTypography.fontSize9, color: textColor),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -159,7 +160,8 @@ class _HfrCurvePainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: v.toInt().toString(),
-          style: TextStyle(fontSize: 9, color: textColor),
+          style:
+              TextStyle(fontSize: SkotiqTypography.fontSize9, color: textColor),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -196,7 +198,7 @@ class _HfrCurvePainter extends CustomPainter {
           text: TextSpan(
             text: 'Best $predicted',
             style: TextStyle(
-              fontSize: 9,
+              fontSize: SkotiqTypography.fontSize9,
               color: successColor,
               fontWeight: FontWeight.w600,
             ),
@@ -260,7 +262,8 @@ class _HfrCurvePainter extends CustomPainter {
     final xLabel = TextPainter(
       text: TextSpan(
         text: 'Focuser position',
-        style: TextStyle(fontSize: 9, color: textColor),
+        style:
+            TextStyle(fontSize: SkotiqTypography.fontSize9, color: textColor),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -277,7 +280,8 @@ class _HfrCurvePainter extends CustomPainter {
     final yLabel = TextPainter(
       text: TextSpan(
         text: 'HFR',
-        style: TextStyle(fontSize: 9, color: textColor),
+        style:
+            TextStyle(fontSize: SkotiqTypography.fontSize9, color: textColor),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -292,9 +296,9 @@ class _HfrCurvePainter extends CustomPainter {
   /// what the existing desktop focus-model panel renders.
   Color _temperatureColor(double t) {
     // Anchor colours: cool ~ #4F8BFF, mid ~ #B9A26A, warm ~ #FF8A3D.
-    const cool = Color(0xFF4F8BFF);
-    const mid = Color(0xFFB9A26A);
-    const warm = Color(0xFFFF8A3D);
+    const cool = SciencePlotColors.temperatureCool;
+    const mid = SciencePlotColors.temperatureMid;
+    const warm = SciencePlotColors.temperatureWarm;
     if (t <= 0.5) {
       final f = t * 2;
       return Color.lerp(cool, mid, f) ?? mid;
@@ -358,7 +362,9 @@ class _TemperatureLegend extends StatelessWidget {
     return Row(
       children: [
         Text('Cool ${minTemp.toStringAsFixed(1)}°',
-            style: TextStyle(fontSize: 10, color: colors.textMuted)),
+            style: TextStyle(
+                fontSize: SkotiqTypography.fontSize10,
+                color: colors.textMuted)),
         const SizedBox(width: 6),
         Expanded(
           child: Container(
@@ -366,16 +372,18 @@ class _TemperatureLegend extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
               gradient: const LinearGradient(colors: [
-                Color(0xFF4F8BFF),
-                Color(0xFFB9A26A),
-                Color(0xFFFF8A3D),
+                SciencePlotColors.temperatureCool,
+                SciencePlotColors.temperatureMid,
+                SciencePlotColors.temperatureWarm,
               ]),
             ),
           ),
         ),
         const SizedBox(width: 6),
         Text('Warm ${maxTemp.toStringAsFixed(1)}°',
-            style: TextStyle(fontSize: 10, color: colors.textMuted)),
+            style: TextStyle(
+                fontSize: SkotiqTypography.fontSize10,
+                color: colors.textMuted)),
       ],
     );
   }

@@ -20,7 +20,9 @@ class StarFieldPainter extends CustomPainter {
       // already neutral (R == G == B), but under red night a white star still
       // emits the green and blue a dark-adapted eye is protected from, so the
       // ink comes off the red-night ladder there.
-      paint.color = (colors.isRedNight ? colors.textPrimary : Colors.white)
+      paint.color = (colors.isRedNight
+              ? colors.textPrimary
+              : ImageOverlayColors.foreground)
           .withValues(alpha: brightness);
       canvas.drawCircle(Offset(x, y), radius, paint);
     }

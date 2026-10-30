@@ -488,7 +488,7 @@ class _DiffNodeRow extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                     fontSize: SkotiqTypography.fontSize14,
                     color: entryColor,
-                    fontFamily: 'monospace',
+                    fontFamily: SkotiqTypography.fontFamilyMono,
                   ),
                 ),
               ),
@@ -626,7 +626,7 @@ class _ValueChip extends StatelessWidget {
         style: TextStyle(
           fontSize: SkotiqTypography.fontSize11,
           color: color,
-          fontFamily: 'monospace',
+          fontFamily: SkotiqTypography.fontFamilyMono,
         ),
       ),
     );

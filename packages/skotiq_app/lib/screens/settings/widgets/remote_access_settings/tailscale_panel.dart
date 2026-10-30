@@ -189,7 +189,7 @@ class _RemoteTailscalePanelState extends ConsumerState<_RemoteTailscalePanel> {
                 child: QrImageView(
                   data: qrPayload,
                   size: 200,
-                  backgroundColor: const Color(0xFFFFFFFF),
+                  backgroundColor: ImageOverlayColors.foreground,
                   semanticsLabel: 'Skotiq Tailscale pairing QR for '
                       '$host:${widget.webState.actualPort}',
                 ),

@@ -59,7 +59,7 @@ class _KeyboardShortcutsOverlay extends StatelessWidget {
       child: Container(
         // absolute: dim scrim over the planetarium sky canvas (night-vision
         // red conversion is applied by the enclosing _NightVisionFilter)
-        color: Colors.black.withValues(alpha: 0.7),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.7),
         child: Center(
           child: GestureDetector(
             onTap: _consumeTap,
@@ -71,13 +71,13 @@ class _KeyboardShortcutsOverlay extends StatelessWidget {
               margin: const EdgeInsets.all(32),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2E),
+                color: context.skotiqColors.onImage.surfaceElevated,
                 borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 // absolute: fixed HUD palette (see class doc)
-                border: Border.all(color: Colors.white24),
+                border: Border.all(color: ImageOverlayColors.divider),
                 boxShadow: const [
                   BoxShadow(
-                    color: Colors.black54,
+                    color: ImageOverlayColors.scrim,
                     blurRadius: 24,
                     offset: Offset(0, 8),
                   ),
@@ -95,12 +95,12 @@ class _KeyboardShortcutsOverlay extends StatelessWidget {
                         style: TextStyle(
                           fontSize: SkotiqTypography.fontSize18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: ImageOverlayColors.foreground,
                         ),
                       ),
                       IconButton(
                         icon: const Icon(SkotiqIcons.close,
-                            size: 18, color: Colors.white54),
+                            size: 18, color: ImageOverlayColors.faint),
                         onPressed: onDismiss,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -137,7 +137,8 @@ class _KeyboardShortcutsOverlay extends StatelessWidget {
                       'Press Escape or ? to close',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize12,
-                        color: Colors.white.withValues(alpha: 0.4),
+                        color: ImageOverlayColors.foreground
+                            .withValues(alpha: 0.4),
                       ),
                     ),
                   ),
@@ -169,7 +170,7 @@ class _ShortcutSection extends StatelessWidget {
         Text(
           title,
           style: SkotiqTypography.labelStrong
-              .copyWith(color: const Color(0xFF00E676)),
+              .copyWith(color: context.skotiqColors.link),
         ),
         const SizedBox(height: 6),
         ...shortcuts.map((s) => Padding(
@@ -182,19 +183,21 @@ class _ShortcutSection extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: ImageOverlayColors.foreground
+                            .withValues(alpha: 0.1),
                         borderRadius:
                             BorderRadius.circular(SkotiqTokens.radiusInline4),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.15)),
+                            color: ImageOverlayColors.foreground
+                                .withValues(alpha: 0.15)),
                       ),
                       child: Text(
                         s.$1,
                         style: const TextStyle(
                           fontSize: SkotiqTypography.fontSize12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white70,
-                          fontFamily: 'monospace',
+                          color: ImageOverlayColors.secondary,
+                          fontFamily: SkotiqTypography.fontFamilyMono,
                         ),
                       ),
                     ),
@@ -204,7 +207,7 @@ class _ShortcutSection extends StatelessWidget {
                     s.$2,
                     style: const TextStyle(
                       fontSize: SkotiqTypography.fontSize13,
-                      color: Colors.white60,
+                      color: ImageOverlayColors.muted,
                     ),
                   ),
                 ],

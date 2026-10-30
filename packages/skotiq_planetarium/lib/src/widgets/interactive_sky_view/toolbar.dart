@@ -97,20 +97,22 @@ class _ToolbarToggle extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isActive
-              ? Colors.white.withValues(alpha: 0.2)
-              : Colors.black.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(16),
+              ? ImageOverlayColors.foreground.withValues(alpha: 0.2)
+              : ImageOverlayColors.shadow.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusFull),
           border: Border.all(
             color: isActive
-                ? Colors.white.withValues(alpha: 0.5)
-                : Colors.white.withValues(alpha: 0.1),
+                ? ImageOverlayColors.foreground.withValues(alpha: 0.5)
+                : ImageOverlayColors.foreground.withValues(alpha: 0.1),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
-            color: isActive ? Colors.white : Colors.white70,
+            fontSize: SkotiqTypography.fontSize11,
+            color: isActive
+                ? ImageOverlayColors.foreground
+                : ImageOverlayColors.secondary,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
           ),
         ),

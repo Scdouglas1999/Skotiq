@@ -476,15 +476,15 @@ class _PsfHeatmapGrid extends StatelessWidget {
                     ? 0.0
                     : ((fwhm - low) / (high - low)).clamp(0.0, 1.0);
                 final color = tile == null || tile.starCount <= 0
-                    ? const Color(0xFF4A5568)
+                    ? SciencePlotColors.noMeasurement
                     : Color.lerp(
-                        const Color(0xFF0B6E4F),
-                        const Color(0xFFC0392B),
+                        SciencePlotColors.psfTight,
+                        SciencePlotColors.psfBloated,
                         normalized,
                       )!;
                 final labelColor = color.computeLuminance() > 0.45
-                    ? const Color(0xFF000000)
-                    : const Color(0xFFFFFFFF);
+                    ? ImageOverlayColors.shadow
+                    : ImageOverlayColors.foreground;
 
                 return Expanded(
                   child: Container(

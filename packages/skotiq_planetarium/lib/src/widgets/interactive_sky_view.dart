@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 import 'dart:ui' show FrameTiming, FramePhase;
 import 'package:flutter/scheduler.dart';
@@ -751,22 +752,26 @@ class _NoObservingSiteSky extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Color(0xFF05070F),
+    return ColoredBox(
+      color: context.skotiqColors.background,
       child: Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.place_outlined, size: 32, color: Color(0xFF8A93A6)),
+              Icon(
+                Icons.place_outlined,
+                size: 32,
+                color: context.skotiqColors.textMuted,
+              ),
               SizedBox(height: 12),
               Text(
                 'No observing site set',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFFE6EAF2),
-                  fontSize: 16,
+                  color: context.skotiqColors.textPrimary,
+                  fontSize: SkotiqTypography.fontSize16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -774,7 +779,10 @@ class _NoObservingSiteSky extends StatelessWidget {
               Text(
                 'Set your location in Settings to draw the sky over your site.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8A93A6), fontSize: 13),
+                style: TextStyle(
+                  color: context.skotiqColors.textMuted,
+                  fontSize: SkotiqTypography.fontSize13,
+                ),
               ),
             ],
           ),

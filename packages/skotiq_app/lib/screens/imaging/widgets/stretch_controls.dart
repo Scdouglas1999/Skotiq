@@ -698,22 +698,15 @@ class _SliderSetting extends StatelessWidget {
                 child: Text(
                   formatValue(value),
                   style: SkotiqTypography.monoCaption.copyWith(
-                      fontFamily: 'JetBrains Mono', color: colors.textPrimary),
+                      fontFamily: SkotiqTypography.fontFamilyMono,
+                      color: colors.textPrimary),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
           SliderTheme(
-            data: SliderThemeData(
-              trackHeight: 4,
-              activeTrackColor: enabled ? colors.primary : colors.textMuted,
-              inactiveTrackColor: colors.surfaceAlt,
-              thumbColor: enabled ? colors.primary : colors.textMuted,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              overlayColor: colors.primary.withValues(alpha: 0.2),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            ),
+            data: SkotiqSliderStyle.theme(colors),
             child: Slider(
               value: value,
               min: min,

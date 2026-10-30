@@ -95,7 +95,7 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
           Text(
             'Object Type',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w600,
               color: colors.textSecondary,
             ),
@@ -106,7 +106,7 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
               border: Border.all(color: colors.border),
             ),
             child: DropdownButtonHideUnderline(
@@ -114,7 +114,10 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
                 value: _objectType,
                 isExpanded: true,
                 dropdownColor: colors.surface,
-                style: TextStyle(fontSize: 13, color: colors.textPrimary),
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize13,
+                  color: colors.textPrimary,
+                ),
                 items:
                     ['Galaxy', 'Nebula', 'Cluster', 'Star', 'Planet', 'Other']
                         .map(
@@ -147,7 +150,7 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w600,
               color: colors.textSecondary,
             ),
@@ -157,15 +160,21 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
               border: Border.all(color: colors.border),
             ),
             child: TextField(
               controller: controller,
-              style: TextStyle(fontSize: 13, color: colors.textPrimary),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: colors.textPrimary,
+              ),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: TextStyle(fontSize: 13, color: colors.textMuted),
+                hintStyle: TextStyle(
+                  fontSize: SkotiqTypography.fontSize13,
+                  color: colors.textMuted,
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),

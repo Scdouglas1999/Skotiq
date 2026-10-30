@@ -258,7 +258,7 @@ class EnhancedAnnotationPainter extends CustomPainter {
     final textSpan = TextSpan(
       text: label,
       style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.95),
+        color: ImageOverlayColors.foreground.withValues(alpha: 0.95),
         fontSize: markerStyle.labelFontSize,
         fontWeight: FontWeight.w500,
         shadows: const [

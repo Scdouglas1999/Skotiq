@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -67,7 +68,7 @@ class FovPreset {
     required this.sensorHeightMm,
     required this.pixelSizeMicrons,
     this.positionAngleDeg = 0,
-    this.color = const Color(0xFF00E676),
+    this.color = FieldOfViewColors.green,
     this.visible = true,
     this.center,
   });
@@ -81,7 +82,7 @@ class FovPreset {
     required TelescopeSpecs telescope,
     double focalMultiplier = 1.0,
     double positionAngleDeg = 0,
-    Color color = const Color(0xFF00E676),
+    Color color = FieldOfViewColors.green,
     String? name,
   }) {
     return FovPreset(

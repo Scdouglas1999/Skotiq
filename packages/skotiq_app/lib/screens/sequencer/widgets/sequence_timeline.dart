@@ -186,29 +186,5 @@ class SequenceTimeline extends ConsumerWidget {
     );
   }
 
-  Color? _getFilterColor(String filter) {
-    switch (filter.toLowerCase()) {
-      case 'l':
-      case 'luminance':
-        return const Color(0xFFFFFFFF);
-      case 'r':
-      case 'red':
-        return const Color(0xFFEF4444);
-      case 'g':
-      case 'green':
-        return const Color(0xFF22C55E);
-      case 'b':
-      case 'blue':
-        return const Color(0xFF3B82F6);
-      case 'ha':
-      case 'h-alpha':
-        return const Color(0xFFB91C1C);
-      case 'oiii':
-        return const Color(0xFF14B8A6);
-      case 'sii':
-        return const Color(0xFFEA580C);
-      default:
-        return null;
-    }
-  }
+  Color? _getFilterColor(String filter) => FilterColors.knownColor(filter);
 }

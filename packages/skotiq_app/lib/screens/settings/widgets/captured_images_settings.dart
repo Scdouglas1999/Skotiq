@@ -245,7 +245,7 @@ class _CapturedImagesSettingsState
     await showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.black,
+        backgroundColor: ImageOverlayColors.shadow,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -255,7 +255,7 @@ class _CapturedImagesSettingsState
                 children: [
                   Text(label,
                       style: SkotiqTypography.bodySm.copyWith(
-                        color: Colors.white,
+                        color: ImageOverlayColors.foreground,
                       )),
                   const SizedBox(height: 2),
                   // The appliance only serves a JPEG thumbnail sidecar; the
@@ -267,7 +267,7 @@ class _CapturedImagesSettingsState
                     'Download the frame to inspect it at full resolution.',
                     textAlign: TextAlign.center,
                     style: SkotiqTypography.captionSm.copyWith(
-                      color: Colors.white70,
+                      color: ImageOverlayColors.secondary,
                     ),
                   ),
                 ],
@@ -412,13 +412,13 @@ class _GalleryTile extends StatelessWidget {
               bottom: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                color: Colors.black54,
+                color: ImageOverlayColors.scrim,
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: SkotiqTypography.captionSm.copyWith(
-                    color: Colors.white,
+                    color: ImageOverlayColors.foreground,
                   ),
                 ),
               ),

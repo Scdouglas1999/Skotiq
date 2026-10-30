@@ -55,8 +55,8 @@ class NightHeaderBar extends ConsumerWidget {
   static const double _controlGap = SkotiqTokens.spaceSm;
   static const EdgeInsets _padding = EdgeInsets.fromLTRB(16, 8, 12, 8);
 
-  static TextStyle get _titleStyle =>
-      SkotiqTypography.pageTitle.copyWith(fontSize: 17);
+  static TextStyle get _titleStyle => SkotiqTypography.pageTitle
+      .copyWith(fontSize: SkotiqTypography.fontSize17);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

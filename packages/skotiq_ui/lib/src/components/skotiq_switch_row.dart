@@ -92,7 +92,7 @@ class SkotiqSwitchRow extends StatelessWidget {
         labelStyle ??
         SkotiqTypography.bodySm.copyWith(
           color: colors.textSecondary,
-          fontSize: compact ? 12 : null,
+          fontSize: compact ? SkotiqTypography.fontSize12 : null,
         );
     final effectiveSubtitleStyle =
         subtitleStyle ??

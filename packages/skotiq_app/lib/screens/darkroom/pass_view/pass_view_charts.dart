@@ -20,8 +20,11 @@ Color passFilterColor(String filter, SkotiqColors colors) =>
       _ => colors.textSecondary,
     };
 
-TextStyle passAxisStyle(SkotiqColors colors) => SkotiqTypography.monoXs
-    .copyWith(fontSize: 9, height: 1, color: colors.textMuted);
+TextStyle passAxisStyle(SkotiqColors colors) =>
+    SkotiqTypography.monoXs.copyWith(
+        fontSize: SkotiqTypography.fontSize9,
+        height: 1,
+        color: colors.textMuted);
 
 /// Round values inside [lo]..[hi], at most [maxTicks] of them.
 List<double> passTicks(double lo, double hi, int maxTicks) {

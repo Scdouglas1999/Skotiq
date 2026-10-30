@@ -47,7 +47,7 @@ class RawPreviewStatusBadge extends StatelessWidget {
           label,
           style: TextStyle(
             color: fg,
-            fontSize: 10,
+            fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,
           ),
         ),

@@ -21,7 +21,7 @@ Future<void> showCommandPalette(BuildContext context) {
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Dismiss the command palette',
-    barrierColor: Colors.black.withValues(alpha: _scrimOpacity),
+    barrierColor: ImageOverlayColors.shadow.withValues(alpha: _scrimOpacity),
     transitionDuration: SkotiqTokens.durationFast,
     pageBuilder: (context, animation, secondaryAnimation) =>
         const _CommandPaletteRoute(),

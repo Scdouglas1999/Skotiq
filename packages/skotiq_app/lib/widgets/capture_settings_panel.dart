@@ -95,7 +95,9 @@ class _CaptureSettingsPanelState extends ConsumerState<CaptureSettingsPanel> {
               Text(
                 widget.title,
                 style: TextStyle(
-                  fontSize: widget.compact ? 13 : 14,
+                  fontSize: widget.compact
+                      ? SkotiqTypography.fontSize13
+                      : SkotiqTypography.fontSize14,
                   fontWeight: FontWeight.w600,
                   color: colors.textPrimary,
                 ),
@@ -117,7 +119,9 @@ class _CaptureSettingsPanelState extends ConsumerState<CaptureSettingsPanel> {
                       const SizedBox(width: 4),
                       Text(
                         'No camera',
-                        style: TextStyle(fontSize: 10, color: colors.warning),
+                        style: TextStyle(
+                            fontSize: SkotiqTypography.fontSize10,
+                            color: colors.warning),
                       ),
                     ],
                   ),
@@ -147,7 +151,9 @@ class _CaptureSettingsPanelState extends ConsumerState<CaptureSettingsPanel> {
               Text(
                 'sec',
                 style: TextStyle(
-                  fontSize: widget.compact ? 11 : 12,
+                  fontSize: widget.compact
+                      ? SkotiqTypography.fontSize11
+                      : SkotiqTypography.fontSize12,
                   color: colors.textSecondary,
                 ),
               ),
@@ -374,7 +380,9 @@ class _CaptureSettingsPanelState extends ConsumerState<CaptureSettingsPanel> {
                         ? 'Moving filter wheel...'
                         : 'At wheel: ${currentFilterName ?? 'Unknown'}',
                     style: TextStyle(
-                      fontSize: widget.compact ? 10 : 11,
+                      fontSize: widget.compact
+                          ? SkotiqTypography.fontSize10
+                          : SkotiqTypography.fontSize11,
                       color: hasMismatch ? colors.warning : colors.textMuted,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -401,7 +409,9 @@ class _CaptureSettingsPanelState extends ConsumerState<CaptureSettingsPanel> {
                 Expanded(
                   child: Text(
                     'Wheel is on $currentFilterName, not $selected',
-                    style: TextStyle(fontSize: 10, color: colors.warning),
+                    style: TextStyle(
+                        fontSize: SkotiqTypography.fontSize10,
+                        color: colors.warning),
                   ),
                 ),
               ],
@@ -618,7 +628,9 @@ class _ControlRow extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: compact ? 11 : 12,
+              fontSize: compact
+                  ? SkotiqTypography.fontSize11
+                  : SkotiqTypography.fontSize12,
               color: colors.textSecondary,
             ),
           ),

@@ -497,7 +497,7 @@ class _MobileNodeRow extends StatelessWidget {
                     Text(
                       row.node.name,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: SkotiqTypography.fontSize13,
                         fontWeight:
                             isCurrent ? FontWeight.w700 : FontWeight.w500,
                         color: colors.textPrimary,
@@ -577,7 +577,7 @@ class _StatusBadge extends StatelessWidget {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 10,
+          fontSize: SkotiqTypography.fontSize10,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -699,7 +699,7 @@ class _SequencerRecoveryActionsBannerState
                 child: Text(
                   ctx.cause.displayLabel,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     fontWeight: FontWeight.w700,
                     color: colors.textPrimary,
                   ),
@@ -758,7 +758,7 @@ class _RecoveryChip extends StatelessWidget {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11,
+          fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w700,
           // Tabular figures keep the countdown from jittering as digits change.
           fontFeatures: const [FontFeature.tabularFigures()],

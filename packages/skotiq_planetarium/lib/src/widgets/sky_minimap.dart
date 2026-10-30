@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
@@ -45,9 +46,9 @@ class SkyMinimap extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.black.withValues(alpha: 0.7),
+          color: ImageOverlayColors.shadow.withValues(alpha: 0.7),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.3),
+            color: ImageOverlayColors.foreground.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),
@@ -127,7 +128,7 @@ class _SkyMinimapPainter extends CustomPainter {
 
   void _drawAltitudeCircles(Canvas canvas, Offset center, double radius) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.15)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
@@ -140,7 +141,7 @@ class _SkyMinimapPainter extends CustomPainter {
 
   void _drawCardinalDirections(Canvas canvas, Offset center, double radius) {
     final linePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.2)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.2)
       ..strokeWidth = 0.5;
 
     // Draw cross for N-S and E-W
@@ -157,16 +158,28 @@ class _SkyMinimapPainter extends CustomPainter {
 
     if (showLabels) {
       final textStyle = TextStyle(
-        color: Colors.white.withValues(alpha: 0.7),
-        fontSize: 9,
+        color: ImageOverlayColors.foreground.withValues(alpha: 0.7),
+        fontSize: SkotiqTypography.fontSize9,
         fontWeight: FontWeight.bold,
       );
 
       final directions = [
-        ('N', Offset(center.dx, center.dy - radius + 10), Colors.red.shade300),
-        ('S', Offset(center.dx, center.dy + radius - 18), Colors.white70),
-        ('E', Offset(center.dx + radius - 14, center.dy), Colors.white70),
-        ('W', Offset(center.dx - radius + 6, center.dy), Colors.white70),
+        ('N', Offset(center.dx, center.dy - radius + 10), SkyPlotColors.poor),
+        (
+          'S',
+          Offset(center.dx, center.dy + radius - 18),
+          ImageOverlayColors.secondary,
+        ),
+        (
+          'E',
+          Offset(center.dx + radius - 14, center.dy),
+          ImageOverlayColors.secondary,
+        ),
+        (
+          'W',
+          Offset(center.dx - radius + 6, center.dy),
+          ImageOverlayColors.secondary,
+        ),
       ];
 
       for (final (label, pos, color) in directions) {
@@ -191,7 +204,7 @@ class _SkyMinimapPainter extends CustomPainter {
 
   void _drawZenithMarker(Canvas canvas, Offset center) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.5)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 2, paint);
   }
@@ -228,20 +241,20 @@ class _SkyMinimapPainter extends CustomPainter {
 
     // Semi-transparent fill
     final fillPaint = Paint()
-      ..color = Colors.blue.withValues(alpha: 0.3)
+      ..color = SkyPlotColors.openCluster.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
     canvas.drawRect(fovRect, fillPaint);
 
     // Border
     final borderPaint = Paint()
-      ..color = Colors.blue.shade300
+      ..color = SkyPlotColors.openCluster
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawRect(fovRect, borderPaint);
 
     // Center crosshair
     final crossPaint = Paint()
-      ..color = Colors.blue.shade300
+      ..color = SkyPlotColors.openCluster
       ..strokeWidth = 1;
     canvas.drawLine(const Offset(-4, 0), const Offset(4, 0), crossPaint);
     canvas.drawLine(const Offset(0, -4), const Offset(0, 4), crossPaint);
@@ -251,7 +264,7 @@ class _SkyMinimapPainter extends CustomPainter {
     // Draw "up" indicator if below horizon
     if (altitude < 0) {
       final warningPaint = Paint()
-        ..color = Colors.red.shade400
+        ..color = SkyPlotColors.poor
         ..style = PaintingStyle.fill;
 
       // Small warning dot

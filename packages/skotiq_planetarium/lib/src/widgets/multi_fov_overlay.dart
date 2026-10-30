@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -442,7 +443,7 @@ class _MultiFovPainter extends CustomPainter {
       center + Offset(0, maxHalf + 28),
       scaleText == null ? fovText : '$fovText  ·  $scaleText',
       preset.color.withValues(alpha: 0.75),
-      fontSize: 9,
+      fontSize: SkotiqTypography.fontSize9,
     );
   }
 

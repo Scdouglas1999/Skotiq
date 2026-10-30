@@ -12,7 +12,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
           height: 48,
           decoration: BoxDecoration(
             color: typeColor.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
           ),
           child: Icon(iconData, color: typeColor, size: 24),
         ),
@@ -25,7 +25,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
                 object.name,
                 style: TextStyle(
                   color: txtColor,
-                  fontSize: 18,
+                  fontSize: SkotiqTypography.fontSize18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -33,7 +33,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
                 _getTypeString(),
                 style: TextStyle(
                   color: typeColor,
-                  fontSize: 12,
+                  fontSize: SkotiqTypography.fontSize12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -45,13 +45,13 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: txtColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             ),
             child: Text(
               'Mag ${object.magnitude!.toStringAsFixed(1)}',
               style: TextStyle(
                 color: txtColor,
-                fontSize: 12,
+                fontSize: SkotiqTypography.fontSize12,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -83,7 +83,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
                 object.name,
                 style: TextStyle(
                   color: txtColor,
-                  fontSize: 18,
+                  fontSize: SkotiqTypography.fontSize18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -92,7 +92,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
                 _getTypeString(),
                 style: TextStyle(
                   color: typeColor,
-                  fontSize: 12,
+                  fontSize: SkotiqTypography.fontSize12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -108,13 +108,15 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
                       ),
                       decoration: BoxDecoration(
                         color: txtColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusXs,
+                        ),
                       ),
                       child: Text(
                         'Mag ${object.magnitude!.toStringAsFixed(1)}',
                         style: TextStyle(
                           color: txtColor,
-                          fontSize: 10,
+                          fontSize: SkotiqTypography.fontSize10,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -129,13 +131,15 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
                       ),
                       decoration: BoxDecoration(
                         color: txtColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusXs,
+                        ),
                       ),
                       child: Text(
                         dso.sizeString!,
                         style: TextStyle(
                           color: txtColor,
-                          fontSize: 10,
+                          fontSize: SkotiqTypography.fontSize10,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -168,19 +172,19 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
 
   Color _getTypeColor() {
     if (object is Star) {
-      return Colors.yellow;
+      return SkyPlotColors.star;
     } else if (object is DeepSkyObject) {
       final dso = object as DeepSkyObject;
       return switch (dso.type) {
-        DsoType.galaxy => Colors.purple,
-        DsoType.nebula => Colors.red,
-        DsoType.openCluster => Colors.blue,
-        DsoType.globularCluster => Colors.orange,
-        DsoType.planetaryNebula => Colors.cyan,
-        _ => Colors.grey,
+        DsoType.galaxy => SkyPlotColors.galaxy,
+        DsoType.nebula => SkyPlotColors.poor,
+        DsoType.openCluster => SkyPlotColors.openCluster,
+        DsoType.globularCluster => SkyPlotColors.horizon,
+        DsoType.planetaryNebula => SkyPlotColors.planetaryNebula,
+        _ => SkyPlotColors.unknown,
       };
     }
-    return Colors.grey;
+    return SkyPlotColors.unknown;
   }
 
   String _getTypeString() {
@@ -243,12 +247,12 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white24),
+        color: SkotiqColors.dark.well,
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
+        border: Border.all(color: ImageOverlayColors.divider),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: SkotiqTokens.borderRadiusLg,
         child: Image.network(
           request.aladinUrl,
           fit: BoxFit.cover,
@@ -317,18 +321,19 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
       DsoType.galaxy ||
       DsoType.galaxyPair ||
       DsoType.galaxyTriplet ||
-      DsoType.galaxyGroup => Colors.purple,
+      DsoType.galaxyGroup => SkyPlotColors.galaxy,
       DsoType.nebula ||
       DsoType.emissionNebula ||
-      DsoType.hiiRegion => Colors.red,
-      DsoType.reflectionNebula => Colors.blue,
-      DsoType.darkNebula => Colors.grey,
-      DsoType.openCluster || DsoType.clusterWithNebulosity => Colors.blue,
-      DsoType.globularCluster => Colors.orange,
-      DsoType.planetaryNebula => Colors.cyan,
-      DsoType.supernova => Colors.amber,
-      DsoType.starCloud => Colors.lightBlue,
-      _ => Colors.grey,
+      DsoType.hiiRegion => SkyPlotColors.poor,
+      DsoType.reflectionNebula => SkyPlotColors.openCluster,
+      DsoType.darkNebula => SkyPlotColors.unknown,
+      DsoType.openCluster ||
+      DsoType.clusterWithNebulosity => SkyPlotColors.openCluster,
+      DsoType.globularCluster => SkyPlotColors.horizon,
+      DsoType.planetaryNebula => SkyPlotColors.planetaryNebula,
+      DsoType.supernova => SkyPlotColors.caution,
+      DsoType.starCloud => SkyPlotColors.openCluster,
+      _ => SkyPlotColors.unknown,
     };
   }
 }

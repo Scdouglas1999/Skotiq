@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for the Observatory design language. 03-tokens.md section 0 maps every key here to its Dart name; tools/check_tokens.py validates contrast and emits mockups/tokens.css. Change values HERE first, run the script, then mirror into skotiq_ui.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "palettes": {
     "dark": {
       "bg": "#0B0D12",
@@ -14,8 +14,8 @@
       "textPrimary": "#EDEFF3",
       "textSecondary": "#B3BAC5",
       "textMuted": "#8E97A4",
-      "primary": "#A48CF2",
-      "accent": "#B9ABFF",
+      "primary": "#E86A6A",
+      "accent": "#F2ACAC",
       "onPrimary": "#0B0D12",
       "success": "#43B67A",
       "warning": "#E0A53E",
@@ -25,11 +25,11 @@
       "useDarkOnPrimary": true,
       "isRedNight": false,
       "accentSwatches": [
+        "#E86A6A",
         "#A48CF2",
         "#6EB3EC",
         "#43B67A",
         "#E0A53E",
-        "#E86A6A",
         "#E77FB3",
         "#4FC3C8"
       ],
@@ -54,8 +54,8 @@
       "textPrimary": "#14181F",
       "textSecondary": "#4F5966",
       "textMuted": "#616873",
-      "primary": "#6A4FD1",
-      "accent": "#5B41C4",
+      "primary": "#BC3838",
+      "accent": "#A52E2E",
       "onPrimary": "#FFFFFF",
       "success": "#277549",
       "warning": "#8F5D14",
@@ -65,11 +65,11 @@
       "useDarkOnPrimary": false,
       "isRedNight": false,
       "accentSwatches": [
+        "#BC3838",
         "#6A4FD1",
         "#256F9E",
         "#277549",
         "#8F5D14",
-        "#BC3838",
         "#B03A7A",
         "#1B7278"
       ],

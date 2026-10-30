@@ -1,11 +1,5 @@
 part of '../mobile_widgets.dart';
 
-// NOTE (design tokens): the `Colors.white*` / `Colors.black*` literals in this
-// file are canvas-absolute HUD colors for the mobile planetarium overlays drawn
-// over the sky. The planetarium is wrapped in `_NightVisionFilter` (luminance→
-// red conversion for dark adaptation), so they are intentionally NOT mapped to
-// the theme-relative semantic palette.
-
 class MobileBottomInfoBar extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -29,7 +23,7 @@ class MobileBottomInfoBar extends ConsumerWidget {
                 'RA ${CoordinateFormatUtils.formatRACompact(viewState.centerRA)}',
                 style: const TextStyle(
                   fontSize: SkotiqTypography.fontSize10,
-                  color: Colors.white60,
+                  color: ImageOverlayColors.muted,
                   fontFeatures: [ui.FontFeature.tabularFigures()],
                 ),
               ),
@@ -38,7 +32,7 @@ class MobileBottomInfoBar extends ConsumerWidget {
                 'Dec ${CoordinateFormatUtils.formatDecCompact(viewState.centerDec)}',
                 style: const TextStyle(
                   fontSize: SkotiqTypography.fontSize10,
-                  color: Colors.white60,
+                  color: ImageOverlayColors.muted,
                   fontFeatures: [ui.FontFeature.tabularFigures()],
                 ),
               ),
@@ -47,7 +41,7 @@ class MobileBottomInfoBar extends ConsumerWidget {
                 'FOV ${CoordinateFormatUtils.formatFOVCompact(viewState.fieldOfView)}',
                 style: const TextStyle(
                   fontSize: SkotiqTypography.fontSize10,
-                  color: Colors.white60,
+                  color: ImageOverlayColors.muted,
                   fontFeatures: [ui.FontFeature.tabularFigures()],
                 ),
               ),

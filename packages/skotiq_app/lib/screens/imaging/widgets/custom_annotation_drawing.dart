@@ -268,7 +268,7 @@ class CustomAnnotationPainter extends CustomPainter {
 
     final borderPaint = Paint()
       // absolute: marker outline over the image canvas
-      ..color = Colors.black.withValues(alpha: 0.6)
+      ..color = ImageOverlayColors.shadow.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     canvas.drawCircle(pos, 4.0, borderPaint);
@@ -302,8 +302,14 @@ class CustomAnnotationPainter extends CustomPainter {
                   alpha +
                       0.15)), // absolute: label shadows for legibility over the image canvas
           shadows: const [
-            Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)),
-            Shadow(blurRadius: 8, color: Colors.black, offset: Offset(0, 0)),
+            Shadow(
+                blurRadius: 4,
+                color: ImageOverlayColors.shadow,
+                offset: Offset(1, 1)),
+            Shadow(
+                blurRadius: 8,
+                color: ImageOverlayColors.shadow,
+                offset: Offset(0, 0)),
           ]),
     );
 
@@ -331,7 +337,7 @@ class CustomAnnotationPainter extends CustomPainter {
     canvas.drawRRect(
       bgRect,
       // absolute: label pill background over the image canvas
-      Paint()..color = Colors.black.withValues(alpha: 0.55),
+      Paint()..color = ImageOverlayColors.shadow.withValues(alpha: 0.55),
     );
 
     textPainter.paint(canvas, Offset(dx, position.dy));
@@ -703,9 +709,10 @@ class CustomAnnotationToolbar extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         // absolute: drawing toolbar is a fixed-palette overlay on the image canvas
-        color: Colors.black.withValues(alpha: 0.7),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        border: Border.all(
+            color: ImageOverlayColors.foreground.withValues(alpha: 0.15)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -745,7 +752,7 @@ class CustomAnnotationToolbar extends ConsumerWidget {
             height: 20,
             margin: const EdgeInsets.symmetric(horizontal: 4),
             // absolute: divider in fixed-palette overlay toolbar
-            color: Colors.white.withValues(alpha: 0.2),
+            color: ImageOverlayColors.foreground.withValues(alpha: 0.2),
           ),
           _ToolButton(
             icon: SkotiqIcons.delete,
@@ -763,7 +770,7 @@ class CustomAnnotationToolbar extends ConsumerWidget {
               height: 20,
               margin: const EdgeInsets.symmetric(horizontal: 4),
               // absolute: divider in fixed-palette overlay toolbar
-              color: Colors.white.withValues(alpha: 0.2),
+              color: ImageOverlayColors.foreground.withValues(alpha: 0.2),
             ),
             _ToolButton(
               icon: SkotiqIcons.error,
@@ -870,27 +877,28 @@ class _ToolButtonState extends State<_ToolButton> {
             duration: const Duration(milliseconds: 120),
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              // absolute: fixed-palette tool button over the image canvas
+              // Tool selection follows the image-surface accent.
               color: widget.isActive
-                  ? const Color(0xFF00E676).withValues(alpha: 0.25)
+                  ? context.skotiqColors.primary.withValues(alpha: 0.25)
                   : _hovered
-                      ? Colors.white.withValues(alpha: 0.12)
+                      ? ImageOverlayColors.foreground.withValues(alpha: 0.12)
                       : Colors.transparent,
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
               border: widget.isActive
                   ? Border.all(
-                      color: const Color(0xFF00E676).withValues(alpha: 0.5))
+                      color:
+                          context.skotiqColors.primary.withValues(alpha: 0.5))
                   : null,
             ),
             child: Icon(
               widget.icon,
               size: 16,
-              // absolute: fixed-palette tool icon over the image canvas
+              // The active tool uses the shared selection color.
               color: widget.isActive
-                  ? const Color(0xFF00E676)
+                  ? context.skotiqColors.primary
                   : _hovered
-                      ? Colors.white
-                      : Colors.white70,
+                      ? ImageOverlayColors.foreground
+                      : ImageOverlayColors.secondary,
             ),
           ),
         ),

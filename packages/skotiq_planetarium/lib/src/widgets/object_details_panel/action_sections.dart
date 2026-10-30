@@ -90,14 +90,14 @@ extension _ObjectDetailsPanelActionSections on ObjectDetailsPanel {
             label,
             style: TextStyle(
               color: txtColor.withValues(alpha: 0.7),
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
             ),
           ),
           Text(
             value,
             style: TextStyle(
               color: txtColor,
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               fontWeight: FontWeight.w500,
             ),
           ),

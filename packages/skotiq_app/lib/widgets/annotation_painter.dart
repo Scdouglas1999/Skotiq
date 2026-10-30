@@ -1,3 +1,4 @@
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -34,7 +35,8 @@ class AnnotationPainter extends CustomPainter {
 
     switch (object.type) {
       case ObjectType.galaxy:
-        paint.color = const Color(0xFFFFD700).withValues(alpha: 0.8); // Gold
+        paint.color =
+            AnnotationTypeColors.galaxy.withValues(alpha: 0.8); // Gold
         // Draw ellipse
         final radius = (object.size ?? 50) * 2.0; // Scale size for visibility
         canvas.drawOval(
@@ -49,7 +51,8 @@ class AnnotationPainter extends CustomPainter {
 
       case ObjectType.nebula:
       case ObjectType.planetaryNebula:
-        paint.color = const Color(0xFFFF00FF).withValues(alpha: 0.8); // Magenta
+        paint.color =
+            AnnotationTypeColors.nebula.withValues(alpha: 0.8); // Magenta
         // Draw cloud shape (simplified as rect with rounded corners)
         final radius = (object.size ?? 50) * 2.0;
         canvas.drawRRect(
@@ -66,7 +69,8 @@ class AnnotationPainter extends CustomPainter {
         break;
 
       case ObjectType.starCluster:
-        paint.color = const Color(0xFF00FFFF).withValues(alpha: 0.8); // Cyan
+        paint.color =
+            AnnotationTypeColors.starCluster.withValues(alpha: 0.8); // Cyan
         // Draw dashed circle
         final radius = (object.size ?? 40) * 1.5;
         canvas.drawCircle(Offset(object.x, object.y), radius, paint);
@@ -74,7 +78,7 @@ class AnnotationPainter extends CustomPainter {
 
       case ObjectType.star:
       case ObjectType.doubleStar:
-        paint.color = const Color(0xFFFFFFFF).withValues(alpha: 0.6);
+        paint.color = ImageOverlayColors.foreground.withValues(alpha: 0.6);
         // Draw crosshair
         final size = 20.0 / zoomLevel;
         canvas.drawLine(
@@ -90,7 +94,7 @@ class AnnotationPainter extends CustomPainter {
         break;
 
       default:
-        paint.color = const Color(0xFF00FF00).withValues(alpha: 0.6);
+        paint.color = AnnotationTypeColors.asterism.withValues(alpha: 0.6);
         canvas.drawCircle(Offset(object.x, object.y), 20.0 / zoomLevel, paint);
     }
   }
@@ -99,13 +103,14 @@ class AnnotationPainter extends CustomPainter {
     final textSpan = TextSpan(
       text: object.name,
       style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.9),
-        fontSize: 12 / zoomLevel, // Scale text to remain readable
+        color: ImageOverlayColors.foreground.withValues(alpha: 0.9),
+        fontSize: SkotiqTypography.fontSize12 /
+            zoomLevel, // Scale text to remain readable
         fontWeight: FontWeight.w500,
         shadows: [
           Shadow(
             blurRadius: 2,
-            color: Colors.black.withValues(alpha: 0.8),
+            color: ImageOverlayColors.shadow.withValues(alpha: 0.8),
             offset: const Offset(1, 1),
           ),
         ],

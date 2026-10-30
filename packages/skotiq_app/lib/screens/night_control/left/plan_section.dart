@@ -91,7 +91,8 @@ class _FilterTable extends StatelessWidget {
     final colors = context.skotiqColors;
     final scaler = MediaQuery.textScalerOf(context);
     const mono = SkotiqTypography.monoXs;
-    final labelStyle = SkotiqTypography.labelStrongSm.copyWith(fontSize: 12);
+    final labelStyle = SkotiqTypography.labelStrongSm
+        .copyWith(fontSize: SkotiqTypography.fontSize12);
     // The filter column fits the longest name up to a cap, so a long name
     // ellipsizes instead of eating the bar, and every bar starts at one x.
     var labelWidth = scaler.scale(22);

@@ -155,7 +155,7 @@ class OnboardingTooltipCard extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.55),
+                  color: ImageOverlayColors.shadow.withValues(alpha: 0.55),
                   blurRadius: 24,
                   offset: const Offset(0, 12),
                 ),
@@ -189,7 +189,7 @@ class OnboardingTooltipCard extends StatelessWidget {
                           Text(
                             'Step ${currentIndex + 1} of $totalSteps',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: SkotiqTypography.fontSize10,
                               color: colors.textMuted,
                               letterSpacing: 0.6,
                             ),
@@ -198,7 +198,7 @@ class OnboardingTooltipCard extends StatelessWidget {
                           Text(
                             title,
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: SkotiqTypography.fontSize15,
                               fontWeight: FontWeight.w600,
                               color: colors.textPrimary,
                             ),
@@ -212,7 +212,7 @@ class OnboardingTooltipCard extends StatelessWidget {
                 Text(
                   body,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: SkotiqTypography.fontSize12_5,
                     height: 1.5,
                     color: colors.textSecondary,
                   ),

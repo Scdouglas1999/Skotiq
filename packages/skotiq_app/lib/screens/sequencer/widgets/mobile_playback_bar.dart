@@ -30,7 +30,7 @@ class MobilePlaybackBar extends ConsumerWidget {
         boxShadow: [
           BoxShadow(
             // absolute: drop-shadow scrim (theme-independent)
-            color: Colors.black.withValues(alpha: 0.05),
+            color: ImageOverlayColors.shadow.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

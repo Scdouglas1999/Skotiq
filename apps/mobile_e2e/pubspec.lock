@@ -1281,20 +1281,27 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
+  skotiq_design:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/skotiq_design"
+      relative: true
+    source: path
+    version: "1.0.0"
   skotiq_desktop:
     dependency: "direct dev"
     description:
       path: "../desktop"
       relative: true
     source: path
-    version: "8.0.0+29"
+    version: "8.1.1+31"
   skotiq_mobile:
     dependency: "direct dev"
     description:
       path: "../mobile"
       relative: true
     source: path
-    version: "8.0.0+29"
+    version: "8.1.1+31"
   skotiq_planetarium:
     dependency: "direct overridden"
     description:

@@ -128,32 +128,8 @@ class _FilterRow extends StatelessWidget {
     required this.glance,
   });
 
-  Color _bandColor(String f, SkotiqColors c) {
-    switch (f.toLowerCase()) {
-      case 'l':
-      case 'lum':
-      case 'luminance':
-        return c.textPrimary;
-      case 'r':
-      case 'red':
-        return c.error;
-      case 'g':
-      case 'green':
-        return c.success;
-      case 'b':
-      case 'blue':
-        return c.info;
-      case 'ha':
-      case 'h-alpha':
-        return const Color(0xFFEF4444);
-      case 'oiii':
-        return const Color(0xFF06B6D4);
-      case 'sii':
-        return const Color(0xFFF59E0B);
-      default:
-        return c.primary;
-    }
-  }
+  Color _bandColor(String f, SkotiqColors c) =>
+      FilterColors.forName(f, colors: c);
 
   @override
   Widget build(BuildContext context) {

@@ -79,7 +79,7 @@ class _SlewToTargetDialog extends StatelessWidget {
             'Dec ${CoordinateParser.formatDecDms(decDegrees)}',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
-              fontFamily: 'monospace',
+              fontFamily: SkotiqTypography.fontFamilyMono,
             ),
           ),
           if (altitude != null) ...[

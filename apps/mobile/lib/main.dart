@@ -522,7 +522,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       context,
                     ).text('mobileErrorLoadingApp'),
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: SkotiqTypography.fontSize18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -530,7 +530,9 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   Text(
                     'Error: $e',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(
+                      fontSize: SkotiqTypography.fontSize12,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -589,7 +591,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   height: 28,
                   decoration: SkotiqDecorations.iconChip(
                     primaryColor,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                   ),
                   child: Icon(
                     Icons.auto_awesome,
@@ -601,7 +603,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                 Text(
                   'Skotiq',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: SkotiqTypography.fontSize18,
                     fontWeight: FontWeight.w600,
                     color: textColor,
                   ),
@@ -619,7 +621,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: surfaceColor,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                     border: Border.all(color: borderColor),
                   ),
                   child: Column(
@@ -639,7 +641,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                           Text(
                             l10n.text('mobileNotConnected'),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: SkotiqTypography.fontSize14,
                               fontWeight: FontWeight.w500,
                               color: textColor,
                             ),
@@ -655,7 +657,10 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                           ),
                           child: Text(
                             _error!,
-                            style: TextStyle(fontSize: 12, color: errorColor),
+                            style: TextStyle(
+                              fontSize: SkotiqTypography.fontSize12,
+                              color: errorColor,
+                            ),
                           ),
                         ),
                       ],
@@ -743,7 +748,9 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       hintText: 'skotiq.local:8080',
                       prefixIcon: const Icon(Icons.computer),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusLg,
+                        ),
                       ),
                       filled: true,
                       fillColor: surfaceColor,
@@ -776,7 +783,9 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                         },
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusLg,
+                        ),
                       ),
                       filled: true,
                       fillColor: surfaceColor,
@@ -827,7 +836,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                                 ? _statusMessage
                                 : l10n.text('mobileSearchingForServer'),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: SkotiqTypography.fontSize14,
                               color: textSecondary,
                             ),
                           ),
@@ -864,7 +873,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: surfaceColor.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -880,7 +889,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                           Text(
                             l10n.text('mobileHowToConnect'),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: SkotiqTypography.fontSize14,
                               fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
@@ -891,7 +900,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       Text(
                         l10n.text('mobileHowToConnectSteps'),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: SkotiqTypography.fontSize12,
                           color: textSecondary,
                           height: 1.5,
                         ),

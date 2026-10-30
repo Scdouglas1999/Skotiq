@@ -1,4 +1,4 @@
-# melos_managed_dependency_overrides: skotiq_app,skotiq_bridge,skotiq_core,skotiq_desktop,skotiq_mobile,skotiq_planetarium,skotiq_plugins,skotiq_remote_protocol,skotiq_ui,skotiq_updater,lucide_icons
+# melos_managed_dependency_overrides: skotiq_app,skotiq_bridge,skotiq_core,skotiq_desktop,skotiq_mobile,skotiq_planetarium,skotiq_plugins,skotiq_remote_protocol,skotiq_ui,skotiq_updater,lucide_icons,skotiq_design
 dependency_overrides:
   skotiq_app:
     path: ../../packages/skotiq_app
@@ -22,3 +22,5 @@ dependency_overrides:
     path: ../../packages/skotiq_updater
   lucide_icons:
     path: ../../third_party/lucide_icons
+  skotiq_design:
+    path: ../../packages/skotiq_design

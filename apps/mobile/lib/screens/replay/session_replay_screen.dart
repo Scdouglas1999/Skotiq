@@ -135,7 +135,7 @@ class _ReplayErrorView extends StatelessWidget {
           Text(
             'Replay failed',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: SkotiqTypography.fontSize16,
               fontWeight: FontWeight.w600,
               color: colors.textPrimary,
             ),
@@ -144,7 +144,10 @@ class _ReplayErrorView extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+            style: TextStyle(
+              fontSize: SkotiqTypography.fontSize12,
+              color: colors.textSecondary,
+            ),
           ),
           const SizedBox(height: 16),
           SkotiqButton(label: 'Retry', onPressed: onRetry),
@@ -224,7 +227,7 @@ class _RunHeader extends StatelessWidget {
             ready.run.sequenceName ?? 'Untitled sequence',
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 16,
+              fontSize: SkotiqTypography.fontSize16,
               color: colors.textPrimary,
             ),
             maxLines: 1,
@@ -281,7 +284,10 @@ class _HeaderChip extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize12,
+                color: colors.textSecondary,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -321,7 +327,10 @@ class _PartialBanner extends StatelessWidget {
           Expanded(
             child: Text(
               body,
-              style: TextStyle(fontSize: 11, color: colors.textPrimary),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize11,
+                color: colors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -398,19 +407,25 @@ class _TimelineBar extends StatelessWidget {
             children: [
               Text(
                 _formatOffset(0),
-                style: TextStyle(fontSize: 10, color: colors.textSecondary),
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize10,
+                  color: colors.textSecondary,
+                ),
               ),
               Text(
                 _formatOffset(ready.playheadMs),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: SkotiqTypography.fontSize10,
                   fontWeight: FontWeight.w600,
                   color: colors.primary,
                 ),
               ),
               Text(
                 _formatOffset(ready.durationMs),
-                style: TextStyle(fontSize: 10, color: colors.textSecondary),
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize10,
+                  color: colors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -598,18 +613,18 @@ class _SpeedChip extends StatelessWidget {
     final colors = Theme.of(context).extension<SkotiqColors>()!;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: active ? colors.primary : colors.background,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
           border: Border.all(color: active ? colors.primary : colors.border),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             color: active ? colors.onPrimary : colors.textSecondary,
             fontWeight: FontWeight.w600,
           ),
@@ -720,7 +735,7 @@ class _SnapshotCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -731,7 +746,7 @@ class _SnapshotCard extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: SkotiqTypography.fontSize13,
                 fontWeight: FontWeight.w600,
                 color: colors.textPrimary,
               ),
@@ -766,14 +781,17 @@ class _SnapshotRow extends StatelessWidget {
             width: 130,
             child: Text(
               label,
-              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize12,
+                color: colors.textSecondary,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: SkotiqTypography.fontSize13,
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
@@ -804,7 +822,10 @@ class _EventLogList extends StatelessWidget {
     if (lastN.isEmpty) {
       return Text(
         'No events at or before this point in the timeline yet.',
-        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+        style: TextStyle(
+          fontSize: SkotiqTypography.fontSize12,
+          color: colors.textSecondary,
+        ),
       );
     }
     final reversed = lastN.reversed.toList(growable: false);
@@ -860,11 +881,17 @@ class _MarkerRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: colors.textPrimary),
+                  style: TextStyle(
+                    fontSize: SkotiqTypography.fontSize12,
+                    color: colors.textPrimary,
+                  ),
                 ),
                 Text(
                   '$timeStr · $source',
-                  style: TextStyle(fontSize: 10, color: colors.textSecondary),
+                  style: TextStyle(
+                    fontSize: SkotiqTypography.fontSize10,
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -908,7 +935,10 @@ class _DataSourceFooter extends StatelessWidget {
             child: Text(
               '$events events · $frames frames · '
               'Weather history not recorded for this session.',
-              style: TextStyle(fontSize: 10, color: colors.textMuted),
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize10,
+                color: colors.textMuted,
+              ),
             ),
           ),
         ],

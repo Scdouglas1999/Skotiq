@@ -109,7 +109,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
                 'Reconnecting to server… session controls may be stale.',
                 style: TextStyle(
                   color: fg,
-                  fontSize: 12,
+                  fontSize: SkotiqTypography.fontSize12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -126,7 +126,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
                 style: TextStyle(
                   color:
                       _retrying || !canRetry ? fg.withValues(alpha: 0.5) : fg,
-                  fontSize: 12,
+                  fontSize: SkotiqTypography.fontSize12,
                   fontWeight: FontWeight.w600,
                 ),
               ),

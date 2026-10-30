@@ -1,10 +1,5 @@
 part of '../object_info_popup.dart';
 
-// NOTE (design tokens): the `Colors.white*` literals below are canvas-absolute
-// HUD colors for the object popup drawn over the planetarium sky (red-adapted by
-// the enclosing `_NightVisionFilter`), intentionally not theme-relative — see
-// the note in the parent library file.
-
 /// Slew popup menu button for planetarium object popup
 class SlewPopupMenuButton extends StatefulWidget {
   final SkotiqColors colors;
@@ -151,7 +146,7 @@ class PopupInfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: ImageOverlayColors.foreground.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
       ),
       child: Column(
@@ -161,13 +156,14 @@ class PopupInfoChip extends StatelessWidget {
             label,
             style: const TextStyle(
               fontSize: SkotiqTypography.fontSize9,
-              color: Colors.white38,
+              color: ImageOverlayColors.disabled,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: SkotiqTypography.labelQuiet.copyWith(color: Colors.white70),
+            style: SkotiqTypography.labelQuiet
+                .copyWith(color: ImageOverlayColors.secondary),
           ),
         ],
       ),
@@ -195,7 +191,7 @@ class PopupCoordRow extends StatelessWidget {
           '$label: ',
           style: const TextStyle(
             fontSize: SkotiqTypography.fontSize11,
-            color: Colors.white38,
+            color: ImageOverlayColors.disabled,
           ),
         ),
         Expanded(
@@ -204,7 +200,7 @@ class PopupCoordRow extends StatelessWidget {
             style: const TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w500,
-              color: Colors.white70,
+              color: ImageOverlayColors.secondary,
               fontFeatures: [ui.FontFeature.tabularFigures()],
             ),
             overflow: TextOverflow.ellipsis,

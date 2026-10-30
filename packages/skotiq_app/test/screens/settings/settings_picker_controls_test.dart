@@ -19,7 +19,7 @@ class _ColorHarness extends StatefulWidget {
 
 /// The dark palette's first two accents (03 §1.4) — the swatch set the harness
 /// renders, since the test theme is dark.
-const String _firstAccent = '#A48CF2';
+const String _firstAccent = '#E86A6A';
 const String _secondAccent = '#6EB3EC';
 
 class _ColorHarnessState extends State<_ColorHarness> {

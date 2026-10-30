@@ -384,7 +384,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                           height: overlaySize,
                           decoration: BoxDecoration(
                             border: Border.all(color: colors.primary, width: 3),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(
+                              SkotiqTokens.radiusLg,
+                            ),
                           ),
                         ),
                       );
@@ -409,14 +411,20 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 Text(
                   'Scan the QR code displayed on your Skotiq server',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textPrimary, fontSize: 16),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: SkotiqTypography.fontSize16,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'On the desktop: Settings → Remote Access → Start pairing, '
                   'then scan the QR shown there.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: SkotiqTypography.fontSize13,
+                  ),
                 ),
               ],
             ),

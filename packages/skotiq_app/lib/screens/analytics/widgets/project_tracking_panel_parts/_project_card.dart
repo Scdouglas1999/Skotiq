@@ -338,33 +338,8 @@ class _FilterBreakdownRow extends StatelessWidget {
     required this.colors,
   });
 
-  Color _filterColor(String filterName) {
-    switch (filterName.toUpperCase()) {
-      case 'L':
-      case 'LUMINANCE':
-        return const Color(0xFFD4D4D8);
-      case 'R':
-      case 'RED':
-        return const Color(0xFFF87171);
-      case 'G':
-      case 'GREEN':
-        return const Color(0xFF4ADE80);
-      case 'B':
-      case 'BLUE':
-        return const Color(0xFF60A5FA);
-      case 'HA':
-      case 'H-ALPHA':
-        return const Color(0xFFB91C1C);
-      case 'OIII':
-      case 'O-III':
-        return const Color(0xFF2DD4BF);
-      case 'SII':
-      case 'S-II':
-        return const Color(0xFFFB923C);
-      default:
-        return colors.textSecondary;
-    }
-  }
+  Color _filterColor(String filterName) =>
+      FilterColors.forName(filterName, colors: colors);
 
   @override
   Widget build(BuildContext context) {

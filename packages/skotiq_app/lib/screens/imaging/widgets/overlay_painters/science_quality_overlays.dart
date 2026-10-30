@@ -20,15 +20,15 @@ part of '../overlay_painters.dart';
 
 /// PSF heatmap ramp: tight stars.
 @visibleForTesting
-const Color namedPsfTight = Color(0xFF0B6E4F);
+const Color namedPsfTight = SciencePlotColors.psfTight;
 
 /// PSF heatmap ramp: bloated or elongated stars.
 @visibleForTesting
-const Color namedPsfBloated = Color(0xFFC0392B);
+const Color namedPsfBloated = SciencePlotColors.psfBloated;
 
 /// PSF heatmap: a tile with no measurable stars.
 @visibleForTesting
-const Color namedPsfNoStars = Color(0xFF4A5568);
+const Color namedPsfNoStars = SciencePlotColors.noMeasurement;
 
 class SciencePsfOverlayPainter extends CustomPainter {
   final List<PsfFieldTileRow> tiles;
@@ -90,7 +90,7 @@ class SciencePsfOverlayPainter extends CustomPainter {
     final tileH = imageHeight / rows;
     final borderPaint = Paint()
       // absolute: tile grid line over the image canvas
-      ..color = Colors.white.withValues(alpha: 0.08)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.6;
 
@@ -149,11 +149,11 @@ class SciencePsfOverlayPainter extends CustomPainter {
 
 /// Residual vector field: the shaft.
 @visibleForTesting
-const Color namedResidualShaft = Color(0xFFF1C40F);
+const Color namedResidualShaft = SciencePlotColors.residualShaft;
 
 /// Residual vector field: the arrowhead, a shade darker than the shaft.
 @visibleForTesting
-const Color namedResidualHead = Color(0xFFF39C12);
+const Color namedResidualHead = SciencePlotColors.residualHead;
 
 class ScienceResidualOverlayPainter extends CustomPainter {
   final List<AstrometryResidualVectorRow> vectors;
@@ -232,11 +232,11 @@ class ScienceResidualOverlayPainter extends CustomPainter {
 
 /// Uniformity ramp: a flat background.
 @visibleForTesting
-const Color namedUniformityFlat = Color(0xFF0B3D91);
+const Color namedUniformityFlat = SciencePlotColors.uniformityFlat;
 
 /// Uniformity ramp: a strong gradient (vignetting, moonglow).
 @visibleForTesting
-const Color namedUniformityStrong = Color(0xFFFF8C42);
+const Color namedUniformityStrong = SciencePlotColors.uniformityStrong;
 
 class ScienceUniformityOverlayPainter extends CustomPainter {
   final List<ScienceTileMetricRow> tiles;
@@ -294,7 +294,7 @@ class ScienceUniformityOverlayPainter extends CustomPainter {
     final tileH = imageHeight / rows;
     final borderPaint = Paint()
       // absolute: tile grid line over the image canvas
-      ..color = Colors.white.withValues(alpha: 0.08)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.6;
 
@@ -349,11 +349,11 @@ class ScienceUniformityOverlayPainter extends CustomPainter {
 
 /// Clip map: pixels hitting the noise floor.
 @visibleForTesting
-const Color namedClipLow = Color(0xFF3B82F6);
+const Color namedClipLow = SciencePlotColors.clipLow;
 
 /// Clip map: pixels saturating.
 @visibleForTesting
-const Color namedClipHigh = Color(0xFFEF4444);
+const Color namedClipHigh = SciencePlotColors.clipHigh;
 
 class ScienceClipOverlayPainter extends CustomPainter {
   final List<ScienceTileMetricRow> highTiles;
@@ -410,7 +410,7 @@ class ScienceClipOverlayPainter extends CustomPainter {
     final tileH = imageHeight / rows;
     final borderPaint = Paint()
       // absolute: tile grid line over the image canvas
-      ..color = Colors.white.withValues(alpha: 0.08)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.6;
 

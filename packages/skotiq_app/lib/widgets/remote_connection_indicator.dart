@@ -357,7 +357,7 @@ class _LatencyBadge extends StatelessWidget {
       style: theme.textTheme.bodySmall?.copyWith(
         color: color.withValues(alpha: 0.9),
         fontFeatures: const [FontFeature.tabularFigures()],
-        fontFamily: 'monospace',
+        fontFamily: SkotiqTypography.fontFamilyMono,
         fontWeight: FontWeight.w600,
       ),
     );

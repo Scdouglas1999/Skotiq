@@ -1076,7 +1076,7 @@ class _RowCard extends StatelessWidget {
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize10,
               color: colors.textSecondary,
-              fontFamily: 'monospace',
+              fontFamily: SkotiqTypography.fontFamilyMono,
             ),
           ),
           const SizedBox(height: 6),

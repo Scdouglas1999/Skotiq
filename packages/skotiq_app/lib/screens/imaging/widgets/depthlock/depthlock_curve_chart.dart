@@ -792,11 +792,13 @@ class DepthLockCurvePainter extends CustomPainter {
       painter.height + 6,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(plate, const Radius.circular(4)),
+      RRect.fromRectAndRadius(
+          plate, const Radius.circular(SkotiqTokens.radiusXs)),
       Paint()..color = colors.surfaceElevated.withValues(alpha: 0.95),
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(plate, const Radius.circular(4)),
+      RRect.fromRectAndRadius(
+          plate, const Radius.circular(SkotiqTokens.radiusXs)),
       Paint()
         ..color = colors.border
         ..style = PaintingStyle.stroke

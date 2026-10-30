@@ -715,15 +715,7 @@ class SliderRowInteractive extends StatelessWidget {
                   SkotiqTokens.panelRowControlFlex
               : SkotiqTokens.panelRowControlFlex,
           child: SliderTheme(
-            data: SliderThemeData(
-              trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-              activeTrackColor: isEnabled ? colors.primary : colors.textMuted,
-              inactiveTrackColor: colors.border,
-              thumbColor: isEnabled ? colors.primary : colors.textMuted,
-              overlayColor: colors.primary.withValues(alpha: 0.2),
-            ),
+            data: SkotiqSliderStyle.theme(colors),
             child: Slider(
               value: value.clamp(min, max),
               min: min,

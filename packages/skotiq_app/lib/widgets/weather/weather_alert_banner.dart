@@ -172,10 +172,11 @@ class _BannerContent extends StatelessWidget {
     final onAccent =
         isCritical ? accentColor : Theme.of(context).colorScheme.onError;
     final titleColor = isCritical ? colors.textPrimary : onAccent;
-    final messageColor =
-        isCritical ? colors.textSecondary : Colors.white.withValues(alpha: 0.9);
+    final messageColor = isCritical
+        ? colors.textSecondary
+        : Theme.of(context).colorScheme.onError.withValues(alpha: 0.9);
     final chevronColor =
-        isCritical ? colors.textMuted : Colors.white.withValues(alpha: 0.7);
+        isCritical ? colors.textMuted : onAccent.withValues(alpha: 0.7);
 
     // The tap lived on a bare gesture wrapper, which publishes an action
     // and no role, so assistive tech read a live control as an inert
@@ -227,7 +228,7 @@ class _BannerContent extends StatelessWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: SkotiqTypography.fontSize13,
                           fontWeight: FontWeight.w700,
                           color: titleColor,
                         ),
@@ -236,7 +237,7 @@ class _BannerContent extends StatelessWidget {
                       Text(
                         message,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: SkotiqTypography.fontSize11,
                           color: messageColor,
                         ),
                         maxLines: 1,
@@ -284,9 +285,10 @@ class _SnoozeButton extends StatelessWidget {
     final colors = SkotiqColors.of(context);
     final background = inverted
         ? colors.error.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.2);
-    final foreground =
-        inverted ? colors.textPrimary : Colors.white.withValues(alpha: 0.9);
+        : Theme.of(context).colorScheme.onError.withValues(alpha: 0.2);
+    final foreground = inverted
+        ? colors.textPrimary
+        : Theme.of(context).colorScheme.onError.withValues(alpha: 0.9);
 
     return Material(
       color: background,
@@ -314,7 +316,7 @@ class _SnoozeButton extends StatelessWidget {
                   Text(
                     'Snooze',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: SkotiqTypography.fontSize11,
                       fontWeight: FontWeight.w600,
                       color: foreground,
                     ),

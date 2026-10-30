@@ -22,13 +22,16 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 10),
+          style: TextStyle(
+            color: color.withValues(alpha: 0.5),
+            fontSize: SkotiqTypography.fontSize10,
+          ),
         ),
         Text(
           value,
           style: TextStyle(
             color: color,
-            fontSize: 12,
+            fontSize: SkotiqTypography.fontSize12,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -78,13 +81,13 @@ class _AltitudeGraphPainter extends CustomPainter {
       Color bandColor;
       if (cc < 20) {
         // Clear: green
-        bandColor = const Color(0xFF4CAF50).withValues(alpha: 0.12);
+        bandColor = SkyPlotColors.good.withValues(alpha: 0.12);
       } else if (cc < 60) {
         // Partial: yellow/amber
-        bandColor = const Color(0xFFFFC107).withValues(alpha: 0.12);
+        bandColor = SkyPlotColors.caution.withValues(alpha: 0.12);
       } else {
         // Overcast: red
-        bandColor = const Color(0xFFF44336).withValues(alpha: 0.12);
+        bandColor = SkyPlotColors.poor.withValues(alpha: 0.12);
       }
       canvas.drawRect(
         Rect.fromLTWH(0, 0, size.width, size.height),
@@ -95,18 +98,18 @@ class _AltitudeGraphPainter extends CustomPainter {
       final ccLabel = '${cc.round()}% cloud';
       Color labelColor;
       if (cc < 20) {
-        labelColor = const Color(0xFF4CAF50);
+        labelColor = SkyPlotColors.good;
       } else if (cc < 60) {
-        labelColor = const Color(0xFFFFC107);
+        labelColor = SkyPlotColors.caution;
       } else {
-        labelColor = const Color(0xFFF44336);
+        labelColor = SkyPlotColors.poor;
       }
       final textPainter = TextPainter(
         text: TextSpan(
           text: ccLabel,
           style: TextStyle(
             color: labelColor.withValues(alpha: 0.7),
-            fontSize: 8,
+            fontSize: SkotiqTypography.fontSize8,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -139,11 +142,11 @@ class _AltitudeGraphPainter extends CustomPainter {
           size.height / 2 - (effectiveHorizonDeg / 90) * (size.height / 2);
       canvas.drawRect(
         Rect.fromLTRB(0, horizonY, size.width, size.height / 2),
-        Paint()..color = const Color(0xFFFF9800).withValues(alpha: 0.10),
+        Paint()..color = SkyPlotColors.horizon.withValues(alpha: 0.10),
       );
       // Effective-horizon dashed line so the boundary is unambiguous.
       final dashPaint = Paint()
-        ..color = const Color(0xFFFF9800).withValues(alpha: 0.6)
+        ..color = SkyPlotColors.horizon.withValues(alpha: 0.6)
         ..strokeWidth = 1;
       const double dashWidth = 4;
       const double dashGap = 3;
@@ -197,7 +200,7 @@ class _AltitudeGraphPainter extends CustomPainter {
       Offset(currentX, 0),
       Offset(currentX, size.height),
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.5)
+        ..color = ImageOverlayColors.foreground.withValues(alpha: 0.5)
         ..strokeWidth = 1,
     );
   }
@@ -239,7 +242,7 @@ class _AirmassChartPainter extends CustomPainter {
     final gridColor = txtColor.withValues(alpha: 0.15);
     final labelStyle = TextStyle(
       color: txtColor.withValues(alpha: 0.4),
-      fontSize: 9,
+      fontSize: SkotiqTypography.fontSize9,
     );
 
     // Chart margins for labels
@@ -262,7 +265,7 @@ class _AirmassChartPainter extends CustomPainter {
         leftMargin + chartWidth,
         greenZoneBottom,
       ),
-      Paint()..color = const Color(0xFF4CAF50).withValues(alpha: 0.08),
+      Paint()..color = SkyPlotColors.good.withValues(alpha: 0.08),
     );
 
     // Yellow zone: 1.5 to 2.0
@@ -273,7 +276,7 @@ class _AirmassChartPainter extends CustomPainter {
         leftMargin + chartWidth,
         yellowZoneBottom,
       ),
-      Paint()..color = const Color(0xFFFFC107).withValues(alpha: 0.08),
+      Paint()..color = SkyPlotColors.caution.withValues(alpha: 0.08),
     );
 
     // Red zone: 2.0 to 3.0
@@ -284,7 +287,7 @@ class _AirmassChartPainter extends CustomPainter {
         leftMargin + chartWidth,
         topMargin + chartHeight,
       ),
-      Paint()..color = const Color(0xFFF44336).withValues(alpha: 0.08),
+      Paint()..color = SkyPlotColors.poor.withValues(alpha: 0.08),
     );
 
     // Draw horizontal grid lines at airmass values
@@ -372,7 +375,7 @@ class _AirmassChartPainter extends CustomPainter {
       Offset(currentX, topMargin),
       Offset(currentX, topMargin + chartHeight),
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.5)
+        ..color = ImageOverlayColors.foreground.withValues(alpha: 0.5)
         ..strokeWidth = 1,
     );
 
@@ -398,7 +401,7 @@ class _AirmassChartPainter extends CustomPainter {
       canvas.drawPath(
         markerPath,
         Paint()
-          ..color = const Color(0xFF4CAF50)
+          ..color = SkyPlotColors.good
           ..style = PaintingStyle.fill,
       );
 
@@ -407,8 +410,8 @@ class _AirmassChartPainter extends CustomPainter {
         text: const TextSpan(
           text: 'best',
           style: TextStyle(
-            color: Color(0xFF4CAF50),
-            fontSize: 8,
+            color: SkyPlotColors.good,
+            fontSize: SkotiqTypography.fontSize8,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -455,11 +458,11 @@ class _AirmassChartPainter extends CustomPainter {
       final am = airmassValues[i];
       Color segmentColor;
       if (am < 1.5) {
-        segmentColor = const Color(0xFF4CAF50); // Green
+        segmentColor = SkyPlotColors.good; // Green
       } else if (am < 2.0) {
-        segmentColor = const Color(0xFFFFC107); // Yellow
+        segmentColor = SkyPlotColors.caution; // Yellow
       } else {
-        segmentColor = const Color(0xFFF44336); // Red
+        segmentColor = SkyPlotColors.poor; // Red
       }
 
       canvas.drawLine(

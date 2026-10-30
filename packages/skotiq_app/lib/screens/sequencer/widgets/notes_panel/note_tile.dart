@@ -258,7 +258,7 @@ MarkdownStyleSheet _noteBodyMarkdownStyle(
     em: base.copyWith(fontStyle: FontStyle.italic),
     strong: base.copyWith(fontWeight: FontWeight.w700),
     code: base.copyWith(
-      fontFamily: 'monospace',
+      fontFamily: SkotiqTypography.fontFamilyMono,
       fontSize: SkotiqTypography.fontSize11,
       backgroundColor: colors.surfaceAlt,
       color: colors.accent,

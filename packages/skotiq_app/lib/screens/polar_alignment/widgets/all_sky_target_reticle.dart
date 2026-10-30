@@ -41,7 +41,7 @@ Rect allSkyCardinalLabelRect({
   required Alignment alignment,
   required String text,
 }) {
-  final painter = _layOutCardinal(text, const Color(0xFF000000));
+  final painter = _layOutCardinal(text, ImageOverlayColors.shadow);
   final center = Offset(size.width / 2, size.height / 2);
   final offset = _cardinalOffset(
     center,

@@ -124,7 +124,7 @@ class BottomInfoBar extends ConsumerWidget {
               end: Alignment.topCenter,
               colors: [
                 // absolute: bottom scrim over the planetarium sky canvas
-                Colors.black.withValues(alpha: 0.8),
+                ImageOverlayColors.shadow.withValues(alpha: 0.8),
                 Colors.transparent,
               ],
             ),
@@ -197,7 +197,7 @@ class InfoItem extends StatelessWidget {
                   ? SkotiqTypography.fontSize10
                   : SkotiqTypography.fontSize11,
               // absolute: HUD label over the planetarium sky canvas
-              color: Colors.white.withValues(alpha: 0.5),
+              color: ImageOverlayColors.foreground.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(width: 4),
@@ -209,7 +209,7 @@ class InfoItem extends StatelessWidget {
                   : SkotiqTypography.fontSize12,
               fontWeight: FontWeight.w500,
               // absolute: HUD value over the planetarium sky canvas
-              color: valueColor ?? Colors.white70,
+              color: valueColor ?? ImageOverlayColors.secondary,
               fontFeatures: const [ui.FontFeature.tabularFigures()],
             ),
           ),

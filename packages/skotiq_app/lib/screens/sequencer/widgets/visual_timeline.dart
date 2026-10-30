@@ -434,8 +434,8 @@ class _TimelinePainter extends CustomPainter {
         if (w > 40) {
           final labelColor =
               ThemeData.estimateBrightnessForColor(barColor) == Brightness.dark
-                  ? const Color(0xFFFFFFFF)
-                  : const Color(0xFF000000);
+                  ? ImageOverlayColors.foreground
+                  : ImageOverlayColors.shadow;
           final textPainter = TextPainter(
             text: TextSpan(
               text: segment.nodeName,

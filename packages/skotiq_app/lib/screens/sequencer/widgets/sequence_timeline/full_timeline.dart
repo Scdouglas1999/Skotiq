@@ -10,10 +10,10 @@ part of '../sequence_timeline.dart';
 /// dark adaptation the mode exists to protect. Resolve them with
 /// [_TwilightBandColors.of] — never paint the constants directly.
 @visibleForTesting
-final Color namedCivilTwilightBand = Colors.lightBlue.withValues(alpha: 0.2);
+final Color namedCivilTwilightBand = SkotiqChartColors.twilightCivil();
 
 @visibleForTesting
-final Color namedNauticalTwilightBand = Colors.blue.withValues(alpha: 0.3);
+final Color namedNauticalTwilightBand = SkotiqChartColors.twilightNautical();
 
 @visibleForTesting
 final Color namedAstroTwilightBand = SkotiqChartColors.twilightAstro();

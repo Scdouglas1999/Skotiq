@@ -11,8 +11,8 @@
   --textPrimary: #EDEFF3;
   --textSecondary: #B3BAC5;
   --textMuted: #8E97A4;
-  --primary: #A48CF2;
-  --accent: #B9ABFF;
+  --primary: #E86A6A;
+  --accent: #F2ACAC;
   --onPrimary: #0B0D12;
   --success: #43B67A;
   --warning: #E0A53E;
@@ -28,7 +28,7 @@
   --success-rgb: 67, 182, 122;
   --warning-rgb: 224, 165, 62;
   --error-rgb: 232, 106, 106;
-  --primary-rgb: 164, 140, 242;
+  --primary-rgb: 232, 106, 106;
   --surface-rgb: 18, 21, 27;
 }
 [data-theme="light"] {
@@ -43,8 +43,8 @@
   --textPrimary: #14181F;
   --textSecondary: #4F5966;
   --textMuted: #616873;
-  --primary: #6A4FD1;
-  --accent: #5B41C4;
+  --primary: #BC3838;
+  --accent: #A52E2E;
   --onPrimary: #FFFFFF;
   --success: #277549;
   --warning: #8F5D14;
@@ -60,7 +60,7 @@
   --success-rgb: 39, 117, 73;
   --warning-rgb: 143, 93, 20;
   --error-rgb: 188, 56, 56;
-  --primary-rgb: 106, 79, 209;
+  --primary-rgb: 188, 56, 56;
   --surface-rgb: 255, 255, 255;
 }
 [data-theme="redNight"] {

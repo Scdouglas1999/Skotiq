@@ -22,9 +22,9 @@ class CelestialGridPainter extends CustomPainter {
     1.0 / 60.0, // 1'
   ];
 
-  static const _gridColor = Color(0x40008888);
-  static const _labelColor = Color(0xA0CCDDDD);
-  static const _labelBgColor = Color(0x60000000);
+  static const _gridColor = ImageOverlayColors.coordinateGrid;
+  static const _labelColor = ImageOverlayColors.coordinateLabel;
+  static const _labelBgColor = ImageOverlayColors.coordinateLabelBackground;
   static const _gridStrokeWidth = 0.8;
   static const _samplesPerLine = 60;
 
@@ -224,7 +224,7 @@ class CelestialGridPainter extends CustomPainter {
     final textStyle = ui.TextStyle(
       color: _labelColor,
       fontSize: SkotiqTypography.fontSize9,
-      fontFamily: 'monospace',
+      fontFamily: SkotiqTypography.fontFamilyMono,
     );
     final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
       textAlign: TextAlign.center,

@@ -93,7 +93,8 @@ Future<void> _showSnippetRejectedDialog(
         'Snippet "${e.snippetName}" contains unknown node type '
         '"${e.unknownType}" — this may be from a newer version of '
         'Skotiq. The snippet was not imported.',
-        style: TextStyle(color: colors.textSecondary, fontSize: 13),
+        style: TextStyle(
+            color: colors.textSecondary, fontSize: SkotiqTypography.fontSize13),
       ),
     ),
   );
@@ -243,7 +244,7 @@ class _ValidationDialogHeader extends StatelessWidget {
                 Text(
                   'Could not $operationName',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: SkotiqTypography.fontSize15,
                     fontWeight: FontWeight.w600,
                     color: colors.textPrimary,
                   ),
@@ -257,7 +258,7 @@ class _ValidationDialogHeader extends StatelessWidget {
                       : 'Sequence has $warningCount '
                           'warning${warningCount == 1 ? '' : 's'}.',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     color: colors.textSecondary,
                   ),
                 ),
@@ -331,7 +332,7 @@ class _ValidationIssueCard extends StatelessWidget {
                       child: Text(
                         issue.title,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: SkotiqTypography.fontSize13,
                           fontWeight: FontWeight.w600,
                           color: colors.textPrimary,
                         ),
@@ -349,7 +350,7 @@ class _ValidationIssueCard extends StatelessWidget {
                       child: Text(
                         issue.category.label,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: SkotiqTypography.fontSize9,
                           fontWeight: FontWeight.w600,
                           color: colors.textMuted,
                           letterSpacing: 0.3,
@@ -362,7 +363,7 @@ class _ValidationIssueCard extends StatelessWidget {
                 Text(
                   issue.description,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     color: colors.textSecondary,
                   ),
                 ),
@@ -378,7 +379,7 @@ class _ValidationIssueCard extends StatelessWidget {
                         child: Text(
                           issue.resolutionHint!,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: SkotiqTypography.fontSize11,
                             color: colors.primary,
                             fontStyle: FontStyle.italic,
                           ),

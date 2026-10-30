@@ -36,7 +36,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// fades after 4 seconds because those are often expected (rate limit,
 /// pairing required) and the operator just needs the cue.
 void showApiError(BuildContext context, Object error) {
-  final colors = Theme.of(context).extension<SkotiqColors>();
+  final colors = context.skotiqColors;
   final theme = Theme.of(context);
 
   final String text;
@@ -47,11 +47,11 @@ void showApiError(BuildContext context, Object error) {
   if (error is ServerError) {
     text = '${error.message} (${error.code})';
     if (error.isClientError) {
-      background = colors?.warning ?? const Color(0xFFFFA000);
-      foreground = colors?.background ?? const Color(0xFF000000);
+      background = colors.warning;
+      foreground = colors.background;
       duration = const Duration(seconds: 4);
     } else {
-      background = colors?.error ?? theme.colorScheme.error;
+      background = colors.error;
       foreground = theme.colorScheme.onError;
       duration = const Duration(seconds: 6);
     }
@@ -62,7 +62,7 @@ void showApiError(BuildContext context, Object error) {
     // received the request. We still want the operator to see what
     // happened, so fall back to the exception's own stringification.
     text = error.toString();
-    background = colors?.error ?? theme.colorScheme.error;
+    background = colors.error;
     foreground = theme.colorScheme.onError;
     duration = const Duration(seconds: 6);
   }
@@ -109,13 +109,13 @@ void showApiErrorWithPrefix(BuildContext context, String prefix, Object error) {
   // Wrap a generic exception so the prefix lands in the text path of
   // showApiError too. We don't mutate `error` — Exception is opaque, so
   // we just stringify here.
-  final colors = Theme.of(context).extension<SkotiqColors>();
+  final colors = context.skotiqColors;
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
   messenger.hideCurrentSnackBar();
   messenger.showSnackBar(
     SnackBar(
-      backgroundColor: colors?.error ?? Theme.of(context).colorScheme.error,
+      backgroundColor: colors.error,
       content: Text(
         '$prefix: $error',
         style: TextStyle(color: Theme.of(context).colorScheme.onError),

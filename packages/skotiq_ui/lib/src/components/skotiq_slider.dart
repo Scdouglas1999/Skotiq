@@ -1,3 +1,4 @@
+import '../theme/skotiq_slider_style.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/skotiq_colors.dart';
@@ -42,18 +43,7 @@ class SkotiqSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final slider = SliderTheme(
-      data: SliderThemeData(
-        activeTrackColor: colors.primary,
-        inactiveTrackColor: colors.surfaceHover,
-        thumbColor: colors.primary,
-        overlayColor: colors.primary.withValues(alpha: 0.16),
-        disabledActiveTrackColor: colors.border,
-        disabledInactiveTrackColor: colors.surfaceAlt,
-        disabledThumbColor: colors.textMuted,
-        activeTickMarkColor: colors.onPrimary,
-        inactiveTickMarkColor: colors.textMuted,
-        trackHeight: 4,
-      ),
+      data: SkotiqSliderStyle.theme(colors),
       child: Slider(
         value: value,
         min: min,

@@ -1,11 +1,5 @@
 part of '../mobile_widgets.dart';
 
-// NOTE (design tokens): the `Colors.white*` / `Colors.black*` literals in this
-// file are canvas-absolute HUD colors for the mobile planetarium view/slew
-// controls drawn over the sky. The planetarium is wrapped in
-// `_NightVisionFilter` (luminance→red conversion for dark adaptation), so they
-// are intentionally NOT mapped to the theme-relative semantic palette.
-
 class MobileViewControls extends ConsumerWidget {
   final SkotiqColors colors;
   final bool showFOV;
@@ -26,7 +20,7 @@ class MobileViewControls extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
       ),
       child: Column(
@@ -42,7 +36,7 @@ class MobileViewControls extends ConsumerWidget {
               viewState.fieldOfView.toStringAsFixed(0),
               style: const TextStyle(
                 fontSize: SkotiqTypography.fontSize9,
-                color: Colors.white70,
+                color: ImageOverlayColors.secondary,
                 fontFeatures: [ui.FontFeature.tabularFigures()],
               ),
             ),
@@ -55,7 +49,7 @@ class MobileViewControls extends ConsumerWidget {
             height: 1,
             width: dividerWidth,
             margin: const EdgeInsets.symmetric(vertical: 6),
-            color: Colors.white24,
+            color: ImageOverlayColors.divider,
           ),
           MobileControlButton(
             icon: SkotiqIcons.home,
@@ -91,7 +85,7 @@ class MobileViewControls extends ConsumerWidget {
               height: 1,
               width: dividerWidth,
               margin: const EdgeInsets.symmetric(vertical: 6),
-              color: Colors.white24,
+              color: ImageOverlayColors.divider,
             ),
             Consumer(
               builder: (context, ref, _) {
@@ -131,8 +125,9 @@ class MobileViewControls extends ConsumerWidget {
                                 Icon(
                                   SkotiqIcons.compass,
                                   size: gyroInner * 0.54,
-                                  color:
-                                      isEnabled ? colors.info : Colors.white70,
+                                  color: isEnabled
+                                      ? colors.info
+                                      : ImageOverlayColors.secondary,
                                 ),
                                 // Compass accuracy indicator dot
                                 if (isEnabled && orientation.isActive)
@@ -186,7 +181,7 @@ class MobileViewControls extends ConsumerWidget {
                                 size: gyroInner * 0.54,
                                 color: mountSyncActive
                                     ? colors.warning
-                                    : Colors.white70,
+                                    : ImageOverlayColors.secondary,
                               ),
                             ),
                           ),
@@ -277,7 +272,7 @@ class MobileSlewControls extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
         border: slewMode ? Border.all(color: colors.warning, width: 2) : null,
       ),
@@ -326,7 +321,9 @@ class MobileControlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final color = isActive ? (activeColor ?? colors.success) : Colors.white70;
+    final color = isActive
+        ? (activeColor ?? colors.success)
+        : ImageOverlayColors.secondary;
     final outer = _mobileTouchOuter(context) * 0.82;
     final inner = _mobileTouchInner(context);
 
@@ -348,7 +345,7 @@ class MobileControlButton extends StatelessWidget {
             child: Icon(
               icon,
               size: inner * 0.54,
-              color: isEnabled ? color : Colors.white24,
+              color: isEnabled ? color : ImageOverlayColors.divider,
             ),
           ),
         ),

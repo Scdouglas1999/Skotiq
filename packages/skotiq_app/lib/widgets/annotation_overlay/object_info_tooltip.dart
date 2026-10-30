@@ -100,7 +100,7 @@ class ObjectInfoTooltip extends ConsumerWidget {
         border: Border.all(color: colors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
+            color: ImageOverlayColors.shadow.withValues(alpha: 0.4),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -123,7 +123,7 @@ class ObjectInfoTooltip extends ConsumerWidget {
                       object.commonName ?? object.name,
                       style: const TextStyle(
                         color: _annotationOverlayTextColor,
-                        fontSize: 14,
+                        fontSize: SkotiqTypography.fontSize14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -131,8 +131,9 @@ class ObjectInfoTooltip extends ConsumerWidget {
                       Text(
                         object.name,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.65),
-                          fontSize: 11,
+                          color: ImageOverlayColors.foreground
+                              .withValues(alpha: 0.65),
+                          fontSize: SkotiqTypography.fontSize11,
                         ),
                       ),
                   ],
@@ -151,7 +152,8 @@ class ObjectInfoTooltip extends ConsumerWidget {
                       child: Icon(
                         Icons.close,
                         size: 16,
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: ImageOverlayColors.foreground
+                            .withValues(alpha: 0.6),
                       ),
                     )),
             ],
@@ -252,28 +254,28 @@ class _ObjectTypeIcon extends StatelessWidget {
     switch (type) {
       case ObjectType.galaxy:
         icon = Icons.blur_circular;
-        color = const Color(0xFFFFD700);
+        color = AnnotationTypeColors.galaxy;
         break;
       case ObjectType.nebula:
         icon = Icons.cloud;
-        color = const Color(0xFFFF00FF);
+        color = AnnotationTypeColors.nebula;
         break;
       case ObjectType.planetaryNebula:
         icon = Icons.radio_button_unchecked;
-        color = const Color(0xFF9400D3);
+        color = AnnotationTypeColors.planetaryNebula;
         break;
       case ObjectType.starCluster:
         icon = Icons.scatter_plot;
-        color = const Color(0xFF00FFFF);
+        color = AnnotationTypeColors.starCluster;
         break;
       case ObjectType.star:
       case ObjectType.doubleStar:
         icon = Icons.star;
-        color = const Color(0xFFFFFFFF);
+        color = ImageOverlayColors.foreground;
         break;
       default:
         icon = Icons.help_outline;
-        color = const Color(0xFF00FF00);
+        color = AnnotationTypeColors.asterism;
     }
 
     return Icon(icon, color: color, size: 20);
@@ -304,23 +306,27 @@ class _TooltipActionButton extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: ImageOverlayColors.foreground.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              border: Border.all(
+                  color: ImageOverlayColors.foreground.withValues(alpha: 0.15)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon,
-                    size: 13, color: Colors.white.withValues(alpha: 0.8)),
+                    size: 13,
+                    color:
+                        ImageOverlayColors.foreground.withValues(alpha: 0.8)),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 10,
+                      color:
+                          ImageOverlayColors.foreground.withValues(alpha: 0.8),
+                      fontSize: SkotiqTypography.fontSize10,
                       fontWeight: FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -349,15 +355,15 @@ class _InfoRow extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 11,
+              color: ImageOverlayColors.foreground.withValues(alpha: 0.6),
+              fontSize: SkotiqTypography.fontSize11,
             ),
           ),
           Text(
             value,
             style: const TextStyle(
               color: _annotationOverlayTextColor,
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w500,
             ),
           ),

@@ -435,7 +435,7 @@ class _FOVOverlayPainter extends CustomPainter {
 
     // Draw border
     final borderPaint = Paint()
-      ..color = const Color(0xFF00E676)
+      ..color = FieldOfViewColors.green
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
@@ -444,7 +444,7 @@ class _FOVOverlayPainter extends CustomPainter {
     // Draw corner brackets
     final bracketLength = math.min(rectWidth, rectHeight) * 0.1;
     final bracketPaint = Paint()
-      ..color = const Color(0xFF00E676)
+      ..color = FieldOfViewColors.green
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
 
@@ -499,7 +499,7 @@ class _FOVOverlayPainter extends CustomPainter {
     if (showCrosshair) {
       // Draw center crosshair
       final crosshairPaint = Paint()
-        ..color = const Color(0xFF00E676).withValues(alpha: 0.5)
+        ..color = FieldOfViewColors.green.withValues(alpha: 0.5)
         ..strokeWidth = 1;
 
       canvas.drawLine(
@@ -532,8 +532,8 @@ class _FOVOverlayPainter extends CustomPainter {
       text: TextSpan(
         text: fovText,
         style: const TextStyle(
-          color: Color(0xFF00E676),
-          fontSize: 11,
+          color: FieldOfViewColors.green,
+          fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w500,
         ),
       ),

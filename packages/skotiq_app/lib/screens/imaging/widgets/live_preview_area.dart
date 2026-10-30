@@ -416,7 +416,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                                     // near-black — the same grey-on-grey that
                                     // got a white glass over a black frame
                                     // rejected.
-                                    child: _OnCanvas(
+                                    child: SkotiqImageSurface(
                                       child: EmptyState(
                                         icon: isConnected
                                             ? SkotiqIcons.imageOff
@@ -900,30 +900,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
           ),
         );
       },
-    );
-  }
-}
-
-/// Resolves the DARK palette for anything drawn straight onto the canvas.
-///
-/// The canvas is a photograph of the night sky, dark in every theme, so text
-/// over it takes its colours from the dark ladder exactly as [Glass] does.
-/// Red night is the one exception and outranks the rule: the wavelength
-/// constraint applies to every pixel on the screen.
-class _OnCanvas extends StatelessWidget {
-  const _OnCanvas({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.skotiqColors;
-    final inner = colors.isRedNight ? colors : SkotiqColors.dark;
-    return Theme(
-      data: Theme.of(
-        context,
-      ).copyWith(extensions: <ThemeExtension<dynamic>>[inner]),
-      child: child,
     );
   }
 }

@@ -370,9 +370,6 @@ class _TransientCardState extends State<TransientCard> {
         tooltip: tooltip,
         style: IconButton.styleFrom(
           backgroundColor: background,
-          shape: RoundedRectangleBorder(
-            borderRadius: SkotiqTokens.borderRadiusSm,
-          ),
         ),
       ),
     );

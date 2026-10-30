@@ -215,8 +215,8 @@ LinearGradient darkroomRecipePanelEdgeMask({
   required bool above,
   required bool below,
 }) {
-  const opaque = Color(0xFF000000);
-  const clear = Color(0x00000000);
+  const opaque = ImageOverlayColors.shadow;
+  const clear = Colors.transparent;
   return LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,

@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
@@ -57,13 +58,13 @@ class _CompassHudPainter extends CustomPainter {
 
     // Background circle
     final bgPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.6)
+      ..color = ImageOverlayColors.shadow.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(compassCenter, compassRadius, bgPaint);
 
     // Outer ring
     final ringPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.3)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(compassCenter, compassRadius, ringPaint);
@@ -85,8 +86,8 @@ class _CompassHudPainter extends CustomPainter {
 
   void _drawCardinalMarkers(Canvas canvas, Offset center, double radius) {
     final textStyle = TextStyle(
-      color: Colors.white.withValues(alpha: 0.8),
-      fontSize: 10,
+      color: ImageOverlayColors.foreground.withValues(alpha: 0.8),
+      fontSize: SkotiqTypography.fontSize10,
       fontWeight: FontWeight.bold,
     );
 
@@ -105,7 +106,7 @@ class _CompassHudPainter extends CustomPainter {
         text: TextSpan(
           text: directions[i],
           style: directions[i] == 'N'
-              ? textStyle.copyWith(color: Colors.red.shade300)
+              ? textStyle.copyWith(color: SkyPlotColors.poor)
               : textStyle,
         ),
         textDirection: TextDirection.ltr,
@@ -129,7 +130,7 @@ class _CompassHudPainter extends CustomPainter {
       );
 
       final tickPaint = Paint()
-        ..color = Colors.white.withValues(alpha: 0.4)
+        ..color = ImageOverlayColors.foreground.withValues(alpha: 0.4)
         ..strokeWidth = 1;
       canvas.drawLine(tickStart, tickEnd, tickPaint);
     }
@@ -138,7 +139,7 @@ class _CompassHudPainter extends CustomPainter {
   void _drawDirectionIndicator(Canvas canvas, Offset center, double radius) {
     // Fixed triangle at top (current viewing direction)
     final indicatorPaint = Paint()
-      ..color = Colors.white
+      ..color = ImageOverlayColors.foreground
       ..style = PaintingStyle.fill;
 
     const triangleSize = 6.0;
@@ -159,8 +160,8 @@ class _CompassHudPainter extends CustomPainter {
       text: TextSpan(
         text: azText,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.9),
-          fontSize: 11,
+          color: ImageOverlayColors.foreground.withValues(alpha: 0.9),
+          fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -190,24 +191,24 @@ class _CompassHudPainter extends CustomPainter {
     // Background arc
     final bgRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(arcLeft, arcTop, arcWidth, arcHeight),
-      const Radius.circular(4),
+      const Radius.circular(SkotiqTokens.radiusXs),
     );
     final bgPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.6)
+      ..color = ImageOverlayColors.shadow.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(bgRect, bgPaint);
 
     // Border
     final borderPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.3)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     canvas.drawRRect(bgRect, borderPaint);
 
     // Altitude markers (0, 30, 60, 90)
     final markerStyle = TextStyle(
-      color: Colors.white.withValues(alpha: 0.5),
-      fontSize: 7,
+      color: ImageOverlayColors.foreground.withValues(alpha: 0.5),
+      fontSize: SkotiqTypography.fontSize8,
     );
 
     for (final alt in [0, 30, 60, 90]) {
@@ -218,7 +219,7 @@ class _CompassHudPainter extends CustomPainter {
         Offset(arcLeft, y),
         Offset(arcLeft + 4, y),
         Paint()
-          ..color = Colors.white.withValues(alpha: 0.4)
+          ..color = ImageOverlayColors.foreground.withValues(alpha: 0.4)
           ..strokeWidth = 1,
       );
 
@@ -239,7 +240,7 @@ class _CompassHudPainter extends CustomPainter {
     // Current altitude indicator
     final altY = arcTop + arcHeight - (altitude.clamp(0, 90) / 90 * arcHeight);
     final indicatorPaint = Paint()
-      ..color = altitude >= 0 ? Colors.green.shade400 : Colors.red.shade400
+      ..color = altitude >= 0 ? SkyPlotColors.good : SkyPlotColors.poor
       ..style = PaintingStyle.fill;
 
     // Triangle indicator
@@ -258,7 +259,7 @@ class _CompassHudPainter extends CustomPainter {
       arcTop + arcHeight - altY - 2,
     );
     final fillPaint = Paint()
-      ..color = Colors.green.withValues(alpha: 0.2)
+      ..color = SkyPlotColors.good.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
     canvas.drawRect(fillRect, fillPaint);
 
@@ -268,8 +269,8 @@ class _CompassHudPainter extends CustomPainter {
       text: TextSpan(
         text: altText,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.9),
-          fontSize: 9,
+          color: ImageOverlayColors.foreground.withValues(alpha: 0.9),
+          fontSize: SkotiqTypography.fontSize9,
           fontWeight: FontWeight.w600,
         ),
       ),

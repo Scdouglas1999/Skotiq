@@ -68,7 +68,7 @@ class PhoneBatteryIndicator extends ConsumerWidget {
         decoration: isLowPower
             ? BoxDecoration(
                 color: tint.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
               )
             : null,
         child: Row(
@@ -79,7 +79,7 @@ class PhoneBatteryIndicator extends ConsumerWidget {
             Text(
               '${state.level}%',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: SkotiqTypography.fontSize11,
                 fontWeight: FontWeight.w600,
                 color: tint,
               ),

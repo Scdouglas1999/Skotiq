@@ -1,3 +1,4 @@
+import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -163,7 +164,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
         gradient: RadialGradient(
           center: Alignment.center,
           radius: 1.5,
-          colors: [Color(0xFF15151F), Color(0xFF0A0A12)],
+          colors: [SkyPlotColors.skyTop, SkyPlotColors.skyBottom],
         ),
       ),
       child: CustomPaint(
@@ -191,7 +192,7 @@ class _StarFieldPainter extends CustomPainter {
       final brightness = random.nextDouble() * 0.5 + 0.2;
       final radius = (random.nextDouble() * 1.5 + 0.3) * math.sqrt(zoom);
 
-      paint.color = Colors.white.withValues(alpha: brightness);
+      paint.color = ImageOverlayColors.foreground.withValues(alpha: brightness);
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
 
@@ -199,8 +200,8 @@ class _StarFieldPainter extends CustomPainter {
     final center = size.center(Offset.zero);
     final gradient = RadialGradient(
       colors: [
-        Colors.pinkAccent.withValues(alpha: 0.15),
-        Colors.pinkAccent.withValues(alpha: 0.05),
+        SkyPlotColors.nebulaGlow.withValues(alpha: 0.15),
+        SkyPlotColors.nebulaGlow.withValues(alpha: 0.05),
         Colors.transparent,
       ],
     );
@@ -224,7 +225,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.1)
+      ..color = ImageOverlayColors.foreground.withValues(alpha: 0.1)
       ..strokeWidth = 0.5;
 
     final center = size.center(Offset.zero) + pan;
@@ -241,7 +242,7 @@ class _GridPainter extends CustomPainter {
     }
 
     // Draw center lines
-    paint.color = Colors.white.withValues(alpha: 0.2);
+    paint.color = ImageOverlayColors.foreground.withValues(alpha: 0.2);
     canvas.drawLine(
       Offset(center.dx, 0),
       Offset(center.dx, size.height),
@@ -291,13 +292,13 @@ class _FOVPainter extends CustomPainter {
 
     // Fill with semi-transparent color
     final fillPaint = Paint()
-      ..color = const Color(0x1A00E676)
+      ..color = FieldOfViewColors.greenTint
       ..style = PaintingStyle.fill;
     canvas.drawRect(rect, fillPaint);
 
     // Draw border
     final borderPaint = Paint()
-      ..color = const Color(0xFF00E676)
+      ..color = FieldOfViewColors.green
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
     canvas.drawRect(rect, borderPaint);
@@ -307,7 +308,7 @@ class _FOVPainter extends CustomPainter {
 
     // Draw rotation handle
     final handlePaint = Paint()
-      ..color = const Color(0xFF00E676)
+      ..color = FieldOfViewColors.green
       ..style = PaintingStyle.fill;
 
     final handleY = -rectHeight / 2 - 15;
@@ -330,8 +331,8 @@ class _FOVPainter extends CustomPainter {
       text: TextSpan(
         text: fovText,
         style: const TextStyle(
-          color: Color(0xFF00E676),
-          fontSize: 11,
+          color: FieldOfViewColors.green,
+          fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -401,8 +402,8 @@ class _FOVPainter extends CustomPainter {
 
   void _drawCardinalLabels(Canvas canvas, Rect rect) {
     final style = TextStyle(
-      color: Colors.white.withValues(alpha: 0.5),
-      fontSize: 9,
+      color: ImageOverlayColors.foreground.withValues(alpha: 0.5),
+      fontSize: SkotiqTypography.fontSize9,
     );
 
     final labels = ['N', 'E', 'S', 'W'];
@@ -453,12 +454,12 @@ class _MosaicOverlayPainter extends CustomPainter {
     final scale = 50.0 * zoom;
 
     final borderPaint = Paint()
-      ..color = const Color(0xFF2196F3).withValues(alpha: 0.8)
+      ..color = SkyPlotColors.target.withValues(alpha: 0.8)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final fillPaint = Paint()
-      ..color = const Color(0xFF2196F3).withValues(alpha: 0.1)
+      ..color = SkyPlotColors.target.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
 
     for (final panel in plan.panels) {
@@ -488,8 +489,8 @@ class _MosaicOverlayPainter extends CustomPainter {
         text: TextSpan(
           text: panel.name,
           style: const TextStyle(
-            color: Color(0xFF2196F3),
-            fontSize: 10,
+            color: SkyPlotColors.target,
+            fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -518,7 +519,7 @@ class _CrosshairPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final paint = Paint()
-      ..color = const Color(0xFFFF5722)
+      ..color = SkyPlotColors.measurement
       ..strokeWidth = 1;
 
     // Draw crosshair
@@ -555,8 +556,8 @@ class _ZoomControls extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(8),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -566,11 +567,14 @@ class _ZoomControls extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
             child: Text(
               '${(zoom * 100).round()}%',
-              style: const TextStyle(color: Colors.white70, fontSize: 10),
+              style: const TextStyle(
+                color: ImageOverlayColors.secondary,
+                fontSize: SkotiqTypography.fontSize10,
+              ),
             ),
           ),
           _ZoomButton(icon: Icons.remove, onTap: onZoomOut),
-          const Divider(height: 1, color: Colors.white24),
+          const Divider(height: 1, color: ImageOverlayColors.divider),
           _ZoomButton(icon: Icons.center_focus_strong, onTap: onReset),
         ],
       ),
@@ -590,7 +594,7 @@ class _ZoomButton extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Icon(icon, color: Colors.white70, size: 18),
+        child: Icon(icon, color: ImageOverlayColors.secondary, size: 18),
       ),
     );
   }
@@ -609,8 +613,8 @@ class _ScaleIndicator extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(4),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -618,7 +622,10 @@ class _ScaleIndicator extends StatelessWidget {
         children: [
           const Text(
             'Scale',
-            style: TextStyle(color: Colors.white54, fontSize: 9),
+            style: TextStyle(
+              color: ImageOverlayColors.faint,
+              fontSize: SkotiqTypography.fontSize9,
+            ),
           ),
           const SizedBox(height: 4),
           Row(
@@ -627,12 +634,15 @@ class _ScaleIndicator extends StatelessWidget {
               Container(
                 width: barLength.clamp(30.0, 100.0),
                 height: 2,
-                color: Colors.white,
+                color: ImageOverlayColors.foreground,
               ),
               const SizedBox(width: 4),
               const Text(
                 "10'",
-                style: TextStyle(color: Colors.white70, fontSize: 10),
+                style: TextStyle(
+                  color: ImageOverlayColors.secondary,
+                  fontSize: SkotiqTypography.fontSize10,
+                ),
               ),
             ],
           ),

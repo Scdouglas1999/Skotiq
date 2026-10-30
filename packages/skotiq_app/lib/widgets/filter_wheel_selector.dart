@@ -48,30 +48,8 @@ class FilterWheelSelector extends ConsumerStatefulWidget {
   /// - OIII/O3 → Teal
   /// - SII/S2 → Deep Orange
   /// - NII/N2 → Purple
-  static Color getFilterColor(String name) {
-    final n = name.toUpperCase();
-    if (n.contains('RED') ||
-        n == 'R' ||
-        n.contains('HA') ||
-        n.contains('H-ALPHA')) {
-      return const Color(0xFFEF4444);
-    }
-    if (n.contains('GREEN') || n == 'G') return const Color(0xFF22C55E);
-    if (n.contains('BLUE') || n == 'B') return const Color(0xFF3B82F6);
-    if (n.contains('LUM') || n == 'L' || n.contains('CLEAR')) {
-      return const Color(0xFFA1A1AA);
-    }
-    if (n.contains('OIII') || n.contains('O3') || n.contains('O-III')) {
-      return const Color(0xFF14B8A6);
-    }
-    if (n.contains('SII') || n.contains('S2') || n.contains('S-II')) {
-      return const Color(0xFFF97316);
-    }
-    if (n.contains('NII') || n.contains('N2')) {
-      return const Color(0xFFA855F7);
-    }
-    return const Color(0xFFA1A1AA);
-  }
+  static Color getFilterColor(String name, {SkotiqColors? colors}) =>
+      FilterColors.forName(name, colors: colors);
 }
 
 class _FilterWheelSelectorState extends ConsumerState<FilterWheelSelector> {
@@ -134,7 +112,8 @@ class _FilterWheelSelectorState extends ConsumerState<FilterWheelSelector> {
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: FilterWheelSelector.getFilterColor(e.value),
+                            color: FilterWheelSelector.getFilterColor(e.value,
+                                colors: context.skotiqColors),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -160,7 +139,8 @@ class _FilterWheelSelectorState extends ConsumerState<FilterWheelSelector> {
           .entries
           .map((e) => _FilterButton(
                 label: e.value,
-                color: FilterWheelSelector.getFilterColor(e.value),
+                color: FilterWheelSelector.getFilterColor(e.value,
+                    colors: context.skotiqColors),
                 isSelected: currentPosition != null && e.key == currentPosition,
                 compact: widget.compact,
                 onTap: controlsEnabled ? () => _selectFilter(e.key) : null,
@@ -188,34 +168,18 @@ class _FilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    // A bare InkWell publishes a tap action and nothing else, so the filter
-    // row reached assistive tech as inert disabled panels with no indication
-    // of which filter is mounted. The flags are only published when given.
-    return Semantics(
-      button: true,
-      enabled: onTap != null,
+    return ChoiceChip(
+      label: Text(label),
       selected: isSelected,
-      child: Material(
-        color: isSelected ? color : color.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(compact ? 12 : 16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(compact ? 12 : 16),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 8 : 12,
-              vertical: compact ? 4 : 6,
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: compact ? 12 : 14,
-                color: isSelected ? colors.textPrimary : colors.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
+      onSelected: onTap == null ? null : (_) => onTap!(),
+      visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
+      avatar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.border),
         ),
+        child: const SizedBox.square(dimension: SkotiqTokens.iconXs),
       ),
     );
   }

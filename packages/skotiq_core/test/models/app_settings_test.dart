@@ -2,6 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/settings/app_settings.dart';
 
 void main() {
+  test('new profiles default to red without replacing saved accents', () {
+    expect(kDefaultAccentColorHex, '#E86A6A');
+    // An absent preference resolves to the theme's designed red palette.
+    expect(AppSettings.fromJson({}).accentColor, isEmpty);
+    expect(
+      AppSettings.fromJson({'accentColor': '#A48CF2'}).accentColor,
+      '#A48CF2',
+    );
+  });
+
   group('ObserverLocation', () {
     test('creates with required fields', () {
       const location = ObserverLocation(

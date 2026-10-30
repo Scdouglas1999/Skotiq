@@ -115,7 +115,7 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
           style: TextStyle(
             color: colors.textPrimary,
             fontWeight: FontWeight.w600,
-            fontSize: 17,
+            fontSize: SkotiqTypography.fontSize17,
           ),
         ),
       ),
@@ -795,7 +795,7 @@ class _EmptyState extends StatelessWidget {
               style: TextStyle(
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w600,
-                fontSize: 16,
+                fontSize: SkotiqTypography.fontSize16,
               ),
             ),
             const SizedBox(height: 8),
@@ -871,7 +871,7 @@ class _SavedServerRow extends StatelessWidget {
                           style: TextStyle(
                             color: colors.textPrimary,
                             fontWeight: FontWeight.w600,
-                            fontSize: 15,
+                            fontSize: SkotiqTypography.fontSize15,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -884,7 +884,10 @@ class _SavedServerRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     secondary,
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: SkotiqTypography.fontSize12,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -894,7 +897,7 @@ class _SavedServerRow extends StatelessWidget {
                       server.notes,
                       style: TextStyle(
                         color: colors.textSecondary,
-                        fontSize: 12,
+                        fontSize: SkotiqTypography.fontSize12,
                         fontStyle: FontStyle.italic,
                       ),
                       maxLines: 2,

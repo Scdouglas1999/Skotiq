@@ -640,7 +640,7 @@ class _DecisionTileState extends State<_DecisionTile> {
                         const JsonEncoder.withIndent('  ')
                             .convert(widget.decision.details),
                         style: TextStyle(
-                          fontFamily: 'monospace',
+                          fontFamily: SkotiqTypography.fontFamilyMono,
                           fontSize: SkotiqTypography.fontSize11,
                           color: c.textPrimary,
                         ),

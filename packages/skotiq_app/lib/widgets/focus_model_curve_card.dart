@@ -370,14 +370,16 @@ class _MetricCell extends StatelessWidget {
             Icon(icon, size: 12, color: colors.textMuted),
             const SizedBox(width: 4),
             Text(label,
-                style: TextStyle(fontSize: 10, color: colors.textMuted)),
+                style: TextStyle(
+                    fontSize: SkotiqTypography.fontSize10,
+                    color: colors.textMuted)),
           ],
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: SkotiqTypography.fontSize14,
             fontWeight: FontWeight.w600,
             color: colors.textPrimary,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -410,14 +412,16 @@ class _ModelStatus extends StatelessWidget {
               Icon(LucideIcons.info, size: 12, color: colors.textMuted),
               const SizedBox(width: 4),
               Text('Model',
-                  style: TextStyle(fontSize: 10, color: colors.textMuted)),
+                  style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize10,
+                      color: colors.textMuted)),
             ],
           ),
           const SizedBox(height: 2),
           Text(
             dataPoints.isEmpty ? 'No data' : 'Building…',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: SkotiqTypography.fontSize13,
               fontWeight: FontWeight.w600,
               color: colors.warning,
             ),
@@ -450,7 +454,9 @@ class _ModelStatus extends StatelessWidget {
             Icon(LucideIcons.activity, size: 12, color: colors.textMuted),
             const SizedBox(width: 4),
             Text('Model',
-                style: TextStyle(fontSize: 10, color: colors.textMuted)),
+                style: TextStyle(
+                    fontSize: SkotiqTypography.fontSize10,
+                    color: colors.textMuted)),
           ],
         ),
         const SizedBox(height: 2),
@@ -460,7 +466,7 @@ class _ModelStatus extends StatelessWidget {
           // information density high without truncation.
           '$label · R²=${quality.toStringAsFixed(2)}',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: SkotiqTypography.fontSize13,
             fontWeight: FontWeight.w600,
             color: color,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -489,7 +495,9 @@ class _EmptyDataState extends StatelessWidget {
           Expanded(
             child: Text(
               'No focus data yet — tap for autofocus settings',
-              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize12,
+                  color: colors.textSecondary),
             ),
           ),
           Icon(LucideIcons.chevronRight, size: 14, color: colors.textMuted),
@@ -506,7 +514,7 @@ class _EmptyDataState extends StatelessWidget {
             Text(
               'Focus model',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: SkotiqTypography.fontSize14,
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
@@ -524,7 +532,7 @@ class _EmptyDataState extends StatelessWidget {
                 Text(
                   'No focus data yet',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: SkotiqTypography.fontSize15,
                     fontWeight: FontWeight.w600,
                     color: colors.textPrimary,
                   ),
@@ -534,7 +542,9 @@ class _EmptyDataState extends StatelessWidget {
                   'Run an autofocus to start building the temperature '
                   'compensation curve.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize12,
+                      color: colors.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 SkotiqButton(

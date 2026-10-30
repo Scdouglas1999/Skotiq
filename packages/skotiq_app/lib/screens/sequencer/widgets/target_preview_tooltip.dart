@@ -148,7 +148,7 @@ class TargetPreviewTooltip extends ConsumerWidget {
             boxShadow: [
               BoxShadow(
                 // absolute: drop-shadow scrim (theme-independent)
-                color: Colors.black.withValues(alpha: 0.3),
+                color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),

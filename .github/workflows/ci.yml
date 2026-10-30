@@ -117,6 +117,11 @@ jobs:
       - name: Behavioral Audit Gate
         run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open --report .behavioral_audit_hits.txt --min-files 796
 
+      - name: UI design token audit
+        run: |
+          python3 docs/design/overhaul/tools/audit_ui_tokens.py
+          python3 -m unittest discover -s docs/design/overhaul/tools -p 'test_audit_ui_tokens.py'
+
       - name: Dependency Hygiene Gate
         run: dart run tools/production/dependency_hygiene.dart
 

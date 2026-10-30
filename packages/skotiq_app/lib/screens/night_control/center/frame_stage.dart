@@ -396,7 +396,7 @@ class FrameStage extends ConsumerWidget {
 
     return ColoredBox(
       color: canvas,
-      child: _OnCanvas(
+      child: SkotiqImageSurface(
         child: ClipRect(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -471,30 +471,6 @@ class FrameStage extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Builds [child] under the dark palette: the canvas is a photograph of the
-/// night sky in every theme except red night, which keeps its own palette.
-class _OnCanvas extends StatelessWidget {
-  const _OnCanvas({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.skotiqColors;
-    if (colors.isRedNight) return child;
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(
-        extensions: <Object>[
-          ...theme.extensions.values.where((e) => e is! SkotiqColors),
-          SkotiqColors.dark,
-        ].cast<ThemeExtension<dynamic>>(),
-      ),
-      child: child,
     );
   }
 }

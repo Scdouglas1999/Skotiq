@@ -244,7 +244,7 @@ class _NetworkStatusIndicatorState
       padding: const EdgeInsets.all(8),
       decoration: SkotiqDecorations.statusChip(
         color,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         bordered: false,
       ),
       child: Icon(icon, size: 20, color: color),
@@ -267,7 +267,7 @@ class _NetworkStatusIndicatorState
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: SkotiqDecorations.statusChip(
         color,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -460,7 +460,7 @@ class _LatencyBadge extends StatelessWidget {
       style: theme.textTheme.bodySmall?.copyWith(
         color: color.withValues(alpha: 0.9),
         fontFeatures: const [FontFeature.tabularFigures()],
-        fontFamily: 'monospace',
+        fontFamily: SkotiqTypography.fontFamilyMono,
         fontWeight: FontWeight.w600,
       ),
     );
@@ -688,7 +688,7 @@ class _ConnectionDetailsSheetState
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 border: Border.all(color: colors.border),
               ),
               child: Row(

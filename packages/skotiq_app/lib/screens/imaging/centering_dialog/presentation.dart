@@ -117,7 +117,7 @@ extension _CenteringPresentationWidgets on _CenteringDialogState {
             child: Material(
               elevation: 12,
               color: colors.surface,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusXl),
               clipBehavior: Clip.antiAlias,
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -163,7 +163,8 @@ extension _CenteringPresentationWidgets on _CenteringDialogState {
                           'Iteration ${status.currentIteration}/${status.maxIterations}'
                           '${status.currentOffsetArcsec == null ? '' : ' · ${status.currentOffsetArcsec!.toStringAsFixed(1)}″ offset'}',
                           style: TextStyle(
-                              color: colors.textSecondary, fontSize: 12),
+                              color: colors.textSecondary,
+                              fontSize: SkotiqTypography.fontSize12),
                         )),
                         TextButton(
                           onPressed: _abortInFlight ? null : _abortCentering,

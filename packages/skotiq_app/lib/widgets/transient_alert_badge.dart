@@ -330,7 +330,7 @@ class _CountBadge extends StatelessWidget {
           displayText,
           style: TextStyle(
             color: onError,
-            fontSize: 10,
+            fontSize: SkotiqTypography.fontSize10,
             fontWeight: FontWeight.w600,
             height: 1,
           ),
@@ -385,7 +385,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
                     'Transient Alerts',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: SkotiqTypography.fontSize14,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                     ),
@@ -422,7 +422,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
                       Text(
                         'View all alerts',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: SkotiqTypography.fontSize12,
                           fontWeight: FontWeight.w500,
                           color: colors.primary,
                         ),
@@ -462,7 +462,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
             Text(
               'No active alerts',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: SkotiqTypography.fontSize12,
                 color: colors.textMuted,
               ),
             ),
@@ -507,7 +507,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
           Text(
             'Loading alerts...',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               color: colors.textMuted,
             ),
           ),
@@ -530,7 +530,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
           Text(
             'Failed to load alerts',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
               fontWeight: FontWeight.w500,
               color: colors.textPrimary,
             ),
@@ -539,7 +539,7 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
           Text(
             error.toString(),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               color: colors.textMuted,
             ),
             maxLines: 2,
@@ -603,7 +603,7 @@ class _AlertListItem extends StatelessWidget {
                 Text(
                   alert.name,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: SkotiqTypography.fontSize12,
                     fontWeight: FontWeight.w500,
                     color: colors.textPrimary,
                   ),
@@ -614,7 +614,7 @@ class _AlertListItem extends StatelessWidget {
                 Text(
                   TransientTypeStyle.label(alert.type),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted,
                   ),
                 ),
@@ -634,7 +634,7 @@ class _AlertListItem extends StatelessWidget {
               child: Text(
                 'mag ${alert.magnitude!.toStringAsFixed(1)}',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: SkotiqTypography.fontSize10,
                   fontWeight: FontWeight.w500,
                   color: colors.textSecondary,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -655,7 +655,7 @@ class _AlertListItem extends StatelessWidget {
               child: Text(
                 'NEW',
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: SkotiqTypography.fontSize9,
                   fontWeight: FontWeight.w600,
                   color: onPrimary,
                   letterSpacing: 0.5,

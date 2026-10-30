@@ -233,7 +233,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
             Text(
               'Total RMS',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: SkotiqTypography.fontSize10,
                 color: colors.textMuted,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.4,
@@ -247,10 +247,10 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
                 Text(
                   rmsText,
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: SkotiqTypography.fontSize22,
                     fontWeight: FontWeight.w700,
                     color: rmsColor,
-                    fontFamily: 'monospace',
+                    fontFamily: SkotiqTypography.fontFamilyMono,
                     height: 1.0,
                   ),
                 ),
@@ -258,7 +258,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
                   Text(
                     readout.unit,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: SkotiqTypography.fontSize14,
                       color: rmsColor,
                       fontWeight: FontWeight.w600,
                     ),
@@ -279,7 +279,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
               Text(
                 guiderState.deviceName ?? 'PHD2',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: SkotiqTypography.fontSize11,
                   color: colors.textSecondary,
                 ),
                 maxLines: 1,
@@ -295,7 +295,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
             label: Text(
               'Details',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: SkotiqTypography.fontSize12,
                 color: colors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
@@ -319,7 +319,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
         Text(
           '3 min',
           style: TextStyle(
-            fontSize: 10,
+            fontSize: SkotiqTypography.fontSize10,
             color: colors.textMuted,
           ),
         ),
@@ -339,7 +339,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
             Text(
               'PHD2 not connected',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: SkotiqTypography.fontSize14,
                 fontWeight: FontWeight.w600,
                 color: colors.textPrimary,
               ),
@@ -349,7 +349,9 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
         const SizedBox(height: 6),
         Text(
           'Connect a guider to see live RMS and the 3-minute trend.',
-          style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          style: TextStyle(
+              fontSize: SkotiqTypography.fontSize12,
+              color: colors.textSecondary),
         ),
         const SizedBox(height: 10),
         SkotiqButton(
@@ -430,7 +432,7 @@ class _StateChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               fontWeight: FontWeight.w600,
               color: tint,
             ),
@@ -490,15 +492,16 @@ class _AxisChip extends StatelessWidget {
         children: [
           Text(
             '$label ',
-            style: TextStyle(fontSize: 10, color: colors.textMuted),
+            style: TextStyle(
+                fontSize: SkotiqTypography.fontSize10, color: colors.textMuted),
           ),
           Text(
             '${value.toStringAsFixed(2)}$unit',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: SkotiqTypography.fontSize11,
               color: colors.textSecondary,
               fontWeight: FontWeight.w600,
-              fontFamily: 'monospace',
+              fontFamily: SkotiqTypography.fontFamilyMono,
             ),
           ),
         ],
@@ -534,7 +537,7 @@ class _StatusBanner extends StatelessWidget {
             child: Text(
               message,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: SkotiqTypography.fontSize12,
                 color: tint,
                 fontWeight: FontWeight.w600,
               ),
@@ -571,7 +574,7 @@ class _Sparkline extends StatelessWidget {
               ? 'Waiting for guide steps…'
               : 'Need at least two samples for trend',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             color: axisLabel,
             fontStyle: FontStyle.italic,
           ),

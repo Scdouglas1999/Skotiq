@@ -20,18 +20,20 @@ class OverlayChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       // absolute: HUD chip drawn over the live image canvas
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.5),
+        color: ImageOverlayColors.shadow.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(
+            color: ImageOverlayColors.foreground.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Colors.white70),
+          Icon(icon, size: 12, color: ImageOverlayColors.secondary),
           const SizedBox(width: 6),
           Text(
             label,
-            style: SkotiqTypography.caption.copyWith(color: Colors.white70),
+            style: SkotiqTypography.caption
+                .copyWith(color: ImageOverlayColors.secondary),
           ),
         ],
       ),

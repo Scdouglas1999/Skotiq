@@ -644,7 +644,7 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
                   'Reach your rig from anywhere through a self-hosted '
                   'Skotiq relay — no VPN or port forwarding. The appliance '
                   'id is printed by the headless daemon on first connect.',
-                  style: TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: SkotiqTypography.fontSize13),
                 ),
                 SizedBox(height: 12),
               ],
@@ -683,7 +683,7 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
                   onChanged: (v) => setState(() => _allowInsecure = v ?? false),
                   title: const Text(
                     'Trust self-signed relay TLS',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: SkotiqTypography.fontSize13),
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
@@ -792,7 +792,10 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             'from the pairing page in a browser — open '
             'http://${widget.host}:${widget.port}/pair — or from the '
             "desktop's Remote Access screen.",
-            style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            style: TextStyle(
+              fontSize: SkotiqTypography.fontSize13,
+              color: colors.textSecondary,
+            ),
           ),
           const SizedBox(height: 12),
           TextField(

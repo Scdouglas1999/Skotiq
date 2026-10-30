@@ -17,7 +17,7 @@ extension _SkotiqDatabaseMigrationV62 on SkotiqDatabase {
   Future<void> _upgradeSchemaV62(Migrator m, int from) async {
     if (from >= 62) return;
     await customUpdate(
-      "UPDATE app_settings SET value = '$kDefaultAccentColorHex' "
+      "UPDATE app_settings SET value = '#A48CF2' "
       "WHERE key = 'accent_color' "
       "AND REPLACE(UPPER(value), '#', '') = '6EB3EC'",
       updates: {appSettings},

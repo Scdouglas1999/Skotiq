@@ -1,3 +1,6 @@
+import '../../theme/skotiq_chart_colors.dart';
+import '../../theme/skotiq_tokens.dart';
+import '../../theme/skotiq_typography.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -153,7 +156,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -199,7 +202,9 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
           ),
           decoration: BoxDecoration(
             color: colors.surfaceAlt,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(SkotiqTokens.radiusLg),
+            ),
           ),
           child: Row(
             children: [
@@ -207,7 +212,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
                 padding: EdgeInsets.all(iconPadding),
                 decoration: BoxDecoration(
                   color: colors.warning.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
                 child: Icon(
                   LucideIcons.brain,
@@ -250,7 +255,10 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
     String axis,
     SkotiqColors colors,
   ) {
-    final axisColor = axis == 'ra' ? Colors.redAccent : colors.info;
+    final axisColor = SkotiqChartColors.forTheme(
+      axis == 'ra' ? SkotiqChartColors.seriesRed : SkotiqChartColors.seriesBlue,
+      colors,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,7 +270,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
               height: 16,
               decoration: BoxDecoration(
                 color: axisColor,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
               ),
             ),
             const SizedBox(width: 8),
@@ -271,7 +279,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
               style: TextStyle(
                 color: axisColor,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: SkotiqTypography.fontSize13,
               ),
             ),
           ],
@@ -281,7 +289,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: colors.surfaceAlt.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusXl),
             border: Border.all(color: colors.border.withValues(alpha: 0.5)),
           ),
           child: Column(
@@ -307,7 +315,10 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
               message: param.description ?? param.name,
               child: Text(
                 _formatParamName(param.name),
-                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: SkotiqTypography.fontSize12,
+                ),
               ),
             ),
           ),
@@ -320,7 +331,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
                 controller: controller,
                 readOnly: !widget.isEditing || _isBusy,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: SkotiqTypography.fontSize12,
                   color: colors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -334,15 +345,15 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
                     vertical: 8,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                     borderSide: BorderSide(color: colors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                     borderSide: BorderSide(color: colors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                     borderSide: BorderSide(color: colors.primary, width: 1.5),
                   ),
                   fillColor: colors.surface,
@@ -367,7 +378,9 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.surfaceAlt,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(SkotiqTokens.radiusLg),
+        ),
         border: Border(
           top: BorderSide(color: colors.border.withValues(alpha: 0.5)),
         ),
@@ -381,7 +394,10 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
             Expanded(
               child: Text(
                 _errorText!,
-                style: TextStyle(color: colors.error, fontSize: 11),
+                style: TextStyle(
+                  color: colors.error,
+                  fontSize: SkotiqTypography.fontSize11,
+                ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -507,7 +523,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
           child: ConstrainedBox(
             // Ensure minimum 44px touch target height for accessibility
             constraints: const BoxConstraints(minHeight: 44),
@@ -517,7 +533,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
                 color: isPrimary
                     ? (isDisabled ? colors.surfaceHover : color)
                     : (isOutline ? Colors.transparent : colors.surfaceHover),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 border: Border.all(
                   color: isOutline
                       ? colors.border
@@ -538,7 +554,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: SkotiqTypography.fontSize12,
                       fontWeight: FontWeight.w600,
                       color: isPrimary
                           ? (isDisabled ? colors.textMuted : onPrimary)

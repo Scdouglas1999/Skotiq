@@ -8,7 +8,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
     Color accent,
   ) {
     final isVisible = altitude > 0;
-    final statusColor = isVisible ? Colors.green : Colors.red;
+    final statusColor = isVisible ? SkyPlotColors.good : SkyPlotColors.poor;
     final statusText = isVisible ? 'Above Horizon' : 'Below Horizon';
 
     return Column(
@@ -20,7 +20,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
               'Current Visibility',
               style: TextStyle(
                 color: txtColor.withValues(alpha: 0.7),
-                fontSize: 11,
+                fontSize: SkotiqTypography.fontSize11,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -29,13 +29,13 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
               ),
               child: Text(
                 statusText,
                 style: TextStyle(
                   color: statusColor,
-                  fontSize: 10,
+                  fontSize: SkotiqTypography.fontSize10,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -57,7 +57,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
           'Altitude Over 24 Hours',
           style: TextStyle(
             color: txtColor.withValues(alpha: 0.7),
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -66,7 +66,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
           height: 100,
           decoration: BoxDecoration(
             color: txtColor.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
           ),
           child: CustomPaint(
             size: const Size(double.infinity, 100),
@@ -100,17 +100,17 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
               'Airmass Over 24 Hours',
               style: TextStyle(
                 color: txtColor.withValues(alpha: 0.7),
-                fontSize: 11,
+                fontSize: SkotiqTypography.fontSize11,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const Spacer(),
             // Legend
-            _buildAirmassLegendDot(const Color(0xFF4CAF50), '< 1.5', txtColor),
+            _buildAirmassLegendDot(SkyPlotColors.good, '< 1.5', txtColor),
             const SizedBox(width: 6),
-            _buildAirmassLegendDot(const Color(0xFFFFC107), '1.5-2', txtColor),
+            _buildAirmassLegendDot(SkyPlotColors.caution, '1.5-2', txtColor),
             const SizedBox(width: 6),
-            _buildAirmassLegendDot(const Color(0xFFF44336), '> 2.0', txtColor),
+            _buildAirmassLegendDot(SkyPlotColors.poor, '> 2.0', txtColor),
           ],
         ),
         const SizedBox(height: 8),
@@ -118,7 +118,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
           height: 120,
           decoration: BoxDecoration(
             color: txtColor.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
           ),
           child: CustomPaint(
             size: const Size(double.infinity, 120),
@@ -145,7 +145,10 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
         const SizedBox(width: 3),
         Text(
           label,
-          style: TextStyle(fontSize: 9, color: txtColor.withValues(alpha: 0.5)),
+          style: TextStyle(
+            fontSize: SkotiqTypography.fontSize9,
+            color: txtColor.withValues(alpha: 0.5),
+          ),
         ),
       ],
     );
@@ -202,7 +205,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
           headerLabel,
           style: TextStyle(
             color: txtColor.withValues(alpha: 0.7),
-            fontSize: 11,
+            fontSize: SkotiqTypography.fontSize11,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -231,7 +234,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: txtColor.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
       ),
       child: Row(
         children: [
@@ -246,7 +249,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
               'Set an observing site to see altitude, rise and set times.',
               style: TextStyle(
                 color: txtColor.withValues(alpha: 0.7),
-                fontSize: 11,
+                fontSize: SkotiqTypography.fontSize11,
               ),
             ),
           ),
@@ -274,14 +277,14 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
           label,
           style: TextStyle(
             color: txtColor.withValues(alpha: 0.5),
-            fontSize: 10,
+            fontSize: SkotiqTypography.fontSize10,
           ),
         ),
         Text(
           time,
           style: TextStyle(
             color: txtColor,
-            fontSize: 12,
+            fontSize: SkotiqTypography.fontSize12,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -336,7 +339,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: txtColor.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -423,10 +426,10 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
   /// Build visibility score indicator widget
   Widget _buildVisibilityIndicator(int score) {
     final color = score >= 70
-        ? Colors.green
+        ? SkyPlotColors.good
         : score >= 40
-        ? Colors.amber
-        : Colors.red;
+        ? SkyPlotColors.caution
+        : SkyPlotColors.poor;
     final label = score >= 70
         ? 'Excellent'
         : score >= 40
@@ -437,7 +440,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusFull),
         border: Border.all(color: color),
       ),
       child: Row(
@@ -450,7 +453,7 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: SkotiqTypography.fontSize12,
             ),
           ),
         ],

@@ -450,7 +450,7 @@ class SkotiqToast extends StatelessWidget {
               margin: const EdgeInsets.only(right: SkotiqTokens.spaceMd),
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
               ),
             ),
             Icon(icon ?? _defaultIcon, size: SkotiqTokens.iconMd, color: color),

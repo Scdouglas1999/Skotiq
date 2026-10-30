@@ -356,7 +356,8 @@ class _LightCurvePainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: textColor, fontSize: 9),
+        style:
+            TextStyle(color: textColor, fontSize: SkotiqTypography.fontSize9),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

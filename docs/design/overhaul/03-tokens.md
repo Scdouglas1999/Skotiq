@@ -58,13 +58,13 @@ key name.
 | `textPrimary` | `#EDEFF3` | #E8EAED | content, values, titles |
 | `textSecondary` | `#B3BAC5` | #9AA3AD | descriptions, key labels in key/value lists, rail labels |
 | `textMuted` | `#8E97A4` | #9099A6 | eyebrows, readout labels, timestamps, placeholders, icons at rest |
-| `primary` | `#A48CF2` | #6EB3EC | primary button fill, selected state, links — the brand violet; the old blue survives as the second Appearance swatch and as `info` |
-| `accent` | `#B9ABFF` | #8FC7F5 | primary hover fill only |
+| `primary` | `#E86A6A` | #6EB3EC | primary button fill, selected state, links — the default red; the old blue survives as an Appearance swatch and as `info` |
+| `accent` | `#F2ACAC` | #8FC7F5 | primary hover fill only |
 | `onPrimary` | `#0B0D12` (via `useDarkOnPrimary: true`) | same | ink on primary/accent fills |
 | `success` | `#43B67A` | #3DAA6D | connected, done, safe |
 | `warning` | `#E0A53E` | #D49A3A | attention, unsaved, session-only |
 | `error` | `#E86A6A` | #D85C5C | failed, disconnected, stop |
-| `info` | `#6EB3EC` | equals old primary | keeps the old blue so status stays distinct from a violet selection |
+| `info` | `#6EB3EC` | equals old primary | keeps the old blue so status stays distinct from a red selection |
 | `brandWarm` **(new)** | `#FFD9A8` | — | the mark's warm lane/pole star, the "now" marker, the running step's progress highlight — decoration only, held ΔE00 ≥ 15 from `warning` and (outside red night) `error` (light `#8A3200`, red night `#FF9A9A`) |
 | `startFill` **(new)** | `#43B67A` | — | Start-sequence button fill (light `#1E7A47`, red night = primary) |
 | `onStart` **(new)** | `#06140B` | — | ink on `startFill` (light white, red night `onPrimary`) |
@@ -87,8 +87,8 @@ from warning. All pass.
 | `border` | `#DCE1E7` | #D8DEE4 |
 | `borderHighlight` | `#C6CED8` | #C8D0D8 |
 | `textPrimary` / `textSecondary` / `textMuted` | `#14181F` / `#4F5966` / `#616873` | #141820 / #5C6672 / #616873 |
-| `primary` | `#6A4FD1` | #256F9E (the brand violet, 5.27:1 as text on background; the old blue stays as `info` and a swatch) |
-| `accent` | `#5B41C4` | #1F5F88 (hover still DARKENS in light; white ink 7.00:1) |
+| `primary` | `#BC3838` | #256F9E (the default red, 5.58:1 as text on background; the old blue stays as `info` and a swatch) |
+| `accent` | `#A52E2E` | #1F5F88 (hover still DARKENS in light; white ink 6.93:1) |
 | `success` / `warning` / `error` / `info` | unchanged `#277549` / `#8F5D14` / `#BC3838` / `#256E99` | |
 | `useDarkOnPrimary` | `false` | same |
 
@@ -112,12 +112,12 @@ on white. `check_tokens.py` validates every swatch both as a fill (with the ink
 
 | Theme | Swatches |
 |---|---|
-| dark | `#A48CF2 #6EB3EC #43B67A #E0A53E #E86A6A #E77FB3 #4FC3C8` |
-| light | `#6A4FD1 #256F9E #277549 #8F5D14 #BC3838 #B03A7A #1B7278` |
+| dark | `#E86A6A #A48CF2 #6EB3EC #43B67A #E0A53E #E77FB3 #4FC3C8` |
+| light | `#BC3838 #6A4FD1 #256F9E #277549 #8F5D14 #B03A7A #1B7278` |
 | red night | none (accent picker hidden; the palette is fixed by the wavelength rule) |
 
-Violet leads each list — it is the brand accent and each palette's own primary; the old blue
-stays second so the previous look remains one tap away. Each swatch renders the Trails mark in
+Red leads each list and is each palette's default primary. Violet and blue remain available
+so existing users can keep their preferred accent. Each swatch renders the Trails mark in
 that accent (`SkotiqMark` tone `theme` + `themeAccent`), so the row previews the logo each
 choice produces.
 
@@ -341,3 +341,22 @@ and instrument pills, 28 in empty states. Colour at rest `textMuted` (in panel h
 `textSecondary` (rail, toolbar); on hover `textPrimary`; selected `primary`. Never `Icons.*`.
 The equipment-profile icon is `LucideIcons.aperture` (there is no telescope glyph in the bundled
 Lucide 0.257). No emoji anywhere in chrome.
+
+## Shared implementation
+
+`packages/skotiq_design` owns the Flutter-only palette, typography, spacing,
+shape and data-color definitions. Both the planetarium and UI library depend
+on it. `skotiq_ui` re-exports the types for existing consumers and assembles
+`ThemeData`, reusable controls, and the shared Material control styles.
+
+Controls resolve `context.skotiqColors`. Use `SkotiqImageSurface` for controls
+over images: it provides a dark surface while preserving the selected accent
+and red-night mode. Do not install `SkotiqColors.dark` in a nested `Theme`.
+Filter identities use `FilterColors.forName` with the current palette; sky/image
+measurements use the centralized data palettes. These colors describe the data,
+not selection states.
+
+CI runs `tools/audit_ui_tokens.py` against UI consumers, including conditional
+font/radius literals. The foundation and brand artwork define values; screens
+consume them. The guard intentionally leaves geometric scaling, transparent
+paint, and PDF typography alone.

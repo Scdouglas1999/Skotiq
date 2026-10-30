@@ -22,7 +22,7 @@ class FullscreenImageViewer extends StatelessWidget {
       PageRouteBuilder<void>(
         opaque: true,
         // absolute: fullscreen image is viewed on pure black, not theme surface
-        barrierColor: Colors.black,
+        barrierColor: ImageOverlayColors.shadow,
         transitionDuration: const Duration(milliseconds: 180),
         pageBuilder: (_, __, ___) => FullscreenImageViewer(image: image),
         transitionsBuilder: (_, anim, __, child) =>
@@ -56,7 +56,7 @@ class FullscreenImageViewer extends StatelessWidget {
   Widget _buildViewer(BuildContext context, SkotiqColors colors) {
     return Scaffold(
       // absolute: image canvas backdrop stays pure black regardless of theme
-      backgroundColor: Colors.black,
+      backgroundColor: ImageOverlayColors.shadow,
       body: Stack(
         children: [
           Positioned.fill(

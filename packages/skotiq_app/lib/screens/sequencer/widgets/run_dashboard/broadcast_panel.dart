@@ -155,7 +155,7 @@ class _ActiveCard extends StatelessWidget {
                   child: SelectableText(
                     displayUrl,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
+                      fontFamily: SkotiqTypography.fontFamilyMono,
                     ),
                   ),
                 ),
@@ -185,7 +185,7 @@ class _ActiveCard extends StatelessWidget {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
+                    color: ImageOverlayColors.foreground,
                     border: Border.all(color: cs.outlineVariant),
                     borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   ),
@@ -320,14 +320,14 @@ class _BroadcastQr extends StatelessWidget {
       data: url,
       size: 96,
       padding: const EdgeInsets.all(8),
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: ImageOverlayColors.foreground,
       eyeStyle: const QrEyeStyle(
         eyeShape: QrEyeShape.square,
-        color: Color(0xFF000000),
+        color: ImageOverlayColors.shadow,
       ),
       dataModuleStyle: const QrDataModuleStyle(
         dataModuleShape: QrDataModuleShape.square,
-        color: Color(0xFF000000),
+        color: ImageOverlayColors.shadow,
       ),
       semanticsLabel: 'Broadcast QR: $semanticsUrl',
     );
