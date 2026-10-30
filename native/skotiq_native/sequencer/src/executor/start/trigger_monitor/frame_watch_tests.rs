@@ -4,9 +4,7 @@
 //! watch decides.
 
 use super::dispatch::Dispatcher;
-use super::frame_watch::{
-    FrameWatchStage, Measurer, OBSTRUCTION_TRIGGER_ID, TARGET_DRIFT_TRIGGER_ID,
-};
+use super::frame_watch::{FrameWatchStage, Measurer, TARGET_DRIFT_TRIGGER_ID};
 use super::*;
 use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
 use crate::frame_watch::assess::MeasuredFrame;
@@ -285,7 +283,7 @@ fn warnings(log: &[ExecutorEvent]) -> Vec<&str> {
 }
 
 #[tokio::test(start_paused = true)]
-async fn the_night_replayed_recenters_after_the_flip_and_ends_at_the_trees() {
+async fn the_night_replayed_recenters_without_learning_an_unverified_obstruction() {
     // Keep the original night's threshold for this historical replay.
     let mut legacy_plan = plan();
     legacy_plan.metadata.insert(
@@ -373,40 +371,13 @@ async fn the_night_replayed_recenters_after_the_flip_and_ends_at_the_trees() {
     assert!(w
         .iter()
         .any(|w| w.starts_with("Checking the sky higher up")));
-    // The first confirmation (row 691) would end the night, so it is checked
-    // once more before anything ends or is saved to the horizon.
-    let deferred = w
+    assert!(w
         .iter()
-        .position(|w| {
-            w.starts_with("Possible obstruction: NGC0891 looks blocked from alt 65.2°, az 286.2°")
-        })
-        .unwrap_or_else(|| panic!("no deferral notice: {w:?}"));
-    let report = log
-        .iter()
-        .find_map(obstruction)
-        .unwrap_or_else(|| panic!("no obstruction report: {:?}", warnings(&log)));
+        .any(|w| w.contains("not been verified on this pier side")));
+    assert!(log.iter().all(|e| obstruction(e).is_none()));
     assert!(
-        w.iter()
-            .position(|x| x.starts_with("Obstruction:"))
-            .unwrap()
-            > deferred,
-        "{w:?}"
-    );
-    assert!(report.altitude_deg < 65.15, "{report:?}");
-    assert!((report.azimuth_deg - 286.5).abs() < 2.0, "{report:?}");
-    assert_eq!(report.action, "end_of_night");
-    assert_eq!(report.latitude, Some(SITE_LAT));
-    // Single-target plan: on the second confirmation the night ends through
-    // the end-of-night trigger, and that run of frames is marked obstructed.
-    let (ended_at, end) = ended.expect("the run ended");
-    assert!(ended_at > 693, "ended at {ended_at}");
-    assert!(end.iter().any(|(id, action)| id == OBSTRUCTION_TRIGGER_ID
-        && matches!(action, RecoveryAction::ParkAndAbort)));
-    assert!(
-        log.iter()
-            .filter_map(assessed)
-            .any(|a| a.save_path == format!("row-{ended_at}.fits") && a.obstructed),
-        "row {ended_at}"
+        ended.is_none(),
+        "unverified pointing must not be saved as an obstruction"
     );
     // Autofocus was held once the frames went bad.
     assert!(hold_seen_at.is_some());
@@ -655,4 +626,129 @@ async fn a_late_drift_result_does_not_recenter_the_previous_target() {
         .calls()
         .iter()
         .any(|c| c.starts_with("plate_solve") || c.starts_with("mount_slew")));
+}
+
+#[tokio::test(start_paused = true)]
+async fn probe_return_does_not_release_capture_before_recentering() {
+    let mut h = Harness::new().await;
+    let state = h.dispatcher.rig.trigger_state.clone();
+    let cancel = h.dispatcher.run.is_cancelled.clone();
+    let mut claim = TriggerCameraClaim::acquire(&state, &cancel, &RecoveryAction::Recenter).await;
+    {
+        let recovery = h.dispatcher.recenter_holding_claim(
+            "obstruction_probe_return",
+            "Back on target",
+            &mut claim,
+        );
+        tokio::pin!(recovery);
+        tokio::select! {
+            _ = &mut recovery => {},
+            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                assert!(state.write().await.try_claim_imaging_train("next light", 120.0).is_none());
+                recovery.await;
+            }
+        }
+    }
+    assert!(
+        claim.is_held(),
+        "caller must retain the claim through failure handling"
+    );
+    claim.release().await;
+    assert!(state
+        .write()
+        .await
+        .try_claim_imaging_train("next light", 120.0)
+        .is_some());
+}
+
+#[tokio::test(start_paused = true)]
+async fn unverified_pointing_on_new_pier_side_cannot_be_learned_as_horizon() {
+    let frames: Vec<_> = rows()
+        .into_iter()
+        .map(|mut row| {
+            if row.id >= 640 {
+                row.solve = crate::frame_watch::SolveOutcome::Failed;
+            }
+            row
+        })
+        .collect();
+    let mut h = Harness::with_plan_and_rows(plan(), frames.clone()).await;
+    let mut log = Vec::new();
+    for row in frames.iter().filter(|r| (620..=720).contains(&r.id)) {
+        tokio::time::sleep(std::time::Duration::from_secs_f64(row.exposure_secs + 8.0)).await;
+        h.save(row).await;
+        if h.tick_until_reported(&format!("row-{}.fits", row.id), &mut log)
+            .await
+            .is_some()
+        {
+            break;
+        }
+    }
+    assert!(
+        !log.iter().any(|e| obstruction(e).is_some()),
+        "unverified pointing must not become permanent horizon data"
+    );
+    assert!(warnings(&log)
+        .iter()
+        .any(|w| w.contains("not been verified on this pier side")));
+    assert!(
+        log.iter()
+            .filter_map(assessed)
+            .all(|frame| !frame.obstructed),
+        "a discarded obstruction must not keep rejecting later frames as blocked"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn refused_probe_return_honors_failure_policy_without_exposing() {
+    use crate::device_ops::DeviceOps;
+    for action in [
+        crate::FlipFailureAction::PauseAndAlert,
+        crate::FlipFailureAction::AbortAndPark,
+    ] {
+        let mut h = Harness::new().await;
+        assert!(h
+            .dispatcher
+            .trigger_manager
+            .write()
+            .await
+            .set_meridian_flip_config(crate::MeridianFlipConfig {
+                failure_action: action,
+                ..Default::default()
+            }));
+        let mount = h.dispatcher.rig.context.mount_id.clone().unwrap();
+        h.ops.mount_park(&mount).await.unwrap();
+        let state = h.dispatcher.rig.trigger_state.clone();
+        let mut claim = TriggerCameraClaim::acquire(
+            &state,
+            &h.dispatcher.run.is_cancelled,
+            &RecoveryAction::Recenter,
+        )
+        .await;
+        let flow = h
+            .dispatcher
+            .recenter_holding_claim("obstruction_probe_return", "Back on target", &mut claim)
+            .await;
+        match action {
+            crate::FlipFailureAction::PauseAndAlert => {
+                assert!(matches!(flow, super::dispatch::Flow::Next));
+                assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
+            }
+            crate::FlipFailureAction::AbortAndPark => {
+                assert!(matches!(flow, super::dispatch::Flow::Terminate(_)));
+                assert!(h.dispatcher.run.is_cancelled());
+            }
+        }
+        assert!(
+            !h.ops
+                .calls()
+                .iter()
+                .any(|c| c.starts_with("camera_start_exposure")
+                    || c.starts_with("mount_slew")
+                    || c.starts_with("plate_solve")),
+            "{:?}",
+            h.ops.calls()
+        );
+        assert!(state.read().await.imaging_train_hold().is_some());
+    }
 }

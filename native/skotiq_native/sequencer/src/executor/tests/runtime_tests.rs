@@ -3424,3 +3424,35 @@ async fn a_guiding_rms_exposure_trigger_does_not_act_while_imaging_unguided() {
         .is_cancelled
         .load(std::sync::atomic::Ordering::Relaxed));
 }
+
+#[tokio::test]
+async fn live_recovery_claim_survives_its_original_deadline() {
+    let state = Arc::new(RwLock::new(crate::triggers::TriggerState::new()));
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let claim = TriggerCameraClaim::acquire(&state, &cancelled, &RecoveryAction::Recenter).await;
+    {
+        let mut state = state.write().await;
+        state.imaging_train_claim.as_mut().unwrap().expires_at_ms = 0;
+        assert!(state.try_claim_imaging_train("next light", 120.0).is_none());
+    }
+    drop(claim);
+    assert!(state
+        .write()
+        .await
+        .try_claim_imaging_train("next light", 120.0)
+        .is_some());
+}
+
+#[tokio::test(start_paused = true)]
+async fn expired_recovery_budget_polls_cleanup_and_bounds_a_stalled_driver() {
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let restored = Arc::new(AtomicBool::new(false));
+    let monitor = async {
+        assert!(cancelled.load(Ordering::Acquire));
+        tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+        restored.store(true, Ordering::Release);
+    };
+    assert!(cancel_trigger_monitor_with_cleanup(&cancelled, monitor).await);
+    assert!(restored.load(Ordering::Acquire));
+    assert!(!cancel_trigger_monitor_with_cleanup(&cancelled, std::future::pending::<()>()).await);
+}

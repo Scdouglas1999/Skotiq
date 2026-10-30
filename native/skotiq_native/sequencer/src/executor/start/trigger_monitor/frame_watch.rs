@@ -98,6 +98,7 @@ pub(super) struct FrameWatchStage {
     /// Each target id's name and coordinates, as they were while it was
     /// current.
     frame_targets: std::collections::HashMap<String, FrameTarget>,
+    verified_pointing: Option<(f64, f64, String)>,
 }
 
 /// A target's name, RA and Dec (degrees).
@@ -168,6 +169,7 @@ impl FrameWatchStage {
             pending_frames: 0,
             autofocus_hold_told: false,
             frame_targets: std::collections::HashMap::new(),
+            verified_pointing: None,
         }
     }
 
@@ -182,6 +184,17 @@ impl FrameWatchStage {
         while let Ok(observation) = self.measured.try_recv() {
             self.pending_frames -= 1;
             let verdict = self.watch.observe(&observation);
+            if let (Some(ra), Some(dec), Some(side)) = (
+                observation.target_ra_deg,
+                observation.target_dec_deg,
+                observation.pier_side.as_ref(),
+            ) {
+                if verdict.offset_arcmin.is_some() && !verdict.off_target {
+                    self.verified_pointing = Some((ra, dec, side.clone()));
+                } else if verdict.off_target {
+                    self.verified_pointing = None;
+                }
+            }
             self.report(dispatcher, &observation, &verdict);
             self.update_autofocus_hold(dispatcher, &verdict).await;
             if verdict.offset_arcmin.is_some() && !verdict.off_target {
@@ -469,6 +482,17 @@ impl FrameWatchStage {
                     self.watch.probe_result(false);
                     return None;
                 }
+                let flight = dispatcher.action_in_flight.clone();
+                let _flight = TriggerActionInFlightGuard::new(&flight);
+                let mut claim = TriggerCameraClaim::acquire(
+                    &dispatcher.rig.trigger_state,
+                    &dispatcher.run.is_cancelled,
+                    &RecoveryAction::Recenter,
+                )
+                .await;
+                if dispatcher.run.is_cancelled() {
+                    return None;
+                }
                 match self.probe(dispatcher, onset).await {
                     Err(problem) => {
                         // Not knowing is not cloud and not trees: carry on, and
@@ -481,12 +505,12 @@ impl FrameWatchStage {
                             obs.target_name.as_deref().unwrap_or("the target"),
                         );
                         self.notice(dispatcher, "Obstruction check failed", message, onset);
-                        self.recenter_after_probe(dispatcher).await;
-                        None
+                        self.recenter_after_probe(dispatcher, &mut claim).await
                     }
                     Ok(stars_found) => match self.watch.probe_result(stars_found) {
                         Some(WatchAction::Obstruction { onset, learned }) => {
-                            self.obstruction(dispatcher, obs, onset, learned).await
+                            self.obstruction(dispatcher, obs, onset, learned, &mut claim)
+                                .await
                         }
                         _ => {
                             let message = format!(
@@ -496,8 +520,7 @@ impl FrameWatchStage {
                                 obs.target_name.as_deref().unwrap_or("the target"),
                             );
                             self.notice(dispatcher, "Cloud, not an obstruction", message, onset);
-                            self.recenter_after_probe(dispatcher).await;
-                            None
+                            self.recenter_after_probe(dispatcher, &mut claim).await
                         }
                     },
                 }
@@ -506,7 +529,19 @@ impl FrameWatchStage {
                 if !mode.is_running() {
                     return None;
                 }
-                self.obstruction(dispatcher, obs, onset, learned).await
+                let flight = dispatcher.action_in_flight.clone();
+                let _flight = TriggerActionInFlightGuard::new(&flight);
+                let mut claim = TriggerCameraClaim::acquire(
+                    &dispatcher.rig.trigger_state,
+                    &dispatcher.run.is_cancelled,
+                    &RecoveryAction::Recenter,
+                )
+                .await;
+                if dispatcher.run.is_cancelled() {
+                    return None;
+                }
+                self.obstruction(dispatcher, obs, onset, learned, &mut claim)
+                    .await
             }
         }
     }
@@ -606,12 +641,6 @@ impl FrameWatchStage {
         );
         tracing::info!("[FRAME_WATCH] {}", message);
         run.warning(message);
-        let mut claim = TriggerCameraClaim::acquire(
-            &rig.trigger_state,
-            &run.is_cancelled,
-            &RecoveryAction::Recenter,
-        )
-        .await;
         let probe_ctx = rig.instruction_context(
             TargetSnapshot {
                 name: Some("Obstruction check".to_string()),
@@ -659,39 +688,24 @@ impl FrameWatchStage {
                 Err(center.message.unwrap_or_default())
             }
         };
-        claim.release().await;
         outcome
     }
 
     /// Back onto the target after a probe that found cloud: slew, then the
     /// usual recenter.
-    async fn recenter_after_probe(&mut self, dispatcher: &mut Dispatcher) {
-        let target = dispatcher.rig.target().await;
-        if let (Some(_), Some(_)) = (target.ra_hours, target.dec_degrees) {
-            let slew_ctx = dispatcher.rig.instruction_context(target, &dispatcher.run);
-            let _ = crate::instructions::execute_slew(
-                &crate::SlewConfig {
-                    use_target_coords: true,
-                    custom_ra: None,
-                    custom_dec: None,
-                },
-                &slew_ctx,
-                None,
-            )
-            .await;
-        }
-        let _ = dispatcher
-            .run_synthetic(
-                PROBE_RETURN_TRIGGER_ID,
-                "Back on target",
-                FiredTriggerAction {
-                    action: RecoveryAction::Recenter,
-                    end_without_parking: false,
-                    notify_only: false,
-                },
-            )
+    async fn recenter_after_probe(
+        &mut self,
+        dispatcher: &mut Dispatcher,
+        claim: &mut TriggerCameraClaim,
+    ) -> Option<Vec<(String, RecoveryAction)>> {
+        let flow = dispatcher
+            .recenter_holding_claim(PROBE_RETURN_TRIGGER_ID, "Back on target", claim)
             .await;
         self.watch.recentered(self.clock.elapsed().as_secs_f64());
+        match flow {
+            Flow::Next => None,
+            Flow::Terminate(fired) => Some(fired),
+        }
     }
 
     async fn obstruction(
@@ -700,7 +714,24 @@ impl FrameWatchStage {
         obs: &FrameObservation,
         onset: Pointing,
         learned: bool,
+        claim: &mut TriggerCameraClaim,
     ) -> Option<Vec<(String, RecoveryAction)>> {
+        let pointing = obs
+            .target_ra_deg
+            .zip(obs.target_dec_deg)
+            .zip(obs.pier_side.clone())
+            .map(|((ra, dec), side)| (ra, dec, side));
+        if pointing.is_none() || self.verified_pointing != pointing {
+            self.watch.discard_unverified_obstruction();
+            let message = "Target pointing has not been verified on this pier side. The apparent obstruction will not be saved to the horizon; acquisition must be recovered first.".to_string();
+            self.notice(
+                dispatcher,
+                "Unverified target pointing",
+                message.clone(),
+                onset,
+            );
+            return self.recenter_after_probe(dispatcher, claim).await;
+        }
         let (lat, lon) = {
             let rc = dispatcher.rig.runtime_config.read();
             (
@@ -734,8 +765,7 @@ impl FrameWatchStage {
                 onset.describe()
             );
             self.notice(dispatcher, "Obstruction to be confirmed", message, onset);
-            self.recenter_after_probe(dispatcher).await;
-            return None;
+            return self.recenter_after_probe(dispatcher, claim).await;
         }
         // The frames that led up to the confirmation are obstructed too.
         let reason = crate::frame_watch::classify::obstructed_reason(onset);

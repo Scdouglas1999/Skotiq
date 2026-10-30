@@ -308,6 +308,13 @@ impl FrameWatch {
         })
     }
 
+    /// Pointing was unverified, so neither the obstruction nor its streak is evidence.
+    pub fn discard_unverified_obstruction(&mut self) {
+        self.obstructed_from = None;
+        self.confirmed_once = None;
+        self.reset_streak();
+    }
+
     /// An obstruction confirmed by a probe would end the night (nothing else
     /// in the plan is up). One 10 s probe into a gap in passing cloud is not
     /// enough for that: the first confirmation only starts a second watch,

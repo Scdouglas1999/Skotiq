@@ -1031,7 +1031,7 @@ impl SequenceExecutor {
                 // `TriggerActionInFlightGuard`.
                 tokio::pin!(trigger_monitor);
                 let mut monitor_finished = false;
-                let result = tokio::select! {
+                let mut result = tokio::select! {
                     _ = command_handler => {
                         is_cancelled.store(true, Ordering::Release);
                         (&mut execution).await
@@ -1100,20 +1100,27 @@ impl SequenceExecutor {
                                 break;
                             },
                             _ = tokio::time::sleep_until(deadline) => {
+                                result = NodeStatus::Failure;
                                 let message = format!(
-                                    "A trigger recovery action was still running {}s after the \
-                                     sequence finished and was abandoned. The mount may not be \
-                                     in the state the sequence expected — verify it manually.",
+                                    "Trigger recovery exceeded its {}s end-of-run budget; cancelling and allowing up to 300s for equipment restoration.",
                                     TRIGGER_ACTION_QUIESCE_MAX_SECS
                                 );
                                 tracing::error!("{}", message);
                                 let _ = event_tx.send(ExecutorEvent::Error { message });
+                                monitor_finished = cancel_trigger_monitor_with_cleanup(&is_cancelled, &mut trigger_monitor).await;
+                                if !monitor_finished {
+                                    let message = "Recovery cleanup timed out; equipment restoration is unverified. Check the mount and filter before another run.".to_string();
+                                    tracing::error!("{}", message);
+                                    let _ = event_tx.send(ExecutorEvent::Error { message });
+                                }
                                 break;
                             }
                             _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {}
                         }
                     }
-                    tracing::info!("In-flight trigger recovery action quiesced; ending run");
+                    if !trigger_action_in_flight.load(Ordering::Acquire) {
+                        tracing::info!("In-flight trigger recovery action quiesced; ending run");
+                    }
                 }
 
                 // The final science frame can still be queued or solving when

@@ -322,11 +322,23 @@ pub(super) async fn cancel_and_wait_for_execution(
 /// we give up loudly rather than waiting silently.
 pub(super) const TRIGGER_ACTION_QUIESCE_MAX_SECS: u64 = 15 * 60;
 
+/// Cancel cooperatively so in-flight recovery can restore borrowed equipment.
+/// A wedged driver still has a finite cleanup budget.
+pub(super) async fn cancel_trigger_monitor_with_cleanup<F: std::future::Future>(
+    cancelled: &Arc<AtomicBool>,
+    monitor: F,
+) -> bool {
+    cancelled.store(true, Ordering::Release);
+    tokio::time::timeout(std::time::Duration::from_secs(300), monitor)
+        .await
+        .is_ok()
+}
+
 /// How long a trigger-fired camera action expects to hold the imaging train.
 /// Long enough for a full V-curve autofocus (15 points at several seconds each,
 /// plus focuser travel). The action releases explicitly when it finishes, so
-/// this is only an estimate a waiter reads; the claim itself survives an
-/// overrun (see `IMAGING_TRAIN_CLAIM_OVERRUN_GRACE_SECS`).
+/// this is only an estimate a waiter reads. The live guard retains ownership
+/// through overruns; expiry is only a fallback for an abandoned claim.
 pub(super) const TRIGGER_CAMERA_CLAIM_SECS: f64 = 10.0 * 60.0;
 
 /// RAII latch marking that a trigger recovery action is executing.
@@ -514,6 +526,7 @@ pub(super) struct TriggerCameraClaim {
     /// to release.
     token: Option<u64>,
     label: &'static str,
+    _owner: Option<Arc<()>>,
 }
 
 impl TriggerCameraClaim {
@@ -535,7 +548,11 @@ impl TriggerCameraClaim {
             // back and releasing anyway would steal someone else's claim.
             return Self::unheld();
         }
+        let owner = Arc::new(());
+        trigger_state.write().await.imaging_train_owner =
+            token.map(|t| (t, Arc::downgrade(&owner)));
         Self {
+            _owner: Some(owner),
             trigger_state: Some(trigger_state.clone()),
             token,
             label,
@@ -547,6 +564,7 @@ impl TriggerCameraClaim {
             trigger_state: None,
             token: None,
             label: "",
+            _owner: None,
         }
     }
 

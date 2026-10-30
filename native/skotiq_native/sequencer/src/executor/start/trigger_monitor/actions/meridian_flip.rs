@@ -12,7 +12,7 @@ pub(in super::super) struct FlipFailureLatch {
 
 impl FlipFailureLatch {
     /// Latch the first failure; a later one keeps the first message.
-    fn latch(&self, message: impl FnOnce() -> String) {
+    pub(in super::super) fn latch(&self, message: impl FnOnce() -> String) {
         self.failed.store(true, Ordering::Release);
         self.failure.write().get_or_insert_with(message);
     }
@@ -66,7 +66,13 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
     let target = rig.target().await;
     // A display label only; the flip context needs the coordinates.
     let target_name = target.name.unwrap_or_else(|| "Unknown".to_string());
-    let autofocus_config = rig.runtime_config.read().autofocus.clone();
+    let autofocus_config = Some(
+        rig.runtime_config
+            .read()
+            .autofocus
+            .clone()
+            .unwrap_or_default(),
+    );
     let Some(flip_ctx) = build_trigger_flip_context(
         &rig.context,
         TriggerFlipTarget {
@@ -104,7 +110,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
     .with_decision_tx(decisions.tx.clone(), decisions.run_id.clone())
     .with_early_tracking_limit_flip(early);
     let flip_result = flip_executor.execute(&flip_ctx).await;
-    camera_claim.release().await;
+    // Keep capture held until failure handling has paused or stopped the run.
     // A flip that succeeded only on a retry is degraded, and the operator is
     // told how many attempts it took.
     let flip_attempts = flip_executor.attempts_made();
@@ -140,9 +146,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                 )
             });
             // The executor records the flip once the new pier side is
-            // verified, so a failure after that is a post-flip step failing
-            // under "Stop the run for quality problems", not a mount left on
-            // the wrong side.
+            // verified, so a later failure is acquisition recovery failing.
             let flipped = rig.trigger_state.read().await.meridian.has_flipped();
             match action_taken {
                 crate::FlipFailureAction::PauseAndAlert => {
@@ -151,9 +155,8 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                     let message = if flipped {
                         format!(
                             "The meridian flip for '{}' moved the mount to the new pier side, \
-                             but a step after it failed: {}. Sequence paused because Stop the \
-                             run for quality problems is on; the flip is not repeated on \
-                             Resume.",
+                             but imaging recovery failed: {}. Sequence paused under the configured \
+                             flip failure action; the mount must not flip again.",
                             target_name, error
                         )
                     } else {
@@ -283,7 +286,7 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
 /// The flip failed and the operator chose to abort: the mount may be anywhere
 /// between sides, so the node tree is stopped, guiding stopped and the mount
 /// parked before the run ends.
-async fn abort_and_park(rig: &Rig, run: &RunControl, park: &mut ParkSignals) {
+pub(in super::super) async fn abort_and_park(rig: &Rig, run: &RunControl, park: &mut ParkSignals) {
     park.parking_begins();
     park.stop_node_tree(&run.is_cancelled).await;
     rig.device_ops

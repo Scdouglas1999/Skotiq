@@ -803,7 +803,7 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_failed_post_flip_guider_neither_wedges_the_hold_nor_flips_twice() {
+    async fn a_failed_post_flip_guider_pauses_capture_without_flipping_twice() {
         let mut h = Harness::new().await;
         h.ops.guider_start_fails.store(true, Ordering::SeqCst);
         let mut events = h.dispatcher.run.events.subscribe();
@@ -816,8 +816,7 @@ mod tests {
             .current_hour_angle = Some(0.4);
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        // The pier side was verified, so the flip counts as done and the run
-        // goes on; the guider failure is told, not paused on.
+        // A physical flip is recorded, but failed acquisition keeps capture paused.
         assert!(h
             .dispatcher
             .rig
@@ -828,33 +827,39 @@ mod tests {
             .has_flipped());
         assert_eq!(
             *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
+            ExecutorState::Paused
         );
         h.tick().await;
-        assert!(h.dispatcher.tracking_limit_hold.is_none());
-        assert!(!h.dispatcher.run.is_paused.load(Ordering::Relaxed));
-        assert_eq!(h.dispatcher.rig.trigger_state.read().await.run.hold(), None);
-        let warnings = drain_warnings(&mut events);
-        assert!(
-            warnings
-                .iter()
-                .any(|w| w.contains("After the meridian flip")),
-            "{warnings:?}"
+        assert!(h.dispatcher.tracking_limit_hold.is_some());
+        assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
+        assert_eq!(
+            h.dispatcher.rig.trigger_state.read().await.run.hold(),
+            Some(RunHold::TrackingLimit)
         );
+        let warnings = drain_warnings(&mut events);
+        assert!(h
+            .dispatcher
+            .run
+            .progress
+            .read()
+            .message
+            .as_deref()
+            .unwrap_or("")
+            .contains("imaging recovery failed"));
         assert!(
             !warnings
                 .iter()
                 .any(|w| w.contains("wrong side of the pier")),
             "{warnings:?}"
         );
-        // Hours later, nothing pauses and nothing flips again.
+        // Hours later, capture remains paused and the mount does not flip again.
         tokio::time::advance(Duration::from_secs(7200)).await;
         h.tick().await;
         h.tick().await;
         assert_eq!(h.slews(), 1);
         assert_eq!(
             *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
+            ExecutorState::Paused
         );
     }
 
@@ -1033,7 +1038,7 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_flip_onto_a_mount_that_never_tracks_hands_over_to_tracking_recovery() {
+    async fn a_flip_onto_a_mount_that_never_tracks_pauses_under_failure_policy() {
         let mut h = Harness::new().await;
         let mut mount = nyx_stopped_before_transit(&mut h).await;
         mount.ignore_tracking_on = u32::MAX;
@@ -1041,21 +1046,20 @@ mod tests {
         let mut events = h.dispatcher.run.events.subscribe();
         h.tick().await;
         h.tick().await;
-        // Flipped, but frames are not released onto a stopped mount: the
-        // tracking recovery takes it, and the run is never told it tracks.
-        assert!(h.dispatcher.tracking_limit_hold.is_none());
-        assert_eq!(
-            h.recovery.try_recv().ok(),
-            Some(crate::recovery::RecoveryCause::MountTrackingLost)
-        );
+        // Failed tracking verification must pause before the hold is released.
+        assert!(h.dispatcher.tracking_limit_hold.is_some());
+        assert_eq!(h.recovery.try_recv().ok(), None);
         assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
         let warnings = drain_warnings(&mut events);
-        assert!(
-            warnings
-                .iter()
-                .any(|w| w.contains("the mount is not tracking")),
-            "{warnings:?}"
-        );
+        assert!(h
+            .dispatcher
+            .run
+            .progress
+            .read()
+            .message
+            .as_deref()
+            .unwrap_or("")
+            .contains("imaging recovery failed"));
         assert!(
             !warnings.iter().any(|w| w.contains("tracks again")),
             "{warnings:?}"

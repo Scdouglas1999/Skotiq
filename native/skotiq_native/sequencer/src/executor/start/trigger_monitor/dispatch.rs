@@ -28,7 +28,7 @@ pub(super) struct Dispatcher {
     pub(super) trigger_manager: Arc<RwLock<TriggerManager>>,
     pub(super) tracking_limit_hold: Option<super::tracking_limit::TrackingLimitHold>,
     pub(super) recovery_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
-    action_in_flight: Arc<AtomicBool>,
+    pub(super) action_in_flight: Arc<AtomicBool>,
     skip_to_next_target: Arc<AtomicBool>,
     skip_to_node: Arc<StdRwLock<Option<NodeId>>>,
     cloud_motion: Arc<RwLock<CloudMotionSnapshot>>,
@@ -183,6 +183,93 @@ impl Dispatcher {
             Some(reference),
         )
         .await
+    }
+
+    /// Finish a probe's return while the caller retains its imaging-train claim.
+    pub(super) async fn recenter_holding_claim(
+        &mut self,
+        id: &str,
+        name: &str,
+        _claim: &mut TriggerCameraClaim,
+    ) -> Flow {
+        self.announce(id, name, &RecoveryAction::Recenter, "Recenter");
+        let target = self.rig.target().await;
+        let autofocus = self
+            .rig
+            .runtime_config
+            .read()
+            .autofocus
+            .clone()
+            .unwrap_or_default();
+        let ctx = build_trigger_flip_context(
+            &self.rig.context,
+            TriggerFlipTarget {
+                name: target.name.clone().unwrap_or_else(|| "target".into()),
+                ra_hours: target.ra_hours,
+                dec_degrees: target.dec_degrees,
+            },
+            Some(self.run.is_cancelled.clone()),
+            Some(self.rig.trigger_state.clone()),
+            Some(autofocus),
+            target.filter.clone(),
+        );
+        let slew_ctx = self.rig.instruction_context(target, &self.run);
+        let config = self
+            .trigger_manager
+            .read()
+            .await
+            .meridian_flip_config()
+            .cloned()
+            .unwrap_or_default();
+        let failure_action = config.failure_action;
+        let result = if let Some(ctx) = ctx {
+            let mut recovery = crate::meridian_flip_executor::MeridianFlipExecutor::new(
+                config,
+                self.rig.device_ops.clone(),
+            )
+            .with_executor_event_tx(self.run.events.clone());
+            let slew = crate::instructions::execute_slew(
+                &crate::SlewConfig {
+                    use_target_coords: true,
+                    custom_ra: None,
+                    custom_dec: None,
+                },
+                &slew_ctx,
+                None,
+            )
+            .await;
+            if slew.status != NodeStatus::Success {
+                Err(format!(
+                    "Return slew failed: {}",
+                    slew.message.unwrap_or_default()
+                ))
+            } else {
+                recovery.recover_target(&ctx).await
+            }
+        } else {
+            Err("Target recovery requires a mount, camera and target coordinates".into())
+        };
+        if let Err(problem) = result {
+            if !self.run.is_cancelled() {
+                let message = format!("{name}: target acquisition failed ({problem}). Applying the configured recovery failure action; the obstruction has not been learned.");
+                self.flip_failure.latch(|| message.clone());
+                self.run.error(message.clone());
+                match failure_action {
+                    crate::FlipFailureAction::PauseAndAlert => self.run.pause(Some(message)).await,
+                    crate::FlipFailureAction::AbortAndPark => {
+                        meridian_flip::abort_and_park(&self.rig, &self.run, &mut self.park).await;
+                        self.fired.push((id.into(), RecoveryAction::ParkAndAbort));
+                        return Flow::Terminate(terminate_with(
+                            &self.run.is_cancelled,
+                            std::mem::take(&mut self.fired),
+                            "Probe recovery failed: AbortAndPark",
+                        ));
+                    }
+                }
+            }
+        }
+        self.fired.push((id.into(), RecoveryAction::Recenter));
+        Flow::Next
     }
 
     async fn dispatch(

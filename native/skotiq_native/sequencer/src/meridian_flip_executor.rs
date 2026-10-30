@@ -16,6 +16,8 @@
 //!   executor logs warnings but does not refuse if the capability check is
 //!   unavailable, since some drivers do not expose it).
 
+mod recovery;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -148,6 +150,7 @@ pub struct MeridianFlipExecutor {
     /// flip: nothing is retried and no failure action runs, and the result
     /// is `Aborted` so the hold can wait for the window instead.
     early_tracking_limit_flip: bool,
+    original_recovery_filter: parking_lot::Mutex<Option<(String, i32)>>,
 }
 
 impl MeridianFlipExecutor {
@@ -165,6 +168,7 @@ impl MeridianFlipExecutor {
             attempts_made: 0,
             failed_attempts: Vec::new(),
             early_tracking_limit_flip: false,
+            original_recovery_filter: parking_lot::Mutex::new(None),
         }
     }
 
@@ -226,6 +230,7 @@ impl MeridianFlipExecutor {
     /// `MeridianFlipOutcome` is what feeds the run vitals' `meridianFlips` count
     /// and the session report's error list.
     pub async fn execute(&mut self, ctx: &FlipContext) -> FlipResult {
+        *self.original_recovery_filter.lock() = None;
         // The flip is a move the run makes: the guide star leaving the frame
         // during it is not a lost star, and a guider still guiding would
         // fight the flip slew and the recenter after it. A guider that may
@@ -602,25 +607,6 @@ impl MeridianFlipExecutor {
                         });
                         return FlipResult::Aborted { reason };
                     }
-                    if attempt >= max_attempts
-                        && pier_verified
-                        && !self.stops_on_quality_problems(ctx).await
-                    {
-                        // The mount is on its new side: whatever failed after
-                        // that (centering, guiding, tracking confirmation) is
-                        // told to the operator and the run goes on. The flip
-                        // was recorded when the side was verified.
-                        self.carry_on_after_flip(ctx, &e).await;
-                        let duration = start_time.elapsed().as_secs_f64();
-                        self.emit_event(MeridianFlipEvent::Completed {
-                            new_pier_side: verified_pier_side,
-                            duration_secs: duration,
-                        });
-                        return FlipResult::Success {
-                            new_pier_side: verified_pier_side,
-                            duration_secs: duration,
-                        };
-                    }
                     if attempt < max_attempts {
                         // With user-provided delays, saturate on the LAST entry; with an
                         // empty array AND retries configured, refuse to retry (return the
@@ -942,37 +928,6 @@ impl MeridianFlipExecutor {
         }
     }
 
-    async fn stops_on_quality_problems(&self, ctx: &FlipContext) -> bool {
-        match &ctx.trigger_state {
-            Some(state) => state.read().await.stop_on_quality_problems,
-            None => false,
-        }
-    }
-
-    /// Tell the operator what failed after a verified flip and that the run
-    /// goes on.
-    async fn carry_on_after_flip(&self, ctx: &FlipContext, problem: &str) {
-        let continuation = crate::executor::quality_problem_continuation(
-            "After the meridian flip",
-            &format!(
-                "{problem}. The mount is on its new pier side; imaging continues and guiding is \
-                 started again before the next frame."
-            ),
-            serde_json::json!({ "target_name": ctx.target_name }),
-        );
-        tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
-        if let Some(tx) = &self.decision_tx {
-            let mut decision = continuation.decision;
-            decision.sequence_run_id = *self.active_sequence_run_id.read();
-            let _ = tx.send(decision);
-        }
-        if let Some(tx) = &self.executor_event_tx {
-            let _ = tx.send(ExecutorEvent::Warning {
-                message: continuation.operator_message,
-            });
-        }
-    }
-
     /// A notice for the operator in the run's feed; the flip goes on.
     fn warn_operator(&self, message: String) {
         tracing::warn!("[MERIDIAN] {}", message);
@@ -1237,7 +1192,7 @@ impl MeridianFlipExecutor {
         }
     }
 
-    async fn plate_solve_and_center(&self, ctx: &FlipContext) -> Result<(), String> {
+    async fn center_attempts(&self, ctx: &FlipContext, exposure_secs: f64) -> Result<(), String> {
         if ctx.simulate {
             tracing::info!(
                 "[MERIDIAN] (dry-run) Would plate-solve and center — skipping exposure and slew"
@@ -1251,24 +1206,21 @@ impl MeridianFlipExecutor {
         let mut last_failure = String::new();
         for _ in 0..3 {
             self.wait_for_mount_to_settle(ctx).await?;
-            // 5 s @ 1x1 is enough exposure for typical equatorial fields to get a
-            // solvable star count without burning time; deep mosaics with sparse
-            // fields should use the dedicated Center node with a longer exposure.
+            // The retry ladder increases acquisition exposure after the first attempt.
             let image = self
                 .device_ops
-                .camera_start_exposure(camera_id, 5.0, None, None, 1, 1)
+                .camera_start_exposure(camera_id, exposure_secs, None, None, 1, 1)
                 .await?;
 
             // Passing target hints (deg-converted RA) accelerates blind solves on
             // ASTAP/local indexes by ~10x; without them the solver scans the full
             // sky and post-flip exposures can stall waiting for a solution.
             let solve = self
-                .device_ops
-                .plate_solve(
+                .recovery_solve(
+                    ctx,
                     &image,
-                    Some(ctx.target_ra_hours * 15.0),
-                    Some(ctx.target_dec_degrees),
-                    None,
+                    ctx.target_ra_hours * 15.0,
+                    ctx.target_dec_degrees,
                 )
                 .await;
             // A frame that does not solve is taken again after another
@@ -2295,6 +2247,7 @@ mod tests {
         plate_solve_failures_remaining: AtomicI32,
         solved_dec_offsets: Mutex<std::collections::VecDeque<f64>>,
         plate_solve_calls: AtomicI32,
+        sync_calls: AtomicI32,
         /// Recorded guider-start calls, used to prove centering failure stops
         /// the remaining post-flip steps.
         guider_start_calls: AtomicI32,
@@ -2313,6 +2266,9 @@ mod tests {
         guider_start_settles: Mutex<Vec<(f64, f64, f64)>>,
         /// When each camera exposure started.
         exposure_starts: Mutex<Vec<tokio::time::Instant>>,
+        exposure_settings: Mutex<Vec<(f64, i32)>>,
+        wheel_position: AtomicI32,
+        fail_science_filter_restore_once: AtomicBool,
         guider_start_failures_remaining: AtomicI32,
         post_flip_calls: Mutex<Vec<&'static str>>,
         /// For each guider-stop call, how many slews had been commanded when it
@@ -2406,6 +2362,7 @@ mod tests {
         }
 
         async fn mount_sync(&self, _mount_id: &str, _ra: f64, _dec: f64) -> DeviceResult<()> {
+            self.state.sync_calls.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
 
@@ -2476,6 +2433,10 @@ mod tests {
             _bin_x: i32,
             _bin_y: i32,
         ) -> DeviceResult<ImageData> {
+            self.state.exposure_settings.lock().unwrap().push((
+                duration_secs,
+                self.state.wheel_position.load(Ordering::Relaxed),
+            ));
             self.state
                 .exposure_starts
                 .lock()
@@ -2543,12 +2504,21 @@ mod tests {
             Ok(())
         }
 
-        async fn filterwheel_set_position(&self, _fw_id: &str, _position: i32) -> DeviceResult<()> {
+        async fn filterwheel_set_position(&self, _fw_id: &str, position: i32) -> DeviceResult<()> {
+            if position == 4
+                && self
+                    .state
+                    .fail_science_filter_restore_once
+                    .swap(false, Ordering::Relaxed)
+            {
+                return Err("temporary wheel failure".into());
+            }
+            self.state.wheel_position.store(position, Ordering::Relaxed);
             Ok(())
         }
 
         async fn filterwheel_get_position(&self, _fw_id: &str) -> DeviceResult<i32> {
-            Ok(1)
+            Ok(self.state.wheel_position.load(Ordering::Relaxed))
         }
 
         async fn filterwheel_get_names(&self, _fw_id: &str) -> DeviceResult<Vec<String>> {
@@ -4341,11 +4311,9 @@ mod tests {
         );
     }
 
-    /// After the new pier side is verified, a recenter that never solves or
-    /// guiding over the RMS ceiling is told and the flip completes. Nothing
-    /// pauses or parks, and the flip stays recorded.
     #[tokio::test(start_paused = true)]
-    async fn post_flip_quality_problems_notify_and_complete_the_flip() {
+    async fn exhausted_post_flip_recovery_honors_failure_action_even_when_quality_warnings_continue(
+    ) {
         for (solve_failures, rms_ceiling) in [(100, 3.0), (0, 0.5)] {
             let state = Arc::new(MockDeviceOpsState::default());
             state.pier_sides.lock().unwrap().extend([
@@ -4368,7 +4336,7 @@ mod tests {
                 max_post_settle_rms_pixels: rms_ceiling,
                 ..Default::default()
             };
-            let (tx, mut rx) = broadcast::channel(64);
+            let (tx, _rx) = broadcast::channel(64);
             let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
             let ts = Arc::new(RwLock::new(TriggerState::new()));
             let ctx = FlipContext {
@@ -4376,17 +4344,19 @@ mod tests {
                 ..make_ctx(&state)
             };
             let result = executor.execute(&ctx).await;
-            assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
-            assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+            assert!(
+                matches!(
+                    result,
+                    FlipResult::Failed {
+                        action_taken: FlipFailureAction::AbortAndPark,
+                        ..
+                    }
+                ),
+                "{result:?}"
+            );
+            assert_eq!(state.park_calls.load(Ordering::Relaxed), 1);
             assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
             assert!(ts.read().await.meridian.has_flipped());
-            let mut warned = false;
-            while let Ok(event) = rx.try_recv() {
-                if let ExecutorEvent::Warning { message } = event {
-                    warned |= message.contains("After the meridian flip");
-                }
-            }
-            assert!(warned, "the post-flip problem must be told");
         }
     }
 
@@ -4513,11 +4483,9 @@ mod tests {
         }
     }
 
-    /// A guider that will not restart after a verified flip stops guiding,
-    /// is told, and never parks, whatever the failure action says. The next
-    /// light frame tries guiding again.
+    /// Failed guiding follows the configured failure action after a physical flip.
     #[tokio::test(start_paused = true)]
-    async fn a_post_flip_guider_failure_notifies_and_never_parks() {
+    async fn post_flip_guider_failure_honors_park_policy() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
             crate::meridian::PierSide::East,
@@ -4546,9 +4514,9 @@ mod tests {
 
         let result = executor.execute(&ctx).await;
 
-        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        assert!(matches!(result, FlipResult::Failed { .. }), "{result:?}");
         assert!(state.guider_stopped.load(Ordering::Relaxed));
-        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 1);
         assert!(ts.read().await.meridian.has_flipped());
         assert!(
             ts.read().await.guiding.resume_pending(),
@@ -4639,10 +4607,9 @@ mod tests {
         assert!(!ts.read().await.meridian.has_flipped());
     }
 
-    /// Cloud right after a verified flip with AbortAndPark configured: the
-    /// flip completes and is recorded, nothing parks, and nothing flips again.
+    /// A physical flip remains recorded when acquisition fails and parks.
     #[tokio::test(start_paused = true)]
-    async fn cloud_after_a_verified_flip_neither_parks_nor_leaves_the_flip_unmarked() {
+    async fn unsolved_post_flip_target_honors_failure_policy_without_reflipping() {
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
             crate::meridian::PierSide::East,
@@ -4665,9 +4632,172 @@ mod tests {
             ..make_ctx(&state)
         };
         let result = executor.execute(&ctx).await;
-        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
-        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        assert!(matches!(result, FlipResult::Failed { .. }), "{result:?}");
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 1);
         assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
         assert!(ts.read().await.meridian.has_flipped());
+    }
+    #[tokio::test(start_paused = true)]
+    async fn recovery_retries_in_luminance_with_longer_exposures_and_restores_filter() {
+        for failures in [3, 100] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.pier_sides.lock().unwrap().extend([
+                crate::meridian::PierSide::West,
+                crate::meridian::PierSide::East,
+            ]);
+            state.wheel_position.store(4, Ordering::Relaxed);
+            state
+                .plate_solve_failures_remaining
+                .store(failures, Ordering::Relaxed);
+            let mut ctx = make_ctx(&state);
+            ctx.autofocus_config = Some(PostFlipAutofocusConfig {
+                filterwheel_id: Some("wheel".into()),
+                ..Default::default()
+            });
+            let mut executor = MeridianFlipExecutor::new(
+                MeridianFlipConfig {
+                    auto_center: true,
+                    pause_guiding: false,
+                    resume_guiding: false,
+                    refocus_after: false,
+                    settle_time: 0.0,
+                    max_retries: 1,
+                    retry_delays_secs: vec![0.0],
+                    ..Default::default()
+                },
+                Arc::new(MockDeviceOps::new(state.clone())),
+            );
+            let result = executor.execute(&ctx).await;
+            assert_eq!(matches!(result, FlipResult::Success { .. }), failures == 3);
+            let settings = state.exposure_settings.lock().unwrap();
+            assert!(
+                settings.iter().take(3).all(|x| *x == (5.0, 4)),
+                "{settings:?}"
+            );
+            assert!(
+                settings.iter().skip(3).any(|x| *x == (15.0, 1)),
+                "{settings:?}"
+            );
+            assert_eq!(state.wheel_position.load(Ordering::Relaxed), 4);
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn retry_remembers_science_filter_after_restoration_failure() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.wheel_position.store(4, Ordering::Relaxed);
+        state
+            .fail_science_filter_restore_once
+            .store(true, Ordering::Relaxed);
+        let mut ctx = make_ctx(&state);
+        ctx.autofocus_config = Some(PostFlipAutofocusConfig {
+            filterwheel_id: Some("wheel".into()),
+            ..Default::default()
+        });
+        let mut executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            Arc::new(MockDeviceOps::new(state.clone())),
+        );
+        executor.attempts_made = 2;
+        assert!(executor
+            .plate_solve_and_center(&ctx)
+            .await
+            .unwrap_err()
+            .contains("restore the science filter"));
+        assert_eq!(state.wheel_position.load(Ordering::Relaxed), 1);
+        executor.attempts_made = 3;
+        executor.plate_solve_and_center(&ctx).await.unwrap();
+        assert_eq!(state.wheel_position.load(Ordering::Relaxed), 4);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn cancelling_extended_recovery_restores_the_science_filter() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.wheel_position.store(4, Ordering::Relaxed);
+        let mut ctx = make_ctx(&state);
+        let cancel = Arc::new(AtomicBool::new(false));
+        ctx.cancellation_token = Some(cancel.clone());
+        ctx.autofocus_config = Some(PostFlipAutofocusConfig {
+            filterwheel_id: Some("wheel".into()),
+            ..Default::default()
+        });
+        let mut executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 5.0,
+                ..Default::default()
+            },
+            Arc::new(MockDeviceOps::new(state.clone())),
+        );
+        executor.attempts_made = 2;
+        let cancel_task = tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            cancel.store(true, Ordering::Relaxed);
+        });
+        assert!(executor.plate_solve_and_center(&ctx).await.is_err());
+        cancel_task.await.unwrap();
+        assert_eq!(state.wheel_position.load(Ordering::Relaxed), 4);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn nearby_reference_requires_a_verified_return_to_the_target() {
+        for fail_target_return in [false, true] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.pier_sides.lock().unwrap().extend([
+                crate::meridian::PierSide::West,
+                crate::meridian::PierSide::East,
+            ]);
+            *state.location.lock().unwrap() = Some((40.0, -75.0));
+            state
+                .plate_solve_failures_remaining
+                .store(6, Ordering::Relaxed);
+            let mut ctx = make_ctx(&state);
+            ctx.target_ra_hours = (local_sidereal_time(julian_day(&chrono::Utc::now()), -75.0)
+                - 0.5)
+                .rem_euclid(24.0);
+            ctx.target_dec_degrees = 10.0;
+            // Six failed target solves, a usable nearby reference, then either
+            // a verified target or three corrections that never converge.
+            state
+                .solved_dec_offsets
+                .lock()
+                .unwrap()
+                .extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]);
+            if fail_target_return {
+                state
+                    .solved_dec_offsets
+                    .lock()
+                    .unwrap()
+                    .extend([0.5, 0.5, 0.5]);
+            }
+            let mut executor = MeridianFlipExecutor::new(
+                MeridianFlipConfig {
+                    auto_center: true,
+                    pause_guiding: false,
+                    resume_guiding: true,
+                    refocus_after: false,
+                    settle_time: 0.0,
+                    max_retries: 1,
+                    retry_delays_secs: vec![0.0],
+                    ..Default::default()
+                },
+                Arc::new(MockDeviceOps::new(state.clone())),
+            );
+            let result = executor.execute(&ctx).await;
+            assert_eq!(
+                matches!(result, FlipResult::Success { .. }),
+                !fail_target_return,
+                "{result:?}"
+            );
+            assert!(state.sync_calls.load(Ordering::Relaxed) >= 1);
+            assert_eq!(
+                state.guider_start_calls.load(Ordering::Relaxed),
+                if fail_target_return { 0 } else { 1 }
+            );
+            let coordinates = *state.coordinates.lock().unwrap();
+            assert_eq!(coordinates, (ctx.target_ra_hours, ctx.target_dec_degrees));
+        }
     }
 }

@@ -198,6 +198,8 @@ pub struct TriggerState {
     /// The live exclusive claim on the imaging train, or `None` when it is
     /// free. See [`ImagingTrainClaim`].
     pub imaging_train_claim: Option<ImagingTrainClaim>,
+    /// A live trigger guard owns the claim even when its time estimate expires.
+    pub(crate) imaging_train_owner: Option<(u64, std::sync::Weak<()>)>,
 
     /// Monotonic counter behind [`ImagingTrainClaim::token`]. Never reused
     /// within a process, so a stale guard can never release a claim that has
@@ -447,6 +449,7 @@ impl Default for TriggerState {
             meridian_pause_before_minutes: None,
             run: super::RunState::default(),
             imaging_train_claim: None,
+            imaging_train_owner: None,
             imaging_train_next_token: 0,
             consecutive_dither_failures: 0,
             dither_cadence_owners: 0,
@@ -1147,14 +1150,17 @@ impl TriggerState {
 
     /// The live hold on the imaging train, or `None` when it is free.
     ///
-    /// A claim past its hard expiry reads as free: the failure mode of this
-    /// mechanism is then a late autofocus, not a run wedged for the night by a
-    /// holder that panicked without releasing.
+    /// Expiry recovers abandoned claims. A live trigger guard retains ownership
+    /// through overruns and cleanup; its time estimate cannot release capture.
     pub fn imaging_train_hold(&self) -> Option<ImagingTrainHold> {
         let claim = self.imaging_train_claim.as_ref()?;
         let now_ms = Utc::now().timestamp_millis();
         let max_remaining_ms = claim.expires_at_ms - now_ms;
-        if max_remaining_ms <= 0 {
+        let guarded = self
+            .imaging_train_owner
+            .as_ref()
+            .is_some_and(|(token, owner)| *token == claim.token && owner.strong_count() > 0);
+        if max_remaining_ms <= 0 && !guarded {
             return None;
         }
         // i64 milliseconds -> f64 seconds; holds are seconds to minutes,
@@ -1162,7 +1168,11 @@ impl TriggerState {
         Some(ImagingTrainHold {
             holder: claim.holder,
             expected_remaining_secs: ((claim.expected_finish_ms - now_ms).max(0)) as f64 / 1000.0,
-            max_remaining_secs: max_remaining_ms as f64 / 1000.0,
+            max_remaining_secs: if guarded {
+                f64::INFINITY
+            } else {
+                max_remaining_ms as f64 / 1000.0
+            },
         })
     }
 
