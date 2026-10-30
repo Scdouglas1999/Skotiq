@@ -47,6 +47,9 @@ class FirstLightCoverage {
     required this.tilesSkippedThin,
     required this.tilesNoTemplate,
     this.tilesUnnormalized = 0,
+    this.unmeasuredPsf = 0,
+    this.misregistered = 0,
+    this.inconsistentScale = 0,
   });
 
   /// Tiles whose template was deep enough and were differenced.
@@ -60,6 +63,15 @@ class FirstLightCoverage {
 
   /// Deep tiles whose registration, PSF, or flux scaling could not be validated.
   final int tilesUnnormalized;
+  final int unmeasuredPsf;
+  final int misregistered;
+  final int inconsistentScale;
+
+  String get diagnosticSummary =>
+      '$tilesChecked searched, $tilesSkippedThin too shallow, '
+      '$tilesNoTemplate without templates, $tilesUnnormalized unvalidated '
+      '(PSF $unmeasuredPsf, registration $misregistered, '
+      'flux scale $inconsistentScale; remaining reasons were not reported)';
 
   /// Every tile the frame footprint touched, including rejected subtractions.
   int get tilesCovered =>
@@ -74,7 +86,14 @@ class FirstLightCoverage {
 
   /// Decode the native coverage lists, each containing tile ids.
   factory FirstLightCoverage.fromBridgeJson(Map<String, dynamic> json) {
+    final rejections = json['rejected'];
+    int count(String key) => rejections is Map && rejections[key] is num
+        ? (rejections[key] as num).toInt()
+        : 0;
     return FirstLightCoverage(
+      unmeasuredPsf: count('unmeasuredPsf'),
+      misregistered: count('misregistered'),
+      inconsistentScale: count('inconsistentScale'),
       tilesChecked: _len(json['tilesChecked']),
       tilesSkippedThin: _len(json['tilesSkippedThin']),
       tilesNoTemplate: _len(json['tilesNoTemplate']),
@@ -325,7 +344,7 @@ class FirstLightService {
       _logger.info(
         'First Light scan: subtraction could not be validated for '
         '${coverage.tilesUnnormalized} of ${coverage.tilesCovered} tiles '
-        'in $framePath; ${coverage.tilesChecked} tiles were searched.',
+        'in $framePath; ${coverage.diagnosticSummary}.',
         source: _logSource,
       );
     }

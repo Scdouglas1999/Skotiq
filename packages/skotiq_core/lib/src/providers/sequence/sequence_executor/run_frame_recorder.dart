@@ -441,8 +441,24 @@ class RunFrameRecorder {
     final science = scienceAssessment == null
         ? null
         : _ref.read(scienceProcessingServiceProvider);
+    final snapshotWrite = sessionId == null
+        ? Future<void>.value()
+        : _ref
+              .read(sessionStateProvider.notifier)
+              .recordCaptureEquipmentSnapshot(
+                sessionId,
+                FrameCapture(
+                  exposureSecs: exposureSecs,
+                  gain: capture.gain ?? attribution.gain,
+                  offset: capture.offset ?? attribution.offset,
+                  binX: capture.binX ?? attribution.binX,
+                  binY: capture.binY ?? attribution.binY,
+                  focuserPosition: capture.focuserPosition,
+                ),
+              );
     final registration = () async {
       try {
+        await snapshotWrite;
         final rowId = await dao.insertSequenceFrame(
           filePath: filePath,
           fileName: fileName,

@@ -142,6 +142,47 @@ void main() {
   }
 
   test(
+    'session restore settings follow saved captures, not the manual preset',
+    () async {
+      final container = buildContainer(
+        loadedSequence: _disagreeingSequence('snapshot-node'),
+      );
+      container.read(exposureSettingsProvider.notifier).state =
+          const ExposureSettings(exposureTime: 3, gain: 250, offset: 50);
+      await container
+          .read(sessionStateProvider.notifier)
+          .startSession(targetName: 'M74');
+      final id = container.read(sessionStateProvider).dbSessionId!;
+      final executor = container.read(sequenceExecutorProvider);
+      executor.handleSequencerEventForTest(
+        bridge_event.SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: bridge_event.EventSeverity.info,
+          category: bridge_event.EventCategory.sequencer,
+          eventType: 'FrameAccepted',
+          data: {
+            'node_id': 'snapshot-node',
+            'frame': 1,
+            'save_path': '/captures/dark.fits',
+            ..._captureData(),
+          },
+        ),
+      );
+      await executor.liveStackingFeedSettledForTest;
+      final row = await SessionsDao(db).getSessionById(id);
+      final snapshot = EquipmentSnapshot.fromJsonString(
+        row!.equipmentSnapshot!,
+      );
+      expect(snapshot.cameraGain, 139);
+      expect(snapshot.cameraOffset, 21);
+      expect(snapshot.cameraBinX, 2);
+      expect(snapshot.cameraBinY, 2);
+      expect(snapshot.exposureTime, 120);
+      expect(snapshot.focuserPosition, 31705);
+      expect(container.read(exposureSettingsProvider).gain, 250);
+    },
+  );
+  test(
     'accepted frame persists every capture field the FITS header carries',
     () async {
       final container = buildContainer();

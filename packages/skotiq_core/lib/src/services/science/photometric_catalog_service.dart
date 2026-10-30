@@ -96,7 +96,10 @@ class PhotometricCatalogService {
   static const onlineEnabledSettingKey = 'science.catalog.online_apass_enabled';
 
   /// VizieR mirror used for the APASS cone search.
-  static const _vizierBase = 'https://vizier.cds.unistra.fr/viz-bin/asu-tsv';
+  static const _vizierBases = [
+    'https://vizier.cds.unistra.fr/viz-bin/asu-tsv',
+    'https://vizier.cfa.harvard.edu/viz-bin/asu-tsv',
+  ];
 
   /// Cache grid: pointing rounded to this many degrees, radius rounded UP
   /// to the next multiple. Combined with [_radiusPaddingDeg] this makes a
@@ -104,7 +107,7 @@ class PhotometricCatalogService {
   static const _gridDeg = 0.2;
   static const _radiusPaddingDeg = 0.15;
 
-  static const _requestTimeout = Duration(seconds: 12);
+  static const _requestTimeout = Duration(seconds: 6);
 
   /// Hard ceiling on rows requested from VizieR per cone. A padded cone
   /// around a rich field holds about 6000 APASS stars; a response that
@@ -113,13 +116,20 @@ class PhotometricCatalogService {
 
   final Ref _ref;
   final http.Client _client;
+  final DateTime Function() _now;
+  final Map<String, DateTime> _retryAfter = {};
+  static const _failureCooldown = Duration(minutes: 5);
 
   /// In-flight de-duplication: concurrent stages asking for the same cone
   /// (calibration + residuals of one frame) share a single fetch.
   final Map<String, Future<List<PhotometricCatalogStar>?>> _inflight = {};
 
-  PhotometricCatalogService(this._ref, {http.Client? client})
-    : _client = client ?? http.Client();
+  PhotometricCatalogService(
+    this._ref, {
+    http.Client? client,
+    DateTime Function()? now,
+  }) : _client = client ?? http.Client(),
+       _now = now ?? DateTime.now;
 
   LoggingService get _logger => _ref.read(loggingServiceProvider);
 
@@ -247,7 +257,38 @@ class PhotometricCatalogService {
     required double decDegrees,
     required double radiusDegrees,
   }) async {
-    final uri = Uri.parse(_vizierBase).replace(
+    for (final base in _vizierBases) {
+      final retry = _retryAfter[base];
+      if (retry != null && _now().isBefore(retry)) continue;
+      try {
+        final stars = await _fetchApassFrom(
+          base,
+          raDegrees: raDegrees,
+          decDegrees: decDegrees,
+          radiusDegrees: radiusDegrees,
+        );
+        if (stars != null) {
+          _retryAfter.remove(base);
+          return stars;
+        }
+      } catch (error) {
+        _logger.warning(
+          'APASS at $base unavailable: $error; retrying after 5 minutes.',
+          source: 'PhotometricCatalogService',
+        );
+      }
+      _retryAfter[base] = _now().add(_failureCooldown);
+    }
+    return null;
+  }
+
+  Future<List<PhotometricCatalogStar>?> _fetchApassFrom(
+    String base, {
+    required double raDegrees,
+    required double decDegrees,
+    required double radiusDegrees,
+  }) async {
+    final uri = Uri.parse(base).replace(
       queryParameters: {
         '-source': 'II/336/apass9',
         '-c':
@@ -266,6 +307,18 @@ class PhotometricCatalogService {
     if (response.statusCode != 200) {
       _logger.warning(
         'VizieR APASS query returned HTTP ${response.statusCode}',
+        source: 'PhotometricCatalogService',
+      );
+      return null;
+    }
+    if (!response.body
+        .split('\n')
+        .any(
+          (line) =>
+              line.split('\t').map((cell) => cell.trim()).contains('RAJ2000'),
+        )) {
+      _logger.warning(
+        'APASS at $base returned no catalog table.',
         source: 'PhotometricCatalogService',
       );
       return null;

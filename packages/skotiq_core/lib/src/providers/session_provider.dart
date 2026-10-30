@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:equatable/equatable.dart';
 
 import 'clock_provider.dart';
+import '../backend/frame_capture_metadata.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
@@ -232,21 +233,17 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     );
   }
 
-  /// Stamp the equipment this session is starting with onto its
-  /// `imaging_sessions` row.
-  ///
-  /// `equipment_snapshot` is what the Continue Session dialog's "Load Previous
-  /// Setup" re-applies (read by [QuickStartService._buildQuickStartContext],
-  /// restored by `QuickStartChecker`): a NULL column silently restores no
-  /// cooler setpoint, no gain/offset and no filter or focuser position.
-  ///
-  /// Taken at start rather than at end: a night that ends in a crash is
-  /// precisely the night the handoff dialog exists for, and an end-of-session
-  /// snapshot would be read off equipment that may already be disconnected.
-  ///
-  /// Snapshot persistence is non-fatal: a session that really did start must
-  /// not fail because its restore metadata could not be stored.
-  Future<void> _recordEquipmentSnapshot(int sessionId) async {
+  /// Refresh the restore preset from the last saved exposure. Per-frame rows
+  /// remain the history of mixed-filter and mixed-exposure sessions.
+  Future<void> recordCaptureEquipmentSnapshot(
+    int sessionId,
+    FrameCapture capture,
+  ) => _recordEquipmentSnapshot(sessionId, capture: capture);
+
+  Future<void> _recordEquipmentSnapshot(
+    int sessionId, {
+    FrameCapture? capture,
+  }) async {
     try {
       final exposure = _ref.read(exposureSettingsProvider);
       final live = _ref
@@ -255,16 +252,16 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
             cameraState: _ref.read(cameraStateProvider),
             filterWheelState: _ref.read(filterWheelStateProvider),
             focuserState: _ref.read(focuserStateProvider),
-            exposureTime: exposure.exposureTime,
+            exposureTime: capture?.exposureSecs ?? exposure.exposureTime,
           );
-      // What the camera reports wins; the configured capture settings fill in
-      // for a driver that does not read gain/offset/binning back (many do not),
-      // because those are still the values this session is exposing with.
+      // Saved-frame metadata is sampled by the capture itself. Live telemetry
+      // can still describe the manual preset or the next exposure.
       final snapshot = live.copyWith(
-        cameraGain: live.cameraGain ?? exposure.gain,
-        cameraOffset: live.cameraOffset ?? exposure.offset,
-        cameraBinX: live.cameraBinX ?? exposure.binningX,
-        cameraBinY: live.cameraBinY ?? exposure.binningY,
+        cameraGain: capture?.gain ?? live.cameraGain ?? exposure.gain,
+        cameraOffset: capture?.offset ?? live.cameraOffset ?? exposure.offset,
+        cameraBinX: capture?.binX ?? live.cameraBinX ?? exposure.binningX,
+        cameraBinY: capture?.binY ?? live.cameraBinY ?? exposure.binningY,
+        focuserPosition: capture?.focuserPosition,
       );
       await _ref
           .read(imagingRecordsRepositoryProvider)

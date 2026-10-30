@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
@@ -82,4 +83,105 @@ void main() {
   test('a cone cut off at the row limit is used but not cached', () async {
     expect(await requestsForTwoCones(20000), 2);
   });
+  test(
+    'failed requests do not delay every sequential science consumer',
+    () async {
+      var requests = 0;
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+      final provider = Provider(
+        (ref) => PhotometricCatalogService(
+          ref,
+          client: MockClient((_) async {
+            requests++;
+            throw TimeoutException('offline');
+          }),
+        ),
+      );
+      final service = container.read(provider);
+      for (var i = 0; i < 3; i++) {
+        final result = await service.coneSearch(
+          raDegrees: 24.2,
+          decDegrees: 15.8,
+          radiusDegrees: 1.25,
+        );
+        expect(result.source, PhotometricCatalogSource.localHyg);
+      }
+      expect(requests, 2); // One attempt per mirror, not per consumer.
+    },
+  );
+
+  test(
+    'a failed mirror falls back to the other mirror and caches the result',
+    () async {
+      final hosts = <String>[];
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+      final provider = Provider(
+        (ref) => PhotometricCatalogService(
+          ref,
+          client: MockClient((r) async {
+            hosts.add(r.url.host);
+            if (r.url.host == 'vizier.cds.unistra.fr') {
+              throw TimeoutException('offline');
+            }
+            return http.Response(_vizier(1200), 200);
+          }),
+        ),
+      );
+      final service = container.read(provider);
+      for (var i = 0; i < 2; i++) {
+        final result = await service.coneSearch(
+          raDegrees: 132.85,
+          decDegrees: 11.82,
+          radiusDegrees: .5,
+        );
+        expect(result.source, PhotometricCatalogSource.localApass);
+      }
+      expect(hosts, ['vizier.cds.unistra.fr', 'vizier.cfa.harvard.edu']);
+    },
+  );
+
+  test(
+    'failed endpoints are retried after cooldown, including invalid HTTP 200 tables',
+    () async {
+      var now = DateTime.utc(2026, 10, 30);
+      var requests = 0;
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+      final provider = Provider(
+        (ref) => PhotometricCatalogService(
+          ref,
+          now: () => now,
+          client: MockClient((_) async {
+            requests++;
+            return http.Response('<html>temporarily unavailable</html>', 200);
+          }),
+        ),
+      );
+      final service = container.read(provider);
+      Future<void> query() async {
+        final result = await service.coneSearch(
+          raDegrees: 24.2,
+          decDegrees: 15.8,
+          radiusDegrees: 1.25,
+        );
+        expect(result.source, PhotometricCatalogSource.localHyg);
+      }
+
+      await query();
+      now = now.add(const Duration(minutes: 4));
+      await query();
+      expect(requests, 2);
+      now = now.add(const Duration(minutes: 1));
+      await query();
+      expect(requests, 4);
+    },
+  );
 }

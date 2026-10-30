@@ -607,12 +607,24 @@ void main() {
           'candidates': const [],
           'tilesChecked': const [],
           'tilesUnnormalized': [10, 11],
+          'rejected': {
+            'unmeasuredPsf': 1,
+            'misregistered': 1,
+            'inconsistentScale': 0,
+          },
           'tilesSkippedThin': [12],
         },
         onCoverage: (c) => coverage = c,
       );
       expect(await scan(service, 1), isEmpty);
       expect(coverage!.tilesCovered, 3);
+      expect(coverage!.unmeasuredPsf, 1);
+      expect(coverage!.misregistered, 1);
+      expect(coverage!.inconsistentScale, 0);
+      expect(
+        coverage!.diagnosticSummary,
+        contains('0 searched, 1 too shallow'),
+      );
       expect(coverage!.tilesChecked, 0);
       expect(coverage!.isAtlasTooThin, isFalse);
     },
