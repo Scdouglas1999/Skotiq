@@ -1,8 +1,8 @@
 # Skotiq - Single Source of Truth for Version Info
 # This file is read by build scripts to update pubspec.yaml, installer.iss, etc.
 
-version: "8.1.2"
-build_number: 32
+version: "8.1.3"
+build_number: 33
 channel: "stable"  # stable, beta, alpha
 
 # Minimum version required to apply updates (for breaking changes)
