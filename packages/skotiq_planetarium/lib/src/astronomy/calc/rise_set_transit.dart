@@ -1,5 +1,43 @@
 part of '../astronomy_calculations.dart';
 
+/// Shares the time grid and sidereal times when evaluating a fixed-object
+/// catalog for one observing site and date. Each object's crossings and transit
+/// are still refined independently with the original visibility calculation.
+class FixedObjectVisibilityCalculator {
+  final DateTime date;
+  final double latitudeDeg;
+  final double longitudeDeg;
+  final List<(DateTime, double)> _siderealSamples;
+
+  FixedObjectVisibilityCalculator({
+    required this.date,
+    required this.latitudeDeg,
+    required this.longitudeDeg,
+  }) : _siderealSamples = _visibilitySiderealSamples(date, longitudeDeg);
+
+  ObjectVisibility calculate({required double raDeg, required double decDeg}) =>
+      _calculateObjectVisibility(
+        raDeg: raDeg,
+        decDeg: decDeg,
+        date: date,
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+        siderealSamples: _siderealSamples,
+      );
+}
+
+List<(DateTime, double)> _visibilitySiderealSamples(
+  DateTime date,
+  double longitude,
+) {
+  final start = DateTime(date.year, date.month, date.day, 12);
+  final end = start.add(const Duration(hours: 24));
+  return [
+    for (var t = start; !t.isAfter(end); t = t.add(const Duration(minutes: 5)))
+      (t, _localSiderealTime(t, longitude)),
+  ];
+}
+
 /// Apparent altitude (degrees, including refraction) of a body at [dt].
 ///
 /// [positionAt] supplies the body's RA/Dec; for a fixed object pass a closure
@@ -121,6 +159,7 @@ ObjectVisibility _calculateObjectVisibility({
   double minAltitude = 0,
   double? standardAltitude,
   EquatorialPositionAt? positionAt,
+  List<(DateTime, double)>? siderealSamples,
 }) {
   final localNoon = DateTime(date.year, date.month, date.day, 12);
   final windowEnd = localNoon.add(const Duration(hours: 24));
@@ -134,8 +173,23 @@ ObjectVisibility _calculateObjectVisibility({
   // skip a crossing, while keeping the loop cheap.
   const step = Duration(minutes: 5);
   final samples = <(DateTime, double)>[];
-  for (var t = localNoon; !t.isAfter(windowEnd); t = t.add(step)) {
-    samples.add((t, _apparentAltitudeOf(t, posAt, latitudeDeg, longitudeDeg)));
+  if (siderealSamples == null) {
+    for (var t = localNoon; !t.isAfter(windowEnd); t = t.add(step)) {
+      samples.add((
+        t,
+        _apparentAltitudeOf(t, posAt, latitudeDeg, longitudeDeg),
+      ));
+    }
+  } else {
+    for (final (time, lst) in siderealSamples) {
+      final (altitude, _) = _equatorialToHorizontal(
+        raDeg: raDeg,
+        decDeg: decDeg,
+        latitudeDeg: latitudeDeg,
+        lstHours: lst,
+      );
+      samples.add((time, _trueToApparentAltitude(altitude)));
+    }
   }
 
   DateTime? riseTime;

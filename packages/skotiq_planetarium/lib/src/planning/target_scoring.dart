@@ -165,6 +165,46 @@ class TargetScoringService {
     required DateTime nightStart,
     required DateTime nightEnd,
     double minAltitude = 0,
+  }) => _scoreTargetForNight(
+    target: target,
+    nightStart: nightStart,
+    nightEnd: nightEnd,
+    minAltitude: minAltitude,
+  );
+
+  /// Scores a catalog with the same sampling and refinement as individual
+  /// calls, reusing only the observer/time calculations shared by every target.
+  Iterable<TargetScore> scoreTargetsForNight({
+    required Iterable<CelestialObject> targets,
+    required DateTime nightStart,
+    required DateTime nightEnd,
+    double minAltitude = 0,
+  }) sync* {
+    final nightMid = nightStart.add(
+      Duration(seconds: nightEnd.difference(nightStart).inSeconds ~/ 2),
+    );
+    final visibility = FixedObjectVisibilityCalculator(
+      date: AstronomyCalculations.nightDateOf(nightMid),
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
+    );
+    for (final target in targets) {
+      yield _scoreTargetForNight(
+        target: target,
+        nightStart: nightStart,
+        nightEnd: nightEnd,
+        minAltitude: minAltitude,
+        visibilityCalculator: visibility,
+      );
+    }
+  }
+
+  TargetScore _scoreTargetForNight({
+    required CelestialObject target,
+    required DateTime nightStart,
+    required DateTime nightEnd,
+    required double minAltitude,
+    FixedObjectVisibilityCalculator? visibilityCalculator,
   }) {
     final coord = target.coordinates;
     final raDeg = coord.raDegrees;
@@ -255,15 +295,17 @@ class TargetScoringService {
     final nightMid = nightStart.add(
       Duration(seconds: nightEnd.difference(nightStart).inSeconds ~/ 2),
     );
-    final visibility = AstronomyCalculations.calculateObjectVisibility(
-      raDeg: raDeg,
-      decDeg: decDeg,
-      // nightMid usually lands after midnight, so its calendar day names the
-      // day the night ENDS, not the night itself.
-      date: AstronomyCalculations.nightDateOf(nightMid),
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-    );
+    final visibility =
+        visibilityCalculator?.calculate(raDeg: raDeg, decDeg: decDeg) ??
+        AstronomyCalculations.calculateObjectVisibility(
+          raDeg: raDeg,
+          decDeg: decDeg,
+          // nightMid usually lands after midnight, so its calendar day names the
+          // day the night ENDS, not the night itself.
+          date: AstronomyCalculations.nightDateOf(nightMid),
+          latitudeDeg: latitude,
+          longitudeDeg: longitude,
+        );
 
     // Moon distance at peak altitude time
     double moonDist = 180;

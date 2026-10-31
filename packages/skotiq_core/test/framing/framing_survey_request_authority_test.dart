@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:skotiq_core/src/providers/framing_image_cache_provider.dart';
 import 'package:skotiq_core/src/providers/framing_provider.dart';
 import 'package:skotiq_core/src/services/framing_image_cache_service.dart';
@@ -76,6 +78,67 @@ Future<void> _prime(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'slow primary does not hold up a ready full-resolution fallback',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'framing_slow_primary_',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final primary = Completer<http.Response>();
+      final requested = <Uri>[];
+      final container = ProviderContainer(
+        overrides: [
+          framingImageCacheServiceProvider.overrideWithValue(
+            FramingImageCacheService(supportDirProvider: () async => tempDir),
+          ),
+          framingProvider.overrideWith(_NoPersistFramingNotifier.new),
+          framingSurveyHttpClientFactoryProvider.overrideWithValue(
+            () => MockClient((request) {
+              requested.add(request.url);
+              if (request.url.host == 'alasky.cds.unistra.fr') {
+                return primary.future;
+              }
+              return Future.value(http.Response.bytes(_jpeg(32, 24, 100), 200));
+            }),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final loaded = Completer<bool>();
+      container.listen(framingProvider, (_, next) {
+        if (next.surveyImage != null &&
+            !next.isLoadingImage &&
+            !loaded.isCompleted) {
+          loaded.complete(true);
+        }
+      });
+      container
+          .read(framingProvider.notifier)
+          .setTargetCoordinates(1.6117, 15.7836, name: 'M74');
+      final loadedBeforePrimary = await Future.any([
+        loaded.future,
+        Future.delayed(const Duration(seconds: 4), () => false),
+      ]);
+      primary.complete(http.Response('Unavailable', 503));
+      await loaded.future.timeout(const Duration(seconds: 5));
+      expect(
+        loadedBeforePrimary,
+        isTrue,
+        reason:
+            'A dead primary must not impose its 30-second timeout before fallback',
+      );
+      final primaryQuery = requested.first.queryParameters;
+      final fallbackQuery = requested.last.queryParameters;
+      expect(
+        fallbackQuery['Pixels'],
+        '${primaryQuery['width']},${primaryQuery['height']}',
+      );
+      expect(fallbackQuery['Size']!.split(',').first, primaryQuery['fov']);
+      expect(container.read(framingProvider).plateScale!.imagePixelWidth, 32);
+    },
+  );
 
   test(
     'slow old-target cache result cannot replace the latest survey image',

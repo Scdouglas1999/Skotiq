@@ -52,7 +52,7 @@ extension _FramingSurveyOperations on FramingNotifier {
       if (!_isCurrentSurveyRequest(token, target, source)) return;
       if (served) return;
 
-      // Network: Aladin HiPS2FITS primary, NASA SkyView fallback.
+      // Network: give Aladin a head start, then allow SkyView to serve a slow request.
       final url = _buildAladinUrl(
         target.raDegrees,
         target.decDegrees,
@@ -64,78 +64,32 @@ extension _FramingSurveyOperations on FramingNotifier {
 
       final client = _ref.read(framingSurveyHttpClientFactoryProvider)();
       try {
-        http.Response? response;
-        try {
-          response = await client
-              .get(Uri.parse(url))
-              .timeout(
-                FramingNotifier._surveyImageTimeout,
-                onTimeout: () => throw TimeoutException(
-                  'Aladin survey image fetch timed out',
-                  FramingNotifier._surveyImageTimeout,
-                ),
-              );
-        } catch (e) {
-          developer.log(
-            'FramingProvider: Aladin survey fetch failed, trying SkyView: $e',
-            name: 'FramingProvider',
-            level: 900,
-            error: e,
-          );
-        }
+        final response = await fetchFramingSurvey(
+          client: client,
+          primary: Uri.parse(url),
+          fallback: Uri.parse(
+            _buildSkyViewUrl(
+              target.raDegrees,
+              target.decDegrees,
+              requestWidth,
+              requestHeight,
+              source,
+              requestPixelWidth,
+            ),
+          ),
+          timeout: FramingNotifier._surveyImageTimeout,
+        );
         if (!_isCurrentSurveyRequest(token, target, source)) return;
-
-        if (response != null && response.statusCode == 200) {
-          await _applyFetchedImage(
-            token: token,
-            target: target,
-            bytes: response.bodyBytes,
-            raHours: target.raHours,
-            decDegrees: target.decDegrees,
-            source: source,
-            requestWidth: requestWidth,
-            requestHeight: requestHeight,
-          );
-        } else {
-          // Fallback to SkyView
-          final skyViewUrl = _buildSkyViewUrl(
-            target.raDegrees,
-            target.decDegrees,
-            requestWidth,
-            requestHeight,
-            source,
-            requestPixelWidth,
-          );
-
-          final skyViewResponse = await client
-              .get(Uri.parse(skyViewUrl))
-              .timeout(
-                FramingNotifier._surveyImageTimeout,
-                onTimeout: () => throw TimeoutException(
-                  'SkyView survey image fetch timed out',
-                  FramingNotifier._surveyImageTimeout,
-                ),
-              );
-
-          if (skyViewResponse.statusCode == 200) {
-            await _applyFetchedImage(
-              token: token,
-              target: target,
-              bytes: skyViewResponse.bodyBytes,
-              raHours: target.raHours,
-              decDegrees: target.decDegrees,
-              source: source,
-              requestWidth: requestWidth,
-              requestHeight: requestHeight,
-            );
-          } else {
-            if (!_isCurrentSurveyRequest(token, target, source)) return;
-            _currentState = _currentState.copyWith(
-              isLoadingImage: false,
-              imageError: 'Failed to load survey image',
-            );
-          }
-        }
+        await _applyFetchedImage(
+          token: token,
+          target: target,
+          bytes: response.bodyBytes,
+          raHours: target.raHours,
+          decDegrees: target.decDegrees,
+          source: source,
+          requestWidth: requestWidth,
+          requestHeight: requestHeight,
+        );
       } finally {
         client.close();
       }

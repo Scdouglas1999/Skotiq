@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -105,7 +107,7 @@ void main() {
         (_) => recordTick(),
       );
       try {
-        await service.getSuggestionsForTonight(
+        final result = await service.getSuggestionsForTonight(
           config: const TargetSuggestionConfig(),
           latitude: 39.97,
           longitude: -75.36,
@@ -113,6 +115,34 @@ void main() {
           sessions: [],
           observationTime: DateTime.utc(2026, 10, 7, 22),
         );
+        if (Platform.environment['SKOTIQ_SCORING_BENCHMARK'] case final path?) {
+          Object? serializable(Object? value) {
+            if (value is double && !value.isFinite) return value.toString();
+            if (value is List) return value.map(serializable).toList();
+            if (value is Map) {
+              return value.map((k, v) => MapEntry(k, serializable(v)));
+            }
+            return value;
+          }
+
+          final payload = jsonEncode(
+            serializable(result.map((s) => s.toJson()).toList()),
+          );
+          await File(path).writeAsString(payload);
+          stdout.writeln(
+            'Catalog benchmark: ${clock.elapsedMilliseconds}ms, ${result.length} suggestions',
+          );
+          final budget = int.tryParse(
+            Platform.environment['SKOTIQ_SCORING_BUDGET_MS'] ?? '',
+          );
+          if (budget != null) {
+            expect(
+              clock.elapsedMilliseconds,
+              lessThan(budget),
+              reason: 'Catalog population latency',
+            );
+          }
+        }
         final deliveredTicks = ticks;
         recordTick();
         printOnFailure(

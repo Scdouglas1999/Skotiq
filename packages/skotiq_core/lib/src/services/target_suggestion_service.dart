@@ -179,17 +179,14 @@ class _TonightSuggestionScorer {
 
     final suggestions = <TargetSuggestion>[];
 
-    for (final target in targets) {
-      // Convert database target to CelestialObject for scoring
-      final celestialObj = _targetToCelestialObject(target);
-
-      // Score the target across the entire night window
-      final score = scoringService.scoreTargetForNight(
-        target: celestialObj,
-        nightStart: nightWindow.start,
-        nightEnd: nightWindow.end,
-        minAltitude: config.minAltitude,
-      );
+    final scores = scoringService.scoreTargetsForNight(
+      targets: targets.map(_targetToCelestialObject),
+      nightStart: nightWindow.start,
+      nightEnd: nightWindow.end,
+      minAltitude: config.minAltitude,
+    );
+    for (final (index, score) in scores.indexed) {
+      final target = targets[index];
 
       // Skip targets that never clear the minimum altitude during the night.
       // With [horizonMask] wired into the scorer above, the reported peak
