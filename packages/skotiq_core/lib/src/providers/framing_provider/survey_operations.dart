@@ -52,7 +52,8 @@ extension _FramingSurveyOperations on FramingNotifier {
       if (!_isCurrentSurveyRequest(token, target, source)) return;
       if (served) return;
 
-      // Network: give Aladin a head start, then allow SkyView to serve a slow request.
+      // The CDS mirror preserves the cutout parameters; SkyView remains an
+      // independent route when both CDS servers are unreachable.
       final url = _buildAladinUrl(
         target.raDegrees,
         target.decDegrees,
@@ -67,6 +68,9 @@ extension _FramingSurveyOperations on FramingNotifier {
         final response = await fetchFramingSurvey(
           client: client,
           primary: Uri.parse(url),
+          primaryMirror: Uri.parse(
+            url,
+          ).replace(host: 'alaskybis.cds.unistra.fr'),
           fallback: Uri.parse(
             _buildSkyViewUrl(
               target.raDegrees,

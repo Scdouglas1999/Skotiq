@@ -3,23 +3,28 @@ import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
-/// Lets the existing fallback compete with a slow primary without reducing the
-/// requested image quality or abandoning a primary that may still succeed.
+/// Staggers the primary, its optional mirror, and the independent fallback.
+/// A slow mirror never extends the fallback's head start deadline. The first
+/// successful response wins without abandoning other pending routes on failure.
 /// The caller owns [client] and closes outstanding requests after this returns.
 Future<http.Response> fetchFramingSurvey({
   required http.Client client,
   required Uri primary,
   required Uri fallback,
+  Uri? primaryMirror,
+  Duration mirrorDelay = const Duration(milliseconds: 600),
   Duration fallbackDelay = const Duration(seconds: 2),
   Duration timeout = const Duration(seconds: 30),
 }) async {
   final result = Completer<http.Response>();
   final clock = Stopwatch()..start();
-  var fallbackStarted = false;
+  final routes = [primary, if (primaryMirror != null) primaryMirror, fallback];
+  final started = List.filled(routes.length, false);
   var failures = 0;
-  late void Function() startFallback;
+  late void Function(int) start;
 
-  Future<void> request(Uri uri, {required bool isPrimary}) async {
+  Future<void> request(int index) async {
+    final uri = routes[index];
     try {
       final response = await client.get(uri).timeout(timeout);
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
@@ -43,21 +48,26 @@ Future<http.Response> fetchFramingSurvey({
         level: 900,
       );
       failures++;
-      if (isPrimary) startFallback();
-      if (failures == 2) result.completeError(error, stack);
+      if (index + 1 < routes.length) start(index + 1);
+      if (failures == routes.length) result.completeError(error, stack);
     }
   }
 
-  startFallback = () {
-    if (fallbackStarted || result.isCompleted) return;
-    fallbackStarted = true;
-    unawaited(request(fallback, isPrimary: false));
+  start = (index) {
+    if (started[index] || result.isCompleted) return;
+    started[index] = true;
+    unawaited(request(index));
   };
-  final timer = Timer(fallbackDelay, startFallback);
-  unawaited(request(primary, isPrimary: true));
+  final timers = [
+    if (primaryMirror != null) Timer(mirrorDelay, () => start(1)),
+    Timer(fallbackDelay, () => start(routes.length - 1)),
+  ];
+  start(0);
   try {
     return await result.future;
   } finally {
-    timer.cancel();
+    for (final timer in timers) {
+      timer.cancel();
+    }
   }
 }

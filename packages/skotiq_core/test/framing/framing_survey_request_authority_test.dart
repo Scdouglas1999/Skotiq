@@ -80,6 +80,54 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
+    'the official CDS mirror preserves the cutout before NASA fallback',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'framing_cds_mirror_',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final requested = <Uri>[];
+      final container = ProviderContainer(
+        overrides: [
+          framingImageCacheServiceProvider.overrideWithValue(
+            FramingImageCacheService(supportDirProvider: () async => tempDir),
+          ),
+          framingProvider.overrideWith(_NoPersistFramingNotifier.new),
+          framingSurveyHttpClientFactoryProvider.overrideWithValue(
+            () => MockClient((request) async {
+              requested.add(request.url);
+              return request.url.host == 'alaskybis.cds.unistra.fr'
+                  ? http.Response.bytes(_jpeg(32, 24, 100), 200)
+                  : http.Response('Unavailable', 503);
+            }),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final finished = Completer<void>();
+      container.listen(framingProvider, (_, next) {
+        if (!next.isLoadingImage &&
+            (next.surveyImage != null || next.imageError != null) &&
+            !finished.isCompleted) {
+          finished.complete();
+        }
+      });
+      container
+          .read(framingProvider.notifier)
+          .setTargetCoordinates(1.6117, 15.7836, name: 'M74');
+      await finished.future.timeout(const Duration(seconds: 4));
+      expect(requested.map((u) => u.host), [
+        'alasky.cds.unistra.fr',
+        'alaskybis.cds.unistra.fr',
+      ]);
+      expect(requested[1].query, requested[0].query);
+      expect(requested[1].path, requested[0].path);
+      expect(container.read(framingProvider).surveyImage, isNotNull);
+      expect(container.read(framingProvider).plateScale!.imagePixelWidth, 32);
+    },
+  );
+
+  test(
     'slow primary does not hold up a ready full-resolution fallback',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -97,7 +145,7 @@ void main() {
           framingSurveyHttpClientFactoryProvider.overrideWithValue(
             () => MockClient((request) {
               requested.add(request.url);
-              if (request.url.host == 'alasky.cds.unistra.fr') {
+              if (request.url.host.endsWith('.cds.unistra.fr')) {
                 return primary.future;
               }
               return Future.value(http.Response.bytes(_jpeg(32, 24, 100), 200));
