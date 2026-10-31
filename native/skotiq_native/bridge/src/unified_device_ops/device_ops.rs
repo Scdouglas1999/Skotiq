@@ -1273,7 +1273,10 @@ impl DeviceOps for UnifiedDeviceOps {
         .await
         .map_err(|e| format!("Failed to save temp FITS for plate solve: {}", e))?;
 
-        let mount_id = self.app_state.get_profile_device_id(DeviceType::Mount).await;
+        let mount_id = self
+            .app_state
+            .get_profile_device_id(DeviceType::Mount)
+            .await;
         let mount_before_solve = if let Some(id) = mount_id.as_ref() {
             match tokio::time::timeout(
                 std::time::Duration::from_secs(2),

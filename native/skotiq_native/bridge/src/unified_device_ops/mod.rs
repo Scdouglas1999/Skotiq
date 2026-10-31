@@ -106,8 +106,8 @@ use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
 pub(crate) mod device_ops;
-mod solve_diagnostics;
 pub(crate) mod exposure_wait;
+mod solve_diagnostics;
 pub(crate) use exposure_wait::*;
 pub(crate) mod pointing;
 pub(crate) use pointing::*;
