@@ -49,9 +49,17 @@ String _signed(num value) =>
     value > 0 ? '+${nightGrouped(value.round())}' : nightGrouped(value.round());
 
 class NightAutofocusSection extends ConsumerWidget {
-  const NightAutofocusSection({super.key, required this.vm});
+  const NightAutofocusSection(
+      {super.key,
+      required this.vm,
+      this.showControls = true,
+      this.title,
+      this.contextNote});
 
   final NightFocusPanelVm vm;
+  final bool showControls;
+  final String? title;
+  final String? contextNote;
 
   /// The V-curve's height on the board.
   static const double chartHeight = 120;
@@ -102,10 +110,12 @@ class NightAutofocusSection extends ConsumerWidget {
     final latest = points.isEmpty ? null : points.length - 1;
 
     return NightPanelSection(
-      title: l10n.text('nightPanelAutofocus'),
+      title: title ?? l10n.text('nightPanelAutofocus'),
       trailing: note,
       trailingTone: tone,
       children: <Widget>[
+        if (contextNote != null && contextNote!.isNotEmpty)
+          NightPanelNote(contextNote!),
         if (points.isEmpty)
           NightPanelNote(
             l10n.text(running ? 'nightPanelAfWaiting' : 'nightPanelAfNone'),
@@ -141,47 +151,49 @@ class NightAutofocusSection extends ConsumerWidget {
             highlight: running ? latest : null,
           ),
         ],
-        NightPanelGrid(
-          columns: 2,
-          children: <Widget>[
-            if (!running)
-              NightPanelButton(
-                label: l10n.text('nightPanelRunAutofocus'),
-                semanticLabel: l10n.text('nightPanelRunAutofocusSemantics'),
-                disabledReason: runBlocked,
-                onPressed: runBlocked == null
-                    ? () => unawaited(
-                          ref
-                              .read(nightActionApiProvider)
-                              .run(ManualActionId.autofocus),
-                        )
-                    : null,
-              )
-            else
-              NightPanelButton(
-                label: l10n.text('nightPanelCancelAutofocus'),
-                semanticLabel: l10n.text('nightPanelCancelAutofocusSemantics'),
-                disabledReason: cancelBlocked,
-                onPressed: cancelBlocked == null
-                    ? () => vm.startedHere
-                        ? ref.read(nightActionApiProvider).cancel()
-                        : nightPanelAttempt(
-                            context,
-                            'nightPanelErrAutofocusCancel',
-                            () => ref
-                                .read(nightPanelOpsProvider)
-                                .cancelAutofocus(),
+        if (showControls)
+          NightPanelGrid(
+            columns: 2,
+            children: <Widget>[
+              if (!running)
+                NightPanelButton(
+                  label: l10n.text('nightPanelRunAutofocus'),
+                  semanticLabel: l10n.text('nightPanelRunAutofocusSemantics'),
+                  disabledReason: runBlocked,
+                  onPressed: runBlocked == null
+                      ? () => unawaited(
+                            ref
+                                .read(nightActionApiProvider)
+                                .run(ManualActionId.autofocus),
                           )
-                    : null,
+                      : null,
+                )
+              else
+                NightPanelButton(
+                  label: l10n.text('nightPanelCancelAutofocus'),
+                  semanticLabel:
+                      l10n.text('nightPanelCancelAutofocusSemantics'),
+                  disabledReason: cancelBlocked,
+                  onPressed: cancelBlocked == null
+                      ? () => vm.startedHere
+                          ? ref.read(nightActionApiProvider).cancel()
+                          : nightPanelAttempt(
+                              context,
+                              'nightPanelErrAutofocusCancel',
+                              () => ref
+                                  .read(nightPanelOpsProvider)
+                                  .cancelAutofocus(),
+                            )
+                      : null,
+                ),
+              NightPanelButton(
+                label: l10n.text('nightPanelSettingsEllipsis'),
+                semanticLabel: l10n.text('nightPanelAfSettingsSemantics'),
+                onPressed: () =>
+                    GoRouter.maybeOf(context)?.go(kNightAutofocusSettingsRoute),
               ),
-            NightPanelButton(
-              label: l10n.text('nightPanelSettingsEllipsis'),
-              semanticLabel: l10n.text('nightPanelAfSettingsSemantics'),
-              onPressed: () =>
-                  GoRouter.maybeOf(context)?.go(kNightAutofocusSettingsRoute),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }

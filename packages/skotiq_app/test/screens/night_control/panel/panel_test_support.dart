@@ -26,6 +26,8 @@ import 'package:skotiq_app/screens/night_control/panel/panel_ops.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'package:skotiq_app/screens/night_control/panel/overview/night_activity_provider.dart';
+
 import '../fixtures/night_fixtures.dart';
 
 /// Records every command instead of reaching a device.
@@ -284,6 +286,12 @@ List<Override> panelOverrides({
 }) =>
     <Override>[
       nightRunPhaseProvider.overrideWithValue(board.phase),
+      nightActivityProvider.overrideWithValue(const NightActivityVm(
+        kind: NightActivityKind.capture,
+        title: NightText('nightActivityCapture'),
+        progress: 0.5,
+        metrics: [MetricVm(label: NightText('nightPanelGain'), value: '139')],
+      )),
       nightHeaderProvider.overrideWithValue(board.header),
       nightLastFrameProvider.overrideWithValue(board.lastFrame),
       nightSessionStatsProvider.overrideWithValue(board.session),

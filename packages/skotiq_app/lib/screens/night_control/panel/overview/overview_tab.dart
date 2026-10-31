@@ -1,7 +1,4 @@
-// The Overview tab (Tonight.dc.html): the last frame, the session, the
-// equipment, the conditions and the log. Before a run "Before you start"
-// takes the place of the last frame and the session
-// (TonightReady.dc.html).
+// Overview starts with readiness, then follows the active operation during a run.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +7,6 @@ import 'package:skotiq_core/skotiq_core.dart' show weatherSafetyProvider;
 import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
 import '../../data/session/conditions_provider.dart';
-import '../../data/session/equipment_summary_provider.dart';
 import '../../data/session/last_frame_metrics_provider.dart';
 import '../../data/session/night_log_provider.dart';
 import '../../data/session/session_stats_provider.dart';
@@ -18,6 +14,7 @@ import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'overview_sections.dart';
+import 'night_activity_panel.dart';
 
 /// Whether [phase] comes before tonight's run, when "Before you start"
 /// replaces the frame and session blocks.
@@ -49,10 +46,10 @@ class NightOverviewTab extends ConsumerWidget {
             onAction: (item) => _runChecklistAction(context, ref, item),
           )
         else ...<Widget>[
+          const NightActivityPanel(),
           NightLastFrameSection(frame: ref.watch(nightLastFrameProvider)),
           NightSessionSection(session: ref.watch(nightSessionStatsProvider)),
         ],
-        NightEquipmentSection(rows: ref.watch(nightEquipmentProvider)),
         NightConditionsSection(
           conditions: ref.watch(nightConditionsProvider),
           onSkyClear: () => ref.read(weatherSafetyProvider.notifier).snooze(
