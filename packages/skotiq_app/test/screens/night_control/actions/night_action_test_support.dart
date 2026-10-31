@@ -7,8 +7,12 @@ import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
+import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
 import 'package:skotiq_app/screens/night_control/actions/solve_and_sync.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+
+import '../../../harness/mock_backend.dart';
+import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
 
 const connected = DeviceConnectionState.connected;
 
@@ -278,6 +282,7 @@ class FakeRigOps implements NightRigOps {
 ({ProviderContainer container, FakeRigOps ops, RecordingLog log})
     actionHarness({
   bool canCommand = true,
+  bool stubCameraProbe = true,
   SequenceExecutionState runState = SequenceExecutionState.idle,
   NightCenterTarget? target = const NightCenterTarget(
     name: 'M74',
@@ -290,7 +295,12 @@ class FakeRigOps implements NightRigOps {
 }) {
   late FakeRigOps ops;
   final log = RecordingLog();
+  final backend = mockBackend();
   final container = ProviderContainer(overrides: [
+    backendProvider.overrideWith((ref) => TestBackendNotifier(ref, backend)),
+    clockProvider.overrideWithValue(const SystemClock()),
+    if (stubCameraProbe)
+      nightCameraIdleProbeProvider.overrideWithValue(() async => true),
     backendCanCommandProvider.overrideWithValue(canCommand),
     loggingServiceProvider.overrideWithValue(log),
     cameraStateProvider.overrideWith(TestCameraNotifier.new),

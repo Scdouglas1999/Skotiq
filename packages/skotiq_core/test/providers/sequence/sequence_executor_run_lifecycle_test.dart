@@ -1591,6 +1591,40 @@ void main() {
       },
     );
 
+    test(
+      'calibration completion preserves the finished imaging snapshot',
+      () async {
+        final container = buildContainer();
+        final executor = await startRunning(container);
+        eventController.add(_sequencerEvent('Completed'));
+        await pumpEvents();
+        await executor.terminalCleanupSettledForTest;
+        final imaging = container.read(completedImagingRunProvider)!;
+        expect(imaging.result.isCalibration, isFalse);
+        expect(imaging.stats!.endTime, isNotNull);
+        container
+            .read(currentSequenceProvider.notifier)
+            .takeOwnership(
+              _buildSequence(name: 'Night calibration'),
+              ActivePlanOwner.calibration,
+            );
+        await executor.start();
+        expect(container.read(completedImagingRunProvider), same(imaging));
+        eventController.add(_sequencerEvent('Completed'));
+        await pumpEvents();
+        await executor.terminalCleanupSettledForTest;
+        expect(
+          container.read(sequenceTerminalRunResultProvider)!.isCalibration,
+          isTrue,
+        );
+        expect(container.read(completedImagingRunProvider), same(imaging));
+        expect(
+          container.read(currentSequenceProvider.notifier).activeOwner,
+          ActivePlanOwner.manual,
+        );
+      },
+    );
+
     test('a fresh run start clears the previous terminal result', () async {
       final container = buildContainer();
       final executor = await startRunning(container);

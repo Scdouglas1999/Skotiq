@@ -297,10 +297,7 @@ pub(crate) async fn advance_sim_cooler() {
 
 /// Get camera status
 pub async fn api_get_camera_status(device_id: String) -> Result<CameraStatus, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.camera_get_status(&device_id)
-        .await
-        .map_err(SkotiqError::from)
+    crate::api::devices::camera::get_camera_status(device_id).await
 }
 
 /// Set camera cooling target

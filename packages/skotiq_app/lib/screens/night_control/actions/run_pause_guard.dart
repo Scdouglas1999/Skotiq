@@ -13,6 +13,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../models/command_action_result.dart';
+import '../data/session/camera_exposure_provider.dart';
+
+/// Query the host before touching equipment, including when the exposure
+/// started before this screen subscribed to camera events.
+final nightCameraIdleProbeProvider = Provider<Future<bool> Function()>((ref) {
+  return () async {
+    final camera = ref.read(cameraStateProvider);
+    if (camera.connectionState != DeviceConnectionState.connected) return true;
+    final id = camera.deviceId;
+    if (id == null) throw StateError('Connected camera has no device ID');
+    final status = await ref
+        .read(backendProvider)
+        .getCameraStatus(id)
+        .timeout(const Duration(seconds: 5));
+    if (!status.connected || status.state == CameraState.error) {
+      throw StateError(
+          'Camera is disconnected or reports an acquisition error');
+    }
+    return status.state == CameraState.idle;
+  };
+});
 
 /// Where the guard is, for the action state.
 enum RunHoldStage { pausing, waitingForFrame }
@@ -192,8 +213,10 @@ class RunPauseGuard {
   }) async {
     final done = Completer<void>();
     var sawPaused = false;
+    var probing = false;
+    Timer? retry;
 
-    void check() {
+    void check({bool cameraConfirmedIdle = false}) {
       if (done.isCompleted) return;
       final run = _runState;
       if (run == SequenceExecutionState.paused) {
@@ -209,13 +232,40 @@ class RunPauseGuard {
       }
       final exposure = _ref.read(exposureProgressProvider);
       final exposureActive = exposure.remaining > 0 || exposure.isDownloading;
-      final cameraBusy = _ref.read(cameraStateProvider).isExposing;
+      final nativeExposure = _ref.read(nightCameraExposureProvider);
+      final cameraBusy =
+          nativeExposure != null || _ref.read(cameraStateProvider).isExposing;
       // The instruction in flight may be a slew or a focuser move rather than
       // an exposure; native pause lets it finish too.
       final mountBusy = _ref.read(mountStateProvider).isSlewing;
       final focuserBusy = _ref.read(focuserStateProvider).isMoving;
       if (!cameraBusy && !exposureActive && !mountBusy && !focuserBusy) {
-        done.complete();
+        if (cameraConfirmedIdle) {
+          done.complete();
+        } else if (!probing) {
+          probing = true;
+          unawaited(() async {
+            try {
+              final idle = await _ref.read(nightCameraIdleProbeProvider)();
+              if (done.isCompleted) return;
+              probing = false;
+              if (idle) {
+                check(cameraConfirmedIdle: true);
+              } else {
+                onProgress(const RunHoldProgress(RunHoldStage.waitingForFrame));
+                retry?.cancel();
+                retry = Timer(const Duration(milliseconds: 250), check);
+              }
+            } catch (error) {
+              if (!done.isCompleted) {
+                done.completeError(RunHoldAborted(
+                  RunHoldAbortReason.pauseFailed,
+                  detail: 'Cannot confirm camera is idle: $error',
+                ));
+              }
+            }
+          }());
+        }
         return;
       }
       onProgress(RunHoldProgress(
@@ -232,6 +282,7 @@ class RunPauseGuard {
     final subscriptions = <ProviderSubscription<Object?>>[
       _ref.listen(sequenceExecutionStateProvider, (_, __) => check()),
       _ref.listen(cameraStateProvider, (_, __) => check()),
+      _ref.listen(nightCameraExposureProvider, (_, __) => check()),
       _ref.listen(exposureProgressProvider, (_, __) => check()),
       _ref.listen(mountStateProvider, (_, __) => check()),
       _ref.listen(focuserStateProvider, (_, __) => check()),
@@ -247,6 +298,7 @@ class RunPauseGuard {
       check();
       await done.future;
     } finally {
+      retry?.cancel();
       for (final subscription in subscriptions) {
         subscription.close();
       }

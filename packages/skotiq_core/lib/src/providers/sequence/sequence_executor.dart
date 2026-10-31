@@ -128,6 +128,7 @@ class SequenceExecutor {
 
   /// The checkpoint prepared for the next start.
   _RestoredCheckpoint? _restored;
+  bool _isCalibrationRun = false;
 
   /// Owns the run phases and operation latches.
   final RunLifecycle _lifecycle = RunLifecycle();
@@ -792,6 +793,9 @@ class SequenceExecutor {
   /// Clear what a previous run left behind so a new run starts clean.
   void _resetPerRunState() {
     _lastTerminalDrive = null;
+    _isCalibrationRun =
+        _ref.read(currentSequenceProvider.notifier).activeOwner ==
+        ActivePlanOwner.calibration;
     _stats.reopen();
     // The sequencer screen must see a clean null -> result transition when
     // this run ends, never the previous run's report.
@@ -1337,15 +1341,23 @@ class SequenceExecutor {
   /// live providers finalization has just cleared.
   void _publishTerminalResult(RunFinalization f) {
     try {
-      _ref
-          .read(sequenceTerminalRunResultProvider.notifier)
-          .state = SequenceTerminalRunResult(
+      final result = SequenceTerminalRunResult(
         generation: f.generation,
         outcome: f.finalUiState,
         runStatus: f.runStatus,
         runId: f.runId,
         dbSessionId: f.dbSessionId,
+        isCalibration: _isCalibrationRun,
       );
+      if (!_isCalibrationRun) {
+        _ref
+            .read(completedImagingRunProvider.notifier)
+            .state = CompletedImagingRun(
+          result,
+          _ref.read(liveSequenceStatsProvider)?.copy(),
+        );
+      }
+      _ref.read(sequenceTerminalRunResultProvider.notifier).state = result;
     } catch (e) {
       _logger.warning(
         'Failed to publish terminal run result: $e',

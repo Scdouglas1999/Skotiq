@@ -377,6 +377,7 @@ impl DeviceOps for UnifiedDeviceOps {
         subframe: Option<CameraSubframe>,
         frame_type: &str,
     ) -> DeviceResult<ImageData> {
+        let _acquisition = claim_camera_acquisition(camera_id).await?;
         let acquisition_generation = exposure_abort_generation(camera_id).await;
         let native_frame_type = skotiq_native::camera::FrameType::from_str_lenient(frame_type);
         tracing::info!(
@@ -1272,6 +1273,22 @@ impl DeviceOps for UnifiedDeviceOps {
         .await
         .map_err(|e| format!("Failed to save temp FITS for plate solve: {}", e))?;
 
+        let mount_id = self.app_state.get_profile_device_id(DeviceType::Mount).await;
+        let mount_before_solve = if let Some(id) = mount_id.as_ref() {
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                get_device_manager().mount_get_status(id),
+            )
+            .await
+            {
+                Ok(Ok(status)) => serde_json::json!(status),
+                other => serde_json::json!({"unavailable": format!("{other:?}")}),
+            }
+        } else {
+            serde_json::Value::Null
+        };
+        let solve_started_at = chrono::Utc::now();
+
         // Use the near solve if we have a position, otherwise blind — and
         // either way send the field scale.
         //
@@ -1302,7 +1319,31 @@ impl DeviceOps for UnifiedDeviceOps {
             .await
         };
 
-        // Clean up temp file
+        let failure = match &result {
+            Ok(solved) if solved.success => None,
+            Ok(solved) => Some(solved.error.clone().unwrap_or_else(|| "No solution".into())),
+            Err(error) => Some(error.to_string()),
+        };
+        if let Some(error) = failure {
+            super::solve_diagnostics::retain_failed_solve(
+                temp_file.clone(),
+                serde_json::json!({
+                "solve_started_at": solve_started_at.to_rfc3339(),
+                "capture_timestamp_unix_seconds": image_data.timestamp,
+                "exposure_secs": image_data.exposure_secs,
+                "width": image_data.width, "height": image_data.height,
+                "gain": image_data.gain, "offset": image_data.offset,
+                "temperature_c": image_data.temperature, "filter": image_data.filter,
+                "binning": binning, "hint_ra_degrees": hint_ra,
+                "hint_dec_degrees": hint_dec, "hint_scale_arcsec_per_px": scale_hint,
+                "search_radius_degrees": SEARCH_RADIUS_DEG,
+                "mount_id": mount_id, "mount_sample_before_solve": mount_before_solve,
+                "solver_path": crate::api::plate_solve::api_get_plate_solver_path(),
+                "error": error,
+                }),
+            )
+            .await;
+        }
         let _ = std::fs::remove_file(&temp_path);
 
         // What this rig's own optics measure, remembered for the next solve.

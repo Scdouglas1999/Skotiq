@@ -53,6 +53,41 @@ void main() {
       );
     });
 
+    test(
+      'a failed run ends the night only after a confirmed night-end park',
+      () {
+        for (final origin in ['dawn_approaching', 'obstruction']) {
+          expect(
+            classifyRunEnd(
+              runStatus: 'failed',
+              stopOrigin: origin,
+              nightEnding: true,
+              parked: true,
+            ),
+            isNotNull,
+          );
+          expect(
+            classifyRunEnd(
+              runStatus: 'failed',
+              stopOrigin: origin,
+              nightEnding: true,
+              parked: false,
+            ),
+            isNull,
+          );
+        }
+        expect(
+          classifyRunEnd(
+            runStatus: 'failed',
+            stopOrigin: 'operator',
+            nightEnding: true,
+            parked: true,
+          ),
+          isNull,
+        );
+      },
+    );
+
     test('an obstruction park ends the night at any hour', () {
       for (final status in ['aborted', 'stopped']) {
         expect(
@@ -159,13 +194,14 @@ void main() {
     late SkotiqDatabase db;
     late FakeRig rig;
     late ProviderContainer container;
+    late MockBackend backend;
 
     setUpAll(registerMocktailFallbackValues);
 
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       rig = FakeRig()..runGate = Completer<void>();
-      final backend = MockBackend();
+      backend = MockBackend();
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<bridge_event.SkotiqEvent>.empty());
@@ -277,7 +313,7 @@ void main() {
       expect(rig.calls, contains('run'));
     });
 
-    test('the dawn park, filed as aborted, starts it', () async {
+    test('the dawn park, retaining an earlier failure, starts it', () async {
       await enable(true);
       await recordRunFrame(10, 'light');
       container
@@ -287,14 +323,47 @@ void main() {
         origin: 'dawn_approaching',
         parked: true,
       );
-      finishRun(1, 10, 'aborted');
+      container.read(mountStateProvider.notifier).setConnecting('mount');
+      when(() => backend.getMountStatus('mount')).thenAnswer(
+        (_) async => MountStatus.fromJson({'connected': true, 'parked': true}),
+      );
+      container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
+      finishRun(1, 10, 'failed');
       await settle();
       expect(rig.calls, contains('run'));
+      rig.runGate!.complete();
+      await container
+          .read(endOfNightCalibrationCoordinatorProvider)
+          .nightSettled(1);
+      expect(rig.calls, containsAllInOrder(['run', 'warmUp']));
       expect(
         container.read(endOfNightCalibrationProvider).report?.reason,
         EonEndReason.dawn.description,
       );
     });
+
+    test(
+      'a fired dawn park that did not park must not start calibration',
+      () async {
+        await enable(true);
+        await recordRunFrame(10, 'light');
+        container
+            .read(sequenceStopEvidenceProvider.notifier)
+            .state = sequenceStopTriggerDecision(
+          triggerId: 'dawn_approaching',
+          triggerName: 'Dawn Approaching',
+          action: 'ParkAndAbort',
+        );
+        container.read(mountStateProvider.notifier).setConnecting('mount');
+        when(() => backend.getMountStatus('mount')).thenAnswer(
+          (_) async =>
+              MountStatus.fromJson({'connected': true, 'parked': false}),
+        );
+        finishRun(1, 10, 'failed');
+        await settle();
+        expect(rig.calls, isEmpty);
+      },
+    );
 
     test('the night settles only after the calibration it started', () async {
       await enable(true);

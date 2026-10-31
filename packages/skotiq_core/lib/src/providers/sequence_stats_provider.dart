@@ -503,7 +503,10 @@ class SequenceTerminalRunResult {
     required this.runStatus,
     required this.runId,
     required this.dbSessionId,
+    this.isCalibration = false,
   });
+
+  final bool isCalibration;
 
   /// Unique, monotonically increasing id for this terminal event.
   final int generation;
@@ -531,6 +534,18 @@ class SequenceTerminalRunResult {
 /// the correct, immutable run/session ids.
 final sequenceTerminalRunResultProvider =
     StateProvider<SequenceTerminalRunResult?>((ref) => null);
+
+/// The last imaging run, retained when automatic calibration replaces the live
+/// run and session. Updated by the executor before publishing a terminal event.
+class CompletedImagingRun {
+  const CompletedImagingRun(this.result, this.stats);
+  final SequenceTerminalRunResult result;
+  final SequenceRunStats? stats;
+}
+
+final completedImagingRunProvider = StateProvider<CompletedImagingRun?>(
+  (ref) => null,
+);
 
 /// Watch all sequence runs from the database.
 ///

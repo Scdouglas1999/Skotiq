@@ -47,6 +47,62 @@ Future<void> _seedNight(SessionHarness h) async {
 }
 
 void main() {
+  test('finished session retains its rows after active session state clears',
+      () async {
+    final h = await sessionHarness(seedSession: false);
+    await h.db.customStatement(
+        'INSERT INTO imaging_sessions (id, start_time) VALUES (?, ?)',
+        [kSessionId, kNight.millisecondsSinceEpoch ~/ 1000]);
+    await h.addFrame(minutes: 1, filter: 'L', accepted: true);
+    await h.addFrame(minutes: 2, filter: 'L', accepted: false);
+    h.container.read(sequenceExecutionStateProvider.notifier).state =
+        SequenceExecutionState.failed;
+    h.container.read(sequenceTerminalRunResultProvider.notifier).state =
+        const SequenceTerminalRunResult(
+            generation: 1,
+            outcome: SequenceExecutionState.failed,
+            runStatus: 'failed',
+            runId: 51,
+            dbSessionId: kSessionId);
+    expect(h.read(sessionStateProvider).dbSessionId, isNull);
+    expect(h.read(nightSessionIdProvider), kSessionId);
+    final rows = await h.settle(nightSessionLightRowsProvider);
+    expect(rows.length, 2);
+    expect(
+        rows
+            .where((r) => r.isAccepted)
+            .fold<double>(0, (s, r) => s + r.exposureDuration),
+        180);
+    final stats = SequenceRunStats()..framesCaptured = 2;
+    stats.endTime = stats.startTime.add(const Duration(hours: 8));
+    h.container.read(completedImagingRunProvider.notifier).state =
+        CompletedImagingRun(h.read(sequenceTerminalRunResultProvider)!, stats);
+    h.container.read(sequenceTerminalRunResultProvider.notifier).state =
+        const SequenceTerminalRunResult(
+            generation: 2,
+            outcome: SequenceExecutionState.completed,
+            runStatus: 'completed',
+            runId: 52,
+            dbSessionId: 8,
+            isCalibration: true);
+    expect(h.read(nightSessionIdProvider), kSessionId);
+    expect((await h.settle(nightSessionLightRowsProvider)).length, 2);
+    expect(h.read(nightSessionStatsProvider).frameCount, 2);
+    expect(h.read(nightSessionStatsProvider).elapsed, const Duration(hours: 8));
+  });
+
+  test('finished session clock stops at recorded end time', () async {
+    final stats = SequenceRunStats();
+    stats.endTime = stats.startTime.add(const Duration(hours: 8));
+    final h = await sessionHarness(overrides: [
+      liveSequenceStatsProvider.overrideWith((ref) => stats),
+      nightSessionNowProvider
+          .overrideWithValue(stats.startTime.add(const Duration(hours: 12))),
+      nightCaptureFreeBytesProvider.overrideWithValue(null),
+    ]);
+    expect(h.read(nightSessionStatsProvider).elapsed, const Duration(hours: 8));
+  });
+
   test('the strip lists the session lights oldest first', () async {
     final h = await sessionHarness();
     await _seedNight(h);

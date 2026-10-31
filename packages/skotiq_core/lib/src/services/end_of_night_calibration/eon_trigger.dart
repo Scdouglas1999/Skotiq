@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/network_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../providers/backend_provider.dart';
+import '../../providers/equipment_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/sequence/sequence_executor.dart';
 import '../../providers/sequence/run_stop_classification.dart';
@@ -83,8 +84,15 @@ EonEndReason? classifyRunEnd({
   required String runStatus,
   required String? stopOrigin,
   required bool nightEnding,
+  bool parked = false,
 }) {
   if (runStatus == 'completed') return EonEndReason.targetsComplete;
+  // A recovered failure cause remains the run's verdict even when dawn
+  // subsequently parks it. That verdict must not suppress night-end work.
+  if (runStatus == 'failed' && parked) {
+    if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
+    if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
+  }
   if (!_stoppedRunStatuses.contains(runStatus)) return null;
   if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
   if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
@@ -132,7 +140,9 @@ class EndOfNightCalibrationCoordinator {
     ) {
       if (next == null || next.generation == _lastGeneration) return;
       _lastGeneration = next.generation;
-      final owner = _ref.read(currentSequenceProvider.notifier).activeOwner;
+      final owner = next.isCalibration
+          ? ActivePlanOwner.calibration
+          : _ref.read(currentSequenceProvider.notifier).activeOwner;
       final evidence = _ref.read(sequenceStopEvidenceProvider);
       final origin = switch (evidence?.author) {
         SequenceStopAuthor.operatorPress => 'operator',
@@ -179,7 +189,7 @@ class EndOfNightCalibrationCoordinator {
     final deferredWarmUp = _ref.read(shutdownWarmUpDeferredProvider);
     _ref.read(shutdownWarmUpDeferredProvider.notifier).state = false;
     try {
-      final reason = _classify(result, owner, stopOrigin);
+      final reason = await _classify(result, owner, stopOrigin);
       if (!decided.isCompleted) decided.complete(reason);
       if (owner != ActivePlanOwner.calibration) {
         _openNightSession = reason == null ? result.dbSessionId : null;
@@ -212,11 +222,11 @@ class EndOfNightCalibrationCoordinator {
     }
   }
 
-  EonEndReason? _classify(
+  Future<EonEndReason?> _classify(
     SequenceTerminalRunResult result,
     ActivePlanOwner owner,
     String? stopOrigin,
-  ) {
+  ) async {
     // A calibration run is the step's own and ends nothing.
     if (owner == ActivePlanOwner.calibration) return null;
     final settings = _ref.read(appSettingsProvider).valueOrNull;
@@ -228,10 +238,37 @@ class EndOfNightCalibrationCoordinator {
           latitude: settings.latitude,
           longitude: settings.longitude,
         );
+    var parked = false;
+    if (result.runStatus == 'failed' &&
+        (stopOrigin == eonDawnStopOrigin ||
+            stopOrigin == eonObstructionStopOrigin)) {
+      final mountId = _ref.read(mountStateProvider).deviceId;
+      if (mountId != null) {
+        try {
+          final mount = await _ref
+              .read(backendProvider)
+              .getMountStatus(mountId)
+              .timeout(const Duration(seconds: 5));
+          parked = mount.connected && mount.parked && !mount.slewing;
+        } catch (error) {
+          _log.warning(
+            'Cannot confirm end-of-night parking: $error',
+            source: 'EndOfNightCalibration',
+          );
+        }
+      }
+      if (!parked) {
+        _log.warning(
+          'Failed run ended without confirmed parking; automatic calibration was not started',
+          source: 'EndOfNightCalibration',
+        );
+      }
+    }
     return classifyRunEnd(
       runStatus: result.runStatus,
       stopOrigin: stopOrigin,
       nightEnding: nightEnding,
+      parked: parked,
     );
   }
 

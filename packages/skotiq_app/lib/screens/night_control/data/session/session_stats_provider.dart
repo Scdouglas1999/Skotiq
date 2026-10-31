@@ -19,7 +19,11 @@ final nightCaptureFreeBytesProvider = Provider<int?>((ref) {
 });
 
 final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
-  final live = ref.watch(liveSequenceStatsProvider);
+  final calibrationFinished =
+      ref.watch(sequenceTerminalRunResultProvider)?.isCalibration == true;
+  final live = calibrationFinished
+      ? ref.watch(completedImagingRunProvider)?.stats
+      : ref.watch(liveSequenceStatsProvider);
   final lights = ref.watch(nightSessionLightRowsProvider);
   final session = ref.watch(sessionStateProvider);
   final remaining = ref.watch(
@@ -29,8 +33,9 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
   final now = ref.watch(nightSessionNowProvider);
 
   final start = session.isActive ? session.startTime : live?.startTime;
+  final end = session.isActive ? now : live?.endTime ?? now;
   final elapsed =
-      start == null || now.isBefore(start) ? null : now.difference(start);
+      start == null || end.isBefore(start) ? null : end.difference(start);
 
   int? accepted;
   int? rejected;
@@ -74,7 +79,7 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
           // Zero accepted seconds is a real count early in a run.
           value: integration > 0 ? nightDuration(integration) : '0m',
         ),
-      if (remaining != null && remaining > 0)
+      if (live?.endTime == null && remaining != null && remaining > 0)
         MetricVm(
           label: const NightText('nightSessionStatRemaining'),
           value: nightDuration(remaining),

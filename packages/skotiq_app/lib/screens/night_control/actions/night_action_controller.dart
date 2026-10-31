@@ -22,6 +22,7 @@ import 'armed_start_provider.dart';
 import 'manual_action_gating.dart';
 import 'night_rig_ops.dart';
 import 'run_pause_guard.dart';
+import '../data/session/camera_exposure_provider.dart';
 import 'solve_and_sync.dart';
 
 const _logSource = 'NightActions';
@@ -154,6 +155,7 @@ class NightActionController extends Notifier<ManualActionState>
     // Keep the frame-pointing recorder alive so Solve & sync can tell
     // whether the frame on screen is at the current pointing.
     ref.listen(nightFramePointingProvider, (_, __) {});
+    ref.read(nightCameraExposureProvider);
     // Shared with the window at the other end of a link, whose action bar
     // then says what is running here.
     listenSelf((_, next) {

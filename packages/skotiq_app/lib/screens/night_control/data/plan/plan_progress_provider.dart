@@ -68,7 +68,11 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   // session list may still hold the previous one, and the true count is none.
   final done = <String, int>{for (final key in planned.keys) key: 0};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
-    for (final frame in ref.watch(recentSessionFramesProvider)) {
+    final terminal = ref.watch(sequenceTerminalRunResultProvider);
+    final frames = terminal?.isCalibration == true
+        ? ref.watch(nightSessionLightRowsProvider).map(capturedImageFromDbRow)
+        : ref.watch(recentSessionFramesProvider);
+    for (final frame in frames) {
       if (frame.settings.frameType != FrameType.light) continue;
       final key = _filterKey(frame.settings.filter);
       done.update(key, (count) => count + 1, ifAbsent: () => 1);

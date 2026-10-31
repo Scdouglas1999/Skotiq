@@ -18,6 +18,15 @@ final nightSessionIdProvider = Provider<int?>((ref) {
     sessionStateProvider.select((state) => state.dbSessionId),
   );
   if (local != null) return local;
+  // endSession clears SessionState; the terminal result retains the exact
+  // session identity so finished-night charts and integration stay visible.
+  final terminal = ref.watch(sequenceTerminalRunResultProvider);
+  if (terminal?.dbSessionId != null &&
+      ref.watch(sequenceExecutionStateProvider).canStart) {
+    return terminal!.isCalibration
+        ? ref.watch(completedImagingRunProvider)?.result.dbSessionId
+        : terminal.dbSessionId;
+  }
   if (ref.watch(backendProvider) is! NetworkBackend) return null;
   // Sorted newest first on both paths, so the first active row is the
   // host's current session.

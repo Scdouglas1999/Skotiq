@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
@@ -12,12 +13,116 @@ import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import 'night_action_test_support.dart';
+import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
+import '../../../harness/mock_backend.dart';
+import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
 
 void main() {
   const running = SequenceExecutionState.running;
   const paused = SequenceExecutionState.paused;
 
   group('RunPauseGuard through the controller', () {
+    test('manual center waits for native exposure and download, not UI flags',
+        () async {
+      final backend = mockBackend();
+      final h = actionHarness(runState: running, extra: [
+        backendProvider
+            .overrideWith((ref) => TestBackendNotifier(ref, backend)),
+      ]);
+      addTearDown(h.container.dispose);
+      void emit(String type, [Map<String, dynamic> data = const {}]) {
+        backend.emitEvent(SkotiqEvent(
+            timestamp: 0,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: type,
+            data: data));
+      }
+
+      emit('ExposureStarted', {'duration_secs': 120.0});
+      await settle();
+      expect(h.container.read(cameraStateProvider).isExposing, isFalse);
+      final done = h.container.read(nightActionApiProvider).center();
+      await settle();
+      expect(h.ops.calls, ['pause']);
+      emit('DownloadStarted');
+      await settle();
+      expect(h.ops.calls, ['pause']);
+      emit('ExposureComplete', {'success': true});
+      await done;
+      expect(h.ops.calls, contains('center M74'));
+      expect(h.ops.calls.last, 'resume');
+    });
+
+    test('opening Tonight mid-exposure checks the host before stopping guiding',
+        () async {
+      final cameraIdle = Completer<bool>();
+      final h = actionHarness(runState: running, extra: [
+        nightCameraIdleProbeProvider.overrideWithValue(() => cameraIdle.future),
+      ]);
+      addTearDown(h.container.dispose);
+      final done = h.container.read(nightActionApiProvider).center();
+      await settle();
+      expect(h.ops.calls, ['pause']);
+      cameraIdle.complete(true);
+      await done;
+      expect(h.ops.calls, [
+        'pause',
+        'stopGuiding',
+        'center M74',
+        'startGuidingAndSettle',
+        'resume'
+      ]);
+    });
+
+    for (final status in [
+      {'connected': false, 'state': 'idle'},
+      {'connected': true, 'state': 'error'},
+    ]) {
+      test('host camera refusal $status releases the pause without moving',
+          () async {
+        final backend = mockBackend();
+        when(() => backend.getCameraStatus('camera-1'))
+            .thenAnswer((_) async => CameraStatus.fromJson(status));
+        final h =
+            actionHarness(runState: running, stubCameraProbe: false, extra: [
+          backendProvider
+              .overrideWith((ref) => TestBackendNotifier(ref, backend)),
+        ]);
+        addTearDown(h.container.dispose);
+        await h.container.read(nightActionApiProvider).center();
+        expect(h.ops.calls, ['pause', 'resume']);
+        expect(h.container.read(nightActionStateProvider).error, isNotNull);
+      });
+    }
+
+    test('host exposure missed by the screen blocks equipment until idle',
+        () async {
+      final backend = mockBackend();
+      var idle = false;
+      when(() => backend.getCameraStatus('camera-1')).thenAnswer((_) async =>
+          CameraStatus.fromJson(
+              {'connected': true, 'state': idle ? 'idle' : 'exposing'}));
+      final h =
+          actionHarness(runState: running, stubCameraProbe: false, extra: [
+        backendProvider
+            .overrideWith((ref) => TestBackendNotifier(ref, backend)),
+      ]);
+      addTearDown(h.container.dispose);
+      final done = h.container.read(nightActionApiProvider).center();
+      await settle();
+      expect(h.ops.calls, ['pause']);
+      idle = true;
+      await done;
+      expect(h.ops.calls, [
+        'pause',
+        'stopGuiding',
+        'center M74',
+        'startGuidingAndSettle',
+        'resume'
+      ]);
+    });
+
     test('a run this controller paused is resumed afterwards', () async {
       final h = actionHarness(runState: running);
       addTearDown(h.container.dispose);

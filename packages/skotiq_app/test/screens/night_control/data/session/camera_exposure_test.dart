@@ -99,7 +99,6 @@ void main() {
       'ExposureComplete',
       'ExposureCancelled',
       'ExposureFailed',
-      'DownloadStarted',
     ]) {
       await deliver(h, _imaging('ExposureStarted', {'duration_secs': 90.0}));
       expect(h.read(nightCameraExposureProvider), isNotNull);
@@ -107,6 +106,15 @@ void main() {
       expect(h.read(nightCameraExposureProvider), isNull, reason: end);
       expect(h.read(nightStageExposureProvider), isNull, reason: end);
     }
+  });
+
+  test('ownership stays busy through download', () async {
+    final (h, _) = await harness();
+    await deliver(h, _imaging('ExposureStarted', {'duration_secs': 90.0}));
+    await deliver(h, _imaging('DownloadStarted'));
+    expect(h.read(nightCameraExposureProvider), isNotNull);
+    await deliver(h, _imaging('ExposureComplete'));
+    expect(h.read(nightCameraExposureProvider), isNull);
   });
 
   test('the executor\'s after-the-fact pair is not an exposure', () async {

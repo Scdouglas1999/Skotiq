@@ -112,3 +112,68 @@ where
         tokio::time::sleep(poll_interval.min(remaining_timeout)).await;
     }
 }
+
+/// Own the sensor from configuration through download. A second consumer must
+/// never replace an exposure or read its buffer, even if its UI state is stale.
+static CAMERA_ACQUISITIONS: OnceLock<Mutex<HashMap<String, Arc<Mutex<()>>>>> = OnceLock::new();
+
+pub(crate) async fn camera_acquisition_in_progress(camera_id: &str) -> bool {
+    let owners = CAMERA_ACQUISITIONS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await;
+    owners
+        .get(camera_id)
+        .is_some_and(|owner| owner.try_lock().is_err())
+}
+
+pub(crate) async fn claim_camera_acquisition(
+    camera_id: &str,
+) -> DeviceResult<tokio::sync::OwnedMutexGuard<()>> {
+    let owner = CAMERA_ACQUISITIONS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .entry(camera_id.to_owned())
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone();
+    owner.try_lock_owned().map_err(|_| {
+        format!(
+            "Camera {} is busy acquiring or downloading another frame; wait for it to finish",
+            camera_id
+        )
+    })
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn competing_consumer_cannot_claim_sensor_until_download_finishes() {
+        let sequence = claim_camera_acquisition("ownership-camera").await.unwrap();
+        assert!(claim_camera_acquisition("ownership-camera").await.is_err());
+        let ops = create_unified_device_ops();
+        let competing_capture = ops
+            .camera_start_exposure_configured(
+                "ownership-camera",
+                5.0,
+                None,
+                None,
+                1,
+                1,
+                None,
+                "Light",
+            )
+            .await;
+        assert!(competing_capture
+            .unwrap_err()
+            .contains("busy acquiring or downloading"));
+        let other_camera = claim_camera_acquisition("other-camera").await.unwrap();
+        assert!(camera_acquisition_in_progress("ownership-camera").await);
+        drop(sequence);
+        assert!(!camera_acquisition_in_progress("ownership-camera").await);
+        assert!(claim_camera_acquisition("ownership-camera").await.is_ok());
+        drop(other_camera);
+    }
+}

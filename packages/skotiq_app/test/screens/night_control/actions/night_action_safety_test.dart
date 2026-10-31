@@ -17,6 +17,7 @@ import '../../../harness/mock_backend.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
 import 'night_action_test_support.dart';
+import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
 
 class _MockSequenceActions extends Mock implements SequenceActionService {}
 
@@ -71,6 +72,7 @@ void main() {
     container = ProviderContainer(overrides: [
       backendProvider.overrideWith((ref) => TestBackendNotifier(ref, backend)),
       backendCanCommandProvider.overrideWithValue(true),
+      nightCameraIdleProbeProvider.overrideWithValue(() async => true),
       loggingServiceProvider.overrideWithValue(RecordingLog()),
       cameraStateProvider.overrideWith(TestCameraNotifier.new),
       mountStateProvider.overrideWith(TestMountNotifier.new),
@@ -169,6 +171,7 @@ void main() {
         backendProvider
             .overrideWith((ref) => TestBackendNotifier(ref, backend)),
         backendCanCommandProvider.overrideWithValue(true),
+        nightCameraIdleProbeProvider.overrideWithValue(() async => true),
         loggingServiceProvider.overrideWithValue(RecordingLog()),
         cameraStateProvider.overrideWith(TestCameraNotifier.new),
         mountStateProvider.overrideWith(TestMountNotifier.new),

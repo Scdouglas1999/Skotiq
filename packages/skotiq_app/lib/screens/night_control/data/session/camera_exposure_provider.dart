@@ -129,8 +129,7 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
       case 'ExposureComplete' ||
             'ExposureCompleted' ||
             'ExposureCancelled' ||
-            'ExposureFailed' ||
-            'DownloadStarted':
+            'ExposureFailed':
         state = null;
     }
   }
