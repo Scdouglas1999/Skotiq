@@ -495,6 +495,14 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
     final histogramVisible = ref.watch(previewHistogramVisibleProvider);
     final depthLockGoalsVisible =
         ref.watch(depthLockGoalOverlayVisibleProvider);
+    // Settings > Science > "Show advanced overlay controls" puts the science
+    // layers in this menu; they also stay in the Science HUD.
+    final advancedScience =
+        ref.watch(scienceSettingsProvider).valueOrNull?.advancedModeEnabled ??
+            false;
+    final scienceOverlay = ref.watch(scienceOverlayStateProvider);
+    void setScienceOverlay(ScienceOverlayState next) =>
+        ref.read(scienceOverlayStateProvider.notifier).state = next;
 
     // Undeclared, this publishes as `panel: Overlays [DISABLED]` — a live popup
     // trigger announced as an inert panel — because PopupMenuButton's InkWell
@@ -593,6 +601,47 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
                   scienceHudVisible: !scienceHudVisible,
                 ),
               ),
+              if (advancedScience) ...<PopupMenuEntry<int>>[
+                _overlayItem(
+                  colors: colors,
+                  value: 9,
+                  icon: LucideIcons.flame,
+                  label: 'PSF heatmap',
+                  subtitle: 'Star size across the field',
+                  active: scienceOverlay.showPsfHeatmap,
+                  onTap: () => setScienceOverlay(
+                    scienceOverlay.copyWith(
+                      showPsfHeatmap: !scienceOverlay.showPsfHeatmap,
+                    ),
+                  ),
+                ),
+                _overlayItem(
+                  colors: colors,
+                  value: 10,
+                  icon: LucideIcons.moveUpRight,
+                  label: 'Residual vectors',
+                  subtitle: 'Plate-solve star residuals',
+                  active: scienceOverlay.showResidualVectors,
+                  onTap: () => setScienceOverlay(
+                    scienceOverlay.copyWith(
+                      showResidualVectors: !scienceOverlay.showResidualVectors,
+                    ),
+                  ),
+                ),
+                _overlayItem(
+                  colors: colors,
+                  value: 11,
+                  icon: LucideIcons.layoutGrid,
+                  label: 'Tile map',
+                  subtitle: 'Background uniformity by tile',
+                  active: scienceOverlay.showUniformityMap,
+                  onTap: () => setScienceOverlay(
+                    scienceOverlay.copyWith(
+                      showUniformityMap: !scienceOverlay.showUniformityMap,
+                    ),
+                  ),
+                ),
+              ],
               _overlayItem(
                 colors: colors,
                 value: 6,
