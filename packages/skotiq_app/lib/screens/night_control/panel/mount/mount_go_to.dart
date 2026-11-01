@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show objectSearchProvider;
+    show catalogStateProvider, objectSearchProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -146,8 +146,13 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
       final found = await ref.read(nightGoToResolverProvider)(trimmed);
       if (!mounted) return;
       if (found == null) {
-        setState(() => _lookupError = context.l10n
-            .text('nightScopeGoToNotFound', params: {'name': trimmed}));
+        final catalogInstalled =
+            ref.read(catalogStateProvider).dsoCatalogStatus.isInstalled;
+        setState(() => _lookupError = context.l10n.text(
+            catalogInstalled
+                ? 'nightScopeGoToNotFound'
+                : 'nightScopeGoToNoCatalog',
+            params: {'name': trimmed}));
         return;
       }
       _fill(found.name, found.raHours, found.decDegrees);

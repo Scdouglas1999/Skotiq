@@ -1321,6 +1321,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGoToObject': 'Object or coordinates',
     'nightScopeGoToObjectHint': 'M74, NGC 891, Vega',
     'nightScopeGoToNotFound': 'No object named {name}',
+    'nightScopeGoToNoCatalog':
+        'No object named {name}. The deep-sky catalog is not installed; download it in Settings › Catalogs.',
     'nightScopeGoToLookupFailed': 'Lookup failed: {error}',
     'nightScopeSlew': 'Slew',
     'nightScopeSlewCenter': 'Slew & center',
@@ -2974,6 +2976,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGoToObject': 'Objeto o coordenadas',
     'nightScopeGoToObjectHint': 'M74, NGC 891, Vega',
     'nightScopeGoToNotFound': 'Ningún objeto se llama {name}',
+    'nightScopeGoToNoCatalog':
+        'Ningún objeto se llama {name}. El catálogo de cielo profundo no está instalado; descárgalo en Ajustes › Catálogos.',
     'nightScopeGoToLookupFailed': 'Falló la búsqueda: {error}',
     'nightScopeSlew': 'Mover',
     'nightScopeSlewCenter': 'Mover y centrar',

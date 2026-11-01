@@ -11,6 +11,7 @@ final loadedStarsProvider = FutureProvider<List<Star>>((ref) async {
 });
 
 final loadedDsosProvider = FutureProvider<List<DeepSkyObject>>((ref) async {
+  ref.watch(catalogStateProvider.select((s) => s.installRevision));
   // Load DSOs up to magnitude 16.0 to include faint imaging targets when zoomed in.
   // The dynamic magnitude limit provider filters them per-frame based on FOV.
   return OpenNgcDsoCatalog(magnitudeLimit: 16.0).loadObjects();
