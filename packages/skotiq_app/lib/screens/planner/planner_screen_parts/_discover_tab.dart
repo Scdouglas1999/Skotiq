@@ -51,8 +51,7 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // The Discover tab lives in an always-built IndexedStack, so initState ran
-    // once at first planner build. When a `/your-sky` or `/constellation`
+    // The Discover tab stays mounted while the planner shows it. When a `/your-sky` or `/constellation`
     // deep-link re-enters the already-mounted planner with a new `?view=`,
     // re-apply it here (GoRouterState is an inherited dependency). Guarded on the
     // query changing so a user's manual segment toggle isn't snapped back.
@@ -137,14 +136,13 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
           ),
         ),
         Expanded(
-          child: IndexedStack(
-            index: _view.index,
-            children: const [
-              YourSkyView(),
-              ConstellationView(),
-              CollaborativeSkyView(),
-            ],
-          ),
+          // Only the surface in view is built: each one reads host data while
+          // mounted, and a hidden one must not keep doing so.
+          child: switch (_view) {
+            DiscoverView.yourSky => const YourSkyView(),
+            DiscoverView.constellation => const ConstellationView(),
+            DiscoverView.collaborative => const CollaborativeSkyView(),
+          },
         ),
       ],
     );

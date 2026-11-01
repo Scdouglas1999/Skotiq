@@ -359,25 +359,22 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 // Order MUST match `tabs` / [PlannerTab] — one child per enum
                 // value, at the same index.
                 //
-                // The last three are heavy LIVE-SKY views (HiPS tile maps with
-                // time-ticking sky rotation, plus the animated living-sky in
-                // Your sky). IndexedStack keeps every child BUILT — which is
-                // what we want for state preservation — but it does NOT pause
-                // their animations when off-tab, so all four ran their 60fps
-                // repaints at once and pegged idle CPU (~78%), flashing the
-                // panel.
+                // Schedule and Your sky read host state (scheduler snapshot,
+                // atlas regions, coverage and per-region timelines) for as long
+                // as they are mounted, which on a companion means requests to
+                // the imaging host. They are built only while selected, so a
+                // hidden tab never polls; the other tabs keep their state.
                 //
-                // Wrap each heavy view in a TickerMode gated on "is this the
-                // active tab". TickerMode mutes every AnimationController/Ticker
-                // in the subtree while it's off-tab, so the continuous repaints
-                // stop — but the widget stays mounted and its State (scroll,
-                // selection, loaded tiles) is preserved, so switching back is
-                // instant. Off-tab children are Offstage (don't paint), so the
-                // only residual is a cheap ~1Hz clock rebuild that never paints.
+                // Framing and Planetarium stay built for instant switching but
+                // sit under a TickerMode, so their sky animations stop while
+                // off-tab.
                 children: [
                   const _RecommendationTab(),
                   const _ProjectsTab(),
-                  const _ScheduleTab(),
+                  if (_currentSubTab == PlannerTab.schedule.index)
+                    const _ScheduleTab()
+                  else
+                    const SizedBox.shrink(),
                   TickerMode(
                     enabled: _currentSubTab == PlannerTab.framing.index,
                     child: const FramingView(),
@@ -386,10 +383,10 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                     enabled: _currentSubTab == PlannerTab.planetarium.index,
                     child: const PlanetariumView(),
                   ),
-                  TickerMode(
-                    enabled: _currentSubTab == PlannerTab.discover.index,
-                    child: const _DiscoverTab(),
-                  ),
+                  if (_currentSubTab == PlannerTab.discover.index)
+                    const _DiscoverTab()
+                  else
+                    const SizedBox.shrink(),
                 ],
               ),
             ),

@@ -8,12 +8,15 @@ import '../backend/ffi_backend.dart';
 import '../database/daos/sky_atlas_dao.dart';
 import '../database/database.dart';
 import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
+import '../models/backend/event_types.dart';
+import '../models/backend/host_mutation_event.dart';
 import '../services/logging_service.dart';
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart';
 import '../services/sky_atlas/sky_atlas_seam.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'host_mutation_event_provider.dart';
 
 /// Riverpod surface for Pillar A ("Your Sky") — the personal sky atlas.
 ///
@@ -56,6 +59,12 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
         decDeg: target.dec,
       );
     },
+    onAtlasChanged: () => ref
+        .read(hostMutationEventHubProvider)
+        .publishRemoteOnly(
+          entityType: HostMutationEntity.atlas,
+          action: HostMutationAction.updated,
+        ),
   );
 });
 
@@ -127,27 +136,30 @@ class SkyAtlasRegionWriter {
 /// Remote (companion) mode reads the host's coverage over REST, refreshed when
 /// a backend event arrives (a fold is exactly what changes coverage); host mode
 /// queries the native bridge directly.
-final skyAtlasCoverageProvider = StreamProvider<List<AtlasTileCoverage>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _remoteAtlasSnapshotStream<AtlasTileCoverage>(
-      ref,
-      backend,
-      backend.getAtlasCoverage,
-      AtlasTileCoverage.fromJson,
-    );
-  }
-  // Host coverage poll reads the SkyTiles DB index (same scalars, zero sidecar
-  // I/O) rather than the native full-scan of every `.skt` sidecar.
-  return Stream.fromFuture(
-    ref.watch(skyAtlasServiceProvider).coverageFromIndex(),
-  );
-});
+final skyAtlasCoverageProvider =
+    StreamProvider.autoDispose<List<AtlasTileCoverage>>((ref) {
+      final backend = ref.watch(backendProvider);
+      if (backend is NetworkBackend) {
+        return _remoteAtlasSnapshotStream<AtlasTileCoverage>(
+          ref,
+          backend,
+          backend.getAtlasCoverage,
+          AtlasTileCoverage.fromJson,
+        );
+      }
+      // Host coverage poll reads the SkyTiles DB index (same scalars, zero sidecar
+      // I/O) rather than the native full-scan of every `.skt` sidecar.
+      return Stream.fromFuture(
+        ref.watch(skyAtlasServiceProvider).coverageFromIndex(),
+      );
+    });
 
 /// Atlas-wide totals counted once per frame, for the Your Sky headline. Host
 /// only (the fold timeline lives in the host database); null on a companion,
 /// whose overlay then shows per-tile depth instead of a total.
-final skyAtlasTotalsProvider = FutureProvider<AtlasTotals?>((ref) async {
+final skyAtlasTotalsProvider = FutureProvider.autoDispose<AtlasTotals?>((
+  ref,
+) async {
   final backend = ref.watch(backendProvider);
   if (backend is NetworkBackend) return null;
   // Recount whenever coverage refreshes (a fold is what changes both).
@@ -159,18 +171,19 @@ final skyAtlasTotalsProvider = FutureProvider<AtlasTotals?>((ref) async {
 /// Reactive list of persisted atlas regions for the browser. Remote (companion)
 /// mode reads the host's regions over REST (event-refreshed); host mode watches
 /// the local atlas DB live.
-final skyAtlasRegionsProvider = StreamProvider<List<SkyAtlasRegionRow>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _remoteAtlasSnapshotStream<SkyAtlasRegionRow>(
-      ref,
-      backend,
-      backend.getAtlasRegions,
-      skyAtlasRegionFromWireJson,
-    );
-  }
-  return ref.watch(skyAtlasServiceProvider).watchRegions();
-});
+final skyAtlasRegionsProvider =
+    StreamProvider.autoDispose<List<SkyAtlasRegionRow>>((ref) {
+      final backend = ref.watch(backendProvider);
+      if (backend is NetworkBackend) {
+        return _remoteAtlasSnapshotStream<SkyAtlasRegionRow>(
+          ref,
+          backend,
+          backend.getAtlasRegions,
+          skyAtlasRegionFromWireJson,
+        );
+      }
+      return ref.watch(skyAtlasServiceProvider).watchRegions();
+    });
 
 /// Reconstruct a [SkyAtlasRegionRow] from the wire JSON the appliance's
 /// `/api/atlas/regions` endpoint emits (see `AtlasHandlers._regionToJson`).
@@ -195,10 +208,32 @@ SkyAtlasRegionRow skyAtlasRegionFromWireJson(Map<String, dynamic> json) {
   );
 }
 
-/// REST snapshot stream for a remote atlas read: fetch once, then re-fetch
-/// (debounced) whenever a backend event arrives. Keeps the last good snapshot on
-/// a transient fetch failure rather than flashing empty — the same shape the
-/// remote First Light feed uses (`_remoteFirstLightStream`).
+/// Shortest gap between two starts of the same remote atlas read. A host that
+/// folds a frame every few seconds still sees at most one request per read per
+/// interval from each companion.
+const Duration remoteAtlasRefetchMinInterval = Duration(seconds: 15);
+
+/// Quiet period after an atlas-changing event before a re-fetch, so a burst of
+/// related events (image created, solved, folded) costs one request.
+const Duration remoteAtlasRefetchDebounce = Duration(milliseconds: 750);
+
+/// True for the host events after which an atlas read can differ: an atlas
+/// mutation (fold, swarm merge, region change) or a captured-image change from
+/// a host that predates atlas events.
+bool isAtlasChangingEvent(SkotiqEvent event) {
+  if (event.eventType != hostStateChangedEventType) return false;
+  final entity = event.data['entityType'];
+  return entity == HostMutationEntity.atlas ||
+      entity == HostMutationEntity.capturedImage;
+}
+
+/// REST snapshot stream for a remote atlas read: fetch once, then re-fetch when
+/// the host reports an atlas-changing event ([isAtlasChangingEvent]).
+///
+/// At most one request is outstanding; events that arrive meanwhile coalesce
+/// into one follow-up fetch, and starts are at least
+/// [remoteAtlasRefetchMinInterval] apart. Keeps the last good snapshot on a
+/// transient fetch failure rather than flashing empty.
 Stream<List<T>> _remoteAtlasSnapshotStream<T>(
   Ref ref,
   NetworkBackend backend,
@@ -208,6 +243,9 @@ Stream<List<T>> _remoteAtlasSnapshotStream<T>(
   final controller = StreamController<List<T>>();
   final logger = ref.read(loggingServiceProvider);
   Timer? debounce;
+  Timer? cooldown;
+  var inFlight = false;
+  var pending = false;
   var emittedOnce = false;
 
   Future<void> refetch() async {
@@ -234,15 +272,45 @@ Stream<List<T>> _remoteAtlasSnapshotStream<T>(
     }
   }
 
-  refetch();
-  final sub = backend.eventStream.listen((_) {
-    debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 750), refetch);
-  });
+  late void Function() maybeStart;
+
+  Future<void> run() async {
+    if (controller.isClosed) return;
+    pending = false;
+    inFlight = true;
+    cooldown = Timer(remoteAtlasRefetchMinInterval, () {
+      cooldown = null;
+      if (pending) maybeStart();
+    });
+    try {
+      await refetch();
+    } finally {
+      inFlight = false;
+    }
+    if (pending) maybeStart();
+  }
+
+  maybeStart = () {
+    if (controller.isClosed || inFlight) return;
+    if (cooldown != null || debounce != null) return;
+    debounce = Timer(remoteAtlasRefetchDebounce, () {
+      debounce = null;
+      if (!inFlight && cooldown == null) unawaited(run());
+    });
+  };
+
+  StreamSubscription<SkotiqEvent>? sub;
   ref.onDispose(() {
     debounce?.cancel();
-    unawaited(sub.cancel());
+    cooldown?.cancel();
+    unawaited(sub?.cancel());
     unawaited(controller.close());
+  });
+  unawaited(run());
+  sub = backend.eventStream.listen((event) {
+    if (!isAtlasChangingEvent(event)) return;
+    pending = true;
+    maybeStart();
   });
   return controller.stream;
 }
@@ -320,8 +388,8 @@ final atlasRegionTilesProvider = FutureProvider.family<List<SkyTileRow>, int>((
 
 /// A region's fold timeline (oldest first). Remote: decode the host timeline
 /// payload's `folds` array; host: watch the local DAO live.
-final atlasRegionTimelineProvider =
-    StreamProvider.family<List<SkyAtlasFoldRow>, int>((ref, regionId) {
+final atlasRegionTimelineProvider = StreamProvider.autoDispose
+    .family<List<SkyAtlasFoldRow>, int>((ref, regionId) {
       final backend = ref.watch(backendProvider);
       if (backend is NetworkBackend) {
         return _remoteAtlasSnapshotStream<SkyAtlasFoldRow>(

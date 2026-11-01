@@ -271,17 +271,17 @@ void main() {
             'extra child mis-routes the body for some tab.',
       );
 
-      // The consolidated tab bodies are present (built eagerly by IndexedStack,
-      // though Offstage when not selected). Projects defaults to its campaign
-      // scope (so ProjectsTabContent is built, not the all-targets
-      // ProgressTabContent), and Schedule always builds the scheduler.
+      // Projects is built eagerly (Offstage when not selected) in its campaign
+      // scope, so ProjectsTabContent is built, not the all-targets
+      // ProgressTabContent. Schedule reads host state, so it is built only
+      // while selected.
       expect(
         find.byType(ProjectsTabContent, skipOffstage: false),
         findsOneWidget,
       );
       expect(
         find.byType(SchedulerTabContent, skipOffstage: false),
-        findsOneWidget,
+        findsNothing,
       );
       // ProgressTabContent is the Projects tab's *other* scope — not built until
       // the user switches to "All Targets". WeekForecastStrip only mounts atop
@@ -368,6 +368,60 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       _expectSelected(tester, 'Projects');
+    });
+  });
+
+  // A companion's Schedule and Your sky tabs poll the imaging host while
+  // mounted, so a hidden tab must not be mounted at all.
+  group('Planner hidden tabs read no host state', () {
+    testWidgets('Your sky atlas readers run only while the tab is shown',
+        (tester) async {
+      var regionBuilds = 0;
+      var coverageBuilds = 0;
+      var disposed = 0;
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1400, 900);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          ..._allTabOverrides(),
+          skyAtlasRegionsProvider.overrideWith((ref) {
+            regionBuilds++;
+            ref.onDispose(() => disposed++);
+            return Stream.value(const <SkyAtlasRegionRow>[]);
+          }),
+          skyAtlasCoverageProvider.overrideWith((ref) {
+            coverageBuilds++;
+            ref.onDispose(() => disposed++);
+            return Stream.value(const <AtlasTileCoverage>[]);
+          }),
+          skyAtlasTotalsProvider.overrideWith((ref) async => null),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: PlannerScreen()),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      _expectSelected(tester, 'Tonight');
+      expect(regionBuilds, 0);
+      expect(coverageBuilds, 0);
+
+      await _tapTab(tester, 'Your sky');
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Your sky');
+      expect(regionBuilds, 1);
+      expect(coverageBuilds, 1);
+
+      await _tapTab(tester, 'Planetarium');
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Planetarium');
+      expect(disposed, 2, reason: 'leaving the tab releases both readers');
     });
   });
 
