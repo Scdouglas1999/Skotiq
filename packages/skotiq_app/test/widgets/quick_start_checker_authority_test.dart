@@ -9,6 +9,16 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
+/// An imaging host's own backend: Quick Start is offered only there.
+class _RecordingHostBackend extends Mock implements SkotiqBackend {
+  int discardCalls = 0;
+
+  @override
+  Future<void> discardCheckpoint() async {
+    discardCalls++;
+  }
+}
+
 class _RecordingNetworkBackend extends Mock implements NetworkBackend {
   int discardCalls = 0;
 
@@ -45,7 +55,7 @@ void main() {
 
   testWidgets('production outer-wrapper topology can show quick start',
       (tester) async {
-    final backend = _RecordingNetworkBackend();
+    final backend = _RecordingHostBackend();
     final router = GoRouter(
       initialLocation: '/',
       routes: [
@@ -88,8 +98,8 @@ void main() {
 
   testWidgets('quick-start dialog closes and cannot discard after host switch',
       (tester) async {
-    final hostA = _RecordingNetworkBackend();
-    final hostB = _RecordingNetworkBackend();
+    final hostA = _RecordingHostBackend();
+    final hostB = _RecordingHostBackend();
     late _SwappableBackendNotifier notifier;
 
     await tester.pumpWidget(
@@ -135,7 +145,7 @@ void main() {
   testWidgets('start fresh warns when saved device positions are skipped', (
     tester,
   ) async {
-    final backend = _RecordingNetworkBackend();
+    final backend = _RecordingHostBackend();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -181,12 +191,15 @@ void main() {
       findsOneWidget,
     );
     expect(backend.discardCalls, 1);
+    // The host path arms short-lived device timers; let them run out.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(minutes: 1));
   });
 
   testWidgets('start fresh does not claim a restore it could not perform', (
     tester,
   ) async {
-    final backend = _RecordingNetworkBackend();
+    final backend = _RecordingHostBackend();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -228,7 +241,7 @@ void main() {
   testWidgets('start fresh re-applies the recorded camera settings', (
     tester,
   ) async {
-    final backend = _RecordingNetworkBackend();
+    final backend = _RecordingHostBackend();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -278,5 +291,49 @@ void main() {
     expect(container.read(exposureSettingsProvider).offset, 33);
     expect(container.read(cameraStateProvider).targetTemp, -12.5);
     expect(find.textContaining('gain/offset'), findsOneWidget);
+    // The host path arms short-lived device timers; let them run out.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(minutes: 1));
+  });
+  testWidgets('a companion is never offered to restore the host setup',
+      (tester) async {
+    final backend = _RecordingNetworkBackend();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, backend),
+          ),
+          incompleteSessionsProvider.overrideWith(
+            (ref) async => const <SessionRecoveryInfo>[],
+          ),
+          quickStartContextProvider.overrideWith(
+            (ref) async => _context(
+              equipmentSnapshot: EquipmentSnapshot(
+                coolerTargetTemp: -10,
+                filterPosition: 2,
+                focuserPosition: 45327,
+                capturedAt: DateTime(2026),
+              ),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const QuickStartChecker(
+            child: Scaffold(body: Text('Dashboard')),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start fresh'), findsNothing);
+    expect(find.textContaining('Load Previous Setup'), findsNothing);
+    expect(backend.discardCalls, 0);
   });
 }

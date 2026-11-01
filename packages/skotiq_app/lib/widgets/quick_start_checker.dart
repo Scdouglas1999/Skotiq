@@ -85,7 +85,11 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         return;
       }
 
-      // Second priority: Check for quick start opportunity
+      // Second priority: Check for quick start opportunity. Never on a
+      // companion: restoring a previous setup moves the imaging host's
+      // focuser and filter wheel and changes its cooler, and the host may be
+      // in the middle of a run.
+      if (authority is NetworkBackend) return;
       final quickStartContext =
           await ref.read(quickStartContextProvider.future);
 
@@ -453,7 +457,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
     final applied = <String>[];
     final failures = <String>[];
-    if (!_isCurrentAuthority(authority)) {
+    if (!_isCurrentAuthority(authority) || authority is NetworkBackend) {
       return _SnapshotRestore(applied: applied, failures: failures);
     }
 
