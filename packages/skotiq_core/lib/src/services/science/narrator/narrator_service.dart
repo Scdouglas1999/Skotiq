@@ -36,7 +36,9 @@ import '../../../database/database.dart' as db;
 import '../../../database/daos/narrator_events_dao.dart';
 import '../../../models/science/science_models.dart'
     show LightCurvePoint, MovingObjectCandidate, TransparencyTrendPoint;
+import '../../../backend/network_backend.dart';
 import '../../../providers/autofocus_progress_provider.dart';
+import '../../../providers/backend_provider.dart';
 import '../../../providers/database_provider.dart';
 import '../../../models/equipment/equipment_models.dart'
     show DeviceConnectionState;
@@ -188,6 +190,9 @@ class NarratorService {
   /// per-eventType cooldowns are the second gate). [NarratorEventsDao.hasDedupeKey]
   /// remains the durable persist-time guard.
   Future<void> start() async {
+    // On a companion the narrator runs on the imaging host, which owns the
+    // frames and the events table; the companion reads the host's feed.
+    if (_ref.read(backendProvider) is NetworkBackend) return;
     try {
       final seeded = await _dao.dedupeKeysForSession(_sessionId);
       if (!_disposed) _engine.seedDedupeKeys(seeded);

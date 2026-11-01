@@ -641,7 +641,9 @@ extension _DeviceServiceAutofocusControls on DeviceService {
     required _PredictiveAfContext? context,
     required AutofocusResult result,
   }) async {
-    if (context == null) {
+    // The focus model lives on the imaging host; a companion has no rows to
+    // train and must not write a second, local model.
+    if (context == null || _hostOwnsDevices) {
       return;
     }
     final temperature = _resolvePredictiveAfTemperature(result.temperature);
