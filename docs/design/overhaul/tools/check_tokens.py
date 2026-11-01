@@ -17,7 +17,12 @@ What it checks (exit code 1 on any failure):
     so a decoration can never read as a caution;
   * the three text roles stay strictly ordered (primary brighter than
     secondary brighter than muted on dark palettes; reverse on light);
-  * red night keeps red as the dominant channel of every text/status colour.
+  * red night puts every colour on the pure red channel (G == B == 0).
+
+Red night trades the 4.5:1 floor for wavelength: on a pure-red axis the band
+that clears 4.5:1 on every surface holds only the brightest step, so there
+textPrimary, warning and error keep 4.5:1, textSecondary, success and info
+3.5:1, and textMuted the 3:1 non-text floor (RED_NIGHT_FLOORS).
 
 The numbers it prints are the numbers to quote in code comments.
 """
@@ -41,6 +46,15 @@ AA = 4.5
 # that keeps a decoration from reading as a caution.
 NON_TEXT_AA = 3.0
 BRAND_WARM_MIN_DELTA_E = 15.0
+RED_NIGHT_FLOORS = {
+    "textPrimary": AA,
+    "warning": AA,
+    "error": AA,
+    "textSecondary": 3.5,
+    "success": 3.5,
+    "info": 3.5,
+    "textMuted": NON_TEXT_AA,
+}
 
 
 def hex_to_rgb(h: str) -> tuple[int, int, int]:
@@ -143,15 +157,18 @@ def main() -> int:
     for name, p in tokens["palettes"].items():
         print(f"== {name} ==")
         worst: dict[str, tuple[float, str]] = {}
+        def floor(role: str) -> float:
+            return RED_NIGHT_FLOORS[role] if p.get("isRedNight") else AA
+
         for role in TEXT_ROLES + STATUS_ROLES:
             for s in SURFACES:
                 c = contrast(p[role], p[s])
                 if role not in worst or c < worst[role][0]:
                     worst[role] = (c, s)
-                if c < AA:
-                    failures.append(f"{name}: {role} {p[role]} on {s} {p[s]} = {c:.2f}:1 (< {AA})")
+                if c < floor(role):
+                    failures.append(f"{name}: {role} {p[role]} on {s} {p[s]} = {c:.2f}:1 (< {floor(role)})")
         for role, (c, s) in worst.items():
-            flag = "" if c >= AA else "  <-- FAIL"
+            flag = "" if c >= floor(role) else "  <-- FAIL"
             print(f"  {role:14s} worst {c:5.2f}:1 on {s}{flag}")
 
         for fill in ("primary", "accent"):
@@ -187,9 +204,10 @@ def main() -> int:
             failures.append(
                 f"{name}: brandWarm {warm} on {worst_surface} = {worst_warm:.2f}:1 (< {NON_TEXT_AA})"
             )
-        # Red night bends every role onto the red axis, so error and the warm
-        # mark are both red there by rule; only warning is held apart.
-        warm_rivals = ("warning",) if name == "redNight" else ("warning", "error")
+        # Red night has one hue, so the warm mark can only differ from the
+        # status roles in lightness; no red clears both 3:1 on every surface
+        # and DeltaE 15 from a full-red warning.
+        warm_rivals = () if p.get("isRedNight") else ("warning", "error")
         for rival in warm_rivals:
             de = delta_e_00(warm, p[rival])
             flag = "" if de >= BRAND_WARM_MIN_DELTA_E else "  <-- FAIL"
@@ -220,12 +238,16 @@ def main() -> int:
             for role in TEXT_ROLES + STATUS_ROLES + ["primary", "accent", "startFill", "brandWarm"] + [f"bands.{k}" for k in p["bands"]]:
                 if role.startswith("bands."):
                     r, g, b = hex_to_rgb(p["bands"][role[6:]])
-                    if not (r >= g and r >= b and g == b):
-                        failures.append(f"{name}: {role} is not on the red axis")
+                    if g or b:
+                        failures.append(f"{name}: {role} is not pure red")
                     continue
                 r, g, b = hex_to_rgb(p[role])
-                if not (r > g and r > b and g == b):
-                    failures.append(f"{name}: {role} {p[role]} is not on the red axis (G must equal B, R dominant)")
+                if g or b:
+                    failures.append(f"{name}: {role} {p[role]} is not pure red (G and B must be 0)")
+            for role in SURFACES + ["border", "borderStrong", "onPrimary", "onStart"]:
+                _, g, b = hex_to_rgb(p[role])
+                if g or b:
+                    failures.append(f"{name}: {role} {p[role]} is not pure red (G and B must be 0)")
             print("  red-axis check done")
         print()
 

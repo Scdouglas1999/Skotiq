@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// The red-night palette's contrast floor, enforced instead of documented.
+/// The red-night palette's contrast floors, enforced instead of documented.
 ///
-/// [SkotiqColors.redNight] states the rule in prose — the red-only
-/// constraint is about WAVELENGTH, not dimness, so every colour drawn as text
-/// still clears 4.5:1 — and two of the seven drifted under it anyway: `success`
-/// measured 2.93:1 on `surfaceAlt` and 2.79:1 on its own status chip, `warning`
-/// 3.93:1, both sampled off the running app. A prose floor cannot fail a build,
-/// so the arithmetic lives here.
+/// Red night is pure red (G == B == 0). One channel caps contrast on these
+/// surfaces near 5:1, so the floors are per role, as in `check_tokens.py`
+/// RED_NIGHT_FLOORS: textPrimary, warning and error 4.5:1; textSecondary,
+/// success and info 3.5:1; textMuted the 3:1 non-text floor.
 void main() {
   const colors = SkotiqColors.redNight;
 
@@ -23,11 +21,15 @@ void main() {
     return (lighter + 0.05) / (darker + 0.05);
   }
 
-  /// Share of the emitted light carried by the green and blue channels.
-  ///
-  /// Rods peak near 507nm, so this — not the hue name — is what red night is
-  /// actually spending when a colour is made brighter.
-  double greenBlueShare(Color c) => (c.g + c.b) / (c.r + c.g + c.b);
+  const floors = <String, double>{
+    'textPrimary': 4.5,
+    'warning': 4.5,
+    'error': 4.5,
+    'textSecondary': 3.5,
+    'success': 3.5,
+    'info': 3.5,
+    'textMuted': 3.0,
+  };
 
   /// Every surface a body of text can land on in this palette.
   ///
@@ -37,12 +39,12 @@ void main() {
   /// every surface and not on the ones that were convenient to check.
   const surfaces = <String, Color>{
     'background': Color(0xFF0A0000),
-    'surface': Color(0xFF140808),
-    'well': Color(0xFF0F0404),
-    'surfaceAlt': Color(0xFF1C0C0C),
-    'surfaceHover': Color(0xFF241010),
-    'surfaceElevated': Color(0xFF281212),
-    'surfaceOverlay': Color(0xFF301616),
+    'surface': Color(0xFF140000),
+    'well': Color(0xFF0F0000),
+    'surfaceAlt': Color(0xFF1C0000),
+    'surfaceHover': Color(0xFF240000),
+    'surfaceElevated': Color(0xFF280000),
+    'surfaceOverlay': Color(0xFF300000),
   };
 
   /// The tokens this palette hands to a `Text` or `Icon` colour: the three-level
@@ -61,27 +63,21 @@ void main() {
 
   group('red night text contrast', () {
     for (final role in textRoles.entries) {
-      test('${role.key} clears 4.5:1 on every surface level', () {
+      final floor = floors[role.key]!;
+      test('${role.key} clears $floor:1 on every surface level', () {
         for (final surface in surfaces.entries) {
           final ratio = contrast(role.value, surface.value);
           expect(
             ratio,
-            greaterThanOrEqualTo(4.5),
+            greaterThanOrEqualTo(floor),
             reason:
                 '${role.key} on ${surface.key} measures '
-                '${ratio.toStringAsFixed(2)}:1, under the 4.5:1 floor this '
+                '${ratio.toStringAsFixed(2)}:1, under the $floor:1 floor this '
                 'palette documents',
           );
         }
       });
     }
-
-    /// The two surfaces the audit sampled off the running app, named
-    /// explicitly so a regression report can be compared to it directly.
-    test('the sampled surfaces #1C0C0C and #140808 are covered', () {
-      expect(surfaces['surfaceAlt'], const Color(0xFF1C0C0C));
-      expect(surfaces['surface'], const Color(0xFF140808));
-    });
 
     /// The map above is pinned as hex so the audit's numbers stay quotable.
     /// That is only safe while the hex IS the palette — a repainted surface
@@ -100,17 +96,9 @@ void main() {
 
   group('red night status chips', () {
     /// A status word usually sits ON its own colour: `SkotiqDecorations
-    /// .statusChip` fills at [SkotiqTokens.opacityStatusFill], which lifts
-    /// the background toward the text and eats contrast. The System Health
-    /// pill is exactly this composition, and it is where `success` measured
-    /// 2.79:1 on the running app — worse than the 2.93:1 the bare surface gave.
-    ///
-    /// The two card surfaces are the ones held to the floor, because they are
-    /// where the audit sampled and where cards draw. On the three deeper
-    /// surfaces the 15% fill costs more than the token can pay: `warning` runs
-    /// 4.37 / 4.24 / 4.00 and `error` 4.32 / 4.18 / 3.93, which is the fill's
-    /// alpha talking, not the colour, and is stated here rather than widened
-    /// away.
+    /// .statusChip` fills at [SkotiqTokens.opacityStatusFill], which lifts the
+    /// background toward the text. In one hue the fill costs about a tenth of
+    /// the ratio, so chips on the two card surfaces are held to 3.5:1.
     const cardSurfaces = ['surface', 'surfaceAlt'];
 
     for (final role in ['success', 'warning', 'error', 'info']) {
@@ -124,7 +112,7 @@ void main() {
           final ratio = contrast(color, fill);
           expect(
             ratio,
-            greaterThanOrEqualTo(4.5),
+            greaterThanOrEqualTo(3.5),
             reason:
                 '$role on its status chip over $key measures '
                 '${ratio.toStringAsFixed(2)}:1',
@@ -135,53 +123,41 @@ void main() {
   });
 
   group('red night wavelength rule', () {
-    /// Raising a colour's luminance is the only way to clear the floor on a
-    /// near-black surface, and the cheap way to do it is to add green and
-    /// blue. That would buy legibility with the operator's dark adaptation —
-    /// the one thing this palette exists to protect — so the ceiling is the
-    /// share textPrimary already spends.
-    final ceiling = greenBlueShare(colors.textPrimary);
+    /// Rods peak near 507nm, so any green or blue a pixel emits is spent from
+    /// the operator's dark adaptation. Every token is pure red.
+    final tokens = <String, Color>{
+      ...textRoles,
+      'primary': colors.primary,
+      'accent': colors.accent,
+      'brandWarm': colors.brandWarm,
+      'startFill': colors.startFill,
+      'onStart': colors.onStart,
+      'border': colors.border,
+      'borderHighlight': colors.borderHighlight,
+      'bandDusk': colors.bandDusk,
+      'bandTwilight': colors.bandTwilight,
+      'bandDark': colors.bandDark,
+      'bandDawn': colors.bandDawn,
+      for (final surface in surfaces.entries) surface.key: surface.value,
+    };
 
-    for (final role in textRoles.entries) {
-      test('${role.key} stays on the red axis', () {
-        final c = role.value;
-        expect(
-          c.r,
-          greaterThan(c.g),
-          reason: '${role.key} is no longer red-dominant',
-        );
-        expect(
-          ((c.g - c.b) * 255).abs(),
-          lessThanOrEqualTo(8.0),
-          reason:
-              '${role.key} has drifted off the red axis — green and blue must '
-              'stay together or the hue turns orange or magenta',
-        );
-        expect(
-          greenBlueShare(c),
-          lessThanOrEqualTo(ceiling),
-          reason:
-              '${role.key} emits a larger green+blue share than textPrimary, '
-              'so it costs more dark adaptation than the palette already does',
-        );
+    for (final token in tokens.entries) {
+      test('${token.key} is pure red', () {
+        expect(token.value.g, 0, reason: '${token.key} emits green');
+        expect(token.value.b, 0, reason: '${token.key} emits blue');
       });
     }
 
-    /// The status trio is held to the stricter rule the chart layer already
-    /// enforces — red keeps over half the emitted energy — because these three
-    /// reach `SkotiqChartColors`: `success` is the scrubber's selected
-    /// frame bar via `selectedFrame`, painted raw rather than through
-    /// `forTheme`.
-    for (final role in ['success', 'warning', 'error']) {
-      test('$role keeps red dominant', () {
-        final c = textRoles[role]!;
-        expect(
-          c.r / (c.r + c.g + c.b),
-          greaterThan(0.5),
-          reason: '$role no longer keeps red over half the emitted energy',
-        );
-      });
-    }
+    test('the text ladder is strictly ordered', () {
+      expect(
+        colors.textPrimary.computeLuminance(),
+        greaterThan(colors.textSecondary.computeLuminance()),
+      );
+      expect(
+        colors.textSecondary.computeLuminance(),
+        greaterThan(colors.textMuted.computeLuminance()),
+      );
+    });
   });
 
   group('red night component outlines', () {
@@ -243,15 +219,14 @@ void main() {
   group('red night fills', () {
     /// [SkotiqColors.onPrimary] is the ink this palette declares for a
     /// filled control, and `useDarkOnPrimary` makes that the background rather
-    /// than white. Brightening success and warning moves them further into the
-    /// range where that pairing is the correct one.
+    /// than white. It is held to each role's own floor.
     test('onPrimary reads on the status fills', () {
       expect(colors.onPrimary, colors.background);
       for (final role in ['success', 'warning', 'error', 'info']) {
         final ratio = contrast(colors.onPrimary, textRoles[role]!);
         expect(
           ratio,
-          greaterThanOrEqualTo(4.5),
+          greaterThanOrEqualTo(floors[role]!),
           reason:
               'dark ink on a $role fill measures ${ratio.toStringAsFixed(2)}:1',
         );

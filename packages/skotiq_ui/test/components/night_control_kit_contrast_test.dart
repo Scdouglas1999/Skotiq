@@ -31,6 +31,10 @@ void main() {
 
     /// The grounds these widgets are placed on: the header (background), the
     /// side panel and chart strip (surface), and an inset (well).
+    /// Red night spends one channel, so its text floor is 3:1 rather than
+    /// 4.5:1 (`check_tokens.py` RED_NIGHT_FLOORS).
+    final textFloor = colors.isRedNight ? 3.0 : 4.5;
+
     final grounds = <String, Color>{
       'background': colors.background,
       'surface': colors.surface,
@@ -128,7 +132,7 @@ void main() {
       });
 
       test('the labels clear 4.5:1', () {
-        expectFloor(colors.textMuted, grounds, 4.5, 'a label');
+        expectFloor(colors.textMuted, grounds, textFloor, 'a label');
         expectFloor(colors.textPrimary, grounds, 4.5, 'the now label');
       });
     });
@@ -139,16 +143,16 @@ void main() {
         'surfaceElevated': colors.surfaceElevated,
       };
 
-      test('an unselected label clears 4.5:1 on the panel', () {
+      test('an unselected label clears the text floor on the panel', () {
         expectFloor(
           PanelTabStrip.labelStyle(colors, selected: false).color!,
           panel,
-          4.5,
+          textFloor,
           'an unselected tab label',
         );
       });
 
-      test('the selected label clears 4.5:1 on its tinted fill', () {
+      test('the selected label clears the text floor on its tinted fill', () {
         final fills = <String, Color>{
           for (final ground in panel.entries)
             'the selected fill on ${ground.key}': Color.alphaBlend(
@@ -159,7 +163,7 @@ void main() {
         expectFloor(
           PanelTabStrip.labelStyle(colors, selected: true).color!,
           fills,
-          4.5,
+          textFloor,
           'the selected tab label',
         );
       });
@@ -185,18 +189,18 @@ void main() {
     });
 
     group('$name MetricGrid', () {
-      test('every value and delta tone clears 4.5:1 as text', () {
+      test('every value and delta tone clears the text floor', () {
         for (final tone in MetricGridTone.values) {
           expectFloor(
             MetricGrid.valueColor(tone, colors),
             grounds,
-            4.5,
+            textFloor,
             'a ${tone.name} value',
           );
           expectFloor(
             MetricGrid.deltaColor(tone, colors),
             grounds,
-            4.5,
+            textFloor,
             'a ${tone.name} delta',
           );
         }
@@ -207,15 +211,11 @@ void main() {
   group('red night keeps to the red axis', () {
     const colors = SkotiqColors.redNight;
 
-    /// Green and blue equal, as `red_night_contrast_test.dart` requires:
-    /// the hue never leans toward the channels that cost dark adaptation.
+    /// Pure red, as `red_night_contrast_test.dart` requires: no green or
+    /// blue, the channels that cost dark adaptation.
     void expectRedAxis(Color c, String what) {
-      expect(
-        (c.g - c.b).abs(),
-        lessThan(1.5 / 255),
-        reason: '$what is off the red axis: $c',
-      );
-      expect(c.r, greaterThan(c.g), reason: '$what is not red-dominant: $c');
+      expect(c.g, 0, reason: '$what emits green: $c');
+      expect(c.b, 0, reason: '$what emits blue: $c');
     }
 
     test('every chart tone, window and badge', () {

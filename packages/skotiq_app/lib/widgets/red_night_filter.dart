@@ -1,16 +1,11 @@
 // The red-night filter for IMAGE DATA.
 //
-// Red night exists to protect a dark-adapted eye, which is why 02 and 03 put
-// every chrome pixel on the red axis (G == B). Chrome gets there by using the
-// red-night palette. Image data cannot: a radar map, an astro frame, a
-// thumbnail and a Darkroom preview all arrive as arbitrary RGB, and a
-// full-screen magenta-and-green cloud overlay defeats the theme however
-// honestly it encodes rainfall.
-//
-// So image data is filtered rather than recoloured: luminance is preserved and
-// re-emitted on the red axis, which keeps every structure the operator needs to
-// read (cloud bands, star fields, gradients) while emitting no green or blue
-// the eye has to re-adapt from.
+// Red night puts every chrome pixel on the pure red channel by palette. Image
+// data cannot get there that way: a radar map, an astro frame, a thumbnail and
+// a Darkroom preview all arrive as arbitrary RGB. So image data is filtered:
+// its luminance is re-emitted on the red channel alone, which keeps every
+// structure the operator needs to read (cloud bands, star fields, gradients)
+// while emitting no green or blue.
 
 import 'package:flutter/widgets.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -38,24 +33,12 @@ class RedNightImage extends StatelessWidget {
   /// channel the theme spends.
   static const double _redGain = 1.0;
 
-  /// How much is re-emitted as green AND blue. Identical for both, so `G == B`
-  /// holds by construction rather than by rounding luck.
-  ///
-  /// Not zero: a pure single-channel image loses the tonal separation that
-  /// makes cloud structure readable, and the red-night palette itself is not
-  /// pure red (its brightest ink is `#FFB3B3`). 0.18 keeps the structure while
-  /// staying far below the level that would re-adapt the eye.
-  static const double _greyGain = 0.18;
-
-  /// The 5x4 matrix Flutter applies as `C' = m·[R,G,B,A,1]`.
-  ///
-  /// Rows 2 and 3 are byte-identical, which is what guarantees the red-axis
-  /// invariant: the same inputs through the same coefficients quantise to the
-  /// same value, so `|G - B| == 0` for every pixel, not merely a small number.
+  /// The 5x4 matrix Flutter applies as `C' = m·[R,G,B,A,1]`. The green and
+  /// blue rows are zero, so every filtered pixel has G == B == 0.
   static const ColorFilter filter = ColorFilter.matrix(<double>[
     _lumaR * _redGain, _lumaG * _redGain, _lumaB * _redGain, 0, 0, //
-    _lumaR * _greyGain, _lumaG * _greyGain, _lumaB * _greyGain, 0, 0, //
-    _lumaR * _greyGain, _lumaG * _greyGain, _lumaB * _greyGain, 0, 0, //
+    0, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, //
     0, 0, 0, 1, 0, //
   ]);
 

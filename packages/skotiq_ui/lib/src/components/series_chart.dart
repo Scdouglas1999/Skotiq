@@ -175,13 +175,12 @@ class SeriesChart extends StatelessWidget {
   /// The resolved color of [tone] on [colors]. Public so the contrast test
   /// measures what the painter draws.
   ///
-  /// Red night has one hue, so lines there differ by lightness alone. `info`
-  /// and `error` sit at nearly the same lightness in that palette and drew
-  /// the guide chart's RA and Dec as one red scribble, so the tertiary line
-  /// takes the palest text red instead.
+  /// Red night has one hue, so lines there differ by lightness alone. Its
+  /// `info` and `error` are too close to tell the guide chart's RA and Dec
+  /// apart, so the tertiary line takes the dimmest text red instead.
   static Color colorFor(SeriesChartTone tone, SkotiqColors colors) =>
       switch (tone) {
-        SeriesChartTone.tertiary when colors.isRedNight => colors.textPrimary,
+        SeriesChartTone.tertiary when colors.isRedNight => colors.textMuted,
         SeriesChartTone.primary => colors.primary,
         SeriesChartTone.secondary => colors.brandWarm,
         SeriesChartTone.tertiary => colors.info,

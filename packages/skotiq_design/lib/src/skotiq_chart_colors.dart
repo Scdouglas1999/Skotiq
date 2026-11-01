@@ -20,24 +20,20 @@ abstract final class SkotiqChartColors {
   /// pixel on the screen was red.
   ///
   /// Series stay distinguishable in red night by LIGHTNESS rather than hue:
-  /// the source colour's perceptual luminance is preserved and re-expressed on
-  /// the red axis, so a two-series chart still reads as two lines.
+  /// the source colour's perceptual luminance is re-expressed on the pure red
+  /// channel, so a two-series chart still reads as two lines.
   static Color forTheme(Color series, SkotiqColors colors) {
     if (!colors.isRedNight) return series;
-    // Drive lightness from PERCEPTUAL luminance, not HSL lightness: the source
+    // Lightness follows PERCEPTUAL luminance, not HSL lightness: the source
     // series are near-equal in HSL lightness (seriesRed 0.59 vs seriesBlue
-    // 0.57), so mapping that collapsed a two-line chart to one colour. Relative
-    // luminance separates them because the eye weights green/blue differently.
-    // Saturation is high enough that red stays the dominant channel — at the
-    // 0.55 used first, a mid-lightness red still emitted 51% green+blue.
-    // Upper clamp is 0.62, not 0.75: a red hue washes toward PINK as HSL
-    // lightness rises, and by 0.75 the bright series (amber) emitted 55%
-    // green+blue -- nominally "red" while still bleaching dark adaptation.
-    final lightness = (0.32 + series.computeLuminance()).clamp(0.25, 0.62);
+    // 0.57), so mapping that collapsed a two-line chart to one colour.
+    // Saturation 1 with lightness capped at 0.5 keeps green and blue at 0, so
+    // the series spans #800000 to #FF0000 on the pure red channel.
+    final lightness = (0.2 + series.computeLuminance()).clamp(0.25, 0.5);
     return HSLColor.fromAHSL(
       HSLColor.fromColor(series).alpha,
       0, // red
-      0.75,
+      1,
       lightness,
     ).toColor();
   }
