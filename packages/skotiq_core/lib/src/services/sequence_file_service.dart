@@ -7,7 +7,6 @@ import '../models/imaging/imaging_models.dart' show FrameType;
 import '../models/notification/notification_categories.dart'
     show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart';
-import '../providers/profiles_provider.dart';
 import '../providers/sequence/sequence_editor_exceptions.dart';
 import '../utils/export_target.dart';
 import '../providers/sequence/sequence_validation.dart';
@@ -162,18 +161,26 @@ class SequenceFileService {
 
     if (file == null) return null;
 
-    // Read and parse file
-    final jsonString = await file.readAsString();
+    return parseSequenceFile(await file.readAsString());
+  }
+
+  /// Parse the contents of a sequence file.
+  ///
+  /// Throws a [FormatException] whose message is written for the user: it is
+  /// shown as is, without the exception's type name.
+  Sequence parseSequenceFile(String jsonString) {
     final dynamic decoded;
     try {
       decoded = jsonDecode(jsonString);
-    } catch (e) {
-      throw FormatException('Invalid JSON in sequence file: $e');
+    } on FormatException catch (e) {
+      throw FormatException(
+        'The file is not valid JSON (${_jsonErrorDetail(e)}).',
+      );
     }
 
     if (decoded is! Map<String, dynamic>) {
-      throw FormatException(
-        'Sequence file must contain a JSON object, got ${decoded.runtimeType}',
+      throw const FormatException(
+        'The file does not contain a Skotiq sequence.',
       );
     }
 
@@ -185,6 +192,19 @@ class SequenceFileService {
     final sequence = _jsonToSequence(migrated);
     _importValidator?.call(sequence);
     return sequence;
+  }
+
+  /// "Unexpected end of input at line 2, character 1": the parser's message
+  /// and where it stopped, without the exception's type name.
+  static String _jsonErrorDetail(FormatException e) {
+    final text = e.toString().replaceFirst('FormatException: ', '');
+    final source = e.source;
+    final offset = e.offset;
+    if (source is! String || offset == null) return text;
+    final before = source.substring(0, offset.clamp(0, source.length));
+    final line = '\n'.allMatches(before).length + 1;
+    final column = offset - (before.lastIndexOf('\n') + 1) + 1;
+    return '${e.message} at line $line, character $column';
   }
 
   /// Read the schemaVersion from a sequence JSON and apply any needed migrations.
@@ -347,7 +367,11 @@ BrightnessTierPreferences _parseBrightnessTierPreferences(Object? value) {
   return const BrightnessTierPreferences();
 }
 
-/// Provider for the sequence file service
+/// Provider for the sequence file service.
+///
+/// An opened file is not refused for naming filters the active profile lacks:
+/// it loads, and the sequence checks flag those nodes ("Filter Not in Wheel")
+/// so they can be renamed in the editor, as for a starter.
 final sequenceFileServiceProvider = Provider<SequenceFileService>((ref) {
   return SequenceFileService(
     // Read at dialog-open time so changing Settings → File Paths → Sequences
@@ -376,41 +400,6 @@ final sequenceFileServiceProvider = Provider<SequenceFileService>((ref) {
         // notifier. Failing silent is acceptable here because the
         // editor is the only place that cares about the flag — a missing
         // notifier means there's no editor to dirty.
-      }
-    },
-    importValidator: (sequence) {
-      final activeProfile = ref.read(activeEquipmentProfileProvider);
-      final availableFilters =
-          activeProfile?.filterNames.toSet() ?? const <String>{};
-      final referencedFilters = <String>{};
-
-      for (final node in sequence.nodes.values) {
-        if (node is ExposureNode &&
-            node.filter != null &&
-            node.filter!.isNotEmpty) {
-          referencedFilters.add(node.filter!);
-        } else if (node is FilterChangeNode && node.filterName.isNotEmpty) {
-          referencedFilters.add(node.filterName);
-        }
-      }
-
-      if (referencedFilters.isEmpty) {
-        return;
-      }
-
-      if (availableFilters.isEmpty) {
-        throw FormatException(
-          'Sequence import requires an active equipment profile with filters configured. '
-          'Referenced filters: ${referencedFilters.toList()..sort()}',
-        );
-      }
-
-      final missingFilters = referencedFilters.difference(availableFilters);
-      if (missingFilters.isNotEmpty) {
-        final missing = missingFilters.toList()..sort();
-        throw FormatException(
-          'Sequence references filters not present in the active equipment profile: $missing',
-        );
       }
     },
   );
