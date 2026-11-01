@@ -127,7 +127,7 @@ void main() {
     );
 
     expect(find.text('Alignment stopped'), findsOneWidget);
-    expect(find.text('Worse'), findsOneWidget);
+    expect(find.textContaining('Worse by '), findsOneWidget);
   });
 
   testWidgets('a run inside the threshold still reads Complete',
