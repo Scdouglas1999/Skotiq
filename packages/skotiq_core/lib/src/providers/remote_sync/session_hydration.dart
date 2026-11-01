@@ -38,6 +38,18 @@ Future<void> hydrateRemoteSessionState(
   await _hydrateDeviceTelemetry(reader, backend, devices);
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
+  // The warm-up runs on the host; show whether it is still going.
+  if (_read(reader, cameraStateProvider).connectionState ==
+      DeviceConnectionState.connected) {
+    try {
+      final warming = await backend.cameraHostIsWarming();
+      if (!_isCurrentRemoteBackend(reader, backend)) return;
+      _read(reader, cameraStateProvider.notifier).setWarming(warming);
+    } catch (_) {
+      // An older host without the endpoint: leave the flag as it is.
+    }
+  }
+
   // G3 (current-frame hero tile): seed the master's last cached frame on
   // connect. The host-local capture publisher never runs on a slave, so without
   // this the dashboard's "current frame" tile stays blank until the next

@@ -133,6 +133,9 @@ class DeviceService {
   StreamSubscription? _eventSubscription;
   late final CameraTemperaturePoller _temperaturePoller;
   late final CameraWarmupController _warmupController;
+
+  /// On a remote client, follows the host's warm-up until it ends.
+  Timer? _hostWarmUpWatch;
   late final Phd2Launcher _phd2Launcher;
   late final DeviceReconnectCoordinator _reconnectCoordinator;
   late final DeviceHeartbeatRouter _heartbeat;
@@ -382,6 +385,8 @@ class DeviceService {
     _environmentPollTimer = null;
     _temperaturePoller.dispose();
     _warmupController.dispose();
+    _hostWarmUpWatch?.cancel();
+    _hostWarmUpWatch = null;
     _reconnectCoordinator.cancelAll();
   }
 

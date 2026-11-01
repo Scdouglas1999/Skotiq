@@ -361,6 +361,8 @@ const Set<String> _ownershipRequiredPaths = {
   '/api/camera/expose',
   '/api/camera/abort',
   '/api/camera/cooling',
+  '/api/camera/warm-up',
+  '/api/camera/warm-up/cancel',
   '/api/camera/readoutMode',
   '/api/camera/gain',
   '/api/camera/offset',

@@ -201,12 +201,72 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   ///
   /// Delegates to [CameraWarmupController] — see that class for the full
   /// algorithm and rationale.
-  Future<CameraWarmupOutcome> _warmCamera({double ratePerMin = 2.0}) =>
-      _warmupController.start(ratePerMin: ratePerMin);
+  ///
+  /// On a remote client the host runs the ramp, next to the camera, so it
+  /// continues when this client leaves and any client can cancel it.
+  Future<CameraWarmupOutcome> _warmCamera({double ratePerMin = 2.0}) async {
+    final backend = _backend;
+    if (backend is! NetworkBackend) {
+      return _warmupController.start(ratePerMin: ratePerMin);
+    }
+    final name = await backend.cameraStartHostWarmUp(ratePerMin: ratePerMin);
+    final outcome = CameraWarmupOutcome.values.firstWhere(
+      (value) => value.name == name,
+      orElse: () => CameraWarmupOutcome.started,
+    );
+    if (outcome == CameraWarmupOutcome.started) {
+      _ref.read(cameraStateProvider.notifier).setWarming(true);
+      _followHostWarmUp(backend);
+    }
+    return outcome;
+  }
 
   /// Cancel an in-progress gradual warm-up. See [CameraWarmupController.cancel].
-  void _cancelWarmCamera({bool restorePriorSetting = true}) =>
+  ///
+  /// On a remote client only an operator's cancel (restoring the prior
+  /// set-point) reaches the host. The other callers send their own cooler
+  /// command next, which the host treats as replacing its warm-up, or are
+  /// tearing this client down, which must leave the host's warm-up running.
+  void _cancelWarmCamera({bool restorePriorSetting = true}) {
+    final backend = _backend;
+    if (backend is! NetworkBackend) {
       _warmupController.cancel(restorePriorSetting: restorePriorSetting);
+      return;
+    }
+    if (!restorePriorSetting) return;
+    _hostWarmUpWatch?.cancel();
+    _hostWarmUpWatch = null;
+    _ref.read(cameraStateProvider.notifier).setWarming(false);
+    unawaited(
+      backend.cameraCancelHostWarmUp(restorePriorSetting: true).catchError((
+        Object e,
+      ) {
+        _ref
+            .read(loggingServiceProvider)
+            .error(
+              'Could not cancel the warm-up on the imaging host: $e',
+              source: 'DeviceService',
+            );
+      }),
+    );
+  }
+
+  /// Show the host's warm-up as running until the host reports it over.
+  void _followHostWarmUp(NetworkBackend backend) {
+    _hostWarmUpWatch?.cancel();
+    _hostWarmUpWatch = Timer.periodic(const Duration(seconds: 10), (_) async {
+      bool warming;
+      try {
+        warming = await backend.cameraHostIsWarming();
+      } catch (_) {
+        return;
+      }
+      if (_disposed || warming) return;
+      _hostWarmUpWatch?.cancel();
+      _hostWarmUpWatch = null;
+      _ref.read(cameraStateProvider.notifier).setWarming(false);
+    });
+  }
 
   /// Disconnect camera
   Future<void> _disconnectCamera() {
