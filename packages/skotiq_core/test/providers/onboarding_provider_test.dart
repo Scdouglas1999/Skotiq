@@ -111,16 +111,10 @@ void main() {
   );
 
   test(
-    'equipment onboarding gate reloads when the imaging host changes',
+    'a companion never runs equipment onboarding, even on an empty host',
     () async {
       final emptyHost = _MockNetworkBackend();
-      final configuredHost = _MockNetworkBackend();
       when(() => emptyHost.getProfiles()).thenAnswer((_) async => const []);
-      when(() => configuredHost.getProfiles()).thenAnswer(
-        (_) async => const [
-          remote_profile.EquipmentProfile(id: 'rig-b', name: 'Rig B'),
-        ],
-      );
 
       final hostContainer = ProviderContainer(
         overrides: [
@@ -134,20 +128,8 @@ void main() {
 
       expect(
         await hostContainer.read(shouldRunEquipmentOnboardingProvider.future),
-        isTrue,
-      );
-
-      final backend =
-          hostContainer.read(backendProvider.notifier)
-              as _SwappableBackendNotifier;
-      backend.swap(configuredHost);
-
-      expect(
-        await hostContainer.read(shouldRunEquipmentOnboardingProvider.future),
         isFalse,
       );
-      verify(() => emptyHost.getProfiles()).called(1);
-      verify(() => configuredHost.getProfiles()).called(1);
     },
   );
 

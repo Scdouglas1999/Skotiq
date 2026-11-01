@@ -23,15 +23,14 @@ final shouldRunEquipmentOnboardingProvider = FutureProvider<bool>((ref) async {
   // got past onboarding (either through this wizard or the original
   // equipment screen). The wizard is reachable from settings for those
   // users.
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final remoteProfiles = await backend.getProfiles();
-    if (remoteProfiles.isNotEmpty) return false;
-  } else {
-    final profilesDao = ref.read(equipmentProfilesDaoProvider);
-    final profiles = await profilesDao.getAllProfiles();
-    if (profiles.isNotEmpty) return false;
-  }
+  // A companion never sets up a rig: the imaging host owns the equipment, and
+  // a companion that cannot reach its host must say so instead of offering to
+  // configure this machine.
+  if (ref.watch(isRemoteClientProvider)) return false;
+  if (ref.watch(backendProvider) is NetworkBackend) return false;
+  final profilesDao = ref.read(equipmentProfilesDaoProvider);
+  final profiles = await profilesDao.getAllProfiles();
+  if (profiles.isNotEmpty) return false;
 
   final tutorialDao = ref.read(tutorialProgressDaoProvider);
   final progress = await tutorialDao.getProgress(

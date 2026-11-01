@@ -72,6 +72,12 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
   /// principal's digest when auth is enabled; supplying it from
   /// the client is still useful for (a) unauthenticated deployments and
   /// (b) keeping the wire shape consistent.
+  bool _lastConnectTokenRejected = false;
+
+  /// True when the most recent [connect] failed because the host refused the
+  /// access token, as opposed to not answering.
+  bool get lastConnectTokenRejected => _lastConnectTokenRejected;
+
   Future<void> connect(
     String host,
     int port, {
@@ -83,6 +89,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     String? collaborationDisplayName,
   }) async {
     final transitionGeneration = ++_transitionGeneration;
+    _lastConnectTokenRejected = false;
     // [scheme] is `'http'` for LAN and `'https'` for a TLS-fronted tailnet /
     // Internet endpoint; NetworkBackend derives `ws`/`wss` from it. The
     // backend itself classifies [host] as LAN vs tailnet (via TailnetDetector)
@@ -144,6 +151,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     final connectionState = backend.connectionState;
     final connected =
         failure == null && connectionState == BackendConnectionState.connected;
+    _lastConnectTokenRejected = !connected && backend.isAuthTokenRejected;
 
     if (connected) {
       developer.log(

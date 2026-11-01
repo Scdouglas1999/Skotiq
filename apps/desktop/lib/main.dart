@@ -189,6 +189,16 @@ void main(List<String> args) async {
       // connected, and a screen that reads the connection instead of the role
       // offers it the imaging host's editor over its own empty database.
       remoteClientLaunchProvider.overrideWithValue(remoteTarget != null),
+      remoteLaunchTargetProvider.overrideWithValue(
+        remoteTarget == null
+            ? null
+            : RemoteLaunchTarget(
+                host: remoteTarget.host,
+                port: remoteTarget.port,
+                token: remoteTarget.token,
+                scheme: remoteTarget.scheme,
+              ),
+      ),
       // Initialize backendProvider for the desktop GUI. Default: the local
       // FfiBackend (this machine owns the hardware). With --remote-host, run as
       // a thin client against a remote headless rig via NetworkBackend instead,
@@ -338,22 +348,19 @@ void main(List<String> args) async {
   // which is why profiles/devices appeared missing. Mirrors the mobile
   // post-connect sequence (invalidate appSettings + equipmentProfiles).
   if (remoteTarget != null) {
-    try {
-      await container
-          .read(backendProvider.notifier)
-          .connect(
-            remoteTarget.host,
-            remoteTarget.port,
-            authToken: remoteTarget.token,
-            scheme: remoteTarget.scheme,
-          );
-    } catch (error) {
-      developer.log(
+    // A failed connect is shown in the window (with Retry) by the shell's
+    // connection banner; the status notifier keeps retrying an unreachable
+    // host on its own.
+    final connected = await container
+        .read(remoteLaunchStatusProvider.notifier)
+        .connect();
+    if (!connected) {
+      final status = container.read(remoteLaunchStatusProvider);
+      logger.warning(
         'Remote connect to ${remoteTarget.scheme}://'
-        '${remoteTarget.host}:${remoteTarget.port} failed: $error',
-        name: 'desktop.main',
-        level: 1000,
-        error: error,
+        '${remoteTarget.host}:${remoteTarget.port} failed '
+        '(${status.failure?.name}): ${status.detail}',
+        source: 'desktop.main',
       );
     }
     container.invalidate(appSettingsProvider);
