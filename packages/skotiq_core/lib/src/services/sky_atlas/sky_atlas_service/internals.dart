@@ -197,3 +197,16 @@ class _PendingFold {
   final String contributor;
   final Completer<AtlasFoldSummary?> completer = Completer<AtlasFoldSummary?>();
 }
+
+/// A one-at-a-time async gate: [run] starts its body only after every body
+/// handed in before it has finished, whether it completed or threw.
+class _ConeScanGate {
+  Future<void> _tail = Future<void>.value();
+
+  Future<T> run<T>(Future<T> Function() body) {
+    final prior = _tail;
+    final done = Completer<void>();
+    _tail = done.future;
+    return prior.then((_) => body()).whenComplete(done.complete);
+  }
+}

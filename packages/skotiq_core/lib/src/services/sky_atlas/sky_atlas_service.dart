@@ -38,8 +38,10 @@ class SkyAtlasService {
     required Future<String> Function() atlasRootResolver,
     Future<AtlasTargetRef?> Function(int targetId)? targetResolver,
     Future<bool> Function()? autoFoldEnabled,
+    void Function()? onAtlasChanged,
     int order = skyAtlasHealpixOrder,
   }) : _dao = dao,
+       _onAtlasChanged = onAtlasChanged,
        _seam = seam,
        _logger = logger,
        _atlasRootResolver = atlasRootResolver,
@@ -59,6 +61,10 @@ class SkyAtlasService {
   /// The `science.feature.sky_atlas` switch: when it reads false the solve hook
   /// folds nothing. Null (tests, slaves) means always on.
   final Future<bool> Function()? _autoFoldEnabled;
+
+  /// Called after every sidecar writer (fold, swarm merge) finishes, so a host
+  /// can tell its companions the atlas changed.
+  final void Function()? _onAtlasChanged;
 
   /// Auto-fold requests not yet handed to the native fold.
   final List<_PendingFold> _pendingFolds = [];
@@ -93,7 +99,53 @@ class SkyAtlasService {
     final prior = _foldChain;
     final completer = Completer<void>();
     _foldChain = completer.future;
-    return prior.then((_) => body()).whenComplete(completer.complete);
+    return prior.then((_) => body()).whenComplete(() {
+      _atlasGeneration++;
+      completer.complete();
+      _onAtlasChanged?.call();
+    });
+  }
+
+  /// Bumped after every sidecar writer finishes, so cone results computed
+  /// against an older atlas are never served again.
+  int _atlasGeneration = 0;
+
+  /// Cone-scan results (growth curve, region coverage) keyed by query kind and
+  /// cone geometry. An entry is reused only while [_atlasGeneration] matches the
+  /// one it was computed under; concurrent identical queries share one future.
+  final Map<String, ({int generation, Future<Map<String, dynamic>> result})>
+  _coneCache = {};
+
+  static const int _maxConeCacheEntries = 256;
+
+  /// At most one cone scan runs on the native worker pool at a time, so a burst
+  /// of atlas reads can never occupy the threads device and guider calls need.
+  final _ConeScanGate _coneScanGate = _ConeScanGate();
+
+  Future<Map<String, dynamic>> _cachedConeQuery(
+    String kind, {
+    required double centerRaDeg,
+    required double centerDecDeg,
+    required double radiusDeg,
+    required Future<Map<String, dynamic>> Function() compute,
+  }) {
+    final key = '$kind|$centerRaDeg|$centerDecDeg|$radiusDeg';
+    final generation = _atlasGeneration;
+    final cached = _coneCache[key];
+    if (cached != null && cached.generation == generation) {
+      return cached.result;
+    }
+    if (_coneCache.length >= _maxConeCacheEntries) _coneCache.clear();
+    final result = _coneScanGate.run(compute);
+    _coneCache[key] = (generation: generation, result: result);
+    result.catchError((Object _) {
+      final current = _coneCache[key];
+      if (current != null && identical(current.result, result)) {
+        _coneCache.remove(key);
+      }
+      return const <String, dynamic>{};
+    });
+    return result;
   }
 
   /// The on-disk atlas root, resolved (and the directory created) lazily once.
@@ -453,7 +505,7 @@ class SkyAtlasService {
       // the overlay tree at all, so a community photon cannot leak into a push.
       'includeOverlay': includeSwarm,
     };
-    return _seam.queryCutout(args);
+    return _coneScanGate.run(() => _seam.queryCutout(args));
   }
 
   /// Per-tile coverage rows for the heat overlay / gallery, deepest first —
@@ -646,15 +698,23 @@ class SkyAtlasService {
     required double centerRaDeg,
     required double centerDecDeg,
     required double radiusDeg,
-  }) async {
-    final root = await atlasRoot();
-    return _seam.growth({
-      'atlasRoot': root,
-      'order': _order,
-      'centerRa': centerRaDeg,
-      'centerDec': centerDecDeg,
-      'radiusDeg': radiusDeg,
-    });
+  }) {
+    return _cachedConeQuery(
+      'growth',
+      centerRaDeg: centerRaDeg,
+      centerDecDeg: centerDecDeg,
+      radiusDeg: radiusDeg,
+      compute: () async {
+        final root = await atlasRoot();
+        return _seam.growth({
+          'atlasRoot': root,
+          'order': _order,
+          'centerRa': centerRaDeg,
+          'centerDec': centerDecDeg,
+          'radiusDeg': radiusDeg,
+        });
+      },
+    );
   }
 
   /// Native coverage summary for a region cone (raw bridge result map).
@@ -662,15 +722,23 @@ class SkyAtlasService {
     required double centerRaDeg,
     required double centerDecDeg,
     required double radiusDeg,
-  }) async {
-    final root = await atlasRoot();
-    return _seam.regionInfo({
-      'atlasRoot': root,
-      'order': _order,
-      'centerRa': centerRaDeg,
-      'centerDec': centerDecDeg,
-      'radiusDeg': radiusDeg,
-    });
+  }) {
+    return _cachedConeQuery(
+      'regionInfo',
+      centerRaDeg: centerRaDeg,
+      centerDecDeg: centerDecDeg,
+      radiusDeg: radiusDeg,
+      compute: () async {
+        final root = await atlasRoot();
+        return _seam.regionInfo({
+          'atlasRoot': root,
+          'order': _order,
+          'centerRa': centerRaDeg,
+          'centerDec': centerDecDeg,
+          'radiusDeg': radiusDeg,
+        });
+      },
+    );
   }
 
   // Regions
