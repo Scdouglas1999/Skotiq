@@ -119,6 +119,13 @@ class CameraTemperaturePoller {
         return;
       }
 
+      _ref.read(cameraStateProvider.notifier).updateReadout(
+            gain: status.gain,
+            offset: status.offset,
+            binX: status.binX,
+            binY: status.binY,
+          );
+
       final temp = status.sensorTemp;
       final power = status.coolerPower;
       final targetTemp = status.targetTemp;

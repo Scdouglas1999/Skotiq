@@ -96,6 +96,17 @@ void main() {
     },
   );
 
+  test('records the gain, offset and binning the camera reports', () async {
+    await pollOnce(
+      _coolingStatus(sensorTemp: 20.0, targetTemp: -10.0, coolerPower: 0.0),
+    );
+
+    final camera = container.read(cameraStateProvider);
+    expect(camera.gain, 100);
+    expect(camera.offset, 50);
+    expect(camera.binning, '1x1');
+  });
+
   test('cooling but not at-target when reading is outside tolerance', () async {
     await pollOnce(
       _coolingStatus(sensorTemp: 5.0, targetTemp: -10.0, coolerPower: 95.0),

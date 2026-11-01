@@ -150,6 +150,20 @@ class CameraStateNotifier extends StateNotifier<CameraStateSnapshot>
     );
   }
 
+  /// Record the gain, offset and binning the camera reports it is using.
+  void updateReadout({
+    required int gain,
+    required int offset,
+    required int binX,
+    required int binY,
+  }) {
+    state = state.copyWith(
+      gain: gain,
+      offset: offset,
+      binning: '${binX}x$binY',
+    );
+  }
+
   /// Update target temperature setting (persists across navigation)
   void setTargetTemp(double temp) {
     state = state.copyWith(targetTemp: temp);
