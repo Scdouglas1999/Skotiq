@@ -1343,3 +1343,37 @@ async fn concurrent_start_stop_start_never_orphans_loop() {
         );
     }
 }
+
+/// One failed camera download skips that frame and keeps guiding, with a
+/// notification naming the retry; only a run of failures past the budget ends
+/// the loop.
+#[tokio::test]
+async fn a_failed_guide_frame_is_skipped_until_the_retry_budget_is_spent() {
+    let stop = std::sync::atomic::AtomicBool::new(false);
+    let mut failures = 0;
+    let fail = || async { Err::<u32, _>(SkotiqError::OperationFailed("download failed".into())) };
+
+    for retry in 1..=GUIDE_FRAME_RETRIES {
+        match next_guiding_frame(fail, &mut failures, Duration::ZERO, &stop).await {
+            Ok(GuideFrameAttempt::Skipped(message)) => assert!(
+                message.contains(&format!("retry {retry} of {GUIDE_FRAME_RETRIES}")),
+                "{message}"
+            ),
+            _ => panic!("failure {retry} ended guiding instead of being skipped"),
+        }
+    }
+    assert!(
+        next_guiding_frame(fail, &mut failures, Duration::ZERO, &stop)
+            .await
+            .is_err()
+    );
+
+    // A good frame resets the budget.
+    let mut failures = GUIDE_FRAME_RETRIES;
+    let ok = || async { Ok::<u32, SkotiqError>(7) };
+    assert!(matches!(
+        next_guiding_frame(ok, &mut failures, Duration::ZERO, &stop).await,
+        Ok(GuideFrameAttempt::Frame(7))
+    ));
+    assert_eq!(failures, 0);
+}
