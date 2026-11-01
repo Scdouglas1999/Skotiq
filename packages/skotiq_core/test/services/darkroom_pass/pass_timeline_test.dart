@@ -218,7 +218,7 @@ void main() {
       final s = tl.snapshot(now: DateTime.now());
       expect(s.ended, isTrue);
       expect(s.elapsed, _s(21));
-      expect(tl.lanes[1].failure, contains('cancelled'));
+      expect(tl.lanes[1].failure, contains('canceled'));
       expect(
         s.schedule.firstWhere((x) => x.stage == PassStage.draft).state,
         PassStepState.notRun,
