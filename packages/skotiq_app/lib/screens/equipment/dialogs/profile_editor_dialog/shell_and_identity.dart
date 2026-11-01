@@ -45,11 +45,14 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
           label: 'Cancel',
           variant: ButtonVariant.ghost,
         ),
-      SkotiqButton(
-        onPressed: _isSaving ? null : _save,
-        label: 'Save changes',
-        variant: ButtonVariant.primary,
-        isLoading: _isSaving,
+      ListenableBuilder(
+        listenable: _formListenable,
+        builder: (context, _) => SkotiqButton(
+          onPressed: _isSaving || !_hasUnsavedChanges ? null : _save,
+          label: 'Save changes',
+          variant: ButtonVariant.primary,
+          isLoading: _isSaving,
+        ),
       ),
     ];
   }
@@ -154,7 +157,10 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
             label: 'Default profile',
             subtitle: 'Set as the active profile on startup',
             value: _isDefault,
-            onChanged: (v) => setState(() => _isDefault = v),
+            onChanged: (v) => setState(() {
+              _isDefault = v;
+              _isDefaultTouched = true;
+            }),
           ),
         ],
       ),

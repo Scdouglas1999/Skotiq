@@ -118,6 +118,10 @@ void main() {
   testWidgets('re-saving a profile under its own name is not a collision',
       (tester) async {
     await _openEditor(tester, editing: _existing);
+    // Save stays disabled until something changes; retyping the name with
+    // trailing space is an edit that still saves under the same name.
+    await tester.enterText(_nameField, '${_existing.name} ');
+    await tester.pump();
 
     await tester.tap(_saveButton);
     await tester.pumpAndSettle();
