@@ -10,6 +10,8 @@ import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart'
 import 'package:skotiq_core/src/providers/equipment/guider_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/rotator_state_provider.dart';
+import 'package:skotiq_core/src/providers/meridian_flip_provider.dart'
+    show isMeridianFlipEnabledProvider;
 import 'package:skotiq_core/src/providers/sequence/rules/equipment_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/filter_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/settings_rules.dart';
@@ -93,6 +95,7 @@ ProviderContainer _container({
   DeviceConnectionState rotator = DeviceConnectionState.disconnected,
   List<String> filterNames = const [],
   String imageOutputPath = '/tmp/out',
+  bool? runFlipsArmed,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -137,6 +140,8 @@ ProviderContainer _container({
           AppSettingsState(imageOutputPath: imageOutputPath),
         ),
       ),
+      if (runFlipsArmed != null)
+        isMeridianFlipEnabledProvider.overrideWithValue(runFlipsArmed),
     ],
   );
   addTearDown(container.dispose);
@@ -583,7 +588,7 @@ void main() {
 
   group('MeridianFlipTriggerRule', () {
     test('fires when long sequence has targets but no flip handling', () async {
-      final container = _container();
+      final container = _container(runFlipsArmed: false);
       await container.read(appSettingsProvider.future);
       final rule = MeridianFlipTriggerRule();
       final target = TargetHeaderNode(
@@ -606,6 +611,38 @@ void main() {
         (ref) => rule.validate(s, ValidationContext(ref)),
       );
       expect(issues.single.title, 'No Meridian Flip Trigger');
+      expect(
+        issues.single.resolutionHint,
+        isNot(contains('Settings → Meridian Flip')),
+      );
+      expect(
+        issues.single.resolutionHint,
+        contains('Settings > Sequencer > Meridian flip'),
+      );
+    });
+
+    test('clean when the run\'s own flip trigger is armed', () async {
+      final container = _container(runFlipsArmed: true);
+      await container.read(appSettingsProvider.future);
+      final rule = MeridianFlipTriggerRule();
+      final target = TargetHeaderNode(
+        targetName: 'M51',
+        raHours: 13.5,
+        decDegrees: 47.2,
+      );
+      final exposure = ExposureNode(durationSecs: 600, count: 24);
+      final s = Sequence.create(
+        name: 'X',
+        nodes: {
+          target.id: target.copyWith(childIds: [exposure.id]),
+          exposure.id: exposure.copyWith(parentId: target.id),
+        },
+        rootNodeId: target.id,
+      );
+      expect(
+        _withRef(container, (ref) => rule.validate(s, ValidationContext(ref))),
+        isEmpty,
+      );
     });
 
     test('clean when a MeridianFlipNode is present', () async {

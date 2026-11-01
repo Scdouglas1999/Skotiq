@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../../models/sequence/sequence_models.dart';
+import '../../meridian_flip_provider.dart' show isMeridianFlipEnabledProvider;
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
 
@@ -172,9 +173,11 @@ class LongEstimatedDurationRule implements RefAwareSequenceValidator {
 }
 
 /// Warns when the sequence has targets, runs > 2 hours, but has no
-/// meridian-flip handling (no MeridianFlipNode + no Recovery node with
-/// meridianFlip trigger). Targets crossing the meridian during a long run
-/// will smash the mount into tracking limits without a flip.
+/// meridian-flip handling: no MeridianFlipNode, no Recovery node with a
+/// meridianFlip trigger, and the run's own meridian-flip trigger (armed for
+/// every run from Settings > Sequencer > Meridian flip) is off. Targets
+/// crossing the meridian during a long run would otherwise run the mount into
+/// its tracking limits.
 class MeridianFlipTriggerRule implements RefAwareSequenceValidator {
   @override
   String get name => 'MeridianFlipTrigger';
@@ -197,6 +200,17 @@ class MeridianFlipTriggerRule implements RefAwareSequenceValidator {
     );
     if (hasRecoveryFlip) return const [];
 
+    // Every run arms the standard meridian-flip trigger with these settings,
+    // so a sequence needs no flip node of its own while they are on. When they
+    // cannot be read, fall through to the warning rather than assume a flip.
+    bool runFlipsArmed;
+    try {
+      runFlipsArmed = ctx.ref.read(isMeridianFlipEnabledProvider);
+    } catch (_) {
+      runFlipsArmed = false;
+    }
+    if (runFlipsArmed) return const [];
+
     double totalMins = 0;
     for (final node in sequence.nodes.values) {
       if (node is! ExposureNode) continue;
@@ -214,7 +228,8 @@ class MeridianFlipTriggerRule implements RefAwareSequenceValidator {
             'This sequence has targets and runs for over 2 hours but has no meridian flip trigger. '
             'If targets cross the meridian during imaging, the mount may hit its tracking limits.',
         resolutionHint:
-            'Add a MeridianFlip node to the sequence or enable auto meridian flip in Settings → Meridian Flip.',
+            'Add a Meridian flip node to the sequence, or turn on automatic flips in '
+            'Settings > Sequencer > Meridian flip.',
       ),
     ];
   }
