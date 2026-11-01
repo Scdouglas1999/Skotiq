@@ -591,6 +591,49 @@ void main() {
     });
   });
 
+  test('losing the built-in guider never disconnects or relaunches PHD2', () {
+    fakeAsync((async) {
+      final events = StreamController<SkotiqEvent>.broadcast();
+      final backend = _MockBackend();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      when(() => backend.phd2Disconnect()).thenAnswer((_) async {});
+      when(
+        () => backend.phd2Connect(
+          host: any(named: 'host'),
+          port: any(named: 'port'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final container = _container(backend);
+      container.read(guiderStateProvider.notifier)
+        ..setConnecting(builtinGuiderDeviceId, 'Built-in Multi-Star Guider')
+        ..setConnected()
+        ..setAutoReconnect(true);
+      container.read(phd2ControllerProvider);
+      container.read(appSettingsProvider);
+      async.flushMicrotasks();
+
+      // The built-in guider's task ended; the device service clears the
+      // guider state before this controller sees the event.
+      container.read(guiderStateProvider.notifier).setDisconnected();
+      events.add(_guidingEvent('Disconnected'));
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 60));
+      async.flushMicrotasks();
+
+      verifyNever(() => backend.phd2Disconnect());
+      verifyNever(
+        () => backend.phd2Connect(
+          host: any(named: 'host'),
+          port: any(named: 'port'),
+        ),
+      );
+
+      events.close();
+      container.dispose();
+    });
+  });
+
   group('connect serialization', () {
     test('a duplicate concurrent connect joins the same outcome', () async {
       final events = StreamController<SkotiqEvent>.broadcast();
