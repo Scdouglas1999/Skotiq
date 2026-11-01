@@ -212,7 +212,8 @@ class FramingFOVPainter extends CustomPainter {
       fontWeight: FontWeight.w500,
     );
 
-    final directions = ['N', 'E', 'S', 'W'];
+    // North up, east left: the sky as seen, as the survey shows it.
+    final directions = ['N', 'W', 'S', 'E'];
     final positions = [
       Offset(center.dx, center.dy - height / 2 + 12),
       Offset(center.dx + width / 2 - 12, center.dy),
@@ -405,7 +406,8 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
       fontWeight: FontWeight.w500,
     );
 
-    final directions = ['N', 'E', 'S', 'W'];
+    // North up, east left: the sky as seen, as the survey shows it.
+    final directions = ['N', 'W', 'S', 'E'];
     final positions = [
       Offset(center.dx, center.dy - height / 2 + 14),
       Offset(center.dx + width / 2 - 14, center.dy),

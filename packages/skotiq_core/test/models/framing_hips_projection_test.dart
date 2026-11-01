@@ -133,42 +133,60 @@ void main() {
 
       final screen = proj.raDecToScreen(raHours, decDeg);
 
-      // +RA -> +x (because +pan x lowers the center RA), +Dec -> -y (north up).
-      expect(screen.dx, closeTo(drawRect.center.dx + dRaDeg * pxPerDeg, 1e-4));
+      // East is left: +RA -> -x; +Dec -> -y (north up).
+      expect(screen.dx, closeTo(drawRect.center.dx - dRaDeg * pxPerDeg, 1e-4));
       expect(screen.dy, closeTo(drawRect.center.dy - dDecDeg * pxPerDeg, 1e-4));
     });
   });
 
-  group('Sign convention matches FramingProvider._recenterFromPan', () {
-    test('+pan x moves the same sky point right and reveals decreasing RA', () {
-      const canvas = Size(1000, 1000);
-      // Where does the center-target land when we pan right by 100px?
-      final proj = FramingSkyProjection.fromView(canvas, _view(panX: 100));
-      final pos = proj.raDecToScreen(6.0, 30.0);
-      // The target was at center; panning right moves it right by 100px.
-      expect(pos.dx, closeTo(600.0, 1e-6));
-      expect(pos.dy, closeTo(500.0, 1e-6));
+  group(
+    'Sign convention: north up, east left, as FramingProvider._recenterFromPan',
+    () {
+      test('+pan x moves the same sky point right and reveals increasing RA', () {
+        const canvas = Size(1000, 1000);
+        // Where does the center-target land when we pan right by 100px?
+        final proj = FramingSkyProjection.fromView(canvas, _view(panX: 100));
+        final pos = proj.raDecToScreen(6.0, 30.0);
+        // The target was at center; panning right moves it right by 100px.
+        expect(pos.dx, closeTo(600.0, 1e-6));
+        expect(pos.dy, closeTo(500.0, 1e-6));
 
-      // The sky now under the canvas center has *decreased* RA (west revealed),
-      // exactly mirroring FramingProvider._recenterFromPan:
-      //   raOffsetHours = (-raDisplacementDeg / 15) / cos(dec),
-      //   raDisplacementDeg = panX / pxPerDeg.
-      final atCenter = proj.screenToRaDec(const Offset(500, 500));
-      final pxPerDeg = _loadedScale.pixelsPerDegree(canvas, 1.0);
-      final raDisplacementDeg = 100 / pxPerDeg;
-      final expectedRaHours =
-          (6.0 + (-raDisplacementDeg / 15.0) / math.cos(30.0 * math.pi / 180)) %
-          24.0;
-      expect(atCenter.raHours, closeTo(expectedRaHours, 1e-6));
-    });
+        // The sky now under the canvas center has *increased* RA (east, which
+        // is left, revealed), exactly mirroring FramingProvider._recenterFromPan:
+        //   raOffsetHours = (raDisplacementDeg / 15) / cos(dec),
+        //   raDisplacementDeg = panX / pxPerDeg.
+        final atCenter = proj.screenToRaDec(const Offset(500, 500));
+        final pxPerDeg = _loadedScale.pixelsPerDegree(canvas, 1.0);
+        final raDisplacementDeg = 100 / pxPerDeg;
+        final expectedRaHours =
+            (6.0 +
+                (raDisplacementDeg / 15.0) / math.cos(30.0 * math.pi / 180)) %
+            24.0;
+        expect(atCenter.raHours, closeTo(expectedRaHours, 1e-6));
+      });
 
-    test('+pan y reveals increasing Dec (north) at the canvas center', () {
+      test('+pan y reveals increasing Dec (north) at the canvas center', () {
+        const canvas = Size(1000, 1000);
+        final proj = FramingSkyProjection.fromView(canvas, _view(panY: 100));
+        final atCenter = proj.screenToRaDec(const Offset(500, 500));
+        final pxPerDeg = _loadedScale.pixelsPerDegree(canvas, 1.0);
+        final expectedDec = 30.0 + 100 / pxPerDeg;
+        expect(atCenter.decDegrees, closeTo(expectedDec, 1e-6));
+      });
+    },
+  );
+
+  group('Real sky orientation', () {
+    test('M110 lies up and to the right of M31: north up, east left', () {
+      // M31 00h42m44s +41d16m, M110 (NGC 205) 00h40m22s +41d41m: M110 is
+      // west and north of M31, so on the sky as seen it sits upper right.
       const canvas = Size(1000, 1000);
-      final proj = FramingSkyProjection.fromView(canvas, _view(panY: 100));
-      final atCenter = proj.screenToRaDec(const Offset(500, 500));
-      final pxPerDeg = _loadedScale.pixelsPerDegree(canvas, 1.0);
-      final expectedDec = 30.0 + 100 / pxPerDeg;
-      expect(atCenter.decDegrees, closeTo(expectedDec, 1e-6));
+      final view = _view(centerRaHours: 0.7123, centerDecDegrees: 41.269);
+      final proj = FramingSkyProjection.fromView(canvas, view);
+      final m31 = proj.raDecToScreen(0.7123, 41.269);
+      final m110 = proj.raDecToScreen(0.6728, 41.685);
+      expect(m110.dx, greaterThan(m31.dx), reason: 'west is right');
+      expect(m110.dy, lessThan(m31.dy), reason: 'north is up');
     });
   });
 

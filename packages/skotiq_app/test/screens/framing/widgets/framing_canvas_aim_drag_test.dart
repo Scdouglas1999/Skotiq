@@ -153,11 +153,11 @@ void main() {
     expect(calls.aims, isNotEmpty);
 
     // Expected aim: the sky point 50px right / 30px down of the view center at
-    // ~399.9 px/deg. +x is increasing RA (folded by cos(20deg)), +y is
-    // decreasing Dec.
+    // ~399.9 px/deg. East is left, so +x is decreasing RA (folded by
+    // cos(20deg)), and +y is decreasing Dec.
     const ppd = 399.9; // 1199.7 drawn px / 3.0 deg
     const expectedRa =
-        5.0 + (50 / ppd) / (15.0 * 0.9396926207859084 /* cos(20deg) */);
+        5.0 - (50 / ppd) / (15.0 * 0.9396926207859084 /* cos(20deg) */);
     const expectedDec = 20.0 - (30 / ppd);
     final (aimRa, aimDec) = calls.aims.last;
     expect(aimRa, closeTo(expectedRa, 1e-3));
@@ -198,7 +198,7 @@ void main() {
     expect(calls.pans, isEmpty);
     expect(calls.aims, isNotEmpty);
     const ppd = 399.9;
-    const expectedRa = 5.0 + (40 / ppd) / (15.0 * 0.9396926207859084);
+    const expectedRa = 5.0 - (40 / ppd) / (15.0 * 0.9396926207859084);
     expect(calls.aims.last.$1, closeTo(expectedRa, 1e-3));
     expect(calls.aims.last.$2, closeTo(20.0, 1e-3));
   });
@@ -296,9 +296,9 @@ void main() {
       expect(calls.pans, isEmpty);
       expect(calls.aims, isNotEmpty);
       const ppd = 399.9;
-      // 40px right -> +40/ppd deg of RA folded by cos(dec); Dec unchanged at
+      // 40px right -> 40/ppd deg west, folded by cos(dec); Dec unchanged at
       // the dragged aim's 20.6 (a horizontal drag moves along a parallel).
-      const expectedRa = 5.0 + (40 / ppd) / (15.0 * 0.9396926207859084);
+      const expectedRa = 5.0 - (40 / ppd) / (15.0 * 0.9396926207859084);
       expect(calls.aims.last.$1, closeTo(expectedRa, 1e-3));
       expect(calls.aims.last.$2, closeTo(20.6, 1e-3));
     });

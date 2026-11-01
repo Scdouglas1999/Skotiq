@@ -212,7 +212,8 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
 
     // Mirrors raDecToScreen's inner step: the RA delta wraps to the shortest
     // 24h path and folds by cos(view-center dec) with the same pole clamp;
-    // +x points toward increasing RA, +y toward decreasing Dec (north up).
+    // east is left, so +x points toward decreasing RA, and +y toward
+    // decreasing Dec (north up).
     final decRad = target.decDegrees * math.pi / 180.0;
     final cosDec = math.cos(decRad);
     final safeCosDec =
@@ -221,7 +222,7 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
     if (dRaHours > 12.0) dRaHours -= 24.0;
     if (dRaHours < -12.0) dRaHours += 24.0;
     return Offset(
-      dRaHours * 15.0 * safeCosDec * ppd,
+      -dRaHours * 15.0 * safeCosDec * ppd,
       -(aimDec - target.decDegrees) * ppd,
     );
   }

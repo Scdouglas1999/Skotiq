@@ -456,8 +456,9 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// Recompute the target center after a pan past the re-fetch margin and load
   /// a fresh survey cutout there.
   ///
-  /// Screen convention: dragging the background to the right (+pan x) reveals
-  /// sky to the *west*, so the look-direction RA decreases; dragging down
+  /// Screen convention: north up, east left. Dragging the background to the
+  /// right (+pan x) reveals sky to the *east*, so the look-direction RA
+  /// increases; dragging down
   /// (+pan y) reveals sky to the *north*, so the look-direction Dec increases.
   /// RA offset is divided by cos(dec) so a fixed on-screen pan corresponds to a
   /// smaller absolute RA step near the celestial poles — the same cos(dec)
@@ -473,7 +474,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
         ? cosDec
         : (cosDec.isNegative ? -0.01 : 0.01);
 
-    final raOffsetHours = (-raDisplacementDeg / 15.0) / safeCosDec;
+    final raOffsetHours = (raDisplacementDeg / 15.0) / safeCosDec;
     final decOffsetDeg = decDisplacementDeg;
 
     var newRaHours = (target.raHours + raOffsetHours) % 24.0;
@@ -691,7 +692,9 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
         // Panel offset from center in the tangent plane (east/north degrees),
         // rotated by the frame rotation before the cos(dec) RA compression.
-        final eastOffsetDeg = startRaOffset + actualCol * stepWidthDeg;
+        // Columns run left to right on screen, and east is left, so the
+        // first column is the eastmost.
+        final eastOffsetDeg = -(startRaOffset + actualCol * stepWidthDeg);
         final northOffsetDeg = startDecOffset - actualRow * stepHeightDeg;
 
         final double rotatedEastDeg;
