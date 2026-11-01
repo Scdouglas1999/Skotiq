@@ -234,6 +234,10 @@ class DeviceService {
   /// The backend whose events this service is listening to.
   SkotiqBackend get eventSource => _backend;
 
+  /// True on a companion: the imaging host owns every device, so this client
+  /// never tears one down to clean up after its own failed request.
+  bool get _hostOwnsDevices => _backend is NetworkBackend;
+
   DeviceService(this._ref, this._backend) {
     _temperaturePoller = CameraTemperaturePoller(ref: _ref, backend: _backend);
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);

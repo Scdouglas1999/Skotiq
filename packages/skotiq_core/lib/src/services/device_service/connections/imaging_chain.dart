@@ -565,7 +565,9 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         );
       } catch (e) {
         try {
-          await _backend.disconnectDevice(DeviceType.focuser, deviceId);
+          if (!_hostOwnsDevices) {
+            await _backend.disconnectDevice(DeviceType.focuser, deviceId);
+          }
         } catch (_) {
           // The connect itself may have failed before the backend registered
           // the device. Preserve the original, more useful failure.
@@ -714,7 +716,9 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         await _syncFilterNamesToDriver(status.filterNames);
       } catch (e) {
         try {
-          await _backend.disconnectDevice(DeviceType.filterWheel, deviceId);
+          if (!_hostOwnsDevices) {
+            await _backend.disconnectDevice(DeviceType.filterWheel, deviceId);
+          }
         } catch (_) {
           // Preserve the original connect/status failure.
         }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
@@ -48,6 +49,11 @@ class DeviceReconnectCoordinator {
 
   final Ref _ref;
   final SkotiqBackend _backend;
+
+  /// On a companion the device events are the imaging host's, relayed. The
+  /// host already reconnects, checkpoints and pauses for its own devices, so
+  /// the companion must never send its own reconnect, checkpoint or pause.
+  bool get _hostOwnsRecovery => _backend is NetworkBackend;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
   final List<Duration> _retryDelays;
@@ -233,7 +239,7 @@ class DeviceReconnectCoordinator {
   ///   * per-type `autoReconnectEnabled` flag,
   ///   * `maxReconnectAttempts` cap (notifies the user and gives up).
   Future<void> attemptReconnect(DeviceType type, String deviceId) async {
-    if (_suppressAutoReconnect) {
+    if (_suppressAutoReconnect || _hostOwnsRecovery) {
       return;
     }
 
@@ -427,6 +433,7 @@ class DeviceReconnectCoordinator {
     String deviceType,
     String deviceId,
   ) async {
+    if (_hostOwnsRecovery) return;
     final sequenceState = _ref.read(sequenceExecutionStateProvider);
     if (sequenceState != SequenceExecutionState.running &&
         sequenceState != SequenceExecutionState.paused) {

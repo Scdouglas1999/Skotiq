@@ -301,12 +301,42 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     _latchAuthRejection('$method $endpoint');
   }
 
-  /// Retry a request with exponential backoff
-  /// Max 3 attempts for transient failures only
+  /// Longest a mutating request may keep retrying after its first attempt.
+  /// A device command delivered later than this would act on a rig the user
+  /// no longer sees in the state they issued it from.
+  static const Duration _mutatingRetryWindow = Duration(seconds: 5);
+
+  /// True when [error] shows the request never reached the host: the
+  /// connection itself was refused or the host could not be found or routed
+  /// to. Anything else (timeout, reset, 5xx) may have been delivered.
+  bool _failedBeforeDelivery(Object error) {
+    if (error is SocketException) {
+      const refusedOrUnreachable = {111, 113, 101, 10061, 10065, 10051};
+      final code = error.osError?.errorCode;
+      if (code != null && refusedOrUnreachable.contains(code)) return true;
+    }
+    if (error is SocketException || error is http.ClientException) {
+      final message = error.toString().toLowerCase();
+      return message.contains('connection refused') ||
+          message.contains('failed host lookup') ||
+          message.contains('no route to host') ||
+          message.contains('network is unreachable');
+    }
+    return false;
+  }
+
+  /// Retry a request with exponential backoff, at most [maxAttempts] times and
+  /// only for transient failures.
+  ///
+  /// A [mutating] request (POST, DELETE) changes host state, so it is retried
+  /// only when the failed attempt provably never reached the host, and only
+  /// within [_mutatingRetryWindow] of the first attempt. A timed-out or
+  /// failed command is never sent again later.
   Future<T> _retryableRequest<T>(
     Future<T> Function() request, {
     int maxAttempts = 3,
     Duration? timeout,
+    bool mutating = false,
   }) async {
     // Fail fast once the host has definitively rejected this exact token:
     // every call would 403 anyway, and each attempt feeds the server's
@@ -329,6 +359,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     // 60 s on a tailnet). Callers that pass an explicit value override the
     // tuning.
     final effectiveTimeout = timeout ?? requestTimeout;
+    final firstAttempt = Stopwatch()..start();
     int attempt = 0;
     Object? lastError;
     StackTrace? lastStackTrace;
@@ -349,6 +380,12 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
             level: 1000,
             error: e,
           );
+          rethrow;
+        }
+
+        if (mutating &&
+            (!_failedBeforeDelivery(e) ||
+                firstAttempt.elapsed >= _mutatingRetryWindow)) {
           rethrow;
         }
 
@@ -418,6 +455,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
     return _retryableRequest(
       maxAttempts: maxAttempts,
       timeout: timeout,
+      mutating: true,
       () async {
         final uri = _apiUri(endpoint);
 
@@ -480,7 +518,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
   }
 
   Future<void> _delete(String endpoint) async {
-    return _retryableRequest(() async {
+    return _retryableRequest(mutating: true, () async {
       final uri = _apiUri(endpoint);
 
       final response = await _sendWithAuthRefresh(

@@ -103,6 +103,9 @@ class Phd2Controller {
 
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
+  /// True on a companion, whose guider is the imaging host's.
+  bool get _hostOwnsGuider => backend is NetworkBackend;
+
   /// Whether a UI-issued guiding command is currently in flight. Surfaced so
   /// controls can stay busy/disabled until the command is accepted or fails.
   bool get isCommandInFlight => _commandGate.isBusy;
@@ -130,6 +133,11 @@ class Phd2Controller {
 
     if (_linkLossHandled) return;
     _linkLossHandled = true;
+
+    // On a companion the Disconnected event is the host's own, relayed. The
+    // host cleans up and relaunches its guider itself; echoing a disconnect
+    // or a connect back at it would tear down guiding it is restoring.
+    if (_hostOwnsGuider) return;
 
     // An explicit Disconnect already owns backend teardown. For an unexpected
     // loss, clear stale Rust registration/storage exactly once; that cleanup
@@ -351,6 +359,15 @@ class Phd2Controller {
         }
       },
       onError: (err) {
+        // A companion's event-stream error is its own link to the host
+        // failing, which says nothing about the host's guider.
+        if (_hostOwnsGuider) {
+          _logger.warning(
+            'Event stream from the imaging host failed: $err',
+            source: 'PHD2',
+          );
+          return;
+        }
         _logger.error('Controller Event Error: $err', source: 'PHD2');
         _handlePhd2LinkLost();
       },

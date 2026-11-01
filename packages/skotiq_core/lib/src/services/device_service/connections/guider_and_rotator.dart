@@ -48,10 +48,15 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
           notifier.setConnected();
         } catch (e) {
           notifier.setDisconnected();
-          try {
-            await _backend.phd2Disconnect();
-          } catch (_) {
-            // Best-effort cleanup after a failed connect attempt.
+          // A companion's connect can time out while the host is connecting
+          // or already connected; tearing down here would drop the host's
+          // guider. Only the host cleans up its own failed attempt.
+          if (!_hostOwnsDevices) {
+            try {
+              await _backend.phd2Disconnect();
+            } catch (_) {
+              // Best-effort cleanup after a failed connect attempt.
+            }
           }
           rethrow;
         }
