@@ -456,6 +456,31 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     }
   }
 
+  /// Record that a plate solver ran on the frame at [filePath] and found no
+  /// solution. A frame that already solved keeps its solve. Returns whether a
+  /// row was marked.
+  Future<bool> markPlateSolveFailed(String filePath, {DateTime? at}) async {
+    final row = await getLatestImageByFilePath(filePath);
+    if (row == null || row.isPlateSolved) return false;
+    final stamp = (at ?? DateTime.now()).millisecondsSinceEpoch;
+    final changed = await customUpdate(
+      'UPDATE captured_images SET plate_solve_failed_at = ? '
+      'WHERE id = ? AND is_plate_solved = 0',
+      variables: [Variable.withInt(stamp), Variable.withInt(row.id)],
+      updates: {capturedImages},
+      updateKind: UpdateKind.update,
+    );
+    return changed > 0;
+  }
+
+  /// Ids of frames a plate solver ran on and could not solve (and that have
+  /// not solved since).
+  Stream<Set<int>> watchPlateSolveFailedIds() => customSelect(
+    'SELECT id FROM captured_images '
+    'WHERE plate_solve_failed_at IS NOT NULL AND is_plate_solved = 0',
+    readsFrom: {capturedImages},
+  ).watch().map((rows) => {for (final r in rows) r.read<int>('id')});
+
   /// The newest row recorded for [filePath], or null. A path can be recorded
   /// more than once (a frame re-registered after a restart), and the newest
   /// row is the one a run's later facts belong to.

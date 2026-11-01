@@ -403,6 +403,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
         _put(solved);
         unawaited(ref.read(backgroundSolveRecorderProvider)(path, result));
       } else {
+        unawaited(ref.read(backgroundSolveFailureRecorderProvider)(path));
         _put(
           FrameSolveVm(
             frameCapturedAt: key,

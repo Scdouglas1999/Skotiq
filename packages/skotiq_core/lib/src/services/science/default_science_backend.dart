@@ -78,7 +78,10 @@ class DefaultScienceBackend implements ScienceBackend {
         fovDegrees: options.searchRadiusDegrees,
         timeoutSeconds: settings?.plateSolveTimeout,
       );
-      if (!result.success) return null;
+      if (!result.success) {
+        await _recordSolveFailure(imagePath);
+        return null;
+      }
       // ASTAP's .wcs names no image size; a solver result without a field
       // size takes it from the frame, or the catalog cone shrinks to its
       // minimum and misses the outer field.
@@ -117,7 +120,28 @@ class DefaultScienceBackend implements ScienceBackend {
         'Science solve failed for $imagePath: $error\n$stack',
         source: 'ScienceBackend',
       );
+      await _recordSolveFailure(imagePath);
       return null;
+    }
+  }
+
+  /// Marks the frame as a failed solve, unless no solver is set up: then the
+  /// frame was never submitted to one.
+  Future<void> _recordSolveFailure(String imagePath) async {
+    try {
+      await _ref.read(plateSolveServiceProvider).ensureSolverAvailable();
+    } on SolverNotAvailableError {
+      return;
+    } catch (_) {
+      // Detection could not answer; the solve did run, so record it.
+    }
+    try {
+      await _ref.read(imagesDaoProvider).markPlateSolveFailed(imagePath);
+    } catch (error) {
+      _logger.warning(
+        'Could not record the failed solve of $imagePath: $error',
+        source: 'ScienceBackend',
+      );
     }
   }
 

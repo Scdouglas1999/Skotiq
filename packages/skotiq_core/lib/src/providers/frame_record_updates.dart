@@ -143,3 +143,33 @@ final backgroundSolveRecorderProvider = Provider<BackgroundSolveRecorder>((
     }
   };
 });
+
+/// Records on the frame's `captured_images` row that a background solve ran
+/// and found no solution, so solve-rate statistics count it as attempted.
+/// A no-op on a linked client, whose database is not the host's.
+typedef BackgroundSolveFailureRecorder = Future<void> Function(String filePath);
+
+final backgroundSolveFailureRecorderProvider =
+    Provider<BackgroundSolveFailureRecorder>((ref) {
+      final backend = ref.watch(backendProvider);
+      if (backend is! FfiBackend) return (_) async {};
+      final dao = ref.watch(imagesDaoProvider);
+      final tracker = ref.watch(frameRegistrationTrackerProvider);
+      final logger = ref.watch(loggingServiceProvider);
+      return (filePath) async {
+        try {
+          await tracker.settled(filePath);
+          await dao.markPlateSolveFailed(filePath);
+        } catch (e) {
+          logger.warning(
+            'Could not record the failed solve of $filePath: $e',
+            source: 'FrameAutoSolver',
+          );
+        }
+      };
+    });
+
+/// Ids of frames a plate solver ran on and could not solve.
+final plateSolveFailedFrameIdsProvider = StreamProvider.autoDispose<Set<int>>(
+  (ref) => ref.watch(imagesDaoProvider).watchPlateSolveFailedIds(),
+);

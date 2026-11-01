@@ -810,6 +810,18 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
     await _ensureCapturedImagesThumbnailPathColumn();
   }
 
+  /// When a plate solver was run on the frame and found no solution. A frame
+  /// that has neither this nor `is_plate_solved` was never sent to a solver,
+  /// so solve-rate statistics leave it out. Raw-DDL like the columns above,
+  /// ensured at every open because it is additive and nullable.
+  Future<void> _ensureCapturedImagesSolveFailureColumn() async {
+    if (!await _columnExists('captured_images', 'plate_solve_failed_at')) {
+      await customStatement(
+        'ALTER TABLE captured_images ADD COLUMN plate_solve_failed_at INTEGER',
+      );
+    }
+  }
+
   Future<void> _ensureCapturedImagesThumbnailPathColumn() async {
     if (!await _columnExists('captured_images', 'thumbnail_path')) {
       await customStatement(

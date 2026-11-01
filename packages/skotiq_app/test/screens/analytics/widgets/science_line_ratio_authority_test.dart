@@ -115,6 +115,9 @@ void main() {
         dbSessionImagesProvider.overrideWith(
           (ref, sessionId) => Stream.value(const <DbCapturedImage>[]),
         ),
+        plateSolveFailedFrameIdsProvider.overrideWith(
+          (ref) => Stream.value(const <int>{}),
+        ),
       ],
     );
     await tester.pump();
