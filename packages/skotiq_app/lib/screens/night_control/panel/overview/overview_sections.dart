@@ -235,7 +235,7 @@ class NightEquipmentSection extends StatelessWidget {
       value,
     ].join(', ');
     return Tooltip(
-      message: row.deviceName ?? kind,
+      message: row.deviceName == null ? value : '${row.deviceName} · $value',
       child: Semantics(
         label: semantics,
         excludeSemantics: true,
@@ -440,15 +440,18 @@ class _NightLogSectionState extends State<NightLogSection> {
               ),
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
-                child: Text(
-                  entry.message.resolve(l10n),
-                  style: SkotiqTypography.caption.copyWith(
-                    color: entry.tone == MetricTone.neutral
-                        ? colors.textSecondary
-                        : nightToneColor(entry.tone, colors),
+                child: Tooltip(
+                  message: entry.message.resolve(l10n),
+                  child: Text(
+                    entry.message.resolve(l10n),
+                    style: SkotiqTypography.caption.copyWith(
+                      color: entry.tone == MetricTone.neutral
+                          ? colors.textSecondary
+                          : nightToneColor(entry.tone, colors),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -601,13 +604,17 @@ class NightChecklistSection extends StatelessWidget {
                 ),
                 const SizedBox(width: SkotiqTokens.spaceXs),
                 Expanded(
-                  child: Text(
-                    detail ?? kReadoutUnknown,
-                    style: SkotiqTypography.caption.copyWith(
-                      color: detailColor,
+                  // The column is narrow; the full detail is one hover away.
+                  child: Tooltip(
+                    message: detail ?? '',
+                    child: Text(
+                      detail ?? kReadoutUnknown,
+                      style: SkotiqTypography.caption.copyWith(
+                        color: detailColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
