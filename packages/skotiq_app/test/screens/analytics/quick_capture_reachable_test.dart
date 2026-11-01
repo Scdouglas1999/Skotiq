@@ -113,7 +113,7 @@ void main() {
         .resetDevicePixelRatio();
   });
 
-  testWidgets('Session offers the quick captures back and honours the choice',
+  testWidgets('Session offers the quick captures back and honors the choice',
       (tester) async {
     await tester.pumpWidget(_app(AnalyticsTab.session));
     await tester.pump(const Duration(milliseconds: 300));

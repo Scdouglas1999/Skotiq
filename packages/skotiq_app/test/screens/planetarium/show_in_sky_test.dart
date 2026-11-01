@@ -101,7 +101,7 @@ void main() {
   });
 
   group('focusSkyOn', () {
-    testWidgets('centres the sky view and selects the coordinate',
+    testWidgets('centers the sky view and selects the coordinate',
         (tester) async {
       final container =
           ProviderContainer(overrides: [inMemoryDatabaseOverride()]);

@@ -564,7 +564,7 @@ void main() {
     expect(constraintSvc.deletedForTarget, [2]);
   });
 
-  testWidgets('scheduler row cleanup is cancelled after a host switch',
+  testWidgets('scheduler row cleanup is canceled after a host switch',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1280, 800);
@@ -627,7 +627,7 @@ void main() {
 
     expect(goalSvc.deletedForTarget, isEmpty);
     expect(constraintSvc.deletedForTarget, isEmpty);
-    expect(find.textContaining('cleanup was cancelled'), findsOneWidget);
+    expect(find.textContaining('cleanup was canceled'), findsOneWidget);
   });
 
   testWidgets('"Clear all" button works when SchedulerTabContent is embedded',

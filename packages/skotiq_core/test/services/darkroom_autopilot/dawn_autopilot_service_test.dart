@@ -593,13 +593,13 @@ void main() {
   );
 
   test(
-    'a mono master carries no colour step and the report says why',
+    'a mono master carries no color step and the report says why',
     () async {
       darkroom.draftNotes = [
         {
           'opId': 'color_calibrate',
           'outcome': 'omitted',
-          'reason': 'this master has 1 channel(s); the colour fit needs three',
+          'reason': 'this master has 1 channel(s); the color fit needs three',
         },
       ];
       final sessionId = await insertSession();
@@ -638,7 +638,7 @@ void main() {
       {
         'opId': 'color_calibrate',
         'outcome': 'omitted',
-        'reason': 'this master has 1 channel(s); the colour fit needs three',
+        'reason': 'this master has 1 channel(s); the color fit needs three',
       },
     ];
     final sessionId = await insertSession();
@@ -669,7 +669,7 @@ void main() {
   });
 
   test(
-    'an RGB master keeps the colour step once it applies at level 0',
+    'an RGB master keeps the color step once it applies at level 0',
     () async {
       darkroom.draftSteps = [
         {
@@ -838,7 +838,7 @@ void main() {
   });
 
   test(
-    'a colour step that skips at level 0 is dropped with its own reason',
+    'a color step that skips at level 0 is dropped with its own reason',
     () async {
       darkroom.draftSteps = [
         {
@@ -854,7 +854,7 @@ void main() {
           'enabled': true,
         },
       ];
-      darkroom.skipReasons = {0: 'no photometric catalogue is installed'};
+      darkroom.skipReasons = {0: 'no photometric catalog is installed'};
       final sessionId = await insertSession();
       final imageId = await insertSub(sessionId: sessionId);
       await insertMaster(imageIds: [imageId], channels: 3, solved: true);
@@ -875,7 +875,7 @@ void main() {
       expect(draft.indexOfOp('color_calibrate'), -1);
       expect(
         draft.notes.firstWhere((n) => n.opId == 'color_calibrate').reason,
-        'no photometric catalogue is installed',
+        'no photometric catalog is installed',
       );
       expect(
         darkroom.previewContexts,
@@ -887,7 +887,7 @@ void main() {
     },
   );
 
-  test('an RGB master with no colour-indexed catalogue star balances on its '
+  test('an RGB master with no color-indexed catalog star balances on its '
       'own stars and pins that balance', () async {
     darkroom.draftSteps = [
       {
@@ -1395,7 +1395,7 @@ void main() {
   });
 
   test(
-    'a cancelled render is decoded by its payload kind, not its prose',
+    'a canceled render is decoded by its payload kind, not its prose',
     () async {
       darkroom.previewError = const DarkroomCancelledOutcome(
         id: 'darkroom-job-1',
@@ -2885,7 +2885,7 @@ void main() {
 
     final row = await DarkroomJobsDao(db).getById(outcome.jobId);
     expect(row!.state, DarkroomJobState.queued);
-    expect(row.attempts, 0, reason: 'a start the stop cancelled is not spent');
+    expect(row.attempts, 0, reason: 'a start the stop canceled is not spent');
     expect(row.startedAt, isNull);
   });
 

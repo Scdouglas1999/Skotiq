@@ -617,14 +617,14 @@ final mobileSequenceHooksProvider = Provider<MobileSequenceHooks>((ref) {
     hooks.initialize().then(
       (_) {
         developer.log(
-          'MobileSequenceHooks initialised',
+          'MobileSequenceHooks initialized',
           name: 'MobileSequenceHooks',
           level: 700,
         );
       },
       onError: (error, stackTrace) {
         developer.log(
-          'MobileSequenceHooks initialise failed: $error',
+          'MobileSequenceHooks initialize failed: $error',
           name: 'MobileSequenceHooks',
           level: 1000,
           error: error,
@@ -634,7 +634,7 @@ final mobileSequenceHooksProvider = Provider<MobileSequenceHooks>((ref) {
           ref
               .read(loggingServiceProvider)
               .error(
-                'MobileSequenceHooks initialise failed: $error',
+                'MobileSequenceHooks initialize failed: $error',
                 source: 'MobileSequenceHooks',
                 fields: <String, Object?>{'error': error.toString()},
               );

@@ -98,7 +98,7 @@ void main() {
       final name = entry.key;
       final dart = entry.value;
 
-      test('$name: every colour matches the JSON', () {
+      test('$name: every color matches the JSON', () {
         final json = palettes[name] as Map<String, dynamic>;
         for (final field in colorMap().entries) {
           final expected = parseHex(json[field.key] as String);
@@ -107,7 +107,7 @@ void main() {
             expected.toARGB32(),
             reason:
                 '$name.${field.key} is ${json[field.key]} in '
-                'design-tokens.json but a different colour in '
+                'design-tokens.json but a different color in '
                 'SkotiqColors.$name',
           );
         }
@@ -167,7 +167,7 @@ void main() {
     /// key in the JSON must be claimed by the map above, so adding a token to
     /// the JSON and forgetting the Dart side fails HERE rather than in a
     /// screenshot review three waves later.
-    test('no colour key in the JSON is left unmirrored', () {
+    test('no color key in the JSON is left unmirrored', () {
       final claimed = colorMap().keys.toSet()
         ..addAll(<String>['onPrimary', 'useDarkOnPrimary', 'isRedNight'])
         ..addAll(<String>['accentSwatches', 'bands']);
@@ -192,7 +192,7 @@ void main() {
     /// the palette including the night band. Anything with green ≠ blue has a
     /// hue — orange or magenta — and a hue is light the operator's rods can
     /// see, which is the one thing this mode may not spend.
-    test('every red-night colour has G == B', () {
+    test('every red-night color has G == B', () {
       final json = palettes['redNight'] as Map<String, dynamic>;
       final entries = <String, String>{};
       for (final e in json.entries) {
@@ -265,7 +265,7 @@ void main() {
     });
   });
 
-  group('the non-colour tokens mirror too', () {
+  group('the non-color tokens mirror too', () {
     test('the radius scale matches the JSON', () {
       final radius = tokens['radius'] as Map<String, dynamic>;
       expect(SkotiqTokens.radiusXs, (radius['xs'] as num).toDouble());

@@ -117,7 +117,7 @@ void main() {
             isNot(b.value),
             reason:
                 '${a.key} and ${b.key} would state two different '
-                'outcomes in one colour',
+                'outcomes in one color',
           );
         }
       }

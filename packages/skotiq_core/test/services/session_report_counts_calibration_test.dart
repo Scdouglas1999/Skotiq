@@ -246,7 +246,7 @@ void main() {
       expect(
         report.calibration.single.frameType,
         'dark',
-        reason: 'calibration frame types are normalised for display',
+        reason: 'calibration frame types are normalized for display',
       );
     });
   });

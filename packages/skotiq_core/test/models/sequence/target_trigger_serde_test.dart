@@ -323,7 +323,7 @@ void main() {
     });
   });
 
-  group('evaluateTargetTrigger sanity (data-shape behaviour)', () {
+  group('evaluateTargetTrigger sanity (data-shape behavior)', () {
     // `evaluateTargetTrigger` is a free function that switches on the sealed
     // family, not a virtual method on the class, so the dispatch lives outside
     // the class. A representative input per leaf keeps the evaluator's parity

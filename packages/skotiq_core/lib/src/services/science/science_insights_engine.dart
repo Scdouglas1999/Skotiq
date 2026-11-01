@@ -161,7 +161,7 @@ class ScienceInsightsEngine {
           headline:
               'Transparency unlocks after $remaining more calibrated frame${remaining == 1 ? '' : 's'}',
           body:
-              'Atmospheric estimates stabilise once $minCalibratedForTransparency photometric calibrations are in the buffer.',
+              'Atmospheric estimates stabilize once $minCalibratedForTransparency photometric calibrations are in the buffer.',
         ),
       );
     }

@@ -60,7 +60,7 @@ void main() {
       expect(routeForNotificationPayload('push:weatherUnsafe'), '/dashboard');
     });
 
-    test('an unrecognised type answers null rather than a fallback screen', () {
+    test('an unrecognized type answers null rather than a fallback screen', () {
       expect(routeForNotificationPayload('not_a_type'), isNull);
       expect(routeForNotificationPayload('not_a_type:7'), isNull);
       // A near-miss on a real type must not be absorbed by a prefix match.

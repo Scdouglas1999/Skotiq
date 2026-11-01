@@ -105,7 +105,7 @@ void main() {
   }
 
   test(
-    'a centring sequence with no solver is an ERROR, not a warning',
+    'a centering sequence with no solver is an ERROR, not a warning',
     () async {
       final container = _containerWith(
         detection: const AsyncValue.data(PlateSolverDetection()),
@@ -117,12 +117,12 @@ void main() {
       expect(issues, hasLength(1));
       expect(issues.single.severity, ValidationSeverity.error);
       expect(issues.single.title, 'No plate solver');
-      expect(issues.single.description, contains('centres on its target'));
+      expect(issues.single.description, contains('centers on its target'));
       expect(issues.single.resolutionHint, contains('ASTAP'));
     },
   );
 
-  test('an installed, catalogued ASTAP satisfies it', () async {
+  test('an installed, cataloged ASTAP satisfies it', () async {
     final container = _containerWith(
       detection: const AsyncValue.data(
         PlateSolverDetection(
@@ -148,7 +148,7 @@ void main() {
     expect(await _run(container, _centringSequence()), hasLength(1));
   });
 
-  test('a sequence that never centres is not blocked', () async {
+  test('a sequence that never centers is not blocked', () async {
     final container = _containerWith(
       detection: const AsyncValue.data(PlateSolverDetection()),
     );

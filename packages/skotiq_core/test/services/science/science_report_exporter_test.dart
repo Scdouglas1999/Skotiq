@@ -202,7 +202,7 @@ void main() {
   // light-curve block explicitly labelled UTC — ambiguous by up to a day to
   // whoever reads it. Asserted structurally (label + exact UTC instant) so the
   // test is decisive on a machine whose local zone happens to be UTC too.
-  test('session start/end are printed as labelled UTC instants', () async {
+  test('session start/end are printed as labeled UTC instants', () async {
     final sessionId = await seedTargetAndSession();
     await db.sessionsDao.endSession(sessionId);
     final session = await db.sessionsDao.getSessionById(sessionId);

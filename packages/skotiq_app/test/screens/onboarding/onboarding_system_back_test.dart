@@ -182,7 +182,7 @@ void main() {
     expect(exit.exited, isFalse);
   });
 
-  testWidgets('cancelling the leave prompt keeps the user in the wizard', (
+  testWidgets('canceling the leave prompt keeps the user in the wizard', (
     tester,
   ) async {
     final container = await _pumpWizard(tester);

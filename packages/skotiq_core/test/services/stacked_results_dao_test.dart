@@ -130,7 +130,7 @@ void main() {
       expect(read.avgAlignmentResidual, closeTo(0.42, 1e-9));
     });
 
-    test('round-trips a colour (OSC) stack via getResultById', () async {
+    test('round-trips a color (OSC) stack via getResultById', () async {
       // An OSC integration: isColor=true with a 3-channel interleaved-RGB
       // result. Both flags must survive insert -> read-by-id unchanged.
       final id = await dao.insertResult(
@@ -166,7 +166,7 @@ void main() {
       expect(await dao.getResultById(987654), isNull);
     });
 
-    test('fresh database exposes the v39 colour-provenance columns', () async {
+    test('fresh database exposes the v39 color-provenance columns', () async {
       // onCreate runs _createStackedResultsTable(), which must declare both
       // v39 columns so fresh installs match the upgrade path exactly.
       final info = await db
@@ -220,7 +220,7 @@ void main() {
     );
 
     test(
-      'getRecentResults returns newest-first and honours the limit',
+      'getRecentResults returns newest-first and honors the limit',
       () async {
         for (var day = 1; day <= 5; day++) {
           await dao.insertResult(

@@ -466,7 +466,7 @@ void main() {
       expect(
         container.read(sequenceExecutionStateProvider),
         SequenceExecutionState.failed,
-        reason: 'a cancelled native subscription must not process events',
+        reason: 'a canceled native subscription must not process events',
       );
     }
 

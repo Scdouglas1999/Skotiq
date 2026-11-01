@@ -45,7 +45,7 @@ void main() {
     expect(
       tooltips.where((m) => m.contains('0,0')),
       isEmpty,
-      reason: 'reset centres on the zenith, from skyViewHomeCenterProvider',
+      reason: 'reset centers on the zenith, from skyViewHomeCenterProvider',
     );
   });
 

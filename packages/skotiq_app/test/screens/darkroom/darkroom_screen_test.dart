@@ -199,7 +199,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
           'id': 'color_calibrate',
           'version': 1,
           'stage': 'linear',
-          'summary': 'Fits a B−V colour-versus-flux regression.',
+          'summary': 'Fits a B−V color-versus-flux regression.',
           'params': const <dynamic>[],
         },
       ],
@@ -527,7 +527,7 @@ void main() {
     tester,
   ) async {
     darkroom.skipReasons = {
-      0: 'no photometric catalogue is installed, so the colour fit has nothing '
+      0: 'no photometric catalog is installed, so the color fit has nothing '
           'to regress against',
     };
     final id = await seedRecipe([_step('color_calibrate')]);
@@ -688,7 +688,7 @@ void main() {
       findsWidgets,
     );
     final alert = find.textContaining(
-        'Color calibration has no catalogue stars',
+        'Color calibration has no catalog stars',
         findRichText: true);
     expect(alert, findsOneWidget);
     // Above the recipe's own identity block, which is the reference material
@@ -1085,7 +1085,7 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('the catalogue note is absent from a stack with no colour step',
+  testWidgets('the catalog note is absent from a stack with no color step',
       (tester) async {
     // The resolver is bound to an empty catalogue, so the photometry note is
     // set on every recipe. It is about `color_calibrate` and nothing else.
@@ -1093,13 +1093,13 @@ void main() {
     await pump(tester, DarkroomScope.recipe(id));
 
     expect(
-        find.textContaining('Color calibration has no catalogue stars',
+        find.textContaining('Color calibration has no catalog stars',
             findRichText: true),
         findsNothing);
-    expect(find.textContaining('no catalogue star'), findsNothing);
+    expect(find.textContaining('no catalog star'), findsNothing);
   });
 
-  testWidgets('a zero-step recipe reports no missing catalogue either', (
+  testWidgets('a zero-step recipe reports no missing catalog either', (
     tester,
   ) async {
     final id = await seedRecipe(const []);
@@ -1107,7 +1107,7 @@ void main() {
 
     expect(find.text('Nothing interpreted yet'), findsOneWidget);
     expect(
-        find.textContaining('Color calibration has no catalogue stars',
+        find.textContaining('Color calibration has no catalog stars',
             findRichText: true),
         findsNothing);
   });
@@ -1441,8 +1441,8 @@ void main() {
   testWidgets('a long draft account collapses at a word, with a way to open it',
       (tester) async {
     const reason =
-        'this master has 1 channel(s) and the colour fit needs three, so this '
-        'draft covers the one channel it was given; to calibrate colour, '
+        'this master has 1 channel(s) and the color fit needs three, so this '
+        'draft covers the one channel it was given; to calibrate color, '
         'combine the per-filter masters into a single three-channel master and '
         'draft that composite';
     final id = await RecipesDao(db).create(
@@ -1536,8 +1536,8 @@ void main() {
   testWidgets('each disclosure on the panel names what IT opens',
       (tester) async {
     const reason =
-        'this master has 1 channel(s) and the colour fit needs three, so this '
-        'draft covers the one channel it was given; to calibrate colour, '
+        'this master has 1 channel(s) and the color fit needs three, so this '
+        'draft covers the one channel it was given; to calibrate color, '
         'combine the per-filter masters into a single three-channel master and '
         'draft that composite';
     // The second long account on the same panel: a render that refused, in the
@@ -1727,7 +1727,7 @@ void main() {
     darkroom.previewError = DarkroomSeamException(
       'renderPreview',
       'step 2 failed: color_calibrate@1: unsupported channel layout: a '
-          '1-channel image, a colour master with 3 channels; combine a '
+          '1-channel image, a color master with 3 channels; combine a '
           'per-filter mono master first',
       StateError('unsupported channels'),
     );

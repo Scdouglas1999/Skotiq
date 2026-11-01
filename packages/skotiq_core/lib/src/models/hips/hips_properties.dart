@@ -336,7 +336,7 @@ class HipsProperties extends Equatable {
     final frame = HipsFrame.tryParse(rawFrame);
     if (frame == null) {
       throw HipsPropertiesParseException(
-        'unrecognised hips_frame',
+        'unrecognized hips_frame',
         key: 'hips_frame',
         rawValue: rawFrame,
       );

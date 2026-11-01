@@ -29,7 +29,7 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
 
 void main() {
-  group('stepped migration onUpgrade v38 -> v39 (stacked_results colour)', () {
+  group('stepped migration onUpgrade v38 -> v39 (stacked_results color)', () {
     /// Creates a fresh on-disk database opened at v39 (so the full schema
     /// lands), then replaces `stacked_results` with its pre-v39 (v38) shape
     /// — the same column set minus `is_color` / `channels`. Seeds one mono
@@ -164,7 +164,7 @@ void main() {
     );
 
     test(
-      'a colour stack can be inserted and read back after the upgrade',
+      'a color stack can be inserted and read back after the upgrade',
       () async {
         final tempDir = await Directory.systemTemp.createTemp(
           'skotiq_v38_v39_insert_',

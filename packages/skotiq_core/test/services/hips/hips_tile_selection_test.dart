@@ -270,7 +270,7 @@ hips_frame        = equatorial
       expect(
         sharedPairs,
         greaterThan(0),
-        reason: 'neighbouring tiles must share exact edges',
+        reason: 'neighboring tiles must share exact edges',
       );
     });
 
@@ -409,7 +409,7 @@ hips_frame        = equatorial
       );
     });
 
-    test('honours a custom subdivision count', () {
+    test('honors a custom subdivision count', () {
       final set = HipsTileSelection.computeVisibleTiles(
         plateScale,
         target,

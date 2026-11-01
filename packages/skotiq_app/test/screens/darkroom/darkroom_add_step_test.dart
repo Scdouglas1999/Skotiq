@@ -208,7 +208,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
           'id': 'stretch',
           'version': 1,
           'stage': 'stretched',
-          'summary': 'Generalised hyperbolic stretch.',
+          'summary': 'Generalized hyperbolic stretch.',
           'params': [
             {
               'name': 'd',
@@ -246,7 +246,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
             'id': 'color_calibrate',
             'version': 1,
             'stage': 'linear',
-            'summary': 'Fits a B−V colour-versus-flux regression.',
+            'summary': 'Fits a B−V color-versus-flux regression.',
             'params': const <dynamic>[],
           },
       ],
@@ -1071,7 +1071,7 @@ void main() {
       expect(tester.widget<SkotiqButton>(entry).onPressed, isNull);
       expect(
         find.textContaining('This master has 1 channel and this operation '
-            'runs over a colour master with 3 channels'),
+            'runs over a color master with 3 channels'),
         findsOneWidget,
       );
       // Denoise has no channel precondition, so it is still offered.

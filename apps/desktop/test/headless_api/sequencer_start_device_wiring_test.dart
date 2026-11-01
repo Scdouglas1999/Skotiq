@@ -287,7 +287,7 @@ void main() {
         ).called(1);
       });
 
-      test('an explicit clear is honoured, not resurrected', () async {
+      test('an explicit clear is honored, not resurrected', () async {
         when(() => devices.getConnectedDevices()).thenAnswer((_) async => []);
 
         await assign({'cameraId': 'sim_camera_1'});
@@ -420,7 +420,7 @@ void main() {
       /// before the native start is not a pre-flight refusal and must keep its
       /// old handling, or a genuine host fault would be relabelled a bad
       /// request and hidden from whoever has to fix it.
-      test('a failure before the native start is not relabelled', () async {
+      test('a failure before the native start is not relabeled', () async {
         when(
           () => sequencer.sequencerSetSimulationMode(any()),
         ).thenThrow(StateError('bridge is gone'));

@@ -172,7 +172,7 @@ void main() {
     expect(
       bar.width,
       lessThan(1216),
-      reason: 'the mockup centres a content-sized pill over the frame; a bar '
+      reason: 'the mockup centers a content-sized pill over the frame; a bar '
           'that fills the canvas is a bar that stopped measuring',
     );
   });

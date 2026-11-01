@@ -165,7 +165,7 @@ void main() {
 
     testWidgets(
         'the Confirmed filter shows reviewed AND not-dismissed rows '
-        'only (a dismissed-but-reviewed artefact is excluded)', (
+        'only (a dismissed-but-reviewed artifact is excluded)', (
       tester,
     ) async {
       await _pump(
@@ -177,7 +177,7 @@ void main() {
           // Must NOT pollute the curated Confirmed list.
           _detection(
             id: 2,
-            catalogMatch: 'Dismissed artefact',
+            catalogMatch: 'Dismissed artifact',
             reviewed: true,
             dismissed: true,
           ),
@@ -193,7 +193,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Confirmed SN'), findsOneWidget);
-      expect(find.text('Dismissed artefact'), findsNothing);
+      expect(find.text('Dismissed artifact'), findsNothing);
       expect(find.text('Untriaged source'), findsNothing);
     });
 

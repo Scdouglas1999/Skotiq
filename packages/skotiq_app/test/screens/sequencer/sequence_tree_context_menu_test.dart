@@ -325,7 +325,7 @@ void main() {
         isFalse);
   });
 
-  testWidgets('Delete on a leaf can be cancelled and leaves the node in place',
+  testWidgets('Delete on a leaf can be canceled and leaves the node in place',
       (tester) async {
     final t = _containerWithOneChild();
     final container = _seed(t.sequence);

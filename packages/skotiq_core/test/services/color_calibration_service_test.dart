@@ -91,7 +91,7 @@ void main() {
   late _FakeSeam seam;
   setUp(() => seam = _FakeSeam());
 
-  test('cross-match picks the nearest colour-indexed star and forms '
+  test('cross-match picks the nearest color-indexed star and forms '
       'matchedStars', () {
     final wcs = buildWcs();
     final service = ColorCalibrationService(

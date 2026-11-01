@@ -135,8 +135,8 @@ const List<RecipeDraftNote> _omissions = [
   RecipeDraftNote(
     opId: 'color_calibrate',
     outcome: 'omitted',
-    reason: 'this master has 1 channel and the colour fit needs three, so this '
-        'draft covers the one channel it was given; to calibrate colour, '
+    reason: 'this master has 1 channel and the color fit needs three, so this '
+        'draft covers the one channel it was given; to calibrate color, '
         'combine the per-filter masters into a single three-channel master and '
         'draft that composite',
   ),

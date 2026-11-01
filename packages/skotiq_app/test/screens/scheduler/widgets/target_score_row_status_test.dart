@@ -112,7 +112,7 @@ void main() {
         expect(
           classifySchedulerRejection(entry.key),
           isNot(SchedulerRejectionKind.other),
-          reason: 'the shared ladder must recognise "${entry.key}"',
+          reason: 'the shared ladder must recognize "${entry.key}"',
         );
       }
       // The engine's long form for the counter-input keeps both numbers.

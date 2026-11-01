@@ -139,7 +139,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                 SkotiqButton(
                   onPressed: _cancelRequested ? null : _requestCancelDownload,
                   icon: SkotiqIcons.close,
-                  label: _cancelRequested ? 'Cancelling…' : 'Cancel',
+                  label: _cancelRequested ? 'Canceling…' : 'Cancel',
                   variant: ButtonVariant.ghost,
                   size: ButtonSize.small,
                 ),

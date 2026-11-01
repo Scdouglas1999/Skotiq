@@ -28,7 +28,7 @@ void main() {
   }
 
   group('RadarColormap.intensityForPixel (RainViewer scheme 2)', () {
-    test('each anchor colour maps to its pinned intensity', () {
+    test('each anchor color maps to its pinned intensity', () {
       for (final stop in colormap.stops) {
         final intensity = colormap.intensityForPixel(
           stop.r,
@@ -46,12 +46,12 @@ void main() {
       }
     });
 
-    test('a fully transparent pixel is no-echo (0) regardless of colour', () {
+    test('a fully transparent pixel is no-echo (0) regardless of color', () {
       // Heavy-rain magenta but fully transparent → no precipitation.
       expect(colormap.intensityForPixel(220, 0, 220, 0), 0.0);
     });
 
-    test('a colour far from every anchor is rejected as not-precipitation', () {
+    test('a color far from every anchor is rejected as not-precipitation', () {
       // Mid grey is not on the ramp and is > maxRgbDistance from any anchor.
       expect(colormap.intensityForPixel(128, 128, 128, 255), 0.0);
     });

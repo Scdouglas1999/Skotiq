@@ -93,7 +93,7 @@ void main() {
   });
 
   test(
-    'a centre below the horizon converts honestly rather than snapping up',
+    'a center below the horizon converts honestly rather than snapping up',
     () {
       final container = _container();
       final view = container.read(skyViewStateProvider.notifier);

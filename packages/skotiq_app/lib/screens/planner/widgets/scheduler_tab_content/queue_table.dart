@@ -147,7 +147,7 @@ class _QueueTable extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'The imaging host changed. Scheduler cleanup was cancelled.',
+          'The imaging host changed. Scheduler cleanup was canceled.',
         ),
       ),
     );

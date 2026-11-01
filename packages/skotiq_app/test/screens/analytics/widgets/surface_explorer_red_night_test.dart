@@ -136,7 +136,7 @@ void main() {
         .where((c) => c.a > 0 && !_isAchromatic(c))
         .toList(growable: false);
     expect(marks, isNotEmpty,
-        reason: 'the surface drew no coloured marks — the test proves nothing');
+        reason: 'the surface drew no colored marks — the test proves nothing');
     for (final c in marks) {
       expect(c.b, lessThanOrEqualTo(c.r),
           reason: 'the surface painted $c, which emits more blue than red');

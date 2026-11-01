@@ -148,7 +148,7 @@ class _FocuserControlsState extends ConsumerState<FocuserControls> {
       }
     } on AutofocusCancelledException {
       if (mounted && _isCurrentService(service)) {
-        context.showInfoSnackBar('Autofocus cancelled');
+        context.showInfoSnackBar('Autofocus canceled');
       }
     } catch (e) {
       if (mounted && _isCurrentService(service)) {

@@ -587,7 +587,7 @@ void main() {
     expect(
       attempt.fix!.explanation,
       'Approximate only: from your internet address (ipinfo.io). City level '
-      '— typically tens of kilometres.',
+      '— typically tens of kilometers.',
     );
   });
 }

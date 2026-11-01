@@ -471,7 +471,7 @@ extension _LogViewerActions on _LogViewerState {
       if (!_isCurrentAction(token, backend)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Clear cancelled because the imaging host changed.'),
+            content: Text('Clear canceled because the imaging host changed.'),
           ),
         );
         return;

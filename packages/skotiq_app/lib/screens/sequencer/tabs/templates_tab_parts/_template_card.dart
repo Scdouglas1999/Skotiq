@@ -742,7 +742,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         final dialogContext = routeContext;
         if (dialogContext != null && dialogContext.mounted) {
           dialogContext.showWarningSnackBar(
-            'The connected host changed. Template deletion cancelled.',
+            'The connected host changed. Template deletion canceled.',
           );
           closeAuthorityBoundDialog(dialogContext);
         }

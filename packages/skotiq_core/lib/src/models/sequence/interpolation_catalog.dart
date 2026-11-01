@@ -248,7 +248,7 @@ const List<InterpolationVariable> interpolationCatalog = [
   ),
   InterpolationVariable(
     name: 'observer.elevation',
-    description: 'Observer elevation (metres)',
+    description: 'Observer elevation (meters)',
     group: InterpolationVariableGroup.observer,
     example: '150',
     supportsFormat: true,

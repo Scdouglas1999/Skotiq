@@ -60,7 +60,7 @@ void main() {
       contains(
         'Your public IP address, sent to ipinfo.io over HTTPS (falling back '
         'to ipwho.is). That only locates your internet provider — city '
-        'level, tens of kilometres.',
+        'level, tens of kilometers.',
       ),
     );
   });
@@ -91,7 +91,7 @@ void main() {
       expect(granted.covers(wifiScan: true, ip: true), isTrue);
     });
 
-    test('an IP-only grant does not authorise a Wi-Fi scan', () {
+    test('an IP-only grant does not authorize a Wi-Fi scan', () {
       const granted = GeolocationConsent(wifiScan: false, ip: true);
       expect(granted.covers(wifiScan: true, ip: true), isFalse);
       expect(granted.covers(wifiScan: false, ip: true), isTrue);

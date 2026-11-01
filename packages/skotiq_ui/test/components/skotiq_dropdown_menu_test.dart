@@ -73,7 +73,7 @@ void main() {
     expect(
       label.left - field.left,
       closeTo(SkotiqTokens.inputPaddingHorizontal + 1, 1.5),
-      reason: 'the value must sit against the field padding, not be centred',
+      reason: 'the value must sit against the field padding, not be centered',
     );
   });
 

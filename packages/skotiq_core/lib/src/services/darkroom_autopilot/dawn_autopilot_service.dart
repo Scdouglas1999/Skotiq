@@ -552,7 +552,7 @@ class DawnAutopilotService {
     if (job.state == DarkroomJobState.queued) {
       await _jobs.markCancelled(
         jobId,
-        reason: reason ?? 'Cancelled before the job started',
+        reason: reason ?? 'Canceled before the job started',
         now: _clock(),
       );
     }
@@ -581,7 +581,7 @@ class DawnAutopilotService {
     if (_cancelRequested.contains(jobId)) {
       final cancelled = await _jobs.markCancelled(
         jobId,
-        reason: 'Cancelled before the job started',
+        reason: 'Canceled before the job started',
         now: _clock(),
       );
       return DawnJobOutcome(

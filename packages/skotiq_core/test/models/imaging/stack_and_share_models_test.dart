@@ -63,7 +63,7 @@ void main() {
       expect(a, isNot(c));
     });
 
-    test('value equality is sensitive to the colour fields', () {
+    test('value equality is sensitive to the color fields', () {
       const base = StackAndShareConfig();
       expect(base, const StackAndShareConfig());
 

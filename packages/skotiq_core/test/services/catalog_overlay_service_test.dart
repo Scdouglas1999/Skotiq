@@ -144,7 +144,7 @@ void main() {
     });
 
     test(
-      'projects objects to the image centre when they sit at the WCS centre',
+      'projects objects to the image center when they sit at the WCS center',
       () async {
         final svc = CatalogOverlayService(
           source: _FakeCatalogOverlaySource(

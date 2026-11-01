@@ -149,7 +149,7 @@ void main() {
       expect(find.byType(SkotiqBanner), findsNothing);
     });
 
-    testWidgets('the field list reads as a sentence, capitalised', (
+    testWidgets('the field list reads as a sentence, capitalized', (
       tester,
     ) async {
       // The owner's camera resolves everything from the published

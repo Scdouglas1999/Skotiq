@@ -447,7 +447,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         message: '${_trimNumber(estimate.$1)}°, ${_trimNumber(estimate.$2)}°'
             '${estimate.$3 != null ? ' — ${estimate.$3}' : ''}. '
             'This is where your internet provider appears to be, not where '
-            'your telescope is, so it can be tens of kilometres out. Use it '
+            'your telescope is, so it can be tens of kilometers out. Use it '
             'as a starting point and correct it if you can.',
         action: SkotiqButton(
           label: 'Use this',
@@ -594,7 +594,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                 label: 'Elevation',
                 hint: 'e.g. 120',
                 suffix: 'm',
-                helper: 'Optional. Height above sea level, in metres',
+                helper: 'Optional. Height above sea level, in meters',
                 errorText: _elevError,
                 onChanged: _onFieldChanged,
               ),

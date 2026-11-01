@@ -746,7 +746,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         return imageData;
       } finally {
         _logger.debug(
-          'Inner finally: cancelling event subscription',
+          'Inner finally: canceling event subscription',
           source: 'ImagingService',
         );
         // Add timeout to prevent hanging
@@ -762,7 +762,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           );
         } catch (e) {
           _logger.warning(
-            'Error cancelling event subscription: $e',
+            'Error canceling event subscription: $e',
             source: 'ImagingService',
           );
         }

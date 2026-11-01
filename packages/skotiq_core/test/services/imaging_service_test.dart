@@ -1460,7 +1460,7 @@ void main() {
       expect(currentImage.height, 100);
     });
 
-    test('captureImage returns null when exposure is cancelled', () async {
+    test('captureImage returns null when exposure is canceled', () async {
       const settings = ExposureSettings(
         exposureTime: 10.0,
         gain: 100,
@@ -1813,7 +1813,7 @@ void main() {
       },
     );
 
-    test('DATE-OBS honours an explicit non-zero offset on the bridge '
+    test('DATE-OBS honors an explicit non-zero offset on the bridge '
         'timestamp', () async {
       const settings = ExposureSettings(
         exposureTime: 5.0,
@@ -2313,7 +2313,7 @@ void main() {
       service.cancelExposure();
 
       final result = await captureFuture.timeout(const Duration(seconds: 1));
-      expect(result, isNull, reason: 'Cancelled capture should return null');
+      expect(result, isNull, reason: 'Canceled capture should return null');
 
       verify(() => mockBackend.cameraAbortExposure('test-camera-1')).called(1);
     });
@@ -2807,7 +2807,7 @@ void main() {
       expect(fullPath, endsWith('2026-05-23.fits'));
     });
 
-    test('full pattern with filename segment honours the filename portion', () {
+    test('full pattern with filename segment honors the filename portion', () {
       // The user's pattern ends in `$TARGET_$FILTER_$FRAMENUM`, and the
       // trailing segment is the filename: what the user wrote is what is used,
       // not a hard-coded ${target}_${filter}_${frameNumber}.
@@ -2828,7 +2828,7 @@ void main() {
       expect(
         fullPath,
         endsWith('M31_L_0001.fits'),
-        reason: 'Filename portion of pattern must be honoured',
+        reason: 'Filename portion of pattern must be honored',
       );
       expect(
         fullPath,

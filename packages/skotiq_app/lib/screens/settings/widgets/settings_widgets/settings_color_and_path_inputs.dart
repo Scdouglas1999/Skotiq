@@ -104,7 +104,7 @@ class _SettingsColorPickerState extends State<SettingsColorPicker> {
         // and refused. Log so a settings backend that is rejecting writes is
         // diagnosable instead of looking like a UI that ignores taps.
         developer.log(
-          'Settings colour write failed; reverted the swatch to the last '
+          'Settings color write failed; reverted the swatch to the last '
           'confirmed value: $e',
           name: 'SettingsInput',
           level: 900,

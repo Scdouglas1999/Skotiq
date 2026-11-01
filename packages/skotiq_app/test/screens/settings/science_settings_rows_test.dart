@@ -173,7 +173,7 @@ void main() {
     expect(_textIn(tester, field), 'BBB');
   });
 
-  testWidgets('an accepted code is normalised and stored', (tester) async {
+  testWidgets('an accepted code is normalized and stored', (tester) async {
     final science = _FakeScienceSettings();
     await _pumpPage(tester, science: science);
 

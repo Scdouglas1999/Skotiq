@@ -58,7 +58,7 @@ Override _settingsBackedEnablementOverride() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('settings-backed enablement honoured at registration', () {
+  group('settings-backed enablement honored at registration', () {
     late SkotiqDatabase database;
     late PluginHost host;
     late ProviderContainer container;

@@ -149,7 +149,7 @@ final clockProvider = Provider<Clock>((ref) {
     ref
         .read(loggingServiceProvider)
         .warning(
-          'Timezone "${settings.timezone}" is not a recognised UTC offset; '
+          'Timezone "${settings.timezone}" is not a recognized UTC offset; '
           'falling back to host system time. Choose a "UTC" or "UTC±HH:MM" '
           'entry in Settings → Location → Timezone.',
           source: 'clockProvider',

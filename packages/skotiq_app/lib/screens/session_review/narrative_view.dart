@@ -108,7 +108,7 @@ class NarrativeView extends ConsumerWidget {
           _CalibratedAnnotatedRow(
             state: state,
             onColorCalibration: () => _runFinishing(context,
-                controller.runColorCalibration, 'Colour calibration applied'),
+                controller.runColorCalibration, 'Color calibration applied'),
             onBackgroundExtraction: () => _runFinishing(context,
                 controller.runBackgroundExtraction, 'Gradient extracted'),
           ),
@@ -228,7 +228,7 @@ class _CalibratedAnnotatedRow extends StatelessWidget {
           _ActionCard(
             icon: SkotiqIcons.star,
             title: 'Color calibration',
-            body: 'Neutralise the background and balance the stars against a '
+            body: 'Neutralize the background and balance the stars against a '
                 'catalog white reference.',
             actionLabel: 'Calibrate color',
             busy: busy,

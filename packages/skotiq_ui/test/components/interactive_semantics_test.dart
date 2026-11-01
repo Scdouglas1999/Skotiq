@@ -394,7 +394,7 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('a labelled field carries its label on the field node', (
+    testWidgets('a labeled field carries its label on the field node', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();

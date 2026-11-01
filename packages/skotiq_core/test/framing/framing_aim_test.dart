@@ -100,7 +100,7 @@ void main() {
       expect(container.read(framingProvider).aimDecDegrees, isNull);
     });
 
-    test('stores an aim distinct from the view-centre target', () {
+    test('stores an aim distinct from the view-center target', () {
       final container = _container(seed: FramingState(target: _target()));
       container.read(framingProvider.notifier).setAim(5.5, 19.0);
       final state = container.read(framingProvider);
@@ -112,7 +112,7 @@ void main() {
   });
 
   group('effective aim accessors', () {
-    test('fall back to the view-centre target when no aim is set', () {
+    test('fall back to the view-center target when no aim is set', () {
       final container = _container(seed: FramingState(target: _target()));
       final state = container.read(framingProvider);
 
@@ -272,8 +272,8 @@ void main() {
     });
   });
 
-  group('aim-centred mosaic', () {
-    test('single-panel grid sits on the aim, not the view centre', () async {
+  group('aim-centered mosaic', () {
+    test('single-panel grid sits on the aim, not the view center', () async {
       final container = _container(
         seed: FramingState(
           target: _target(),

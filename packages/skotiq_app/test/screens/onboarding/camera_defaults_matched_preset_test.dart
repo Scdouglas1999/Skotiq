@@ -66,7 +66,7 @@ void main() {
     expect(find.text('Choose from camera library'), findsOneWidget);
   });
 
-  testWidgets('an unrecognised camera offers no shortcut', (tester) async {
+  testWidgets('an unrecognized camera offers no shortcut', (tester) async {
     // A plausible wrong gain is worse than an empty field.
     final handle = await _pumpWithCamera(tester, 'Homebrew CCD 1');
     expect(

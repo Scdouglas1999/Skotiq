@@ -392,7 +392,7 @@ class _ProgressPanel extends StatelessWidget {
       case FirstLightPhase.solving:
         return 'Plate-solving the field';
       case FirstLightPhase.annotating:
-        return 'Labelling objects';
+        return 'Labeling objects';
       case FirstLightPhase.idle:
       case FirstLightPhase.success:
       case FirstLightPhase.failed:
@@ -536,7 +536,7 @@ class _SuccessPanel extends ConsumerWidget {
         const SizedBox(height: SkotiqTokens.spaceLg),
         Text(
           state.solveResult != null
-              ? 'That field is now labelled in the imaging preview. Open it to '
+              ? 'That field is now labeled in the imaging preview. Open it to '
                   'explore your first light.'
               : 'Your first light is captured and stretched. Open it in the '
                   'imaging preview to take a closer look.',
@@ -677,7 +677,7 @@ class _AnnotationSummary extends ConsumerWidget {
       children: [
         _SummaryChip(
           icon: LucideIcons.checkCircle2,
-          label: count == 1 ? '1 object labelled' : '$count objects labelled',
+          label: count == 1 ? '1 object labeled' : '$count objects labeled',
           color: colors.success,
         ),
         if (count == 0)

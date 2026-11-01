@@ -404,7 +404,7 @@ class _TileDetailSheet extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           _DetailLine(
             icon: LucideIcons.compass,
-            label: 'Centre',
+            label: 'Center',
             value: formatCenter(tile.centerRaDeg, tile.centerDecDeg),
             colors: colors,
           ),

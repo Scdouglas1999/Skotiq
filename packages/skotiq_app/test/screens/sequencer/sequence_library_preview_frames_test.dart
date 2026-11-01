@@ -99,7 +99,7 @@ Future<void> _pumpLibrary(
 
 void main() {
   testWidgets(
-    'the node-count chip is not labelled "exposures", and counts are '
+    'the node-count chip is not labeled "exposures", and counts are '
     'pluralised',
     (tester) async {
       final repository = _MockSequenceRepository();

@@ -463,7 +463,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingRenameDevice': 'Rename device',
     'pairingRenameTitle': 'Rename device',
     'pairingRenameBody':
-        'Every phone pairs under the same name, so give this one a name you will recognise later. Only the label changes — the device stays connected.',
+        'Every phone pairs under the same name, so give this one a name you will recognize later. Only the label changes — the device stays connected.',
     'pairingRenameLabel': 'Device name',
     'pairingErrorRename': 'Skotiq could not rename that device.',
     'pairingRevokeTitle': 'Revoke device access',

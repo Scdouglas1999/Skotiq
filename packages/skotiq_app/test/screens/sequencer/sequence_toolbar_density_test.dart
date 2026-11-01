@@ -13,7 +13,7 @@ import '../../harness/harness.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('labelled tier shows the segmented density control and writes',
+  testWidgets('labeled tier shows the segmented density control and writes',
       (tester) async {
     final handle = await pumpAppScreen(
       tester,

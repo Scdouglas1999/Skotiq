@@ -332,7 +332,7 @@ void main() {
     expect(find.text('Waiting for the first stacked frame'), findsOneWidget);
   });
 
-  testWidgets('a colour reference sub is refused', (tester) async {
+  testWidgets('a color reference sub is refused', (tester) async {
     final container = await _pumpCanvas(
       tester,
       backend: FakeDepthLockBackend()

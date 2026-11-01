@@ -86,7 +86,7 @@ void main() {
       expect(pretty.full, startsWith('Alpaca HTTP 500 Internal Server Error:'));
     });
 
-    test('Alpaca HTTP 400 is labelled Bad Request', () {
+    test('Alpaca HTTP 400 is labeled Bad Request', () {
       final pretty = PrettyError.format('Alpaca call failed with HTTP 400');
       expect(pretty.recognized, isTrue);
       expect(pretty.full, startsWith('Alpaca HTTP 400 Bad Request:'));

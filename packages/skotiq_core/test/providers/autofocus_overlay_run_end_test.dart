@@ -114,7 +114,7 @@ void main() {
     expect(state.result?.bestPosition, 25075);
   });
 
-  test('overlay collapses when a run fails or is cancelled', () async {
+  test('overlay collapses when a run fails or is canceled', () async {
     final container = buildContainer();
     final notifier = container.read(autofocusOverlayProvider.notifier);
 
@@ -244,7 +244,7 @@ void main() {
       expect(state.status, contains('R² 0.41'));
     });
 
-    test('a stopped run reads as cancelled', () async {
+    test('a stopped run reads as canceled', () async {
       final container = buildContainer();
       container.read(autofocusOverlayProvider.notifier);
       await _pump();

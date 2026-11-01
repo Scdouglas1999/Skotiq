@@ -114,7 +114,7 @@ void main() {
     });
 
     test(
-      'POST /api/jobs/{id}/cancel succeeds then GET shows cancelled',
+      'POST /api/jobs/{id}/cancel succeeds then GET shows canceled',
       () async {
         final job = manager.start(
           operation: 'test.op',

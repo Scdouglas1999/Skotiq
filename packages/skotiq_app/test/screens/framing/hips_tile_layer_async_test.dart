@@ -415,7 +415,7 @@ void main() {
 
     expect(loader.generation, greaterThan(genAfterFirst),
         reason:
-            'A superseding viewport must advance the generation, cancelling '
+            'A superseding viewport must advance the generation, canceling '
             'the prior generation\'s in-flight fetches.');
     expect(loader.snapshot.failures, isEmpty,
         reason:

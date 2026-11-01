@@ -57,7 +57,7 @@ const List<ScienceRungSpec> kScienceLadder = <ScienceRungSpec>[
     blurb: "If that curve repeats, there's a clock hiding in it — an orbit, a "
         "rotation, a pulsation. Let the analysis fold your points and tell you "
         "how long the cycle runs.",
-    ctaLabel: 'Analyse the period',
+    ctaLabel: 'Analyze the period',
   ),
   ScienceRungSpec(
     rung: ScienceRung.contribute,

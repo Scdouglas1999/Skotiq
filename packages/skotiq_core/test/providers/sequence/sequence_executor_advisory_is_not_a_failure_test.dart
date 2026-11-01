@@ -34,7 +34,7 @@ class _TestBackendNotifier extends BackendNotifier {
 /// `EventSeverity.warning` on the same payload. Everything below is what that
 /// severity has to buy.
 const _advisory =
-    'The meridian-flip trigger is set to re-centre after a flip, but no plate '
+    'The meridian-flip trigger is set to re-center after a flip, but no plate '
     'solver (ASTAP or solve-field) was found on this system.';
 
 backend_events.SkotiqEvent _sequencerError(

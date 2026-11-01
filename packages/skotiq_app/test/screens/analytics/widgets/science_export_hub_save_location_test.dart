@@ -130,7 +130,7 @@ void main() {
     expect(find.textContaining(chosen), findsWidgets);
   });
 
-  testWidgets('cancelling the save dialog writes nothing and says so',
+  testWidgets('canceling the save dialog writes nothing and says so',
       (tester) async {
     final suggested = Directory('${tempDir.path}/data/exports')
       ..createSync(recursive: true);
@@ -144,6 +144,6 @@ void main() {
     );
 
     expect(writes, 0);
-    expect(find.text('Export cancelled.'), findsOneWidget);
+    expect(find.text('Export canceled.'), findsOneWidget);
   });
 }

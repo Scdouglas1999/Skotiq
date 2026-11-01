@@ -211,7 +211,7 @@ void main() {
         ..at(21, PassKinds.runEnded, {
           'lane': 'R',
           'ok': false,
-          'error': 'cancelled during registering',
+          'error': 'canceled during registering',
         })
         ..at(21, PassKinds.passEnded, {'ok': false, 'error': 'stopped'});
       final tl = PassTimeline.fromLog(b.log);

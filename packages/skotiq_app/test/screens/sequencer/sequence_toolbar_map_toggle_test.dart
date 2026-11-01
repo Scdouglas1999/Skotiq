@@ -230,7 +230,7 @@ void main() {
     );
   });
 
-  testWidgets('the labelled tier names the thing it toggles', (tester) async {
+  testWidgets('the labeled tier names the thing it toggles', (tester) async {
     final notifier = CurrentSequenceNotifier();
     // ignore: invalid_use_of_protected_member
     notifier.state = _tallSequence();

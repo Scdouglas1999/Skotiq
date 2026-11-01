@@ -113,7 +113,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     source: _zwoAsi1600Manual,
     note:
         'QE is omitted: section 5 of the manual gives a peak value only for '
-        'the mono sensor and shows the colour sensor as a curve with no peak '
+        'the mono sensor and shows the color sensor as a curve with no peak '
         'figure.',
   ),
   CameraSensorEntry(
@@ -144,7 +144,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     qePeakFraction: 0.80,
     source: _zwoAsi2600Manual,
     note:
-        'ZWO publishes the colour QE peak as "above 80%", so 80% is a floor '
+        'ZWO publishes the color QE peak as "above 80%", so 80% is a floor '
         'on the peak rather than the peak itself.',
   ),
   CameraSensorEntry(
@@ -186,7 +186,7 @@ const List<CameraSensorEntry> kCuratedCameraSensors = [
     source: _zwoAsi6200Manual,
     note:
         'The manual states the 91% peak QE for "the 6200 Sensor" without '
-        'splitting mono from colour, so both rows carry it.',
+        'splitting mono from color, so both rows carry it.',
   ),
   CameraSensorEntry(
     model: 'ZWO ASI533MC Pro',

@@ -151,7 +151,7 @@ void main() {
       expect(targets.first.targetName, 'M51');
     });
 
-    testWidgets('cancelling the picker adds nothing', (tester) async {
+    testWidgets('canceling the picker adds nothing', (tester) async {
       final container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),

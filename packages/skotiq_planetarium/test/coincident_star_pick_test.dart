@@ -74,7 +74,7 @@ Future<Star?> _tapCentreAt(WidgetTester tester, double fovDegrees) async {
 }
 
 void main() {
-  testWidgets('a tap inside one drawn glyph returns the labelled star', (
+  testWidgets('a tap inside one drawn glyph returns the labeled star', (
     tester,
   ) async {
     // The audited framing: a 2-degree imaging field, where 9 arcsec is ~1 px.
@@ -89,7 +89,7 @@ void main() {
     );
   });
 
-  testWidgets('at a wide field the same tap still returns the labelled star', (
+  testWidgets('at a wide field the same tap still returns the labeled star', (
     tester,
   ) async {
     final tapped = await _tapCentreAt(tester, 60.0);

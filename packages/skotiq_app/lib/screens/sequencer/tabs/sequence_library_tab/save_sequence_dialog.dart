@@ -35,7 +35,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
       (previous, next) {
         if (previous == null || identical(previous, next) || !mounted) return;
         context.showWarningSnackBar(
-          'The connected host changed. Sequence save cancelled.',
+          'The connected host changed. Sequence save canceled.',
         );
         closeAuthorityBoundDialog(context);
       },

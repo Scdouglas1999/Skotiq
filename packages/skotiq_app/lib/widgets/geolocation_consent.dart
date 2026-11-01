@@ -199,7 +199,7 @@ String geolocationConsentBody({
     if (includeIpFallback)
       'Your public IP address, sent to ipinfo.io over HTTPS (falling back to '
           'ipwho.is). That only locates your internet provider — city level, '
-          'tens of kilometres.',
+          'tens of kilometers.',
   ];
 
   final buffer = StringBuffer(

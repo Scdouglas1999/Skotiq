@@ -93,7 +93,7 @@ void main() {
     expect(exposure.elapsedAt(clock.instant), closeTo(60, 1e-6));
   });
 
-  test('the frame ending, failing or being cancelled clears it', () async {
+  test('the frame ending, failing or being canceled clears it', () async {
     final (h, _) = await harness();
     for (final end in <String>[
       'ExposureComplete',

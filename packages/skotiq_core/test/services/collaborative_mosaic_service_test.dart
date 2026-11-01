@@ -224,7 +224,7 @@ void main() {
   // degrees away, because the centre was the arithmetic mean of panel RAs that
   // wrap (358.595 / 359.298 / 0 / 0.702 / 1.405 averages to 144.0). The centre
   // must be the circular mean, i.e. inside the grid the panels describe.
-  test('publishProject centres a mosaic that straddles RA 0h', () async {
+  test('publishProject centers a mosaic that straddles RA 0h', () async {
     final projectId = await projectsDao.create(name: 'Seam', rows: 1, cols: 5);
     // Panel RAs in HOURS: 23.9063, 23.9532, 0.0, 0.0468, 0.0937
     // (= 358.595 / 359.298 / 0 / 0.702 / 1.405 degrees).

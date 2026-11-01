@@ -58,7 +58,7 @@ void main() {
     expectWhole(tester, '2h 14m');
   });
 
-  testWidgets('a readout is not squeezed to its neighbours width', (
+  testWidgets('a readout is not squeezed to its neighbors width', (
     tester,
   ) async {
     await tester.pumpWidget(

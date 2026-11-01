@@ -82,7 +82,7 @@ void main() {
     expect(infoLog.single, contains('status poll'));
   });
 
-  test('an unrecognised state is NOT treated as terminal', () async {
+  test('an unrecognized state is NOT treated as terminal', () async {
     final target = _Target();
 
     await expectLater(

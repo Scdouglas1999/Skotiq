@@ -600,7 +600,7 @@ class _ValueScaleBar extends StatelessWidget {
         Text(
           'median ${_formatValue(scale.median)}$unit  ·  '
           'range ${_formatValue(scale.min)}–${_formatValue(scale.max)}$unit  ·  '
-          'colour saturates at the 5th/95th percentile',
+          'color saturates at the 5th/95th percentile',
           style: caption,
         ),
       ],

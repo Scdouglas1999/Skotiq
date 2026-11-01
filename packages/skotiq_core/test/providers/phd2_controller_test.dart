@@ -382,7 +382,7 @@ void main() {
   });
 
   group('settle semantics', () {
-    test('start normalises an impossible settleTimeout < settleTime', () async {
+    test('start normalizes an impossible settleTimeout < settleTime', () async {
       final events = StreamController<SkotiqEvent>.broadcast();
       addTearDown(events.close);
       final backend = _MockBackend();
@@ -443,7 +443,7 @@ void main() {
 
   group('state classification', () {
     test(
-      'an unrecognised PHD2 AppState maps to unknown, not stopped',
+      'an unrecognized PHD2 AppState maps to unknown, not stopped',
       () async {
         final events = StreamController<SkotiqEvent>.broadcast();
         addTearDown(events.close);
@@ -630,7 +630,7 @@ void main() {
   });
 
   group('configured endpoint', () {
-    test('local FFI connect honours the requested host/port', () async {
+    test('local FFI connect honors the requested host/port', () async {
       final events = StreamController<SkotiqEvent>.broadcast();
       addTearDown(events.close);
       final backend = _MockFfiBackend();

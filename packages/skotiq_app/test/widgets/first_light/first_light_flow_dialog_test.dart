@@ -255,7 +255,7 @@ void main() {
       expect(find.text('Capturing exposure'), findsOneWidget);
       expect(find.text('Stretching for preview'), findsOneWidget);
       expect(find.text('Plate-solving the field'), findsOneWidget);
-      expect(find.text('Labelling objects'), findsOneWidget);
+      expect(find.text('Labeling objects'), findsOneWidget);
       // The active phase renders an indeterminate progress bar.
       expect(find.byType(SkotiqProgressBar), findsOneWidget);
     });
@@ -373,7 +373,7 @@ void main() {
       expect(find.text('SOLVER-SETTINGS'), findsOneWidget);
     });
 
-    testWidgets('success with a solve shows the labelled-objects chip',
+    testWidgets('success with a solve shows the labeled-objects chip',
         (tester) async {
       final annotation = ImageAnnotation(
         imagePath: '/tmp/frame.fits',
@@ -423,7 +423,7 @@ void main() {
         ],
       );
 
-      expect(find.text('2 objects labelled'), findsOneWidget);
+      expect(find.text('2 objects labeled'), findsOneWidget);
       // Solve details read out RA/Dec/scale.
       expect(find.textContaining('RA '), findsOneWidget);
       // Set-up-solver banner must NOT appear when we solved.

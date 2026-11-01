@@ -110,7 +110,7 @@ class TargetSchedulerWeightsRule implements SequenceValidator {
           ValidationIssue(
             severity: ValidationSeverity.warning,
             category: ValidationCategory.structure,
-            title: 'Target Scheduler weights are not normalised',
+            title: 'Target Scheduler weights are not normalized',
             description:
                 'Target Scheduler "${node.name}" has weights that sum to '
                 '${node.weightsSum.toStringAsFixed(2)} (expected ~1.00). The '
@@ -118,7 +118,7 @@ class TargetSchedulerWeightsRule implements SequenceValidator {
                 'relative importance you intended.',
             affectedNodeId: node.id,
             resolutionHint:
-                'Press the "Normalise" button in the properties panel, or '
+                'Press the "Normalize" button in the properties panel, or '
                 'adjust the five weight sliders so they sum to 1.0.',
           ),
         );

@@ -32,7 +32,7 @@ Future<void> _openDetails(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('connection details open as a centred dialog, fully on screen',
+  testWidgets('connection details open as a centered dialog, fully on screen',
       (tester) async {
     await _openDetails(tester);
 

@@ -640,7 +640,7 @@ void main() {
     await _drainValidationDebounce(tester);
   });
 
-  testWidgets('Move Down on the kebab moves the whole run past its neighbour',
+  testWidgets('Move Down on the kebab moves the whole run past its neighbor',
       (tester) async {
     final pointerTheme =
         SkotiqTheme.dark.copyWith(platform: TargetPlatform.linux);
@@ -667,7 +667,7 @@ void main() {
     await _drainValidationDebounce(tester);
   });
 
-  testWidgets('Move Up on the kebab lifts the whole run above its neighbour',
+  testWidgets('Move Up on the kebab lifts the whole run above its neighbor',
       (tester) async {
     final pointerTheme =
         SkotiqTheme.dark.copyWith(platform: TargetPlatform.linux);

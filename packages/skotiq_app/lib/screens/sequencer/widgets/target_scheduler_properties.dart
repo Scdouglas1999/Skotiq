@@ -391,7 +391,7 @@ class _WeightSumIndicator extends StatelessWidget {
           Expanded(
             child: Text(
               normalised
-                  ? 'Weights normalised (sum ${sum.toStringAsFixed(2)})'
+                  ? 'Weights normalized (sum ${sum.toStringAsFixed(2)})'
                   : 'Weights do not sum to ~1.0 (sum ${sum.toStringAsFixed(2)}) — '
                       'the scheduler still works, but the ranking will be biased.',
               style: TextStyle(
@@ -406,7 +406,7 @@ class _WeightSumIndicator extends StatelessWidget {
                 : () => ref
                     .read(currentSequenceProvider.notifier)
                     .updateNode(node.normalisedWeights()),
-            child: const Text('Normalise'),
+            child: const Text('Normalize'),
           ),
         ],
       ),

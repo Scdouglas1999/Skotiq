@@ -100,7 +100,7 @@ void main() {
       expect(pa, closeTo(71.3, 1.0));
     });
 
-    test('result is always normalised to [0, 360)', () {
+    test('result is always normalized to [0, 360)', () {
       final pa = AstronomyCalculations.positionAngle(
         ra1Deg: 100,
         dec1Deg: 0,

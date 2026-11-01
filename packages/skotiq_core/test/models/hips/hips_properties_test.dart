@@ -66,7 +66,7 @@ hips_frame = galactic
       expect(props.frame, HipsFrame.galactic);
     });
 
-    test('honours # comments and blank lines', () {
+    test('honors # comments and blank lines', () {
       final props = HipsProperties.parse('''
 
 # a comment
@@ -79,7 +79,7 @@ hips_frame = equatorial
       expect(props.hipsOrder, 6);
     });
 
-    test('honours backslash line continuation in a value', () {
+    test('honors backslash line continuation in a value', () {
       final props = HipsProperties.parse('''
 hips_order = 5
 hips_tile_format = jpeg
@@ -206,7 +206,7 @@ hips_frame = equatorial
       );
     });
 
-    test('unrecognised hips_frame throws (no coercion to equatorial)', () {
+    test('unrecognized hips_frame throws (no coercion to equatorial)', () {
       expect(
         () => HipsProperties.parse('''
 hips_order = 5
@@ -278,7 +278,7 @@ hips_frame = equatorial
       expect(props.tileFormats, [HipsTileFormat.jpeg, HipsTileFormat.png]);
     });
 
-    test('skips unknown tokens but keeps recognised ones', () {
+    test('skips unknown tokens but keeps recognized ones', () {
       final props = HipsProperties.parse('''
 hips_order = 5
 hips_tile_format = tiff png fits

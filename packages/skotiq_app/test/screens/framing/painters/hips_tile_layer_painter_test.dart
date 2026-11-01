@@ -421,7 +421,7 @@ void main() {
       checked++;
     }
     expect(checked, greaterThan(0),
-        reason: 'At least one visible tile centre must be on-canvas to verify '
+        reason: 'At least one visible tile center must be on-canvas to verify '
             'the Allsky cell registration.');
   });
 

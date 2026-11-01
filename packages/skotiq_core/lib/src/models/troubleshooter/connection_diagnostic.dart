@@ -740,7 +740,7 @@ List<RemediationStep>? _firstPartySetupSteps(String error) {
         detail:
             'It is 0 (or unset) right now. The guider divides pixel size by '
             'focal length to work out how far each star has moved, so it '
-            'cannot start without it. Enter the value in millimetres.',
+            'cannot start without it. Enter the value in millimeters.',
       ),
       RemediationStep(
         instruction: 'Save the profile, then connect the guider again',

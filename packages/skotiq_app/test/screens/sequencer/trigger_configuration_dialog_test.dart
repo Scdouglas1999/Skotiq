@@ -32,7 +32,7 @@ void main() {
 
   // ExposureTriggerConfig round-trip.
   group('ExposureTriggerConfig — drift RA/Dec round-trip', () {
-    test('drift triggers serialise RA and Dec independently', () {
+    test('drift triggers serialize RA and Dec independently', () {
       final cfg = ExposureTriggerConfig(
         condition: TriggerConditionType.drift,
         threshold: 0, // unused for drift
@@ -79,7 +79,7 @@ void main() {
       expect(restored.driftDecPx, 3.0);
     });
 
-    test('guiding RMS and HFR still serialise as scalar thresholds', () {
+    test('guiding RMS and HFR still serialize as scalar thresholds', () {
       final guiding = ExposureTriggerConfig(
         condition: TriggerConditionType.guidingRms,
         threshold: 1.8,

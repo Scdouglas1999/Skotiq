@@ -87,7 +87,7 @@ void main() {
     );
   });
 
-  test('desktop cancel: picker returns null → cancelled, temp cleaned up',
+  test('desktop cancel: picker returns null → canceled, temp cleaned up',
       () async {
     stubSuccessfulDownload();
     final outcome = await downloadImageToDevice(
@@ -102,7 +102,7 @@ void main() {
     expect(
       staging.existsSync() ? staging.listSync().isEmpty : true,
       isTrue,
-      reason: 'a cancelled download must not leave a staged temp file',
+      reason: 'a canceled download must not leave a staged temp file',
     );
   });
 

@@ -428,7 +428,7 @@ class _ObservationLogSettingsState
       if (!mounted || deleted) return;
 
       final message = !identical(ref.read(backendProvider), backendAtStart)
-          ? 'Delete cancelled because the imaging host changed.'
+          ? 'Delete canceled because the imaging host changed.'
           : ref.read(observationLogNotifierProvider).errorMessage ??
               'Could not delete the observation.';
       context.showErrorSnackBar(message);
@@ -453,7 +453,7 @@ class _ObservationLogSettingsState
         final error = ref.read(observationLogNotifierProvider).errorMessage;
         if (!identical(ref.read(backendProvider), backendAtStart)) {
           context.showErrorSnackBar(
-            'Export cancelled because the imaging host changed.',
+            'Export canceled because the imaging host changed.',
           );
         } else if (error != null) {
           context.showErrorSnackBar(error);

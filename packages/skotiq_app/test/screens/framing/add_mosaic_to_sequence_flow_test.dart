@@ -168,7 +168,7 @@ void main() {
       );
     }
 
-    testWidgets('a 2x2 mosaic inserts four target groups, not one centre frame',
+    testWidgets('a 2x2 mosaic inserts four target groups, not one center frame',
         (tester) async {
       final h = await host(tester);
 
@@ -206,7 +206,7 @@ void main() {
         expect(
           (target.raHours - centreRa).abs(),
           greaterThan(1e-6),
-          reason: 'a panel collapsed onto the mosaic centre',
+          reason: 'a panel collapsed onto the mosaic center',
         );
       }
     });
@@ -239,7 +239,7 @@ void main() {
       expect(targets.first.raHours, closeTo(5.588, 1e-9));
     });
 
-    testWidgets('cancelling a mosaic insert adds nothing', (tester) async {
+    testWidgets('canceling a mosaic insert adds nothing', (tester) async {
       final h = await host(tester);
 
       final future = addFramedTargetToExistingSequence(

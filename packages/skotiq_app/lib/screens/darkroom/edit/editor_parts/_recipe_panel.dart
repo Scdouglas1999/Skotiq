@@ -351,7 +351,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
                             state.photometryStarCount > 0) ...[
                           const SizedBox(height: SkotiqTokens.spaceMd),
                           Text(
-                            '${state.photometryStarCount} catalogue stars are '
+                            '${state.photometryStarCount} catalog stars are '
                             'lent to the color calibration on every render. It '
                             'solves the balance from them each time rather '
                             'than storing fitted channel scales, so a coarse '
@@ -711,7 +711,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
           ..add(
             SkotiqBanner(
               tone: BannerTone.info,
-              title: 'Color calibration has no catalogue stars',
+              title: 'Color calibration has no catalog stars',
               message: photometryNote,
             ),
           );

@@ -120,7 +120,7 @@ void main() {
     },
   );
 
-  test('a prefixed query pins the catalogue', () async {
+  test('a prefixed query pins the catalog', () async {
     final container = makeContainer();
 
     expect((await search(container, 'UGC 6720')).first.id, 'IC728');
@@ -151,7 +151,7 @@ void main() {
   // future star catalog ships), so it stays covered — and the branch is pinned
   // against the shape the SHIPPED loader produces as well, or the star half is
   // only ever exercised by fixtures the app cannot generate.
-  test('a padded star catalogue id is an exact designation too', () async {
+  test('a padded star catalog id is an exact designation too', () async {
     const paddedStar = Star(
       id: 'HD006720',
       name: 'HD006720',

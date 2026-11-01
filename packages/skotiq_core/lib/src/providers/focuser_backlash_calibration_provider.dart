@@ -289,7 +289,7 @@ class FocuserBacklashCalibrationNotifier
 
   Future<void> cancel() async {
     if (!state.isRunning) return;
-    state = state.copyWith(status: 'Cancelling the calibration');
+    state = state.copyWith(status: 'Canceling the calibration');
     try {
       await _ref.read(deviceServiceProvider).cancelFocuserBacklashCalibration();
     } catch (error) {

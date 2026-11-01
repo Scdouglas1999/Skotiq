@@ -54,7 +54,7 @@ void main() {
       expect(score!.windScore, 30.0);
     });
 
-    test('weights renormalise when some axes are missing', () {
+    test('weights renormalize when some axes are missing', () {
       // Only transparency provided => composite = transparency axis (100).
       final score = svc.compose(
         const AdaptiveSwapInputs(transparencyFraction: 1.0),

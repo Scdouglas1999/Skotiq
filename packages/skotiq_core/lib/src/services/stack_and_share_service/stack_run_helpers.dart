@@ -151,7 +151,7 @@ extension _StackRunHelpers on StackAndShareService {
     if (pattern == null) {
       if (mode == 'osc') {
         throw StateError(
-          'Stack-and-Share is configured for OSC (colour) stacking but no '
+          'Stack-and-Share is configured for OSC (color) stacking but no '
           'Bayer pattern could be resolved for reference frame '
           '"${reference.filePath}": the connected camera reports no CFA '
           'pattern and the frame carries no FITS BAYERPAT geometry. Set an '

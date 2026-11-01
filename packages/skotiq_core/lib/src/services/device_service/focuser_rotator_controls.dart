@@ -620,12 +620,12 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
 
     while (true) {
       if (_disposed || generation != _rotatorVerifyGeneration) {
-        throw StateError('Rotator verification was cancelled.');
+        throw StateError('Rotator verification was canceled.');
       }
 
       final status = await _backend.getRotatorStatus(deviceId);
       if (_disposed || generation != _rotatorVerifyGeneration) {
-        throw StateError('Rotator verification was cancelled.');
+        throw StateError('Rotator verification was canceled.');
       }
       rotatorNotifier.updatePosition(
         status.position,

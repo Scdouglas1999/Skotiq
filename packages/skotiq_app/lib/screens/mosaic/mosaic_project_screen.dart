@@ -461,7 +461,7 @@ class MosaicProjectHeader extends StatelessWidget {
                 label: 'Integrated',
                 size: ReadoutSize.sm,
               ),
-              Readout(value: center, label: 'Centre', size: ReadoutSize.sm),
+              Readout(value: center, label: 'Center', size: ReadoutSize.sm),
             ],
           ),
         ),

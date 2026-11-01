@@ -44,7 +44,7 @@ void main() {
       );
     });
 
-    test('status=skipped records skipped, status=cancelled too', () {
+    test('status=skipped records skipped, status=canceled too', () {
       apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'skipped'}));
       apply(_event('NodeCompleted', {'node_id': 'n2', 'status': 'cancelled'}));
 
@@ -62,7 +62,7 @@ void main() {
       );
     });
 
-    test('a legacy success bool is still honoured', () {
+    test('a legacy success bool is still honored', () {
       apply(_event('NodeCompleted', {'node_id': 'n1', 'success': true}));
 
       expect(

@@ -128,6 +128,6 @@ void main() {
         reason: 'an observing log that says "star" for Jupiter is wrong '
             'forever — it is exported and filtered on');
     expect(logs.single.catalogId, isNull,
-        reason: 'PLANET_Jupiter is an internal key, not a catalogue id');
+        reason: 'PLANET_Jupiter is an internal key, not a catalog id');
   });
 }

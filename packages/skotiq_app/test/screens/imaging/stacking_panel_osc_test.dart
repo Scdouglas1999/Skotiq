@@ -157,7 +157,7 @@ void main() {
     });
 
     testWidgets(
-        'a connected colour camera defaults the switch ON and '
+        'a connected color camera defaults the switch ON and '
         'preselects the detected pattern', (tester) async {
       await _pumpPanel(
         tester,

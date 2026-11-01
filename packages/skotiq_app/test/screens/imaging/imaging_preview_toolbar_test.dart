@@ -62,7 +62,7 @@ void main() {
     // The single labelled Overlays control replaces the six former icons.
     expect(find.text('Overlays'), findsOneWidget,
         reason:
-            'The six loose overlay icons collapsed into one labelled Overlays '
+            'The six loose overlay icons collapsed into one labeled Overlays '
             'popover trigger.');
   });
 
@@ -92,7 +92,7 @@ void main() {
     // The popover lists labelled overlay rows; tap the Catalog overlay one.
     expect(find.text('Catalog overlay'), findsOneWidget,
         reason:
-            'The Overlays popover must expose a labelled Catalog overlay row '
+            'The Overlays popover must expose a labeled Catalog overlay row '
             'wired to the same provider the old catalog icon drove.');
     await tester.tap(find.text('Catalog overlay'));
     // PopupMenuItem.onTap fires after the menu dismisses on a post-frame

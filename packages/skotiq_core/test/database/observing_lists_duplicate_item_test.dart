@@ -85,7 +85,7 @@ void main() {
     () async {
       final listId = await seedList(
         'NGC6015',
-        objectName: 'My favourite spiral',
+        objectName: 'My favorite spiral',
       );
 
       Object? thrown;
@@ -103,7 +103,7 @@ void main() {
 
       expect(
         '$thrown',
-        'NGC6015 is already in this list as "My favourite spiral"',
+        'NGC6015 is already in this list as "My favorite spiral"',
       );
     },
   );

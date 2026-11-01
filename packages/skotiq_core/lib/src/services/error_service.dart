@@ -468,7 +468,7 @@ class ErrorMessageMapper {
   static const Map<Pattern, UserFriendlyError> _imagingErrors = {
     'Exposure cancelled': UserFriendlyError(
       technicalError: 'Exposure cancelled',
-      userMessage: 'The exposure was cancelled.',
+      userMessage: 'The exposure was canceled.',
       isRecoverable: true,
     ),
     'Exposure failed': UserFriendlyError(

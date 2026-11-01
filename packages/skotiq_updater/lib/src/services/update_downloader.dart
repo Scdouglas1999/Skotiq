@@ -229,5 +229,5 @@ class DownloadException implements Exception {
 /// Exception thrown when download is cancelled
 class DownloadCancelledException implements Exception {
   @override
-  String toString() => 'Download was cancelled';
+  String toString() => 'Download was canceled';
 }

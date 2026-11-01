@@ -232,7 +232,7 @@ void main() {
           0,
           reason:
               'a scan is six unauthenticated connections, and an sshd built '
-              'after 9.8 penalises a source for making them',
+              'after 9.8 penalizes a source for making them',
         );
         expect(pinned, isEmpty, reason: 'an existing pin is not rewritten');
         expect(await remoteNames(), [fileName]);

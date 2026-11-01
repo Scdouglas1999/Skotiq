@@ -367,7 +367,7 @@ void main() {
   });
 
   testWidgets(
-      'deep_link_unknown_section_falls_back_to_first: an unrecognised key '
+      'deep_link_unknown_section_falls_back_to_first: an unrecognized key '
       'opens the default (first) pane without crashing', (tester) async {
     _swallowKnownOverflows();
     await pumpAppScreen(

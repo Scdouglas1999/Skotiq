@@ -59,7 +59,7 @@ void main() {
     }
   });
 
-  test('only the safety alert is categorised as an alarm', () {
+  test('only the safety alert is categorized as an alarm', () {
     expect(
       android('criticalAlarm').category,
       AndroidNotificationCategory.alarm,

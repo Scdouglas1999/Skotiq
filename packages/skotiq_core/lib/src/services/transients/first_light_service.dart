@@ -275,7 +275,7 @@ class FirstLightService {
       throw ArgumentError.value(
         wcs,
         'wcs',
-        'scanFrame needs a valid SolvedWcs (finite centre + positive scale)',
+        'scanFrame needs a valid SolvedWcs (finite center + positive scale)',
       );
     }
 

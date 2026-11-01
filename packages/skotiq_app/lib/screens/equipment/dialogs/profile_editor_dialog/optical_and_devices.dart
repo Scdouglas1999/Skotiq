@@ -49,7 +49,7 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             trailing: helpAffordance(
               context,
               title: 'Focal length (mm)',
-              body: "The telescope's NATIVE focal length in millimetres "
+              body: "The telescope's NATIVE focal length in millimeters "
                   '— on the OTA label or its spec sheet. Enter any '
                   'reducer or barlow separately below; the profile '
                   'stores the two multiplied together as the focal '
@@ -76,7 +76,7 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             trailing: helpAffordance(
               context,
               title: 'Aperture (mm)',
-              body: 'The diameter of the telescope in millimetres. '
+              body: 'The diameter of the telescope in millimeters. '
                   'Focal length ÷ aperture gives your focal ratio and '
                   'sets how much light you gather.',
             ),

@@ -152,7 +152,7 @@ void main() {
     expect(
       find.descendant(of: coImaging.first, matching: find.text('0')),
       findsOneWidget,
-      reason: 'the collaboration count keeps its own labelled row',
+      reason: 'the collaboration count keeps its own labeled row',
     );
   });
 

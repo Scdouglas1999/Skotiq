@@ -116,7 +116,7 @@ void main() {
   }
 
   test(
-    'the First Light scan centre is the persisted solved RA in hours',
+    'the First Light scan center is the persisted solved RA in hours',
     () async {
       final image = await seedSolvedLight();
 
@@ -138,7 +138,7 @@ void main() {
     },
   );
 
-  test('the First Light scan centre matches the atlas fold centre for the '
+  test('the First Light scan center matches the atlas fold center for the '
       'same row', () async {
     final image = await seedSolvedLight();
 
@@ -164,7 +164,7 @@ void main() {
       closeTo(foldCentreRaDeg, 1e-6),
       reason:
           'the difference template is read from the same per-tile sidecars the '
-          'fold writes; a scan centred elsewhere differences the wrong sky',
+          'fold writes; a scan centered elsewhere differences the wrong sky',
     );
     expect(scanWcs.decDegrees, closeTo(foldCentreDecDeg, 1e-9));
   });

@@ -166,7 +166,7 @@ extension CatalogManagerLegacyIo on CatalogManager {
       return true;
     } on CatalogCancelled {
       developer.log(
-        '[Catalog] Download of ${source.name} cancelled by user',
+        '[Catalog] Download of ${source.name} canceled by user',
         name: 'CatalogManager',
         level: 800,
       );

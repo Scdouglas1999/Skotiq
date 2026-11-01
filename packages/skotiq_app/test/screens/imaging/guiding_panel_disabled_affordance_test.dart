@@ -93,7 +93,7 @@ void main() {
   });
 
   testWidgets(
-      'enabled_outline_button_is_not_dimmed: the fix must not grey out live '
+      'enabled_outline_button_is_not_dimmed: the fix must not gray out live '
       'controls', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

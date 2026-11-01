@@ -81,7 +81,7 @@ void main() {
     );
   });
 
-  test('a colour render cannot anchor a region', () {
+  test('a color render cannot anchor a region', () {
     final selection = _container(
       frame: _frame(path: '/data/M51/rgb.fits', isColor: true),
     ).read(depthLockSelectionProvider);

@@ -57,7 +57,7 @@ void main() {
     expect(
       stars.any((s) => (s.magnitude ?? 0) < -20),
       isFalse,
-      reason: 'no real catalogue star is anywhere near magnitude -26',
+      reason: 'no real catalog star is anywhere near magnitude -26',
     );
   });
 

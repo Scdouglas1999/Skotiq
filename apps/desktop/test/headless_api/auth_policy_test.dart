@@ -30,7 +30,7 @@ void main() {
     });
 
     test(
-      'a scope name the parser does not recognise requires admin, not view',
+      'a scope name the parser does not recognize requires admin, not view',
       () {
         // Regression pin for the fail-closed default in requiredScopeFor:
         // route metadata only emits public/view/control/admin today, so an

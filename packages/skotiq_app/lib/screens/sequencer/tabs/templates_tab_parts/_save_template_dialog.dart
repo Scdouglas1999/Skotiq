@@ -50,7 +50,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
       (previous, next) {
         if (previous == null || identical(previous, next) || !mounted) return;
         context.showWarningSnackBar(
-          'The connected host changed. Template save cancelled.',
+          'The connected host changed. Template save canceled.',
         );
         closeAuthorityBoundDialog(context);
       },

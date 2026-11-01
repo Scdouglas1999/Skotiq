@@ -167,7 +167,7 @@ void main() {
     expect(result, isNull);
   });
 
-  test('equipmentFOVProvider receives rotation when dialog initialises', () {
+  test('equipmentFOVProvider receives rotation when dialog initializes', () {
     // Pre-seed via the public showFramingAssistantDialog path: we
     // hit the internal sync function indirectly by checking that
     // setting EquipmentFOV rotation honours the .rotation field on

@@ -83,7 +83,7 @@ void main() {
       expect(accept, contains('text/plain'));
     });
 
-    test('normalises a trailing slash on the base URL', () async {
+    test('normalizes a trailing slash on the base URL', () async {
       late Uri requested;
       final client = MockClient((request) async {
         requested = request.url;
@@ -392,7 +392,7 @@ void main() {
   });
 
   group('cancellation', () {
-    test('a pre-cancelled token throws HipsFetchCancelledException before any '
+    test('a pre-canceled token throws HipsFetchCancelledException before any '
         'socket is opened', () async {
       var hit = false;
       final client = MockClient((request) async {
@@ -412,7 +412,7 @@ void main() {
       expect(hit, isFalse, reason: 'no request should be issued');
     });
 
-    test('cancelling an in-flight request aborts it with '
+    test('canceling an in-flight request aborts it with '
         'HipsFetchCancelledException', () async {
       final gate = Completer<void>();
       final client = MockClient.streaming((request, bodyStream) async {

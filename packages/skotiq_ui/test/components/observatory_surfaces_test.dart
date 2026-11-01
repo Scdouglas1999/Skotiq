@@ -288,7 +288,7 @@ void main() {
       expect(picked, 0);
     });
 
-    testWidgets('strip hover labels sit to the left, centred on the icon', (
+    testWidgets('strip hover labels sit to the left, centered on the icon', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(800, 600));
@@ -321,7 +321,7 @@ void main() {
       expect(
         label.center.dy,
         closeTo(button.center.dy, 2.0),
-        reason: 'strip tooltip must share a centre line with its icon',
+        reason: 'strip tooltip must share a center line with its icon',
       );
       expect(
         label.right,
@@ -428,7 +428,7 @@ void main() {
   });
 
   group('motion', () {
-    testWidgets('every animated component honours disableAnimations', (
+    testWidgets('every animated component honors disableAnimations', (
       tester,
     ) async {
       // MediaQuery.disableAnimations makes the framework's implicit animations
@@ -583,7 +583,7 @@ void main() {
       expect(dismissed, 1);
     });
 
-    testWidgets('a tone tints the fill and colours the glyph', (tester) async {
+    testWidgets('a tone tints the fill and colors the glyph', (tester) async {
       await tester.pumpWidget(
         _host(
           const SizedBox(

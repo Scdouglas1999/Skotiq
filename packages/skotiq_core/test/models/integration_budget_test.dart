@@ -56,7 +56,7 @@ void main() {
       expect(budget.resolvedFilterCap('OIII'), isNull);
     });
 
-    test('Ratios normalise against total — 4:1:1:1 LRGB / 8h example', () {
+    test('Ratios normalize against total — 4:1:1:1 LRGB / 8h example', () {
       const budget = IntegrationBudget(
         totalSecs: 28800.0,
         perFilter: {
@@ -118,7 +118,7 @@ void main() {
       expect(back, equals(budget));
     });
 
-    test('default deserialization (missing fields) honours defaults', () {
+    test('default deserialization (missing fields) honors defaults', () {
       final budget = IntegrationBudget.fromJson(<String, dynamic>{});
       expect(budget.totalSecs, equals(0.0));
       expect(budget.perFilter, isEmpty);

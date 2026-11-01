@@ -201,7 +201,7 @@ class ScienceReportExporter {
       return '## Photometric calibration\n'
           'No photometric calibration produced this session. This usually means '
           'too few frames solved against the catalog (need ≥ 5–10 calibrated '
-          'frames before a transparency model stabilises).';
+          'frames before a transparency model stabilizes).';
     }
     final zps = calibrated.map((c) => c.zeroPoint!).toList()..sort();
     final median = zps[zps.length ~/ 2];
@@ -320,7 +320,7 @@ class ScienceReportExporter {
     if (samples.isEmpty) {
       return '## Transparency\n'
           'No transparency samples produced. A transparency estimate needs '
-          'at least 5 calibrated frames to stabilise — likely few frames '
+          'at least 5 calibrated frames to stabilize — likely few frames '
           'reached calibration tonight.';
     }
     final values = samples

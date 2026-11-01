@@ -113,7 +113,7 @@ void main() {
   });
 
   group('Cancel works while the transfer is stalled', () {
-    test('legacy star download reports cancelled', () async {
+    test('legacy star download reports canceled', () async {
       // Long enough that a stall timeout cannot be what ends this download —
       // only the cancel poll can.
       CatalogManager.streamIdleTimeout = const Duration(seconds: 30);
@@ -141,7 +141,7 @@ void main() {
       );
     });
 
-    test('the unified install path reports cancelled', () async {
+    test('the unified install path reports canceled', () async {
       CatalogManager.streamIdleTimeout = const Duration(seconds: 30);
       CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
 
@@ -159,7 +159,7 @@ void main() {
       await expectLater(bounded(install), throwsA(isA<CatalogCancelled>()));
     });
 
-    test('the annotation download reports cancelled', () async {
+    test('the annotation download reports canceled', () async {
       CatalogManager.streamIdleTimeout = const Duration(seconds: 30);
       CatalogManager.httpClientFactory = _StallingClient.afterHeaders;
 

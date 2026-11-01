@@ -334,7 +334,7 @@ class _CreateObservingListDialogState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content:
-                Text('The connected host changed. List creation cancelled.'),
+                Text('The connected host changed. List creation canceled.'),
           ),
         );
         closeAuthorityBoundDialog(context);

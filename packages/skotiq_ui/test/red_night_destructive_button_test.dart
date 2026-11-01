@@ -141,7 +141,7 @@ void main() {
         ratio,
         greaterThanOrEqualTo(4.5),
         reason:
-            'a hollow button spends its own colour as text, so the '
+            'a hollow button spends its own color as text, so the '
             'label answers to the 4.5:1 floor the palette holds',
       );
     }

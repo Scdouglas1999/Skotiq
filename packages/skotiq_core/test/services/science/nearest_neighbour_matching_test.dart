@@ -46,7 +46,7 @@ void main() {
   }
 
   group('equivalence with the full scan', () {
-    test('agrees on 40 randomised fields', () {
+    test('agrees on 40 randomized fields', () {
       final random = math.Random(20260913);
       for (var trial = 0; trial < 40; trial++) {
         final sources = <MatchPoint>[];

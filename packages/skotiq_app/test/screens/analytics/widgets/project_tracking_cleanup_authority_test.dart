@@ -52,7 +52,7 @@ ProjectProgress _project() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('untracked-target cleanup is cancelled after a host switch',
+  testWidgets('untracked-target cleanup is canceled after a host switch',
       (tester) async {
     final hostA = _MockNetworkBackend();
     final hostB = _MockNetworkBackend();
@@ -100,12 +100,12 @@ void main() {
     verifyNever(hostA.removeUntrackedTargets);
     verifyNever(hostB.removeUntrackedTargets);
     expect(
-      find.text('Imaging host changed. Cleanup was cancelled.'),
+      find.text('Imaging host changed. Cleanup was canceled.'),
       findsOneWidget,
     );
   });
 
-  testWidgets('integration-goal edit is cancelled after a host switch',
+  testWidgets('integration-goal edit is canceled after a host switch',
       (tester) async {
     final hostA = _MockNetworkBackend();
     final hostB = _MockNetworkBackend();
@@ -153,7 +153,7 @@ void main() {
     expect(hostA.updateTargetCalls, 0);
     expect(hostB.updateTargetCalls, 0);
     expect(
-      find.text('Imaging host changed. Goal update was cancelled.'),
+      find.text('Imaging host changed. Goal update was canceled.'),
       findsOneWidget,
     );
   });

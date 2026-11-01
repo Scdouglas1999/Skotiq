@@ -75,7 +75,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
     if (!context.mounted) return;
     if (!identical(ref.read(backendProvider), authority)) {
       context.showWarningSnackBar(
-        'Imaging host changed. Goal update was cancelled.',
+        'Imaging host changed. Goal update was canceled.',
       );
       return;
     }

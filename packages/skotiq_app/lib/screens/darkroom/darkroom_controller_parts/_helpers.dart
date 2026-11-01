@@ -60,8 +60,8 @@ const String kDarkroomColorCalibrateOpId = 'color_calibrate';
 /// master's own count is the count that reaches the step wherever it lands.
 const Map<String, String> kDarkroomThreeChannelOps = {
   kDarkroomColorCalibrateOpId:
-      'a colour master with 3 channels; combine a per-filter mono master first',
-  'saturation': 'a colour master with 3 channels',
+      'a color master with 3 channels; combine a per-filter mono master first',
+  'saturation': 'a color master with 3 channels',
   'scnr': 'a color image with 3 channels',
   'chroma_denoise': 'a color image with 3 channels',
 };

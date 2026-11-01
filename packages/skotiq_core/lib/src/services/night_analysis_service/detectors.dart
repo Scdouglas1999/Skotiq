@@ -404,7 +404,7 @@ extension _NightAnalysisDetectors on NightAnalysisService {
               '(score ${diag.collimationScore.toStringAsFixed(0)}/100)',
           explanation:
               'Astrometric residuals grow toward the field edges relative to '
-              'the centre — the signature of optical misalignment or wrong '
+              'the center — the signature of optical misalignment or wrong '
               'corrector/flattener back-spacing, not atmosphere.',
           advice:
               'Verify collimation and the flattener back-focus distance '

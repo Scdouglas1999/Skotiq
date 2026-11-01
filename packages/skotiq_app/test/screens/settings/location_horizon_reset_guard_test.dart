@@ -87,7 +87,7 @@ void main() {
     expect(_stored(handle).sampleCount, 36);
   });
 
-  testWidgets('cancelling the reset keeps the survey', (tester) async {
+  testWidgets('canceling the reset keeps the survey', (tester) async {
     final handle = await _pumpReset(tester, profileJson: _survey());
 
     await tester.tap(find.text('Cancel'));

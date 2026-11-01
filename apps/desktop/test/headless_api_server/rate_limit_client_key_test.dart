@@ -54,7 +54,7 @@ void main() {
       );
     });
 
-    test('trustForwardedHeaders + loopback peer honours X-Forwarded-For', () {
+    test('trustForwardedHeaders + loopback peer honors X-Forwarded-For', () {
       final request = _request(
         peer: InternetAddress.loopbackIPv4,
         headers: {'x-forwarded-for': '203.0.113.9, 70.0.0.1'},

@@ -93,7 +93,7 @@ class DawnPhotometryResolver {
     if (wcs == null) {
       return const DawnPhotometry.unavailable(
         'this master carries no solved astrometry, so its field cannot be '
-        'placed on the sky and no catalogue star can be matched to it',
+        'placed on the sky and no catalog star can be matched to it',
       );
     }
     if (master.width <= 0 || master.height <= 0) {
@@ -125,9 +125,9 @@ class DawnPhotometryResolver {
 
     if (stars.isEmpty) {
       return DawnPhotometry.unavailable(
-        'the installed catalogue holds no colour-indexed star inside this '
+        'the installed catalog holds no color-indexed star inside this '
         "master's ${radiusDeg.toStringAsFixed(2)}° field, so there is nothing "
-        'for the colour fit to regress against',
+        'for the color fit to regress against',
       );
     }
     // Fixed order by right ascension, then declination, then magnitude: the

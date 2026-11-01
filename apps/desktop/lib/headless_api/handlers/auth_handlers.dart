@@ -120,7 +120,7 @@ class AuthHandlers {
       return jsonForbidden(
         {
           'error': 'invalid_token',
-          'message': 'The bearer token is not recognised.',
+          'message': 'The bearer token is not recognized.',
         },
         headers: {requestIdHeader: requestId},
       );

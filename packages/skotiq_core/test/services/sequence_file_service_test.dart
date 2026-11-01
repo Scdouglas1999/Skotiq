@@ -90,7 +90,7 @@ void main() {
   );
 
   test(
-    'cancelled export reports no save and does not invoke callback',
+    'canceled export reports no save and does not invoke callback',
     () async {
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestFileSelectorPlatform(
@@ -104,7 +104,7 @@ void main() {
       );
       final sequence = Sequence.create(
         id: 'cancelled-export',
-        name: 'Cancelled export',
+        name: 'Canceled export',
         rootNodeId: 'root',
         nodes: {'root': InstructionSetNode(id: 'root', name: 'Root')},
       );
@@ -711,7 +711,7 @@ void main() {
   });
 
   test(
-    'exportSequence honours forceExport flag and writes even with errors',
+    'exportSequence honors forceExport flag and writes even with errors',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'sequence_file_service_export_force_',

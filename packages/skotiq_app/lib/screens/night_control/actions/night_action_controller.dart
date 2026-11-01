@@ -222,7 +222,7 @@ class NightActionController extends Notifier<ManualActionState>
             source: _logSource,
           );
         } on AutofocusCancelledException {
-          _log.info('Autofocus cancelled', source: _logSource);
+          _log.info('Autofocus canceled', source: _logSource);
         }
       });
 
@@ -380,7 +380,7 @@ class NightActionController extends Notifier<ManualActionState>
           break;
       }
     } catch (e) {
-      _log.error('Cancelling ${id.name} failed: $e', source: _logSource);
+      _log.error('Canceling ${id.name} failed: $e', source: _logSource);
     }
     await inFlight;
   }
@@ -424,7 +424,7 @@ class NightActionController extends Notifier<ManualActionState>
   void cancelArmedStart() {
     if (ref.read(nightArmedStartProvider) == null) return;
     ref.read(nightArmedStartProvider.notifier).disarm();
-    _log.info('Start at dark cancelled', source: _logSource);
+    _log.info('Start at dark canceled', source: _logSource);
   }
 
   /// Starts the armed run, after the checks the Start dialog makes that
@@ -592,7 +592,7 @@ class NightActionController extends Notifier<ManualActionState>
       if (_cancelRequested) {
         // An aborted exposure or centering unwinds as an error; the operator
         // asked for it, so it is not a failure.
-        _log.info('${id.name} cancelled: $e', source: _logSource);
+        _log.info('${id.name} canceled: $e', source: _logSource);
       } else {
         error = NightText(manualActionKey('nightActErr', id),
             params: {'detail': _clean(e)});

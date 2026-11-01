@@ -193,7 +193,7 @@ void main() {
   );
 
   test(
-    'the centre the operator left the focuser at is what gets sent',
+    'the center the operator left the focuser at is what gets sent',
     () async {
       final backend = CalibrationBackend(outcomeJson: measuredOutcomeJson());
       final container = buildContainer(backend);
@@ -321,7 +321,7 @@ void main() {
     );
   });
 
-  test('the operator cancelling is not reported as a failure', () async {
+  test('the operator canceling is not reported as a failure', () async {
     final backend = CalibrationBackend(error: SkotiqError.cancelled());
     final container = buildContainer(backend);
     await container.read(appSettingsProvider.future);

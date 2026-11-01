@@ -58,7 +58,7 @@ void main() {
     expect(handle.container.read(autofocusOverlayProvider).isVisible, isFalse);
   });
 
-  testWidgets('a cancelled run also clears itself', (tester) async {
+  testWidgets('a canceled run also clears itself', (tester) async {
     final handle = await pumpAppScreen(
       tester,
       const Stack(children: [AutofocusProgressOverlay()]),
@@ -79,7 +79,7 @@ void main() {
     expect(
       handle.container.read(autofocusOverlayProvider).isVisible,
       isFalse,
-      reason: 'A cancelled run carries nothing to read, so it must not camp '
+      reason: 'A canceled run carries nothing to read, so it must not camp '
           'on the corner of every screen either.',
     );
   });

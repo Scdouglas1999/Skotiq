@@ -199,7 +199,7 @@ class _ColorOption extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label: color == null ? 'No accent colour' : 'Accent colour',
+      label: color == null ? 'No accent color' : 'Accent color',
       child: GestureDetector(
         onTap: onTap,
         child: Container(

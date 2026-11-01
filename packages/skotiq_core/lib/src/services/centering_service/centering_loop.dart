@@ -114,7 +114,7 @@ extension _CenteringLoop on CenteringService {
           .info(
             'Co-imaging: framing this rig on its assigned coverage tile '
             '(${raHours.toStringAsFixed(4)}h, '
-            '${framed.decDeg.toStringAsFixed(4)} deg) instead of the raw centre '
+            '${framed.decDeg.toStringAsFixed(4)} deg) instead of the raw center '
             '(${targetRaHours.toStringAsFixed(4)}h, '
             '${targetDecDeg.toStringAsFixed(4)} deg).',
             source: 'CenteringService',
@@ -354,13 +354,13 @@ extension _CenteringLoop on CenteringService {
         final iter = CenteringIteration(
           iterationNumber: iteration,
           plateSolveSuccess: false,
-          errorMessage: 'Image capture was cancelled',
+          errorMessage: 'Image capture was canceled',
           timestamp: DateTime.now(),
         );
         iterations.add(iter);
 
         return CenteringResult.failure(
-          errorMessage: 'Image capture cancelled',
+          errorMessage: 'Image capture canceled',
           iterations: iteration,
           iterationHistory: iterations,
         );

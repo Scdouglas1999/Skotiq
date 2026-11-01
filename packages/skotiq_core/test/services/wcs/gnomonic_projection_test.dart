@@ -3,7 +3,7 @@ import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
 
 void main() {
   group('GnomonicProjection.worldToPixel', () {
-    test('projects the centre RA/Dec to the image centre', () {
+    test('projects the center RA/Dec to the image center', () {
       const wcs = SolvedWcs(
         raHours: 5.5,
         decDegrees: -5.0,
@@ -162,7 +162,7 @@ void main() {
   });
 
   group('GnomonicProjection.computeBoundingBox', () {
-    test('non-pole, non-wrap frame: bbox centred on solved RA/Dec', () {
+    test('non-pole, non-wrap frame: bbox centered on solved RA/Dec', () {
       const wcs = SolvedWcs(
         raHours: 5.5,
         decDegrees: -5,

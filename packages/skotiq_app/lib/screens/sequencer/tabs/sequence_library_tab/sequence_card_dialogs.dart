@@ -33,7 +33,7 @@ class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog> {
       (previous, next) {
         if (previous == null || identical(previous, next) || !mounted) return;
         context.showWarningSnackBar(
-          'The connected host changed. Sequence deletion cancelled.',
+          'The connected host changed. Sequence deletion canceled.',
         );
         closeAuthorityBoundDialog(context);
       },

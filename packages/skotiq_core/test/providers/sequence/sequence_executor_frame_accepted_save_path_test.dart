@@ -252,7 +252,7 @@ void main() {
             reason:
                 'legacy emit without save_path must still insert the row '
                 '(with an empty file_path) so the strip can show its '
-                'colour-bordered placeholder tile rather than skipping',
+                'color-bordered placeholder tile rather than skipping',
           );
           expect(row.isAccepted, isTrue);
           return;

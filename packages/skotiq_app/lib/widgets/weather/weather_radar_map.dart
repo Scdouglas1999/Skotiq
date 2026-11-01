@@ -489,7 +489,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
                 ),
                 SkotiqIconButton(
                   icon: LucideIcons.locateFixed,
-                  tooltip: 'Centre on your site',
+                  tooltip: 'Center on your site',
                   size: IconButtonSize.sm,
                   onPressed: () => _mapController.move(
                       userLocation, _calculateInitialZoom()),

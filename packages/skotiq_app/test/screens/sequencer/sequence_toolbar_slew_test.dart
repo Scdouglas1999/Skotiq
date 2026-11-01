@@ -63,7 +63,7 @@ Future<void> _pumpToolbar(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('locked while the sequence is running, like its neighbours',
+  testWidgets('locked while the sequence is running, like its neighbors',
       (tester) async {
     await _pumpToolbar(tester, executionState: SequenceExecutionState.running);
 

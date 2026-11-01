@@ -301,7 +301,7 @@ void main() {
         lessThan(labelled),
         reason:
             'the label row must not be reserved when there is no label; '
-            'the ring centres the value on nothing otherwise',
+            'the ring centers the value on nothing otherwise',
       );
       expect(find.text('PROGRESS'), findsOneWidget);
     });

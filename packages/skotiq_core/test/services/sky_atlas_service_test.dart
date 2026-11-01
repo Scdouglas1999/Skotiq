@@ -874,7 +874,7 @@ void main() {
   );
 
   test(
-    'sweepCache evicts aged cutout/delta artefacts by age and size',
+    'sweepCache evicts aged cutout/delta artifacts by age and size',
     () async {
       final root = Directory.systemTemp.createTempSync('atlas_cache_test');
       addTearDown(() => root.deleteSync(recursive: true));
@@ -905,12 +905,12 @@ void main() {
       expect(
         deleted,
         2,
-        reason: 'the two aged artefacts go; the fresh one stays',
+        reason: 'the two aged artifacts go; the fresh one stays',
       );
       expect(old.existsSync(), isFalse);
       expect(delta.existsSync(), isFalse);
       expect(fresh.existsSync(), isTrue);
-      expect(keep.existsSync(), isTrue, reason: '.txt is not a cache artefact');
+      expect(keep.existsSync(), isTrue, reason: '.txt is not a cache artifact');
     },
   );
 

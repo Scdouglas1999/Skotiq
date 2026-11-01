@@ -289,7 +289,7 @@ String describeBackendFailure(String? rawError) {
       lower.contains('unauthorized') ||
       lower.contains('forbidden') ||
       lower.contains('403')) {
-    return '$at refused the connection as unauthorised';
+    return '$at refused the connection as unauthorized';
   }
   if (lower.contains('certificate') || lower.contains('handshake')) {
     return 'the secure connection to $at could not be established';

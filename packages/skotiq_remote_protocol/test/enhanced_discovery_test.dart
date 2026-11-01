@@ -88,7 +88,7 @@ void main() {
       expect(isLocalNetworkHost('100.50.0.1'), isFalse);
     });
 
-    test('rejects neighbouring /8 (99.x and 101.x)', () {
+    test('rejects neighboring /8 (99.x and 101.x)', () {
       // Why: typo-resilience. Make sure a transposed first octet does not
       // accidentally fall into the accepted range.
       expect(isLocalNetworkHost('99.84.0.1'), isFalse);
@@ -174,7 +174,7 @@ void main() {
   });
 
   group('DiscoveredServer scheme', () {
-    test('webUrl honours scheme=http (default)', () {
+    test('webUrl honors scheme=http (default)', () {
       final server = DiscoveredServer(
         host: '192.168.1.10',
         webPort: 8080,
@@ -187,7 +187,7 @@ void main() {
       expect(server.webUrl, 'http://192.168.1.10:8080');
     });
 
-    test('webUrl honours scheme=https', () {
+    test('webUrl honors scheme=https', () {
       // Why: the mDNS browse path sets scheme=https when the server published
       // `scheme=https` in its TXT records. If `webUrl` ignored that, the
       // first `GET /api/info` would hit plain HTTP on an HTTPS socket and

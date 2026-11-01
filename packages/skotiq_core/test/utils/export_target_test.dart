@@ -63,7 +63,7 @@ void main() {
     );
 
     test(
-      'a cancelled dialog yields no target',
+      'a canceled dialog yields no target',
       () async {
         FileSelectorPlatform.instance = _RecordingFileSelector();
 

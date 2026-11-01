@@ -50,7 +50,7 @@ void main() {
   });
 
   group('cameraSensorSpecsFromOpticalConfig', () {
-    test('converts a connected camera geometry to millimetres', () {
+    test('converts a connected camera geometry to millimeters', () {
       final specs = cameraSensorSpecsFromOpticalConfig(
         const OpticalConfig(
           cameraName: 'ASI2600MM',

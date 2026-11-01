@@ -158,7 +158,7 @@ void main() {
     expect(
       find.text('0.53"'),
       findsNothing,
-      reason: 'pixels must never be labelled arcseconds',
+      reason: 'pixels must never be labeled arcseconds',
     );
     expect(find.text('24.5'), findsOneWidget, reason: 'real SNR shows through');
     await _closeScreen(tester, handle);

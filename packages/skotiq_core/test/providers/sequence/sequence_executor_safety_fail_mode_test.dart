@@ -196,7 +196,7 @@ void main() {
   });
 
   test(
-    'resume honours the configured fail_closed once weather safety is on',
+    'resume honors the configured fail_closed once weather safety is on',
     () async {
       final c = buildContainer(weatherSafetyEnabled: true);
       c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
@@ -217,7 +217,7 @@ void main() {
   );
 
   test(
-    'start honours the configured fail_closed when weather safety is on',
+    'start honors the configured fail_closed when weather safety is on',
     () async {
       final c = buildContainer(weatherSafetyEnabled: true);
       c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());

@@ -133,7 +133,7 @@ void main() {
       fieldOfView: 60,
     );
 
-    test('a view centred below the horizon renders ground', () async {
+    test('a view centered below the horizon renders ground', () async {
       for (final az in const [0.0, 90.0, 180.0, 310.0]) {
         expect(
           await _groundFraction(pose(-40, az)),
@@ -143,7 +143,7 @@ void main() {
       }
     });
 
-    test('a view centred at the zenith renders no ground', () async {
+    test('a view centered at the zenith renders no ground', () async {
       for (final az in const [0.0, 180.0, 310.0]) {
         expect(
           await _groundFraction(pose(85, az)),
@@ -161,7 +161,7 @@ void main() {
           await _groundFraction(_equatorialPose(altDeg: -40, azDeg: az)),
           lessThan(0.05),
           reason:
-              'the star atlas was covered in ground colour looking at azimuth '
+              'the star atlas was covered in ground color looking at azimuth '
               '$az — a target that has not risen must still be chartable',
         );
       }

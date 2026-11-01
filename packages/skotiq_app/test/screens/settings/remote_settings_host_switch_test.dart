@@ -423,7 +423,7 @@ void main() {
     verifyNever(hostA.clearServerLogs);
     verifyNever(hostB.clearServerLogs);
     expect(
-      find.text('Clear cancelled because the imaging host changed.'),
+      find.text('Clear canceled because the imaging host changed.'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

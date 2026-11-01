@@ -67,7 +67,7 @@ void main() {
     });
   });
 
-  group('planets share the catalogue frame', () {
+  group('planets share the catalog frame', () {
     test('Jupiter comes out in J2000, not the equinox of date', () {
       // Index 3 = Jupiter, via the same entry point the providers use.
       final planets = PlanetaryPositions.getAllPlanetPositions(_instant);
@@ -82,7 +82,7 @@ void main() {
           _jupiterJ2000DecDeg,
         ),
         lessThan(3.0),
-        reason: 'planets must be published in the J2000 catalogue frame',
+        reason: 'planets must be published in the J2000 catalog frame',
       );
       expect(
         _separationArcmin(
@@ -111,7 +111,7 @@ void main() {
     });
   });
 
-  group('Sun and Moon reach the chart in the catalogue frame', () {
+  group('Sun and Moon reach the chart in the catalog frame', () {
     ProviderContainer pinnedAt(DateTime time) {
       final container = ProviderContainer();
       container.read(observationTimeProvider.notifier).setTime(time);

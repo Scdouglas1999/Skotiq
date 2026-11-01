@@ -540,7 +540,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
             'DepthLock measures signed ADU, so it needs Skotiq-format '
-            'masters: FRAMETYP=MASTER, a flat normalised to unit mean, and at '
+            'masters: FRAMETYP=MASTER, a flat normalized to unit mean, and at '
             'least 8 frames behind each one.',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textMuted,

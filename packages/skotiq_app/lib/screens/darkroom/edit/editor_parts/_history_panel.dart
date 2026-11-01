@@ -208,7 +208,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
       if (state.catalogError != null)
         wrap(
           SkotiqBanner(
-            title: 'The operation catalogue could not be read',
+            title: 'The operation catalog could not be read',
             tone: BannerTone.warning,
             message: state.catalogError!,
           ),

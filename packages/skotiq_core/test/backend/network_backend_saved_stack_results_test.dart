@@ -66,7 +66,7 @@ void main() {
   });
 
   test(
-    'saved result list honours the bounded limit and preserves order',
+    'saved result list honors the bounded limit and preserves order',
     () async {
       final fake = FakeNetworkClient()
         ..setResponse(

@@ -133,7 +133,7 @@ void main() {
     // that answer "is it safe to image?" return an opaque internal error on
     // precisely the nights when the answer is "yes, perfectly clear".
     test(
-      'clear sky (no cloud front) serialises instead of failing to encode',
+      'clear sky (no cloud front) serializes instead of failing to encode',
       () async {
         final service = container.read(weatherAlertServiceProvider);
         final alert = service.evaluateConditions(
@@ -164,7 +164,7 @@ void main() {
       },
     );
 
-    test('current weather serialises a clear sky without a 500', () async {
+    test('current weather serializes a clear sky without a 500', () async {
       final service = container.read(weatherAlertServiceProvider);
       service.emitAlert(
         service.evaluateConditions(

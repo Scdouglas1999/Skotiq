@@ -249,7 +249,7 @@ void main() {
 
     testWidgets('a cancel is not a failure', (tester) async {
       const cancelled =
-          'The calibration was cancelled; the focuser is back at 6620';
+          'The calibration was canceled; the focuser is back at 6620';
       final notifier = await _open(
         tester,
         const FocuserBacklashCalibrationState(
@@ -297,7 +297,7 @@ void main() {
         tester,
         const FocuserBacklashCalibrationState(
           phase: FocuserBacklashPhase.failed,
-          status: 'The calibration was cancelled; the focuser is back at 6620',
+          status: 'The calibration was canceled; the focuser is back at 6620',
           plan: plan9Points,
         ),
       );

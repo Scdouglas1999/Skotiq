@@ -156,7 +156,7 @@ void main() {
   final downStar = _star('DownStar', _at(altDeg: -20, azDeg: _viewAz));
 
   group('horizontal frame with the ground drawn', () {
-    test('an above-horizon star is still labelled', () async {
+    test('an above-horizon star is still labeled', () async {
       final bare = await _inkPixels(
         mode: SkyViewMode.horizontal,
         showGroundPlane: true,
@@ -356,7 +356,7 @@ void main() {
         withStar,
         greaterThan(bare),
         reason:
-            'equatorial labelling must be unchanged (showGroundPlane: '
+            'equatorial labeling must be unchanged (showGroundPlane: '
             '$ground)',
       );
     }

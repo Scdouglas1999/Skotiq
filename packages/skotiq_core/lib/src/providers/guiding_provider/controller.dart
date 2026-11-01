@@ -388,7 +388,7 @@ class Phd2Controller {
         // falsely enable Start over a process that may well be live. Surface it
         // as `unknown` so the controls stay conservative (Stop, not Start).
         _logger.warning(
-          'Unrecognised PHD2 AppState "$stateStr" — treating as unknown',
+          'Unrecognized PHD2 AppState "$stateStr" — treating as unknown',
           source: 'Phd2Controller',
         );
         state = Phd2State.unknown;

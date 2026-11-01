@@ -209,7 +209,7 @@ void main() {
     expect(container.read(depthLockRegionDraftProvider).isEmpty, isTrue);
   });
 
-  testWidgets('cancelling leaves the tool and discards the boxes', (
+  testWidgets('canceling leaves the tool and discards the boxes', (
     tester,
   ) async {
     final container = await _pumpLayer(
@@ -511,7 +511,7 @@ void _editingTests() {
     expect(resized.right, closeTo(420, 0.5));
   });
 
-  testWidgets('cancelling clears the edit target as well as the boxes', (
+  testWidgets('canceling clears the edit target as well as the boxes', (
     tester,
   ) async {
     final container = await _pumpLayer(

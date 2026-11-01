@@ -604,7 +604,7 @@ void main() {
   // 34,641,423 bytes and the card read "Delivered 15:07, 10 files, 33.0 MB."
   // 33.0 is the MEBIbyte count; 34.6 is the megabyte one. The divisor is 1024,
   // so the suffix has to be the one that means 1024.
-  test('a byte total is labelled with the unit it was divided into', () {
+  test('a byte total is labeled with the unit it was divided into', () {
     final line = DeliveryStatusLine.of(
       DeliveryDestinationView(
         destination: watchedFolder(),

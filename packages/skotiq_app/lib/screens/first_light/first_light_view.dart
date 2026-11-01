@@ -387,7 +387,7 @@ class _EmptyState extends StatelessWidget {
       case FirstLightFilter.dismissed:
         return (
           'No dismissed candidates',
-          'Artefacts you dismiss are kept here so the difference pipeline never '
+          'Artifacts you dismiss are kept here so the difference pipeline never '
               're-announces them.',
           SkotiqIcons.close,
         );

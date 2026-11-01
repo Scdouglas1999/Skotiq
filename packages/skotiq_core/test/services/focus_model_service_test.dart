@@ -489,7 +489,7 @@ void main() {
       });
     });
 
-    test('isReliableWith honours the FocusModelConfig thresholds', () {
+    test('isReliableWith honors the FocusModelConfig thresholds', () {
       final model = FocusModel(
         slope: 50,
         intercept: 0,

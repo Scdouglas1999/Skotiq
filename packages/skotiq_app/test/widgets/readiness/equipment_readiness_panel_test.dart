@@ -79,7 +79,7 @@ void main() {
     expect(find.text('Set up equipment'), findsOneWidget);
   });
 
-  testWidgets('summarises an all-ready rig', (tester) async {
+  testWidgets('summarizes an all-ready rig', (tester) async {
     await tester.pumpWidget(_harness(_readyReport));
     await tester.pumpAndSettle();
 

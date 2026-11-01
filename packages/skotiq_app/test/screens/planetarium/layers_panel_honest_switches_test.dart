@@ -168,7 +168,7 @@ void main() {
     });
   });
 
-  testWidgets('no layer row is left with an unlabelled switch', (tester) async {
+  testWidgets('no layer row is left with an unlabeled switch', (tester) async {
     await _pumpPanel(tester);
     // Sanity guard on the finders above: the panel really did build rows.
     expect(_switches(tester).length, greaterThan(5));

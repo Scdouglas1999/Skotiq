@@ -245,7 +245,7 @@ void main() {
         result.body['error'],
         codeForStatus[entry.value],
         reason:
-            '${entry.key.runtimeType} (${entry.value}) must not be labelled '
+            '${entry.key.runtimeType} (${entry.value}) must not be labeled '
             'internal_error — no retry and no restart clears a capability the '
             'device does not have',
       );

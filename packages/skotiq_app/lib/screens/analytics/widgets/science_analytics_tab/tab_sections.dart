@@ -81,7 +81,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
               color: isLive ? colors.success : colors.textMuted),
           const SizedBox(width: SkotiqTokens.spaceSm),
           Text(
-            isLive ? 'Live session' : 'Analysing',
+            isLive ? 'Live session' : 'Analyzing',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,
             ),

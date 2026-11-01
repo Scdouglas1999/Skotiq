@@ -136,7 +136,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
           'id': 'stretch',
           'version': 1,
           'stage': 'stretched',
-          'summary': 'Generalised hyperbolic stretch.',
+          'summary': 'Generalized hyperbolic stretch.',
           'params': [
             {
               'name': 'd',
@@ -406,7 +406,7 @@ void main() {
           {
             'opId': 'color_calibrate',
             'outcome': 'omitted',
-            'reason': 'this master has 1 channel(s) and the colour fit needs '
+            'reason': 'this master has 1 channel(s) and the color fit needs '
                 'three',
           },
           {'opId': 'stretch', 'outcome': 'omitted'},
@@ -451,7 +451,7 @@ void main() {
   });
 
   testWidgets(
-      'a mono master\'s draft states the colour step it left out, and why',
+      'a mono master\'s draft states the color step it left out, and why',
       (tester) async {
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     darkroom.draftSteps = [
@@ -463,7 +463,7 @@ void main() {
       {
         'opId': 'color_calibrate',
         'outcome': 'omitted',
-        'reason': 'this master has 1 channel(s) and the colour fit needs '
+        'reason': 'this master has 1 channel(s) and the color fit needs '
             'three, so this draft covers the one channel it was given',
       },
     ];
@@ -492,7 +492,7 @@ void main() {
             findRichText: true),
         findsOneWidget);
     expect(
-      find.textContaining('the colour fit needs three'),
+      find.textContaining('the color fit needs three'),
       findsOneWidget,
     );
     // Named the way the step cards name operations, not as the wire id.
@@ -738,7 +738,7 @@ void main() {
     expect((steps.first as Map)['params']['d'], closeTo(2.4, 1e-9));
   });
 
-  testWidgets('parameters are labelled with the registry\'s display name',
+  testWidgets('parameters are labeled with the registry\'s display name',
       (tester) async {
     final id = await seedRecipe([
       _step('stretch', params: {'blackPoint': 529.7, 'd': 1.938}),

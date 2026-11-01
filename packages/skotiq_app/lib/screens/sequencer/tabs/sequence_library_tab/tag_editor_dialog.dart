@@ -41,7 +41,7 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog> {
       (previous, next) {
         if (previous == null || identical(previous, next) || !mounted) return;
         context.showWarningSnackBar(
-          'The connected host changed. Tag editing cancelled.',
+          'The connected host changed. Tag editing canceled.',
         );
         closeAuthorityBoundDialog(context);
       },

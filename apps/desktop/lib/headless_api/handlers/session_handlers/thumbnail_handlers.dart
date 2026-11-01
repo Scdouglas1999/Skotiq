@@ -254,7 +254,7 @@ extension SessionThumbnailHandlers on SessionHandlers {
 
         for (final row in rows) {
           if (cancellation.isCancelled) {
-            throw const JobCancelledException('backfill cancelled');
+            throw const JobCancelledException('backfill canceled');
           }
           processed++;
 

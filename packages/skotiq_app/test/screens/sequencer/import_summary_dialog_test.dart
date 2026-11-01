@@ -115,7 +115,7 @@ void main() {
     expect(find.textContaining('Unsupported nodes'), findsAtLeastNWidgets(1));
   });
 
-  testWidgets('cancel button returns a cancelled decision', (tester) async {
+  testWidgets('cancel button returns a canceled decision', (tester) async {
     ImportSummaryDecision? captured;
     await tester.pumpWidget(
       MaterialApp(

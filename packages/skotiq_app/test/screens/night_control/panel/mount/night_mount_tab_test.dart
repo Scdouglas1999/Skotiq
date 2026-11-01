@@ -50,7 +50,7 @@ void main() {
   });
 
   group('Park', () {
-    testWidgets('asks first and does nothing when cancelled', (tester) async {
+    testWidgets('asks first and does nothing when canceled', (tester) async {
       final handle = await pumpPanelTab(
         tester,
         const NightMountTab(),
@@ -146,7 +146,7 @@ void main() {
   });
 
   group('Set park', () {
-    testWidgets('explains itself first and does nothing when cancelled',
+    testWidgets('explains itself first and does nothing when canceled',
         (tester) async {
       final handle = await pumpPanelTab(
         tester,

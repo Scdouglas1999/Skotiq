@@ -124,7 +124,7 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
           _EditorRow(
-            label: 'Accent colour',
+            label: 'Accent color',
             child: Wrap(
               spacing: SkotiqTokens.spaceSm,
               runSpacing: SkotiqTokens.spaceSm,

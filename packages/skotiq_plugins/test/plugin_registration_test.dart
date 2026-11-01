@@ -256,7 +256,7 @@ void main() {
     });
 
     test(
-      'honours an injected disabled-set (registers disabled, no onEnable)',
+      'honors an injected disabled-set (registers disabled, no onEnable)',
       () async {
         final host = PluginHost();
         final container = ProviderContainer(

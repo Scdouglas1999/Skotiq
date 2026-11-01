@@ -73,7 +73,7 @@ void _expectEveryHueIsRed(_RecordingCanvas canvas, String what) {
       .where((c) => c.a > 0 && !_isAchromatic(c))
       .toList(growable: false);
   expect(chromatic, isNotEmpty,
-      reason: '$what drew no coloured marks — the test proves nothing');
+      reason: '$what drew no colored marks — the test proves nothing');
   for (final c in chromatic) {
     expect(c.g, lessThanOrEqualTo(c.r),
         reason: '$what painted $c, which emits more green than red');

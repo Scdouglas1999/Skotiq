@@ -1604,7 +1604,7 @@ void main() {
       expect(
         preview.chosenTargetId,
         firstPick,
-        reason: 'preview must honour the same hysteresis the autopilot uses',
+        reason: 'preview must honor the same hysteresis the autopilot uses',
       );
 
       await engine.dispose();

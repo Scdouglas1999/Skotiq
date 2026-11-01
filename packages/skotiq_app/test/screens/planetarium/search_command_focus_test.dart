@@ -145,7 +145,7 @@ void main() {
 
       expect(_searchField, findsOneWidget);
       expect(_panelTabs(tester).index, _searchTab,
-          reason: 'a control labelled Search must land on the Search tab');
+          reason: 'a control labeled Search must land on the Search tab');
       expect(
         tester.widget<TextField>(_searchField).focusNode?.hasPrimaryFocus,
         isTrue,

@@ -23,7 +23,7 @@ const _capella = Star(
 );
 
 void main() {
-  testWidgets('tapping a star reports the catalogue coordinate', (
+  testWidgets('tapping a star reports the catalog coordinate', (
     tester,
   ) async {
     CelestialObject? tappedObject;
@@ -75,12 +75,12 @@ void main() {
     expect(
       tappedCoordinate!.ra,
       closeTo(_capella.coordinates.ra, 1e-9),
-      reason: 'popup/slew RA must come from the catalogue, not the tap pixel',
+      reason: 'popup/slew RA must come from the catalog, not the tap pixel',
     );
     expect(
       tappedCoordinate!.dec,
       closeTo(_capella.coordinates.dec, 1e-9),
-      reason: 'popup/slew Dec must come from the catalogue, not the tap pixel',
+      reason: 'popup/slew Dec must come from the catalog, not the tap pixel',
     );
 
     await tester.pumpWidget(const SizedBox.shrink());

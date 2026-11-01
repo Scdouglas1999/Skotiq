@@ -127,7 +127,7 @@ void main() {
     );
   });
 
-  testWidgets('cancelling the picker leaves the folder alone', (tester) async {
+  testWidgets('canceling the picker leaves the folder alone', (tester) async {
     final moves = <String?>[];
     await _pump(
       tester,

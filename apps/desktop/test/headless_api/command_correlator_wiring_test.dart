@@ -125,7 +125,7 @@ void main() {
         operation,
         'sequencer.start',
         reason:
-            'the completion table must recognise the spelling the sequencer '
+            'the completion table must recognize the spelling the sequencer '
             'really emits, not only the prefixed alias',
       );
 

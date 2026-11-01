@@ -560,7 +560,7 @@ void main() {
         await run.timeout(const Duration(seconds: 5));
       }
 
-      expect(backend.saveCount, 0, reason: 'a cancelled run saves no frames');
+      expect(backend.saveCount, 0, reason: 'a canceled run saves no frames');
       expect(
         container.read(flatWizardProvider).filterSettings[0].capturedCount,
         0,
