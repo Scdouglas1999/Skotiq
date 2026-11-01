@@ -20,6 +20,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/network_backend.dart';
 import 'backend_provider.dart';
 import 'equipment_health_provider.dart' show connectedDeviceDescriptorsProvider;
 
@@ -165,9 +166,15 @@ final deviceLastContactProvider =
       DeviceLastContactNotifier,
       Map<String, DeviceContact>
     >((ref) {
+      // A companion asks the imaging host once per device per probe, so it
+      // probes less often; the "last contact" age it shows is coarse anyway.
+      final companion = ref.watch(backendProvider) is NetworkBackend;
       final notifier = DeviceLastContactNotifier(
         probe: (deviceId) =>
             ref.read(deviceBackendProvider).getDeviceHealth(deviceId),
+        interval: companion
+            ? const Duration(seconds: 30)
+            : const Duration(seconds: 10),
       );
       ref.listen(
         connectedDeviceDescriptorsProvider,

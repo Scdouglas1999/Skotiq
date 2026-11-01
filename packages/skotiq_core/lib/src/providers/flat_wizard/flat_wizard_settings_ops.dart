@@ -145,8 +145,29 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
   // Filter management
 
-  /// Load filters from connected filter wheel
-  Future<void> loadFiltersFromWheel() async {
+  /// Load filters from connected filter wheel.
+  ///
+  /// The wheel, profile and camera listeners often fire together; a load
+  /// already running absorbs those calls into one follow-up load, so a
+  /// companion asks the host for each filter's flat history once, not once per
+  /// listener.
+  Future<void> loadFiltersFromWheel() {
+    final running = _filterLoad;
+    if (running != null) {
+      _filterReloadRequested = true;
+      return running;
+    }
+    final load = () async {
+      do {
+        _filterReloadRequested = false;
+        await _loadFiltersFromWheelOnce();
+      } while (_filterReloadRequested && mounted);
+    }();
+    _filterLoad = load;
+    return load.whenComplete(() => _filterLoad = null);
+  }
+
+  Future<void> _loadFiltersFromWheelOnce() async {
     // No-op while a capture run holds the busy latch. This rebuilds
     // `filterSettings` from scratch (statuses reset to pending, capturedCount to
     // 0), and the screen re-invokes it on every init (postFrameCallback); doing

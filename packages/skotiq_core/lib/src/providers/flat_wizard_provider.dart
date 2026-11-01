@@ -79,6 +79,8 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   int _settingsRevision = 0;
   int _filterRevision = 0;
   String? _loadedFilterKey;
+  Future<void>? _filterLoad;
+  bool _filterReloadRequested = false;
   Future<void> _filterSettingsWrite = Future.value();
 
   FlatWizardNotifier(this.ref) : super(const FlatWizardState()) {

@@ -18,6 +18,7 @@ import '../services/science/narrator/narrator_event.dart';
 import '../services/science/narrator/narrator_service.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'remote_snapshot_stream.dart';
 import 'session_provider.dart';
 
 /// Map a persisted [NarratorEventRow] to the public [NarratorEvent] value type,
@@ -63,41 +64,29 @@ NarratorEvent narratorEventFromWireJson(Map<String, dynamic> json) {
   );
 }
 
+/// Shortest gap between two fetches of a remote narrator feed. Narrator
+/// entries are per-frame or per-event summaries; a companion seeing them a few
+/// seconds late costs nothing, while re-fetching on every host event while
+/// guiding asked the host for the feed once a second.
+const Duration remoteNarratorRefetchMinInterval = Duration(seconds: 10);
+
 /// Remote narrator feed stream: the NarratorService runs on the appliance, so a
-/// remote client cannot watch the DB. Instead we fetch a REST snapshot and
-/// re-fetch (debounced) whenever a backend event arrives — new captures are
-/// exactly what produce new narrator events — giving a near-live feed without a
-/// dedicated WS event type.
+/// remote client cannot watch the DB. It reads a REST snapshot, re-fetched
+/// after host events other than per-tick telemetry ([remoteSnapshotStream]).
 Stream<List<NarratorEvent>> _remoteNarratorStream(
   Ref ref,
   NetworkBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
 ) {
-  final controller = StreamController<List<NarratorEvent>>();
-  Timer? debounce;
-
-  Future<void> refetch() async {
-    try {
-      final raw = await fetch();
-      final events = raw.map(narratorEventFromWireJson).toList(growable: false);
-      if (!controller.isClosed) controller.add(events);
-    } catch (_) {
-      // Transient (reconnect / host busy): keep the last good snapshot rather
-      // than flashing an empty feed.
-    }
-  }
-
-  refetch();
-  final sub = backend.eventStream.listen((_) {
-    debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 750), refetch);
-  });
-  ref.onDispose(() {
-    debounce?.cancel();
-    unawaited(sub.cancel());
-    unawaited(controller.close());
-  });
-  return controller.stream;
+  return remoteSnapshotStream<NarratorEvent>(
+    ref: ref,
+    backend: backend,
+    fetch: fetch,
+    decode: narratorEventFromWireJson,
+    shouldRefetch: (event) =>
+        !hostTelemetryEventTypes.contains(event.eventType),
+    minInterval: remoteNarratorRefetchMinInterval,
+  );
 }
 
 /// Session-scoped feed (pinned-first, newest-first). Local: DB-watched, updates

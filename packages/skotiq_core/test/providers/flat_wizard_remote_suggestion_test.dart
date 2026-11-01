@@ -145,4 +145,31 @@ void main() {
       reason: 'an empty host history must NOT record a fault diagnostic',
     );
   });
+  test('simultaneous filter loads ask the host once per filter', () async {
+    final backend = _MockNetworkBackend();
+    var calls = 0;
+    when(
+      () => backend.listFlats(
+        filter: any(named: 'filter'),
+        equipmentProfileId: any(named: 'equipmentProfileId'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async {
+      calls++;
+      return const <RemoteFlatHistoryEntry>[];
+    });
+
+    final container = makeContainer(backend);
+    final notifier = container.read(flatWizardProvider.notifier);
+    await Future.wait([
+      notifier.loadFiltersFromWheel(),
+      notifier.loadFiltersFromWheel(),
+      notifier.loadFiltersFromWheel(),
+    ]);
+
+    // One load for the first call, one follow-up for the two that arrived
+    // while it ran: never one per caller.
+    expect(calls, lessThanOrEqualTo(2));
+    expect(container.read(flatWizardProvider).filterSettings, hasLength(1));
+  });
 }

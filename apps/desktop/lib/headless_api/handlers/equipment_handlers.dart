@@ -9,7 +9,41 @@ import '../validation.dart';
 /// Handlers for equipment status and capabilities endpoints
 class EquipmentHandlers {
   final ProviderContainer container;
-  EquipmentHandlers(this.container);
+  EquipmentHandlers(this.container, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
+
+  final DateTime Function() _now;
+
+  /// How long one device status read answers every client that asks for the
+  /// same device. Each read is a driver round trip (an ASCOM mount read takes
+  /// about 130 ms), so without sharing, every connected companion's poll adds
+  /// its own driver traffic on the imaging host.
+  static const Duration statusShareWindow = Duration(milliseconds: 750);
+
+  final Map<String, ({DateTime startedAt, Future<Map<String, dynamic>> json})>
+  _sharedStatus = {};
+
+  /// Run [read] for [key] unless a read for the same key started within
+  /// [statusShareWindow]; then answer with that read's result. A failed read
+  /// is not shared.
+  Future<Map<String, dynamic>> _sharedStatusRead(
+    String key,
+    Future<Map<String, dynamic>> Function() read,
+  ) {
+    final now = _now();
+    final recent = _sharedStatus[key];
+    if (recent != null &&
+        now.difference(recent.startedAt) < statusShareWindow) {
+      return recent.json;
+    }
+    final json = read();
+    _sharedStatus[key] = (startedAt: now, json: json);
+    json.catchError((Object _) {
+      if (identical(_sharedStatus[key]?.json, json)) _sharedStatus.remove(key);
+      return const <String, dynamic>{};
+    });
+    return json;
+  }
 
   LoggingService get _logger => container.read(loggingServiceProvider);
 
@@ -36,36 +70,56 @@ class EquipmentHandlers {
   Future<Response> handleCameraStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    final status = await backend.getCameraStatus(deviceId);
-    return jsonOk(status.toJson());
+    return jsonOk(
+      await _sharedStatusRead(
+        'camera|$deviceId',
+        () async => (await backend.getCameraStatus(deviceId)).toJson(),
+      ),
+    );
   }
 
   Future<Response> handleMountStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    final status = await backend.getMountStatus(deviceId);
-    return jsonOk(status.toJson());
+    return jsonOk(
+      await _sharedStatusRead(
+        'mount|$deviceId',
+        () async => (await backend.getMountStatus(deviceId)).toJson(),
+      ),
+    );
   }
 
   Future<Response> handleFocuserStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    final status = await backend.getFocuserStatus(deviceId);
-    return jsonOk(status.toJson());
+    return jsonOk(
+      await _sharedStatusRead(
+        'focuser|$deviceId',
+        () async => (await backend.getFocuserStatus(deviceId)).toJson(),
+      ),
+    );
   }
 
   Future<Response> handleFilterWheelStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    final status = await backend.getFilterWheelStatus(deviceId);
-    return jsonOk(status.toJson());
+    return jsonOk(
+      await _sharedStatusRead(
+        'filterWheel|$deviceId',
+        () async => (await backend.getFilterWheelStatus(deviceId)).toJson(),
+      ),
+    );
   }
 
   Future<Response> handleRotatorStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    final status = await backend.getRotatorStatus(deviceId);
-    return jsonOk(status.toJson());
+    return jsonOk(
+      await _sharedStatusRead(
+        'rotator|$deviceId',
+        () async => (await backend.getRotatorStatus(deviceId)).toJson(),
+      ),
+    );
   }
 
   // Equipment capabilities

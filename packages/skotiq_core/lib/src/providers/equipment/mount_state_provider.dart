@@ -5,6 +5,7 @@ import '../../models/equipment/equipment_models.dart';
 import '../../models/backend/device_types.dart' show PierSide;
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
+import '../../backend/network_backend.dart';
 import '../backend_provider.dart';
 import 'equipment_retry_defaults.dart';
 
@@ -36,6 +37,8 @@ class MountStateNotifier extends StateNotifier<MountState>
 
   /// Fast polling interval (while slewing)
   static const _slewingPollInterval = Duration(milliseconds: 500);
+  static const _companionPollInterval = Duration(seconds: 5);
+  static const _companionSlewingPollInterval = Duration(seconds: 1);
 
   MountStateNotifier(this._ref) : super(const MountState());
 
@@ -231,9 +234,12 @@ class MountStateNotifier extends StateNotifier<MountState>
 
   void _startPositionPolling() {
     _stopPositionPolling();
+    // A companion reads the position from the imaging host, where every read
+    // is a driver round trip; it polls at a slower pace than the host itself.
+    final companion = _ref.read(deviceBackendProvider) is NetworkBackend;
     final interval = state.isSlewing
-        ? _slewingPollInterval
-        : _normalPollInterval;
+        ? (companion ? _companionSlewingPollInterval : _slewingPollInterval)
+        : (companion ? _companionPollInterval : _normalPollInterval);
     developer.log(
       '[Mount] Starting position polling (interval: ${interval.inMilliseconds}ms)',
       name: 'MountStateNotifier',

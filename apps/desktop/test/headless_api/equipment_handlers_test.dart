@@ -152,5 +152,48 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       verify(() => backend.getDeviceHealth('native:zwo:0')).called(1);
     });
+    test('companions polling one device share a single driver read', () async {
+      final backend = _MockBackend();
+      var reads = 0;
+      when(() => backend.getFocuserStatus('sim_focuser_1')).thenAnswer((
+        _,
+      ) async {
+        reads++;
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        return const FocuserStatus(
+          connected: true,
+          position: 25000,
+          moving: false,
+          maxPosition: 50000,
+          stepSize: 1,
+          isAbsolute: true,
+          hasTemperature: false,
+        );
+      });
+      var now = DateTime.utc(2026, 11, 1, 3);
+      container.dispose();
+      container = ProviderContainer(
+        overrides: [deviceBackendProvider.overrideWithValue(backend)],
+      );
+      handlers = EquipmentHandlers(container, now: () => now);
+      Request status() => Request(
+        'GET',
+        Uri.parse(
+          'http://localhost/api/equipment/focuser/status?deviceId=sim_focuser_1',
+        ),
+      );
+
+      final burst = await Future.wait([
+        for (var i = 0; i < 8; i++) handlers.handleFocuserStatus(status()),
+      ]);
+      expect(burst.every((r) => r.statusCode == HttpStatus.ok), isTrue);
+      expect(reads, 1);
+
+      now = now.add(EquipmentHandlers.statusShareWindow);
+      final later = await handlers.handleFocuserStatus(status());
+      final body = jsonDecode(await later.readAsString()) as Map;
+      expect(body['position'], 25000);
+      expect(reads, 2);
+    });
   });
 }

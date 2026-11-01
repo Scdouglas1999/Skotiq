@@ -30,7 +30,38 @@ Future<void> _applyGuidingEvent(
   }
 }
 
-Future<void> _hydratePhd2GuiderState(
+/// The hydration currently running per host, and whether another guiding
+/// event arrived while it ran.
+final Expando<Future<void>> _phd2HydrationInFlight = Expando();
+final Expando<bool> _phd2HydrationRequested = Expando();
+
+/// Shortest gap between two status reads for the same host.
+const Duration _phd2HydrationMinGap = Duration(seconds: 2);
+
+/// Mirror the host's PHD2 connection into this companion's guider state with
+/// one status read. Guiding events arrive in bursts, so a read already running
+/// absorbs every event that arrives meanwhile into one follow-up read, made at
+/// least [_phd2HydrationMinGap] later.
+Future<void> _hydratePhd2GuiderState(Object reader, NetworkBackend backend) {
+  final running = _phd2HydrationInFlight[backend];
+  if (running != null) {
+    _phd2HydrationRequested[backend] = true;
+    return running;
+  }
+  final future = () async {
+    while (true) {
+      _phd2HydrationRequested[backend] = false;
+      await _readPhd2GuiderStateOnce(reader, backend);
+      if (_phd2HydrationRequested[backend] != true) break;
+      await Future<void>.delayed(_phd2HydrationMinGap);
+      if (!_isCurrentRemoteBackend(reader, backend)) break;
+    }
+  }();
+  _phd2HydrationInFlight[backend] = future;
+  return future.whenComplete(() => _phd2HydrationInFlight[backend] = null);
+}
+
+Future<void> _readPhd2GuiderStateOnce(
   Object reader,
   NetworkBackend backend,
 ) async {
@@ -38,11 +69,7 @@ Future<void> _hydratePhd2GuiderState(
   final priorState = _read(reader, guiderStateProvider);
 
   try {
-    final status = await pollPhd2Connected(
-      backend,
-      timeout: const Duration(seconds: 5),
-      interval: const Duration(milliseconds: 250),
-    );
+    final status = await backend.phd2GetStatus();
     if (!_isCurrentRemoteBackend(reader, backend)) return;
     if (!status.connected) {
       if (isPhd2GuiderDeviceId(priorState.deviceId)) {

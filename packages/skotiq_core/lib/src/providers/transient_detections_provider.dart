@@ -18,6 +18,9 @@ import '../services/transients/first_light_service.dart';
 import '../services/transients/transient_submission_service.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart' show imagesDaoProvider;
+import 'remote_snapshot_stream.dart';
+import 'sky_atlas_provider.dart'
+    show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;
 
 /// Riverpod surface for Pillar B ("First Light") — difference-imaging transients.
 ///
@@ -207,51 +210,23 @@ Stream<List<TransientDetectionRow>> _liveDetectionsFeed(
   return controller.stream;
 }
 
-/// REST snapshot stream for the remote First Light feed: fetch once, then
-/// re-fetch (debounced) whenever a backend event arrives. Keeps the last good
-/// snapshot on a transient fetch failure rather than flashing an empty feed —
-/// the same shape the remote narrator feed uses.
+/// REST snapshot stream for the remote First Light feed. Detections come from
+/// the host's difference scan of a newly solved frame, so the feed is
+/// re-fetched only on the events that follow one ([isAtlasChangingEvent]), at
+/// most once every [remoteAtlasRefetchMinInterval].
 Stream<List<TransientDetectionRow>> _remoteFirstLightStream(
   Ref ref,
   NetworkBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
 ) {
-  final controller = StreamController<List<TransientDetectionRow>>();
-  Timer? debounce;
-  var emittedOnce = false;
-
-  Future<void> refetch() async {
-    try {
-      final raw = await fetch();
-      final rows = raw
-          .map(transientDetectionFromWireJson)
-          .toList(growable: false);
-      if (!controller.isClosed) {
-        controller.add(rows);
-        emittedOnce = true;
-      }
-    } catch (e) {
-      // After a prior good snapshot this is transient (reconnect / host busy):
-      // keep the last snapshot. But if the first fetch fails the StreamProvider
-      // would hang in loading forever, so surface the error to drive the view's
-      // error + Retry state.
-      if (!emittedOnce) {
-        if (!controller.isClosed) controller.addError(e);
-      }
-    }
-  }
-
-  refetch();
-  final sub = backend.eventStream.listen((_) {
-    debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 750), refetch);
-  });
-  ref.onDispose(() {
-    debounce?.cancel();
-    unawaited(sub.cancel());
-    unawaited(controller.close());
-  });
-  return controller.stream;
+  return remoteSnapshotStream<TransientDetectionRow>(
+    ref: ref,
+    backend: backend,
+    fetch: fetch,
+    decode: transientDetectionFromWireJson,
+    shouldRefetch: isAtlasChangingEvent,
+    minInterval: remoteAtlasRefetchMinInterval,
+  );
 }
 
 /// Key for a real-pixel per-detection crop request: the detection id (for the
