@@ -139,6 +139,13 @@ Future<void> adoptLegacyGuiCheckpoint({
 bool catalogSetupWasSkipped(String? persistedValue) =>
     persistedValue?.trim().toLowerCase() == 'true';
 
+/// Whether [backend] is a remote host whose run is in flight. Its checkpoint
+/// is then that live run's, so a client joining it is shown the run and is
+/// never offered to recover it.
+@visibleForTesting
+Future<bool> hostRunHoldsCheckpoint(Object backend) async =>
+    backend is NetworkBackend && await backend.hostRunInFlight();
+
 /// The startup "Recover Sequence?" modal.
 ///
 /// Top-level and [visibleForTesting] because its escape hatch is the thing that

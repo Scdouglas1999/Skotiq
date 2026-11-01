@@ -257,6 +257,10 @@ class _AppShellState extends ConsumerState<AppShell> {
         }
       }
 
+      if (await hostRunHoldsCheckpoint(backend)) {
+        return AppStartupCheckpointOutcome.noRecovery;
+      }
+
       final hasCheckpoint = await backend.hasCheckpoint();
       if (!hasCheckpoint) return AppStartupCheckpointOutcome.noRecovery;
 

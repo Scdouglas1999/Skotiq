@@ -22,9 +22,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    show BackendErrorCategory, CheckpointInfo, SkotiqError;
+    show
+        BackendErrorCategory,
+        CheckpointInfo,
+        NetworkBackend,
+        SequencerBackend,
+        SkotiqError;
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+class _MockHost extends Mock implements NetworkBackend {}
+
+class _MockLocal extends Mock implements SequencerBackend {}
 
 final _info = CheckpointInfo(
   sequenceName: 'Veil Nebula',
@@ -314,5 +324,18 @@ void main() {
     );
 
     expect(seen.last?.checkpointStillResumable, isFalse);
+  });
+
+  test(
+      'a host running its sequence holds its checkpoint; an idle host or '
+      'this machine does not', () async {
+    final running = _MockHost();
+    when(() => running.hostRunInFlight()).thenAnswer((_) async => true);
+    final idle = _MockHost();
+    when(() => idle.hostRunInFlight()).thenAnswer((_) async => false);
+
+    expect(await hostRunHoldsCheckpoint(running), isTrue);
+    expect(await hostRunHoldsCheckpoint(idle), isFalse);
+    expect(await hostRunHoldsCheckpoint(_MockLocal()), isFalse);
   });
 }

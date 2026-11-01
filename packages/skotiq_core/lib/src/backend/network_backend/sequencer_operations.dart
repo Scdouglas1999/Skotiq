@@ -539,6 +539,25 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     });
   }
 
+  /// Remote-only: whether the host has a run in flight (running, paused,
+  /// recovering, stopping). An unreadable state counts as in flight, so a
+  /// caller deciding whether to offer recovery errs toward leaving it alone.
+  Future<bool> hostRunInFlight() async {
+    try {
+      final status = await sequencerGetStatus();
+      return !const {
+        'idle',
+        'completed',
+        'failed',
+        'cancelled',
+        'stopped',
+        'error',
+      }.contains(status.state.toLowerCase());
+    } catch (_) {
+      return true;
+    }
+  }
+
   /// Remote-only: stop the host's run through its own executor, keeping or
   /// discarding its resume point as the operator chose.
   Future<void> sequencerStopOnHost({required bool preserveCheckpoint}) async {

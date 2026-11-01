@@ -50,6 +50,19 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     final authority = ref.read(backendProvider);
 
     try {
+      // A client joining a host mid-run is shown the live run. The host's
+      // open session belongs to that run, and restoring a setup would move
+      // the host's devices under it.
+      if (authority is NetworkBackend && await authority.hostRunInFlight()) {
+        ref.read(loggingServiceProvider).info(
+              'The imaging host is running a sequence; skipping the startup '
+              'session prompts',
+              source: 'QuickStart',
+            );
+        return;
+      }
+      if (!mounted) return;
+
       // First priority: Check for crashed/interrupted sessions
       final incompleteSessions =
           await ref.read(incompleteSessionsProvider.future);
@@ -95,7 +108,10 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         return;
       }
 
-      if (quickStartContext != null && quickStartContext.isRecent && mounted) {
+      if (quickStartContext != null &&
+          quickStartContext.isRecent &&
+          !remoteSessionIsFinished(quickStartContext, authority) &&
+          mounted) {
         // Show quick start dialog
         await Future.delayed(const Duration(milliseconds: 500));
 
@@ -567,3 +583,14 @@ class _SnapshotRestore {
     this.failures = const <String>[],
   });
 }
+
+/// Whether [context] is a host session that captured every planned frame. A
+/// client of that host has nothing to continue in it, so it is not offered.
+@visibleForTesting
+bool remoteSessionIsFinished(
+  QuickStartContext context,
+  SkotiqBackend authority,
+) =>
+    authority is NetworkBackend &&
+    context.totalFrames > 0 &&
+    context.completedFrames >= context.totalFrames;
