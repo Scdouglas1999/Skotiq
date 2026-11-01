@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../backend/ffi_backend.dart' show FfiBackend;
+import '../backend/network_backend.dart' show NetworkBackend;
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/imaging_service.dart';
@@ -325,6 +326,10 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
       );
       return;
     }
+    // On a companion every frame is the imaging host's, and a solve requested
+    // here runs on the host's solver. The host solves the frames it shows;
+    // this machine never adds a second, often blind, solve per frame.
+    if (ref.read(backendProvider) is NetworkBackend) return;
     _put(FrameSolveVm(frameCapturedAt: key, status: FrameSolveStatus.waiting));
     if (_inFlight != null) {
       final replaced = _queued;

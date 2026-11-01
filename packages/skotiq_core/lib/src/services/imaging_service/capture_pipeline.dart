@@ -617,9 +617,15 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
         _logger.debug('FITS save complete.', source: 'ImagingService');
 
+        // A companion's frame lives on the imaging host, which owns its
+        // calibration, quality and science processing; this machine cannot
+        // open the host path and must not process the frame a second time.
+        final hostOwnsFrame = backend is NetworkBackend;
+
         // Auto-calibration: apply dark/flat/bias correction if enabled
         // Only calibrate light frames - darks, flats, and biases should not be calibrated
-        if (savedFilePath.isNotEmpty &&
+        if (!hostOwnsFrame &&
+            savedFilePath.isNotEmpty &&
             !isTempFile &&
             settings.frameType == FrameType.light) {
           try {
@@ -690,7 +696,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         // `captured_images` insert above already follows. Without this a
         // framing loop still inflated the session's frame count and queued
         // photometry on a throwaway file that the next frame overwrites.
-        if (persistFrame && processedFilePath.isNotEmpty) {
+        if (!hostOwnsFrame && persistFrame && processedFilePath.isNotEmpty) {
           final sessionState = _ref.read(sessionStateProvider);
           // Science processing is informational-only and runs in background.
           unawaited(

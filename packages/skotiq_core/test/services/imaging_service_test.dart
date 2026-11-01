@@ -46,6 +46,22 @@ class _NoOpScienceProcessingService extends ScienceProcessingService {
   }
 }
 
+class _RecordingScienceProcessingService extends ScienceProcessingService {
+  _RecordingScienceProcessingService(super.ref);
+
+  final List<String> processed = [];
+
+  @override
+  Future<void> processCapturedFrame({
+    required String imagePath,
+    String? deviceId,
+    int? capturedImageId,
+    int? sessionId,
+  }) async {
+    processed.add(imagePath);
+  }
+}
+
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 /// A host that lists one root, so remote scratch frames have a host path.
@@ -771,6 +787,89 @@ void main() {
       expect(header.telescope, 'Remote RC10');
       expect(header.focalLength, 2000);
       expect(header.aperture, 250);
+    });
+
+    test('a companion never processes the host frame it captured', () async {
+      final remoteBackend = _MockNetworkBackend();
+      _stubHostRoots(remoteBackend);
+      final remoteEvents = StreamController<SkotiqEvent>.broadcast();
+      addTearDown(remoteEvents.close);
+      when(
+        () => remoteBackend.eventStream,
+      ).thenAnswer((_) => remoteEvents.stream);
+      when(
+        () => remoteBackend.getCameraCapabilities(any()),
+      ).thenAnswer((_) async => null);
+      when(
+        () => remoteBackend.cameraStartExposure(
+          deviceId: any(named: 'deviceId'),
+          exposureTime: any(named: 'exposureTime'),
+          frameType: any(named: 'frameType'),
+          gain: any(named: 'gain'),
+          offset: any(named: 'offset'),
+          binX: any(named: 'binX'),
+          binY: any(named: 'binY'),
+        ),
+      ).thenAnswer((_) async {
+        remoteEvents.add(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: 'ExposureComplete',
+            data: const {},
+          ),
+        );
+      });
+      when(
+        () => remoteBackend.cameraGetLastImage(any()),
+      ).thenAnswer((_) async => makeCapturedImageResult());
+      when(remoteBackend.getActiveProfile).thenAnswer((_) async => null);
+      when(
+        () => remoteBackend.saveFitsFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          filePath: any(named: 'filePath'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer((_) async {});
+
+      late _RecordingScienceProcessingService science;
+      final remoteContainer = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => TestBackendNotifier(ref, remoteBackend),
+          ),
+          cameraStateProvider.overrideWith((ref) {
+            final notifier = CameraStateNotifier(ref);
+            notifier.setConnecting('remote-camera', 'Remote Camera');
+            notifier.setConnected();
+            return notifier;
+          }),
+          capturePreviewPublisherProvider.overrideWithValue(
+            _NoOpCapturePreviewPublisher(),
+          ),
+          scienceProcessingServiceProvider.overrideWith(
+            (ref) => science = _RecordingScienceProcessingService(ref),
+          ),
+        ],
+      );
+      addTearDown(remoteContainer.dispose);
+      remoteContainer.read(scienceProcessingServiceProvider);
+
+      final result = await remoteContainer
+          .read(imagingServiceProvider)
+          .captureImage(
+            settings: const ExposureSettings(
+              exposureTime: 1,
+              gain: 100,
+              offset: 10,
+            ),
+          );
+
+      expect(result, isNotNull);
+      expect(result!.filePath, startsWith('/rig/docs'));
+      expect(science.processed, isEmpty);
     });
 
     test('a linked client writes scratch frames inside a host root', () async {

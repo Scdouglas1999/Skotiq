@@ -174,15 +174,19 @@ extension _ImagingServicePersistence on ImagingService {
     // row goes in with NULL size — the size is auxiliary metadata, the
     // row itself must be written so the capture is recorded.
     int? fileSize;
-    try {
-      fileSize = await File(filePath).length();
-    } catch (e) {
-      if (!_hasBackendAuthority(backend)) return null;
-      _logger.warning(
-        'Failed to stat captured FITS for size: $filePath ($e) — '
-        'row will be inserted with NULL file_size',
-        source: 'ImagingService',
-      );
+    // A companion's frame is written on the imaging host, at a host path this
+    // machine cannot open.
+    if (backend is! NetworkBackend) {
+      try {
+        fileSize = await File(filePath).length();
+      } catch (e) {
+        if (!_hasBackendAuthority(backend)) return null;
+        _logger.warning(
+          'Failed to stat captured FITS for size: $filePath ($e) — '
+          'row will be inserted with NULL file_size',
+          source: 'ImagingService',
+        );
+      }
     }
     if (!_hasBackendAuthority(backend)) return null;
 

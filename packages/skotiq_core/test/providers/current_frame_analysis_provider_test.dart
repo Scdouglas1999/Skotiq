@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 PlateSolveResult _result({
@@ -54,6 +55,14 @@ CapturedImageData _frame(
   ),
   filePath: path,
 );
+
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
+}
 
 class _FakeSolver {
   final calls = <({String path, double? ra, double? dec})>[];
@@ -129,6 +138,29 @@ void main() {
     // The solve is kept with the frame's record too.
     expect(recorded.single.path, '/lights/a.fits');
     expect(recorded.single.result.ra, 150);
+  });
+
+  test('a companion does not ask the host to solve its frames', () async {
+    final remote = _MockNetworkBackend();
+    when(() => remote.eventStream).thenAnswer((_) => const Stream.empty());
+    final companion = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, remote),
+        ),
+        backgroundFrameSolverProvider.overrideWithValue(solver.call),
+        savedFrameSolutionProvider.overrideWithValue((_) async => null),
+        mountPointingHintProvider.overrideWithValue((null, null)),
+      ],
+    );
+    addTearDown(companion.dispose);
+    companion.listen(frameAutoSolveProvider, (_, __) {});
+    companion.read(currentImageProvider.notifier).state = _frame(
+      1,
+      path: r'C:\Users\scdou\Documents\NGC7380\Unknown_R_0001.fits',
+    );
+    await settle();
+    expect(solver.calls, isEmpty);
   });
 
   test('a failed solve is not written to the frame record', () async {
