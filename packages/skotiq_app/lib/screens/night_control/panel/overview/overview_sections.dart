@@ -605,17 +605,25 @@ class NightChecklistSection extends StatelessWidget {
                 const SizedBox(width: SkotiqTokens.spaceXs),
                 Expanded(
                   // The column is narrow; the full detail is one hover away.
-                  child: Tooltip(
-                    message: detail ?? '',
-                    child: Text(
-                      detail ?? kReadoutUnknown,
-                      style: SkotiqTypography.caption.copyWith(
-                        color: detailColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  child: detail == null
+                      ? Text(
+                          kReadoutUnknown,
+                          style: SkotiqTypography.caption.copyWith(
+                            color: detailColor,
+                          ),
+                          maxLines: 1,
+                        )
+                      : Tooltip(
+                          message: detail,
+                          child: Text(
+                            detail,
+                            style: SkotiqTypography.caption.copyWith(
+                              color: detailColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                 ),
               ],
             ),
