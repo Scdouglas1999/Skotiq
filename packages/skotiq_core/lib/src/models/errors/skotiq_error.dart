@@ -344,7 +344,7 @@ class SkotiqError implements Exception {
     return const SkotiqError(
       category: BackendErrorCategory.system,
       message: 'Operation cancelled',
-      userMessage: 'Operation cancelled',
+      userMessage: 'Operation canceled',
     );
   }
 
