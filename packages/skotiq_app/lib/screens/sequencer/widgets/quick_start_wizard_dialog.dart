@@ -476,6 +476,28 @@ class _QuickStartWizardDialogState
       loopChildIds.add(expId);
     }
 
+    // -- Meridian flip check after each pass's frames. It is a step, so it
+    // belongs inside the loop: placed after the Sequence it ran after the
+    // end-of-session park and slewed the parked mount.
+    if (_enableMeridianFlip) {
+      final flipId = const Uuid().v4();
+      nodes[flipId] = MeridianFlipNode(
+        id: flipId,
+        name: 'Meridian Flip',
+        autoCenter: true,
+        refocusAfter: _enableAutofocus,
+        resumeGuiding: _enableAutoGuide,
+        parentId: loopId,
+        orderIndex: loopOrderIndex++,
+        // Why: the wizard reflects the user's explicit choices from earlier
+        // pages (autofocus enabled, guiding enabled, etc.); persist those as
+        // per-node overrides so subsequent changes in Sequencer Settings
+        // don't quietly undo what the operator picked here.
+        useGlobalDefaults: false,
+      );
+      loopChildIds.add(flipId);
+    }
+
     // -- Dither after each loop iteration
     if (_enableDithering && _enableAutoGuide) {
       final ditherId = const Uuid().v4();
@@ -587,28 +609,6 @@ class _QuickStartWizardDialogState
           .copyWith(childIds: [rootId, hfrTriggerId]);
     }
 
-    if (_enableMeridianFlip) {
-      final flipId = const Uuid().v4();
-      nodes[flipId] = MeridianFlipNode(
-        id: flipId,
-        name: 'Meridian Flip',
-        autoCenter: true,
-        refocusAfter: _enableAutofocus,
-        resumeGuiding: _enableAutoGuide,
-        parentId: targetHeaderId,
-        orderIndex: 2,
-        // Why: the wizard reflects the user's explicit choices from earlier
-        // pages (autofocus enabled, guiding enabled, etc.); persist those as
-        // per-node overrides so subsequent changes in Sequencer Settings
-        // don't quietly undo what the operator picked here.
-        useGlobalDefaults: false,
-      );
-      final currentTarget = nodes[targetHeaderId] as TargetHeaderNode;
-      nodes[targetHeaderId] = currentTarget.copyWith(
-        childIds: [...currentTarget.childIds, flipId],
-      );
-    }
-
     // -- Weather abort recovery
     if (_weatherAbort) {
       final weatherRecoveryId = const Uuid().v4();
@@ -619,7 +619,7 @@ class _QuickStartWizardDialogState
         recoveryAction: RecoveryActionType.parkAndAbort,
         maxRetries: 1,
         parentId: targetHeaderId,
-        orderIndex: 3,
+        orderIndex: 2,
       );
       final currentTarget = nodes[targetHeaderId] as TargetHeaderNode;
       nodes[targetHeaderId] = currentTarget.copyWith(
@@ -643,7 +643,7 @@ class _QuickStartWizardDialogState
         recoveryAction: RecoveryActionType.parkAndAbort,
         maxRetries: 1,
         parentId: targetHeaderId,
-        orderIndex: 4,
+        orderIndex: 3,
       );
       final currentTarget = nodes[targetHeaderId] as TargetHeaderNode;
       nodes[targetHeaderId] = currentTarget.copyWith(

@@ -496,6 +496,70 @@ void main() {
     },
   );
 
+  testWidgets(
+      'puts the meridian flip check inside the capture loop, never after '
+      'the end-of-session park', (tester) async {
+    final editor = CurrentSequenceNotifier();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          appSettingsProvider.overrideWith(_AppSettingsNotifier.new),
+          equipmentProfilesProvider.overrideWith(
+            () => _ProfilesNotifier(null),
+          ),
+          smartNightExposureContextProvider.overrideWith((ref) async => null),
+          currentSequenceProvider.overrideWith((ref) => editor),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const _QuickStartHost(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open wizard'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Target Name'),
+      'M34',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Right Ascension'),
+      '2.7',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Declination'),
+      '42.7',
+    );
+    for (var step = 0; step < 4; step++) {
+      await tester.pump();
+      final next = find.widgetWithText(SkotiqButton, 'Next');
+      await tester.ensureVisible(next);
+      await tester.tap(next);
+      await tester.pumpAndSettle();
+    }
+    final createButton = find.widgetWithText(SkotiqButton, 'Create sequence');
+    await tester.ensureVisible(createButton);
+    await tester.tap(createButton);
+    await tester.pumpAndSettle();
+
+    final sequence = editor.state!;
+    final flips = sequence.nodes.values.whereType<MeridianFlipNode>().toList();
+    expect(flips, hasLength(1));
+    final parent = sequence.nodes[flips.single.parentId];
+    expect(parent, isA<LoopNode>());
+    expect(parent!.childIds, contains(flips.single.id));
+
+    // Nothing that moves the mount follows the Park step.
+    final root = sequence.nodes[sequence.rootNodeId]!;
+    for (final id in root.childIds) {
+      final node = sequence.nodes[id]!;
+      expect(node, isNot(isA<MeridianFlipNode>()));
+    }
+  });
+
   testWidgets('asks before replacing an unsaved editor draft', (tester) async {
     final editor = CurrentSequenceNotifier();
     editor.createSequence(name: 'Manual draft');

@@ -308,6 +308,9 @@ extension _ReviewStep on _QuickStartWizardDialogState {
         2,
       ));
     }
+    if (_enableMeridianFlip) {
+      treeLines.add(_TreeLine('Meridian Flip', LucideIcons.refreshCw, 2));
+    }
     if (_enableDithering && _enableAutoGuide) {
       treeLines.add(_TreeLine('Dither', LucideIcons.shuffle, 2));
     }
@@ -326,9 +329,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
     if (_enableAutofocus) {
       treeLines
           .add(_TreeLine('HFR Refocus Trigger', LucideIcons.shieldCheck, 1));
-    }
-    if (_enableMeridianFlip) {
-      treeLines.add(_TreeLine('Meridian Flip', LucideIcons.refreshCw, 1));
     }
     if (_weatherAbort) {
       treeLines.add(_TreeLine('Weather Safety', LucideIcons.cloudRain, 1));
