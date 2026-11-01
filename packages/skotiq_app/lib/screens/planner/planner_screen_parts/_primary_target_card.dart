@@ -27,8 +27,8 @@ class _TargetDetailColumn extends ConsumerWidget {
   /// were pushed out under the action footer.
   static const double _previewHeight = 96;
 
-  /// Height of the altitude well.
-  static const double _altitudeHeight = 110;
+  /// Height of the altitude well, its degree and clock scales included.
+  static const double _altitudeHeight = 128;
 
   /// Whether the selected target IS the one the optimizer chose.
   bool get _isOptimizerPick => plan.primaryTarget?.targetId == target.targetId;
@@ -229,9 +229,9 @@ class _TargetDetailColumn extends ConsumerWidget {
 
 /// The compact altitude curve in the middle of the detail column.
 ///
-/// One `well`, one `primary` path, a dashed line at the minimum altitude the
-/// filters ask for, the astronomical-dark span shaded, and a `textPrimary`
-/// "now" tick. `AltitudeChart` (the Framing tab's) is the full instrument —
+/// One `well` holding the altitude line on a 0 to 90° scale with degree
+/// labels and a clock scale, the minimum altitude the filters ask for as the
+/// reference line, astronomical dusk and dawn as dashed markers, and "now". `AltitudeChart` (the Framing tab's) is the full instrument —
 /// a header, an airmass toggle, its own Alt/Airmass chips and a
 /// rise/transit/set block, some 350px of it — so it would both overflow this
 /// 110px slot and repeat the four readouts directly above it.
@@ -273,7 +273,7 @@ class _TargetAltitudeWell extends ConsumerWidget {
     final from = night.start.subtract(_margin);
     final to = night.end.add(_margin);
     final span = to.difference(from).inSeconds;
-    final points = <double>[];
+    final points = <(DateTime, double?)>[];
     for (var i = 0; i < _samples; i++) {
       final t = from.add(
         Duration(seconds: (span * i / (_samples - 1)).round()),
@@ -285,135 +285,45 @@ class _TargetAltitudeWell extends ConsumerWidget {
         latitudeDeg: location!.latitude,
         longitudeDeg: location.longitude,
       );
-      points.add(alt);
+      points.add((t, alt.clamp(0.0, 90.0)));
     }
 
-    double fraction(DateTime t) =>
-        (t.difference(from).inSeconds / span).clamp(0.0, 1.0);
-
+    final now = DateTime.now();
     return DecoratedBox(
       decoration: SkotiqDecorations.well(colors),
-      child: CustomPaint(
-        painter: _AltitudeCurvePainter(
-          altitudes: points,
-          minAltitude: minAltitude,
-          darkFrom: fraction(night.start),
-          darkTo: fraction(night.end),
-          now: fraction(DateTime.now()),
-          curve: colors.primary,
-          hairline: colors.border,
-          marker: colors.textPrimary,
+      child: Padding(
+        padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
+        child: NightChartAxes(
+          from: from,
+          to: to,
+          zeroLineY: minAltitude,
+          leftTicks: const <double>[0, 30, 60, 90],
+          leftUnit: '°',
+          lines: <SeriesChartLine>[
+            SeriesChartLine(
+              points: points,
+              tone: SeriesChartTone.primary,
+              minY: 0,
+              maxY: 90,
+            ),
+          ],
+          markers: <SeriesChartMarker>[
+            SeriesChartMarker(night.start),
+            SeriesChartMarker(night.end),
+            if (now.isAfter(from) && now.isBefore(to))
+              SeriesChartMarker(now, tone: SeriesChartTone.secondary),
+          ],
+          semanticLabel: context.l10n.text(
+            'plannerAltitudeChartSem',
+            params: {
+              'name': target.targetName,
+              'deg': minAltitude.round().toString(),
+            },
+          ),
         ),
       ),
     );
   }
-}
-
-/// Paints [_TargetAltitudeWell]'s curve. Altitude 0–90° maps to the full
-/// height; anything below the horizon is clamped to the floor rather than
-/// drawn underground.
-class _AltitudeCurvePainter extends CustomPainter {
-  final List<double> altitudes;
-  final double minAltitude;
-  final double darkFrom;
-  final double darkTo;
-  final double now;
-  final Color curve;
-  final Color hairline;
-  final Color marker;
-
-  const _AltitudeCurvePainter({
-    required this.altitudes,
-    required this.minAltitude,
-    required this.darkFrom,
-    required this.darkTo,
-    required this.now,
-    required this.curve,
-    required this.hairline,
-    required this.marker,
-  });
-
-  /// The altitude the top of the well represents.
-  static const double _ceiling = 90;
-
-  /// Stroke width of the curve and the now marker.
-  static const double _curveStroke = 1.5;
-
-  /// Dash geometry of the minimum-altitude line.
-  static const double _dashOn = 3;
-  static const double _dashOff = 3;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (altitudes.length < 2 || size.width <= 0 || size.height <= 0) return;
-
-    double y(double altitude) =>
-        size.height * (1 - (altitude.clamp(0.0, _ceiling) / _ceiling));
-
-    // The astronomical-dark span, so the useful part of the curve is obvious.
-    canvas.drawRect(
-      Rect.fromLTRB(darkFrom * size.width, 0, darkTo * size.width, size.height),
-      Paint()
-        ..color = curve.withValues(alpha: SkotiqTokens.opacityPanelOutline),
-    );
-
-    // The minimum altitude the filters ask for, dashed.
-    final horizonY = y(minAltitude);
-    final dash = Paint()
-      ..color = hairline
-      ..strokeWidth = 1;
-    for (var x = 0.0; x < size.width; x += _dashOn + _dashOff) {
-      canvas.drawLine(
-        Offset(x, horizonY),
-        Offset((x + _dashOn).clamp(0.0, size.width), horizonY),
-        dash,
-      );
-    }
-
-    final path = Path();
-    final fill = Path();
-    for (var i = 0; i < altitudes.length; i++) {
-      final x = size.width * i / (altitudes.length - 1);
-      final py = y(altitudes[i]);
-      if (i == 0) {
-        path.moveTo(x, py);
-        fill.moveTo(x, size.height);
-        fill.lineTo(x, py);
-      } else {
-        path.lineTo(x, py);
-        fill.lineTo(x, py);
-      }
-    }
-    fill.lineTo(size.width, size.height);
-    fill.close();
-
-    canvas.drawPath(
-      fill,
-      Paint()..color = curve.withValues(alpha: SkotiqTokens.opacityAccentTint),
-    );
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = curve
-        ..strokeWidth = _curveStroke
-        ..style = PaintingStyle.stroke,
-    );
-
-    canvas.drawLine(
-      Offset(now * size.width, 0),
-      Offset(now * size.width, size.height),
-      Paint()
-        ..color = marker
-        ..strokeWidth = _curveStroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_AltitudeCurvePainter old) =>
-      old.altitudes != altitudes ||
-      old.minAltitude != minAltitude ||
-      old.now != now ||
-      old.curve != curve;
 }
 
 /// The field preview at the top of the detail column.

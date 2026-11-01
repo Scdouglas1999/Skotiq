@@ -732,6 +732,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerAboveMin': 'Above {value}°',
     'plannerAltNow': 'Alt now',
     'plannerFromMoon': 'From moon',
+    'plannerAltitudeChartSem':
+        '{name} altitude across tonight, 0 to 90 degrees, with the {deg} degree limit, astronomical dusk and dawn, and now',
     'plannerWindow': 'Window',
     'plannerFrameIt': 'Frame it',
     'plannerBuildSequence': 'Build sequence',
@@ -2375,6 +2377,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerAboveMin': 'Sobre {value}°',
     'plannerAltNow': 'Altura ahora',
     'plannerFromMoon': 'De la luna',
+    'plannerAltitudeChartSem':
+        'Altitud de {name} esta noche, de 0 a 90 grados, con el límite de {deg} grados, el anochecer y el amanecer astronómicos, y ahora',
     'plannerWindow': 'Ventana',
     'plannerFrameIt': 'Encuadrar',
     'plannerBuildSequence': 'Crear secuencia',
