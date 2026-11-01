@@ -651,8 +651,10 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
               labelText: 'Action',
               helperText: 'Checked after each exposure node. Notify tells '
                   'you once each time the condition starts to hold, and the '
-                  'run keeps imaging.',
-              helperMaxLines: 3,
+                  'run keeps imaging. Pause and End the run act only when '
+                  '"Stop the run for quality problems" is on in Settings > '
+                  'Sequencer; otherwise they notify too.',
+              helperMaxLines: 5,
             ),
             items: TriggerActionType.values.map((a) {
               return DropdownMenuItem(
