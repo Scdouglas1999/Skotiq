@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -238,21 +239,28 @@ class _UniformityKpi extends StatelessWidget {
   }
 }
 
-class _MovingObjectsKpi extends StatelessWidget {
+class _MovingObjectsKpi extends ConsumerWidget {
+  const _MovingObjectsKpi({required this.colors, required this.count});
+
   final SkotiqColors colors;
   final int count;
 
-  const _MovingObjectsKpi({required this.colors, required this.count});
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Detection is off by default; a zero then means "not looked", not
+    // "looked and found nothing".
+    final enabled =
+        ref.watch(scienceSettingsProvider).valueOrNull?.movingObjectsEnabled ??
+            false;
     final tone = count == 0 ? colors.textMuted : colors.success;
     return _KpiCard(
       colors: colors,
       title: 'Moving objects',
-      headline: count.toString(),
+      headline: enabled || count > 0 ? count.toString() : 'Off',
       headlineTone: tone,
-      value: count == 0 ? 'No candidates' : 'Live track overlay ready',
+      value: !enabled && count == 0
+          ? 'Detection is off'
+          : (count == 0 ? 'No candidates' : 'Live track overlay ready'),
       trust: const <_TrustChip>[],
     );
   }

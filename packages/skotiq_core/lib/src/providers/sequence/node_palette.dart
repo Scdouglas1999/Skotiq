@@ -269,7 +269,7 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
         NodePaletteItem(
           name: 'Start guiding',
           icon: 'crosshair',
-          description: 'Start PHD2 guiding and wait for settle',
+          description: 'Start the guider and wait for it to settle',
           createNode: () => StartGuidingNode(
             settlePixels: defaults.ditherSettlePixels,
             settleTime: defaults.ditherSettleTime,
@@ -278,7 +278,7 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
         NodePaletteItem(
           name: 'Stop guiding',
           icon: 'x-circle',
-          description: 'Stop PHD2 guiding',
+          description: 'Stop the guider',
           createNode: () => StopGuidingNode(),
         ),
       ],

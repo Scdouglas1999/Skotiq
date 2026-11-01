@@ -182,7 +182,11 @@ String _equipmentDetail(EquipmentEvent v) {
       property: final p,
       value: final val,
     ) =>
-      '$t · $p=$val',
+      // Structured values (progress records) are JSON; the log names the
+      // property only rather than printing the raw object.
+      val.trimLeft().startsWith('{') || val.trimLeft().startsWith('[')
+          ? '$t · $p'
+          : '$t · $p=$val',
     EquipmentEvent_Error(
       deviceType: final t,
       deviceId: final id,

@@ -20,7 +20,7 @@
     "ngc7000-cool": {
       "id": "ngc7000-cool",
       "nodeType": "CoolCamera",
-      "name": "Cool to -15C",
+      "name": "Cool to -15 °C",
       "parentId": "ngc7000-root",
       "childIds": [],
       "orderIndex": 0,

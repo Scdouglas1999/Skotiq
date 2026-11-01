@@ -245,7 +245,7 @@ Sequence buildCalibrationSequence({
       add(
         CoolCameraNode(
           id: 'eon-cool-${index++}',
-          name: 'Cool to ${_formatNumber(setPoint)} C',
+          name: 'Cool to ${_formatNumber(setPoint)} °C',
           parentId: root,
           targetTemp: setPoint,
           durationMins: 15,

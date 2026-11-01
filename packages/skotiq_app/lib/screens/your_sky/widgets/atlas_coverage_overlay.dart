@@ -80,7 +80,7 @@ class AtlasCoverageOverlay extends StatelessWidget {
                 if (totals != null)
                   _Stat(
                     icon: LucideIcons.image,
-                    label: 'Frames',
+                    label: totals.frames == 1 ? 'Frame' : 'Frames',
                     value: '${totals.frames}',
                     tint: colors.success,
                   ),

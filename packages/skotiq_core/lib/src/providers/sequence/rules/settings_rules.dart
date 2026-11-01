@@ -214,7 +214,7 @@ class MeridianFlipTriggerRule implements RefAwareSequenceValidator {
             'This sequence has targets and runs for over 2 hours but has no meridian flip trigger. '
             'If targets cross the meridian during imaging, the mount may hit its tracking limits.',
         resolutionHint:
-            'Add a MeridianFlip node to the sequence or enable auto meridian flip in Settings → Meridian Flip.',
+            'Add a Meridian flip node to the sequence, or turn on Auto meridian flip in Equipment > Mount > Mount configuration.',
       ),
     ];
   }

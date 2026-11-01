@@ -71,7 +71,7 @@ class _FixedAlertService extends WeatherAlertService {
 
 WeatherAlert _cloudyForecast({DateTime? at}) => WeatherAlert(
   level: AlertLevel.critical,
-  message: 'Heavy cloud cover overhead (100% density) - consider pausing',
+  message: 'Heavy cloud cover overhead (100% density)',
   cloudDensityPercent: 100,
   distanceKm: 0,
   generatedAt: at ?? DateTime.now(),

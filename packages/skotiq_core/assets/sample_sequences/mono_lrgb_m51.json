@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "version": "2.0",
   "name": "Mono LRGB M51 (Whirlpool) - L then RGB",
-  "description": "Intermediate mono LRGB sequence for the Whirlpool Galaxy with a cooled CMOS camera (gain 120, offset 30, -10C). Captures 40 x 120s luminance frames first, then 20 x 60s for each of R, G, B. Autofocus refresh every 30 minutes and dither every 5 frames. Expected total time ~3 hr 30 min including overhead.",
+  "description": "Intermediate mono LRGB sequence for the Whirlpool Galaxy with a cooled CMOS camera (gain 120, offset 30, -10 °C). Captures 40 x 120s luminance frames first, then 20 x 60s for each of R, G, B. Autofocus refresh every 30 minutes and dither every 5 frames. Expected total time ~3 hr 30 min including overhead.",
   "rootNodeId": "m51-root",
   "isTemplate": true,
   "createdAt": "2026-01-01T00:00:00.000Z",
@@ -20,7 +20,7 @@
     "m51-cool": {
       "id": "m51-cool",
       "nodeType": "CoolCamera",
-      "name": "Cool to -10C",
+      "name": "Cool to -10 °C",
       "parentId": "m51-root",
       "childIds": [],
       "orderIndex": 0,
