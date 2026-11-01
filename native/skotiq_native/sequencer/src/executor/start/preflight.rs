@@ -202,11 +202,11 @@ impl SequenceExecutor {
             // 3/3 darks run a "Sequence failed / Sequence aborted" toast, a
             // Critical alert, and a red Errors section in its Session Report.
             let _ = self.event_tx.send(ExecutorEvent::Warning {
-                message: "The meridian-flip trigger is set to re-centre after a flip, but no \
+                message: "The meridian-flip trigger is set to re-center after a flip, but no \
                           plate solver (ASTAP or solve-field) was found on this system. If the \
                           flip fires it will retry and fail against a solver that is not there, \
                           and the run will be recorded as failed. Install a solver, or turn off \
-                          \"Center after flip\" in Settings → Meridian Flip."
+                          \"Recenter after flip\" in Settings > Sequencer > Meridian flip."
                     .to_string(),
             });
         }
