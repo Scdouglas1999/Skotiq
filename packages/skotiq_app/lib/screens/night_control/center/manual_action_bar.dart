@@ -1,7 +1,8 @@
 // The manual-action bar under the frame: Snapshot, Loop, Autofocus, Solve &
 // sync, Center, plus Dither and Flip during a run. The buttons and their
 // gating come from the action controller (P2). Pressing one only opens its
-// panel tab; the action itself starts from the button in that tab.
+// panel tab; the action itself starts from the button in that tab, and the
+// bar's hint says so.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
