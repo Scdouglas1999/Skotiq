@@ -242,7 +242,8 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                        'Frame center: ${widget.target.raHours.toStringAsFixed(5)}h, ${widget.target.decDegrees.toStringAsFixed(4)}°'),
+                        'Frame center: ${CoordinateParser.formatRaHms(widget.target.raHours)} '
+                        '${CoordinateParser.formatDecDms(widget.target.decDegrees)}'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<SmartNightStrategy>(
                       isExpanded: true,

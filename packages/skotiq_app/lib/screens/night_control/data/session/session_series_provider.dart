@@ -235,6 +235,8 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
     );
   }
   final last = history.last;
+  // A setpoint with the cooler off reads as cooling that is failing.
+  final cooling = ref.watch(cameraStateProvider.select((s) => s.isCooling));
   return NightSeriesVm(
     lines: <SeriesLineVm>[
       SeriesLineVm(
@@ -253,10 +255,15 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
         label: const NightText('nightSessionSensorTemp'),
         value: nightCelsius(last.temperature),
       ),
-      if (last.targetTemp != null)
+      if (last.targetTemp != null && cooling)
         MetricVm(
           label: const NightText('nightSessionSetpoint'),
           value: nightCelsius(last.targetTemp!),
+        ),
+      if (!cooling)
+        const MetricVm(
+          label: NightText('nightSessionCooler'),
+          value: 'off',
         ),
       if (last.coolerPower != null)
         MetricVm(

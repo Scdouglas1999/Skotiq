@@ -131,7 +131,8 @@ class SessionChart extends StatelessWidget {
       summary: _ChartSummary(
         colors: colors,
         median: axis.label(median),
-        spread: '${axis.label(dataMin)}–${axis.label(dataMax)}',
+        // "to", not a dash: a dash after a negative reads as -15–20.
+        spread: '${axis.label(dataMin)} to ${axis.label(dataMax)}',
         p90: axis.label(p90),
         count: points.length,
       ),

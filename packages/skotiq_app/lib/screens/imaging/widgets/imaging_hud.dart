@@ -182,6 +182,10 @@ class HistogramHud extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final histogram = ref.watch(previewDisplayHistogramProvider);
+    // The histogram is of raw ADU once the 16-bit samples are in; before
+    // that it is of the stretched display image, so the axis says so.
+    final image = ref.watch(currentImageProvider);
+    final raw = image != null && image.hasRawReady && image.rawU16 != null;
 
     return Glass(
       key: ImagingTutorialKeys.histogram,
@@ -204,7 +208,7 @@ class HistogramHud extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  'Histogram',
+                  raw ? 'Histogram · ADU' : 'Histogram · display',
                   style: SkotiqTypography.eyebrow.copyWith(
                     color: colors.textMuted,
                   ),
@@ -226,8 +230,8 @@ class HistogramHud extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    Text('0', style: endpoints),
-                    Text('$fullWell', style: endpoints),
+                    Text(raw ? '0' : 'black', style: endpoints),
+                    Text(raw ? '$fullWell' : 'white', style: endpoints),
                   ],
                 ),
               ],
