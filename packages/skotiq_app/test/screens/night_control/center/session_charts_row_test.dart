@@ -207,7 +207,7 @@ void main() {
       _allText(tester),
       contains(RegExp(r'best 45\s484 · HFR 1\.98 · 13\.1 °C')),
     );
-    expect(find.text('PHD2 idle'), findsOneWidget);
+    expect(find.text('Guider idle'), findsOneWidget);
     expect(find.text('Start looping'), findsOneWidget);
     expect(find.text('Cooling'), findsOneWidget);
     expect(find.text('since 18:22'), findsOneWidget);
@@ -226,7 +226,7 @@ void main() {
       child: const SessionChartsRow(),
       size: const Size(744, 120),
     );
-    expect(find.text('PHD2 not connected'), findsOneWidget);
+    expect(find.text('Guider not connected'), findsOneWidget);
     expect(find.text('Open PHD2'), findsOneWidget);
     expect(find.text('Start looping'), findsNothing);
     expect(find.text('No autofocus run since Skotiq started'), findsOneWidget);
