@@ -182,11 +182,19 @@ class EonReport {
 }
 
 class EonStatus {
-  const EonStatus({this.phase = EonPhase.idle, this.message, this.report});
+  const EonStatus({
+    this.phase = EonPhase.idle,
+    this.message,
+    this.report,
+    this.capDeadline,
+  });
 
   final EonPhase phase;
   final String? message;
   final EonReport? report;
+
+  /// While waiting for a cap: when the darks are skipped if nobody confirms.
+  final DateTime? capDeadline;
 
   Map<String, Object?> toJson() => {
     'phase': phase.name,
@@ -225,10 +233,20 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   /// Whether the step is waiting for the operator to confirm the cap.
   bool get waitingForCap => state.phase == EonPhase.waitingForCap;
 
-  void _set(EonPhase phase, String message, EonReport report) {
+  void _set(
+    EonPhase phase,
+    String message,
+    EonReport report, {
+    DateTime? capDeadline,
+  }) {
     report.phase = phase;
     if (mounted) {
-      state = EonStatus(phase: phase, message: message, report: report);
+      state = EonStatus(
+        phase: phase,
+        message: message,
+        report: report,
+        capDeadline: capDeadline,
+      );
     }
   }
 
@@ -377,9 +395,13 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     } finally {
       _runInFlight = false;
     }
+    // A stop ends the frames, not the night's calibration: the masters are
+    // built from whatever was taken. A stop while they build ends that too.
+    final stopped = _cancelRequested;
+    _cancelRequested = false;
     report.runId = result.runId;
     report.runStatus = result.runStatus;
-    if (result.runStatus != 'completed') {
+    if (result.runStatus != 'completed' && !stopped) {
       report.problems.add(
         'The calibration run ended ${result.runStatus} before taking every '
         'frame',
@@ -404,8 +426,12 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     if (_cancelRequested) return _cancelled(report);
     final built = report.masters.where((m) => m.built).length;
     final summary = StringBuffer(
-      'Built $built of ${report.masters.length} masters from '
-      '${report.framesCaptured} frames into the dark library.',
+      stopped
+          ? 'Stopped after ${report.framesCaptured} frames. Built $built of '
+                '${report.masters.length} masters from them into the dark '
+                'library.'
+          : 'Built $built of ${report.masters.length} masters from '
+                '${report.framesCaptured} frames into the dark library.',
     );
     if (report.warmUp != null) summary.write(' ${report.warmUp}.');
     if (report.problems.isNotEmpty) {
@@ -414,15 +440,21 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final failed = built == 0;
     _finish(
       report,
-      failed ? EonPhase.failed : EonPhase.finished,
+      stopped
+          ? EonPhase.cancelled
+          : failed
+          ? EonPhase.failed
+          : EonPhase.finished,
       summary.toString(),
     );
     await _rig.notify(
-      failed
+      stopped
+          ? 'End-of-night calibration stopped'
+          : failed
           ? 'End-of-night calibration built no masters'
           : 'End-of-night calibration finished',
       report.summary,
-      problem: failed || report.problems.isNotEmpty,
+      problem: !stopped && (failed || report.problems.isNotEmpty),
     );
   }
 
@@ -473,6 +505,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       EonPhase.waitingForCap,
       'Waiting for the telescope to be capped',
       report,
+      capDeadline: _rig.now().add(Duration(minutes: config.capWaitMinutes)),
     );
     await _rig.notify(
       'Cap the telescope for darks',

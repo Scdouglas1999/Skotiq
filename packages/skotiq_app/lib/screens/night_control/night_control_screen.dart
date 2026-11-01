@@ -3,9 +3,10 @@
 // Composes the four slots of [NightControlLayout] and keeps the side effects
 // the old dashboard kept alive while it was on screen: the PHD2 controller's
 // event subscription and the critical-events bridge, both providers whose
-// work runs only while something watches them. The run's two alerts (the
-// recovery offer and a critical fault) sit above the layout; each hides
-// itself when there is nothing to say.
+// work runs only while something watches them. The end-of-night request to
+// cap the telescope and the run's two alerts (the recovery offer and a
+// critical fault) sit above the layout; each hides itself when there is
+// nothing to say.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -14,6 +15,7 @@ import '../sequencer/widgets/run_dashboard/critical_event_banner.dart';
 import '../sequencer/widgets/run_dashboard/recovery_banner.dart';
 import '../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'center/night_center.dart';
+import 'end_of_night_cap_banner.dart';
 import 'header/night_header_bar.dart';
 import 'left/night_left_column.dart';
 import 'night_control_layout.dart';
@@ -49,6 +51,7 @@ class NightControlScreen extends ConsumerWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        EndOfNightCapBanner(),
         RunDashboardRecoveryBanner(),
         RunDashboardCriticalBanner(),
         Expanded(
