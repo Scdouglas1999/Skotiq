@@ -74,6 +74,22 @@ class _LockedKeyring implements SecureKeyValueStore {
   Future<void> delete({required String key}) async {}
 }
 
+/// A keyring that cannot be read at all: no unlocked secret service.
+class _UnreadableKeyring implements SecureKeyValueStore {
+  @override
+  Future<String?> read({required String key}) async {
+    throw StateError('Failed to unlock the keyring');
+  }
+
+  @override
+  Future<void> write({required String key, required String value}) async {
+    throw StateError('Failed to unlock the keyring');
+  }
+
+  @override
+  Future<void> delete({required String key}) async {}
+}
+
 Finder _fieldWithHint(String hint) => find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.hintText == hint,
       description: 'text field hinted "$hint"',
@@ -215,6 +231,18 @@ void main() {
       find.textContaining('Stored securely in the keyring'),
       findsNothing,
       reason: 'the subtitle must not report a key the keyring never took',
+    );
+  });
+
+  testWidgets('a keyring that cannot be read says the key store is unavailable',
+      (tester) async {
+    final science = _FakeScienceSettings();
+    await _pumpPage(tester, science: science, keyring: _UnreadableKeyring());
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.textContaining('The system key store is unavailable'),
+      findsWidgets,
     );
   });
 }
