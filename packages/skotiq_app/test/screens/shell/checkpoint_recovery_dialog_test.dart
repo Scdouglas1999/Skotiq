@@ -326,6 +326,22 @@ void main() {
     expect(seen.last?.checkpointStillResumable, isFalse);
   });
 
+  test('the age comes from the save time, not from an age the host cached', () {
+    final info = CheckpointInfo(
+      sequenceName: 'M74 Plan',
+      timestamp: DateTime.utc(2026, 10, 31, 9, 27, 27),
+      completedExposures: 120,
+      completedIntegrationSecs: 3600,
+      canResume: true,
+      ageSeconds: 104402,
+    );
+    final age = checkpointAgeSeconds(
+      info,
+      now: DateTime.utc(2026, 11, 1, 16, 16, 27),
+    );
+    expect(age, 30 * 3600 + 49 * 60);
+  });
+
   test(
       'a host running its sequence holds its checkpoint; an idle host or '
       'this machine does not', () async {
