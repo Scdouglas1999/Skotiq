@@ -199,6 +199,10 @@ class WeatherSafetyState {
   /// Why the operator set the verdict aside (the "sky is clear" override).
   final String? snoozeReason;
 
+  /// On a remote client: the host's verdict could not be read, so [status]
+  /// is a placeholder and the safety state is unknown, not unsafe.
+  final bool hostVerdictUnavailable;
+
   const WeatherSafetyState({
     required this.status,
     required this.actions,
@@ -221,6 +225,7 @@ class WeatherSafetyState {
     this.starEvidence,
     this.starEvidenceOverridesForecast = false,
     this.snoozeReason,
+    this.hostVerdictUnavailable = false,
   });
 
   factory WeatherSafetyState.initial() => const WeatherSafetyState(
@@ -271,6 +276,7 @@ class WeatherSafetyState {
     bool clearStarEvidence = false,
     bool? starEvidenceOverridesForecast,
     String? snoozeReason,
+    bool? hostVerdictUnavailable,
   }) {
     return WeatherSafetyState(
       status: status ?? this.status,
@@ -300,6 +306,8 @@ class WeatherSafetyState {
       starEvidenceOverridesForecast:
           starEvidenceOverridesForecast ?? this.starEvidenceOverridesForecast,
       snoozeReason: clearSnooze ? null : (snoozeReason ?? this.snoozeReason),
+      hostVerdictUnavailable:
+          hostVerdictUnavailable ?? this.hostVerdictUnavailable,
     );
   }
 }

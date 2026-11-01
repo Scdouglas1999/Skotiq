@@ -571,7 +571,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                     bottom: false,
                                                     child:
                                                         _ContentSemanticsBoundary(
-                                                      child: widget.child,
+                                                      child: HostLinkStaleScope(
+                                                        child: widget.child,
+                                                      ),
                                                     ),
                                                   ),
                                                   // Mobile sequence overlay

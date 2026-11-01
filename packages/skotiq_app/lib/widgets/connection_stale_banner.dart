@@ -10,8 +10,8 @@ import '../utils/snackbar_helper.dart';
 /// drives this; desktop/headless do not flip it.
 final connectionStaleProvider = StateProvider<bool>((_) => false);
 
-/// Inline banner shown across all screens while the mobile app is mid-
-/// reconnect.
+/// Inline banner shown across all screens while a remote client has lost its
+/// link to the imaging host, or the mobile app is mid-reconnect.
 ///
 /// During the 30-second grace window the operator gets a "Retry" button to
 /// force an immediate reconnect attempt instead of waiting for the
@@ -84,7 +84,8 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final stale = ref.watch(connectionStaleProvider);
+    final lostHost = ref.watch(hostLinkLostProvider);
+    final stale = ref.watch(connectionStaleProvider) || lostHost != null;
     if (!stale) return const SizedBox.shrink();
     final canRetry = ref.watch(backendProvider) is NetworkBackend;
 
@@ -106,7 +107,11 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Reconnecting to server… session controls may be stale.',
+                lostHost == null
+                    ? 'Reconnecting to server… session controls may be stale.'
+                    : 'Lost connection to $lostHost, reconnecting… Device '
+                        'values and run state shown are the last known, not '
+                        'live.',
                 style: TextStyle(
                   color: fg,
                   fontSize: SkotiqTypography.fontSize12,
@@ -134,6 +139,26 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Marks everything under it as last-known while the link to the imaging
+/// host is down: dimmed, and announced as not live to assistive technology.
+/// The device and run values below it are the last ones heard from the host.
+class HostLinkStaleScope extends ConsumerWidget {
+  const HostLinkStaleScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lostHost = ref.watch(hostLinkLostProvider);
+    if (lostHost == null) return child;
+    return Semantics(
+      container: true,
+      label: 'Last known values, no link to $lostHost',
+      child: Opacity(opacity: 0.55, child: child),
     );
   }
 }

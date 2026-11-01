@@ -25,7 +25,12 @@ class NightSafetyReading {
     this.overrideReason,
     this.starEvidence,
     this.starsOutweighForecast = false,
+    this.hostUnknown = false,
   });
+
+  /// On a remote client the host's verdict could not be read: the safety
+  /// state is unknown, which is not the same as unsafe.
+  final bool hostUnknown;
 
   /// Weather safety is switched on and evaluating.
   final bool monitoring;
@@ -61,10 +66,12 @@ class NightSafetyReading {
       other.overrideUntil == overrideUntil &&
       other.overrideReason == overrideReason &&
       other.starEvidence == starEvidence &&
-      other.starsOutweighForecast == starsOutweighForecast;
+      other.starsOutweighForecast == starsOutweighForecast &&
+      other.hostUnknown == hostUnknown;
 
   @override
   int get hashCode => Object.hash(
+        hostUnknown,
         monitoring,
         safe,
         decidedBy,
@@ -79,7 +86,14 @@ class NightSafetyReading {
 /// The weather-safety verdict. Its own provider so a test can pin it without
 /// standing up the evaluator and its timers.
 final nightSafetyReadingProvider = Provider<NightSafetyReading>((ref) {
-  final state = ref.watch(weatherSafetyProvider);
+  return nightSafetyReadingFrom(ref.watch(weatherSafetyProvider));
+});
+
+/// [state] reduced to what Tonight shows.
+NightSafetyReading nightSafetyReadingFrom(WeatherSafetyState state) {
+  if (state.hostVerdictUnavailable) {
+    return const NightSafetyReading(monitoring: true, hostUnknown: true);
+  }
   if (!state.monitoringEnabled) {
     return const NightSafetyReading(monitoring: false);
   }
@@ -100,7 +114,7 @@ final nightSafetyReadingProvider = Provider<NightSafetyReading>((ref) {
     starEvidence: state.starEvidence,
     starsOutweighForecast: state.starEvidenceOverridesForecast,
   );
-});
+}
 
 /// How long "the sky is clear" sets the weather verdict aside.
 const Duration nightSkyClearOverride = Duration(minutes: 30);
@@ -112,6 +126,10 @@ const Duration nightSkyClearOverride = Duration(minutes: 30);
   Clock clock,
 ) {
   final notes = <NightText>[];
+  if (reading.hostUnknown) {
+    notes.add(const NightText('nightWeatherHostUnknown'));
+    return (notes: notes, skyOverride: NightSkyOverride.none);
+  }
   if (!reading.monitoring) {
     return (notes: notes, skyOverride: NightSkyOverride.none);
   }
@@ -202,6 +220,7 @@ final nightConditionsProvider = Provider<NightConditionsVm>((ref) {
       return NightConditionsVm(
         source: source,
         safe: safe,
+        verdictUnknown: reading.hostUnknown,
         notes: notes,
         skyOverride: skyOverride,
         metrics: <MetricVm>[
@@ -242,6 +261,7 @@ final nightConditionsProvider = Provider<NightConditionsVm>((ref) {
       return NightConditionsVm(
         source: source,
         safe: safe,
+        verdictUnknown: reading.hostUnknown,
         notes: notes,
         skyOverride: skyOverride,
         metrics: <MetricVm>[
@@ -256,6 +276,7 @@ final nightConditionsProvider = Provider<NightConditionsVm>((ref) {
       return NightConditionsVm(
         source: source,
         safe: safe,
+        verdictUnknown: reading.hostUnknown,
         notes: notes,
         skyOverride: skyOverride,
       );

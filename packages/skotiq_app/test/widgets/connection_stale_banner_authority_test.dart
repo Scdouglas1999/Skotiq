@@ -29,6 +29,13 @@ void main() {
     final hostBResult = Completer<void>();
     when(() => hostA.reconnectNow()).thenAnswer((_) => hostAResult.future);
     when(() => hostB.reconnectNow()).thenAnswer((_) => hostBResult.future);
+    for (final host in [hostA, hostB]) {
+      when(() => host.connectionState)
+          .thenReturn(BackendConnectionState.connected);
+      when(() => host.connectionStateStream)
+          .thenAnswer((_) => const Stream.empty());
+      when(() => host.serverHost).thenReturn('rig.local');
+    }
     late _SwappableBackendNotifier notifier;
 
     await tester.pumpWidget(
@@ -68,5 +75,62 @@ void main() {
     hostBResult.complete();
     await tester.pump();
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a lost link to the host names the host and says the values shown '
+      'are the last known', (tester) async {
+    final host = _MockNetworkBackend();
+    final states = StreamController<BackendConnectionState>();
+    addTearDown(states.close);
+    when(() => host.connectionState)
+        .thenReturn(BackendConnectionState.connected);
+    when(() => host.connectionStateStream).thenAnswer((_) => states.stream);
+    when(() => host.serverHost).thenReturn('rig.local');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, host),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(
+            body: Column(
+              children: [
+                ConnectionStaleBanner(),
+                Expanded(
+                  child: HostLinkStaleScope(child: Text('Mount tracking')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.textContaining('Lost connection'), findsNothing);
+    expect(find.byType(Opacity), findsNothing);
+
+    states.add(BackendConnectionState.disconnected);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.textContaining('Lost connection to rig.local, reconnecting'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('last known, not live'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Last known values, no link to rig.local')),
+      findsOneWidget,
+    );
+
+    states.add(BackendConnectionState.connected);
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('Lost connection'), findsNothing);
   });
 }

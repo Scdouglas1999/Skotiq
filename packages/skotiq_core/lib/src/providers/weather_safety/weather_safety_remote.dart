@@ -24,6 +24,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
         state = WeatherSafetyState.initial().copyWith(
           failModeWarning: _authRejectedSafetyWarning,
           lastEvaluation: DateTime.now(),
+          hostVerdictUnavailable: true,
         );
       }
       return;
@@ -130,6 +131,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
       state = WeatherSafetyState.initial().copyWith(
         failModeWarning: 'Imaging host safety status unavailable: $error',
         lastEvaluation: DateTime.now(),
+        hostVerdictUnavailable: true,
       );
     } finally {
       _remoteFetchInFlight = false;
