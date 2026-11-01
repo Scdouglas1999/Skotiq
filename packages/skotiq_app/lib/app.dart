@@ -12,6 +12,7 @@ import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/widgets/quick_start_checker.dart';
 import 'package:skotiq_app/widgets/auto_discovery_launcher.dart';
+import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'package:skotiq_app/widgets/startup_auto_connect_launcher.dart';
 import 'package:skotiq_app/widgets/database_recovery_launcher.dart';
 import 'package:skotiq_app/widgets/equipment_onboarding_launcher.dart';
@@ -223,14 +224,14 @@ class SkotiqApp extends ConsumerWidget {
                 // learn a new version existed.) iOS is excluded because
                 // sideloading an update is not possible there.
                 if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
-                  return UpdateManagerWidget(
+                  result = UpdateManagerWidget(
                     // This builder sits above the router's Navigator; the
                     // update dialogs need the key to reach it.
                     navigatorKey: router.routerDelegate.navigatorKey,
                     child: result,
                   );
                 }
-                return result;
+                return RedNightScreen(child: result);
               },
             ),
           ),

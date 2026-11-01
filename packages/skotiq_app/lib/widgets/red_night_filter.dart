@@ -48,3 +48,30 @@ class RedNightImage extends StatelessWidget {
     return ColorFiltered(colorFilter: filter, child: child);
   }
 }
+
+/// Drops the green and blue channels from everything below it when the
+/// red-night theme is active, and returns [child] untouched otherwise.
+///
+/// Placed once at the app root as the guarantee behind the theme's promise:
+/// the palette and [RedNightImage] already put chrome and image data on the
+/// red channel, and this catches anything that paints a colour of its own (a
+/// brand mark, a white hairline, an unfiltered thumbnail). Pure-red pixels
+/// pass through unchanged, so the palette's contrast is untouched.
+class RedNightScreen extends StatelessWidget {
+  const RedNightScreen({super.key, required this.child});
+
+  final Widget child;
+
+  static const ColorFilter filter = ColorFilter.matrix(<double>[
+    1, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, //
+    0, 0, 0, 1, 0, //
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!SkotiqColors.of(context).isRedNight) return child;
+    return ColorFiltered(colorFilter: filter, child: child);
+  }
+}

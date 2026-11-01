@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../widgets/red_night_filter.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
 import 'settings_widgets.dart';
 
@@ -100,8 +101,8 @@ class AppearanceSettings extends ConsumerWidget {
                     icon: LucideIcons.palette,
                     title: 'Accent',
                     subtitle: 'Red night is monochrome red, so the accent has '
-                        'no effect while it is selected. ${settings.accentColor} '
-                        'applies again on the Dark and Light themes.',
+                        'no effect while it is selected. Your accent applies '
+                        'again on the Dark and Light themes.',
                     trailing: const SizedBox.shrink(),
                     isMobile: isMobile,
                   )
@@ -301,7 +302,9 @@ class _ThemeCardState extends State<_ThemeCard> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ThemePreview(preview: preview),
+                // The Light and Dark previews are pictures of other
+                // palettes; in red night they go through the image filter.
+                RedNightImage(child: _ThemePreview(preview: preview)),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
