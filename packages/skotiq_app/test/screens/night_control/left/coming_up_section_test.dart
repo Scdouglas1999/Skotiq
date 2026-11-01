@@ -58,6 +58,24 @@ void main() {
     expect(find.text('no moonset tonight'), findsOneWidget);
   });
 
+  testWidgets('a moon that does not set but rises tonight names the rise',
+      (tester) async {
+    await _pump(
+      tester,
+      NightHarness(
+        board: NightFixtures.ready(),
+        upcoming: <UpcomingItemVm>[
+          UpcomingItemVm(
+            kind: UpcomingKind.moon,
+            moonIlluminationPct: 52,
+            moonRise: DateTime(2026, 11, 1, 23, 16),
+          ),
+        ],
+      ),
+    );
+    expect(find.text('no moonset · rises 23:16'), findsOneWidget);
+  });
+
   testWidgets('the next autofocus, the target sinking and the plan end',
       (tester) async {
     await _pump(

@@ -574,6 +574,7 @@ class UpcomingItemVm {
     this.tempDeltaC,
     this.every,
     this.moonIlluminationPct,
+    this.moonRise,
     this.limitDeg,
     this.tone = MetricTone.neutral,
   });
@@ -602,6 +603,10 @@ class UpcomingItemVm {
   /// For [UpcomingKind.moon].
   final double? moonIlluminationPct;
 
+  /// For [UpcomingKind.moon] when the moon does not set tonight: its rise
+  /// during the night, which matters for the second half of it.
+  final DateTime? moonRise;
+
   /// The altitude limit, for [UpcomingKind.targetLow].
   final double? limitDeg;
 
@@ -620,6 +625,7 @@ class UpcomingItemVm {
       other.tempDeltaC == tempDeltaC &&
       other.every == every &&
       other.moonIlluminationPct == moonIlluminationPct &&
+      other.moonRise == moonRise &&
       other.limitDeg == limitDeg &&
       other.tone == tone;
 
@@ -634,6 +640,7 @@ class UpcomingItemVm {
         tempDeltaC,
         every,
         moonIlluminationPct,
+        moonRise,
         limitDeg,
         tone,
       );

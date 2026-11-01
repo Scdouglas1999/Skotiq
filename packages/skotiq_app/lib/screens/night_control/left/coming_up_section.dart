@@ -192,9 +192,14 @@ String? nightUpcomingValue(
       if (at != null) parts.add(nightHmMaybeEstimated(at, estimated: true));
     case UpcomingKind.moon:
       parts.add(
-        at == null
-            ? l10n.text('nightCtlUpMoonNoSet')
-            : l10n.text('nightCtlUpMoonSets', params: {'time': nightHm(at)}),
+        at != null
+            ? l10n.text('nightCtlUpMoonSets', params: {'time': nightHm(at)})
+            : item.moonRise != null
+                ? l10n.text(
+                    'nightCtlUpMoonRises',
+                    params: {'time': nightHm(item.moonRise!)},
+                  )
+                : l10n.text('nightCtlUpMoonNoSet'),
       );
     case UpcomingKind.meridianFlip ||
           UpcomingKind.targetLow ||
