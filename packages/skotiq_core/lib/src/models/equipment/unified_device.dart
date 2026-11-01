@@ -288,7 +288,7 @@ extension DriverTypeDescription on DriverType {
       case DriverType.indi:
         return 'INDI protocol through a reachable INDI server. Feature support depends on the driver.';
       case DriverType.simulator:
-        return 'Simulated device where that workflow is enabled for testing';
+        return 'Simulated device for trying Skotiq without hardware';
     }
   }
 

@@ -61,6 +61,8 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
     final siteValue = siteSet
         ? '${settings.latitude.toStringAsFixed(4)}°, '
             '${settings.longitude.toStringAsFixed(4)}°'
+            // An elevation of 0 is the unset default, as on the site step.
+            '${settings.elevation != 0.0 ? ' · ${settings.elevation.toStringAsFixed(0)} m' : ''}'
         : null;
 
     return SingleChildScrollView(

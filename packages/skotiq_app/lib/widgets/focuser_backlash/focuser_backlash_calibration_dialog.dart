@@ -307,8 +307,8 @@ class _IntroPanel extends StatelessWidget {
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
           'Stars in the frame, focus already roughly set, and a few undisturbed '
-          'minutes. Tracking should be running and the sky clear of the target '
-          'for the whole measurement.',
+          'minutes. Tracking should be running and the sky over the target '
+          'clear for the whole measurement.',
           style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: SkotiqTokens.spaceXl),

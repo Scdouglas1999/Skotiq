@@ -244,6 +244,9 @@ class _NextStepCardState extends State<_NextStepCard> {
         onTap: widget.onTap,
         child: Semantics(
           button: true,
+          // Without `enabled`, a button node is announced as disabled.
+          enabled: true,
+          onTap: widget.onTap,
           label: '${widget.title}. ${widget.subtitle}',
           child: ExcludeSemantics(
             child: AnimatedContainer(

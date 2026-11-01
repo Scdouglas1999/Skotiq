@@ -118,7 +118,7 @@ void main() {
         const FocuserBacklashCalibrationState(plan: plan9Points),
       );
 
-      expect(find.textContaining('about 4 minutes 30s'), findsOneWidget);
+      expect(find.textContaining('about 4 minutes 30 seconds'), findsOneWidget);
       expect(find.textContaining('An estimate'), findsOneWidget);
       // The travel the focuser will actually be commanded over, not just the
       // sampled range.

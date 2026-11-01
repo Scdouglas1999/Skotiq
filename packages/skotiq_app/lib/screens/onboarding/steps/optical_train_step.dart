@@ -388,7 +388,7 @@ class _OnboardingOpticalTrainStepState
             // this very number, and the two screens contradicting each other
             // about whether it can be looked up is what sent users to a
             // datasheet they did not need.
-            hint: "e.g. 3.76 — or load it with your camera on the next step",
+            hint: "e.g. 3.76, from the camera's specifications",
             suffix: 'µm',
             errorText: _pixelSizeError,
             onChanged: () => _commit(_OpticalField.pixelSize),

@@ -47,7 +47,7 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
         ),
       SkotiqButton(
         onPressed: _isSaving ? null : _save,
-        label: 'Save changes',
+        label: widget.profile == null ? 'Create profile' : 'Save changes',
         variant: ButtonVariant.primary,
         isLoading: _isSaving,
       ),
