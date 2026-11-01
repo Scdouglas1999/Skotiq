@@ -1648,7 +1648,7 @@ void main() {
     expect(data.label, contains('m31_L.fits'));
     expect(data.label, contains('2×2'));
     expect(data.label, contains('still-linear pixels'));
-    expect(data.label, contains('pyramid level 0'));
+    expect(data.label, contains('at full resolution'));
     handle.dispose();
     await drain(tester);
   });

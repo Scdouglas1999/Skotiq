@@ -27,7 +27,9 @@ class _FlakyProfilesDao extends EquipmentProfilesDao {
 
 /// The Profile Name field is the first text field in the form.
 Finder get _nameField => find.byType(TextField).first;
-Finder get _saveButton => find.text('Save changes');
+// "Create profile" on a new profile, "Save changes" on an existing one.
+Finder get _saveButton =>
+    find.textContaining(RegExp(r'^(Save changes|Create profile)$'));
 
 /// Locate an optics field by its hint plus its `mm` suffix, so the finder does
 /// not depend on field ordering and does not collide with the Gain field, which

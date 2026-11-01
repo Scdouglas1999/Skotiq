@@ -1026,7 +1026,7 @@ void main() {
     });
     expect(encoding.applied, 'unit');
     expect(encoding.sourceDomain, isNull);
-    expect(encoding.sentence, contains('own samples'));
+    expect(encoding.sentence, contains('rendered pixels as they are'));
     expect(encoding.sentence, contains('domain the engine did not name'));
   });
 
