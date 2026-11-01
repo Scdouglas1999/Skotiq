@@ -410,7 +410,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Could not save the port. The previous value was restored.',
     'remoteAccessIssueTitle': 'Remote access needs attention',
     'remoteAccessIssueBody':
-        'Skotiq ran into a remote-access problem. Check the connection details below before sharing the dashboard.',
+        'If the port is in use by another program, choose a different port above.',
     'remoteAccessLocalActionTitle': 'Open on this computer',
     'remoteAccessLocalActionBody':
         'Use this link from the same machine to confirm the dashboard is working before sharing it elsewhere.',
@@ -2056,7 +2056,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'No se pudo guardar el puerto. Se restauro el valor anterior.',
     'remoteAccessIssueTitle': 'El acceso remoto necesita atencion',
     'remoteAccessIssueBody':
-        'Skotiq encontro un problema de acceso remoto. Revisa los detalles de conexion antes de compartir el panel.',
+        'Si otro programa usa el puerto, elige un puerto distinto arriba.',
     'remoteAccessLocalActionTitle': 'Abrir en este equipo',
     'remoteAccessLocalActionBody':
         'Usa este enlace desde esta misma maquina para confirmar que el panel funciona antes de compartirlo.',
