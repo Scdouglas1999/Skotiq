@@ -132,10 +132,11 @@ class EquipmentHealthPanel extends ConsumerWidget {
   /// the one widget whose job is to catch a quiet device untrustworthy on the
   /// happy path. No timestamp reads as unknown.
   static String _heartbeatLabel(DeviceHealthSnapshot snapshot) {
-    final state = snapshot.isHealthy ? 'OK' : 'Unhealthy';
+    // With no contact on record there is nothing to call OK.
     if (snapshot.lastSuccessfulTimestampMs <= 0) {
-      return '$state - last contact unknown';
+      return 'No contact recorded';
     }
+    final state = snapshot.isHealthy ? 'OK' : 'Unhealthy';
     final age = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(snapshot.lastSuccessfulTimestampMs),
     );
