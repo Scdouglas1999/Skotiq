@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/readiness/readiness_panel.dart';
+import '../utils/connect_all_action.dart';
 import 'equipment_blocker_row.dart';
 
 /// The Readiness block of the Equipment side panel: a [SectionTitle] with the
@@ -79,7 +80,7 @@ class EquipmentReadinessPanel extends ConsumerWidget {
                       label: items[i].fixLabel!,
                       variant: ButtonVariant.secondary,
                       size: ButtonSize.small,
-                      onPressed: () => context.go(items[i].fixRoute!),
+                      onPressed: () => _fix(context, ref, items[i]),
                     )
                   : null,
               trailing: items[i].level == ReadinessLevel.caution
@@ -97,6 +98,20 @@ class EquipmentReadinessPanel extends ConsumerWidget {
             ),
       ],
     );
+  }
+
+  /// Device items point at this screen, so their fix connects the active
+  /// profile's devices here instead of navigating to where the user already
+  /// is. Every other item opens its route.
+  static void _fix(BuildContext context, WidgetRef ref, ReadinessItem item) {
+    final profile = ref.read(activeEquipmentProfileProvider);
+    final connectsHere = item.id == ReadinessItemId.criticalDevices ||
+        item.id == ReadinessItemId.profileDevices;
+    if (connectsHere && profile != null) {
+      runConnectAllForProfile(context, ref, profile);
+      return;
+    }
+    context.go(item.fixRoute!);
   }
 
   static String _countLabel(int outstanding, int blockers) {
