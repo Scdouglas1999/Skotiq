@@ -472,7 +472,7 @@ class _ChannelTile extends StatelessWidget {
                 ),
               ),
               Text(
-                '${hours.toStringAsFixed(1)} h',
+                formatIntegrationHours(hours),
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -492,7 +492,7 @@ class _ChannelTile extends StatelessWidget {
       ),
     );
     final label = '${channel.filter}: '
-        '${master == null ? 'not built, ${hours.toStringAsFixed(1)} hours of kept subs' : '${hours.toStringAsFixed(1)} hour master'}'
+        '${master == null ? 'not built, ${formatIntegrationHours(hours)} of kept subs' : '${formatIntegrationHours(hours)} master'}'
         '${flat == null ? '' : (flat! ? ', flat ready' : ', no flat')}';
     if (master == null) {
       return Semantics(label: label, excludeSemantics: true, child: tile);
@@ -734,7 +734,7 @@ String describeBuiltMasters(DarkroomBuildJob job) {
     final filters = [for (final r in results) '${r['filter']}']
       ..sort(compareDarkroomFilters);
     parts.add('${joinWords(filters)} from $subs subs, '
-        '${(seconds / 3600).toStringAsFixed(1)} h.');
+        '${formatIntegrationSeconds(seconds.toDouble())}.');
   }
   if (report?['failures'] case final List failures) {
     for (final f in failures) {

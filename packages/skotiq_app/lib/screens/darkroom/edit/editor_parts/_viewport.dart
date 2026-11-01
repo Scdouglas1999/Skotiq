@@ -52,7 +52,11 @@ String darkroomPictureLabel(
     final String named => 'pixels the engine called "$named"',
   };
   final level = preview.level;
-  final from = level == null ? '' : ', rendered from pyramid level $level';
+  final from = level == null
+      ? ''
+      : level == 0
+          ? ', at full resolution'
+          : ', previewed at 1/${1 << level} resolution';
   final String freshness;
   if (state.rendering) {
     freshness = ' A newer render is still running, so these are the previous '
@@ -65,7 +69,7 @@ String darkroomPictureLabel(
   }
   return 'Rendered draft of ${name ?? state.recipeName} over '
       '${p.basename(state.baseMasterPath)}: ${preview.width}×'
-      '${preview.height} ${preview.isColor ? 'colour' : 'monochrome'} '
+      '${preview.height} ${preview.isColor ? 'color' : 'monochrome'} '
       '$stage$from.$freshness';
 }
 
@@ -565,8 +569,8 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
             // and saying so here keeps it from reading as an account of the
             // stack the operator is now editing.
             state.renderError == null || state.rendering
-                ? 'Display transfer: ${encoding.sentence}'
-                : 'Display transfer of the last render that finished: '
+                ? 'On screen: ${encoding.sentence}'
+                : 'On screen, from the last render that finished: '
                     '${encoding.sentence}',
             style: SkotiqTypography.caption.copyWith(
               color: SkotiqColors.dark.textSecondary,

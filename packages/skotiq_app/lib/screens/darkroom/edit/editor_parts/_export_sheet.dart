@@ -1092,8 +1092,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       case _DarkroomExportFormat.png:
         return '16-bit PNG, quantized from the render\'s samples.';
       case _DarkroomExportFormat.jpeg:
-        return '8-bit JPEG at the engine\'s documented default quality; the '
-            'reply names the value used.';
+        return '8-bit JPEG at the standard quality setting.';
       case _DarkroomExportFormat.tiff:
         return '16-bit TIFF, quantized from the render\'s samples.';
     }

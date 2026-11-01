@@ -739,8 +739,8 @@ class _DarkroomStartOfferView extends StatelessWidget {
                 // Promising "a crop off the registration edge" outright named a
                 // step the draft does not always carry, and the operator read
                 // the promise before the draft existed to contradict it.
-                'The operation registry measures this master and proposes a '
-                'first stack — a background fit, denoise, '
+                'Skotiq measures this master and proposes a first set of '
+                'steps — a background fit, denoise, '
                 '${offer.isColor ? 'a color calibration' : ''
                     'no color calibration, because the fit needs three '
                     'channels and this master has '

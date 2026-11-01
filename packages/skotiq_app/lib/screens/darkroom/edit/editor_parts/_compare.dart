@@ -420,7 +420,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
               vertical: 2,
             ),
             child: Text(
-              'Display transfer: ${preview.encoding}',
+              'On screen: ${preview.encoding}',
               style: SkotiqTypography.captionSm.copyWith(
                 color: colors.textMuted,
               ),

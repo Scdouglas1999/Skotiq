@@ -987,7 +987,7 @@ void main() {
       findsWidgets,
     );
     expect(
-      find.textContaining('Display transfer of the last render that finished'),
+      find.textContaining('On screen, from the last render that finished'),
       findsOneWidget,
     );
     // And the picture's own name to a screen reader says it too. A label that
