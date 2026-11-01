@@ -128,6 +128,29 @@ mod sim_mount_tests {
         assert!(!arrived.slewing);
     }
 
+    /// A goto ends with the mount tracking the target, whatever the tracking
+    /// state was before it.
+    #[tokio::test]
+    async fn a_slew_leaves_an_untracked_mount_tracking() {
+        let _serialized = sim_singleton_test_lock().lock().await;
+        let device_id = "sim_mount_slew_tracks";
+        attach_sim_mount(device_id).await;
+        set_site(-75.0);
+        let mgr = get_device_manager();
+        mgr.mount_unpark(device_id).await.unwrap();
+        mgr.mount_set_tracking(device_id, false).await.unwrap();
+        assert!(!mgr.mount_get_status(device_id).await.unwrap().tracking);
+
+        mgr.mount_slew(device_id, 6.0, 45.0).await.unwrap();
+        wait_for_slew_to_finish(device_id).await;
+
+        let arrived = mgr.mount_get_status(device_id).await.unwrap();
+        assert!(
+            arrived.tracking,
+            "the mount arrived at the slew target with tracking off"
+        );
+    }
+
     /// Aborting has to stop the motion where it is, not let the interpolation
     /// carry on to the commanded target.
     #[tokio::test]
