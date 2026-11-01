@@ -305,6 +305,33 @@ where
     }
 }
 
+/// Take one frame, riding through up to [`GUIDE_FRAME_RETRIES`] consecutive
+/// failures with the same notification and pause as the guiding loop. Used
+/// where a frame is needed before guiding starts (calibration), so one failed
+/// download does not end the run.
+pub(crate) async fn retry_guide_frame<T, F, Fut>(
+    mut capture: F,
+    retry_delay: Duration,
+) -> Result<T, SkotiqError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, SkotiqError>>,
+{
+    let never_stopped = std::sync::atomic::AtomicBool::new(false);
+    let mut failures = 0;
+    loop {
+        match next_guiding_frame(&mut capture, &mut failures, retry_delay, &never_stopped).await? {
+            GuideFrameAttempt::Frame(frame) => return Ok(frame),
+            GuideFrameAttempt::Skipped(_) => continue,
+        }
+    }
+}
+
+/// [`capture_guide_frame`] with [`retry_guide_frame`]'s tolerance.
+pub(crate) async fn capture_guide_frame_with_retries() -> Result<GuideFrame, SkotiqError> {
+    retry_guide_frame(capture_guide_frame, GUIDE_FRAME_RETRY_DELAY).await
+}
+
 pub(crate) async fn run_guiding_loop(
     controller: Arc<RwLock<BuiltinGuiderState>>,
     stop_flag: Arc<std::sync::atomic::AtomicBool>,

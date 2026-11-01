@@ -3,7 +3,7 @@ use super::*;
 pub(crate) async fn calibrate_mount_response(
     controller: Arc<RwLock<BuiltinGuiderState>>,
 ) -> Result<GuideCalibration, SkotiqError> {
-    let baseline = capture_guide_frame().await?;
+    let baseline = capture_guide_frame_with_retries().await?;
     {
         let mut guard = controller.write().await;
         guard.reference_stars =
@@ -20,7 +20,7 @@ pub(crate) async fn calibrate_mount_response(
     // After the RA round-trip the scope is back near baseline. Recapture so the
     // Dec calibration measures from the current position (RA backlash/PE during
     // the RA round-trip would otherwise contaminate the Dec baseline).
-    let dec_baseline = capture_guide_frame().await?;
+    let dec_baseline = capture_guide_frame_with_retries().await?;
     let (north, dec_backlash_ms) = calibrate_dec_response("north", "south", &dec_baseline).await?;
 
     let config = controller.read().await.config.clone();
@@ -112,7 +112,7 @@ pub(crate) async fn calibrate_dec_response(
             .map_err(SkotiqError::from)?;
         tokio::time::sleep(Duration::from_millis(config.settle_sleep_ms)).await;
     }
-    let fwd_frame = capture_guide_frame().await?;
+    let fwd_frame = capture_guide_frame_with_retries().await?;
     let fwd_offset = measure_offset(&refs, &fwd_frame.stars, Vec2::default()).ok_or_else(|| {
         SkotiqError::OperationFailed("Dec calibration forward star match failed".to_string())
     })?;
@@ -144,7 +144,7 @@ pub(crate) async fn calibrate_dec_response(
         .await
         .map_err(SkotiqError::from)?;
     tokio::time::sleep(Duration::from_millis(config.settle_sleep_ms)).await;
-    let rev_frame = capture_guide_frame().await?;
+    let rev_frame = capture_guide_frame_with_retries().await?;
     // A failed reverse star match must not be fed to the estimator as "the mount
     // did not move". Work the arithmetic: reverse_first = (0,0) makes
     // reverse_travel 0, so shortfall == fwd_mag and the result is EXACTLY
@@ -238,7 +238,7 @@ pub(crate) async fn calibrate_axis_response(
         .await
         .map_err(SkotiqError::from)?;
     tokio::time::sleep(Duration::from_millis(config.settle_sleep_ms)).await;
-    let moved_frame = capture_guide_frame().await?;
+    let moved_frame = capture_guide_frame_with_retries().await?;
     let offset = measure_offset(
         &select_reference_stars(&baseline.stars, baseline.image.width, baseline.image.height),
         &moved_frame.stars,
