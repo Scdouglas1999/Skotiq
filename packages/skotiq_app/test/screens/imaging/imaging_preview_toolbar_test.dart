@@ -39,8 +39,67 @@ void _swallowKnownOverflows() {
   addTearDown(() => FlutterError.onError = defaultOnError);
 }
 
+class _AdvancedScienceSettings extends ScienceSettingsNotifier {
+  @override
+  Future<ScienceSettings> build() async =>
+      const ScienceSettings(advancedModeEnabled: true);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets(
+      'Show advanced overlay controls adds the PSF, residual and tile-map '
+      'layers to the Overlays menu', (tester) async {
+    _swallowKnownOverflows();
+    final handle = await pumpAppScreen(
+      tester,
+      const ImagingScreen(),
+      size: const Size(1600, 900),
+      settle: false,
+      extraOverrides: [
+        scienceSettingsProvider.overrideWith(_AdvancedScienceSettings.new),
+      ],
+    );
+    await _drainAsyncFrames(tester);
+    addTearDown(() async => handle.database.close());
+
+    await tester.tap(find.text('Overlays'));
+    await _drainAsyncFrames(tester);
+
+    for (final label in const [
+      'PSF heatmap',
+      'Residual vectors',
+      'Uniformity tile map',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+
+    await tester.tap(find.text('PSF heatmap'));
+    await _drainAsyncFrames(tester);
+    expect(
+      handle.container.read(scienceOverlayStateProvider).showPsfHeatmap,
+      isTrue,
+    );
+  });
+
+  testWidgets(
+      'without advanced controls the science layers stay out of the '
+      'Overlays menu', (tester) async {
+    _swallowKnownOverflows();
+    final handle = await pumpAppScreen(
+      tester,
+      const ImagingScreen(),
+      size: const Size(1600, 900),
+      settle: false,
+    );
+    await _drainAsyncFrames(tester);
+    addTearDown(() async => handle.database.close());
+
+    await tester.tap(find.text('Overlays'));
+    await _drainAsyncFrames(tester);
+    expect(find.text('PSF heatmap'), findsNothing);
+  });
 
   testWidgets(
       'toolbar_renders_above_preview: ImagingPreviewToolbar is present at '
