@@ -136,9 +136,12 @@ class FrameInfoPill extends ConsumerWidget {
   @visibleForTesting
   static String frameIdentity(ExposureSettings settings) {
     final exposure = settings.exposureTime;
+    // Flats run in milliseconds; 0.0022 s must not read as "0.00 s".
     final exposureLabel = exposure >= 1
         ? '${exposure.toStringAsFixed(1)} s'
-        : '${exposure.toStringAsFixed(2)} s';
+        : exposure >= 0.1
+            ? '${exposure.toStringAsFixed(2)} s'
+            : '${(exposure * 1000).toStringAsFixed(1)} ms';
     final filter = settings.filter?.trim();
     final lead = settings.frameType == FrameType.light &&
             filter != null &&
