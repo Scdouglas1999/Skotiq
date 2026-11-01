@@ -161,11 +161,7 @@ class _TimeInputButton extends StatelessWidget {
         );
         if (picked != null) {
           final now = DateTime.now();
-          var target = DateTime(
-              now.year, now.month, now.day, picked.hour, picked.minute);
-          if (target.isBefore(now)) {
-            target = target.add(const Duration(days: 1));
-          }
+          final target = nextLocalTimeOfDay(now, picked.hour, picked.minute);
           onChanged(target.millisecondsSinceEpoch ~/ 1000);
         }
       },

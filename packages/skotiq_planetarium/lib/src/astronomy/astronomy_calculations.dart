@@ -387,6 +387,30 @@ class AstronomyCalculations {
     positionAt: positionAt,
   );
 
+  /// Rise, transit and set for the pass culminating closest to [center]:
+  /// the window runs from 12 hours before [center] to 12 hours after.
+  ///
+  /// Use this with a night's midpoint when the observing site is not in the
+  /// host computer's time zone. [calculateObjectVisibility] opens its window
+  /// at the host's local noon, which for a distant site can cut the night in
+  /// two and report the previous day's culmination.
+  static ObjectVisibility calculateObjectVisibilityAround({
+    required double raDeg,
+    required double decDeg,
+    required DateTime center,
+    required double latitudeDeg,
+    required double longitudeDeg,
+    double minAltitude = 0,
+  }) => _calculateObjectVisibility(
+    raDeg: raDeg,
+    decDeg: decDeg,
+    date: center,
+    latitudeDeg: latitudeDeg,
+    longitudeDeg: longitudeDeg,
+    minAltitude: minAltitude,
+    windowStart: center.subtract(const Duration(hours: 12)),
+  );
+
   /// Sun rise/transit/set for the local day of [date], tracking the Sun's
   /// motion and using the standard -0.833° limb altitude.
   ///

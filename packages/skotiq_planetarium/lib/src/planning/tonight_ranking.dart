@@ -259,10 +259,10 @@ List<TonightRanking> rankTonightTargets({
     for (final entry in scored.take(limit))
       TonightRanking(
         index: entry.index,
-        visibility: AstronomyCalculations.calculateObjectVisibility(
+        visibility: AstronomyCalculations.calculateObjectVisibilityAround(
           raDeg: raDeg[entry.index],
           decDeg: decDeg[entry.index],
-          date: nightDate,
+          center: mid,
           latitudeDeg: latitudeDeg,
           longitudeDeg: longitudeDeg,
           minAltitude: minAltitudeDeg,
