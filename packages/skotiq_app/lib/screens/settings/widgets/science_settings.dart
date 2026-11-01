@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/user_facing_error.dart';
 import 'settings_widgets.dart';
@@ -13,6 +14,13 @@ String? _validatePositiveScienceId(String value) {
   if (parsed == null || parsed <= 0) {
     return 'Enter a positive whole-number ID';
   }
+  return null;
+}
+
+String? _validateAtlasLimitGb(String value) {
+  if (value.isEmpty) return null;
+  final parsed = int.tryParse(value);
+  if (parsed == null || parsed < 0) return 'Enter a whole number of GB';
   return null;
 }
 
@@ -189,8 +197,8 @@ class ScienceSettingsPage extends ConsumerWidget {
                   title: 'Your Sky atlas',
                   subtitle:
                       'Add each accepted, solved light to your sky atlas. '
-                      'Uses about 40 MB of disk per sky tile; First Light '
-                      'needs it on.',
+                      'Each sky tile takes about 3 to 15 MB of disk; First '
+                      'Light needs it on.',
                   trailing: SettingsSwitch(
                     value: science.skyAtlasEnabled,
                     onChanged: (value) => scienceNotifier.setFeatureEnabled(
@@ -199,6 +207,26 @@ class ScienceSettingsPage extends ConsumerWidget {
                     ),
                   ),
                   isMobile: isMobile,
+                ),
+                _ScienceTextRow(
+                  isMobile: isMobile,
+                  icon: LucideIcons.hardDrive,
+                  title: 'Your Sky size limit (GB)',
+                  subtitle: 'New frames stop being added to the atlas when it '
+                      'reaches this size. Nothing is deleted. 0 means no limit.',
+                  hint: '$defaultSkyAtlasLimitGb',
+                  width: 80,
+                  numeric: true,
+                  maxLength: 5,
+                  validate: _validateAtlasLimitGb,
+                  value: science.skyAtlasLimitGb.toString(),
+                  onCommit: (value) => scienceNotifier.setSkyAtlasLimitGb(
+                    value.isEmpty ? defaultSkyAtlasLimitGb : int.parse(value),
+                  ),
+                ),
+                _SkyAtlasStorageRow(
+                  isMobile: isMobile,
+                  limitGb: science.skyAtlasLimitGb,
                 ),
                 SettingRow(
                   icon: LucideIcons.rocket,
@@ -977,6 +1005,83 @@ class _ScienceCameraValueRowState
         onChanged: _commit,
       ),
       isLast: widget.isLast,
+      isMobile: widget.isMobile,
+    );
+  }
+}
+
+/// How much disk the Your Sky atlas uses here, with a button that rewrites
+/// tiles saved by older versions in the compressed format. Hidden on a
+/// companion, whose atlas is on the imaging host.
+class _SkyAtlasStorageRow extends ConsumerStatefulWidget {
+  final bool isMobile;
+  final int limitGb;
+
+  const _SkyAtlasStorageRow({required this.isMobile, required this.limitGb});
+
+  @override
+  ConsumerState<_SkyAtlasStorageRow> createState() =>
+      _SkyAtlasStorageRowState();
+}
+
+class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
+  bool _compacting = false;
+  String? _result;
+
+  Future<void> _compact() async {
+    setState(() {
+      _compacting = true;
+      _result = null;
+    });
+    try {
+      final outcome = await ref.read(skyAtlasServiceProvider).compactTiles();
+      if (!mounted) return;
+      _result = outcome.compacted == 0
+          ? 'All tiles are already compressed.'
+          : 'Compressed ${outcome.compacted} tiles from '
+              '${_gb(outcome.bytesBefore)} GB to ${_gb(outcome.bytesAfter)} GB.';
+    } catch (error) {
+      if (!mounted) return;
+      _result = 'Could not compress tiles: ${userFacingError(error)}';
+    } finally {
+      if (mounted) {
+        setState(() => _compacting = false);
+        ref.invalidate(skyAtlasStorageBytesProvider);
+      }
+    }
+  }
+
+  static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = ref.watch(skyAtlasStorageBytesProvider);
+    if (usage.valueOrNull == null && !usage.isLoading) {
+      return const SizedBox.shrink();
+    }
+    final bytes = usage.valueOrNull;
+    final String subtitle;
+    if (_result != null) {
+      subtitle = _result!;
+    } else if (bytes == null) {
+      subtitle = 'Measuring…';
+    } else {
+      final limit = widget.limitGb;
+      subtitle = limit > 0
+          ? '${_gb(bytes)} GB of $limit GB used. Compressing rewrites tiles '
+              'saved by older versions at a fraction of the size.'
+          : '${_gb(bytes)} GB used. Compressing rewrites tiles saved by older '
+              'versions at a fraction of the size.';
+    }
+    return SettingRow(
+      icon: LucideIcons.archive,
+      title: 'Your Sky storage',
+      subtitle: subtitle,
+      trailing: SkotiqButton(
+        label: _compacting ? 'Compressing…' : 'Compress tiles',
+        variant: ButtonVariant.secondary,
+        onPressed: _compacting || bytes == null ? null : _compact,
+      ),
       isMobile: widget.isMobile,
     );
   }

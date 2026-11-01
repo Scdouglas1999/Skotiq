@@ -2286,6 +2286,7 @@ dependencies = [
  "bytemuck",
  "cc",
  "chrono",
+ "flate2",
  "image",
  "memmap2",
  "quick-xml",

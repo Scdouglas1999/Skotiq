@@ -50,6 +50,10 @@ class _FakeScienceSettings extends ScienceSettingsNotifier {
   @override
   Future<void> setMpcObservatoryCode(String code) =>
       _write(code, () => _value.copyWith(mpcObservatoryCode: code));
+
+  @override
+  Future<void> setSkyAtlasLimitGb(int gb) =>
+      _write('$gb GB', () => _value.copyWith(skyAtlasLimitGb: gb));
 }
 
 class _StubBackendNotifier extends BackendNotifier {
@@ -86,6 +90,7 @@ Future<void> _pumpPage(
   WidgetTester tester, {
   required _FakeScienceSettings science,
   SecureKeyValueStore? keyring,
+  int? atlasBytes,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1400, 2400);
@@ -101,6 +106,7 @@ Future<void> _pumpPage(
         scienceRawSettingsProvider
             .overrideWith((ref) async => <String, String>{}),
         backendProvider.overrideWith(_StubBackendNotifier.new),
+        skyAtlasStorageBytesProvider.overrideWith((ref) async => atlasBytes),
         secretsStoreProvider.overrideWithValue(
           SecretsStore(keyring ?? InMemorySecureKeyValueStore()),
         ),
@@ -216,5 +222,24 @@ void main() {
       findsNothing,
       reason: 'the subtitle must not report a key the keyring never took',
     );
+  });
+  testWidgets('the atlas size limit is shown, stored, and its usage named',
+      (tester) async {
+    final science = _FakeScienceSettings();
+    await _pumpPage(tester, science: science, atlasBytes: 12300000000);
+
+    expect(find.text('Your Sky size limit (GB)'), findsOneWidget);
+    expect(find.textContaining('12.3 GB of 25 GB used'), findsOneWidget);
+    expect(find.text('Compress tiles'), findsOneWidget);
+
+    final field = _fieldWithHint('25');
+    expect(_textIn(tester, field), '25');
+    await _typeAndBlur(tester, field, '60');
+    expect(science.writes, ['60 GB']);
+  });
+
+  testWidgets('a companion shows no local atlas storage row', (tester) async {
+    await _pumpPage(tester, science: _FakeScienceSettings());
+    expect(find.text('Your Sky storage'), findsNothing);
   });
 }

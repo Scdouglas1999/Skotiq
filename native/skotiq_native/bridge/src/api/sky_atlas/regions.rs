@@ -335,7 +335,7 @@ pub(crate) fn merge_delta_impl(args: MergeDeltaArgs) -> Result<MergeDeltaResult,
 
     let out = Path::new(&args.out_path);
     ensure_parent_dir(out)?;
-    std::fs::write(out, base.serialize())
+    std::fs::write(out, base.serialize_compressed())
         .map_err(|e| format!("failed to write merged base: {e}"))?;
 
     Ok(MergeDeltaResult {

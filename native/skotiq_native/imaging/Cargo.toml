@@ -28,6 +28,9 @@ bytemuck = { version = "1.14", features = ["derive"] }
 # Memory-mapped file access for large files
 memmap2 = "0.9"
 
+# Deflate for compressed sky-atlas tile sidecars (already in the tree via png/zip)
+flate2 = "1.1"
+
 # Note: LibRaw support via custom FFI bindings (see raw.rs)
 # Using pre-compiled libraw.dll to avoid Windows compilation issues
 

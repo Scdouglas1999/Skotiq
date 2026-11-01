@@ -326,17 +326,19 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Walk back through the equipment onboarding wizard to scan',
   ],
   'image-grading': [
+    'Default: 30 arcseconds. Measured from the first successfully solved',
     'Detect obstructions',
     'Eccentricity max',
     'Enable image grading',
     'Focus thresholds',
-    'Frame watch',
     'HFR absolute (pixels)',
     'HFR baseline percent',
     'Image grading',
     'Master toggle',
+    'Maximum drift',
     'Notify after consecutive rejects',
-    'Recenter after drift',
+    'Plate solve every saved light frame and recenter between exposures',
+    'Recenter after drift trigger',
     'Reject folder',
     'Reject folder path',
     'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
@@ -346,7 +348,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Star count min',
     'Star shape thresholds',
     'Watch for trees or a roof entering the field: stars fade while',
-    'When a solved frame is farther from the target than this share',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
   ],
@@ -655,6 +656,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Moving object mode',
     'MPC observatory code',
     'Narrowband line ratios',
+    'New frames stop being added to the atlas when it',
     'Observer identity',
     'Observer name',
     'Per-frame photometric calibration',
@@ -681,6 +683,8 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Your 3-character MPC observatory code (e.g.,',
     'Your assigned AAVSO observer initials (1-5 chars,',
     'Your Sky atlas',
+    'Your Sky size limit (GB)',
+    'Your Sky storage',
     'Your TNS bot id (tns_marker tns_id).',
     'Your TNS bot name (tns_marker name).',
     'Your TNS discovery_data_source_id.',
@@ -933,6 +937,10 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Re-run equipment setup',
   },
   'image-grading': {
+    'Default: 30 arcseconds. Measured from the first successfully solved':
+        'Maximum drift',
+    'Plate solve every saved light frame and recenter between exposures':
+        'Recenter after drift trigger',
     'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.':
         'Star count min',
     'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.':
@@ -941,8 +949,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Notify after consecutive rejects',
     'Watch for trees or a roof entering the field: stars fade while':
         'Detect obstructions',
-    'When a solved frame is farther from the target than this share':
-        'Recenter after drift',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.':
         'Enable image grading',
     'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.':
@@ -1065,6 +1071,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Deep catalog lookups (APASS DR9)',
     'Generate SII/Ha, OIII/Ha, and SII/OIII products': 'Narrowband line ratios',
     'Map catalog offsets across each solved frame': 'Astrometric residuals',
+    'New frames stop being added to the atlas when it':
+        'Your Sky size limit (GB)',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',
     'Reporter shown on TNS (falls back to observer': 'Reporter name',

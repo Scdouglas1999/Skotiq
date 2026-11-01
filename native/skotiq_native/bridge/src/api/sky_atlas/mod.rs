@@ -156,6 +156,15 @@ struct AtlasAction {
     action: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[flutter_rust_bridge::frb(ignore)]
+struct CompactArgs {
+    atlas_root: String,
+    #[serde(default = "default_order")]
+    order: u32,
+}
+
 /// Sky-atlas dispatcher. `args_json` carries an `"action"` selecting the
 /// operation; the remaining fields are the action-specific payload documented in
 /// `docs/skotiq_5_0_contracts.md` §2.1. Returns the action's JSON result.
@@ -199,8 +208,19 @@ pub fn api_sky_atlas(args_json: String) -> Result<String, String> {
             let result = info_impl(args)?;
             serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
         }
+        "compact" => {
+            let args: CompactArgs = serde_json::from_str(&args_json)
+                .map_err(|e| format!("invalid compact args: {e}"))?;
+            let stats = open_atlas(&args.atlas_root, args.order)?
+                .compact_sidecars()
+                .map_err(|e| describe_atlas_error(&e))?;
+            let mut value =
+                serde_json::to_value(&stats).map_err(|e| format!("failed to encode result: {e}"))?;
+            value["ok"] = serde_json::Value::Bool(true);
+            serde_json::to_string(&value).map_err(|e| format!("failed to encode result: {e}"))
+        }
         other => Err(format!(
-            "unknown atlas action '{other}'; expected fold/finalize/tilePng/coverage/exportDelta/info"
+            "unknown atlas action '{other}'; expected fold/finalize/tilePng/coverage/exportDelta/info/compact"
         )),
     }
 }

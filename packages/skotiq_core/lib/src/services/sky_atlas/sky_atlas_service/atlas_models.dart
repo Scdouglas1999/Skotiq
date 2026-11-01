@@ -62,3 +62,40 @@ class AtlasTargetRef {
     required this.decDeg,
   });
 }
+
+/// Outcome of [SkyAtlasService.compactTiles].
+class AtlasCompactionResult {
+  /// Tiles rewritten in the compressed format.
+  final int compacted;
+
+  /// Tiles that were already compressed.
+  final int alreadyCompact;
+
+  /// Tiles that could not be read and were left as they were.
+  final int unreadable;
+
+  /// Bytes the rewritten tiles took before.
+  final int bytesBefore;
+
+  /// Bytes the rewritten tiles take now.
+  final int bytesAfter;
+
+  const AtlasCompactionResult({
+    required this.compacted,
+    required this.alreadyCompact,
+    required this.unreadable,
+    required this.bytesBefore,
+    required this.bytesAfter,
+  });
+
+  factory AtlasCompactionResult.fromJson(Map<String, dynamic> json) {
+    int read(String key) => (json[key] as num?)?.toInt() ?? 0;
+    return AtlasCompactionResult(
+      compacted: read('compacted'),
+      alreadyCompact: read('alreadyCompact'),
+      unreadable: read('unreadable'),
+      bytesBefore: read('bytesBefore'),
+      bytesAfter: read('bytesAfter'),
+    );
+  }
+}

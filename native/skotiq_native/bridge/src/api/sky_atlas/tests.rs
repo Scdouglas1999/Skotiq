@@ -466,3 +466,35 @@ fn fold_requires_invertible_wcs() {
     assert!(err.contains("degenerate"), "got: {err}");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn compact_action_rewrites_old_sidecars_and_reports_sizes() {
+    let dir = temp_dir("compact");
+    let order = ATLAS_HEALPIX_ORDER;
+    let tid = radec_to_tile(150.0, 5.0, order);
+    let tile = SkyTileAccumulator::create(tid, order, 1, AccumulationMode::default());
+    let path = dir
+        .join("tiles")
+        .join(order.to_string())
+        .join(format!("{tid}.skt"));
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, tile.serialize()).unwrap();
+
+    let out = api_sky_atlas(
+        serde_json::json!({
+            "action": "compact",
+            "atlasRoot": dir.to_string_lossy(),
+            "order": order,
+        })
+        .to_string(),
+    )
+    .expect("compact");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["ok"], true);
+    assert_eq!(v["compacted"], 1);
+    let before = v["bytesBefore"].as_u64().unwrap();
+    let after = v["bytesAfter"].as_u64().unwrap();
+    assert!(after * 10 < before, "{after} vs {before}");
+    let reread = SkyTileAccumulator::deserialize(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(reread, tile);
+}

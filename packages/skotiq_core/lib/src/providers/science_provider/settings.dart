@@ -13,6 +13,10 @@ class ScienceSettings {
   /// Whether solved lights fold into the Your Sky atlas (and First Light has
   /// a template to compare against).
   final bool skyAtlasEnabled;
+
+  /// Largest size, in GB, the Your Sky atlas may reach before new frames stop
+  /// being added to it. 0 means no limit. Reaching it never deletes anything.
+  final int skyAtlasLimitGb;
   final bool narrowbandRatiosEnabled;
   final bool frameQualityMapsEnabled;
   final bool surface3dEnabled;
@@ -91,6 +95,7 @@ class ScienceSettings {
     this.astrometricResidualsEnabled = true,
     this.movingObjectsEnabled = false,
     this.skyAtlasEnabled = true,
+    this.skyAtlasLimitGb = defaultSkyAtlasLimitGb,
     this.narrowbandRatiosEnabled = false,
     this.frameQualityMapsEnabled = true,
     this.surface3dEnabled = true,
@@ -129,6 +134,7 @@ class ScienceSettings {
     bool? astrometricResidualsEnabled,
     bool? movingObjectsEnabled,
     bool? skyAtlasEnabled,
+    int? skyAtlasLimitGb,
     bool? narrowbandRatiosEnabled,
     bool? frameQualityMapsEnabled,
     bool? surface3dEnabled,
@@ -161,6 +167,7 @@ class ScienceSettings {
           astrometricResidualsEnabled ?? this.astrometricResidualsEnabled,
       movingObjectsEnabled: movingObjectsEnabled ?? this.movingObjectsEnabled,
       skyAtlasEnabled: skyAtlasEnabled ?? this.skyAtlasEnabled,
+      skyAtlasLimitGb: skyAtlasLimitGb ?? this.skyAtlasLimitGb,
       narrowbandRatiosEnabled:
           narrowbandRatiosEnabled ?? this.narrowbandRatiosEnabled,
       frameQualityMapsEnabled:
@@ -205,6 +212,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
     'frameQualityMaps': 'science.feature.frame_quality_maps',
     'surface3d': 'science.feature.surface3d',
     'skyAtlas': 'science.feature.sky_atlas',
+    'skyAtlasLimitGb': skyAtlasLimitSettingKey,
     'manualPurgeOnly': 'science.retention.manual_purge_only',
     'fitsHeaderWriteback': 'science.writeback.fits_header_enabled',
     'mpcObservatoryCode': 'science.mpc.observatory_code',
@@ -242,6 +250,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
       ),
       movingObjectsEnabled: _parseBool(settings[_keys['movingObjects']], false),
       skyAtlasEnabled: _parseBool(settings[_keys['skyAtlas']], true),
+      skyAtlasLimitGb: parseSkyAtlasLimitGb(settings[_keys['skyAtlasLimitGb']]),
       narrowbandRatiosEnabled: _parseBool(
         settings[_keys['narrowbandRatios']],
         false,
@@ -365,6 +374,13 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
         ScienceFeature.skyAtlas => current.copyWith(skyAtlasEnabled: enabled),
       };
     });
+  }
+
+  Future<void> setSkyAtlasLimitGb(int gb) {
+    final value = gb < 0 ? 0 : gb;
+    return _update({
+      _keys['skyAtlasLimitGb']!: value.toString(),
+    }, (current) => current.copyWith(skyAtlasLimitGb: value));
   }
 
   Future<void> setMpcObservatoryCode(String code) => _update({

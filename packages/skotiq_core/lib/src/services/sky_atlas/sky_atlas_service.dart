@@ -19,6 +19,21 @@ part 'sky_atlas_service/internals.dart';
 /// off; anything but `false` means on.
 const String skyAtlasSettingKey = 'science.feature.sky_atlas';
 
+/// Setting holding the atlas size limit in GB ("0" = no limit).
+const String skyAtlasLimitSettingKey = 'science.sky_atlas.limit_gb';
+
+/// Size limit applied until the user picks one. With compressed tiles this is
+/// several hundred hours of a typical field mix; reaching it only stops new
+/// folds, it never deletes tiles.
+const int defaultSkyAtlasLimitGb = 25;
+
+/// The stored limit in GB; unset or unreadable means [defaultSkyAtlasLimitGb].
+int parseSkyAtlasLimitGb(String? raw) {
+  final parsed = int.tryParse(raw?.trim() ?? '');
+  if (parsed == null || parsed < 0) return defaultSkyAtlasLimitGb;
+  return parsed;
+}
+
 /// Orchestrates Pillar A ("Your Sky") — the personal sky atlas.
 ///
 /// Folds plate-solved light frames into the fixed HEALPix tiling via the native
@@ -39,9 +54,13 @@ class SkyAtlasService {
     Future<AtlasTargetRef?> Function(int targetId)? targetResolver,
     Future<bool> Function()? autoFoldEnabled,
     void Function()? onAtlasChanged,
+    Future<int?> Function()? storageLimitBytes,
+    void Function(int usedBytes, int limitBytes)? onStorageLimitReached,
     int order = skyAtlasHealpixOrder,
   }) : _dao = dao,
        _onAtlasChanged = onAtlasChanged,
+       _storageLimitBytes = storageLimitBytes,
+       _onStorageLimitReached = onStorageLimitReached,
        _seam = seam,
        _logger = logger,
        _atlasRootResolver = atlasRootResolver,
@@ -65,6 +84,21 @@ class SkyAtlasService {
   /// Called after every sidecar writer (fold, swarm merge) finishes, so a host
   /// can tell its companions the atlas changed.
   final void Function()? _onAtlasChanged;
+
+  /// The size the atlas may reach before auto-fold stops adding frames; null
+  /// or 0 means no limit. Reaching it never deletes anything.
+  final Future<int?> Function()? _storageLimitBytes;
+
+  /// Told once each time the atlas reaches its limit, so the user hears that
+  /// new frames are no longer being added.
+  final void Function(int usedBytes, int limitBytes)? _onStorageLimitReached;
+
+  /// The last measured on-disk size and when it was taken. Re-measured at most
+  /// every [_storageMeasureInterval] and after every write.
+  int? _measuredBytes;
+  DateTime? _measuredAt;
+  bool _limitReported = false;
+  static const Duration _storageMeasureInterval = Duration(minutes: 2);
 
   /// Auto-fold requests not yet handed to the native fold.
   final List<_PendingFold> _pendingFolds = [];
@@ -101,6 +135,7 @@ class SkyAtlasService {
     _foldChain = completer.future;
     return prior.then((_) => body()).whenComplete(() {
       _atlasGeneration++;
+      _measuredAt = null;
       completer.complete();
       _onAtlasChanged?.call();
     });
@@ -146,6 +181,78 @@ class SkyAtlasService {
       return const <String, dynamic>{};
     });
     return result;
+  }
+
+  /// True when the atlas has reached its size limit. Reports the first time
+  /// it is reached, and again only after it has dropped back below.
+  Future<bool> _atStorageLimit() async {
+    final limitOf = _storageLimitBytes;
+    if (limitOf == null) return false;
+    final limit = await limitOf();
+    if (limit == null || limit <= 0) return false;
+    final measuredAt = _measuredAt;
+    if (_measuredBytes == null ||
+        measuredAt == null ||
+        DateTime.now().difference(measuredAt) > _storageMeasureInterval) {
+      _measuredBytes = await storageBytes();
+      _measuredAt = DateTime.now();
+    }
+    final used = _measuredBytes!;
+    if (used < limit) {
+      _limitReported = false;
+      return false;
+    }
+    if (!_limitReported) {
+      _limitReported = true;
+      _logger.warning(
+        'Sky atlas: ${_gb(used)} GB on disk reached the ${_gb(limit)} GB '
+        'limit; new frames are not being added.',
+        source: _logSource,
+      );
+      _onStorageLimitReached?.call(used, limit);
+    }
+    return true;
+  }
+
+  static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
+
+  /// Bytes the atlas takes on disk: tiles, layers, overlay and cache.
+  Future<int> storageBytes() async {
+    final dir = Directory(await atlasRoot());
+    if (!await dir.exists()) return 0;
+    var total = 0;
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+      try {
+        total += await entity.length();
+      } on FileSystemException {
+        // Removed mid-walk (a temp sidecar renamed into place).
+      }
+    }
+    return total;
+  }
+
+  /// Rewrite every tile stored in the older uncompressed format in the
+  /// compressed one. Nothing is deleted and every tile keeps its depth; each
+  /// rewrite is atomic. Runs between folds so no tile is rewritten mid-fold.
+  Future<AtlasCompactionResult> compactTiles() {
+    return _serialized(() async {
+      final root = await atlasRoot();
+      final result = await _seam.dispatch({
+        'action': 'compact',
+        'atlasRoot': root,
+        'order': _order,
+      });
+      final outcome = AtlasCompactionResult.fromJson(result);
+      _logger.info(
+        'Sky atlas: compressed ${outcome.compacted} tile'
+        '${outcome.compacted == 1 ? '' : 's'}, '
+        '${_gb(outcome.bytesBefore)} GB to '
+        '${_gb(outcome.bytesAfter)} GB on disk.',
+        source: _logSource,
+      );
+      return outcome;
+    });
   }
 
   /// The on-disk atlas root, resolved (and the directory created) lazily once.
@@ -279,6 +386,7 @@ class SkyAtlasService {
     final enabled = _autoFoldEnabled;
     if (enabled != null && !await enabled()) return null;
     if (image.frameType.toLowerCase() != 'light') return null;
+    if (await _atStorageLimit()) return null;
     // A rejected frame (trailed, clouded, defocused) would degrade the deep
     // template every later frame is compared against.
     if (!image.isAccepted) return null;

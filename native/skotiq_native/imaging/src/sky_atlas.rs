@@ -62,8 +62,17 @@ use crate::robust_stats::{percentile_nearest_rank as percentile_sorted, MAD_TO_S
 use crate::wcs_sip::SipWcs;
 use crate::ImageData;
 
-/// On-disk format version for a serialized [`SkyTileAccumulator`].
+/// Format version of an uncompressed serialized [`SkyTileAccumulator`]: the
+/// six state vectors stored raw. Federation deltas use it, so any build can
+/// read them.
 pub const TILE_STATE_VERSION: u32 = 1;
+
+/// Format version of a compressed tile sidecar: the same payload with each
+/// vector's bytes grouped by significance (byte shuffle) and then deflated.
+/// Uncovered pixels are all zero and nearly vanish, and the shuffled float
+/// planes compress well, so a sidecar is a quarter to a tenth of
+/// [`TILE_STATE_VERSION`]'s 42 MB. Every sidecar the atlas writes uses it.
+pub const TILE_STATE_VERSION_COMPRESSED: u32 = 2;
 /// Magic bytes prefixing a serialized tile sidecar (`"SKT" + version tag`).
 pub const TILE_MAGIC: &[u8; 4] = b"SKT1";
 
@@ -633,6 +642,22 @@ pub enum AtlasError {
 
 // SkyTileAccumulator
 
+/// Outcome of [`SkyAtlas::compact_sidecars`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompactionStats {
+    /// Sidecars rewritten in the compressed format.
+    pub compacted: u64,
+    /// Sidecars that were already compressed.
+    pub already_compact: u64,
+    /// Sidecars that could not be read and were left untouched.
+    pub unreadable: u64,
+    /// Bytes the rewritten sidecars took before.
+    pub bytes_before: u64,
+    /// Bytes the rewritten sidecars take now.
+    pub bytes_after: u64,
+}
+
 /// Per-tile additive accumulator — the master's [`PerPixelAccumulator`] on a
 /// fixed tile grid, plus the tile's frozen [`SipWcs`] and provenance.
 #[derive(Debug, Clone, PartialEq)]
@@ -997,6 +1022,15 @@ impl SkyTileAccumulator {
     /// `rejected` u32) — keeping the big arrays out of JSON so a 1024² tile is
     /// compact and fast to read/write.
     pub fn serialize(&self) -> Vec<u8> {
+        self.serialize_with(TILE_STATE_VERSION)
+    }
+
+    /// Serialize as a compressed sidecar ([`TILE_STATE_VERSION_COMPRESSED`]).
+    pub fn serialize_compressed(&self) -> Vec<u8> {
+        self.serialize_with(TILE_STATE_VERSION_COMPRESSED)
+    }
+
+    fn serialize_with(&self, version: u32) -> Vec<u8> {
         let header = TileHeader {
             tile_id: self.tile_id,
             order: self.order,
@@ -1014,9 +1048,13 @@ impl SkyTileAccumulator {
         let len = self.slot_count();
         let mut out = Vec::with_capacity(12 + header_json.len() + len * (8 * 4 + 4 * 2));
         out.extend_from_slice(TILE_MAGIC);
-        out.extend_from_slice(&TILE_STATE_VERSION.to_le_bytes());
+        out.extend_from_slice(&version.to_le_bytes());
         out.extend_from_slice(&(header_json.len() as u32).to_le_bytes());
         out.extend_from_slice(&header_json);
+        if version == TILE_STATE_VERSION_COMPRESSED {
+            out.extend_from_slice(&compress_payload(&self.state));
+            return out;
+        }
         for &v in &self.state.sum_w {
             out.extend_from_slice(&v.to_le_bytes());
         }
@@ -1053,10 +1091,10 @@ impl SkyTileAccumulator {
             return Err(AtlasError::BadMagic);
         }
         let version = u32::from_le_bytes(bytes[4..8].try_into().expect("4 bytes"));
-        if version != TILE_STATE_VERSION {
+        if version != TILE_STATE_VERSION && version != TILE_STATE_VERSION_COMPRESSED {
             return Err(AtlasError::UnsupportedVersion {
                 got: version,
-                supported: TILE_STATE_VERSION,
+                supported: TILE_STATE_VERSION_COMPRESSED,
             });
         }
         let header_len = u32::from_le_bytes(bytes[8..12].try_into().expect("4 bytes")) as usize;
@@ -1087,6 +1125,13 @@ impl SkyTileAccumulator {
             .checked_mul(4)
             .and_then(|x| x.checked_add(u32_bytes.checked_mul(2)?))
             .ok_or_else(|| AtlasError::Corrupt("payload length overflow".into()))?;
+        let inflated;
+        let (bytes, header_end) = if version == TILE_STATE_VERSION_COMPRESSED {
+            inflated = decompress_payload(&bytes[header_end..], len, payload_len)?;
+            (inflated.as_slice(), 0)
+        } else {
+            (bytes, header_end)
+        };
         let total = header_end
             .checked_add(payload_len)
             .ok_or_else(|| AtlasError::Corrupt("payload length overflow".into()))?;
@@ -1106,7 +1151,7 @@ impl SkyTileAccumulator {
         let rejected = read_u32(bytes, &mut cursor, len);
 
         Ok(Self {
-            version,
+            version: TILE_STATE_VERSION,
             tile_id: header.tile_id,
             order: header.order,
             width: header.width,
@@ -1558,7 +1603,8 @@ impl SkyAtlas {
             std::process::id(),
             STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
         ));
-        std::fs::write(&tmp, tile.serialize()).map_err(|e| AtlasError::Io(e.to_string()))?;
+        std::fs::write(&tmp, tile.serialize_compressed())
+            .map_err(|e| AtlasError::Io(e.to_string()))?;
         std::fs::rename(&tmp, &path).map_err(|e| AtlasError::Io(e.to_string()))?;
         // Migrate on write: the sidecar now lives at its `.skt` path, so a
         // pre-rename `.nst` twin would only duplicate it.
@@ -1569,6 +1615,60 @@ impl SkyAtlas {
             }
         }
         Ok(())
+    }
+
+    /// Rewrite every uncompressed tile sidecar under this atlas's `tiles/`
+    /// tree (base layer, filter layers and the swarm overlay) in the compressed
+    /// format. Each rewrite is atomic, so an interrupted compaction leaves every
+    /// tile readable. Federation deltas in the cache are left as they are.
+    pub fn compact_sidecars(&self) -> Result<CompactionStats, AtlasError> {
+        let mut stats = CompactionStats::default();
+        let mut pending = vec![self.root.join("tiles")];
+        while let Some(dir) = pending.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) => return Err(AtlasError::Io(e.to_string())),
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    pending.push(path);
+                    continue;
+                }
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                if ext != "skt" && ext != "nst" {
+                    continue;
+                }
+                let bytes = std::fs::read(&path).map_err(|e| AtlasError::Io(e.to_string()))?;
+                if bytes.len() >= 8
+                    && u32::from_le_bytes(bytes[4..8].try_into().expect("4 bytes"))
+                        == TILE_STATE_VERSION_COMPRESSED
+                {
+                    stats.already_compact += 1;
+                    continue;
+                }
+                let tile = match SkyTileAccumulator::deserialize(&bytes) {
+                    Ok(t) => t,
+                    Err(_) => {
+                        stats.unreadable += 1;
+                        continue;
+                    }
+                };
+                let compact = tile.serialize_compressed();
+                let tmp = path.with_extension(format!(
+                    "{ext}.tmp.{}.{}",
+                    std::process::id(),
+                    STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
+                ));
+                std::fs::write(&tmp, &compact).map_err(|e| AtlasError::Io(e.to_string()))?;
+                std::fs::rename(&tmp, &path).map_err(|e| AtlasError::Io(e.to_string()))?;
+                stats.compacted += 1;
+                stats.bytes_before += bytes.len() as u64;
+                stats.bytes_after += compact.len() as u64;
+            }
+        }
+        Ok(stats)
     }
 
     /// Fold one plate-solved frame into every tile whose cell its footprint
@@ -1916,6 +2016,72 @@ fn normalize_sample(v: f64, frame_bg: f64, frame_scale: f64, ref_bg: f64, ref_sc
         return v;
     }
     (v - frame_bg) * (ref_scale / frame_scale) + ref_bg
+}
+
+/// Element sizes of the six payload vectors, in payload order.
+const PAYLOAD_ELEMENT_SIZES: [usize; 6] = [8, 8, 8, 8, 4, 4];
+
+/// Group each vector's bytes by position within the element (all first bytes,
+/// then all second bytes, ...) and deflate the result. Exponent and high
+/// mantissa bytes vary slowly across a tile, so the planes compress far better
+/// than interleaved floats.
+fn compress_payload(state: &PerPixelAccumulator) -> Vec<u8> {
+    use flate2::write::DeflateEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    let len = state.sum_w.len();
+    let mut shuffled = Vec::with_capacity(len * (8 * 4 + 4 * 2));
+    for v in [&state.sum_w, &state.sum_w2, &state.sum_wx, &state.sum_wx2] {
+        for b in 0..8 {
+            shuffled.extend(v.iter().map(|x| x.to_le_bytes()[b]));
+        }
+    }
+    for v in [&state.coverage, &state.rejected] {
+        for b in 0..4 {
+            shuffled.extend(v.iter().map(|x| x.to_le_bytes()[b]));
+        }
+    }
+    let mut enc = DeflateEncoder::new(Vec::new(), Compression::fast());
+    enc.write_all(&shuffled).expect("in-memory deflate");
+    enc.finish().expect("in-memory deflate")
+}
+
+/// Inverse of [`compress_payload`]: inflate and restore the interleaved
+/// little-endian layout of an uncompressed payload.
+fn decompress_payload(
+    compressed: &[u8],
+    len: usize,
+    payload_len: usize,
+) -> Result<Vec<u8>, AtlasError> {
+    use flate2::read::DeflateDecoder;
+    use std::io::Read;
+
+    let mut shuffled = Vec::with_capacity(payload_len);
+    DeflateDecoder::new(compressed)
+        .take(payload_len as u64 + 1)
+        .read_to_end(&mut shuffled)
+        .map_err(|e| AtlasError::Corrupt(format!("compressed payload: {e}")))?;
+    if shuffled.len() != payload_len {
+        return Err(AtlasError::Corrupt(format!(
+            "compressed payload holds {} bytes, need {payload_len}",
+            shuffled.len()
+        )));
+    }
+    let mut out = vec![0u8; payload_len];
+    let mut offset = 0;
+    for size in PAYLOAD_ELEMENT_SIZES {
+        let plane = &shuffled[offset..offset + size * len];
+        let dst = &mut out[offset..offset + size * len];
+        for b in 0..size {
+            let src = &plane[b * len..(b + 1) * len];
+            for (i, &byte) in src.iter().enumerate() {
+                dst[i * size + b] = byte;
+            }
+        }
+        offset += size * len;
+    }
+    Ok(out)
 }
 
 fn read_f64(bytes: &[u8], cursor: &mut usize, len: usize) -> Vec<f64> {
@@ -2467,9 +2633,84 @@ mod tests {
             SkyTileAccumulator::deserialize(&blob).unwrap_err(),
             AtlasError::UnsupportedVersion {
                 got: 99,
-                supported: TILE_STATE_VERSION,
+                supported: TILE_STATE_VERSION_COMPRESSED,
             }
         );
+    }
+
+    #[test]
+    fn compressed_sidecar_round_trips_and_is_much_smaller() {
+        let order = ATLAS_HEALPIX_ORDER;
+        let tid = radec_to_tile(150.0, 5.0, order);
+        let mut tile = SkyTileAccumulator::create(tid, order, 1, AccumulationMode::default());
+        let (frame, wcs) = frame_on_tile(tid, order, 700.0, 1);
+        tile.fold_frame(&frame, &wcs, 1.0, 120.0, Interpolator::Bilinear, "n", "me")
+            .unwrap();
+
+        let raw = tile.serialize();
+        let compact = tile.serialize_compressed();
+        assert!(compact.starts_with(TILE_MAGIC));
+        assert_eq!(
+            u32::from_le_bytes(compact[4..8].try_into().unwrap()),
+            TILE_STATE_VERSION_COMPRESSED
+        );
+        assert!(
+            compact.len() * 3 < raw.len(),
+            "compressed {} vs raw {}",
+            compact.len(),
+            raw.len()
+        );
+        let restored = SkyTileAccumulator::deserialize(&compact).expect("round trip");
+        assert_eq!(restored, tile);
+        // An uncompressed sidecar from an older build still loads.
+        assert_eq!(SkyTileAccumulator::deserialize(&raw).unwrap(), tile);
+    }
+
+    #[test]
+    fn truncated_compressed_payload_is_corrupt_not_a_panic() {
+        let order = ATLAS_HEALPIX_ORDER;
+        let tid = radec_to_tile(150.0, 5.0, order);
+        let tile = SkyTileAccumulator::create(tid, order, 1, AccumulationMode::default());
+        let compact = tile.serialize_compressed();
+        let cut = &compact[..compact.len() - 8];
+        assert!(matches!(
+            SkyTileAccumulator::deserialize(cut),
+            Err(AtlasError::Corrupt(_))
+        ));
+    }
+
+    #[test]
+    fn atlas_writes_compressed_sidecars_and_compacts_old_ones() {
+        let dir = std::env::temp_dir().join(format!(
+            "skt-compact-{}-{}",
+            std::process::id(),
+            STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        let order = ATLAS_HEALPIX_ORDER;
+        let atlas = SkyAtlas::open(&dir, order, tile_buffer_bytes(1));
+        let tid = radec_to_tile(150.0, 5.0, order);
+        let mut tile = SkyTileAccumulator::create(tid, order, 1, AccumulationMode::default());
+        let (frame, wcs) = frame_on_tile(tid, order, 700.0, 1);
+        tile.fold_frame(&frame, &wcs, 1.0, 120.0, Interpolator::Bilinear, "n", "me")
+            .unwrap();
+
+        atlas.store_tile(&tile).unwrap();
+        let written = std::fs::read(atlas.tile_path(tid)).unwrap();
+        assert_eq!(
+            u32::from_le_bytes(written[4..8].try_into().unwrap()),
+            TILE_STATE_VERSION_COMPRESSED
+        );
+
+        // A sidecar written by an older build is rewritten compressed.
+        std::fs::write(atlas.tile_path(tid), tile.serialize()).unwrap();
+        let stats = atlas.compact_sidecars().unwrap();
+        assert_eq!(stats.compacted, 1);
+        assert!(stats.bytes_after * 3 < stats.bytes_before);
+        assert_eq!(atlas.load_tile(tid).unwrap().unwrap(), tile);
+        let again = atlas.compact_sidecars().unwrap();
+        assert_eq!(again.compacted, 0);
+        assert_eq!(again.already_compact, 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

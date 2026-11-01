@@ -11,12 +11,14 @@ import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../models/backend/event_types.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../services/logging_service.dart';
+import '../services/notification_service.dart' show notificationServiceProvider;
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart';
 import '../services/sky_atlas/sky_atlas_seam.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'host_mutation_event_provider.dart';
+import 'remote_snapshot_stream.dart';
 
 /// Riverpod surface for Pillar A ("Your Sky") — the personal sky atlas.
 ///
@@ -57,6 +59,28 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
         name: target.name,
         raDeg: target.ra * 15.0,
         decDeg: target.dec,
+      );
+    },
+    storageLimitBytes: () async {
+      final raw = await ref
+          .read(settingsDaoProvider)
+          .getSetting(skyAtlasLimitSettingKey);
+      return parseSkyAtlasLimitGb(raw) * 1000 * 1000 * 1000;
+    },
+    onStorageLimitReached: (used, limit) {
+      final usedGb = (used / 1e9).toStringAsFixed(1);
+      final limitGb = (limit / 1e9).toStringAsFixed(0);
+      unawaited(
+        ref
+            .read(notificationServiceProvider)
+            .notifyCustom(
+              title: 'Your Sky atlas is full',
+              message:
+                  'The atlas uses $usedGb GB, its $limitGb GB limit. New '
+                  'frames are not being added; nothing was deleted. Raise the '
+                  'limit or compress stored tiles in Settings > Science.',
+            )
+            .catchError((Object _) => false),
       );
     },
     onAtlasChanged: () => ref
@@ -131,6 +155,13 @@ class SkyAtlasRegionWriter {
     throw StateError('Connect to an imaging host before naming a sky region.');
   }
 }
+
+/// Bytes the Your Sky atlas takes on this machine's disk. Null on a companion,
+/// whose atlas lives on the imaging host.
+final skyAtlasStorageBytesProvider = FutureProvider.autoDispose<int?>((ref) {
+  if (ref.watch(backendProvider) is NetworkBackend) return null;
+  return ref.watch(skyAtlasServiceProvider).storageBytes();
+});
 
 /// Per-tile coverage rows (deepest first) for the heat overlay / gallery.
 /// Remote (companion) mode reads the host's coverage over REST, refreshed when
@@ -213,10 +244,6 @@ SkyAtlasRegionRow skyAtlasRegionFromWireJson(Map<String, dynamic> json) {
 /// interval from each companion.
 const Duration remoteAtlasRefetchMinInterval = Duration(seconds: 15);
 
-/// Quiet period after an atlas-changing event before a re-fetch, so a burst of
-/// related events (image created, solved, folded) costs one request.
-const Duration remoteAtlasRefetchDebounce = Duration(milliseconds: 750);
-
 /// True for the host events after which an atlas read can differ: an atlas
 /// mutation (fold, swarm merge, region change) or a captured-image change from
 /// a host that predates atlas events.
@@ -227,92 +254,28 @@ bool isAtlasChangingEvent(SkotiqEvent event) {
       entity == HostMutationEntity.capturedImage;
 }
 
-/// REST snapshot stream for a remote atlas read: fetch once, then re-fetch when
-/// the host reports an atlas-changing event ([isAtlasChangingEvent]).
-///
-/// At most one request is outstanding; events that arrive meanwhile coalesce
-/// into one follow-up fetch, and starts are at least
-/// [remoteAtlasRefetchMinInterval] apart. Keeps the last good snapshot on a
-/// transient fetch failure rather than flashing empty.
+/// REST snapshot stream for a remote atlas read, re-fetched on an
+/// atlas-changing host event ([isAtlasChangingEvent]) at most once every
+/// [remoteAtlasRefetchMinInterval].
 Stream<List<T>> _remoteAtlasSnapshotStream<T>(
   Ref ref,
   NetworkBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
   T Function(Map<String, dynamic>) fromJson,
 ) {
-  final controller = StreamController<List<T>>();
   final logger = ref.read(loggingServiceProvider);
-  Timer? debounce;
-  Timer? cooldown;
-  var inFlight = false;
-  var pending = false;
-  var emittedOnce = false;
-
-  Future<void> refetch() async {
-    try {
-      final raw = await fetch();
-      final rows = raw.map(fromJson).toList(growable: false);
-      if (!controller.isClosed) {
-        controller.add(rows);
-        emittedOnce = true;
-      }
-    } catch (e) {
-      // After a prior good snapshot this is transient (reconnect / host busy):
-      // keep the last snapshot rather than flashing empty. But if the very
-      // first fetch fails the StreamProvider would hang in loading forever, so
-      // surface the error to drive the view's error + Retry state.
-      if (!emittedOnce) {
-        if (!controller.isClosed) controller.addError(e);
-        return;
-      }
-      logger.debug(
-        'Remote atlas snapshot refetch failed; keeping last good snapshot: $e',
-        source: 'SkyAtlasProvider',
-      );
-    }
-  }
-
-  late void Function() maybeStart;
-
-  Future<void> run() async {
-    if (controller.isClosed) return;
-    pending = false;
-    inFlight = true;
-    cooldown = Timer(remoteAtlasRefetchMinInterval, () {
-      cooldown = null;
-      if (pending) maybeStart();
-    });
-    try {
-      await refetch();
-    } finally {
-      inFlight = false;
-    }
-    if (pending) maybeStart();
-  }
-
-  maybeStart = () {
-    if (controller.isClosed || inFlight) return;
-    if (cooldown != null || debounce != null) return;
-    debounce = Timer(remoteAtlasRefetchDebounce, () {
-      debounce = null;
-      if (!inFlight && cooldown == null) unawaited(run());
-    });
-  };
-
-  StreamSubscription<SkotiqEvent>? sub;
-  ref.onDispose(() {
-    debounce?.cancel();
-    cooldown?.cancel();
-    unawaited(sub?.cancel());
-    unawaited(controller.close());
-  });
-  unawaited(run());
-  sub = backend.eventStream.listen((event) {
-    if (!isAtlasChangingEvent(event)) return;
-    pending = true;
-    maybeStart();
-  });
-  return controller.stream;
+  return remoteSnapshotStream<T>(
+    ref: ref,
+    backend: backend,
+    fetch: fetch,
+    decode: fromJson,
+    shouldRefetch: isAtlasChangingEvent,
+    minInterval: remoteAtlasRefetchMinInterval,
+    onRefetchError: (e) => logger.debug(
+      'Remote atlas snapshot refetch failed; keeping last good snapshot: $e',
+      source: 'SkyAtlasProvider',
+    ),
+  );
 }
 
 /// Query key for [skyTileProvider]: a tile id plus an optional time-scrub
