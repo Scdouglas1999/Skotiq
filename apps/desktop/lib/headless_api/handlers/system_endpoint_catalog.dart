@@ -161,6 +161,7 @@ List<String> availableHeadlessEndpoints() {
     // Sequencer
     'GET /api/sequencer/status',
     'GET /api/sequencer/editor-sequence',
+    'PUT /api/sequencer/editor-sequence',
     'POST /api/sequencer/start',
     'POST /api/sequencer/stop',
     'POST /api/sequencer/pause',

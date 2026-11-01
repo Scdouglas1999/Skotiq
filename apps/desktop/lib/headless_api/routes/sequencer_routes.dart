@@ -27,6 +27,12 @@ List<HeadlessRoute> buildSequencerRoutes(
     '/api/sequencer/editor-sequence',
     h.handleSequencerEditorSequence,
   ),
+  // A remote client writes its open plan into this host's editor.
+  HeadlessRoute(
+    HttpMethod.put,
+    '/api/sequencer/editor-sequence',
+    h.handleSequencerPutEditorSequence,
+  ),
   HeadlessRoute(
     HttpMethod.post,
     '/api/sequencer/start',

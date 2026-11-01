@@ -120,7 +120,7 @@ extension SnackBarHelper on BuildContext {
   /// Shows user feedback for a command result when it has a message payload.
   void showCommandActionResult(CommandActionResult result,
       {Duration? duration}) {
-    if (!result.hasMessage) return;
+    if (!result.hasMessage || result.alreadyShown) return;
     final message = result.message!;
     switch (result.feedbackType) {
       case CommandFeedbackType.error:

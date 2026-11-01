@@ -54,6 +54,10 @@ class SequencerHandlers {
   /// `imaging_sessions` row for a headless run. Null before the first load.
   _WireSequenceSummary? _lastLoadedWire;
 
+  /// The plan a remote client last wrote into the editor, serialized, so a
+  /// later client write can tell whether it replaces edits made on this host.
+  String? _lastPeerEditorFingerprint;
+
   // Routed entry points. Each forwards to the implementation in the part
   // file named above; the public method must live on the class itself
   // because `routes/sequencer_routes.dart` tears these off from another
@@ -62,6 +66,8 @@ class SequencerHandlers {
       _handleSequencerStatus(request);
   Future<Response> handleSequencerEditorSequence(Request request) =>
       _handleSequencerEditorSequence(request);
+  Future<Response> handleSequencerPutEditorSequence(Request request) =>
+      _handleSequencerPutEditorSequence(request);
   Future<Response> handleSequencerStart(Request request) =>
       _handleSequencerStart(request);
   Future<Response> handleSequencerStop(Request request) =>

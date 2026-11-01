@@ -76,7 +76,21 @@ class SequenceActionService {
           await _executor.start();
           return CommandActionResult.ok;
         } catch (e) {
-          return CommandActionResult.failure('Failed to start sequence: $e');
+          // The Start control that asked may be gone by the time the refusal
+          // comes back, so the reason goes out as an app-wide notification.
+          final reason = describeStartFailure(e);
+          _ref.read(loggingServiceProvider).warning(
+                'The run did not start: $reason',
+                source: 'SequenceActionService',
+              );
+          _ref.read(uiNotificationProvider.notifier).showError(
+                reason,
+                title: 'The run did not start',
+              );
+          return CommandActionResult.failure(
+            'The run did not start: $reason',
+            alreadyShown: true,
+          );
         }
       });
 
@@ -201,4 +215,19 @@ class SequenceActionService {
     if (start == null) return body();
     return start.then((_) => body());
   }
+}
+
+/// A start refusal as the operator should read it: the host's or the
+/// validator's own sentence, without a Dart exception prefix.
+String describeStartFailure(Object error) {
+  final text = switch (error) {
+    ServerError(:final message) => message,
+    SkotiqError(:final userMessage) => userMessage,
+    _ => '$error',
+  }
+      .trim();
+  for (final prefix in const ['Exception: ', 'Bad state: ']) {
+    if (text.startsWith(prefix)) return text.substring(prefix.length);
+  }
+  return text;
 }

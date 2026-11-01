@@ -373,6 +373,31 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
     _reclaimManualOwnership();
   }
 
+  /// Replace the open plan with the one another app wrote: a remote client
+  /// editing this host's plan, or, on a remote client, the host's plan.
+  ///
+  /// The last writer wins, so unsaved edits here are replaced; [dirty] is the
+  /// writer's own unsaved-changes flag. A null [sequence] closes the plan.
+  /// Refused while a run holds the editor, like any other edit.
+  void applyPeerEdit(Sequence? sequence, {required bool dirty}) {
+    _ensureEditable('apply an edit from another app');
+    _undoStack.clear();
+    _redoStack.clear();
+    state = sequence;
+    _dirty = sequence != null && dirty;
+    _reclaimManualOwnership();
+  }
+
+  /// Show the plan the imaging host is running, on a remote client that
+  /// joined mid-run. Allowed while the run locks the editor: the client is
+  /// only showing what the host runs, never changing it.
+  void showHostRunningSequence(Sequence sequence) {
+    _undoStack.clear();
+    _redoStack.clear();
+    state = sequence;
+    _dirty = false;
+  }
+
   /// Take the editor slot back for the operator.
   ///
   /// Every way the operator puts their OWN plan in the editor — opening one,
