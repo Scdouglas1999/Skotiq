@@ -35,6 +35,24 @@ void main() {
       );
     }
 
+    test('a saturation-limited sub says it is the longest that keeps stars '
+        'unsaturated', () {
+      final recommendation = calculator.recommend(
+        asi2600(bortleClass: 1, filter: FilterExposureSpec.fromName('R')),
+      );
+
+      expect(recommendation.limitingFactor, ExposureLimitingFactor.saturation);
+      expect(
+        recommendation.seconds,
+        lessThanOrEqualTo(
+          recommendation.allCeilings[ExposureLimitingFactor.saturation]! + 15,
+        ),
+      );
+      expect(recommendation.rationale, isNot(contains('to protect')));
+      expect(recommendation.rationale, contains('longer subs would saturate'));
+      expect(recommendation.limitingFactor.label, 'capped by star saturation');
+    });
+
     test('caps Bortle 5 3nm Ha subs at the user ceiling', () {
       final recommendation = calculator.recommend(asi2600());
 

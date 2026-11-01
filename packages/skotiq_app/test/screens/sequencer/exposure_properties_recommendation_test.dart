@@ -165,6 +165,9 @@ void main() {
 
     expect(find.text('Recommended exposure'), findsOneWidget);
     expect(find.text('Apply 30s'), findsOneWidget);
+    // The limiting factor reads as words, not a Dart enum name.
+    expect(find.textContaining('ExposureLimitingFactor'), findsNothing);
+    expect(find.textContaining(RegExp(r'^30s · [a-z]')), findsOneWidget);
 
     await tester.tap(find.text('Apply 30s'));
     await tester.pump();
