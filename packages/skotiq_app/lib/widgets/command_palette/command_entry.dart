@@ -8,6 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// scanned. Within a group the order is the app's own (rail order, catalog
 /// order), for the same reason.
 enum CommandGroup {
+  /// Sky objects from the installed catalogs; choosing one opens it in
+  /// Framing. Only matched objects appear.
+  targets,
+
   /// Every rail destination, every Settings section, and the screens that have
   /// a route but no rail slot — which is what makes the palette the way those
   /// screens are reached at all.
@@ -22,6 +26,7 @@ enum CommandGroup {
   actions;
 
   String get label => switch (this) {
+        CommandGroup.targets => 'Targets',
         CommandGroup.screens => 'Screens',
         CommandGroup.settings => 'Settings',
         CommandGroup.actions => 'Actions',

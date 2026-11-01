@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show CelestialObject, loadedDsosProvider, loadedStarsProvider;
 
 import '../../localization/skotiq_localizations.dart';
 import '../../screens/settings/settings_catalog.dart';
@@ -276,5 +278,78 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
           .read(imagingServiceProvider)
           .captureImage(settings: ref.read(exposureSettingsProvider)),
     ),
+  ];
+}
+
+/// Most target rows the palette shows for one query.
+const int _maxTargetEntries = 8;
+
+String _normalizeDesignation(String text) =>
+    text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+/// Deep-sky objects and named stars from the installed catalogs that match
+/// [query]; choosing one opens it in Framing.
+///
+/// Designations match with or without spaces ("NGC 891", "ngc891", "M31"),
+/// common names by substring, and stars by their proper name. Nothing is
+/// listed before two characters are typed or while the catalogs load.
+List<CommandEntry> buildTargetEntries(WidgetRef ref, String query) {
+  final normalized = _normalizeDesignation(query);
+  if (normalized.length < 2) return const [];
+  final dsos = ref.read(loadedDsosProvider).valueOrNull ?? const [];
+  final stars = ref.read(loadedStarsProvider).valueOrNull ?? const [];
+
+  final found = <(int, CelestialObject, String)>[];
+  for (final dso in dsos) {
+    final ids = <String>[dso.id, ...dso.catalogIds];
+    final exact = ids.any((id) => _normalizeDesignation(id) == normalized);
+    final prefix = !exact &&
+        ids.any((id) => _normalizeDesignation(id).startsWith(normalized));
+    final common = dso.commonNames;
+    final byName = normalized.length >= 3 &&
+        (dso.name.toLowerCase().contains(query) ||
+            (common != null && common.toLowerCase().contains(query)));
+    if (!exact && !prefix && !byName) continue;
+    final designation = dso.name == dso.id ? dso.id : '${dso.name} (${dso.id})';
+    final firstCommon = common?.split(',').first.trim();
+    final label =
+        firstCommon != null && firstCommon.isNotEmpty && firstCommon != dso.name
+            ? '$designation · $firstCommon'
+            : designation;
+    found.add((exact ? 0 : (prefix ? 1 : 2), dso, label));
+  }
+  if (normalized.length >= 3) {
+    for (final star in stars) {
+      final name = star.name.toLowerCase();
+      if (name.isEmpty || !name.startsWith(query)) continue;
+      found.add((name == query ? 0 : 1, star, star.name));
+    }
+  }
+  found.sort((a, b) {
+    final byMatch = a.$1.compareTo(b.$1);
+    if (byMatch != 0) return byMatch;
+    return (a.$2.magnitude ?? 99).compareTo(b.$2.magnitude ?? 99);
+  });
+
+  return [
+    for (final (_, object, label) in found.take(_maxTargetEntries))
+      CommandEntry(
+        id: 'target:${object.id}',
+        group: CommandGroup.targets,
+        icon: LucideIcons.crosshair,
+        label: label,
+        hint: 'Open in Framing',
+        // Matched here already; the query must not filter these out again
+        // when the label shows a different designation than the one typed.
+        keywords: [query],
+        invoke: (context, ref) {
+          ref.read(framingProvider.notifier).setTargetCoordinates(
+                object.coordinates.ra,
+                object.coordinates.dec,
+                name: object.name,
+              );
+          context.go('/framing');
+        },
+      ),
   ];
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show loadedDsosProvider, loadedStarsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
@@ -128,6 +130,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
 
   List<CommandEntry> _entries() {
     final all = <CommandEntry>[
+      ...buildTargetEntries(ref, _query),
       ...buildScreenEntries(context),
       ...buildSettingEntries(context, _query),
       ...buildActionEntries(context, ref),
@@ -212,6 +215,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    // The target rows read the catalogs; watching them here loads them and
+    // refreshes the list when they arrive.
+    ref.watch(loadedDsosProvider);
+    ref.watch(loadedStarsProvider);
     final entries = _entries();
     final selected =
         _selected.clamp(0, entries.isEmpty ? 0 : entries.length - 1);
