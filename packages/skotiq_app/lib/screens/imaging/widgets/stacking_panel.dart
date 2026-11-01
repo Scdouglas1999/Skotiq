@@ -55,7 +55,7 @@ Future<String?> _pickStackingMasterDestination(String suggestedName) async {
     suggestedName: suggestedName,
     acceptedTypeGroups: [typeGroup],
   );
-  return location?.path;
+  return location == null ? null : collapseDoubledExtension(location.path);
 }
 
 final stackingMasterDestinationPickerProvider =

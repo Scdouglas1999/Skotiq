@@ -77,7 +77,26 @@ Future<ExportTarget?> chooseExportTarget({
     confirmButtonText: confirmButtonText,
   );
   if (location == null) return null;
-  return ExportTarget(path: location.path, needsShareSheet: false);
+  return ExportTarget(
+    path: collapseDoubledExtension(location.path),
+    needsShareSheet: false,
+  );
+}
+
+/// Removes a repeated final extension: `m51.skeq.json.json` becomes
+/// `m51.skeq.json`, `r_final.png.png` becomes `r_final.png`.
+///
+/// The GTK save dialog preselects only the base of the suggested name, so
+/// typing a full name such as `r_final.png` over it keeps the suggested
+/// extension and saves `r_final.png.png`. No export means a doubled
+/// extension, so the second copy is dropped. Case is ignored when comparing.
+String collapseDoubledExtension(String path) {
+  final match = RegExp(r'\.([A-Za-z0-9]+)\.([A-Za-z0-9]+)$').firstMatch(path);
+  if (match == null) return path;
+  if (match.group(1)!.toLowerCase() != match.group(2)!.toLowerCase()) {
+    return path;
+  }
+  return path.substring(0, path.length - match.group(2)!.length - 1);
 }
 
 /// Strip characters that are not safe in a file name.

@@ -154,4 +154,22 @@ void main() {
       );
     });
   });
+
+  group('collapseDoubledExtension', () {
+    test('drops a repeated final extension', () {
+      expect(collapseDoubledExtension('/a/r_final.png.png'), '/a/r_final.png');
+      expect(
+        collapseDoubledExtension('/a/m51.skseq.json.json'),
+        '/a/m51.skseq.json',
+      );
+      expect(collapseDoubledExtension('/a/x.FITS.fits'), '/a/x.FITS');
+    });
+
+    test('leaves distinct and single extensions alone', () {
+      expect(collapseDoubledExtension('/a/m51.skeq.json'), '/a/m51.skeq.json');
+      expect(collapseDoubledExtension('/a/r_final.png'), '/a/r_final.png');
+      expect(collapseDoubledExtension('/a/notes'), '/a/notes');
+      expect(collapseDoubledExtension('/a.b/file'), '/a.b/file');
+    });
+  });
 }
