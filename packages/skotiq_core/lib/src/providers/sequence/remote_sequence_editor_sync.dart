@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,11 +19,64 @@ const _logSource = 'RemoteSequenceEditorSync';
 /// Debounce window for pushing in-editor sequence changes to a remote host.
 const remoteSequenceAutoSaveDebounce = Duration(milliseconds: 1500);
 
-/// Debounced auto-save of the in-editor sequence to a remote imaging host.
+/// Debounce window for writing this client's open plan into the host's
+/// editor. Short, so the host and the other clients follow edits live.
+const remoteEditorWriteThroughDebounce = Duration(milliseconds: 400);
+
+/// The serialized form of [sequence], used to tell whether two plans are the
+/// same document. Null for no plan or one that cannot be serialized.
+String? sequenceFingerprint(SequenceFileService files, Sequence? sequence) {
+  if (sequence == null) return null;
+  try {
+    return jsonEncode(files.sequenceToMap(sequence));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// What a remote client knows about the host's open plan, shared by the
+/// write-through below and the host-to-client mirror apply.
+class RemoteEditorSyncState {
+  /// The plan last taken from the host. An editor change to exactly this
+  /// object came from the host and is not written back.
+  Sequence? appliedFromHost;
+
+  /// The fingerprint of the plan the host holds, as far as this client knows.
+  String? hostFingerprint;
+
+  /// The fingerprint of the plan this client last wrote to the host.
+  String? lastWrittenFingerprint;
+
+  /// True while an edit made here has not reached the host yet. The host's
+  /// plan is not applied over it: this client's write lands after and wins.
+  bool writePending = false;
+
+  /// Forget everything about a host, on a backend swap.
+  void reset() {
+    appliedFromHost = null;
+    hostFingerprint = null;
+    lastWrittenFingerprint = null;
+    writePending = false;
+  }
+}
+
+/// The remote client's [RemoteEditorSyncState]. Plain state, no listeners.
+final remoteEditorSyncStateProvider = Provider<RemoteEditorSyncState>(
+  (ref) => RemoteEditorSyncState(),
+);
+
+/// Remote-client sync of the open plan with the imaging host.
 ///
-/// Mobile/tablet companions edit in memory; this provider pushes changes to the
-/// host via [SequenceRepository.saveSequence] (NetworkBackend `save-full`).
+/// Every change the operator makes here (an edit, opening a saved plan, a new
+/// plan) is written into the host's editor, so the host runs, mirrors and can
+/// save the plan this client shows. The host's own changes come back through
+/// the editor mirror (`_applySequenceEditorMirror`); the last writer wins.
+///
+/// Unsaved edits are also saved to the host's library after a quiet spell
+/// via [SequenceRepository.saveSequence] (NetworkBackend `save-full`).
 final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
+  Timer? writeThroughTimer;
+  Future<void>? writeInFlight;
   Timer? debounce;
   Future<bool>? saveInFlight;
   var saveAgain = false;
@@ -98,6 +152,73 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     }
   };
 
+  final syncState = ref.read(remoteEditorSyncStateProvider);
+
+  late Future<void> Function() writeThrough;
+  void scheduleWriteThrough() {
+    writeThroughTimer?.cancel();
+    writeThroughTimer = Timer(remoteEditorWriteThroughDebounce, () {
+      unawaited(writeThrough());
+    });
+  }
+
+  writeThrough = () async {
+    writeThroughTimer?.cancel();
+    writeThroughTimer = null;
+    if (isDisposed) return;
+    final inFlight = writeInFlight;
+    if (inFlight != null) {
+      await inFlight;
+      if (!isDisposed && syncState.writePending) scheduleWriteThrough();
+      return;
+    }
+    final backend = ref.read(backendProvider);
+    if (backend is! NetworkBackend || !ref.read(canEditSequenceProvider)) {
+      syncState.writePending = false;
+      return;
+    }
+    final sequence = ref.read(currentSequenceProvider);
+    final files = ref.read(sequenceFileServiceProvider);
+    final fingerprint = sequenceFingerprint(files, sequence);
+    if (sequence != null && fingerprint == null) {
+      syncState.writePending = false;
+      return;
+    }
+    final isDirty = ref.read(currentSequenceProvider.notifier).isDirty;
+    final operation = Future<void>.sync(
+      () => backend.putOpenEditorSequence(
+        sequence == null ? null : files.sequenceToMap(sequence),
+        databaseId: sequence?.databaseId,
+        isDirty: isDirty,
+      ),
+    );
+    writeInFlight = operation;
+    try {
+      await operation;
+      if (isDisposed || !identical(ref.read(backendProvider), backend)) return;
+      syncState.hostFingerprint = fingerprint;
+      syncState.lastWrittenFingerprint = fingerprint;
+    } catch (e) {
+      if (isDisposed) return;
+      // Not retried: the host refused (its run holds the plan) or is out of
+      // reach, and its next mirror frame shows what it holds.
+      ref
+          .read(loggingServiceProvider)
+          .warning(
+            'Could not write the plan to the imaging host: $e',
+            source: _logSource,
+          );
+    } finally {
+      if (identical(writeInFlight, operation)) writeInFlight = null;
+    }
+    if (isDisposed) return;
+    if (identical(ref.read(currentSequenceProvider), sequence)) {
+      syncState.writePending = false;
+    } else {
+      scheduleWriteThrough();
+    }
+  };
+
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
     if (isDisposed || outgoingBackend is! NetworkBackend) return;
@@ -115,12 +236,19 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   ref.onDispose(() {
     isDisposed = true;
+    writeThroughTimer?.cancel();
+    writeThroughTimer = null;
     debounce?.cancel();
     debounce = null;
     RemoteSequenceEditorSyncLifecycle.unregister(preSwapFlush);
   });
 
   ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
+    if (!identical(previous, next)) {
+      writeThroughTimer?.cancel();
+      writeThroughTimer = null;
+      syncState.reset();
+    }
     if (next is! NetworkBackend) {
       debounce?.cancel();
       debounce = null;
@@ -130,6 +258,11 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
   ref.listen<Sequence?>(currentSequenceProvider, (previous, next) {
     final backend = ref.read(backendProvider);
     if (backend is! NetworkBackend) return;
+    if (!identical(next, syncState.appliedFromHost) &&
+        ref.read(canEditSequenceProvider)) {
+      syncState.writePending = true;
+      scheduleWriteThrough();
+    }
     if (next == null) {
       debounce?.cancel();
       debounce = null;

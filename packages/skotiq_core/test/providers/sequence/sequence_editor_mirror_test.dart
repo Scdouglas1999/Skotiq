@@ -189,4 +189,33 @@ void main() {
     expect(current, isNotNull);
     expect(current!.name, 'Dirty On Slave (touched)');
   });
+
+  test(
+    'a client that joins mid-run shows the plan the host is running',
+    () async {
+      final container = ProviderContainer(
+        overrides: [inMemoryDatabaseOverride()],
+      );
+      addTearDown(container.dispose);
+      container.read(sequenceExecutionStateProvider.notifier).state =
+          SequenceExecutionState.running;
+      expect(container.read(currentSequenceProvider), isNull);
+
+      final fileService = container.read(sequenceFileServiceProvider);
+      await applyRemoteSyncEvent(
+        container,
+        editorMirrorEvent(
+          fileService: fileService,
+          sequence: buildSequence(name: 'QA M45 long', databaseId: 3),
+          isDirty: false,
+        ),
+      );
+
+      final shown = container.read(currentSequenceProvider);
+      expect(shown?.name, 'QA M45 long');
+      expect(shown?.databaseId, 3);
+      // Still locked: showing the run's plan is not an edit.
+      expect(container.read(canEditSequenceProvider), isFalse);
+    },
+  );
 }
