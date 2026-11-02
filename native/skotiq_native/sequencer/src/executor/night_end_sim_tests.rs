@@ -816,3 +816,20 @@ async fn skip_step_skips_only_the_running_step() {
         "calls={calls:?}"
     );
 }
+
+/// A new run does not read the previous run's tracking as its own: the
+/// mount the last run parked, unparked for this one and not yet tracking, is
+/// not a lost track on the first poll.
+#[test]
+fn a_new_run_does_not_inherit_the_last_runs_tracking_baseline() {
+    let mut state = crate::triggers::TriggerState::new();
+    assert!(!super::monitoring::apply_mount_tracking_poll(
+        &mut state, true
+    ));
+    state.mount_is_tracking = Some(true);
+    state.reset_for_new_run();
+    assert!(
+        !super::monitoring::apply_mount_tracking_poll(&mut state, false),
+        "the first poll of a new run is not a loss"
+    );
+}

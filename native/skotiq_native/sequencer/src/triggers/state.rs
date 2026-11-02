@@ -729,6 +729,12 @@ impl TriggerState {
         if resumed {
             return;
         }
+        // The tracking-loss baseline is armed by this run's own readings.
+        // Carried over, a mount parked at the end of the last run and unparked
+        // for this one read as a lost track on the run's first poll.
+        self.tracking.set_expected(false);
+        self.tracking.clear_lost();
+        self.mount_is_tracking = None;
         self.clear_target_state();
     }
 
