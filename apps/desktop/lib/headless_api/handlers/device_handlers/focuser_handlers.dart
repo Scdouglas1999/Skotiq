@@ -247,6 +247,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     // events (category=job).
     final mgr = jobManager;
     final preferLegacy = requestPrefersLegacyBlocking(request);
+    final recordFocusModel = await _focusModelRecorder(method);
     if (mgr != null && !preferLegacy) {
       final job = mgr.start(
         operation: 'focuser.autofocus',
@@ -310,6 +311,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
             );
           }
           final typed = result as AutofocusResult;
+          await recordFocusModel?.call(typed);
           return typed.toJson();
         },
       );
@@ -347,11 +349,30 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       backlashOut: backlashOut,
       measuredBacklashIn: measuredBacklashIn,
     );
+    await recordFocusModel?.call(result);
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       ...result.toJson(),
     });
+  }
+
+  /// The focus-model trainer for a sweep a client asked for, or null when the
+  /// model cannot be consulted. Training never fails the autofocus request.
+  Future<Future<void> Function(AutofocusResult)?> _focusModelRecorder(
+    String method,
+  ) async {
+    try {
+      return await container
+          .read(deviceServiceProvider)
+          .predictiveAfRecorderForSweep(method: method);
+    } catch (error) {
+      _logger.warning(
+        'Focus model not consulted for this autofocus: $error',
+        source: 'DeviceHandlers',
+      );
+      return null;
+    }
   }
 
   /// Measure the connected focuser's backlash.

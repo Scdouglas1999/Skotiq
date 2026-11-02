@@ -582,6 +582,17 @@ class DeviceService {
   );
   Future<void> cancelAutofocus() => _trackInFlight(_cancelAutofocus);
 
+  /// Consult the focus model before an autofocus sweep the imaging host runs
+  /// for a companion, and return the callback that trains the model on the
+  /// converged result. The host owns the model, so a sweep a companion asks
+  /// for trains it exactly like a local one.
+  Future<Future<void> Function(AutofocusResult result)>
+  predictiveAfRecorderForSweep({required String method}) async {
+    final context = await _consultPredictiveAf(method: method);
+    return (result) =>
+        _recordPredictiveAfOutcome(context: context, result: result);
+  }
+
   /// Measure the connected focuser's backlash. A refusal comes back in the
   /// result; an exception means the run could not happen at all.
   Future<FocuserBacklashResult> calibrateFocuserBacklash({

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -21,6 +22,7 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _TestBackendNotifier(ref, backend),
           ),
+          _memoryDatabase(),
         ],
       );
       addTearDown(container.dispose);
@@ -84,6 +86,7 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _TestBackendNotifier(ref, backend),
         ),
+        _memoryDatabase(),
       ],
     );
     addTearDown(container.dispose);
@@ -112,6 +115,66 @@ void main() {
 
     backend.pending.completeError(StateError('test over'));
     await _pumpUntil(() => jobs.get(jobId)?.state != JobState.running);
+  });
+
+  test('an autofocus a client asks for trains the host focus model', () async {
+    final backend = _PendingAutofocusBackend();
+    final predictive = _RecordingPredictiveAf();
+    final container = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith(
+          (ref) => _TestBackendNotifier(ref, backend),
+        ),
+        _memoryDatabase(),
+        predictiveAfServiceProvider.overrideWithValue(predictive),
+      ],
+    );
+    addTearDown(container.dispose);
+    // ignore: invalid_use_of_protected_member
+    container
+        .read(filterWheelStateProvider.notifier)
+        .state = const FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'native:filterwheel:1',
+      currentPosition: 1,
+      filterNames: ['L', 'R'],
+    );
+    final jobs = JobManager(emitEvent: (_) {});
+    addTearDown(jobs.dispose);
+    final handlers = DeviceHandlers(container, jobManager: jobs);
+
+    final response = await handlers.handleAutofocusStart(
+      Request(
+        'POST',
+        Uri.parse('http://localhost/api/focuser/autofocus/start'),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({
+          'deviceId': 'native:focuser:1',
+          'cameraId': 'native:camera:1',
+          'exposureTime': 2.0,
+          'stepSize': 50,
+          'stepsOut': 4,
+        }),
+      ),
+    );
+    final jobId =
+        (jsonDecode(await response.readAsString()) as Map)['jobId'] as String;
+    await _pumpUntil(() => jobs.get(jobId)?.state == JobState.running);
+    backend.pending.complete(
+      const AutofocusResult(
+        bestPosition: 25070,
+        bestHfr: 2.11,
+        focusData: [],
+        method: 'VCurve',
+        temperature: 20.0,
+        timestamp: 0,
+        curveFitQuality: 0.98,
+        backlashApplied: false,
+      ),
+    );
+    await _pumpUntil(() => jobs.get(jobId)?.state == JobState.succeeded);
+
+    expect(predictive.outcomes, [('R', 25070, 20.0)]);
   });
 
   group('focuser travel-range validation', () {
@@ -321,3 +384,33 @@ class _TravelBackend extends DisconnectedBackend {
     moveRelativeCalls.add(delta);
   }
 }
+
+class _RecordingPredictiveAf implements PredictiveAfService {
+  final List<(String, int, double)> outcomes = [];
+
+  @override
+  Future<FilterFocusModel> recordAutofocusOutcome({
+    required int? equipmentProfileId,
+    required String filterName,
+    int? filterIndex,
+    required double temperatureCelsius,
+    required int focusPosition,
+    required double hfr,
+    DateTime? timestamp,
+  }) async {
+    outcomes.add((filterName, focusPosition, temperatureCelsius));
+    // The handler only needs the call; the stored model is not read back.
+    throw UnimplementedError('model storage is not part of this test');
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Autofocus requests consult the host's focus model, which lives in the
+/// database.
+Override _memoryDatabase() => databaseProvider.overrideWith((ref) {
+  final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+  ref.onDispose(db.close);
+  return db;
+});
