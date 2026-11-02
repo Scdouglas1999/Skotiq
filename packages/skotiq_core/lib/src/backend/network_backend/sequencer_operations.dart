@@ -520,6 +520,52 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     };
   }
 
+  /// Remote-only: put this client's open plan into the host's sequence
+  /// editor, so the host runs and mirrors the plan the operator sees here.
+  ///
+  /// [sequence] null closes the host's editor. [isDirty] carries whether the
+  /// plan has changes not yet saved to the library. Throws when the host
+  /// refuses, for example while its run holds the editor (409).
+  Future<void> putOpenEditorSequence(
+    Map<String, dynamic>? sequence, {
+    int? databaseId,
+    required bool isDirty,
+  }) async {
+    await _put('sequencer/editor-sequence', <String, dynamic>{
+      'open': sequence != null,
+      if (sequence != null) 'sequence': sequence,
+      if (databaseId != null) 'databaseId': databaseId,
+      'isDirty': isDirty,
+    });
+  }
+
+  /// Remote-only: whether the host has a run in flight (running, paused,
+  /// recovering, stopping). An unreadable state counts as in flight, so a
+  /// caller deciding whether to offer recovery errs toward leaving it alone.
+  Future<bool> hostRunInFlight() async {
+    try {
+      final status = await sequencerGetStatus();
+      return !const {
+        'idle',
+        'completed',
+        'failed',
+        'cancelled',
+        'stopped',
+        'error',
+      }.contains(status.state.toLowerCase());
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Remote-only: stop the host's run through its own executor, keeping or
+  /// discarding its resume point as the operator chose.
+  Future<void> sequencerStopOnHost({required bool preserveCheckpoint}) async {
+    await _post('sequencer/stop', <String, dynamic>{
+      'preserveCheckpoint': preserveCheckpoint,
+    });
+  }
+
   /// Remote-only: fetch the host's live autopilot preview decision so the
   /// slave's scheduler banner mirrors the real host pick instead of recomputing
   /// against its empty local catalog (which always yields "nothing eligible").

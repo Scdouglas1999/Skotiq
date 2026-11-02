@@ -302,20 +302,22 @@ class NightConditionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
-    final (String? note, MetricTone? tone) = switch (conditions.source) {
-      ConditionsSource.none => (
-          l10n.text('nightPanelNoWeatherSource'),
-          MetricTone.warning,
-        ),
-      ConditionsSource.device || ConditionsSource.forecast => switch (
-            conditions.safe) {
-          true => (l10n.text('nightPanelSafe'), MetricTone.good),
-          false => (l10n.text('nightPanelUnsafe'), MetricTone.bad),
-          null => conditions.source == ConditionsSource.forecast
-              ? (l10n.text('nightPanelForecastOnly'), null)
-              : (null, null),
-        },
-    };
+    final (String? note, MetricTone? tone) = conditions.verdictUnknown
+        ? (l10n.text('nightPanelSafetyUnknown'), MetricTone.warning)
+        : switch (conditions.source) {
+            ConditionsSource.none => (
+                l10n.text('nightPanelNoWeatherSource'),
+                MetricTone.warning,
+              ),
+            ConditionsSource.device || ConditionsSource.forecast => switch (
+                  conditions.safe) {
+                true => (l10n.text('nightPanelSafe'), MetricTone.good),
+                false => (l10n.text('nightPanelUnsafe'), MetricTone.bad),
+                null => conditions.source == ConditionsSource.forecast
+                    ? (l10n.text('nightPanelForecastOnly'), null)
+                    : (null, null),
+              },
+          };
     final title = l10n.text('nightPanelConditions');
     return NightPanelSection(
       title: title,

@@ -715,7 +715,7 @@ impl CheckpointManager {
 
         if let Some(cached) = &*cache {
             if cached.primary_mtime == primary_mtime && cached.backup_mtime == backup_mtime {
-                return Ok(cached.info.clone());
+                return Ok(cached.info.clone().map(with_current_age));
             }
         }
 
@@ -925,6 +925,15 @@ impl<'a> crate::wizard::WizardCheckpointSink for SessionWizardCheckpointSink<'a>
     }
 }
 
+/// [info] with its age measured now. The cache keeps the summary for as long
+/// as the file is unchanged, but the age grows with every read.
+fn with_current_age(mut info: CheckpointInfo) -> CheckpointInfo {
+    info.age_seconds = Utc::now()
+        .signed_duration_since(info.timestamp)
+        .num_seconds();
+    info
+}
+
 /// Summary info about a checkpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckpointInfo {
@@ -999,6 +1008,31 @@ mod tests {
             .unwrap()
             .expect("Expected checkpoint from backup");
         assert_eq!(loaded.sequence.name, "Backup Sequence");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_checkpoint_info_age_advances_while_cached() {
+        let dir = test_dir("info_cache_age");
+        let manager = CheckpointManager::new(&dir);
+        let mut checkpoint = SessionCheckpoint::new(SequenceDefinition::new("Age".to_string()));
+        checkpoint.sequence.root_node_id = Some("root".to_string());
+        checkpoint.is_active = true;
+        checkpoint.executor_state = ExecutorState::Running;
+        checkpoint.timestamp = Utc::now() - chrono::Duration::hours(2);
+        manager.save(&checkpoint).unwrap();
+
+        let first = manager.get_checkpoint_info().unwrap().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let second = manager.get_checkpoint_info().unwrap().unwrap();
+
+        assert!(first.age_seconds >= 7200);
+        assert!(
+            second.age_seconds > first.age_seconds,
+            "age stayed at {} s across reads of an unchanged checkpoint",
+            first.age_seconds
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }

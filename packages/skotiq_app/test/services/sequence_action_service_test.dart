@@ -37,6 +37,7 @@ class _RecordingExecutor extends SequenceExecutor {
   bool? lastStopPreserveCheckpoint;
 
   Completer<void>? startGate;
+  Object? startError;
   Completer<void>? pauseGate;
   Completer<void>? stopGate;
   Completer<void>? skipGate;
@@ -45,6 +46,8 @@ class _RecordingExecutor extends SequenceExecutor {
   Future<void> start() async {
     startCount++;
     if (startGate != null) await startGate!.future;
+    final error = startError;
+    if (error != null) throw error;
   }
 
   @override
@@ -213,5 +216,26 @@ void main() {
     gate.complete();
     await Future.wait<CommandActionResult>([f1, f2]);
     expect(h.executor.stopCount, 1);
+  });
+
+  test(
+      'a refused start reaches the operator as an app-wide notification, '
+      'even when the Start control that asked is gone', () async {
+    final h = _harness(state: SequenceExecutionState.failed);
+    addTearDown(h.container.dispose);
+    h.executor.startError = Exception(
+      'Session already active. End current session before starting a new '
+      'one.',
+    );
+
+    final result = await h.service.start();
+
+    expect(result.isSuccess, isFalse);
+    expect(result.alreadyShown, isTrue);
+    final shown = h.container.read(uiNotificationProvider);
+    expect(shown, hasLength(1));
+    expect(shown.single.level, UiNotificationLevel.error);
+    expect(shown.single.title, 'The run did not start');
+    expect(shown.single.message, startsWith('Session already active.'));
   });
 }

@@ -393,9 +393,14 @@ class NightConditionsVm {
     this.metrics = const <MetricVm>[],
     this.notes = const <NightText>[],
     this.skyOverride = NightSkyOverride.none,
+    this.verdictUnknown = false,
   });
 
   final ConditionsSource source;
+
+  /// The verdict cannot be known (the imaging host is out of reach); shown
+  /// as unknown rather than read as safe or unsafe.
+  final bool verdictUnknown;
 
   /// The weather-safety verdict; null when no evaluator has one.
   final bool? safe;
@@ -418,10 +423,12 @@ class NightConditionsVm {
       other.safe == safe &&
       listEquals(other.metrics, metrics) &&
       listEquals(other.notes, notes) &&
-      other.skyOverride == skyOverride;
+      other.skyOverride == skyOverride &&
+      other.verdictUnknown == verdictUnknown;
 
   @override
   int get hashCode => Object.hash(
+        verdictUnknown,
         source,
         safe,
         Object.hashAll(metrics),

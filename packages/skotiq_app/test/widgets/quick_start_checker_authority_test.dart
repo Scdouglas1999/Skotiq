@@ -21,6 +21,10 @@ class _RecordingHostBackend extends Mock implements SkotiqBackend {
 
 class _RecordingNetworkBackend extends Mock implements NetworkBackend {
   int discardCalls = 0;
+  bool runInFlight = false;
+
+  @override
+  Future<bool> hostRunInFlight() async => runInFlight;
 
   @override
   Future<void> discardCheckpoint() async {
@@ -335,5 +339,64 @@ void main() {
     expect(find.text('Start fresh'), findsNothing);
     expect(find.textContaining('Load Previous Setup'), findsNothing);
     expect(backend.discardCalls, 0);
+  });
+
+  testWidgets(
+      'a client joining a host mid-run gets no session prompts and nothing '
+      'that would restore a setup on the host', (tester) async {
+    final backend = _RecordingNetworkBackend()..runInFlight = true;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, backend),
+          ),
+          incompleteSessionsProvider.overrideWith(
+            (ref) async => [
+              SessionRecoveryInfo(
+                sessionId: 5,
+                sessionName: 'QA M45 long',
+                startTime: DateTime.now().subtract(const Duration(minutes: 3)),
+                stats: SessionStats(
+                  completedExposures: 8,
+                  lastUpdated: DateTime.now(),
+                ),
+              ),
+            ],
+          ),
+          quickStartContextProvider.overrideWith((ref) async => _context()),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const QuickStartChecker(
+            child: Scaffold(body: Text('Dashboard')),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Incomplete Sessions Found'), findsNothing);
+    expect(find.text('Continue Session'), findsNothing);
+    expect(find.text('Start fresh'), findsNothing);
+  });
+
+  test('a finished host session is not offered to a client', () {
+    final finished = QuickStartContext(
+      sessionId: 3,
+      sessionName: 'QA M45 long',
+      completedFrames: 40,
+      totalFrames: 40,
+      lastSessionDate: DateTime.now(),
+      totalIntegrationHours: 0.1,
+    );
+    expect(
+        remoteSessionIsFinished(finished, _RecordingNetworkBackend()), isTrue);
+    expect(remoteSessionIsFinished(_context(), _RecordingNetworkBackend()),
+        isFalse);
   });
 }

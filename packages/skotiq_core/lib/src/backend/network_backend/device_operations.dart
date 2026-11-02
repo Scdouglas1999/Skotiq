@@ -470,6 +470,28 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     return null;
   }
 
+  /// Remote-only: start the gradual camera warm-up on the host, which runs
+  /// the ramp next to the camera. Returns the host's outcome name (see
+  /// `CameraWarmupOutcome`).
+  Future<String> cameraStartHostWarmUp({double ratePerMin = 2.0}) async {
+    final response = await _post('camera/warm-up', {'ratePerMin': ratePerMin});
+    return response['outcome'] as String? ?? 'started';
+  }
+
+  /// Remote-only: stop the host's warm-up. With [restorePriorSetting] the
+  /// cooler goes back to the set-point it held before the warm-up.
+  Future<void> cameraCancelHostWarmUp({bool restorePriorSetting = true}) async {
+    await _post('camera/warm-up/cancel', {
+      'restorePriorSetting': restorePriorSetting,
+    });
+  }
+
+  /// Remote-only: whether the host is warming the camera.
+  Future<bool> cameraHostIsWarming() async {
+    final response = await _get('camera/warm-up');
+    return response['warming'] == true;
+  }
+
   @override
   Future<void> cameraSetCooling({
     required String deviceId,

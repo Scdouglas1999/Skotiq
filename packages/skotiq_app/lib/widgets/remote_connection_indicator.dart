@@ -155,9 +155,15 @@ class _RemoteConnectionIndicatorState
     // The tap lived on a bare gesture wrapper, which publishes an action
     // and no role, so assistive tech read a live control as an inert
     // disabled panel. The flags are only published when given.
-    return Semantics(
+    final description = backend == null
+        ? 'Not linked to a remote imaging host'
+        : '${_textFor(status)} · ${backend.serverHost}';
+    return Tooltip(
+      message: description,
+      child: Semantics(
         button: true,
         enabled: true,
+        label: 'Imaging host link: $description',
         child: GestureDetector(
           onTap: () => _showDetails(context),
           child: widget.dot
@@ -165,7 +171,9 @@ class _RemoteConnectionIndicatorState
               : widget.compact
                   ? _buildCompact(context, status)
                   : _buildFull(context, status, backend),
-        ));
+        ),
+      ),
+    );
   }
 
   Widget _buildDot(BuildContext context, RemoteConnectionStatus status) {

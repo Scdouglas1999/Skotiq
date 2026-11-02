@@ -702,6 +702,12 @@ extension CameraDeviceHandlers on DeviceHandlers {
       }
     }
 
+    // A cooler command from any client replaces a warm-up in progress here,
+    // as the host's own cooler controls do; otherwise the ramp's next step
+    // would overwrite the set-point just sent.
+    container
+        .read(deviceServiceProvider)
+        .cancelWarmCamera(restorePriorSetting: false);
     await backend.cameraSetCooling(
       deviceId: deviceId,
       enabled: enabled,
@@ -709,6 +715,61 @@ extension CameraDeviceHandlers on DeviceHandlers {
     );
 
     return jsonOk({'status': 'ok'});
+  }
+
+  /// POST /api/camera/warm-up — start the gradual warm-up on this host.
+  ///
+  /// The ramp runs here, next to the camera, so it keeps going when the client
+  /// that asked goes away and a cancel from any client stops it.
+  Future<Response> handleCameraStartWarmUp(Request request) async {
+    _logInfo('[API] POST /api/camera/warm-up');
+    final payload = await readJsonObjectOrEmpty(request);
+    final rate = optionalDouble(payload, 'ratePerMin') ?? 2.0;
+    if (!rate.isFinite || rate <= 0) {
+      throw BadRequestError(
+        field: 'ratePerMin',
+        expected: 'finite positive number',
+      );
+    }
+    final camera = container.read(cameraStateProvider);
+    if (camera.connectionState != DeviceConnectionState.connected) {
+      return jsonConflict({
+        'error': 'camera_not_connected',
+        'message': 'The camera is not connected.',
+      });
+    }
+    if (container.read(sequenceExecutionStateProvider).ownsHardware) {
+      return jsonConflict({
+        'error': 'run_owns_cooler',
+        'message':
+            'The running sequence controls the camera cooler. Stop the run '
+            'before warming the camera by hand.',
+      });
+    }
+    final outcome = await container
+        .read(deviceServiceProvider)
+        .warmCamera(ratePerMin: rate);
+    return jsonOk({
+      'outcome': outcome.name,
+      'warming': container.read(cameraStateProvider).isWarming,
+    });
+  }
+
+  /// POST /api/camera/warm-up/cancel — stop this host's warm-up. By default the
+  /// cooler goes back to the set-point it held before the warm-up.
+  Future<Response> handleCameraCancelWarmUp(Request request) async {
+    _logInfo('[API] POST /api/camera/warm-up/cancel');
+    final payload = await readJsonObjectOrEmpty(request);
+    final restore = optionalBool(payload, 'restorePriorSetting') ?? true;
+    final service = container.read(deviceServiceProvider);
+    final wasWarming = container.read(cameraStateProvider).isWarming;
+    service.cancelWarmCamera(restorePriorSetting: restore);
+    return jsonOk({'status': 'canceled', 'wasWarming': wasWarming});
+  }
+
+  /// GET /api/camera/warm-up — whether this host is warming the camera.
+  Future<Response> handleCameraGetWarmUp(Request request) async {
+    return jsonOk({'warming': container.read(cameraStateProvider).isWarming});
   }
 
   /// GET /api/camera/cooling — dedicated cooling-state snapshot.

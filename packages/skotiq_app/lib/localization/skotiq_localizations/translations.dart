@@ -1117,6 +1117,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelToLookAt': '{count} to look at',
     'nightPanelUnknown': 'unknown',
     'nightPanelUnsafe': 'Unsafe',
+    'nightPanelSafetyUnknown': 'Unknown',
+    'nightWeatherHostUnknown':
+        'No link to the imaging host, so its safety verdict is not known.',
     'nightWeatherForecastHolds':
         'Decided by the internet forecast. Exposures are held, the mount keeps tracking, and imaging resumes when it clears. A forecast never parks.',
     'nightWeatherForecastWarns':
@@ -2760,6 +2763,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelToLookAt': '{count} por revisar',
     'nightPanelUnknown': 'desconocido',
     'nightPanelUnsafe': 'No seguro',
+    'nightPanelSafetyUnknown': 'Desconocido',
+    'nightWeatherHostUnknown':
+        'Sin enlace con el equipo de captura: no se conoce su veredicto de '
+            'seguridad.',
     'nightWeatherForecastHolds':
         'Lo decide la previsión de internet. Las exposiciones se detienen, la montura sigue en seguimiento y la captura se reanuda cuando despeje. Una previsión nunca aparca.',
     'nightWeatherForecastWarns':

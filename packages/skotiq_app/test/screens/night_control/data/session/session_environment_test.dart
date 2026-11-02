@@ -156,6 +156,34 @@ void main() {
     });
   });
 
+  group('no link to the host', () {
+    test('an unreadable host verdict is unknown, not unsafe', () {
+      final reading = nightSafetyReadingFrom(
+        WeatherSafetyState.initial().copyWith(hostVerdictUnavailable: true),
+      );
+      expect(reading.hostUnknown, isTrue);
+      expect(reading.safe, isNull);
+    });
+
+    test('Conditions says unknown, explains why, and offers no override',
+        () async {
+      final h = await sessionHarness(
+        overrides: <Override>[
+          ..._readyRig(),
+          nightForecastCloudProvider.overrideWithValue(4),
+          nightSafetyReadingProvider.overrideWithValue(
+            const NightSafetyReading(monitoring: true, hostUnknown: true),
+          ),
+        ],
+      );
+      final vm = h.read(nightConditionsProvider);
+      expect(vm.verdictUnknown, isTrue);
+      expect(vm.safe, isNull);
+      expect(vm.notes.map((n) => n.key), ['nightWeatherHostUnknown']);
+      expect(vm.skyOverride, NightSkyOverride.none);
+    });
+  });
+
   group('guide series', () {
     test('pixels, and a sample missing an axis is dropped', () async {
       final h = await sessionHarness();

@@ -153,6 +153,85 @@ extension _SequencerLifecycle on SequencerHandlers {
     });
   }
 
+  /// PUT /api/sequencer/editor-sequence.
+  ///
+  /// A remote client writes its open plan into this host's editor, so the
+  /// host runs, saves and mirrors the plan the client's operator sees. The
+  /// last writer wins: when the host's own unsaved edits are replaced, the
+  /// host operator is told. Refused with 409 while a run holds the editor.
+  Future<Response> _handleSequencerPutEditorSequence(Request request) async {
+    final payload = await readJsonObject(request);
+    final open = optionalBool(payload, 'open') ?? true;
+    final isDirty = optionalBool(payload, 'isDirty') ?? false;
+    Sequence? incoming;
+    if (open) {
+      final raw = payload['sequence'];
+      if (raw is! Map) {
+        throw BadRequestError(field: 'sequence', expected: 'object');
+      }
+      try {
+        incoming = container
+            .read(sequenceFileServiceProvider)
+            .parseFromMap(Map<String, dynamic>.from(raw));
+      } catch (e) {
+        return jsonBadRequest({
+          'error': 'invalid_sequence',
+          'message': 'The plan could not be read: $e',
+        });
+      }
+      final databaseId = payload['databaseId'];
+      if (databaseId is int) {
+        incoming = incoming.copyWith(databaseId: databaseId);
+      }
+    }
+
+    final editor = container.read(currentSequenceProvider.notifier);
+    if (!editor.isEditableNow) {
+      return jsonConflict({
+        'error': 'sequence_editor_locked',
+        'message':
+            'A run holds the plan on this host. Stop it before changing '
+            'the plan.',
+      });
+    }
+
+    final current = container.read(currentSequenceProvider);
+    final currentFingerprint = _editorFingerprint(current);
+    final incomingFingerprint = _editorFingerprint(incoming);
+    final replacesLocalEdits =
+        editor.isDirty &&
+        currentFingerprint != incomingFingerprint &&
+        currentFingerprint != _lastPeerEditorFingerprint;
+    editor.applyPeerEdit(incoming, dirty: isDirty);
+    _lastPeerEditorFingerprint = incomingFingerprint;
+    _logInfo(
+      '[API] PUT /api/sequencer/editor-sequence: '
+      '${incoming == null ? 'closed the plan' : 'opened "${incoming.name}"'}'
+      '${replacesLocalEdits ? ' over unsaved edits made on this host' : ''}',
+    );
+    if (replacesLocalEdits) {
+      container
+          .read(uiNotificationProvider.notifier)
+          .showWarning(
+            'A remote client changed the plan, so the unsaved edits made '
+            'here were replaced by its version.',
+            title: 'Plan changed remotely',
+          );
+    }
+    return jsonOk({'status': 'applied'});
+  }
+
+  String? _editorFingerprint(Sequence? sequence) {
+    if (sequence == null) return null;
+    try {
+      return jsonEncode(
+        container.read(sequenceFileServiceProvider).sequenceToMap(sequence),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Start the sequencer via the canonical [SequenceExecutor.start] path —
   /// never `backend.sequencerStart()` directly, which skips pre-flight
   /// validation, the session row, the sequence_runs row, the checkpoint timer,

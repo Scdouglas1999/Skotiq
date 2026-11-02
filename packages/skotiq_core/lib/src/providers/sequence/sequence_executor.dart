@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../backend/network_backend.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
@@ -128,6 +129,10 @@ class SequenceExecutor {
 
   /// The checkpoint prepared for the next start.
   _RestoredCheckpoint? _restored;
+
+  /// A remote client asked the host to restore its checkpoint; the next start
+  /// continues that run on the host instead of sending the editor's plan.
+  bool _hostRestoreAwaitingStart = false;
   bool _isCalibrationRun = false;
 
   /// Owns the run phases and operation latches.
@@ -336,6 +341,11 @@ class SequenceExecutor {
     }
     _acquireLaunchLatch();
     try {
+      final backend = _backend;
+      if (backend is NetworkBackend) {
+        await _startOnHost(backend);
+        return;
+      }
       final sequence = _ref.read(currentSequenceProvider);
       final restored = _restored;
       if (restored != null) {
@@ -361,21 +371,7 @@ class SequenceExecutor {
         // caller (UI button, headless POST /api/sequencer/start, scheduler)
         // surfaces it as a clean 400 instead of an opaque 500.
         _releaseAutomatedEditorOwnership();
-        throw validation.SequenceValidationException(
-          validation.ValidationResult(
-            issues: const [
-              validation.ValidationIssue(
-                severity: validation.ValidationSeverity.error,
-                category: validation.ValidationCategory.structure,
-                title: 'No sequence loaded',
-                description:
-                    'Load or build a sequence before starting the sequencer.',
-                code: 'no_sequence_loaded',
-              ),
-            ],
-            validatedAt: DateTime.now(),
-          ),
-        );
+        throw _noSequenceLoaded();
       }
 
       // Runtime mode, safety policy, observer location, and save path are
@@ -424,6 +420,92 @@ class SequenceExecutor {
       _lifecycle.launchSucceeded();
     } finally {
       _releaseLaunchLatch();
+    }
+  }
+
+  validation.SequenceValidationException _noSequenceLoaded() =>
+      validation.SequenceValidationException(
+        validation.ValidationResult(
+          issues: const [
+            validation.ValidationIssue(
+              severity: validation.ValidationSeverity.error,
+              category: validation.ValidationCategory.structure,
+              title: 'No sequence loaded',
+              description:
+                  'Load or build a sequence before starting the sequencer.',
+              code: 'no_sequence_loaded',
+            ),
+          ],
+          validatedAt: DateTime.now(),
+        ),
+      );
+
+  /// Start the run on the imaging host this client controls.
+  ///
+  /// The host owns the hardware, the database and the run, so a remote client
+  /// opens no session or run record of its own: it puts the plan the operator
+  /// sees into the host's editor and asks the host to start it, which runs the
+  /// host's own pre-flight and records. A plan restored from the host's
+  /// checkpoint is already in the host's executor and is started as it is.
+  Future<void> _startOnHost(NetworkBackend host) async {
+    if (!_hostRestoreAwaitingStart) {
+      final sequence = _ref.read(currentSequenceProvider);
+      if (sequence == null) throw _noSequenceLoaded();
+      await host.putOpenEditorSequence(
+        _ref.read(sequenceFileServiceProvider).sequenceToMap(sequence),
+        databaseId: sequence.databaseId,
+        isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
+      );
+    }
+    await host.sequencerStart();
+    if (_hostRestoreAwaitingStart) {
+      _hostRestoreAwaitingStart = false;
+      _ref.read(restoredCheckpointProvider.notifier).state = null;
+    }
+    _logger.info(
+      'Started the run on the imaging host ${host.serverHost}',
+      source: 'SequenceExecutor',
+    );
+    await _reflectHostRunState(host);
+  }
+
+  /// Stop the run on the imaging host through the host's own executor, which
+  /// finalizes its run and session records.
+  Future<void> _stopOnHost(
+    NetworkBackend host, {
+    required bool preserveCheckpoint,
+  }) async {
+    final before = _ref.read(sequenceExecutionStateProvider);
+    if (!before.canStop) return;
+    _setExecutionState(SequenceExecutionState.stopping);
+    try {
+      await host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
+    } catch (_) {
+      _setExecutionState(before);
+      rethrow;
+    }
+    await _reflectHostRunState(host);
+  }
+
+  /// Show the host's run state at once rather than after the next mirrored
+  /// event. A failed read leaves the state to the event mirror.
+  Future<void> _reflectHostRunState(NetworkBackend host) async {
+    try {
+      final status = await host.sequencerGetStatus();
+      final state = switch (status.state.toLowerCase()) {
+        'running' => SequenceExecutionState.running,
+        'paused' || 'recovering' => SequenceExecutionState.paused,
+        'stopping' => SequenceExecutionState.stopping,
+        'completed' => SequenceExecutionState.completed,
+        'failed' || 'error' => SequenceExecutionState.failed,
+        _ => SequenceExecutionState.idle,
+      };
+      _setExecutionState(state);
+    } catch (e) {
+      _logger.debug(
+        'Could not read the host run state after a command: $e',
+        source: 'SequenceExecutor',
+      );
     }
   }
 
@@ -1528,6 +1610,10 @@ class SequenceExecutor {
   /// (e.g. [reset]).
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
+    final backend = _backend;
+    if (backend is NetworkBackend) {
+      return _stopOnHost(backend, preserveCheckpoint: preserveCheckpoint);
+    }
     // Join an in-flight finalization — a natural terminal, another stop(), or a
     // rollback: the caller observes the SAME outcome, and native stop + cleanup
     // happen exactly once. The first caller's terminal intent wins (a stop that
@@ -1813,6 +1899,16 @@ class SequenceExecutor {
     }
     _acquireLaunchLatch();
     try {
+      final backend = _backend;
+      if (backend is NetworkBackend) {
+        // The host restores its own checkpoint into its executor and editor;
+        // the next start continues it there.
+        await backend.resumeFromCheckpoint();
+        _hostRestoreAwaitingStart = true;
+        _ref.read(restoredCheckpointProvider.notifier).state = await backend
+            .getCheckpointInfo();
+        return;
+      }
       await _restoreFromCheckpointInner();
     } finally {
       _releaseLaunchLatch();
@@ -1831,7 +1927,8 @@ class SequenceExecutor {
   }
 
   /// Whether a checkpoint restore is waiting for [start].
-  bool get hasRestoredCheckpoint => _restored != null;
+  bool get hasRestoredCheckpoint =>
+      _restored != null || _hostRestoreAwaitingStart;
 
   void _clearRestored() {
     _restored = null;

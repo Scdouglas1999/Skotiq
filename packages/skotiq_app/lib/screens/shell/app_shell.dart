@@ -257,6 +257,10 @@ class _AppShellState extends ConsumerState<AppShell> {
         }
       }
 
+      if (await hostRunHoldsCheckpoint(backend)) {
+        return AppStartupCheckpointOutcome.noRecovery;
+      }
+
       final hasCheckpoint = await backend.hasCheckpoint();
       if (!hasCheckpoint) return AppStartupCheckpointOutcome.noRecovery;
 
@@ -567,7 +571,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                     bottom: false,
                                                     child:
                                                         _ContentSemanticsBoundary(
-                                                      child: widget.child,
+                                                      child: HostLinkStaleScope(
+                                                        child: widget.child,
+                                                      ),
                                                     ),
                                                   ),
                                                   // Mobile sequence overlay

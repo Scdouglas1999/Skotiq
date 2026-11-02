@@ -50,6 +50,17 @@ List<HeadlessRoute> buildDeviceRoutes(DeviceHandlers h) => <HeadlessRoute>[
     h.handleCameraGetCooling,
   ),
   HeadlessRoute(
+    HttpMethod.post,
+    '/api/camera/warm-up',
+    h.handleCameraStartWarmUp,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/camera/warm-up/cancel',
+    h.handleCameraCancelWarmUp,
+  ),
+  HeadlessRoute(HttpMethod.get, '/api/camera/warm-up', h.handleCameraGetWarmUp),
+  HeadlessRoute(
     HttpMethod.get,
     '/api/camera/readout-modes',
     h.handleCameraGetReadoutModes,

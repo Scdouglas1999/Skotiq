@@ -22,9 +22,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    show BackendErrorCategory, CheckpointInfo, SkotiqError;
+    show
+        BackendErrorCategory,
+        CheckpointInfo,
+        NetworkBackend,
+        SequencerBackend,
+        SkotiqError;
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+class _MockHost extends Mock implements NetworkBackend {}
+
+class _MockLocal extends Mock implements SequencerBackend {}
 
 final _info = CheckpointInfo(
   sequenceName: 'Veil Nebula',
@@ -314,5 +324,34 @@ void main() {
     );
 
     expect(seen.last?.checkpointStillResumable, isFalse);
+  });
+
+  test('the age comes from the save time, not from an age the host cached', () {
+    final info = CheckpointInfo(
+      sequenceName: 'M74 Plan',
+      timestamp: DateTime.utc(2026, 10, 31, 9, 27, 27),
+      completedExposures: 120,
+      completedIntegrationSecs: 3600,
+      canResume: true,
+      ageSeconds: 104402,
+    );
+    final age = checkpointAgeSeconds(
+      info,
+      now: DateTime.utc(2026, 11, 1, 16, 16, 27),
+    );
+    expect(age, 30 * 3600 + 49 * 60);
+  });
+
+  test(
+      'a host running its sequence holds its checkpoint; an idle host or '
+      'this machine does not', () async {
+    final running = _MockHost();
+    when(() => running.hostRunInFlight()).thenAnswer((_) async => true);
+    final idle = _MockHost();
+    when(() => idle.hostRunInFlight()).thenAnswer((_) async => false);
+
+    expect(await hostRunHoldsCheckpoint(running), isTrue);
+    expect(await hostRunHoldsCheckpoint(idle), isFalse);
+    expect(await hostRunHoldsCheckpoint(_MockLocal()), isFalse);
   });
 }

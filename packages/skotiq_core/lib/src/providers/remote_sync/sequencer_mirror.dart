@@ -137,82 +137,92 @@ void _applySequencerMutationFromHost(
 
 /// SLAVE apply: mirror the master's OPEN sequence-editor canvas.
 ///
-/// The master broadcasts its working/dirty open sequence via the
+/// The master broadcasts its open plan via the
 /// [HostMutationEntity.sequenceEditor] host-mutation (see
-/// `masterSequenceEditorMirrorProvider`). Here the slave reflects it onto its
-/// own [currentSequenceProvider] so the sequencer screen follows the master's
-/// live canvas — not just re-saved library rows.
+/// `masterSequenceEditorMirrorProvider`), and hydration fetches it. Here the
+/// slave reflects it onto its own [currentSequenceProvider].
 ///
-/// Guards (single-hardware-owner invariant; master is authoritative but never
-/// silently clobbers a slave operator mid-edit):
-///   * If the slave editor has unsaved edits ([CurrentSequenceNotifier.isDirty])
-///     we SKIP the apply — same guard as [reloadOpenSequenceIfIdle].
-///   * `cleared` empties the slave canvas to match the master closing its
-///     editor.
-/// Applies use `discardUnsaved: true` only after the isDirty guard has already
-/// passed (the editor is clean), so no confirmed-clean work is lost.
+/// The slave writes its own changes into the host's editor
+/// (`remoteSequenceEditorSyncProvider`), so the two edit one plan and the
+/// last writer wins:
+///   * an edit made here that has not reached the host yet is kept; the
+///     write lands after this frame and replaces it on the host;
+///   * the host closing its editor closes the plan here too;
+///   * otherwise the host's plan replaces the one shown here, with a note
+///     when it replaces a plan this client wrote;
+///   * a plan that is already the one shown is not reloaded, so selection
+///     and undo survive the periodic re-hydrate;
+///   * while a run holds the editor, the host's running plan is shown so a
+///     client that joined mid-run sees what is running.
 void _applySequenceEditorMirror(
   Object reader,
   String action,
   Map<String, dynamic> data,
 ) {
   final editor = _read(reader, currentSequenceProvider.notifier);
+  final sync = _read(reader, remoteEditorSyncStateProvider);
+  final files = _read(reader, sequenceFileServiceProvider);
+  final current = _read(reader, currentSequenceProvider);
 
-  // While a run is active the executor owns the tree and every mutating call
-  // below would throw SequenceLockedException — which used to escape and
-  // abort the rest of hydration. Skip instead: the running run's tree is
-  // shown by the run dashboard, and the canvas re-syncs on the next
-  // hydration after the run ends.
-  if (!editor.isEditableNow) {
-    return;
-  }
-
-  if (action == HostMutationAction.cleared) {
-    // Don't wipe a slave operator's unsaved canvas just because the master
-    // closed its editor.
-    if (editor.isDirty) {
+  Sequence? parsed;
+  if (action != HostMutationAction.cleared) {
+    final rawSequence = data['sequence'];
+    if (rawSequence is! Map) return;
+    try {
+      var seq = files.parseFromMap(Map<String, dynamic>.from(rawSequence));
+      final dbId = data['databaseId'];
+      if (dbId is int) seq = seq.copyWith(databaseId: dbId);
+      parsed = seq;
+    } catch (_) {
+      // A malformed mirror frame must not crash the slave's sync loop. The
+      // next frame (or a library reload) will recover.
       return;
     }
-    editor.clearSequence(discardUnsaved: true);
-    // Editor closed host-side -> back to manual ownership on the slave.
-    editor.adoptOwner(ActivePlanOwner.manual);
+  }
+  final incomingFingerprint = sequenceFingerprint(files, parsed);
+  final currentFingerprint = sequenceFingerprint(files, current);
+
+  if (!editor.isEditableNow) {
+    if (parsed == null || incomingFingerprint == currentFingerprint) return;
+    sync.appliedFromHost = parsed;
+    sync.hostFingerprint = incomingFingerprint;
+    editor.showHostRunningSequence(parsed);
+    editor.adoptOwner(ActivePlanOwnerWire.fromWire(data['activePlanOwner']));
     return;
   }
 
-  // Never clobber the slave operator's in-progress edits. The slave diverges
-  // until it returns to a clean state, which is the documented master-
-  // authoritative behavior.
-  if (editor.isDirty) {
+  // Unsaved edits the host has not seen yet are on their way to it.
+  final holdsUnsentEdits =
+      editor.isDirty &&
+      currentFingerprint != sync.lastWrittenFingerprint &&
+      currentFingerprint != sync.hostFingerprint;
+  if (sync.writePending || holdsUnsentEdits) return;
+
+  final owner = parsed == null
+      ? ActivePlanOwner.manual
+      : ActivePlanOwnerWire.fromWire(data['activePlanOwner']);
+  sync.hostFingerprint = incomingFingerprint;
+  if (incomingFingerprint == currentFingerprint) {
+    editor.adoptOwner(owner);
     return;
   }
 
-  final rawSequence = data['sequence'];
-  if (rawSequence is! Map) {
-    return;
+  final replacesOwnWrite =
+      current != null && currentFingerprint == sync.lastWrittenFingerprint;
+  sync.appliedFromHost = parsed;
+  // Clean here: the host's unsaved flag is the host's to act on, and a
+  // dirty plan here would be saved to the library by this client.
+  editor.applyPeerEdit(parsed, dirty: false);
+  editor.adoptOwner(owner);
+  if (replacesOwnWrite && parsed != null) {
+    final backend = _read(reader, backendProvider);
+    final host = backend is NetworkBackend ? backend.serverHost : 'the host';
+    _read(reader, uiNotificationProvider.notifier).showInfo(
+      'The plan was changed on $host after your last edit; showing its '
+      'version.',
+      title: 'Plan updated',
+    );
   }
-
-  final Sequence parsed;
-  try {
-    final map = Map<String, dynamic>.from(rawSequence);
-    var seq = _read(reader, sequenceFileServiceProvider).parseFromMap(map);
-    final dbId = data['databaseId'];
-    if (dbId is int) {
-      seq = seq.copyWith(databaseId: dbId);
-    }
-    parsed = seq;
-  } catch (_) {
-    // Best-effort: a malformed mirror frame must not crash the slave's sync
-    // loop. The next frame (or a library reload) will recover.
-    return;
-  }
-
-  editor.loadSequence(parsed, discardUnsaved: true);
-  // Reflect the host's active-plan owner so the slave's UI shows WHO owns the
-  // plan (host autopilot -> slave shows autopilot-owned, not stale manual).
-  // Applied AFTER loadSequence: loadSequence resets the owner to manual (it is a
-  // manual-load primitive), so adopting here lands the correct owner last.
-  // Backward-compatible: an older host omits the field and fromWire -> manual.
-  editor.adoptOwner(ActivePlanOwnerWire.fromWire(data['activePlanOwner']));
 }
 
 /// G2: seed the slave's sequencer canvas with the master's currently-open

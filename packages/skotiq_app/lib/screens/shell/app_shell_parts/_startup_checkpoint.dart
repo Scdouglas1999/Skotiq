@@ -139,6 +139,24 @@ Future<void> adoptLegacyGuiCheckpoint({
 bool catalogSetupWasSkipped(String? persistedValue) =>
     persistedValue?.trim().toLowerCase() == 'true';
 
+/// Whether [backend] is a remote host whose run is in flight. Its checkpoint
+/// is then that live run's, so a client joining it is shown the run and is
+/// never offered to recover it.
+@visibleForTesting
+Future<bool> hostRunHoldsCheckpoint(Object backend) async =>
+    backend is NetworkBackend && await backend.hostRunInFlight();
+
+/// How old [info]'s checkpoint is now, from its save time. A host that
+/// reports a cached age keeps reporting the age it had when first read.
+@visibleForTesting
+int checkpointAgeSeconds(CheckpointInfo info, {DateTime? now}) {
+  final age = (now ?? DateTime.now())
+      .toUtc()
+      .difference(info.timestamp.toUtc())
+      .inSeconds;
+  return age < 0 ? 0 : age;
+}
+
 /// The startup "Recover Sequence?" modal.
 ///
 /// Top-level and [visibleForTesting] because its escape hatch is the thing that
@@ -170,7 +188,7 @@ Widget buildCheckpointRecoveryDialog({
       : 'This checkpoint can no longer be restored. Discard it to clear the '
           'prompt.';
   final colors = SkotiqColors.of(context);
-  final ageMinutes = info.ageSeconds ~/ 60;
+  final ageMinutes = checkpointAgeSeconds(info) ~/ 60;
   final ageStr = ageMinutes < 60
       ? '${ageMinutes}m ago'
       : '${ageMinutes ~/ 60}h ${ageMinutes % 60}m ago';

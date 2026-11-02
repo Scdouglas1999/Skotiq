@@ -49,7 +49,10 @@ import 'scheduler_provider.dart'
         integrationGoalsStreamProvider,
         schedulerPreviewDecisionProvider,
         targetConstraintsStreamProvider;
+import 'sequence/remote_sequence_editor_sync.dart'
+    show remoteEditorSyncStateProvider, sequenceFingerprint;
 import 'sequence_provider.dart';
+import 'ui_notification_provider.dart' show uiNotificationProvider;
 import 'sequence_stats_provider.dart'
     show
         currentRunIdProvider,
