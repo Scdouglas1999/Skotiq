@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../utils/snackbar_helper.dart';
 import 'dart:developer' as developer;
 import 'dart:io' show Directory, File, Platform;
 
@@ -220,7 +221,30 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded() {
-    return _checkpointCheck ??= _performCheckpointCheck();
+    return _checkpointCheck ??= _performCheckpointCheck().then((outcome) async {
+      if (outcome == AppStartupCheckpointOutcome.noRecovery) {
+        await _restoreEditorDraft();
+      }
+      return outcome;
+    });
+  }
+
+  /// Put back the plan the Builder held, unsaved, when Skotiq last stopped
+  /// (a crash or a killed process), and say so.
+  Future<void> _restoreEditorDraft() async {
+    try {
+      final restored = await restoreEditorDraft(ref.read);
+      if (restored == null || !mounted) return;
+      context.showInfoSnackBar(
+        'Restored "${restored.name}", the plan you were editing when Skotiq '
+        'last closed. It is not saved yet.',
+      );
+    } catch (e) {
+      ref.read(loggingServiceProvider).warning(
+            'Could not restore the unsaved plan: $e',
+            source: 'AppShell',
+          );
+    }
   }
 
   Future<AppStartupCheckpointOutcome> _performCheckpointCheck() async {

@@ -382,6 +382,8 @@ void main(List<String> args) async {
     // future that transitively waits on the widget tree / first frame will
     // hang main() forever and leave a blank frameless window (same class of
     // bug as awaiting appSettingsProvider.future before runApp below).
+    // The Builder's unsaved plan survives a crash or a killed process.
+    container.read(editorDraftLifecycleProvider);
     unawaited(() async {
       try {
         await container.read(autoSaveLifecycleProvider.future);
