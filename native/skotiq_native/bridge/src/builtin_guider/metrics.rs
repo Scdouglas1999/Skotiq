@@ -485,10 +485,17 @@ pub(crate) async fn apply_settle_state(
                 );
                 return Ok(());
             }
-            return Err(SkotiqError::OperationFailed(format!(
-                "Settle timeout exceeded ({:.0}s) during guide settle; guiding RMS {:.2}px still above threshold {:.2}px",
-                settle_timeout, rms_total, settle_pixels,
-            )));
+            // As with PHD2, a settle that runs out while the star is held
+            // leaves guiding running: the run is told and carries on.
+            drop(guard);
+            let message =
+                settle_timeout_message(rms_total, settle_pixels, settle_time, settle_timeout);
+            tracing::warn!("Built-in guider: {}", message);
+            get_state().publish_guiding_event(
+                GuidingEvent::SettleTimedOut { error: message },
+                EventSeverity::Warning,
+            );
+            return Ok(());
         }
     }
 
@@ -527,6 +534,28 @@ pub(crate) async fn apply_settle_state(
     }
 
     Ok(())
+}
+
+/// Why a settle ran out, stated against the number it shows: an RMS inside
+/// the tolerance that did not stay there for the hold time is not "above the
+/// threshold".
+pub(crate) fn settle_timeout_message(
+    rms_total: f64,
+    settle_pixels: f64,
+    settle_time: f64,
+    settle_timeout: f64,
+) -> String {
+    if rms_total <= settle_pixels {
+        format!(
+            "Guiding RMS {rms_total:.2} px is within {settle_pixels:.2} px but did not stay \
+             there for {settle_time:.0} s within {settle_timeout:.0} s; guiding continues."
+        )
+    } else {
+        format!(
+            "Guiding RMS {rms_total:.2} px is still above {settle_pixels:.2} px after \
+             {settle_timeout:.0} s; guiding continues."
+        )
+    }
 }
 
 /// Decide whether a detected star is usable as a guide reference. Rejects

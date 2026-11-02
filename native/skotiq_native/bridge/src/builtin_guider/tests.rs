@@ -1654,3 +1654,33 @@ async fn the_profile_names_the_runs_guider() {
         Some(BUILTIN_GUIDER_ID)
     );
 }
+
+/// A settle that runs out leaves guiding running, as PHD2 does, and says what
+/// the numbers mean: 0.33 px inside a 1.50 px tolerance is not "above" it.
+#[tokio::test]
+async fn a_settle_that_runs_out_keeps_guiding_and_reads_true() {
+    let controller = Arc::new(RwLock::new(BuiltinGuiderState {
+        guiding: true,
+        settling: true,
+        settle_spec: SettleSpec {
+            pixels: 1.5,
+            time: 5.0,
+            timeout: 60.0,
+        },
+        settle_timeout_deadline: Some(Instant::now()),
+        ..BuiltinGuiderState::default()
+    }));
+
+    apply_settle_state(controller.clone(), 0.33)
+        .await
+        .expect("a settle timeout does not fail guiding");
+    let guard = controller.read().await;
+    assert!(guard.guiding);
+    assert!(!guard.settling);
+
+    let within = settle_timeout_message(0.33, 1.5, 5.0, 60.0);
+    assert!(within.contains("within 1.50 px"), "{within}");
+    assert!(!within.contains("above"), "{within}");
+    let above = settle_timeout_message(2.4, 1.5, 5.0, 60.0);
+    assert!(above.contains("still above 1.50 px"), "{above}");
+}
