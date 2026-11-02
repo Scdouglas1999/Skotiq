@@ -124,7 +124,8 @@ const Map<String, String> _defaultSettings = {
   'science.feature.frame_quality_maps': 'true',
   'science.feature.surface3d': 'true',
   // Your Sky: fold every accepted, solved light into the personal sky atlas.
-  'science.feature.sky_atlas': 'true',
+  // Off until the user turns it on: it keeps gigabytes of tiles on disk.
+  'science.feature.sky_atlas': 'false',
   'science.retention.manual_purge_only': 'true',
   'science.photometry.differential_active': 'false',
   'science.photometry.target_anchor': '',
@@ -180,3 +181,10 @@ const Set<String> _retiredSettingKeys = {
   // nothing.
   'af_failure_action',
 };
+
+/// Set once a profile has been through the rule that made Your Sky opt-in.
+const String skyAtlasOptInMigratedKey = 'science.sky_atlas.opt_in_migrated';
+
+/// "pending" while the one-time "Your sky is now off" notice is owed to the
+/// user; "shown" once they have answered it.
+const String skyAtlasOffNoticeKey = 'science.sky_atlas.off_notice';

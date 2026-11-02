@@ -189,6 +189,16 @@ class AtlasHandlers {
     final regionId = resolved.regionId!;
     final region = resolved.region!;
 
+    // A cutout is rendered into the atlas cache; with Your Sky off nothing
+    // may be written there.
+    if (!await _service.isEnabled()) {
+      return jsonError(
+        code: 'sky_atlas_off',
+        message: const SkyAtlasOffException().message,
+        statusCode: 409,
+      );
+    }
+
     final interp = _parseInterp(qp['interp']);
 
     final result = await _service.cutout(

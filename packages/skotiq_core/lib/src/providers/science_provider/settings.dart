@@ -11,7 +11,7 @@ class ScienceSettings {
   final bool movingObjectsEnabled;
 
   /// Whether solved lights fold into the Your Sky atlas (and First Light has
-  /// a template to compare against).
+  /// a template to compare against). Off until the user turns it on.
   final bool skyAtlasEnabled;
 
   /// Largest size, in GB, the Your Sky atlas may reach before new frames stop
@@ -94,7 +94,7 @@ class ScienceSettings {
     this.psfMapEnabled = true,
     this.astrometricResidualsEnabled = true,
     this.movingObjectsEnabled = false,
-    this.skyAtlasEnabled = true,
+    this.skyAtlasEnabled = false,
     this.skyAtlasLimitGb = defaultSkyAtlasLimitGb,
     this.narrowbandRatiosEnabled = false,
     this.frameQualityMapsEnabled = true,
@@ -249,7 +249,7 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
         true,
       ),
       movingObjectsEnabled: _parseBool(settings[_keys['movingObjects']], false),
-      skyAtlasEnabled: _parseBool(settings[_keys['skyAtlas']], true),
+      skyAtlasEnabled: _parseBool(settings[_keys['skyAtlas']], false),
       skyAtlasLimitGb: parseSkyAtlasLimitGb(settings[_keys['skyAtlasLimitGb']]),
       narrowbandRatiosEnabled: _parseBool(
         settings[_keys['narrowbandRatios']],

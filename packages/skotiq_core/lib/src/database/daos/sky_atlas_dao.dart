@@ -21,6 +21,27 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
     with _$SkyAtlasDaoMixin {
   SkyAtlasDao(super.db);
 
+  /// Remove every tile and fold row, zero the region rollups, and clear the
+  /// folded mark on captured frames, in one transaction. Region names stay.
+  Future<void> deleteAllTilesAndFolds() {
+    return transaction(() async {
+      await delete(skyAtlasFolds).go();
+      await delete(skyTiles).go();
+      await update(skyAtlasRegions).write(
+        const SkyAtlasRegionsCompanion(
+          tileCount: Value(0),
+          integrationSeconds: Value(0),
+        ),
+      );
+      await customUpdate(
+        'UPDATE captured_images SET atlas_folded_at = NULL '
+        'WHERE atlas_folded_at IS NOT NULL',
+        updates: {attachedDatabase.capturedImages},
+        updateKind: UpdateKind.update,
+      );
+    });
+  }
+
   // Regions
 
   /// All regions, newest first.

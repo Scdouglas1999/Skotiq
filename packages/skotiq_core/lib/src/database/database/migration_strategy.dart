@@ -54,6 +54,7 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         // and the profiles that still carry an orphaned row are exactly
         // the ones already sitting at the current version.
         await _pruneRetiredSettings();
+        await _migrateSkyAtlasToOptIn();
 
         // A solved row's scalar rotation must agree with its own CD matrix;
         // rows written before the parser handled mirrored frames do not.

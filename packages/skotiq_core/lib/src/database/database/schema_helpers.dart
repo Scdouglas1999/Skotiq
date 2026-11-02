@@ -1047,6 +1047,43 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
     );
   }
 
+  /// Your Sky became opt-in. A profile whose atlas switch is on only because
+  /// the old default seeded it on is turned off once, and a one-time notice is
+  /// queued so the user hears about it and can turn it back on or delete the
+  /// data. The seed never recorded whether the user chose the value, so every
+  /// profile that predates this rule is treated as never having chosen. Turning
+  /// Your Sky on afterwards is a real choice and is never undone: the rule runs
+  /// once per profile, marked by [skyAtlasOptInMigratedKey].
+  Future<void> _migrateSkyAtlasToOptIn() async {
+    final marker = await customSelect(
+      'SELECT 1 FROM app_settings WHERE key = ?',
+      variables: [Variable.withString(skyAtlasOptInMigratedKey)],
+    ).get();
+    if (marker.isNotEmpty) return;
+    final row = await customSelect(
+      'SELECT value FROM app_settings WHERE key = ?',
+      variables: [Variable.withString('science.feature.sky_atlas')],
+    ).getSingleOrNull();
+    final value = row?.read<String>('value').trim().toLowerCase();
+    if (value != 'false') {
+      await customStatement(
+        'INSERT INTO app_settings (key, value) VALUES (?, ?) '
+        'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+        ['science.feature.sky_atlas', 'false'],
+      );
+      await customStatement(
+        'INSERT INTO app_settings (key, value) VALUES (?, ?) '
+        'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+        [skyAtlasOffNoticeKey, 'pending'],
+      );
+    }
+    await customStatement(
+      'INSERT INTO app_settings (key, value) VALUES (?, ?) '
+      'ON CONFLICT(key) DO NOTHING',
+      [skyAtlasOptInMigratedKey, 'true'],
+    );
+  }
+
   Future<void> _ensureDefaultSettings() async {
     for (final entry in _defaultSettings.entries) {
       await customStatement(

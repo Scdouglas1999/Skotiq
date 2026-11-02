@@ -19,6 +19,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'host_mutation_event_provider.dart';
 import 'remote_snapshot_stream.dart';
+import 'science_provider.dart' show scienceSettingsProvider;
 
 /// Riverpod surface for Pillar A ("Your Sky") — the personal sky atlas.
 ///
@@ -50,7 +51,7 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
       final value = await ref
           .read(settingsDaoProvider)
           .getSetting(skyAtlasSettingKey);
-      return value?.trim().toLowerCase() != 'false';
+      return value?.trim().toLowerCase() == 'true';
     },
     targetResolver: (targetId) async {
       final target = await targetsDao.getTargetById(targetId);
@@ -154,6 +155,36 @@ class SkyAtlasRegionWriter {
     }
     throw StateError('Connect to an imaging host before naming a sky region.');
   }
+}
+
+/// Whether Your Sky is on: the user's choice, off until they turn it on. Null
+/// while the setting loads.
+final skyAtlasEnabledProvider = Provider<bool?>((ref) {
+  return ref.watch(
+    scienceSettingsProvider.select((s) => s.valueOrNull?.skyAtlasEnabled),
+  );
+});
+
+/// Bytes kept from before Your Sky became opt-in, when the one-time notice
+/// about it is still owed; null once it is answered, on a companion, or when
+/// there is nothing on disk to tell the user about (then it is settled
+/// silently).
+final skyAtlasOffNoticeProvider = FutureProvider.autoDispose<int?>((ref) async {
+  if (ref.watch(backendProvider) is NetworkBackend) return null;
+  final settings = ref.read(settingsDaoProvider);
+  if (await settings.getSetting(skyAtlasOffNoticeKey) != 'pending') {
+    return null;
+  }
+  final bytes = await ref.read(skyAtlasServiceProvider).storageBytes();
+  if (bytes > 0) return bytes;
+  await settings.setSetting(skyAtlasOffNoticeKey, 'shown');
+  return null;
+});
+
+/// Record that the user has answered the one-time notice.
+Future<void> markSkyAtlasOffNoticeShown(WidgetRef ref) async {
+  await ref.read(settingsDaoProvider).setSetting(skyAtlasOffNoticeKey, 'shown');
+  ref.invalidate(skyAtlasOffNoticeProvider);
 }
 
 /// Bytes the Your Sky atlas takes on this machine's disk. Null on a companion,

@@ -99,3 +99,15 @@ class AtlasCompactionResult {
     );
   }
 }
+
+/// Raised by an atlas write while the user has Your Sky turned off.
+class SkyAtlasOffException implements Exception {
+  const SkyAtlasOffException();
+
+  String get message =>
+      'Your Sky is turned off. Turn it on in Settings > Science to build '
+      'your sky atlas.';
+
+  @override
+  String toString() => message;
+}

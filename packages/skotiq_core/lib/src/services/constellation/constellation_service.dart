@@ -337,6 +337,8 @@ class ConstellationService {
         attributionConsent: attributionConsent,
       );
     }
+    // Summed contributions are exported from the user's own atlas tiles.
+    if (!await _atlas.isEnabled()) throw const SkyAtlasOffException();
     final joined = _joined[targetId];
     final creds = await _credentialsResolver();
     final hubKey = creds == null ? null : constellationHubKey(creds.hubBaseUrl);
@@ -640,6 +642,8 @@ class ConstellationService {
     double radiusDeg = 1.5,
     bool finalized = true,
   }) async {
+    // Pulled community depth is stored beside the user's atlas.
+    if (!await _atlas.isEnabled()) throw const SkyAtlasOffException();
     final joined = _joined[targetId];
     final creds = await _credentialsResolver();
     final hubKey = creds == null ? null : constellationHubKey(creds.hubBaseUrl);

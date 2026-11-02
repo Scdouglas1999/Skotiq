@@ -564,6 +564,9 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
     onSolvedFrameFold: (capturedImageId) async {
       final logger = ref.read(loggingServiceProvider);
       try {
+        // With Your Sky off nothing is folded and First Light, whose template
+        // is the atlas, has nothing to compare against: write nothing.
+        if (!await ref.read(skyAtlasServiceProvider).isEnabled()) return;
         final image = await imagesDao.getImageById(capturedImageId);
         if (image == null ||
             !image.isAccepted ||

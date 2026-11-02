@@ -77,8 +77,8 @@ class SkyAtlasService {
   /// unfolded, so a backlog can never grow without bound during a night.
   static const int maxPendingAutoFolds = 64;
 
-  /// The `science.feature.sky_atlas` switch: when it reads false the solve hook
-  /// folds nothing. Null (tests, slaves) means always on.
+  /// The `science.feature.sky_atlas` switch. While it reads false nothing is
+  /// folded, merged or written under the atlas root. Null (tests) means on.
   final Future<bool> Function()? _autoFoldEnabled;
 
   /// Called after every sidecar writer (fold, swarm merge) finishes, so a host
@@ -215,6 +215,30 @@ class SkyAtlasService {
   }
 
   static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
+
+  /// Whether the user has Your Sky turned on.
+  Future<bool> isEnabled() async {
+    final enabled = _autoFoldEnabled;
+    return enabled == null || await enabled();
+  }
+
+  Future<void> _requireEnabled() async {
+    if (!await isEnabled()) throw const SkyAtlasOffException();
+  }
+
+  /// Delete every tile, overlay, cached render and First Light crop, and the
+  /// atlas rows that describe them. Region names are kept so a re-enabled
+  /// atlas fills the same regions. Frames lose their folded mark, so turning
+  /// Your Sky back on can fold them again.
+  Future<void> deleteAllData() {
+    return _serialized(() async {
+      final dir = Directory(await atlasRoot());
+      if (await dir.exists()) await dir.delete(recursive: true);
+      await _dao.deleteAllTilesAndFolds();
+      _coneCache.clear();
+      _logger.info('Sky atlas: all tile data deleted.', source: _logSource);
+    });
+  }
 
   /// Bytes the atlas takes on disk: tiles, layers, overlay and cache.
   Future<int> storageBytes() async {
@@ -564,6 +588,7 @@ class SkyAtlasService {
   /// [asOf] requests a time-scrubbed render (only honoured by the native side
   /// when every fold is at/before the anchor; otherwise it raises).
   Future<String> finalizeTilePng(int tileId, {DateTime? asOf}) async {
+    await _requireEnabled();
     final root = await atlasRoot();
     final outPath = p.join(_cacheDir(root), 'tile_$tileId.png');
     final args = <String, dynamic>{
@@ -591,6 +616,7 @@ class SkyAtlasService {
     bool withPng = true,
     bool includeSwarm = false,
   }) async {
+    await _requireEnabled();
     final root = await atlasRoot();
     final stem =
         'cutout_${centerRaDeg.toStringAsFixed(3)}_'
@@ -965,6 +991,7 @@ class SkyAtlasService {
     double trust = 1.0,
   }) {
     return _serialized(() async {
+      await _requireEnabled();
       final root = await atlasRoot();
       // Pre-rename atlases may still hold `.nst` sidecars; fold the merge into
       // whichever path actually holds the accumulated depth.
