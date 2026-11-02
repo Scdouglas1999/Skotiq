@@ -59,8 +59,9 @@ Future<Sequence?> restoreEditorDraft(
   final raw = await dao.getSetting(kEditorDraftKey);
   if (raw == null || raw.isEmpty) return null;
   try {
-    final sequence = read(sequenceFileServiceProvider)
-        .parseFromMap(jsonDecode(raw) as Map<String, dynamic>);
+    final sequence = read(
+      sequenceFileServiceProvider,
+    ).parseFromMap(jsonDecode(raw) as Map<String, dynamic>);
     if (read(currentSequenceProvider) != null) return null;
     read(currentSequenceProvider.notifier).applyPeerEdit(sequence, dirty: true);
     return sequence;
