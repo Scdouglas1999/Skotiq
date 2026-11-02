@@ -17,4 +17,9 @@ void main() {
     expect(propertyChangeText('Temperature', '-10.0'), 'Temperature=-10.0');
     expect(propertyChangeText('Blob', 'x' * 200), 'Blob changed');
   });
+
+  test('a structured value is named, not printed', () {
+    expect(propertyChangeText('Progress', '{"step":2}'), 'Progress');
+    expect(propertyChangeText('Points', ' [1, 2]'), 'Points');
+  });
 }
