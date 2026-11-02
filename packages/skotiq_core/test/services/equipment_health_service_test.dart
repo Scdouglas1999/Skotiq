@@ -85,6 +85,30 @@ void main() {
       expect(report.insights.single.title, contains('stable'));
     });
 
+    // qa-rig RIG-08: one aborted session that logged 84.9" RMS made a rig
+    // guiding at 1.2" read "19.23x the historical baseline".
+    test('one outlier session does not read as guiding degradation', () {
+      final report = service.analyze(
+        sessions: [
+          for (var i = 0; i < 15; i++)
+            session(
+              id: i,
+              start: DateTime(2026, 1, 1).add(Duration(days: i)),
+              avgGuidingRms: i == 14 ? 84.9 : 1.2,
+              avgHfr: 2.2,
+              totalExposures: 20,
+              failedExposures: 0,
+            ),
+        ],
+        deviceHealth: const [],
+      );
+
+      expect(
+        report.insights.any((insight) => insight.title.contains('Guiding')),
+        isFalse,
+      );
+    });
+
     test('flags degraded guiding and unhealthy devices', () {
       final report = service.analyze(
         sessions: [

@@ -194,7 +194,7 @@ class EquipmentHealthService {
     final latest = recentSessions.take(5).toList(growable: false);
     final baseline = recentSessions.skip(5).take(10).toList(growable: false);
 
-    final recentGuiding = _mean(
+    final recentGuiding = _median(
       latest.map((session) => session.avgGuidingRms).whereType<double>(),
     );
     // Null when there is no history to compare against, NOT a stand-in number.
@@ -203,13 +203,13 @@ class EquipmentHealthService {
     // fewer sessions. A clamped mean of nothing would be a floor value no rig
     // ever produced, and every degradation trigger would fire against it on a
     // user's first night.
-    final baselineGuiding = _meanOrNull(
+    final baselineGuiding = _medianOrNull(
       baseline.map((session) => session.avgGuidingRms).whereType<double>(),
     );
-    final recentHfr = _mean(
+    final recentHfr = _median(
       latest.map((session) => session.avgHfr).whereType<double>(),
     );
-    final baselineHfr = _meanOrNull(
+    final baselineHfr = _medianOrNull(
       baseline.map((session) => session.avgHfr).whereType<double>(),
     );
     final failureRate = _failureRate(latest);
@@ -326,25 +326,19 @@ class EquipmentHealthService {
     );
   }
 
-  /// Mean of [values], or null when there is nothing to average.
+  /// Median of [values], or null when there is nothing to take it of.
   ///
-  /// Distinct from [_mean], which returns 0.0 for an empty input. That zero was
-  /// being clamped into a plausible-looking baseline and compared against, so
-  /// "no history" was indistinguishable from "excellent history".
-  double? _meanOrNull(Iterable<double> values) {
-    final list = values.toList(growable: false);
-    return list.isEmpty ? null : _mean(list);
+  /// Session averages are compared by their median, not their mean: one
+  /// aborted session that logged 84.9" RMS turned a 1.2" history into
+  /// "19.23x the historical baseline".
+  double? _medianOrNull(Iterable<double> values) {
+    final list = values.where((value) => value.isFinite).toList()..sort();
+    if (list.isEmpty) return null;
+    final mid = list.length ~/ 2;
+    return list.length.isOdd ? list[mid] : (list[mid - 1] + list[mid]) / 2;
   }
 
-  double _mean(Iterable<double> values) {
-    final list = values
-        .where((value) => value.isFinite)
-        .toList(growable: false);
-    if (list.isEmpty) {
-      return 0.0;
-    }
-    return list.reduce((a, b) => a + b) / list.length;
-  }
+  double _median(Iterable<double> values) => _medianOrNull(values) ?? 0.0;
 
   double _failureRate(List<ImagingSession> sessions) {
     if (sessions.isEmpty) {
