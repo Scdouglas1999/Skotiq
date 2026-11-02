@@ -304,7 +304,11 @@ async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
 #[tokio::test]
 async fn a_node_driven_meridian_flip_reports_its_outcome_to_the_run() {
     let scratch = scratch_dir("node-flip-outcome");
-    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_observer_location(TEST_LAT, TEST_LON));
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_observer_location(TEST_LAT, TEST_LON)
+            .with_pier_side(crate::meridian::PierSide::West),
+    );
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = direct_capture_ctx(ops.clone(), scratch.0.clone()).await;
     ctx.event_tx = Some(event_tx);
@@ -553,4 +557,78 @@ async fn an_overdue_flip_waits_a_bounded_time_for_the_trigger_to_evaluate() {
         "waited {:?} for a trigger evaluation that never came",
         started.elapsed()
     );
+}
+
+/// A flip step left in a plan runs as an ordinary step, also after the plan
+/// parked the mount (the Quick-Start wizard placed it after the Park step) or
+/// after the run's own trigger already flipped. It must leave such a mount
+/// alone: never unpark it, start tracking or slew it back across the meridian.
+#[tokio::test]
+async fn a_flip_step_leaves_a_parked_or_already_flipped_mount_alone() {
+    use crate::meridian::PierSide;
+    let lst = crate::meridian::local_sidereal_time(
+        crate::meridian::julian_day(&chrono::Utc::now()),
+        TEST_LON,
+    );
+    // Four hours past the meridian, as at the end of the QA night.
+    let ra = (lst - 4.0).rem_euclid(24.0);
+    let config = crate::MeridianFlipConfig {
+        pause_guiding: false,
+        auto_center: false,
+        refocus_after: false,
+        resume_guiding: false,
+        settle_time: 0.0,
+        max_retries: 0,
+        retry_delays_secs: Vec::new(),
+        ..crate::MeridianFlipConfig::default()
+    };
+    for (label, ops) in [
+        (
+            "parked",
+            ScriptedDomeRotatorOps::new()
+                .with_mount_parked(true)
+                .with_pier_side(PierSide::West),
+        ),
+        (
+            "not tracking",
+            ScriptedDomeRotatorOps::new()
+                .with_mount_tracking(false)
+                .with_pier_side(PierSide::West),
+        ),
+        (
+            "already on the post-flip side",
+            ScriptedDomeRotatorOps::new().with_pier_side(PierSide::East),
+        ),
+    ] {
+        let ops = Arc::new(ops.with_observer_location(TEST_LAT, TEST_LON));
+        let scratch = scratch_dir("flip-left-alone");
+        let mut ctx = direct_capture_ctx(ops.clone(), scratch.0.clone()).await;
+        ctx.mount_id = Some("mount-1".to_string());
+        ctx.target_name = Some("M34".to_string());
+        ctx.target_ra = Some(ra);
+        ctx.target_dec = Some(42.7);
+
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            execute_meridian_flip(&config, &ctx, None),
+        )
+        .await
+        .expect("the flip step should resolve");
+
+        assert_eq!(
+            result.status,
+            NodeStatus::Success,
+            "{label}: {:?}",
+            result.message
+        );
+        assert_eq!(
+            ops.mount_slew_calls.load(Ordering::SeqCst),
+            0,
+            "{label}: slewed"
+        );
+        assert!(
+            ops.tracking_commands.lock().unwrap().is_empty(),
+            "{label}: tracking was commanded"
+        );
+    }
 }
