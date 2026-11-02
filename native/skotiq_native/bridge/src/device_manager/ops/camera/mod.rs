@@ -391,9 +391,14 @@ mod sim_sky_wiring_tests {
         let _serialized = sim_singleton_test_lock().lock().await;
         get_sim_mount().write().await.status.connected = false;
         assert!(
-            sim_sky_view(3.76, crate::sim_frame::SIM_W, crate::sim_frame::SIM_H)
-                .await
-                .is_none(),
+            sim_sky_view(
+                3.76,
+                crate::sim_frame::SIM_W,
+                crate::sim_frame::SIM_H,
+                crate::sim_capture::SimOptics::ImagingTrain,
+            )
+            .await
+            .is_none(),
             "a disconnected mount must not produce a pointing"
         );
     }
@@ -405,9 +410,14 @@ mod sim_sky_wiring_tests {
         get_sim_mount().write().await.status.connected = true;
         for bad in [0.0, -3.76, f64::NAN] {
             assert!(
-                sim_sky_view(bad, crate::sim_frame::SIM_W, crate::sim_frame::SIM_H)
-                    .await
-                    .is_none(),
+                sim_sky_view(
+                    bad,
+                    crate::sim_frame::SIM_W,
+                    crate::sim_frame::SIM_H,
+                    crate::sim_capture::SimOptics::ImagingTrain,
+                )
+                .await
+                .is_none(),
                 "pixel size {bad} must not produce a plate scale"
             );
         }

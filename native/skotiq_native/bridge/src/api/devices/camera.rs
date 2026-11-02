@@ -133,7 +133,7 @@ pub async fn api_set_camera_binning(
     bin_y: i32,
 ) -> Result<(), SkotiqError> {
     if device_id.starts_with("sim_") {
-        let mut camera = get_sim_camera().write().await;
+        let mut camera = get_sim_camera_for(&device_id).write().await;
         camera.status.bin_x = bin_x;
         camera.status.bin_y = bin_y;
         tracing::info!("Camera binning set to: {}x{}", bin_x, bin_y);

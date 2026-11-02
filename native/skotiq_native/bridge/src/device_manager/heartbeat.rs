@@ -237,13 +237,13 @@ impl DeviceManager {
         }
 
         use crate::api::devices::simulation::{
-            get_sim_camera, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
+            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
             get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
             get_sim_switch, get_sim_weather,
         };
 
         let connected = match device_type {
-            DeviceType::Camera => get_sim_camera().read().await.status.connected,
+            DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
             DeviceType::Mount => get_sim_mount().read().await.status.connected,
             DeviceType::Focuser => get_sim_focuser().read().await.status.connected,
             DeviceType::FilterWheel => get_sim_filterwheel().read().await.status.connected,

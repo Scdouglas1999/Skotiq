@@ -457,16 +457,18 @@ impl DeviceManager {
                 // configured via set_gain / set_offset / set_binning /
                 // set_cooler, and take the frame geometry from the SAME sensor
                 // declaration the camera advertised.
-                let sim = crate::device_manager::ops::sim_gate::read_camera_status().await?;
+                let sim =
+                    crate::device_manager::ops::sim_gate::read_camera_status(device_id).await?;
                 let request =
-                    crate::device_manager::ops::sim_gate::read_camera_last_exposure().await?;
+                    crate::device_manager::ops::sim_gate::read_camera_last_exposure(device_id)
+                        .await?;
                 // Claim the finished frame, which both refuses a download the
                 // camera cannot honestly satisfy and returns it to idle so a
                 // caller that polls completion afterwards is not told to keep
                 // waiting. Ungated, this synthesized a full frame stamped with
                 // the requested EXPTIME mid-exposure and after an abort, so a
                 // cancelled or raced capture still produced a saved light frame.
-                crate::api::devices::simulation::take_sim_exposure_for_download()
+                crate::api::devices::simulation::take_sim_exposure_for_download(device_id)
                     .await
                     .map_err(|detail| {
                         DeviceOpError::hardware(Some(device_id.to_string()), detail)
@@ -489,6 +491,7 @@ impl DeviceManager {
                         subframe: request.subframe,
                         frame_type: request.frame_type,
                         max_adu: sim.max_adu.clamp(1, u32::from(u16::MAX)) as u16,
+                        optics: crate::sim_capture::SimOptics::for_camera(device_id),
                     })
                     .await;
                 let (width, height) = (frame.width, frame.height);

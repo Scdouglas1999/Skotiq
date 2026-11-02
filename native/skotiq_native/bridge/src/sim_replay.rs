@@ -424,6 +424,7 @@ mod tests {
             subframe,
             frame_type: skotiq_native::camera::FrameType::Light,
             max_adu: 65520,
+            optics: crate::sim_capture::SimOptics::ImagingTrain,
         }
     }
 

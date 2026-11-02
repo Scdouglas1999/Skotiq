@@ -95,7 +95,7 @@ impl DeviceManager {
                 // `camera_download_image` reflects the new gain. A real driver
                 // wouldn't silently drop the value; the simulator must not
                 // either.
-                let cam = crate::api::devices::simulation::get_sim_camera();
+                let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
                 let mut cam = cam.write().await;
                 if !cam.status.connected {
                     return Err(DeviceOpError::not_connected(
@@ -191,7 +191,7 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                let cam = crate::api::devices::simulation::get_sim_camera();
+                let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
                 let mut cam = cam.write().await;
                 if !cam.status.connected {
                     return Err(DeviceOpError::not_connected(
@@ -300,7 +300,7 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                let cam = crate::api::devices::simulation::get_sim_camera();
+                let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
                 let mut cam = cam.write().await;
                 if !cam.status.connected {
                     return Err(DeviceOpError::not_connected(
@@ -618,7 +618,7 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                let cam = crate::api::devices::simulation::get_sim_camera();
+                let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
                 let mut cam = cam.write().await;
                 if !cam.status.connected {
                     return Err(DeviceOpError::not_connected(

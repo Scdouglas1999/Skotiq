@@ -12863,6 +12863,8 @@ impl SseDecode for crate::state::EquipmentProfile {
         let mut var_focuserId = <Option<String>>::sse_decode(deserializer);
         let mut var_filterWheelId = <Option<String>>::sse_decode(deserializer);
         let mut var_guiderId = <Option<String>>::sse_decode(deserializer);
+        let mut var_guideCameraId = <Option<String>>::sse_decode(deserializer);
+        let mut var_guideFocalLengthMm = <Option<f64>>::sse_decode(deserializer);
         let mut var_rotatorId = <Option<String>>::sse_decode(deserializer);
         let mut var_domeId = <Option<String>>::sse_decode(deserializer);
         let mut var_weatherId = <Option<String>>::sse_decode(deserializer);
@@ -12878,6 +12880,8 @@ impl SseDecode for crate::state::EquipmentProfile {
             focuser_id: var_focuserId,
             filter_wheel_id: var_filterWheelId,
             guider_id: var_guiderId,
+            guide_camera_id: var_guideCameraId,
+            guide_focal_length_mm: var_guideFocalLengthMm,
             rotator_id: var_rotatorId,
             dome_id: var_domeId,
             weather_id: var_weatherId,
@@ -18396,6 +18400,8 @@ impl flutter_rust_bridge::IntoDart for crate::state::EquipmentProfile {
             self.focuser_id.into_into_dart().into_dart(),
             self.filter_wheel_id.into_into_dart().into_dart(),
             self.guider_id.into_into_dart().into_dart(),
+            self.guide_camera_id.into_into_dart().into_dart(),
+            self.guide_focal_length_mm.into_into_dart().into_dart(),
             self.rotator_id.into_into_dart().into_dart(),
             self.dome_id.into_into_dart().into_dart(),
             self.weather_id.into_into_dart().into_dart(),
@@ -22769,6 +22775,8 @@ impl SseEncode for crate::state::EquipmentProfile {
         <Option<String>>::sse_encode(self.focuser_id, serializer);
         <Option<String>>::sse_encode(self.filter_wheel_id, serializer);
         <Option<String>>::sse_encode(self.guider_id, serializer);
+        <Option<String>>::sse_encode(self.guide_camera_id, serializer);
+        <Option<f64>>::sse_encode(self.guide_focal_length_mm, serializer);
         <Option<String>>::sse_encode(self.rotator_id, serializer);
         <Option<String>>::sse_encode(self.dome_id, serializer);
         <Option<String>>::sse_encode(self.weather_id, serializer);
@@ -27332,6 +27340,8 @@ mod io {
                 focuser_id: self.focuser_id.cst_decode(),
                 filter_wheel_id: self.filter_wheel_id.cst_decode(),
                 guider_id: self.guider_id.cst_decode(),
+                guide_camera_id: self.guide_camera_id.cst_decode(),
+                guide_focal_length_mm: self.guide_focal_length_mm.cst_decode(),
                 rotator_id: self.rotator_id.cst_decode(),
                 dome_id: self.dome_id.cst_decode(),
                 weather_id: self.weather_id.cst_decode(),
@@ -30514,6 +30524,8 @@ mod io {
                 focuser_id: core::ptr::null_mut(),
                 filter_wheel_id: core::ptr::null_mut(),
                 guider_id: core::ptr::null_mut(),
+                guide_camera_id: core::ptr::null_mut(),
+                guide_focal_length_mm: core::ptr::null_mut(),
                 rotator_id: core::ptr::null_mut(),
                 dome_id: core::ptr::null_mut(),
                 weather_id: core::ptr::null_mut(),
@@ -38202,6 +38214,8 @@ mod io {
         focuser_id: *mut wire_cst_list_prim_u_8_strict,
         filter_wheel_id: *mut wire_cst_list_prim_u_8_strict,
         guider_id: *mut wire_cst_list_prim_u_8_strict,
+        guide_camera_id: *mut wire_cst_list_prim_u_8_strict,
+        guide_focal_length_mm: *mut f64,
         rotator_id: *mut wire_cst_list_prim_u_8_strict,
         dome_id: *mut wire_cst_list_prim_u_8_strict,
         weather_id: *mut wire_cst_list_prim_u_8_strict,

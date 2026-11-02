@@ -385,7 +385,7 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                crate::device_manager::ops::sim_gate::require_camera_connected().await?;
+                crate::device_manager::ops::sim_gate::require_camera_connected(device_id).await?;
                 // Commit the requested settings to the singleton so the download
                 // reports what this exposure was actually taken with. Skipping
                 // this made the simulator answer with its defaults (gain 100 /
@@ -399,7 +399,8 @@ impl DeviceManager {
                     // duration: the simulator integrates for the time it was
                     // asked for, so callers are paced the way real hardware
                     // paces them.
-                    crate::api::devices::simulation::begin_sim_exposure(
+                    crate::api::devices::simulation::begin_sim_exposure_for(
+                        device_id,
                         crate::api::devices::simulation::SimExposureRequest {
                             secs: duration,
                             frame_type,
@@ -409,7 +410,7 @@ impl DeviceManager {
                         },
                     )
                     .await;
-                    let sim = crate::api::devices::simulation::get_sim_camera();
+                    let sim = crate::api::devices::simulation::get_sim_camera_for(device_id);
                     let mut guard = sim.write().await;
                     if let Some(g) = gain {
                         guard.status.gain = g;
@@ -507,8 +508,8 @@ impl DeviceManager {
                 // camera does (see `SIM_EXPOSURE_START`). Refuse the call when
                 // not connected, so callers can distinguish "nothing to expose"
                 // from "no camera attached".
-                crate::device_manager::ops::sim_gate::require_camera_connected().await?;
-                Ok(crate::api::devices::simulation::sim_exposure_is_complete().await)
+                crate::device_manager::ops::sim_gate::require_camera_connected(device_id).await?;
+                Ok(crate::api::devices::simulation::sim_exposure_is_complete(device_id).await)
             }
             Some(DriverType::Native) => {
                 let native_cameras = self.native_cameras.read().await;
@@ -585,13 +586,13 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                crate::device_manager::ops::sim_gate::require_camera_connected()
+                crate::device_manager::ops::sim_gate::require_camera_connected(device_id)
                     .await
                     .map_err(DeviceOpError::from)?;
                 // Release a caller polling for completion, but remember that the
                 // frame was abandoned: a download afterwards has nothing to
                 // hand back and must say so.
-                crate::api::devices::simulation::abort_sim_exposure().await;
+                crate::api::devices::simulation::abort_sim_exposure(device_id).await;
                 Ok(())
             }
             Some(DriverType::Native) => {

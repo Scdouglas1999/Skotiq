@@ -183,7 +183,7 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                crate::device_manager::ops::sim_gate::read_camera_status()
+                crate::device_manager::ops::sim_gate::read_camera_status(device_id)
                     .await
                     .map_err(DeviceOpError::from)
             }

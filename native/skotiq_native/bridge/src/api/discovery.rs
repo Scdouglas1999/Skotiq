@@ -892,17 +892,27 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
     // keys off. Only advertise device types backed by simulation.rs singletons;
     // a type listed here without one would connect "successfully" and then fail
     // every op, which is worse than not being discovered.
-    vec![DeviceInfo {
+    let simulator = |id: &str, name: &str, serial: String| DeviceInfo {
         id: id.to_string(),
         name: name.to_string(),
         device_type,
         driver_type: DriverType::Simulator,
         description: "Internal Simulator".to_string(),
         driver_version: "1.0.0".to_string(),
-        serial_number: Some(format!("SIM-{}", device_type.as_str())),
+        serial_number: Some(serial),
         unique_id: Some(id.to_string()),
         display_name: name.to_string(),
-    }]
+    };
+    let mut devices = vec![simulator(id, name, format!("SIM-{}", device_type.as_str()))];
+    // A second camera, so the built-in guider has a guide camera of its own.
+    if device_type == DeviceType::Camera {
+        devices.push(simulator(
+            crate::api::devices::simulation::SIM_GUIDE_CAMERA_ID,
+            crate::api::devices::simulation::SIM_GUIDE_CAMERA_NAME,
+            "SIM-guide-camera".to_string(),
+        ));
+    }
+    devices
 }
 
 /// Discover available devices of a specific type.
@@ -1173,6 +1183,14 @@ mod tests {
         // ASCOM/Alpaca scans.
         assert!(!guider_drivers.contains(&DriverType::Ascom));
         assert!(!guider_drivers.contains(&DriverType::Alpaca));
+    }
+
+    #[test]
+    fn simulator_discovery_offers_an_imaging_and_a_guide_camera() {
+        let cameras = scan_simulator_for_type(DeviceType::Camera);
+        let ids: Vec<&str> = cameras.iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(ids, vec!["sim_camera_1", "sim_camera_2"]);
+        assert_eq!(cameras[1].name, "Simulated Guide Camera");
     }
 
     #[test]

@@ -1418,3 +1418,181 @@ async fn calibration_frames_ride_through_a_failed_download() {
     let broken = || async { Err::<u32, _>(SkotiqError::OperationFailed("camera gone".into())) };
     assert!(retry_guide_frame(broken, Duration::ZERO).await.is_err());
 }
+
+/// The profile's guide camera is the one the guider uses, even with another
+/// non-imaging camera connected (a second imaging rig); the imaging camera is
+/// refused even when the profile names it.
+#[test]
+fn the_profiles_guide_camera_wins_and_must_be_connected() {
+    let cams = |ids: &[&str]| ids.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    assert_eq!(
+        choose_guide_camera(
+            Some("asi120"),
+            Some("asi2600"),
+            &cams(&["asi2600", "asi183", "asi120"])
+        ),
+        Ok("asi120".to_string())
+    );
+    let missing = choose_guide_camera(Some("asi120"), Some("asi2600"), &cams(&["asi2600"]))
+        .expect_err("a guide camera that is not connected is reported");
+    assert!(
+        missing.contains("asi120") && missing.contains("not connected"),
+        "{missing}"
+    );
+    assert_eq!(
+        choose_guide_camera(Some("asi2600"), Some("asi2600"), &cams(&["asi2600"])),
+        Err(NO_GUIDE_CAMERA.to_string())
+    );
+    assert_eq!(
+        choose_guide_camera(
+            None,
+            Some("sim_camera_1"),
+            &cams(&["sim_camera_1", "sim_camera_2"])
+        ),
+        Ok("sim_camera_2".to_string())
+    );
+}
+
+/// A guide scope's focal length sets the guide pixel scale; without one the
+/// guide camera is an off-axis guider on the telescope.
+#[test]
+fn the_guide_scale_uses_the_guide_scope_focal_length() {
+    let mut profile = crate::state::EquipmentProfile {
+        id: "p".into(),
+        name: "p".into(),
+        camera_id: None,
+        mount_id: None,
+        focuser_id: None,
+        filter_wheel_id: None,
+        guider_id: None,
+        guide_camera_id: None,
+        guide_focal_length_mm: Some(240.0),
+        rotator_id: None,
+        dome_id: None,
+        weather_id: None,
+        safety_monitor_id: None,
+        cover_calibrator_id: None,
+        telescope_focal_length: 1000.0,
+        telescope_aperture: 200.0,
+    };
+    assert_eq!(guide_focal_length_mm(&profile), 240.0);
+    profile.guide_focal_length_mm = None;
+    assert_eq!(guide_focal_length_mm(&profile), 1000.0);
+    profile.guide_focal_length_mm = Some(0.0);
+    assert_eq!(guide_focal_length_mm(&profile), 1000.0);
+}
+
+/// End to end on the simulators: with the simulated guide camera as the
+/// profile's guide camera, the built-in guider connects, calibrates against
+/// the guide camera's own star field and reaches steady guiding, while the
+/// imaging camera takes no exposure at all.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera() {
+    use crate::api::devices::simulation::{
+        get_sim_camera, get_sim_camera_for, sim_singleton_test_lock, SIM_GUIDE_CAMERA_ID,
+        SIM_IMAGING_CAMERA_ID,
+    };
+    use crate::device::{DeviceInfo, DriverType};
+    let _serial = test_serial().lock().await;
+    let _sims = sim_singleton_test_lock().lock().await;
+    reset_guider_state().await;
+    crate::device_manager::ops::sim_faults::clear_all();
+    crate::api::devices::simulation::reset_sim_guide_offset().await;
+
+    let manager = crate::api::get_device_manager();
+    for (id, device_type) in [
+        (SIM_IMAGING_CAMERA_ID, DeviceType::Camera),
+        (SIM_GUIDE_CAMERA_ID, DeviceType::Camera),
+        ("sim_mount_1", DeviceType::Mount),
+    ] {
+        manager
+            .register_device(
+                DeviceInfo {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    device_type,
+                    driver_type: DriverType::Simulator,
+                    description: String::new(),
+                    driver_version: String::new(),
+                    serial_number: None,
+                    unique_id: None,
+                    display_name: id.to_string(),
+                },
+                false,
+            )
+            .await;
+        manager.connect_device(id).await.expect("connect simulator");
+    }
+    get_state()
+        .set_profile(Some(crate::state::EquipmentProfile {
+            id: "sim-rig".into(),
+            name: "Sim Rig".into(),
+            camera_id: Some(SIM_IMAGING_CAMERA_ID.into()),
+            mount_id: Some("sim_mount_1".into()),
+            focuser_id: None,
+            filter_wheel_id: None,
+            guider_id: Some(BUILTIN_GUIDER_ID.into()),
+            guide_camera_id: Some(SIM_GUIDE_CAMERA_ID.into()),
+            guide_focal_length_mm: Some(240.0),
+            rotator_id: None,
+            dome_id: None,
+            weather_id: None,
+            safety_monitor_id: None,
+            cover_calibrator_id: None,
+            telescope_focal_length: 480.0,
+            telescope_aperture: 72.0,
+        }))
+        .await;
+    let imaging_offset_before = get_sim_camera().read().await.status.offset;
+
+    connect()
+        .await
+        .expect("the guider connects with its own camera");
+    assert_eq!(
+        state().read().await.camera_id.as_deref(),
+        Some(SIM_GUIDE_CAMERA_ID)
+    );
+    start_guiding(1.5, 2.0, 120.0).await.expect("start guiding");
+
+    let deadline = Instant::now() + Duration::from_secs(150);
+    let mut guiding = false;
+    while Instant::now() < deadline {
+        let guard = state().read().await;
+        if guard.calibration.is_some() && guard.last_status.state == "Guiding" && !guard.settling {
+            guiding = true;
+            break;
+        }
+        assert!(
+            guard.last_status.state != "Stopped" && guard.last_status.state != "Error",
+            "guiding stopped: {:?}",
+            guard.last_status
+        );
+        drop(guard);
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    let status = state().read().await.last_status.clone();
+    let _ = stop().await;
+    let _ = disconnect().await;
+    get_state().set_profile(None).await;
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID, "sim_mount_1"] {
+        let _ = manager.disconnect_device(id).await;
+    }
+    assert!(guiding, "never reached steady guiding: {status:?}");
+    assert!(
+        status.rms_total.is_finite() && status.rms_total < 2.0,
+        "guiding RMS on the guide camera: {status:?}"
+    );
+    assert_eq!(
+        get_sim_camera().read().await.status.offset,
+        imaging_offset_before,
+        "the guider's settings were pushed to the imaging camera"
+    );
+    assert_eq!(
+        get_sim_camera_for(SIM_GUIDE_CAMERA_ID)
+            .read()
+            .await
+            .status
+            .sensor_width,
+        1280
+    );
+}

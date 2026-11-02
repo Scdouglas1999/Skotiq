@@ -95,11 +95,13 @@ pub(crate) fn not_connected_rotator() -> String {
 /// match the singleton's defaults — see `SimulatedCamera::default`) are
 /// covered by the singleton's defaults and need no special handling at
 /// the call site.
-pub(crate) async fn read_camera_status() -> Result<CameraStatus, String> {
+pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, String> {
+    use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
+    let prefix = sim_camera_fault_prefix(device_id);
     // Faults are consulted before anything else, including the connected gate,
     // so an armed fault is deterministic for the test that armed it rather than
     // depending on singleton state left behind by an earlier case.
-    faults("camera.status").await?;
+    faults(&format!("{prefix}.status")).await?;
     // Let the simulated sensor temperature move toward its setpoint before the
     // caller samples it. Every simulated status read funnels through here, so
     // this is the one place the ramp needs driving.
@@ -107,11 +109,11 @@ pub(crate) async fn read_camera_status() -> Result<CameraStatus, String> {
     // A stalled cooler is a real failure mode (the TEC never reaches setpoint
     // and the run silently uses warm darks), so the stall latch suppresses the
     // ramp while leaving every read succeeding.
-    if !super::sim_faults::is_stalled("camera.cooler") {
-        crate::api::devices::simulation::advance_sim_cooler().await;
+    if !super::sim_faults::is_stalled(&format!("{prefix}.cooler")) {
+        crate::api::devices::simulation::advance_sim_cooler(device_id).await;
     }
-    let state = crate::api::devices::simulation::sim_camera_state().await;
-    let cam = get_sim_camera().read().await;
+    let state = crate::api::devices::simulation::sim_camera_state(device_id).await;
+    let cam = get_sim_camera_for(device_id).read().await;
     if !cam.status.connected {
         return Err(not_connected("camera"));
     }
@@ -129,25 +131,30 @@ pub(crate) async fn read_camera_status() -> Result<CameraStatus, String> {
 /// the download path can report a truthful `EXPTIME` and frame type instead of
 /// constants.
 pub(crate) async fn read_camera_last_exposure(
+    device_id: &str,
 ) -> Result<crate::api::devices::simulation::SimExposureRequest, String> {
+    use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
     // `camera.download` is the highest-value fault key in the file: the INDI
     // BLOB download timeout and the USB camera that stops answering mid-read
     // both land here, and both cost a whole frame on real hardware.
-    faults("camera.download").await?;
-    if !get_sim_camera().read().await.status.connected {
+    faults(&format!("{}.download", sim_camera_fault_prefix(device_id))).await?;
+    if !get_sim_camera_for(device_id).read().await.status.connected {
         return Err(not_connected("camera"));
     }
-    Ok(crate::api::devices::simulation::get_sim_last_exposure()
-        .read()
-        .await
-        .clone())
+    Ok(
+        crate::api::devices::simulation::get_sim_last_exposure_for(device_id)
+            .read()
+            .await
+            .clone(),
+    )
 }
 
 /// Write-side gate for camera ops: returns `Ok(())` only when the
 /// simulator camera singleton is currently connected.
-pub(crate) async fn require_camera_connected() -> Result<(), String> {
-    faults("camera.command").await?;
-    if !get_sim_camera().read().await.status.connected {
+pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), String> {
+    use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
+    faults(&format!("{}.command", sim_camera_fault_prefix(device_id))).await?;
+    if !get_sim_camera_for(device_id).read().await.status.connected {
         return Err(not_connected("camera"));
     }
     Ok(())
@@ -418,7 +425,7 @@ mod fault_injection_tests {
         let _guard = connected_camera().await;
         sim_faults::arm("camera.status", FaultSpec::not_implemented());
 
-        let err = read_camera_status()
+        let err = read_camera_status("sim_camera_1")
             .await
             .expect_err("an armed fault must surface, not be swallowed");
         assert!(
@@ -429,7 +436,7 @@ mod fault_injection_tests {
 
         sim_faults::clear_all();
         assert!(
-            read_camera_status().await.is_ok(),
+            read_camera_status("sim_camera_1").await.is_ok(),
             "clearing the registry must restore normal behaviour"
         );
     }
@@ -442,9 +449,12 @@ mod fault_injection_tests {
         let _guard = connected_camera().await;
         sim_faults::arm("camera.status", FaultSpec::transient("USB stall"));
 
-        assert!(read_camera_status().await.is_err(), "first call must fail");
         assert!(
-            read_camera_status().await.is_ok(),
+            read_camera_status("sim_camera_1").await.is_err(),
+            "first call must fail"
+        );
+        assert!(
+            read_camera_status("sim_camera_1").await.is_ok(),
             "the retry must succeed, or 'retry once' can never be verified"
         );
         sim_faults::clear_all();
@@ -471,11 +481,17 @@ mod fault_injection_tests {
             .await
             .expect("stall latching should not fail the status read");
 
-        let first = read_camera_status().await.expect("reads keep succeeding");
+        let first = read_camera_status("sim_camera_1")
+            .await
+            .expect("reads keep succeeding");
         for _ in 0..5 {
-            read_camera_status().await.expect("reads keep succeeding");
+            read_camera_status("sim_camera_1")
+                .await
+                .expect("reads keep succeeding");
         }
-        let last = read_camera_status().await.expect("reads keep succeeding");
+        let last = read_camera_status("sim_camera_1")
+            .await
+            .expect("reads keep succeeding");
 
         assert_eq!(
             first.sensor_temp, last.sensor_temp,
@@ -502,7 +518,9 @@ mod fault_injection_tests {
             "camera.status",
             FaultSpec::new(Trigger::Always, Effect::NotConnected),
         );
-        let err = read_camera_status().await.expect_err("must fail");
+        let err = read_camera_status("sim_camera_1")
+            .await
+            .expect_err("must fail");
         assert!(
             err.contains("not connected"),
             "a lost handle must read as a disconnection: {err}"

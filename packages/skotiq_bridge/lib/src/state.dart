@@ -15,6 +15,14 @@ class EquipmentProfile {
   final String? focuserId;
   final String? filterWheelId;
   final String? guiderId;
+
+  /// Camera the built-in guider takes its frames with. Never the imaging
+  /// camera.
+  final String? guideCameraId;
+
+  /// Focal length of the guide scope, in millimeters. `None` for an
+  /// off-axis guider, which shares the telescope's focal length.
+  final double? guideFocalLengthMm;
   final String? rotatorId;
   final String? domeId;
   final String? weatherId;
@@ -31,6 +39,8 @@ class EquipmentProfile {
     this.focuserId,
     this.filterWheelId,
     this.guiderId,
+    this.guideCameraId,
+    this.guideFocalLengthMm,
     this.rotatorId,
     this.domeId,
     this.weatherId,
@@ -49,6 +59,8 @@ class EquipmentProfile {
       focuserId.hashCode ^
       filterWheelId.hashCode ^
       guiderId.hashCode ^
+      guideCameraId.hashCode ^
+      guideFocalLengthMm.hashCode ^
       rotatorId.hashCode ^
       domeId.hashCode ^
       weatherId.hashCode ^
@@ -69,6 +81,8 @@ class EquipmentProfile {
           focuserId == other.focuserId &&
           filterWheelId == other.filterWheelId &&
           guiderId == other.guiderId &&
+          guideCameraId == other.guideCameraId &&
+          guideFocalLengthMm == other.guideFocalLengthMm &&
           rotatorId == other.rotatorId &&
           domeId == other.domeId &&
           weatherId == other.weatherId &&

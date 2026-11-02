@@ -55,6 +55,37 @@ pub(crate) async fn get_simulator_capabilities(
     })?;
 
     let capabilities = match device_type {
+        DeviceType::Camera
+            if crate::api::devices::simulation::is_sim_guide_camera(&parsed.raw_id) =>
+        {
+            use crate::api::devices::simulation::{
+                SIM_GUIDE_PIXEL_UM, SIM_GUIDE_SENSOR_H, SIM_GUIDE_SENSOR_W,
+            };
+            DeviceCapabilities::Camera(CameraCapabilities {
+                max_width: SIM_GUIDE_SENSOR_W,
+                max_height: SIM_GUIDE_SENSOR_H,
+                bit_depth: 16,
+                has_shutter: false,
+                can_bin: true,
+                max_bin_x: 2,
+                max_bin_y: 2,
+                can_set_gain: true,
+                gain_min: Some(0),
+                gain_max: Some(100),
+                can_set_offset: true,
+                offset_min: Some(0),
+                offset_max: Some(255),
+                can_abort_exposure: true,
+                can_stop_exposure: true,
+                can_subframe: true,
+                pixel_size_x: Some(SIM_GUIDE_PIXEL_UM),
+                pixel_size_y: Some(SIM_GUIDE_PIXEL_UM),
+                is_color: false,
+                exposure_min: Some(0.001),
+                exposure_max: Some(60.0),
+                ..Default::default()
+            })
+        }
         DeviceType::Camera => DeviceCapabilities::Camera(CameraCapabilities {
             max_width: crate::sim_frame::SIM_W as u32,
             max_height: crate::sim_frame::SIM_H as u32,

@@ -33,12 +33,36 @@ pub(crate) const NO_GUIDE_CAMERA: &str = "The built-in guider needs a guide came
      connect a second camera for guiding. It does not take guide frames on the imaging \
      camera, because that would abort the light frames.";
 
+/// The guide camera the guider uses: the profile's guide camera when one is
+/// set (and it is not also the imaging camera), otherwise any other connected
+/// camera.
+pub(crate) fn choose_guide_camera(
+    profile_guide_camera: Option<&str>,
+    imaging_camera: Option<&str>,
+    connected_cameras: &[String],
+) -> Result<String, String> {
+    match profile_guide_camera.filter(|id| !id.trim().is_empty()) {
+        Some(id) if Some(id) == imaging_camera => Err(NO_GUIDE_CAMERA.to_string()),
+        Some(id) if connected_cameras.iter().any(|c| c == id) => Ok(id.to_string()),
+        Some(id) => Err(format!(
+            "The built-in guider's guide camera ({id}) is not connected. Connect it in \
+             Equipment, or connect all of the profile's devices."
+        )),
+        None => pick_guide_camera(imaging_camera, connected_cameras)
+            .ok_or_else(|| NO_GUIDE_CAMERA.to_string()),
+    }
+}
+
 pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     let app_state = get_state();
     let imaging_camera = match app_state.get_profile_device_id(DeviceType::Camera).await {
         Some(id) => Some(id),
         None => first_connected_device(DeviceType::Camera).await,
     };
+    let profile_guide_camera = app_state
+        .get_profile()
+        .await
+        .and_then(|profile| profile.guide_camera_id);
     let connected_cameras: Vec<String> = get_device_manager()
         .get_connected_device_infos()
         .await
@@ -46,8 +70,12 @@ pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
         .filter(|info| info.device_type == DeviceType::Camera)
         .map(|info| info.id)
         .collect();
-    let camera_id = pick_guide_camera(imaging_camera.as_deref(), &connected_cameras)
-        .ok_or_else(|| SkotiqError::OperationFailed(NO_GUIDE_CAMERA.to_string()))?;
+    let camera_id = choose_guide_camera(
+        profile_guide_camera.as_deref(),
+        imaging_camera.as_deref(),
+        &connected_cameras,
+    )
+    .map_err(SkotiqError::OperationFailed)?;
 
     let mount_id = if let Some(device_id) = app_state.get_profile_device_id(DeviceType::Mount).await
     {
@@ -83,6 +111,15 @@ pub(crate) async fn first_connected_device(device_type: DeviceType) -> Option<St
         .await
 }
 
+/// Focal length the guide camera sees through: the guide scope's when the
+/// profile names one, otherwise the telescope's (an off-axis guider).
+pub(crate) fn guide_focal_length_mm(profile: &crate::state::EquipmentProfile) -> f64 {
+    profile
+        .guide_focal_length_mm
+        .filter(|focal| focal.is_finite() && *focal > 0.0)
+        .unwrap_or(profile.telescope_focal_length)
+}
+
 pub(crate) async fn resolve_unbinned_guide_pixel_scale(
     camera_id: &str,
 ) -> Result<f64, SkotiqError> {
@@ -91,7 +128,7 @@ pub(crate) async fn resolve_unbinned_guide_pixel_scale(
             "Built-in guider requires an active profile with a guide focal length".to_string(),
         )
     })?;
-    let focal_length_mm = profile.telescope_focal_length;
+    let focal_length_mm = guide_focal_length_mm(&profile);
     let camera_status = get_device_manager()
         .camera_get_status(camera_id)
         .await

@@ -172,7 +172,7 @@ async fn exposure_clock_starts_and_clears() {
     let _serialized = sim_singleton_test_lock().lock().await;
     clear_sim_exposure().await;
     assert!(
-        sim_exposure_is_complete().await,
+        sim_exposure_is_complete(SIM_IMAGING_CAMERA_ID).await,
         "an idle simulator must not make a poller wait"
     );
 
@@ -182,13 +182,13 @@ async fn exposure_clock_starts_and_clears() {
     })
     .await;
     assert!(
-        !sim_exposure_is_complete().await,
+        !sim_exposure_is_complete(SIM_IMAGING_CAMERA_ID).await,
         "a 30s exposure must not be complete the instant it starts"
     );
 
     clear_sim_exposure().await;
     assert!(
-        sim_exposure_is_complete().await,
+        sim_exposure_is_complete(SIM_IMAGING_CAMERA_ID).await,
         "abort/download must release a caller waiting on the exposure"
     );
 }
@@ -245,5 +245,74 @@ fn drift_is_correctable_within_one_guide_cycle() {
     assert!(
         drift > 0.0,
         "zero drift leaves the correction sign untested"
+    );
+}
+
+/// The guide camera is a camera of its own: an exposure on it leaves the
+/// imaging camera idle, and its sensor is the small guide sensor.
+#[tokio::test]
+async fn the_guide_camera_exposes_independently_of_the_imaging_camera() {
+    let _serialized = sim_singleton_test_lock().lock().await;
+    clear_sim_exposure().await;
+    begin_sim_exposure_for(
+        SIM_GUIDE_CAMERA_ID,
+        SimExposureRequest {
+            secs: 30.0,
+            ..Default::default()
+        },
+    )
+    .await;
+    assert!(!sim_exposure_is_complete(SIM_GUIDE_CAMERA_ID).await);
+    assert!(
+        sim_exposure_is_complete(SIM_IMAGING_CAMERA_ID).await,
+        "a guide frame must not occupy the imaging camera"
+    );
+    assert!(take_sim_exposure_for_download(SIM_IMAGING_CAMERA_ID)
+        .await
+        .is_err());
+    clear_sim_exposure().await;
+
+    let guide = get_sim_camera_for(SIM_GUIDE_CAMERA_ID)
+        .read()
+        .await
+        .status
+        .clone();
+    let imaging = get_sim_camera_for(SIM_IMAGING_CAMERA_ID)
+        .read()
+        .await
+        .status
+        .clone();
+    assert_eq!((guide.sensor_width, guide.sensor_height), (1280, 960));
+    assert!(!guide.can_cool);
+    assert_eq!(imaging.sensor_width, crate::sim_frame::SIM_W as u32);
+    assert_eq!(sim_camera_fault_prefix(SIM_GUIDE_CAMERA_ID), "guide_camera");
+    assert_eq!(sim_camera_fault_prefix(SIM_IMAGING_CAMERA_ID), "camera");
+}
+
+/// On the guide scope the mount's offset is rescaled to guide pixels, and
+/// seeing moves the whole field a little from frame to frame.
+#[test]
+fn the_guide_field_follows_the_mount_at_its_own_scale_with_seeing() {
+    use crate::sim_capture::{guide_camera_offset_px, SIM_OFFSET_REFERENCE_ARCSEC_PER_PX};
+    let scale = 2.5;
+    let draws: Vec<(f64, f64)> = (0..400)
+        .map(|seed| guide_camera_offset_px((10.0, -4.0), scale, seed))
+        .collect();
+    let n = draws.len() as f64;
+    let mean_x = draws.iter().map(|d| d.0).sum::<f64>() / n;
+    let mean_y = draws.iter().map(|d| d.1).sum::<f64>() / n;
+    let factor = SIM_OFFSET_REFERENCE_ARCSEC_PER_PX / scale;
+    assert!((mean_x - 10.0 * factor).abs() < 0.05, "{mean_x}");
+    assert!((mean_y + 4.0 * factor).abs() < 0.05, "{mean_y}");
+    let rms_x = (draws.iter().map(|d| (d.0 - mean_x).powi(2)).sum::<f64>() / n).sqrt();
+    let seeing_px = crate::sim_capture::SIM_GUIDE_SEEING_ARCSEC_RMS / scale;
+    assert!(
+        rms_x > 0.6 * seeing_px && rms_x < 1.4 * seeing_px,
+        "seeing rms {rms_x} vs {seeing_px}"
+    );
+    assert_eq!(
+        guide_camera_offset_px((1.0, 1.0), scale, 7),
+        guide_camera_offset_px((1.0, 1.0), scale, 7),
+        "a frame seed reproduces its seeing"
     );
 }

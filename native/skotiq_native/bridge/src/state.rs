@@ -130,6 +130,14 @@ pub struct EquipmentProfile {
     pub focuser_id: Option<String>,
     pub filter_wheel_id: Option<String>,
     pub guider_id: Option<String>,
+    /// Camera the built-in guider takes its frames with. Never the imaging
+    /// camera.
+    #[serde(default)]
+    pub guide_camera_id: Option<String>,
+    /// Focal length of the guide scope, in millimeters. `None` for an
+    /// off-axis guider, which shares the telescope's focal length.
+    #[serde(default)]
+    pub guide_focal_length_mm: Option<f64>,
     pub rotator_id: Option<String>,
     pub dome_id: Option<String>,
     pub weather_id: Option<String>,

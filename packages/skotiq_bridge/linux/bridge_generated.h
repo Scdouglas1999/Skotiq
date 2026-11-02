@@ -15,6 +15,23 @@ void store_dart_post_cobject(DartPostCObjectFnType ptr);
 typedef struct _Dart_Handle* Dart_Handle;
 
 /**
+ * Guide camera sensor, in pixels (a typical 1/3" guide camera).
+ */
+#define SIM_GUIDE_SENSOR_W 1280
+
+#define SIM_GUIDE_SENSOR_H 960
+
+/**
+ * Guide camera pixel pitch, in micrometers.
+ */
+#define SIM_GUIDE_PIXEL_UM 3.75
+
+/**
+ * Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
+ */
+#define SIM_GUIDE_FOCAL_LENGTH_MM 240.0
+
+/**
  * The `SensorType` ordinal for an RGGB-family colour-filter array, the one
  * family whose element order [`BayerPattern`] can name.
  */
@@ -257,6 +274,8 @@ typedef struct wire_cst_equipment_profile {
   struct wire_cst_list_prim_u_8_strict *focuser_id;
   struct wire_cst_list_prim_u_8_strict *filter_wheel_id;
   struct wire_cst_list_prim_u_8_strict *guider_id;
+  struct wire_cst_list_prim_u_8_strict *guide_camera_id;
+  double *guide_focal_length_mm;
   struct wire_cst_list_prim_u_8_strict *rotator_id;
   struct wire_cst_list_prim_u_8_strict *dome_id;
   struct wire_cst_list_prim_u_8_strict *weather_id;

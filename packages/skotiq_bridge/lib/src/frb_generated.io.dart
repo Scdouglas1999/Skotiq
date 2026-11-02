@@ -5014,6 +5014,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.focuser_id = cst_encode_opt_String(apiObj.focuserId);
     wireObj.filter_wheel_id = cst_encode_opt_String(apiObj.filterWheelId);
     wireObj.guider_id = cst_encode_opt_String(apiObj.guiderId);
+    wireObj.guide_camera_id = cst_encode_opt_String(apiObj.guideCameraId);
+    wireObj.guide_focal_length_mm = cst_encode_opt_box_autoadd_f_64(
+      apiObj.guideFocalLengthMm,
+    );
     wireObj.rotator_id = cst_encode_opt_String(apiObj.rotatorId);
     wireObj.dome_id = cst_encode_opt_String(apiObj.domeId);
     wireObj.weather_id = cst_encode_opt_String(apiObj.weatherId);
@@ -23133,6 +23137,10 @@ final class wire_cst_equipment_profile extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> guider_id;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> guide_camera_id;
+
+  external ffi.Pointer<ffi.Double> guide_focal_length_mm;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> rotator_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> dome_id;
@@ -27206,6 +27214,14 @@ final class wire_cst_xisf_read_result extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_record_string_string> properties;
 }
+
+const int SIM_GUIDE_SENSOR_W = 1280;
+
+const int SIM_GUIDE_SENSOR_H = 960;
+
+const double SIM_GUIDE_PIXEL_UM = 3.75;
+
+const double SIM_GUIDE_FOCAL_LENGTH_MM = 240.0;
 
 const int SENSOR_TYPE_RGGB = 2;
 

@@ -989,9 +989,9 @@ fn classify_exposure_failure(device_id: &str, error: String) -> SkotiqError {
 /// Mirrors what the real path does after its own generation check: park the
 /// sensor, publish a FAILED completion so nothing downstream treats the
 /// abandoned frame as a keeper, and report the cancellation to the caller.
-async fn sim_exposure_cancelled() -> Result<(), SkotiqError> {
+async fn sim_exposure_cancelled(device_id: &str) -> Result<(), SkotiqError> {
     {
-        let mut camera = get_sim_camera().write().await;
+        let mut camera = get_sim_camera_for(device_id).write().await;
         camera.status.state = CameraState::Idle;
     }
     get_state().publish_imaging_event(
@@ -1037,7 +1037,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
             crate::unified_device_ops::exposure_abort_generation(&device_id).await;
         // Update camera state to exposing
         {
-            let mut camera = get_sim_camera().write().await;
+            let mut camera = get_sim_camera_for(&device_id).write().await;
             camera.status.state = CameraState::Exposing;
         }
 
@@ -1062,7 +1062,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
             if crate::unified_device_ops::exposure_abort_generation(&device_id).await
                 != acquisition_generation
             {
-                return sim_exposure_cancelled().await;
+                return sim_exposure_cancelled(&device_id).await;
             }
 
             let progress = start_time.elapsed().as_secs_f64() / duration_secs;
@@ -1087,12 +1087,12 @@ pub(crate) async fn camera_start_exposure_configured_opt(
         if crate::unified_device_ops::exposure_abort_generation(&device_id).await
             != acquisition_generation
         {
-            return sim_exposure_cancelled().await;
+            return sim_exposure_cancelled(&device_id).await;
         }
 
         // Update camera state to reading
         {
-            let mut camera = get_sim_camera().write().await;
+            let mut camera = get_sim_camera_for(&device_id).write().await;
             camera.status.state = CameraState::Reading;
         }
 
@@ -1109,7 +1109,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
         // Framing FOV box and every measurement taken through this path must
         // describe the frames this same camera delivers to the sequencer path.
         let (advertised_width, advertised_height, sim_pixel_size, sim_offset, sim_max_adu) = {
-            let camera = get_sim_camera().read().await;
+            let camera = get_sim_camera_for(&device_id).read().await;
             (
                 camera.status.sensor_width,
                 camera.status.sensor_height,
@@ -1133,6 +1133,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
                     .map(|roi| (roi.start_x, roi.start_y, roi.width, roi.height)),
                 frame_type,
                 max_adu: sim_max_adu.clamp(1, u32::from(u16::MAX)) as u16,
+                optics: crate::sim_capture::SimOptics::for_camera(&device_id),
             })
             .await;
         // Binning and subframing both change the delivered geometry, so take it
@@ -1197,7 +1198,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
 
         // Update camera state back to idle
         {
-            let mut camera = get_sim_camera().write().await;
+            let mut camera = get_sim_camera_for(&device_id).write().await;
             camera.status.state = CameraState::Idle;
         }
 

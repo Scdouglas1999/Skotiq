@@ -18061,8 +18061,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EquipmentProfile dco_decode_equipment_profile(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 14)
-      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return EquipmentProfile(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -18071,13 +18071,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       focuserId: dco_decode_opt_String(arr[4]),
       filterWheelId: dco_decode_opt_String(arr[5]),
       guiderId: dco_decode_opt_String(arr[6]),
-      rotatorId: dco_decode_opt_String(arr[7]),
-      domeId: dco_decode_opt_String(arr[8]),
-      weatherId: dco_decode_opt_String(arr[9]),
-      safetyMonitorId: dco_decode_opt_String(arr[10]),
-      coverCalibratorId: dco_decode_opt_String(arr[11]),
-      telescopeFocalLength: dco_decode_f_64(arr[12]),
-      telescopeAperture: dco_decode_f_64(arr[13]),
+      guideCameraId: dco_decode_opt_String(arr[7]),
+      guideFocalLengthMm: dco_decode_opt_box_autoadd_f_64(arr[8]),
+      rotatorId: dco_decode_opt_String(arr[9]),
+      domeId: dco_decode_opt_String(arr[10]),
+      weatherId: dco_decode_opt_String(arr[11]),
+      safetyMonitorId: dco_decode_opt_String(arr[12]),
+      coverCalibratorId: dco_decode_opt_String(arr[13]),
+      telescopeFocalLength: dco_decode_f_64(arr[14]),
+      telescopeAperture: dco_decode_f_64(arr[15]),
     );
   }
 
@@ -22651,6 +22653,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_focuserId = sse_decode_opt_String(deserializer);
     var var_filterWheelId = sse_decode_opt_String(deserializer);
     var var_guiderId = sse_decode_opt_String(deserializer);
+    var var_guideCameraId = sse_decode_opt_String(deserializer);
+    var var_guideFocalLengthMm = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_rotatorId = sse_decode_opt_String(deserializer);
     var var_domeId = sse_decode_opt_String(deserializer);
     var var_weatherId = sse_decode_opt_String(deserializer);
@@ -22666,6 +22670,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       focuserId: var_focuserId,
       filterWheelId: var_filterWheelId,
       guiderId: var_guiderId,
+      guideCameraId: var_guideCameraId,
+      guideFocalLengthMm: var_guideFocalLengthMm,
       rotatorId: var_rotatorId,
       domeId: var_domeId,
       weatherId: var_weatherId,
@@ -28201,6 +28207,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.focuserId, serializer);
     sse_encode_opt_String(self.filterWheelId, serializer);
     sse_encode_opt_String(self.guiderId, serializer);
+    sse_encode_opt_String(self.guideCameraId, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.guideFocalLengthMm, serializer);
     sse_encode_opt_String(self.rotatorId, serializer);
     sse_encode_opt_String(self.domeId, serializer);
     sse_encode_opt_String(self.weatherId, serializer);

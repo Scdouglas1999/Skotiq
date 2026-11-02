@@ -63,6 +63,7 @@ pub(crate) async fn sim_sky_view(
     pixel_size_um: f64,
     sensor_w: usize,
     sensor_h: usize,
+    optics: SimOptics,
 ) -> Option<SimSkyView> {
     if !pixel_size_um.is_finite() || pixel_size_um <= 0.0 {
         return None;
@@ -95,7 +96,10 @@ pub(crate) async fn sim_sky_view(
     // catalogue ASTAP matches against are the same data by construction.
     let index = crate::sim_sky::configured_index()?;
 
-    let rotation_deg = {
+    // The guide scope rides beside the imaging train, not on its rotator.
+    let rotation_deg = if optics == SimOptics::GuideScope {
+        0.0
+    } else {
         let rotator = crate::api::devices::simulation::get_sim_rotator()
             .read()
             .await;
@@ -105,12 +109,15 @@ pub(crate) async fn sim_sky_view(
             0.0
         }
     };
-    let focal_length_mm = crate::get_state()
-        .get_profile()
-        .await
-        .map(|profile| profile.telescope_focal_length)
-        .filter(|focal| focal.is_finite() && *focal > 0.0)
-        .unwrap_or(SIM_DEFAULT_FOCAL_LENGTH_MM);
+    let focal_length_mm = match optics {
+        SimOptics::GuideScope => sim_guide_focal_length_mm().await,
+        SimOptics::ImagingTrain => crate::get_state()
+            .get_profile()
+            .await
+            .map(|profile| profile.telescope_focal_length)
+            .filter(|focal| focal.is_finite() && *focal > 0.0)
+            .unwrap_or(SIM_DEFAULT_FOCAL_LENGTH_MM),
+    };
 
     let arcsec_per_px = sim_plate_scale_arcsec_per_px(pixel_size_um, focal_length_mm);
     let radius_deg = sim_sky_field_radius_deg(sensor_w, sensor_h, arcsec_per_px);
@@ -151,6 +158,88 @@ pub(crate) struct SimCaptureRequest {
     pub subframe: Option<(u32, u32, u32, u32)>,
     pub frame_type: FrameType,
     pub max_adu: u16,
+    /// Which optics the camera sits behind.
+    pub optics: SimOptics,
+}
+
+/// Focal length of the simulated guide scope: the profile's guide focal length
+/// when it has one, so the guider's arcsecond scale and the rendered field
+/// agree, otherwise the simulator's own guide scope.
+async fn sim_guide_focal_length_mm() -> f64 {
+    crate::get_state()
+        .get_profile()
+        .await
+        .and_then(|profile| profile.guide_focal_length_mm)
+        .filter(|focal| focal.is_finite() && *focal > 0.0)
+        .unwrap_or(crate::api::devices::simulation::SIM_GUIDE_FOCAL_LENGTH_MM)
+}
+
+/// The optics a simulated camera looks through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SimOptics {
+    /// The profile's telescope, focuser and rotator.
+    ImagingTrain,
+    /// A short guide scope with fixed focus and no rotator, sharing the mount.
+    GuideScope,
+}
+
+impl SimOptics {
+    pub(crate) fn for_camera(device_id: &str) -> Self {
+        if crate::api::devices::simulation::is_sim_guide_camera(device_id) {
+            Self::GuideScope
+        } else {
+            Self::ImagingTrain
+        }
+    }
+}
+
+/// Plate scale, in arcseconds per pixel, at which the simulated mount's
+/// accumulated guide-pulse and drift offset is expressed (see
+/// `api::devices::simulation::SIM_GUIDE_PX_PER_SEC`).
+pub(crate) const SIM_OFFSET_REFERENCE_ARCSEC_PER_PX: f64 = 1.25;
+
+/// Atmospheric image motion on the guide camera, arcseconds RMS per axis for
+/// one guide exposure: the whole field moves together from frame to frame, so
+/// a guider has seeing to ride through and not only drift to correct.
+pub(crate) const SIM_GUIDE_SEEING_ARCSEC_RMS: f64 = 0.4;
+
+/// Seeded, zero-mean, unit-variance pair for one frame's image motion.
+fn seeing_draw(seed: u64) -> (f64, f64) {
+    fn splitmix(mut z: u64) -> u64 {
+        z = z.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+    let uniform = |k: u64| {
+        (splitmix(seed.wrapping_mul(8).wrapping_add(k)) >> 11) as f64 / (1u64 << 53) as f64
+    };
+    // Irwin-Hall over four uniforms per axis, as the frame noise does.
+    let normal = |base: u64| {
+        let sum: f64 = (0..4).map(|i| uniform(base + i)).sum();
+        (sum - 2.0) * 1.732_050_807_568_877_2
+    };
+    (normal(0), normal(4))
+}
+
+/// Star-field offset on the guide camera, in its own pixels: the mount's
+/// accumulated offset rescaled from the reference plate scale to the guide
+/// scope's, plus one frame of seeing.
+pub(crate) fn guide_camera_offset_px(
+    mount_offset_px: (f64, f64),
+    guide_arcsec_per_px: f64,
+    seed: u64,
+) -> (f64, f64) {
+    if !guide_arcsec_per_px.is_finite() || guide_arcsec_per_px <= 0.0 {
+        return mount_offset_px;
+    }
+    let scale = SIM_OFFSET_REFERENCE_ARCSEC_PER_PX / guide_arcsec_per_px;
+    let (jx, jy) = seeing_draw(seed);
+    let seeing_px = SIM_GUIDE_SEEING_ARCSEC_RMS / guide_arcsec_per_px;
+    (
+        mount_offset_px.0 * scale + jx * seeing_px,
+        mount_offset_px.1 * scale + jy * seeing_px,
+    )
 }
 
 /// A rendered simulated frame: 16-bit pixels plus the geometry they came out at
@@ -168,9 +257,13 @@ pub(crate) struct SimCaptureFrame {
 /// the same sky, then hands off to the verified renderer in
 /// [`crate::sim_frame`].
 pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFrame {
+    let guide_scope = request.optics == SimOptics::GuideScope;
     // Star PSF tracks focuser defocus, so an autofocus run measured against
-    // this frame is measuring something real.
-    let focus_position = {
+    // this frame is measuring something real. The guide scope is focused once
+    // and does not share the imaging focuser.
+    let focus_position = if guide_scope {
+        None
+    } else {
         let focuser = crate::api::devices::simulation::get_sim_focuser()
             .read()
             .await;
@@ -187,7 +280,11 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
         }
     };
     // SKOTIQ_SIM_REPLAY answers lights from a recorded night instead.
-    if let (Some(replay), FrameType::Light) = (crate::sim_replay::armed(), request.frame_type) {
+    // A recorded night holds imaging frames only, so guide frames are always
+    // rendered.
+    if let (Some(replay), FrameType::Light, false) =
+        (crate::sim_replay::armed(), request.frame_type, guide_scope)
+    {
         let state = crate::sim_replay::RigState {
             exposure_s: request.exposure_secs,
             focuser_position: focus_position,
@@ -198,12 +295,22 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
     }
     // Star position tracks the simulated mount, so guide pulses and tracking
     // drift are visible to whatever is measuring the frame.
-    let (offset_x, offset_y) = crate::api::devices::simulation::sim_guide_offset_px().await;
+    let mount_offset = crate::api::devices::simulation::sim_guide_offset_px().await;
+    let seed = crate::api::devices::simulation::next_sim_frame_seed();
+    let (offset_x, offset_y) = if guide_scope {
+        guide_camera_offset_px(
+            mount_offset,
+            sim_plate_scale_arcsec_per_px(request.pixel_size_um, sim_guide_focal_length_mm().await),
+            seed,
+        )
+    } else {
+        mount_offset
+    };
     let sensor_w = request.sensor_width.max(1) as usize;
     let sensor_h = request.sensor_height.max(1) as usize;
     // Paint the sky the mount is actually on when the plate solver's own star
     // database is available.
-    let sky = sim_sky_view(request.pixel_size_um, sensor_w, sensor_h).await;
+    let sky = sim_sky_view(request.pixel_size_um, sensor_w, sensor_h, request.optics).await;
     let frame_request = SimFrameRequest {
         width: sensor_w,
         height: sensor_h,
@@ -218,7 +325,7 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
         bin_y: request.bin_y.max(1),
         subframe: request.subframe,
         max_adu: request.max_adu,
-        seed: crate::api::devices::simulation::next_sim_frame_seed(),
+        seed,
         sky,
     };
     let (width, height) = sim_frame_dimensions(&frame_request);

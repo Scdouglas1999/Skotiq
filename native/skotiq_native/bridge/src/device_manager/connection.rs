@@ -736,7 +736,7 @@ impl DeviceManager {
         }
 
         use crate::api::devices::simulation::{
-            get_sim_camera, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
+            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
             get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
             get_sim_switch, get_sim_weather,
         };
@@ -749,7 +749,7 @@ impl DeviceManager {
 
         match info.device_type {
             DeviceType::Camera => {
-                let mut cam = get_sim_camera().write().await;
+                let mut cam = get_sim_camera_for(&info.id).write().await;
                 cam.status.connected = true;
             }
             DeviceType::Mount => {
@@ -819,14 +819,14 @@ impl DeviceManager {
         }
 
         use crate::api::devices::simulation::{
-            get_sim_camera, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
+            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
             get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
             get_sim_switch, get_sim_weather,
         };
 
         match info.device_type {
             DeviceType::Camera => {
-                let mut cam = get_sim_camera().write().await;
+                let mut cam = get_sim_camera_for(&info.id).write().await;
                 cam.status.connected = false;
             }
             DeviceType::Mount => {

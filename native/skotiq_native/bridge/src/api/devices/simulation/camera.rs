@@ -1,7 +1,69 @@
 use super::*;
 
-/// Simulated camera state
-pub(crate) static SIM_CAMERA: OnceLock<Arc<RwLock<SimulatedCamera>>> = OnceLock::new();
+/// Id of the simulated imaging camera.
+pub const SIM_IMAGING_CAMERA_ID: &str = "sim_camera_1";
+/// Id of the simulated guide camera: a small sensor behind a short guide scope,
+/// so the built-in guider has a camera of its own and never exposes on the
+/// imaging camera.
+pub const SIM_GUIDE_CAMERA_ID: &str = "sim_camera_2";
+/// Display name of the simulated guide camera.
+pub const SIM_GUIDE_CAMERA_NAME: &str = "Simulated Guide Camera";
+
+/// Guide camera sensor, in pixels (a typical 1/3" guide camera).
+pub const SIM_GUIDE_SENSOR_W: u32 = 1280;
+pub const SIM_GUIDE_SENSOR_H: u32 = 960;
+/// Guide camera pixel pitch, in micrometers.
+pub const SIM_GUIDE_PIXEL_UM: f64 = 3.75;
+/// Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
+pub const SIM_GUIDE_FOCAL_LENGTH_MM: f64 = 240.0;
+
+/// Whether `device_id` names the simulated guide camera.
+pub(crate) fn is_sim_guide_camera(device_id: &str) -> bool {
+    device_id == SIM_GUIDE_CAMERA_ID
+}
+
+/// Fault-injection key prefix for a simulated camera: the guide camera has its
+/// own keys so a fault armed for the imaging camera's downloads does not also
+/// count the guider's frames.
+pub(crate) fn sim_camera_fault_prefix(device_id: &str) -> &'static str {
+    if is_sim_guide_camera(device_id) {
+        "guide_camera"
+    } else {
+        "camera"
+    }
+}
+
+/// Everything one simulated camera keeps between calls.
+pub(crate) struct SimCameraUnit {
+    pub(crate) camera: Arc<RwLock<SimulatedCamera>>,
+    pub(crate) last_exposure: Arc<RwLock<SimExposureRequest>>,
+    pub(crate) phase: Arc<RwLock<SimExposurePhase>>,
+    pub(crate) cooler_tick: Arc<RwLock<Option<std::time::Instant>>>,
+}
+
+impl SimCameraUnit {
+    fn new(camera: SimulatedCamera) -> Self {
+        Self {
+            camera: Arc::new(RwLock::new(camera)),
+            last_exposure: Arc::new(RwLock::new(SimExposureRequest::default())),
+            phase: Arc::new(RwLock::new(SimExposurePhase::Idle)),
+            cooler_tick: Arc::new(RwLock::new(None)),
+        }
+    }
+}
+
+static SIM_IMAGING_UNIT: OnceLock<SimCameraUnit> = OnceLock::new();
+static SIM_GUIDE_UNIT: OnceLock<SimCameraUnit> = OnceLock::new();
+
+/// The simulated camera `device_id` names. Any simulator camera id other than
+/// the guide camera's is the imaging camera, which keeps legacy ids working.
+pub(crate) fn sim_camera_unit(device_id: &str) -> &'static SimCameraUnit {
+    if is_sim_guide_camera(device_id) {
+        SIM_GUIDE_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::guide_camera()))
+    } else {
+        SIM_IMAGING_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::default()))
+    }
+}
 
 #[flutter_rust_bridge::frb]
 pub struct SimulatedCamera {
@@ -35,8 +97,30 @@ impl Default for SimulatedCamera {
     }
 }
 
+impl SimulatedCamera {
+    /// The simulated guide camera: uncooled, small, mono.
+    pub(crate) fn guide_camera() -> Self {
+        let mut camera = Self::default();
+        camera.status.sensor_width = SIM_GUIDE_SENSOR_W;
+        camera.status.sensor_height = SIM_GUIDE_SENSOR_H;
+        camera.status.pixel_size_x = SIM_GUIDE_PIXEL_UM;
+        camera.status.pixel_size_y = SIM_GUIDE_PIXEL_UM;
+        camera.status.can_cool = false;
+        camera.status.target_temp = None;
+        camera.status.cooler_power = None;
+        camera.status.gain = 50;
+        camera
+    }
+}
+
+/// The simulated imaging camera.
 pub(crate) fn get_sim_camera() -> &'static Arc<RwLock<SimulatedCamera>> {
-    SIM_CAMERA.get_or_init(|| Arc::new(RwLock::new(SimulatedCamera::default())))
+    get_sim_camera_for(SIM_IMAGING_CAMERA_ID)
+}
+
+/// The simulated camera `device_id` names.
+pub(crate) fn get_sim_camera_for(device_id: &str) -> &'static Arc<RwLock<SimulatedCamera>> {
+    &sim_camera_unit(device_id).camera
 }
 
 /// What the most recently started simulated exposure was asked for.
@@ -78,10 +162,10 @@ impl Default for SimExposureRequest {
     }
 }
 
-pub(crate) static SIM_LAST_EXPOSURE: OnceLock<Arc<RwLock<SimExposureRequest>>> = OnceLock::new();
-
-pub(crate) fn get_sim_last_exposure() -> &'static Arc<RwLock<SimExposureRequest>> {
-    SIM_LAST_EXPOSURE.get_or_init(|| Arc::new(RwLock::new(SimExposureRequest::default())))
+pub(crate) fn get_sim_last_exposure_for(
+    device_id: &str,
+) -> &'static Arc<RwLock<SimExposureRequest>> {
+    &sim_camera_unit(device_id).last_exposure
 }
 
 /// Monotonic frame counter feeding the noise seed of each simulated read.
@@ -119,16 +203,21 @@ pub(crate) enum SimExposurePhase {
     Aborted,
 }
 
-pub(crate) static SIM_EXPOSURE_PHASE: OnceLock<Arc<RwLock<SimExposurePhase>>> = OnceLock::new();
-
-pub(crate) fn sim_exposure_phase() -> &'static Arc<RwLock<SimExposurePhase>> {
-    SIM_EXPOSURE_PHASE.get_or_init(|| Arc::new(RwLock::new(SimExposurePhase::Idle)))
+fn sim_exposure_phase(device_id: &str) -> &'static Arc<RwLock<SimExposurePhase>> {
+    &sim_camera_unit(device_id).phase
 }
 
-/// Record the start of a simulated exposure.
+/// Record the start of a simulated exposure on the imaging camera.
+#[cfg(test)]
 pub(crate) async fn begin_sim_exposure(request: SimExposureRequest) {
-    *get_sim_last_exposure().write().await = request;
-    *sim_exposure_phase().write().await = SimExposurePhase::Integrating(std::time::Instant::now());
+    begin_sim_exposure_for(SIM_IMAGING_CAMERA_ID, request).await;
+}
+
+/// Record the start of a simulated exposure on `device_id`.
+pub(crate) async fn begin_sim_exposure_for(device_id: &str, request: SimExposureRequest) {
+    *get_sim_last_exposure_for(device_id).write().await = request;
+    *sim_exposure_phase(device_id).write().await =
+        SimExposurePhase::Integrating(std::time::Instant::now());
 }
 
 /// Return the camera to idle without consuming a frame.
@@ -139,13 +228,14 @@ pub(crate) async fn begin_sim_exposure(request: SimExposureRequest) {
 /// to start from a known phase.
 #[cfg(test)]
 pub(crate) async fn clear_sim_exposure() {
-    *sim_exposure_phase().write().await = SimExposurePhase::Idle;
+    *sim_exposure_phase(SIM_IMAGING_CAMERA_ID).write().await = SimExposurePhase::Idle;
+    *sim_exposure_phase(SIM_GUIDE_CAMERA_ID).write().await = SimExposurePhase::Idle;
 }
 
 /// Abandon the in-flight exposure. The frame is gone — a later download must
 /// fail rather than synthesize one.
-pub(crate) async fn abort_sim_exposure() {
-    *sim_exposure_phase().write().await = SimExposurePhase::Aborted;
+pub(crate) async fn abort_sim_exposure(device_id: &str) {
+    *sim_exposure_phase(device_id).write().await = SimExposurePhase::Aborted;
 }
 
 /// Whether the in-flight simulated exposure has finished integrating.
@@ -153,11 +243,11 @@ pub(crate) async fn abort_sim_exposure() {
 /// Idle and aborted both read as complete: a caller polling without having
 /// started anything, or after abandoning what it started, must not be made to
 /// wait forever.
-pub(crate) async fn sim_exposure_is_complete() -> bool {
-    match *sim_exposure_phase().read().await {
+pub(crate) async fn sim_exposure_is_complete(device_id: &str) -> bool {
+    match *sim_exposure_phase(device_id).read().await {
         SimExposurePhase::Idle | SimExposurePhase::Aborted => true,
         SimExposurePhase::Integrating(start) => {
-            let requested = get_sim_last_exposure().read().await.secs;
+            let requested = get_sim_last_exposure_for(device_id).read().await.secs;
             sim_exposure_elapsed_is_complete(start.elapsed().as_secs_f64(), requested)
         }
     }
@@ -168,11 +258,11 @@ pub(crate) async fn sim_exposure_is_complete() -> bool {
 /// The device layer never drove this, so `camera_get_status` answered `Idle`
 /// for the whole of an exposure while `camera_is_exposure_complete` answered
 /// "not yet" — two contradictory answers on the same polling cycle.
-pub(crate) async fn sim_camera_state() -> CameraState {
-    match *sim_exposure_phase().read().await {
+pub(crate) async fn sim_camera_state(device_id: &str) -> CameraState {
+    match *sim_exposure_phase(device_id).read().await {
         SimExposurePhase::Idle | SimExposurePhase::Aborted => CameraState::Idle,
         SimExposurePhase::Integrating(start) => {
-            let requested = get_sim_last_exposure().read().await.secs;
+            let requested = get_sim_last_exposure_for(device_id).read().await.secs;
             if sim_exposure_elapsed_is_complete(start.elapsed().as_secs_f64(), requested) {
                 CameraState::Reading
             } else {
@@ -187,8 +277,8 @@ pub(crate) async fn sim_camera_state() -> CameraState {
 /// Returns the reason the frame is not available when it is not: downloading
 /// mid-exposure, after an abort, or without having started anything at all are
 /// all caller errors that a real driver reports rather than satisfying.
-pub(crate) async fn take_sim_exposure_for_download() -> Result<(), String> {
-    let mut phase = sim_exposure_phase().write().await;
+pub(crate) async fn take_sim_exposure_for_download(device_id: &str) -> Result<(), String> {
+    let mut phase = sim_exposure_phase(device_id).write().await;
     match *phase {
         SimExposurePhase::Idle => Err(
             "No exposure is available to download from the simulated camera. \
@@ -200,7 +290,7 @@ pub(crate) async fn take_sim_exposure_for_download() -> Result<(), String> {
                 .to_string(),
         ),
         SimExposurePhase::Integrating(start) => {
-            let requested = get_sim_last_exposure().read().await.secs;
+            let requested = get_sim_last_exposure_for(device_id).read().await.secs;
             let elapsed = start.elapsed().as_secs_f64();
             if !sim_exposure_elapsed_is_complete(elapsed, requested) {
                 return Err(format!(
@@ -240,22 +330,15 @@ pub(crate) const SIM_COOL_RATE_C_PER_SEC: f64 = 8.0;
 /// Passive warm-up is slower than active cooling, as on real hardware.
 pub(crate) const SIM_WARM_RATE_C_PER_SEC: f64 = 3.0;
 
-pub(crate) static SIM_COOLER_LAST_TICK: OnceLock<Arc<RwLock<Option<std::time::Instant>>>> =
-    OnceLock::new();
-
-pub(crate) fn sim_cooler_last_tick() -> &'static Arc<RwLock<Option<std::time::Instant>>> {
-    SIM_COOLER_LAST_TICK.get_or_init(|| Arc::new(RwLock::new(None)))
-}
-
 /// Advance the simulated sensor temperature toward its setpoint.
 ///
 /// Called on every simulated status read, which is what makes the ramp
 /// observable: without it the sensor sits at ambient at 0% power forever and a
 /// `CoolCamera` node can never reach its setpoint against the simulator.
-pub(crate) async fn advance_sim_cooler() {
+pub(crate) async fn advance_sim_cooler(device_id: &str) {
     let now = std::time::Instant::now();
     let elapsed = {
-        let mut last = sim_cooler_last_tick().write().await;
+        let mut last = sim_camera_unit(device_id).cooler_tick.write().await;
         let elapsed = last.map(|t| now.duration_since(t).as_secs_f64());
         *last = Some(now);
         // First read after launch establishes the baseline instead of jumping.
@@ -265,7 +348,7 @@ pub(crate) async fn advance_sim_cooler() {
         }
     };
 
-    let mut guard = get_sim_camera().write().await;
+    let mut guard = get_sim_camera_for(device_id).write().await;
     let current = guard.status.sensor_temp.unwrap_or(SIM_AMBIENT_TEMP_C);
     let (target, rate) = if guard.status.cooler_on {
         (
@@ -284,6 +367,9 @@ pub(crate) async fn advance_sim_cooler() {
         current + step * delta.signum()
     };
     guard.status.sensor_temp = Some(next);
+    if !guard.status.can_cool {
+        return;
+    }
     guard.status.cooler_power = Some(if !guard.status.cooler_on {
         0.0
     } else if (target - next).abs() > 0.5 {
