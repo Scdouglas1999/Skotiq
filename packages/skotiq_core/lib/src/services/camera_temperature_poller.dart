@@ -119,7 +119,9 @@ class CameraTemperaturePoller {
         return;
       }
 
-      _ref.read(cameraStateProvider.notifier).updateReadout(
+      _ref
+          .read(cameraStateProvider.notifier)
+          .updateReadout(
             gain: status.gain,
             offset: status.offset,
             binX: status.binX,

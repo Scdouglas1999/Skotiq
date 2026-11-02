@@ -139,16 +139,16 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
     final loopEnabled = isConnected && !isSingleCapture && !isStoppingCapture;
     final snapshotLabel = isSingleCapture
         ? (isStoppingCapture
-              ? 'Stopping…'
-              : isSavingCapture
-              ? 'Saving…'
-              : 'Taking…')
+            ? 'Stopping…'
+            : isSavingCapture
+                ? 'Saving…'
+                : 'Taking…')
         : 'Snapshot$hostSuffix';
     final loopLabel = isStoppingCapture
         ? 'Stopping…'
         : isLooping
-        ? 'Stop'
-        : 'Loop';
+            ? 'Stop'
+            : 'Loop';
 
     return MeasuredWidth(
       onWidth: (double width) {
@@ -214,8 +214,8 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                       icon: isStoppingCapture
                           ? SkotiqIcons.loading
                           : isLooping
-                          ? SkotiqIcons.stop
-                          : SkotiqIcons.repeat,
+                              ? SkotiqIcons.stop
+                              : SkotiqIcons.repeat,
                       variant: isLooping
                           ? ButtonVariant.destructive
                           : ButtonVariant.secondary,
@@ -273,9 +273,9 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                     label: 'Save loop frames',
                     enabled: !isLooping && !isStoppingCapture,
                     toggled: saveLoopFrames,
-                    onTap: () =>
-                        ref.read(loopSavesFramesProvider.notifier).state =
-                            !saveLoopFrames,
+                    onTap: () => ref
+                        .read(loopSavesFramesProvider.notifier)
+                        .state = !saveLoopFrames,
                     child: SkotiqButton(
                       key: loopSaveFramesToggleKey,
                       label: 'Save',
@@ -286,17 +286,15 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                       variant: ButtonVariant.ghost,
                       semanticsHint: saveLoopFrames
                           ? 'Loop frames are saved to the image folder and counted in '
-                                'the session'
+                              'the session'
                           : 'Loop frames are live view only — not saved, not counted',
                       // Changing it mid-loop would split one run across two
                       // destinations, so it locks while the loop is live.
                       onPressed: isLooping || isStoppingCapture
                           ? null
-                          : () =>
-                                ref
-                                        .read(loopSavesFramesProvider.notifier)
-                                        .state =
-                                    !saveLoopFrames,
+                          : () => ref
+                              .read(loopSavesFramesProvider.notifier)
+                              .state = !saveLoopFrames,
                     ),
                   ),
                   const SizedBox(width: SkotiqTokens.spaceSm),
