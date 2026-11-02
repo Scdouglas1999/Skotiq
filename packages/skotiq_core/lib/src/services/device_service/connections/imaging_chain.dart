@@ -194,6 +194,9 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       enabled: enabled,
       targetTemp: targetTemp,
     );
+    if (enabled && targetTemp != null) {
+      _ref.read(cameraCoolingGoalProvider.notifier).state = targetTemp;
+    }
   }
 
   /// Gradually warm the camera by stepping the target temperature up

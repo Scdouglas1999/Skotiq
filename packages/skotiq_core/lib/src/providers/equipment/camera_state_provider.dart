@@ -4,6 +4,7 @@ import '../../models/equipment/equipment_models.dart';
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
 import 'equipment_retry_defaults.dart';
+import '../profiles_provider.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
@@ -13,6 +14,23 @@ final cameraStateProvider =
     StateNotifierProvider<CameraStateNotifier, CameraStateSnapshot>((ref) {
       return CameraStateNotifier(ref);
     });
+
+/// The setpoint the user last asked the cooler to hold this session, or null
+/// before any. A warm-up's ramp steps are not a goal and never land here.
+final cameraCoolingGoalProvider = StateProvider<double?>((ref) => null);
+
+/// The temperature a "Cool to" action cools to: the user's goal this
+/// session, else the profile's cooling setpoint, else the cooler's current
+/// setpoint. It does not follow a warm-up's ramp.
+final cameraCoolToTargetProvider = Provider<double>((ref) {
+  final goal = ref.watch(cameraCoolingGoalProvider);
+  if (goal != null) return goal;
+  final profileTarget = ref.watch(
+    activeEquipmentProfileProvider.select((p) => p?.defaultCoolingTemp),
+  );
+  if (profileTarget != null) return profileTarget;
+  return ref.watch(cameraStateProvider.select((s) => s.targetTemp));
+});
 
 class CameraStateNotifier extends StateNotifier<CameraStateSnapshot>
     implements DeviceConnectionNotifier {

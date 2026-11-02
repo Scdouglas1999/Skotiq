@@ -163,15 +163,15 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
     switch (widget.type) {
       case ConnectedDeviceType.camera:
         final state = ref.watch(cameraStateProvider);
+        final coolTo = ref.watch(cameraCoolToTargetProvider);
         return [
           _ActionButton(
-            label: 'Cool to ${formatCelsius(state.targetTemp, decimals: 0)}',
-            onTap: _deviceCommandInFlight
-                ? null
-                : () => _handleCoolCamera(state.targetTemp),
+            label: 'Cool to ${formatCelsius(coolTo, decimals: 0)}',
+            onTap:
+                _deviceCommandInFlight ? null : () => _handleCoolCamera(coolTo),
             onLongPress: _deviceCommandInFlight
                 ? null
-                : () => _showCoolingTempDialog(state.targetTemp),
+                : () => _showCoolingTempDialog(coolTo),
             colors: colors,
           ),
           const SizedBox(width: 8),
