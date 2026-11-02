@@ -432,10 +432,18 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   icon: LucideIcons.locate,
                   // Not "GPS": the same click walks all three tiers, and the
                   // subtitle names the one that actually gets you a yard.
-                  title: 'Detect location',
-                  subtitle: 'Nearby Wi-Fi networks place you to within '
-                      'about 100 m. Falls back to this machine’s GPS or '
-                      'your internet address.',
+                  title: isRemoteMode
+                      ? 'Detect this computer\'s location'
+                      : 'Detect location',
+                  // On a linked client the fix comes from this computer and
+                  // becomes the imaging host's site, so the row says both.
+                  subtitle: isRemoteMode
+                      ? 'Finds where this computer is (Wi-Fi, GPS or internet '
+                          'address) and saves it as the imaging host\'s site. '
+                          'Use it only when this computer is at the rig.'
+                      : 'Nearby Wi-Fi networks place you to within '
+                          'about 100 m. Falls back to this machine’s GPS or '
+                          'your internet address.',
                   trailing: SkotiqIconButton(
                     icon: LucideIcons.crosshair,
                     tooltip: 'Detect this location',

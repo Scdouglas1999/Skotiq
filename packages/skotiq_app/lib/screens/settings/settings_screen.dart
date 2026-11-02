@@ -12,6 +12,7 @@ import '../../widgets/tutorial_keys/settings_keys.dart';
 import 'settings_catalog.dart';
 import 'settings_search_index.g.dart';
 import 'widgets/host_settings_notice.dart';
+import 'widgets/settings_scope_notice.dart';
 import 'widgets/settings_widgets.dart';
 
 // Re-export the derived deep-link index map so existing importers keep
@@ -353,6 +354,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const HostSettingsNotice(),
+                SettingsScopeNotice(sectionKey: section.key),
                 Expanded(
                   child: SettingsRowHighlight(
                     rowTitle: _highlightRow,
@@ -419,6 +421,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const HostSettingsNotice(),
+                    SettingsScopeNotice(
+                      sectionKey: _selectedSection(groups).key,
+                    ),
                     Expanded(
                       child: SettingsRowHighlight(
                         rowTitle: _highlightRow,
