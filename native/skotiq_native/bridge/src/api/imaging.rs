@@ -3140,6 +3140,33 @@ fn set_pointing_keywords(header: &mut FitsHeader, ra_hours: Option<f64>, dec_deg
     }
 }
 
+/// Write `DATE-END` (DATE-OBS plus EXPTIME) and, when `with_mjd`, `MJD-OBS`
+/// (the start, as the FITS standard defines it), both derived from the UTC
+/// `DATE-OBS` text. Nothing is written when it does not parse.
+#[flutter_rust_bridge::frb(ignore)]
+fn set_exposure_time_keywords(
+    header: &mut FitsHeader,
+    date_obs: &str,
+    exposure_secs: f64,
+    with_mjd: bool,
+) {
+    let Ok(start) = chrono::NaiveDateTime::parse_from_str(date_obs, "%Y-%m-%dT%H:%M:%S%.f") else {
+        return;
+    };
+    if exposure_secs.is_finite() && exposure_secs >= 0.0 {
+        let end = start + chrono::Duration::milliseconds((exposure_secs * 1000.0).round() as i64);
+        header.set_string("DATE-END", &end.format("%Y-%m-%dT%H:%M:%S%.3f").to_string());
+    }
+    if with_mjd {
+        // MJD 0 is 1858-11-17T00:00:00 UTC.
+        let epoch = chrono::NaiveDate::from_ymd_opt(1858, 11, 17)
+            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .expect("valid MJD epoch");
+        let mjd = (start - epoch).num_milliseconds() as f64 / 86_400_000.0;
+        header.set_float("MJD-OBS", mjd);
+    }
+}
+
 /// Write the `OBJCTALT` altitude card and the `AIRMASS` derived from it,
 /// omitting either when it cannot be stated truthfully.
 ///
@@ -3343,6 +3370,12 @@ pub async fn save_fits_file_rich(
     // Core observation metadata.
     header.set_float("EXPTIME", header_data.exposure_time);
     header.set_string("DATE-OBS", &header_data.capture_timestamp);
+    set_exposure_time_keywords(
+        &mut header,
+        &header_data.capture_timestamp,
+        header_data.exposure_time,
+        header_data.photometry_mjd_obs.is_none(),
+    );
     header.set_string("IMAGETYP", &header_data.frame_type);
 
     if let Some(name) = &header_data.object_name {
