@@ -26,6 +26,8 @@ void _applyDeviceDisconnectedFromSyncPayload(
   if (parsed == null) {
     return;
   }
+  final deviceId = data['device_id'] as String? ?? data['deviceId'] as String?;
+  if (_isHostGuideCamera(reader, parsed, deviceId)) return;
 
   readDeviceConnectionNotifier(reader, parsed).setDisconnected();
 }
@@ -45,6 +47,7 @@ void _applyConnectingDevice(
     return;
   }
 
+  if (_isHostGuideCamera(reader, parsed, deviceId)) return;
   final notifier = readDeviceConnectionNotifier(reader, parsed);
   if (!_isDeviceAlreadyConnected(reader, parsed, deviceId)) {
     notifier.setConnecting(deviceId, deviceName ?? deviceId);
@@ -65,6 +68,7 @@ void _applyConnectedDeviceFromPayload(
   if (parsed == null) {
     return;
   }
+  if (_isHostGuideCamera(reader, parsed, deviceId)) return;
 
   final notifier = readDeviceConnectionNotifier(reader, parsed);
   if (!_isDeviceAlreadyConnected(reader, parsed, deviceId)) {
@@ -83,7 +87,17 @@ bool _isDeviceAlreadyConnected(
       notifier.deviceId == deviceId;
 }
 
+/// Whether a host device event is about the profile's guide camera, which has
+/// no slot of its own and must not take the imaging camera's.
+bool _isHostGuideCamera(Object reader, DeviceType? type, String? deviceId) =>
+    type == DeviceType.camera &&
+    isProfileGuideCamera(
+      _read(reader, activeEquipmentProfileProvider),
+      deviceId,
+    );
+
 void _applyConnectedDevice(Object reader, DeviceInfo device) {
+  if (_isHostGuideCamera(reader, device.deviceType, device.id)) return;
   final notifier = readDeviceConnectionNotifier(reader, device.deviceType);
   if (!_isDeviceAlreadyConnected(reader, device.deviceType, device.id)) {
     notifier.setConnecting(device.id, device.name);

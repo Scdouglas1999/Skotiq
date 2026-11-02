@@ -397,8 +397,15 @@ extension _DeviceServiceEventHandling on DeviceService {
   // `_heartbeat.start` / `_heartbeat.stop` from connect/disconnect
   // flows; see `device_heartbeat_router.dart`.
 
+  /// Whether a `deviceType`/`deviceId` event is about the profile's guide
+  /// camera, which has no slot of its own and must not take the camera's.
+  bool _isGuideCameraEvent(String? deviceType, String? deviceId) =>
+      deviceTypeFromWireName(deviceType ?? '') == DeviceType.camera &&
+      isProfileGuideCamera(_ref.read(activeEquipmentProfileProvider), deviceId);
+
   /// Handle device connection event from the native EventBus.
   void _applyDeviceConnected(String deviceType, String deviceId) {
+    if (_isGuideCameraEvent(deviceType, deviceId)) return;
     // Resolve a friendly model name so the authoritative backend 'Connected'
     // event does not overwrite the device name with the raw device id.
     // Prefer the startup-discovery model name (e.g. "ZWO ASI1600MM-Cool");
@@ -426,6 +433,7 @@ extension _DeviceServiceEventHandling on DeviceService {
   }
 
   void _applyDeviceConnecting(String deviceType, String deviceId) {
+    if (_isGuideCameraEvent(deviceType, deviceId)) return;
     // See _applyDeviceConnected: prefer the discovery model name over the raw
     // id so the "Connecting…" label and card show the friendly name.
     final resolvedName =
@@ -492,6 +500,10 @@ extension _DeviceServiceEventHandling on DeviceService {
       ),
       'device-disconnected-$deviceType',
     );
+
+    // The guide camera is the guider's: losing it is a guiding problem, which
+    // the guider reports. It is not the imaging camera and has no slot.
+    if (_isGuideCameraEvent(deviceType, deviceId)) return;
 
     // Check if this is a critical device and sequence is running
     final isCriticalDevice =
@@ -608,7 +620,7 @@ extension _DeviceServiceEventHandling on DeviceService {
         ),
         'device-error-unknown-type',
       );
-    } else {
+    } else if (!_isGuideCameraEvent(deviceType, deviceId)) {
       readDeviceConnectionNotifier(_ref, type).setError(exception);
     }
 

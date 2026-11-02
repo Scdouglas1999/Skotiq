@@ -58,6 +58,19 @@ class ProfileGuider {
   int get hashCode => Object.hash(kind, guiderId, guideCameraId);
 }
 
+/// Whether [deviceId] is [profile]'s guide camera: a second camera the
+/// built-in guider takes its frames with. It never takes the imaging camera's
+/// place in the app's device state, so its connect, disconnect and error
+/// events leave the camera slot alone.
+bool isProfileGuideCamera(EquipmentProfileModel? profile, String? deviceId) {
+  final guideCamera = profile?.guideCameraId?.trim();
+  return deviceId != null &&
+      guideCamera != null &&
+      guideCamera.isNotEmpty &&
+      deviceId == guideCamera &&
+      deviceId != profile?.cameraId;
+}
+
 /// The active profile's guider (see [ProfileGuider]).
 final profileGuiderProvider = Provider<ProfileGuider>(
   (ref) => ProfileGuider.of(ref.watch(activeEquipmentProfileProvider)),
