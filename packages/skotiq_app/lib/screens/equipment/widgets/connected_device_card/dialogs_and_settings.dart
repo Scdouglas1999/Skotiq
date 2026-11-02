@@ -1,145 +1,45 @@
 part of '../connected_device_card.dart';
 
 extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
-  // Canonical meridian-flip warning-window bounds, mirroring
-  // MeridianFlipSettings.validate (0..120 minutes). Kept as a named constant so
-  // the field hint, validation, and tests reference one source of truth.
-  static const int _minFlipMinutes = 0;
-  static const int _maxFlipMinutes = 120;
-
+  /// The mount's meridian flips are the run's: every run arms its own flip
+  /// trigger from Settings > Sequencer > Meridian flip, so this dialog holds
+  /// no flip settings of its own and points there.
   void _showMountSettingsDialog() async {
-    late final AppSettingsState settings;
-    try {
-      settings = await ref.read(appSettingsProvider.future);
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar('Could not load mount settings: $e');
-      }
-      return;
-    }
-    if (!mounted) return;
-
-    bool enableFlip = settings.enableMeridianFlip;
-    var flipMinutesText = settings.meridianFlipMinutes.toString();
-    // Capture the State's context up front: the Save handler is async and the
-    // success snackbar must not use the dialog's (popped) context after the
-    // await.
     final pageContext = context;
-    bool isSaving = false;
-    String? errorText;
-
     await _showEquipmentDialog(
-        context: context,
-        builder: (ctx) {
-          return StatefulBuilder(builder: (context, setState) {
-            final colors = SkotiqColors.of(context);
-            return SkotiqDialog(
-              title: 'Mount configuration',
-              icon: LucideIcons.compass,
-              width: 400,
-              actions: [
-                SkotiqButton(
-                  onPressed: isSaving ? null : () => Navigator.pop(context),
-                  label: 'Cancel',
-                  variant: ButtonVariant.ghost,
-                  size: ButtonSize.small,
-                ),
-                SkotiqButton(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          // Re-entrancy guard: the disabled state only takes
-                          // effect on the next rebuild, so a rapid double-tap
-                          // could otherwise re-enter before setState lands.
-                          if (isSaving) return;
-                          final raw = flipMinutesText.trim();
-                          final minutes = int.tryParse(raw);
-                          if (minutes == null) {
-                            setState(() =>
-                                errorText = 'Enter a whole number of minutes.');
-                            return;
-                          }
-                          if (minutes < _minFlipMinutes ||
-                              minutes > _maxFlipMinutes) {
-                            setState(() => errorText =
-                                'Minutes must be between $_minFlipMinutes '
-                                    'and $_maxFlipMinutes.');
-                            return;
-                          }
-                          setState(() {
-                            errorText = null;
-                            isSaving = true;
-                          });
-                          try {
-                            await ref
-                                .read(appSettingsProvider.notifier)
-                                .setMeridianFlipConfig(
-                                  enableFlip: enableFlip,
-                                  minutes: minutes,
-                                );
-                            if (!context.mounted) return;
-                            Navigator.pop(context);
-                            if (pageContext.mounted) {
-                              pageContext.showSuccessSnackBar(
-                                  'Mount settings updated');
-                            }
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            setState(() {
-                              isSaving = false;
-                              errorText = 'Failed to save: $e';
-                            });
-                          }
-                        },
-                  label: isSaving ? 'Saving...' : 'Save',
-                  variant: ButtonVariant.primary,
-                  size: ButtonSize.small,
-                ),
-              ],
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SkotiqSwitchRow(
-                    label: 'Auto meridian flip',
-                    value: enableFlip,
-                    enabled: !isSaving,
-                    onChanged: (val) => setState(() => enableFlip = val),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    initialValue: flipMinutesText,
-                    onChanged: (value) => flipMinutesText = value,
-                    enabled: !isSaving,
-                    keyboardType: TextInputType.number,
-                    style: SkotiqTypography.body
-                        .copyWith(color: colors.textPrimary),
-                    decoration: InputDecoration(
-                      labelText:
-                          'Minutes past the meridian ($_minFlipMinutes–$_maxFlipMinutes)',
-                      labelStyle: SkotiqTypography.bodySm
-                          .copyWith(color: colors.textMuted),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: colors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: colors.primary),
-                      ),
-                    ),
-                  ),
-                  if (errorText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      errorText!,
-                      style:
-                          SkotiqTypography.bodySm.copyWith(color: colors.error),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          });
-        });
+      context: context,
+      builder: (ctx) {
+        final colors = SkotiqColors.of(ctx);
+        return SkotiqDialog(
+          title: 'Mount configuration',
+          icon: LucideIcons.compass,
+          width: 400,
+          actions: [
+            SkotiqButton(
+              onPressed: () => Navigator.pop(ctx),
+              label: 'Close',
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+            ),
+            SkotiqButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (pageContext.mounted) {
+                  openMeridianFlipSettings(pageContext);
+                }
+              },
+              label: 'Open meridian flip settings',
+              variant: ButtonVariant.primary,
+              size: ButtonSize.small,
+            ),
+          ],
+          child: Text(
+            kMeridianFlipSettingsPointer,
+            style: SkotiqTypography.body.copyWith(color: colors.textSecondary),
+          ),
+        );
+      },
+    );
   }
 
   // Canonical backlash-compensation bounds, mirroring the autofocus backlash

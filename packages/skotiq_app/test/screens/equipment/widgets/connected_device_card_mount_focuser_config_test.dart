@@ -1,5 +1,6 @@
 // Widget tests for the ConnectedDevicecard mount + focuser "Configuration"
-// dialogs' truthful validation/save behavior.
+// dialogs' truthful validation/save behavior. The mount dialog holds no flip
+// settings: every run arms its flip from Settings > Sequencer.
 //
 // Coercing malformed numeric input via `parse(...) ?? old` reports success
 // while silently keeping the prior value, and sequential per-field writes land
@@ -70,105 +71,25 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Mount configuration', () {
-    testWidgets('settings failure does not open a default-valued editor',
-        (tester) async {
-      await pumpAppScreen(
-        tester,
-        const ConnectedDeviceCard(type: ConnectedDeviceType.mount),
-        extraOverrides: [
-          appSettingsProvider.overrideWith(_FailingSettingsNotifier.new),
-        ],
-        settle: false,
-      );
-
+    testWidgets(
+        'holds no flip switch or minutes of its own and points to the '
+        "run's meridian flip settings", (tester) async {
+      await _pump(tester, ConnectedDeviceType.mount);
       await _openDialog(tester);
-
-      expect(find.text('Mount configuration'), findsNothing);
-      expect(
-          find.textContaining('Could not load mount settings'), findsOneWidget);
-    });
-
-    testWidgets('malformed minutes does zero work and stays open',
-        (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.mount);
-      final before = handle.container
-          .read(appSettingsProvider)
-          .requireValue
-          .meridianFlipMinutes;
-
-      await _openDialog(tester);
-      await tester.enterText(find.byType(TextField), 'abc');
-      await _tapSave(tester);
-
-      expect(find.text('Mount configuration'), findsOneWidget,
-          reason: 'a malformed value must leave the dialog open');
-      expect(
-        handle.container
-            .read(appSettingsProvider)
-            .requireValue
-            .meridianFlipMinutes,
-        before,
-        reason: 'a malformed value must not persist anything',
-      );
-    });
-
-    testWidgets('out-of-range minutes (121) is rejected and stays open',
-        (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.mount);
-      final before = handle.container
-          .read(appSettingsProvider)
-          .requireValue
-          .meridianFlipMinutes;
-
-      await _openDialog(tester);
-      await tester.enterText(find.byType(TextField), '121');
-      await _tapSave(tester);
 
       expect(find.text('Mount configuration'), findsOneWidget);
+      expect(find.text('Auto meridian flip'), findsNothing);
+      expect(find.byType(Switch), findsNothing);
+      expect(find.byType(TextField), findsNothing);
       expect(
-        handle.container
-            .read(appSettingsProvider)
-            .requireValue
-            .meridianFlipMinutes,
-        before,
+        find.textContaining('Settings > Sequencer > Meridian flip'),
+        findsOneWidget,
       );
-    });
+      expect(find.text('Open meridian flip settings'), findsOneWidget);
 
-    testWidgets('boundary minutes 120 saves and closes', (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.mount);
-
-      await _openDialog(tester);
-      await tester.enterText(find.byType(TextField), '120');
-      await _tapSave(tester);
+      await tester.tap(find.text('Close'));
       await _waitForDialogToClose(tester, 'Mount configuration');
-
-      expect(find.text('Mount configuration'), findsNothing,
-          reason: 'a valid save must close the dialog');
-      expect(
-        handle.container
-            .read(appSettingsProvider)
-            .requireValue
-            .meridianFlipMinutes,
-        120,
-      );
-    });
-
-    testWidgets('boundary minutes 0 saves and closes', (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.mount);
-
-      await _openDialog(tester);
-      await tester.enterText(find.byType(TextField), '0');
-      await _tapSave(tester);
-      await _waitForDialogToClose(tester, 'Mount configuration');
-
       expect(find.text('Mount configuration'), findsNothing);
-      expect(
-        handle.container
-            .read(appSettingsProvider)
-            .requireValue
-            .meridianFlipMinutes,
-        0,
-      );
     });
   });
 

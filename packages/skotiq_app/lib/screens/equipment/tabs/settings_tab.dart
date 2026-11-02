@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/focuser_backlash/effective_backlash_readout.dart';
+import '../utils/meridian_flip_pointer.dart';
 
 class EquipmentSettingsTab extends ConsumerWidget {
   const EquipmentSettingsTab({super.key});
@@ -46,7 +48,7 @@ class EquipmentSettingsTab extends ConsumerWidget {
             ResponsiveCardGrid(
               children: [
                 _CameraSettingsCard(settings: settings),
-                _MountSettingsCard(settings: settings),
+                const _MountSettingsCard(),
                 _FocuserSettingsCard(settings: settings),
                 const _BuiltinGuiderSettingsCard(),
               ],
@@ -110,16 +112,14 @@ class _CameraSettingsCard extends ConsumerWidget {
   }
 }
 
-class _MountSettingsCard extends ConsumerWidget {
-  final AppSettingsState settings;
-
-  const _MountSettingsCard({required this.settings});
+/// The mount holds no flip settings of its own: every run arms its meridian
+/// flip from Settings > Sequencer > Meridian flip, so this card points there.
+class _MountSettingsCard extends StatelessWidget {
+  const _MountSettingsCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final notifier = ref.read(appSettingsProvider.notifier);
-
     return SkotiqPanel(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -127,27 +127,26 @@ class _MountSettingsCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Mount Settings',
+              'Mount',
               style: SkotiqTypography.sectionTitle
                   .copyWith(color: colors.textPrimary),
             ),
-            const SizedBox(height: 16),
-            SkotiqSwitchRow(
-              label: 'Meridian flip',
-              value: settings.enableMeridianFlip,
-              onChanged: (value) => notifier.setEnableMeridianFlip(value),
+            const SizedBox(height: 12),
+            Text(
+              kMeridianFlipSettingsPointer,
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: 12),
-            _SettingRow(
-              label: 'Flip offset (min)',
-              child: _compactNumberField(
-                context,
-                initialValue: settings.meridianFlipMinutes.toString(),
-                onChanged: (value) {
-                  final parsed = int.tryParse(value);
-                  if (parsed != null) notifier.setMeridianFlipMinutes(parsed);
-                },
-              ),
+            SkotiqButton(
+              label: 'Open meridian flip settings',
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () {
+                final router = GoRouter.of(context);
+                Navigator.of(context).maybePop();
+                router.go('/settings?section=sequencer');
+              },
             ),
           ],
         ),

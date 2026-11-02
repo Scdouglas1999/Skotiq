@@ -14,9 +14,10 @@
 //     these are the FALLBACK defaults when a profile has no override.
 //   * Autofocus algorithm tuning → see `autofocus.dart`.
 //   * PHD2 connection (host/port/path) → see `phd2.dart`.
-//   * Meridian-flip timing knob (`meridianFlipMinutes`) → see
-//     `sequencer.dart`. The `enableMeridianFlip` toggle here owns whether
-//     the mount supports flips at all; the timing is a sequencer concern.
+//   * Meridian flips. Every run arms its flip trigger from the meridian flip
+//     settings (`globalMeridianFlipSettingsProvider`); `enableMeridianFlip`
+//     only remembers the Quick-Start wizard's choice of adding a flip check
+//     to the plans it builds, and no run reads it.
 part of '../settings_provider.dart';
 
 /// Setters for per-device-type equipment-default knobs.
