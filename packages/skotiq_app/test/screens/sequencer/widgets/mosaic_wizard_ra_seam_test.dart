@@ -82,7 +82,8 @@ int _panelsInsidePlanner(WidgetTester tester, {required int rows, int? cols}) {
 }
 
 void main() {
-  testWidgets('every panel of a mosaic centered on RA 0h is drawn on the canvas',
+  testWidgets(
+      'every panel of a mosaic centered on RA 0h is drawn on the canvas',
       (tester) async {
     await _pumpMosaicAt(tester, initialRa: 0.0, initialDec: 30.0);
 

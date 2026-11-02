@@ -592,46 +592,43 @@ void main() {
     },
   );
 
-  test(
-    'a mono master carries no color step and the report says why',
-    () async {
-      darkroom.draftNotes = [
-        {
-          'opId': 'color_calibrate',
-          'outcome': 'omitted',
-          'reason': 'this master has 1 channel(s); the color fit needs three',
-        },
-      ];
-      final sessionId = await insertSession();
-      final imageId = await insertSub(sessionId: sessionId);
-      await insertMaster(imageIds: [imageId]);
+  test('a mono master carries no color step and the report says why', () async {
+    darkroom.draftNotes = [
+      {
+        'opId': 'color_calibrate',
+        'outcome': 'omitted',
+        'reason': 'this master has 1 channel(s); the color fit needs three',
+      },
+    ];
+    final sessionId = await insertSession();
+    final imageId = await insertSub(sessionId: sessionId);
+    await insertMaster(imageIds: [imageId]);
 
-      final outcome = await buildService().runDawnForSession(sessionId);
+    final outcome = await buildService().runDawnForSession(sessionId);
 
-      final draft = outcome.report!.masters.single.draft!;
-      expect(draft.indexOfOp('color_calibrate'), -1);
-      expect(
-        draft.notes.firstWhere((n) => n.opId == 'color_calibrate').reason,
-        contains('needs three'),
-      );
+    final draft = outcome.report!.masters.single.draft!;
+    expect(draft.indexOfOp('color_calibrate'), -1);
+    expect(
+      draft.notes.firstWhere((n) => n.opId == 'color_calibrate').reason,
+      contains('needs three'),
+    );
 
-      // And the row carries the same account, not only the report on disk.
-      // The editor never opens the report, so a draft whose reasons lived
-      // there alone arrived in the Darkroom with them stripped off.
-      final recipes = RecipesDao(db);
-      final row = (await recipes.listForMaster(masterPath)).single;
-      final stored = await recipes.draftNotesOf(row.id!);
-      expect(
-        stored.firstWhere((n) => n.opId == 'color_calibrate').reason,
-        contains('needs three'),
-      );
-      expect(
-        stored.map((n) => n.opId),
-        containsAll(draft.notes.map((n) => n.opId)),
-        reason: 'the row records every decision the pass made',
-      );
-    },
-  );
+    // And the row carries the same account, not only the report on disk.
+    // The editor never opens the report, so a draft whose reasons lived
+    // there alone arrived in the Darkroom with them stripped off.
+    final recipes = RecipesDao(db);
+    final row = (await recipes.listForMaster(masterPath)).single;
+    final stored = await recipes.draftNotesOf(row.id!);
+    expect(
+      stored.firstWhere((n) => n.opId == 'color_calibrate').reason,
+      contains('needs three'),
+    );
+    expect(
+      stored.map((n) => n.opId),
+      containsAll(draft.notes.map((n) => n.opId)),
+      reason: 'the row records every decision the pass made',
+    );
+  });
 
   test('a superseding re-run replaces the account it wrote last time', () async {
     darkroom.draftNotes = [

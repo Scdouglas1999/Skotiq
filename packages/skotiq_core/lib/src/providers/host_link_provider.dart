@@ -30,7 +30,6 @@ final hostLinkLostProvider = Provider<String?>((ref) {
     BackendConnectionState.disconnected ||
     BackendConnectionState.error => backend.serverHost,
     BackendConnectionState.connecting ||
-    BackendConnectionState.connected ||
-    null => null,
+    BackendConnectionState.connected => null,
   };
 });

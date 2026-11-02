@@ -687,8 +687,7 @@ void main() {
       ),
       findsWidgets,
     );
-    final alert = find.textContaining(
-        'Color calibration has no catalog stars',
+    final alert = find.textContaining('Color calibration has no catalog stars',
         findRichText: true);
     expect(alert, findsOneWidget);
     // Above the recipe's own identity block, which is the reference material

@@ -281,8 +281,7 @@ class _ObservingListEditorDialogState
         if (previous == null || identical(previous, next) || !mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('The connected host changed. List editing canceled.'),
+            content: Text('The connected host changed. List editing canceled.'),
           ),
         );
         closeAuthorityBoundDialog(context);

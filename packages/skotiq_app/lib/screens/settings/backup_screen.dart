@@ -265,8 +265,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     );
     if (!confirmed || !mounted || _rejectIfBusy()) return;
     if (!_backendStillMatches(token)) {
-      context.showWarningSnackBar(
-          'The connected host changed. Restore canceled.');
+      context
+          .showWarningSnackBar('The connected host changed. Restore canceled.');
       await _loadAvailableBackups();
       return;
     }

@@ -212,28 +212,25 @@ void main() {
       },
     );
 
-    test(
-      'cancel() on a queued job transitions straight to canceled',
-      () async {
-        final recorder = _EventRecorder();
-        final manager = JobManager(emitEvent: recorder.record);
-        addTearDown(manager.dispose);
+    test('cancel() on a queued job transitions straight to canceled', () async {
+      final recorder = _EventRecorder();
+      final manager = JobManager(emitEvent: recorder.record);
+      addTearDown(manager.dispose);
 
-        // Work that never starts. We cancel synchronously before any
-        // scheduleMicrotask gets to flip the state to running.
-        final job = manager.start(
-          operation: 'test.op',
-          work: (sink, cancellation) async => {'never': 'runs'},
-        );
-        expect(job.state, JobState.queued);
-        final result = manager.cancel(job.jobId);
-        expect(result, isNotNull);
-        expect(result!.state, JobState.cancelled);
-        await _pumpUntil(
-          () => manager.get(job.jobId)?.state == JobState.cancelled,
-        );
-      },
-    );
+      // Work that never starts. We cancel synchronously before any
+      // scheduleMicrotask gets to flip the state to running.
+      final job = manager.start(
+        operation: 'test.op',
+        work: (sink, cancellation) async => {'never': 'runs'},
+      );
+      expect(job.state, JobState.queued);
+      final result = manager.cancel(job.jobId);
+      expect(result, isNotNull);
+      expect(result!.state, JobState.cancelled);
+      await _pumpUntil(
+        () => manager.get(job.jobId)?.state == JobState.cancelled,
+      );
+    });
 
     test('cancel() returns null when the job is unknown', () {
       final recorder = _EventRecorder();

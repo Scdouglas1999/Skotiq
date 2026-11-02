@@ -432,10 +432,7 @@ class JobManager {
     final updated = job._copyWith(
       state: JobState.cancelled,
       updatedAt: _now(),
-      error: {
-        'code': 'job_cancelled',
-        'message': reason ?? 'Job was canceled',
-      },
+      error: {'code': 'job_cancelled', 'message': reason ?? 'Job was canceled'},
     );
     _jobs[jobId] = updated;
     _cancellations.remove(jobId);

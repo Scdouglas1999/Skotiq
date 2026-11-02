@@ -23,9 +23,7 @@ const _capella = Star(
 );
 
 void main() {
-  testWidgets('tapping a star reports the catalog coordinate', (
-    tester,
-  ) async {
+  testWidgets('tapping a star reports the catalog coordinate', (tester) async {
     CelestialObject? tappedObject;
     CelestialCoordinate? tappedCoordinate;
 

@@ -270,8 +270,7 @@ class _SciencePhotometryPropertiesState
           controller: _targetCtl,
           focusNode: _targetFocus,
           label: 'Target designation',
-          hint:
-              'AAVSO / catalog identifier (e.g. "V0376 Per", "TIC 38846515")',
+          hint: 'AAVSO / catalog identifier (e.g. "V0376 Per", "TIC 38846515")',
           onChanged: (v) =>
               _update((n) => n.copyWith(targetDesignation: v.trim())),
         ),
