@@ -174,7 +174,6 @@ class SessionHandlers {
     Request request,
     String sessionId,
   ) async {
-    _logInfo('[API] GET /api/sessions/$sessionId/images');
     final sid = _parsePathId(sessionId, 'sessionId');
     final database = container.read(databaseProvider);
     final images = await database.imagesDao.getImagesForSession(sid);
@@ -184,7 +183,6 @@ class SessionHandlers {
   }
 
   Future<Response> handleGetAllImages(Request request) async {
-    _logInfo('[API] GET /api/images');
     final query = request.url.queryParameters;
     final producingNodeIdParam = query['producingNodeId'];
     final producingRunIdParam = query['producingRunId'];
@@ -247,7 +245,6 @@ class SessionHandlers {
   }
 
   Future<Response> handleGetImageById(Request request, String imageId) async {
-    _logInfo('[API] GET /api/images/$imageId');
     final iid = _parsePathId(imageId, 'imageId');
     final database = container.read(databaseProvider);
     final image = await database.imagesDao.getImageById(iid);
@@ -494,7 +491,6 @@ class SessionHandlers {
   /// before the v2.5 release. Returns the same shape the GUI web_server used
   /// (`images` + `count`) so the mobile UI tile counters keep working.
   Future<Response> handleGetRecentImages(Request request) async {
-    _logInfo('[API] GET /api/images/recent');
     final limitParam = request.url.queryParameters['limit'];
     final limit = limitParam == null
         ? null
@@ -519,7 +515,6 @@ class SessionHandlers {
   }
 
   Future<Response> handleGetStandaloneImages(Request request) async {
-    _logInfo('[API] GET /api/images/standalone');
     final database = container.read(databaseProvider);
     final images = await database.imagesDao.getAllImages();
     final standalone = images
@@ -618,7 +613,6 @@ class SessionHandlers {
     exportAction,
     required String contentType,
   }) async {
-    _logInfo('[API] GET /api/sessions/$sessionId/export/$fileType');
     final sid = _parsePathId(sessionId, 'sessionId');
     final database = container.read(databaseProvider);
     final service = SessionExportService(

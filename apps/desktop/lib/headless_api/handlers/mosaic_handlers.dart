@@ -135,7 +135,6 @@ class MosaicHandlers {
   }
 
   Future<Response> handleRecommendExposure(Request request) async {
-    _logInfo('[API] GET /api/mosaic/recommended-exposure');
     final context = await container.read(
       smartNightExposureContextProvider.future,
     );
@@ -436,7 +435,6 @@ class MosaicHandlers {
   /// mosaics on the configured hub (the participant's entry point: pick a mosaic
   /// to join before claiming panels).
   Future<Response> handleListCollaborative(Request request) async {
-    _logInfo('[API] GET /api/mosaic/collaborative');
     try {
       final mosaics = await _collab.listMosaics();
       return jsonOk({'mosaics': mosaics.map(_collabMosaicToJson).toList()});
@@ -456,7 +454,6 @@ class MosaicHandlers {
     Request request,
     String mosaicId,
   ) async {
-    _logInfo('[API] GET /api/mosaic/collaborative/$mosaicId');
     if (mosaicId.trim().isEmpty) {
       return jsonError(
         code: 'invalid_mosaic_id',
@@ -595,7 +592,6 @@ class MosaicHandlers {
     Request request,
     String projectId,
   ) async {
-    _logInfo('[API] GET /api/mosaic/projects/$projectId/status');
     final id = int.tryParse(projectId);
     if (id == null) {
       return jsonError(

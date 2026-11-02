@@ -22,7 +22,6 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
   }
 
   Future<Response> handleGetCalibrationSettings(Request request) async {
-    _logInfo('[API] GET /api/calibration/settings');
     return jsonOk(await _calibrationSettingsJson());
   }
 
@@ -132,7 +131,6 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
   }
 
   Future<Response> handleGetDarkSettings(Request request) async {
-    _logInfo('[API] GET /api/calibration/darks/settings');
     return jsonOk(await _darkSettingsJson());
   }
 
@@ -305,7 +303,6 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/darks
   Future<Response> handleListDarks(Request request) async {
-    _logInfo('[API] GET /api/calibration/darks');
     final params = request.url.queryParameters;
 
     final exposureSeconds = _parseDoubleParam(params, 'exposureSeconds');
@@ -329,7 +326,6 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/darks/{id}
   Future<Response> handleGetDark(Request request, String id) async {
-    _logInfo('[API] GET /api/calibration/darks/$id');
     final iid = _parsePathId(id, 'id');
     final entry = await _database.darkLibraryDao.getEntryById(iid);
     if (entry == null) {
@@ -570,7 +566,6 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/darks/{id}/download — stream with Range support.
   Future<Response> handleDownloadDark(Request request, String id) async {
-    _logInfo('[API] GET /api/calibration/darks/$id/download');
     final iid = _parsePathId(id, 'id');
 
     final entry = await _database.darkLibraryDao.getEntryById(iid);

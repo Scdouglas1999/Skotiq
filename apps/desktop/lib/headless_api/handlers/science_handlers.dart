@@ -133,7 +133,6 @@ class ScienceHandlers {
     Request request,
     String sessionId,
   ) async {
-    _logInfo('[API] GET /api/science/session/$sessionId/reprocess');
     final sid = _parsePathId(sessionId, 'sessionId');
     final progress = container
         .read(scienceReprocessServiceProvider)
@@ -149,7 +148,6 @@ class ScienceHandlers {
   }
 
   Future<Response> handleGetScienceSettings(Request request) async {
-    _logInfo('[API] GET /api/science/settings');
     final settings = await container.read(settingsDaoProvider).getAllSettings();
     final filtered = settings.entries
         .where((entry) => entry.key.startsWith('science.'))
@@ -214,7 +212,6 @@ class ScienceHandlers {
   /// These describe the imaging rig, so a remote planner must read and write
   /// them on the host rather than its controller-local database.
   Future<Response> handleGetSmartNightSettings(Request request) async {
-    _logInfo('[API] GET /api/smart-night/settings');
     final settings = await container.read(settingsDaoProvider).getAllSettings();
     final filtered = settings.entries
         .where((entry) => entry.key.startsWith('smart_night.'))
@@ -267,7 +264,6 @@ class ScienceHandlers {
     Request request,
     String sessionId,
   ) async {
-    _logInfo('[API] GET /api/science/session/$sessionId/config');
     final sid = _parsePathId(sessionId, 'sessionId');
     final row = await container
         .read(databaseProvider)
@@ -320,7 +316,6 @@ class ScienceHandlers {
   }
 
   Future<Response> handleGetSessionlessBundle(Request request) async {
-    _logInfo('[API] GET /api/science/sessionless/recent');
     final database = container.read(databaseProvider);
     final scienceDao = database.scienceDao;
 
@@ -362,7 +357,6 @@ class ScienceHandlers {
   }
 
   Future<Response> handleGetPhotometricTransforms(Request request) async {
-    _logInfo('[API] GET /api/science/transforms');
     final profileId = optionalQueryInt(
       request.url.queryParameters,
       'profileId',
@@ -475,7 +469,6 @@ class ScienceHandlers {
     Request request,
     String sessionId,
   ) async {
-    _logInfo('[API] GET /api/science/session/$sessionId/report/pdf');
     final sid = _parsePathId(sessionId, 'sessionId');
     final database = container.read(databaseProvider);
     final service = ObservationReportService(

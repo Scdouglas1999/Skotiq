@@ -43,7 +43,6 @@ class PlanningDataHandlers {
 
   /// GET /api/integration-goals?targetId=
   Future<Response> handleGetIntegrationGoals(Request request) async {
-    _logInfo('[API] GET /api/integration-goals');
     final targetId = _intParam(request, 'targetId');
     try {
       final goals = targetId != null
@@ -57,7 +56,6 @@ class PlanningDataHandlers {
 
   /// GET /api/integration-goals/captured-count?targetId=&filter=
   Future<Response> handleGetCapturedFrameCount(Request request) async {
-    _logInfo('[API] GET /api/integration-goals/captured-count');
     final targetId = requireQueryInt(
       request.url.queryParameters,
       'targetId',
@@ -145,7 +143,6 @@ class PlanningDataHandlers {
 
   /// GET /api/scheduler/removed-targets
   Future<Response> handleGetSchedulerRemovedTargets(Request request) async {
-    _logInfo('[API] GET /api/scheduler/removed-targets');
     try {
       final ids = await _queueService.removedTargetIds();
       return jsonOk({'targetIds': ids.toList()..sort()});
@@ -210,7 +207,6 @@ class PlanningDataHandlers {
 
   /// GET /api/target-constraints?targetId=
   Future<Response> handleGetTargetConstraints(Request request) async {
-    _logInfo('[API] GET /api/target-constraints');
     final targetId = _intParam(request, 'targetId');
     try {
       final constraints = targetId != null
@@ -313,7 +309,6 @@ class PlanningDataHandlers {
 
   /// GET /api/horizon-profiles
   Future<Response> handleGetHorizonProfiles(Request request) async {
-    _logInfo('[API] GET /api/horizon-profiles');
     try {
       final db = container.read(databaseProvider);
       // Ensure the table exists before reading (mirrors the loader's defensive
@@ -351,7 +346,6 @@ class PlanningDataHandlers {
 
   /// GET /api/projects
   Future<Response> handleGetProjects(Request request) async {
-    _logInfo('[API] GET /api/projects');
     try {
       final projects = await _projectService.listProjects();
       return jsonOk({'projects': projects.map((p) => p.toJson()).toList()});
@@ -362,7 +356,6 @@ class PlanningDataHandlers {
 
   /// GET /api/projects/targets?projectId=
   Future<Response> handleGetProjectTargets(Request request) async {
-    _logInfo('[API] GET /api/projects/targets');
     final projectId = requireQueryInt(
       request.url.queryParameters,
       'projectId',
@@ -380,7 +373,6 @@ class PlanningDataHandlers {
 
   /// GET /api/projects/progress?projectId=
   Future<Response> handleGetProjectProgress(Request request) async {
-    _logInfo('[API] GET /api/projects/progress');
     final projectId = requireQueryInt(
       request.url.queryParameters,
       'projectId',

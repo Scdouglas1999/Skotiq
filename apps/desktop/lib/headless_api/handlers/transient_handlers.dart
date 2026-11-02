@@ -54,7 +54,6 @@ class TransientHandlers {
   // Get active transients
 
   Future<Response> handleGetActiveTransients(Request request) async {
-    _logInfo('[API] GET /api/transients');
     final settings = await _readSettings();
 
     // Fetch alerts from configured sources
@@ -88,7 +87,6 @@ class TransientHandlers {
   // Get transient settings
 
   Future<Response> handleGetSettings(Request request) async {
-    _logInfo('[API] GET /api/transients/settings');
     final settings = await _readSettings();
 
     return jsonOk({
@@ -199,7 +197,6 @@ class TransientHandlers {
   }
 
   Future<Response> handleGetStates(Request request) async {
-    _logInfo('[API] GET /api/transients/states');
     final notifier = container.read(transientAlertStatesProvider.notifier);
     await notifier.loaded;
     final states = container.read(transientAlertStatesProvider);
@@ -251,7 +248,6 @@ class TransientHandlers {
   // Get queued transients
 
   Future<Response> handleGetQueued(Request request) async {
-    _logInfo('[API] GET /api/transients/queued');
     final settings = await _readSettings();
     final statesNotifier = container.read(
       transientAlertStatesProvider.notifier,

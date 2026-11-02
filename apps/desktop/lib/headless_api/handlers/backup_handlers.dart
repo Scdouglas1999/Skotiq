@@ -42,7 +42,6 @@ class BackupHandlers {
   // List backups
 
   Future<Response> handleListBackups(Request request) async {
-    _logInfo('[API] GET /api/backup/list');
     final service = container.read(backupServiceProvider);
     final backupFiles = await _listContainedBackups(service);
 
@@ -225,7 +224,6 @@ class BackupHandlers {
   // Download backup
 
   Future<Response> handleDownloadBackup(Request request, String id) async {
-    _logInfo('[API] GET /api/backup/$id/download');
     final service = container.read(backupServiceProvider);
     final backupFiles = await _listContainedBackups(service);
 
@@ -250,7 +248,6 @@ class BackupHandlers {
   // Get backup metadata
 
   Future<Response> handleGetBackupMetadata(Request request, String id) async {
-    _logInfo('[API] GET /api/backup/$id/metadata');
     final service = container.read(backupServiceProvider);
     final backupFiles = await _listContainedBackups(service);
 

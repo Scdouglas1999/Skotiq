@@ -36,7 +36,6 @@ class SchedulerHandlers {
   /// "nothing eligible"; the slave fetches this instead and mirrors the real
   /// host pick.
   Future<Response> handlePreviewDecision(Request request) async {
-    _logInfo('[API] GET /api/scheduler/preview');
     try {
       final decision = await container.read(
         schedulerPreviewDecisionProvider.future,
@@ -64,7 +63,6 @@ class SchedulerHandlers {
 
   /// GET /api/scheduler/state
   Future<Response> handleGetState(Request request) async {
-    _logInfo('[API] GET /api/scheduler/state');
     try {
       return jsonOk(await _schedulerState());
     } catch (e) {
@@ -186,7 +184,6 @@ class SchedulerHandlers {
   /// GET /api/scheduler/altitude?ra=X&dec=Y&time=Z
   /// Calculate altitude of object at given time (or now if no time)
   Future<Response> handleCalculateAltitude(Request request) async {
-    _logInfo('[API] GET /api/scheduler/altitude');
     final database = container.read(databaseProvider);
 
     // Parse query parameters
@@ -279,7 +276,6 @@ class SchedulerHandlers {
   /// GET /api/scheduler/transit-time?ra=X&dec=Y
   /// Get transit time for object tonight
   Future<Response> handleCalculateTransitTime(Request request) async {
-    _logInfo('[API] GET /api/scheduler/transit-time');
     final database = container.read(databaseProvider);
 
     // Parse query parameters
@@ -347,8 +343,6 @@ class SchedulerHandlers {
   /// GET /api/scheduler/rise-set?ra=X&dec=Y
   /// Get rise and set times for object
   Future<Response> handleCalculateRiseSet(Request request) async {
-    _logInfo('[API] GET /api/scheduler/rise-set');
-
     // Validate the coordinates BEFORE the observer-location DB read so a
     // malformed request fails closed and does no work. RA is in HOURS for this
     // endpoint (raDeg = raHours * 15), Dec in degrees. A supplied minAltitude
@@ -407,8 +401,6 @@ class SchedulerHandlers {
   /// GET /api/scheduler/hours-above-horizon?ra=X&dec=Y&minAltitude=30
   /// Get hours object is above altitude
   Future<Response> handleCalculateHoursAbove(Request request) async {
-    _logInfo('[API] GET /api/scheduler/hours-above-horizon');
-
     // Validate coordinates before the observer-location DB read. RA is in HOURS
     // (raDeg = raHours * 15), Dec in degrees, minAltitude finite and physical.
     // A malformed supplied minAltitude must NOT silently become 30.
@@ -710,7 +702,6 @@ class SchedulerHandlers {
   /// GET /api/scheduler/twilight-times
   /// Get astronomical, nautical, civil twilight times for tonight
   Future<Response> handleGetTwilightTimes(Request request) async {
-    _logInfo('[API] GET /api/scheduler/twilight-times');
     final database = container.read(databaseProvider);
 
     // Get observer location
@@ -773,7 +764,6 @@ class SchedulerHandlers {
   /// GET /api/scheduler/moon-info
   /// Get moon phase, rise/set, illumination
   Future<Response> handleGetMoonInfo(Request request) async {
-    _logInfo('[API] GET /api/scheduler/moon-info');
     final database = container.read(databaseProvider);
 
     // Get observer location

@@ -196,7 +196,6 @@ class ImagingHandlers {
   }
 
   Future<Response> handleDetectPlateSolvers(Request request) async {
-    _logInfo('[API] GET /api/plate-solver/detect');
     final backend = container.read(imagingBackendProvider);
     final detection = await backend.detectPlateSolvers();
     return jsonOk({
@@ -223,7 +222,6 @@ class ImagingHandlers {
   }
 
   Future<Response> handleGetPlateSolverConfig(Request request) async {
-    _logInfo('[API] GET /api/plate-solver/config');
     final backend = container.read(imagingBackendProvider);
     final pref = await backend.getPlateSolverConfig();
     return jsonOk({
@@ -274,7 +272,6 @@ class ImagingHandlers {
   }
 
   Future<Response> handleGetStarCrops(Request request) async {
-    _logInfo('[API] GET /api/imaging/star-crops');
     final query = request.url.queryParameters;
     final deviceId = query['deviceId']?.trim();
     // Absent → 5. A supplied maxCrops must be a positive, bounded whole number:

@@ -39,7 +39,6 @@ class FileSystemHandlers {
 
   Future<Response> handleBrowseDirectories(Request request) async {
     final requestedPath = request.url.queryParameters['path'];
-    _logInfo('[API] GET /api/files/browse?path=${requestedPath ?? ""}');
 
     try {
       // Compute the allow-listed roots once per request. Roots that don't

@@ -53,7 +53,6 @@ extension CalibrationEndOfNightHandlers on CalibrationHandlers {
   }
 
   Future<Response> handleGetEndOfNight(Request request) async {
-    _logInfo('[API] GET /api/calibration/end-of-night');
     return jsonOk(await _endOfNightJson());
   }
 

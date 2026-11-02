@@ -258,7 +258,6 @@ class FirstLightHandlers {
       }
       radius = parsed > _maxNearRadiusDeg ? _maxNearRadiusDeg : parsed;
     }
-    _logInfo('[API] GET /api/firstlight/near?ra=$ra&dec=$dec&radius=$radius');
 
     final rows = await _dao.detectionsNear(ra, dec, radiusDeg: radius);
     return jsonOk({
@@ -308,7 +307,6 @@ class FirstLightHandlers {
         message: 'unknown crop stage "$stage"',
       );
     }
-    _logInfo('[API] GET /api/firstlight/$detectionId/crops/$stage');
 
     final detection = await _dao.detectionById(detectionId);
     if (detection == null) {

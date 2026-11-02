@@ -28,7 +28,6 @@ class PlanetariumHandlers {
   /// GET /api/planetarium/mount-position
   /// Returns current mount RA/Dec/rotation for FOV display on client planetarium.
   Future<Response> handleGetMountPosition(Request request) async {
-    _logInfo('[API] GET /api/planetarium/mount-position');
     final backend = container.read(deviceBackendProvider);
 
     // Get connected mount
@@ -97,7 +96,6 @@ class PlanetariumHandlers {
   /// GET /api/planetarium/fov-config
   /// Returns camera sensor size, pixel size, focal length, reducer for FOV calculation.
   Future<Response> handleGetFovConfig(Request request) async {
-    _logInfo('[API] GET /api/planetarium/fov-config');
     // A-12: legitimately multi-role — needs ProfileSettings (getActiveProfile)
     // plus Device (getConnectedDevices, getCameraCapabilities). Stays on the
     // aggregate backend marker rather than carrying two role refs through one
@@ -328,7 +326,6 @@ class PlanetariumHandlers {
   /// GET /api/planetarium/catalog/search?query=M31
   /// Search objects by name across star and DSO catalogs.
   Future<Response> handleCatalogSearch(Request request) async {
-    _logInfo('[API] GET /api/planetarium/catalog/search');
     final params = request.url.queryParameters;
     final query = (params['query'] ?? '').trim();
     final limit = optionalQueryInt(params, 'limit', min: 1, max: 500) ?? 50;
@@ -368,7 +365,6 @@ class PlanetariumHandlers {
   /// GET /api/planetarium/catalog/region?ra=X&dec=Y&radius=Z
   /// Get objects in a region (cone search).
   Future<Response> handleCatalogRegion(Request request) async {
-    _logInfo('[API] GET /api/planetarium/catalog/region');
     final params = request.url.queryParameters;
     final raStr = params['ra'];
     final decStr = params['dec'];
@@ -478,7 +474,6 @@ class PlanetariumHandlers {
     Request request,
     String objectId,
   ) async {
-    _logInfo('[API] GET /api/planetarium/catalog/object/$objectId');
     // Search for the object by ID
     final results = await CatalogManager.instance.search(objectId);
 
@@ -545,7 +540,6 @@ class PlanetariumHandlers {
   /// GET /api/planetarium/subscribe-info
   /// Returns WebSocket URL and event types for real-time mount updates.
   Future<Response> handleGetSubscribeInfo(Request request) async {
-    _logInfo('[API] GET /api/planetarium/subscribe-info');
     final host = request.requestedUri.host;
     final port = request.requestedUri.port;
     final scheme = request.requestedUri.scheme == 'https' ? 'wss' : 'ws';
@@ -584,7 +578,6 @@ class PlanetariumHandlers {
   /// GET /api/planetarium/location
   /// Get current observer location for astronomical calculations.
   Future<Response> handleGetLocation(Request request) async {
-    _logInfo('[API] GET /api/planetarium/location');
     final backend = container.read(profileSettingsBackendProvider);
     final location = await backend.getLocation();
 
@@ -618,14 +611,12 @@ class PlanetariumHandlers {
 
   /// GET /api/observing-lists — all observing lists ordered by sortOrder.
   Future<Response> handleGetObservingLists(Request request) async {
-    _logInfo('[API] GET /api/observing-lists');
     final lists = await _observingListsDao.getAllLists();
     return jsonOk({'lists': lists.map((l) => l.toJson()).toList()});
   }
 
   /// GET /api/observing-lists/items?listId= — items in one list.
   Future<Response> handleGetObservingListItems(Request request) async {
-    _logInfo('[API] GET /api/observing-lists/items');
     final listId = requireQueryInt(
       request.url.queryParameters,
       'listId',
@@ -638,7 +629,6 @@ class PlanetariumHandlers {
   /// GET /api/observing-lists/listed-catalog-ids[?listId=] — distinct catalog
   /// ids across all lists, or for one list (drives star-chart list markers).
   Future<Response> handleGetListedCatalogIds(Request request) async {
-    _logInfo('[API] GET /api/observing-lists/listed-catalog-ids');
     final query = request.url.queryParameters;
     final listIdStr = query['listId'];
     final Set<String> ids;
@@ -653,7 +643,6 @@ class PlanetariumHandlers {
 
   /// GET /api/observing-lists/containing?catalogId= — lists holding an object.
   Future<Response> handleGetListsContaining(Request request) async {
-    _logInfo('[API] GET /api/observing-lists/containing');
     final catalogId = request.url.queryParameters['catalogId'];
     if (catalogId == null || catalogId.isEmpty) {
       return jsonBadRequest({'error': 'Missing catalogId'});

@@ -134,7 +134,6 @@ class WeatherHandlers {
   // Get active alerts
 
   Future<Response> handleGetAlerts(Request request) async {
-    _logInfo('[API] GET /api/weather/alerts');
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
 
@@ -248,7 +247,6 @@ class WeatherHandlers {
   };
 
   Future<Response> handleGetSettings(Request request) async {
-    _logInfo('[API] GET /api/weather/settings');
     final database = container.read(databaseProvider);
     final settings = await database.weatherSettingsDao.getOrCreateSettings();
     final policy = await SafetyConfigStore(database).loadDecisionPolicy();
@@ -415,7 +413,6 @@ class WeatherHandlers {
   // Check safe imaging conditions
 
   Future<Response> handleCheckSafeImaging(Request request) async {
-    _logInfo('[API] GET /api/weather/safe-imaging');
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
     final safety = container.read(weatherSafetyProvider);
@@ -438,7 +435,6 @@ class WeatherHandlers {
   /// (null) when no hardware source is available — clients must not invent
   /// values.
   Future<Response> handleGetCurrent(Request request) async {
-    _logInfo('[API] GET /api/weather/current');
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
     final safety = container.read(weatherSafetyProvider);

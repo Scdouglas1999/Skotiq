@@ -116,14 +116,12 @@ class DepthLockHandlers {
 
   /// `GET /api/depthlock/status`
   Future<Response> handleGetStatus(Request request) async {
-    _logInfo('[API] GET /api/depthlock/status');
     final status = await _translating(_backend.depthLockStatus);
     return jsonOk({'status': status.toJson()});
   }
 
   /// `GET /api/depthlock/goals`
   Future<Response> handleListGoals(Request request) async {
-    _logInfo('[API] GET /api/depthlock/goals');
     final goals = await _translating(_backend.listDepthLockGoals);
     return jsonOk({
       'goals': goals.map((goal) => goal.toJson()).toList(growable: false),
@@ -152,7 +150,6 @@ class DepthLockHandlers {
 
   /// `GET /api/depthlock/goals/<goalId>`
   Future<Response> handleGetGoal(Request request, String goalId) async {
-    _logInfo('[API] GET /api/depthlock/goals/$goalId');
     final goal = await _translating(() => _backend.getDepthLockGoal(goalId));
     return jsonOk({'goal': goal.toJson()});
   }
@@ -259,7 +256,6 @@ class DepthLockHandlers {
   /// verdict — it exists so the operator can see whether the curve is still
   /// climbing before deciding to keep the filter on target.
   Future<Response> handleGoalCurve(Request request, String goalId) async {
-    _logInfo('[API] GET /api/depthlock/goals/$goalId/curve');
     final raw = request.url.queryParameters['maxPoints'];
     final parsed = raw == null ? null : int.tryParse(raw);
     final maxPoints = (parsed == null || parsed < 2 || parsed > _maxCurvePoints)

@@ -149,7 +149,6 @@ class AnalyticsHandlers {
   // Get all sessions
 
   Future<Response> handleGetAllSessions(Request request) async {
-    _logInfo('[API] GET /api/sessions');
     final database = container.read(databaseProvider);
     final sessions = await database.sessionsDao.getAllSessions();
 
@@ -159,7 +158,6 @@ class AnalyticsHandlers {
   // Get Session By ID
 
   Future<Response> handleGetSessionById(Request request, String id) async {
-    _logInfo('[API] GET /api/sessions/$id');
     final sessionId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final session = await database.sessionsDao.getSessionById(sessionId);
@@ -179,7 +177,6 @@ class AnalyticsHandlers {
   // Get active session
 
   Future<Response> handleGetActiveSession(Request request) async {
-    _logInfo('[API] GET /api/sessions/active');
     final database = container.read(databaseProvider);
     final activeSessions = await database.sessionsDao.getActiveSessions();
 
@@ -208,7 +205,6 @@ class AnalyticsHandlers {
           max: _maxRecentSessionsLimit,
         ) ??
         10;
-    _logInfo('[API] GET /api/sessions/recent?limit=$limit');
     final database = container.read(databaseProvider);
     final sessions = await database.sessionsDao.getRecentSessions(limit: limit);
 
@@ -433,7 +429,6 @@ class AnalyticsHandlers {
   /// `avgHfrAllLights`, a DIFFERENT question with its own name and its own
   /// sample count, never as a second value for `avgHfr`.
   Future<Response> handleGetSessionStats(Request request, String id) async {
-    _logInfo('[API] GET /api/sessions/$id/stats');
     final sessionId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final session = await database.sessionsDao.getSessionById(sessionId);
@@ -521,7 +516,6 @@ class AnalyticsHandlers {
   // Session science data
 
   Future<Response> handleGetSessionPsfTiles(Request request, String id) async {
-    _logInfo('[API] GET /api/sessions/$id/psf-tiles');
     final sessionId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final psfTiles = await database.scienceDao.getPsfTilesForSession(sessionId);
@@ -530,7 +524,6 @@ class AnalyticsHandlers {
   }
 
   Future<Response> handleGetSessionResiduals(Request request, String id) async {
-    _logInfo('[API] GET /api/sessions/$id/residuals');
     final sessionId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final residuals = await database.scienceDao.getResidualsForSession(
@@ -543,7 +536,6 @@ class AnalyticsHandlers {
   // Get analytics summary
 
   Future<Response> handleGetAnalyticsSummary(Request request) async {
-    _logInfo('[API] GET /api/analytics/summary');
     final sessions = await _sessionsInRequestedRange(request);
     final stats = _statisticsForSessions(sessions);
 
@@ -560,7 +552,6 @@ class AnalyticsHandlers {
   // Get total integration time
 
   Future<Response> handleGetTotalIntegrationTime(Request request) async {
-    _logInfo('[API] GET /api/analytics/integration-time');
     final sessions = await _sessionsInRequestedRange(request);
     final stats = _statisticsForSessions(sessions);
 
@@ -576,7 +567,6 @@ class AnalyticsHandlers {
     Request request,
     String targetId,
   ) async {
-    _logInfo('[API] GET /api/analytics/target/$targetId');
     final tid = _parsePathId(targetId, 'targetId');
     final database = container.read(databaseProvider);
     final stats = await database.sessionsDao.getTargetStatistics(tid);
@@ -592,7 +582,6 @@ class AnalyticsHandlers {
   /// imaging session) eligible for the opt-in Analytics cleanup. Same
   /// session-aware predicate as the local Drift path, run against the host DB.
   Future<Response> handleGetUntrackedTargetsCount(Request request) async {
-    _logInfo('[API] GET /api/analytics/untracked-targets/count');
     final database = container.read(databaseProvider);
     final count = await database.targetsDao.countUntrackedTargets();
 
@@ -622,7 +611,6 @@ class AnalyticsHandlers {
     Request request,
     String targetId,
   ) async {
-    _logInfo('[API] GET /api/analytics/target/$targetId/sessions');
     final tid = _parsePathId(targetId, 'targetId');
     final database = container.read(databaseProvider);
     final sessions = await database.sessionsDao.getSessionsForTarget(tid);

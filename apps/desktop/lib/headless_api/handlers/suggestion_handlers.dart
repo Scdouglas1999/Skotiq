@@ -16,11 +16,6 @@ class SuggestionHandlers {
   /// than any "tonight" list surfaces while keeping the value sane.
   static const int _maxSuggestionResults = 1000;
 
-  LoggingService get _logger => container.read(loggingServiceProvider);
-
-  void _logInfo(String message) =>
-      _logger.info(message, source: 'SuggestionHandlers');
-
   // Why: a malformed `/api/suggestions/score/{targetId}` path would otherwise
   // surface a FormatException → 500. Throw BadRequestError so the middleware
   // returns a structured 400.
@@ -35,8 +30,6 @@ class SuggestionHandlers {
   // Get suggestions for tonight
 
   Future<Response> handleGetSuggestionsForTonight(Request request) async {
-    _logInfo('[API] GET /api/suggestions/tonight');
-
     // Validate every query parameter BEFORE touching the database so a
     // malformed request fails closed with a 400 and does no work. Each optional
     // param keeps its documented default only when absent; a supplied but
@@ -153,7 +146,6 @@ class SuggestionHandlers {
   // Get suggestion config
 
   Future<Response> handleGetConfig(Request request) async {
-    _logInfo('[API] GET /api/suggestions/config');
     // Return default configuration
     const config = TargetSuggestionConfig();
 
@@ -175,7 +167,6 @@ class SuggestionHandlers {
     Request request,
     String targetId,
   ) async {
-    _logInfo('[API] GET /api/suggestions/score/$targetId');
     final tid = _parsePathId(targetId, 'targetId');
     final database = container.read(databaseProvider);
 

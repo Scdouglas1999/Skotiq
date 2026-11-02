@@ -29,7 +29,6 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
   }
 
   Future<Response> handleGetDefectMapSettings(Request request) async {
-    _logInfo('[API] GET /api/calibration/defect-maps/settings');
     return jsonOk(await _defectMapSettingsJson());
   }
 
@@ -94,7 +93,6 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/defect-maps/status
   Future<Response> handleGetDefectMapStatus(Request request) async {
-    _logInfo('[API] GET /api/calibration/defect-maps/status');
     final payload = request.url.queryParameters;
     final cameraId = requireString(payload, 'cameraId');
     final width = requireInt(payload, 'width', min: 1);
@@ -198,7 +196,6 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/defect-maps
   Future<Response> handleListDefectMaps(Request request) async {
-    _logInfo('[API] GET /api/calibration/defect-maps');
     final params = request.url.queryParameters;
 
     final cameraId = params['cameraId'];
@@ -243,7 +240,6 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     final iid = _parsePathId(id, 'id');
     final format = (request.url.queryParameters['format'] ?? 'binary')
         .toLowerCase();
-    _logInfo('[API] GET /api/calibration/defect-maps/$iid?format=$format');
 
     final db = _database;
     final row = await (db.select(

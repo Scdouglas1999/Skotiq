@@ -129,7 +129,6 @@ extension MountDeviceHandlers on DeviceHandlers {
   /// honour, so a remote client can grey out what will not work rather than
   /// offering it and reporting a failure afterwards.
   Future<Response> handleMountSiteCapabilities(Request request) async {
-    _logInfo('[API] GET /api/mount/site-capabilities');
     final backend = container.read(deviceBackendProvider);
     final deviceId = _requireQueryDeviceId(request);
     final caps = await backend.mountSiteCapabilities(deviceId);
@@ -144,7 +143,6 @@ extension MountDeviceHandlers on DeviceHandlers {
   /// GET `/api/mount/site` — the site the mount itself holds. Longitude is
   /// EAST-positive, matching every other coordinate this API carries.
   Future<Response> handleMountGetSite(Request request) async {
-    _logInfo('[API] GET /api/mount/site');
     final backend = container.read(deviceBackendProvider);
     final deviceId = _requireQueryDeviceId(request);
     final site = await backend.mountGetSite(deviceId);
@@ -186,7 +184,6 @@ extension MountDeviceHandlers on DeviceHandlers {
 
   /// GET `/api/mount/time` — the mount's own clock.
   Future<Response> handleMountGetTime(Request request) async {
-    _logInfo('[API] GET /api/mount/time');
     final backend = container.read(deviceBackendProvider);
     final deviceId = _requireQueryDeviceId(request);
     final time = await backend.mountGetTime(deviceId);

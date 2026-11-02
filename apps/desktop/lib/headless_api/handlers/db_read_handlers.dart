@@ -110,7 +110,6 @@ class DbReadHandlers {
   // Sequence run history
 
   Future<Response> handleListSequenceRuns(Request request) async {
-    _logInfo('[API] GET /api/sequence-runs');
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
     final offset = _parseOffset(qp['offset']);
@@ -150,7 +149,6 @@ class DbReadHandlers {
   // that matches reality instead of a silent no-op on a fake key.
 
   Future<Response> handleListNotesJournal(Request request) async {
-    _logInfo('[API] GET /api/notes-journal');
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
     final offset = _parseOffset(qp['offset']);
@@ -262,7 +260,6 @@ class DbReadHandlers {
   // Guide-RMS history
 
   Future<Response> handleListGuideRmsHistory(Request request) async {
-    _logInfo('[API] GET /api/guide-rms-history');
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
     final offset = _parseOffset(qp['offset']);
@@ -306,7 +303,6 @@ class DbReadHandlers {
   // Polar alignment history
 
   Future<Response> handleListPolarAlignmentHistory(Request request) async {
-    _logInfo('[API] GET /api/polar-alignment-history');
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
     final offset = _parseOffset(qp['offset']);
@@ -351,7 +347,6 @@ class DbReadHandlers {
   // it here with the same JournalNote.toJson shape the slave decodes.
 
   Future<Response> handleListJournalNotes(Request request) async {
-    _logInfo('[API] GET /api/db/notes');
     final qp = request.url.queryParameters;
     final targetId = qp['targetId'];
     final runId = _parseOptionalInt(qp['runId']);
@@ -449,7 +444,6 @@ class DbReadHandlers {
   // Dark library (paginated read)
 
   Future<Response> handleListDarkLibrary(Request request) async {
-    _logInfo('[API] GET /api/db/dark-library');
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
     final offset = _parseOffset(qp['offset']);
@@ -502,7 +496,6 @@ class DbReadHandlers {
   // Flat history (paginated read)
 
   Future<Response> handleListFlatHistory(Request request) async {
-    _logInfo('[API] GET /api/db/flat-history');
     final qp = request.url.queryParameters;
     final limit = _parseLimit(qp['limit']);
     final offset = _parseOffset(qp['offset']);
@@ -598,7 +591,6 @@ class DbReadHandlers {
     Request request,
     String runIdRaw,
   ) async {
-    _logInfo('[API] GET /api/sequence-runs/$runIdRaw');
     final runId = _parseRunId(runIdRaw);
     final includeDiffContext = _parseIncludeDiffContext(request);
 
@@ -708,7 +700,6 @@ class DbReadHandlers {
     Request request,
     String runIdRaw,
   ) async {
-    _logInfo('[API] GET /api/sequence-runs/$runIdRaw/events');
     final runId = _parseRunId(runIdRaw);
 
     final run = await _database.sequenceRunsDao.getRunById(runId);
@@ -841,7 +832,6 @@ class DbReadHandlers {
     Request request,
     String runIdRaw,
   ) async {
-    _logInfo('[API] GET /api/sequence-runs/$runIdRaw/frames');
     final runId = _parseRunId(runIdRaw);
 
     final run = await _database.sequenceRunsDao.getRunById(runId);

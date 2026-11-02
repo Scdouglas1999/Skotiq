@@ -5,7 +5,6 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/flats
   Future<Response> handleListFlats(Request request) async {
-    _logInfo('[API] GET /api/calibration/flats');
     final params = request.url.queryParameters;
 
     final filter = params['filter'];
@@ -29,7 +28,6 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
   /// GET /api/calibration/flats/{id}
   Future<Response> handleGetFlat(Request request, String id) async {
     final iid = _parsePathId(id, 'id');
-    _logInfo('[API] GET /api/calibration/flats/$iid');
     final entry = await _database.flatHistoryDao.getById(iid);
     if (entry == null) {
       return jsonNotFound({
@@ -101,7 +99,6 @@ extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
 
   /// GET /api/calibration/flats/recommendation
   Future<Response> handleFlatRecommendation(Request request) async {
-    _logInfo('[API] GET /api/calibration/flats/recommendation');
     final params = request.url.queryParameters;
     final filter = params['filter'];
     if (filter == null || filter.isEmpty) {

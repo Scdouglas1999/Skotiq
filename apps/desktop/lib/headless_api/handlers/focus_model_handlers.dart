@@ -76,7 +76,6 @@ class FocusModelHandlers {
       container.read(predictiveAfServiceProvider);
 
   Future<Response> handleGetPredictiveSettings(Request request) async {
-    _logInfo('[API] GET /api/focus-model/predictive');
     await _predictiveAf.hydrated;
     final profileId = _getActiveProfileIntId();
     final models = _hasActiveProfile()
@@ -168,7 +167,6 @@ class FocusModelHandlers {
   }
 
   Future<Response> handleExportPredictiveModel(Request request) async {
-    _logInfo('[API] GET /api/focus-model/predictive/export');
     if (!_hasActiveProfile()) {
       return jsonBadRequest({
         'error': 'No active equipment profile. Load a profile first.',
@@ -194,7 +192,6 @@ class FocusModelHandlers {
   /// GET /api/focus-model/data
   /// Get all focus data points (temperature, position pairs)
   Future<Response> handleGetFocusData(Request request) async {
-    _logInfo('[API] GET /api/focus-model/data');
     final service = await _getInitializedService();
     final profileId = _getActiveProfileId();
 
@@ -313,7 +310,6 @@ class FocusModelHandlers {
   /// GET /api/focus-model/model
   /// Get current focus model (slope, intercept, r-squared)
   Future<Response> handleGetFocusModel(Request request) async {
-    _logInfo('[API] GET /api/focus-model/model');
     final service = await _getInitializedService();
     final profileId = _getActiveProfileId();
 
@@ -376,7 +372,6 @@ class FocusModelHandlers {
   /// evaluate; without it the endpoint reports `canPredict: false`. The
   /// response JSON shape is unchanged from the legacy implementation.
   Future<Response> handlePredictFocus(Request request) async {
-    _logInfo('[API] GET /api/focus-model/predict');
     if (!_hasActiveProfile()) {
       return jsonBadRequest({
         "error": "No active equipment profile. Load a profile first.",
@@ -473,7 +468,6 @@ class FocusModelHandlers {
   /// GET /api/focus-model/filter-offsets
   /// Get per-filter focus offsets
   Future<Response> handleGetFilterOffsets(Request request) async {
-    _logInfo('[API] GET /api/focus-model/filter-offsets');
     final service = await _getInitializedService();
     final profileId = _getActiveProfileId();
 
@@ -602,7 +596,6 @@ class FocusModelHandlers {
   /// which learned model to consult. Omitted, or no model for that filter, and
   /// the endpoint reports `hasModel: false` and `shouldRefocus: false`.
   Future<Response> handleShouldRefocus(Request request) async {
-    _logInfo('[API] GET /api/focus-model/should-refocus');
     // Parse parameters. currentTemp / lastFocusTemp are required and MUST be
     // finite — a NaN or Infinity would poison tempDelta → expectedDrift and the
     // refocus gate below. Validate before consulting profile/model state.
@@ -735,7 +728,6 @@ class FocusModelHandlers {
   /// GET /api/focus-model/export
   /// Export focus data as JSON
   Future<Response> handleExportFocusData(Request request) async {
-    _logInfo('[API] GET /api/focus-model/export');
     final service = await _getInitializedService();
     final profileId = _getActiveProfileId();
 

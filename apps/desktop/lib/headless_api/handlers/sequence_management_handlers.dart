@@ -175,7 +175,6 @@ class SequenceManagementHandlers {
   /// Returns complete sequence trees using the same JSON schema as file export
   /// so mobile companions do not maintain a separate local SQLite copy.
   Future<Response> handleListFullSequences(Request request) async {
-    _logInfo('[API] GET /api/sequence-management/list-full');
     final fileService = container.read(sequenceFileServiceProvider);
     final repo = container.read(sequenceRepositoryProvider);
     final sequences = await repo.loadAllSequences();
@@ -193,7 +192,6 @@ class SequenceManagementHandlers {
 
   /// GET /api/sequence-management/templates-full
   Future<Response> handleListFullTemplates(Request request) async {
-    _logInfo('[API] GET /api/sequence-management/templates-full');
     final fileService = container.read(sequenceFileServiceProvider);
     final repo = container.read(sequenceRepositoryProvider);
     final templates = await repo.loadAllTemplates();
@@ -212,7 +210,6 @@ class SequenceManagementHandlers {
   /// GET `/api/sequence-management/<id>/full`
   Future<Response> handleGetFullSequence(Request request, String id) async {
     final sequenceId = _parsePathId(id, 'id');
-    _logInfo('[API] GET /api/sequence-management/$sequenceId/full');
     final fileService = container.read(sequenceFileServiceProvider);
     final sequence = await container
         .read(sequenceRepositoryProvider)
@@ -302,7 +299,6 @@ class SequenceManagementHandlers {
   /// library uses. This keeps tags, favorites and run roll-ups intact on a
   /// companion without transferring every full sequence tree.
   Future<Response> handleListSequenceSummaries(Request request) async {
-    _logInfo('[API] GET /api/sequence-management/summaries');
     final summaries = await container
         .read(sequenceRepositoryProvider)
         .loadSequenceSummaries();
@@ -397,7 +393,6 @@ class SequenceManagementHandlers {
   /// GET `/api/sequence-management/<id>/versions`
   Future<Response> handleListVersions(Request request, String id) async {
     final sequenceId = _parsePathId(id, 'id');
-    _logInfo('[API] GET /api/sequence-management/$sequenceId/versions');
     final database = container.read(databaseProvider);
     if (await database.sequencesDao.getSequenceById(sequenceId) == null) {
       return jsonNotFound({'error': 'Sequence not found: $id'});
@@ -413,7 +408,6 @@ class SequenceManagementHandlers {
   /// GET `/api/sequence-management/versions/<versionId>`
   Future<Response> handleGetVersion(Request request, String versionId) async {
     final parsedId = _parsePathId(versionId, 'versionId');
-    _logInfo('[API] GET /api/sequence-management/versions/$parsedId');
     final version = await container
         .read(databaseProvider)
         .sequenceVersionsDao
@@ -427,7 +421,6 @@ class SequenceManagementHandlers {
   // Get all sequences
 
   Future<Response> handleGetAllSequences(Request request) async {
-    _logInfo('[API] GET /api/sequence-management/list');
     final database = container.read(databaseProvider);
     final sequences = await database.sequencesDao.getAllSequences();
 
@@ -439,7 +432,6 @@ class SequenceManagementHandlers {
   // Get all templates
 
   Future<Response> handleGetAllTemplates(Request request) async {
-    _logInfo('[API] GET /api/sequence-management/templates');
     final database = container.read(databaseProvider);
     final templates = await database.sequencesDao.getAllTemplates();
 
@@ -451,7 +443,6 @@ class SequenceManagementHandlers {
   // Get Sequence By ID
 
   Future<Response> handleGetSequenceById(Request request, String id) async {
-    _logInfo('[API] GET /api/sequence-management/$id');
     final sequenceId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final sequence = await database.sequencesDao.getSequenceById(sequenceId);
@@ -466,7 +457,6 @@ class SequenceManagementHandlers {
   // Get nodes for sequence
 
   Future<Response> handleGetNodesForSequence(Request request, String id) async {
-    _logInfo('[API] GET /api/sequence-management/$id/nodes');
     final sequenceId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final nodes = await database.sequencesDao.getNodesForSequence(sequenceId);

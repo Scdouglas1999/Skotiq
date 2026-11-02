@@ -73,7 +73,6 @@ class PluginHandlers {
 
   /// GET /api/plugins
   Future<Response> handleListPlugins(Request request) async {
-    _logInfo('[API] GET /api/plugins');
     final runtimePlugins = _host.pluginInfo;
     final runtimeIds = runtimePlugins.map((plugin) => plugin.id).toSet();
     final archivedPlugins = await _service.listPlugins();

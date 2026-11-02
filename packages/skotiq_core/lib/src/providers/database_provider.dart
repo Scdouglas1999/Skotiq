@@ -291,10 +291,13 @@ db.EquipmentProfile _equipmentProfileFromRemote(
 /// that carries no change still reloads the whole suggestion pipeline and
 /// blanks the Plan Tonight tab. The change-guard makes a quiet host emit
 /// exactly once.
+///
+/// Every list polled here also changes on the host's mutation events, which
+/// refresh it at once; the poll is the safety net, so it runs every 30 s.
 Stream<T> _pollRemote<T>(
   Future<T> Function() fetch,
   bool Function(T a, T b) unchanged, {
-  Duration interval = const Duration(seconds: 10),
+  Duration interval = const Duration(seconds: 30),
 }) => resilientDistinctPoll(
   fetch: fetch,
   unchanged: unchanged,

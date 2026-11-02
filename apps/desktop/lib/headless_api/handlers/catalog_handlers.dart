@@ -118,7 +118,6 @@ class CatalogHandlers {
   /// }
   /// ```
   Future<Response> handleStatus(Request request) async {
-    _logInfo('[API] GET /api/catalog/status');
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
@@ -159,7 +158,6 @@ class CatalogHandlers {
   /// server knows how to download. Cached for 1 hour to keep the
   /// upstream manifest sources unbothered when a client polls.
   Future<Response> handleAvailable(Request request) async {
-    _logInfo('[API] GET /api/catalog/available');
     final cache = _availableCache;
     final now = DateTime.now();
     final List<AvailableCatalog> entries;

@@ -679,7 +679,6 @@ class GuidingHandlers {
   }
 
   Future<Response> handleBuiltinGuiderGetConfig(Request request) async {
-    _logInfo('[API] GET /api/builtin-guider/config');
     final backend = container.read(guidingBackendProvider);
     final config = await backend.builtinGuiderGetConfig();
     return jsonOk(config.toJson());

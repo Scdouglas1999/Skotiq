@@ -35,7 +35,6 @@ class AtlasHandlers {
   // GET /api/atlas/regions
 
   Future<Response> handleGetRegions(Request request) async {
-    _logInfo('[API] GET /api/atlas/regions');
     final regions = await _service.regions();
     return jsonOk({
       'regions': regions.map(_regionToJson).toList(),
@@ -113,7 +112,6 @@ class AtlasHandlers {
   // instead of its (empty) local atlas store.
 
   Future<Response> handleGetCoverage(Request request) async {
-    _logInfo('[API] GET /api/atlas/coverage');
     // Served from the SkyTiles DB index (same scalars, no `.skt` sidecar scan)
     // so a companion's coverage poll never thrashes the host's disk.
     final tiles = await _service.coverageFromIndex();
@@ -126,7 +124,6 @@ class AtlasHandlers {
   // GET /api/atlas/region/<id>
 
   Future<Response> handleGetRegion(Request request, String id) async {
-    _logInfo('[API] GET /api/atlas/region/$id');
     final resolved = await _resolveRegion(id);
     if (resolved.error != null) return resolved.error!;
     final regionId = resolved.regionId!;
@@ -159,8 +156,6 @@ class AtlasHandlers {
   // params: outPixels (default 2048), interp (bilinear|catmullRom|lanczos3).
 
   Future<Response> handleGetRegionCutout(Request request, String id) async {
-    _logInfo('[API] GET /api/atlas/region/$id/cutout');
-
     // Validate outPixels BEFORE resolving the region or allocating the co-add.
     // Absent → 2048. A supplied value must be a positive whole number within the
     // safe native range; a garbage value must not silently become 2048 and an
@@ -242,7 +237,6 @@ class AtlasHandlers {
   // GET /api/atlas/region/<id>/timeline
 
   Future<Response> handleGetRegionTimeline(Request request, String id) async {
-    _logInfo('[API] GET /api/atlas/region/$id/timeline');
     final resolved = await _resolveRegion(id);
     if (resolved.error != null) return resolved.error!;
     final regionId = resolved.regionId!;

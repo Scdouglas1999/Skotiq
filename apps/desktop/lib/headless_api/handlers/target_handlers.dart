@@ -38,7 +38,6 @@ class TargetHandlers {
   // Get all targets
 
   Future<Response> handleGetAllTargets(Request request) async {
-    _logInfo('[API] GET /api/targets');
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getAllTargets();
 
@@ -48,7 +47,6 @@ class TargetHandlers {
   // Get Target By ID
 
   Future<Response> handleGetTargetById(Request request, String id) async {
-    _logInfo('[API] GET /api/targets/$id');
     final targetId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
     final target = await database.targetsDao.getTargetById(targetId);
@@ -64,7 +62,6 @@ class TargetHandlers {
 
   Future<Response> handleSearchTargets(Request request) async {
     final query = request.url.queryParameters['query'] ?? '';
-    _logInfo('[API] GET /api/targets/search?query=$query');
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.searchTargets(query);
 
@@ -74,7 +71,6 @@ class TargetHandlers {
   // Get favorite targets
 
   Future<Response> handleGetFavoriteTargets(Request request) async {
-    _logInfo('[API] GET /api/targets/favorites');
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getFavoriteTargets();
 
@@ -265,7 +261,6 @@ class TargetHandlers {
 
   Future<Response> handleGetTargetsByType(Request request) async {
     final objectType = request.url.queryParameters['type'] ?? '';
-    _logInfo('[API] GET /api/targets/by-type?type=$objectType');
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getTargetsByType(objectType);
 
@@ -275,7 +270,6 @@ class TargetHandlers {
   // Get targets by priority
 
   Future<Response> handleGetTargetsByPriority(Request request) async {
-    _logInfo('[API] GET /api/targets/by-priority');
     final database = container.read(databaseProvider);
     final targets = await database.targetsDao.getTargetsByPriority();
 

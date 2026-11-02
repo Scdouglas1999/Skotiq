@@ -91,7 +91,6 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
   /// available for the current position (driver returned a short array
   /// or the wheel is disconnected).
   Future<Response> handleFilterWheelGetPosition(Request request) async {
-    _logInfo('[API] GET /api/filter-wheel/position');
     final state = container.read(filterWheelStateProvider);
     final deviceId = request.url.queryParameters['deviceId'] ?? state.deviceId;
     if (deviceId != null && deviceId.isNotEmpty) {

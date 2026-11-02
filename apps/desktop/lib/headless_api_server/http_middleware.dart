@@ -18,29 +18,38 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
           },
         );
 
-        _logInfo(
-          '[REQ][$requestId] ${request.method} $path started',
-          fields: {
-            'requestId': requestId,
-            'method': request.method,
-            'path': path,
-            'phase': 'started',
-          },
-        );
-        try {
-          final response = await innerHandler(scopedRequest);
-          final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+        final isRead = request.method == 'GET' || request.method == 'HEAD';
+        if (!isRead) {
           _logInfo(
-            '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
+            '[REQ][$requestId] ${request.method} $path started',
             fields: {
               'requestId': requestId,
               'method': request.method,
               'path': path,
-              'phase': 'completed',
-              'statusCode': response.statusCode,
-              'elapsedMs': elapsedMs,
+              'phase': 'started',
             },
           );
+        }
+        try {
+          final response = await innerHandler(scopedRequest);
+          final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+          if (!requestCompletionIsRoutine(
+            method: request.method,
+            statusCode: response.statusCode,
+            elapsedMs: elapsedMs,
+          )) {
+            _logInfo(
+              '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
+              fields: {
+                'requestId': requestId,
+                'method': request.method,
+                'path': path,
+                'phase': 'completed',
+                'statusCode': response.statusCode,
+                'elapsedMs': elapsedMs,
+              },
+            );
+          }
           if (path == '/api/ws' || path == '/events') {
             return response;
           }
@@ -306,3 +315,15 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
     );
   }
 }
+
+/// A read that succeeded promptly is routine and is not logged: a linked
+/// client polls dozens of them a minute, and two lines each filled the host's
+/// log (80 MB in a day). Writes, failures and slow requests are logged.
+bool requestCompletionIsRoutine({
+  required String method,
+  required int statusCode,
+  required int elapsedMs,
+}) =>
+    (method == 'GET' || method == 'HEAD') &&
+    statusCode < 400 &&
+    elapsedMs < 2000;

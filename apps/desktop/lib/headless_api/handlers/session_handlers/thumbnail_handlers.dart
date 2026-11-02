@@ -347,7 +347,6 @@ extension SessionThumbnailHandlers on SessionHandlers {
   /// 416 — out of scope.
   Future<Response> handleDownloadImage(Request request, String imageId) async {
     final iid = _parsePathId(imageId, 'imageId');
-    _logInfo('[API] GET /api/images/$iid/download');
 
     // Look up the image from the database
     final database = container.read(databaseProvider);

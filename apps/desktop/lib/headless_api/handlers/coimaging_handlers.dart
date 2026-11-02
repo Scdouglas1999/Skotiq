@@ -97,7 +97,6 @@ class CoImagingHandlers {
   /// GET `/api/coimaging/sessions` — discover active co-imaging sessions on the
   /// configured hub (the participant's entry point).
   Future<Response> handleListSessions(Request request) async {
-    _logInfo('[API] GET /api/coimaging/sessions');
     try {
       final sessions = await _service.listSessions();
       return jsonOk({'sessions': sessions.map(_sessionToJson).toList()});
@@ -113,7 +112,6 @@ class CoImagingHandlers {
   /// GET `/api/coimaging/sessions/<sessionId>` — one session's live state
   /// (combined totals, participants, baton).
   Future<Response> handleGetSession(Request request, String sessionId) async {
-    _logInfo('[API] GET /api/coimaging/sessions/$sessionId');
     if (sessionId.trim().isEmpty) {
       return jsonError(
         code: 'invalid_session_id',
@@ -288,7 +286,6 @@ class CoImagingHandlers {
     Request request,
     String sessionId,
   ) async {
-    _logInfo('[API] GET /api/coimaging/sessions/$sessionId/framing-offset');
     if (sessionId.trim().isEmpty) {
       return jsonError(
         code: 'invalid_session_id',

@@ -212,7 +212,6 @@ class FramingHandlers {
   // Get current position
 
   Future<Response> handleGetCurrentPosition(Request request) async {
-    _logInfo('[API] GET /api/framing/current-position');
     final backend = container.read(deviceBackendProvider);
 
     // Get connected mount
