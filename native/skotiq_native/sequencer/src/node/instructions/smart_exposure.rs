@@ -247,24 +247,16 @@ async fn execute_smart_exposure(
             return NodeStatus::Skipped;
         }
 
-        // Loop-until-stopped: the surrounding target's `end_when` window
-        // is the primary automatic bound. The parent TargetHeader only
-        // probes `end_when` at child boundaries, but this node never
-        // returns to the parent while it loops — so we poll the installed
-        // trigger ourselves here, between batches, and finish Success when
-        // the window closes (e.g. the target drops below the configured
-        // altitude at dawn). `None` (no trigger / unevaluable) falls
-        // through to the budget bound, which the entry guard guarantees
-        // exists when no trigger does.
-        if config.loop_until_stopped {
-            if let Some(true) = context.active_target_end_trigger_satisfied() {
-                tracing::info!(
-                    "SmartExposure '{}' loop-until-stopped: target window closed; finishing",
-                    node_id
-                );
-                save_checkpoint(node_id, context, &state).await;
-                return NodeStatus::Success;
-            }
+        // The surrounding target's `end_when` (its end time, an altitude
+        // floor) ends this node between batches: the parent TargetHeader
+        // only probes it at child boundaries, and this node images every
+        // filter as one child. In loop-until-stopped mode it is the primary
+        // bound. `None` (no trigger / unevaluable) falls through to the
+        // counts and the budget, which the entry guard guarantees exists in
+        // loop mode when no trigger does.
+        if target_window_closed(node_id, context) {
+            save_checkpoint(node_id, context, &state).await;
+            return NodeStatus::Success;
         }
 
         // DepthLock: retire any bound plan whose goal is achieved. This
@@ -400,12 +392,22 @@ async fn execute_smart_exposure(
         // frames never reached `dither_every` and the run never dithered.
         let cadence = plan.dither_every.filter(|every| *every > 0);
         let mut taken = 0;
+        // With a target end condition installed the burst is taken a frame at
+        // a time, so the condition is checked before every frame.
+        let bounded_by_target = context.active_target_end_trigger().is_some();
         while taken < batch_size {
+            if taken > 0 && target_window_closed(node_id, context) {
+                save_checkpoint(node_id, context, &state).await;
+                return NodeStatus::Success;
+            }
             let done = completed_for_plan.saturating_add(taken);
-            let chunk = match cadence {
+            let mut chunk = match cadence {
                 Some(every) => (batch_size - taken).min(every - done % every),
                 None => batch_size - taken,
             };
+            if bounded_by_target {
+                chunk = chunk.min(1);
+            }
             let burst_status = run_exposure_burst(node_id, plan, chunk, context).await;
             if matches!(burst_status, NodeStatus::Cancelled) {
                 save_checkpoint(node_id, context, &state).await;
@@ -477,6 +479,19 @@ async fn execute_smart_exposure(
         // between batches loses at most `batch_size` frames of progress.
         save_checkpoint(node_id, context, &state).await;
     }
+}
+
+/// Whether the surrounding target's end condition has come, logged once
+/// when it has.
+fn target_window_closed(node_id: &str, context: &ExecutionContext) -> bool {
+    let closed = context.active_target_end_trigger_satisfied() == Some(true);
+    if closed {
+        tracing::info!(
+            "SmartExposure '{}': the target's end condition has come; finishing",
+            node_id
+        );
+    }
+    closed
 }
 
 /// Decide which plan to visit next. With `rotate_filters` true we walk
