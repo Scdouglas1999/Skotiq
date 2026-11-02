@@ -881,3 +881,64 @@ async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
         "each sweep ends with exactly one outcome, carrying its own reason"
     );
 }
+
+/// A rig whose stars blur with distance from `focus`: sigma grows by 1 px per
+/// 100 steps, as a fast refractor's do.
+fn defocusing_rig(start: i32, focus: i32) -> ScriptedDomeRotatorOps {
+    ScriptedDomeRotatorOps::new().with_focus_model(
+        start,
+        Box::new(move |position| {
+            let sigma = 1.2 + f64::from((position - focus).abs()) / 100.0;
+            synthetic_star_field(1600, 1200, 16, sigma)
+        }),
+    )
+}
+
+async fn sweep(ops: Arc<ScriptedDomeRotatorOps>, attempts: u32) -> (InstructionResult, i32) {
+    let mut ctx = pointing_ctx(ops.clone(), "NGC0925", (2.45, 33.58)).await;
+    ctx.focuser_id = Some("foc-1".to_string());
+    ctx.device_retry = crate::instructions::DeviceRetryHandle::default();
+    let config = AutofocusConfig {
+        number_of_attempts: attempts,
+        exposure_duration: 0.01,
+        step_size: 50,
+        steps_out: 4,
+        exposures_per_point: 1,
+        focuser_settle_time_ms: 0,
+        ..Default::default()
+    };
+    let pause = crate::node::context::PauseGate::default();
+    let result = execute_autofocus_attempts(&config, &ctx, None, &pause).await;
+    let position = ops.focuser_get_position("foc-1").await.unwrap();
+    (result, position)
+}
+
+/// The focuser was knocked 375 steps off focus and the sweep (±200 steps)
+/// did not reach focus: the curve had no minimum, the fallback point was a
+/// sweep edge, and autofocus returned the focuser to the WORSE position it
+/// started from. A sweep whose lowest HFR is at its edge is run again around
+/// that edge, so focus is found.
+#[tokio::test(start_paused = true)]
+async fn a_sweep_that_misses_focus_moves_toward_it_and_finds_it() {
+    let ops = Arc::new(defocusing_rig(25_450, 25_075));
+    let (result, position) = sweep(ops, 2).await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(
+        (position - 25_075).abs() <= 60,
+        "landed at {position}, focus is at 25075"
+    );
+}
+
+/// One failed download in a sweep is retried like a light frame's, instead
+/// of failing the whole attempt: with an intermittent fault no sweep of nine
+/// frames could ever finish.
+#[tokio::test(start_paused = true)]
+async fn one_failed_download_does_not_fail_the_sweep() {
+    let ops = Arc::new(
+        defocusing_rig(25_075, 25_075)
+            .failing_next_exposures(&["Failed to download image: USB transfer failed"]),
+    );
+    let (result, position) = sweep(ops.clone(), 1).await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!((position - 25_075).abs() <= 60, "landed at {position}");
+}
