@@ -158,7 +158,7 @@ class _Legend extends StatelessWidget {
           Icon(LucideIcons.move, size: 11, color: colors.primary),
           const SizedBox(width: 4),
           // absolute: HUD label over the dark sky planner canvas
-          const Text('Drag centre',
+          const Text('Drag center',
               style: TextStyle(
                   color: ImageOverlayColors.secondary,
                   fontSize: SkotiqTypography.fontSize10)),

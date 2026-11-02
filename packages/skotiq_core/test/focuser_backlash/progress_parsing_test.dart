@@ -61,7 +61,7 @@ void main() {
     expect(above.phase, FocuserBacklashPhase.scanningFromAbove);
   });
 
-  test('the analysing frame carries only its type and phase', () {
+  test('the analyzing frame carries only its type and phase', () {
     final progress = FocuserBacklashProgressData.tryParse(
       jsonEncode({'type': 'focuser_backlash_progress', 'phase': 'analysing'}),
     );

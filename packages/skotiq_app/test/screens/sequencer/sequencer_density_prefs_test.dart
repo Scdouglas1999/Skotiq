@@ -47,7 +47,7 @@ void main() {
         SequencerDensity.compact);
   });
 
-  test('unrecognised stored value falls back to the default', () async {
+  test('unrecognized stored value falls back to the default', () async {
     final db = mockDatabase();
     addTearDown(db.close);
     await SettingsDao(db).setSetting('sequencer_density_v1', 'side-by-side');

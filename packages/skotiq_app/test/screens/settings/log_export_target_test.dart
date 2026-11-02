@@ -184,7 +184,7 @@ void main() {
     verify(() => handles.logging.exportLogs(handles.targetPath)).called(1);
   });
 
-  testWidgets('cancelling the destination writes nothing', (tester) async {
+  testWidgets('canceling the destination writes nothing', (tester) async {
     final handles = await _pump(tester, cancelPicker: true);
     await _tapExport(tester);
     await tester.tap(find.text('Full history'));

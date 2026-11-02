@@ -334,7 +334,7 @@ void main() {
     });
 
     testWidgets(
-        'colour result (channels==3) auto-stretches via the colour STF '
+        'color result (channels==3) auto-stretches via the color STF '
         'branch', (tester) async {
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(1400, 1000);

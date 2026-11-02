@@ -71,7 +71,7 @@ void main() {
       expect(analyticsTabFromQuery(null), isNull);
     });
 
-    test('returns null for an unrecognised value', () {
+    test('returns null for an unrecognized value', () {
       expect(analyticsTabFromQuery('made-up-tab'), isNull);
     });
 

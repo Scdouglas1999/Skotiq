@@ -99,7 +99,7 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     expect(unparked, 0);
     expect(unparkService, isNull,
-        reason: 'a cancelled countdown must never reach the mount');
+        reason: 'a canceled countdown must never reach the mount');
   });
 
   testWidgets('Cancel still wins after the countdown has fired',

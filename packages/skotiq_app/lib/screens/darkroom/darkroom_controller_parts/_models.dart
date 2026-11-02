@@ -586,7 +586,7 @@ class DarkroomEncoding {
   String get sentence {
     final transfer = switch (applied) {
       'screen' => 'a screen transfer, applied for display only',
-      'unit' => 'the render\'s own samples, unchanged',
+      'unit' => 'the rendered pixels as they are',
       null => null,
       final String named => 'a transfer the engine named "$named"',
     };

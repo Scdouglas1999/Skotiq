@@ -72,7 +72,7 @@ void main() {
               'NGC fallback, because that is the label most observers '
               'recognise.');
       expect(catalogTag, 'M',
-          reason: 'Catalog tag drives the badge colour in ObjectInfoPopup; '
+          reason: 'Catalog tag drives the badge color in ObjectInfoPopup; '
               'Messier objects must tag as "M".');
     });
 
@@ -96,8 +96,8 @@ void main() {
           reason: 'Non-Messier NGC objects must surface their NGC '
               'designation as the primary display name.');
       expect(catalogTag, 'NGC',
-          reason: 'Catalog tag must reflect the NGC catalogue so the '
-              'popup badge colour matches.');
+          reason: 'Catalog tag must reflect the NGC catalog so the '
+              'popup badge color matches.');
     });
   });
 
@@ -353,7 +353,7 @@ void main() {
 
       final results = container.read(objectSearchProvider).results;
       expect(results, isNotEmpty,
-          reason: 'A common-name query for a catalogued object must '
+          reason: 'A common-name query for a cataloged object must '
               'return at least one result; an empty list means the '
               'well-known-names lookup table desynced from the search '
               'matching logic.');

@@ -154,7 +154,7 @@ void main() {
     expect(result.error, isNotNull);
   });
 
-  test('localhost is normalised to IPv4 the way the native client does', () {
+  test('localhost is normalized to IPv4 the way the native client does', () {
     // PHD2 binds IPv4 only; on Windows `localhost` resolves to ::1 first, which
     // made a healthy PHD2 look absent.
     expect(normalizePhd2ProbeHost('localhost'), '127.0.0.1');

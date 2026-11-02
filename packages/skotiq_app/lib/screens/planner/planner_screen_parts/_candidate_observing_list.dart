@@ -48,7 +48,7 @@ class _CandidateObservingListDialogState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'The connected host changed. Adding the target was cancelled.',
+              'The connected host changed. Adding the target was canceled.',
             ),
           ),
         );

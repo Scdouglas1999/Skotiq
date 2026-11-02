@@ -851,7 +851,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       NodeStatus.success => 'done',
       NodeStatus.failure => 'failed',
       NodeStatus.skipped => 'skipped',
-      NodeStatus.cancelled => 'cancelled',
+      NodeStatus.cancelled => 'canceled',
       _ => widget.node.isEnabled ? '' : 'disabled',
     };
     return <String>[

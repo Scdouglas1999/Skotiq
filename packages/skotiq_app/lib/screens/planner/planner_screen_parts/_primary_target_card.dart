@@ -27,8 +27,8 @@ class _TargetDetailColumn extends ConsumerWidget {
   /// were pushed out under the action footer.
   static const double _previewHeight = 96;
 
-  /// Height of the altitude well.
-  static const double _altitudeHeight = 132;
+  /// Height of the altitude well, its degree and clock scales included.
+  static const double _altitudeHeight = 128;
 
   /// Whether the selected target IS the one the optimizer chose.
   bool get _isOptimizerPick => plan.primaryTarget?.targetId == target.targetId;
@@ -229,9 +229,9 @@ class _TargetDetailColumn extends ConsumerWidget {
 
 /// The compact altitude curve in the middle of the detail column.
 ///
-/// One `well`, one `primary` path, a dashed line at the minimum altitude the
-/// filters ask for, the astronomical-dark span shaded, and a `textPrimary`
-/// "now" tick. `AltitudeChart` (the Framing tab's) is the full instrument —
+/// One `well` holding the altitude line on a 0 to 90° scale with degree
+/// labels and a clock scale, the minimum altitude the filters ask for as the
+/// reference line, astronomical dusk and dawn as dashed markers, and "now". `AltitudeChart` (the Framing tab's) is the full instrument —
 /// a header, an airmass toggle, its own Alt/Airmass chips and a
 /// rise/transit/set block, some 350px of it — so it would both overflow this
 /// 110px slot and repeat the four readouts directly above it.
@@ -273,7 +273,7 @@ class _TargetAltitudeWell extends ConsumerWidget {
     final from = night.start.subtract(_margin);
     final to = night.end.add(_margin);
     final span = to.difference(from).inSeconds;
-    final points = <double>[];
+    final points = <(DateTime, double?)>[];
     for (var i = 0; i < _samples; i++) {
       final t = from.add(
         Duration(seconds: (span * i / (_samples - 1)).round()),
@@ -285,259 +285,45 @@ class _TargetAltitudeWell extends ConsumerWidget {
         latitudeDeg: location!.latitude,
         longitudeDeg: location.longitude,
       );
-      points.add(alt);
+      points.add((t, alt.clamp(0.0, 90.0)));
     }
 
-    double fraction(DateTime t) =>
-        (t.difference(from).inSeconds / span).clamp(0.0, 1.0);
-
-    final axisStyle = SkotiqTypography.captionSm.copyWith(
-      color: colors.textMuted,
-      fontSize: SkotiqTypography.fontSize9,
-      height: 1,
-    );
-    final hours = _hourTicks(from, to);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: _gutter,
-                child: ExcludeSemantics(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final h = constraints.maxHeight;
-                      return Stack(
-                        children: [
-                          for (final deg in _AltitudeCurvePainter.gridDegrees)
-                            Positioned(
-                              right: 4,
-                              top: (h * (1 - deg / 90) - _labelHeight / 2)
-                                  .clamp(0.0, h - _labelHeight),
-                              child: Text('$deg°', style: axisStyle),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-              Expanded(
-                child: DecoratedBox(
-                  decoration: SkotiqDecorations.well(colors),
-                  child: CustomPaint(
-                    painter: _AltitudeCurvePainter(
-                      altitudes: points,
-                      minAltitude: minAltitude,
-                      darkFrom: fraction(night.start),
-                      darkTo: fraction(night.end),
-                      now: fraction(DateTime.now()),
-                      hourTicks: [for (final t in hours) fraction(t)],
-                      curve: colors.primary,
-                      hairline: colors.border,
-                      marker: colors.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: _scaleHeight,
-          child: Padding(
-            padding: const EdgeInsets.only(left: _gutter),
-            child: ExcludeSemantics(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final labels = <Widget>[];
-                  var lastRight = double.negativeInfinity;
-                  for (final t in hours) {
-                    final center = width * fraction(t);
-                    final left = (center - _hourLabelWidth / 2)
-                        .clamp(0.0, width - _hourLabelWidth);
-                    if (left < lastRight + 2) continue;
-                    lastRight = left + _hourLabelWidth;
-                    labels.add(
-                      Positioned(
-                        left: left,
-                        top: 3,
-                        width: _hourLabelWidth,
-                        child: Text(
-                          '${t.hour.toString().padLeft(2, '0')}h',
-                          style: axisStyle,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                  }
-                  return Stack(clipBehavior: Clip.none, children: labels);
-                },
-              ),
+    final now = DateTime.now();
+    return DecoratedBox(
+      decoration: SkotiqDecorations.well(colors),
+      child: Padding(
+        padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
+        child: NightChartAxes(
+          from: from,
+          to: to,
+          zeroLineY: minAltitude,
+          leftTicks: const <double>[0, 30, 60, 90],
+          leftUnit: '°',
+          lines: <SeriesChartLine>[
+            SeriesChartLine(
+              points: points,
+              tone: SeriesChartTone.primary,
+              minY: 0,
+              maxY: 90,
             ),
+          ],
+          markers: <SeriesChartMarker>[
+            SeriesChartMarker(night.start),
+            SeriesChartMarker(night.end),
+            if (now.isAfter(from) && now.isBefore(to))
+              SeriesChartMarker(now, tone: SeriesChartTone.secondary),
+          ],
+          semanticLabel: context.l10n.text(
+            'plannerAltitudeChartSem',
+            params: {
+              'name': target.targetName,
+              'deg': minAltitude.round().toString(),
+            },
           ),
         ),
-      ],
+      ),
     );
   }
-
-  /// Width of the degree labels left of the plot.
-  static const double _gutter = 26;
-
-  /// Height of the hour labels under the plot.
-  static const double _scaleHeight = 14;
-  static const double _labelHeight = 11;
-  static const double _hourLabelWidth = 26;
-
-  /// Whole local hours inside [from]..[to], every two hours on a long night.
-  static List<DateTime> _hourTicks(DateTime from, DateTime to) {
-    final span = to.difference(from);
-    if (span.inMinutes <= 0) return const <DateTime>[];
-    final step = span.inHours > 6 ? 2 : 1;
-    final local = from.toLocal();
-    var t = DateTime(local.year, local.month, local.day, local.hour)
-        .add(const Duration(hours: 1));
-    while (t.hour % step != 0) {
-      t = t.add(const Duration(hours: 1));
-    }
-    final ticks = <DateTime>[];
-    for (; !t.isAfter(to); t = t.add(Duration(hours: step))) {
-      ticks.add(t);
-    }
-    return ticks;
-  }
-}
-
-/// Paints [_TargetAltitudeWell]'s curve. Altitude 0–90° maps to the full
-/// height; anything below the horizon is clamped to the floor rather than
-/// drawn underground.
-class _AltitudeCurvePainter extends CustomPainter {
-  final List<double> altitudes;
-  final double minAltitude;
-  final double darkFrom;
-  final double darkTo;
-  final double now;
-
-  /// Where each labeled hour falls across the plot, as fractions of its width.
-  final List<double> hourTicks;
-  final Color curve;
-  final Color hairline;
-  final Color marker;
-
-  /// The altitudes labeled on the left and drawn as faint gridlines.
-  static const List<int> gridDegrees = <int>[90, 60, 30, 0];
-
-  const _AltitudeCurvePainter({
-    required this.altitudes,
-    required this.minAltitude,
-    required this.darkFrom,
-    required this.darkTo,
-    required this.now,
-    required this.hourTicks,
-    required this.curve,
-    required this.hairline,
-    required this.marker,
-  });
-
-  /// The altitude the top of the well represents.
-  static const double _ceiling = 90;
-
-  /// Stroke width of the curve and the now marker.
-  static const double _curveStroke = 1.5;
-
-  /// Dash geometry of the minimum-altitude line.
-  static const double _dashOn = 3;
-  static const double _dashOff = 3;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (altitudes.length < 2 || size.width <= 0 || size.height <= 0) return;
-
-    double y(double altitude) =>
-        size.height * (1 - (altitude.clamp(0.0, _ceiling) / _ceiling));
-
-    // The astronomical-dark span, so the useful part of the curve is obvious.
-    canvas.drawRect(
-      Rect.fromLTRB(darkFrom * size.width, 0, darkTo * size.width, size.height),
-      Paint()
-        ..color = curve.withValues(alpha: SkotiqTokens.opacityPanelOutline),
-    );
-
-    final grid = Paint()
-      ..color = hairline.withValues(alpha: SkotiqTokens.opacityMuted)
-      ..strokeWidth = 1;
-    for (final deg in gridDegrees) {
-      final gy = y(deg.toDouble()).clamp(0.5, size.height - 0.5);
-      canvas.drawLine(Offset(0, gy), Offset(size.width, gy), grid);
-    }
-    for (final tick in hourTicks) {
-      final gx = tick * size.width;
-      canvas.drawLine(
-          Offset(gx, size.height - 4), Offset(gx, size.height), grid);
-    }
-
-    // The minimum altitude the filters ask for, dashed.
-    final horizonY = y(minAltitude);
-    final dash = Paint()
-      ..color = hairline
-      ..strokeWidth = 1;
-    for (var x = 0.0; x < size.width; x += _dashOn + _dashOff) {
-      canvas.drawLine(
-        Offset(x, horizonY),
-        Offset((x + _dashOn).clamp(0.0, size.width), horizonY),
-        dash,
-      );
-    }
-
-    final path = Path();
-    final fill = Path();
-    for (var i = 0; i < altitudes.length; i++) {
-      final x = size.width * i / (altitudes.length - 1);
-      final py = y(altitudes[i]);
-      if (i == 0) {
-        path.moveTo(x, py);
-        fill.moveTo(x, size.height);
-        fill.lineTo(x, py);
-      } else {
-        path.lineTo(x, py);
-        fill.lineTo(x, py);
-      }
-    }
-    fill.lineTo(size.width, size.height);
-    fill.close();
-
-    canvas.drawPath(
-      fill,
-      Paint()..color = curve.withValues(alpha: SkotiqTokens.opacityAccentTint),
-    );
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = curve
-        ..strokeWidth = _curveStroke
-        ..style = PaintingStyle.stroke,
-    );
-
-    canvas.drawLine(
-      Offset(now * size.width, 0),
-      Offset(now * size.width, size.height),
-      Paint()
-        ..color = marker
-        ..strokeWidth = _curveStroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_AltitudeCurvePainter old) =>
-      old.altitudes != altitudes ||
-      old.minAltitude != minAltitude ||
-      old.now != now ||
-      old.hourTicks.length != hourTicks.length ||
-      old.curve != curve;
 }
 
 /// The field preview at the top of the detail column.

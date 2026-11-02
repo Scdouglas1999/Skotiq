@@ -120,7 +120,7 @@ void main() {
     expect(state.statusMessage, isNull);
   });
 
-  test('a host 409 is recognised as the same duplicate outcome', () async {
+  test('a host 409 is recognized as the same duplicate outcome', () async {
     final backend = _MockNetworkBackend();
     when(
       () => backend.addObservingListItem(

@@ -208,7 +208,7 @@ void main() {
             'the per-panel target callback must be wired through createProject');
     expect(args['panelTargetId'], isNull,
         reason:
-            'ad-hoc wizard centre defers per-panel target assignment to the service');
+            'ad-hoc wizard center defers per-panel target assignment to the service');
 
     expect(routedId, '314',
         reason: 'routes to /mosaic/<new project id> after create');

@@ -105,7 +105,7 @@ Future<void> _pumpStrip(
 
 void main() {
   group('ExposureNodeThumbnailStrip', () {
-    testWidgets('renders one tile per thumbnail with grade-coloured border',
+    testWidgets('renders one tile per thumbnail with grade-colored border',
         (tester) async {
       final thumbnails = [
         _thumb(id: 1, filter: 'L', grade: 'pass'),

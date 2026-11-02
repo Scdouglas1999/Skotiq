@@ -223,7 +223,7 @@ void main() {
 
     /// A stored accent outlives a theme switch, and a dark-safe one is not
     /// light-safe. The fill keeps the user's colour; only the TEXT steps aside.
-    test('an accent that fails the text floor gets a safe link colour', () {
+    test('an accent that fails the text floor gets a safe link color', () {
       // Near-black: legible as a fill under white ink, illegible as text on
       // the dark canvas.
       const unreadable = Color(0xFF101418);

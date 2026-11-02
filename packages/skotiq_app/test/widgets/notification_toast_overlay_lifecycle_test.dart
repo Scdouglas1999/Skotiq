@@ -9,7 +9,7 @@ import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('pending exit animation is cancelled when overlay unmounts',
+  testWidgets('pending exit animation is canceled when overlay unmounts',
       (tester) async {
     final container =
         ProviderContainer(overrides: [inMemoryDatabaseOverride()]);

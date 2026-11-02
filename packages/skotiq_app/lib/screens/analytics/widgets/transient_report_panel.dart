@@ -439,7 +439,7 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
   ) {
     if (!d.reviewed) {
       return 'Not yet confirmed — mark this detection as confirmed before '
-          'submitting, so an artefact cannot be reported as a discovery.';
+          'submitting, so an artifact cannot be reported as a discovery.';
     }
     final kindBlocker = TransientKind.fromWire(d.kind).submissionBlockedReason;
     if (kindBlocker != null) return kindBlocker;

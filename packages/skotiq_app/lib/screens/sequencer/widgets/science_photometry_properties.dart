@@ -271,7 +271,7 @@ class _SciencePhotometryPropertiesState
           focusNode: _targetFocus,
           label: 'Target designation',
           hint:
-              'AAVSO / catalogue identifier (e.g. "V0376 Per", "TIC 38846515")',
+              'AAVSO / catalog identifier (e.g. "V0376 Per", "TIC 38846515")',
           onChanged: (v) =>
               _update((n) => n.copyWith(targetDesignation: v.trim())),
         ),
@@ -331,7 +331,7 @@ class _SciencePhotometryPropertiesState
             Expanded(
               child: SkotiqTextField(
                 controller: _addRefCtl,
-                hint: 'Catalogue id, e.g. AAVSO 000-BMP-364',
+                hint: 'Catalog id, e.g. AAVSO 000-BMP-364',
                 textInputAction: TextInputAction.done,
                 onSubmitted: _addReferenceStar,
               ),

@@ -108,7 +108,7 @@ void main() {
     expect(
       find.text('No moving object candidates available to report yet.'),
       findsNothing,
-      reason: 'the analysed session has two candidates',
+      reason: 'the analyzed session has two candidates',
     );
     final open = find.widgetWithText(SkotiqButton, 'Open').first;
     expect(

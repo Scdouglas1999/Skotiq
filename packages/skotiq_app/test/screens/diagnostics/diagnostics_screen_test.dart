@@ -102,7 +102,7 @@ void main() {
   });
 
   testWidgets(
-      'shows_title_and_no_session_empty_state: localised title and '
+      'shows_title_and_no_session_empty_state: localized title and '
       '"select a session" empty body both render', (tester) async {
     // With no session selected (provider default) and no sessions to
     // auto-select from (override), DiagnosticsScreen must render its

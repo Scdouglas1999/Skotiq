@@ -308,7 +308,7 @@ void main() {
       },
     );
 
-    test('POST /api/system/update/check honours ?channel= override', () async {
+    test('POST /api/system/update/check honors ?channel= override', () async {
       controller.checkOutcome = const UpdateCheckOutcome(available: false);
 
       final response = await translateHandlerErrors(

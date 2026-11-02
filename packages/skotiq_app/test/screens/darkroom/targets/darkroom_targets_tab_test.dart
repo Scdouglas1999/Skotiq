@@ -787,7 +787,7 @@ void main() {
 
     expect(find.text('Masters ready: NGC 891'), findsOneWidget);
     expect(
-      find.textContaining('L, R, G and B from 82 subs, 2.4 h. '
+      find.textContaining('L, R, G and B from 82 subs, 2h 23m. '
           'Saved in /data/Masters/NGC_891.'),
       findsOneWidget,
     );

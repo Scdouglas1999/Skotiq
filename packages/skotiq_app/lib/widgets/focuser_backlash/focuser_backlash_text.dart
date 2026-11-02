@@ -136,5 +136,6 @@ String describeEstimate(Duration d) {
   final seconds = d.inSeconds % 60;
   final minutePart = minutes == 1 ? '1 minute' : '$minutes minutes';
   if (seconds == 0) return 'about $minutePart';
-  return 'about $minutePart ${seconds}s';
+  final secondPart = seconds == 1 ? '1 second' : '$seconds seconds';
+  return 'about $minutePart $secondPart';
 }

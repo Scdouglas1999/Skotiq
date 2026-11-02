@@ -206,7 +206,7 @@ void main() {
     final aimRaHours = _centerRaHours + (0.4 / cosDec) / 15.0;
     const aimDecDeg = _centerDecDeg + 0.3;
 
-    test('inside-FOV is measured around the query centre, not the projection '
+    test('inside-FOV is measured around the query center, not the projection '
         'centre', () {
       final query = GuideStarQuery(
         maxMagnitude: 10.0,
@@ -263,7 +263,7 @@ void main() {
     });
 
     test(
-      'a star at the query centre is rejected as the aim, not the target',
+      'a star at the query center is rejected as the aim, not the target',
       () {
         final query = GuideStarQuery(
           maxMagnitude: 10.0,
@@ -298,7 +298,7 @@ void main() {
     );
 
     test(
-      'screen positions still project through the view-centre projection',
+      'screen positions still project through the view-center projection',
       () {
         final proj = _projection();
         final star = _starAtOffset(

@@ -57,6 +57,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
           at: moonSet,
           passed: moonSet != null && !now.isBefore(moonSet),
           moonIlluminationPct: moonPct,
+          moonRise: moonSet == null ? _moonRiseTonight(night) : null,
         ),
       );
     }
@@ -124,6 +125,16 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
   ]..sort((a, b) => a.at!.compareTo(b.at!));
   return [...items, ...timed];
 });
+
+DateTime? _moonRiseTonight(TonightNight night) {
+  final rise = night.moonRise;
+  if (rise == null ||
+      rise.isBefore(night.sunset) ||
+      rise.isAfter(night.sunrise)) {
+    return null;
+  }
+  return rise;
+}
 
 DateTime? _moonSetTonight(TonightNight night) {
   final set = night.moonSet;

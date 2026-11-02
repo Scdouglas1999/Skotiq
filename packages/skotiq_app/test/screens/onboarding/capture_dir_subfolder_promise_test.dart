@@ -74,14 +74,14 @@ void main() {
       texts.where(promise.hasMatch),
       isEmpty,
       reason: 'The default pattern "$pattern" produces no subfolders, so the '
-          'step must not state that sessions are organised into any. '
+          'step must not state that sessions are organized into any. '
           'Rendered copy was: $texts',
     );
     expect(
       texts.any((t) => t.contains('naming pattern')),
       isTrue,
       reason: 'It must instead point at the thing that DOES control layout, '
-          'so the promise and the behaviour cannot drift apart again.',
+          'so the promise and the behavior cannot drift apart again.',
     );
   });
 }

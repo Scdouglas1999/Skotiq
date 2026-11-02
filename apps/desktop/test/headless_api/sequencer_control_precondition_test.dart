@@ -17,7 +17,7 @@ SequencerStatus _status(String state) => SequencerStatus(
   currentNodeId: 'root',
   currentNodeName: 'D4 root',
   progress: 0.125,
-  message: 'Cancelled: D4 root',
+  message: 'Canceled: D4 root',
 );
 
 Request _post(String path) =>

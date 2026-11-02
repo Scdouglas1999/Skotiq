@@ -457,7 +457,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     // in-flight exposure is aborted rather than waited out.
     _cancelToken?.cancel();
     if (_running) {
-      state = state.copyWith(statusMessage: 'Cancelling...');
+      state = state.copyWith(statusMessage: 'Canceling...');
     }
   }
 

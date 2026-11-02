@@ -79,7 +79,7 @@ Widget _app(AnalyticsTab tab) => ProviderScope(
     );
 
 /// The picker inside the review bar carrying [label] ("Reviewing" on Session,
-/// "Analysing" on Science) — never any other dropdown on the screen.
+/// "Analyzing" on Science) — never any other dropdown on the screen.
 Finder _pickerUnder(String label) => find.descendant(
       of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first,
       matching: find.byType(AccessibleDropdown<int>),
@@ -113,7 +113,7 @@ void main() {
         .resetDevicePixelRatio();
   });
 
-  testWidgets('Session offers the quick captures back and honours the choice',
+  testWidgets('Session offers the quick captures back and honors the choice',
       (tester) async {
     await tester.pumpWidget(_app(AnalyticsTab.session));
     await tester.pump(const Duration(milliseconds: 300));
@@ -167,7 +167,7 @@ void main() {
     await tester.pumpWidget(_app(AnalyticsTab.science));
     await tester.pump(const Duration(milliseconds: 400));
 
-    await tester.tap(_pickerUnder('Analysing'));
+    await tester.tap(_pickerUnder('Analyzing'));
     await _pumpFrames(tester);
 
     expect(

@@ -54,7 +54,7 @@ class _CleanupHeaderRow extends ConsumerWidget {
     if (!identical(ref.read(backendProvider), authority)) {
       ref.invalidate(untrackedTargetsCountProvider);
       context.showWarningSnackBar(
-        'Imaging host changed. Cleanup was cancelled.',
+        'Imaging host changed. Cleanup was canceled.',
       );
       return;
     }

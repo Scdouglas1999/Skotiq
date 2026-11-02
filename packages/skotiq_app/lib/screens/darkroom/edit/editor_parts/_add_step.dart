@@ -37,7 +37,7 @@ class _DarkroomAddStep extends StatelessWidget {
     if (state.catalog == null) {
       final error = state.catalogError;
       return error ??
-          'The operation catalogue has not been read from the engine yet, so '
+          'The operation catalog has not been read from the engine yet, so '
               'the operations this build registers are not known here.';
     }
     final error = state.recipeError;

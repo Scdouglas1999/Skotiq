@@ -211,14 +211,14 @@ void main() {
         ..at(21, PassKinds.runEnded, {
           'lane': 'R',
           'ok': false,
-          'error': 'cancelled during registering',
+          'error': 'canceled during registering',
         })
         ..at(21, PassKinds.passEnded, {'ok': false, 'error': 'stopped'});
       final tl = PassTimeline.fromLog(b.log);
       final s = tl.snapshot(now: DateTime.now());
       expect(s.ended, isTrue);
       expect(s.elapsed, _s(21));
-      expect(tl.lanes[1].failure, contains('cancelled'));
+      expect(tl.lanes[1].failure, contains('canceled'));
       expect(
         s.schedule.firstWhere((x) => x.stage == PassStage.draft).state,
         PassStepState.notRun,

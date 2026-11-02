@@ -308,7 +308,7 @@ void main() {
       },
     );
 
-    test('GET candidates honours limit + offset paging', () async {
+    test('GET candidates honors limit + offset paging', () async {
       for (var i = 0; i < 10; i++) {
         await dao.insertDetection(
           TransientDetectionsCompanion.insert(

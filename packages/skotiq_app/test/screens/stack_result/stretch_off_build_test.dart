@@ -176,7 +176,7 @@ void main() {
     expect(rgba.sublist(8, 12), [255, 255, 255, 255]);
   });
 
-  test('the linear colour stretch balances each channel on its own extent', () {
+  test('the linear color stretch balances each channel on its own extent', () {
     // One pixel at each channel's floor, one at its ceiling.
     final rgb = Uint16List.fromList([10, 20, 30, 110, 220, 330]);
     final rgba = renderLinearColorRgba(rgb, 2);

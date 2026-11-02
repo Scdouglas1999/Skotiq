@@ -113,7 +113,7 @@ class BrighteningDetector extends NarratorDetector {
 
     for (final c in candidates.take(maxPerTick)) {
       final magnitudeChange = c.deltaMag!.abs();
-      final subject = c.catalogMatch ?? 'an uncatalogued star';
+      final subject = c.catalogMatch ?? 'an uncataloged star';
       out.add(
         NarratorEventDraft(
           eventType: id,

@@ -528,7 +528,7 @@ void main() {
       expect(body, payload);
     });
 
-    test('206 honours If-Range when etag matches', () async {
+    test('206 honors If-Range when etag matches', () async {
       // Pull the real etag, then send it back with a valid Range.
       final probe = await hitDownload();
       final realEtag = probe.headers['etag']!;

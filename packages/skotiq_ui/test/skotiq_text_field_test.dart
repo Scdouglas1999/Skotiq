@@ -35,7 +35,7 @@ void main() {
   });
 
   testWidgets(
-    'a 32px well centres its value with a sibling button and a FormRow label',
+    'a 32px well centers its value with a sibling button and a FormRow label',
     (tester) async {
       await tester.pumpWidget(
         wrap(
@@ -106,7 +106,7 @@ void main() {
     },
   );
 
-  testWidgets('the typed value sits on the well centre, with the unit', (
+  testWidgets('the typed value sits on the well center, with the unit', (
     tester,
   ) async {
     await GoldenHarness.ensureFonts();
@@ -125,7 +125,7 @@ void main() {
     expect(
       editable.center.dy,
       closeTo(field.center.dy, 0.5),
-      reason: 'the collapsed slot fills the well, so the 14px input centres',
+      reason: 'the collapsed slot fills the well, so the 14px input centers',
     );
 
     // The unit suffix is laid out by the decorator on the value's baseline.
@@ -221,7 +221,7 @@ void main() {
     return ((top + bottom) / 2 - h / 2) / pr;
   }
 
-  testWidgets('numeric, lowercase and unit ink centres on the well', (
+  testWidgets('numeric, lowercase and unit ink centers on the well', (
     tester,
   ) async {
     await GoldenHarness.ensureFonts();
@@ -253,13 +253,13 @@ void main() {
     expect(
       lineBoxOffset(tester).abs(),
       lessThanOrEqualTo(0.5),
-      reason: 'numeric line box should centre on the well',
+      reason: 'numeric line box should center on the well',
     );
     final numericInk = await rasterInkOffset(tester);
     expect(
       numericInk.abs(),
       lessThanOrEqualTo(0.5),
-      reason: 'digit ink should centre on the well (was +2.5 low)',
+      reason: 'digit ink should center on the well (was +2.5 low)',
     );
     // A lowercase Hanken value shares the same baseline and slot; its tight
     // line box is identical, so it centres the same way. In 'galaxy' the 'g'
@@ -272,12 +272,12 @@ void main() {
     expect(
       lineBoxOffset(tester).abs(),
       lessThanOrEqualTo(0.5),
-      reason: 'lowercase line box should centre on the well',
+      reason: 'lowercase line box should center on the well',
     );
     expect(
       tester.getRect(find.byType(EditableText)).center.dy,
       closeTo(tester.getRect(find.byType(SkotiqTextField)).center.dy, 0.5),
-      reason: 'the 14px input slot centres in the 32px well',
+      reason: 'the 14px input slot centers in the 32px well',
     );
     debugPrint(
       'lowercase ink offset: '

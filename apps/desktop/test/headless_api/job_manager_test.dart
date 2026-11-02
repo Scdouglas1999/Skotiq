@@ -213,7 +213,7 @@ void main() {
     );
 
     test(
-      'cancel() on a queued job transitions straight to cancelled',
+      'cancel() on a queued job transitions straight to canceled',
       () async {
         final recorder = _EventRecorder();
         final manager = JobManager(emitEvent: recorder.record);

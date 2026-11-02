@@ -176,7 +176,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
     if (token == null || token.isCancelled) return;
     token.cancel();
     setState(() {
-      _calculationStatus = 'Cancelling and waiting for the camera to stop...';
+      _calculationStatus = 'Canceling and waiting for the camera to stop...';
     });
   }
 
@@ -371,7 +371,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
       if (token.isCancelled) {
         setState(() {
           _snapshot = null;
-          _calculationStatus = 'Calibration cancelled.';
+          _calculationStatus = 'Calibration canceled.';
         });
       } else if (snapshot.filters
           .every((filter) => _results[filter]?.success == true)) {

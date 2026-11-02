@@ -28,13 +28,13 @@ void main() {
     const size = Size(400, 200);
     final center = Offset(size.width / 2, size.height / 2);
 
-    test('the projection centre (RA=180, Dec=0) maps to the frame centre', () {
+    test('the projection center (RA=180, Dec=0) maps to the frame center', () {
       final pos = aitoffProject(180.0, 0.0, size)!;
       expect(pos.dx, closeTo(center.dx, 1e-6));
       expect(pos.dy, closeTo(center.dy, 1e-6));
     });
 
-    test('positive Dec is above centre, negative Dec below (y inverted)', () {
+    test('positive Dec is above center, negative Dec below (y inverted)', () {
       final north = aitoffProject(180.0, 45.0, size)!;
       final south = aitoffProject(180.0, -45.0, size)!;
       expect(north.dy, lessThan(center.dy));

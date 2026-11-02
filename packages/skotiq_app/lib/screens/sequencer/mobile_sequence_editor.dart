@@ -564,7 +564,7 @@ class _StatusBadge extends StatelessWidget {
       NodeStatus.failure => ('Failed', colors.error),
       NodeStatus.running => ('Running', colors.primary),
       NodeStatus.skipped => ('Skipped', colors.textMuted),
-      NodeStatus.cancelled => ('Cancelled', colors.warning),
+      NodeStatus.cancelled => ('Canceled', colors.warning),
       NodeStatus.pending => ('Pending', colors.textMuted),
     };
     return Container(

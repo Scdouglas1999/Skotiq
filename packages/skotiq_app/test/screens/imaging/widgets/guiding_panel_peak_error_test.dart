@@ -109,7 +109,7 @@ void main() {
     expect(find.text('0.89 px'), findsOneWidget,
         reason: 'Peak Dec must render the seeded value verbatim.');
     expect(find.text('1.23"'), findsNothing,
-        reason: 'a pixel residual labelled arcsec understates the real error '
+        reason: 'a pixel residual labeled arcsec understates the real error '
             'by the pixel scale.');
   });
 

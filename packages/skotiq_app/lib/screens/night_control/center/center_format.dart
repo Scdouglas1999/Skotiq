@@ -13,13 +13,14 @@ String nightClockHm(DateTime at) => '${_two(at.hour)}:${_two(at.minute)}';
 /// `23:49:12`.
 String nightClockHms(DateTime at) => '${nightClockHm(at)}:${_two(at.second)}';
 
-/// `180 s`, `2.5 s`, `0.01 s`.
+/// `180 s`, `2.5 s`, `0.25 s`, `2.2 ms`.
 String nightExposure(double seconds) {
   if (seconds >= 10 || seconds == seconds.roundToDouble()) {
     return '${seconds.round()} s';
   }
   if (seconds >= 1) return '${seconds.toStringAsFixed(1)} s';
-  return '${seconds.toStringAsFixed(2)} s';
+  if (seconds >= 0.1) return '${seconds.toStringAsFixed(2)} s';
+  return '${(seconds * 1000).toStringAsFixed(1)} ms';
 }
 
 /// `Ha 180 s`, `180 s`, `Ha`; null when neither is known.

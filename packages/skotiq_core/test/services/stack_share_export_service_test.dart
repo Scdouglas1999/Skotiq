@@ -228,7 +228,7 @@ void main() {
       },
     );
 
-    test('JPEG export honours quality and writes a decodable file', () async {
+    test('JPEG export honors quality and writes a decodable file', () async {
       final result = _sampleResult(width: 16, height: 12);
       final rgba = _rgbaRamp(16, 12);
       final out = p.join(tempDir.path, 'm51.jpg');

@@ -810,7 +810,7 @@ class FocuserBacklashCalibrationSettings {
     }
     if (stepsOut < 3 || stepsOut > 50) {
       issues.add(
-        'Points either side of centre must be between 3 and 50 — fewer '
+        'Points either side of center must be between 3 and 50 — fewer '
         'than 3 cannot describe a focus curve',
       );
     }

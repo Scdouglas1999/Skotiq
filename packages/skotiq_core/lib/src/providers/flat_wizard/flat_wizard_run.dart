@@ -685,7 +685,7 @@ extension FlatWizardRun on FlatWizardNotifier {
 
     if (cancelled) {
       setStatusMessage(
-        'Cancelled — saved $framesSaved frame${framesSaved == 1 ? '' : 's'}; '
+        'Canceled — saved $framesSaved frame${framesSaved == 1 ? '' : 's'}; '
         '$complete complete, $partial partial.',
       );
       return;

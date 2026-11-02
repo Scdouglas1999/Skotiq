@@ -164,7 +164,7 @@ void main() {
       expect(described, isNot(contains('os error')));
     });
 
-    test('unrecognised transports never leak developer debris', () {
+    test('unrecognized transports never leak developer debris', () {
       expect(
         describeBackendFailure('SomeInternalEnum.blewUp(0xdeadbeef)'),
         'the scan did not complete',

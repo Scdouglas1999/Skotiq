@@ -854,7 +854,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       status: WeatherSafetyStatus.unsafe,
       actions: const WeatherSafetyActions(
         shouldPause: true,
-        reason: 'Weather safety snooze cancelled; re-evaluating conditions',
+        reason: 'Weather safety snooze canceled; re-evaluating conditions',
       ),
       clearSnooze: true,
     );

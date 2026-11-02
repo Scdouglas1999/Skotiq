@@ -91,13 +91,13 @@ void main() {
     expect(
       chipValue(tester, 'Alt: '),
       isNot(altAtMount),
-      reason: 'the chip is labelled in the present tense; 20 minutes of sky '
+      reason: 'the chip is labeled in the present tense; 20 minutes of sky '
           'rotation must show up in it',
     );
     expect(chipValue(tester, 'Airmass: '), isNot(airmassAtMount));
   });
 
-  testWidgets('the ticker is cancelled when the card leaves the tree', (
+  testWidgets('the ticker is canceled when the card leaves the tree', (
     tester,
   ) async {
     await tester.pumpWidget(

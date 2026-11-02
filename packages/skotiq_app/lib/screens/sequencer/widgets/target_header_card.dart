@@ -542,7 +542,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       NodeStatus.success => 'Completed',
       NodeStatus.failure => 'Failed',
       NodeStatus.skipped => 'Skipped',
-      NodeStatus.cancelled => 'Cancelled',
+      NodeStatus.cancelled => 'Canceled',
       _ => targetCoordinatesUnset(widget.node) ? 'Needs coordinates' : 'Ready',
     };
 

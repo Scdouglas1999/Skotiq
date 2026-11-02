@@ -87,7 +87,7 @@ void main() {
       },
     );
 
-    test('startFromFile forwards the colour config unchanged', () async {
+    test('startFromFile forwards the color config unchanged', () async {
       final engine = _CapturingSeam();
       const config = LiveStackingConfig(
         sensorMode: 'auto',

@@ -283,6 +283,12 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
         initialZoom: _calculateInitialZoom(),
         minZoom: 4.0,
         maxZoom: 15.0,
+        // The ground shows wherever a tile has not loaded (offline, slow, or
+        // refused). flutter_map's default is light gray, which is a white
+        // flash on a night screen; this is a dark map in every theme.
+        backgroundColor: colors.isRedNight
+            ? colors.background
+            : SkotiqColors.dark.background,
         interactionOptions: InteractionOptions(
           flags: widget.compact
               ? InteractiveFlag.none // Disable interaction in compact mode
@@ -483,7 +489,7 @@ class _WeatherRadarMapState extends ConsumerState<WeatherRadarMap> {
                 ),
                 SkotiqIconButton(
                   icon: LucideIcons.locateFixed,
-                  tooltip: 'Centre on your site',
+                  tooltip: 'Center on your site',
                   size: IconButtonSize.sm,
                   onPressed: () => _mapController.move(
                       userLocation, _calculateInitialZoom()),

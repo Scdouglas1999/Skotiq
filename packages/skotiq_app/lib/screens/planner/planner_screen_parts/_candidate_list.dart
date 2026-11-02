@@ -123,6 +123,7 @@ class _CandidateList extends ConsumerWidget {
               shown: visible.length,
             ),
             columns: columns,
+            night: night,
           );
         }
         final rowIndex = index - leading;
@@ -197,7 +198,14 @@ class _CandidateColumnHeader extends StatelessWidget {
   /// for fixed columns and the rows size them to content.
   final CandidateColumns? columns;
 
-  const _CandidateColumnHeader({required this.count, required this.columns});
+  /// Tonight's dark window, whose ends the window column's scale names.
+  final _PlannerNightWindow? night;
+
+  const _CandidateColumnHeader({
+    required this.count,
+    required this.columns,
+    required this.night,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +240,10 @@ class _CandidateColumnHeader extends StatelessWidget {
                 l10n.text('plannerColImageable'),
               ],
               windowLabel: l10n.text('plannerColWindow'),
+              windowScale: switch (night) {
+                null => null,
+                final n => (_clock(n.start.toLocal()), _clock(n.end.toLocal())),
+              },
               columns: grid,
             ),
     );

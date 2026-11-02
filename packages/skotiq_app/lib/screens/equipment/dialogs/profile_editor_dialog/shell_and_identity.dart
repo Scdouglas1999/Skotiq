@@ -49,7 +49,7 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
         listenable: _formListenable,
         builder: (context, _) => SkotiqButton(
           onPressed: _isSaving || !_hasUnsavedChanges ? null : _save,
-          label: 'Save changes',
+          label: widget.profile == null ? 'Create profile' : 'Save changes',
           variant: ButtonVariant.primary,
           isLoading: _isSaving,
         ),
@@ -127,7 +127,7 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
           _EditorRow(
-            label: 'Accent colour',
+            label: 'Accent color',
             child: Wrap(
               spacing: SkotiqTokens.spaceSm,
               runSpacing: SkotiqTokens.spaceSm,

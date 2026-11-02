@@ -679,7 +679,7 @@ void main() {
             syncedRaHours,
             closeTo(expectedSyncRaHours, 1e-9),
             reason:
-                'sync RA must be the degrees solve normalised to hours, '
+                'sync RA must be the degrees solve normalized to hours, '
                 'never the raw degrees (which would be 15x too large)',
           );
         },

@@ -108,6 +108,7 @@ class NightChartAxes extends StatelessWidget {
     this.to,
     this.zeroLineY,
     this.leftUnit = '',
+    this.leftTicks,
     this.rightGrouped = false,
   });
 
@@ -121,6 +122,10 @@ class NightChartAxes extends StatelessWidget {
 
   /// Put on the top left label: ` px`, `″`, ` °C`.
   final String leftUnit;
+
+  /// Fixed left-scale values, for a scale with conventional stops such as
+  /// altitude at 0, 30, 60 and 90°. Null picks round values from the range.
+  final List<double>? leftTicks;
 
   /// Right labels as grouped whole numbers (`45 484`).
   final bool rightGrouped;
@@ -169,7 +174,8 @@ class NightChartAxes extends StatelessWidget {
       ) {
         final range = painter.valueRange(axis);
         if (range == null) return const <(double, String)>[];
-        final ticks = nightAxisTicks(range.$1, range.$2, maxTicks);
+        final fixed = axis == SeriesChartAxis.left ? leftTicks : null;
+        final ticks = fixed ?? nightAxisTicks(range.$1, range.$2, maxTicks);
         // A round step shows exactly; the two-end fallback shows to 0.01.
         final decimals = ticks.length < 2
             ? 1

@@ -312,7 +312,7 @@ class _ActionsRow extends StatelessWidget {
         SnackBar(
           content: Text(
             dismiss
-                ? 'Dismissed as an artefact — it will not resurface.'
+                ? 'Dismissed as an artifact — it will not resurface.'
                 : 'Marked as confirmed.',
           ),
         ),
@@ -460,7 +460,7 @@ class _ActionsRow extends StatelessWidget {
           size: SkotiqTokens.iconMd,
           color: detection.dismissed ? colors.textMuted : colors.textSecondary,
         ),
-        tooltip: detection.dismissed ? 'Already dismissed' : 'Dismiss artefact',
+        tooltip: detection.dismissed ? 'Already dismissed' : 'Dismiss artifact',
         onPressed:
             detection.dismissed ? null : () => _triage(context, dismiss: true),
         style: IconButton.styleFrom(

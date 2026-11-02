@@ -89,7 +89,7 @@ void main() {
   }
 
   test(
-      'neighbouring tiles share coincident projected boundary vertices (no gaps '
+      'neighboring tiles share coincident projected boundary vertices (no gaps '
       'between adjacent meshes)', () {
     final visibleSet = visibleSetAt(1.0);
     expect(visibleSet.tiles.length, greaterThan(1),
@@ -155,7 +155,7 @@ void main() {
             'exercise the seam guarantee.');
     expect(diagonalPairsChecked, greaterThan(0),
         reason:
-            'The fixture mosaic must contain >= 1 diagonal neighbour pair so '
+            'The fixture mosaic must contain >= 1 diagonal neighbor pair so '
             'the corner-only coincidence path is also exercised (this is the '
             'pair that a naive >= 2 assertion misclassifies as a seam).');
   });
@@ -196,7 +196,7 @@ void main() {
           expect(separation, lessThan(1.0),
               reason: 'Adjacent tiles ${a.id.npix}/${b.id.npix} leave a '
                   '${separation.toStringAsFixed(3)}px gutter at zoom $zoom — a '
-                  'visible seam. Neighbour footprints must touch or overlap.');
+                  'visible seam. Neighbor footprints must touch or overlap.');
         }
       }
     });

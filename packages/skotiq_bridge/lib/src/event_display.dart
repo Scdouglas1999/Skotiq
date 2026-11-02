@@ -827,7 +827,8 @@ String _systemDetail(SystemEvent v) {
 
 /// One readable line for a device property change. Autofocus progress
 /// arrives as a JSON document with star crops in it; it reads as the point
-/// and its HFR. Any other value too long for a line is named, not printed.
+/// and its HFR. Any other structured (JSON) value, or a value too long for a
+/// line, is named, not printed.
 String propertyChangeText(String property, String value) {
   if (property == 'AutofocusProgress') {
     try {
@@ -845,6 +846,8 @@ String propertyChangeText(String property, String value) {
       // Not JSON: falls through to the generic line.
     }
   }
+  final trimmed = value.trimLeft();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return property;
   if (value.length > 80) return '$property changed';
   return '$property=$value';
 }

@@ -264,7 +264,7 @@ class DeepStarCatalogManager {
       for (final t in manifest.tiles) {
         if (isCancelled != null && await isCancelled()) {
           developer.log(
-            '[DeepStar] download paused/cancelled',
+            '[DeepStar] download paused/canceled',
             name: 'DeepStarCatalogManager',
             level: 800,
           );

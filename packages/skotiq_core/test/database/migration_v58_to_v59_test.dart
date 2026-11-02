@@ -130,7 +130,7 @@ void main() {
               opId: 'color_calibrate',
               outcome: 'omitted',
               reason:
-                  'this master has 1 channel(s) and the colour fit needs '
+                  'this master has 1 channel(s) and the color fit needs '
                   'three',
             ),
             RecipeDraftNote(
@@ -145,7 +145,7 @@ void main() {
           final read = await dao.draftNotesOf(seeded.recipeId);
           expect(read.map((n) => n.opId), ['color_calibrate', 'stretch']);
           expect(read.first.outcome, 'omitted');
-          expect(read.first.reason, contains('colour fit needs'));
+          expect(read.first.reason, contains('color fit needs'));
 
           // And on a row created with them.
           final withNotes = await dao.create(

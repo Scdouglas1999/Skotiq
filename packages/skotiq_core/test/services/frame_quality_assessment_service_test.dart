@@ -273,7 +273,7 @@ void main() {
       );
     });
 
-    test('auto mode preserves legacy auto-reject behaviour', () {
+    test('auto mode preserves legacy auto-reject behavior', () {
       const service = FrameQualityAssessmentService(
         gradingMode: FrameGradingMode.auto,
       );

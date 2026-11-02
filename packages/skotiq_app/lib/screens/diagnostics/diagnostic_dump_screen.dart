@@ -197,7 +197,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
       // backed out of would mean silently inventing a path, so we cancel.
       if (target == null) {
         if (mounted) {
-          context.showInfoSnackBar('Diagnostic dump cancelled.');
+          context.showInfoSnackBar('Diagnostic dump canceled.');
         }
         return;
       }

@@ -88,7 +88,7 @@ class _CenterProperties extends ConsumerWidget {
           colors: colors,
           label: 'Accuracy',
           helpText:
-              'How close the plate-solve centre must land to the target before '
+              'How close the plate-solve center must land to the target before '
               'centering is considered done. Smaller = tighter framing but more '
               'solve/slew iterations.',
           child: NodeNumberInput(
@@ -367,7 +367,7 @@ class _AutofocusProperties extends ConsumerWidget {
                 colors: colors,
                 label: 'Steps out',
                 helpText:
-                    'How many focuser steps to move outward from the centre on '
+                    'How many focuser steps to move outward from the center on '
                     'each side when sampling the V-curve. More steps span a '
                     'wider focus range but take longer.',
                 child: NodeNumberInput(

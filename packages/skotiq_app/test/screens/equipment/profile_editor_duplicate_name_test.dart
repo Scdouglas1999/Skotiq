@@ -16,7 +16,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart';
 
 Finder get _nameField => find.byType(TextField).first;
-Finder get _saveButton => find.text('Save changes');
+// "Create profile" on a new profile, "Save changes" on an existing one.
+Finder get _saveButton =>
+    find.textContaining(RegExp(r'^(Save changes|Create profile)$'));
 
 const _existing = EquipmentProfileModel(
   id: 1,

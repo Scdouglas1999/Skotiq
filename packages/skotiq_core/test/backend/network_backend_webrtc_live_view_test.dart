@@ -141,7 +141,7 @@ void main() {
     );
   });
 
-  group('subscribeLiveViewWebRtc HTTP signalling order', () {
+  group('subscribeLiveViewWebRtc HTTP signaling order', () {
     // These tests exercise the body/header shape of the offer + ICE
     // POSTs that the client issues. Even though the production code
     // never reaches the POST in this test env (createPeerConnection

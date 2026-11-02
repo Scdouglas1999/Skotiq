@@ -66,7 +66,7 @@ TextEditingController _field(WidgetTester tester, String label) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('From mount fills the centre from where the scope points',
+  testWidgets('From mount fills the center from where the scope points',
       (tester) async {
     await _openSheet(tester, mount: _pointing);
 
@@ -94,7 +94,7 @@ void main() {
     );
   });
 
-  testWidgets('a catalog match fills name and centre in one tap',
+  testWidgets('a catalog match fills name and center in one tap',
       (tester) async {
     await _openSheet(
       tester,

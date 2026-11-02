@@ -47,7 +47,7 @@ void main() {
     });
   });
 
-  group('the two wrappers keep their pre-merge behaviour', () {
+  group('the two wrappers keep their pre-merge behavior', () {
     const shared = <String>[
       'phd2_guider',
       'phd2',

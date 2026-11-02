@@ -97,7 +97,7 @@ void main() {
       expect(
         node.label,
         contains(name),
-        reason: 'the $hex swatch must announce its colour name',
+        reason: 'the $hex swatch must announce its color name',
       );
       expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
       expect(

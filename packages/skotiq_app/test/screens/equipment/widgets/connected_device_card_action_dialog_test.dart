@@ -209,7 +209,7 @@ void main() {
     verify(() => service.haltFocuser()).called(1);
     expect(find.text('Move focuser'), findsNothing);
 
-    move.completeError(StateError('move cancelled by halt'));
+    move.completeError(StateError('move canceled by halt'));
     await tester.pump();
   });
 

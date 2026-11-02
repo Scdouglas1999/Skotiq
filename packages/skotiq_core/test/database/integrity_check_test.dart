@@ -309,7 +309,7 @@ void main() {
         expect(
           report.wasHealthy,
           isTrue,
-          reason: 'A hot journal is a normal crash artefact, not corruption.',
+          reason: 'A hot journal is a normal crash artifact, not corruption.',
         );
         expect(report.recovered, isFalse);
         expect(await dbFile.exists(), isTrue);

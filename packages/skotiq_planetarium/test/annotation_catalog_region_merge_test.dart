@@ -94,7 +94,7 @@ void main() {
     },
   );
 
-  test('honours the magnitude cutoff', () async {
+  test('honors the magnitude cutoff', () async {
     final catalog = AnnotationCatalog(
       gladeLoader: GladePlusCatalogLoader(
         await writeGlade(['30.0,5.0,12.0,3000,30', '30.1,5.0,19.0,3000,31']),

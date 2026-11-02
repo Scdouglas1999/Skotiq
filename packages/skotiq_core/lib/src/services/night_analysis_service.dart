@@ -151,7 +151,7 @@ class NightAnalysisService {
     final total = data.subs.length;
     if (total == 0) {
       return 'Not graded — this session captured no light frames, so there is '
-          'nothing to analyse.';
+          'nothing to analyze.';
     }
     if (total < minGradableSubs) {
       return 'Not graded — only $total light '
@@ -162,7 +162,7 @@ class NightAnalysisService {
     if (measured < minGradableSubs) {
       return 'Not graded — the captured frames carry no quality measurements '
           '(HFR, star count, background or guiding), so the night could not be '
-          'analysed.';
+          'analyzed.';
     }
     return null;
   }

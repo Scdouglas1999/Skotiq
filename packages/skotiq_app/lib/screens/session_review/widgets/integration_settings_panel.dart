@@ -245,7 +245,7 @@ class _IntegrationSettingsPanelState extends State<IntegrationSettingsPanel> {
         const _GroupLabel('Output & calibration'),
         _DropdownRow<OutputBitDepth>(
           label: 'Master bit depth',
-          tooltip: 'F32 keeps the linear master unquantised (archival).',
+          tooltip: 'F32 keeps the linear master unquantized (archival).',
           value: _s.outputBitDepth,
           values: OutputBitDepth.values,
           labelOf: (v) => v == OutputBitDepth.f32 ? '32-bit float' : '16-bit',

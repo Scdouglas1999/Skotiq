@@ -122,7 +122,7 @@ class CatalogHandlers {
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
-        message: 'CatalogManager has not been initialised on the server',
+        message: 'CatalogManager has not been initialized on the server',
         statusCode: 503,
       );
     }
@@ -193,7 +193,7 @@ class CatalogHandlers {
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
-        message: 'CatalogManager has not been initialised on the server',
+        message: 'CatalogManager has not been initialized on the server',
         statusCode: 503,
       );
     }
@@ -233,7 +233,7 @@ class CatalogHandlers {
           );
           return result.toJson();
         } on CatalogCancelled {
-          throw const JobCancelledException('catalog download cancelled');
+          throw const JobCancelledException('catalog download canceled');
         } on CatalogDownloadException catch (e) {
           throw HandlerFailure(
             code: 'catalog_download_failed',
@@ -269,7 +269,7 @@ class CatalogHandlers {
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
-        message: 'CatalogManager has not been initialised on the server',
+        message: 'CatalogManager has not been initialized on the server',
         statusCode: 503,
       );
     }
@@ -415,7 +415,7 @@ class CatalogHandlers {
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
-        message: 'CatalogManager has not been initialised on the server',
+        message: 'CatalogManager has not been initialized on the server',
         statusCode: 503,
       );
     }
@@ -459,7 +459,7 @@ class CatalogHandlers {
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
-        message: 'CatalogManager has not been initialised on the server',
+        message: 'CatalogManager has not been initialized on the server',
         statusCode: 503,
       );
     }
@@ -487,7 +487,7 @@ class CatalogHandlers {
     if (!_manager.isInitialized) {
       throw HandlerFailure(
         code: 'catalog_manager_uninitialized',
-        message: 'CatalogManager has not been initialised on the server',
+        message: 'CatalogManager has not been initialized on the server',
         statusCode: 503,
       );
     }

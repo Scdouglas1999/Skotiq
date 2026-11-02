@@ -193,7 +193,7 @@ void main() {
     await sub.cancel();
   });
 
-  test('empty environment serialises and deserialises cleanly', () async {
+  test('empty environment serializes and deserializes cleanly', () async {
     final r = await service.recordRejection(
       sessionId: 's',
       frameIndex: 1,

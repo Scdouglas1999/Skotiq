@@ -46,7 +46,7 @@ void main() {
     expect(classified!.category, NotificationCategory.autofocusCompleted);
   });
 
-  test('a cancelled autofocus node is not reported as completed', () {
+  test('a canceled autofocus node is not reported as completed', () {
     final classified = NotificationEventClassifier.classify(
       _nodeCompleted({
         'node_id': 'af-1',

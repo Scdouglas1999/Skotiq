@@ -115,7 +115,7 @@ Future<Rect> _inkExtent(double fieldOfView) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('an extended object is drawn at its catalogued angular size', () async {
+  test('an extended object is drawn at its cataloged angular size', () async {
     // 400 px across 2 degrees = 200 px per degree; the object is 1 degree long.
     final ink = await _inkExtent(2.0);
 
@@ -127,7 +127,7 @@ void main() {
     expect(
       ink.width,
       lessThan(ink.height * 0.6),
-      reason: 'the 3:1 catalogued axis ratio must survive to the canvas',
+      reason: 'the 3:1 cataloged axis ratio must survive to the canvas',
     );
   });
 

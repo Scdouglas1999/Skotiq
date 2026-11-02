@@ -22,28 +22,28 @@ void main() {
       );
     });
 
-    test('honours a trailing Z', () {
+    test('honors a trailing Z', () {
       expect(
         parseUtcTimestamp('2026-07-28T17:33:34Z'),
         DateTime.utc(2026, 7, 28, 17, 33, 34),
       );
     });
 
-    test('honours a fixed positive offset', () {
+    test('honors a fixed positive offset', () {
       expect(
         parseUtcTimestamp('2026-07-29T02:33:34+09:00'),
         DateTime.utc(2026, 7, 28, 17, 33, 34),
       );
     });
 
-    test('honours a fixed negative offset', () {
+    test('honors a fixed negative offset', () {
       expect(
         parseUtcTimestamp('2026-07-28T13:33:34-04:00'),
         DateTime.utc(2026, 7, 28, 17, 33, 34),
       );
     });
 
-    test('honours an offset written without a colon', () {
+    test('honors an offset written without a colon', () {
       expect(
         parseUtcTimestamp('2026-07-29T02:33:34+0900'),
         DateTime.utc(2026, 7, 28, 17, 33, 34),

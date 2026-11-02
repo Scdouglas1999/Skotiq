@@ -139,7 +139,7 @@ void main() {
     expect(_imagePath(handle), '/mnt/unmounted/lights');
   });
 
-  testWidgets('cancelling that question keeps the old path', (tester) async {
+  testWidgets('canceling that question keeps the old path', (tester) async {
     final handle = await _pump(tester, probeFailure: 'No such file');
 
     await _type(tester, _imageField(), '/mnt/typo');

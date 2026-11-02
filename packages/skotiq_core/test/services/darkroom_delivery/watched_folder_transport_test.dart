@@ -657,8 +657,8 @@ void main() {
     });
 
     test('an exception with no OS error is reported as it stands', () {
-      const bare = FileSystemException('Delivery was cancelled', '/rig/x.fits');
-      expect(fileSystemReason(bare), 'Delivery was cancelled');
+      const bare = FileSystemException('Delivery was canceled', '/rig/x.fits');
+      expect(fileSystemReason(bare), 'Delivery was canceled');
     });
 
     test('a real refused copy carries its errno through to the operator '

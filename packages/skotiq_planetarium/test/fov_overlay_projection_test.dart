@@ -461,7 +461,7 @@ void main() {
       });
     });
 
-    test('RA is normalised into [0, 24) across the seam', () {
+    test('RA is normalized into [0, 24) across the seam', () {
       const viewState = SkyViewState(
         centerRA: 23.9,
         centerDec: 20,
@@ -580,7 +580,7 @@ void main() {
     });
 
     test(
-      'an unpinned overlay is centered on the view (unchanged behaviour)',
+      'an unpinned overlay is centered on the view (unchanged behavior)',
       () {
         final painter = FOVOverlayPainter(
           centerRA: viewState.centerRA,

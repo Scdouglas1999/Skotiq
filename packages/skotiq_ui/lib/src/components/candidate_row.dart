@@ -235,6 +235,7 @@ class CandidateHeader extends StatelessWidget {
     required this.readoutLabels,
     required this.windowLabel,
     required this.columns,
+    this.windowScale,
   });
 
   /// What sits over the name column, typically the list's count.
@@ -246,6 +247,10 @@ class CandidateHeader extends StatelessWidget {
   /// The label over the window bar.
   final String windowLabel;
 
+  /// The clock times at the window bar's left and right edges, written under
+  /// [windowLabel] so the bars read as times. Null leaves the scale out.
+  final (String, String)? windowScale;
+
   /// The widths the rows beneath use.
   final CandidateColumns columns;
 
@@ -253,6 +258,9 @@ class CandidateHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final style = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final scaleStyle = SkotiqTypography.monoXs.copyWith(
+      color: colors.textMuted,
+    );
     Widget label(String text) => Text(
       text.toUpperCase(),
       style: style,
@@ -274,7 +282,26 @@ class CandidateHeader extends StatelessWidget {
             SizedBox(width: columns.readoutWidth, child: label(text)),
           ],
           const SizedBox(width: Candidate.columnGap),
-          SizedBox(width: Candidate.windowBarWidth, child: label(windowLabel)),
+          SizedBox(
+            width: Candidate.windowBarWidth,
+            child: switch (windowScale) {
+              null => label(windowLabel),
+              (final from, final to) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  label(windowLabel),
+                  Row(
+                    children: <Widget>[
+                      Text(from, style: scaleStyle, maxLines: 1),
+                      const Spacer(),
+                      Text(to, style: scaleStyle, maxLines: 1),
+                    ],
+                  ),
+                ],
+              ),
+            },
+          ),
           const SizedBox(width: Candidate.columnGap),
           SizedBox(width: columns.actionWidth),
         ],

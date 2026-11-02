@@ -96,7 +96,7 @@ void main() {
         find.byType(ErrorWidget),
         findsNothing,
         reason: 'A thrown build must not replace the guiding screen with the '
-            'blank grey ErrorWidget at $name.',
+            'blank gray ErrorWidget at $name.',
       );
       expect(
         guard.allOverflows,

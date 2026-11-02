@@ -121,7 +121,7 @@ void main() {
         expect(
           find.text(arcsec),
           findsNothing,
-          reason: 'guide-camera pixels must never be labelled arcseconds',
+          reason: 'guide-camera pixels must never be labeled arcseconds',
         );
       }
     });

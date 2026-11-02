@@ -179,7 +179,7 @@ void main() {
     expect(
       tester.getRect(find.byKey(PolarAlignmentTutorialKeys.errorDisplay)).width,
       greaterThan(_desktop.width / 2),
-      reason: 'with nothing running the error display takes the centre too',
+      reason: 'with nothing running the error display takes the center too',
     );
   });
 

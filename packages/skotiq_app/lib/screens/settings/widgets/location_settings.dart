@@ -560,7 +560,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     '${horizonProfile.sampleCount >= 2 ? 'An imported survey of '
                         '${horizonProfile.sampleCount} samples is in use — the '
                         'planner and sky chart interpolate it. These eight '
-                        'fields summarise it by sector; editing any of them '
+                        'fields summarize it by sector; editing any of them '
                         'replaces the survey with your eight values.' : 'These '
                         'eight 45° sectors are the whole mask, so the tallest '
                         'obstruction in a sector applies across all of it. '
@@ -937,7 +937,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       context.showSuccessSnackBar(
         'Horizon imported from ${file.name} — $sampleCount '
         '${sampleCount == 1 ? 'sample' : 'samples'} stored; the eight fields '
-        'below summarise them by sector.',
+        'below summarize them by sector.',
       );
     } on FormatException catch (e) {
       if (mounted && _isCurrentHorizonImport(generation, authority)) {
@@ -1010,7 +1010,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Summarised on this page as the tallest obstruction in each '
+                'Summarized on this page as the tallest obstruction in each '
                 'of the eight 45° sectors:',
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,

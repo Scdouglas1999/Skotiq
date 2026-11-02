@@ -255,7 +255,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     ScaffoldMessenger.of(uiContext).showSnackBar(
       const SnackBar(
         content: Text(
-          'The imaging host changed. Quick Start was cancelled.',
+          'The imaging host changed. Quick Start was canceled.',
         ),
       ),
     );

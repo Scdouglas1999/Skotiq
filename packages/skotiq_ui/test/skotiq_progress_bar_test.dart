@@ -53,7 +53,7 @@ double _innerWidth(WidgetTester tester) =>
     tester.getSize(find.byType(FractionallySizedBox).first).width;
 
 void main() {
-  group('determinate fill honours value in a TIGHT parent', () {
+  group('determinate fill honors value in a TIGHT parent', () {
     for (final value in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
       testWidgets('value $value paints ${value * 100}% of the track', (
         tester,

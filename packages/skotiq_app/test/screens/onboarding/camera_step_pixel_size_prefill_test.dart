@@ -93,7 +93,7 @@ void main() {
     expect(draft.pixelSizeMicrons, expected);
   });
 
-  testWidgets('an unrecognised camera prefills nothing', (tester) async {
+  testWidgets('an unrecognized camera prefills nothing', (tester) async {
     // Guessing a pixel size for a camera the library has never heard of would
     // put a plausible wrong number into image scale and the FITS header.
     final handle = await _pumpCameraStep(tester);

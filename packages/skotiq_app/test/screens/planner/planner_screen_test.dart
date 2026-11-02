@@ -251,7 +251,7 @@ void main() {
       expect(plannerTabFromQuery(null), isNull);
     });
 
-    test('returns null for an unrecognised value', () {
+    test('returns null for an unrecognized value', () {
       expect(plannerTabFromQuery('made-up-tab'), isNull);
     });
 
@@ -1156,7 +1156,7 @@ void main() {
     expect(find.textContaining('Peak in dark'), findsNothing,
         reason: 'the chip that needed the disambiguating label is gone');
     expect(find.text('TRANSIT'), findsWidgets,
-        reason: 'the transit altitude is a labelled readout, not a bare chip');
+        reason: 'the transit altitude is a labeled readout, not a bare chip');
 
     await settleProviderTeardown(tester);
   });

@@ -41,7 +41,7 @@ class PlateSolverForCenteringRule implements RefAwareSequenceValidator {
         category: ValidationCategory.equipment,
         title: 'No plate solver',
         description:
-            'This sequence centres on its target, and no plate solver is '
+            'This sequence centers on its target, and no plate solver is '
             'installed or configured. The executor refuses to start, so the '
             'run would fail immediately.',
         resolutionHint:

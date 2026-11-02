@@ -87,7 +87,7 @@ void main() {
       expect(decoded.height, 32);
     });
 
-    test('honours the quality parameter (lower quality = smaller file)', () {
+    test('honors the quality parameter (lower quality = smaller file)', () {
       const spec = ShareCardSpec(
         title: '',
         targetWidth: 128,

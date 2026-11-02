@@ -247,7 +247,7 @@ void main() {
         expect(
           mesh,
           isNotNull,
-          reason: 'the tile under the view centre must be placeable',
+          reason: 'the tile under the view center must be placeable',
         );
 
         final canvasRect = Offset.zero & size;
@@ -349,7 +349,7 @@ void main() {
 
     test(
         'shares its corner sky points with the core boundary routine, so '
-        'neighbouring tiles stay seam-free', () {
+        'neighboring tiles stay seam-free', () {
       // Seam-freedom depends on adjacent tiles agreeing on their shared edge
       // sky points to the bit. The core selection builds its corners from
       // HealpixNested.xyfToAng on the same fractional lattice; asserting the

@@ -535,7 +535,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
           // Live colour camera detected: surface the auto-detection read-only,
           // with the manual override behind an expander.
           SkotiqBanner(
-            title: 'Colour camera detected',
+            title: 'Color camera detected',
             message: 'Auto-detected: OSC $detected',
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),

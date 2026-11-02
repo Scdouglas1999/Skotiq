@@ -771,7 +771,7 @@ class UpdateController {
             availableBuildNumber: manifest?.buildNumber,
             stagedVersion: _status.stagedVersion,
             stagedAt: _status.stagedAt,
-            message: 'Download cancelled',
+            message: 'Download canceled',
           ),
         );
         return;
@@ -915,7 +915,7 @@ class UpdateController {
         requiresManualUpgrade: _lastOfferRequiresManualUpgrade,
         stagedVersion: _status.stagedVersion,
         stagedAt: _status.stagedAt,
-        message: 'Waiting for the cancelled operation to stop',
+        message: 'Waiting for the canceled operation to stop',
       ),
     );
   }
@@ -1094,7 +1094,7 @@ class UpdateController {
         requiresManualUpgrade: _lastOfferRequiresManualUpgrade,
         stagedVersion: _status.stagedVersion,
         stagedAt: _status.stagedAt,
-        message: 'Cancelled by operator',
+        message: 'Canceled by operator',
       ),
     );
   }

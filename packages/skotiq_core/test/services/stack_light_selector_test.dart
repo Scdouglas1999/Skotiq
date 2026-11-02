@@ -88,7 +88,7 @@ void main() {
   }
 
   group('selectForSession', () {
-    test('keeps lights only, honours accepted + quality gates', () async {
+    test('keeps lights only, honors accepted + quality gates', () async {
       final targetId = await seedTarget();
       final sessionId = await seedSession(targetId: targetId);
 

@@ -388,7 +388,7 @@ void main() {
 
   /// Anything we have not classified must keep bubbling up as a real fault
   /// rather than being mislabelled as a routine rejection.
-  test('add-frame leaves an unrecognised failure as a 500', () async {
+  test('add-frame leaves an unrecognized failure as a 500', () async {
     await handlers.handleStart(post('/api/stacking/start'));
     await handlers.onImageSaved('/host/ref.fits');
 

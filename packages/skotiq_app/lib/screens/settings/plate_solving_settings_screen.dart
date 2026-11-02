@@ -622,7 +622,7 @@ class _NoSolverQuickStart extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Skotiq needs a plate solver to centre targets, verify '
+            'Skotiq needs a plate solver to center targets, verify '
             'framing, and run polar alignment. Follow these steps, then '
             'click Re-scan to detect the install.',
             style: SkotiqTypography.caption.copyWith(

@@ -134,7 +134,7 @@ const Map<String, String> narratorExplainers = <String, String>{
           "quick refocus pulls the stars back to where they belong.",
   'equipment.gradient':
       "A brightness gradient has been sitting on the same edge of your frames "
-          "for several subs — typically stray light, a neighbour's window, or a "
+          "for several subs — typically stray light, a neighbor's window, or a "
           "light-pollution dome leaking in from one direction. It complicates "
           "calibration and flattening later. Worth chasing the source or flagging "
           "the offending frames.",

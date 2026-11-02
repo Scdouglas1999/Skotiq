@@ -44,6 +44,15 @@ enum GraphTimeScale implements GraphScaleOption {
   const GraphTimeScale(this.duration, this.label);
 }
 
+/// The Y-scale selector's text in the unit the graph is plotted in, so the
+/// selector and the axis agree (`±2"` in arcseconds, `±2 px` in pixels).
+String yScaleLabel(GraphYScale scale, String valueUnit) =>
+    '±${_axisNumber(scale.arcsec)}$valueUnit';
+
+/// A scale value with no trailing `.0`: `2`, `1`, `0.5`.
+String _axisNumber(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
 /// Y-axis scale options for the graph
 enum GraphYScale implements GraphScaleOption {
   one(1.0, '±1"'),
@@ -201,8 +210,9 @@ class GuideGraphAdvanced extends StatelessWidget {
                 context: context,
                 colors: colors,
                 label: isCompact ? 'Y:' : 'Scale:',
-                value: yScale.label,
+                value: yScaleLabel(yScale, valueUnit),
                 items: GraphYScale.values,
+                labelOf: (s) => yScaleLabel(s, valueUnit),
                 onChanged: onYScaleChanged,
                 compact: isCompact,
               ),
@@ -292,7 +302,9 @@ class GuideGraphAdvanced extends StatelessWidget {
     required List<T> items,
     required void Function(T)? onChanged,
     bool compact = false,
+    String Function(T item)? labelOf,
   }) {
+    final itemLabel = labelOf ?? (T item) => item.label;
     final fontSize = compact ? 10.0 : 12.0;
     final padding = compact
         ? const EdgeInsets.symmetric(horizontal: 6, vertical: 3)
@@ -308,7 +320,7 @@ class GuideGraphAdvanced extends StatelessWidget {
         const SizedBox(width: 4),
         PopupMenuButton<T>(
           initialValue: items.firstWhere(
-            (item) => item.label == value,
+            (item) => itemLabel(item) == value,
             orElse: () => items.first,
           ),
           onSelected: onChanged,
@@ -373,7 +385,7 @@ class GuideGraphAdvanced extends StatelessWidget {
             ),
           ),
           itemBuilder: (context) => items.map((item) {
-            return PopupMenuItem<T>(value: item, child: Text(item.label));
+            return PopupMenuItem<T>(value: item, child: Text(itemLabel(item)));
           }).toList(),
         ),
       ],
@@ -530,11 +542,11 @@ class _GraphPainter extends CustomPainter {
     );
 
     final labels = [
-      '+${yScale.arcsec.toStringAsFixed(0)}$valueUnit',
-      '+${(yScale.arcsec / 2).toStringAsFixed(1)}$valueUnit',
+      '+${_axisNumber(yScale.arcsec)}$valueUnit',
+      '+${_axisNumber(yScale.arcsec / 2)}$valueUnit',
       '0',
-      '-${(yScale.arcsec / 2).toStringAsFixed(1)}$valueUnit',
-      '-${yScale.arcsec.toStringAsFixed(0)}$valueUnit',
+      '-${_axisNumber(yScale.arcsec / 2)}$valueUnit',
+      '-${_axisNumber(yScale.arcsec)}$valueUnit',
     ];
 
     textPainter.text = TextSpan(text: labels.first, style: style);

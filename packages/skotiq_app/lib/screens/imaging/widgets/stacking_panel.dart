@@ -55,7 +55,7 @@ Future<String?> _pickStackingMasterDestination(String suggestedName) async {
     suggestedName: suggestedName,
     acceptedTypeGroups: [typeGroup],
   );
-  return location?.path;
+  return location == null ? null : collapseDoubledExtension(location.path);
 }
 
 final stackingMasterDestinationPickerProvider =
@@ -643,7 +643,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                       'Stacking runs on the imaging host. Press Start to arm it — '
                       'the next captured frame becomes the reference and every '
                       'frame after is stacked automatically, even while this '
-                      'tablet is asleep.',
+                      'device is asleep.',
                       style: SkotiqTypography.caption
                           .copyWith(color: widget.colors.textMuted),
                     ),

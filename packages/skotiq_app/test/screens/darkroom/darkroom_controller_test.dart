@@ -249,7 +249,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
           'id': 'color_calibrate',
           'version': 1,
           'stage': 'linear',
-          'summary': 'Fits a B−V colour-versus-flux regression.',
+          'summary': 'Fits a B−V color-versus-flux regression.',
           'params': const <dynamic>[],
         },
         {
@@ -448,7 +448,7 @@ void main() {
 
   test('a skipped step keeps its reason on the state', () async {
     darkroom.skipReasons = {
-      0: 'no catalogue star was resolved for this field, so the colour fit has '
+      0: 'no catalog star was resolved for this field, so the color fit has '
           'nothing to regress against',
     };
     final id = await seedRecipe(steps: [_step('color_calibrate')]);
@@ -491,7 +491,7 @@ void main() {
         controller.state.reportFor(1)!.outcome, DarkroomStepOutcome.disabled);
   });
 
-  test('a superseded render is cancelled by its own id and dropped', () async {
+  test('a superseded render is canceled by its own id and dropped', () async {
     final id = await seedRecipe(steps: [_step('background_extract')]);
     final scope = DarkroomScope.recipe(id);
     await settle(scope);
@@ -531,7 +531,7 @@ void main() {
     expect(controller.state.steps[0].enabled, isTrue);
   });
 
-  test('a cancelled render is an instruction obeyed, not a failure', () async {
+  test('a canceled render is an instruction obeyed, not a failure', () async {
     final id = await seedRecipe(steps: [_step('background_extract')]);
     final scope = DarkroomScope.recipe(id);
     await settle(scope);
@@ -969,7 +969,7 @@ void main() {
     expect(controller.state.recipeName, 'Linear');
   });
 
-  test('the operation catalogue drives the parameter specs', () async {
+  test('the operation catalog drives the parameter specs', () async {
     final id = await seedRecipe(steps: [_step('background_extract')]);
     final state = await settle(DarkroomScope.recipe(id));
 
@@ -1026,7 +1026,7 @@ void main() {
     });
     expect(encoding.applied, 'unit');
     expect(encoding.sourceDomain, isNull);
-    expect(encoding.sentence, contains('own samples'));
+    expect(encoding.sentence, contains('rendered pixels as they are'));
     expect(encoding.sentence, contains('domain the engine did not name'));
   });
 
@@ -1470,7 +1470,7 @@ void main() {
         RecipeDraftNote(
           opId: 'color_calibrate',
           outcome: 'omitted',
-          reason: 'this master has 1 channel(s) and the colour fit needs three',
+          reason: 'this master has 1 channel(s) and the color fit needs three',
         ),
         RecipeDraftNote(
           opId: 'crop',

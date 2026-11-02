@@ -88,7 +88,7 @@ void main() {
     expect(site.longitude, closeTo(-75.3566, 1e-6));
   });
 
-  test('a seven-decimal city-centroid is not stored as centimetres', () {
+  test('a seven-decimal city-centroid is not stored as centimeters', () {
     final site = IpGeolocation.parse(
       '{"success":true,"latitude":39.9523835,"longitude":-75.1636197}',
     );

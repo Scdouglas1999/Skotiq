@@ -100,24 +100,11 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Auto Meridian Flip',
-                          style: SkotiqTypography.body
-                              .copyWith(color: colors.textPrimary)),
-                      Switch(
-                        value: enableFlip,
-                        onChanged: isSaving
-                            ? null
-                            : (val) {
-                                setState(() {
-                                  enableFlip = val;
-                                });
-                              },
-                        activeThumbColor: colors.primary,
-                      ),
-                    ],
+                  SkotiqSwitchRow(
+                    label: 'Auto meridian flip',
+                    value: enableFlip,
+                    enabled: !isSaving,
+                    onChanged: (val) => setState(() => enableFlip = val),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -129,7 +116,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                         .copyWith(color: colors.textPrimary),
                     decoration: InputDecoration(
                       labelText:
-                          'Meridian Flip Minutes ($_minFlipMinutes - $_maxFlipMinutes)',
+                          'Minutes past the meridian ($_minFlipMinutes–$_maxFlipMinutes)',
                       labelStyle: SkotiqTypography.bodySm
                           .copyWith(color: colors.textMuted),
                       enabledBorder: OutlineInputBorder(
@@ -302,7 +289,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     style: SkotiqTypography.body
                         .copyWith(color: colors.textPrimary),
                     decoration: InputDecoration(
-                      labelText: 'Temp Coefficient (steps/C)',
+                      labelText: 'Temperature coefficient (steps/°C)',
                       labelStyle: SkotiqTypography.bodySm
                           .copyWith(color: colors.textMuted),
                       enabledBorder: OutlineInputBorder(

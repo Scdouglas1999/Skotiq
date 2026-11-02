@@ -230,7 +230,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     if (backend == null || !identical(_backend, backend)) {
       if (mounted && expectedBackend != null) {
         context.showErrorSnackBar(
-          '$label cancelled because the connected rig changed.',
+          '$label canceled because the connected rig changed.',
         );
       }
       return;
@@ -356,7 +356,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
           !identical(ref.read(backendProvider), backend)) {
         if (mounted) {
           context.showErrorSnackBar(
-            '$label cancelled because the connected rig changed.',
+            '$label canceled because the connected rig changed.',
           );
         }
         return null;
@@ -376,7 +376,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     } catch (e) {
       if (mounted && identical(ref.read(backendProvider), backend)) {
         context.showErrorSnackBar(
-          '$label cancelled because the rig state could not be verified: $e',
+          '$label canceled because the rig state could not be verified: $e',
         );
       }
       return null;
@@ -686,7 +686,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
                             ? 'Nothing was in flight to abort'
                             : 'Abort accepted: '
                                 '$cancelled job${cancelled == 1 ? '' : 's'} '
-                                'cancelled';
+                                'canceled';
                       },
                     ),
             label: 'Abort',
@@ -727,7 +727,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       'checking' => 'Checking for updates…',
       'downloading' => 'Downloading update…',
       'verifying' => 'Verifying update…',
-      'cancelling' => 'Cancelling update…',
+      'cancelling' => 'Canceling update…',
       'staged' => 'Ready to apply',
       'installing' || 'applying' => 'Restarting into update…',
       'failed' => 'Update failed',

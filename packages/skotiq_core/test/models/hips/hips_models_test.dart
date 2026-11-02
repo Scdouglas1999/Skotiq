@@ -61,7 +61,7 @@ void main() {
       );
     });
 
-    test('honours comments, blank lines and key=value without spaces', () {
+    test('honors comments, blank lines and key=value without spaces', () {
       const doc = '''
 # a comment
 hips_order=5
@@ -97,7 +97,7 @@ and part two
       expect(HipsProperties.parse(doc).tileFormats, [HipsTileFormat.jpeg]);
     });
 
-    test('skips unknown formats but keeps recognised ones', () {
+    test('skips unknown formats but keeps recognized ones', () {
       const doc =
           'hips_order = 3\nhips_frame = equatorial\nhips_tile_format = tiff png\n';
       expect(HipsProperties.parse(doc).tileFormats, [HipsTileFormat.png]);
@@ -145,7 +145,7 @@ and part two
       );
     });
 
-    test('unrecognised hips_frame is fatal (no silent equatorial fallback)', () {
+    test('unrecognized hips_frame is fatal (no silent equatorial fallback)', () {
       const doc =
           'hips_order = 3\nhips_frame = supergalactic\nhips_tile_format = jpeg\n';
       expect(
@@ -158,7 +158,7 @@ and part two
       );
     });
 
-    test('no recognised format is fatal', () {
+    test('no recognized format is fatal', () {
       const doc =
           'hips_order = 3\nhips_frame = equatorial\nhips_tile_format = tiff bmp\n';
       expect(
@@ -309,7 +309,7 @@ and part two
       );
     });
 
-    test('tileUrl joins base + path, normalising a trailing slash', () {
+    test('tileUrl joins base + path, normalizing a trailing slash', () {
       final tile = HipsTileId(survey: 's', norder: 3, npix: 42);
       expect(
         tile.tileUrl('https://h/DSS/DSS2Merged', HipsTileFormat.jpeg),

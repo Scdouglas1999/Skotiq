@@ -381,7 +381,7 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
             child: OnboardingDevicePickerBody(
               title: 'Native guiders',
               subtitle:
-                  'Cameras that publish a guider interface — usually only relevant for OAGs with dedicated drivers.',
+                  'Guiders that run inside Skotiq, such as the built-in multi-star guider, and guide cameras with their own guider driver.',
               icon: SkotiqIcons.visible,
               deviceType: DeviceType.guider,
               selectedDeviceId: draft.guiderId,

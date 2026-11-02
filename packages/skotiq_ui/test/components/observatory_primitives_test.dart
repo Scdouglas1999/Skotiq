@@ -139,7 +139,7 @@ void main() {
       expect(tester.getSize(find.byType(SkotiqChip)).height, SkotiqChip.height);
     });
 
-    testWidgets('a tone tints the fill and colours the dot', (tester) async {
+    testWidgets('a tone tints the fill and colors the dot', (tester) async {
       await tester.pumpWidget(
         _host(
           const SkotiqChip(

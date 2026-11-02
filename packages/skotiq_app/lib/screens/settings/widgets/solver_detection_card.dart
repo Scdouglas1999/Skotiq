@@ -302,7 +302,7 @@ class SolverDetectionCard extends StatelessWidget {
       body: [
         if (!hasAstrometry)
           Text(
-            'Skotiq needs at least one plate solver to centre targets, '
+            'Skotiq needs at least one plate solver to center targets, '
             'verify framing, and perform polar alignment. ASTAP is the '
             'recommended choice for almost all setups.',
             style: theme.textTheme.bodySmall?.copyWith(

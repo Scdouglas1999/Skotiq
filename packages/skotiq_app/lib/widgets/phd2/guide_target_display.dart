@@ -190,10 +190,16 @@ class _TargetDisplayPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
 
-    for (int i = 1; i <= numRings; i++) {
-      final label = '${(scaleArcsec * i).toStringAsFixed(1)}$unitSuffix';
+    // Outermost first, so the ring that names the full scale always gets its
+    // label; an inner label that would touch the one outside it is left out.
+    double? nextLeft;
+    for (int i = numRings; i >= 1; i--) {
+      final value = scaleArcsec * i;
+      final number = value == value.roundToDouble()
+          ? value.toStringAsFixed(0)
+          : value.toStringAsFixed(1);
       textPainter.text = TextSpan(
-        text: label,
+        text: '$number$unitSuffix',
         style: TextStyle(
           color: colors.textMuted.withValues(alpha: 0.7),
           fontSize: SkotiqTypography.fontSize9,
@@ -203,14 +209,14 @@ class _TargetDisplayPainter extends CustomPainter {
       textPainter.layout();
 
       final ringRadius = (radius / numRings) * i;
-      textPainter.paint(
-        canvas,
-        Offset(
-          center.dx + ringRadius - textPainter.width - 4,
-          center.dy + 4,
-        ),
-      );
+      final left = center.dx + ringRadius - textPainter.width - 4;
+      if (nextLeft != null && left + textPainter.width + 4 > nextLeft) {
+        continue;
+      }
+      textPainter.paint(canvas, Offset(left, center.dy + 4));
+      nextLeft = left;
     }
+    textPainter.dispose();
   }
 
   void _drawHistory(Canvas canvas, Offset center, double pixelsPerArcsec) {

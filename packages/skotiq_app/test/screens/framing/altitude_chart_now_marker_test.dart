@@ -142,7 +142,7 @@ void main() {
     expect(markers.single.x, closeTo(expectedX, 1));
   });
 
-  testWidgets('the culmination chip is labelled as the transit altitude', (
+  testWidgets('the culmination chip is labeled as the transit altitude', (
     tester,
   ) async {
     await pumpChart(tester, DateTime(2026, 7, 29, 12, 30));

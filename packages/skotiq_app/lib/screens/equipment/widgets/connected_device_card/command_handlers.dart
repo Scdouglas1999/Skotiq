@@ -175,7 +175,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                       decimal: true, signed: true),
                   autofocus: true,
                   decoration: InputDecoration(
-                    labelText: 'Target Temperature (C)',
+                    labelText: 'Target temperature (°C)',
                     labelStyle: SkotiqTypography.bodySm
                         .copyWith(color: colors.textMuted),
                     enabledBorder: OutlineInputBorder(

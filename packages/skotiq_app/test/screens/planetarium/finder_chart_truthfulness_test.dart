@@ -26,7 +26,7 @@ Star _star(String id, double mag) => Star(
 
 void main() {
   group('finderChartPose', () {
-    test('centres the chart on the object it is titled for', () {
+    test('centers the chart on the object it is titled for', () {
       // The view is pointed somewhere else entirely.
       const view = SkyViewState(centerRA: 0, centerDec: 0, fieldOfView: 1.5);
 
@@ -45,7 +45,7 @@ void main() {
       expect(pose.centerDec, closeTo(_subject.dec, 1e-9));
     });
 
-    test('falls back to the live view centre when nothing is selected', () {
+    test('falls back to the live view center when nothing is selected', () {
       const view = SkyViewState(centerRA: 3, centerDec: -4, fieldOfView: 20);
 
       final (region: region, pose: pose) = finderChartPose(
@@ -60,7 +60,7 @@ void main() {
     });
 
     test(
-      'in the horizontal frame it uses the live centre, not the stale '
+      'in the horizontal frame it uses the live center, not the stale '
       'equatorial pose',
       () {
         // centerRA/centerDec hold the PRESERVED INACTIVE equatorial pose here.
@@ -143,7 +143,7 @@ void main() {
       );
     });
 
-    test('objects with no catalogued magnitude are not counted', () {
+    test('objects with no cataloged magnitude are not counted', () {
       final faintest = FinderChartService.faintestPlottedMagnitude(
         stars: [
           _star('a', 5.0),

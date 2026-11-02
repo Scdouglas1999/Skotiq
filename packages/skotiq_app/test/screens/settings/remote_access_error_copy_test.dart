@@ -48,7 +48,7 @@ void main() {
       expect(explained.toLowerCase(), contains('privileges'));
     });
 
-    test('passes an unrecognised error through unchanged', () {
+    test('passes an unrecognized error through unchanged', () {
       const raw = 'Something nobody has seen before';
       expect(explainRemoteAccessError(raw, 8080), raw);
     });

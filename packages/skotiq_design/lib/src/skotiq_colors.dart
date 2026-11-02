@@ -56,8 +56,8 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
   /// The night-band gradient stops: sunset, twilight, astronomical dark, dawn.
   ///
   /// These paint the sky rather than chrome, so they are outside the text
-  /// contrast floor. Red night still keeps them on the red axis (G == B),
-  /// because the band is the largest coloured area on Tonight.
+  /// contrast floor. Red night still keeps them pure red, because the band is
+  /// the largest coloured area on Tonight.
   final Color bandDusk;
   final Color bandTwilight;
   final Color bandDark;
@@ -297,65 +297,48 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
         .toColor();
   }
 
-  /// Red night vision theme - designed to preserve dark-adapted eyes
-  /// Uses only red wavelengths which minimally affect scotopic (night) vision
+  /// Red night vision theme - designed to preserve dark-adapted eyes.
+  ///
+  /// Every colour is on the pure red channel (G == B == 0): rods are blind to
+  /// long wavelengths, and any green or blue a pixel emits is spent from the
+  /// operator's dark adaptation. With one channel the WCAG floor leaves room
+  /// for a single 4.5:1 step on these surfaces, so the text ladder is
+  /// 4.67 / 3.70 / 3.07 worst case (on surfaceOverlay) and status colours
+  /// cannot encode severity by hue; the icon and the word carry that.
+  /// `docs/design/overhaul/tools/check_tokens.py` holds these floors.
   static const redNight = SkotiqColors(
-    // 5.29:1 under dark ink and as text on the canvas. The previous #DC2626
-    // measured 4.29:1, and #B91C1C as the hover fill 3.20:1 — in this palette
-    // hover LIGHTENS, because there is no legible room below.
-    primary: Color(0xFFEF3B3B),
-    accent: Color(0xFFFF5A5A),
+    // Ink on primary measures 4.65:1. Hover lightens to accent, because there
+    // is no legible room below.
+    primary: Color(0xFFF00000),
+    accent: Color(0xFFFF0000),
     background: Color(0xFF0A0000),
-    surface: Color(0xFF140808),
-    well: Color(0xFF0F0404),
+    surface: Color(0xFF140000),
+    well: Color(0xFF0F0000),
     // ignore: deprecated_member_use_from_same_package
-    surfaceAlt: Color(0xFF1C0C0C),
-    surfaceHover: Color(0xFF241010),
-    surfaceElevated: Color(0xFF281212),
-    surfaceOverlay: Color(0xFF301616),
-    border: Color(0xFF2E1414),
-    borderHighlight: Color(0xFF3A1A1A),
-    // The red-only constraint is about WAVELENGTH, not dimness, so the text
-    // ladder still has to clear the 4.5:1 contrast floor against these
-    // surfaces: these three measure 9.86 / 7.46 / 5.35 worst case, stay
-    // strictly ordered, and keep red the dominant channel.
-    textPrimary: Color(0xFFFFB3B3),
-    textSecondary: Color(0xFFF59191),
-    textMuted: Color(0xFFE86A6A),
-    // The status semantics are read as TEXT, so the same floor binds them. The
-    // old pair could not clear it: #B91C1C measured 2.93:1 on surfaceAlt and
-    // 2.79:1 on its own 15%-alpha chip (the System Health pill, sampled off the
-    // running app), #DC2626 3.93:1.
-    //
-    // Two rules bracket the repair. Red night is a WAVELENGTH constraint, so
-    // the hue stays on the red axis (G == B) and red keeps over half the
-    // emitted energy — `success` also reaches the scrubber's selected frame bar
-    // through [SkotiqChartColors.selectedFrame], where the red-dominance
-    // rule is enforced. And the floor is 4.5:1 on every surface. Between those
-    // two the legible red band is narrow, so colour cannot also encode severity
-    // ORDER here; the icon and the word carry that, and these three are simply
-    // the furthest-apart legal triple.
-    //
-    // success #FF7373 is the soft end at 6.35:1 worst case; warning #FF4040 is
-    // the pure end at 4.84:1. `error` moved #EF5350 -> #EF5252 to put G == B:
-    // the old value sat three units off the red axis in BLUE, which is the one
-    // channel this palette may not spend.
-    success: Color(0xFFFF7373),
-    warning: Color(0xFFFF4040),
-    error: Color(0xFFEF5252),
-    info: Color(0xFFE57373),
-    // Red night cannot spend a warm hue: the decoration folds onto the red
-    // axis like every other role, a pale red kept DeltaE 18.34 from warning
-    // and at 8.26:1 on the worst surface.
-    brandWarm: Color(0xFFFF9A9A),
+    surfaceAlt: Color(0xFF1C0000),
+    surfaceHover: Color(0xFF240000),
+    surfaceElevated: Color(0xFF280000),
+    surfaceOverlay: Color(0xFF300000),
+    border: Color(0xFF2E0000),
+    borderHighlight: Color(0xFF3A0000),
+    textPrimary: Color(0xFFFF0000),
+    textSecondary: Color(0xFFE00000),
+    textMuted: Color(0xFFC80000),
+    success: Color(0xFFE00000),
+    warning: Color(0xFFFF0000),
+    error: Color(0xFFFF0000),
+    info: Color(0xFFE00000),
+    // A decoration only; in one hue it differs from the status roles by
+    // lightness alone, at 3.07:1 on the worst surface.
+    brandWarm: Color(0xFFC80000),
     // Red night has no green to spend on Start, so the button is the palette's
     // own primary; its label and position tell it apart, not its hue.
-    startFill: Color(0xFFEF3B3B),
+    startFill: Color(0xFFF00000),
     onStart: Color(0xFF0A0000),
-    bandDusk: Color(0xFF3A1414),
-    bandTwilight: Color(0xFF140808),
+    bandDusk: Color(0xFF3A0000),
+    bandTwilight: Color(0xFF140000),
     bandDark: Color(0xFF0A0000),
-    bandDawn: Color(0xFF3A1414),
+    bandDawn: Color(0xFF3A0000),
     useDarkOnPrimary: true,
     isRedNight: true,
   );

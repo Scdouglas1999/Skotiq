@@ -136,7 +136,7 @@ void main() {
     });
   }
 
-  testWidgets('a type is drawn in one severity colour on every surface',
+  testWidgets('a type is drawn in one severity color on every surface',
       (tester) async {
     // variableStar was the widest disagreement: success / warning / accent.
     final alert = _alert(TransientType.variableStar);

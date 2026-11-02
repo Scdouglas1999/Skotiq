@@ -122,7 +122,7 @@ void main() {
   });
 
   group('NarratorCard severity styling', () {
-    testWidgets('celebrate vs warning produce different accent colours',
+    testWidgets('celebrate vs warning produce different accent colors',
         (tester) async {
       // Resolve both accents against the dark palette the same way the card
       // does, and assert they differ — the visible distinction in styling.

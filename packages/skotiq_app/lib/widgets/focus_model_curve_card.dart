@@ -274,7 +274,7 @@ class _FocusModelCurveCardState extends ConsumerState<FocusModelCurveCard> {
         }).onError<AutofocusCancelledException>((_, __) {
           if (messenger.mounted) {
             messenger.showSnackBar(
-              const SnackBar(content: Text('Autofocus cancelled')),
+              const SnackBar(content: Text('Autofocus canceled')),
             );
           }
         }).catchError((Object e, StackTrace st) {

@@ -67,7 +67,7 @@ void main() {
     );
   });
 
-  test('centred steps with no target are never skipped', () {
+  test('centered steps with no target are never skipped', () {
     for (final index in const [0, 3]) {
       expect(
         tutorialStepIndexPastMissingTarget(

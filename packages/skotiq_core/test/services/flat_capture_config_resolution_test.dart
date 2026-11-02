@@ -165,7 +165,7 @@ void main() {
       expect(cfg.targetAduFor(50), closeTo(127.5, 1));
     });
 
-    test('driver max-ADU without a capability struct is honoured', () async {
+    test('driver max-ADU without a capability struct is honored', () async {
       final b = _CapBackend();
       // No caps at all, but the status reports a 14-bit-ish range.
       stub(b, status: _status(maxAdu: 16383), caps: null);
@@ -375,7 +375,7 @@ void main() {
   });
 
   group('binning resolution', () {
-    test('honours profile binX/binY within the max-bin', () async {
+    test('honors profile binX/binY within the max-bin', () async {
       final b = _CapBackend();
       stub(
         b,

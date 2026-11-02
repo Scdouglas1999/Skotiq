@@ -134,7 +134,7 @@ void main() {
       closeTo(expectedScale, 0.001),
       reason: 'image-space -> viewport-space mapping uses this number together '
           'with computeImageOffset; feeding it the fit-relative multiplier put '
-          'every marker at 1/fitScale times its true offset from the centre',
+          'every marker at 1/fitScale times its true offset from the center',
     );
 
     // The offset must agree with where the image really is: its left edge.

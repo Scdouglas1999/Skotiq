@@ -124,13 +124,14 @@ void main() {
 
     // The button sits on whichever surface hosts it; check the whole ladder,
     // because a dialog footer and a settings card are not the same ground.
-    const surfaces = <Color>[
-      Color(0xFF0A0000), // background
-      Color(0xFF140808), // surface
-      Color(0xFF1C0C0C), // surfaceAlt — the destination editor's own footer
-      Color(0xFF241010), // surfaceHover
-      Color(0xFF281212), // surfaceElevated
-      Color(0xFF301616), // surfaceOverlay
+    final surfaces = <Color>[
+      colors.background,
+      colors.surface,
+      // ignore: deprecated_member_use
+      colors.surfaceAlt, // the destination editor's own footer
+      colors.surfaceHover,
+      colors.surfaceElevated,
+      colors.surfaceOverlay,
     ];
     for (final surface in surfaces) {
       final la = colors.error.computeLuminance();
@@ -140,7 +141,7 @@ void main() {
         ratio,
         greaterThanOrEqualTo(4.5),
         reason:
-            'a hollow button spends its own colour as text, so the '
+            'a hollow button spends its own color as text, so the '
             'label answers to the 4.5:1 floor the palette holds',
       );
     }

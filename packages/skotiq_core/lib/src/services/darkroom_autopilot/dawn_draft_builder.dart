@@ -481,7 +481,7 @@ class DawnDraftBuilder {
       if (background.movedThePrefix)
         'the background fit was restored at a denser lattice',
       if (colour.movedThePrefix)
-        'the colour balance is now pinned, so it applies at the level the '
+        'the color balance is now pinned, so it applies at the level the '
             'stretch is measured at instead of skipping there',
     ];
     if (causes.isNotEmpty) {
@@ -714,7 +714,7 @@ class DawnDraftBuilder {
         notes,
         opId,
         'this master has ${master.channels} '
-        'channel${master.channels == 1 ? '' : 's'} and the colour fit needs '
+        'channel${master.channels == 1 ? '' : 's'} and the color fit needs '
         'three, so the per-filter masters are combined before it can run',
       );
     }
@@ -732,9 +732,9 @@ class DawnDraftBuilder {
       proved = _withParams(steps, index, {'whiteReference': 'averageStar'});
     }
     final how = byCatalog
-        ? 'the colour fit applied at full resolution against '
-              '${photometry.stars.length} catalogue stars'
-        : 'no catalogue photometry was available '
+        ? 'the color fit applied at full resolution against '
+              '${photometry.stars.length} catalog stars'
+        : 'no catalog photometry was available '
               '(${photometry.unavailableReason ?? 'no catalogue star was resolved for this field'}), '
               'so the balance renders the median color of the field\'s own '
               'stars neutral instead, measured at full resolution';
@@ -787,7 +787,7 @@ class DawnDraftBuilder {
             '(${scales.map((s) => s.toStringAsFixed(4)).join(', ')})'
             '${offsets == null ? '' : ' and the background neutralization it measured'}. Every '
             'later render replays those numbers, so a preview at a reduced level '
-            'shows the same colour as the full-resolution proof instead of '
+            'shows the same color as the full-resolution proof instead of '
             're-measuring a level that holds too few stars.',
       ),
     );

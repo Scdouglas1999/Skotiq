@@ -78,6 +78,22 @@ class _LockedKeyring implements SecureKeyValueStore {
   Future<void> delete({required String key}) async {}
 }
 
+/// A keyring that cannot be read at all: no unlocked secret service.
+class _UnreadableKeyring implements SecureKeyValueStore {
+  @override
+  Future<String?> read({required String key}) async {
+    throw StateError('Failed to unlock the keyring');
+  }
+
+  @override
+  Future<void> write({required String key, required String value}) async {
+    throw StateError('Failed to unlock the keyring');
+  }
+
+  @override
+  Future<void> delete({required String key}) async {}
+}
+
 Finder _fieldWithHint(String hint) => find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.hintText == hint,
       description: 'text field hinted "$hint"',
@@ -179,7 +195,7 @@ void main() {
     expect(_textIn(tester, field), 'BBB');
   });
 
-  testWidgets('an accepted code is normalised and stored', (tester) async {
+  testWidgets('an accepted code is normalized and stored', (tester) async {
     final science = _FakeScienceSettings();
     await _pumpPage(tester, science: science);
 
@@ -241,5 +257,17 @@ void main() {
   testWidgets('a companion shows no local atlas storage row', (tester) async {
     await _pumpPage(tester, science: _FakeScienceSettings());
     expect(find.text('Your Sky storage'), findsNothing);
+  });
+
+  testWidgets('a keyring that cannot be read says the key store is unavailable',
+      (tester) async {
+    final science = _FakeScienceSettings();
+    await _pumpPage(tester, science: science, keyring: _UnreadableKeyring());
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.textContaining('The system key store is unavailable'),
+      findsWidgets,
+    );
   });
 }

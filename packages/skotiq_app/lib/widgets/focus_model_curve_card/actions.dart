@@ -235,7 +235,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
   bool _ensureCurrent(SkotiqBackend backend, int generation) {
     if (_isCurrent(backend, generation)) return true;
     if (mounted) {
-      _showMessage('The imaging host changed. Focus action cancelled.');
+      _showMessage('The imaging host changed. Focus action canceled.');
     }
     return false;
   }

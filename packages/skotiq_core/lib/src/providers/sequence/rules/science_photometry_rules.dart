@@ -41,7 +41,7 @@ class SciencePhotometryFilterRule implements SequenceValidator {
                 '"${node.filter}", which is not one of the standard '
                 'photometric bands (V, B, R, I, g, r, i, z, Clear, CV). The '
                 'INSTRMAG / DIFFMAG keywords stamped on the frames will not '
-                'be comparable to AAVSO / Gaia catalogues.',
+                'be comparable to AAVSO / Gaia catalogs.',
             affectedNodeId: node.id,
             resolutionHint:
                 'Switch to V / B / R / I / Sloan g / r / i / z or Clear if '
@@ -97,7 +97,7 @@ class SciencePhotometryReferenceStarsEmptyRule implements SequenceValidator {
                 'at least one comparison star.',
             affectedNodeId: node.id,
             resolutionHint:
-                'Add at least one reference star catalogue ID, or turn '
+                'Add at least one reference star catalog ID, or turn '
                 'off "apply differential" if instrumental magnitudes alone '
                 'are sufficient.',
           ),
@@ -115,7 +115,7 @@ class SciencePhotometryReferenceStarsEmptyRule implements SequenceValidator {
                 'keyword or write the photometry_measurements row.',
             affectedNodeId: node.id,
             resolutionHint:
-                'Enter a catalogue ID (e.g. "V0376 Per", "KIC-9832227").',
+                'Enter a catalog ID (e.g. "V0376 Per", "KIC-9832227").',
           ),
         );
       }

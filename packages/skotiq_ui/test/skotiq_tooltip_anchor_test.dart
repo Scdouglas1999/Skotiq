@@ -74,7 +74,7 @@ void main() {
       expect(
         tooltipRect.center.dx,
         closeTo(triggerRect.center.dx, 1.0),
-        reason: '$name: tooltip is not centred on the control it describes',
+        reason: '$name: tooltip is not centered on the control it describes',
       );
       // Below the trigger, and close enough to read as attached to it: the
       // gap is padding + arrow + the label's own vertical padding.

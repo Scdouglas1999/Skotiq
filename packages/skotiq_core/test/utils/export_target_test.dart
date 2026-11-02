@@ -63,7 +63,7 @@ void main() {
     );
 
     test(
-      'a cancelled dialog yields no target',
+      'a canceled dialog yields no target',
       () async {
         FileSelectorPlatform.instance = _RecordingFileSelector();
 
@@ -152,6 +152,24 @@ void main() {
         sanitizeExportFileName('observations_2026-07-25.csv'),
         'observations_2026-07-25.csv',
       );
+    });
+  });
+
+  group('collapseDoubledExtension', () {
+    test('drops a repeated final extension', () {
+      expect(collapseDoubledExtension('/a/r_final.png.png'), '/a/r_final.png');
+      expect(
+        collapseDoubledExtension('/a/m51.skseq.json.json'),
+        '/a/m51.skseq.json',
+      );
+      expect(collapseDoubledExtension('/a/x.FITS.fits'), '/a/x.FITS');
+    });
+
+    test('leaves distinct and single extensions alone', () {
+      expect(collapseDoubledExtension('/a/m51.skeq.json'), '/a/m51.skeq.json');
+      expect(collapseDoubledExtension('/a/r_final.png'), '/a/r_final.png');
+      expect(collapseDoubledExtension('/a/notes'), '/a/notes');
+      expect(collapseDoubledExtension('/a.b/file'), '/a.b/file');
     });
   });
 }

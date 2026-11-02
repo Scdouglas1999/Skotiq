@@ -397,7 +397,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         setState(
           () => _dismissRefused =
               'The save chooser is open and nothing has been sent to the '
-                  'engine yet. Answer it, or cancel it — cancelling the chooser '
+                  'engine yet. Answer it, or cancel it — canceling the chooser '
                   'cancels the export and leaves this sheet exactly as it is.',
         );
       case _DarkroomExportPhase.rendering:
@@ -692,7 +692,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
             _optionChip(
               label: 'Linear master',
               reason: 'Write the master\'s own pixels, with the recipe '
-                  'travelling along as provenance.',
+                  'traveling along as provenance.',
               selected: _stageKind == _DarkroomExportStageKind.linear,
               onTap: () => _setStage(_DarkroomExportStageKind.linear),
             ),
@@ -1032,13 +1032,13 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         return 'These pixels already carry a display mapping.';
       case _DarkroomStageDomain.linear:
         return 'The ${_stageLabel()} is still linear ADU and has no display '
-            'mapping, so quantising it into 8 or 16 bits would show almost '
+            'mapping, so quantizing it into 8 or 16 bits would show almost '
             'nothing. Export FITS to keep the linear pixels, or switch on the '
             'auto stretch below to render the 8/16-bit files through the '
             'engine\'s own transfer.';
       case _DarkroomStageDomain.undetermined:
         return widget.catalog == null
-            ? 'The operation catalogue could not be read, so this build cannot '
+            ? 'The operation catalog could not be read, so this build cannot '
                 'tell whether the ${_stageLabel()} has a display mapping. '
                 'FITS keeps whatever the pixels are; switch on the auto '
                 'stretch to render the 8/16-bit files through the engine\'s '
@@ -1090,12 +1090,11 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
             'and the recipe in HISTORY cards. Always available, at every '
             'stage.';
       case _DarkroomExportFormat.png:
-        return '16-bit PNG, quantised from the render\'s samples.';
+        return '16-bit PNG, quantized from the render\'s samples.';
       case _DarkroomExportFormat.jpeg:
-        return '8-bit JPEG at the engine\'s documented default quality; the '
-            'reply names the value used.';
+        return '8-bit JPEG at the standard quality setting.';
       case _DarkroomExportFormat.tiff:
-        return '16-bit TIFF, quantised from the render\'s samples.';
+        return '16-bit TIFF, quantized from the render\'s samples.';
     }
   }
 

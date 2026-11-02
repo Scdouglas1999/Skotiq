@@ -237,7 +237,7 @@ class LogHandlers {
       // request is well-formed; there just isn't a log file to serve.
       return jsonNotFound({
         'error': 'log_directory_unavailable',
-        'message': 'Log directory has not been initialised',
+        'message': 'Log directory has not been initialized',
       });
     }
 

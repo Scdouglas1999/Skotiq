@@ -138,7 +138,7 @@ void main() {
   });
 
   test(
-    'an unrecognised peer is refused rather than served everything',
+    'an unrecognized peer is refused rather than served everything',
     () async {
       final jobId = await DarkroomJobsDao(db).enqueue();
       await createPeer('office-pc');

@@ -70,7 +70,7 @@ void main() {
     });
   });
 
-  test('projectSurfaceTiles places every tile and normalises its height', () {
+  test('projectSurfaceTiles places every tile and normalizes its height', () {
     final points = projectSurfaceTiles(
       tiles: _grid(),
       size: const Size(400, 240),
@@ -92,7 +92,7 @@ void main() {
     expect(far.norm, closeTo(1.0, 1e-6));
   });
 
-  testWidgets('the card prints a value scale beside the colour ramp',
+  testWidgets('the card prints a value scale beside the color ramp',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(

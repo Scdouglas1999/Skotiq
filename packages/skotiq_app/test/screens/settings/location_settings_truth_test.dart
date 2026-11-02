@@ -134,7 +134,7 @@ void main() {
       wifiRadioCanBeEnabled: true,
     );
 
-    testWidgets('is not labelled GPS', (tester) async {
+    testWidgets('is not labeled GPS', (tester) async {
       await _pumpLocation(tester, settings: seattle);
       expect(find.text('Get location from GPS'), findsNothing);
       expect(find.text('Detect location'), findsOneWidget);
@@ -275,7 +275,7 @@ void main() {
       expect(
         find.textContaining(
           'Approximate only: from your internet address (ipinfo.io). City '
-          'level — typically tens of kilometres.',
+          'level — typically tens of kilometers.',
         ),
         findsOneWidget,
       );

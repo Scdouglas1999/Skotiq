@@ -151,6 +151,18 @@ void main() {
       ),
       'Light · 0.50 s',
     );
+    expect(
+      FrameInfoPill.frameIdentity(
+        const ExposureSettings(
+          exposureTime: 0.00224,
+          gain: 0,
+          offset: 0,
+          filter: 'R',
+          frameType: FrameType.flat,
+        ),
+      ),
+      'Flat · 2.2 ms',
+    );
   });
 
   testWidgets(

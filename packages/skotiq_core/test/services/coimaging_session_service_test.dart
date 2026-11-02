@@ -396,7 +396,7 @@ void main() {
   );
 
   test(
-    'framedCenterFor = session centre + this rig\'s framing offset',
+    'framedCenterFor = session center + this rig\'s framing offset',
     () async {
       await sessionsDao.upsertMembership(
         hubKey,
@@ -1051,7 +1051,7 @@ void main() {
   });
 
   test(
-    'headless coordinate-less join self-heals the centre so the in-process '
+    'headless coordinate-less join self-heals the center so the in-process '
     'auto-contribute (membershipsForPoint) matches the folded frame',
     () async {
       // Mirrors the headless REST join path: joinSession is called with ONLY the

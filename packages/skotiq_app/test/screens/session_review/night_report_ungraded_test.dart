@@ -39,7 +39,7 @@ void main() {
         sessionId: 7,
         headline:
             'Not graded — this session captured no light frames, so there '
-            'is nothing to analyse.',
+            'is nothing to analyze.',
         createdAt: createdAt,
       ),
     );
@@ -62,7 +62,7 @@ void main() {
     expect(find.textContaining('clean night'), findsNothing);
     // "0 findings" would imply the detectors ran and came back clean.
     expect(find.text('0 findings'), findsNothing);
-    expect(find.text('nothing to analyse'), findsOneWidget);
+    expect(find.text('nothing to analyze'), findsOneWidget);
   });
 
   testWidgets('a genuinely clean graded night still shows 100 / Excellent',
@@ -86,7 +86,7 @@ void main() {
 
   test('the un-graded flag survives the score-column round trip', () {
     final report = NightReport.ungraded(
-      headline: 'Not graded — nothing to analyse.',
+      headline: 'Not graded — nothing to analyze.',
       createdAt: createdAt,
     );
     expect(report.graded, isFalse);

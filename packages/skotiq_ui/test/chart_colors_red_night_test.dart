@@ -82,7 +82,7 @@ void main() {
       expect(
         delta,
         greaterThan(0.02),
-        reason: 'RA and Dec collapsed to the same colour in red night',
+        reason: 'RA and Dec collapsed to the same color in red night',
       );
     });
   });

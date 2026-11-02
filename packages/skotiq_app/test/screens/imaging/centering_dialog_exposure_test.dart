@@ -291,7 +291,7 @@ void main() {
     expect(recorder.lastConfig!.syncMount, isTrue);
   });
 
-  testWidgets('centering honours the configured sync preference',
+  testWidgets('centering honors the configured sync preference',
       (tester) async {
     final recorder = await pumpDialog(
       tester,

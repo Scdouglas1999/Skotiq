@@ -33,7 +33,7 @@ void main() {
     expect(border.top.color.a, 0.0);
   });
 
-  testWidgets('a disabled button dims, it does not change colour', (
+  testWidgets('a disabled button dims, it does not change color', (
     tester,
   ) async {
     await tester.pumpWidget(

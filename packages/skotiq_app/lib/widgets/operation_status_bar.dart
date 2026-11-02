@@ -100,7 +100,7 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
           break;
         default:
           throw UnsupportedError(
-            '${operation.type.label} cannot be cancelled from the status bar',
+            '${operation.type.label} cannot be canceled from the status bar',
           );
       }
 

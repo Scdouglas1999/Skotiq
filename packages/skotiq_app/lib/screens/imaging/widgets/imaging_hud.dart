@@ -136,9 +136,12 @@ class FrameInfoPill extends ConsumerWidget {
   @visibleForTesting
   static String frameIdentity(ExposureSettings settings) {
     final exposure = settings.exposureTime;
+    // Flats run in milliseconds; 0.0022 s must not read as "0.00 s".
     final exposureLabel = exposure >= 1
         ? '${exposure.toStringAsFixed(1)} s'
-        : '${exposure.toStringAsFixed(2)} s';
+        : exposure >= 0.1
+            ? '${exposure.toStringAsFixed(2)} s'
+            : '${(exposure * 1000).toStringAsFixed(1)} ms';
     final filter = settings.filter?.trim();
     final lead = settings.frameType == FrameType.light &&
             filter != null &&
@@ -182,6 +185,11 @@ class HistogramHud extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final histogram = ref.watch(previewDisplayHistogramProvider);
+    // The histogram is of raw ADU once the 16-bit samples are in; before
+    // that it is of the stretched display image, so the axis ends read
+    // black and white instead of 0 and 65535.
+    final image = ref.watch(currentImageProvider);
+    final raw = image != null && image.hasRawReady && image.rawU16 != null;
 
     return Glass(
       key: ImagingTutorialKeys.histogram,
@@ -226,8 +234,8 @@ class HistogramHud extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    Text('0', style: endpoints),
-                    Text('$fullWell', style: endpoints),
+                    Text(raw ? '0' : 'black', style: endpoints),
+                    Text(raw ? '$fullWell' : 'white', style: endpoints),
                   ],
                 ),
               ],

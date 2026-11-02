@@ -530,7 +530,7 @@ void main() {
         );
       });
 
-      test('400 on unrecognised severity in query', () async {
+      test('400 on unrecognized severity in query', () async {
         // The handler throws BadRequestError synchronously when severity
         // is unparseable. Wrap the call in an async future so the test
         // helper can translate the exception into a structured 400 the

@@ -234,9 +234,10 @@ class NightTimelinePalette {
       done: colors.primary,
       active: colors.primary.withValues(alpha: NightTimelineStrip.activeAlpha),
       activeEdge: colors.primary,
-      planned: colors.brandWarm.withValues(
-        alpha: NightTimelineStrip.plannedAlpha,
-      ),
+      // Red night's warm mark is a dim red that a translucent window cannot
+      // lift to 3:1, so planned windows there use the brightest red instead.
+      planned: (colors.isRedNight ? colors.textPrimary : colors.brandWarm)
+          .withValues(alpha: NightTimelineStrip.plannedAlpha),
       now: colors.textPrimary,
       halo: colors.background,
     );

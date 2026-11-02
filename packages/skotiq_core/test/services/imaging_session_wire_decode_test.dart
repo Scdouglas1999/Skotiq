@@ -20,7 +20,7 @@ void main() {
         DateTime.utc(2026, 8, 10, 22, 15, 30).millisecondsSinceEpoch,
         reason:
             'DateTime.tryParse would have shifted this by the host offset; '
-            'the appliance serialises UTC instants',
+            'the appliance serializes UTC instants',
       );
     });
 

@@ -141,7 +141,7 @@ void main() {
 
     expect(find.text('Alignment complete'), findsOneWidget);
     expect(
-      find.text('Worse'),
+      find.textContaining('Worse by '),
       findsNothing,
       reason: '0.03" is below the tenth of an arcsecond both numbers are '
           'printed at, so grading it a regression contradicts the headline',
@@ -161,6 +161,6 @@ void main() {
       ),
     );
 
-    expect(find.text('Worse'), findsOneWidget);
+    expect(find.textContaining('Worse by '), findsOneWidget);
   });
 }

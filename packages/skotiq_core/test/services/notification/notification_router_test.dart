@@ -463,7 +463,7 @@ void main() {
     },
   );
 
-  test('routeNotificationNode honours explicit transports', () async {
+  test('routeNotificationNode honors explicit transports', () async {
     final tA = _RecordingTransport(NotificationTransportKind.discord);
     final tB = _RecordingTransport(NotificationTransportKind.telegram);
     final matrix = NotificationRoutingMatrix.defaults().withRule(

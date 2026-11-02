@@ -170,7 +170,7 @@ void main() {
     });
   });
 
-  group('seam-free shared screen corners between neighbours', () {
+  group('seam-free shared screen corners between neighbors', () {
     test('adjacent visible tiles share projected corner positions', () {
       const canvas = Size(1000, 1000);
       const zoom = 1.0;
@@ -212,7 +212,7 @@ void main() {
       expect(
         sharedPairs,
         greaterThan(0),
-        reason: 'no neighbouring tiles share a projected corner -> seams',
+        reason: 'no neighboring tiles share a projected corner -> seams',
       );
     });
   });
@@ -282,7 +282,7 @@ void main() {
       );
     });
 
-    test('a trailing slash on the base URL is normalised (no doubled sep)', () {
+    test('a trailing slash on the base URL is normalized (no doubled sep)', () {
       final id = HipsTileId(survey: _surveyId, norder: 4, npix: 7);
       const base = 'https://alasky.cds.unistra.fr/DSS/DSS2Merged/';
       expect(

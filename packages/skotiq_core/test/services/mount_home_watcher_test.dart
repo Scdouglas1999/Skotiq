@@ -177,7 +177,7 @@ void main() {
     expect(await w.watcher.watch(home), MountHomeOutcome.confirmed);
   });
 
-  test('the operator stopping it ends the watch as cancelled', () async {
+  test('the operator stopping it ends the watch as canceled', () async {
     var reads = 0;
     final clock = _FakeStopwatch();
     final watcher = MountHomeWatcher(

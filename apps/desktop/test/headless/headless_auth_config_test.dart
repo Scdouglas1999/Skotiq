@@ -84,7 +84,7 @@ void main() {
     });
   });
 
-  group('unauthenticated LAN behaviour', () {
+  group('unauthenticated LAN behavior', () {
     // NOTE (verified behaviour): --allow-unauthenticated-lan is the ONLY way to
     // expose the server to the LAN WITHOUT any authentication. It does not add
     // a token or force --require-auth; it simply lets bindLocalOnly become
@@ -117,7 +117,7 @@ void main() {
     });
   });
 
-  group('token normalisation', () {
+  group('token normalization', () {
     test('a whitespace-only --auth-token is collapsed to null', () {
       final config = parseHeadlessAuthConfig(const ['--auth-token=   ']);
       expect(config.token, isNull);

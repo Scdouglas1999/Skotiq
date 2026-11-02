@@ -88,7 +88,7 @@ void main() {
   }
 
   testWidgets(
-    'a mosaic straddling RA 0h reports a centre near 0h, not 12h',
+    'a mosaic straddling RA 0h reports a center near 0h, not 12h',
     (tester) async {
       final facts = await pumpHeaderFacts(
         tester,
@@ -108,7 +108,7 @@ void main() {
       expect(
         facts.contains('00:00:00') || facts.contains('23:59:5'),
         isTrue,
-        reason: 'expected a centre at the RA 0h seam, got: $facts',
+        reason: 'expected a center at the RA 0h seam, got: $facts',
       );
     },
   );
@@ -131,7 +131,7 @@ void main() {
   });
 
   testWidgets(
-      'a project with no panels omits the centre rather than '
+      'a project with no panels omits the center rather than '
       'inventing 00h00m00s', (tester) async {
     final facts = await pumpHeaderFacts(
       tester,

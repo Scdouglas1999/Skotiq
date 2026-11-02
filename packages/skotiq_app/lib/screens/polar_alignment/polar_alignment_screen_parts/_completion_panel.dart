@@ -109,8 +109,13 @@ extension _CompletionPanel on _PolarAlignmentScreenState {
         : worsened
             ? colors.error
             : colors.textMuted;
-    final chipLabel =
-        improved ? '+$roundedPercent%' : (worsened ? 'Worse' : 'No change');
+    // A worse result says by how much: 13" on a 2°45' error is not the same
+    // news as doubling it.
+    final chipLabel = improved
+        ? '+$roundedPercent%'
+        : (worsened
+            ? 'Worse by ${(-polarAlignmentImprovementArcsec(state)).round()}"'
+            : 'No change');
 
     return LayoutBuilder(
       builder: (context, constraints) {

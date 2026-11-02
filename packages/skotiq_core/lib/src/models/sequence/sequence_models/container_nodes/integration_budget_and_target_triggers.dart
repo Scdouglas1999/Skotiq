@@ -276,8 +276,8 @@ sealed class TargetTrigger with _$TargetTrigger {
       'altitude ≥ ${v.toStringAsFixed(1)}°',
     AltitudeBelowTrigger(altitudeDeg: final v) =>
       'altitude ≤ ${v.toStringAsFixed(1)}°',
-    TimeAfterTrigger(unixSeconds: final v) => 'time ≥ $v',
-    TimeBeforeTrigger(unixSeconds: final v) => 'time < $v',
+    TimeAfterTrigger(unixSeconds: final v) => 'time ≥ ${_triggerClock(v)}',
+    TimeBeforeTrigger(unixSeconds: final v) => 'time < ${_triggerClock(v)}',
     AndTrigger(children: final cs) =>
       '(${cs.map((c) => c.label).join(' AND ')})',
     OrTrigger(children: final cs) => '(${cs.map((c) => c.label).join(' OR ')})',
@@ -352,4 +352,12 @@ bool evaluateTargetTrigger(
     case HourAngleBetweenTrigger(minHa: final lo, maxHa: final hi):
       return hourAngleHours >= lo && hourAngleHours <= hi;
   }
+}
+
+/// A trigger's Unix time as local `yyyy-MM-dd HH:mm`, so a summary names the
+/// date a stored time belongs to rather than a raw epoch.
+String _triggerClock(int unixSeconds) {
+  final t = DateTime.fromMillisecondsSinceEpoch(unixSeconds * 1000).toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}';
 }

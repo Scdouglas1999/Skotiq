@@ -97,7 +97,7 @@ void main() {
     expect(args['panelHeightArcmin'], 40.0);
   });
 
-  test('a null design targetId is forwarded as null (ad-hoc centre)', () async {
+  test('a null design targetId is forwarded as null (ad-hoc center)', () async {
     final calls = _recordCreateCalls(service, returns: 1);
 
     const adHoc = MosaicProjectDesign(

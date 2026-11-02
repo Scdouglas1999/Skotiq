@@ -123,7 +123,7 @@ void main() {
 
   group('exposeAndAwait — cooperative cancel', () {
     test(
-      'cancel mid-exposure aborts EXACTLY once and reports cancelled',
+      'cancel mid-exposure aborts EXACTLY once and reports canceled',
       () async {
         final backend = _ManualBackend();
         addTearDown(backend.dispose);
@@ -175,7 +175,7 @@ void main() {
 
   group('calibrateFilter — cancel-aware', () {
     test(
-      'cancel during the calibration exposure returns a cancelled result',
+      'cancel during the calibration exposure returns a canceled result',
       () async {
         final backend = _ManualBackend();
         addTearDown(backend.dispose);

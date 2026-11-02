@@ -113,7 +113,7 @@ class PositioningResult {
       accuracyMetres == null
           ? 'Approximate only: from your internet address '
                 '(${provider ?? 'a geolocation service'}). City level — '
-                'typically tens of kilometres.'
+                'typically tens of kilometers.'
           : 'Approximate only: from your internet address '
                 '(${provider ?? 'a geolocation service'}), about '
                 '${formatDistance(accuracyMetres)}.',

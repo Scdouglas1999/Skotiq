@@ -209,7 +209,7 @@ class _MasterCard extends StatelessWidget {
                 ),
                 Text(
                   '${master.width}×${master.height} · '
-                  '${master.isColor ? 'colour' : 'mono'} · '
+                  '${master.isColor ? 'color' : 'mono'} · '
                   'updated ${_relativeDate(master.updatedAt)}',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textMuted,

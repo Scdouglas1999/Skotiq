@@ -82,14 +82,14 @@ int _panelsInsidePlanner(WidgetTester tester, {required int rows, int? cols}) {
 }
 
 void main() {
-  testWidgets('every panel of a mosaic centred on RA 0h is drawn on the canvas',
+  testWidgets('every panel of a mosaic centered on RA 0h is drawn on the canvas',
       (tester) async {
     await _pumpMosaicAt(tester, initialRa: 0.0, initialDec: 30.0);
 
     expect(_panelsInsidePlanner(tester, rows: 3), 9);
   });
 
-  testWidgets('a mosaic centred just west of the seam still draws every panel',
+  testWidgets('a mosaic centered just west of the seam still draws every panel',
       (tester) async {
     await _pumpMosaicAt(tester, initialRa: 23.9, initialDec: 30.0);
 

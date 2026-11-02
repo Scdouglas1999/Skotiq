@@ -274,7 +274,7 @@ void main() {
       expect(
         applySwitch.onChanged,
         isNull,
-        reason: 'A neighbouring map must not enable the current bucket toggle.',
+        reason: 'A neighboring map must not enable the current bucket toggle.',
       );
 
       expect(tester.takeException(), isNull);

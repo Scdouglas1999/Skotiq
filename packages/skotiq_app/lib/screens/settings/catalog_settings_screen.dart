@@ -185,7 +185,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
         _downloadProgress = p.progress;
         _downloadStatus = p.status;
       } else if (p.cancelled) {
-        _downloadStatus = 'Cancelled';
+        _downloadStatus = 'Canceled';
       } else if (p.error != null) {
         _downloadStatus = p.error!;
       } else {
@@ -308,17 +308,17 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   /// Tear down after the user cancels an in-flight download: refresh any
   /// surviving install and say that nothing changed.
   Future<void> _onDownloadCancelled() async {
-    _logOutcome('Catalog download cancelled by the operator');
+    _logOutcome('Catalog download canceled by the operator');
     await _loadCatalogStatus();
     if (mounted) {
-      context.showInfoSnackBar('Download cancelled');
+      context.showInfoSnackBar('Download canceled');
     }
   }
 
   void _requestCancelDownload() {
     setState(() {
       _cancelRequested = true;
-      _downloadStatus = 'Cancelling…';
+      _downloadStatus = 'Canceling…';
     });
   }
 

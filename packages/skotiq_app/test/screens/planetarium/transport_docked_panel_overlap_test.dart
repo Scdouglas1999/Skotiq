@@ -65,7 +65,7 @@ void main() {
   });
 
   testWidgets(
-      'with no drawer open the transport is centred on the whole '
+      'with no drawer open the transport is centered on the whole '
       'canvas', (tester) async {
     tester.view.physicalSize = _window;
     tester.view.devicePixelRatio = 1.0;
@@ -109,7 +109,7 @@ void main() {
       expect(band.right, 280, reason: 'the docked panel still owns its width');
     });
 
-    test('at 1600 px it still centres between them', () {
+    test('at 1600 px it still centers between them', () {
       final band = planetariumTransportBand(
         stackWidth: 1424,
         dockedWidth: 380,

@@ -204,7 +204,7 @@ void main() {
 
         // pruneDetections reclaims aged dismissed rows, keeps the rest.
         final deleted = await tDao.pruneDetections(olderThan: DateTime(2027));
-        expect(deleted, 1, reason: 'only the dismissed artefact ages out');
+        expect(deleted, 1, reason: 'only the dismissed artifact ages out');
         expect(await tDao.confirmedDetections(), hasLength(1));
 
         // Dec-band cone prefilter on the atlas.

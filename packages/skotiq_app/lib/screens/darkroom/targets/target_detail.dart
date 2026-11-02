@@ -472,7 +472,7 @@ class _ChannelTile extends StatelessWidget {
                 ),
               ),
               Text(
-                '${hours.toStringAsFixed(1)} h',
+                _darkroomSpan(hours * 3600),
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -492,7 +492,7 @@ class _ChannelTile extends StatelessWidget {
       ),
     );
     final label = '${channel.filter}: '
-        '${master == null ? 'not built, ${hours.toStringAsFixed(1)} hours of kept subs' : '${hours.toStringAsFixed(1)} hour master'}'
+        '${master == null ? 'not built, ${_darkroomSpan(hours * 3600)} of kept subs' : '${_darkroomSpan(hours * 3600)} master'}'
         '${flat == null ? '' : (flat! ? ', flat ready' : ', no flat')}';
     if (master == null) {
       return Semantics(label: label, excludeSemantics: true, child: tile);
@@ -734,7 +734,7 @@ String describeBuiltMasters(DarkroomBuildJob job) {
     final filters = [for (final r in results) '${r['filter']}']
       ..sort(compareDarkroomFilters);
     parts.add('${joinWords(filters)} from $subs subs, '
-        '${(seconds / 3600).toStringAsFixed(1)} h.');
+        '${_darkroomSpan(seconds)}.');
   }
   if (report?['failures'] case final List failures) {
     for (final f in failures) {
@@ -842,3 +842,7 @@ class _JobBanner extends ConsumerWidget {
     );
   }
 }
+
+/// Integration as `2h 24m`, `40s`: hours and minutes once there is an hour.
+String _darkroomSpan(num seconds) =>
+    DurationFormat.seconds(seconds, style: DurationStyle.compactTrimmed);

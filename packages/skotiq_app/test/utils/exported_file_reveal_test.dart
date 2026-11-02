@@ -31,7 +31,7 @@ void main() {
     expect(find.textContaining('Exported to'), findsOneWidget);
   }, skip: Platform.isAndroid || Platform.isIOS);
 
-  testWidgets('desktop: honours a custom desktopMessage', (tester) async {
+  testWidgets('desktop: honors a custom desktopMessage', (tester) async {
     late BuildContext ctx;
     await tester.pumpWidget(
       MaterialApp(

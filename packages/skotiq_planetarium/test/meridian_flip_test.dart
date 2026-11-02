@@ -34,7 +34,7 @@ void main() {
       expect(ha.abs(), lessThan(0.25));
     });
 
-    test('is normalised to (-180, 180]', () {
+    test('is normalized to (-180, 180]', () {
       // Sweep a full sidereal day; HA must always stay in range.
       const raDeg = 200.0;
       final base = DateTime.utc(2024, 6, 1);

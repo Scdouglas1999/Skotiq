@@ -428,7 +428,7 @@ class ImagingException extends SkotiqException {
   factory ImagingException.cancelled() {
     return const ImagingException(
       message: 'Exposure cancelled',
-      userMessage: 'Exposure was cancelled',
+      userMessage: 'Exposure was canceled',
     );
   }
 

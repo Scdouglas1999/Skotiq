@@ -103,7 +103,7 @@ void main() {
     });
   });
 
-  group('view centre readout in the horizontal frame', () {
+  group('view center readout in the horizontal frame', () {
     test('tracks the alt/az camera instead of the stale equatorial pose', () {
       final container = _container();
       final time = DateTime.utc(2026, 7, 29, 15, 52);
@@ -138,7 +138,7 @@ void main() {
       );
     });
 
-    test('dragging the alt/az camera changes the reported centre', () {
+    test('dragging the alt/az camera changes the reported center', () {
       final container = _container();
       container
           .read(observationTimeProvider.notifier)
@@ -159,7 +159,7 @@ void main() {
       expect(after, isNot(before));
     });
 
-    test('the equatorial frame still reports its own centre verbatim', () {
+    test('the equatorial frame still reports its own center verbatim', () {
       final container = _container();
       final view = container.read(skyViewStateProvider.notifier);
       view.setCenter(22.5, 10.35);

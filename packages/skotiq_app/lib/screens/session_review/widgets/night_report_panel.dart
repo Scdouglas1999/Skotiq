@@ -197,8 +197,8 @@ class _VerdictHeader extends StatelessWidget {
                 Text(
                   report.headline.isEmpty
                       ? (graded
-                          ? 'Your night, summarised.'
-                          : 'Not graded — this night had nothing to analyse.')
+                          ? 'Your night, summarized.'
+                          : 'Not graded — this night had nothing to analyze.')
                       : report.headline,
                   style: SkotiqTypography.sectionTitle.copyWith(
                     color: colors.textPrimary,
@@ -218,7 +218,7 @@ class _VerdictHeader extends StatelessWidget {
                       // "0 findings" on an un-graded night would imply the
                       // checks ran and came back clean; they never ran.
                       (!graded && report.findings.isEmpty)
-                          ? 'nothing to analyse'
+                          ? 'nothing to analyze'
                           : '${report.findings.length} finding'
                               '${report.findings.length == 1 ? '' : 's'}',
                       style: SkotiqTypography.bodySm.copyWith(

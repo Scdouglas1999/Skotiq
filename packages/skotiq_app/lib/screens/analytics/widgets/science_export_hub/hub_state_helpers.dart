@@ -280,7 +280,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         if (!mounted) return;
         setState(() {
           _isExporting = false;
-          _lastExportResult = 'Export cancelled.';
+          _lastExportResult = 'Export canceled.';
         });
         return;
       }

@@ -427,7 +427,7 @@ void main() {
     });
 
     test(
-      'a negative RA renders as a signed magnitude, not a floor artefact',
+      'a negative RA renders as a signed magnitude, not a floor artifact',
       () {
         // The retired helpers took `raHours.floor()` of the signed value, so
         // -0.5h printed '-1h 30m'. No production path feeds a negative RA; the

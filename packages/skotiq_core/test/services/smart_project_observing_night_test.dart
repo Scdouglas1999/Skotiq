@@ -59,7 +59,7 @@ void main() {
       expect(before, DateTime(2026, 7, 29));
     });
 
-    test('an evening capture is labelled with its own local date', () {
+    test('an evening capture is labeled with its own local date', () {
       // The user's session header says "2026-07-25 21:00"; the growth chart
       // must agree instead of showing the next day.
       expect(_nightOfLocal(2026, 7, 25, 21, 0), DateTime(2026, 7, 25));

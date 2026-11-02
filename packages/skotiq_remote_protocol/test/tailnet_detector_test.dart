@@ -126,7 +126,7 @@ void main() {
       );
     });
 
-    test('neighbouring /8 (99.x / 101.x) is public, not tailnet', () {
+    test('neighboring /8 (99.x / 101.x) is public, not tailnet', () {
       expect(
         TailnetDetector.classify('99.84.0.1'),
         HostReachabilityTier.public,
@@ -252,7 +252,7 @@ void main() {
   });
 
   group('TailnetDetector.isTailscaleInterfaceAddress', () {
-    test('recognises a 100.x interface address', () {
+    test('recognizes a 100.x interface address', () {
       expect(
         TailnetDetector.isTailscaleInterfaceAddress(
           InternetAddress('100.96.0.7'),
@@ -270,7 +270,7 @@ void main() {
       );
     });
 
-    test('recognises the Tailscale IPv6 /32', () {
+    test('recognizes the Tailscale IPv6 /32', () {
       expect(
         TailnetDetector.isTailscaleInterfaceAddress(
           InternetAddress('fd7a:115c:a1e0::1', type: InternetAddressType.IPv6),

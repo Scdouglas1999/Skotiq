@@ -27,6 +27,19 @@ abstract final class SkotiqDecorations {
 
   static const Color _white = Color(0xFFFFFFFF);
 
+  /// The ink that outlines and hover lightening mix in: white, except in red
+  /// night, where any white would put green and blue on screen.
+  static Color _lightInk(SkotiqColors colors) =>
+      colors.isRedNight ? colors.textPrimary : _white;
+
+  /// [base] lightened for hover. A pure-red fill (red night) lightens toward
+  /// full red so the hover stays on the red channel.
+  static Color _hoverLighten(Color base) => Color.lerp(
+    base,
+    base.g == 0 && base.b == 0 ? const Color(0xFFFF0000) : _white,
+    SkotiqTokens.buttonHoverLighten,
+  )!;
+
   // ---------------------------------------------------------------------
   // The Observatory set
   // ---------------------------------------------------------------------
@@ -45,7 +58,9 @@ abstract final class SkotiqDecorations {
       border: Border.all(
         color: _isLight(colors)
             ? colors.border
-            : _white.withValues(alpha: SkotiqTokens.opacityPanelOutline),
+            : _lightInk(
+                colors,
+              ).withValues(alpha: SkotiqTokens.opacityPanelOutline),
       ),
     );
   }
@@ -166,7 +181,9 @@ abstract final class SkotiqDecorations {
     } else {
       ring = _isLight(colors)
           ? colors.border
-          : _white.withValues(alpha: SkotiqTokens.opacityPanelOutline);
+          : _lightInk(
+              colors,
+            ).withValues(alpha: SkotiqTokens.opacityPanelOutline);
     }
     return BoxDecoration(
       color: colors.well,
@@ -187,7 +204,7 @@ abstract final class SkotiqDecorations {
       border: Border.all(
         color: light
             ? colors.border
-            : _white.withValues(alpha: SkotiqTokens.opacityHairline),
+            : _lightInk(colors).withValues(alpha: SkotiqTokens.opacityHairline),
       ),
       boxShadow: <BoxShadow>[
         BoxShadow(
@@ -210,7 +227,7 @@ abstract final class SkotiqDecorations {
       border: Border.all(
         color: light
             ? colors.border
-            : _white.withValues(alpha: SkotiqTokens.opacityHairline),
+            : _lightInk(colors).withValues(alpha: SkotiqTokens.opacityHairline),
       ),
       boxShadow: <BoxShadow>[
         BoxShadow(
@@ -343,9 +360,7 @@ abstract final class SkotiqDecorations {
       );
     }
     return (
-      background: isHovered
-          ? Color.lerp(base, _white, SkotiqTokens.buttonHoverLighten)!
-          : base,
+      background: isHovered ? _hoverLighten(base) : base,
       border: Color.lerp(
         base,
         const Color(0xFF000000),
@@ -466,9 +481,7 @@ abstract final class SkotiqDecorations {
     // Buttons have no border in this language: the fill is the button.
     final background = isDisabled
         ? base.withValues(alpha: SkotiqTokens.opacityHalf)
-        : (isHovered
-              ? Color.lerp(base, _white, SkotiqTokens.buttonHoverLighten)!
-              : base);
+        : (isHovered ? _hoverLighten(base) : base);
     return BoxDecoration(
       color: background,
       borderRadius:

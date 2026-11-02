@@ -198,7 +198,7 @@ Future<void> _enter(WidgetTester tester, String label, String text) async {
     of: find.text(label),
     matching: find.byType(TextField),
   );
-  expect(field, findsOneWidget, reason: 'expected a field labelled "$label"');
+  expect(field, findsOneWidget, reason: 'expected a field labeled "$label"');
   await tester.enterText(field, text);
   await tester.pump();
 }

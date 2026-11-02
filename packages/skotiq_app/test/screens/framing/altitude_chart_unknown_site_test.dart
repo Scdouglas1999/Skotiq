@@ -92,7 +92,7 @@ void main() {
             'expected Alt and Airmass to both read an em dash, got: $texts');
   });
 
-  testWidgets('the unknown-altitude chip carries no severity colour',
+  testWidgets('the unknown-altitude chip carries no severity color',
       (tester) async {
     await pumpChart(tester, settings: _NoSiteSettingsNotifier.new);
 
@@ -106,7 +106,7 @@ void main() {
       expect(
         dash.style?.color,
         colors.textMuted,
-        reason: 'an unknown value must not be coloured as a severity',
+        reason: 'an unknown value must not be colored as a severity',
       );
       expect(dash.style?.color, isNot(colors.error));
     }

@@ -280,7 +280,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     }
     if (!mounted || !confirmed) return;
     if (!identical(ref.read(backendProvider), backend)) {
-      context.showInfoSnackBar('Rig changed; catalog removal cancelled');
+      context.showInfoSnackBar('Rig changed; catalog removal canceled');
       return;
     }
     await _run(

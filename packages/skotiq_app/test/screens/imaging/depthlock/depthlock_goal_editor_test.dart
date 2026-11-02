@@ -191,7 +191,7 @@ void main() {
     final backend = FakeDepthLockBackend()
       ..floorError = const SkotiqError(
         category: BackendErrorCategory.io,
-        message: 'Master flat is not normalised to unit mean',
+        message: 'Master flat is not normalized to unit mean',
       );
     await _openEditor(
       tester,
@@ -201,7 +201,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'The error floor could not be derived Master flat is not normalised '
+        'The error floor could not be derived Master flat is not normalized '
         'to unit mean',
       ),
       findsOneWidget,

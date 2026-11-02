@@ -97,7 +97,7 @@ void main() {
     expect(
       colour,
       isNot(Theme.of(context).colorScheme.outline),
-      reason: 'outline is a border colour, not a text colour',
+      reason: 'outline is a border color, not a text color',
     );
     expect(
       _contrast(colour, colors.surface),

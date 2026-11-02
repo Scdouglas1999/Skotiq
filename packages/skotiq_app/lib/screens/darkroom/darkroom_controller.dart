@@ -304,7 +304,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         catalogError:
-            'The operation catalogue could not be read, so the parameter '
+            'The operation catalog could not be read, so the parameter '
             'ranges behind these controls are unknown: ${error.message}',
       );
     } on DarkroomRecipeFormatException catch (error) {
@@ -493,7 +493,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         photometryNote:
             'This recipe carries no library row for its master, so the field '
             'cannot be placed on the sky and the color calibration has no '
-            'catalogue stars to regress against.',
+            'catalog stars to regress against.',
       );
       return;
     }
@@ -507,7 +507,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
           photometryNote:
               'The library row for this master is gone, so its solved '
               'astrometry cannot be read and the color calibration has no '
-              'catalogue stars.',
+              'catalog stars.',
         );
         return;
       }
@@ -560,7 +560,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       state = state.copyWith(
         photometryStarCount: 0,
         photometryNote:
-            'The star catalogue could not be read, so the color calibration '
+            'The star catalog could not be read, so the color calibration '
             'has nothing to regress against: $error',
       );
     }

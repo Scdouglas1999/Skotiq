@@ -80,8 +80,9 @@ void main() {
       find.textContaining('no effect while it is selected'),
       findsOneWidget,
     );
-    // The stored choice is still reported, so the row is not simply missing.
-    expect(find.textContaining('#43B67A'), findsOneWidget);
+    // The row says the accent comes back, without printing a raw hex code.
+    expect(find.textContaining('Your accent applies again'), findsOneWidget);
+    expect(find.textContaining('#43B67A'), findsNothing);
   });
 
   testWidgets('dark still offers the swatches', (tester) async {

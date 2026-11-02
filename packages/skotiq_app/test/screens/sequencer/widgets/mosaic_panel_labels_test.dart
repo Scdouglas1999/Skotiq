@@ -109,7 +109,7 @@ void main() {
     }
   });
 
-  testWidgets('the drag-centre handle does not sit on a panel number',
+  testWidgets('the drag-center handle does not sit on a panel number',
       (tester) async {
     await _pumpMosaic(tester);
 
@@ -128,12 +128,12 @@ void main() {
       expect(
         label.overlaps(handle),
         isFalse,
-        reason: 'panel $n\'s number is under the drag-centre handle',
+        reason: 'panel $n\'s number is under the drag-center handle',
       );
     }
   });
 
-  testWidgets('an EVEN grid still wins the z-order against the centre handle',
+  testWidgets('an EVEN grid still wins the z-order against the center handle',
       (tester) async {
     // The odd-grid case above puts the handle in the middle of one cell, so
     // a top-left badge clears it. An EVEN grid puts the handle on the shared
@@ -170,7 +170,7 @@ void main() {
     expect(
       painted,
       hasLength(5),
-      reason: 'expected 4 numbered panel badges plus the centre handle',
+      reason: 'expected 4 numbered panel badges plus the center handle',
     );
     expect(
       painted.first.widget.key,

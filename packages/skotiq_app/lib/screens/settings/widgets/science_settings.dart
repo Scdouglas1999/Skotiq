@@ -681,8 +681,20 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
   }
 
   Future<void> _loadHas() async {
-    final has = await ref.read(secretsStoreProvider).has(SecretField.tnsApiKey);
-    if (mounted) setState(() => _hasKey = has);
+    try {
+      final has =
+          await ref.read(secretsStoreProvider).has(SecretField.tnsApiKey);
+      if (mounted) setState(() => _hasKey = has);
+    } catch (error) {
+      // No unlocked keyring (common on a headless Linux host): say the key
+      // store is unavailable instead of throwing out of initState.
+      if (mounted) {
+        setState(
+          () => _writeError =
+              'The system key store is unavailable: ${userFacingError(error)}',
+        );
+      }
+    }
   }
 
   Future<void> _commit(String raw) async {

@@ -184,7 +184,7 @@ void main() {
     });
   });
 
-  group('cell corners are shared exactly with neighbours (seam-free)', () {
+  group('cell corners are shared exactly with neighbors (seam-free)', () {
     test('a pixel boundary corner coincides with the adjacent pixel corner', () {
       // Seam-free mosaicing requires that the *same sky point* is produced for a
       // shared corner regardless of which of the two tiles asks for it. Test an
@@ -221,7 +221,7 @@ void main() {
             greaterThanOrEqualTo(3),
             reason:
                 'order $order pix $pix shared only $sharedCornerCount '
-                'corners with its neighbours',
+                'corners with its neighbors',
           );
         }
       }

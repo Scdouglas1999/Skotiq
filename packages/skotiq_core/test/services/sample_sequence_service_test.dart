@@ -283,7 +283,7 @@ void main() {
       expect(cloneA.isTemplate, isFalse);
     });
 
-    test('cloneForUse honours nameOverride', () async {
+    test('cloneForUse honors nameOverride', () async {
       final service = SampleSequenceService();
       final samples = await service.load();
       final clone = service.cloneForUse(samples.first, nameOverride: 'My Run');

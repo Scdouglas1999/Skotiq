@@ -260,7 +260,7 @@ void main() {
 
   testWidgets(
       'active but no imagery resident: attribution badge mounted but hidden '
-      '(licence: credit only while imagery is shown)', (tester) async {
+      '(license: credit only while imagery is shown)', (tester) async {
     final loader = makeLoader();
     addTearDown(loader.dispose);
 
@@ -321,7 +321,7 @@ void main() {
     expect(find.byType(HipsAttributionBadge), findsOneWidget);
     expect(find.text('STScI Digitized Sky Survey'), findsOneWidget,
         reason: 'Imagery resident + a published credit → the survey copyright '
-            'must be displayed (the HiPS attribution licence requirement).');
+            'must be displayed (the HiPS attribution license requirement).');
   });
 
   testWidgets(

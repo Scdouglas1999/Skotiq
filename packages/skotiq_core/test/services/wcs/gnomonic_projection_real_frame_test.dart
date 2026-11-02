@@ -68,7 +68,7 @@ void main() {
     return best;
   }
 
-  test('the ASTAP CRPIX is the 0-based image centre the projection uses', () {
+  test('the ASTAP CRPIX is the 0-based image center the projection uses', () {
     final w = f['imageWidth'] as int;
     final h = f['imageHeight'] as int;
     expect((f['crpix1'] as num) - 1, (w - 1) / 2);

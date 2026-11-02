@@ -190,10 +190,10 @@ class WeatherAlertService {
         final density = densityPercent.toStringAsFixed(0);
 
         if (distanceKm < 5.0) {
-          return 'Heavy cloud cover overhead ($density% density) - consider pausing';
+          return 'Heavy cloud cover overhead ($density% density)';
         } else {
           final etaMinutes = eta?.inMinutes ?? 0;
-          return 'Critical: Dense clouds ($density%) arriving in ~$etaMinutes minutes - take protective action';
+          return 'Dense clouds ($density%) arriving in ~$etaMinutes minutes';
         }
     }
   }

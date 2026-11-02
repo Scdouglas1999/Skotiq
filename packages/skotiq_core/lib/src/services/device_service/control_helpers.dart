@@ -248,12 +248,12 @@ extension _DeviceServiceControlHelpers on DeviceService {
 
     while (true) {
       if (_disposed || generation != _focuserVerifyGeneration) {
-        throw StateError('Focuser verification was cancelled.');
+        throw StateError('Focuser verification was canceled.');
       }
 
       final status = await _backend.getFocuserStatus(deviceId);
       if (_disposed || generation != _focuserVerifyGeneration) {
-        throw StateError('Focuser verification was cancelled.');
+        throw StateError('Focuser verification was canceled.');
       }
       focuserNotifier.updatePosition(status.position);
       focuserNotifier.setMoving(status.moving);
@@ -324,12 +324,12 @@ extension _DeviceServiceControlHelpers on DeviceService {
 
     while (true) {
       if (_disposed || generation != _filterWheelVerifyGeneration) {
-        throw StateError('Filter wheel verification was cancelled.');
+        throw StateError('Filter wheel verification was canceled.');
       }
 
       final status = await _backend.getFilterWheelStatus(deviceId);
       if (_disposed || generation != _filterWheelVerifyGeneration) {
-        throw StateError('Filter wheel verification was cancelled.');
+        throw StateError('Filter wheel verification was canceled.');
       }
       final isMoving = status.moving || status.position < 0;
 

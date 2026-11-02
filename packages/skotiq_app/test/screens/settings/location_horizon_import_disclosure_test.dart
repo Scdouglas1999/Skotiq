@@ -101,7 +101,7 @@ void main() {
     // The eight fields are named as a summary, and the one edit that throws
     // the survey away is named too.
     expect(
-      find.textContaining('Summarised on this page'),
+      find.textContaining('Summarized on this page'),
       findsOneWidget,
     );
     expect(
@@ -121,7 +121,7 @@ void main() {
     expect(find.text('N 5°'), findsOneWidget);
   });
 
-  testWidgets('cancelling leaves the existing mask untouched', (tester) async {
+  testWidgets('canceling leaves the existing mask untouched', (tester) async {
     final handle = await _pumpImport(tester);
 
     await tester.tap(find.text('Cancel'));

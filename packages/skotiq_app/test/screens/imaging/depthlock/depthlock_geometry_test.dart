@@ -59,7 +59,7 @@ const SolvedWcs _wcs = SolvedWcs(
 }
 
 void main() {
-  test('a drag rectangle normalises whichever way it was dragged', () {
+  test('a drag rectangle normalizes whichever way it was dragged', () {
     const a = Offset(120, 300);
     const b = Offset(40, 80);
     final rect = depthLockNormalizedRect(a, b);

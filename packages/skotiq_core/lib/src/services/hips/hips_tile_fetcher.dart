@@ -135,7 +135,7 @@ final class HipsFetchDecodeException extends HipsFetchException {
 /// proceeds to use a half-loaded result.
 final class HipsFetchCancelledException extends HipsFetchException {
   HipsFetchCancelledException(String requestUrl)
-    : super('HiPS fetch was cancelled before it completed', requestUrl);
+    : super('HiPS fetch was canceled before it completed', requestUrl);
 }
 
 /// A cooperative cancellation token for one or more in-flight HiPS fetches.

@@ -326,7 +326,7 @@ void main() {
       expect(
         south.keys,
         isNot(contains('N')),
-        reason: 'North is behind the viewer and must not be labelled',
+        reason: 'North is behind the viewer and must not be labeled',
       );
       // Due south sits on the vertical centre line of the view.
       expect(south['S']!.dx, closeTo(size.width / 2, 1.0));

@@ -266,7 +266,7 @@ void main() {
       expect(
         fake.requestsFor('/api/devices'),
         hasLength(3),
-        reason: 'GET/idempotent retry behaviour must be preserved',
+        reason: 'GET/idempotent retry behavior must be preserved',
       );
     });
   });

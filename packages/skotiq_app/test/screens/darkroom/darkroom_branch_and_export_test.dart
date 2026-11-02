@@ -195,7 +195,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
           'id': 'stretch',
           'version': 1,
           'stage': 'stretched',
-          'summary': 'Generalised hyperbolic stretch.',
+          'summary': 'Generalized hyperbolic stretch.',
           'params': const <dynamic>[],
         },
       ],
@@ -693,7 +693,7 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('a compare option is a row control, not centred text', (
+  testWidgets('a compare option is a row control, not centered text', (
     tester,
   ) async {
     // The picker's options were label text inside a hairline outline, in a
@@ -1222,7 +1222,7 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('a cancelled export says so and reports no file', (tester) async {
+  testWidgets('a canceled export says so and reports no file', (tester) async {
     final root = await seedRecipe([
       _step('background_extract'),
       _step('stretch'),
@@ -1478,7 +1478,7 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('a cancelled save picker exports nothing at all', (tester) async {
+  testWidgets('a canceled save picker exports nothing at all', (tester) async {
     final root = await seedRecipe([
       _step('background_extract'),
       _step('stretch'),
@@ -1510,7 +1510,7 @@ void main() {
   SemanticsData dataFor(WidgetTester tester, Finder finder) =>
       tester.getSemantics(finder).getSemanticsData();
 
-  testWidgets('a refused format announces the refusal, not just a grey chip', (
+  testWidgets('a refused format announces the refusal, not just a gray chip', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
@@ -1696,7 +1696,7 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('a desktop window keeps the export sheet a centred dialog', (
+  testWidgets('a desktop window keeps the export sheet a centered dialog', (
     tester,
   ) async {
     final root = await seedRecipe([

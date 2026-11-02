@@ -20,7 +20,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
 
-Finder get _saveButton => find.text('Save changes');
+// "Create profile" on a new profile, "Save changes" on an existing one.
+Finder get _saveButton =>
+    find.textContaining(RegExp(r'^(Save changes|Create profile)$'));
 
 /// Locate an optics field by hint + suffix so the finder does not depend on
 /// field ordering (mirrors profile_editor_dialog_validation_test.dart), on

@@ -167,7 +167,7 @@ void main() {
     expect(
       fields.elementAt(1).controller?.text,
       '-75.1635',
-      reason: 'an estimate good to ~10 km must not claim centimetres',
+      reason: 'an estimate good to ~10 km must not claim centimeters',
     );
   });
 
@@ -258,7 +258,7 @@ void main() {
     expect(
       find.textContaining('nearby Wi-Fi networks'),
       findsOneWidget,
-      reason: 'IP consent was reused to authorise a Wi-Fi scan',
+      reason: 'IP consent was reused to authorize a Wi-Fi scan',
     );
   });
 
@@ -285,7 +285,7 @@ void main() {
     expect(
       find.textContaining(
         'Approximate only: from your internet address (ipinfo.io). City '
-        'level — typically tens of kilometres.',
+        'level — typically tens of kilometers.',
       ),
       findsOneWidget,
     );
@@ -357,7 +357,7 @@ void main() {
     expect(find.textContaining(bannerBody), findsNothing);
   });
 
-  testWidgets('a platform-service fix names the service and its metres',
+  testWidgets('a platform-service fix names the service and its meters',
       (tester) async {
     final container = await _pumpSiteStep(
       tester,

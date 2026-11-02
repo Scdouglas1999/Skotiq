@@ -124,7 +124,7 @@ void main() {
     container.dispose();
   });
 
-  testWidgets('an off-centre wheel zoom moves the view centre', (tester) async {
+  testWidgets('an off-center wheel zoom moves the view center', (tester) async {
     final container = await _pumpSkyView(tester);
     container.read(skyViewStateProvider.notifier).setCenter(0.712, 41.27);
     await tester.pump();
@@ -145,7 +145,7 @@ void main() {
     container.dispose();
   });
 
-  testWidgets('zooming with the cursor at the centre holds the centre', (
+  testWidgets('zooming with the cursor at the center holds the center', (
     tester,
   ) async {
     final container = await _pumpSkyView(tester);

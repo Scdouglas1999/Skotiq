@@ -440,7 +440,7 @@ class AnnotationService {
   /// empty for a reason that has nothing to do with what is up there.
   String? _unusableSolveGeometry(PlateSolveResult result) {
     if (!result.ra.isFinite || !result.dec.isFinite) {
-      return 'Solver returned no field centre — the frame was not solved';
+      return 'Solver returned no field center — the frame was not solved';
     }
     if (!result.pixelScale.isFinite || result.pixelScale <= 0) {
       return 'Solver returned no field scale — the frame was not solved; '
@@ -526,7 +526,7 @@ class AnnotationService {
       _logger.warning(
         'Mount reported RA $raHours outside the legal 0-24h range; sending it '
         'to the solver without hour-to-degree conversion. The mount driver is '
-        'not honouring the ASCOM RightAscension (hours) contract.',
+        'not honoring the ASCOM RightAscension (hours) contract.',
         source: 'Annotation',
       );
       return ((raHours.isFinite ? raHours : 0.0) % 360.0 + 360.0) % 360.0;

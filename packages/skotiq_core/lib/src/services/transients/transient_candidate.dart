@@ -36,7 +36,7 @@ enum TransientKind {
       case TransientKind.movingStreak:
         return 'Moving streak';
       case TransientKind.dipole:
-        return 'Dipole artefact';
+        return 'Dipole artifact';
       case TransientKind.newSource:
         return 'New source';
       case TransientKind.unknown:
@@ -62,10 +62,10 @@ enum TransientKind {
   String? get submissionBlockedReason {
     switch (this) {
       case TransientKind.dipole:
-        return 'Dipole artefacts (registration/PSF mismatch) are not real '
+        return 'Dipole artifacts (registration/PSF mismatch) are not real '
             'transients and cannot be submitted.';
       case TransientKind.unknown:
-        return 'This detection has an unrecognised classification and cannot '
+        return 'This detection has an unrecognized classification and cannot '
             'be submitted.';
       case TransientKind.newSource:
       case TransientKind.pointBrightening:

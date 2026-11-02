@@ -701,7 +701,7 @@ class PairingHandlers {
         return jsonUnauthorized(
           {
             'error': 'invalid_pairing_code',
-            'message': 'The pairing code is not recognised.',
+            'message': 'The pairing code is not recognized.',
             'requestId': requestId,
           },
           headers: {requestIdHeader: requestId},

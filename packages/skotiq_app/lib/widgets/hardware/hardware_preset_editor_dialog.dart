@@ -239,7 +239,7 @@ class _HardwarePresetEditorDialogState
                 fieldKey: 'focalLength',
                 label: 'Focal length (mm)',
                 help: 'The optical focal length of the imaging train, in '
-                    'millimetres. Combined with pixel size this sets your '
+                    'millimeters. Combined with pixel size this sets your '
                     'image scale (arcsec/pixel).',
                 controller: _focalLength,
                 hint: 'e.g. 550',
@@ -251,7 +251,7 @@ class _HardwarePresetEditorDialogState
                 fieldKey: 'aperture',
                 label: 'Aperture (mm)',
                 help: 'The clear aperture (primary lens/mirror diameter), in '
-                    'millimetres. Focal ratio (f/) is derived from focal '
+                    'millimeters. Focal ratio (f/) is derived from focal '
                     'length ÷ aperture.',
                 controller: _aperture,
                 hint: 'e.g. 100',

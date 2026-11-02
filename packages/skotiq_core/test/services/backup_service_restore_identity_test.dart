@@ -229,7 +229,7 @@ void main() {
     });
 
     test(
-      'restoring into an empty table honours the bundle default exactly once',
+      'restoring into an empty table honors the bundle default exactly once',
       () async {
         final path = await writeBundle([
           profileJson(id: 1, name: 'First'),

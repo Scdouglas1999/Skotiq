@@ -154,7 +154,7 @@ void main() {
         expect(ticker.isActive, isFalse);
 
         async.elapse(const Duration(seconds: 5));
-        expect(ticks, settled, reason: 'a cancelled ticker kept ticking');
+        expect(ticks, settled, reason: 'a canceled ticker kept ticking');
       });
     });
   });

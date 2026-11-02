@@ -46,20 +46,20 @@ Future<void> _pump(WidgetTester tester, TransientDetectionRow row) {
 }
 
 void main() {
-  group('an unrecognised transient-kind token', () {
+  group('an unrecognized transient-kind token', () {
     test('parses to unknown, not to a claimed dipole morphology', () {
       expect(TransientKind.fromWire('new_source'), TransientKind.unknown);
       expect(TransientKind.unknown.label, 'Unclassified');
       expect(TransientKind.unknown.isSubmittable, isFalse);
       expect(
         TransientKind.unknown.submissionBlockedReason,
-        contains('unrecognised classification'),
+        contains('unrecognized classification'),
       );
       // The conservative gate is unchanged for a real dipole.
       expect(TransientKind.dipole.isSubmittable, isFalse);
       expect(
         TransientKind.dipole.submissionBlockedReason,
-        contains('Dipole artefacts'),
+        contains('Dipole artifacts'),
       );
       expect(TransientKind.newSource.isSubmittable, isTrue);
       expect(TransientKind.newSource.submissionBlockedReason, isNull);
@@ -82,10 +82,10 @@ void main() {
       await tester.pump();
 
       expect(
-        find.textContaining('unrecognised classification'),
+        find.textContaining('unrecognized classification'),
         findsOneWidget,
       );
-      expect(find.textContaining('Dipole artefacts'), findsNothing);
+      expect(find.textContaining('Dipole artifacts'), findsNothing);
     });
   });
 }

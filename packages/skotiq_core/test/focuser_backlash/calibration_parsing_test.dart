@@ -290,7 +290,7 @@ void main() {
   });
 
   group('the config sent to native', () {
-    test('a null centre means "wherever the focuser is now"', () {
+    test('a null center means "wherever the focuser is now"', () {
       final config =
           jsonDecode(
                 focuserBacklashCalibrationConfigJson(
@@ -334,7 +334,7 @@ void main() {
       );
     });
 
-    test('an explicit centre is passed through', () {
+    test('an explicit center is passed through', () {
       final config =
           jsonDecode(
                 focuserBacklashCalibrationConfigJson(

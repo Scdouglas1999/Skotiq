@@ -357,7 +357,7 @@ class FirstLightOrchestrator {
       // camera by `cancel()`. Unwind to idle rather than to `failed`, so the
       // flow does not report a failure the operator caused deliberately.
       _logger.info(
-        'First-light flow cancelled by the operator.',
+        'First-light flow canceled by the operator.',
         source: 'FirstLight',
       );
       _emit(const FirstLightState());
@@ -426,7 +426,7 @@ class FirstLightOrchestrator {
     if (captured == null) {
       throw const _FirstLightStageError(
         'Capture failed: the camera returned no image. The exposure may have '
-        'been cancelled or the camera disconnected mid-frame.',
+        'been canceled or the camera disconnected mid-frame.',
       );
     }
 

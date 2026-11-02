@@ -137,7 +137,7 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     if (job.state == 'cancelled') {
       throw ImagingException(
         message: '$operation cancelled',
-        userMessage: 'The operation was cancelled.',
+        userMessage: 'The operation was canceled.',
       );
     }
     if (job.state != 'succeeded') {

@@ -283,7 +283,7 @@ void main() {
     expect(picked, contains('32frames'));
   });
 
-  testWidgets('a cancelled destination leaves the stack running',
+  testWidgets('a canceled destination leaves the stack running',
       (tester) async {
     final harness = await _pumpPanel(tester);
 
@@ -294,7 +294,7 @@ void main() {
 
     expect(harness.service.saved, isEmpty);
     expect(harness.stacker.stopCalls, 0,
-        reason: 'cancelling the save must not cost the operator the stack');
+        reason: 'canceling the save must not cost the operator the stack');
   });
 
   testWidgets('a failed save leaves the stack running', (tester) async {

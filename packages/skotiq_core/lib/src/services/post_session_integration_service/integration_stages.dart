@@ -188,7 +188,7 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
         _logSoftFailure(
           'colorCalibrate',
           StateError(
-            'colour calibration skipped: '
+            'color calibration skipped: '
             '${calibrator == null ? 'no MasterColorCalibrator injected' : 'master has no solved WCS'}',
           ),
           StackTrace.current,
@@ -206,7 +206,7 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
           // master un-calibrated rather than persisting a phantom path.
           if (written == null || written.trim().isEmpty) {
             throw StateError(
-              'colour calibration produced no output (too few catalogue '
+              'color calibration produced no output (too few catalog '
               'cross-matches)',
             );
           }

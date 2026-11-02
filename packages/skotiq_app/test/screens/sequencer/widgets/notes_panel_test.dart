@@ -69,7 +69,7 @@ void main() {
       );
       await service.addNote(
         targetId: 'M31',
-        body: 'Guiding stabilised after 22:30.',
+        body: 'Guiding stabilized after 22:30.',
       );
 
       await _pumpHost(
@@ -84,7 +84,7 @@ void main() {
       await tester.pump();
       expect(find.text('M31 first night'), findsOneWidget);
       expect(find.textContaining('Polar alignment was rough'), findsOneWidget);
-      expect(find.textContaining('Guiding stabilised'), findsOneWidget);
+      expect(find.textContaining('Guiding stabilized'), findsOneWidget);
     });
   });
 

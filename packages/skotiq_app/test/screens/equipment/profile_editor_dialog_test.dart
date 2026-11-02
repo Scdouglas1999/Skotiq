@@ -32,6 +32,6 @@ void main() {
     expect(find.text('Devices'), findsOneWidget);
     expect(find.text('Camera defaults'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
-    expect(find.text('Save changes'), findsOneWidget);
+    expect(find.text('Create profile'), findsOneWidget);
   });
 }

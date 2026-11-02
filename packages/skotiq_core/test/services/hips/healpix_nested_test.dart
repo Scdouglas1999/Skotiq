@@ -223,7 +223,7 @@ void main() {
   });
 
   group('neighboursNest', () {
-    test('interior pixel has 8 distinct valid neighbours', () {
+    test('interior pixel has 8 distinct valid neighbors', () {
       final h = HealpixNested(4);
       // A pixel comfortably in a face interior.
       final pix = h.xyfToNest(const HealpixXyf(7, 7, 0));
@@ -234,7 +234,7 @@ void main() {
       expect(nbrs.contains(pix), isFalse);
     });
 
-    test('neighbour relation is symmetric', () {
+    test('neighbor relation is symmetric', () {
       final h = HealpixNested(3);
       for (var pix = 0; pix < h.npix; pix++) {
         for (final nb in h.neighboursNest(pix)) {
@@ -248,7 +248,7 @@ void main() {
       }
     });
 
-    test('all neighbours are angularly adjacent', () {
+    test('all neighbors are angularly adjacent', () {
       final h = HealpixNested(5);
       for (var pix = 0; pix < h.npix; pix += 17) {
         final c = h.pix2vec(pix);

@@ -224,7 +224,7 @@ Future<void> _runBackgroundServices(
     container.read(homeAssistantDiscoveryProvider);
   } catch (e) {
     logger.error(
-      'Background services failed to initialise',
+      'Background services failed to initialize',
       source: _logSource,
       fields: {'error': '$e'},
     );
@@ -686,10 +686,10 @@ Future<void> initialiseCatalogManager(LoggingService logger) async {
     final appDataDir = await resolveSkotiqDataDirectory();
     final catalogDir = path.join(appDataDir.path, 'catalogs');
     await CatalogManager.instance.initialize(catalogDir);
-    logger.info('Catalog manager initialised', source: _logSource);
+    logger.info('Catalog manager initialized', source: _logSource);
   } catch (e) {
     logger.error(
-      'Failed to initialise catalog manager',
+      'Failed to initialize catalog manager',
       source: _logSource,
       fields: {'error': '$e'},
     );

@@ -48,7 +48,7 @@ void main() {
       stamp,
       endsWith('Z'),
       reason:
-          'an unlabelled local ISO timestamp beside a labelled UTC one '
+          'an unlabeled local ISO timestamp beside a labeled UTC one '
           'invites a whole-night error',
     );
     expect(DateTime.parse(stamp).isUtc, isTrue);
@@ -61,12 +61,12 @@ void main() {
     expect(
       RegExp(r'\*\*(Started|Ended):\*\*').hasMatch(md),
       isFalse,
-      reason: 'the unlabelled field must be gone, not merely joined',
+      reason: 'the unlabeled field must be gone, not merely joined',
     );
   });
 
   test(
-    'the stamp is the real instant, not the local wall clock relabelled',
+    'the stamp is the real instant, not the local wall clock relabeled',
     () async {
       final sessionId = await db.sessionsDao.startSession(name: 'Night E');
       final session = await db.sessionsDao.getSessionById(sessionId);

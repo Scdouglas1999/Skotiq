@@ -86,7 +86,7 @@ void main() {
     },
   );
 
-  test('setTags normalises and toggleFavorite flips persisted flags', () async {
+  test('setTags normalizes and toggleFavorite flips persisted flags', () async {
     final id = await repo.saveSequence(
       buildSequence(id: 'a', name: 'Orion', targetName: 'M42'),
     );

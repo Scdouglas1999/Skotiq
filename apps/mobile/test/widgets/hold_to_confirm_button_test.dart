@@ -192,7 +192,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(confirmed, 0, reason: 'A cancelled long press must never confirm.');
+    expect(confirmed, 0, reason: 'A canceled long press must never confirm.');
   });
 
   testWidgets('animation controller is disposed when widget is removed', (

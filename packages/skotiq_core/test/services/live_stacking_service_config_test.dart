@@ -14,8 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/live_stacking_service.dart';
 
 void main() {
-  group('LiveStackingConfig colour fields', () {
-    test('defaults preserve historic mono behaviour', () {
+  group('LiveStackingConfig color fields', () {
+    test('defaults preserve historic mono behavior', () {
       const config = LiveStackingConfig();
 
       expect(config.sensorMode, 'mono');
@@ -23,7 +23,7 @@ void main() {
       expect(config.demosaicQuality, 'bilinear');
     });
 
-    test('copyWith round-trips the colour fields', () {
+    test('copyWith round-trips the color fields', () {
       const base = LiveStackingConfig();
 
       final osc = base.copyWith(
@@ -45,7 +45,7 @@ void main() {
       expect(osc.minMatchedPairs, base.minMatchedPairs);
     });
 
-    test('copyWith with no colour args keeps existing colour values', () {
+    test('copyWith with no color args keeps existing color values', () {
       const colour = LiveStackingConfig(
         sensorMode: 'osc',
         bayerPattern: 'BGGR',
@@ -72,7 +72,7 @@ void main() {
       expect(automatic.bayerPattern, isNull);
     });
 
-    test('value equality and hashCode account for colour fields', () {
+    test('value equality and hashCode account for color fields', () {
       const a = LiveStackingConfig(
         sensorMode: 'osc',
         bayerPattern: 'GRBG',

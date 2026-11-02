@@ -116,7 +116,7 @@ void main() {
   // with a literal 🔭, and a colour emoji is painted by the platform's emoji
   // font: under Red night a pixel scan of the whole 1600x900 window found
   // exactly one saturated non-red cluster, and it was this glyph.
-  testWidgets('the app\'s own profile badge is a glyph, not a colour emoji', (
+  testWidgets('the app\'s own profile badge is a glyph, not a color emoji', (
     tester,
   ) async {
     await _pumpIndicator(tester);

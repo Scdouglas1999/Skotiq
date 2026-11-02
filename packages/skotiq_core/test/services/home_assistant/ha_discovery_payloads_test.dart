@@ -54,7 +54,7 @@ void main() {
       );
     });
 
-    test('custom discovery prefix is honoured', () {
+    test('custom discovery prefix is honored', () {
       final custom = HaDiscoveryPayloadBuilder(
         nodeId: 'obs',
         deviceName: 'Obs',

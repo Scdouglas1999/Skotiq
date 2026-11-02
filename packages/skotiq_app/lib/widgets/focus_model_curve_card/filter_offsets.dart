@@ -96,7 +96,7 @@ class _FilterOffsetsStrip extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'The imaging host or profile changed. Offset edit cancelled.'),
+              'The imaging host or profile changed. Offset edit canceled.'),
         ),
       );
       return;

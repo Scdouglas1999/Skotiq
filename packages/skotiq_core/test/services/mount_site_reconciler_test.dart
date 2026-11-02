@@ -126,7 +126,7 @@ void main() {
     });
   });
 
-  group('directions the driver cannot honour', () {
+  group('directions the driver cannot honor', () {
     test(
       'a mount that can read the clock but not set it cannot be pushed to',
       () {

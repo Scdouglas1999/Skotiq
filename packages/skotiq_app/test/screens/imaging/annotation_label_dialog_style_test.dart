@@ -87,6 +87,6 @@ void main() {
 
       element.visitChildren(visit);
     }
-    expect(offenders, isEmpty, reason: 'off-palette colours: $offenders');
+    expect(offenders, isEmpty, reason: 'off-palette colors: $offenders');
   });
 }

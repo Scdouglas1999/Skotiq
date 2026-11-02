@@ -66,7 +66,7 @@ void main() {
       findsNothing,
       reason: 'an age computed from epoch zero is 56 years of fiction',
     );
-    expect(find.text('OK - last contact unknown'), findsOneWidget);
+    expect(find.text('No contact recorded'), findsOneWidget);
   });
 
   testWidgets('an unhealthy device with no timestamp says so without an age',
@@ -80,7 +80,7 @@ void main() {
       ),
     ]);
 
-    expect(find.text('Unhealthy - last contact unknown'), findsOneWidget);
+    expect(find.text('No contact recorded'), findsOneWidget);
     expect(find.textContaining('ago'), findsNothing);
   });
 

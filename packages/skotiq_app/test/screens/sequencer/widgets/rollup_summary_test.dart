@@ -32,7 +32,7 @@ Sequence _sequence(SequenceNode container, List<SequenceNode> children) {
 
 void main() {
   group('filter run', () {
-    test('exposures differing only by filter summarise as one run', () {
+    test('exposures differing only by filter summarize as one run', () {
       final loop = LoopNode(name: 'Narrowband');
       final sequence = _sequence(loop, [
         ExposureNode(name: 'Ha', filter: 'Ha', durationSecs: 300, count: 12),

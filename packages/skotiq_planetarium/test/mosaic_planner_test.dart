@@ -45,7 +45,7 @@ void main() {
       expect(mean!, closeTo(5.5, 1e-6));
     });
 
-    test('returns null rather than inventing a centre for no panels', () {
+    test('returns null rather than inventing a center for no panels', () {
       expect(meanRaHours(const <double>[]), isNull);
     });
 

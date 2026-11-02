@@ -424,7 +424,7 @@ void main() {
       expect(await outsideParent.exists(), isFalse);
     });
 
-    test('cancelled plate solve stays running until host work exits', () async {
+    test('canceled plate solve stays running until host work exits', () async {
       final backend = _PendingPlateSolveBackend();
       final jobContainer = ProviderContainer(
         overrides: [

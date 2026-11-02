@@ -39,7 +39,7 @@ void main() {
       expect(db.lookup('ASI1600MC-Cool')?.model, 'ZWO ASI1600MC');
     });
 
-    test('mono and colour never cross over', () {
+    test('mono and color never cross over', () {
       expect(db.lookup('ASI1600MM')?.model, 'ZWO ASI1600MM');
       expect(db.lookup('ASI1600MC')?.model, 'ZWO ASI1600MC');
       expect(db.lookup('ASI2600MM Pro')?.model, 'ZWO ASI2600MM Pro');

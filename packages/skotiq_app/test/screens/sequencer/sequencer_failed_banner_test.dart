@@ -51,7 +51,7 @@ List<Override> _overrides(SequenceRunStats stats) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the failed banner names the cause, not the cancelled teardown',
+  testWidgets('the failed banner names the cause, not the canceled teardown',
       (tester) async {
     // The cascade exactly as the executor records it: the cause first, the
     // teardown step after it, and the cause filed as `terminalCause`.
@@ -79,7 +79,7 @@ void main() {
     expect(
       find.descendant(of: banner, matching: find.textContaining(_teardown)),
       findsNothing,
-      reason: 'a step cancelled because the run was already failing is never '
+      reason: 'a step canceled because the run was already failing is never '
           'the failure reason',
     );
   });

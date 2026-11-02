@@ -520,7 +520,7 @@ class PairingScreen extends ConsumerWidget {
         // Say we do not recognise it rather than asserting a category.
         return deviceType.trim().isEmpty
             ? 'Unknown device type'
-            : 'Unrecognised device type ($deviceType)';
+            : 'Unrecognized device type ($deviceType)';
     }
   }
 

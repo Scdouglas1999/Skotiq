@@ -540,7 +540,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             );
             if (!confirmed) {
               logger.info(
-                'Slew to ${target.targetName} cancelled at the confirmation.',
+                'Slew to ${target.targetName} canceled at the confirmation.',
                 source: 'Sequencer',
               );
               return;

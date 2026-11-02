@@ -600,7 +600,7 @@ void main() {
       recent.where((e) => e.title == 'Sequence stopped').length,
       3,
       reason: 'the fold is deterministic: groups open at t0, t+220s, t+440s, '
-          'each absorbing its 110s neighbour. One row would mean unbounded '
+          'each absorbing its 110s neighbor. One row would mean unbounded '
           'absorption; more than three would mean adjacent members no '
           'longer fold at all. Got: '
           '${recent.map((e) => '${e.time.toIso8601String()} ${e.title}').toList()}',

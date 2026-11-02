@@ -13,7 +13,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'cancelling an autofocus job propagates to the hardware backend',
+    'canceling an autofocus job propagates to the hardware backend',
     () async {
       final backend = _PendingAutofocusBackend();
       final container = ProviderContainer(

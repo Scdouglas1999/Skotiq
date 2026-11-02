@@ -220,7 +220,7 @@ void main() {
       expect(
         pendingFalse,
         isFalse,
-        reason: 'Default loading behaviour is fail closed.',
+        reason: 'Default loading behavior is fail closed.',
       );
     });
   });

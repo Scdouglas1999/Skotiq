@@ -90,7 +90,7 @@ void main() {
     expect(find.text('Dashboard'), findsNothing);
   });
 
-  testWidgets('cancelling the confirmation revokes nothing', (tester) async {
+  testWidgets('canceling the confirmation revokes nothing', (tester) async {
     final database = await _databaseWithThreeDevices();
     addTearDown(database.close);
 

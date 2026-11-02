@@ -199,7 +199,7 @@ String geolocationConsentBody({
     if (includeIpFallback)
       'Your public IP address, sent to ipinfo.io over HTTPS (falling back to '
           'ipwho.is). That only locates your internet provider — city level, '
-          'tens of kilometres.',
+          'tens of kilometers.',
   ];
 
   final buffer = StringBuffer(
@@ -215,7 +215,7 @@ String geolocationConsentBody({
 
 /// Closing paragraph for a lookup that writes straight to the observing site.
 const String kGeolocationWritesSiteOutcome =
-    'Neither source reports elevation. Latitude and longitude are '
+    'None of these sources reports elevation. Latitude and longitude are '
     'replaced; the elevation is kept only if the new position is near '
     'the current one, and is otherwise cleared for you to enter.';
 

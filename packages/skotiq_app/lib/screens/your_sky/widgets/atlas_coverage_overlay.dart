@@ -80,7 +80,7 @@ class AtlasCoverageOverlay extends StatelessWidget {
                 if (totals != null)
                   _Stat(
                     icon: LucideIcons.image,
-                    label: 'Frames',
+                    label: totals.frames == 1 ? 'Frame' : 'Frames',
                     value: '${totals.frames}',
                     tint: colors.success,
                   ),
@@ -404,7 +404,7 @@ class _TileDetailSheet extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           _DetailLine(
             icon: LucideIcons.compass,
-            label: 'Centre',
+            label: 'Center',
             value: formatCenter(tile.centerRaDeg, tile.centerDecDeg),
             colors: colors,
           ),

@@ -313,7 +313,10 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                 icon: LucideIcons.alertTriangle,
                 iconColor: SkotiqColors.of(context).error,
                 title: l10n.text('remoteAccessIssueTitle'),
-                body: l10n.text('remoteAccessIssueBody'),
+                // The cause first: it used to sit only in the collapsed
+                // connection details.
+                body:
+                    '${webState.lastError}\n${l10n.text('remoteAccessIssueBody')}',
               )
             else if (webState.isRunning) ...[
               _AccessActionCard(

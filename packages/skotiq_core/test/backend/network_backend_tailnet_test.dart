@@ -75,14 +75,14 @@ void main() {
       expect(backend.scheme, 'https');
     });
 
-    test('scheme is normalised to lower-case', () {
+    test('scheme is normalized to lower-case', () {
       final fake = FakeNetworkClient();
       final backend = _backend(fake, host: '10.0.0.5', scheme: 'HTTPS');
       addTearDown(backend.dispose);
       expect(backend.scheme, 'https');
     });
 
-    test('an unrecognised scheme throws (fail-closed, no silent default)', () {
+    test('an unrecognized scheme throws (fail-closed, no silent default)', () {
       final fake = FakeNetworkClient();
       expect(
         () => _backend(fake, host: '10.0.0.5', scheme: 'ftp'),

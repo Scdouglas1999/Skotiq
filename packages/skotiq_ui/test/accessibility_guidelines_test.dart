@@ -96,7 +96,7 @@ void main() {
     /// An icon-only button has no visible text, so its semantics are the ONLY
     /// thing a screen-reader user has. This is the case most likely to ship
     /// unlabelled.
-    testWidgets('an icon-only button is still labelled', (tester) async {
+    testWidgets('an icon-only button is still labeled', (tester) async {
       await tester.pumpWidget(
         host(SkotiqButton(label: 'Abort', icon: Icons.stop, onPressed: () {})),
       );

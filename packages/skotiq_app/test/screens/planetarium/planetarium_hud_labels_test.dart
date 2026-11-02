@@ -134,7 +134,7 @@ void main() {
         expect(
           find.text('Center:'),
           findsNothing,
-          reason: 'two adjacent fields both labelled "Center:" is worse than '
+          reason: 'two adjacent fields both labeled "Center:" is worse than '
               'either full labels or bare values',
         );
         expect(find.text('RA:'), findsOneWidget);

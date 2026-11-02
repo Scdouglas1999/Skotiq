@@ -434,7 +434,7 @@ class JobManager {
       updatedAt: _now(),
       error: {
         'code': 'job_cancelled',
-        'message': reason ?? 'Job was cancelled',
+        'message': reason ?? 'Job was canceled',
       },
     );
     _jobs[jobId] = updated;

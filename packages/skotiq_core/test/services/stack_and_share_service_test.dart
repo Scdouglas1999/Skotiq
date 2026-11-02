@@ -1086,7 +1086,7 @@ void main() {
     );
   });
 
-  group('OSC / colour orchestration', () {
+  group('OSC / color orchestration', () {
     test('mono regression: a mono result persists channels==1, isColor==false, '
         'and the single filter, with a grayscale stretch', () async {
       // The default fake engine reports no frame Bayer pattern and the fake
@@ -1184,7 +1184,7 @@ void main() {
       expect(stored.isColor, isTrue);
     });
 
-    test('OSC via live camera capabilities: the connected colour camera\'s '
+    test('OSC via live camera capabilities: the connected color camera\'s '
         'declared Bayer pattern wins over the frame geometry', () async {
       // The live camera advertises an OSC sensor (isColor + BGGR). Even though
       // the reference frame here declares RGGB, the camera caps take precedence
@@ -1387,7 +1387,7 @@ void main() {
       expect(engine.lastStartConfig!.sensorMode, 'auto');
     });
 
-    test('auto on a frame that declares a Bayer pattern starts in colour '
+    test('auto on a frame that declares a Bayer pattern starts in color '
         '(file path)', () async {
       // The complement to the mono case: when the reference frame's FITS
       // BAYERPAT geometry resolves a pattern, auto debayers — proving the
