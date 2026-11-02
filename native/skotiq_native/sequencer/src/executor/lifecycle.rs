@@ -212,9 +212,8 @@ impl SequenceExecutor {
         }
     }
 
-    /// Skip the current instruction / container. The tree-walk advances past
-    /// the running node on its next step; an in-flight exposure burst is
-    /// allowed to land before the skip takes effect.
+    /// Skip the running step: the instruction in progress (an exposure is
+    /// aborted) ends as Skipped and the run continues with the next step.
     pub async fn skip(&self) -> Result<(), String> {
         if let Some(tx) = &self.command_tx {
             tx.send(ExecutorCommand::Skip)

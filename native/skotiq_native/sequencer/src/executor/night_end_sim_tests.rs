@@ -766,3 +766,53 @@ async fn a_failed_run_still_runs_the_plans_shutdown_steps() {
     );
     assert!(notified(&calls, "Warm camera: done"), "calls={calls:?}");
 }
+
+/// Skip step ends the step that is running and the run goes on: the next
+/// step and the plan's shutdown still run. It used to skip the whole target,
+/// which in a wizard plan (one target holding everything) ended the run as
+/// Completed with no shutdown at all.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn skip_step_skips_only_the_running_step() {
+    let ops = rig_at_site();
+    let mut plan = wizard_plan(600.0);
+    // A second step after the long one, before the shutdown.
+    plan.nodes.push(node(
+        "second",
+        "R",
+        NodeType::Delay(DelayConfig { seconds: 0.2 }),
+    ));
+    for n in &mut plan.nodes {
+        if n.id == "sequence" {
+            n.children.insert(1, "second".into());
+        }
+    }
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    wait_for_state(&executor, Duration::from_secs(5), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    executor.skip().await.expect("skip");
+    let state = wait_until_finished(&executor).await;
+    let progress = executor.get_progress();
+    let calls = ops.calls();
+
+    assert_eq!(state, super::ExecutorState::Completed, "calls={calls:?}");
+    assert_eq!(
+        progress.node_statuses.get("imaging"),
+        Some(&crate::NodeStatus::Skipped)
+    );
+    assert_eq!(
+        progress.node_statuses.get("second"),
+        Some(&crate::NodeStatus::Success)
+    );
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "calls={calls:?}"
+    );
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+}

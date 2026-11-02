@@ -12,7 +12,8 @@ use crate::node::progress::ProgressUpdate;
 use crate::node::registry::registry;
 use crate::{NodeDefinition, NodeId, NodeStatus, NodeType};
 use async_trait::async_trait;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// render a node's display name through the interpolation engine.
 ///
@@ -104,6 +105,44 @@ pub(crate) fn is_disconnect_retry_attempt() -> bool {
 /// if recovery gives up (`is_cancelled`), or if retries are exhausted, the
 /// original `Failure` propagates and the normal unwind/park-on-give-up logic
 /// runs.
+/// Run one instruction so the operator's Skip step can end it. The
+/// instruction runs under a cancellation flag of its own, raised by the run's
+/// Stop or by a skip request; a skip ends only this step, as Skipped, and the
+/// run goes on with the next one.
+async fn execute_skippable_step(
+    variant: &NodeType,
+    node_id: &NodeId,
+    node_type: &NodeType,
+    context: &mut ExecutionContext,
+) -> NodeStatus {
+    if context.take_skip_current_step_request() {
+        tracing::info!("Step '{}' skipped at the operator's request", node_id);
+        return NodeStatus::Skipped;
+    }
+    let run_cancel = context.is_cancelled.clone();
+    let skip = context.skip_current_step.clone();
+    let step_cancel = Arc::new(AtomicBool::new(false));
+    context.is_cancelled = step_cancel.clone();
+    let watch = async {
+        loop {
+            if run_cancel.load(Ordering::Relaxed) || skip.load(Ordering::Relaxed) {
+                step_cancel.store(true, Ordering::Relaxed);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    };
+    let result = tokio::select! {
+        result = execute_instruction_with_disconnect_retry(variant, node_id, node_type, context) => result,
+        () = watch => NodeStatus::Cancelled,
+    };
+    context.is_cancelled = run_cancel;
+    if !context.is_cancelled.load(Ordering::Relaxed) && context.take_skip_current_step_request() {
+        tracing::info!("Step '{}' skipped at the operator's request", node_id);
+        return NodeStatus::Skipped;
+    }
+    result
+}
+
 async fn execute_instruction_with_disconnect_retry(
     variant: &NodeType,
     node_id: &NodeId,
@@ -416,10 +455,7 @@ impl Node for RuntimeNode {
             // wrapped so a device-disconnect failure waits for the recovery
             // driver to reconnect and then RETRIES the instruction instead of
             // ending the sequence on a single USB/comms blip.
-            other => {
-                execute_instruction_with_disconnect_retry(other, &node_id, &node_type, context)
-                    .await
-            }
+            other => execute_skippable_step(other, &node_id, &node_type, context).await,
         };
 
         self.status = result;

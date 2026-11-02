@@ -24,7 +24,7 @@ pub(super) struct CommandHandlerArgs {
     pub rx: mpsc::Receiver<ExecutorCommand>,
     pub runtime_config: Arc<StdRwLock<RuntimeConfig>>,
     pub safety_fail_mode_for_cmd: Arc<StdRwLock<SafetyFailMode>>,
-    pub skip_to_next_target_cmd: Arc<AtomicBool>,
+    pub skip_step_cmd: Arc<AtomicBool>,
     pub skip_to_node_cmd: Arc<StdRwLock<Option<NodeId>>>,
     pub sky_brightness_for_cmd: Arc<RwLock<Option<f64>>>,
     pub state: Arc<RwLock<ExecutorState>>,
@@ -51,7 +51,7 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
         mut rx,
         runtime_config,
         safety_fail_mode_for_cmd,
-        skip_to_next_target_cmd,
+        skip_step_cmd,
         skip_to_node_cmd,
         sky_brightness_for_cmd,
         state,
@@ -120,8 +120,8 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                 // finish; that branch owns termination.
             }
             ExecutorCommand::Skip => {
-                tracing::info!("Skip requested - advancing to next target");
-                skip_to_next_target_cmd.store(true, Ordering::Relaxed);
+                tracing::info!("Skip requested - skipping the current step");
+                skip_step_cmd.store(true, Ordering::Relaxed);
             }
             ExecutorCommand::SkipToNode(node_id) => {
                 // Implement SkipToNode for

@@ -710,7 +710,7 @@ impl SequenceExecutor {
                 let (park_and_abort_done_tx, park_and_abort_done_rx) = watch::channel(false);
 
                 let is_paused_cmd = is_paused.clone();
-                let skip_to_next_target_cmd = skip_to_next_target.clone();
+                let skip_step_cmd = context.skip_current_step.clone();
                 // Command-handler-side clone for posting
                 // SkipToNode requests into the shared slot.
                 let skip_to_node_cmd = skip_to_node.clone();
@@ -739,7 +739,7 @@ impl SequenceExecutor {
                     rx,
                     runtime_config: runtime_config.clone(),
                     safety_fail_mode_for_cmd,
-                    skip_to_next_target_cmd,
+                    skip_step_cmd,
                     skip_to_node_cmd,
                     sky_brightness_for_cmd,
                     state: state.clone(),
