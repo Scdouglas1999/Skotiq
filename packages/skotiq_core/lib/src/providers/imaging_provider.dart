@@ -10,6 +10,7 @@ import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
+import 'sequence/last_ended_run.dart' show lastEndedRunProvider;
 
 /// Current exposure settings
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {
@@ -484,6 +485,13 @@ final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
           sessionId = session.id;
           break;
         }
+      }
+      // A run that ended this session closed its session on the host; its
+      // frames are still tonight's until the next run starts.
+      if (sessionId == null &&
+          sessions.isNotEmpty &&
+          ref.watch(lastEndedRunProvider) != null) {
+        sessionId = sessions.first.id;
       }
     }
   }

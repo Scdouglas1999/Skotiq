@@ -55,6 +55,15 @@ final nightRunPhaseProvider = Provider<NightRunPhase>((ref) {
       execution == SequenceExecutionState.failed) {
     return NightRunPhase.finished;
   }
+  // A stopped or dawn-ended run settles idle; while its plan is still the
+  // one loaded, the night reads as finished with its results, not as a plan
+  // that never ran.
+  final ended = ref.watch(lastEndedRunProvider);
+  if (ended != null &&
+      ended.sequenceId ==
+          ref.watch(currentSequenceProvider.select((s) => s?.id))) {
+    return NightRunPhase.finished;
+  }
   final tree = ref.watch(nightPlanTreeProvider);
   if (tree == null || !tree.launchable) return NightRunPhase.notSetUp;
   if (!ref.watch(nightCameraConnectedProvider)) return NightRunPhase.notSetUp;

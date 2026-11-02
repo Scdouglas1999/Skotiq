@@ -58,6 +58,30 @@ void main() {
     expect(header.plannedDuration, isNotNull);
   });
 
+  // A stopped or dawn-ended run settles idle; Tonight read "Ready · not
+  // started" with 0 frames (qa-pair QP-22, reverify RV-11).
+  test('a run that was stopped reads as finished until another plan loads', () {
+    final plan = TwoTargetPlan().sequence;
+    final container = planContainer(
+      now: evening,
+      sequence: plan,
+      execution: SequenceExecutionState.running,
+    );
+    addTearDown(container.dispose);
+    container.listen(lastEndedRunProvider, (_, __) {});
+    expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
+
+    container.read(sequenceExecutionStateProvider.notifier).state =
+        SequenceExecutionState.idle;
+    expect(container.read(nightRunPhaseProvider), NightRunPhase.finished);
+
+    container.read(currentSequenceProvider.notifier).createSequence(
+          name: 'Another plan',
+        );
+    expect(
+        container.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
+  });
+
   test('Start at dark needs a site, and a dark still ahead', () {
     final noSite = planContainer(
       now: evening,

@@ -2,6 +2,7 @@
 // responsibility under `sequence/` so callers retain one stable import.
 export 'sequence/sequence_progress.dart';
 export 'sequence/sequence_selection.dart';
+export 'sequence/last_ended_run.dart';
 export 'sequence/sequence_editor.dart';
 export 'sequence/sequence_executor.dart';
 export 'sequence/sequence_validation.dart';
