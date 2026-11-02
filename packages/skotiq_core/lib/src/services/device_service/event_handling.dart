@@ -10,7 +10,52 @@ part of '../device_service.dart';
 const Duration _deviceErrorToastWindow = Duration(seconds: 60);
 final Map<String, DateTime> _recentDeviceErrorToasts = <String, DateTime>{};
 
+/// How often a focuser that reads as moving is re-read from the device, and
+/// for how long, when the move that started it never reports its end.
+const Duration _focuserMoveSettleInterval = Duration(seconds: 3);
+const Duration _focuserMoveSettleLimit = Duration(minutes: 10);
+
 extension _DeviceServiceEventHandling on DeviceService {
+  /// A move started elsewhere (the sequencer, an autofocus run, the host) has
+  /// no end event when it fails. While the focuser reads as moving, its status
+  /// is the authority: once the device says it has stopped, so does the app.
+  void _watchFocuserMoveSettle() {
+    _focuserMoveSettleWatch?.cancel();
+    final deadline = DateTime.now().add(_focuserMoveSettleLimit);
+    var inFlight = false;
+    _focuserMoveSettleWatch = Timer.periodic(_focuserMoveSettleInterval, (
+      timer,
+    ) async {
+      final state = _ref.read(focuserStateProvider);
+      final deviceId = state.deviceId;
+      if (_disposed ||
+          !state.isMoving ||
+          deviceId == null ||
+          DateTime.now().isAfter(deadline)) {
+        timer.cancel();
+        return;
+      }
+      // A move this service drives settles the state itself.
+      if (inFlight || _isFocuserMoveRunning) return;
+      inFlight = true;
+      try {
+        final status = await _backend.getFocuserStatus(deviceId);
+        if (_disposed || !timer.isActive) return;
+        if (_ref.read(focuserStateProvider).deviceId != deviceId) return;
+        if (!status.moving) {
+          final notifier = _ref.read(focuserStateProvider.notifier);
+          notifier.updatePosition(status.position);
+          notifier.setMoving(false);
+          timer.cancel();
+        }
+      } catch (_) {
+        // An unreadable focuser keeps its last state; the next tick retries.
+      } finally {
+        inFlight = false;
+      }
+    });
+  }
+
   void _markUserInitiatedDisconnect(String deviceId) =>
       _reconnectCoordinator.markUserInitiatedDisconnect(deviceId);
 
@@ -235,10 +280,13 @@ extension _DeviceServiceEventHandling on DeviceService {
       // Focuser Events
       case 'FocuserMoveStarted':
         _ref.read(focuserStateProvider.notifier).setMoving(true);
+        _watchFocuserMoveSettle();
         break;
 
       case 'FocuserMoveCompleted':
         final position = data['position'] as int?;
+        _focuserMoveSettleWatch?.cancel();
+        _focuserMoveSettleWatch = null;
         _ref.read(focuserStateProvider.notifier).setMoving(false);
         if (position != null) {
           _ref.read(focuserStateProvider.notifier).updatePosition(position);

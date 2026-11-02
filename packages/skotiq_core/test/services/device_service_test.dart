@@ -486,6 +486,46 @@ void main() {
       },
     );
 
+    // A move that fails sends no end event; the focuser read "Moving" with
+    // "Move to" disabled until some later move succeeded (reverify RV-02).
+    test(
+      'a started move with no end settles from the focuser status',
+      () async {
+        final focNotifier = container.read(focuserStateProvider.notifier);
+        focNotifier.setConnecting('focuser-1');
+        focNotifier.setConnected();
+        when(() => mockBackend.getFocuserStatus('focuser-1')).thenAnswer(
+          (_) async => const FocuserStatus(
+            connected: true,
+            position: 25000,
+            moving: false,
+            temperature: 20.0,
+            maxPosition: 50000,
+            stepSize: 1.0,
+            isAbsolute: true,
+            hasTemperature: true,
+          ),
+        );
+
+        eventStreamController.add(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.equipment,
+            eventType: 'FocuserMoveStarted',
+            data: {'targetPosition': 24800},
+          ),
+        );
+        await Future.delayed(const Duration(milliseconds: 50));
+        expect(container.read(focuserStateProvider).isMoving, isTrue);
+
+        await Future.delayed(const Duration(milliseconds: 3500));
+        final state = container.read(focuserStateProvider);
+        expect(state.isMoving, isFalse);
+        expect(state.position, 25000);
+      },
+    );
+
     test(
       'FilterWheelPositionChanged event updates filter wheel state',
       () async {

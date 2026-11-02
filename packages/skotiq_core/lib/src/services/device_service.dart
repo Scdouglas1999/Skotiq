@@ -136,6 +136,10 @@ class DeviceService {
 
   /// On a remote client, follows the host's warm-up until it ends.
   Timer? _hostWarmUpWatch;
+
+  /// Re-reads the focuser while a move it did not command reads as moving;
+  /// see [_DeviceServiceEventHandling._watchFocuserMoveSettle].
+  Timer? _focuserMoveSettleWatch;
   late final Phd2Launcher _phd2Launcher;
   late final DeviceReconnectCoordinator _reconnectCoordinator;
   late final DeviceHeartbeatRouter _heartbeat;
@@ -391,6 +395,8 @@ class DeviceService {
     _warmupController.dispose();
     _hostWarmUpWatch?.cancel();
     _hostWarmUpWatch = null;
+    _focuserMoveSettleWatch?.cancel();
+    _focuserMoveSettleWatch = null;
     _reconnectCoordinator.cancelAll();
   }
 
