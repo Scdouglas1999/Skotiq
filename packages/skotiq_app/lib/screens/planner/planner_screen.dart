@@ -136,6 +136,15 @@ const String kPlannerSiteFilterRefusal =
 bool plannerSiteUnset(LocationSettings? location) =>
     location == null || (location.latitude == 0.0 && location.longitude == 0.0);
 
+/// The planner has no observing site to plan for.
+class PlannerSiteUnsetError implements Exception {
+  const PlannerSiteUnsetError();
+
+  @override
+  String toString() => 'Observing location is not configured. '
+      'Set your latitude and longitude in Settings before using the planner.';
+}
+
 /// FutureProvider that produces tonight's optimization plan from the
 /// unfiltered suggestion pool. The primary recommendation is "best of
 /// everything tonight" so it never disappears when the user narrows filters.
@@ -149,20 +158,41 @@ final _plannerOptimizationProvider =
   // unrelated settings churn does not thrash the tab.
   final location = ref.watch(appObserverLocationProvider);
   if (plannerSiteUnset(location)) {
-    throw StateError(
-      'Observing location is not configured. '
-      'Set your latitude and longitude in Settings before using the planner.',
-    );
+    throw const PlannerSiteUnsetError();
   }
-  final suggestions = await ref.watch(tonightSuggestionsProvider.future);
-  final exposureContext = suggestions.isEmpty
-      ? null
-      : await ref.watch(smartNightExposureContextProvider.future);
-  return ref.watch(sessionOptimizerServiceProvider).buildPlanFromSuggestions(
-        suggestions,
-        generatedAt: DateTime.now(),
-        exposureContext: exposureContext,
-      );
+  final logger = ref.read(loggingServiceProvider);
+  try {
+    final suggestions = await ref.watch(tonightSuggestionsProvider.future);
+    SmartNightExposureContext? exposureContext;
+    if (suggestions.isNotEmpty) {
+      // The exposure context only refines sub lengths; without it the plan
+      // still ranks tonight's targets on the planner's default exposures.
+      try {
+        exposureContext =
+            await ref.watch(smartNightExposureContextProvider.future);
+      } catch (error) {
+        logger.warning(
+          'Plan Tonight is using default exposures: the Smart Night exposure '
+          'context could not be read ($error)',
+          source: 'Planner',
+        );
+      }
+    }
+    return ref.watch(sessionOptimizerServiceProvider).buildPlanFromSuggestions(
+          suggestions,
+          generatedAt: DateTime.now(),
+          exposureContext: exposureContext,
+        );
+  } on PlannerSiteUnsetError {
+    rethrow;
+  } catch (error, stackTrace) {
+    logger.error(
+      'Plan Tonight could not build tonight\'s plan: $error',
+      source: 'Planner',
+      fields: {'stack': stackTrace.toString()},
+    );
+    rethrow;
+  }
 });
 
 /// Tracks how many candidate rows are currently rendered. Increments by

@@ -327,7 +327,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
   /// with the fix on it; anything else offers a retry.
   Widget _buildErrorState(BuildContext context, Object error) {
     final l10n = context.l10n;
-    final isLocationError = error is StateError;
+    final isLocationError = error is PlannerSiteUnsetError;
     return plannerCentredEmptyState(
       Builder(
         builder: (context) => isLocationError
@@ -350,7 +350,13 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                   label: l10n.text('plannerPlanFailedAction'),
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
-                  onPressed: () => ref.invalidate(_plannerOptimizationProvider),
+                  onPressed: () {
+                    // Retry rebuilds every input, not only the plan: a failed
+                    // suggestion list is cached until it is invalidated.
+                    ref.invalidate(tonightSuggestionsProvider);
+                    ref.invalidate(smartNightExposureContextProvider);
+                    ref.invalidate(_plannerOptimizationProvider);
+                  },
                 ),
               ),
       ),
