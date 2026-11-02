@@ -147,9 +147,10 @@ void main() {
     );
     await tester.pump(_settleFrame);
 
-    // Nothing has been chosen yet, so the dropdown falls back to the first
-    // filter rather than showing a blank control.
+    // Nothing has been chosen yet, so the dropdown shows the filter the wheel
+    // has loaded (Ha, slot 4), not the first name in the list.
     expect(handle.container.read(exposureSettingsProvider).filter, isNull);
-    expect(find.text('L'), findsWidgets);
+    expect(find.text('Ha'), findsWidgets);
+    expect(find.text('L'), findsNothing);
   });
 }
