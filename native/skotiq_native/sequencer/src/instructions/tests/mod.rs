@@ -30,6 +30,9 @@ use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32};
 use std::sync::Mutex;
 
+/// The frame a camera returns with the focuser at a given position.
+type FrameAtFocus = Box<dyn Fn(i32) -> ImageData + Send + Sync>;
+
 /// Scriptable DeviceOps for the dome/rotator verify tests. Only the
 /// dome and rotator methods are interesting; everything else delegates
 /// to `NullDeviceOps`. Counters let the tests assert that the
@@ -133,6 +136,8 @@ struct ScriptedDomeRotatorOps {
     mount_tracking: Mutex<Option<bool>>,
     /// When `Some`, every `guider_dither` fails with this message.
     dither_error: Option<String>,
+    guider_stop_error: Option<String>,
+    guider_absent: bool,
     /// When true, every plate solve finds no solution (a clouded frame).
     plate_solve_fails: bool,
     /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
@@ -176,6 +181,9 @@ struct ScriptedDomeRotatorOps {
     /// last one repeats. Empty: the inner ops answer.
     scripted_camera_temps: Mutex<std::collections::VecDeque<f64>>,
     scripted_focuser_position: Option<i32>,
+    /// A focuser that moves where it is told, and a camera whose frames are
+    /// drawn for the focuser position the exposure starts at.
+    focus_model: Option<(Mutex<i32>, FrameAtFocus)>,
     scripted_focuser_temperature: Option<f64>,
     /// What the camera claims it exposed for, independent of what was
     /// commanded — a driver that misreports is the whole point of the
@@ -254,6 +262,8 @@ impl ScriptedDomeRotatorOps {
             guider_calibration: None,
             mount_tracking: Mutex::new(None),
             dither_error: None,
+            guider_stop_error: None,
+            guider_absent: false,
             plate_solve_fails: false,
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
@@ -265,6 +275,7 @@ impl ScriptedDomeRotatorOps {
             scripted_cooler_on: None,
             scripted_camera_temps: Mutex::new(std::collections::VecDeque::new()),
             scripted_focuser_position: None,
+            focus_model: None,
             scripted_focuser_temperature: None,
             scripted_reported_exposure_secs: None,
             scripted_gain: None,
@@ -360,6 +371,27 @@ impl ScriptedDomeRotatorOps {
         self.saved_frame_paths.lock().unwrap().clone()
     }
 
+    /// A focuser starting at `position` and a camera whose frame depends on
+    /// where the focuser is.
+    fn with_focus_model(mut self, position: i32, frame: FrameAtFocus) -> Self {
+        self.focus_model = Some((Mutex::new(position), frame));
+        self
+    }
+
+    /// Fail the next camera exposures with these errors, one each.
+    fn failing_next_exposures(self, errors: &[&str]) -> Self {
+        self.camera_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().map(|e| e.to_string()));
+        self
+    }
+
+    fn with_pier_side(mut self, side: crate::meridian::PierSide) -> Self {
+        self.scripted_pier_side = Some(side);
+        self
+    }
+
     fn with_mount_parked(mut self, parked: bool) -> Self {
         self.mount_parked = parked;
         self
@@ -429,6 +461,19 @@ impl ScriptedDomeRotatorOps {
     /// A guider whose every dither fails with `message`.
     fn with_dither_failing(mut self, message: &str) -> Self {
         self.dither_error = Some(message.to_string());
+        self
+    }
+
+    /// A guider whose every stop fails with `message`.
+    fn with_guider_stop_failing(mut self, message: &str) -> Self {
+        self.guider_stop_error = Some(message.to_string());
+        self
+    }
+
+    /// No guider connected: every guider call answers that none is configured.
+    fn with_guider_absent(mut self) -> Self {
+        self.guider_absent = true;
+        self.guider_stop_error = Some(crate::device_ops::NO_GUIDER_CONFIGURED.to_string());
         self
     }
 
@@ -661,6 +706,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
             return Err(error);
         }
+        if let Some((position, frame)) = &self.focus_model {
+            let at = *position.lock().unwrap();
+            return Ok(frame(at));
+        }
         // A scripted report decouples what the driver CLAIMS from what was
         // commanded — that split is the whole point — so the double also
         // drops NullDeviceOps' simulated integration sleep. Waiting the
@@ -737,9 +786,15 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn focuser_move_to(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.focuser_moves.lock().unwrap().push(p);
+        if let Some((position, _)) = &self.focus_model {
+            *position.lock().unwrap() = p;
+        }
         Ok(())
     }
     async fn focuser_get_position(&self, id: &str) -> DeviceResult<i32> {
+        if let Some((position, _)) = &self.focus_model {
+            return Ok(*position.lock().unwrap());
+        }
         match self.scripted_focuser_position {
             Some(pos) => Ok(pos),
             None => self.inner.focuser_get_position(id).await,
@@ -841,6 +896,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             .lock()
             .unwrap()
             .push(self.guider_start_calls.load(Ordering::SeqCst));
+        if self.guider_absent {
+            return Err(crate::device_ops::NO_GUIDER_CONFIGURED.to_string());
+        }
         if self.no_guide_star {
             return Err("no star found in the guide frame".to_string());
         }
@@ -855,6 +913,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.guider_stop_calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(message) = &self.guider_stop_error {
+            return Err(message.clone());
+        }
         self.guiding.store(false, Ordering::SeqCst);
         self.guider_lost_lock.store(false, Ordering::SeqCst);
         Ok(())

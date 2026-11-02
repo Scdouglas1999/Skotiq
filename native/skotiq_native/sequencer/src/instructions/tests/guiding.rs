@@ -113,7 +113,13 @@ async fn guiding_validation_failure_stops_started_guider() {
 
     let result = execute_start_guiding(&config, &ctx, None).await;
 
-    assert_eq!(result.status, NodeStatus::Failure);
+    // A guider that is not calibrated has not started guiding: the run is
+    // told and images unguided, with the guider stopped.
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(result
+        .message
+        .as_deref()
+        .is_some_and(|m| m.contains("imaging continues unguided")));
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
     assert_eq!(
         ops.guider_stop_calls.load(Ordering::SeqCst),
@@ -213,6 +219,77 @@ async fn no_guide_star_notifies_and_the_run_images_unguided() {
         "{:?}",
         run.warnings
     );
+}
+
+/// A guider that accepts the start and never locks, and then cannot even be
+/// stopped because it dropped off (the built-in guider whose task died), is a
+/// guiding problem: the operator is told and the run images unguided instead
+/// of ending the night.
+#[tokio::test(start_paused = true)]
+async fn a_guider_that_never_locks_and_is_gone_notifies_and_the_run_images_unguided() {
+    let gone = || {
+        ScriptedDomeRotatorOps::new()
+            .with_guider_resume_that_never_guides()
+            .with_guider_stop_failing(crate::device_ops::NO_GUIDER_CONFIGURED)
+    };
+    let run = start_guiding_with(gone(), false).await;
+    assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
+    assert!(run.imaging_unguided, "the run must know it images unguided");
+    assert!(
+        run.warnings
+            .iter()
+            .any(|w| w.contains("did not reach active state")
+                && w.contains("Imaging continues unguided")
+                && !w.contains("CRITICAL")),
+        "{:?}",
+        run.warnings
+    );
+
+    let strict = start_guiding_with(gone(), true).await;
+    assert_eq!(strict.result.status, NodeStatus::Failure);
+}
+
+/// A rig with no guider connected says so, not that the frame had no star,
+/// and the run images unguided.
+#[tokio::test(start_paused = true)]
+async fn no_guider_connected_is_not_reported_as_no_guide_star() {
+    let run = start_guiding_with(ScriptedDomeRotatorOps::new().with_guider_absent(), false).await;
+    assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
+    assert!(run.imaging_unguided);
+    assert!(
+        run.warnings
+            .iter()
+            .any(|w| w.contains("Failed to start guiding")
+                && w.contains(crate::device_ops::NO_GUIDER_CONFIGURED)
+                && !w.contains("no guide star")),
+        "{:?}",
+        run.warnings
+    );
+}
+
+/// The plan's Stop Guiding on a rig with no guider has nothing to do; it must
+/// not fail the run before Warm camera and Park mount.
+#[tokio::test(start_paused = true)]
+async fn stop_guiding_without_a_guider_is_a_no_op() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guider_absent());
+    let ctx = ctx_with_ops(ops.clone()).await;
+    let result = execute_stop_guiding(&ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+}
+
+/// A guider that will not stop is told to the operator and the steps after
+/// Stop Guiding still run.
+#[tokio::test(start_paused = true)]
+async fn stop_guiding_that_fails_notifies_and_continues() {
+    let ops =
+        Arc::new(ScriptedDomeRotatorOps::new().with_guider_stop_failing("PHD2 is not responding"));
+    let ctx = ctx_with_ops(ops.clone()).await;
+    let result = execute_stop_guiding(&ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(result
+        .message
+        .as_deref()
+        .is_some_and(|m| m.contains("PHD2 is not responding")));
 }
 
 /// The operator who asked for quality problems to stop the run gets a failed
@@ -544,8 +621,18 @@ async fn an_unguided_run_tries_guiding_again_every_ten_minutes() {
 /// statistics window does not confirm guiding.
 #[tokio::test(start_paused = true)]
 async fn guiding_without_a_measured_guide_step_is_not_confirmed() {
+    // Unconfirmed guiding is a guider that did not start: the run images
+    // unguided, unless the operator asked quality problems to stop it.
+    let strict = start_guiding_with(ScriptedDomeRotatorOps::new().with_guider_rms(0.0), true).await;
+    assert_eq!(
+        strict.result.status,
+        NodeStatus::Failure,
+        "{:?}",
+        strict.result
+    );
     let run = start_guiding_with(ScriptedDomeRotatorOps::new().with_guider_rms(0.0), false).await;
-    assert_eq!(run.result.status, NodeStatus::Failure, "{:?}", run.result);
+    assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
+    assert!(run.imaging_unguided);
     assert!(
         run.result
             .message
