@@ -37,9 +37,11 @@ impl DeviceManager {
         let id_str = parts[2];
 
         if info.device_type == DeviceType::Guider && vendor == "builtin_guider" {
-            crate::builtin_guider::connect()
-                .await
-                .map_err(|e| format!("Failed to connect built-in guider: {}", e))?;
+            crate::builtin_guider::connect().await.map_err(|e| {
+                let message = format!("Failed to connect built-in guider: {}", e);
+                tracing::warn!("{}", message);
+                message
+            })?;
             tracing::info!("Connected to built-in multi-star guider");
             return Ok(());
         }
