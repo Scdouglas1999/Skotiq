@@ -396,41 +396,14 @@ void main(List<String> args) async {
       }
     }());
 
-    // --serve/--master: force the effective web-server setting ON for this run
-    // so the embedded host server starts and slave clients can connect. We do
-    // NOT flip the global default — we await the settings notifier, persist
-    // web_server_enabled=true, and patch in-memory state BEFORE
-    // startBackgroundServices attaches its fireImmediately listener, so the
-    // server comes up on launch. A normal (no-flag) launch is untouched and
-    // honours whatever the user toggled in Settings → Remote Access.
-    if (serveRequested) {
-      try {
-        // Persist web_server_enabled=true straight to the settings DAO. We must
-        // NOT await appSettingsProvider.future here: that provider may not
-        // resolve until after the first frame (its build can depend on the
-        // backend swap that is still in flight), so awaiting it before runApp
-        // hangs main() forever and the shown window stays blank. The DAO is the
-        // source the lifecycle listener (attached in startBackgroundServices
-        // below, fireImmediately) reads, so writing it here — before that
-        // listener attaches — is sufficient for the embedded server to come up
-        // on launch, and it never blocks the UI.
-        await container
-            .read(settingsDaoProvider)
-            .setSetting('web_server_enabled', 'true');
-      } catch (error) {
-        developer.log(
-          '--serve: failed to force web_server_enabled on; the embedded '
-          'remote-access server may not start: $error',
-          name: 'desktop.main',
-          level: 1000,
-          error: error,
-        );
-      }
-    }
+    // --serve/--master turns the embedded host server on for this run only;
+    // the stored Remote Access setting stays as the user left it.
+    container.read(remoteAccessForcedProvider.notifier).state = serveRequested;
     startBackgroundServices(
       container,
       appVersion: appVersion.version,
       appBuildNumber: appVersion.buildNumber,
+      forceServe: serveRequested,
     );
   }
 

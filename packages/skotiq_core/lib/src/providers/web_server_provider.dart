@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'settings_provider.dart' show appSettingsProvider;
 // TailnetDetector is the single source of truth for recognising a Tailscale
 // tailnet interface address (100.64.0.0/10 or fd7a:115c::/32), shared with the
 // QR/pairing validator and the NetworkBackend timeout tuning so the three
@@ -279,6 +280,16 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
     }
   }
 }
+
+/// True when this run was launched with `--serve`: the remote-access server
+/// is on for the run whatever the stored setting says.
+final remoteAccessForcedProvider = StateProvider<bool>((ref) => false);
+
+/// Whether this instance serves remote clients this run: the stored Remote
+/// Access setting, or a `--serve` launch.
+bool remoteAccessServing(Ref ref) =>
+    ref.read(remoteAccessForcedProvider) ||
+    ref.read(appSettingsProvider).valueOrNull?.webServerEnabled == true;
 
 final webServerStateProvider =
     StateNotifierProvider<WebServerStateNotifier, WebServerState>(

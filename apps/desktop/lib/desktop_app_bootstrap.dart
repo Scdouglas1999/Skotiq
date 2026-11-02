@@ -119,10 +119,21 @@ Future<void> _resumeDarkroomWork(
 /// there is remote-access plumbing — a token file, a UDP receiver bind — and a
 /// rig whose delivery journal is owed a sweep is owed it whether or not any of
 /// that plumbing answers.
+/// The remote-access settings this run applies. `--serve` turns the server
+/// on for this run only: the stored setting, which every later plain launch
+/// reads, is left as the user set it.
+AppSettingsState effectiveRemoteAccessSettings(
+  AppSettingsState settings, {
+  required bool forceServe,
+}) => forceServe && !settings.webServerEnabled
+    ? settings.copyWith(webServerEnabled: true)
+    : settings;
+
 void startBackgroundServices(
   ProviderContainer container, {
   required String appVersion,
   required int appBuildNumber,
+  bool forceServe = false,
 }) {
   resumeDarkroomWork(
     container: container,
@@ -134,6 +145,7 @@ void startBackgroundServices(
       container,
       appVersion: appVersion,
       appBuildNumber: appBuildNumber,
+      forceServe: forceServe,
     ),
   );
 }
@@ -142,6 +154,7 @@ Future<void> _runBackgroundServices(
   ProviderContainer container, {
   required String appVersion,
   required int appBuildNumber,
+  required bool forceServe,
 }) async {
   final logger = container.read(loggingServiceProvider);
   final persistentToken = await _getOrCreateRemoteAccessToken(logger);
@@ -160,10 +173,14 @@ Future<void> _runBackgroundServices(
       _,
       next,
     ) {
-      final settings = next.valueOrNull;
-      if (settings == null) {
+      final stored = next.valueOrNull;
+      if (stored == null) {
         return;
       }
+      final settings = effectiveRemoteAccessSettings(
+        stored,
+        forceServe: forceServe,
+      );
 
       final shouldRestart =
           lastAppliedSettings == null ||

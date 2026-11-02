@@ -11,6 +11,7 @@ import '../../services/sequence_file_service.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart' show hostMutationEventHubProvider;
 import '../settings_provider.dart' show appSettingsProvider, AppSettingsState;
+import '../web_server_provider.dart' show remoteAccessServing;
 import '../sequence_provider.dart';
 
 const _logSource = 'MasterSequenceEditorMirror';
@@ -52,8 +53,7 @@ final masterSequenceEditorMirrorProvider = Provider<void>((ref) {
   bool isServingMaster() {
     final backend = ref.read(backendProvider);
     if (backend is! FfiBackend) return false;
-    final settings = ref.read(appSettingsProvider).valueOrNull;
-    return settings?.webServerEnabled == true;
+    return remoteAccessServing(ref);
   }
 
   void emitCleared() {

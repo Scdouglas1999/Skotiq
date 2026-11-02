@@ -9,6 +9,7 @@ import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
 import 'remote_sync_handler.dart';
 import 'settings_provider.dart';
+import 'web_server_provider.dart' show remoteAccessServing;
 
 /// Keeps the desktop GUI aligned when a remote companion mutates state through
 /// the embedded [HeadlessApiServer] REST surface or when native EventBus events
@@ -43,8 +44,7 @@ final hostLocalSyncProvider = Provider<void>((ref) {
       unawaited(applyRemoteSyncEvent(ref, event));
     });
 
-    final settings = ref.read(appSettingsProvider).valueOrNull;
-    if (settings?.webServerEnabled == true) {
+    if (remoteAccessServing(ref)) {
       backendSub = backend.eventStream.listen((event) {
         if (event.eventType == hostStateChangedEventType) {
           return;
