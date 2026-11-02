@@ -641,6 +641,7 @@ impl AppState {
             DeviceType::Dome => p.dome_id.clone(),
             DeviceType::Weather => p.weather_id.clone(),
             DeviceType::CoverCalibrator => p.cover_calibrator_id.clone(),
+            DeviceType::Guider => p.guider_id.clone(),
             _ => None,
         })
     }

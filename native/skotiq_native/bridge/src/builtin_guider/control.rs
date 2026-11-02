@@ -85,47 +85,15 @@ pub async fn start_guiding(
             .await
             {
                 tracing::error!("Built-in guider task failed: {}", error);
-                let mut guard = controller.write().await;
-                guard.guiding = false;
-                guard.looping = false;
-                guard.calibrating = false;
-                guard.last_status.state = "Disconnected".to_string();
-                // Carry the REASON to the UI, not just the state change.
-                //
-                // `GuidingEvent::Disconnected` has no message field, so a task
-                // that died from e.g. "Calibration star match failed" reached
-                // Dart as a bare disconnect: the imaging Guiding panel then said
-                // "No guider connected" and the operator was sent to check
-                // cables for a calibration problem the log had already
-                // diagnosed. Reproduced end-to-end with the built-in guider on
-                // the simulator camera.
-                //
-                // `report_error` is the channel that actually lands: it marks the
-                // device errored, stores `last_error`, and publishes the
-                // equipment `Error` event carrying device_type/device_id/message
-                // which `DeviceService._handleDeviceError` routes into
-                // `guiderStateProvider.setError(...)` — so the guiding panel can
-                // name the failure instead of claiming no guider is connected.
-                // The system event stays as the operator-visible log line.
-                //
-                // ORDER MATTERS. The guiding `Disconnected` event is handled by
-                // `DeviceService._handleDeviceDisconnected`, which calls
-                // `setDisconnected()` — and that RESETS the guider state object,
-                // wiping any `lastError` already on it. Publishing the error
-                // first therefore lost it (observed: panel still read "No guider
-                // connected"). Emit the disconnect first so the error is the
-                // final state the UI settles on, while the disconnect still
-                // drives the existing "Guiding Lost" notification.
-                drop(guard);
+                // Guiding stopped; the guider did not go away. It stays
+                // connected, so the run's next attempt to guide (on a fresh
+                // star, before the next frame) can start it again. The reason
+                // goes to the operator as an error line.
                 let reason = guiding_failure_reason(&error);
+                finish_failed_guiding(&controller, &reason).await;
                 get_state()
-                    .publish_guiding_event(GuidingEvent::Disconnected, EventSeverity::Warning);
-                get_state().publish_system_event(SystemEvent::Error {
-                    message: reason.clone(),
-                });
-                get_device_manager()
-                    .report_error(BUILTIN_GUIDER_ID, reason)
-                    .await;
+                    .publish_guiding_event(GuidingEvent::GuidingStopped, EventSeverity::Warning);
+                get_state().publish_system_event(SystemEvent::Error { message: reason });
             }
         },
     )
@@ -518,4 +486,20 @@ pub fn device_id() -> &'static str {
 /// Whether the built-in guider session is active (heartbeat liveness).
 pub async fn is_connected() -> bool {
     state().read().await.connected
+}
+
+/// Leave the guider connected and stopped after its guiding task failed, with
+/// the reason as its status.
+pub(crate) async fn finish_failed_guiding(
+    controller: &Arc<RwLock<BuiltinGuiderState>>,
+    reason: &str,
+) {
+    let mut guard = controller.write().await;
+    guard.guiding = false;
+    guard.looping = false;
+    guard.calibrating = false;
+    guard.settling = false;
+    guard.last_status.state = "Stopped".to_string();
+    guard.last_status.connected = guard.connected;
+    tracing::info!("Built-in guider stopped and stays connected: {}", reason);
 }

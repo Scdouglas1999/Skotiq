@@ -1596,3 +1596,61 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
         1280
     );
 }
+
+/// A guiding task that fails stops guiding but leaves the guider connected,
+/// so the run's retry can start it again instead of finding "No active guider
+/// configured" for the rest of the night.
+#[tokio::test]
+async fn a_failed_guiding_task_leaves_the_guider_connected_and_stopped() {
+    let _serial = test_serial().lock().await;
+    reset_guider_state().await;
+    {
+        let mut guard = state().write().await;
+        guard.connected = true;
+        guard.guiding = true;
+        guard.calibrating = true;
+        guard.last_status.connected = true;
+        guard.last_status.state = "Guiding".to_string();
+    }
+    finish_failed_guiding(state(), "Guiding stopped: Settle timeout exceeded").await;
+    let guard = state().read().await;
+    assert!(guard.connected);
+    assert!(!guard.guiding && !guard.calibrating);
+    assert_eq!(guard.last_status.state, "Stopped");
+    assert!(guard.last_status.connected);
+    drop(guard);
+    reset_guider_state().await;
+}
+
+/// The profile's guider is the guider the run's guiding steps use.
+#[tokio::test]
+async fn the_profile_names_the_runs_guider() {
+    let state = crate::state::AppState::new();
+    state
+        .set_profile(Some(crate::state::EquipmentProfile {
+            id: "p".into(),
+            name: "p".into(),
+            camera_id: None,
+            mount_id: None,
+            focuser_id: None,
+            filter_wheel_id: None,
+            guider_id: Some(BUILTIN_GUIDER_ID.into()),
+            guide_camera_id: None,
+            guide_focal_length_mm: None,
+            rotator_id: None,
+            dome_id: None,
+            weather_id: None,
+            safety_monitor_id: None,
+            cover_calibrator_id: None,
+            telescope_focal_length: 500.0,
+            telescope_aperture: 80.0,
+        }))
+        .await;
+    assert_eq!(
+        state
+            .get_profile_device_id(DeviceType::Guider)
+            .await
+            .as_deref(),
+        Some(BUILTIN_GUIDER_ID)
+    );
+}
