@@ -21,7 +21,15 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:skotiq_core/skotiq_core.dart' show eventHistoryProvider;
+import 'package:skotiq_core/skotiq_core.dart'
+    show
+        cameraStateProvider,
+        eventHistoryProvider,
+        filterWheelStateProvider,
+        focuserStateProvider,
+        guiderStateProvider,
+        mountStateProvider,
+        rotatorStateProvider;
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
@@ -105,9 +113,36 @@ MetricTone _toneOf(RunDashboardEventSeverity severity) => switch (severity) {
       RunDashboardEventSeverity.info => MetricTone.neutral,
     };
 
-String _feedLine(RunDashboardEvent event) {
-  final base =
-      event.message.isEmpty ? event.title : '${event.title} · ${event.message}';
+/// Connected devices' names by device id. Device events carry only the id;
+/// the log names the device the way the Equipment card does.
+final nightLogDeviceNamesProvider = Provider<Map<String, String>>((ref) {
+  final pairs = <(String?, String?)>[
+    ref.watch(cameraStateProvider.select((s) => (s.deviceId, s.deviceName))),
+    ref.watch(mountStateProvider.select((s) => (s.deviceId, s.deviceName))),
+    ref.watch(focuserStateProvider.select((s) => (s.deviceId, s.deviceName))),
+    ref.watch(
+      filterWheelStateProvider.select((s) => (s.deviceId, s.deviceName)),
+    ),
+    ref.watch(rotatorStateProvider.select((s) => (s.deviceId, s.deviceName))),
+    ref.watch(guiderStateProvider.select((s) => (s.deviceId, s.deviceName))),
+  ];
+  return {
+    for (final (id, name) in pairs)
+      if (id != null && id.isNotEmpty && name != null && name.isNotEmpty)
+        id: name,
+  };
+});
+
+String _feedLine(RunDashboardEvent event, Map<String, String> names) {
+  var message = event.message;
+  for (final entry in names.entries) {
+    if (message.endsWith(entry.key)) {
+      message =
+          message.substring(0, message.length - entry.key.length) + entry.value;
+      break;
+    }
+  }
+  final base = message.isEmpty ? event.title : '${event.title} · $message';
   return event.repeatCount > 1 ? '$base ×${event.repeatCount}' : base;
 }
 
@@ -118,12 +153,13 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
     nightSessionEventsProvider.select((events) => events.autofocusRuns),
   );
 
+  final names = ref.watch(nightLogDeviceNamesProvider);
   final entries = <NightLogEntryVm>[
     for (final event in feed)
       if (nightLogKeepsFeedRow(event))
         NightLogEntryVm(
           at: event.time,
-          message: NightText.literal(_feedLine(event)),
+          message: NightText.literal(_feedLine(event, names)),
           tone: _toneOf(event.severity),
         ),
   ];

@@ -555,6 +555,35 @@ void main() {
       expect(log.single.message.literal, startsWith('Dither'));
     });
 
+    // A linked client's log read "Connected · Rotator · sim_rotator_1" where
+    // the host's read the rotator's name (qa-pair QP-02).
+    test('a device event names the device, not its id', () async {
+      final h = await sessionHarness();
+      final keep = h.container.listen(nightLogProvider, (_, __) {});
+      addTearDown(keep.close);
+      final rotator = h.container.read(rotatorStateProvider.notifier);
+      rotator.setConnecting('sim_rotator_1', 'Simulated Rotator');
+      rotator.setConnected();
+      h.container.read(eventHistoryProvider.notifier).addEvent(
+            sk_events.SkotiqEvent(
+              eventId: BigInt.one,
+              timestamp: kNight.millisecondsSinceEpoch,
+              severity: sk_events.EventSeverity.info,
+              category: sk_events.EventCategory.equipment,
+              payload: const sk_events.EventPayload.equipment(
+                sk_events.EquipmentEvent.connected(
+                  deviceType: 'Rotator',
+                  deviceId: 'sim_rotator_1',
+                ),
+              ),
+            ),
+          );
+      await Future<void>.delayed(Duration.zero);
+      final line = h.read(nightLogProvider).single.message.literal!;
+      expect(line, contains('Simulated Rotator'));
+      expect(line, isNot(contains('sim_rotator_1')));
+    });
+
     test('past the cap the oldest lines go, the newest stay', () async {
       final h = await sessionHarness();
       for (var i = 0; i < kNightLogMaxEntries + 5; i++) {

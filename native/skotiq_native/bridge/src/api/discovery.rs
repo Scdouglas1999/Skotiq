@@ -873,8 +873,10 @@ async fn scan_indi_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, 
     Ok(out)
 }
 
-fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
-    let (id, name) = match device_type {
+/// The simulator a type's discovery offers first: its id and the name every
+/// screen shows for it.
+fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static str)> {
+    Some(match device_type {
         DeviceType::Camera => ("sim_camera_1", "Simulated Camera"),
         DeviceType::Mount => ("sim_mount_1", "Simulated Mount"),
         DeviceType::Focuser => ("sim_focuser_1", "Simulated Focuser"),
@@ -885,7 +887,23 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
         DeviceType::SafetyMonitor => ("sim_safety_monitor_1", "Simulated Safety Monitor"),
         DeviceType::Switch => ("sim_switch_1", "Simulated Power Switch"),
         DeviceType::CoverCalibrator => ("sim_cover_calibrator_1", "Simulated Flat Panel"),
-        _ => return Vec::new(),
+        _ => return None,
+    })
+}
+
+/// The name discovery gives the simulator with [device_id], so a device
+/// reads the same in discovery, the connected list and on a linked client.
+pub(crate) fn simulator_display_name(device_id: &str, device_type: DeviceType) -> Option<String> {
+    if device_id == crate::api::devices::simulation::SIM_GUIDE_CAMERA_ID {
+        return Some(crate::api::devices::simulation::SIM_GUIDE_CAMERA_NAME.to_string());
+    }
+    let (id, name) = simulator_for_type(device_type)?;
+    (id == device_id).then(|| name.to_string())
+}
+
+fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
+    let Some((id, name)) = simulator_for_type(device_type) else {
+        return Vec::new();
     };
 
     // The `sim_` prefix is the simulator id convention the native device layer

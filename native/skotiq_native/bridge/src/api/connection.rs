@@ -110,7 +110,8 @@ pub(crate) fn device_info_from_id(device_id: &str, device_type: DeviceType) -> O
             device_type: simulator_type,
             instance,
         } => {
-            let name = format!("Simulator {} {}", simulator_type, instance);
+            let name = crate::api::discovery::simulator_display_name(device_id, device_type)
+                .unwrap_or_else(|| format!("Simulator {} {}", simulator_type, instance));
             Some(DeviceInfo {
                 id: device_id.to_string(),
                 name: name.clone(),
@@ -623,5 +624,24 @@ pub mod ascom_connections {
 
     pub async fn move_ascom_focuser(_prog_id: &str, _position: i32) -> Result<(), SkotiqError> {
         Err(unavailable("move ASCOM focuser"))
+    }
+}
+
+#[cfg(test)]
+mod simulator_name_tests {
+    use super::*;
+
+    /// A linked client lists the host's connected devices from this; it read
+    /// "Simulator camera 1" while the host's own screens said "Simulated
+    /// Camera".
+    #[test]
+    fn connected_simulators_carry_their_discovery_names() {
+        let camera = device_info_from_id("sim_camera_1", DeviceType::Camera).unwrap();
+        assert_eq!(camera.name, "Simulated Camera");
+        assert_eq!(camera.display_name, "Simulated Camera");
+        let guide = device_info_from_id("sim_camera_2", DeviceType::Camera).unwrap();
+        assert_eq!(guide.name, "Simulated Guide Camera");
+        let wheel = device_info_from_id("sim_filterwheel_1", DeviceType::FilterWheel).unwrap();
+        assert_eq!(wheel.name, "Simulated Filter Wheel");
     }
 }
