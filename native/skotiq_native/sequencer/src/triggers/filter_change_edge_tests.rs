@@ -36,3 +36,39 @@ async fn filter_change_trigger_fires_once_per_change() {
         "a genuinely new filter change must fire again"
     );
 }
+
+/// After a filter change the HFR baseline is that filter's focused HFR from
+/// its last autofocus, not the first frame through it: with the focuser moved
+/// out of focus, adopting that frame made 4.43 px the reference and no HFR
+/// trigger could ever see the blur (qa-night N18).
+#[test]
+fn a_filter_change_restores_the_filters_focused_hfr() {
+    let mut state = TriggerState::new();
+    state.set_filter("L".to_string());
+    state.update_hfr(1.96);
+    state.reset_baseline_hfr(); // autofocus succeeded on L
+    state.set_filter("R".to_string());
+    state.update_hfr(2.10);
+    state.reset_baseline_hfr(); // autofocus succeeded on R
+
+    // The focuser is knocked out of focus; the next L frame is blurred.
+    state.set_filter("L".to_string());
+    assert_eq!(state.baseline_hfr, Some(1.96));
+    state.update_hfr(4.43);
+    assert_eq!(
+        state.baseline_hfr,
+        Some(1.96),
+        "the blurred frame must not become the baseline"
+    );
+
+    // A filter never focused keeps the old behavior: its first frame.
+    state.set_filter("Ha".to_string());
+    assert_eq!(state.baseline_hfr, None);
+    state.update_hfr(2.6);
+    assert_eq!(state.baseline_hfr, Some(2.6));
+
+    // A new run starts with nothing remembered.
+    state.reset_for_new_run();
+    state.set_filter("L".to_string());
+    assert_eq!(state.baseline_hfr, None);
+}

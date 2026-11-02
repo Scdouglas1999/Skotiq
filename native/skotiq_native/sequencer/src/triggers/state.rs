@@ -145,6 +145,10 @@ pub(super) fn looks_like_tracking_limit_hit(state: &TriggerState) -> bool {
 pub struct TriggerState {
     // HFR tracking
     pub baseline_hfr: Option<f64>,
+    /// The HFR each filter reached at its last successful autofocus. A filter
+    /// change restores that filter's baseline instead of adopting the next
+    /// frame, which may already be out of focus.
+    pub focused_hfr_by_filter: std::collections::HashMap<String, f64>,
     pub current_hfr: Option<f64>,
     /// monotonically increments each time a NEW frame's HFR is recorded
     /// via `update_hfr`. The HfrDegraded trigger gates its consecutive-bad-frame
@@ -434,6 +438,7 @@ impl Default for TriggerState {
     fn default() -> Self {
         Self {
             baseline_hfr: None,
+            focused_hfr_by_filter: std::collections::HashMap::new(),
             current_hfr: None,
             hfr_sample_seq: 0,
             autofocus_hfr_seq: None,
@@ -545,8 +550,13 @@ impl TriggerState {
         self.hfr_sample_seq = self.hfr_sample_seq.wrapping_add(1);
     }
 
+    /// Take the current HFR as the baseline. Called after a successful
+    /// autofocus, so it is also remembered as the current filter's focused HFR.
     pub fn reset_baseline_hfr(&mut self) {
         self.baseline_hfr = self.current_hfr;
+        if let (Some(filter), Some(hfr)) = (self.current_filter.as_ref(), self.current_hfr) {
+            self.focused_hfr_by_filter.insert(filter.clone(), hfr);
+        }
     }
 
     pub fn invalidate_autofocus(&mut self, reason: impl Into<String>) {
@@ -608,8 +618,15 @@ impl TriggerState {
             // Invalidating autofocus here made the HFR trigger refocus on "L"
             // every time its cooldown expired while a Smart Exposure node cycled
             // narrowband filters.
-            self.baseline_hfr = None;
-            tracing::debug!("HFR baseline restarted: filter changed to {}", filter);
+            // The filter's own focused HFR when it has one: the first frame
+            // after the change may already be out of focus, and adopting it
+            // would make the blur the reference no trigger can see past.
+            self.baseline_hfr = self.focused_hfr_by_filter.get(&filter).copied();
+            tracing::debug!(
+                "HFR baseline for {} is {:?} after the filter change",
+                filter,
+                self.baseline_hfr
+            );
         }
         self.current_filter = Some(filter);
     }
@@ -691,6 +708,7 @@ impl TriggerState {
     /// rather than of a run.
     pub fn reset_for_new_run(&mut self) {
         self.baseline_hfr = None;
+        self.focused_hfr_by_filter.clear();
         self.current_hfr = None;
         self.autofocus_invalidated = false;
         self.autofocus_invalidation_reason = None;
