@@ -1,6 +1,6 @@
 // Plan > Tonight's detail pane draws the selected target's altitude over the
 // night. Without a scale the peak and the time it clears the limit cannot be
-// read off the curve, so the chart labels degrees and clock hours.
+// read off the curve, so the chart labels degrees and clock times.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -101,14 +101,16 @@ void main() {
       (tester) async {
     await pumpPlanner(tester);
 
+    // The unit rides on the top label only, as on every kit chart scale.
     expect(find.text('90°'), findsOneWidget);
-    expect(find.text('60°'), findsOneWidget);
+    expect(find.text('60'), findsOneWidget);
+    expect(find.text('30'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
-        (w) => w is Text && RegExp(r'^\d\dh$').hasMatch(w.data ?? ''),
+        (w) => w is Text && RegExp(r'^\d\d:\d\d$').hasMatch(w.data ?? ''),
       ),
       findsWidgets,
-      reason: 'the hours along the bottom of the chart are labeled',
+      reason: 'the clock times along the bottom of the chart are labeled',
     );
   });
 }
