@@ -552,8 +552,14 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
     // of defense; this just keeps the affordance honest.
     if (!ref.read(canEditSequenceProvider)) return;
     final node = widget.item.createNode();
-    final selectedId = ref.read(selectedNodeIdProvider);
     final notifier = ref.read(currentSequenceProvider.notifier);
+    // With nothing open there is nothing to add to: start a sequence for the
+    // node, as "Add a target" does, instead of dropping the tap.
+    if (ref.read(currentSequenceProvider) == null) {
+      notifier.createSequence();
+      ref.read(selectedNodeIdProvider.notifier).state = null;
+    }
+    final selectedId = ref.read(selectedNodeIdProvider);
     notifier.addNode(
       node,
       parentId: selectedId,
