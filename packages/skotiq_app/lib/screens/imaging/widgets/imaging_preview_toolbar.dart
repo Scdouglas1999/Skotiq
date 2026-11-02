@@ -495,6 +495,8 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
     final histogramVisible = ref.watch(previewHistogramVisibleProvider);
     final depthLockGoalsVisible =
         ref.watch(depthLockGoalOverlayVisibleProvider);
+    final scienceSettings = ref.watch(scienceSettingsProvider).valueOrNull;
+    final scienceOverlay = ref.watch(scienceOverlayStateProvider);
 
     // Undeclared, this publishes as `panel: Overlays [DISABLED]` — a live popup
     // trigger announced as an inert panel — because PopupMenuButton's InkWell
@@ -630,6 +632,12 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
                     .read(previewHistogramVisibleProvider.notifier)
                     .setVisible(!histogramVisible),
               ),
+              if (scienceSettings?.advancedModeEnabled == true)
+                ..._advancedScienceItems(
+                  colors,
+                  scienceOverlay,
+                  layersShown: scienceSettings!.overlayEnabled,
+                ),
             ];
           },
           // Excluded so the label does not publish a SECOND "Overlays" node
@@ -646,6 +654,80 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
         ),
       ),
     );
+  }
+
+  /// The science layers Settings > Science > "Show advanced overlay
+  /// controls" adds. They draw only while Science overlays is on there, so
+  /// with it off the rows say so and do not toggle.
+  List<PopupMenuEntry<int>> _advancedScienceItems(
+    SkotiqColors colors,
+    ScienceOverlayState overlay, {
+    required bool layersShown,
+  }) {
+    final offNote = layersShown ? null : 'Science overlays are off in Settings';
+    VoidCallback? toggle(ScienceOverlayState Function() next) => layersShown
+        ? () => ref.read(scienceOverlayStateProvider.notifier).state = next()
+        : null;
+    return <PopupMenuEntry<int>>[
+      const PopupMenuDivider(),
+      _overlayItem(
+        colors: colors,
+        value: 9,
+        icon: LucideIcons.flame,
+        label: 'PSF heatmap',
+        subtitle: offNote,
+        active: overlay.showPsfHeatmap,
+        onTap: toggle(
+          () => overlay.copyWith(showPsfHeatmap: !overlay.showPsfHeatmap),
+        ),
+      ),
+      _overlayItem(
+        colors: colors,
+        value: 10,
+        icon: LucideIcons.arrowUpRight,
+        label: 'Residual vectors',
+        subtitle: offNote,
+        active: overlay.showResidualVectors,
+        onTap: toggle(
+          () => overlay.copyWith(
+            showResidualVectors: !overlay.showResidualVectors,
+          ),
+        ),
+      ),
+      _overlayItem(
+        colors: colors,
+        value: 11,
+        icon: LucideIcons.layoutGrid,
+        label: 'Uniformity tile map',
+        subtitle: offNote,
+        active: overlay.showUniformityMap,
+        onTap: toggle(
+          () => overlay.copyWith(showUniformityMap: !overlay.showUniformityMap),
+        ),
+      ),
+      _overlayItem(
+        colors: colors,
+        value: 12,
+        icon: LucideIcons.arrowUpToLine,
+        label: 'Clipped-high tile map',
+        subtitle: offNote,
+        active: overlay.showClipHighMap,
+        onTap: toggle(
+          () => overlay.copyWith(showClipHighMap: !overlay.showClipHighMap),
+        ),
+      ),
+      _overlayItem(
+        colors: colors,
+        value: 13,
+        icon: LucideIcons.arrowDownToLine,
+        label: 'Clipped-low tile map',
+        subtitle: offNote,
+        active: overlay.showClipLowMap,
+        onTap: toggle(
+          () => overlay.copyWith(showClipLowMap: !overlay.showClipLowMap),
+        ),
+      ),
+    ];
   }
 
   PopupMenuItem<int> _overlayItem({

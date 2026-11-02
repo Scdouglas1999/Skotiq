@@ -187,6 +187,7 @@ class TargetScoringService {
       date: AstronomyCalculations.nightDateOf(nightMid),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
+      windowStart: nightMid.subtract(const Duration(hours: 12)),
     );
     for (final target in targets) {
       yield _scoreTargetForNight(
@@ -297,12 +298,12 @@ class TargetScoringService {
     );
     final visibility =
         visibilityCalculator?.calculate(raDeg: raDeg, decDeg: decDeg) ??
-        AstronomyCalculations.calculateObjectVisibility(
+        // Centered on the night itself: the site's night need not fall
+        // inside the host computer's noon-to-noon day.
+        AstronomyCalculations.calculateObjectVisibilityAround(
           raDeg: raDeg,
           decDeg: decDeg,
-          // nightMid usually lands after midnight, so its calendar day names the
-          // day the night ENDS, not the night itself.
-          date: AstronomyCalculations.nightDateOf(nightMid),
+          center: nightMid,
           latitudeDeg: latitude,
           longitudeDeg: longitude,
         );

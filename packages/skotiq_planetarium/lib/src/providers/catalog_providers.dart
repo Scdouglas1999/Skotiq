@@ -14,6 +14,10 @@ class CatalogState {
   final double downloadProgress;
   final String? downloadError;
 
+  /// Bumped whenever catalog files on disk are installed or removed, so the
+  /// loaded catalogs reload instead of keeping what they read at startup.
+  final int installRevision;
+
   const CatalogState({
     this.starCatalogStatus = const CatalogStatus(isInstalled: false),
     this.dsoCatalogStatus = const CatalogStatus(isInstalled: false),
@@ -21,6 +25,7 @@ class CatalogState {
     this.isDownloading = false,
     this.downloadProgress = 0,
     this.downloadError,
+    this.installRevision = 0,
   });
 
   bool get catalogsInstalled =>
@@ -39,6 +44,7 @@ class CatalogState {
     bool? isDownloading,
     double? downloadProgress,
     String? downloadError,
+    int? installRevision,
   }) {
     return CatalogState(
       starCatalogStatus: starCatalogStatus ?? this.starCatalogStatus,
@@ -47,6 +53,7 @@ class CatalogState {
       isDownloading: isDownloading ?? this.isDownloading,
       downloadProgress: downloadProgress ?? this.downloadProgress,
       downloadError: downloadError,
+      installRevision: installRevision ?? this.installRevision,
     );
   }
 }
@@ -72,6 +79,18 @@ class CatalogStateNotifier extends StateNotifier<CatalogState> {
   }
 
   StreamSubscription<DownloadProgress>? _downloadSub;
+
+  /// Whether a status read has completed, so the first read after startup
+  /// (which only confirms what the loaders already read) is not counted as
+  /// an install.
+  bool _observedOnDisk = false;
+
+  static Object _installSignature(CatalogStatus status) => (
+    status.isInstalled,
+    status.installedDate,
+    status.fileSizeBytes,
+    status.objectCount,
+  );
 
   @override
   void dispose() {
@@ -99,12 +118,20 @@ class CatalogStateNotifier extends StateNotifier<CatalogState> {
     try {
       final starStatus = await CatalogManager.instance.getStarCatalogStatus();
       final dsoStatus = await CatalogManager.instance.getDsoCatalogStatus();
+      final changed =
+          _observedOnDisk &&
+          (_installSignature(starStatus) !=
+                  _installSignature(state.starCatalogStatus) ||
+              _installSignature(dsoStatus) !=
+                  _installSignature(state.dsoCatalogStatus));
+      _observedOnDisk = true;
 
       state = state.copyWith(
         starCatalogStatus: starStatus,
         dsoCatalogStatus: dsoStatus,
         isInitialized: true,
         downloadError: null,
+        installRevision: changed ? state.installRevision + 1 : null,
       );
     } catch (e) {
       state = state.copyWith(downloadError: 'Failed to check status: $e');
@@ -176,6 +203,7 @@ final catalogStateProvider =
 /// the depth the renderer needs; the per-frame magnitude limit filters below
 /// that.
 final starCatalogProvider = Provider<HygStarCatalog>((ref) {
+  ref.watch(catalogStateProvider.select((s) => s.installRevision));
   return HygStarCatalog(magnitudeLimit: 12.0);
 });
 

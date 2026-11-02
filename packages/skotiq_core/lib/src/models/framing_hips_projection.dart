@@ -26,15 +26,13 @@
 //    `(panX, panY)` logical pixels (see `FramingPlateScale.drawRectFor`).
 //  * Screen scale is `FramingPlateScale.pixelsPerDegree(size, zoom)` — the one
 //    authoritative px/deg every overlay and the survey background use.
-//  * Sign convention (from `FramingProvider._recenterFromPan`,
-//    `framing_provider.dart:798-818`): dragging the background to the right
-//    (+pan x) reveals sky to the *west* so the look-direction (canvas-center)
-//    RA *decreases*; dragging down (+pan y) reveals sky to the *north* so the
-//    look-direction Dec *increases*. Because +pan x shifts the canvas center to
-//    a *lower* RA, screen +x points toward *increasing* RA, and screen +y
-//    points toward *decreasing* Dec (north is up). RA offsets scale by
-//    `1/cos(dec)` near the poles, mirroring `_recenterFromPan` and
-//    `_recalculateMosaicPanels`.
+//  * Sign convention: the sky as seen, north up and east LEFT, which is how
+//    the survey cutouts are delivered. Screen +x points toward *decreasing* RA
+//    (west) and screen +y toward *decreasing* Dec (south). Dragging the
+//    background to the right (+pan x) therefore reveals sky to the *east*, so
+//    the look-direction RA *increases*; dragging down (+pan y) reveals sky to
+//    the *north*. RA offsets scale by `1/cos(dec)` near the poles, matching
+//    `FramingProvider._recenterFromPan` and `_recalculateMosaicPanels`.
 //  * Rotation is applied as `rotate about canvas center` exactly as
 //    `FramingSurveyImagePainter.paint` does
 //    (`framing_background_painters.dart:67-73`): the unrotated screen point is
@@ -368,9 +366,9 @@ class FramingSkyProjection {
   ///     `dRaDeg = ΔRA_hours * 15 * cos(dec_center)` (the standard small-field
   ///     RA-fold-in-by-cos(dec)), `dDecDeg = dec - dec_center`.
   ///  2. Convert degrees to the *unrotated* screen offset using the sign
-  ///     convention: +x points toward *increasing* RA (because +pan x lowers
-  ///     the center RA), +y toward *decreasing* Dec (north is up). So
-  ///     `dx = +dRaDeg * pxPerDeg`, `dy = -dDecDeg * pxPerDeg`.
+  ///     convention: east is left, so +x points toward *decreasing* RA, and
+  ///     +y toward *decreasing* Dec (north is up). So
+  ///     `dx = -dRaDeg * pxPerDeg`, `dy = -dDecDeg * pxPerDeg`.
   ///  3. Translate by canvas center + pan, then rotate about the canvas center
   ///     by `rotation` degrees — matching `FramingSurveyImagePainter.paint`'s
   ///     rotate-about-center, translate-by-pan composition.
@@ -380,7 +378,7 @@ class FramingSkyProjection {
     final dDecDeg = decDegrees - centerDecDegrees;
 
     // Unrotated screen offset from the (panned) canvas center.
-    final ux = dRaDeg * pixelsPerDegree;
+    final ux = -dRaDeg * pixelsPerDegree;
     final uy = -dDecDeg * pixelsPerDegree;
 
     // The panned center is the canvas center displaced by pan (drawRectFor's
@@ -426,7 +424,7 @@ class FramingSkyProjection {
     }
 
     // Invert the sign convention from raDecToScreen.
-    final dRaDeg = ux / pixelsPerDegree;
+    final dRaDeg = -ux / pixelsPerDegree;
     final dDecDeg = -uy / pixelsPerDegree;
 
     final dRaHours = (dRaDeg / _safeCosDec) / 15.0;

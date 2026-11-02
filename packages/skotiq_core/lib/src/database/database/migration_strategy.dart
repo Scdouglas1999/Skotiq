@@ -49,6 +49,8 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         // Enable foreign key enforcement
         await customStatement('PRAGMA foreign_keys = ON');
 
+        await _ensureCapturedImagesSolveFailureColumn();
+
         // Retired settings are pruned here, not in onCreate/onUpgrade:
         // those only fire on a fresh database or a schema-version bump,
         // and the profiles that still carry an orphaned row are exactly

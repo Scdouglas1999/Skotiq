@@ -70,6 +70,11 @@ class Phd2Controller {
   bool _starLossActive = false;
   bool _relaunchInFlight = false;
 
+  /// The last guider that was connected. A disconnect clears the live guider
+  /// state (possibly before this controller sees the event), and link-loss
+  /// recovery has to know which guider was lost.
+  String? _lastGuiderId;
+
   /// A single physical link loss can produce more than one Disconnected event:
   /// PHD2 reports the socket loss, then our backend cleanup publishes its own
   /// terminal event.  Treat those as one episode so cleanup cannot feed its
@@ -127,9 +132,14 @@ class Phd2Controller {
 
   /// PHD2 closed externally (EOF) or bridge published [Disconnected].
   void _handlePhd2LinkLost() {
+    final lostGuider = ref.read(guiderStateProvider).deviceId ?? _lastGuiderId;
     _resetStarLoss();
     ref.read(phd2StateProvider.notifier).state = Phd2State.stopped;
     ref.read(guiderStateProvider.notifier).setDisconnected();
+
+    // PHD2 recovery is for PHD2 only. Another guider's loss is handled by the
+    // device service, and PHD2 is never launched in its place.
+    if (lostGuider != null && !isPhd2DeviceId(lostGuider)) return;
 
     if (_linkLossHandled) return;
     _linkLossHandled = true;
@@ -254,6 +264,12 @@ class Phd2Controller {
   }
 
   void _init() {
+    ref.listen<String?>(guiderStateProvider.select((state) => state.deviceId), (
+      _,
+      next,
+    ) {
+      if (next != null && next.trim().isNotEmpty) _lastGuiderId = next;
+    }, fireImmediately: true);
     // Listen to backend events
     _eventSub = backend.eventStream.listen(
       (event) {

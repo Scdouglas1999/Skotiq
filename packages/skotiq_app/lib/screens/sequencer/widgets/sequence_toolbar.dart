@@ -440,6 +440,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   duration: const Duration(seconds: 6),
                 );
               }
+            } on FormatException catch (e) {
+              if (requireCurrentContext() && context.mounted) {
+                context.showErrorSnackBar(
+                  'Could not open the sequence: ${e.message}',
+                  duration: const Duration(seconds: 6),
+                );
+              }
             } catch (e) {
               if (requireCurrentContext() && context.mounted) {
                 context.showErrorSnackBar('Failed to load sequence: $e');

@@ -39,6 +39,7 @@ Widget _harness(
   List<DbCapturedImage> frames, {
   PlateSolverDetection? detection,
   Future<PlateSolverDetection>? pending,
+  bool submitted = true,
 }) {
   final router = GoRouter(
     routes: [
@@ -61,6 +62,12 @@ Widget _harness(
     overrides: [
       plateSolverDetectionProvider.overrideWith(
         (ref) => pending ?? Future.value(detection!),
+      ),
+      // The solver ran on every frame and failed, unless none was set up.
+      plateSolveFailedFrameIdsProvider.overrideWith(
+        (ref) => Stream.value(
+          submitted ? {for (final f in frames) f.id} : <int>{},
+        ),
       ),
     ],
     child: MaterialApp.router(
@@ -102,11 +109,12 @@ void main() {
     await tester.pumpWidget(_harness(
       zeroSolves,
       detection: const PlateSolverDetection(),
+      submitted: false,
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('No solves yet'), findsOneWidget);
-    expect(find.textContaining('No plate solver is installed'), findsOneWidget);
+    expect(find.text('Not solving'), findsOneWidget);
+    expect(find.textContaining('No plate solver is set up'), findsOneWidget);
     expect(find.text('Configure plate solver'), findsOneWidget);
   });
 

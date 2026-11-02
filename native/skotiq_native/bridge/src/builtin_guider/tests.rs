@@ -1363,3 +1363,58 @@ fn the_guide_camera_is_never_the_imaging_camera() {
     );
     assert_eq!(pick_guide_camera(Some("asi2600"), &[]), None);
 }
+
+/// One failed camera download skips that frame and keeps guiding, with a
+/// notification naming the retry; only a run of failures past the budget ends
+/// the loop.
+#[tokio::test]
+async fn a_failed_guide_frame_is_skipped_until_the_retry_budget_is_spent() {
+    let stop = std::sync::atomic::AtomicBool::new(false);
+    let mut failures = 0;
+    let fail = || async { Err::<u32, _>(SkotiqError::OperationFailed("download failed".into())) };
+
+    for retry in 1..=GUIDE_FRAME_RETRIES {
+        match next_guiding_frame(fail, &mut failures, Duration::ZERO, &stop).await {
+            Ok(GuideFrameAttempt::Skipped(message)) => assert!(
+                message.contains(&format!("retry {retry} of {GUIDE_FRAME_RETRIES}")),
+                "{message}"
+            ),
+            _ => panic!("failure {retry} ended guiding instead of being skipped"),
+        }
+    }
+    assert!(
+        next_guiding_frame(fail, &mut failures, Duration::ZERO, &stop)
+            .await
+            .is_err()
+    );
+
+    // A good frame resets the budget.
+    let mut failures = GUIDE_FRAME_RETRIES;
+    let ok = || async { Ok::<u32, SkotiqError>(7) };
+    assert!(matches!(
+        next_guiding_frame(ok, &mut failures, Duration::ZERO, &stop).await,
+        Ok(GuideFrameAttempt::Frame(7))
+    ));
+    assert_eq!(failures, 0);
+}
+
+/// Calibration takes its frames through the same retry budget, so a failed
+/// download while calibrating does not end the run before guiding starts.
+#[tokio::test]
+async fn calibration_frames_ride_through_a_failed_download() {
+    let attempts = std::sync::atomic::AtomicU32::new(0);
+    let flaky = || {
+        let n = attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        async move {
+            if n < 2 {
+                Err(SkotiqError::OperationFailed("download failed".into()))
+            } else {
+                Ok::<u32, SkotiqError>(n)
+            }
+        }
+    };
+    assert_eq!(retry_guide_frame(flaky, Duration::ZERO).await.unwrap(), 2);
+
+    let broken = || async { Err::<u32, _>(SkotiqError::OperationFailed("camera gone".into())) };
+    assert!(retry_guide_frame(broken, Duration::ZERO).await.is_err());
+}

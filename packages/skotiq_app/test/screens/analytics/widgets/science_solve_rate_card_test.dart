@@ -31,7 +31,14 @@ drift.CapturedImage _frame({required int id, required bool solved}) {
   );
 }
 
-Widget _harness(List<DbCapturedImage> frames) {
+/// [failedIds] are the frames a solver ran on and could not solve; by
+/// default every unsolved frame in [frames].
+Widget _harness(List<DbCapturedImage> frames, {Set<int>? failedIds}) {
+  final failed = failedIds ??
+      {
+        for (final f in frames)
+          if (!f.isPlateSolved) f.id
+      };
   final router = GoRouter(
     routes: [
       GoRoute(
@@ -50,6 +57,11 @@ Widget _harness(List<DbCapturedImage> frames) {
     ],
   );
   return ProviderScope(
+    overrides: [
+      plateSolveFailedFrameIdsProvider.overrideWith(
+        (ref) => Stream.value(failed),
+      ),
+    ],
     child: MaterialApp.router(
       theme: ThemeData(extensions: const [SkotiqColors.dark]),
       routerConfig: router,
@@ -108,5 +120,30 @@ void main() {
     expect(find.text('No solves yet'), findsOneWidget);
     expect(find.text('0%'), findsOneWidget);
     expect(find.text('Configure plate solver'), findsOneWidget);
+  });
+
+  testWidgets('frames never sent to a solver are not failures', (tester) async {
+    // Twenty snapshots before a solver was set up, then one solved frame.
+    final frames = <DbCapturedImage>[
+      for (var i = 0; i < 20; i++) _frame(id: i, solved: false),
+      _frame(id: 20, solved: true),
+    ];
+    await tester.pumpWidget(_harness(frames, failedIds: const {}));
+    await tester.pump();
+    expect(find.text('Struggling'), findsNothing);
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('1 of 1 solved · 20 not submitted'), findsOneWidget);
+  });
+
+  testWidgets('says so when no frame has been sent to a solver',
+      (tester) async {
+    final frames = <DbCapturedImage>[
+      for (var i = 0; i < 5; i++) _frame(id: i, solved: false),
+    ];
+    await tester.pumpWidget(_harness(frames, failedIds: const {}));
+    await tester.pump();
+    expect(find.text('Not solving'), findsOneWidget);
+    expect(find.text('no frames sent to a solver'), findsOneWidget);
+    expect(find.text('No solves yet'), findsNothing);
   });
 }

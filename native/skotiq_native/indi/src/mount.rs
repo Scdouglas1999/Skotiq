@@ -77,6 +77,21 @@ impl IndiMount {
         }
     }
 
+    /// The ON_COORD_SET mode a goto uses. TRACK slews and then tracks the
+    /// target; SLEW leaves many drivers stopped on arrival, so it is used only
+    /// when the driver does not offer TRACK.
+    async fn goto_coord_set_mode(client: &IndiClient, device_name: &str) -> &'static str {
+        if client
+            .get_switch(device_name, ON_COORD_SET, "TRACK")
+            .await
+            .is_some()
+        {
+            "TRACK"
+        } else {
+            "SLEW"
+        }
+    }
+
     async fn restore_on_coord_set_mode(
         client: &mut IndiClient,
         device_name: &str,
@@ -215,9 +230,9 @@ impl IndiMount {
         let answer_timeout =
             Duration::from_secs(client.timeout_config().property_timeout_secs.max(1));
 
-        // Set coordinate mode to SLEW
+        let goto_mode = Self::goto_coord_set_mode(&client, &self.device_name).await;
         client
-            .set_switch(&self.device_name, ON_COORD_SET, "SLEW", true)
+            .set_switch(&self.device_name, ON_COORD_SET, goto_mode, true)
             .await?;
 
         // Set target coordinates
@@ -338,8 +353,9 @@ impl IndiMount {
         {
             let mut client = self.client.write().await;
             let previous_mode = Self::current_on_coord_set_mode(&client, &self.device_name).await;
+            let goto_mode = Self::goto_coord_set_mode(&client, &self.device_name).await;
             client
-                .set_switch(&self.device_name, ON_COORD_SET, "SLEW", true)
+                .set_switch(&self.device_name, ON_COORD_SET, goto_mode, true)
                 .await?;
             if let Err(error) = client
                 .set_numbers(
@@ -843,8 +859,24 @@ mod tests {
         tokio::task::JoinHandle<()>,
         Arc<tokio::sync::Mutex<Option<String>>>,
     ) {
+        let (mount, server, captured, _) =
+            mount_from_fake_server_with_transcript(payload, wait_property).await;
+        (mount, server, captured)
+    }
+
+    async fn mount_from_fake_server_with_transcript(
+        payload: impl AsRef<[u8]>,
+        wait_property: &str,
+    ) -> (
+        IndiMount,
+        tokio::task::JoinHandle<()>,
+        Arc<tokio::sync::Mutex<Option<String>>>,
+        Arc<tokio::sync::Mutex<String>>,
+    ) {
         let slew_property = Arc::new(tokio::sync::Mutex::new(None));
         let captured = slew_property.clone();
+        let transcript = Arc::new(tokio::sync::Mutex::new(String::new()));
+        let transcript_writer = transcript.clone();
         let payload_bytes = payload.as_ref().to_vec();
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -869,6 +901,7 @@ mod tests {
                     Ok(0) | Err(_) => break,
                     Ok(n) => {
                         received.push_str(&String::from_utf8_lossy(&buf[..n]));
+                        transcript_writer.lock().await.clone_from(&received);
                         if let Some(property) = extract_new_number_vector_property(&received) {
                             *captured.lock().await = Some(property);
                         }
@@ -896,7 +929,43 @@ mod tests {
         }
 
         let mount = IndiMount::new(Arc::new(RwLock::new(client)), "Mount");
-        (mount, server, slew_property)
+        (mount, server, slew_property, transcript)
+    }
+
+    /// A goto asks the driver to track on arrival (ON_COORD_SET=TRACK), not
+    /// to slew and stop.
+    #[tokio::test]
+    async fn slew_selects_track_on_arrival() {
+        let payload = format!(
+            "{MOUNT_BASE_PROPERTIES}
+<defNumberVector device=\"Mount\" name=\"EQUATORIAL_EOD_COORD\" state=\"Idle\" perm=\"rw\">
+  <defNumber name=\"RA\" min=\"0\" max=\"24\">10.0</defNumber>
+  <defNumber name=\"DEC\" min=\"-90\" max=\"90\">45.0</defNumber>
+</defNumberVector>
+"
+        );
+        let (mount, server, captured, transcript) =
+            mount_from_fake_server_with_transcript(payload.as_bytes(), EQUATORIAL_EOD_COORD).await;
+
+        mount.connect().await.expect("connect mount on fake server");
+        mount
+            .slew_to_coordinates(11.0, 46.0)
+            .await
+            .expect("slew on fake server");
+        wait_for_captured_property(&captured).await;
+
+        let sent = transcript.lock().await.clone();
+        let mode_write = sent
+            .split("<newSwitchVector")
+            .find(|chunk| chunk.contains("name=\"ON_COORD_SET\""))
+            .expect("the goto set ON_COORD_SET");
+        assert!(
+            mode_write.contains("<oneSwitch name=\"TRACK\">On</oneSwitch>"),
+            "the goto did not select TRACK: {mode_write}"
+        );
+
+        drop(mount);
+        server.await.expect("fake server should finish");
     }
 
     const MOUNT_BASE_PROPERTIES: &str = r#"

@@ -3,17 +3,26 @@ part of '../astronomy_calculations.dart';
 /// Shares the time grid and sidereal times when evaluating a fixed-object
 /// catalog for one observing site and date. Each object's crossings and transit
 /// are still refined independently with the original visibility calculation.
+///
+/// [windowStart], when given, opens the 24-hour window there instead of at
+/// the host's local noon of [date]; see
+/// [AstronomyCalculations.calculateObjectVisibilityAround].
 class FixedObjectVisibilityCalculator {
   final DateTime date;
   final double latitudeDeg;
   final double longitudeDeg;
+  final DateTime? windowStart;
   final List<(DateTime, double)> _siderealSamples;
 
   FixedObjectVisibilityCalculator({
     required this.date,
     required this.latitudeDeg,
     required this.longitudeDeg,
-  }) : _siderealSamples = _visibilitySiderealSamples(date, longitudeDeg);
+    this.windowStart,
+  }) : _siderealSamples = _visibilitySiderealSamples(
+         windowStart ?? _localNoonOf(date),
+         longitudeDeg,
+       );
 
   ObjectVisibility calculate({required double raDeg, required double decDeg}) =>
       _calculateObjectVisibility(
@@ -23,14 +32,17 @@ class FixedObjectVisibilityCalculator {
         latitudeDeg: latitudeDeg,
         longitudeDeg: longitudeDeg,
         siderealSamples: _siderealSamples,
+        windowStart: windowStart,
       );
 }
 
+DateTime _localNoonOf(DateTime date) =>
+    DateTime(date.year, date.month, date.day, 12);
+
 List<(DateTime, double)> _visibilitySiderealSamples(
-  DateTime date,
+  DateTime start,
   double longitude,
 ) {
-  final start = DateTime(date.year, date.month, date.day, 12);
   final end = start.add(const Duration(hours: 24));
   return [
     for (var t = start; !t.isAfter(end); t = t.add(const Duration(minutes: 5)))
@@ -160,8 +172,9 @@ ObjectVisibility _calculateObjectVisibility({
   double? standardAltitude,
   EquatorialPositionAt? positionAt,
   List<(DateTime, double)>? siderealSamples,
+  DateTime? windowStart,
 }) {
-  final localNoon = DateTime(date.year, date.month, date.day, 12);
+  final localNoon = windowStart ?? _localNoonOf(date);
   final windowEnd = localNoon.add(const Duration(hours: 24));
   final crossingAlt = standardAltitude ?? minAltitude;
 

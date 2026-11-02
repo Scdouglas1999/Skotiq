@@ -28,12 +28,24 @@ class ScienceSolveRateCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final total = lightFrames.length;
+    // Only frames a solver ran on count: a frame captured with no solver set
+    // up was never submitted, so it is neither a success nor a failure.
+    final failedIds =
+        ref.watch(plateSolveFailedFrameIdsProvider).valueOrNull ?? const {};
     final solved = lightFrames.where((image) => image.isPlateSolved).length;
+    final failed = lightFrames
+        .where((image) => !image.isPlateSolved && failedIds.contains(image.id))
+        .length;
+    final total = solved + failed;
+    final unsubmitted = lightFrames.length - total;
     final rate = total == 0 ? 0.0 : solved / total;
     final pct = (rate * 100).round();
 
-    final _Tier tier = _classify(total: total, rate: rate);
+    final _Tier tier = _classify(
+      total: total,
+      rate: rate,
+      anyFrames: lightFrames.isNotEmpty,
+    );
     // Whether a solver is actually on this machine. Without it the zero-solve
     // message blamed reachability while ASTAP was being launched per frame and
     // exiting 1 — the failure was pointing/scale, not installation.
@@ -71,8 +83,11 @@ class ScienceSolveRateCard extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   total == 0
-                      ? 'no light frames yet'
-                      : '$solved of $total solved',
+                      ? (lightFrames.isEmpty
+                          ? 'no light frames yet'
+                          : 'no frames sent to a solver')
+                      : '$solved of $total solved'
+                          '${unsubmitted > 0 ? ' · $unsubmitted not submitted' : ''}',
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textSecondary),
                 ),
@@ -112,8 +127,12 @@ class ScienceSolveRateCard extends ConsumerWidget {
     );
   }
 
-  static _Tier _classify({required int total, required double rate}) {
-    if (total == 0) return _Tier.warmup;
+  static _Tier _classify({
+    required int total,
+    required double rate,
+    required bool anyFrames,
+  }) {
+    if (total == 0) return anyFrames ? _Tier.notSubmitted : _Tier.warmup;
     if (total < 3) return _Tier.warmup;
     if (rate >= 0.9) return _Tier.excellent;
     if (rate >= 0.6) return _Tier.acceptable;
@@ -124,17 +143,23 @@ class ScienceSolveRateCard extends ConsumerWidget {
 
 enum _Tier {
   warmup,
+  notSubmitted,
   excellent,
   acceptable,
   struggling,
   broken;
 
-  bool get showConfigureCta => this == _Tier.struggling || this == _Tier.broken;
+  bool get showConfigureCta =>
+      this == _Tier.struggling ||
+      this == _Tier.broken ||
+      this == _Tier.notSubmitted;
 
   String get label {
     switch (this) {
       case _Tier.warmup:
         return 'Warming up';
+      case _Tier.notSubmitted:
+        return 'Not solving';
       case _Tier.excellent:
         return 'Excellent';
       case _Tier.acceptable:
@@ -149,6 +174,7 @@ enum _Tier {
   Color color(SkotiqColors c) {
     switch (this) {
       case _Tier.warmup:
+      case _Tier.notSubmitted:
         return c.textSecondary;
       case _Tier.excellent:
         return c.success;
@@ -170,6 +196,14 @@ enum _Tier {
         return total == 0
             ? 'Solve health appears once light frames start arriving.'
             : 'A few more frames will produce a stable solve rate.';
+      case _Tier.notSubmitted:
+        if (detection != null && !detection.hasAnySolver) {
+          return 'No plate solver is set up, so no frame has been sent to '
+              'one. Install ASTAP (with a star catalog) or astrometry.net, '
+              'then point Skotiq at it.';
+        }
+        return 'No frame has been sent to a plate solver yet. Frames are '
+            'solved as they arrive once a solver is set up.';
       case _Tier.excellent:
         return 'Most frames are solving. Photometry, PSF maps, and residuals all benefit.';
       case _Tier.acceptable:

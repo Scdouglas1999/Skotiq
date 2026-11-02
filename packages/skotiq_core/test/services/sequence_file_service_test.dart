@@ -252,7 +252,7 @@ void main() {
   });
 
   test(
-    'sequence import fails fast when active profile is missing filters',
+    'sequence import opens a file naming filters the profile lacks',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'sequence_file_service_validation_',
@@ -313,16 +313,12 @@ void main() {
 
       final service = container.read(sequenceFileServiceProvider);
 
-      await expectLater(
-        service.importSequence(),
-        throwsA(
-          isA<FormatException>().having(
-            (error) => error.message,
-            'message',
-            contains('filters not present'),
-          ),
-        ),
-      );
+      // The file opens so the filter can be renamed in the editor; the
+      // sequence checks flag it there.
+      final imported = await service.importSequence();
+      final filterNode = imported!.nodes['filter-1'];
+      expect(filterNode, isA<FilterChangeNode>());
+      expect((filterNode! as FilterChangeNode).filterName, 'Ha');
     },
   );
 

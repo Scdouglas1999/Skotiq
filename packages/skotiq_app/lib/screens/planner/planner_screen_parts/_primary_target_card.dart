@@ -28,7 +28,7 @@ class _TargetDetailColumn extends ConsumerWidget {
   static const double _previewHeight = 96;
 
   /// Height of the altitude well.
-  static const double _altitudeHeight = 110;
+  static const double _altitudeHeight = 132;
 
   /// Whether the selected target IS the one the optimizer chose.
   bool get _isOptimizerPick => plan.primaryTarget?.targetId == target.targetId;
@@ -291,21 +291,124 @@ class _TargetAltitudeWell extends ConsumerWidget {
     double fraction(DateTime t) =>
         (t.difference(from).inSeconds / span).clamp(0.0, 1.0);
 
-    return DecoratedBox(
-      decoration: SkotiqDecorations.well(colors),
-      child: CustomPaint(
-        painter: _AltitudeCurvePainter(
-          altitudes: points,
-          minAltitude: minAltitude,
-          darkFrom: fraction(night.start),
-          darkTo: fraction(night.end),
-          now: fraction(DateTime.now()),
-          curve: colors.primary,
-          hairline: colors.border,
-          marker: colors.textPrimary,
-        ),
-      ),
+    final axisStyle = SkotiqTypography.captionSm.copyWith(
+      color: colors.textMuted,
+      fontSize: SkotiqTypography.fontSize9,
+      height: 1,
     );
+    final hours = _hourTicks(from, to);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: _gutter,
+                child: ExcludeSemantics(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final h = constraints.maxHeight;
+                      return Stack(
+                        children: [
+                          for (final deg in _AltitudeCurvePainter.gridDegrees)
+                            Positioned(
+                              right: 4,
+                              top: (h * (1 - deg / 90) - _labelHeight / 2)
+                                  .clamp(0.0, h - _labelHeight),
+                              child: Text('$deg°', style: axisStyle),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Expanded(
+                child: DecoratedBox(
+                  decoration: SkotiqDecorations.well(colors),
+                  child: CustomPaint(
+                    painter: _AltitudeCurvePainter(
+                      altitudes: points,
+                      minAltitude: minAltitude,
+                      darkFrom: fraction(night.start),
+                      darkTo: fraction(night.end),
+                      now: fraction(DateTime.now()),
+                      hourTicks: [for (final t in hours) fraction(t)],
+                      curve: colors.primary,
+                      hairline: colors.border,
+                      marker: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: _scaleHeight,
+          child: Padding(
+            padding: const EdgeInsets.only(left: _gutter),
+            child: ExcludeSemantics(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final labels = <Widget>[];
+                  var lastRight = double.negativeInfinity;
+                  for (final t in hours) {
+                    final center = width * fraction(t);
+                    final left = (center - _hourLabelWidth / 2)
+                        .clamp(0.0, width - _hourLabelWidth);
+                    if (left < lastRight + 2) continue;
+                    lastRight = left + _hourLabelWidth;
+                    labels.add(
+                      Positioned(
+                        left: left,
+                        top: 3,
+                        width: _hourLabelWidth,
+                        child: Text(
+                          '${t.hour.toString().padLeft(2, '0')}h',
+                          style: axisStyle,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+                  return Stack(clipBehavior: Clip.none, children: labels);
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Width of the degree labels left of the plot.
+  static const double _gutter = 26;
+
+  /// Height of the hour labels under the plot.
+  static const double _scaleHeight = 14;
+  static const double _labelHeight = 11;
+  static const double _hourLabelWidth = 26;
+
+  /// Whole local hours inside [from]..[to], every two hours on a long night.
+  static List<DateTime> _hourTicks(DateTime from, DateTime to) {
+    final span = to.difference(from);
+    if (span.inMinutes <= 0) return const <DateTime>[];
+    final step = span.inHours > 6 ? 2 : 1;
+    final local = from.toLocal();
+    var t = DateTime(local.year, local.month, local.day, local.hour)
+        .add(const Duration(hours: 1));
+    while (t.hour % step != 0) {
+      t = t.add(const Duration(hours: 1));
+    }
+    final ticks = <DateTime>[];
+    for (; !t.isAfter(to); t = t.add(Duration(hours: step))) {
+      ticks.add(t);
+    }
+    return ticks;
   }
 }
 
@@ -318,9 +421,15 @@ class _AltitudeCurvePainter extends CustomPainter {
   final double darkFrom;
   final double darkTo;
   final double now;
+
+  /// Where each labeled hour falls across the plot, as fractions of its width.
+  final List<double> hourTicks;
   final Color curve;
   final Color hairline;
   final Color marker;
+
+  /// The altitudes labeled on the left and drawn as faint gridlines.
+  static const List<int> gridDegrees = <int>[90, 60, 30, 0];
 
   const _AltitudeCurvePainter({
     required this.altitudes,
@@ -328,6 +437,7 @@ class _AltitudeCurvePainter extends CustomPainter {
     required this.darkFrom,
     required this.darkTo,
     required this.now,
+    required this.hourTicks,
     required this.curve,
     required this.hairline,
     required this.marker,
@@ -356,6 +466,19 @@ class _AltitudeCurvePainter extends CustomPainter {
       Paint()
         ..color = curve.withValues(alpha: SkotiqTokens.opacityPanelOutline),
     );
+
+    final grid = Paint()
+      ..color = hairline.withValues(alpha: SkotiqTokens.opacityMuted)
+      ..strokeWidth = 1;
+    for (final deg in gridDegrees) {
+      final gy = y(deg.toDouble()).clamp(0.5, size.height - 0.5);
+      canvas.drawLine(Offset(0, gy), Offset(size.width, gy), grid);
+    }
+    for (final tick in hourTicks) {
+      final gx = tick * size.width;
+      canvas.drawLine(
+          Offset(gx, size.height - 4), Offset(gx, size.height), grid);
+    }
 
     // The minimum altitude the filters ask for, dashed.
     final horizonY = y(minAltitude);
@@ -413,6 +536,7 @@ class _AltitudeCurvePainter extends CustomPainter {
       old.altitudes != altitudes ||
       old.minAltitude != minAltitude ||
       old.now != now ||
+      old.hourTicks.length != hourTicks.length ||
       old.curve != curve;
 }
 

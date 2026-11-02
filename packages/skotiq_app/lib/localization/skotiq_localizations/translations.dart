@@ -803,7 +803,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActSubResuming': 'resuming',
     'nightActSubSidereal': 'sidereal',
     'nightActSubTracking': 'tracking',
-    'nightActHint': 'Manual actions pause the run, then resume it',
+    'nightActHint': 'Each button opens its tab · actions pause the run',
     'nightActWhyNoHost': 'Not connected to the host that runs the rig',
     'nightActWhyBusy': 'Another action is running',
     'nightActWhyRunSettling':
@@ -1324,6 +1324,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGoToObject': 'Object or coordinates',
     'nightScopeGoToObjectHint': 'M74, NGC 891, Vega',
     'nightScopeGoToNotFound': 'No object named {name}',
+    'nightScopeGoToNoCatalog':
+        'No object named {name}. The deep-sky catalog is not installed; download it in Settings › Catalogs.',
     'nightScopeGoToLookupFailed': 'Lookup failed: {error}',
     'nightScopeSlew': 'Slew',
     'nightScopeSlewCenter': 'Slew & center',
@@ -1543,7 +1545,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrStarsFailed': 'Star detection failed',
     'nightCtrStarsNoFile': 'No saved file to find stars in',
     'nightCtrActionsLabel': 'Manual actions',
-    'nightCtrHintIdle': 'Nothing is running · actions run right away',
+    'nightCtrHintIdle': 'Nothing is running · each button opens its tab',
     'nightActOtherWindow': 'started in another window',
     'nightCtrStripLabel': 'Frames this session',
     'nightCtrStripEmpty': 'Frames from tonight\'s run land here.',
@@ -2445,7 +2447,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActSubSidereal': 'sideral',
     'nightActSubTracking': 'siguiendo',
     'nightActHint':
-        'Las acciones manuales pausan la sesión y luego la reanudan',
+        'Cada botón abre su pestaña · las acciones pausan la sesión',
     'nightActWhyNoHost': 'Sin conexión con el equipo que controla el montaje',
     'nightActWhyBusy': 'Hay otra acción en curso',
     'nightActWhyRunSettling':
@@ -2981,6 +2983,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGoToObject': 'Objeto o coordenadas',
     'nightScopeGoToObjectHint': 'M74, NGC 891, Vega',
     'nightScopeGoToNotFound': 'Ningún objeto se llama {name}',
+    'nightScopeGoToNoCatalog':
+        'Ningún objeto se llama {name}. El catálogo de cielo profundo no está instalado; descárgalo en Ajustes › Catálogos.',
     'nightScopeGoToLookupFailed': 'Falló la búsqueda: {error}',
     'nightScopeSlew': 'Mover',
     'nightScopeSlewCenter': 'Mover y centrar',
@@ -3213,8 +3217,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrStarsFailed': 'Falló la detección de estrellas',
     'nightCtrStarsNoFile': 'No hay archivo guardado donde buscar estrellas',
     'nightCtrActionsLabel': 'Acciones manuales',
-    'nightCtrHintIdle':
-        'No hay nada en marcha · las acciones se ejecutan al momento',
+    'nightCtrHintIdle': 'No hay nada en marcha · cada botón abre su pestaña',
     'nightActOtherWindow': 'iniciado en otra ventana',
     'nightCtrStripLabel': 'Tomas de esta sesión',
     'nightCtrStripEmpty': 'Las tomas de la sesión de esta noche aparecen aquí.',

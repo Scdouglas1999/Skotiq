@@ -265,6 +265,98 @@ pub(crate) fn publish_star_measurement(
     );
 }
 
+/// Consecutive failed guide frames the guiding loop rides through before it
+/// gives up. A single failed download or exposure is a transient camera fault,
+/// not a reason to stop guiding.
+pub(crate) const GUIDE_FRAME_RETRIES: u32 = 3;
+
+/// Pause after a failed guide frame before the next exposure.
+pub(crate) const GUIDE_FRAME_RETRY_DELAY: Duration = Duration::from_secs(2);
+
+/// One guide-frame attempt inside the guiding loop.
+pub(crate) enum GuideFrameAttempt<T> {
+    Frame(T),
+    /// The frame failed and is skipped; carries the notification text.
+    Skipped(String),
+}
+
+/// Take the next guide frame, skipping up to [`GUIDE_FRAME_RETRIES`]
+/// consecutive failures. Each skipped frame raises a warning notification and
+/// waits `retry_delay` (cut short by the stop flag); the failure after the
+/// last retry is returned so the loop ends with its cause.
+pub(crate) async fn next_guiding_frame<T, F, Fut>(
+    capture: F,
+    consecutive_failures: &mut u32,
+    retry_delay: Duration,
+    stop_flag: &std::sync::atomic::AtomicBool,
+) -> Result<GuideFrameAttempt<T>, SkotiqError>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<T, SkotiqError>>,
+{
+    match capture().await {
+        Ok(frame) => {
+            *consecutive_failures = 0;
+            Ok(GuideFrameAttempt::Frame(frame))
+        }
+        Err(error) => {
+            *consecutive_failures += 1;
+            if *consecutive_failures > GUIDE_FRAME_RETRIES {
+                return Err(error);
+            }
+            let message = format!(
+                "Guide frame failed: {error}. Retrying in {} s (retry {} of {}); guiding continues.",
+                retry_delay.as_secs(),
+                consecutive_failures,
+                GUIDE_FRAME_RETRIES
+            );
+            get_state().publish_event(crate::event::create_event_auto_id(
+                EventSeverity::Warning,
+                crate::event::EventCategory::System,
+                crate::event::EventPayload::System(SystemEvent::Notification {
+                    title: "Built-in guider".to_string(),
+                    message: message.clone(),
+                    level: "warning".to_string(),
+                    explicit_transports: None,
+                }),
+            ));
+            let deadline = Instant::now() + retry_delay;
+            while Instant::now() < deadline && !stop_flag.load(std::sync::atomic::Ordering::Relaxed)
+            {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+            Ok(GuideFrameAttempt::Skipped(message))
+        }
+    }
+}
+
+/// Take one frame, riding through up to [`GUIDE_FRAME_RETRIES`] consecutive
+/// failures with the same notification and pause as the guiding loop. Used
+/// where a frame is needed before guiding starts (calibration), so one failed
+/// download does not end the run.
+pub(crate) async fn retry_guide_frame<T, F, Fut>(
+    mut capture: F,
+    retry_delay: Duration,
+) -> Result<T, SkotiqError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, SkotiqError>>,
+{
+    let never_stopped = std::sync::atomic::AtomicBool::new(false);
+    let mut failures = 0;
+    loop {
+        match next_guiding_frame(&mut capture, &mut failures, retry_delay, &never_stopped).await? {
+            GuideFrameAttempt::Frame(frame) => return Ok(frame),
+            GuideFrameAttempt::Skipped(_) => continue,
+        }
+    }
+}
+
+/// [`capture_guide_frame`] with [`retry_guide_frame`]'s tolerance.
+pub(crate) async fn capture_guide_frame_with_retries() -> Result<GuideFrame, SkotiqError> {
+    retry_guide_frame(capture_guide_frame, GUIDE_FRAME_RETRY_DELAY).await
+}
+
 pub(crate) async fn run_guiding_loop(
     controller: Arc<RwLock<BuiltinGuiderState>>,
     stop_flag: Arc<std::sync::atomic::AtomicBool>,
@@ -294,12 +386,26 @@ pub(crate) async fn run_guiding_loop(
     get_state().publish_guiding_event(GuidingEvent::CalibrationComplete, EventSeverity::Info);
     get_state().publish_guiding_event(GuidingEvent::GuidingStarted, EventSeverity::Info);
 
+    let mut frame_failures = 0;
     loop {
         if stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
             break;
         }
 
-        let frame = capture_guide_frame().await?;
+        let frame = match next_guiding_frame(
+            capture_guide_frame,
+            &mut frame_failures,
+            GUIDE_FRAME_RETRY_DELAY,
+            &stop_flag,
+        )
+        .await?
+        {
+            GuideFrameAttempt::Frame(frame) => frame,
+            GuideFrameAttempt::Skipped(message) => {
+                tracing::warn!("Built-in guider: {}", message);
+                continue;
+            }
+        };
         let current_lock = {
             let guard = controller.read().await;
             guard.manual_lock

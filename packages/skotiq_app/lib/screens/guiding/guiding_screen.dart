@@ -166,13 +166,13 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
     bool narrow,
   ) {
     final guiderState = ref.watch(guiderStateProvider);
-    final guiderId = guiderState.deviceId;
+    final guiderId = _selectedGuiderId();
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
     final connecting =
         guiderState.connectionState == DeviceConnectionState.connecting;
 
     final (IconData icon, String label, VoidCallback? onPressed) =
-        _connectAction(isConnected, isPhd2Guider, connecting);
+        _connectAction(isConnected, isPhd2Guider, connecting, guiderId);
 
     return [
       SkotiqChip(
@@ -214,6 +214,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
     bool isConnected,
     bool isPhd2Guider,
     bool connecting,
+    String? guiderId,
   ) {
     if (connecting) {
       return (SkotiqIcons.connected, 'Connecting\u2026', null);
@@ -223,6 +224,13 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
         SkotiqIcons.connected,
         'Connect',
         () => connectPhd2(ref, context: context),
+      );
+    }
+    if (!isConnected && guiderId != null) {
+      return (
+        SkotiqIcons.connected,
+        'Connect',
+        () => _connectProfileGuider(guiderId),
       );
     }
     if (isConnected) {

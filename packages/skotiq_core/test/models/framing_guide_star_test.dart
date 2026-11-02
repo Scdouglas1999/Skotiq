@@ -349,9 +349,10 @@ void main() {
       final expected = proj.raDecToScreen(star.raHours, star.decDegrees);
       expect(result.single.screenPosition, expected);
 
-      // And it lands at center + (east·pxPerDeg, -north·pxPerDeg): +RA -> +x,
-      // +Dec -> -y, at 500 px/deg. 0.3deg east -> +150px, 0.2deg south -> +100px.
-      expect(result.single.screenPosition.dx, closeTo(500 + 150, 1e-3));
+      // And it lands at center + (-east·pxPerDeg, -north·pxPerDeg): east is
+      // left, north up, at 500 px/deg. 0.3deg east -> -150px, 0.2deg south ->
+      // +100px.
+      expect(result.single.screenPosition.dx, closeTo(500 - 150, 1e-3));
       expect(result.single.screenPosition.dy, closeTo(500 + 100, 1e-3));
     });
 

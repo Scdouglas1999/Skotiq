@@ -296,6 +296,8 @@ class ReadinessReport {
 const String _routeEquipment = '/equipment';
 const String _routeSettings = '/settings';
 const String _routePlateSolving = '/settings/plate-solving';
+const String _routeCalibrationCapture =
+    '/settings?section=end-of-night-calibration';
 
 /// Builds the readiness report from the current setup signals.
 ///
@@ -528,7 +530,7 @@ ReadinessItem _buildLocation({required bool locationSet}) {
           'No observing location set. Enter your latitude and longitude '
           'so targets and slews are computed correctly.',
       level: ReadinessLevel.blocked,
-      fixRoute: _routeSettings,
+      fixRoute: '$_routeSettings?section=location',
       fixLabel: 'Set location',
     );
   }
@@ -553,7 +555,7 @@ ReadinessItem _buildOutputPath({required bool outputPathSet}) {
           'No capture folder selected. Choose where saved images should '
           'be written.',
       level: ReadinessLevel.blocked,
-      fixRoute: _routeSettings,
+      fixRoute: '$_routeSettings?section=files-storage',
       fixLabel: 'Choose folder',
     );
   }
@@ -595,7 +597,8 @@ ReadinessItem _buildPlateSolver({required bool plateSolverReady}) {
 ///
 /// CAUTION when there is no matching dark coverage: imaging works, but
 /// calibration will be limited until darks are captured for this
-/// configuration. Routes to Settings → Dark Library.
+/// configuration. Routes to Settings → End-of-night calibration, whose
+/// "Take darks and bias now" captures them.
 ReadinessItem _buildDarkLibrary({required bool darkLibraryHasCoverage}) {
   if (!darkLibraryHasCoverage) {
     return const ReadinessItem(
@@ -605,8 +608,8 @@ ReadinessItem _buildDarkLibrary({required bool darkLibraryHasCoverage}) {
           'No matching dark frames for your current camera settings. '
           'Capture darks for proper calibration.',
       level: ReadinessLevel.caution,
-      fixRoute: _routeSettings,
-      fixLabel: 'Open dark library',
+      fixRoute: _routeCalibrationCapture,
+      fixLabel: 'Take darks and bias',
     );
   }
   return const ReadinessItem(

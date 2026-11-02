@@ -738,7 +738,7 @@ class _ExposureRecommendationCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_formatSeconds(recommended)} · ${recommendation.limitingFactor}',
+            '${_formatSeconds(recommended)} · ${recommendation.limitingFactor.label}',
             style: TextStyle(
               fontSize: Responsive.fontSize(context, 12),
               color: colors.textSecondary,

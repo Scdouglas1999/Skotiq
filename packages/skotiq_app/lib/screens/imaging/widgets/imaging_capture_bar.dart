@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../utils/snackbar_helper.dart';
 import 'measured_width.dart';
 import 'stretch_controls.dart';
 
@@ -80,6 +81,46 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
   VoidCallback get onToggleLoop => widget.onToggleLoop;
 
   static const double _fieldWidth = ImagingCaptureBar._fieldWidth;
+
+  /// The filter the next frame is taken through: the wheel's loaded slot when
+  /// a wheel reports one, otherwise the exposure settings' filter.
+  String _shownFilter(FilterWheelState wheel, ExposureSettings settings) {
+    final loaded = wheel.connectionState == DeviceConnectionState.connected
+        ? wheel.currentFilterName
+        : null;
+    if (loaded != null && wheel.filterNames.contains(loaded)) return loaded;
+    final chosen = settings.filter;
+    if (chosen != null && wheel.filterNames.contains(chosen)) return chosen;
+    return wheel.filterNames.first;
+  }
+
+  bool _filterSelectable(FilterWheelState wheel) =>
+      wheel.connectionState == DeviceConnectionState.connected &&
+      !wheel.isMoving;
+
+  /// Moves the wheel to [name] and records it on the exposure settings, the
+  /// same path as the side panel's filter buttons.
+  Future<void> _selectFilter(String? name) async {
+    if (name == null) return;
+    final wheel = ref.read(filterWheelStateProvider);
+    final position = wheel.filterNames.indexOf(name);
+    if (position < 0 || position == wheel.currentPosition) return;
+    if (ref.read(sessionStateProvider).isAutofocusing) {
+      context.showErrorSnackBar(
+        'Wait for autofocus to finish before changing the filter.',
+      );
+      return;
+    }
+    try {
+      await ref.read(deviceServiceProvider).setFilterWheelPosition(position);
+      ref
+          .read(manualExposureSettingsUpdaterProvider)
+          .update(ref.read(exposureSettingsProvider).copyWith(filter: name));
+    } catch (e) {
+      if (mounted) context.showErrorSnackBar('Failed to change filter: $e');
+    }
+  }
+
   static const double _filterWidth = ImagingCaptureBar._filterWidth;
 
   @override
@@ -193,7 +234,8 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                       onChanged: (double parsed) => ref
                           .read(manualExposureSettingsUpdaterProvider)
                           .update(
-                              exposureSettings.copyWith(exposureTime: parsed)),
+                            exposureSettings.copyWith(exposureTime: parsed),
+                          ),
                     ),
                   ),
                   const SizedBox(width: SkotiqTokens.spaceSm),
@@ -214,19 +256,12 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                         label: 'Filter',
                         child: SkotiqDropdown(
                           key: ImagingTutorialKeys.filterSelector,
-                          value: filterState.filterNames
-                                  .contains(exposureSettings.filter)
-                              ? exposureSettings.filter
-                              : filterState.filterNames.first,
+                          value: _shownFilter(filterState, exposureSettings),
                           items: filterState.filterNames,
                           isExpanded: true,
-                          onChanged: (String? name) {
-                            if (name == null) return;
-                            ref
-                                .read(manualExposureSettingsUpdaterProvider)
-                                .update(
-                                    exposureSettings.copyWith(filter: name));
-                          },
+                          onChanged: _filterSelectable(filterState)
+                              ? _selectFilter
+                              : null,
                         ),
                       ),
                     ),

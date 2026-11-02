@@ -159,8 +159,9 @@ void main() {
         expect(state.panY, 0);
         expect(state.target!.raHours, isNot(closeTo(raHours, 1e-9)));
         // At dec=0, cos(dec)=1, so RA offset == 2.0deg / 15 = 0.1333... hours,
-        // applied with the screen convention (drag right reveals west => RA down).
-        expect(state.target!.raHours, closeTo(raHours - (2.0 / 15.0), 1e-6));
+        // applied with the screen convention: east is left, so dragging right
+        // reveals east and RA goes up.
+        expect(state.target!.raHours, closeTo(raHours + (2.0 / 15.0), 1e-6));
       },
     );
 

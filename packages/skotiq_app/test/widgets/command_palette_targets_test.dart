@@ -1,0 +1,74 @@
+// The palette's field reads "Search targets, settings, or jump to a screen",
+// so typing a catalog designation or a star's name has to list that object.
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/widgets/command_palette/command_palette.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+
+import '../harness/harness.dart';
+
+const _m31 = DeepSkyObject(
+  id: 'NGC224',
+  name: 'M31',
+  coordinates: CelestialCoordinate(ra: 0.7123, dec: 41.269),
+  type: DsoType.galaxy,
+  magnitude: 3.44,
+  catalogIds: ['UGC 00454', 'M31'],
+  commonNames: 'Andromeda Galaxy',
+);
+const _ngc891 = DeepSkyObject(
+  id: 'NGC891',
+  name: 'NGC891',
+  coordinates: CelestialCoordinate(ra: 2.3757, dec: 42.349),
+  type: DsoType.galaxy,
+  magnitude: 9.9,
+);
+const _vega = Star(
+  id: 'HIP91262',
+  name: 'Vega',
+  coordinates: CelestialCoordinate(ra: 18.6156, dec: 38.7837),
+  magnitude: 0.03,
+);
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  Future<void> pumpPalette(WidgetTester tester) async {
+    await pumpAppScreen(
+      tester,
+      const CommandPalette(),
+      size: const Size(1920, 1080),
+      extraOverrides: <Override>[
+        loadedDsosProvider.overrideWith((ref) async => const [_m31, _ngc891]),
+        loadedStarsProvider.overrideWith((ref) async => const [_vega]),
+      ],
+    );
+  }
+
+  Future<void> search(WidgetTester tester, String query) async {
+    await tester.enterText(find.byType(TextField), query);
+    await tester.pump();
+  }
+
+  testWidgets('a Messier number lists the object', (tester) async {
+    await pumpPalette(tester);
+    await search(tester, 'M31');
+    expect(find.text('M31 (NGC224) · Andromeda Galaxy'), findsOneWidget);
+    expect(find.textContaining('Nothing matches'), findsNothing);
+  });
+
+  testWidgets('a designation typed with a space lists the object',
+      (tester) async {
+    await pumpPalette(tester);
+    await search(tester, 'NGC 891');
+    expect(find.text('NGC891'), findsOneWidget);
+  });
+
+  testWidgets('a star name lists the star', (tester) async {
+    await pumpPalette(tester);
+    await search(tester, 'Vega');
+    // The field holds "Vega" too; the row is the one with the Framing hint.
+    expect(find.text('Open in Framing'), findsOneWidget);
+  });
+}

@@ -104,10 +104,22 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     }
   }
 
+  /// The connected guider, or the active profile's guider while none is
+  /// connected.
+  String? _selectedGuiderId() {
+    final live = ref.watch(guiderStateProvider).deviceId;
+    if (live != null) return live;
+    final profileGuider =
+        ref.watch(activeProfileProvider).valueOrNull?.guiderId?.trim();
+    return (profileGuider == null || profileGuider.isEmpty)
+        ? null
+        : profileGuider;
+  }
+
   /// The one muted fact beside the page title: which guider, connected or not.
   String _connectionLabel(bool isConnected) {
     final guiderState = ref.watch(guiderStateProvider);
-    final guiderId = guiderState.deviceId;
+    final guiderId = _selectedGuiderId();
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
     final isBuiltinGuider = guiderId == builtinGuiderDeviceId;
     final name = isBuiltinGuider
@@ -167,6 +179,16 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
 
   void _showConnectionDialog() {
     Phd2ConnectionDialog.show(context, ref);
+  }
+
+  /// Connect the profile's guider when it is not PHD2 (the built-in guider or
+  /// a camera guider); PHD2 has its own connect path.
+  Future<void> _connectProfileGuider(String guiderId) async {
+    try {
+      await ref.read(deviceServiceProvider).connectGuider(guiderId);
+    } catch (e) {
+      _showActionError('Failed to connect the guider: $e');
+    }
   }
 
   Future<void> _disconnectActiveGuider() async {

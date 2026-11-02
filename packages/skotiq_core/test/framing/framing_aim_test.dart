@@ -273,6 +273,27 @@ void main() {
   });
 
   group('aim-centred mosaic', () {
+    test('the left column is east: columns run left to right on a sky '
+        'shown north up, east left', () async {
+      final container = _container(
+        seed: FramingState(
+          target: _target(),
+          useCustomEquipment: true,
+          customEquipment: _equipment,
+        ),
+      );
+      final notifier = container.read(framingProvider.notifier);
+
+      notifier.setMosaicConfig(const FramingMosaicConfig(columns: 2, rows: 1));
+      notifier.setMosaicEnabled(true);
+      await pumpEventQueue();
+
+      final panels = container.read(framingProvider).mosaicPanels;
+      final left = panels.firstWhere((p) => p.column == 0);
+      final right = panels.firstWhere((p) => p.column == 1);
+      expect(left.centerRaHours, greaterThan(right.centerRaHours));
+    });
+
     test('single-panel grid sits on the aim, not the view centre', () async {
       final container = _container(
         seed: FramingState(

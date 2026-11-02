@@ -149,6 +149,15 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   Color? _selectedColor;
   bool _isDefault = false;
 
+  /// Whether the user flipped the Default profile switch in this editor.
+  /// Until they do, the switch follows the stored profile and Save leaves the
+  /// startup choice as it is, wherever else it was changed.
+  bool _isDefaultTouched = false;
+
+  /// [_formSignature] as loaded or last saved; Save is enabled only when the
+  /// form differs from it.
+  String _savedSignature = '';
+
   // Section 2: Optical Train
   //
   // `_focalLengthController` holds the OTA's NATIVE focal length and
@@ -231,7 +240,93 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   void initState() {
     super.initState();
     _initializeFromProfile();
+    _savedSignature = _formSignature();
   }
+
+  @override
+  void didUpdateWidget(covariant ProfileEditorDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final stored = widget.profile?.isDefault;
+    if (!_isDefaultTouched && stored != null && stored != _isDefault) {
+      _isDefault = stored;
+    }
+  }
+
+  /// Every value the form saves except the Default switch, which is compared
+  /// on its own against the stored profile.
+  String _formSignature() => <Object?>[
+        _nameController.text,
+        _selectedIcon,
+        _selectedColor?.toARGB32(),
+        _telescopeNameController.text,
+        _focalLengthController.text,
+        _reducerController.text,
+        _apertureController.text,
+        _cameraId,
+        _cameraNameController.text,
+        _mountId,
+        _mountNameController.text,
+        _focuserId,
+        _focuserNameController.text,
+        _filterWheelId,
+        _filterWheelNameController.text,
+        _guiderId,
+        _guiderNameController.text,
+        _rotatorId,
+        _rotatorNameController.text,
+        _domeId,
+        _weatherId,
+        _safetyMonitorId,
+        _safetyMonitorNameController.text,
+        _switchId,
+        _switchNameController.text,
+        _coverCalibratorId,
+        for (final pair in _filterControllers) ...<String>[
+          pair.nameController.text,
+          pair.offsetController.text,
+        ],
+        _gainController.text,
+        _offsetController.text,
+        _binning,
+        _coolingTargetController.text,
+        _coolOnConnect,
+        _centeringExposureController.text,
+      ].join('\u0000');
+
+  /// Whether Save has anything to write. A new profile always does.
+  bool get _hasUnsavedChanges =>
+      widget.profile == null ||
+      (_isDefaultTouched && _isDefault != widget.profile!.isDefault) ||
+      _formSignature() != _savedSignature;
+
+  /// The text fields whose edits change [_hasUnsavedChanges].
+  Listenable get _formListenable => Listenable.merge(<Listenable>[
+        _nameController,
+        _telescopeNameController,
+        _focalLengthController,
+        _reducerController,
+        _apertureController,
+        _cameraNameController,
+        _mountNameController,
+        _focuserNameController,
+        _filterWheelNameController,
+        _guiderNameController,
+        _rotatorNameController,
+        _safetyMonitorNameController,
+        _switchNameController,
+        for (final pair in _filterControllers) ...<Listenable>[
+          pair.nameController,
+          pair.offsetController,
+        ],
+        _gainController,
+        _offsetController,
+        _coolingTargetController,
+        _centeringExposureController,
+      ]);
+
+  /// The default flag a save writes: the user's choice when they made one,
+  /// otherwise what is stored.
+  bool _defaultToSave(bool stored) => _isDefaultTouched ? _isDefault : stored;
 
   void _initializeFromProfile() {
     final profile = widget.profile;

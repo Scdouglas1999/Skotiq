@@ -77,11 +77,8 @@ class _LoopProperties extends ConsumerWidget {
                     );
                     if (time != null) {
                       final now = DateTime.now();
-                      var targetDate = DateTime(
-                          now.year, now.month, now.day, time.hour, time.minute);
-                      if (targetDate.isBefore(now)) {
-                        targetDate = targetDate.add(const Duration(days: 1));
-                      }
+                      final targetDate =
+                          nextLocalTimeOfDay(now, time.hour, time.minute);
                       ref.read(currentSequenceProvider.notifier).updateNode(
                             node.copyWith(repeatUntil: targetDate),
                           );
@@ -382,11 +379,8 @@ class _WaitTimeProperties extends ConsumerWidget {
                 );
                 if (time != null) {
                   final now = DateTime.now();
-                  var targetDate = DateTime(
-                      now.year, now.month, now.day, time.hour, time.minute);
-                  if (targetDate.isBefore(now)) {
-                    targetDate = targetDate.add(const Duration(days: 1));
-                  }
+                  final targetDate =
+                      nextLocalTimeOfDay(now, time.hour, time.minute);
                   ref.read(currentSequenceProvider.notifier).updateNode(
                         node.copyWith(waitUntil: targetDate),
                       );

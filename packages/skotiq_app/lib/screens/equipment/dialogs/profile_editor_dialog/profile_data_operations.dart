@@ -521,7 +521,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       name: parsed.name,
       profileIcon: _selectedIcon.isEmpty ? null : _selectedIcon,
       profileColor: _selectedColor?.toARGB32(),
-      isDefault: _isDefault,
+      isDefault: _defaultToSave(widget.profile?.isDefault ?? _isDefault),
       isActive: widget.profile?.isActive ?? false,
       telescopeName: _telescopeNameController.text.trimOrNull,
       // The telescope columns carry the OTA's NATIVE optics and `focalLength`
@@ -594,7 +594,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         // flag is set by the save itself. updateProfile() accepts a null-id
         // model as a remote CREATE.
         final savedProfileId = await notifier.updateProfile(model);
-        if (_isDefault) {
+        if (model.isDefault) {
           // The host returns the exact created/updated row id. Never rediscover
           // by profile name: names are not unique and that can activate a
           // different rig.
@@ -642,6 +642,9 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       // (for instant slave refetch) and write the active profile through to the
       // native Rust executor when this profile becomes the default/active.
       int savedProfileId;
+      // Whether the saved row is the default one; a new profile follows the
+      // switch.
+      var makesDefault = _isDefault;
 
       if (widget.profile != null) {
         // Update existing profile
@@ -650,11 +653,12 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
           throw Exception('Profile not found');
         }
 
+        makesDefault = _defaultToSave(existingProfile.isDefault);
         final updated = existingProfile.copyWith(
           name: parsed.name,
           profileIcon: Value(_selectedIcon.isEmpty ? null : _selectedIcon),
           profileColor: Value(_selectedColor?.toARGB32()),
-          isDefault: _isDefault,
+          isDefault: makesDefault,
           telescopeName: Value(_telescopeNameController.text.trimOrNull),
           telescopeFocalLength: Value(telescopeFocalLength),
           telescopeAperture: Value(telescopeAperture),
@@ -699,9 +703,9 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         savedProfileId = existingProfile.id;
 
         // Handle isDefault
-        if (_isDefault && !existingProfile.isDefault) {
+        if (makesDefault && !existingProfile.isDefault) {
           await dao.setDefaultProfile(existingProfile.id, makeActive: true);
-        } else if (!_isDefault && existingProfile.isDefault) {
+        } else if (!makesDefault && existingProfile.isDefault) {
           await dao.clearDefaultProfile();
         }
       } else {
@@ -777,7 +781,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       // default/active one, push it into the native (Rust) executor store so
       // headless sequencing keeps a correct active-profile context (the GUI
       // path does not go through the REST handleLoadProfile write-through).
-      if (_isDefault) {
+      if (makesDefault) {
         await writeActiveProfileThroughToRustFromWidget(ref, savedProfileId);
       }
 
@@ -808,7 +812,11 @@ extension _ProfileEditorSaveClose on _ProfileEditorDialogState {
   /// the stack. There the save simply lands and the page stays put.
   void _closeAfterSave() {
     if (widget.mode != ProfileEditorMode.full) {
-      setState(() => _isSaving = false);
+      setState(() {
+        _isSaving = false;
+        _savedSignature = _formSignature();
+        _isDefaultTouched = false;
+      });
       return;
     }
     Navigator.of(context).pop(true);

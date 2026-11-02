@@ -184,7 +184,7 @@ void main() {
       final report = _report(locationSet: false);
       final item = report.itemFor(ReadinessItemId.location)!;
       expect(item.level, ReadinessLevel.blocked);
-      expect(item.fixRoute, '/settings');
+      expect(item.fixRoute, '/settings?section=location');
       expect(report.overall, ReadinessLevel.blocked);
     });
   });
@@ -194,7 +194,7 @@ void main() {
       final report = _report(outputPathSet: false);
       final item = report.itemFor(ReadinessItemId.outputPath)!;
       expect(item.level, ReadinessLevel.blocked);
-      expect(item.fixRoute, '/settings');
+      expect(item.fixRoute, '/settings?section=files-storage');
       expect(report.overall, ReadinessLevel.blocked);
     });
   });
@@ -213,7 +213,9 @@ void main() {
       final report = _report(darkLibraryHasCoverage: false);
       final item = report.itemFor(ReadinessItemId.darkLibrary)!;
       expect(item.level, ReadinessLevel.caution);
-      expect(item.fixRoute, '/settings');
+      // The page whose "Take darks and bias now" captures them.
+      expect(item.fixRoute, '/settings?section=end-of-night-calibration');
+      expect(item.fixLabel, 'Take darks and bias');
       expect(report.blockedItems, isEmpty);
       expect(report.overall, ReadinessLevel.caution);
     });

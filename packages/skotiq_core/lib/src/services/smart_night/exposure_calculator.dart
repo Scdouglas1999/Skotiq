@@ -3,6 +3,17 @@ import 'dart:math' as math;
 /// Explains which exposure ceiling selected the final sub length.
 enum ExposureLimitingFactor { glover, saturation, mount, userCap, floor }
 
+/// Plain words for what set a recommended sub length.
+extension ExposureLimitingFactorLabel on ExposureLimitingFactor {
+  String get label => switch (this) {
+    ExposureLimitingFactor.glover => 'sky-limited',
+    ExposureLimitingFactor.saturation => 'capped by star saturation',
+    ExposureLimitingFactor.mount => 'capped by guiding',
+    ExposureLimitingFactor.userCap => 'capped by your maximum',
+    ExposureLimitingFactor.floor => 'raised to your minimum',
+  };
+}
+
 /// Camera values needed by the light-frame exposure calculator.
 class CameraExposureSpec {
   final double readNoiseE;
@@ -393,7 +404,13 @@ class SmartNightExposureCalculator {
       case ExposureLimitingFactor.glover:
         return '$filter sub length set to ${seconds.toStringAsFixed(0)}s by sky-limited Glover SNR ${input.targetSnr.toStringAsFixed(0)} math.';
       case ExposureLimitingFactor.saturation:
-        return '$filter sub length set to ${seconds.toStringAsFixed(0)}s to protect bright star cores.';
+        // The saturation ceiling is the LONGEST sub before bright star cores
+        // fill their wells; the sky would reward a longer one.
+        final glover = ceilings[ExposureLimitingFactor.glover];
+        final suffix = glover == null
+            ? ''
+            : ' The sky alone would allow about ${glover.toStringAsFixed(0)}s.';
+        return '$filter subs capped at ${seconds.toStringAsFixed(0)}s: longer subs would saturate bright star cores.$suffix';
       case ExposureLimitingFactor.mount:
         return '$filter sub length set to ${seconds.toStringAsFixed(0)}s by recent mount guiding RMS.';
       case ExposureLimitingFactor.userCap:

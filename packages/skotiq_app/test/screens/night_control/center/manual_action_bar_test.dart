@@ -103,7 +103,7 @@ void main() {
       size: const Size(1000, ManualActionBar.height),
     );
     expect(
-      find.text('Manual actions pause the run, then resume it'),
+      find.text('Each button opens its tab · actions pause the run'),
       findsOneWidget,
     );
     expect(find.text('5 s'), findsOneWidget);
@@ -118,14 +118,14 @@ void main() {
       size: const Size(744, ManualActionBar.height),
     );
     expect(
-      find.text('Manual actions pause the run, then resume it'),
+      find.text('Each button opens its tab · actions pause the run'),
       findsNothing,
     );
     expect(
       find.byWidgetPredicate(
         (w) =>
             w is Tooltip &&
-            w.message == 'Manual actions pause the run, then resume it',
+            w.message == 'Each button opens its tab · actions pause the run',
       ),
       findsOneWidget,
     );
@@ -133,7 +133,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('before a run the hint says actions run right away',
+  testWidgets('before a run the hint says each button opens its tab',
       (tester) async {
     await pumpCenter(
       tester,
@@ -142,7 +142,7 @@ void main() {
       size: const Size(1000, ManualActionBar.height),
     );
     expect(
-      find.text('Nothing is running · actions run right away'),
+      find.text('Nothing is running · each button opens its tab'),
       findsOneWidget,
     );
     // Tracking and the cooler live in the Mount and Camera tabs.
@@ -189,7 +189,7 @@ void main() {
       size: const Size(1000, ManualActionBar.height),
     );
     expect(
-      find.text('Nothing is running · actions run right away'),
+      find.text('Nothing is running · each button opens its tab'),
       findsOneWidget,
     );
   });

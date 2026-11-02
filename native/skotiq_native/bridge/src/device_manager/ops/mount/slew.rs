@@ -26,7 +26,46 @@ pub(crate) fn stop_failure_detail<E: std::fmt::Display>(
 impl DeviceManager {
     // Mount control
 
+    /// Slew to J2000 coordinates and leave the mount tracking.
+    ///
+    /// Every goto ends tracking the target: tracking is switched on before the
+    /// slew (ASCOM drivers may refuse a coordinate slew while it is off, and a
+    /// mount that arrives untracked trails the target). A parked mount is left
+    /// alone so the slew reports the park refusal itself, and a failed tracking
+    /// command does not block the slew.
     pub async fn mount_slew(
+        &self,
+        device_id: &str,
+        ra: f64,
+        dec: f64,
+    ) -> Result<(), DeviceOpError> {
+        self.ensure_tracking_for_slew(device_id).await;
+        self.mount_slew_dispatch(device_id, ra, dec).await
+    }
+
+    async fn ensure_tracking_for_slew(&self, device_id: &str) {
+        match self.mount_get_status(device_id).await {
+            Ok(status) if status.tracking || status.parked => {}
+            Ok(_) => {
+                if let Err(e) = self.mount_set_tracking(device_id, true).await {
+                    tracing::warn!(
+                        "mount_slew: could not turn tracking on for {} before the slew: {}",
+                        device_id,
+                        e
+                    );
+                } else {
+                    tracing::info!("mount_slew: turned tracking on for {}", device_id);
+                }
+            }
+            Err(e) => tracing::warn!(
+                "mount_slew: could not read the tracking state of {} before the slew: {}",
+                device_id,
+                e
+            ),
+        }
+    }
+
+    async fn mount_slew_dispatch(
         &self,
         device_id: &str,
         ra: f64,

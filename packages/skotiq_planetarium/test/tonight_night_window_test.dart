@@ -132,7 +132,13 @@ void main() {
       expect(best, hasLength(1));
 
       final infoTab = container.read(selectedObjectVisibilityProvider);
-      expect(best.first.visibility.transitTime, infoTab!.transitTime);
+      // Same culmination: Best Targets searches a window centered on the
+      // night, so its transit refinement lands within a second of the Info
+      // tab's rather than on the identical sample.
+      final apart = best.first.visibility.transitTime!
+          .difference(infoTab!.transitTime!)
+          .abs();
+      expect(apart, lessThan(const Duration(seconds: 1)));
     },
   );
 }
