@@ -543,9 +543,14 @@ pub async fn execute_start_guiding(
             let reason = result
                 .message
                 .unwrap_or_else(|| "Guiding did not start".to_string());
+            let sentence = if reason.trim_end().ends_with(['.', '!', '?']) {
+                reason.trim_end().to_string()
+            } else {
+                format!("{}.", reason.trim_end())
+            };
             ctx.notify_quality_problem_continuing(
                 "Start guiding",
-                &format!("{reason} Imaging continues unguided."),
+                &format!("{sentence} Imaging continues unguided."),
             );
             InstructionResult::success_with_message(format!(
                 "Guiding did not start; imaging continues unguided ({reason})"

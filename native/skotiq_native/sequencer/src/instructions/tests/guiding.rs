@@ -215,7 +215,8 @@ async fn no_guide_star_notifies_and_the_run_images_unguided() {
     assert!(
         run.warnings
             .iter()
-            .any(|w| w.contains("no guide star") && w.contains("Imaging continues unguided")),
+            // The reason is its own sentence before the continuation.
+            .any(|w| w.contains("no guide star") && w.contains(". Imaging continues unguided")),
         "{:?}",
         run.warnings
     );
@@ -239,7 +240,7 @@ async fn a_guider_that_never_locks_and_is_gone_notifies_and_the_run_images_ungui
         run.warnings
             .iter()
             .any(|w| w.contains("did not reach active state")
-                && w.contains("Imaging continues unguided")
+                && w.contains(". Imaging continues unguided")
                 && !w.contains("CRITICAL")),
         "{:?}",
         run.warnings
