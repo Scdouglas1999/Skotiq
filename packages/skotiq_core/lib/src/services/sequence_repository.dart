@@ -9,6 +9,8 @@ import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/sequences_dao.dart';
 import '../models/imaging/imaging_models.dart' show FrameType;
+import '../providers/sequence/node_duration_provider.dart'
+    show sequenceRollupSecs;
 import '../models/notification/notification_categories.dart'
     show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart';
@@ -206,9 +208,7 @@ class SequenceRepository {
         name: sequence.name,
         description: Value(sequence.description),
         rootNodeId: Value(sequence.rootNodeId),
-        estimatedDurationMins: Value(
-          (sequence.totalIntegrationSecs / 60).ceil(),
-        ),
+        estimatedDurationMins: Value(_estimatedMinutes(sequence)),
         isTemplate: Value(isTemplate),
       ),
     );
@@ -266,7 +266,7 @@ class SequenceRepository {
           name: sequence.name,
           description: sequence.description,
           rootNodeId: sequence.rootNodeId,
-          estimatedDurationMins: (sequence.totalIntegrationSecs / 60).ceil(),
+          estimatedDurationMins: _estimatedMinutes(sequence),
           createdAt: existing.createdAt,
           updatedAt: DateTime.now(),
           isTemplate: isTemplate,
@@ -904,3 +904,8 @@ final sequenceRepositoryProvider = Provider<SequenceRepository>((ref) {
     fileService: ref.watch(sequenceFileServiceProvider),
   );
 });
+
+/// The saved plan's length for the library card: the Builder's own estimate,
+/// so the card and the Builder show the same figure for the same plan.
+int _estimatedMinutes(Sequence sequence) =>
+    (sequenceRollupSecs(sequence) / 60).ceil();

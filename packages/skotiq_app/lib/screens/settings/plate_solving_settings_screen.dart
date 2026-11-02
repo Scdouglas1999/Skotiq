@@ -652,7 +652,7 @@ class _NoSolverQuickStart extends StatelessWidget {
             body: 'Grab a catalog from the same page. V17 is recommended '
                 'for almost all setups — it covers stars down to mag 17 '
                 'and works across the full sky. Drop the catalog next to '
-                'astap.exe, or into the folder you will point Skotiq '
+                'the ASTAP program, or into the folder you will point Skotiq '
                 'at below.',
             icon: LucideIcons.database,
             action: SkotiqButton(
@@ -791,7 +791,7 @@ class _CatalogMissingHint extends StatelessWidget {
     final colors = SkotiqColors.of(context);
     final probed = preference.catalogPath.isNotEmpty
         ? preference.catalogPath
-        : 'the directory containing astap.exe';
+        : 'the folder that holds the ASTAP program';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: SkotiqDecorations.emphasisSurface(

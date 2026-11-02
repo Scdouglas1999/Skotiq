@@ -33,6 +33,12 @@ String skotiqEventDisplayTitle(SkotiqEvent event) {
     case EventPayload_Guiding(field0: final v):
       return _guidingTitle(v);
     case EventPayload_Sequencer(field0: final v):
+      // The executor's advisories ride the error payload at warning severity;
+      // they are notices about the run, not errors in it.
+      if (v is SequencerEvent_Error &&
+          event.severity == EventSeverity.warning) {
+        return 'Sequencer notice';
+      }
       return _sequencerTitle(v);
     case EventPayload_Safety(field0: final v):
       return _safetyTitle(v);

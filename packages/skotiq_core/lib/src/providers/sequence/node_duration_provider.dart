@@ -80,6 +80,27 @@ final _nodeRollupMapProvider = Provider<Map<String, Duration>>((ref) {
 ///
 /// Output: "~2h 14m", "~14m 30s", "~30s", "<1s". Always prefixed with `~`
 /// because these are estimates.
+/// The whole plan's estimated length in seconds, by the same model the
+/// Builder's rollup uses: the root's rollup, or every top-level node's when
+/// the plan has no root.
+double sequenceRollupSecs(
+  Sequence sequence, {
+  SequenceTimeEstimator estimator = const SequenceTimeEstimator(),
+}) {
+  final out = <String, double>{};
+  final rootId = sequence.rootNodeId;
+  if (rootId != null && sequence.nodes.containsKey(rootId)) {
+    return _computeRollupSecs(sequence, rootId, estimator, out);
+  }
+  var total = 0.0;
+  for (final node in sequence.nodes.values) {
+    if (node.parentId == null) {
+      total += _computeRollupSecs(sequence, node.id, estimator, out);
+    }
+  }
+  return total;
+}
+
 String formatRollupDuration(Duration d) {
   final totalSecs = d.inSeconds;
   if (totalSecs <= 0) return '<1s';

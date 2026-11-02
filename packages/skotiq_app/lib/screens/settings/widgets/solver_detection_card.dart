@@ -275,7 +275,7 @@ class SolverDetectionCard extends StatelessWidget {
         Text(
           'ASTAP needs a star catalog (V17, D80, G18, …) to solve. Use '
           '"Browse for ASTAP catalog directory" below, or copy a catalog '
-          'next to astap.exe.',
+          'next to the ASTAP program.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colors.textPrimary,
           ),
