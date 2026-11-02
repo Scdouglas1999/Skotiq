@@ -311,6 +311,36 @@ pub struct SessionCheckpoint {
     /// iteration it reached instead of re-imaging every completed iteration.
     #[serde(default)]
     pub loop_iterations: HashMap<NodeId, u32>,
+    /// How the run ended, when it ended on its own terms: stopped by the
+    /// operator, failed, or ended early by a trigger (dawn, weather). `None`
+    /// while it runs, so a checkpoint still `None` after the app restarts
+    /// belongs to a run the app died under: the only kind that was
+    /// interrupted. Older checkpoints load as `None`.
+    #[serde(default)]
+    pub ended: Option<RunEnd>,
+}
+
+/// How a run that kept its checkpoint ended (see [`SessionCheckpoint::ended`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RunEnd {
+    /// The operator stopped it.
+    Stopped,
+    /// It failed.
+    Failed,
+    /// A trigger ended it early and put the rig away (dawn, unsafe weather).
+    EndedEarly,
+}
+
+impl RunEnd {
+    /// The wire name, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RunEnd::Stopped => "stopped",
+            RunEnd::Failed => "failed",
+            RunEnd::EndedEarly => "ended_early",
+        }
+    }
 }
 
 impl SessionCheckpoint {
@@ -335,6 +365,7 @@ impl SessionCheckpoint {
             completed_exposures: 0,
             completed_integration_secs: 0.0,
             is_active: false,
+            ended: None,
             trigger_state: None,
             wizard_states: HashMap::new(),
             // empty by default; populated only when a
@@ -699,6 +730,7 @@ impl CheckpointManager {
                 completed_integration_secs: checkpoint.completed_integration_secs,
                 can_resume: checkpoint.can_resume(),
                 age_seconds: checkpoint.age_seconds(),
+                ended: checkpoint.ended,
             })),
             None => Ok(None),
         }
@@ -761,6 +793,37 @@ impl CheckpointManager {
 
         self.invalidate_info_cache();
         tracing::debug!("Checkpoint cleared");
+        Ok(())
+    }
+
+    /// Record how a run that keeps its checkpoint ended, with the progress it
+    /// reached. The streaming writer saves every 30 s and stops with the run,
+    /// so without this final write the checkpoint keeps the counts of its last
+    /// save (a run stopped within its first 30 s reads "0 frames"). The
+    /// checkpoint stays resumable.
+    pub fn record_run_end(
+        &self,
+        end: RunEnd,
+        completed_exposures: u32,
+        completed_integration_secs: f64,
+    ) -> Result<(), String> {
+        let mut checkpoint = match self.load() {
+            Ok(Some(checkpoint)) => checkpoint,
+            Ok(None) => {
+                self.invalidate_info_cache();
+                return Err("record_run_end: no checkpoint on disk to update".to_string());
+            }
+            Err(e) => {
+                self.invalidate_info_cache();
+                return Err(e);
+            }
+        };
+        checkpoint.ended = Some(end);
+        checkpoint.completed_exposures = completed_exposures;
+        checkpoint.completed_integration_secs = completed_integration_secs;
+        checkpoint.timestamp = Utc::now();
+        self.save(&checkpoint)?;
+        self.invalidate_info_cache();
         Ok(())
     }
 
@@ -943,6 +1006,9 @@ pub struct CheckpointInfo {
     pub completed_integration_secs: f64,
     pub can_resume: bool,
     pub age_seconds: i64,
+    /// How the run ended; `None` when the app died under it (interrupted).
+    #[serde(default)]
+    pub ended: Option<RunEnd>,
 }
 
 #[cfg(test)]

@@ -12151,6 +12151,7 @@ impl SseDecode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
         let mut var_completedIntegrationSecs = <f64>::sse_decode(deserializer);
         let mut var_canResume = <bool>::sse_decode(deserializer);
         let mut var_ageSeconds = <i64>::sse_decode(deserializer);
+        let mut var_ended = <Option<String>>::sse_decode(deserializer);
         return crate::api::sequencer::lifecycle::CheckpointInfoApi {
             sequence_name: var_sequenceName,
             timestamp: var_timestamp,
@@ -12158,6 +12159,7 @@ impl SseDecode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
             completed_integration_secs: var_completedIntegrationSecs,
             can_resume: var_canResume,
             age_seconds: var_ageSeconds,
+            ended: var_ended,
         };
     }
 }
@@ -17675,6 +17677,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sequencer::lifecycle::Checkpo
             self.completed_integration_secs.into_into_dart().into_dart(),
             self.can_resume.into_into_dart().into_dart(),
             self.age_seconds.into_into_dart().into_dart(),
+            self.ended.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -22187,6 +22190,7 @@ impl SseEncode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
         <f64>::sse_encode(self.completed_integration_secs, serializer);
         <bool>::sse_encode(self.can_resume, serializer);
         <i64>::sse_encode(self.age_seconds, serializer);
+        <Option<String>>::sse_encode(self.ended, serializer);
     }
 }
 
@@ -26877,6 +26881,7 @@ mod io {
                 completed_integration_secs: self.completed_integration_secs.cst_decode(),
                 can_resume: self.can_resume.cst_decode(),
                 age_seconds: self.age_seconds.cst_decode(),
+                ended: self.ended.cst_decode(),
             }
         }
     }
@@ -30291,6 +30296,7 @@ mod io {
                 completed_integration_secs: Default::default(),
                 can_resume: Default::default(),
                 age_seconds: Default::default(),
+                ended: core::ptr::null_mut(),
             }
         }
     }
@@ -37783,6 +37789,7 @@ mod io {
         completed_integration_secs: f64,
         can_resume: bool,
         age_seconds: i64,
+        ended: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

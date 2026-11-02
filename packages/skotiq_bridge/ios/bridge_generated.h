@@ -569,6 +569,7 @@ typedef struct wire_cst_checkpoint_info_api {
   double completed_integration_secs;
   bool can_resume;
   int64_t age_seconds;
+  struct wire_cst_list_prim_u_8_strict *ended;
 } wire_cst_checkpoint_info_api;
 
 typedef struct wire_cst_cover_calibrator_capabilities {

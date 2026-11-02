@@ -179,6 +179,10 @@ class CheckpointInfoApi {
   final bool canResume;
   final PlatformInt64 ageSeconds;
 
+  /// How the run ended ("stopped", "failed", "ended_early"); `None` when the
+  /// app died under it, which is the only interrupted run.
+  final String? ended;
+
   const CheckpointInfoApi({
     required this.sequenceName,
     required this.timestamp,
@@ -186,6 +190,7 @@ class CheckpointInfoApi {
     required this.completedIntegrationSecs,
     required this.canResume,
     required this.ageSeconds,
+    this.ended,
   });
 
   @override
@@ -195,7 +200,8 @@ class CheckpointInfoApi {
       completedExposures.hashCode ^
       completedIntegrationSecs.hashCode ^
       canResume.hashCode ^
-      ageSeconds.hashCode;
+      ageSeconds.hashCode ^
+      ended.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -207,5 +213,6 @@ class CheckpointInfoApi {
           completedExposures == other.completedExposures &&
           completedIntegrationSecs == other.completedIntegrationSecs &&
           canResume == other.canResume &&
-          ageSeconds == other.ageSeconds;
+          ageSeconds == other.ageSeconds &&
+          ended == other.ended;
 }

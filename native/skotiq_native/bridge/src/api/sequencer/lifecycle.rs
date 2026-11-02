@@ -278,6 +278,9 @@ pub struct CheckpointInfoApi {
     pub completed_integration_secs: f64,
     pub can_resume: bool,
     pub age_seconds: i64,
+    /// How the run ended ("stopped", "failed", "ended_early"); `None` when the
+    /// app died under it, which is the only interrupted run.
+    pub ended: Option<String>,
 }
 
 /// Set the checkpoint directory for crash recovery
@@ -306,6 +309,7 @@ pub fn api_sequencer_get_checkpoint_info() -> Option<CheckpointInfoApi> {
             completed_integration_secs: info.completed_integration_secs,
             can_resume: info.can_resume,
             age_seconds: info.age_seconds,
+            ended: info.ended.map(|end| end.as_str().to_string()),
         })
 }
 

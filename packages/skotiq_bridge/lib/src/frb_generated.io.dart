@@ -4444,6 +4444,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     );
     wireObj.can_resume = cst_encode_bool(apiObj.canResume);
     wireObj.age_seconds = cst_encode_i_64(apiObj.ageSeconds);
+    wireObj.ended = cst_encode_opt_String(apiObj.ended);
   }
 
   @protected
@@ -23696,6 +23697,8 @@ final class wire_cst_checkpoint_info_api extends ffi.Struct {
 
   @ffi.Int64()
   external int age_seconds;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> ended;
 }
 
 final class wire_cst_cover_calibrator_capabilities extends ffi.Struct {

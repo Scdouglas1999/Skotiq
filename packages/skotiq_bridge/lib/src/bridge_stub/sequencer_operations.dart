@@ -575,6 +575,7 @@ extension _NativeBridgeSequencerOperations on _NativeBridgeImplementation {
         completedIntegrationSecs: nativeInfo.completedIntegrationSecs,
         canResume: nativeInfo.canResume,
         ageSeconds: nativeInfo.ageSeconds.toInt(),
+        ended: nativeInfo.ended,
       );
     } catch (e) {
       developer.log(

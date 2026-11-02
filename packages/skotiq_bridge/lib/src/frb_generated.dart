@@ -17611,8 +17611,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CheckpointInfoApi dco_decode_checkpoint_info_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return CheckpointInfoApi(
       sequenceName: dco_decode_String(arr[0]),
       timestamp: dco_decode_String(arr[1]),
@@ -17620,6 +17620,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completedIntegrationSecs: dco_decode_f_64(arr[3]),
       canResume: dco_decode_bool(arr[4]),
       ageSeconds: dco_decode_i_64(arr[5]),
+      ended: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -22050,6 +22051,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_completedIntegrationSecs = sse_decode_f_64(deserializer);
     var var_canResume = sse_decode_bool(deserializer);
     var var_ageSeconds = sse_decode_i_64(deserializer);
+    var var_ended = sse_decode_opt_String(deserializer);
     return CheckpointInfoApi(
       sequenceName: var_sequenceName,
       timestamp: var_timestamp,
@@ -22057,6 +22059,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completedIntegrationSecs: var_completedIntegrationSecs,
       canResume: var_canResume,
       ageSeconds: var_ageSeconds,
+      ended: var_ended,
     );
   }
 
@@ -27719,6 +27722,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.completedIntegrationSecs, serializer);
     sse_encode_bool(self.canResume, serializer);
     sse_encode_i_64(self.ageSeconds, serializer);
+    sse_encode_opt_String(self.ended, serializer);
   }
 
   @protected

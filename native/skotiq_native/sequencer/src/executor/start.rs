@@ -1255,6 +1255,37 @@ impl SequenceExecutor {
                     prog.elapsed_secs = start_time.elapsed().as_secs_f64();
                 }
 
+                // A run that ended without finishing keeps its checkpoint so it
+                // can be continued; record how it ended and the progress it
+                // reached, so the next launch neither reports it as interrupted
+                // nor shows the counts of the last 30 s streaming save.
+                let run_end = match result {
+                    NodeStatus::Success | NodeStatus::Skipped => None,
+                    _ if park_and_abort_in_progress.load(Ordering::Acquire) => {
+                        Some(crate::checkpoint::RunEnd::EndedEarly)
+                    }
+                    NodeStatus::Failure => Some(crate::checkpoint::RunEnd::Failed),
+                    NodeStatus::Cancelled => Some(crate::checkpoint::RunEnd::Stopped),
+                    _ => None,
+                };
+                if let (Some(end), Some(mgr)) = (run_end, &completion_checkpoint_manager) {
+                    let (exposures, integration_secs) = {
+                        let prog = progress.read();
+                        (prog.completed_exposures, prog.completed_integration_secs)
+                    };
+                    match mgr.record_run_end(end, exposures, integration_secs) {
+                        Ok(()) => tracing::info!(
+                            "Checkpoint records the run as {} after {} exposures",
+                            end.as_str(),
+                            exposures
+                        ),
+                        Err(e) => tracing::warn!(
+                            "Could not record how the run ended in its checkpoint: {}",
+                            e
+                        ),
+                    }
+                }
+
                 match result {
                     NodeStatus::Success | NodeStatus::Skipped => {
                         // Mark the checkpoint inactive on graceful completion.

@@ -3629,3 +3629,72 @@ async fn a_mount_that_will_not_move_at_all_is_reported() {
     let outcome = crate::limit_backoff::back_off_limit(&shared, "mount-1").await;
     assert!(outcome.is_err(), "{outcome:?}");
 }
+
+/// A run the operator stops keeps its checkpoint so it can be continued, but
+/// it was not interrupted: the checkpoint says it was stopped and carries the
+/// frames the run reached, not the counts of its last 30 s streaming save.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stopped_run_checkpoint_says_stopped_with_its_final_counts() {
+    let dir = std::env::temp_dir().join(format!("skotiq_stopped_run_ckpt_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("checkpoint dir");
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_checkpoint_dir(&dir);
+    let mut executor = start_long_run(executor, ops).await;
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Running);
+
+    // The streaming writer saves at the start of the run, before any frame.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    while executor.get_checkpoint_info().is_none() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "no streaming checkpoint"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert_eq!(
+        executor.get_checkpoint_info().unwrap().completed_exposures,
+        0
+    );
+
+    // Frames land after that save; the next one is 30 s away.
+    {
+        let mut prog = executor.progress.write();
+        prog.completed_exposures = 7;
+        prog.completed_integration_secs = 70.0;
+    }
+    executor.stop().await.expect("stop");
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        matches!(
+            s,
+            super::ExecutorState::Cancelled
+                | super::ExecutorState::Completed
+                | super::ExecutorState::Failed
+        )
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Cancelled);
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let info = executor.get_checkpoint_info().expect("checkpoint kept");
+        if info.ended.is_some() {
+            assert_eq!(info.ended, Some(crate::checkpoint::RunEnd::Stopped));
+            assert_eq!(info.completed_exposures, 7);
+            assert_eq!(info.completed_integration_secs, 70.0);
+            assert!(info.can_resume, "a stopped run can still be continued");
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the stopped run never recorded how it ended"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}

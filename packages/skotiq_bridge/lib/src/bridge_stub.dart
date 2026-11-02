@@ -251,6 +251,10 @@ class CheckpointInfoApi {
   final bool canResume;
   final int ageSeconds;
 
+  /// How the run ended ("stopped", "failed", "ended_early"); null when the
+  /// app died under it.
+  final String? ended;
+
   CheckpointInfoApi({
     required this.sequenceName,
     required this.timestamp,
@@ -258,6 +262,7 @@ class CheckpointInfoApi {
     required this.completedIntegrationSecs,
     required this.canResume,
     required this.ageSeconds,
+    this.ended,
   });
 }
 
