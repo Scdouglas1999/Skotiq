@@ -38,6 +38,11 @@ Future<void> hydrateRemoteSessionState(
   await _hydrateDeviceTelemetry(reader, backend, devices);
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
+  // The host's plate solver can be set up or changed while this client is
+  // linked (or across a host restart); read it again rather than keep what it
+  // reported when the client connected.
+  refreshHostPlateSolverState(reader);
+
   // Start at dark is held by the host; mirror what it has scheduled.
   try {
     final scheduled = await backend.hostScheduledStart();
@@ -424,4 +429,12 @@ Future<void> seedEventLogFromHost(Object reader, NetworkBackend backend) async {
       level: 900,
     );
   }
+}
+
+/// Read the host's plate solver (what it detects and how it is set up) again.
+/// A linked client kept what the host reported when it connected, so a solver
+/// set up on the host afterwards still read "No plate solver" here.
+void refreshHostPlateSolverState(Object reader) {
+  _invalidate(reader, plateSolverDetectionProvider);
+  _invalidate(reader, plateSolverPreferenceProvider);
 }

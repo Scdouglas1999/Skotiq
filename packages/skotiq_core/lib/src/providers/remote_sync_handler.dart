@@ -64,6 +64,8 @@ import 'sequence_stats_provider.dart'
         liveSequenceStatsProvider,
         SequenceRunStats;
 import 'session_provider.dart';
+import 'plate_solver_provider.dart'
+    show plateSolverDetectionProvider, plateSolverPreferenceProvider;
 import 'settings_provider.dart' show appSettingsProvider;
 import 'target_progress_provider.dart'
     show allTargetProgressProvider, targetProgressProvider;
