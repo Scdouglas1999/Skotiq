@@ -80,6 +80,22 @@ void main() {
     expect(exposure.fractionAt(clock.instant), closeTo(53 / 90, 1e-9));
   });
 
+  // A frame aborted with the run sends no end event; Tonight kept
+  // "Exposing 25 s 0 s left" for good (qa-pair QP-10, reverify RV-11).
+  test('an exposure with no end event is gone once its grace is over',
+      () async {
+    final grace = NightCameraExposureNotifier.endGrace;
+    NightCameraExposureNotifier.endGrace = Duration.zero;
+    addTearDown(() => NightCameraExposureNotifier.endGrace = grace);
+    final (h, _) = await harness();
+    await deliver(h, _imaging('ExposureStarted', {'duration_secs': 0.05}));
+    expect(h.read(nightStageExposureProvider), isNotNull);
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(h.read(nightCameraExposureProvider), isNull);
+    expect(h.read(nightStageExposureProvider), isNull);
+  });
+
   test('the camera progress report re-anchors the countdown', () async {
     final (h, clock) = await harness();
     await deliver(h, _imaging('ExposureStarted', {'duration_secs': 90.0}));

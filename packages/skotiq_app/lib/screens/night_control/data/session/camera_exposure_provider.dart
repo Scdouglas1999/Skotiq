@@ -83,6 +83,26 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
   StreamSubscription<SkotiqEvent>? _sub;
   int _generation = 0;
 
+  /// How long past its end, with no word from the camera, an exposure is
+  /// still shown: time for the download. A frame aborted with the run, or
+  /// one whose end event was lost, is gone after this.
+  @visibleForTesting
+  static Duration endGrace = const Duration(seconds: 30);
+
+  Timer? _expiry;
+
+  @override
+  set state(NightCameraExposure? value) {
+    super.state = value;
+    _expiry?.cancel();
+    _expiry = null;
+    if (value == null) return;
+    final wait = value.endsAt.add(endGrace).difference(_now());
+    _expiry = Timer(wait.isNegative ? Duration.zero : wait, () {
+      if (mounted && identical(state, value)) super.state = null;
+    });
+  }
+
   /// Progress reports closer together than this do not rebuild the stage;
   /// it counts down from the last one on its own one-second tick.
   static const Duration progressResync = Duration(seconds: 2);
@@ -136,6 +156,7 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
 
   @override
   void dispose() {
+    _expiry?.cancel();
     _generation++;
     _sub?.cancel();
     super.dispose();

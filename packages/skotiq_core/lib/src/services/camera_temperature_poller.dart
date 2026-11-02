@@ -9,6 +9,10 @@ import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart'
     show coolingStatusProvider, temperatureHistoryProvider;
 import 'logging_service.dart';
+import '../models/sequence/sequence_models.dart'
+    show SequenceExecutionStateCapabilities;
+import '../providers/sequence/sequence_progress.dart'
+    show sequenceExecutionStateProvider;
 
 /// Maximum absolute deviation, in degrees Celsius, between the live sensor
 /// temperature and the cooling target at which the cooler is considered to
@@ -59,6 +63,10 @@ class CameraTemperaturePoller {
   /// relaxes to [_idleInterval] only once it confirms the cooler is off.
   bool _coolerActive = true;
 
+  /// Consecutive readings in which the camera reported itself idle while the
+  /// app still showed an exposure out; see [_settleStaleExposure].
+  int _idleReadsWhileExposing = 0;
+
   /// Identifier of the camera currently being polled, if any.
   String? get connectedCameraId => _connectedCameraId;
 
@@ -84,6 +92,24 @@ class CameraTemperaturePoller {
     if (_connectedCameraId != deviceId || _generation != generation) return;
     final delay = _coolerActive ? _interval : _idleInterval;
     _timer = Timer(delay, () => _pollThenReschedule(deviceId, generation));
+  }
+
+  /// An exposure whose end never arrived (a run stopped or ended mid-frame)
+  /// left the app showing "Exposing" with nothing out. With no run going, two
+  /// readings in a row of an idle camera end it; one could be the gap before
+  /// a capture this app just asked for.
+  void _settleStaleExposure(CameraState reported) {
+    final exposing = _ref.read(cameraStateProvider).isExposing;
+    final runActive = !_ref.read(sequenceExecutionStateProvider).canStart;
+    if (!exposing || runActive || reported != CameraState.idle) {
+      _idleReadsWhileExposing = 0;
+      return;
+    }
+    _idleReadsWhileExposing++;
+    if (_idleReadsWhileExposing >= 2) {
+      _idleReadsWhileExposing = 0;
+      _ref.read(cameraStateProvider.notifier).setExposing(false);
+    }
   }
 
   /// Stop polling. Subsequent timer ticks (if any are mid-flight) are
@@ -118,6 +144,8 @@ class CameraTemperaturePoller {
       if (_connectedCameraId != deviceId || _generation != generation) {
         return;
       }
+
+      _settleStaleExposure(status.state);
 
       _ref
           .read(cameraStateProvider.notifier)

@@ -96,6 +96,22 @@ void main() {
     },
   );
 
+  // A run that ended mid-frame left "Exposing 25 s 0 s left" on Tonight
+  // with nothing out (qa-pair QP-10). With no run going, an idle camera ends
+  // it on the second reading in a row.
+  test('an idle camera ends a stale exposure after two readings', () async {
+    container.read(cameraStateProvider.notifier).setExposing(true);
+    final status = _coolingStatus(
+      sensorTemp: 20.0,
+      targetTemp: -10.0,
+      coolerPower: 0.0,
+    );
+    await pollOnce(status);
+    expect(container.read(cameraStateProvider).isExposing, isTrue);
+    await pollOnce(status);
+    expect(container.read(cameraStateProvider).isExposing, isFalse);
+  });
+
   test('records the gain, offset and binning the camera reports', () async {
     await pollOnce(
       _coolingStatus(sensorTemp: 20.0, targetTemp: -10.0, coolerPower: 0.0),
