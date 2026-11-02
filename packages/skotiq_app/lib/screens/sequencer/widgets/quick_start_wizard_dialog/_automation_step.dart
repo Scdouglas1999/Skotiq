@@ -156,7 +156,7 @@ extension _AutomationStep on _QuickStartWizardDialogState {
           colors: colors,
           icon: LucideIcons.crosshair,
           title: 'Auto-Guide',
-          subtitle: 'Start PHD2 guiding before imaging and stop after',
+          subtitle: 'Start guiding before imaging and stop after',
           value: _enableAutoGuide,
           onChanged: (v) => _update(() => _enableAutoGuide = v),
         ),

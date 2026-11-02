@@ -452,14 +452,14 @@ mixin _GuidingDesktopSections
               if (isCalibrating)
                 const SkotiqBanner(
                   title: 'Calibrating the mount.',
-                  message: 'PHD2 is measuring the guide rates.',
+                  message: 'The guider is measuring the guide rates.',
                   tone: BannerTone.info,
                 )
               else if (!isCalibrated)
                 const SkotiqBanner(
                   title: 'Mount not calibrated.',
-                  message: 'PHD2 calibrates the mount the first time you '
-                      'start guiding.',
+                  message: 'The guider calibrates the mount the first time '
+                      'you start guiding.',
                   tone: BannerTone.warning,
                 )
               else ...[

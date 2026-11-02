@@ -212,9 +212,9 @@ class _StopGuidingProperties extends StatelessWidget {
           Icon(LucideIcons.xCircle, size: 32, color: colors.primary),
           const SizedBox(height: 12),
           Text(
-            'Stops PHD2 guiding. The mount continues tracking, but guide '
+            'Stops guiding. The mount keeps tracking, but guide '
             'corrections are no longer applied. This instruction has no '
-            'additional settings.',
+            'other settings.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize12,
