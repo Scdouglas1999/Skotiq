@@ -502,6 +502,13 @@ pub fn detect_astap_catalog(
         (exe_path, configured)
     };
 
+    // A configured catalog folder is the one ASTAP is told to use (`-d`), so
+    // it is the only one that counts: a catalog found beside the executable
+    // would be reported while every solve fails with "no star database".
+    if let Some(dir) = configured {
+        return catalog_in_dir(dir);
+    }
+
     let inputs = CatalogSearchInputs {
         os: OsFamily::host(),
         exe_path,
@@ -526,6 +533,16 @@ pub fn detect_astap_catalog(
         }
     }
     None
+}
+
+/// The catalog in `dir`, if it holds one.
+fn catalog_in_dir(dir: &Path) -> Option<CatalogInfo> {
+    let entries = fs::read_dir(dir).ok()?;
+    let names: Vec<String> = entries
+        .flatten()
+        .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+        .collect();
+    identify_catalog(dir, names)
 }
 
 /// Result of running an installed solver's `--help` (or equivalent) to
@@ -2604,6 +2621,38 @@ mod tests {
         assert_eq!(info.name, "D80");
         assert_eq!(info.path, temp);
 
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    /// A configured catalog folder with no catalog in it is reported as
+    /// having none, even with a catalog beside the executable: ASTAP is
+    /// given the configured folder and finds no star database there.
+    #[test]
+    fn an_empty_configured_catalog_folder_is_not_covered_by_the_exe_folder() {
+        let temp = std::env::temp_dir().join(format!(
+            "skotiq-platesolve-cat-empty-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let exe_dir = temp.join("bin");
+        let configured = temp.join("seq");
+        std::fs::create_dir_all(&exe_dir).expect("create exe dir");
+        std::fs::create_dir_all(&configured).expect("create configured dir");
+        let exe = exe_dir.join("astap_cli");
+        std::fs::write(&exe, b"#!fake").expect("write fake exe");
+        std::fs::write(exe_dir.join("d05_0101.1476"), b"fake").expect("write fake catalog");
+        std::fs::write(configured.join("notes.txt"), b"not a catalog").expect("write file");
+
+        assert!(super::detect_astap_catalog(Some(&exe), Some(&configured)).is_none());
+        assert_eq!(
+            super::detect_astap_catalog(Some(&exe), None)
+                .expect("the exe folder still counts when nothing is configured")
+                .name,
+            "D05"
+        );
         let _ = std::fs::remove_dir_all(&temp);
     }
 
