@@ -325,6 +325,11 @@ class NotificationEventClassifier {
         }
         return null;
       case 'TriggerFired':
+        // A trigger whose action is to carry on (a filter change in a rotating
+        // Smart Exposure fires one every frame) changed nothing; notifying it
+        // buried the real alerts on a linked client.
+        final action = (event.data['action'] as String? ?? '').trim();
+        if (action.toLowerCase() == 'continue') return null;
         return (
           NotificationCategory.triggerFired,
           <String, String>{

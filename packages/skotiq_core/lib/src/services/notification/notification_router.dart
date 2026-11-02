@@ -920,7 +920,7 @@ class NotificationRouter {
       case NotificationCategory.cloudOpening:
         return 'Cloud cover decreasing.';
       case NotificationCategory.triggerFired:
-        return 'Trigger \${trigger.name} fired.';
+        return 'The \${trigger.name} trigger fired.';
       case NotificationCategory.transientDiscovered:
         return 'First Light caught something at \${transient.coords} '
             '(SNR \${transient.snr}). Chase it before it fades.';
