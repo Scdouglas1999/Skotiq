@@ -122,22 +122,117 @@ class DiskSpaceGuardService {
     return width * height * bytesPerPixel + 65536;
   }
 
-  /// Total projected bytes for all enabled exposure nodes in a sequence,
-  /// given [capabilities]. Returns null if any enabled exposure node lacks a
-  /// usable per-frame cost (the caller should treat that as "unknown" and
+  /// Frame size for one sub at [binning] given [capabilities], or null when
+  /// the camera reports no usable geometry.
+  static int? _frameBytesAt(
+    BinningMode binning,
+    CameraCapabilities capabilities,
+  ) {
+    final maxWidth = capabilities.maxWidth;
+    final maxHeight = capabilities.maxHeight;
+    if (maxWidth <= 0 || maxHeight <= 0) return null;
+    final width = (maxWidth / binning.xFactor).floor();
+    final height = (maxHeight / binning.yFactor).floor();
+    final bytesPerPixel = ((capabilities.bitDepth + 7) ~/ 8);
+    if (bytesPerPixel <= 0) return null;
+    return width * height * bytesPerPixel + 65536;
+  }
+
+  /// Total projected bytes for every frame the sequence's enabled capture
+  /// nodes take, given [capabilities]. Returns null if any capture node lacks
+  /// a usable per-frame cost (the caller should treat that as "unknown" and
   /// surface a warning rather than guessing).
+  ///
+  /// The tree is walked from its roots: a disabled node drops its whole
+  /// subtree, a counted loop multiplies its children by its repeat count, and
+  /// a Smart Exposure contributes each filter plan's frames at that plan's
+  /// binning. Loops and Smart Exposures that run until a condition (dark,
+  /// altitude, a target window) count one pass, so the figure is a floor.
   static int? projectSequenceBytes(
     Sequence sequence,
     CameraCapabilities? capabilities,
   ) {
     if (capabilities == null) return null;
-    int total = 0;
-    for (final node in sequence.nodes.values) {
-      if (node is! ExposureNode) continue;
-      if (!node.isEnabled) continue;
-      final perFrame = projectFrameBytes(node, capabilities);
+    final roots = <SequenceNode>[];
+    final rootId = sequence.rootNodeId;
+    if (rootId != null) {
+      final root = sequence.nodes[rootId];
+      if (root != null) roots.add(root);
+    } else {
+      roots.addAll(sequence.nodes.values.where((n) => n.parentId == null));
+    }
+    final visited = <String>{};
+    int? walk(SequenceNode node, int multiplier) {
+      if (!node.isEnabled || !visited.add(node.id)) return 0;
+      var total = 0;
+      if (node is ExposureNode) {
+        final perFrame = projectFrameBytes(node, capabilities);
+        if (perFrame == null) return null;
+        total += perFrame * node.count * multiplier;
+      } else if (node is SmartExposureNode) {
+        final bytes = _smartExposureBytes(node, capabilities);
+        if (bytes == null) return null;
+        total += bytes * multiplier;
+      }
+      final childMultiplier = node is LoopNode
+          ? multiplier * _loopPasses(node)
+          : multiplier;
+      for (final childId in node.childIds) {
+        final child = sequence.nodes[childId];
+        if (child == null) continue;
+        final childBytes = walk(child, childMultiplier);
+        if (childBytes == null) return null;
+        total += childBytes;
+      }
+      return total;
+    }
+
+    var total = 0;
+    for (final root in roots) {
+      final bytes = walk(root, 1);
+      if (bytes == null) return null;
+      total += bytes;
+    }
+    return total;
+  }
+
+  static int _loopPasses(LoopNode loop) {
+    if (loop.conditionType == LoopConditionType.count) {
+      final count = loop.repeatCount ?? 1;
+      return count < 1 ? 1 : count;
+    }
+    return 1;
+  }
+
+  static int? _smartExposureBytes(
+    SmartExposureNode node,
+    CameraCapabilities capabilities,
+  ) {
+    if (node.plans.isEmpty) return 0;
+    if (node.loopUntilStopped) {
+      // One sub per filter per pass until the budget is met; without a budget
+      // the window decides, so count one pass.
+      final passSecs = node.plans.fold<double>(
+        0,
+        (sum, p) => sum + p.durationSecs,
+      );
+      var passes = 1;
+      if (node.integrationBudgetSecs > 0 && passSecs > 0) {
+        passes = (node.integrationBudgetSecs / passSecs).ceil();
+      }
+      var total = 0;
+      for (final plan in node.plans) {
+        final perFrame = _frameBytesAt(plan.binning, capabilities);
+        if (perFrame == null) return null;
+        total += perFrame * passes;
+      }
+      return total;
+    }
+    var total = 0;
+    for (final plan in node.plans) {
+      final perFrame = _frameBytesAt(plan.binning, capabilities);
       if (perFrame == null) return null;
-      total += perFrame * node.count;
+      total += perFrame * plan.count;
     }
     return total;
   }

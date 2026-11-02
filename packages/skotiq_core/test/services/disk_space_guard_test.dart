@@ -230,6 +230,68 @@ void main() {
       expect(projection.projectedBytes, lessThan(_gb(3)));
     });
 
+    test('counts Smart Exposure plans and counted loops inside a target', () {
+      // A Smart Night plan: target -> loop x2 -> Smart Exposure L/R 40 each.
+      final smart = SmartExposureNode(
+        id: 'smart',
+        parentId: 'loop',
+        plans: const [
+          FilterPlan(filterName: 'L', count: 40, durationSecs: 20),
+          FilterPlan(
+            filterName: 'R',
+            count: 40,
+            durationSecs: 20,
+            binning: BinningMode.two,
+          ),
+        ],
+      );
+      final loop = LoopNode(
+        id: 'loop',
+        parentId: 'target',
+        childIds: const ['smart'],
+        repeatCount: 2,
+      );
+      final target = TargetHeaderNode(
+        id: 'target',
+        targetName: 'M34',
+        raHours: 2.7,
+        decDegrees: 42.8,
+        childIds: const ['loop'],
+      );
+      final sequence = Sequence.create(
+        id: 'seq',
+        name: 'night',
+        nodes: {target.id: target, loop.id: loop, smart.id: smart},
+        rootNodeId: target.id,
+      );
+      const full = 6000 * 4000 * 2 + 65536;
+      const binned = 3000 * 2000 * 2 + 65536;
+      expect(
+        DiskSpaceGuardService.projectSequenceBytes(sequence, _cap6kMono16),
+        2 * (40 * full + 40 * binned),
+      );
+    });
+
+    test('a disabled container drops its whole subtree', () {
+      final exposure = ExposureNode(id: 'e', parentId: 'loop', count: 100);
+      final loop = LoopNode(
+        id: 'loop',
+        childIds: const ['e'],
+        repeatCount: 3,
+        isEnabled: false,
+      );
+      final sequence = Sequence.create(
+        id: 'seq',
+        name: 't',
+        nodes: {loop.id: loop, exposure.id: exposure},
+        rootNodeId: loop.id,
+      );
+      expect(
+        DiskSpaceGuardService.projectSequenceBytes(sequence, _cap6kMono16),
+        0,
+      );
+    });
+
     test('propagates DiskSpaceException from underlying service', () async {
       fake.setError(const DiskSpaceException('C:/data', 'drive missing'));
       expect(
