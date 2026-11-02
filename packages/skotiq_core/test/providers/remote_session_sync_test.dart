@@ -769,82 +769,80 @@ void main() {
     );
 
     // While the host's sequence runs, the slave's mirrored
-    // sequenceExecutionState locks the editor — the open-editor mirror apply
-    // must SKIP rather than throw SequenceLockedException out of hydration
-    // (which used to abort PHD2 / profile / settings refreshes every 30 s).
-    test(
-      'editor mirror skips while a sequence runs; hydration continues',
-      () async {
-        final backend = _MockNetworkBackend();
-        when(() => backend.sequencerGetStatus()).thenAnswer(
-          (_) async => const SequencerStatus(state: 'Running', progress: 0.4),
-        );
-        when(
-          () => backend.getConnectedDevices(),
-        ).thenAnswer((_) async => const []);
-        when(() => backend.getOpenEditorSequence()).thenAnswer(
-          (_) async => const {
-            'sequence': <String, dynamic>{'name': 'Host Seq', 'nodes': {}},
-            'isDirty': false,
-          },
-        );
-        when(() => backend.phd2GetStatus()).thenAnswer(
-          (_) async => const Phd2Status(
-            state: 'Guiding',
-            connected: true,
-            rmsRa: 0.5,
-            rmsDec: 0.4,
-            rmsTotal: 0.6,
-            snr: 100,
-            starMass: 500,
-            avgDistance: 0,
+    // sequenceExecutionState locks the editor. The open-editor mirror then
+    // shows the host's running plan without throwing SequenceLockedException
+    // out of hydration, so PHD2 / profile / settings refreshes continue.
+    test('editor mirror shows the running plan while a sequence runs; '
+        'hydration continues', () async {
+      final backend = _MockNetworkBackend();
+      when(() => backend.sequencerGetStatus()).thenAnswer(
+        (_) async => const SequencerStatus(state: 'Running', progress: 0.4),
+      );
+      when(
+        () => backend.getConnectedDevices(),
+      ).thenAnswer((_) async => const []);
+      when(() => backend.getOpenEditorSequence()).thenAnswer(
+        (_) async => const {
+          'sequence': <String, dynamic>{'name': 'Host Seq', 'nodes': {}},
+          'isDirty': false,
+        },
+      );
+      when(() => backend.phd2GetStatus()).thenAnswer(
+        (_) async => const Phd2Status(
+          state: 'Guiding',
+          connected: true,
+          rmsRa: 0.5,
+          rmsDec: 0.4,
+          rmsTotal: 0.6,
+          snr: 100,
+          starMass: 500,
+          avgDistance: 0,
+        ),
+      );
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(
+        () => backend.connectionState,
+      ).thenReturn(BackendConnectionState.connected);
+      _stubHydrationParityEndpoints(backend);
+
+      final localSequence = Sequence.create(name: 'Local Seq');
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
           ),
-        );
-        when(
-          () => backend.eventStream,
-        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(
-          () => backend.connectionState,
-        ).thenReturn(BackendConnectionState.connected);
-        _stubHydrationParityEndpoints(backend);
+          loggingServiceProvider.overrideWithValue(LoggingService()),
+          currentSequenceProvider.overrideWith((ref) {
+            final notifier = CurrentSequenceNotifier(ref: ref);
+            // ignore: invalid_use_of_protected_member
+            notifier.state = localSequence;
+            return notifier;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final localSequence = Sequence.create(name: 'Local Seq');
-        final container = ProviderContainer(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            backendProvider.overrideWith(
-              (ref) => _FixedBackendNotifier(ref, backend),
-            ),
-            loggingServiceProvider.overrideWithValue(LoggingService()),
-            currentSequenceProvider.overrideWith((ref) {
-              final notifier = CurrentSequenceNotifier(ref: ref);
-              // ignore: invalid_use_of_protected_member
-              notifier.state = localSequence;
-              return notifier;
-            }),
-          ],
-        );
-        addTearDown(container.dispose);
+      container.read(remoteSessionSyncProvider);
+      await pumpEventQueue();
 
-        container.read(remoteSessionSyncProvider);
-        await pumpEventQueue();
-
-        expect(
-          container.read(sequenceExecutionStateProvider),
-          SequenceExecutionState.running,
-        );
-        // The host's editor canvas must NOT clobber the slave's while a run
-        // owns the tree.
-        expect(container.read(currentSequenceProvider)?.name, 'Local Seq');
-        // Hydration continued past the editor step: PHD2 was still fetched
-        // and applied.
-        verify(() => backend.phd2GetStatus()).called(greaterThan(0));
-        expect(
-          container.read(guiderStateProvider).connectionState,
-          DeviceConnectionState.connected,
-        );
-      },
-    );
+      expect(
+        container.read(sequenceExecutionStateProvider),
+        SequenceExecutionState.running,
+      );
+      // A client watching the host's run shows the plan the host runs.
+      expect(container.read(currentSequenceProvider)?.name, 'Host Seq');
+      expect(container.read(canEditSequenceProvider), isFalse);
+      // Hydration continued past the editor step: PHD2 was still fetched
+      // and applied.
+      verify(() => backend.phd2GetStatus()).called(greaterThan(0));
+      expect(
+        container.read(guiderStateProvider).connectionState,
+        DeviceConnectionState.connected,
+      );
+    });
 
     // A dead token used to drive an endless hydration loop: the 30 s
     // pollTimer + every BackendReconnected event fanned out requests that
