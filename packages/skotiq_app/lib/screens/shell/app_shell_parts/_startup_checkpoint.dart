@@ -146,6 +146,13 @@ bool catalogSetupWasSkipped(String? persistedValue) =>
 Future<bool> hostRunHoldsCheckpoint(Object backend) async =>
     backend is NetworkBackend && await backend.hostRunInFlight();
 
+/// Whether launch offers to recover [info]'s run: only a run the app died
+/// under. A run that was stopped, failed or ended early keeps its checkpoint
+/// and is continued from History instead of being raised as an interruption.
+@visibleForTesting
+bool offersCheckpointRecovery(CheckpointInfo? info) =>
+    info != null && info.canResume && info.wasInterrupted;
+
 /// How old [info]'s checkpoint is now, from its save time. A host that
 /// reports a cached age keeps reporting the age it had when first read.
 @visibleForTesting
@@ -192,7 +199,11 @@ Widget buildCheckpointRecoveryDialog({
   final ageStr = ageMinutes < 60
       ? '${ageMinutes}m ago'
       : '${ageMinutes ~/ 60}h ${ageMinutes % 60}m ago';
-  final integrationMins = (info.completedIntegrationSecs / 60).round();
+  final integration = DurationFormat.of(
+    Duration(seconds: info.completedIntegrationSecs.round()),
+    style: DurationStyle.hoursMinutesTrimmed,
+  );
+  final frames = info.completedExposures;
 
   return AlertDialog(
     backgroundColor: colors.surface,
@@ -251,8 +262,8 @@ Widget buildCheckpointRecoveryDialog({
                 _checkpointInfoRow(
                   colors,
                   'Completed',
-                  '${info.completedExposures} frames '
-                      '(${integrationMins}m integration)',
+                  '$frames ${frames == 1 ? 'frame' : 'frames'} '
+                      '($integration integration)',
                 ),
               ],
             ),

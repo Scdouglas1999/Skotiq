@@ -43,6 +43,15 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     });
   }
 
+  Future<CheckpointInfo?> _continuableCheckpoint(
+      SkotiqBackend authority) async {
+    try {
+      return await authority.getCheckpointInfo();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _checkForStartupOptions() async {
     if (_hasChecked || !mounted) return;
 
@@ -63,9 +72,17 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       }
       if (!mounted) return;
 
-      // First priority: Check for crashed/interrupted sessions
-      final incompleteSessions =
-          await ref.read(incompleteSessionsProvider.future);
+      // The host's own screen decides on its sessions; a client neither
+      // resumes nor discards them.
+      if (authority is NetworkBackend) return;
+
+      // First priority: Check for crashed/interrupted sessions. The session
+      // of a run whose checkpoint can be continued is that run: the checkpoint
+      // prompt or History continues it, so it is not raised a second time.
+      final incompleteSessions = withoutCheckpointedRun(
+        await ref.read(incompleteSessionsProvider.future),
+        await _continuableCheckpoint(authority),
+      );
 
       if (!mounted) return;
       if (!_isCurrentAuthority(authority)) {
@@ -99,10 +116,9 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       }
 
       // Second priority: Check for quick start opportunity. Never on a
-      // companion: restoring a previous setup moves the imaging host's
-      // focuser and filter wheel and changes its cooler, and the host may be
-      // in the middle of a run.
-      if (authority is NetworkBackend) return;
+      // companion (returned above): restoring a previous setup moves the
+      // imaging host's focuser and filter wheel and changes its cooler, and the
+      // host may be in the middle of a run.
       final quickStartContext =
           await ref.read(quickStartContextProvider.future);
 
@@ -114,7 +130,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       if (quickStartContext != null &&
           quickStartContext.isRecent &&
-          !remoteSessionIsFinished(quickStartContext, authority) &&
+          !sessionIsFinished(quickStartContext) &&
           mounted) {
         // Show quick start dialog
         await Future.delayed(const Duration(milliseconds: 500));
@@ -588,13 +604,20 @@ class _SnapshotRestore {
   });
 }
 
-/// Whether [context] is a host session that captured every planned frame. A
-/// client of that host has nothing to continue in it, so it is not offered.
+/// Whether [context] is a session that captured every planned frame. There is
+/// nothing to continue in it, so it is not offered.
 @visibleForTesting
-bool remoteSessionIsFinished(
-  QuickStartContext context,
-  SkotiqBackend authority,
-) =>
-    authority is NetworkBackend &&
-    context.totalFrames > 0 &&
-    context.completedFrames >= context.totalFrames;
+bool sessionIsFinished(QuickStartContext context) =>
+    context.totalFrames > 0 && context.completedFrames >= context.totalFrames;
+
+/// [sessions] without the session of the run [checkpoint] continues.
+@visibleForTesting
+List<SessionRecoveryInfo> withoutCheckpointedRun(
+  List<SessionRecoveryInfo> sessions,
+  CheckpointInfo? checkpoint,
+) {
+  if (checkpoint == null || !checkpoint.canResume) return sessions;
+  return sessions
+      .where((s) => s.sessionName != checkpoint.sequenceName)
+      .toList(growable: false);
+}

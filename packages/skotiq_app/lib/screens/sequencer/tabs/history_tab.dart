@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../run_status_presentation.dart';
 import '../sequencer_screen.dart';
 import 'sequence_library_tab.dart';
+import '../widgets/continue_run_button.dart';
 import '../widgets/notes_panel.dart';
 import '../widgets/pending_session_reports_card.dart';
 import '../widgets/post_session_stats_dialog.dart';
@@ -639,6 +640,11 @@ class _RunCard extends ConsumerWidget {
               // user can see at a glance whether the run has any
               // recorded decisions before opening (older runs that
               // pre-date decision logging will show 0).
+              ContinueRunButton(
+                sequenceName: run.sequenceName,
+                startedAt: run.startedAt,
+                endedAt: run.endedAt,
+              ),
               Consumer(builder: (context, ref, _) {
                 final countAsync = ref.watch(
                   decisionCountForRunProvider(run.id),

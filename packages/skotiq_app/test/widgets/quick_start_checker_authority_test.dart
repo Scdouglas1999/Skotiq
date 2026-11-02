@@ -385,7 +385,7 @@ void main() {
     expect(find.text('Start fresh'), findsNothing);
   });
 
-  test('a finished host session is not offered to a client', () {
+  test('a finished session is never offered to continue', () {
     final finished = QuickStartContext(
       sessionId: 3,
       sessionName: 'QA M45 long',
@@ -394,9 +394,35 @@ void main() {
       lastSessionDate: DateTime.now(),
       totalIntegrationHours: 0.1,
     );
+    expect(sessionIsFinished(finished), isTrue);
+    expect(sessionIsFinished(_context()), isFalse);
+  });
+
+  test('the session of a run the checkpoint continues is not raised again', () {
+    SessionRecoveryInfo session(int id, String name) => SessionRecoveryInfo(
+          sessionId: id,
+          sessionName: name,
+          startTime: DateTime(2026, 11, 1, 11, 59),
+          stats: SessionStats(
+            completedExposures: 1,
+            failedExposures: 0,
+            totalIntegrationSecs: 30,
+            lastUpdated: DateTime(2026, 11, 1, 12),
+          ),
+        );
+    final sessions = [session(1, 'Smart Night'), session(2, 'Old plan')];
+    final checkpoint = CheckpointInfo(
+      sequenceName: 'Smart Night',
+      timestamp: DateTime.utc(2026, 11, 1, 17),
+      completedExposures: 1,
+      completedIntegrationSecs: 30,
+      canResume: true,
+      ageSeconds: 60,
+    );
     expect(
-        remoteSessionIsFinished(finished, _RecordingNetworkBackend()), isTrue);
-    expect(remoteSessionIsFinished(_context(), _RecordingNetworkBackend()),
-        isFalse);
+      withoutCheckpointedRun(sessions, checkpoint).map((s) => s.sessionId),
+      [2],
+    );
+    expect(withoutCheckpointedRun(sessions, null), sessions);
   });
 }

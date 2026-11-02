@@ -525,6 +525,7 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
       completedIntegrationSecs: info.completedIntegrationSecs,
       canResume: info.canResume,
       ageSeconds: info.ageSeconds.toInt(),
+      ended: info.ended,
     );
   }
 

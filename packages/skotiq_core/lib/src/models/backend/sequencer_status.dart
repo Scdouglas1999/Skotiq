@@ -185,6 +185,11 @@ class CheckpointInfo {
   /// Age of the checkpoint in seconds
   final int ageSeconds;
 
+  /// How the run ended when it ended on its own terms: "stopped" (by the
+  /// operator), "failed" or "ended_early" (a trigger put the rig away). Null
+  /// when the app died under the run.
+  final String? ended;
+
   const CheckpointInfo({
     required this.sequenceName,
     required this.timestamp,
@@ -192,7 +197,13 @@ class CheckpointInfo {
     required this.completedIntegrationSecs,
     required this.canResume,
     required this.ageSeconds,
+    this.ended,
   });
+
+  /// Whether the app died under the run: the only run that was interrupted.
+  /// A stopped, failed or ended-early run keeps its checkpoint to be continued
+  /// but was not interrupted.
+  bool get wasInterrupted => ended == null;
 
   /// Create from JSON (for network transport)
   factory CheckpointInfo.fromJson(Map<String, dynamic> json) {
@@ -204,6 +215,7 @@ class CheckpointInfo {
           .toDouble(),
       canResume: json['canResume'] as bool,
       ageSeconds: json['ageSeconds'] as int,
+      ended: json['ended'] as String?,
     );
   }
 
@@ -215,6 +227,7 @@ class CheckpointInfo {
     'completedIntegrationSecs': completedIntegrationSecs,
     'canResume': canResume,
     'ageSeconds': ageSeconds,
+    if (ended != null) 'ended': ended,
   };
 
   /// Get a human-readable age string

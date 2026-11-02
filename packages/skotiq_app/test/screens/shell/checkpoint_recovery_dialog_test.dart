@@ -51,6 +51,7 @@ Future<Object?> showRecoveryDialog(
   required CheckpointAttemptFailure? failure,
   String? remoteHost,
   void Function(Object?)? onPopped,
+  CheckpointInfo? info,
 }) async {
   Object? popped;
   var settled = false;
@@ -66,7 +67,7 @@ Future<Object?> showRecoveryDialog(
               barrierDismissible: false,
               builder: (dialogContext) => buildCheckpointRecoveryDialog(
                 context: dialogContext,
-                info: _info,
+                info: info ?? _info,
                 failure: failure,
                 remoteHost: remoteHost,
               ),
@@ -324,6 +325,50 @@ void main() {
     );
 
     expect(seen.last?.checkpointStillResumable, isFalse);
+  });
+
+  testWidgets('the counts read as the run reached them, in plain units', (
+    tester,
+  ) async {
+    await showRecoveryDialog(tester, failure: null);
+    expect(find.text('6 frames (18m integration)'), findsOneWidget);
+  });
+
+  testWidgets('one 30 s frame is one frame of 30 s, not "1 frames (1m)"', (
+    tester,
+  ) async {
+    await showRecoveryDialog(
+      tester,
+      failure: null,
+      info: CheckpointInfo(
+        sequenceName: 'Smart Night',
+        timestamp: DateTime(2026, 11, 1, 11, 59),
+        completedExposures: 1,
+        completedIntegrationSecs: 30,
+        canResume: true,
+        ageSeconds: 60,
+      ),
+    );
+    expect(find.text('1 frame (30s integration)'), findsOneWidget);
+  });
+
+  test('only a run the app died under is offered at launch', () {
+    CheckpointInfo info({String? ended, bool canResume = true}) =>
+        CheckpointInfo(
+          sequenceName: 'QA M45 pair',
+          timestamp: DateTime.utc(2026, 11, 1, 16),
+          completedExposures: 5,
+          completedIntegrationSecs: 50,
+          canResume: canResume,
+          ageSeconds: 60,
+          ended: ended,
+        );
+    expect(offersCheckpointRecovery(info()), isTrue);
+    expect(offersCheckpointRecovery(info(ended: 'stopped')), isFalse);
+    expect(offersCheckpointRecovery(info(ended: 'failed')), isFalse);
+    expect(offersCheckpointRecovery(info(ended: 'ended_early')), isFalse);
+    expect(offersCheckpointRecovery(info(canResume: false)), isFalse);
+    expect(offersCheckpointRecovery(null), isFalse);
   });
 
   test('the age comes from the save time, not from an age the host cached', () {

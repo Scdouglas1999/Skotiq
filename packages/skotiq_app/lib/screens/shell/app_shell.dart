@@ -265,7 +265,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!hasCheckpoint) return AppStartupCheckpointOutcome.noRecovery;
 
       final info = await backend.getCheckpointInfo();
-      if (info == null || !info.canResume) {
+      // Only a run the app died under is offered here. A run that was
+      // stopped, failed or ended early keeps its checkpoint and is continued
+      // from History, not raised as an interruption at every launch.
+      if (info == null || !offersCheckpointRecovery(info)) {
         return AppStartupCheckpointOutcome.noRecovery;
       }
 
