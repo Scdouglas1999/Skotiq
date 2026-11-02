@@ -1,8 +1,9 @@
 // "Start at dark": a timer in this app process that starts the loaded run at
 // astronomical dark.
 //
-// It lives only as long as the app does. A restart clears it, a headless host
-// never sees it, and the screen says the app must stay open.
+// On the imaging host it lives only as long as the app does: a restart clears
+// it, and the screen says the app must stay open. A remote client holds no
+// timer: the host keeps the schedule, and the client mirrors it.
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,14 @@ final nightAstroDarkProvider = Provider<DateTime?>((ref) {
   return ref.watch(siteTwilightTimesProvider)?.astronomicalDusk?.toUtc();
 });
 
+/// The note an armed start carries: on the imaging host the app must stay
+/// open; on a client the host starts the run whatever this computer does.
+final armedStartNoteKeyProvider = Provider<String>(
+  (ref) => ref.watch(backendProvider) is NetworkBackend
+      ? 'nightActArmedOnHost'
+      : 'nightActArmedKeepOpen',
+);
+
 /// When the armed start fires (a UTC instant), or null when not armed.
 final nightArmedStartProvider =
     NotifierProvider<ArmedStartController, DateTime?>(
@@ -28,6 +37,11 @@ class ArmedStartController extends Notifier<DateTime?> {
   @override
   DateTime? build() {
     ref.onDispose(_cancelTimer);
+    // A client shows the host's schedule; arming and canceling go to the host
+    // (see NightActionController).
+    if (ref.watch(backendProvider) is NetworkBackend) {
+      return ref.watch(hostScheduledStartProvider);
+    }
     // A run started some other way (the header's Start, a remote client)
     // makes the armed start moot; leaving it armed would fire a second start
     // into a finished run later.

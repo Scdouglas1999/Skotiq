@@ -39,6 +39,22 @@ List<HeadlessRoute> buildSequencerRoutes(
     h.handleSequencerStart,
   ),
   HeadlessRoute(HttpMethod.post, '/api/sequencer/stop', h.handleSequencerStop),
+  // Start at dark, held on this host (see sequencer_scheduled_start_handlers).
+  HeadlessRoute(
+    HttpMethod.get,
+    '/api/night/scheduled-start',
+    h.handleGetScheduledStart,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/night/scheduled-start',
+    h.handleArmScheduledStart,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/night/scheduled-start/cancel',
+    h.handleCancelScheduledStart,
+  ),
   HeadlessRoute(
     HttpMethod.post,
     '/api/sequencer/pause',

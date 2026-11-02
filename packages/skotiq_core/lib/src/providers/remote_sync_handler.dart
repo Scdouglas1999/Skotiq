@@ -36,6 +36,7 @@ import 'event_provider.dart' show eventHistoryProvider;
 import 'device_heartbeat_health_provider.dart';
 import 'equipment/device_type_registry.dart';
 import 'framing_provider.dart';
+import 'host_scheduled_start_provider.dart';
 import 'imaging_provider.dart' show exposureSettingsProvider;
 import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;

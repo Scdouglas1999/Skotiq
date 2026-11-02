@@ -328,6 +328,8 @@ bool isOwnershipRequired({required String method, required String path}) {
 const Set<String> _ownershipRequiredPaths = {
   // Sequencer execution control
   '/api/sequencer/start',
+  '/api/night/scheduled-start',
+  '/api/night/scheduled-start/cancel',
   '/api/sequencer/stop',
   '/api/sequencer/pause',
   '/api/sequencer/resume',

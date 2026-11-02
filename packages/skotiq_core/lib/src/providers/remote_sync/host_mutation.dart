@@ -41,6 +41,9 @@ void _applyHostMutation(Object reader, Map<String, dynamic> data) {
       _invalidateHostSessions(reader);
     case HostMutationEntity.capturedImage:
       _invalidateHostCapturedImages(reader);
+    case HostMutationEntity.scheduledStart:
+      _read(reader, hostScheduledStartProvider.notifier).state =
+          parseHostScheduledStart(data['at']);
     default:
       break;
   }

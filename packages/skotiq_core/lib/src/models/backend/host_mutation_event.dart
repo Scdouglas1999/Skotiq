@@ -26,6 +26,10 @@ abstract final class HostMutationEntity {
   static const session = 'session';
   static const capturedImage = 'capturedImage';
   static const atlas = 'atlas';
+
+  /// The host's scheduled start (Start at dark): `at` carries the UTC instant,
+  /// or null once it fired or was canceled.
+  static const scheduledStart = 'scheduledStart';
 }
 
 /// Mutation verbs emitted after successful REST handler completion.

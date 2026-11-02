@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Locale;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
+import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:shelf/shelf.dart';
 
 import '../../headless/host_checkpoint_directory.dart';
@@ -20,6 +24,7 @@ part 'sequencer/sequencer_recovery_handlers.dart';
 part 'sequencer/sequencer_conditions_handlers.dart';
 part 'sequencer/sequencer_secondary_rig_handlers.dart';
 part 'sequencer/wire_sequence_summary.dart';
+part 'sequencer/sequencer_scheduled_start_handlers.dart';
 
 /// Handlers for sequencer control endpoints
 class SequencerHandlers {
@@ -29,7 +34,20 @@ class SequencerHandlers {
   /// generates a UUID v4 commandId and includes it in the response.
   final CommandCorrelator? commandCorrelator;
 
-  SequencerHandlers(this.container, {this.commandCorrelator});
+  SequencerHandlers(this.container, {this.commandCorrelator}) {
+    // Clients mirror this host's Start at dark; tell them when it changes
+    // here, including when it fires or the host's own screen cancels it.
+    container.listen<DateTime?>(nightArmedStartProvider, (previous, next) {
+      if (previous == next) return;
+      publishHostMutationFromContainer(
+        container,
+        entityType: HostMutationEntity.scheduledStart,
+        action: HostMutationAction.updated,
+        extra: {'at': next?.toUtc().toIso8601String()},
+        remoteOnly: true,
+      );
+    });
+  }
 
   /// Device ids a caller assigned on purpose through
   /// `POST /api/sequencer/devices`, keyed by type. `null` records an explicit

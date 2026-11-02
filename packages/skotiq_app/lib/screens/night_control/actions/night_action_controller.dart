@@ -397,6 +397,24 @@ class NightActionController extends Notifier<ManualActionState>
       return;
     }
     _update(clearError: true);
+    // On a client the host holds the schedule and starts the run itself, so
+    // it fires even if this computer sleeps or loses the link before dark.
+    final backend = ref.read(backendProvider);
+    if (backend is NetworkBackend) {
+      try {
+        final at = await backend.armHostStartAtDark();
+        ref.read(hostScheduledStartProvider.notifier).state = at;
+        _log.info(
+            'Start at dark armed on the imaging host for '
+            '${at?.toIso8601String()}',
+            source: _logSource);
+      } catch (e) {
+        _update(
+          error: NightText('nightActErrArmHost', params: {'detail': _clean(e)}),
+        );
+      }
+      return;
+    }
     ref.read(nightArmedStartProvider.notifier).arm(dark, _fireArmedStart);
     _log.info('Start at dark armed for ${dark.toIso8601String()}',
         source: _logSource);
@@ -423,6 +441,23 @@ class NightActionController extends Notifier<ManualActionState>
   @override
   void cancelArmedStart() {
     if (ref.read(nightArmedStartProvider) == null) return;
+    final backend = ref.read(backendProvider);
+    if (backend is NetworkBackend) {
+      unawaited(() async {
+        try {
+          await backend.cancelHostScheduledStart();
+          ref.read(hostScheduledStartProvider.notifier).state = null;
+          _log.info('Start at dark canceled on the imaging host',
+              source: _logSource);
+        } catch (e) {
+          _update(
+            error: NightText('nightActErrArmCancelHost',
+                params: {'detail': _clean(e)}),
+          );
+        }
+      }());
+      return;
+    }
     ref.read(nightArmedStartProvider.notifier).disarm();
     _log.info('Start at dark canceled', source: _logSource);
   }

@@ -438,7 +438,7 @@ class NightHeaderBar extends ConsumerWidget {
 // Pill, plan name and progress
 // ---------------------------------------------------------------------------
 
-class _InfoRow extends StatelessWidget {
+class _InfoRow extends ConsumerWidget {
   const _InfoRow({
     required this.header,
     required this.timeline,
@@ -455,13 +455,13 @@ class _InfoRow extends StatelessWidget {
   final bool stacked;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
     final planName = header.planName;
     final progress = _progress(l10n);
     final keepOpen = header.phase == NightRunPhase.armed
-        ? l10n.text('nightActArmedKeepOpen')
+        ? l10n.text(ref.watch(armedStartNoteKeyProvider))
         : null;
     final detail = keepOpen ?? progress;
 
@@ -836,18 +836,19 @@ class _ArmedControl extends _Control {
   }
 
   @override
-  Widget get widget => Builder(
-        builder: (context) {
+  Widget get widget => Consumer(
+        builder: (context, ref, _) {
           final l10n = SkotiqLocalizations.of(context);
           final colors = context.skotiqColors;
+          final note = l10n.text(ref.watch(armedStartNoteKeyProvider));
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Flexible(
                 child: SkotiqTooltip(
-                  message: l10n.text('nightActArmedKeepOpen'),
+                  message: note,
                   child: Semantics(
-                    hint: l10n.text('nightActArmedKeepOpen'),
+                    hint: note,
                     child: Text(
                       _label(l10n),
                       style: _style.copyWith(color: colors.primary),

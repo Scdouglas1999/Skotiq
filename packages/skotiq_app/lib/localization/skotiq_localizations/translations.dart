@@ -854,6 +854,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActArmedStartsAt': 'Starts at {time}',
     'nightActArmedKeepOpen':
         'Skotiq must stay open until then. Restarting the app cancels it.',
+    'nightActArmedOnHost':
+        'The imaging host starts the run, even if this computer sleeps or '
+            'disconnects.',
+    'nightActErrArmHost':
+        'The imaging host did not arm Start at dark: {detail}',
+    'nightActErrArmCancelHost':
+        'The imaging host did not cancel Start at dark: {detail}',
     'nightActCancel': 'Cancel',
     'nightActErrArmNoPlan': 'Load a plan before arming Start at dark',
     'nightActErrArmRunActive': 'A run is already loaded',
@@ -2511,6 +2518,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActArmedStartsAt': 'Empieza a las {time}',
     'nightActArmedKeepOpen':
         'Skotiq debe seguir abierto hasta entonces. Reiniciar la app lo cancela.',
+    'nightActArmedOnHost':
+        'El equipo de captura inicia la sesión aunque este equipo se suspenda '
+            'o se desconecte.',
+    'nightActErrArmHost':
+        'El equipo de captura no programó el inicio al anochecer: {detail}',
+    'nightActErrArmCancelHost':
+        'El equipo de captura no canceló el inicio al anochecer: {detail}',
     'nightActCancel': 'Cancelar',
     'nightActErrArmNoPlan': 'Carga un plan antes de programar el inicio',
     'nightActErrArmRunActive': 'Ya hay una sesión cargada',

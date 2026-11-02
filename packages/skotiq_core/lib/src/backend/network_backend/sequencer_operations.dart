@@ -1,6 +1,25 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
+  /// Remote-only: the host's scheduled start (Start at dark), or null.
+  Future<DateTime?> hostScheduledStart() async {
+    final response = await _get('night/scheduled-start');
+    return parseHostScheduledStart(response['at']);
+  }
+
+  /// Remote-only: schedule the run loaded on the host to start at tonight's
+  /// astronomical dark. The host starts it itself, so it does not depend on
+  /// this client staying awake or connected. Returns when it will start.
+  Future<DateTime?> armHostStartAtDark() async {
+    final response = await _post('night/scheduled-start', const {}, null, 1);
+    return parseHostScheduledStart(response['at']);
+  }
+
+  /// Remote-only: cancel the host's scheduled start.
+  Future<void> cancelHostScheduledStart() async {
+    await _post('night/scheduled-start/cancel', const {}, null, 1);
+  }
+
   Future<Map<String, dynamic>> awaitJobResultOrLegacy(
     Map<String, dynamic> response, {
     required String operation,

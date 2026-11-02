@@ -244,6 +244,7 @@ export 'src/providers/session_provider.dart';
 export 'src/providers/settings_provider.dart' hide HorizonProfile;
 export 'src/providers/clock_provider.dart';
 export 'src/providers/profiles_provider.dart';
+export 'src/providers/host_scheduled_start_provider.dart';
 export 'src/providers/profile_activation_writethrough.dart';
 export 'src/providers/equipment_fov_provider.dart';
 export 'src/providers/focus_model_profile_data_provider.dart';

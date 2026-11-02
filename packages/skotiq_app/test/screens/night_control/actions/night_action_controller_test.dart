@@ -599,6 +599,56 @@ void main() {
           'nightActErrArmAlreadyDark');
     });
 
+    test(
+        'on a remote client the host holds it: no local timer, and cancel '
+        'goes to the host', () {
+      fakeAsync((async) {
+        final dark = DateTime.now().toUtc().add(const Duration(hours: 1));
+        final host = _MockNetworkBackend();
+        when(() => host.eventStream)
+            .thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(host.armHostStartAtDark).thenAnswer((_) async => dark);
+        when(host.cancelHostScheduledStart).thenAnswer((_) async {});
+        final h = actionHarness(astroDark: dark, extra: [
+          backendProvider.overrideWith((ref) => TestBackendNotifier(ref, host)),
+          currentSequenceProvider.overrideWith((ref) => _LoadedSequence(ref)),
+        ]);
+        final api = h.container.read(nightActionApiProvider);
+
+        api.armStartAtDark();
+        async.flushMicrotasks();
+        verify(host.armHostStartAtDark).called(1);
+        expect(h.container.read(hostScheduledStartProvider), dark);
+        expect(api.armedStartAt, dark);
+
+        // Dark passes: the host starts the run; this client starts nothing.
+        async.elapse(const Duration(hours: 2));
+        expect(h.ops.calls, isEmpty);
+
+        api.cancelArmedStart();
+        async.flushMicrotasks();
+        verify(host.cancelHostScheduledStart).called(1);
+        expect(h.container.read(hostScheduledStartProvider), isNull);
+        expect(api.armedStartAt, isNull);
+        h.container.dispose();
+      });
+    });
+
+    test('a client shows the schedule the host reports', () {
+      final host = _MockNetworkBackend();
+      when(() => host.eventStream)
+          .thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final h = actionHarness(extra: [
+        backendProvider.overrideWith((ref) => TestBackendNotifier(ref, host)),
+      ]);
+      addTearDown(h.container.dispose);
+      final at = DateTime.utc(2026, 11, 2, 22, 30);
+      h.container.read(hostScheduledStartProvider.notifier).state = at;
+      expect(h.container.read(nightArmedStartProvider), at);
+      expect(
+          h.container.read(armedStartNoteKeyProvider), 'nightActArmedOnHost');
+    });
+
     test('a plan is required', () async {
       final h = actionHarness(
         astroDark: DateTime.now().toUtc().add(const Duration(hours: 1)),
@@ -614,6 +664,8 @@ void main() {
     });
   });
 }
+
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 class _LoadedSequence extends CurrentSequenceNotifier {
   _LoadedSequence(Ref ref) : super(ref: ref) {
