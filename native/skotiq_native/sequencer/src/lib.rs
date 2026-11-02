@@ -46,6 +46,7 @@ pub mod quality;
 pub mod recovery;
 // TargetScheduler — native port of the planetarium scoring math
 // so the executor has a runtime authority for scheduling decisions.
+pub(crate) mod limit_backoff;
 pub mod scheduling;
 pub mod slew_arrival;
 // Solar position: the one answer to "where is the Sun" that the daylight gate,

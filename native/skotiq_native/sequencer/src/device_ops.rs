@@ -302,6 +302,20 @@ pub trait DeviceOps: Send + Sync {
     /// Set tracking on/off
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()>;
 
+    /// Run a mount axis at `rate_deg_per_sec` (0 stops it). Axis 0 is the
+    /// primary (RA) axis; a positive rate moves it north or east. Used to move
+    /// a mount off an axis limit it is stuck at.
+    async fn mount_move_axis(
+        &self,
+        mount_id: &str,
+        _axis: i32,
+        _rate_deg_per_sec: f64,
+    ) -> DeviceResult<()> {
+        Err(format!(
+            "Moving an axis directly is not supported for mount {mount_id}"
+        ))
+    }
+
     // Camera operations
 
     /// Start an exposure and return the image data
@@ -1308,8 +1322,30 @@ pub async fn try_park_with_retry(
                 e
             );
         }
+        let start = device_ops.mount_get_coordinates(mount_id).await.ok();
         match device_ops.mount_park(mount_id).await {
             Ok(()) => {
+                // A mount stuck at an axis limit takes the park and stays put:
+                // move it off the limit and park again.
+                if !crate::limit_backoff::mount_responds(
+                    device_ops,
+                    mount_id,
+                    start,
+                    tokio::time::Instant::now(),
+                    crate::limit_backoff::RESPONSE_WINDOW,
+                    true,
+                )
+                .await
+                {
+                    let freed = crate::limit_backoff::back_off_limit(device_ops, mount_id).await;
+                    crate::limit_backoff::notify(device_ops, "park", &freed).await;
+                    if freed.is_ok() {
+                        if let Err(e) = device_ops.mount_park(mount_id).await {
+                            last_error = Some(e);
+                            continue;
+                        }
+                    }
+                }
                 if attempt == 1 {
                     tracing::info!("mount_park({}) succeeded on initial attempt", mount_id);
                 } else {

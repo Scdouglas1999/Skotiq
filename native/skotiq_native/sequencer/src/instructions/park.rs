@@ -35,8 +35,29 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
 
     tracing::info!("Parking mount");
 
+    let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();
     if let Err(e) = ctx.device_ops.mount_park(&mount_id).await {
         return InstructionResult::failure(format!("Park failed: {}", e));
+    }
+    // A mount stuck at an axis limit takes the park and stays put: move it
+    // off the limit and park again.
+    if !crate::limit_backoff::mount_responds(
+        &ctx.device_ops,
+        &mount_id,
+        start,
+        tokio::time::Instant::now(),
+        crate::limit_backoff::RESPONSE_WINDOW,
+        true,
+    )
+    .await
+    {
+        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, &mount_id).await;
+        crate::limit_backoff::notify(&ctx.device_ops, "park", &freed).await;
+        if freed.is_ok() {
+            if let Err(e) = ctx.device_ops.mount_park(&mount_id).await {
+                return InstructionResult::failure(format!("Park failed: {}", e));
+            }
+        }
     }
 
     // mount_park only ISSUES the park on most drivers (ASCOM/Alpaca/INDI return
@@ -202,10 +223,27 @@ pub(crate) async fn execute_home_mount_with(
         Err(e) => return e,
     };
     let motion = begin_move_that_stops_tracking(ctx, "home").await;
-    let result = home_mount(ctx, &mount_id, timing).await;
+    let mut result = home_mount(ctx, &mount_id, timing).await;
+    // A mount stuck at an axis limit takes Home and stays put: move it off
+    // the limit and home again.
+    if result.status == NodeStatus::Failure
+        && result
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains(HOME_DID_NOT_MOVE))
+    {
+        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, &mount_id).await;
+        crate::limit_backoff::notify(&ctx.device_ops, "home command", &freed).await;
+        if freed.is_ok() {
+            result = home_mount(ctx, &mount_id, timing).await;
+        }
+    }
     motion.end().await;
     result
 }
+
+/// What a home the mount accepted and never started says.
+const HOME_DID_NOT_MOVE: &str = "The mount's driver accepted Home but the mount didn't move.";
 
 async fn home_mount(
     ctx: &InstructionContext,
@@ -275,9 +313,7 @@ async fn home_mount(
                 if let Err(e) = ctx.device_ops.mount_abort_slew(&mount_id).await {
                     tracing::warn!("Home: abort after a home that never started failed: {}", e);
                 }
-                return InstructionResult::failure(
-                    "The mount's driver accepted Home but the mount didn't move.".to_string(),
-                );
+                return InstructionResult::failure(HOME_DID_NOT_MOVE.to_string());
             }
         }
 
