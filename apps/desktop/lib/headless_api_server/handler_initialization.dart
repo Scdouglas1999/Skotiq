@@ -233,7 +233,8 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
 
     // remote calibration library management. Stateless beyond the
     // DAOs it reads from the container; no upstream service to dispose.
-    _calibrationHandlers = CalibrationHandlers(container);
+    _calibrationHandlers = CalibrationHandlers(container)
+      ..mirrorEndOfNightToClients();
 
     // v46 — unified Calibration Library Manager (browse / match / tag).
     // Stateless beyond the CalibrationLibraryService it reads off the
