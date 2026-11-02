@@ -646,7 +646,7 @@ void main() {
     });
 
     test('clean when a MeridianFlipNode is present', () async {
-      final container = _container();
+      final container = _container(runFlipsArmed: false);
       await container.read(appSettingsProvider.future);
       final rule = MeridianFlipTriggerRule();
       final flip = MeridianFlipNode();
@@ -672,7 +672,7 @@ void main() {
     });
 
     test('clean when run is short', () async {
-      final container = _container();
+      final container = _container(runFlipsArmed: false);
       await container.read(appSettingsProvider.future);
       final rule = MeridianFlipTriggerRule();
       final target = TargetHeaderNode(
