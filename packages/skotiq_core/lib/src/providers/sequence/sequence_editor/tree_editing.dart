@@ -37,10 +37,20 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     // through and the node stayed in `nodes` with no parent and no entry in
     // anyone's `childIds` — present to `containsKey`, invisible to every
     // renderer and to the executor.
-    final rootNodeId = _ensureRootNode(newNodes);
+    final rootNodeId = node is TargetHeaderNode
+        ? _ensureTargetContainerRoot(newNodes)
+        : _ensureRootNode(newNodes);
     final resolved = _resolveInsertionPoint(newNodes, parentId, index);
     parentId = resolved.parentId;
     index = resolved.index;
+    // A target is a top-level step: one inside another target's subtree would
+    // run as part of that target, while the builder draws it beside it.
+    if (node is TargetHeaderNode &&
+        parentId != null &&
+        _isWithinTarget(newNodes, parentId)) {
+      parentId = rootNodeId;
+      index = null;
+    }
     newNodes[node.id] = node;
 
     if (parentId != null && newNodes.containsKey(parentId)) {
@@ -149,6 +159,37 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     return rootId;
   }
 
+  /// The container targets hang from. A sequence whose root is itself a target
+  /// (the Quick-Start wizard's plans) gets a container above it, so the next
+  /// target sits beside the first instead of inside it, where it would run as
+  /// part of the first target and adopt the first target's own steps.
+  String _ensureTargetContainerRoot(Map<String, SequenceNode> nodes) {
+    final rootId = _ensureRootNode(nodes);
+    final root = nodes[rootId]!;
+    if (root is! TargetHeaderNode) return rootId;
+    final containerId = const Uuid().v4();
+    nodes[containerId] = InstructionSetNode(
+      id: containerId,
+      name: 'Sequence',
+      childIds: [rootId],
+    );
+    nodes[rootId] = root.copyWith(parentId: containerId, orderIndex: 0);
+    return containerId;
+  }
+
+  /// Whether [nodeId] is a target or inside one.
+  bool _isWithinTarget(Map<String, SequenceNode> nodes, String nodeId) {
+    String? cursor = nodeId;
+    final seen = <String>{};
+    while (cursor != null && seen.add(cursor)) {
+      final node = nodes[cursor];
+      if (node == null) return false;
+      if (node is TargetHeaderNode) return true;
+      cursor = node.parentId;
+    }
+    return false;
+  }
+
   /// Walk [parentId] up to the nearest node that can actually hold children,
   /// returning the position the new node should take under it.
   ///
@@ -198,7 +239,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     _saveUndo();
 
     final newNodes = Map<String, SequenceNode>.from(_currentSequence!.nodes);
-    final rootNodeId = _ensureRootNode(newNodes);
+    final rootNodeId = _ensureTargetContainerRoot(newNodes);
     final root = newNodes[rootNodeId]!;
 
     final orphanIds = <String>[];
