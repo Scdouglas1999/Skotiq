@@ -107,7 +107,9 @@ class SessionRecoveryInfo {
     required this.stats,
   });
 
-  Duration get duration => DateTime.now().difference(startTime);
+  /// From the session's start to its last recorded frame (its start when it
+  /// took none).
+  Duration get duration => stats.lastUpdated.difference(startTime);
 }
 
 /// Service for managing imaging session lifecycle with persistence and recovery
@@ -523,6 +525,21 @@ class SessionService {
       // Convert to recovery info
       final recoveryInfoList = <SessionRecoveryInfo>[];
       for (final session in incompleteSessions) {
+        // The session ran until its last frame, not until now: an unclosed
+        // session from yesterday read "25h 25m".
+        DateTime lastActivity = session.startTime;
+        try {
+          final recent = await _records.getRecentImagesForSession(
+            session.id,
+            limit: 1,
+          );
+          if (recent.isNotEmpty &&
+              recent.first.capturedAt.isAfter(lastActivity)) {
+            lastActivity = recent.first.capturedAt;
+          }
+        } catch (_) {
+          // No frame time to read: the session is shown from its start.
+        }
         final stats = SessionStats(
           completedExposures: session.successfulExposures,
           failedExposures: session.failedExposures,
@@ -530,7 +547,7 @@ class SessionService {
           avgHfr: session.avgHfr,
           avgGuidingRms: session.avgGuidingRms,
           autofocusCount: session.autofocusCount,
-          lastUpdated: session.startTime, // Use start time as fallback
+          lastUpdated: lastActivity,
         );
 
         recoveryInfoList.add(
