@@ -43,4 +43,17 @@ void main() {
       expect(merged, ['one', 'two']);
     });
   });
+
+  // reverify RV-10: the step showed "Filter 2, Filter 3, … Ha, OIII, SII" for a
+  // wheel reporting L, R, G, B, Ha, OIII, SII: placeholder names saved by an
+  // earlier visit outranked the wheel's own.
+  test('placeholder names give way to the wheel\'s names', () {
+    expect(
+      mergeFilterSlotNames(
+        const ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'],
+        const ['Filter 1', 'Filter 2', 'Slot 3', 'Lum', 'Filter 5'],
+      ),
+      const ['L', 'R', 'G', 'Lum', 'Ha', 'OIII', 'SII'],
+    );
+  });
 }

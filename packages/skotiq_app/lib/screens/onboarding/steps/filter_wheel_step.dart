@@ -29,11 +29,18 @@ List<String> mergeFilterSlotNames(
 ) {
   return List<String>.generate(
     driverNames.length,
-    (i) => i < draftNames.length && draftNames[i].trim().isNotEmpty
+    (i) => i < draftNames.length &&
+            draftNames[i].trim().isNotEmpty &&
+            !isPlaceholderFilterName(draftNames[i])
         ? draftNames[i]
         : driverNames[i],
   );
 }
+
+/// "Filter 3" or "Slot 3": a name this step made up for a slot, not one the
+/// user typed. The wheel's own name for that slot replaces it.
+bool isPlaceholderFilterName(String name) =>
+    RegExp(r'^(Filter|Slot) \d+$').hasMatch(name.trim());
 
 class OnboardingFilterWheelStep extends ConsumerStatefulWidget {
   const OnboardingFilterWheelStep({super.key});
