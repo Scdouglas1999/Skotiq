@@ -5,7 +5,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart' show weatherSafetyProvider;
+import 'package:skotiq_core/skotiq_core.dart'
+    show activeEquipmentProfileProvider, weatherSafetyProvider;
+
+import '../../../equipment/utils/connect_all_action.dart';
 
 import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
@@ -73,6 +76,16 @@ class NightOverviewTab extends ConsumerWidget {
     WidgetRef ref,
     ChecklistItemVm item,
   ) async {
+    if (item.connectsProfile) {
+      final profile = ref.read(activeEquipmentProfileProvider);
+      if (profile != null) {
+        await runConnectAllForProfile(context, ref, profile);
+        return;
+      }
+      // No profile to connect: Equipment is where one is made.
+      GoRouter.maybeOf(context)?.go('/equipment');
+      return;
+    }
     final route = item.route;
     if (route != null) {
       GoRouter.maybeOf(context)?.go(route);

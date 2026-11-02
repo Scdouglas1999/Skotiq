@@ -511,6 +511,7 @@ class ChecklistItemVm {
     this.detail,
     this.actionLabel,
     this.route,
+    this.connectsProfile = false,
   });
 
   final ChecklistItemId id;
@@ -527,6 +528,10 @@ class ChecklistItemVm {
   /// Where the action goes, when it is a navigation.
   final String? route;
 
+  /// The action connects the active profile's devices in place, as Connect
+  /// all does, instead of going somewhere.
+  final bool connectsProfile;
+
   @override
   bool operator ==(Object other) =>
       other is ChecklistItemVm &&
@@ -535,8 +540,10 @@ class ChecklistItemVm {
       other.title == title &&
       other.detail == detail &&
       other.actionLabel == actionLabel &&
-      other.route == route;
+      other.route == route &&
+      other.connectsProfile == connectsProfile;
 
   @override
-  int get hashCode => Object.hash(id, state, title, detail, actionLabel, route);
+  int get hashCode => Object.hash(
+      id, state, title, detail, actionLabel, route, connectsProfile);
 }

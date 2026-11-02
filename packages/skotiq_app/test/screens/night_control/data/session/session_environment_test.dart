@@ -474,7 +474,10 @@ void main() {
       final items = await _checklist(h);
       final camera = _item(items, ChecklistItemId.camera);
       expect(camera.state, ChecklistItemState.blocked);
-      expect(camera.route, '/equipment');
+      // Connect connects the profile's devices in place; it does not just
+      // open Equipment (qa-night N01).
+      expect(camera.connectsProfile, isTrue);
+      expect(camera.route, isNull);
     });
   });
 

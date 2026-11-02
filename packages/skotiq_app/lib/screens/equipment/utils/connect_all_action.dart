@@ -35,6 +35,7 @@ Future<void> runConnectAllForProfile(
     profile.focuserId,
     profile.filterWheelId,
     profile.guiderId,
+    profile.guideCameraId,
     profile.rotatorId,
     profile.domeId,
     profile.weatherId,

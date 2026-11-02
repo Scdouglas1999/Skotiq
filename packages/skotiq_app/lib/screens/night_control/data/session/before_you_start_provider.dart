@@ -22,7 +22,6 @@ import 'equipment_summary_provider.dart';
 import 'session_format.dart';
 import 'session_stats_provider.dart';
 
-const String _equipmentRoute = '/equipment';
 const String _siteRoute = '/settings?section=location';
 const String _folderRoute = '/settings?section=files-storage';
 const String _solverRoute = '/settings/plate-solving';
@@ -97,6 +96,7 @@ ChecklistItemVm _row(
   NightText? detail,
   String? actionKey,
   String? route,
+  bool connectsProfile = false,
 }) =>
     ChecklistItemVm(
       id: id,
@@ -105,6 +105,7 @@ ChecklistItemVm _row(
       detail: detail,
       actionLabel: actionKey == null ? null : NightText(actionKey),
       route: route,
+      connectsProfile: connectsProfile,
     );
 
 ChecklistItemVm _notConnected(
@@ -118,7 +119,8 @@ ChecklistItemVm _notConnected(
       titleKey,
       detail: const NightText('nightSessionDeviceNotConnected'),
       actionKey: 'nightSessionActionConnect',
-      route: _equipmentRoute,
+      // Connect does what it says: the profile's devices, in place.
+      connectsProfile: true,
     );
 
 final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
