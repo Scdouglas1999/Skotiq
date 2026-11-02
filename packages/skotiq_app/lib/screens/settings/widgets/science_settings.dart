@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/user_facing_error.dart';
+import '../../../widgets/your_sky_opt_in.dart';
 import 'settings_widgets.dart';
 
 String? _validatePositiveScienceId(String value) {
@@ -195,16 +196,19 @@ class ScienceSettingsPage extends ConsumerWidget {
                 SettingRow(
                   icon: LucideIcons.layers,
                   title: 'Your Sky atlas',
-                  subtitle:
-                      'Add each accepted, solved light to your sky atlas. '
-                      'Each sky tile takes about 3 to 15 MB of disk; First '
-                      'Light needs it on.',
+                  subtitle: 'Off unless you turn it on. Stacks each accepted, '
+                      'solved light into your sky atlas: about 1.5 GB per '
+                      'target per night. First Light and shared imaging '
+                      'need it.',
                   trailing: SettingsSwitch(
                     value: science.skyAtlasEnabled,
-                    onChanged: (value) => scienceNotifier.setFeatureEnabled(
-                      ScienceFeature.skyAtlas,
-                      value,
-                    ),
+                    // Turning it on asks first: it keeps gigabytes on disk.
+                    onChanged: (value) => value
+                        ? confirmTurnOnYourSky(context, ref)
+                        : scienceNotifier.setFeatureEnabled(
+                            ScienceFeature.skyAtlas,
+                            false,
+                          ),
                   ),
                   isMobile: isMobile,
                 ),

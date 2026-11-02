@@ -399,6 +399,7 @@ void main() {
             return Stream.value(const <AtlasTileCoverage>[]);
           }),
           skyAtlasTotalsProvider.overrideWith((ref) async => null),
+          skyAtlasEnabledProvider.overrideWithValue(true),
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,

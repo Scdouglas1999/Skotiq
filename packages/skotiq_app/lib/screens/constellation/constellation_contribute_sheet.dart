@@ -7,6 +7,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide ConstellationPrivacy;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../widgets/your_sky_opt_in.dart';
+
 import 'constellation_format.dart';
 import 'constellation_ui_providers.dart';
 
@@ -312,6 +314,14 @@ class _ConstellationContributeSheetState
       _busy = true;
       _error = null;
     });
+    // Summed contributions come from the user's own atlas tiles.
+    if (effective != ConstellationPrivacy.subs &&
+        ref.read(skyAtlasEnabledProvider) != true &&
+        !await confirmTurnOnYourSky(context, ref)) {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
+    if (!mounted) return;
     final settings = ref.read(settingsDaoProvider);
     try {
       await settings.setSetting(

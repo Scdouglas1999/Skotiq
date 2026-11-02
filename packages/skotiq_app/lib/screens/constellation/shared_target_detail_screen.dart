@@ -4,6 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../widgets/your_sky_opt_in.dart';
+
 import '../collaborative_sky/coimaging_create_sheet.dart';
 import '../your_sky/region_detail_screen.dart';
 import '../your_sky/sky_atlas_format.dart';
@@ -209,6 +211,13 @@ class _SharedTargetDetailScreenState
   }
 
   Future<void> _pullAndBlend() async {
+    // Pulled depth is blended into the user's own atlas: ask to turn Your
+    // Sky on first rather than fail.
+    if (ref.read(skyAtlasEnabledProvider) != true &&
+        !await confirmTurnOnYourSky(context, ref)) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _pulling = true);
     final messenger = ScaffoldMessenger.of(context);
     // Snapshot the user's own depth on this field BEFORE the blend so the payoff

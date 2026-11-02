@@ -16,6 +16,7 @@ class _FixedBackendNotifier extends BackendNotifier {
 Widget _surface(SkotiqBackend backend) {
   return ProviderScope(
     overrides: [
+      skyAtlasEnabledProvider.overrideWithValue(true),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),

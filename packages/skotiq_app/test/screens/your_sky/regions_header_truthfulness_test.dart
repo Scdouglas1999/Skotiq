@@ -43,6 +43,7 @@ SkyAtlasRegionRow _region({
 Widget _surface(List<SkyAtlasRegionRow> regions) {
   return ProviderScope(
     overrides: [
+      skyAtlasEnabledProvider.overrideWithValue(true),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, _MockNetworkBackend()),
       ),

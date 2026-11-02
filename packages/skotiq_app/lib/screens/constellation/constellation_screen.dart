@@ -6,6 +6,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../widgets/your_sky_opt_in.dart';
+
 import 'constellation_format.dart';
 import 'constellation_sign_in_sheet.dart';
 import 'constellation_ui_providers.dart';
@@ -48,6 +50,12 @@ class ConstellationView extends ConsumerWidget {
 
     return Column(
       children: [
+        // Shared depth is built from and blended into the user's own atlas.
+        if (ref.watch(skyAtlasEnabledProvider) == false)
+          const YourSkyOffBanner(
+            purpose:
+                'share your sky with the Constellation and blend its depth into yours',
+          ),
         Expanded(
           child: configuredAsync.when(
             data: (configured) => configured

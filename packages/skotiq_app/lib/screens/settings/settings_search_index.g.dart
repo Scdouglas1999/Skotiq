@@ -622,7 +622,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     '3D science surfaces',
     'AAVSO',
     'AAVSO observer code',
-    'Add each accepted, solved light to your sky atlas.',
     'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.',
     'After each light frame, reject captures that exceed',
     'Analyze field-wide seeing and tilt patterns',
@@ -659,6 +658,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'New frames stop being added to the atlas when it',
     'Observer identity',
     'Observer name',
+    'Off unless you turn it on. Stacks each accepted,',
     'Per-frame photometric calibration',
     'Photometric catalog',
     'PSF field map',
@@ -1050,7 +1050,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Replay decision logging',
   },
   'science': {
-    'Add each accepted, solved light to your sky atlas.': 'Your Sky atlas',
     'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.':
         'Show advanced overlay controls',
     'After each light frame, reject captures that exceed':
@@ -1073,6 +1072,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Map catalog offsets across each solved frame': 'Astrometric residuals',
     'New frames stop being added to the atlas when it':
         'Your Sky size limit (GB)',
+    'Off unless you turn it on. Stacks each accepted,': 'Your Sky atlas',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',
     'Reporter shown on TNS (falls back to observer': 'Reporter name',

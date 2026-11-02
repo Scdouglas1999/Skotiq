@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../widgets/your_sky_opt_in.dart';
 
 import 'sky_atlas_format.dart';
 import 'widgets/atlas_growth_curve.dart';
@@ -214,6 +215,11 @@ class _CutoutPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The picture is rendered into the atlas cache, which stays untouched
+    // while Your Sky is off; the region's history below still shows.
+    if (ref.watch(skyAtlasEnabledProvider) == false) {
+      return const YourSkyOffPanel(purpose: 'see this region rendered again');
+    }
     final colors = SkotiqColors.of(context);
 
     // Session counts by the scrub point: distinct fold days at/before the anchor

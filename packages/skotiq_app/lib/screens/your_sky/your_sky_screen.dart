@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../widgets/your_sky_opt_in.dart';
 import 'region_detail_screen.dart';
 import 'sky_atlas_format.dart';
 import 'widgets/atlas_coverage_overlay.dart';
@@ -50,6 +51,25 @@ class YourSkyView extends ConsumerWidget {
     ref.invalidate(skyAtlasRegionsProvider);
     ref.invalidate(skyAtlasCoverageProvider);
   }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(skyAtlasEnabledProvider);
+    if (enabled == null) {
+      return const Center(child: SkotiqSpinner());
+    }
+    if (!enabled) {
+      return const YourSkyOffPanel(
+        purpose: 'build a map of everything you have imaged, deepened by '
+            'every night you return to a field',
+      );
+    }
+    return const _YourSkyAtlas();
+  }
+}
+
+class _YourSkyAtlas extends ConsumerWidget {
+  const _YourSkyAtlas();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

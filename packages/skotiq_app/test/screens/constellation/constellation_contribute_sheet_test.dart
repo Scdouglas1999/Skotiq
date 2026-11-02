@@ -135,6 +135,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith((ref) => info.future),
           ui.constellationPrivacyProvider
               .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
@@ -167,6 +168,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith(
             (ref) async => hub(supportedLicenses: const ['unknown-license']),
           ),
@@ -199,6 +201,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith((ref) async => hub()),
           ui.constellationPrivacyProvider
               .overrideWith((ref) async => ui.ConstellationPrivacy.sums),
@@ -223,6 +226,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith(
             (ref) async => hub(supportedLicenses: const ['cc-by-sa', 'cc0']),
           ),
@@ -256,6 +260,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider.overrideWith(
             (ref) async => hub(supportedLicenses: const ['cc-by-sa', 'cc0']),
           ),
@@ -289,6 +294,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider
               .overrideWith((ref) async => hub(acceptsRawSubs: true)),
           ui.constellationPrivacyProvider.overrideWith((ref) => privacy.future),
@@ -319,6 +325,7 @@ void main() {
       await openSheet(
         tester,
         overrides: [
+          skyAtlasEnabledProvider.overrideWithValue(true),
           ui.constellationHubInfoProvider
               .overrideWith((ref) async => hub(acceptsRawSubs: true)),
           ui.constellationPrivacyProvider.overrideWith((ref) => privacy.future),

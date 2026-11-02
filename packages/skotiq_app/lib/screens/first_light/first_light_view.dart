@@ -5,6 +5,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/narrator/narrator_card.dart';
+import '../../widgets/your_sky_opt_in.dart';
 import '../../widgets/narrator/narrator_feed.dart'
     show formatNarratorRelativeTime;
 import 'first_light_format.dart';
@@ -58,7 +59,14 @@ class FirstLightView extends ConsumerWidget {
             title: 'First light',
             icon: SkotiqIcons.sparkle,
           ),
-        const _IntroStrip(),
+        // First Light differences each frame against the atlas, so with
+        // Your Sky off no new candidates arrive; earlier ones still list.
+        if (ref.watch(skyAtlasEnabledProvider) == false)
+          const YourSkyOffBanner(
+            purpose: 'look for new and changing sources in each frame',
+          )
+        else
+          const _IntroStrip(),
         _CelebrateBanner(colors: colors),
         _FilterBar(
           colors: colors,

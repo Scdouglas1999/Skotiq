@@ -43,6 +43,7 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
+        skyAtlasEnabledProvider.overrideWithValue(true),
         coImagingSharingEnabledProvider.overrideWith((ref) async => sharing),
         constellationConfiguredProvider.overrideWith((ref) => configured),
         constellationHubInfoProvider.overrideWith((ref) async => null),

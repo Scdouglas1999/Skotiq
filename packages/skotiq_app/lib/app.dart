@@ -11,6 +11,7 @@ import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/widgets/quick_start_checker.dart';
+import 'package:skotiq_app/widgets/your_sky_off_notice.dart';
 import 'package:skotiq_app/widgets/auto_discovery_launcher.dart';
 import 'package:skotiq_app/widgets/startup_auto_connect_launcher.dart';
 import 'package:skotiq_app/widgets/database_recovery_launcher.dart';
@@ -131,107 +132,109 @@ class SkotiqApp extends ConsumerWidget {
     return StartupAutoConnectLauncher(
       child: AutoDiscoveryLauncher(
         child: QuickStartChecker(
-          child: AnnotatedRegion<SystemUiOverlayStyle>(
-            value: systemUiOverlayStyleFor(theme),
-            child: MaterialApp.router(
-              title: 'Skotiq',
-              theme: theme,
-              debugShowCheckedModeBanner: false,
-              routerConfig: router,
-              localizationsDelegates:
-                  SkotiqLocalizations.localizationsDelegates,
-              supportedLocales: SkotiqLocalizations.supportedLocales,
-              locale: _resolveLocale(settings?.language),
-              builder: (context, child) {
-                // Calculate UI scale factor INSIDE builder where we have proper MediaQuery
-                // The outer context doesn't have accurate devicePixelRatio from the window
-                final uiScaleFactor = _calculateUiScaleFactor(
-                  context,
-                  uiScaleSetting,
-                );
-                final combinedTextScale = textScaleFactor * uiScaleFactor;
-
-                // Scale text only. Flutter handles DPI scaling for the widget
-                // tree natively, and a Transform.scale over the whole tree
-                // causes rendering artifacts.
-                final appChild = child ?? const SizedBox.shrink();
-                Widget scaledChild = appChild;
-
-                if (uiScaleFactor != 1.0 || textScaleFactor != 1.0) {
-                  // Apply combined text scaling from both UI scale and font size settings
-                  // Why: copyWith requires the full MediaQueryData; granular
-                  // accessors only return individual fields. This intentionally
-                  // rebuilds on any MQ change so that nested widgets receive a
-                  // correctly-merged inherited MediaQuery.
-                  scaledChild = MediaQuery(
-                    data: MediaQuery.of(context).copyWith(
-                      textScaler: TextScaler.linear(combinedTextScale),
-                    ),
-                    child: appChild,
+          child: YourSkyOffNoticeChecker(
+            child: AnnotatedRegion<SystemUiOverlayStyle>(
+              value: systemUiOverlayStyleFor(theme),
+              child: MaterialApp.router(
+                title: 'Skotiq',
+                theme: theme,
+                debugShowCheckedModeBanner: false,
+                routerConfig: router,
+                localizationsDelegates:
+                    SkotiqLocalizations.localizationsDelegates,
+                supportedLocales: SkotiqLocalizations.supportedLocales,
+                locale: _resolveLocale(settings?.language),
+                builder: (context, child) {
+                  // Calculate UI scale factor INSIDE builder where we have proper MediaQuery
+                  // The outer context doesn't have accurate devicePixelRatio from the window
+                  final uiScaleFactor = _calculateUiScaleFactor(
+                    context,
+                    uiScaleSetting,
                   );
-                }
-                // Wrap with ScaledConfigProvider to make responsive scaling
-                // configuration available to all descendant widgets. Everything
-                // below inherits the app's text scale and theme — putting a
-                // launcher's dialog outside this would render it at unscaled
-                // size on high-DPI displays.
-                //
-                // Single-spine startup model (Onboarding & First-Light IA, C13):
-                // the launcher stack is now exactly two startup gates, ordered
-                // by priority so the higher-priority one always wins the dialog
-                // stack:
-                //
-                //   1. DatabaseRecoveryLauncher — one-shot "your data was reset"
-                //      dialog after corruption recovery. Outermost so it fires
-                //      before the user is pulled into onboarding for what would
-                //      otherwise look like a fresh install.
-                //   2. EquipmentOnboardingLauncher — routes a brand-new install
-                //      (zero profiles, no onboarding completion record) to the
-                //      `/onboarding` spine. This is the *single* entry point for
-                //      first-run setup; the spine itself hands off to first
-                //      light by routing to `/imaging?firstLight=1` when setup
-                //      finishes (see app_router.dart's FirstLightQueryLauncher).
-                //
-                // The legacy first-launch tour overlay (OnboardingTourLauncher)
-                // and the first-night wizard auto-launcher
-                // (FirstNightWizardLauncher) were removed from the startup spine:
-                // both are now replay-only, reachable from Settings → Help &
-                // Tutorials. Collapsing them here means a first-run user follows
-                // one linear path (recovery → equipment onboarding → first light)
-                // instead of racing overlapping auto-launching dialogs.
-                // The site/time card sits INSIDE the startup gates: it is
-                // raised by connecting a mount, which cannot happen until the
-                // user is past onboarding, and it must never outrank the
-                // "your data was reset" dialog.
-                Widget result = ScaledConfigProvider(
-                  child: AutoIntegrationLauncher(
-                    child: DatabaseRecoveryLauncher(
-                      child: EquipmentOnboardingLauncher(
-                        child: MountSiteReconciliationListener(
-                          child: scaledChild,
+                  final combinedTextScale = textScaleFactor * uiScaleFactor;
+
+                  // Scale text only. Flutter handles DPI scaling for the widget
+                  // tree natively, and a Transform.scale over the whole tree
+                  // causes rendering artifacts.
+                  final appChild = child ?? const SizedBox.shrink();
+                  Widget scaledChild = appChild;
+
+                  if (uiScaleFactor != 1.0 || textScaleFactor != 1.0) {
+                    // Apply combined text scaling from both UI scale and font size settings
+                    // Why: copyWith requires the full MediaQueryData; granular
+                    // accessors only return individual fields. This intentionally
+                    // rebuilds on any MQ change so that nested widgets receive a
+                    // correctly-merged inherited MediaQuery.
+                    scaledChild = MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        textScaler: TextScaler.linear(combinedTextScale),
+                      ),
+                      child: appChild,
+                    );
+                  }
+                  // Wrap with ScaledConfigProvider to make responsive scaling
+                  // configuration available to all descendant widgets. Everything
+                  // below inherits the app's text scale and theme — putting a
+                  // launcher's dialog outside this would render it at unscaled
+                  // size on high-DPI displays.
+                  //
+                  // Single-spine startup model (Onboarding & First-Light IA, C13):
+                  // the launcher stack is now exactly two startup gates, ordered
+                  // by priority so the higher-priority one always wins the dialog
+                  // stack:
+                  //
+                  //   1. DatabaseRecoveryLauncher — one-shot "your data was reset"
+                  //      dialog after corruption recovery. Outermost so it fires
+                  //      before the user is pulled into onboarding for what would
+                  //      otherwise look like a fresh install.
+                  //   2. EquipmentOnboardingLauncher — routes a brand-new install
+                  //      (zero profiles, no onboarding completion record) to the
+                  //      `/onboarding` spine. This is the *single* entry point for
+                  //      first-run setup; the spine itself hands off to first
+                  //      light by routing to `/imaging?firstLight=1` when setup
+                  //      finishes (see app_router.dart's FirstLightQueryLauncher).
+                  //
+                  // The legacy first-launch tour overlay (OnboardingTourLauncher)
+                  // and the first-night wizard auto-launcher
+                  // (FirstNightWizardLauncher) were removed from the startup spine:
+                  // both are now replay-only, reachable from Settings → Help &
+                  // Tutorials. Collapsing them here means a first-run user follows
+                  // one linear path (recovery → equipment onboarding → first light)
+                  // instead of racing overlapping auto-launching dialogs.
+                  // The site/time card sits INSIDE the startup gates: it is
+                  // raised by connecting a mount, which cannot happen until the
+                  // user is past onboarding, and it must never outrank the
+                  // "your data was reset" dialog.
+                  Widget result = ScaledConfigProvider(
+                    child: AutoIntegrationLauncher(
+                      child: DatabaseRecoveryLauncher(
+                        child: EquipmentOnboardingLauncher(
+                          child: MountSiteReconciliationListener(
+                            child: scaledChild,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                );
-
-                // Desktop and Android both install Skotiq from its
-                // GitHub releases, so both can update in place. (The old
-                // reasoning here — that mobile updates through an app store
-                // — was never true of this APK: it is sideloaded, so with
-                // the manager left off, an Android install had no way to
-                // learn a new version existed.) iOS is excluded because
-                // sideloading an update is not possible there.
-                if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
-                  return UpdateManagerWidget(
-                    // This builder sits above the router's Navigator; the
-                    // update dialogs need the key to reach it.
-                    navigatorKey: router.routerDelegate.navigatorKey,
-                    child: result,
                   );
-                }
-                return result;
-              },
+
+                  // Desktop and Android both install Skotiq from its
+                  // GitHub releases, so both can update in place. (The old
+                  // reasoning here — that mobile updates through an app store
+                  // — was never true of this APK: it is sideloaded, so with
+                  // the manager left off, an Android install had no way to
+                  // learn a new version existed.) iOS is excluded because
+                  // sideloading an update is not possible there.
+                  if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
+                    return UpdateManagerWidget(
+                      // This builder sits above the router's Navigator; the
+                      // update dialogs need the key to reach it.
+                      navigatorKey: router.routerDelegate.navigatorKey,
+                      child: result,
+                    );
+                  }
+                  return result;
+                },
+              ),
             ),
           ),
         ),

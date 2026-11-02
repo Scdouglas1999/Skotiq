@@ -5,6 +5,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../widgets/your_sky_opt_in.dart';
+
 import '../constellation/constellation_format.dart';
 import '../constellation/constellation_sign_in_sheet.dart';
 import '../constellation/constellation_ui_providers.dart';
@@ -39,6 +41,11 @@ class CollaborativeSkyView extends ConsumerWidget {
 
     return Column(
       children: [
+        // Shared depth is built from and blended into the user's own atlas.
+        if (ref.watch(skyAtlasEnabledProvider) == false)
+          const YourSkyOffBanner(
+            purpose: 'add your frames to shared imaging sessions',
+          ),
         Expanded(
           child: configuredAsync.when(
             data: (configured) => configured
