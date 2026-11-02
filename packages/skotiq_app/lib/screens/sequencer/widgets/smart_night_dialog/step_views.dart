@@ -223,7 +223,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Max session length',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.maxSessionHours,
               suffix: 'h',
               onChanged: (v) {
@@ -236,7 +236,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Min altitude',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.minAltitudeDeg,
               suffix: '°',
               onChanged: (v) => _update(() => _settings =
@@ -333,7 +333,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Cool to',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.coolDownTargetC,
               suffix: '°C',
               onChanged: (v) => _update(
@@ -434,7 +434,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
               const SizedBox(width: 8),
               SizedBox(
                 width: 64,
-                child: _CompactNumberField(
+                child: SmartNightNumberField(
                   initial: _autoSelectCount.toDouble(),
                   suffix: '',
                   onChanged: (v) {
@@ -614,7 +614,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Integration budget per target',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.defaultIntegrationBudgetHours,
               suffix: 'h',
               onChanged: (v) {
@@ -627,7 +627,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Sub-exposure floor',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.subExposureFloorSecs,
               suffix: 's',
               onChanged: (v) {
@@ -640,7 +640,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Sub-exposure ceiling',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.subExposureCeilingSecs,
               suffix: 's',
               onChanged: (v) {
@@ -653,7 +653,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
           _SettingsRow(
             label: 'Target SNR',
             colors: colors,
-            child: _CompactNumberField(
+            child: SmartNightNumberField(
               initial: _settings.targetSnr,
               suffix: '',
               onChanged: (v) {

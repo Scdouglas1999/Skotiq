@@ -77,41 +77,68 @@ class _SettingsRow extends StatelessWidget {
   }
 }
 
-class _CompactNumberField extends StatefulWidget {
+class SmartNightNumberField extends StatefulWidget {
   final double initial;
   final String suffix;
   final void Function(double) onChanged;
 
-  const _CompactNumberField({
+  const SmartNightNumberField({
     required this.initial,
     required this.suffix,
     required this.onChanged,
   });
 
   @override
-  State<_CompactNumberField> createState() => _CompactNumberFieldState();
+  State<SmartNightNumberField> createState() => SmartNightNumberFieldState();
 }
 
-class _CompactNumberFieldState extends State<_CompactNumberField> {
+class SmartNightNumberFieldState extends State<SmartNightNumberField> {
   late final TextEditingController _controller =
-      TextEditingController(text: widget.initial.toStringAsFixed(0));
+      TextEditingController(text: _format(widget.initial));
+  final FocusNode _focus = FocusNode();
+
+  /// Up to two decimals, without trailing zeros: 0.5 h stays "0.5".
+  static String _format(double value) {
+    final fixed = value.toStringAsFixed(2);
+    return fixed.contains('.')
+        ? fixed.replaceFirst(RegExp(r'\.?0+$'), '')
+        : fixed;
+  }
 
   @override
-  void didUpdateWidget(covariant _CompactNumberField oldWidget) {
+  void initState() {
+    super.initState();
+    // Leaving the field shows the value the dialog kept (it may clamp it).
+    _focus.addListener(() {
+      if (!_focus.hasFocus) {
+        _commit(_controller.text);
+        _controller.text = _format(widget.initial);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant SmartNightNumberField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // When the parent clamps a submitted value (e.g. 50 -> 10) the displayed
-    // text would otherwise keep showing the raw input while the effective
-    // setting is the clamped one. Re-sync only when the incoming value moved
-    // and the field isn't already showing it, so valid in-range typing isn't
-    // disturbed.
-    if (widget.initial != oldWidget.initial &&
+    // When the parent clamps a value (e.g. 50 -> 10) the field shows the
+    // effective setting, but not while the user is still typing in it.
+    if (!_focus.hasFocus &&
+        widget.initial != oldWidget.initial &&
         double.tryParse(_controller.text.trim()) != widget.initial) {
-      _controller.text = widget.initial.toStringAsFixed(0);
+      _controller.text = _format(widget.initial);
     }
+  }
+
+  /// Every valid number typed counts, without Enter: the dialog's Next reads
+  /// the value as it stands.
+  void _commit(String text) {
+    final v = double.tryParse(text.trim());
+    if (v != null && v != widget.initial) widget.onChanged(v);
   }
 
   @override
   void dispose() {
+    _focus.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -143,14 +170,9 @@ class _CompactNumberFieldState extends State<_CompactNumberField> {
                 borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
             ),
-            onSubmitted: (text) {
-              final v = double.tryParse(text.trim());
-              if (v != null) widget.onChanged(v);
-            },
-            onEditingComplete: () {
-              final v = double.tryParse(_controller.text.trim());
-              if (v != null) widget.onChanged(v);
-            },
+            focusNode: _focus,
+            onChanged: _commit,
+            onSubmitted: _commit,
           ),
         ),
         if (widget.suffix.isNotEmpty) ...[
