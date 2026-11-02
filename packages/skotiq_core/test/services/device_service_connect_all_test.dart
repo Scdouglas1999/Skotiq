@@ -630,4 +630,106 @@ void main() {
       );
     });
   });
+
+  group('built-in guider and its guide camera', () {
+    test('the guide camera connects as a second camera, and the built-in '
+        'guider waits for it and the mount', () async {
+      final mountGate = Completer<void>();
+      final calls = <String>[];
+      when(() => mockBackend.connectDevice(any(), any())).thenAnswer((inv) {
+        final type = inv.positionalArguments[0] as DeviceType;
+        final id = inv.positionalArguments[1] as String;
+        calls.add('${type.name}:$id');
+        if (type == DeviceType.mount) return mountGate.future;
+        return Future<void>.value();
+      });
+      when(() => mockBackend.getCameraStatus(any())).thenAnswer(
+        (_) async => const CameraStatus(
+          connected: true,
+          state: device_types.CameraState.idle,
+          sensorTemp: 0,
+          coolerPower: 0,
+          targetTemp: 0,
+          coolerOn: false,
+          gain: 0,
+          offset: 0,
+          binX: 1,
+          binY: 1,
+          sensorWidth: 100,
+          sensorHeight: 100,
+          pixelSizeX: 1,
+          pixelSizeY: 1,
+          maxAdu: 65535,
+          canCool: false,
+          canSetGain: false,
+          canSetOffset: false,
+        ),
+      );
+      when(() => mockBackend.getMountStatus(any())).thenAnswer(
+        (_) async => const MountStatus(
+          connected: true,
+          tracking: false,
+          slewing: false,
+          parked: false,
+          atHome: false,
+          sideOfPier: PierSide.east,
+          rightAscension: 0,
+          declination: 0,
+          altitude: 0,
+          azimuth: 0,
+          siderealTime: 0,
+          trackingRate: TrackingRate.sidereal,
+          canPark: false,
+          canSlew: false,
+          canSync: false,
+          canPulseGuide: false,
+          canSetTrackingRate: false,
+        ),
+      );
+      when(
+        () => mockBackend.startDeviceHeartbeat(
+          deviceType: any(named: 'deviceType'),
+          deviceId: any(named: 'deviceId'),
+          intervalMs: any(named: 'intervalMs'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final service = container.read(deviceServiceProvider);
+      const profile = EquipmentProfileModel(
+        id: 1,
+        name: 'Sim Rig',
+        cameraId: 'sim_camera_1',
+        mountId: 'sim_mount_1',
+        guiderId: 'native:builtin_guider:multi_star',
+        guideCameraId: 'sim_camera_2',
+        guideCameraName: 'Simulated Guide Camera',
+      );
+
+      final events = <DeviceConnectProgress>[];
+      final done = service.connectAllFromProfile(profile).forEach(events.add);
+      await pumpEventQueue(times: 50);
+      expect(calls, contains('camera:sim_camera_2'));
+      expect(
+        calls.where((c) => c.startsWith('guider:')),
+        isEmpty,
+        reason: 'the built-in guider must wait for the mount',
+      );
+
+      mountGate.complete();
+      await done;
+      expect(calls, contains('guider:native:builtin_guider:multi_star'));
+      expect(
+        calls.indexOf('guider:native:builtin_guider:multi_star'),
+        greaterThan(calls.indexOf('camera:sim_camera_2')),
+      );
+      final settled = {for (final e in events) e.deviceType: e.status};
+      expect(settled['guide camera'], DeviceConnectProgressStatus.connected);
+      expect(settled['guider'], DeviceConnectProgressStatus.connected);
+      expect(
+        container.read(cameraStateProvider).deviceId,
+        'sim_camera_1',
+        reason: 'the guide camera never takes the imaging camera slot',
+      );
+    });
+  });
 }

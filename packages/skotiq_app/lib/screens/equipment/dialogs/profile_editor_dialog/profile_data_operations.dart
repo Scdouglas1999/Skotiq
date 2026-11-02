@@ -544,6 +544,11 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       filterWheelName: _filterWheelNameController.text.trimOrNull,
       guiderId: _guiderId,
       guiderName: _guiderNameController.text.trimOrNull,
+      guideCameraId: _guideCameraToSave,
+      guideCameraName: _guideCameraToSave == null
+          ? null
+          : _guideCameraNameController.text.trimOrNull,
+      guideFocalLength: _guideFocalLengthToSave,
       rotatorId: _rotatorId,
       rotatorName: _rotatorNameController.text.trimOrNull,
       domeId: _domeId,
@@ -675,6 +680,11 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
           filterWheelName: Value(_filterWheelNameController.text.trimOrNull),
           guiderId: Value(_guiderId),
           guiderName: Value(_guiderNameController.text.trimOrNull),
+          guideCameraId: Value(_guideCameraToSave),
+          guideCameraName: Value(_guideCameraToSave == null
+              ? null
+              : _guideCameraNameController.text.trimOrNull),
+          guideFocalLength: Value(_guideFocalLengthToSave),
           rotatorId: Value(_rotatorId),
           rotatorName: Value(_rotatorNameController.text.trimOrNull),
           domeId: Value(_domeId),
@@ -731,6 +741,11 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
           filterWheelName: Value(_filterWheelNameController.text.trimOrNull),
           guiderId: Value(_guiderId),
           guiderName: Value(_guiderNameController.text.trimOrNull),
+          guideCameraId: Value(_guideCameraToSave),
+          guideCameraName: Value(_guideCameraToSave == null
+              ? null
+              : _guideCameraNameController.text.trimOrNull),
+          guideFocalLength: Value(_guideFocalLengthToSave),
           rotatorId: Value(_rotatorId),
           rotatorName: Value(_rotatorNameController.text.trimOrNull),
           domeId: Value(_domeId),

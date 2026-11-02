@@ -101,6 +101,17 @@ class $EquipmentProfilesTable extends EquipmentProfiles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _guideCameraIdMeta = const VerificationMeta(
+    'guideCameraId',
+  );
+  @override
+  late final GeneratedColumn<String> guideCameraId = GeneratedColumn<String>(
+    'guide_camera_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _rotatorIdMeta = const VerificationMeta(
     'rotatorId',
   );
@@ -372,6 +383,17 @@ class $EquipmentProfilesTable extends EquipmentProfiles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _guideCameraNameMeta = const VerificationMeta(
+    'guideCameraName',
+  );
+  @override
+  late final GeneratedColumn<String> guideCameraName = GeneratedColumn<String>(
+    'guide_camera_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _rotatorNameMeta = const VerificationMeta(
     'rotatorName',
   );
@@ -440,6 +462,17 @@ class $EquipmentProfilesTable extends EquipmentProfiles
         type: DriftSqlType.double,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _guideFocalLengthMeta = const VerificationMeta(
+    'guideFocalLength',
+  );
+  @override
+  late final GeneratedColumn<double> guideFocalLength = GeneratedColumn<double>(
+    'guide_focal_length',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _profileIconMeta = const VerificationMeta(
     'profileIcon',
   );
@@ -538,6 +571,7 @@ class $EquipmentProfilesTable extends EquipmentProfiles
     focuserId,
     filterWheelId,
     guiderId,
+    guideCameraId,
     rotatorId,
     domeId,
     weatherId,
@@ -562,12 +596,14 @@ class $EquipmentProfilesTable extends EquipmentProfiles
     focuserName,
     filterWheelName,
     guiderName,
+    guideCameraName,
     rotatorName,
     safetyMonitorName,
     switchName,
     telescopeName,
     telescopeFocalLength,
     telescopeAperture,
+    guideFocalLength,
     profileIcon,
     profileColor,
     sortOrder,
@@ -639,6 +675,15 @@ class $EquipmentProfilesTable extends EquipmentProfiles
       context.handle(
         _guiderIdMeta,
         guiderId.isAcceptableOrUnknown(data['guider_id']!, _guiderIdMeta),
+      );
+    }
+    if (data.containsKey('guide_camera_id')) {
+      context.handle(
+        _guideCameraIdMeta,
+        guideCameraId.isAcceptableOrUnknown(
+          data['guide_camera_id']!,
+          _guideCameraIdMeta,
+        ),
       );
     }
     if (data.containsKey('rotator_id')) {
@@ -830,6 +875,15 @@ class $EquipmentProfilesTable extends EquipmentProfiles
         guiderName.isAcceptableOrUnknown(data['guider_name']!, _guiderNameMeta),
       );
     }
+    if (data.containsKey('guide_camera_name')) {
+      context.handle(
+        _guideCameraNameMeta,
+        guideCameraName.isAcceptableOrUnknown(
+          data['guide_camera_name']!,
+          _guideCameraNameMeta,
+        ),
+      );
+    }
     if (data.containsKey('rotator_name')) {
       context.handle(
         _rotatorNameMeta,
@@ -878,6 +932,15 @@ class $EquipmentProfilesTable extends EquipmentProfiles
         telescopeAperture.isAcceptableOrUnknown(
           data['telescope_aperture']!,
           _telescopeApertureMeta,
+        ),
+      );
+    }
+    if (data.containsKey('guide_focal_length')) {
+      context.handle(
+        _guideFocalLengthMeta,
+        guideFocalLength.isAcceptableOrUnknown(
+          data['guide_focal_length']!,
+          _guideFocalLengthMeta,
         ),
       );
     }
@@ -969,6 +1032,10 @@ class $EquipmentProfilesTable extends EquipmentProfiles
       guiderId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}guider_id'],
+      ),
+      guideCameraId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guide_camera_id'],
       ),
       rotatorId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -1066,6 +1133,10 @@ class $EquipmentProfilesTable extends EquipmentProfiles
         DriftSqlType.string,
         data['${effectivePrefix}guider_name'],
       ),
+      guideCameraName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guide_camera_name'],
+      ),
       rotatorName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}rotator_name'],
@@ -1089,6 +1160,10 @@ class $EquipmentProfilesTable extends EquipmentProfiles
       telescopeAperture: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}telescope_aperture'],
+      ),
+      guideFocalLength: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}guide_focal_length'],
       ),
       profileIcon: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -1137,6 +1212,7 @@ class EquipmentProfile extends DataClass
   final String? focuserId;
   final String? filterWheelId;
   final String? guiderId;
+  final String? guideCameraId;
   final String? rotatorId;
   final String? domeId;
   final String? weatherId;
@@ -1161,12 +1237,14 @@ class EquipmentProfile extends DataClass
   final String? focuserName;
   final String? filterWheelName;
   final String? guiderName;
+  final String? guideCameraName;
   final String? rotatorName;
   final String? safetyMonitorName;
   final String? switchName;
   final String? telescopeName;
   final double? telescopeFocalLength;
   final double? telescopeAperture;
+  final double? guideFocalLength;
   final String? profileIcon;
   final int? profileColor;
   final int sortOrder;
@@ -1183,6 +1261,7 @@ class EquipmentProfile extends DataClass
     this.focuserId,
     this.filterWheelId,
     this.guiderId,
+    this.guideCameraId,
     this.rotatorId,
     this.domeId,
     this.weatherId,
@@ -1207,12 +1286,14 @@ class EquipmentProfile extends DataClass
     this.focuserName,
     this.filterWheelName,
     this.guiderName,
+    this.guideCameraName,
     this.rotatorName,
     this.safetyMonitorName,
     this.switchName,
     this.telescopeName,
     this.telescopeFocalLength,
     this.telescopeAperture,
+    this.guideFocalLength,
     this.profileIcon,
     this.profileColor,
     required this.sortOrder,
@@ -1243,6 +1324,9 @@ class EquipmentProfile extends DataClass
     }
     if (!nullToAbsent || guiderId != null) {
       map['guider_id'] = Variable<String>(guiderId);
+    }
+    if (!nullToAbsent || guideCameraId != null) {
+      map['guide_camera_id'] = Variable<String>(guideCameraId);
     }
     if (!nullToAbsent || rotatorId != null) {
       map['rotator_id'] = Variable<String>(rotatorId);
@@ -1308,6 +1392,9 @@ class EquipmentProfile extends DataClass
     if (!nullToAbsent || guiderName != null) {
       map['guider_name'] = Variable<String>(guiderName);
     }
+    if (!nullToAbsent || guideCameraName != null) {
+      map['guide_camera_name'] = Variable<String>(guideCameraName);
+    }
     if (!nullToAbsent || rotatorName != null) {
       map['rotator_name'] = Variable<String>(rotatorName);
     }
@@ -1325,6 +1412,9 @@ class EquipmentProfile extends DataClass
     }
     if (!nullToAbsent || telescopeAperture != null) {
       map['telescope_aperture'] = Variable<double>(telescopeAperture);
+    }
+    if (!nullToAbsent || guideFocalLength != null) {
+      map['guide_focal_length'] = Variable<double>(guideFocalLength);
     }
     if (!nullToAbsent || profileIcon != null) {
       map['profile_icon'] = Variable<String>(profileIcon);
@@ -1362,6 +1452,9 @@ class EquipmentProfile extends DataClass
       guiderId: guiderId == null && nullToAbsent
           ? const Value.absent()
           : Value(guiderId),
+      guideCameraId: guideCameraId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(guideCameraId),
       rotatorId: rotatorId == null && nullToAbsent
           ? const Value.absent()
           : Value(rotatorId),
@@ -1424,6 +1517,9 @@ class EquipmentProfile extends DataClass
       guiderName: guiderName == null && nullToAbsent
           ? const Value.absent()
           : Value(guiderName),
+      guideCameraName: guideCameraName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(guideCameraName),
       rotatorName: rotatorName == null && nullToAbsent
           ? const Value.absent()
           : Value(rotatorName),
@@ -1442,6 +1538,9 @@ class EquipmentProfile extends DataClass
       telescopeAperture: telescopeAperture == null && nullToAbsent
           ? const Value.absent()
           : Value(telescopeAperture),
+      guideFocalLength: guideFocalLength == null && nullToAbsent
+          ? const Value.absent()
+          : Value(guideFocalLength),
       profileIcon: profileIcon == null && nullToAbsent
           ? const Value.absent()
           : Value(profileIcon),
@@ -1470,6 +1569,7 @@ class EquipmentProfile extends DataClass
       focuserId: serializer.fromJson<String?>(json['focuserId']),
       filterWheelId: serializer.fromJson<String?>(json['filterWheelId']),
       guiderId: serializer.fromJson<String?>(json['guiderId']),
+      guideCameraId: serializer.fromJson<String?>(json['guideCameraId']),
       rotatorId: serializer.fromJson<String?>(json['rotatorId']),
       domeId: serializer.fromJson<String?>(json['domeId']),
       weatherId: serializer.fromJson<String?>(json['weatherId']),
@@ -1504,6 +1604,7 @@ class EquipmentProfile extends DataClass
       focuserName: serializer.fromJson<String?>(json['focuserName']),
       filterWheelName: serializer.fromJson<String?>(json['filterWheelName']),
       guiderName: serializer.fromJson<String?>(json['guiderName']),
+      guideCameraName: serializer.fromJson<String?>(json['guideCameraName']),
       rotatorName: serializer.fromJson<String?>(json['rotatorName']),
       safetyMonitorName: serializer.fromJson<String?>(
         json['safetyMonitorName'],
@@ -1516,6 +1617,7 @@ class EquipmentProfile extends DataClass
       telescopeAperture: serializer.fromJson<double?>(
         json['telescopeAperture'],
       ),
+      guideFocalLength: serializer.fromJson<double?>(json['guideFocalLength']),
       profileIcon: serializer.fromJson<String?>(json['profileIcon']),
       profileColor: serializer.fromJson<int?>(json['profileColor']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -1537,6 +1639,7 @@ class EquipmentProfile extends DataClass
       'focuserId': serializer.toJson<String?>(focuserId),
       'filterWheelId': serializer.toJson<String?>(filterWheelId),
       'guiderId': serializer.toJson<String?>(guiderId),
+      'guideCameraId': serializer.toJson<String?>(guideCameraId),
       'rotatorId': serializer.toJson<String?>(rotatorId),
       'domeId': serializer.toJson<String?>(domeId),
       'weatherId': serializer.toJson<String?>(weatherId),
@@ -1565,12 +1668,14 @@ class EquipmentProfile extends DataClass
       'focuserName': serializer.toJson<String?>(focuserName),
       'filterWheelName': serializer.toJson<String?>(filterWheelName),
       'guiderName': serializer.toJson<String?>(guiderName),
+      'guideCameraName': serializer.toJson<String?>(guideCameraName),
       'rotatorName': serializer.toJson<String?>(rotatorName),
       'safetyMonitorName': serializer.toJson<String?>(safetyMonitorName),
       'switchName': serializer.toJson<String?>(switchName),
       'telescopeName': serializer.toJson<String?>(telescopeName),
       'telescopeFocalLength': serializer.toJson<double?>(telescopeFocalLength),
       'telescopeAperture': serializer.toJson<double?>(telescopeAperture),
+      'guideFocalLength': serializer.toJson<double?>(guideFocalLength),
       'profileIcon': serializer.toJson<String?>(profileIcon),
       'profileColor': serializer.toJson<int?>(profileColor),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -1590,6 +1695,7 @@ class EquipmentProfile extends DataClass
     Value<String?> focuserId = const Value.absent(),
     Value<String?> filterWheelId = const Value.absent(),
     Value<String?> guiderId = const Value.absent(),
+    Value<String?> guideCameraId = const Value.absent(),
     Value<String?> rotatorId = const Value.absent(),
     Value<String?> domeId = const Value.absent(),
     Value<String?> weatherId = const Value.absent(),
@@ -1614,12 +1720,14 @@ class EquipmentProfile extends DataClass
     Value<String?> focuserName = const Value.absent(),
     Value<String?> filterWheelName = const Value.absent(),
     Value<String?> guiderName = const Value.absent(),
+    Value<String?> guideCameraName = const Value.absent(),
     Value<String?> rotatorName = const Value.absent(),
     Value<String?> safetyMonitorName = const Value.absent(),
     Value<String?> switchName = const Value.absent(),
     Value<String?> telescopeName = const Value.absent(),
     Value<double?> telescopeFocalLength = const Value.absent(),
     Value<double?> telescopeAperture = const Value.absent(),
+    Value<double?> guideFocalLength = const Value.absent(),
     Value<String?> profileIcon = const Value.absent(),
     Value<int?> profileColor = const Value.absent(),
     int? sortOrder,
@@ -1638,6 +1746,9 @@ class EquipmentProfile extends DataClass
         ? filterWheelId.value
         : this.filterWheelId,
     guiderId: guiderId.present ? guiderId.value : this.guiderId,
+    guideCameraId: guideCameraId.present
+        ? guideCameraId.value
+        : this.guideCameraId,
     rotatorId: rotatorId.present ? rotatorId.value : this.rotatorId,
     domeId: domeId.present ? domeId.value : this.domeId,
     weatherId: weatherId.present ? weatherId.value : this.weatherId,
@@ -1678,6 +1789,9 @@ class EquipmentProfile extends DataClass
         ? filterWheelName.value
         : this.filterWheelName,
     guiderName: guiderName.present ? guiderName.value : this.guiderName,
+    guideCameraName: guideCameraName.present
+        ? guideCameraName.value
+        : this.guideCameraName,
     rotatorName: rotatorName.present ? rotatorName.value : this.rotatorName,
     safetyMonitorName: safetyMonitorName.present
         ? safetyMonitorName.value
@@ -1692,6 +1806,9 @@ class EquipmentProfile extends DataClass
     telescopeAperture: telescopeAperture.present
         ? telescopeAperture.value
         : this.telescopeAperture,
+    guideFocalLength: guideFocalLength.present
+        ? guideFocalLength.value
+        : this.guideFocalLength,
     profileIcon: profileIcon.present ? profileIcon.value : this.profileIcon,
     profileColor: profileColor.present ? profileColor.value : this.profileColor,
     sortOrder: sortOrder ?? this.sortOrder,
@@ -1714,6 +1831,9 @@ class EquipmentProfile extends DataClass
           ? data.filterWheelId.value
           : this.filterWheelId,
       guiderId: data.guiderId.present ? data.guiderId.value : this.guiderId,
+      guideCameraId: data.guideCameraId.present
+          ? data.guideCameraId.value
+          : this.guideCameraId,
       rotatorId: data.rotatorId.present ? data.rotatorId.value : this.rotatorId,
       domeId: data.domeId.present ? data.domeId.value : this.domeId,
       weatherId: data.weatherId.present ? data.weatherId.value : this.weatherId,
@@ -1774,6 +1894,9 @@ class EquipmentProfile extends DataClass
       guiderName: data.guiderName.present
           ? data.guiderName.value
           : this.guiderName,
+      guideCameraName: data.guideCameraName.present
+          ? data.guideCameraName.value
+          : this.guideCameraName,
       rotatorName: data.rotatorName.present
           ? data.rotatorName.value
           : this.rotatorName,
@@ -1792,6 +1915,9 @@ class EquipmentProfile extends DataClass
       telescopeAperture: data.telescopeAperture.present
           ? data.telescopeAperture.value
           : this.telescopeAperture,
+      guideFocalLength: data.guideFocalLength.present
+          ? data.guideFocalLength.value
+          : this.guideFocalLength,
       profileIcon: data.profileIcon.present
           ? data.profileIcon.value
           : this.profileIcon,
@@ -1817,6 +1943,7 @@ class EquipmentProfile extends DataClass
           ..write('focuserId: $focuserId, ')
           ..write('filterWheelId: $filterWheelId, ')
           ..write('guiderId: $guiderId, ')
+          ..write('guideCameraId: $guideCameraId, ')
           ..write('rotatorId: $rotatorId, ')
           ..write('domeId: $domeId, ')
           ..write('weatherId: $weatherId, ')
@@ -1841,12 +1968,14 @@ class EquipmentProfile extends DataClass
           ..write('focuserName: $focuserName, ')
           ..write('filterWheelName: $filterWheelName, ')
           ..write('guiderName: $guiderName, ')
+          ..write('guideCameraName: $guideCameraName, ')
           ..write('rotatorName: $rotatorName, ')
           ..write('safetyMonitorName: $safetyMonitorName, ')
           ..write('switchName: $switchName, ')
           ..write('telescopeName: $telescopeName, ')
           ..write('telescopeFocalLength: $telescopeFocalLength, ')
           ..write('telescopeAperture: $telescopeAperture, ')
+          ..write('guideFocalLength: $guideFocalLength, ')
           ..write('profileIcon: $profileIcon, ')
           ..write('profileColor: $profileColor, ')
           ..write('sortOrder: $sortOrder, ')
@@ -1868,6 +1997,7 @@ class EquipmentProfile extends DataClass
     focuserId,
     filterWheelId,
     guiderId,
+    guideCameraId,
     rotatorId,
     domeId,
     weatherId,
@@ -1892,12 +2022,14 @@ class EquipmentProfile extends DataClass
     focuserName,
     filterWheelName,
     guiderName,
+    guideCameraName,
     rotatorName,
     safetyMonitorName,
     switchName,
     telescopeName,
     telescopeFocalLength,
     telescopeAperture,
+    guideFocalLength,
     profileIcon,
     profileColor,
     sortOrder,
@@ -1918,6 +2050,7 @@ class EquipmentProfile extends DataClass
           other.focuserId == this.focuserId &&
           other.filterWheelId == this.filterWheelId &&
           other.guiderId == this.guiderId &&
+          other.guideCameraId == this.guideCameraId &&
           other.rotatorId == this.rotatorId &&
           other.domeId == this.domeId &&
           other.weatherId == this.weatherId &&
@@ -1942,12 +2075,14 @@ class EquipmentProfile extends DataClass
           other.focuserName == this.focuserName &&
           other.filterWheelName == this.filterWheelName &&
           other.guiderName == this.guiderName &&
+          other.guideCameraName == this.guideCameraName &&
           other.rotatorName == this.rotatorName &&
           other.safetyMonitorName == this.safetyMonitorName &&
           other.switchName == this.switchName &&
           other.telescopeName == this.telescopeName &&
           other.telescopeFocalLength == this.telescopeFocalLength &&
           other.telescopeAperture == this.telescopeAperture &&
+          other.guideFocalLength == this.guideFocalLength &&
           other.profileIcon == this.profileIcon &&
           other.profileColor == this.profileColor &&
           other.sortOrder == this.sortOrder &&
@@ -1966,6 +2101,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
   final Value<String?> focuserId;
   final Value<String?> filterWheelId;
   final Value<String?> guiderId;
+  final Value<String?> guideCameraId;
   final Value<String?> rotatorId;
   final Value<String?> domeId;
   final Value<String?> weatherId;
@@ -1990,12 +2126,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
   final Value<String?> focuserName;
   final Value<String?> filterWheelName;
   final Value<String?> guiderName;
+  final Value<String?> guideCameraName;
   final Value<String?> rotatorName;
   final Value<String?> safetyMonitorName;
   final Value<String?> switchName;
   final Value<String?> telescopeName;
   final Value<double?> telescopeFocalLength;
   final Value<double?> telescopeAperture;
+  final Value<double?> guideFocalLength;
   final Value<String?> profileIcon;
   final Value<int?> profileColor;
   final Value<int> sortOrder;
@@ -2012,6 +2150,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     this.focuserId = const Value.absent(),
     this.filterWheelId = const Value.absent(),
     this.guiderId = const Value.absent(),
+    this.guideCameraId = const Value.absent(),
     this.rotatorId = const Value.absent(),
     this.domeId = const Value.absent(),
     this.weatherId = const Value.absent(),
@@ -2036,12 +2175,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     this.focuserName = const Value.absent(),
     this.filterWheelName = const Value.absent(),
     this.guiderName = const Value.absent(),
+    this.guideCameraName = const Value.absent(),
     this.rotatorName = const Value.absent(),
     this.safetyMonitorName = const Value.absent(),
     this.switchName = const Value.absent(),
     this.telescopeName = const Value.absent(),
     this.telescopeFocalLength = const Value.absent(),
     this.telescopeAperture = const Value.absent(),
+    this.guideFocalLength = const Value.absent(),
     this.profileIcon = const Value.absent(),
     this.profileColor = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -2059,6 +2200,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     this.focuserId = const Value.absent(),
     this.filterWheelId = const Value.absent(),
     this.guiderId = const Value.absent(),
+    this.guideCameraId = const Value.absent(),
     this.rotatorId = const Value.absent(),
     this.domeId = const Value.absent(),
     this.weatherId = const Value.absent(),
@@ -2083,12 +2225,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     this.focuserName = const Value.absent(),
     this.filterWheelName = const Value.absent(),
     this.guiderName = const Value.absent(),
+    this.guideCameraName = const Value.absent(),
     this.rotatorName = const Value.absent(),
     this.safetyMonitorName = const Value.absent(),
     this.switchName = const Value.absent(),
     this.telescopeName = const Value.absent(),
     this.telescopeFocalLength = const Value.absent(),
     this.telescopeAperture = const Value.absent(),
+    this.guideFocalLength = const Value.absent(),
     this.profileIcon = const Value.absent(),
     this.profileColor = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -2106,6 +2250,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     Expression<String>? focuserId,
     Expression<String>? filterWheelId,
     Expression<String>? guiderId,
+    Expression<String>? guideCameraId,
     Expression<String>? rotatorId,
     Expression<String>? domeId,
     Expression<String>? weatherId,
@@ -2130,12 +2275,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     Expression<String>? focuserName,
     Expression<String>? filterWheelName,
     Expression<String>? guiderName,
+    Expression<String>? guideCameraName,
     Expression<String>? rotatorName,
     Expression<String>? safetyMonitorName,
     Expression<String>? switchName,
     Expression<String>? telescopeName,
     Expression<double>? telescopeFocalLength,
     Expression<double>? telescopeAperture,
+    Expression<double>? guideFocalLength,
     Expression<String>? profileIcon,
     Expression<int>? profileColor,
     Expression<int>? sortOrder,
@@ -2153,6 +2300,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
       if (focuserId != null) 'focuser_id': focuserId,
       if (filterWheelId != null) 'filter_wheel_id': filterWheelId,
       if (guiderId != null) 'guider_id': guiderId,
+      if (guideCameraId != null) 'guide_camera_id': guideCameraId,
       if (rotatorId != null) 'rotator_id': rotatorId,
       if (domeId != null) 'dome_id': domeId,
       if (weatherId != null) 'weather_id': weatherId,
@@ -2181,6 +2329,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
       if (focuserName != null) 'focuser_name': focuserName,
       if (filterWheelName != null) 'filter_wheel_name': filterWheelName,
       if (guiderName != null) 'guider_name': guiderName,
+      if (guideCameraName != null) 'guide_camera_name': guideCameraName,
       if (rotatorName != null) 'rotator_name': rotatorName,
       if (safetyMonitorName != null) 'safety_monitor_name': safetyMonitorName,
       if (switchName != null) 'switch_name': switchName,
@@ -2188,6 +2337,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
       if (telescopeFocalLength != null)
         'telescope_focal_length': telescopeFocalLength,
       if (telescopeAperture != null) 'telescope_aperture': telescopeAperture,
+      if (guideFocalLength != null) 'guide_focal_length': guideFocalLength,
       if (profileIcon != null) 'profile_icon': profileIcon,
       if (profileColor != null) 'profile_color': profileColor,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -2207,6 +2357,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     Value<String?>? focuserId,
     Value<String?>? filterWheelId,
     Value<String?>? guiderId,
+    Value<String?>? guideCameraId,
     Value<String?>? rotatorId,
     Value<String?>? domeId,
     Value<String?>? weatherId,
@@ -2231,12 +2382,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     Value<String?>? focuserName,
     Value<String?>? filterWheelName,
     Value<String?>? guiderName,
+    Value<String?>? guideCameraName,
     Value<String?>? rotatorName,
     Value<String?>? safetyMonitorName,
     Value<String?>? switchName,
     Value<String?>? telescopeName,
     Value<double?>? telescopeFocalLength,
     Value<double?>? telescopeAperture,
+    Value<double?>? guideFocalLength,
     Value<String?>? profileIcon,
     Value<int?>? profileColor,
     Value<int>? sortOrder,
@@ -2254,6 +2407,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
       focuserId: focuserId ?? this.focuserId,
       filterWheelId: filterWheelId ?? this.filterWheelId,
       guiderId: guiderId ?? this.guiderId,
+      guideCameraId: guideCameraId ?? this.guideCameraId,
       rotatorId: rotatorId ?? this.rotatorId,
       domeId: domeId ?? this.domeId,
       weatherId: weatherId ?? this.weatherId,
@@ -2280,12 +2434,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
       focuserName: focuserName ?? this.focuserName,
       filterWheelName: filterWheelName ?? this.filterWheelName,
       guiderName: guiderName ?? this.guiderName,
+      guideCameraName: guideCameraName ?? this.guideCameraName,
       rotatorName: rotatorName ?? this.rotatorName,
       safetyMonitorName: safetyMonitorName ?? this.safetyMonitorName,
       switchName: switchName ?? this.switchName,
       telescopeName: telescopeName ?? this.telescopeName,
       telescopeFocalLength: telescopeFocalLength ?? this.telescopeFocalLength,
       telescopeAperture: telescopeAperture ?? this.telescopeAperture,
+      guideFocalLength: guideFocalLength ?? this.guideFocalLength,
       profileIcon: profileIcon ?? this.profileIcon,
       profileColor: profileColor ?? this.profileColor,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -2322,6 +2478,9 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     }
     if (guiderId.present) {
       map['guider_id'] = Variable<String>(guiderId.value);
+    }
+    if (guideCameraId.present) {
+      map['guide_camera_id'] = Variable<String>(guideCameraId.value);
     }
     if (rotatorId.present) {
       map['rotator_id'] = Variable<String>(rotatorId.value);
@@ -2399,6 +2558,9 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     if (guiderName.present) {
       map['guider_name'] = Variable<String>(guiderName.value);
     }
+    if (guideCameraName.present) {
+      map['guide_camera_name'] = Variable<String>(guideCameraName.value);
+    }
     if (rotatorName.present) {
       map['rotator_name'] = Variable<String>(rotatorName.value);
     }
@@ -2418,6 +2580,9 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
     }
     if (telescopeAperture.present) {
       map['telescope_aperture'] = Variable<double>(telescopeAperture.value);
+    }
+    if (guideFocalLength.present) {
+      map['guide_focal_length'] = Variable<double>(guideFocalLength.value);
     }
     if (profileIcon.present) {
       map['profile_icon'] = Variable<String>(profileIcon.value);
@@ -2454,6 +2619,7 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
           ..write('focuserId: $focuserId, ')
           ..write('filterWheelId: $filterWheelId, ')
           ..write('guiderId: $guiderId, ')
+          ..write('guideCameraId: $guideCameraId, ')
           ..write('rotatorId: $rotatorId, ')
           ..write('domeId: $domeId, ')
           ..write('weatherId: $weatherId, ')
@@ -2478,12 +2644,14 @@ class EquipmentProfilesCompanion extends UpdateCompanion<EquipmentProfile> {
           ..write('focuserName: $focuserName, ')
           ..write('filterWheelName: $filterWheelName, ')
           ..write('guiderName: $guiderName, ')
+          ..write('guideCameraName: $guideCameraName, ')
           ..write('rotatorName: $rotatorName, ')
           ..write('safetyMonitorName: $safetyMonitorName, ')
           ..write('switchName: $switchName, ')
           ..write('telescopeName: $telescopeName, ')
           ..write('telescopeFocalLength: $telescopeFocalLength, ')
           ..write('telescopeAperture: $telescopeAperture, ')
+          ..write('guideFocalLength: $guideFocalLength, ')
           ..write('profileIcon: $profileIcon, ')
           ..write('profileColor: $profileColor, ')
           ..write('sortOrder: $sortOrder, ')
@@ -35589,6 +35757,7 @@ typedef $$EquipmentProfilesTableCreateCompanionBuilder =
       Value<String?> focuserId,
       Value<String?> filterWheelId,
       Value<String?> guiderId,
+      Value<String?> guideCameraId,
       Value<String?> rotatorId,
       Value<String?> domeId,
       Value<String?> weatherId,
@@ -35613,12 +35782,14 @@ typedef $$EquipmentProfilesTableCreateCompanionBuilder =
       Value<String?> focuserName,
       Value<String?> filterWheelName,
       Value<String?> guiderName,
+      Value<String?> guideCameraName,
       Value<String?> rotatorName,
       Value<String?> safetyMonitorName,
       Value<String?> switchName,
       Value<String?> telescopeName,
       Value<double?> telescopeFocalLength,
       Value<double?> telescopeAperture,
+      Value<double?> guideFocalLength,
       Value<String?> profileIcon,
       Value<int?> profileColor,
       Value<int> sortOrder,
@@ -35637,6 +35808,7 @@ typedef $$EquipmentProfilesTableUpdateCompanionBuilder =
       Value<String?> focuserId,
       Value<String?> filterWheelId,
       Value<String?> guiderId,
+      Value<String?> guideCameraId,
       Value<String?> rotatorId,
       Value<String?> domeId,
       Value<String?> weatherId,
@@ -35661,12 +35833,14 @@ typedef $$EquipmentProfilesTableUpdateCompanionBuilder =
       Value<String?> focuserName,
       Value<String?> filterWheelName,
       Value<String?> guiderName,
+      Value<String?> guideCameraName,
       Value<String?> rotatorName,
       Value<String?> safetyMonitorName,
       Value<String?> switchName,
       Value<String?> telescopeName,
       Value<double?> telescopeFocalLength,
       Value<double?> telescopeAperture,
+      Value<double?> guideFocalLength,
       Value<String?> profileIcon,
       Value<int?> profileColor,
       Value<int> sortOrder,
@@ -35891,6 +36065,11 @@ class $$EquipmentProfilesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get guideCameraId => $composableBuilder(
+    column: $table.guideCameraId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get rotatorId => $composableBuilder(
     column: $table.rotatorId,
     builder: (column) => ColumnFilters(column),
@@ -36011,6 +36190,11 @@ class $$EquipmentProfilesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get guideCameraName => $composableBuilder(
+    column: $table.guideCameraName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get rotatorName => $composableBuilder(
     column: $table.rotatorName,
     builder: (column) => ColumnFilters(column),
@@ -36038,6 +36222,11 @@ class $$EquipmentProfilesTableFilterComposer
 
   ColumnFilters<double> get telescopeAperture => $composableBuilder(
     column: $table.telescopeAperture,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get guideFocalLength => $composableBuilder(
+    column: $table.guideFocalLength,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -36278,6 +36467,11 @@ class $$EquipmentProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get guideCameraId => $composableBuilder(
+    column: $table.guideCameraId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get rotatorId => $composableBuilder(
     column: $table.rotatorId,
     builder: (column) => ColumnOrderings(column),
@@ -36398,6 +36592,11 @@ class $$EquipmentProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get guideCameraName => $composableBuilder(
+    column: $table.guideCameraName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get rotatorName => $composableBuilder(
     column: $table.rotatorName,
     builder: (column) => ColumnOrderings(column),
@@ -36425,6 +36624,11 @@ class $$EquipmentProfilesTableOrderingComposer
 
   ColumnOrderings<double> get telescopeAperture => $composableBuilder(
     column: $table.telescopeAperture,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get guideFocalLength => $composableBuilder(
+    column: $table.guideFocalLength,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -36500,6 +36704,11 @@ class $$EquipmentProfilesTableAnnotationComposer
 
   GeneratedColumn<String> get guiderId =>
       $composableBuilder(column: $table.guiderId, builder: (column) => column);
+
+  GeneratedColumn<String> get guideCameraId => $composableBuilder(
+    column: $table.guideCameraId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get rotatorId =>
       $composableBuilder(column: $table.rotatorId, builder: (column) => column);
@@ -36609,6 +36818,11 @@ class $$EquipmentProfilesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get guideCameraName => $composableBuilder(
+    column: $table.guideCameraName,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get rotatorName => $composableBuilder(
     column: $table.rotatorName,
     builder: (column) => column,
@@ -36636,6 +36850,11 @@ class $$EquipmentProfilesTableAnnotationComposer
 
   GeneratedColumn<double> get telescopeAperture => $composableBuilder(
     column: $table.telescopeAperture,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get guideFocalLength => $composableBuilder(
+    column: $table.guideFocalLength,
     builder: (column) => column,
   );
 
@@ -36865,6 +37084,7 @@ class $$EquipmentProfilesTableTableManager
                 Value<String?> focuserId = const Value.absent(),
                 Value<String?> filterWheelId = const Value.absent(),
                 Value<String?> guiderId = const Value.absent(),
+                Value<String?> guideCameraId = const Value.absent(),
                 Value<String?> rotatorId = const Value.absent(),
                 Value<String?> domeId = const Value.absent(),
                 Value<String?> weatherId = const Value.absent(),
@@ -36889,12 +37109,14 @@ class $$EquipmentProfilesTableTableManager
                 Value<String?> focuserName = const Value.absent(),
                 Value<String?> filterWheelName = const Value.absent(),
                 Value<String?> guiderName = const Value.absent(),
+                Value<String?> guideCameraName = const Value.absent(),
                 Value<String?> rotatorName = const Value.absent(),
                 Value<String?> safetyMonitorName = const Value.absent(),
                 Value<String?> switchName = const Value.absent(),
                 Value<String?> telescopeName = const Value.absent(),
                 Value<double?> telescopeFocalLength = const Value.absent(),
                 Value<double?> telescopeAperture = const Value.absent(),
+                Value<double?> guideFocalLength = const Value.absent(),
                 Value<String?> profileIcon = const Value.absent(),
                 Value<int?> profileColor = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -36911,6 +37133,7 @@ class $$EquipmentProfilesTableTableManager
                 focuserId: focuserId,
                 filterWheelId: filterWheelId,
                 guiderId: guiderId,
+                guideCameraId: guideCameraId,
                 rotatorId: rotatorId,
                 domeId: domeId,
                 weatherId: weatherId,
@@ -36935,12 +37158,14 @@ class $$EquipmentProfilesTableTableManager
                 focuserName: focuserName,
                 filterWheelName: filterWheelName,
                 guiderName: guiderName,
+                guideCameraName: guideCameraName,
                 rotatorName: rotatorName,
                 safetyMonitorName: safetyMonitorName,
                 switchName: switchName,
                 telescopeName: telescopeName,
                 telescopeFocalLength: telescopeFocalLength,
                 telescopeAperture: telescopeAperture,
+                guideFocalLength: guideFocalLength,
                 profileIcon: profileIcon,
                 profileColor: profileColor,
                 sortOrder: sortOrder,
@@ -36959,6 +37184,7 @@ class $$EquipmentProfilesTableTableManager
                 Value<String?> focuserId = const Value.absent(),
                 Value<String?> filterWheelId = const Value.absent(),
                 Value<String?> guiderId = const Value.absent(),
+                Value<String?> guideCameraId = const Value.absent(),
                 Value<String?> rotatorId = const Value.absent(),
                 Value<String?> domeId = const Value.absent(),
                 Value<String?> weatherId = const Value.absent(),
@@ -36983,12 +37209,14 @@ class $$EquipmentProfilesTableTableManager
                 Value<String?> focuserName = const Value.absent(),
                 Value<String?> filterWheelName = const Value.absent(),
                 Value<String?> guiderName = const Value.absent(),
+                Value<String?> guideCameraName = const Value.absent(),
                 Value<String?> rotatorName = const Value.absent(),
                 Value<String?> safetyMonitorName = const Value.absent(),
                 Value<String?> switchName = const Value.absent(),
                 Value<String?> telescopeName = const Value.absent(),
                 Value<double?> telescopeFocalLength = const Value.absent(),
                 Value<double?> telescopeAperture = const Value.absent(),
+                Value<double?> guideFocalLength = const Value.absent(),
                 Value<String?> profileIcon = const Value.absent(),
                 Value<int?> profileColor = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -37005,6 +37233,7 @@ class $$EquipmentProfilesTableTableManager
                 focuserId: focuserId,
                 filterWheelId: filterWheelId,
                 guiderId: guiderId,
+                guideCameraId: guideCameraId,
                 rotatorId: rotatorId,
                 domeId: domeId,
                 weatherId: weatherId,
@@ -37029,12 +37258,14 @@ class $$EquipmentProfilesTableTableManager
                 focuserName: focuserName,
                 filterWheelName: filterWheelName,
                 guiderName: guiderName,
+                guideCameraName: guideCameraName,
                 rotatorName: rotatorName,
                 safetyMonitorName: safetyMonitorName,
                 switchName: switchName,
                 telescopeName: telescopeName,
                 telescopeFocalLength: telescopeFocalLength,
                 telescopeAperture: telescopeAperture,
+                guideFocalLength: guideFocalLength,
                 profileIcon: profileIcon,
                 profileColor: profileColor,
                 sortOrder: sortOrder,

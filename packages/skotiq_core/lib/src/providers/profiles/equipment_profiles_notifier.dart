@@ -224,6 +224,8 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       focuserId: Value(profile.focuserId),
       filterWheelId: Value(profile.filterWheelId),
       guiderId: Value(profile.guiderId),
+      guideCameraId: Value(profile.guideCameraId),
+      guideFocalLength: Value(profile.guideFocalLength),
       rotatorId: Value(profile.rotatorId),
       domeId: Value(profile.domeId),
       weatherId: Value(profile.weatherId),

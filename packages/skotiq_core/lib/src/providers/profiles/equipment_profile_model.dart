@@ -13,6 +13,8 @@ class EquipmentProfileModel {
   final String? focuserId;
   final String? filterWheelId;
   final String? guiderId;
+  final String? guideCameraId;
+  final double? guideFocalLength;
   final String? rotatorId;
   final String? domeId;
   final String? weatherId;
@@ -26,6 +28,7 @@ class EquipmentProfileModel {
   final String? focuserName;
   final String? filterWheelName;
   final String? guiderName;
+  final String? guideCameraName;
   final String? rotatorName;
   final String? safetyMonitorName;
   final String? switchName;
@@ -78,6 +81,8 @@ class EquipmentProfileModel {
     this.focuserId,
     this.filterWheelId,
     this.guiderId,
+    this.guideCameraId,
+    this.guideFocalLength,
     this.rotatorId,
     this.domeId,
     this.weatherId,
@@ -89,6 +94,7 @@ class EquipmentProfileModel {
     this.focuserName,
     this.filterWheelName,
     this.guiderName,
+    this.guideCameraName,
     this.rotatorName,
     this.safetyMonitorName,
     this.switchName,
@@ -134,6 +140,7 @@ class EquipmentProfileModel {
     if (focuserId != null) count++;
     if (filterWheelId != null) count++;
     if (guiderId != null) count++;
+    if (guideCameraId != null) count++;
     if (rotatorId != null) count++;
     if (domeId != null) count++;
     if (weatherId != null) count++;
@@ -200,6 +207,8 @@ class EquipmentProfileModel {
       focuserId: db.focuserId,
       filterWheelId: db.filterWheelId,
       guiderId: db.guiderId,
+      guideCameraId: db.guideCameraId,
+      guideFocalLength: db.guideFocalLength,
       rotatorId: db.rotatorId,
       domeId: db.domeId,
       weatherId: db.weatherId,
@@ -211,6 +220,7 @@ class EquipmentProfileModel {
       focuserName: db.focuserName,
       filterWheelName: db.filterWheelName,
       guiderName: db.guiderName,
+      guideCameraName: db.guideCameraName,
       rotatorName: db.rotatorName,
       safetyMonitorName: db.safetyMonitorName,
       switchName: db.switchName,
@@ -286,6 +296,8 @@ class EquipmentProfileModel {
       focuserId: profile.focuserId,
       filterWheelId: profile.filterWheelId,
       guiderId: profile.guiderId,
+      guideCameraId: profile.guideCameraId,
+      guideFocalLength: profile.guideFocalLength,
       rotatorId: profile.rotatorId,
       domeId: profile.domeId,
       weatherId: profile.weatherId,
@@ -297,6 +309,7 @@ class EquipmentProfileModel {
       focuserName: profile.focuserName,
       filterWheelName: profile.filterWheelName,
       guiderName: profile.guiderName,
+      guideCameraName: profile.guideCameraName,
       rotatorName: profile.rotatorName,
       safetyMonitorName: profile.safetyMonitorName,
       switchName: profile.switchName,
@@ -341,6 +354,8 @@ class EquipmentProfileModel {
       focuserId: Value(focuserId),
       filterWheelId: Value(filterWheelId),
       guiderId: Value(guiderId),
+      guideCameraId: Value(guideCameraId),
+      guideFocalLength: Value(guideFocalLength),
       rotatorId: Value(rotatorId),
       domeId: Value(domeId),
       weatherId: Value(weatherId),
@@ -352,6 +367,7 @@ class EquipmentProfileModel {
       focuserName: Value(focuserName),
       filterWheelName: Value(filterWheelName),
       guiderName: Value(guiderName),
+      guideCameraName: Value(guideCameraName),
       rotatorName: Value(rotatorName),
       safetyMonitorName: Value(safetyMonitorName),
       switchName: Value(switchName),
@@ -393,6 +409,8 @@ class EquipmentProfileModel {
     String? focuserId,
     String? filterWheelId,
     String? guiderId,
+    String? guideCameraId,
+    double? guideFocalLength,
     String? rotatorId,
     String? domeId,
     String? weatherId,
@@ -404,6 +422,7 @@ class EquipmentProfileModel {
     String? focuserName,
     String? filterWheelName,
     String? guiderName,
+    String? guideCameraName,
     String? rotatorName,
     String? safetyMonitorName,
     String? switchName,
@@ -440,6 +459,8 @@ class EquipmentProfileModel {
       focuserId: focuserId ?? this.focuserId,
       filterWheelId: filterWheelId ?? this.filterWheelId,
       guiderId: guiderId ?? this.guiderId,
+      guideCameraId: guideCameraId ?? this.guideCameraId,
+      guideFocalLength: guideFocalLength ?? this.guideFocalLength,
       rotatorId: rotatorId ?? this.rotatorId,
       domeId: domeId ?? this.domeId,
       weatherId: weatherId ?? this.weatherId,
@@ -451,6 +472,7 @@ class EquipmentProfileModel {
       focuserName: focuserName ?? this.focuserName,
       filterWheelName: filterWheelName ?? this.filterWheelName,
       guiderName: guiderName ?? this.guiderName,
+      guideCameraName: guideCameraName ?? this.guideCameraName,
       rotatorName: rotatorName ?? this.rotatorName,
       safetyMonitorName: safetyMonitorName ?? this.safetyMonitorName,
       switchName: switchName ?? this.switchName,
@@ -504,6 +526,8 @@ class EquipmentProfileModel {
       focuserId: focuserId,
       filterWheelId: filterWheelId,
       guiderId: guiderId,
+      guideCameraId: guideCameraId,
+      guideFocalLength: guideFocalLength,
       rotatorId: rotatorId,
       domeId: domeId,
       weatherId: weatherId,
@@ -515,6 +539,7 @@ class EquipmentProfileModel {
       focuserName: focuserName,
       filterWheelName: filterWheelName,
       guiderName: guiderName,
+      guideCameraName: guideCameraName,
       rotatorName: rotatorName,
       safetyMonitorName: safetyMonitorName,
       switchName: switchName,
@@ -583,6 +608,8 @@ class EquipmentProfileModel {
       focuserId: focuserId,
       filterWheelId: filterWheelId,
       guiderId: guiderId,
+      guideCameraId: guideCameraId,
+      guideFocalLength: guideFocalLength,
       rotatorId: rotatorId,
       domeId: domeId,
       weatherId: weatherId,
@@ -609,6 +636,7 @@ class EquipmentProfileModel {
       focuserName: focuserName,
       filterWheelName: filterWheelName,
       guiderName: guiderName,
+      guideCameraName: guideCameraName,
       rotatorName: rotatorName,
       safetyMonitorName: safetyMonitorName,
       switchName: switchName,

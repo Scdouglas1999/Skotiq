@@ -74,6 +74,13 @@ extension _DeviceServiceProfileConnections on DeviceService {
             DeviceType.filterWheel,
           ),
           (
+            profile.guideCameraId,
+            'guide camera',
+            connectGuideCamera,
+            profile.guideCameraName,
+            DeviceType.camera,
+          ),
+          (
             profile.guiderId,
             'guider',
             connectGuider,
@@ -150,6 +157,7 @@ extension _DeviceServiceProfileConnections on DeviceService {
       // error and routes it onto the stream as a `failed` event so one
       // bad device cannot abort the sweep.
       final futures = <Future<void>>[];
+      final settled = <String, Future<void>>{};
       for (final (savedId, deviceType, connect, _, _) in active) {
         final resolution = resolved[deviceType]!;
         final id = resolution.deviceId ?? savedId;
@@ -173,44 +181,55 @@ extension _DeviceServiceProfileConnections on DeviceService {
           ),
         );
 
-        futures.add(
-          connect(id)
-              .then((_) {
-                if (!controller.isClosed) {
-                  controller.add(
-                    DeviceConnectProgress(
-                      deviceType: deviceType,
-                      deviceId: id,
-                      status: DeviceConnectProgressStatus.connected,
-                    ),
-                  );
-                }
-              })
-              .catchError((Object error, StackTrace stack) {
-                if (!controller.isClosed) {
-                  controller.add(
-                    DeviceConnectProgress(
-                      deviceType: deviceType,
-                      deviceId: id,
-                      status: DeviceConnectProgressStatus.failed,
-                      error: error,
-                      errorMessage: error.toString(),
-                    ),
-                  );
-                }
-              }),
-        );
+        // A software guider (the built-in one) takes its frames through the
+        // guide camera and pulses the mount, so it is connected once those
+        // two have settled; connecting it alongside them fails every time.
+        final dependencies = deviceType == 'guider' && !isPhd2DeviceId(id)
+            ? [settled['mount'], settled['guide camera']].nonNulls.toList()
+            : const <Future<void>>[];
+        final attempt = dependencies.isEmpty
+            ? connect(id)
+            : Future.wait(dependencies).then((_) => connect(id));
+        final future = attempt
+            .then((_) {
+              if (!controller.isClosed) {
+                controller.add(
+                  DeviceConnectProgress(
+                    deviceType: deviceType,
+                    deviceId: id,
+                    status: DeviceConnectProgressStatus.connected,
+                  ),
+                );
+              }
+            })
+            .catchError((Object error, StackTrace stack) {
+              if (!controller.isClosed) {
+                controller.add(
+                  DeviceConnectProgress(
+                    deviceType: deviceType,
+                    deviceId: id,
+                    status: DeviceConnectProgressStatus.failed,
+                    error: error,
+                    errorMessage: error.toString(),
+                  ),
+                );
+              }
+            });
+        settled[deviceType] = future;
+        futures.add(future);
       }
 
       // Close the stream once every device has settled. We use
       // `Future.wait` without `eagerError` because we've already caught
       // every per-device error above — every future resolves
       // successfully here.
-      Future.wait(futures).whenComplete(() {
-        if (!controller.isClosed) {
-          controller.close();
-        }
-      });
+      unawaited(
+        Future.wait(futures).whenComplete(() {
+          if (!controller.isClosed) {
+            controller.close();
+          }
+        }),
+      );
     });
 
     return controller.stream;
@@ -325,6 +344,23 @@ extension _DeviceServiceProfileConnections on DeviceService {
     ];
 
     final errors = <String>[];
+    // The guide camera has no device slot of its own; the profile names it.
+    final guideCameraId = _ref
+        .read(activeEquipmentProfileProvider)
+        ?.guideCameraId;
+    if (guideCameraId != null && guideCameraId.isNotEmpty) {
+      try {
+        await _backend.disconnectDevice(DeviceType.camera, guideCameraId);
+      } catch (e) {
+        // A guide camera that was never connected has nothing to disconnect.
+        _ref
+            .read(loggingServiceProvider)
+            .info(
+              'Guide camera $guideCameraId not disconnected: $e',
+              source: 'DeviceService',
+            );
+      }
+    }
     for (final (disconnect, name) in disconnects) {
       try {
         await disconnect();

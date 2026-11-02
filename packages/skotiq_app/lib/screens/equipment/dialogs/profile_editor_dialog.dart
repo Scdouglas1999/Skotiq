@@ -174,6 +174,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   final _focuserNameController = TextEditingController();
   final _filterWheelNameController = TextEditingController();
   final _guiderNameController = TextEditingController();
+  final _guideCameraNameController = TextEditingController();
+  final _guideFocalLengthController = TextEditingController();
   final _rotatorNameController = TextEditingController();
   // Dome/weather/cover-calibrator have no persisted friendly-name column, so
   // their rows show only the device id (no name controller).
@@ -185,6 +187,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   String? _focuserId;
   String? _filterWheelId;
   String? _guiderId;
+  String? _guideCameraId;
   String? _rotatorId;
   String? _domeId;
   String? _weatherId;
@@ -272,6 +275,9 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
         _filterWheelNameController.text,
         _guiderId,
         _guiderNameController.text,
+        _guideCameraId,
+        _guideCameraNameController.text,
+        _guideFocalLengthController.text,
         _rotatorId,
         _rotatorNameController.text,
         _domeId,
@@ -311,6 +317,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
         _focuserNameController,
         _filterWheelNameController,
         _guiderNameController,
+        _guideCameraNameController,
+        _guideFocalLengthController,
         _rotatorNameController,
         _safetyMonitorNameController,
         _switchNameController,
@@ -379,6 +387,14 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
       _filterWheelNameController.text = profile.filterWheelName ?? '';
       _guiderId = profile.guiderId;
       _guiderNameController.text = profile.guiderName ?? '';
+      _guideCameraId = profile.guideCameraId;
+      _guideCameraNameController.text = profile.guideCameraName ?? '';
+      final guideFocal = profile.guideFocalLength;
+      _guideFocalLengthController.text = guideFocal != null && guideFocal > 0
+          ? (guideFocal == guideFocal.roundToDouble()
+              ? guideFocal.round().toString()
+              : guideFocal.toString())
+          : '';
       _rotatorId = profile.rotatorId;
       _rotatorNameController.text = profile.rotatorName ?? '';
       _domeId = profile.domeId;
@@ -429,6 +445,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     _focuserNameController.dispose();
     _filterWheelNameController.dispose();
     _guiderNameController.dispose();
+    _guideCameraNameController.dispose();
+    _guideFocalLengthController.dispose();
     _rotatorNameController.dispose();
     _safetyMonitorNameController.dispose();
     _switchNameController.dispose();

@@ -623,6 +623,12 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                         widget.isEditing ? _guiderId : widget.profile.guiderId,
                         (val) => _update(() => _guiderId = val)),
                     _buildDeviceAssignment(
+                        'Guide camera',
+                        widget.isEditing
+                            ? _guideCameraId
+                            : widget.profile.guideCameraId,
+                        (val) => _update(() => _guideCameraId = val)),
+                    _buildDeviceAssignment(
                         'Rotator',
                         widget.isEditing
                             ? _rotatorId

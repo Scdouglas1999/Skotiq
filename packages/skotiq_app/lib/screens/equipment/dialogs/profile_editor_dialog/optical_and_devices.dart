@@ -199,6 +199,24 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
 
   // Section 3: devices
 
+  /// Whether the profile guides with the built-in guider, which needs a
+  /// guide camera of its own.
+  bool get _usesBuiltinGuider =>
+      _guiderId?.startsWith('native:builtin_guider') ?? false;
+
+  /// The guide camera a save writes: only for the built-in guider, and never
+  /// the imaging camera.
+  String? get _guideCameraToSave =>
+      _usesBuiltinGuider && _guideCameraId != _cameraId ? _guideCameraId : null;
+
+  /// The guide scope focal length a save writes, in millimeters; null for an
+  /// off-axis guider.
+  double? get _guideFocalLengthToSave {
+    if (!_usesBuiltinGuider) return null;
+    final value = double.tryParse(_guideFocalLengthController.text.trim());
+    return value != null && value.isFinite && value > 0 ? value : null;
+  }
+
   Widget _buildDevicesSection(SkotiqColors colors, ThemeData theme) {
     final discovery = ref.watch(unifiedDiscoveryProvider);
     final cameras = discovery.getDevicesByType(DeviceType.camera);
@@ -339,6 +357,52 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
+          // The built-in guider takes its frames with a camera of its own.
+          if (_usesBuiltinGuider) ...[
+            _DeviceRow(
+              type: 'Guide camera',
+              nameController: _guideCameraNameController,
+              deviceId: _guideCameraId,
+              discoveredDevices: cameras
+                  .where(
+                    (c) => !c.availableBackends.values
+                        .any((d) => d.id == _cameraId),
+                  )
+                  .toList(),
+              onDeviceSelected: (id, name) => setState(() {
+                _guideCameraId = id;
+                if (name != null && _guideCameraNameController.text.isEmpty) {
+                  _guideCameraNameController.text = name;
+                }
+              }),
+              onClear: () => setState(() {
+                _guideCameraId = null;
+                _guideCameraNameController.clear();
+              }),
+              onScan: onScan,
+              colors: colors,
+            ),
+            const SizedBox(height: _rowGap),
+            _EditorRow(
+              label: 'Guide scope focal length',
+              help: _guideCameraId == _cameraId && _guideCameraId != null
+                  ? 'The guide camera must not be the imaging camera.'
+                  : 'Leave empty for an off-axis guider, which shares the '
+                      "telescope's focal length.",
+              child: SkotiqTextField(
+                controller: _guideFocalLengthController,
+                hint: 'e.g., 240',
+                suffix: 'mm',
+                mono: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(height: _rowGap),
+          ],
+
           // Rotator
           _DeviceRow(
             type: 'Rotator',
@@ -471,6 +535,7 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
     if (_focuserId != null) count++;
     if (_filterWheelId != null) count++;
     if (_guiderId != null) count++;
+    if (_guideCameraToSave != null) count++;
     if (_rotatorId != null) count++;
     if (_domeId != null) count++;
     if (_weatherId != null) count++;

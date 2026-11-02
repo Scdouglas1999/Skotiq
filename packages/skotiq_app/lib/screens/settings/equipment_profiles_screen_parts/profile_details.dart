@@ -56,6 +56,7 @@ class _ProfileDetailsState extends ConsumerState<_ProfileDetails> {
   late String? _focuserId;
   late String? _filterWheelId;
   late String? _guiderId;
+  late String? _guideCameraId;
   late String? _rotatorId;
   late String? _domeId;
   late String? _weatherId;
@@ -150,6 +151,7 @@ class _ProfileDetailsState extends ConsumerState<_ProfileDetails> {
     _focuserId = widget.profile.focuserId;
     _filterWheelId = widget.profile.filterWheelId;
     _guiderId = widget.profile.guiderId;
+    _guideCameraId = widget.profile.guideCameraId;
     _rotatorId = widget.profile.rotatorId;
     _domeId = widget.profile.domeId;
     _weatherId = widget.profile.weatherId;
@@ -287,6 +289,7 @@ class _ProfileDetailsState extends ConsumerState<_ProfileDetails> {
       focuserId: _focuserId,
       filterWheelId: _filterWheelId,
       guiderId: _guiderId,
+      guideCameraId: _guideCameraId,
       rotatorId: _rotatorId,
       domeId: _domeId,
       weatherId: _weatherId,

@@ -85,6 +85,21 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
     });
   }
 
+  Future<void> _connectGuideCamera(String deviceId) {
+    return _trackInFlight(() async {
+      if (!isValidDeviceIdFormat(deviceId)) {
+        throw InvalidDeviceIdException('guide camera', deviceId);
+      }
+      if (deviceId == _ref.read(cameraStateProvider).deviceId) {
+        throw StateError(
+          'The guide camera is the imaging camera. Choose a second camera '
+          'for guiding in the equipment profile.',
+        );
+      }
+      await _backend.connectDevice(DeviceType.camera, deviceId);
+    });
+  }
+
   /// Disconnect guider
   Future<void> _disconnectGuider() {
     return _trackInFlight(() async {

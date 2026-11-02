@@ -6,6 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hardware_presets/hardware_preset_models.dart';
 import '../models/onboarding/onboarding_state.dart';
 import '../backend/network_backend.dart';
+import '../database/database.dart'
+    show
+        kSimGuideCameraId,
+        kSimGuideCameraName,
+        kSimGuideFocalLengthMm,
+        usesSimulatedGuideCamera;
 import '../backend/skotiq_backend.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
@@ -378,6 +384,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
         ? (draft.focalLengthMm! * draft.reducerFactor) / draft.apertureMm!
         : null;
 
+    // A simulator rig guided by the built-in guider guides through the
+    // simulator's own guide camera.
+    final simGuide = usesSimulatedGuideCamera(
+      cameraId: draft.cameraId,
+      guiderId: draft.guiderId,
+    );
     final profile = EquipmentProfileModel(
       name: (draft.profileName ?? '').trim().isNotEmpty
           ? draft.profileName!.trim()
@@ -393,6 +405,9 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       filterWheelName: draft.filterWheelName,
       guiderId: draft.guiderId,
       guiderName: draft.guiderName,
+      guideCameraId: simGuide ? kSimGuideCameraId : null,
+      guideCameraName: simGuide ? kSimGuideCameraName : null,
+      guideFocalLength: simGuide ? kSimGuideFocalLengthMm : null,
       telescopeName: draft.telescopeName,
       focalLength: draft.focalLengthMm != null
           ? draft.focalLengthMm! * draft.reducerFactor

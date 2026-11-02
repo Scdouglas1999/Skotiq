@@ -16,6 +16,9 @@ class EquipmentProfiles extends Table {
   TextColumn get focuserId => text().nullable()();
   TextColumn get filterWheelId => text().nullable()();
   TextColumn get guiderId => text().nullable()();
+  // Camera the built-in guider takes its frames with; never the imaging
+  // camera.
+  TextColumn get guideCameraId => text().nullable()();
   TextColumn get rotatorId => text().nullable()();
   TextColumn get domeId => text().nullable()();
   TextColumn get weatherId => text().nullable()();
@@ -54,6 +57,7 @@ class EquipmentProfiles extends Table {
   TextColumn get focuserName => text().nullable()();
   TextColumn get filterWheelName => text().nullable()();
   TextColumn get guiderName => text().nullable()();
+  TextColumn get guideCameraName => text().nullable()();
   TextColumn get rotatorName => text().nullable()();
   TextColumn get safetyMonitorName => text().nullable()();
   TextColumn get switchName => text().nullable()();
@@ -62,6 +66,9 @@ class EquipmentProfiles extends Table {
   TextColumn get telescopeName => text().nullable()();
   RealColumn get telescopeFocalLength => real().nullable()();
   RealColumn get telescopeAperture => real().nullable()();
+  // Guide scope focal length (mm); null for an off-axis guider, which
+  // shares the telescope's focal length.
+  RealColumn get guideFocalLength => real().nullable()();
 
   // Profile customization
   TextColumn get profileIcon => text().nullable()();

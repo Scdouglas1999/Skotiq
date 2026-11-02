@@ -24,6 +24,11 @@ void main() {
 
     test('the simulators', () {
       expect(friendlyNameFromDeviceId('sim_camera_1'), 'Simulated Camera');
+      expect(
+        friendlyNameFromDeviceId('sim_camera_2'),
+        'Simulated Guide Camera',
+      );
+      expect(formatDeviceId('sim_camera_2'), 'Simulated Guide Camera');
       expect(friendlyNameFromDeviceId('sim_mount_1'), 'Simulated Mount');
       expect(friendlyNameFromDeviceId('sim_focuser_1'), 'Simulated Focuser');
       expect(
@@ -51,7 +56,7 @@ void main() {
     });
 
     test('a second simulator of a type is numbered, not duplicated', () {
-      expect(friendlyNameFromDeviceId('sim_camera_2'), 'Simulated Camera 2');
+      expect(friendlyNameFromDeviceId('sim_mount_2'), 'Simulated Mount 2');
     });
 
     test('an unknown id is still returned unchanged', () {

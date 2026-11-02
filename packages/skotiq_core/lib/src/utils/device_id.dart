@@ -373,6 +373,8 @@ String friendlyNameFromDeviceId(String deviceId) {
 String? _simulatorDisplayName(String deviceId) {
   final lower = deviceId.toLowerCase();
   if (!lower.startsWith('sim_')) return null;
+  // The simulator's second camera is its guide camera.
+  if (lower == 'sim_camera_2') return 'Simulated Guide Camera';
   var rest = lower.substring(4);
   var index = 1;
   final indexMatch = RegExp(r'_(\d+)$').firstMatch(rest);

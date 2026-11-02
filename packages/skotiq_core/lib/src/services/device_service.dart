@@ -454,6 +454,12 @@ class DeviceService {
       _connectGuider(deviceId, host: host, port: port);
   Future<void> disconnectGuider() => _disconnectGuider();
 
+  /// Connect the camera the built-in guider takes its frames with. It is a
+  /// second camera: it never takes the imaging camera's place, so the
+  /// imaging camera stays connected and selected.
+  Future<void> connectGuideCamera(String deviceId) =>
+      _connectGuideCamera(deviceId);
+
   /// Whether [deviceId]'s most recent disconnect was user-initiated (within
   /// the coordinator's debounce window). Exposed so external watchers —
   /// e.g. the PHD2 controller's crash-relaunch path — can distinguish a

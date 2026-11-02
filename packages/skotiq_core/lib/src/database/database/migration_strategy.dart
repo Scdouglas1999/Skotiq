@@ -321,6 +321,7 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
     await _upgradeSchemaV61(m, from);
     await _upgradeSchemaV62(m, from);
     await _upgradeSchemaV63(m, from);
+    await _upgradeSchemaV64(m, from);
 
     await _ensureDefaultSettings();
     await _createCustomIndexes();

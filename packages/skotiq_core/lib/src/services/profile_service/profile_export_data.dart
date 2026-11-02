@@ -200,6 +200,8 @@ class ProfileExportData {
   final String? focuserId;
   final String? filterWheelId;
   final String? guiderId;
+  final String? guideCameraId;
+  final double? guideFocalLength;
   final String? rotatorId;
   final String? domeId;
   final String? weatherId;
@@ -211,6 +213,7 @@ class ProfileExportData {
   final String? focuserName;
   final String? filterWheelName;
   final String? guiderName;
+  final String? guideCameraName;
   final String? rotatorName;
   final String? safetyMonitorName;
   final String? switchName;
@@ -241,6 +244,8 @@ class ProfileExportData {
     this.focuserId,
     this.filterWheelId,
     this.guiderId,
+    this.guideCameraId,
+    this.guideFocalLength,
     this.rotatorId,
     this.domeId,
     this.weatherId,
@@ -252,6 +257,7 @@ class ProfileExportData {
     this.focuserName,
     this.filterWheelName,
     this.guiderName,
+    this.guideCameraName,
     this.rotatorName,
     this.safetyMonitorName,
     this.switchName,
@@ -322,6 +328,8 @@ class ProfileExportData {
       focuserId: profile.focuserId,
       filterWheelId: profile.filterWheelId,
       guiderId: profile.guiderId,
+      guideCameraId: profile.guideCameraId,
+      guideFocalLength: profile.guideFocalLength,
       rotatorId: profile.rotatorId,
       domeId: profile.domeId,
       weatherId: profile.weatherId,
@@ -333,6 +341,7 @@ class ProfileExportData {
       focuserName: profile.focuserName,
       filterWheelName: profile.filterWheelName,
       guiderName: profile.guiderName,
+      guideCameraName: profile.guideCameraName,
       rotatorName: profile.rotatorName,
       safetyMonitorName: profile.safetyMonitorName,
       switchName: profile.switchName,
@@ -366,6 +375,8 @@ class ProfileExportData {
       focuserId: profile.focuserId,
       filterWheelId: profile.filterWheelId,
       guiderId: profile.guiderId,
+      guideCameraId: profile.guideCameraId,
+      guideFocalLength: profile.guideFocalLength,
       rotatorId: profile.rotatorId,
       domeId: profile.domeId,
       weatherId: profile.weatherId,
@@ -377,6 +388,7 @@ class ProfileExportData {
       focuserName: profile.focuserName,
       filterWheelName: profile.filterWheelName,
       guiderName: profile.guiderName,
+      guideCameraName: profile.guideCameraName,
       rotatorName: profile.rotatorName,
       safetyMonitorName: profile.safetyMonitorName,
       switchName: profile.switchName,
@@ -416,6 +428,11 @@ class ProfileExportData {
       focuserId: _profileText(json['focuserId'], 'focuserId'),
       filterWheelId: _profileText(json['filterWheelId'], 'filterWheelId'),
       guiderId: _profileText(json['guiderId'], 'guiderId'),
+      guideCameraId: _profileText(json['guideCameraId'], 'guideCameraId'),
+      guideFocalLength: _profileDouble(
+        json['guideFocalLength'],
+        'guideFocalLength',
+      ),
       rotatorId: _profileText(json['rotatorId'], 'rotatorId'),
       domeId: _profileText(json['domeId'], 'domeId'),
       weatherId: _profileText(json['weatherId'], 'weatherId'),
@@ -430,6 +447,7 @@ class ProfileExportData {
       focuserName: _profileText(json['focuserName'], 'focuserName'),
       filterWheelName: _profileText(json['filterWheelName'], 'filterWheelName'),
       guiderName: _profileText(json['guiderName'], 'guiderName'),
+      guideCameraName: _profileText(json['guideCameraName'], 'guideCameraName'),
       rotatorName: _profileText(json['rotatorName'], 'rotatorName'),
       safetyMonitorName: _profileText(
         json['safetyMonitorName'],
@@ -555,6 +573,8 @@ class ProfileExportData {
       'focuserId': focuserId,
       'filterWheelId': filterWheelId,
       'guiderId': guiderId,
+      'guideCameraId': guideCameraId,
+      'guideFocalLength': guideFocalLength,
       'rotatorId': rotatorId,
       'domeId': domeId,
       'weatherId': weatherId,
@@ -566,6 +586,7 @@ class ProfileExportData {
       'focuserName': focuserName,
       'filterWheelName': filterWheelName,
       'guiderName': guiderName,
+      'guideCameraName': guideCameraName,
       'rotatorName': rotatorName,
       'safetyMonitorName': safetyMonitorName,
       'switchName': switchName,
