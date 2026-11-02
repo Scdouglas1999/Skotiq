@@ -172,6 +172,14 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
             'rotator-initial-status-fail',
           );
         }
+        // Without a heartbeat the rotator's last contact froze at connect,
+        // and System health called it unhealthy 30 s later for the rest of
+        // the night.
+        await _heartbeat.start(
+          deviceType: DeviceType.rotator,
+          deviceId: deviceId,
+          intervalMs: 10000,
+        );
       } catch (e) {
         notifier.setDisconnected();
         rethrow;
@@ -195,9 +203,18 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
       _rotatorVerifyGeneration++;
 
       try {
+        await _heartbeat.stop(
+          deviceType: DeviceType.rotator,
+          deviceId: deviceId,
+        );
         await _backend.disconnectDevice(DeviceType.rotator, deviceId);
       } catch (_) {
         _clearUserInitiatedDisconnect(deviceId);
+        await _heartbeat.start(
+          deviceType: DeviceType.rotator,
+          deviceId: deviceId,
+          intervalMs: 10000,
+        );
         rethrow;
       }
       notifier.setDisconnected();

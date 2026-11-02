@@ -319,6 +319,42 @@ void main() {
       ).called(1);
     });
 
+    // The rotator never started a heartbeat, so its last contact froze at
+    // connect and System health called it unhealthy all night (RV-05).
+    test('connectRotator starts its heartbeat', () async {
+      const deviceId = 'sim_rotator_1';
+      when(
+        () => mockBackend.connectDevice(DeviceType.rotator, deviceId),
+      ).thenAnswer((_) async {});
+      when(() => mockBackend.getRotatorStatus(deviceId)).thenAnswer(
+        (_) async => const RotatorStatus(
+          connected: true,
+          position: 0,
+          moving: false,
+          mechanicalPosition: 0,
+          isMoving: false,
+          canReverse: false,
+        ),
+      );
+      when(
+        () => mockBackend.startDeviceHeartbeat(
+          deviceType: DeviceType.rotator,
+          deviceId: deviceId,
+          intervalMs: any(named: 'intervalMs'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await container.read(deviceServiceProvider).connectRotator(deviceId);
+
+      verify(
+        () => mockBackend.startDeviceHeartbeat(
+          deviceType: DeviceType.rotator,
+          deviceId: deviceId,
+          intervalMs: 10000,
+        ),
+      ).called(1);
+    });
+
     test('disconnectFocuser resets state', () async {
       const deviceId = TestFixtures.focuserId;
 

@@ -452,6 +452,9 @@ impl DeviceManager {
             // operation completes.
             if manager.is_operation_active(&device_id_clone) {
                 current_interval = Duration::from_secs(config.base_interval_secs);
+                if consecutive_failures == 0 {
+                    manager.note_heartbeat_deferred(&device_id_clone).await;
+                }
                 continue;
             }
 
@@ -470,6 +473,9 @@ impl DeviceManager {
                 && manager.is_usb_contended()
             {
                 current_interval = Duration::from_secs(config.base_interval_secs);
+                if consecutive_failures == 0 {
+                    manager.note_heartbeat_deferred(&device_id_clone).await;
+                }
                 continue;
             }
 
@@ -519,6 +525,12 @@ impl DeviceManager {
                 Ok(false) | Err(_) => {
                     // Health check failed
                     consecutive_failures += 1;
+                    {
+                        let mut devices = manager.devices.write().await;
+                        if let Some(device) = devices.get_mut(&device_id_clone) {
+                            device.heartbeat_deferred_at = None;
+                        }
+                    }
                     let error_msg = match &health_check_result {
                         Err(e) => e.clone(),
                         _ => "Device not responding".to_string(),
@@ -743,16 +755,32 @@ impl DeviceManager {
             let last_comm = device.last_successful_comm.unwrap_or(0);
             let now = chrono::Utc::now().timestamp_millis();
 
-            // Consider device unhealthy if no communication in last 30 seconds
-            let is_healthy = if let Some(last) = device.last_successful_comm {
-                (now - last) < 30_000
-            } else {
-                false
+            // Healthy when it answered in the last 30 seconds, or when its
+            // heartbeat held off polling in that time (a camera download on a
+            // shared bus) after a healthy poll: a deferred poll is not a
+            // failure, and a run's back-to-back exposures defer every one.
+            let is_healthy = match device.last_successful_comm {
+                Some(last) => {
+                    (now - last) < 30_000
+                        || device
+                            .heartbeat_deferred_at
+                            .is_some_and(|deferred| (now - deferred) < 30_000)
+                }
+                None => false,
             };
 
             Ok((last_comm, is_healthy))
         } else {
             Err(format!("Device {} not found", device_id))
+        }
+    }
+
+    /// Record that the heartbeat held off a poll of a device that was healthy
+    /// at its last poll; see [`ManagedDevice::heartbeat_deferred_at`].
+    pub async fn note_heartbeat_deferred(&self, device_id: &str) {
+        let mut devices = self.devices.write().await;
+        if let Some(device) = devices.get_mut(device_id) {
+            device.heartbeat_deferred_at = Some(chrono::Utc::now().timestamp_millis());
         }
     }
 

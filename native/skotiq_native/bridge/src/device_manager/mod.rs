@@ -386,6 +386,11 @@ pub struct ManagedDevice {
     pub auto_reconnect: bool,
     /// Last successful communication timestamp (milliseconds since epoch)
     pub last_successful_comm: Option<i64>,
+    /// When the heartbeat last held off its poll (a camera download on a
+    /// shared USB bus, or an operation in flight) while the device was
+    /// healthy at its last poll (milliseconds since epoch). A held-off poll
+    /// is neither a success nor a failure; cleared by the next failure.
+    pub heartbeat_deferred_at: Option<i64>,
     /// Whether heartbeat monitoring is active
     pub heartbeat_active: bool,
     /// Cached API version information for the device

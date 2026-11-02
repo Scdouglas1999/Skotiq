@@ -189,3 +189,32 @@ fn test_reconnect_config_default() {
     assert_eq!(config.max_delay_secs, 60);
     assert!((config.backoff_multiplier - 1.5).abs() < f64::EPSILON);
 }
+
+/// A focuser whose heartbeat held off every poll during a run's exposures
+/// (shared-USB download windows) read "Unhealthy" on System health while it
+/// moved fine (reverify RV-05). A deferred poll after a healthy one is not a
+/// failure.
+#[tokio::test]
+async fn a_deferred_heartbeat_poll_keeps_a_healthy_device_healthy() {
+    let manager = build_device_manager();
+    let id = "sim_focuser_deferred_health";
+    super::mount_home::register_mount(&manager, id, DriverType::Simulator).await;
+    let a_minute_ago = chrono::Utc::now().timestamp_millis() - 60_000;
+    manager
+        .devices
+        .write()
+        .await
+        .get_mut(id)
+        .unwrap()
+        .last_successful_comm = Some(a_minute_ago);
+    assert_eq!(
+        manager.get_device_health(id).await.unwrap(),
+        (a_minute_ago, false)
+    );
+
+    manager.note_heartbeat_deferred(id).await;
+    assert_eq!(
+        manager.get_device_health(id).await.unwrap(),
+        (a_minute_ago, true)
+    );
+}

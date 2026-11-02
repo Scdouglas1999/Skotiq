@@ -20,6 +20,7 @@ pub(super) async fn register_mount(
             reconnect_attempts: 0,
             auto_reconnect: false,
             last_successful_comm: None,
+            heartbeat_deferred_at: None,
             heartbeat_active: false,
             api_version: None,
             desired_cooler: None,
