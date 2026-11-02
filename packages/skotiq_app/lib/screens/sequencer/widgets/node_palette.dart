@@ -777,16 +777,25 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
                     // (drag still works on the surrounding tile).
                     Tooltip(
                       message: 'Add to sequence',
-                      child: GestureDetector(
+                      excludeFromSemantics: true,
+                      child: Semantics(
+                        container: true,
+                        button: true,
+                        label:
+                            'Add ${paletteSentenceCase(widget.item.name)} to the sequence',
                         onTap: _addNode,
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Icon(
-                            LucideIcons.plus,
-                            size: plusIconSize,
-                            color: _isHovered
-                                ? widget.categoryColor
-                                : widget.categoryColor.withValues(alpha: 0.6),
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          onTap: _addNode,
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              LucideIcons.plus,
+                              size: plusIconSize,
+                              color: _isHovered
+                                  ? widget.categoryColor
+                                  : widget.categoryColor.withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
                       ),

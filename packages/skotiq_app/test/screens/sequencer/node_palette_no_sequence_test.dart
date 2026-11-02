@@ -46,4 +46,36 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 1));
   });
+
+  testWidgets('the desktop add button is a labeled button that adds the node',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    final notifier = CurrentSequenceNotifier();
+    final handle = await pumpAppScreen(
+      tester,
+      Builder(
+        builder: (context) => NodePalette(colors: SkotiqColors.of(context)),
+      ),
+      size: const Size(1400, 900),
+      extraOverrides: [
+        currentSequenceProvider.overrideWith((_) => notifier),
+        sequenceExecutionStateProvider
+            .overrideWith((ref) => SequenceExecutionState.idle),
+      ],
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final add = find.bySemanticsLabel('Add Take exposures to the sequence');
+    expect(add, findsOneWidget);
+    tester.semantics.tap(
+      find.semantics.byLabel('Add Take exposures to the sequence'),
+    );
+    await tester.pump();
+
+    final sequence = handle.container.read(currentSequenceProvider);
+    expect(sequence?.nodes.values.whereType<ExposureNode>(), hasLength(1));
+    await tester.pump(const Duration(seconds: 1));
+    semantics.dispose();
+  });
 }
