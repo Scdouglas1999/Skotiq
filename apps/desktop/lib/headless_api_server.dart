@@ -32,6 +32,7 @@ import 'headless_api/auth/ws_ticket_manager.dart';
 import 'headless_api/auth_policy.dart';
 import 'headless_api/command_correlator.dart';
 import 'headless_api/event_replay_buffer.dart';
+import 'headless_api/handler_timeout.dart';
 import 'headless_api/handlers.dart';
 import 'headless_api/push/database_push_token_store.dart';
 import 'headless_api/routes.dart';

@@ -141,6 +141,17 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
 
     final handler = Pipeline()
         .addMiddleware(_requestTrackingMiddleware())
+        // Inside request tracking, so a request answered by its budget is
+        // still logged as completed with status 503.
+        .addMiddleware(
+          handlerTimeoutMiddleware(
+            onTimeout: (request, budget) => _logWarning(
+              '[REQ][${_requestIdFrom(request)}] ${request.method} '
+              '/${request.url.path} did not finish within '
+              '${budget.inSeconds} s; answered 503 and closed the connection',
+            ),
+          ),
+        )
         // Why placement: error translation must wrap downstream so
         // BadRequestError thrown anywhere lower becomes a structured 400.
         // It must be _outside_ auth/CORS so 4xx auth responses keep their
