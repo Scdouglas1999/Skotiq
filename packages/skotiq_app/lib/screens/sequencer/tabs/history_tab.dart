@@ -519,7 +519,11 @@ class _RunCard extends ConsumerWidget {
     final durationStr = run.endedAt != null
         ? DurationFormat.of(run.endedAt!.difference(run.startedAt),
             style: DurationStyle.hoursMinutes)
-        : 'In progress';
+        // A run with no end that is not running was cut off (the app quit or
+        // crashed); its length is not known.
+        : status == 'running'
+            ? 'In progress'
+            : 'Unknown';
 
     return Material(
       color: Colors.transparent,
