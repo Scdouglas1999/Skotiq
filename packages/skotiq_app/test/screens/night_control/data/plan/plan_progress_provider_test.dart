@@ -55,6 +55,37 @@ void main() {
     expect(plan.eta, evening.add(plan.planned!));
   });
 
+  // The launch's frame list spans runs: a second run read "15 of 40" with 9
+  // taken because the first run's 6 still counted.
+  test("a run counts only frames taken since it started", () {
+    final container = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        estimatedRemainingSecs: 600,
+      ),
+      sessionFrames: [
+        lightFrame('earlier', 'L', DateTime(2026, 10, 19, 19, 20)),
+        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 52)),
+      ],
+      extra: [
+        runStartedAtProvider.overrideWith(
+          (ref) => DateTime(2026, 10, 19, 19, 51),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final plan = container.read(nightPlanProgressProvider)!;
+    expect(plan.rows.firstWhere((r) => r.filter == 'L').framesDone, 1);
+  });
+
   test('running: frames from the session, accepted integration, current row',
       () {
     final container = planContainer(

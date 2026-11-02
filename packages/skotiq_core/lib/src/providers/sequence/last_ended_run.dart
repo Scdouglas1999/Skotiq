@@ -21,6 +21,11 @@ bool _isLive(SequenceExecutionState state) => switch (state) {
   _ => false,
 };
 
+/// When the current or last run started, as this app saw it start; null
+/// before any run this session. Frames captured before it belong to earlier
+/// runs.
+final runStartedAtProvider = StateProvider<DateTime?>((ref) => null);
+
 /// The last run that ended this session, whether it completed, failed, was
 /// stopped or ended at dawn; null before any, and cleared when the next run
 /// starts. On a linked client it follows the host's run state.
@@ -42,6 +47,7 @@ class LastEndedRunNotifier extends Notifier<LastEndedRun?> {
     ) {
       if (_isLive(next) && (previous == null || !_isLive(previous))) {
         state = null;
+        ref.read(runStartedAtProvider.notifier).state = DateTime.now();
         return;
       }
       if (previous != null && _isLive(previous) && next.canStart) {

@@ -72,8 +72,12 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     final frames = terminal?.isCalibration == true
         ? ref.watch(nightSessionLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);
+    // This launch's frame list runs across runs; only this run's count.
+    final startedAt = ref.watch(runStartedAtProvider);
+    final since = startedAt?.subtract(const Duration(seconds: 5));
     for (final frame in frames) {
       if (frame.settings.frameType != FrameType.light) continue;
+      if (since != null && frame.capturedAt.isBefore(since)) continue;
       final key = _filterKey(frame.settings.filter);
       done.update(key, (count) => count + 1, ifAbsent: () => 1);
     }
