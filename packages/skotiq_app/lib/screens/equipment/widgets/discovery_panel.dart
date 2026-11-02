@@ -127,6 +127,18 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    // A linked client has no scan of its own until someone presses Scan, so
+    // it read "0 found · Never scanned" beside a host that had found its
+    // devices. It asks the host once, quietly, when the list is first shown.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(backendProvider) is! NetworkBackend) return;
+      if (ref.read(lastScanTimeProvider) != null ||
+          ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt !=
+              null) {
+        return;
+      }
+      unawaited(_scanForDevices());
+    });
     _expandAnimation = CurvedAnimation(
       parent: _expandController,
       curve: Curves.easeOut,

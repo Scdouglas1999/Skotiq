@@ -561,6 +561,25 @@ class _DeviceGrid extends StatelessWidget {
   }
 }
 
+@visibleForTesting
+
+/// "Add rotator, dome, flat panel, weather", naming only the kinds of
+/// equipment not connected yet.
+String addEquipmentLabel({
+  required bool rotator,
+  required bool dome,
+  required bool flatPanel,
+  required bool weather,
+}) {
+  final missing = [
+    if (!rotator) 'rotator',
+    if (!dome) 'dome',
+    if (!flatPanel) 'flat panel',
+    if (!weather) 'weather',
+  ];
+  return missing.isEmpty ? 'Add equipment' : 'Add ${missing.join(', ')}';
+}
+
 /// The "add more equipment" slot: an outlined panel, not a filled one, so it
 /// reads as a gap in the grid rather than another device.
 class _EmptySlotPanel extends ConsumerWidget {
@@ -572,13 +591,25 @@ class _EmptySlotPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
+    bool on(DeviceConnectionState state) =>
+        state == DeviceConnectionState.connected;
+    final label = addEquipmentLabel(
+      rotator:
+          on(ref.watch(rotatorStateProvider.select((s) => s.connectionState))),
+      dome: on(ref.watch(domeStateProvider.select((s) => s.connectionState))),
+      flatPanel: on(ref.watch(
+        coverCalibratorStateProvider.select((s) => s.connectionState),
+      )),
+      weather:
+          on(ref.watch(weatherStateProvider.select((s) => s.connectionState))),
+    );
     // See the note on the "Add to profile" link: a `button` node with no
     // `enabled`/`onTap` is reported DISABLED even though the InkWell beneath
     // it works.
     return Semantics(
       button: true,
       enabled: true,
-      label: 'Add rotator, dome, flat panel, weather',
+      label: label,
       onTap: () => ref.read(discoveryScanRequestProvider.notifier).state++,
       excludeSemantics: true,
       child: Material(
@@ -604,7 +635,7 @@ class _EmptySlotPanel extends ConsumerWidget {
                 ),
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
-                  'Add rotator, dome, flat panel, weather…',
+                  '$label…',
                   textAlign: TextAlign.center,
                   style: SkotiqTypography.bodySm.copyWith(
                     color: colors.textMuted,

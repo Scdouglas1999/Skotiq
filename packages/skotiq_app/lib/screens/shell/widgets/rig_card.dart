@@ -278,6 +278,13 @@ class RigCard extends ConsumerWidget {
         focuserState.connectionState == DeviceConnectionState.connected;
     final filterWheelConnected =
         filterWheelState.connectionState == DeviceConnectionState.connected;
+    final rotatorState = ref.watch(
+      rotatorStateProvider.select(
+        (s) => (connectionState: s.connectionState, position: s.position),
+      ),
+    );
+    final rotatorConnected =
+        rotatorState.connectionState == DeviceConnectionState.connected;
 
     // The row's VALUE is the device name, or the phrase for its absence —
     // never "Camera: ASI2600MM". The glyph carries the role; spelling it out
@@ -415,6 +422,26 @@ class RigCard extends ConsumerWidget {
             );
           },
         ),
+      // Optional equipment too, so only when connected; without it the card
+      // counted one device fewer than the Equipment screen.
+      if (rotatorConnected)
+        Builder(
+          builder: (context) {
+            final position = rotatorState.position;
+            final value = position == null
+                ? l10n.text('statusReady')
+                : '${position.toStringAsFixed(1)}°';
+            return _RigRow(
+              icon: LucideIcons.rotateCw,
+              dotTone: InstrumentTone.success,
+              value: value,
+              semanticLabel: 'Rotator, $value',
+              isExpanded: true,
+              isMenuItem: !isExpanded,
+              route: '/equipment',
+            );
+          },
+        ),
     ];
 
     return Padding(
@@ -454,6 +481,7 @@ class RigCard extends ConsumerWidget {
                     guiderConnected,
                     focuserConnected,
                     filterWheelConnected,
+                    rotatorConnected,
                   ].where((connected) => connected).length,
                   deviceRows: deviceRows,
                 ),
