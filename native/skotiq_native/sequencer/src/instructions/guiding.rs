@@ -95,7 +95,14 @@ pub(crate) async fn start_guiding_on_fresh_star_above(
         Some(floor) => device_ops.guider_select_fresh_star_above(floor).await,
         None => device_ops.guider_select_fresh_star().await,
     }
-    .map_err(GuidingStartError::NoStar)?;
+    .map_err(|error| {
+        // A rig with no guider has no frame to look for a star in.
+        if crate::device_ops::is_no_guider_configured(&error) {
+            GuidingStartError::Start(error)
+        } else {
+            GuidingStartError::NoStar(error)
+        }
+    })?;
     device_ops
         .guider_start(settle_pixels, settle_time, settle_timeout)
         .await
@@ -499,15 +506,6 @@ pub(crate) async fn resume_guiding_after_motion(
 /// Recovery code on a StartGuiding failure that was the guider finding no star.
 pub(crate) const NO_GUIDE_STAR_RECOVERY_CODE: &str = "NO_GUIDE_STAR";
 
-fn is_no_guide_star(result: &InstructionResult) -> bool {
-    result
-        .data
-        .as_ref()
-        .and_then(|data| data.get("recovery_code"))
-        .and_then(|code| code.as_str())
-        == Some(NO_GUIDE_STAR_RECOVERY_CODE)
-}
-
 /// Execute start guiding - starts PHD2 guiding and waits for settle
 pub async fn execute_start_guiding(
     config: &StartGuidingConfig,
@@ -524,31 +522,24 @@ pub async fn execute_start_guiding(
             .set_resume_pending(false);
     }
     let result = start_guiding(config, ctx, progress_callback).await;
-    // No guide star in the frame is the sky's judgment (cloud, a sparse
-    // field), not a fault: by default the operator is told and the run images
-    // on unguided (owner decision 2026-10-06).
-    let no_star_continues = matches!(result.status, NodeStatus::Failure)
-        && is_no_guide_star(&result)
-        && !ctx.stops_on_quality_problems().await;
-    if no_star_continues {
-        if let Some(trigger_state) = &ctx.trigger_state {
-            trigger_state.write().await.guiding.set_unguided(true);
-        }
-    } else if !ctx.imaging_unguided().await {
-        return result;
-    }
     match result.status {
         NodeStatus::Success => {
             // Guiding is back: the steps that need it get it again.
-            if let Some(trigger_state) = &ctx.trigger_state {
-                trigger_state.write().await.guiding.set_unguided(false);
+            if ctx.imaging_unguided().await {
+                if let Some(trigger_state) = &ctx.trigger_state {
+                    trigger_state.write().await.guiding.set_unguided(false);
+                }
             }
             result
         }
-        // The run already carries on unguided because the guide star was not
-        // re-acquired; a guider that still cannot start is the same problem,
-        // not a reason to end the night (owner decision 2026-10-06).
-        NodeStatus::Failure => {
+        // A guider that cannot start (no star, no lock, no guider at all) is a
+        // quality problem: the operator is told and the run images unguided,
+        // with guiding tried again before later light frames. Only the
+        // operator's "stop the run for quality problems" makes it fatal.
+        NodeStatus::Failure if !ctx.stops_on_quality_problems().await => {
+            if let Some(trigger_state) = &ctx.trigger_state {
+                trigger_state.write().await.guiding.set_unguided(true);
+            }
             let reason = result
                 .message
                 .unwrap_or_else(|| "Guiding did not start".to_string());
@@ -822,6 +813,14 @@ async fn start_guiding(
                         }
                         result
                     }
+                    // Nothing is left guiding on a rig whose guider is gone.
+                    Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+                        cleanup_guard.disarm();
+                        if let Some(trigger_state) = &ctx.trigger_state {
+                            trigger_state.write().await.set_guiding_enabled(false);
+                        }
+                        result
+                    }
                     Err(error) => {
                         let mut result = result;
                         let prior = result
@@ -925,6 +924,24 @@ pub async fn execute_stop_guiding(
             }
             InstructionResult::success_with_message("Guiding stopped")
         }
-        Err(e) => InstructionResult::failure(format!("Failed to stop guiding: {}", e)),
+        Err(e) if crate::device_ops::is_no_guider_configured(&e) => {
+            if let Some(trigger_state_lock) = &ctx.trigger_state {
+                let mut tstate = trigger_state_lock.write().await;
+                tstate.set_guiding_enabled(false);
+                tstate.guiding.set_resume_pending(false);
+                tstate.guiding.set_unguided(false);
+            }
+            InstructionResult::success_with_message("No guider is connected; nothing to stop")
+        }
+        // A guider that will not answer must not keep the steps after this one
+        // (warming the camera, parking) from running.
+        Err(e) => {
+            let problem = format!("Failed to stop guiding: {e}");
+            if ctx.stops_on_quality_problems().await {
+                return InstructionResult::failure(problem);
+            }
+            ctx.notify_quality_problem_continuing("Stop guiding", &problem);
+            InstructionResult::success_with_message(format!("{problem}; the next steps run anyway"))
+        }
     }
 }

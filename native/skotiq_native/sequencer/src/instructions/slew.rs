@@ -149,7 +149,20 @@ pub async fn execute_slew(
     }
 
     let motion = MountMotion::begin(ctx, "slew").await;
-    let result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
+    let mut result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
+    // A mount stuck at an axis limit takes the slew and stays put: move it
+    // off the limit and slew again.
+    if result.status == NodeStatus::Failure
+        && result.message.as_deref().is_some_and(|m| {
+            m.contains(&crate::slew_arrival::SlewWaitError::DidNotMove.to_string())
+        })
+    {
+        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, mount_id).await;
+        crate::limit_backoff::notify(&ctx.device_ops, "slew", &freed).await;
+        if freed.is_ok() {
+            result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
+        }
+    }
     motion.end().await;
     result
 }

@@ -577,6 +577,14 @@ async fn run_autofocus_admitted(
     result
 }
 
+/// Extra sweeps an autofocus run may take to follow focus that lies beyond
+/// its sweep. They do not use the operator's attempts.
+const MAX_AF_RECENTERS: u32 = 2;
+
+/// Data key on a failed sweep whose lowest HFR was at its edge: the position
+/// to sweep around next.
+const AF_RECENTER_AT_KEY: &str = "af_recenter_at";
+
 pub(crate) async fn execute_autofocus_attempts(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
@@ -584,12 +592,17 @@ pub(crate) async fn execute_autofocus_attempts(
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
     let attempts = config.number_of_attempts.max(1);
-    for attempt in 1..=attempts {
+    let mut attempt = 1;
+    let mut sweep_center = None;
+    let mut recenters = 0;
+    loop {
         if !pause.wait_while_paused(&ctx.cancellation_token).await {
             return InstructionResult::cancelled("Autofocus cancelled while paused");
         }
-        let result = execute_autofocus_once(config, ctx, progress_callback, pause).await;
-        if !matches!(result.status, NodeStatus::Failure) || attempt == attempts {
+        let result =
+            execute_autofocus_sweep_around(config, ctx, progress_callback, pause, sweep_center)
+                .await;
+        if !matches!(result.status, NodeStatus::Failure) {
             return result;
         }
         if result
@@ -615,6 +628,32 @@ pub(crate) async fn execute_autofocus_attempts(
         {
             return result;
         }
+        // Focus beyond the sweep: sweep again around the edge that measured
+        // best, so a focuser knocked far off focus walks back to it.
+        let recenter_at = result
+            .data
+            .as_ref()
+            .and_then(|data| data.get(AF_RECENTER_AT_KEY))
+            .and_then(serde_json::Value::as_i64)
+            .and_then(|position| i32::try_from(position).ok());
+        if let Some(edge) = recenter_at.filter(|_| recenters < MAX_AF_RECENTERS) {
+            recenters += 1;
+            sweep_center = Some(edge);
+            tracing::warn!(
+                "Autofocus: focus lies beyond the sweep; sweeping again around {}",
+                edge
+            );
+            if let Some(cb) = progress_callback {
+                cb(
+                    0.0,
+                    format!("Focus lies beyond the sweep; sweeping around {edge}"),
+                );
+            }
+            continue;
+        }
+        if attempt >= attempts {
+            return result;
+        }
         if let Some(cb) = progress_callback {
             cb(
                 0.0,
@@ -626,8 +665,31 @@ pub(crate) async fn execute_autofocus_attempts(
             attempt,
             attempts
         );
+        attempt += 1;
     }
-    unreachable!("attempt count is clamped to at least one")
+}
+
+/// The sweep edge with the lowest HFR when focus lies beyond the sweep: the
+/// HFR still falls toward that edge, so the sweep did not bracket a minimum.
+pub(crate) fn focus_beyond_sweep_edge(points: &[crate::autofocus::FocusDataPoint]) -> Option<i32> {
+    if points.len() < 3 {
+        return None;
+    }
+    let mut sorted: Vec<(i32, f64)> = points.iter().map(|p| (p.position, p.hfr)).collect();
+    sorted.sort_by_key(|(position, _)| *position);
+    let lowest = sorted
+        .iter()
+        .enumerate()
+        .min_by(|a, b| a.1 .1.total_cmp(&b.1 .1))
+        .map(|(index, _)| index)?;
+    let last = sorted.len() - 1;
+    if lowest == 0 && sorted[0].1 < sorted[1].1 {
+        Some(sorted[0].0)
+    } else if lowest == last && sorted[last].1 < sorted[last - 1].1 {
+        Some(sorted[last].0)
+    } else {
+        None
+    }
 }
 
 pub(crate) async fn move_autofocus_filter(
@@ -945,11 +1007,24 @@ pub(crate) fn validate_autofocus_config(config: &AutofocusConfig) -> Result<(), 
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) async fn execute_autofocus_once(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
     pause: &crate::node::context::PauseGate,
+) -> InstructionResult {
+    execute_autofocus_sweep_around(config, ctx, progress_callback, pause, None).await
+}
+
+/// One autofocus sweep, centered on `sweep_center` or, when `None`, on where
+/// the focuser is. A failure returns the focuser to where it was.
+pub(crate) async fn execute_autofocus_sweep_around(
+    config: &AutofocusConfig,
+    ctx: &InstructionContext,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    pause: &crate::node::context::PauseGate,
+    sweep_center: Option<i32>,
 ) -> InstructionResult {
     let camera_id = match ctx.camera_id() {
         Ok(id) => id.to_string(),
@@ -1012,7 +1087,7 @@ pub(crate) async fn execute_autofocus_once(
             af_config.backlash_out_compensation,
         );
 
-        let positions = af_engine.calculate_positions(current_position);
+        let positions = af_engine.calculate_positions(sweep_center.unwrap_or(current_position));
         let total_points = positions.len();
         let start_position = positions[0];
 
@@ -1162,38 +1237,59 @@ pub(crate) async fn execute_autofocus_once(
                 if let Some(result) = ctx.check_cancelled() {
                     return result;
                 }
-                let mut abort_guard =
-                    CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
-                let exposure_result = ctx
-                    .device_ops
-                    .camera_start_exposure(
-                        &camera_id,
-                        config.exposure_duration,
-                        config.gain,
-                        config.offset,
-                        bin_x,
-                        bin_y,
-                    )
-                    .await;
-                abort_guard.disarm();
-                let image_data = match exposure_result {
-                    Ok(data) => {
-                        tracing::info!(
-                            "[SEQ] Autofocus point {} sample {}/{} completed: {}x{} ({} pixels)",
-                            point + 1,
-                            sample + 1,
-                            config.exposures_per_point,
-                            data.width,
-                            data.height,
-                            data.data.len()
-                        );
-                        data
-                    }
-                    Err(e) => {
-                        return InstructionResult::failure(format!(
-                            "Autofocus exposure failed: {}",
-                            e
-                        ))
+                // A failed frame is taken again under the run's camera retries,
+                // as a light frame is: one bad download must not end the sweep.
+                let mut camera_retries_done = 0u32;
+                let image_data = loop {
+                    let mut abort_guard =
+                        CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
+                    let exposure_result = ctx
+                        .device_ops
+                        .camera_start_exposure(
+                            &camera_id,
+                            config.exposure_duration,
+                            config.gain,
+                            config.offset,
+                            bin_x,
+                            bin_y,
+                        )
+                        .await;
+                    abort_guard.disarm();
+                    match exposure_result {
+                        Ok(data) => {
+                            tracing::info!(
+                                "[SEQ] Autofocus point {} sample {}/{} completed: {}x{} ({} pixels)",
+                                point + 1,
+                                sample + 1,
+                                config.exposures_per_point,
+                                data.width,
+                                data.height,
+                                data.data.len()
+                            );
+                            break data;
+                        }
+                        Err(e) => match after_failed_attempt(
+                            ctx,
+                            RetriedDevice::Camera,
+                            camera_retries_done,
+                            &e,
+                            &format!("on autofocus point {}", point + 1),
+                        )
+                        .await
+                        {
+                            RetryOutcome::Retry => camera_retries_done += 1,
+                            RetryOutcome::GiveUp(message) => {
+                                return InstructionResult::failure(format!(
+                                    "Autofocus exposure failed: {}",
+                                    message
+                                ))
+                            }
+                            RetryOutcome::Cancelled => {
+                                return ctx.check_cancelled().unwrap_or_else(|| {
+                                    InstructionResult::cancelled("Operation cancelled")
+                                })
+                            }
+                        },
                     }
                 };
                 measurements.push(calculate_hfr_with_crops(
@@ -1323,6 +1419,19 @@ pub(crate) async fn execute_autofocus_once(
              - Camera is not properly connected or imaging",
             hfr_variance, MIN_HFR_VARIANCE
         ));
+        }
+
+        if let Some(edge) = focus_beyond_sweep_edge(&focus_data) {
+            let mut result = InstructionResult::failure(format!(
+                "Autofocus did not bracket focus: the lowest HFR was at the sweep's edge, \
+                 position {edge}"
+            ));
+            // The next sweep reaches half its span beyond that edge, with the
+            // edge itself still inside it.
+            let center = sweep_center.unwrap_or(current_position);
+            let next_center = edge + (edge - center) / 2;
+            result.data = Some(serde_json::json!({ AF_RECENTER_AT_KEY: next_center }));
+            return result;
         }
 
         let af_result = match af_engine.find_best_focus(focus_data) {
@@ -1616,7 +1725,7 @@ pub(crate) async fn execute_autofocus_once(
         // dead band away from an origin the last successful run landed on
         // from below, while the result still said the origin was restored.
         let sweep_start = crate::autofocus::VCurveAutofocus::new(config.into())
-            .calculate_positions(current_position)
+            .calculate_positions(sweep_center.unwrap_or(current_position))
             .first()
             .copied()
             .unwrap_or(current_position);

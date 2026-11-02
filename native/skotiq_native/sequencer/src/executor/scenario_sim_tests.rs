@@ -178,7 +178,7 @@ pub(crate) struct ScriptedDeviceOps {
     /// With `flip_on_slew`, a slew lands on the same side: the mount will not
     /// take the other side for this pointing.
     pub(crate) flip_refused: Arc<AtomicBool>,
-    flipped: Arc<AtomicBool>,
+    pub(crate) flipped: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
     camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,
@@ -207,6 +207,14 @@ pub(crate) struct ScriptedDeviceOps {
     /// Where a mount that follows its slews points (RA hours, Dec degrees);
     /// `None` answers as the null mount does. Set it to make slews arrive.
     pub(crate) pointing: Arc<Mutex<Option<(f64, f64)>>>,
+    /// The observing site (latitude, longitude); `None` answers as the null
+    /// rig does.
+    pub(crate) observer_location: Arc<Mutex<Option<(f64, f64)>>>,
+    /// A mount stopped at an axis limit: it accepts slews and parks and does
+    /// not move until its RA axis is driven off the limit.
+    pub(crate) stuck_at_limit: Arc<AtomicBool>,
+    /// The RA axis does not move even when driven directly.
+    pub(crate) axis_frozen: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -242,6 +250,9 @@ impl ScriptedDeviceOps {
             guide_star: Arc::new(Mutex::new(None)),
             sim_mount: Arc::new(Mutex::new(None)),
             pointing: Arc::new(Mutex::new(None)),
+            observer_location: Arc::new(Mutex::new(None)),
+            stuck_at_limit: Arc::new(AtomicBool::new(false)),
+            axis_frozen: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -400,6 +411,9 @@ impl DeviceOps for ScriptedDeviceOps {
 
     async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
         self.record(format!("mount_park:{mount_id}"));
+        if self.stuck_at_limit.load(Ordering::SeqCst) {
+            return Ok(());
+        }
         if self.park_fails.load(Ordering::SeqCst) {
             Err(format!("simulated park failure for {mount_id}"))
         } else {
@@ -455,8 +469,21 @@ impl DeviceOps for ScriptedDeviceOps {
 
     // Delegating methods (kept minimal; only those a scenario might hit)
 
+    async fn mount_move_axis(&self, id: &str, axis: i32, rate: f64) -> DeviceResult<()> {
+        self.record(format!("mount_move_axis:{id}:{axis}:{rate}"));
+        if rate != 0.0 && !self.axis_frozen.load(Ordering::SeqCst) {
+            self.stuck_at_limit.store(false, Ordering::SeqCst);
+            // Three seconds at `rate` degrees per second; east raises RA.
+            self.mount_position.lock().unwrap().0 += rate * 3.0 / 15.0;
+        }
+        Ok(())
+    }
+
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.record(format!("mount_slew:{id}"));
+        if self.stuck_at_limit.load(Ordering::SeqCst) {
+            return Ok(());
+        }
         if self.flip_on_slew.load(Ordering::SeqCst) && !self.flip_refused.load(Ordering::SeqCst) {
             self.flipped.store(true, Ordering::SeqCst);
         }
@@ -640,6 +667,9 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.calculate_altitude(r, d, la, lo)
     }
     fn get_observer_location(&self) -> Option<(f64, f64)> {
+        if let Some(location) = *self.observer_location.lock().unwrap() {
+            return Some(location);
+        }
         self.inner.get_observer_location()
     }
     async fn polar_align_update(
@@ -3532,4 +3562,70 @@ async fn tracking_recovery_never_succeeds_on_a_mount_that_stays_stopped() {
             "{outcome:?}"
         );
     }
+}
+
+/// A mount stopped at its RA limit (the NYX-101 on the rig) accepts the park
+/// and does not move. The shutdown park drives the RA axis off the limit,
+/// parks again, and tells the operator.
+#[tokio::test(start_paused = true)]
+async fn a_mount_stuck_at_its_limit_is_moved_off_it_and_parked() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.stuck_at_limit.store(true, Ordering::SeqCst);
+    let shared: SharedDeviceOps = ops.clone();
+
+    let result = crate::device_ops::try_park_with_retry(&shared, "mount-1", 1, 0.0).await;
+    let calls = ops.calls();
+
+    assert!(result.success, "{result:?}");
+    assert!(ops.mount_parked.load(Ordering::SeqCst), "calls={calls:?}");
+    let back_off = calls
+        .iter()
+        .position(|c| c == "mount_move_axis:mount-1:0:1")
+        .expect("the RA axis is driven off the limit");
+    assert!(calls[back_off..]
+        .iter()
+        .any(|c| c == "mount_move_axis:mount-1:0:0"));
+    assert!(calls[back_off..].iter().any(|c| c == "mount_park:mount-1"));
+    assert!(
+        calls
+            .iter()
+            .any(|c| c.starts_with("notify:") && c.contains("axis limit")),
+        "calls={calls:?}"
+    );
+}
+
+/// The plan's Park step recovers the same way.
+#[tokio::test(start_paused = true)]
+async fn the_plans_park_step_frees_a_mount_stuck_at_its_limit() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.stuck_at_limit.store(true, Ordering::SeqCst);
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("park".to_string());
+    ec.device_ops = ops.clone();
+    ec.mount_id = Some("mount-1".to_string());
+    let ctx = ec.to_instruction_context("park").await;
+
+    let result = crate::instructions::execute_park(&ctx).await;
+
+    assert_eq!(
+        result.status,
+        crate::NodeStatus::Success,
+        "{:?}",
+        result.message
+    );
+    assert!(ops
+        .calls()
+        .iter()
+        .any(|c| c == "mount_move_axis:mount-1:0:1"));
+}
+
+/// A mount that does not move even when its axis is driven is reported, not
+/// looped on.
+#[tokio::test(start_paused = true)]
+async fn a_mount_that_will_not_move_at_all_is_reported() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.stuck_at_limit.store(true, Ordering::SeqCst);
+    ops.axis_frozen.store(true, Ordering::SeqCst);
+    let shared: SharedDeviceOps = ops.clone();
+    let outcome = crate::limit_backoff::back_off_limit(&shared, "mount-1").await;
+    assert!(outcome.is_err(), "{outcome:?}");
 }

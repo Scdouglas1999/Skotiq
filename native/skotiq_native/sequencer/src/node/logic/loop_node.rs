@@ -95,6 +95,15 @@ pub async fn execute_loop(
                 NodeStatus::Success
             };
         }
+        // The surrounding target's end time ends the loop between iterations;
+        // the target only checks it between its own children.
+        if context.active_target_end_trigger_satisfied() == Some(true) {
+            tracing::info!(
+                "Loop '{}' ends: its target's end time has come",
+                node.name()
+            );
+            return NodeStatus::Success;
+        }
 
         let should_continue = match config.condition {
             LoopCondition::Count => node.current_iteration < max_iterations,

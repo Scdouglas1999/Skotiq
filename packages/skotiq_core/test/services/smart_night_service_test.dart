@@ -380,6 +380,34 @@ void main() {
       );
     });
 
+    test('a budget below the per-target minimum says so', () {
+      expect(
+        () => service.build(
+          profile: monoProfile,
+          latitudeDeg: 41.0,
+          longitudeDeg: -73.0,
+          context: baseContext(),
+          selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
+          strategy: SmartNightStrategy.autoLrgb,
+          settings: const SmartNightSettings(
+            subExposureFloorSecs: 1,
+            defaultIntegrationBudgetHours: 0.2,
+          ),
+        ),
+        throwsA(
+          isA<SmartNightBuildException>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('0.2 h'),
+              contains('30 min'),
+              isNot(contains('usable imaging window')),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('rejects build with no location', () {
       expect(
         () => service.build(
@@ -669,6 +697,45 @@ void main() {
       // Should be at least 4 hours of dark window in mid-May at lat 41
       expect(w.end.difference(w.start).inHours, greaterThanOrEqualTo(4));
     });
+
+    test(
+      'calculateRemainingWindow starts at now once the night is under way',
+      () {
+        final now = DateTime(2026, 5, 18, 1, 0, 20);
+        final night = service.calculateWindow(
+          latitudeDeg: 41.0,
+          longitudeDeg: -73.0,
+          now: now,
+        );
+        expect(night.start.isBefore(now), isTrue);
+
+        final remaining = service.calculateRemainingWindow(
+          latitudeDeg: 41.0,
+          longitudeDeg: -73.0,
+          now: now,
+        );
+        expect(remaining.start, DateTime(2026, 5, 18, 1, 1));
+        expect(remaining.end, night.end);
+
+        final afternoon = DateTime(2026, 5, 17, 14);
+        expect(
+          service
+              .calculateRemainingWindow(
+                latitudeDeg: 41.0,
+                longitudeDeg: -73.0,
+                now: afternoon,
+              )
+              .start,
+          service
+              .calculateWindow(
+                latitudeDeg: 41.0,
+                longitudeDeg: -73.0,
+                now: afternoon,
+              )
+              .start,
+        );
+      },
+    );
 
     test('calculateWindow rejects polar midnight sun as a dark window', () {
       expect(

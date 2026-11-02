@@ -111,6 +111,17 @@ pub async fn execute_meridian_flip_with_autofocus(
         return InstructionResult::success_with_message("Meridian flip not yet required");
     }
 
+    if let Some(reason) = flip_not_for_this_mount(ctx, &mount_id, target_ra_of_date, lon, now).await
+    {
+        tracing::info!("[MERIDIAN] Meridian flip step not run: {reason}");
+        if let Some(cb) = progress_callback {
+            cb(100.0, format!("Flip not needed: {reason}"));
+        }
+        return InstructionResult::success_with_message(format!(
+            "Meridian flip not needed: {reason}"
+        ));
+    }
+
     let flip_ctx = crate::meridian_flip_executor::FlipContext {
         target_name,
         target_ra_hours: target_ra,
@@ -194,4 +205,44 @@ pub async fn execute_meridian_flip_with_autofocus(
             InstructionResult::cancelled(reason)
         }
     }
+}
+
+/// Why a flip step must leave the mount where it is, or `None` when it may
+/// flip. A flip step can run long after imaging stopped (after the plan parked
+/// the mount, or after the run's own trigger already flipped), and flipping
+/// then would unpark the mount or slew it back across the meridian. A parked
+/// mount, a stopped mount, a flip already made for this target, and a mount
+/// already on the post-flip side for a target west of the meridian all mean no
+/// flip.
+async fn flip_not_for_this_mount(
+    ctx: &InstructionContext,
+    mount_id: &str,
+    target_ra_of_date: f64,
+    longitude: f64,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Option<String> {
+    if matches!(ctx.device_ops.mount_is_parked(mount_id).await, Ok(true)) {
+        return Some("the mount is parked".to_string());
+    }
+    if matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+        return Some("the mount is not tracking".to_string());
+    }
+    if let Some(state) = &ctx.trigger_state {
+        if state.read().await.meridian.has_flipped() {
+            return Some("the mount already flipped for this target".to_string());
+        }
+    }
+    let hour_angle = crate::meridian::hour_angle(
+        target_ra_of_date,
+        crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), longitude),
+    );
+    if hour_angle > 0.0
+        && matches!(
+            ctx.device_ops.mount_side_of_pier(mount_id).await,
+            Ok(crate::meridian::PierSide::East)
+        )
+    {
+        return Some("the mount is already on the post-flip side (pier East)".to_string());
+    }
+    None
 }

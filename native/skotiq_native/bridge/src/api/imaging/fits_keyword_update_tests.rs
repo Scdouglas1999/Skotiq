@@ -196,3 +196,36 @@ async fn missing_file_returns_io_error() {
     .await;
     assert!(result.is_err(), "missing file must surface an error");
 }
+
+/// A sequenced light carries DATE-END and MJD-OBS (the start), derived from
+/// its DATE-OBS and EXPTIME, so stackers can order and date frames without
+/// parsing DATE-OBS themselves.
+#[tokio::test]
+async fn a_saved_frame_carries_date_end_and_mjd_obs() {
+    let scratch = temp_fits_dir("dates");
+    let path = scratch.join("frame.fits");
+    let mut ctx = FrameContext::new_light("sess", 1, 1, 30.0, 1);
+    ctx.exposure_started_at = Some(
+        chrono::DateTime::parse_from_rfc3339("2026-11-01T17:00:59Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc),
+    );
+    let header = FitsWriteHeaderRich::from_frame_context(&ctx);
+    save_fits_file_rich(
+        path.to_string_lossy().to_string(),
+        4,
+        4,
+        vec![0u16; 16],
+        header,
+    )
+    .await
+    .expect("save");
+
+    let (_, written) = read_fits(&path).expect("read back");
+    assert_eq!(
+        written.get_string("DATE-END"),
+        Some("2026-11-01T17:01:29.000")
+    );
+    let mjd = written.get_float("MJD-OBS").expect("MJD-OBS");
+    assert!((mjd - 61_345.709_016).abs() < 1e-5, "MJD-OBS {mjd}");
+}

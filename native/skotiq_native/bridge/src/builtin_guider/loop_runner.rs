@@ -11,18 +11,43 @@ pub(crate) async fn ensure_connected() -> Result<(), SkotiqError> {
     }
 }
 
+/// The camera the built-in guider takes its frames with: a connected camera
+/// other than the imaging camera. Guide frames on the imaging camera abort
+/// the light frame in progress and stamp the guider's gain and offset on the
+/// lights, so the imaging camera is never used. `None` when no other camera
+/// is connected.
+pub(crate) fn pick_guide_camera(
+    imaging_camera: Option<&str>,
+    connected_cameras: &[String],
+) -> Option<String> {
+    let mut candidates: Vec<&String> = connected_cameras
+        .iter()
+        .filter(|id| Some(id.as_str()) != imaging_camera)
+        .collect();
+    candidates.sort();
+    candidates.first().map(|id| (*id).clone())
+}
+
+/// Why the built-in guider has no camera to guide with.
+pub(crate) const NO_GUIDE_CAMERA: &str = "The built-in guider needs a guide camera of its own: \
+     connect a second camera for guiding. It does not take guide frames on the imaging \
+     camera, because that would abort the light frames.";
+
 pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     let app_state = get_state();
-    let camera_id =
-        if let Some(device_id) = app_state.get_profile_device_id(DeviceType::Camera).await {
-            device_id
-        } else if let Some(device_id) = first_connected_device(DeviceType::Camera).await {
-            device_id
-        } else {
-            return Err(SkotiqError::OperationFailed(
-                "Built-in guider requires a connected camera in the active profile".to_string(),
-            ));
-        };
+    let imaging_camera = match app_state.get_profile_device_id(DeviceType::Camera).await {
+        Some(id) => Some(id),
+        None => first_connected_device(DeviceType::Camera).await,
+    };
+    let connected_cameras: Vec<String> = get_device_manager()
+        .get_connected_device_infos()
+        .await
+        .into_iter()
+        .filter(|info| info.device_type == DeviceType::Camera)
+        .map(|info| info.id)
+        .collect();
+    let camera_id = pick_guide_camera(imaging_camera.as_deref(), &connected_cameras)
+        .ok_or_else(|| SkotiqError::OperationFailed(NO_GUIDE_CAMERA.to_string()))?;
 
     let mount_id = if let Some(device_id) = app_state.get_profile_device_id(DeviceType::Mount).await
     {

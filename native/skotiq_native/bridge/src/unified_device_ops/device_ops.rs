@@ -304,6 +304,18 @@ impl DeviceOps for UnifiedDeviceOps {
         Ok(status.tracking)
     }
 
+    async fn mount_move_axis(
+        &self,
+        mount_id: &str,
+        axis: i32,
+        rate_deg_per_sec: f64,
+    ) -> DeviceResult<()> {
+        get_device_manager()
+            .mount_move_axis(mount_id, axis, rate_deg_per_sec)
+            .await
+            .map_err(|e| format!("Move axis failed: {}", e))
+    }
+
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
         tracing::info!(
             "Setting tracking {} for mount {}",

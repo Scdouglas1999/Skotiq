@@ -325,7 +325,8 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       return;
     }
     try {
-      final window = _buildService().calculateWindow(
+      // A plan built once the night is under way schedules from now.
+      final window = _buildService().calculateRemainingWindow(
         latitudeDeg: location.latitude,
         longitudeDeg: location.longitude,
       );

@@ -261,15 +261,36 @@ void main() {
     expect(rig.calls, isNot(contains('run')));
   });
 
-  test('stopping during the run stops the run', () async {
-    rig.runGate = Completer<void>();
-    rig.runStatus = 'stopped';
+  test(
+    'stopping during the run stops the frames and still builds masters',
+    () async {
+      rig.runGate = Completer<void>();
+      rig.runStatus = 'stopped';
+      rig.framesPerDarkGroup = 5;
+      final done = service.run(reason: 'manual');
+      await pumpUntil(() => rig.calls.contains('run'));
+      await service.cancel();
+      final report = await done;
+      expect(rig.calls, contains('stopRun'));
+      expect(report.phase, EonPhase.cancelled);
+      expect(report.masters.where((m) => m.built), hasLength(3));
+      expect(report.summary, contains('Stopped'));
+      expect(report.summary, contains('Built 3 of 3 masters'));
+      expect(rig.notifications.last.$1, 'End-of-night calibration stopped');
+    },
+  );
+
+  test('the cap request says when the darks are skipped', () async {
+    rig.wheel = null;
     final done = service.run(reason: 'manual');
-    await pumpUntil(() => rig.calls.contains('run'));
+    await pumpUntil(() => service.waitingForCap);
+    expect(
+      service.state.capDeadline,
+      DateTime(2026, 10, 22, 6, 30).add(const Duration(minutes: 30)),
+    );
     await service.cancel();
-    final report = await done;
-    expect(rig.calls, contains('stopRun'));
-    expect(report.phase, EonPhase.cancelled);
+    await done;
+    expect(service.state.capDeadline, isNull);
   });
 
   test('a leaking group is reported and the others still build', () async {

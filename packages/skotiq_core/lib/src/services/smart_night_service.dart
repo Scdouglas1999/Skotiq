@@ -202,6 +202,35 @@ class SmartNightService {
     return (start: fallbackStart, end: fallbackEnd, twilight: todayTwilight);
   }
 
+  /// Tonight's dark window as far as it is still ahead: once the night is
+  /// under way the window opens at [now] (rounded up to the next minute), so a
+  /// plan built mid-night schedules from now rather than from dusk.
+  ({DateTime start, DateTime end, TwilightTimes twilight})
+  calculateRemainingWindow({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    DateTime? now,
+  }) {
+    final reference = now ?? DateTime.now();
+    final night = calculateWindow(
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+      now: reference,
+    );
+    if (!reference.isAfter(night.start)) return night;
+    final truncated = DateTime(
+      reference.year,
+      reference.month,
+      reference.day,
+      reference.hour,
+      reference.minute,
+    );
+    final start = truncated == reference
+        ? reference
+        : truncated.add(const Duration(minutes: 1));
+    return (start: start, end: night.end, twilight: night.twilight);
+  }
+
   (DateTime, DateTime)? _extractNightBounds(TwilightTimes tw) {
     if (tw.astronomicalDusk != null && tw.astronomicalDawn != null) {
       return (tw.astronomicalDusk!, tw.astronomicalDawn!);
@@ -343,6 +372,10 @@ class SmartNightService {
     final planned = <SmartNightPlannedTarget>[];
     DateTime cursor = context.windowStart;
     var first = true;
+    // Targets left out only because their planned time is under the minimum,
+    // so the refusal can name that instead of a missing window.
+    var shortOfMinimum = 0;
+    var consideredTargets = 0;
     for (final suggestion in selectedSuggestions) {
       if (cursor.isAfter(effectiveWindowEnd) ||
           !cursor.isBefore(effectiveWindowEnd)) {
@@ -370,6 +403,7 @@ class SmartNightService {
         continue;
       }
 
+      consideredTargets++;
       final intervalWindowSecs = usable.$2
           .difference(usable.$1)
           .inSeconds
@@ -381,6 +415,7 @@ class SmartNightService {
         settings: settings,
       );
       if (windowSecs < _minTargetWindowSecs) {
+        shortOfMinimum++;
         _logging.debug(
           'Skipping ${suggestion.targetName}: usable window '
           '${(windowSecs / 60).toStringAsFixed(0)} min < '
@@ -434,6 +469,22 @@ class SmartNightService {
       first = false;
     }
 
+    if (planned.isEmpty &&
+        consideredTargets > 0 &&
+        shortOfMinimum == consideredTargets) {
+      final minimumMins = (_minTargetWindowSecs / 60).round();
+      final budgetHours = settings.defaultIntegrationBudgetHours;
+      throw SmartNightBuildException(
+        budgetHours * 3600 < _minTargetWindowSecs
+            ? 'The integration budget per target '
+                  '(${budgetHours.toStringAsFixed(1)} h) is below the '
+                  '$minimumMins min Smart Night plans per target. Raise it to '
+                  'at least ${(_minTargetWindowSecs / 3600).toStringAsFixed(1)} h.'
+            : 'None of the selected targets stays above the minimum altitude '
+                  'for the $minimumMins min Smart Night plans per target in what '
+                  'is left of the night.',
+      );
+    }
     if (planned.isEmpty) {
       throw SmartNightBuildException(
         'None of the selected targets had a usable imaging window inside '

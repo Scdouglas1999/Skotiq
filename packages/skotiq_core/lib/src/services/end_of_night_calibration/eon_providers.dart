@@ -20,6 +20,7 @@ import '../../providers/sequence/sequence_executor.dart';
 import '../../providers/sequence/sequence_progress.dart';
 import '../../providers/sequence/sequence_selection.dart';
 import '../../providers/sequence_stats_provider.dart';
+import '../../providers/ui_notification_provider.dart';
 import '../calibration_master_builder.dart';
 import '../camera_warmup_controller.dart' show CameraWarmupOutcome;
 import '../device_service.dart';
@@ -199,6 +200,17 @@ class ProviderEonRig implements EonRig {
     String message, {
     bool problem = false,
   }) async {
+    // The in-app toast is not behind the notification settings: a step that
+    // waits for the operator, or did not finish, must be seen on screen.
+    if (problem) {
+      _ref
+          .read(uiNotificationProvider.notifier)
+          .showWarning(
+            message,
+            title: title,
+            duration: const Duration(seconds: 30),
+          );
+    }
     try {
       await _ref
           .read(notificationServiceProvider)

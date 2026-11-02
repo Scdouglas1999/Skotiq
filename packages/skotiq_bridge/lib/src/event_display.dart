@@ -12,6 +12,8 @@
 // Both helpers are pure: they take a const `SkotiqEvent` and return
 // strings.
 
+import 'dart:convert';
+
 import 'event.dart';
 
 /// Returns a short headline-style title for the event suitable for the
@@ -182,7 +184,7 @@ String _equipmentDetail(EquipmentEvent v) {
       property: final p,
       value: final val,
     ) =>
-      '$t · $p=$val',
+      '$t · ${propertyChangeText(p, val)}',
     EquipmentEvent_Error(
       deviceType: final t,
       deviceId: final id,
@@ -821,4 +823,28 @@ String _systemDetail(SystemEvent v) {
     SystemEvent_EventsDropped(droppedCount: final n, totalDropped: final tot) =>
       '$n events dropped (total: $tot)',
   };
+}
+
+/// One readable line for a device property change. Autofocus progress
+/// arrives as a JSON document with star crops in it; it reads as the point
+/// and its HFR. Any other value too long for a line is named, not printed.
+String propertyChangeText(String property, String value) {
+  if (property == 'AutofocusProgress') {
+    try {
+      final json = jsonDecode(value);
+      if (json is Map<String, dynamic>) {
+        final point = json['point'];
+        final total = json['total_points'];
+        final hfr = json['hfr'];
+        final where = total is num ? 'point $point of $total' : 'point $point';
+        return hfr is num
+            ? 'Autofocus $where · HFR ${hfr.toStringAsFixed(2)}'
+            : 'Autofocus $where';
+      }
+    } on FormatException {
+      // Not JSON: falls through to the generic line.
+    }
+  }
+  if (value.length > 80) return '$property changed';
+  return '$property=$value';
 }

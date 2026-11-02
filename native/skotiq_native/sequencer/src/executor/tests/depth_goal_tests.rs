@@ -1092,3 +1092,35 @@ async fn smart_exposure_visits_number_their_files_in_sequence() {
         ]
     );
 }
+
+/// A target's end time ends its Smart Exposure between frames. The node
+/// images every filter in one child of the target, and the target only
+/// checked its end time between children, so NGC0925 kept imaging past its
+/// "End Before" until all of its frames were taken.
+#[tokio::test]
+async fn a_targets_end_time_ends_its_smart_exposure() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let mut sequence = two_filter_sequence(16, 0, None, false);
+    let ends_at = chrono::Utc::now().timestamp() + 3;
+    for node in &mut sequence.nodes {
+        match &mut node.node_type {
+            NodeType::TargetHeader(config) => {
+                config.end_when = Some(crate::scheduling::TargetTrigger::TimeAfter(ends_at));
+            }
+            NodeType::SmartExposure(config) => {
+                for plan in &mut config.plans {
+                    plan.duration_secs = 0.5;
+                }
+            }
+            _ => {}
+        }
+    }
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let taken = ops.exposures("L");
+    assert!(
+        (3..=9).contains(&taken),
+        "{taken} of 16 frames taken; the end time was 3 s in"
+    );
+}

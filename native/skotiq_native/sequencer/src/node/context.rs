@@ -170,6 +170,10 @@ pub struct ExecutionContext {
     pub recovery_generation: Arc<std::sync::atomic::AtomicU64>,
     /// Skip current target request - set by trigger monitor and consumed by target header.
     pub skip_to_next_target: Arc<AtomicBool>,
+    /// The operator's Skip step: ends the instruction that is running (or the
+    /// next one to start) as Skipped, and the run goes on with the step after
+    /// it.
+    pub skip_current_step: Arc<AtomicBool>,
     /// TargetScheduler mid-target recompute support. Successful exposure
     /// bursts increment the completed-exposure counter; an active
     /// TargetScheduler can install a cadence/baseline so the exposure path
@@ -646,6 +650,7 @@ impl ExecutionContext {
             is_paused: Arc::new(AtomicBool::new(false)),
             recovery_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             skip_to_next_target: Arc::new(AtomicBool::new(false)),
+            skip_current_step: Arc::new(AtomicBool::new(false)),
             scheduler_completed_exposures: Arc::new(AtomicU64::new(0)),
             scheduler_recompute_cadence: Arc::new(AtomicU32::new(0)),
             scheduler_recompute_baseline: Arc::new(AtomicU64::new(0)),
@@ -938,6 +943,16 @@ impl ExecutionContext {
     }
 
     /// Request that execution skips the current target and advances to the next one.
+    /// Ask for the running step to be skipped.
+    pub fn request_skip_current_step(&self) {
+        self.skip_current_step.store(true, Ordering::Relaxed);
+    }
+
+    /// Consume a pending Skip step request.
+    pub fn take_skip_current_step_request(&self) -> bool {
+        self.skip_current_step.swap(false, Ordering::Relaxed)
+    }
+
     pub fn request_skip_to_next_target(&self) {
         self.skip_to_next_target.store(true, Ordering::Relaxed);
     }

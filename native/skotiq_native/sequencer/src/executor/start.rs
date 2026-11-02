@@ -710,7 +710,7 @@ impl SequenceExecutor {
                 let (park_and_abort_done_tx, park_and_abort_done_rx) = watch::channel(false);
 
                 let is_paused_cmd = is_paused.clone();
-                let skip_to_next_target_cmd = skip_to_next_target.clone();
+                let skip_step_cmd = context.skip_current_step.clone();
                 // Command-handler-side clone for posting
                 // SkipToNode requests into the shared slot.
                 let skip_to_node_cmd = skip_to_node.clone();
@@ -739,7 +739,7 @@ impl SequenceExecutor {
                     rx,
                     runtime_config: runtime_config.clone(),
                     safety_fail_mode_for_cmd,
-                    skip_to_next_target_cmd,
+                    skip_step_cmd,
                     skip_to_node_cmd,
                     sky_brightness_for_cmd,
                     state: state.clone(),
@@ -1206,6 +1206,29 @@ impl SequenceExecutor {
                 } else {
                     result
                 };
+
+                // A run that failed, or that a skip request ended early, still
+                // puts the rig away the way its plan says. A trigger's own
+                // park-and-abort sweep already decided the rig's end state,
+                // and a Stop is the operator's.
+                if matches!(result, NodeStatus::Failure | NodeStatus::Skipped)
+                    && !park_and_abort_in_progress.load(Ordering::Acquire)
+                {
+                    if let Some(sequence) = sequence_for_custom_recovery.as_ref() {
+                        let statuses = progress.read().node_statuses.clone();
+                        {
+                            let mut prog = progress.write();
+                            prog.message = Some("The run ended early: putting the rig away".into());
+                        }
+                        night_end::run_unreached_shutdown_steps(
+                            sequence,
+                            &custom_recovery_context,
+                            &custom_recovery_context.device_ops,
+                            &statuses,
+                        )
+                        .await;
+                    }
+                }
 
                 let final_state = executor_state_for_result(result);
 
