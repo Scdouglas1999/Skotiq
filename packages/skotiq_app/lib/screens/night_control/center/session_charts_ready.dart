@@ -85,10 +85,15 @@ class NightGuiderIdleVm {
     required this.connected,
     required this.canCommand,
     this.state,
+    this.guider = const ProfileGuider(kind: ProfileGuiderKind.phd2),
   });
 
   final bool connected;
   final bool canCommand;
+
+  /// The profile's guider, which decides what the card offers while nothing
+  /// is connected.
+  final ProfileGuider guider;
 
   /// PHD2's own state; null when not connected.
   final Phd2State? state;
@@ -98,10 +103,11 @@ class NightGuiderIdleVm {
       other is NightGuiderIdleVm &&
       other.connected == connected &&
       other.canCommand == canCommand &&
-      other.state == state;
+      other.state == state &&
+      other.guider == guider;
 
   @override
-  int get hashCode => Object.hash(connected, canCommand, state);
+  int get hashCode => Object.hash(connected, canCommand, state, guider);
 }
 
 final nightGuiderIdleProvider = Provider<NightGuiderIdleVm>((ref) {
@@ -114,6 +120,7 @@ final nightGuiderIdleProvider = Provider<NightGuiderIdleVm>((ref) {
     connected: connected,
     canCommand: ref.watch(backendCanCommandProvider),
     state: connected ? ref.watch(phd2StateProvider) : null,
+    guider: ref.watch(profileGuiderProvider),
   );
 });
 
@@ -394,7 +401,11 @@ class _GuiderIdleCard extends ConsumerWidget {
     final idle = guider.connected &&
         (state == Phd2State.stopped || state == Phd2State.selected);
     final body = !guider.connected
-        ? l10n.text('nightCtrGuideOpenBody')
+        ? switch (guider.guider.kind) {
+            ProfileGuiderKind.phd2 => l10n.text('nightCtrGuideOpenBody'),
+            ProfileGuiderKind.device => l10n.text('nightCtrGuideConnectBody'),
+            ProfileGuiderKind.none => l10n.text('nightCtrGuideNoneBody'),
+          }
         : idle
             ? l10n.text('nightCtrGuideIdleBody')
             : null;
@@ -475,11 +486,17 @@ class _GuiderIdleCard extends ConsumerWidget {
                   disabledReason: loopReason,
                   onPressed: () => _loop(ref, l10n),
                 )
-              else
+              else if (guider.guider.kind == ProfileGuiderKind.phd2)
                 _CardButton(
                   label: l10n.text('nightCtrGuideOpen'),
                   disabledReason: openReason,
                   onPressed: () => _open(ref, l10n),
+                )
+              else if (guider.guider.kind == ProfileGuiderKind.device)
+                _CardButton(
+                  label: l10n.text('nightCtrGuideConnect'),
+                  disabledReason: openReason,
+                  onPressed: () => _connectDevice(ref, l10n, guider.guider),
                 ),
             ],
           ),
@@ -494,6 +511,27 @@ class _GuiderIdleCard extends ConsumerWidget {
       ref.read(phd2ControllerProvider).loop().catchError((Object error) {
         notifications.showError(
           l10n.text('nightCtrGuideLoopFailed', params: {'detail': '$error'}),
+        );
+      }),
+    );
+  }
+
+  /// Connects the profile's guider (and its guide camera) as a device.
+  void _connectDevice(
+    WidgetRef ref,
+    SkotiqLocalizations l10n,
+    ProfileGuider guider,
+  ) {
+    final notifications = ref.read(uiNotificationProvider.notifier);
+    final guiderId = guider.guiderId;
+    if (guiderId == null) return;
+    unawaited(
+      ref
+          .read(deviceServiceProvider)
+          .connectDeviceGuider(guiderId, guideCameraId: guider.guideCameraId)
+          .catchError((Object error) {
+        notifications.showError(
+          l10n.text('nightCtrGuideConnectFailed', params: {'detail': '$error'}),
         );
       }),
     );

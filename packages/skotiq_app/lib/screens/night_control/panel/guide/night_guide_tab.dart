@@ -62,7 +62,7 @@ class NightGuideTab extends ConsumerWidget {
   }
 }
 
-/// No guider connected: say so, and offer to start PHD2 and connect.
+/// No guider connected: say so, and offer what connects the profile's guider.
 class _NoGuiderSection extends ConsumerStatefulWidget {
   const _NoGuiderSection();
 
@@ -81,6 +81,10 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     final canCommand = ref.watch(backendCanCommandProvider);
     final connecting = _connecting ||
         guider.connectionState == DeviceConnectionState.connecting;
+    final profileGuider = ref.watch(profileGuiderProvider);
+    if (profileGuider.kind != ProfileGuiderKind.phd2) {
+      return _deviceGuiderSection(profileGuider, canCommand, connecting);
+    }
     final reason = !canCommand
         ? l10n.text('nightActWhyNoHost')
         : connecting
@@ -116,6 +120,74 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
         ),
       ],
     );
+  }
+
+  /// The profile guides with a device guider (the built-in guider or a
+  /// driver), or names none: offer only what applies, never PHD2.
+  Widget _deviceGuiderSection(
+    ProfileGuider profileGuider,
+    bool canCommand,
+    bool connecting,
+  ) {
+    final l10n = context.l10n;
+    final colors = context.skotiqColors;
+    if (profileGuider.kind == ProfileGuiderKind.none) {
+      return NightPanelSection(
+        title: l10n.text('nightScopeGuider'),
+        trailing: l10n.text('nightScopeNotConnected'),
+        trailingColor: colors.warning,
+        children: [NightPanelNote(l10n.text('nightScopeGuideNone'))],
+      );
+    }
+    final reason = !canCommand
+        ? l10n.text('nightActWhyNoHost')
+        : connecting
+            ? l10n.text('nightScopeGuideConnectingDevice')
+            : null;
+    return NightPanelSection(
+      title: l10n.text('nightScopeGuider'),
+      trailing: l10n.text('nightScopeNotConnected'),
+      trailingColor: colors.warning,
+      children: [
+        NightPanelNote(l10n.text('nightScopeGuideNoDevice')),
+        NightPanelButtonGrid(
+          columns: 2,
+          buttons: [
+            NightPanelButtonSpec(
+              key: const ValueKey<String>('nightGuide.connectDevice'),
+              label: l10n.text('nightCtrGuideConnect'),
+              emphasized: true,
+              busy: connecting,
+              disabledReason: reason,
+              onPressed: reason == null
+                  ? () => unawaited(_connectDevice(profileGuider))
+                  : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _connectDevice(ProfileGuider profileGuider) async {
+    final l10n = context.l10n;
+    final guiderId = profileGuider.guiderId;
+    if (guiderId == null) return;
+    setState(() => _connecting = true);
+    try {
+      await ref.read(deviceServiceProvider).connectDeviceGuider(
+            guiderId,
+            guideCameraId: profileGuider.guideCameraId,
+          );
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          l10n.text('nightCtrGuideConnectFailed', params: {'detail': '$e'}),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
   }
 
   /// Connects to the PHD2 the settings name; on this computer that starts

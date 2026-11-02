@@ -1368,6 +1368,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeFlipRecenter': 'recenters after',
     'nightScopeFlipSettle': 'settles {seconds} s',
     'nightScopePhd2': 'PHD2',
+    'nightScopeGuideNoDevice': 'The profile\'s guider is not connected.',
+    'nightScopeGuideNone':
+        'This profile has no guider. Add one in Equipment to guide.',
     'nightScopeGuider': 'Guider',
     'nightScopeGuideNoPhd2':
         'No guider is connected. Open PHD2 starts it on this computer if it is not running, then connects.',
@@ -1376,6 +1379,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Connects to the PHD2 set in Settings, starting it here when needed',
     'nightScopeGuideConnect': 'Connect…',
     'nightScopeGuideConnecting': 'Connecting to PHD2',
+    'nightScopeGuideConnectingDevice': 'Connecting the guider',
     'nightScopeGuideConnectFailed': 'Could not connect to PHD2: {error}',
     'nightScopeGuideStopped': 'Stopped',
     'nightScopeGuideSelected': 'Star selected',
@@ -1602,8 +1606,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrGuideOpenBody': 'Open PHD2 to guide tonight\'s run.',
     'nightCtrGuideStartLooping': 'Start looping',
     'nightCtrGuideOpen': 'Open PHD2',
-    'nightCtrGuideAlreadyRunning': 'PHD2 is already looping or guiding',
-    'nightCtrGuideLoopFailed': 'PHD2 did not start looping: {detail}',
+    'nightCtrGuideAlreadyRunning': 'The guider is already looping or guiding',
+    'nightCtrGuideLoopFailed': 'The guider did not start looping: {detail}',
+    'nightCtrGuideConnectBody': 'Connect the guider to guide tonight\'s run.',
+    'nightCtrGuideConnect': 'Connect guider',
+    'nightCtrGuideConnectFailed': 'The guider did not connect: {detail}',
+    'nightCtrGuideNoneBody':
+        'This profile has no guider. Add one in Equipment to guide.',
     'nightCtrGuideOpenFailed': 'PHD2 did not open: {detail}',
     'nightCtrChartCooling': 'Cooling',
     'nightCtrCoolingNone': 'No cooler readings yet',
@@ -3035,6 +3044,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeFlipRecenter': 'recentra después',
     'nightScopeFlipSettle': 'estabiliza {seconds} s',
     'nightScopePhd2': 'PHD2',
+    'nightScopeGuideNoDevice': 'El guiador del perfil no está conectado.',
+    'nightScopeGuideNone':
+        'Este perfil no tiene guiador. Añade uno en Equipo para guiar.',
     'nightScopeGuider': 'Guiado',
     'nightScopeGuideNoPhd2':
         'No hay guiado conectado. Abrir PHD2 lo inicia en este equipo si no está en marcha y después conecta.',
@@ -3043,6 +3055,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Conecta con el PHD2 de Ajustes y lo inicia aquí si hace falta',
     'nightScopeGuideConnect': 'Conectar…',
     'nightScopeGuideConnecting': 'Conectando con PHD2',
+    'nightScopeGuideConnectingDevice': 'Conectando el guiador',
     'nightScopeGuideConnectFailed': 'No se pudo conectar con PHD2: {error}',
     'nightScopeGuideStopped': 'Detenido',
     'nightScopeGuideSelected': 'Estrella elegida',
@@ -3279,8 +3292,14 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrGuideOpenBody': 'Abre PHD2 para guiar la sesión de esta noche.',
     'nightCtrGuideStartLooping': 'Iniciar bucle',
     'nightCtrGuideOpen': 'Abrir PHD2',
-    'nightCtrGuideAlreadyRunning': 'PHD2 ya está en bucle o guiando',
-    'nightCtrGuideLoopFailed': 'PHD2 no inició el bucle: {detail}',
+    'nightCtrGuideAlreadyRunning': 'El guiador ya está en bucle o guiando',
+    'nightCtrGuideLoopFailed': 'El guiador no inició el bucle: {detail}',
+    'nightCtrGuideConnectBody':
+        'Conecta el guiador para guiar la sesión de esta noche.',
+    'nightCtrGuideConnect': 'Conectar guiador',
+    'nightCtrGuideConnectFailed': 'El guiador no se conectó: {detail}',
+    'nightCtrGuideNoneBody':
+        'Este perfil no tiene guiador. Añade uno en Equipo para guiar.',
     'nightCtrGuideOpenFailed': 'PHD2 no se abrió: {detail}',
     'nightCtrChartCooling': 'Refrigeración',
     'nightCtrCoolingNone': 'Aún no hay lecturas del refrigerador',

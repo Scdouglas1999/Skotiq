@@ -215,6 +215,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+      'before a run with a built-in guider profile it offers to '
+      'connect the guider, not PHD2', (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        guider: const NightGuiderIdleVm(
+          connected: false,
+          canCommand: true,
+          guider: ProfileGuider(
+            kind: ProfileGuiderKind.device,
+            guiderId: 'native:builtin_guider:multi_star',
+          ),
+        ),
+      ),
+      child: const SessionChartsRow(),
+      size: const Size(744, 120),
+    );
+    expect(find.text('Guider not connected'), findsOneWidget);
+    expect(find.text('Connect guider'), findsOneWidget);
+    expect(find.text('Open PHD2'), findsNothing);
+    expect(_allText(tester), isNot(contains('PHD2')));
+  });
+
   testWidgets('before a run with PHD2 closed it offers Open PHD2',
       (tester) async {
     await pumpCenter(

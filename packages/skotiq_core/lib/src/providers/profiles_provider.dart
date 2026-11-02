@@ -9,6 +9,7 @@ import '../models/backend/device_capabilities.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/optical_config.dart';
+import '../utils/device_id.dart' show isPhd2DeviceId;
 import '../utils/json_validation.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';

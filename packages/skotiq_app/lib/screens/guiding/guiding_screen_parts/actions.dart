@@ -185,7 +185,10 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   /// a camera guider); PHD2 has its own connect path.
   Future<void> _connectProfileGuider(String guiderId) async {
     try {
-      await ref.read(deviceServiceProvider).connectGuider(guiderId);
+      await ref.read(deviceServiceProvider).connectDeviceGuider(
+            guiderId,
+            guideCameraId: ref.read(profileGuiderProvider).guideCameraId,
+          );
     } catch (e) {
       _showActionError('Failed to connect the guider: $e');
     }

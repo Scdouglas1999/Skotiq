@@ -460,6 +460,18 @@ class DeviceService {
   Future<void> connectGuideCamera(String deviceId) =>
       _connectGuideCamera(deviceId);
 
+  /// Connect a profile's device guider, connecting its guide camera first
+  /// when it has one (the built-in guider takes its frames there).
+  Future<void> connectDeviceGuider(
+    String guiderId, {
+    String? guideCameraId,
+  }) async {
+    if (guideCameraId != null && guideCameraId.isNotEmpty) {
+      await _connectGuideCamera(guideCameraId);
+    }
+    await _connectGuider(guiderId);
+  }
+
   /// Whether [deviceId]'s most recent disconnect was user-initiated (within
   /// the coordinator's debounce window). Exposed so external watchers —
   /// e.g. the PHD2 controller's crash-relaunch path — can distinguish a

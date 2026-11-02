@@ -6,6 +6,63 @@ final activeEquipmentProfileProvider = Provider<EquipmentProfileModel?>((ref) {
   return state.valueOrNull?.activeProfile;
 });
 
+/// Which kind of guider the active profile guides with, so a surface offers
+/// only the actions that apply to it.
+enum ProfileGuiderKind {
+  /// The profile names no guider.
+  none,
+
+  /// PHD2, which Skotiq starts and connects over its socket.
+  phd2,
+
+  /// A guider Skotiq connects as a device: the built-in guider or a driver.
+  device,
+}
+
+/// The active profile's guider: its kind, id and the guide camera it uses.
+class ProfileGuider {
+  const ProfileGuider({required this.kind, this.guiderId, this.guideCameraId});
+
+  final ProfileGuiderKind kind;
+  final String? guiderId;
+  final String? guideCameraId;
+
+  /// Without an active profile nothing says which guider the rig uses, so
+  /// PHD2, the guider Skotiq has always offered, is assumed.
+  static ProfileGuider of(EquipmentProfileModel? profile) {
+    if (profile == null) {
+      return const ProfileGuider(kind: ProfileGuiderKind.phd2);
+    }
+    final id = profile.guiderId?.trim();
+    if (id == null || id.isEmpty) {
+      return const ProfileGuider(kind: ProfileGuiderKind.none);
+    }
+    final camera = profile.guideCameraId?.trim();
+    return ProfileGuider(
+      kind: isPhd2DeviceId(id)
+          ? ProfileGuiderKind.phd2
+          : ProfileGuiderKind.device,
+      guiderId: id,
+      guideCameraId: camera == null || camera.isEmpty ? null : camera,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProfileGuider &&
+      other.kind == kind &&
+      other.guiderId == guiderId &&
+      other.guideCameraId == guideCameraId;
+
+  @override
+  int get hashCode => Object.hash(kind, guiderId, guideCameraId);
+}
+
+/// The active profile's guider (see [ProfileGuider]).
+final profileGuiderProvider = Provider<ProfileGuider>(
+  (ref) => ProfileGuider.of(ref.watch(activeEquipmentProfileProvider)),
+);
+
 /// Provider for watching just the profile list (convenience)
 final equipmentProfileListProvider = Provider<List<EquipmentProfileModel>>((
   ref,

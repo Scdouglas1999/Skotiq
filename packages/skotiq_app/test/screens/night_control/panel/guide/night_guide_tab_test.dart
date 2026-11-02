@@ -81,6 +81,49 @@ void main() {
     expect(find.text('RA RMS'), findsNothing);
   });
 
+  testWidgets('a built-in guider profile offers to connect it, never PHD2',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ...panelOverrides(),
+        profileGuiderProvider.overrideWithValue(
+          const ProfileGuider(
+            kind: ProfileGuiderKind.device,
+            guiderId: 'native:builtin_guider:multi_star',
+            guideCameraId: 'sim_camera_2',
+          ),
+        ),
+      ],
+    );
+    expectCleanLayout(tester);
+    expect(find.text('Guider'), findsWidgets);
+    expect(find.text('Connect guider'), findsOneWidget);
+    expect(find.text('Open PHD2'), findsNothing);
+    expect(find.textContaining('PHD2'), findsNothing);
+  });
+
+  testWidgets('a profile with no guider says so and offers nothing to open',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ...panelOverrides(),
+        profileGuiderProvider.overrideWithValue(
+          const ProfileGuider(kind: ProfileGuiderKind.none),
+        ),
+      ],
+    );
+    expectCleanLayout(tester);
+    expect(
+      find.text('This profile has no guider. Add one in Equipment to guide.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('PHD2'), findsNothing);
+  });
+
   testWidgets('guide error reads in px, never arcseconds', (tester) async {
     await pumpPanelTab(tester, const NightGuideTab(), overrides: _connected());
     expectCleanLayout(tester);
