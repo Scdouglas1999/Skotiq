@@ -191,8 +191,14 @@ class _DraggableNodeItemCompactState
     // throws SequenceLockedException as a last line of defense.
     if (!ref.read(canEditSequenceProvider)) return;
     final node = widget.item.createNode();
-    final selectedId = ref.read(selectedNodeIdProvider);
     final notifier = ref.read(currentSequenceProvider.notifier);
+    // With nothing open there is nothing to add to: start a sequence for the
+    // node, as "Add a target" does, instead of dropping the tap.
+    if (ref.read(currentSequenceProvider) == null) {
+      notifier.createSequence();
+      ref.read(selectedNodeIdProvider.notifier).state = null;
+    }
+    final selectedId = ref.read(selectedNodeIdProvider);
     notifier.addNode(
       node,
       parentId: selectedId,
@@ -319,16 +325,25 @@ class _DraggableNodeItemCompactState
                       // on the tile). The hidden double-tap was undiscoverable.
                       Tooltip(
                         message: 'Add to sequence',
-                        child: GestureDetector(
+                        excludeFromSemantics: true,
+                        child: Semantics(
+                          container: true,
+                          button: true,
+                          label: 'Add ${paletteSentenceCase(widget.item.name)} '
+                              'to the sequence',
                           onTap: _addNode,
-                          child: Padding(
-                            padding: const EdgeInsets.all(2),
-                            child: Icon(
-                              LucideIcons.plus,
-                              size: _glyph,
-                              color: _isHovered
-                                  ? colors.textSecondary
-                                  : colors.textMuted,
+                          excludeSemantics: true,
+                          child: GestureDetector(
+                            onTap: _addNode,
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: Icon(
+                                LucideIcons.plus,
+                                size: _glyph,
+                                color: _isHovered
+                                    ? colors.textSecondary
+                                    : colors.textMuted,
+                              ),
                             ),
                           ),
                         ),
