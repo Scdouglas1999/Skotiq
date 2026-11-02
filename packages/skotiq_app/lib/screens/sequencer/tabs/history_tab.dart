@@ -426,6 +426,18 @@ class _HistoryFilterBarState extends ConsumerState<_HistoryFilterBar> {
 
 /// Renders the filtered runs grouped by observing night (local date),
 /// newest night first, with a sticky-style section header per night.
+///
+/// A night spans two dates, and a run after midnight belongs to the night
+/// that began the evening before, so the header names both: a morning run on
+/// Sunday sits under "Night of Sat, Oct 31 to Sun, Nov 1, 2026".
+@visibleForTesting
+String observingNightLabel(DateTime night) {
+  final evening = DateTime(night.year, night.month, night.day);
+  final morning = evening.add(const Duration(days: 1));
+  return 'Night of ${DateFormat('EEE, MMM d').format(evening)} to '
+      '${DateFormat('EEE, MMM d, yyyy').format(morning)}';
+}
+
 class _GroupedRunList extends StatelessWidget {
   final SkotiqColors colors;
   final List<_RunRow> rows;
@@ -449,7 +461,6 @@ class _GroupedRunList extends StatelessWidget {
       groups.putIfAbsent(_observingNight(row.run.startedAt), () => []).add(row);
     }
     final nights = groups.keys.toList()..sort((a, b) => b.compareTo(a));
-    final nightFormat = DateFormat('EEEE, MMM d, yyyy');
 
     return ListView.builder(
       itemCount: nights.length,
@@ -467,7 +478,7 @@ class _GroupedRunList extends StatelessWidget {
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      nightFormat.format(night),
+                      observingNightLabel(night),
                       style: SkotiqTypography.labelStrongSm
                           .copyWith(color: colors.textSecondary),
                       maxLines: 1,
