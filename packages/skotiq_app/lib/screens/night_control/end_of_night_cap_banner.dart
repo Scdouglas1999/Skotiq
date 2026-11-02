@@ -15,17 +15,34 @@ class EndOfNightCapBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(endOfNightCalibrationProvider);
-    if (status.phase != EonPhase.waitingForCap) return const SizedBox.shrink();
+    // On a linked client the calibration runs on the imaging host: show the
+    // host's request and answer it there.
+    final backend = ref.watch(backendProvider);
+    final remote = backend is NetworkBackend ? backend : null;
+    final status = remote != null
+        ? ref.watch(hostEndOfNightStatusProvider)
+        : ref.watch(endOfNightCalibrationProvider);
+    if (status?.phase != EonPhase.waitingForCap) return const SizedBox.shrink();
     final service = ref.read(endOfNightCalibrationProvider.notifier);
     final colors = SkotiqColors.of(context);
-    final deadline = status.capDeadline;
+    final deadline = status!.capDeadline;
     final detail = deadline == null
         ? 'The filter wheel has no dark slot. Put the cap on, then confirm.'
         : 'The filter wheel has no dark slot. Put the cap on, then confirm. '
             'Without a confirmation the darks and bias are skipped at '
-            '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(deadline))} '
+            '${_clock(deadline)} '
             'and the night-end steps go on without them.';
+
+    Future<void> answerHost(Future<EonStatus?> Function() call) async {
+      try {
+        final next = await call();
+        ref.read(hostEndOfNightStatusProvider.notifier).state = next;
+      } catch (error) {
+        ref
+            .read(uiNotificationProvider.notifier)
+            .showError('The imaging host did not take the answer: $error');
+      }
+    }
 
     final message = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,13 +80,17 @@ class EndOfNightCapBanner extends ConsumerWidget {
           label: 'The telescope is capped',
           icon: LucideIcons.check,
           size: ButtonSize.small,
-          onPressed: service.confirmCapped,
+          onPressed: remote != null
+              ? () => answerHost(remote.confirmHostEndOfNightCapped)
+              : service.confirmCapped,
         ),
         SkotiqButton(
           label: 'Skip the darks',
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
-          onPressed: service.cancel,
+          onPressed: remote != null
+              ? () => answerHost(remote.cancelHostEndOfNight)
+              : service.cancel,
         ),
       ],
     );
@@ -110,4 +131,11 @@ class EndOfNightCapBanner extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// A wall-clock time on the 24-hour clock the rest of the app uses.
+String _clock(DateTime at) {
+  final local = at.toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(local.hour)}:${two(local.minute)}';
 }

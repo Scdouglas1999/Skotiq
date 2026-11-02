@@ -37,6 +37,9 @@ import 'device_heartbeat_health_provider.dart';
 import 'equipment/device_type_registry.dart';
 import 'framing_provider.dart';
 import 'host_scheduled_start_provider.dart';
+import 'host_end_of_night_provider.dart';
+import '../services/end_of_night_calibration/eon_service.dart'
+    show EonPhase, EonStatus;
 import 'imaging_provider.dart' show exposureSettingsProvider;
 import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;

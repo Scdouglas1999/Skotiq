@@ -200,7 +200,26 @@ class EonStatus {
     'phase': phase.name,
     'message': message,
     'report': report?.toJson(),
+    'capDeadline': capDeadline?.toUtc().toIso8601String(),
   };
+
+  /// The phase, message and cap deadline of a host's status as [toJson]
+  /// writes it; the report stays on the host. Null when [json] is not one.
+  static EonStatus? fromHostJson(Object? json) {
+    if (json is! Map) return null;
+    final phase = EonPhase.values
+        .where((p) => p.name == json['phase'])
+        .firstOrNull;
+    if (phase == null) return null;
+    final deadline = json['capDeadline'];
+    return EonStatus(
+      phase: phase,
+      message: json['message'] as String?,
+      capDeadline: deadline is String
+          ? DateTime.tryParse(deadline)?.toLocal()
+          : null,
+    );
+  }
 }
 
 /// Why a calibration step could not start.

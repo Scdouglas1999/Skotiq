@@ -30,6 +30,10 @@ abstract final class HostMutationEntity {
   /// The host's scheduled start (Start at dark): `at` carries the UTC instant,
   /// or null once it fired or was canceled.
   static const scheduledStart = 'scheduledStart';
+
+  /// The host's end-of-night calibration status: `status` carries
+  /// [EonStatus.toJson] without the report.
+  static const endOfNight = 'endOfNight';
 }
 
 /// Mutation verbs emitted after successful REST handler completion.

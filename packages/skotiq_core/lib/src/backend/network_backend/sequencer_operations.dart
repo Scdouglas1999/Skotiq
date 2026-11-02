@@ -20,6 +20,34 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     await _post('night/scheduled-start/cancel', const {}, null, 1);
   }
 
+  /// Remote-only: the host's end-of-night calibration status.
+  Future<EonStatus?> hostEndOfNightStatus() async {
+    final response = await _get('calibration/end-of-night');
+    return EonStatus.fromHostJson(response['status']);
+  }
+
+  /// Remote-only: tell the host the telescope is capped for its darks.
+  Future<EonStatus?> confirmHostEndOfNightCapped() async {
+    final response = await _post(
+      'calibration/end-of-night/confirm-capped',
+      const {},
+      null,
+      1,
+    );
+    return EonStatus.fromHostJson(response['status']);
+  }
+
+  /// Remote-only: stop the host's end-of-night calibration (skip the darks).
+  Future<EonStatus?> cancelHostEndOfNight() async {
+    final response = await _post(
+      'calibration/end-of-night/cancel',
+      const {},
+      null,
+      1,
+    );
+    return EonStatus.fromHostJson(response['status']);
+  }
+
   Future<Map<String, dynamic>> awaitJobResultOrLegacy(
     Map<String, dynamic> response, {
     required String operation,

@@ -10,6 +10,29 @@ part of '../calibration_handlers.dart';
 ///   POST /api/calibration/end-of-night/confirm-capped  — the telescope is capped
 ///   POST /api/calibration/end-of-night/cancel          — stop it
 extension CalibrationEndOfNightHandlers on CalibrationHandlers {
+  /// Clients mirror this host's end-of-night calibration, so whoever drives
+  /// the night is asked for the cap; tell them whenever it changes.
+  void mirrorEndOfNightToClients() {
+    container.listen<EonStatus>(endOfNightCalibrationProvider, (
+      previous,
+      next,
+    ) {
+      if (previous?.phase == next.phase &&
+          previous?.message == next.message &&
+          previous?.capDeadline == next.capDeadline) {
+        return;
+      }
+      final status = next.toJson()..remove('report');
+      publishHostMutationFromContainer(
+        container,
+        entityType: HostMutationEntity.endOfNight,
+        action: HostMutationAction.updated,
+        extra: {'status': status},
+        remoteOnly: true,
+      );
+    });
+  }
+
   Future<Map<String, Object?>> _endOfNightJson() async {
     final dao = container.read(settingsDaoProvider);
     final settings = await EonSettings.load(dao);

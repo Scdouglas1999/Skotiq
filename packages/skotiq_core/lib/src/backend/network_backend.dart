@@ -27,6 +27,7 @@ import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
 import '../providers/host_scheduled_start_provider.dart'
     show parseHostScheduledStart;
+import '../services/end_of_night_calibration/eon_service.dart' show EonStatus;
 
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';

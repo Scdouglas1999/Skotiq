@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/night_control/end_of_night_cap_banner.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -62,7 +63,7 @@ void main() {
     );
     expect(find.text('Cap the telescope for the end-of-night darks'),
         findsOneWidget);
-    expect(find.textContaining('skipped at 6:12'), findsOneWidget);
+    expect(find.textContaining('skipped at 06:12'), findsOneWidget);
 
     await tester.tap(find.text('The telescope is capped'));
     expect(service.confirmed, 1);
@@ -88,4 +89,55 @@ void main() {
     await _pump(tester, const EonStatus(phase: EonPhase.capturing));
     expect(find.byType(SkotiqButton), findsNothing);
   });
+
+  // reverify RV-08: the cap request showed only on the host; a companion
+  // driving the night saw "Finished" and the darks were skipped.
+  testWidgets('a linked client shows the host request and answers the host',
+      (tester) async {
+    final backend = _MockNetworkBackend();
+    when(backend.confirmHostEndOfNightCapped).thenAnswer(
+      (_) async => const EonStatus(phase: EonPhase.capturing),
+    );
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 400);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final local = _Service(const EonStatus());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
+          endOfNightCalibrationProvider.overrideWith((ref) => local),
+          hostEndOfNightStatusProvider.overrideWith(
+            (ref) => EonStatus(
+              phase: EonPhase.waitingForCap,
+              capDeadline: DateTime(2026, 11, 1, 15, 12),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: EndOfNightCapBanner()),
+        ),
+      ),
+    );
+
+    expect(find.text('Cap the telescope for the end-of-night darks'),
+        findsOneWidget);
+    expect(find.textContaining('skipped at 15:12'), findsOneWidget);
+    await tester.tap(find.text('The telescope is capped'));
+    await tester.pump();
+    verify(backend.confirmHostEndOfNightCapped).called(1);
+    expect(local.confirmed, 0);
+    expect(find.text('Cap the telescope for the end-of-night darks'),
+        findsNothing);
+  });
+}
+
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _BackendNotifier extends BackendNotifier {
+  _BackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
 }
