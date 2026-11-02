@@ -1207,6 +1207,29 @@ impl SequenceExecutor {
                     result
                 };
 
+                // A run that failed, or that a skip request ended early, still
+                // puts the rig away the way its plan says. A trigger's own
+                // park-and-abort sweep already decided the rig's end state,
+                // and a Stop is the operator's.
+                if matches!(result, NodeStatus::Failure | NodeStatus::Skipped)
+                    && !park_and_abort_in_progress.load(Ordering::Acquire)
+                {
+                    if let Some(sequence) = sequence_for_custom_recovery.as_ref() {
+                        let statuses = progress.read().node_statuses.clone();
+                        {
+                            let mut prog = progress.write();
+                            prog.message = Some("The run ended early: putting the rig away".into());
+                        }
+                        night_end::run_unreached_shutdown_steps(
+                            sequence,
+                            &custom_recovery_context,
+                            &custom_recovery_context.device_ops,
+                            &statuses,
+                        )
+                        .await;
+                    }
+                }
+
                 let final_state = executor_state_for_result(result);
 
                 // The terminal message is the run's own verdict, composed from

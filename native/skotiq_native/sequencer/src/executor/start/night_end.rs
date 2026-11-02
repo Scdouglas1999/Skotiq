@@ -29,29 +29,45 @@ pub(crate) fn ends_the_night(trigger_id: &str) -> bool {
     END_OF_NIGHT_TRIGGER_IDS.contains(&trigger_id)
 }
 
+/// Nodes that watch the run rather than do a step of it: recovery triggers
+/// and the meridian flip. Plans place them anywhere, also after the shutdown.
+fn is_watcher(node_type: &NodeType) -> bool {
+    matches!(node_type, NodeType::Recovery(_) | NodeType::MeridianFlip(_))
+}
+
 /// The plan's shutdown steps: the enabled instructions at the end of the
-/// root, after its last target, that only put the rig away. Disabled steps are
-/// passed over; anything else ends the run of steps.
+/// root, after its last target, that only put the rig away. Disabled steps and
+/// watchers are passed over; anything else ends the run of steps. A plan
+/// wrapped in one container (a wizard plan is a target holding its whole
+/// sequence) is read inside that container when nothing after it puts the rig
+/// away.
 pub(crate) fn plan_shutdown_steps(sequence: &SequenceDefinition) -> Vec<&NodeDefinition> {
-    let Some(root) = sequence
-        .root_node_id
-        .as_ref()
-        .and_then(|id| sequence.nodes.iter().find(|n| &n.id == id))
-    else {
+    let node = |id: &String| sequence.nodes.iter().find(|n| &n.id == id);
+    let Some(mut parent) = sequence.root_node_id.as_ref().and_then(node) else {
         return Vec::new();
     };
     let mut steps = Vec::new();
-    for id in root.children.iter().rev() {
-        let Some(node) = sequence.nodes.iter().find(|n| &n.id == id) else {
-            break;
-        };
-        if !node.enabled {
-            continue;
+    loop {
+        let mut descend_into = None;
+        for id in parent.children.iter().rev() {
+            let Some(child) = node(id) else {
+                break;
+            };
+            if !child.enabled || (child.children.is_empty() && is_watcher(&child.node_type)) {
+                continue;
+            }
+            if !child.children.is_empty() || !is_shutdown_step(&child.node_type) {
+                if steps.is_empty() && !child.children.is_empty() {
+                    descend_into = Some(child);
+                }
+                break;
+            }
+            steps.push(child);
         }
-        if !node.children.is_empty() || !is_shutdown_step(&node.node_type) {
-            break;
+        match descend_into {
+            Some(container) => parent = container,
+            None => break,
         }
-        steps.push(node);
     }
     steps.reverse();
     steps
@@ -116,7 +132,50 @@ pub(crate) async fn run_plan_shutdown_steps(
     device_ops: &SharedDeviceOps,
     already: AlreadySafe,
 ) -> Vec<StepOutcome> {
-    let steps = plan_shutdown_steps(sequence);
+    run_steps(
+        trigger_name,
+        plan_shutdown_steps(sequence),
+        sequence,
+        base,
+        device_ops,
+        already,
+    )
+    .await
+}
+
+/// Run the plan's shutdown steps the tree never reached after the run
+/// failed or a skip ended it early. A failure inside a target ends the tree
+/// before Warm camera and Park mount, and a rig left cold and tracking is not
+/// a safe end, attended or not. Steps that already ran are not run again.
+pub(crate) async fn run_unreached_shutdown_steps(
+    sequence: &SequenceDefinition,
+    base: &ExecutionContext,
+    device_ops: &SharedDeviceOps,
+    statuses: &HashMap<NodeId, NodeStatus>,
+) -> Vec<StepOutcome> {
+    let steps = plan_shutdown_steps(sequence)
+        .into_iter()
+        .filter(|step| matches!(statuses.get(&step.id), None | Some(NodeStatus::Pending)))
+        .collect();
+    run_steps(
+        "The run ended early",
+        steps,
+        sequence,
+        base,
+        device_ops,
+        AlreadySafe::default(),
+    )
+    .await
+}
+
+async fn run_steps(
+    trigger_name: &str,
+    steps: Vec<&NodeDefinition>,
+    sequence: &SequenceDefinition,
+    base: &ExecutionContext,
+    device_ops: &SharedDeviceOps,
+    already: AlreadySafe,
+) -> Vec<StepOutcome> {
     if steps.is_empty() {
         return Vec::new();
     }
@@ -269,6 +328,88 @@ mod tests {
     fn a_plan_that_ends_on_its_target_has_no_shutdown() {
         let sequence = plan(vec![node("target", light())]);
         assert!(plan_shutdown_steps(&sequence).is_empty());
+    }
+
+    fn once() -> NodeType {
+        NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            ..Default::default()
+        })
+    }
+
+    fn recovery(id: &str) -> NodeDefinition {
+        node(id, NodeType::Recovery(Default::default()))
+    }
+
+    /// Smart Night ends its root with a weather-park recovery watcher after
+    /// Park mount; the watcher must not hide the shutdown from dawn.
+    #[test]
+    fn a_trailing_recovery_watcher_does_not_hide_the_shutdown() {
+        let mut darks = node("darks", once());
+        darks.children = vec!["dark".into()];
+        let mut sequence = plan(vec![
+            node("target", light()),
+            darks,
+            node("warm", NodeType::WarmCamera(WarmConfig::default())),
+            node("park", NodeType::Park),
+            recovery("cloud-park"),
+        ]);
+        sequence.nodes.push(node("dark", light()));
+        assert_eq!(ids(plan_shutdown_steps(&sequence)), vec!["warm", "park"]);
+    }
+
+    /// A Quick-Start wizard plan is one target holding a Sequence (with Warm
+    /// Camera and Park Mount at its end) and the watchers after it.
+    #[test]
+    fn a_wizard_plan_wrapped_in_its_target_has_its_shutdown_inside() {
+        let mut sequence = SequenceDefinition::new("M34".into());
+        sequence.root_node_id = Some("m34".into());
+        let mut target = node("m34", once());
+        target.children = vec![
+            "sequence".into(),
+            "hfr".into(),
+            "flip".into(),
+            "weather".into(),
+        ];
+        let mut steps = node("sequence", once());
+        steps.children = vec!["loop".into(), "stop".into(), "warm".into(), "park".into()];
+        let mut capture = node("loop", NodeType::Loop(LoopConfig::default()));
+        capture.children = vec!["l".into()];
+        sequence.nodes = vec![
+            target,
+            steps,
+            capture,
+            node("l", light()),
+            node("stop", NodeType::StopGuiding),
+            node("warm", NodeType::WarmCamera(WarmConfig::default())),
+            node("park", NodeType::Park),
+            recovery("hfr"),
+            node("flip", NodeType::MeridianFlip(Default::default())),
+            recovery("weather"),
+        ];
+        assert_eq!(
+            ids(plan_shutdown_steps(&sequence)),
+            vec!["stop", "warm", "park"]
+        );
+    }
+
+    /// The owner's plan: Park mount and Warm camera at the root after the
+    /// target, the flip inside the target.
+    #[test]
+    fn the_owners_plan_shape_reads_its_root_shutdown() {
+        let mut target = node("target", once());
+        target.children = vec!["expose".into(), "flip".into()];
+        let mut sequence = plan(vec![
+            target,
+            node("park", NodeType::Park),
+            node("warm", NodeType::WarmCamera(WarmConfig::default())),
+        ]);
+        sequence.nodes.push(node("expose", light()));
+        sequence
+            .nodes
+            .push(node("flip", NodeType::MeridianFlip(Default::default())));
+        assert_eq!(ids(plan_shutdown_steps(&sequence)), vec!["park", "warm"]);
     }
 
     #[test]

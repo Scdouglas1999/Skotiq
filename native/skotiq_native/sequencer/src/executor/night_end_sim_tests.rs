@@ -426,3 +426,343 @@ async fn dawn_park_leaves_a_deferred_warm_up_to_calibration() {
         "calls={calls:?}"
     );
 }
+
+const SITE: (f64, f64) = (45.0, -75.0);
+
+/// A right ascension `hours` past the meridian at [`SITE`] now.
+fn ra_past_meridian(hours: f64) -> f64 {
+    let lst = crate::meridian::local_sidereal_time(
+        crate::meridian::julian_day(&chrono::Utc::now()),
+        SITE.1,
+    );
+    (lst - hours).rem_euclid(24.0)
+}
+
+fn target(id: &str, ra_hours: f64, children: Vec<String>) -> NodeDefinition {
+    let config: crate::TargetHeaderConfig = serde_json::from_value(serde_json::json!({
+        "target_name": "M34",
+        "ra_hours": ra_hours,
+        "dec_degrees": 42.75,
+        "rotation": null,
+        "priority": 0,
+        "min_altitude": null,
+        "max_altitude": null,
+    }))
+    .unwrap();
+    let mut node = node(id, "M34", NodeType::TargetHeader(config));
+    node.children = children;
+    node
+}
+
+fn once(id: &str, name: &str, children: Vec<String>) -> NodeDefinition {
+    let mut node = node(
+        id,
+        name,
+        NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            ..Default::default()
+        }),
+    );
+    node.children = children;
+    node
+}
+
+fn flip_step() -> NodeDefinition {
+    node(
+        "flip",
+        "Meridian Flip",
+        NodeType::MeridianFlip(crate::MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            retry_delays_secs: Vec::new(),
+            ..Default::default()
+        }),
+    )
+}
+
+fn weather_watcher() -> NodeDefinition {
+    node(
+        "weather",
+        "Weather Safety",
+        NodeType::Recovery(crate::RecoveryConfig {
+            trigger: Some(crate::TriggerType::WeatherUnsafe),
+            recovery_action: crate::RecoveryAction::ParkAndAbort,
+            max_retries: 1,
+        }),
+    )
+}
+
+/// The Quick-Start wizard's plan: one target holding the Sequence (imaging,
+/// Warm Camera, Park Mount) with the meridian flip and a watcher after it.
+fn wizard_plan(imaging_secs: f64) -> SequenceDefinition {
+    let mut sequence = SequenceDefinition::new("M34 Sequence".into());
+    sequence.root_node_id = Some("m34".into());
+    sequence.nodes = vec![
+        target(
+            "m34",
+            ra_past_meridian(4.0),
+            vec!["sequence".into(), "flip".into(), "weather".into()],
+        ),
+        once(
+            "sequence",
+            "Sequence",
+            vec!["imaging".into(), "warm".into(), "park".into()],
+        ),
+        node(
+            "imaging",
+            "Imaging",
+            NodeType::Delay(DelayConfig {
+                seconds: imaging_secs,
+            }),
+        ),
+        node(
+            "warm",
+            "Warm Camera",
+            NodeType::WarmCamera(WarmConfig::default()),
+        ),
+        node("park", "Park Mount", NodeType::Park),
+        flip_step(),
+        weather_watcher(),
+    ];
+    sequence
+}
+
+/// The owner's plan: the target holds imaging and then the meridian flip;
+/// Park mount and Warm camera follow at the root.
+fn owners_plan(imaging_secs: f64) -> SequenceDefinition {
+    let mut sequence = SequenceDefinition::new("Night".into());
+    sequence.root_node_id = Some("root".into());
+    sequence.nodes = vec![
+        once(
+            "root",
+            "Night",
+            vec!["target".into(), "park".into(), "warm".into()],
+        ),
+        target(
+            "target",
+            ra_past_meridian(4.0),
+            vec!["imaging".into(), "flip".into()],
+        ),
+        node(
+            "imaging",
+            "Smart Exposure",
+            NodeType::Delay(DelayConfig {
+                seconds: imaging_secs,
+            }),
+        ),
+        flip_step(),
+        node("park", "Park mount", NodeType::Park),
+        node(
+            "warm",
+            "Warm camera",
+            NodeType::WarmCamera(WarmConfig::default()),
+        ),
+    ];
+    sequence
+}
+
+fn rig_at_site() -> Arc<ScriptedDeviceOps> {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    *ops.observer_location.lock().unwrap() = Some(SITE);
+    // Pier side follows the flip. The run's own trigger already flipped the
+    // mount for this target, west of the meridian, so it is on pier East.
+    ops.flip_on_slew.store(true, Ordering::SeqCst);
+    ops.flipped.store(true, Ordering::SeqCst);
+    ops
+}
+
+fn moved_after_park(calls: &[String]) -> Vec<String> {
+    let Some(park) = calls.iter().position(|c| c == "mount_park:mount-1") else {
+        return Vec::new();
+    };
+    calls[park..]
+        .iter()
+        .filter(|c| {
+            c.starts_with("mount_slew")
+                || c.ends_with(":true") && c.starts_with("mount_set_tracking")
+        })
+        .cloned()
+        .collect()
+}
+
+/// The wizard placed its Meridian Flip after the Sequence, so it ran as a
+/// step after Park Mount: tracking on, slews of the parked mount, and a run
+/// that ended Failed with the mount unparked. The plan's park is final.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_flip_step_after_the_plans_park_leaves_the_mount_parked() {
+    let ops = rig_at_site();
+    let executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        wizard_plan(0.5),
+    )
+    .await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+
+    assert_eq!(state, super::ExecutorState::Completed, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+    assert_eq!(
+        moved_after_park(&calls),
+        Vec::<String>::new(),
+        "calls={calls:?}"
+    );
+}
+
+/// Dawn ends a wizard plan: its shutdown lives inside the target, behind the
+/// watchers, and still runs (Warm Camera after the dawn park).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_runs_the_shutdown_inside_a_wizard_plan() {
+    let ops = rig_at_site();
+    let mut executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        wizard_plan(600.0),
+    )
+    .await;
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "Warm Camera must run at dawn; calls={calls:?}"
+    );
+    assert_eq!(
+        moved_after_park(&calls),
+        Vec::<String>::new(),
+        "calls={calls:?}"
+    );
+}
+
+/// Smart Night ends its root with a weather watcher after Park mount. Dawn
+/// still warms the camera.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_runs_the_shutdown_of_a_plan_that_ends_with_a_watcher() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
+    plan.nodes.push(weather_watcher());
+    plan.nodes[0].children.push("weather".into());
+    let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "Warm camera must run at dawn; calls={calls:?}"
+    );
+}
+
+/// The owner's plan at the end of its target: the trigger already flipped
+/// the mount (pier East), so the flip step leaves it, and Park mount and Warm
+/// camera run. The run completes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_owners_plan_ends_its_target_without_a_second_flip() {
+    let ops = rig_at_site();
+    let executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        owners_plan(0.5),
+    )
+    .await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+
+    assert_eq!(state, super::ExecutorState::Completed, "calls={calls:?}");
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_slew")),
+        "calls={calls:?}"
+    );
+    let park = calls.iter().position(|c| c == "mount_park:mount-1");
+    let warm = calls
+        .iter()
+        .position(|c| c == "camera_set_cooler:cam-1:false");
+    assert!(
+        park.is_some() && warm.is_some_and(|w| w > park.unwrap()),
+        "calls={calls:?}"
+    );
+}
+
+/// The owner's plan at dawn: parked, then Warm camera; the flip step never
+/// runs on the parked mount.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_owners_plan_at_dawn_parks_and_warms() {
+    let ops = rig_at_site();
+    let mut executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        owners_plan(600.0),
+    )
+    .await;
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "calls={calls:?}"
+    );
+    assert_eq!(
+        moved_after_park(&calls),
+        Vec::<String>::new(),
+        "calls={calls:?}"
+    );
+}
+
+/// A run that fails inside its imaging still runs the plan's shutdown:
+/// guiding stopped, mount parked, camera warmed. The run stays Failed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_failed_run_still_runs_the_plans_shutdown_steps() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
+    // A flip step outside any target has no target to flip for and fails.
+    for n in &mut plan.nodes {
+        if n.id == "imaging" {
+            *n = flip_step();
+            n.id = "imaging".into();
+        }
+    }
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+
+    assert_eq!(state, super::ExecutorState::Failed, "calls={calls:?}");
+    let park = calls.iter().position(|c| c == "mount_park:mount-1");
+    let warm = calls
+        .iter()
+        .position(|c| c == "camera_set_cooler:cam-1:false");
+    assert!(
+        park.is_some(),
+        "the plan's Park mount must run; calls={calls:?}"
+    );
+    assert!(
+        warm.is_some_and(|w| w > park.unwrap()),
+        "the plan's Warm camera must run; calls={calls:?}"
+    );
+    assert!(notified(&calls, "Warm camera: done"), "calls={calls:?}");
+}

@@ -178,7 +178,7 @@ pub(crate) struct ScriptedDeviceOps {
     /// With `flip_on_slew`, a slew lands on the same side: the mount will not
     /// take the other side for this pointing.
     pub(crate) flip_refused: Arc<AtomicBool>,
-    flipped: Arc<AtomicBool>,
+    pub(crate) flipped: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
     camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,
@@ -207,6 +207,9 @@ pub(crate) struct ScriptedDeviceOps {
     /// Where a mount that follows its slews points (RA hours, Dec degrees);
     /// `None` answers as the null mount does. Set it to make slews arrive.
     pub(crate) pointing: Arc<Mutex<Option<(f64, f64)>>>,
+    /// The observing site (latitude, longitude); `None` answers as the null
+    /// rig does.
+    pub(crate) observer_location: Arc<Mutex<Option<(f64, f64)>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -242,6 +245,7 @@ impl ScriptedDeviceOps {
             guide_star: Arc::new(Mutex::new(None)),
             sim_mount: Arc::new(Mutex::new(None)),
             pointing: Arc::new(Mutex::new(None)),
+            observer_location: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -640,6 +644,9 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.calculate_altitude(r, d, la, lo)
     }
     fn get_observer_location(&self) -> Option<(f64, f64)> {
+        if let Some(location) = *self.observer_location.lock().unwrap() {
+            return Some(location);
+        }
         self.inner.get_observer_location()
     }
     async fn polar_align_update(
