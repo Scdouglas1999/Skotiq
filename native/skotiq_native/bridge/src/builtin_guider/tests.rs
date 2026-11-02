@@ -1343,3 +1343,23 @@ async fn concurrent_start_stop_start_never_orphans_loop() {
         );
     }
 }
+
+/// The built-in guider took its frames on the imaging camera, which aborted
+/// every light frame of a guided run. It guides only with another camera.
+#[test]
+fn the_guide_camera_is_never_the_imaging_camera() {
+    let cams = |ids: &[&str]| ids.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    assert_eq!(
+        pick_guide_camera(Some("sim_camera_1"), &cams(&["sim_camera_1"])),
+        None
+    );
+    assert_eq!(
+        pick_guide_camera(Some("asi2600"), &cams(&["asi2600", "asi120"])),
+        Some("asi120".to_string())
+    );
+    assert_eq!(
+        pick_guide_camera(None, &cams(&["asi120"])),
+        Some("asi120".to_string())
+    );
+    assert_eq!(pick_guide_camera(Some("asi2600"), &[]), None);
+}
