@@ -1373,6 +1373,7 @@ impl DeviceOps for UnifiedDeviceOps {
             }
         }
 
+        let (solved_width, solved_height) = (image_data.width, image_data.height);
         result
             .map(|r| PlateSolveResult {
                 ra_degrees: r.ra,
@@ -1383,6 +1384,7 @@ impl DeviceOps for UnifiedDeviceOps {
                     r.cd1_2, r.cd2_2, r.rotation,
                 ),
                 success: r.success,
+                wcs: solved_wcs(&r, solved_width, solved_height),
             })
             .map_err(|e| format!("Plate solve failed: {}", e))
     }
@@ -1990,4 +1992,102 @@ async fn spawn_slew_completion_watch(
             Err(e) => tracing::info!("Mount {} slew did not complete: {}", mount_id, e),
         }
     });
+}
+
+/// The WCS of a successful solve of a `width` x `height` frame: the solved
+/// centre at the frame's centre pixel, with the solver's own CD matrix when it
+/// reported one (it carries any skew and mirroring) and the scale and
+/// rotation otherwise. `None` for a failed or scaleless solve.
+pub(crate) fn solved_wcs(
+    solved: &crate::api::plate_solve::PlateSolveResult,
+    width: u32,
+    height: u32,
+) -> Option<skotiq_imaging::WcsInfo> {
+    if !solved.success
+        || !solved.ra.is_finite()
+        || !solved.dec.is_finite()
+        || !solved.pixel_scale.is_finite()
+        || solved.pixel_scale <= 0.0
+        || width == 0
+        || height == 0
+    {
+        return None;
+    }
+    let mut wcs = skotiq_imaging::WcsInfo::from_plate_solve(
+        solved.ra,
+        solved.dec,
+        solved.rotation,
+        solved.pixel_scale,
+        width,
+        height,
+    );
+    let cd = [solved.cd1_1, solved.cd1_2, solved.cd2_1, solved.cd2_2];
+    if cd.iter().all(|v| v.is_finite())
+        && (solved.cd1_1 * solved.cd2_2 - solved.cd1_2 * solved.cd2_1) != 0.0
+    {
+        wcs.cd1_1 = solved.cd1_1;
+        wcs.cd1_2 = solved.cd1_2;
+        wcs.cd2_1 = solved.cd2_1;
+        wcs.cd2_2 = solved.cd2_2;
+    }
+    Some(wcs)
+}
+
+#[cfg(test)]
+mod solved_wcs_tests {
+    use super::solved_wcs;
+
+    fn solve(success: bool) -> crate::api::plate_solve::PlateSolveResult {
+        crate::api::plate_solve::PlateSolveResult {
+            success,
+            ra: 40.1,
+            dec: 42.3,
+            pixel_scale: 1.46,
+            rotation: 12.0,
+            field_width: 0.78,
+            field_height: 0.44,
+            solve_time_secs: 0.1,
+            error: None,
+            cd1_1: -3.9e-4,
+            cd1_2: 1.0e-5,
+            cd2_1: 1.1e-5,
+            cd2_2: 4.0e-4,
+            sip_a_order: 0,
+            sip_b_order: 0,
+            sip_a_coeffs: vec![],
+            sip_b_coeffs: vec![],
+            sip_ap_order: 0,
+            sip_bp_order: 0,
+            sip_ap_coeffs: vec![],
+            sip_bp_coeffs: vec![],
+        }
+    }
+
+    /// The frame's WCS is the solver's CD matrix anchored at the frame's
+    /// centre; a failed solve gives none.
+    #[test]
+    fn a_solve_gives_the_frame_its_wcs() {
+        let wcs = solved_wcs(&solve(true), 1920, 1080).expect("a solve has a WCS");
+        assert_eq!((wcs.crval1, wcs.crval2), (40.1, 42.3));
+        assert_eq!((wcs.crpix1, wcs.crpix2), (960.5, 540.5));
+        assert_eq!(
+            (wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2),
+            (-3.9e-4, 1.0e-5, 1.1e-5, 4.0e-4)
+        );
+        assert!(solved_wcs(&solve(false), 1920, 1080).is_none());
+    }
+
+    /// A solver that gave no CD matrix still gives a WCS, from its scale and
+    /// rotation.
+    #[test]
+    fn without_a_cd_matrix_the_scale_and_rotation_are_used() {
+        let mut result = solve(true);
+        result.cd1_1 = 0.0;
+        result.cd1_2 = 0.0;
+        result.cd2_1 = 0.0;
+        result.cd2_2 = 0.0;
+        let wcs = solved_wcs(&result, 100, 100).expect("a solve has a WCS");
+        let scale = (wcs.cd1_1 * wcs.cd2_2 - wcs.cd1_2 * wcs.cd2_1).abs().sqrt() * 3600.0;
+        assert!((scale - 1.46).abs() < 1e-9, "scale {scale}");
+    }
 }

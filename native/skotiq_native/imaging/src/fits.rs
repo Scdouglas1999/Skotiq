@@ -1707,6 +1707,27 @@ pub fn add_wcs_headers(header: &mut FitsHeader, wcs: &WcsInfo) {
     header.set_string("RADESYS", "ICRS");
 }
 
+/// Write a plate solve's WCS into the FITS file at `path`, keeping its pixels
+/// and every other card. The file is rewritten beside itself and moved into
+/// place, so a reader never sees a half-written file.
+pub fn write_wcs_into_fits(path: &Path, wcs: &WcsInfo) -> Result<(), FitsError> {
+    let (image, mut header) = read_fits(path)?;
+    add_wcs_headers(&mut header, wcs);
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "frame.fits".to_string());
+    let staged = path.with_file_name(format!(".{file_name}.wcs-tmp"));
+    if let Err(e) = write_fits(&staged, &image, &header) {
+        let _ = std::fs::remove_file(&staged);
+        return Err(e);
+    }
+    std::fs::rename(&staged, path).map_err(|e| {
+        let _ = std::fs::remove_file(&staged);
+        FitsError::from(e)
+    })
+}
+
 /// Standard FITS keywords for astrophotography
 pub struct StandardKeywords;
 
@@ -4476,6 +4497,54 @@ mod tests {
             "both readers strip the encoding cards they folded into the samples"
         );
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod write_wcs_tests {
+    use super::*;
+
+    /// A solved frame carries its WCS, and nothing else about it changes: the
+    /// pixels and every card the save wrote are kept.
+    #[test]
+    fn a_solved_frame_carries_its_wcs_and_keeps_its_pixels_and_cards() {
+        let dir = std::env::temp_dir().join(format!("write-wcs-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("M34_L_0001.fits");
+        let pixels: Vec<u16> = (0..400 * 300).map(|i| (i % 4000) as u16).collect();
+        let image = ImageData::from_u16(400, 300, 1, &pixels);
+        let mut header = FitsHeader::new();
+        header.set_float("EXPTIME", 120.0);
+        header.set_string("PIERSIDE", "West");
+        header.set_string("OBJECT", "M34");
+        write_fits(&path, &image, &header).unwrap();
+
+        let wcs = WcsInfo::from_plate_solve(40.1, 42.3, 12.0, 1.46, 400, 300);
+        write_wcs_into_fits(&path, &wcs).unwrap();
+
+        let (read_back, parsed) = read_fits(&path).unwrap();
+        assert_eq!(parsed.get_float("CRVAL1"), Some(40.1));
+        assert_eq!(parsed.get_float("CRVAL2"), Some(42.3));
+        assert_eq!(parsed.get_float("CRPIX1"), Some(200.5));
+        assert_eq!(parsed.get_float("CRPIX2"), Some(150.5));
+        assert_eq!(parsed.get_string("CTYPE1"), Some("RA---TAN"));
+        assert_eq!(parsed.get_string("RADESYS"), Some("ICRS"));
+        assert_eq!(parsed.get_float("EQUINOX"), Some(2000.0));
+        assert_eq!(parsed.get_float("EXPTIME"), Some(120.0));
+        assert_eq!(parsed.get_string("PIERSIDE"), Some("West"));
+        assert_eq!(parsed.get_string("OBJECT"), Some("M34"));
+        assert_eq!(read_back.as_u16().unwrap(), pixels);
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name())
+            .collect();
+        assert_eq!(
+            leftovers.len(),
+            1,
+            "no staging file is left behind: {leftovers:?}"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

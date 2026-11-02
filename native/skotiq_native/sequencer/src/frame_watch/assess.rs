@@ -41,6 +41,9 @@ pub async fn measure_saved_frame(
         Ok(result)
             if result.success && result.pixel_scale.is_finite() && result.pixel_scale > 0.0 =>
         {
+            if let Some(wcs) = result.wcs.clone() {
+                write_solved_wcs(path, wcs).await;
+            }
             SolveOutcome::Solved {
                 ra_deg: result.ra_degrees,
                 dec_deg: result.dec_degrees,
@@ -67,6 +70,29 @@ pub async fn measure_saved_frame(
         solve,
         field_short_side_arcmin,
     })
+}
+
+/// Record the solve in the frame itself, so a stacker or PixInsight can use
+/// the frame without solving it again. A frame that cannot be rewritten keeps
+/// its header; the solve still counts.
+async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::WcsInfo) {
+    let owned = std::path::PathBuf::from(path);
+    let outcome =
+        tokio::task::spawn_blocking(move || skotiq_imaging::write_wcs_into_fits(&owned, &wcs))
+            .await;
+    match outcome {
+        Ok(Ok(())) => tracing::debug!("[FRAME_WATCH] Wrote the solved WCS into {}", path),
+        Ok(Err(e)) => tracing::warn!(
+            "[FRAME_WATCH] Could not write the solved WCS into {}: {}",
+            path,
+            e
+        ),
+        Err(e) => tracing::warn!(
+            "[FRAME_WATCH] Writing the solved WCS into {} stopped: {}",
+            path,
+            e
+        ),
+    }
 }
 
 fn load_frame(path: &str) -> Result<ImageData, String> {

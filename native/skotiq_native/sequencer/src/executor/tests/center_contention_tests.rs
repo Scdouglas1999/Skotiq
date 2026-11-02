@@ -104,6 +104,7 @@ impl DeviceOps for CenterContentionOps {
             rotation: 0.0,
             up_position_angle_deg: 0.0,
             success: true,
+            wcs: None,
         })
     }
 

@@ -18296,8 +18296,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   FitsWriteHeaderRich dco_decode_fits_write_header_rich(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 51)
-      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
+    if (arr.length != 52)
+      throw Exception('unexpected arr length: expect 52 but see ${arr.length}');
     return FitsWriteHeaderRich(
       objectName: dco_decode_opt_String(arr[0]),
       exposureTime: dco_decode_f_64(arr[1]),
@@ -18353,6 +18353,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       photometryFwhmArcsec: dco_decode_opt_box_autoadd_f_64(arr[48]),
       photometrySnr: dco_decode_opt_box_autoadd_f_64(arr[49]),
       rigLabel: dco_decode_opt_String(arr[50]),
+      pierSide: dco_decode_opt_String(arr[51]),
     );
   }
 
@@ -23025,6 +23026,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     var var_photometrySnr = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_rigLabel = sse_decode_opt_String(deserializer);
+    var var_pierSide = sse_decode_opt_String(deserializer);
     return FitsWriteHeaderRich(
       objectName: var_objectName,
       exposureTime: var_exposureTime,
@@ -23077,6 +23079,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       photometryFwhmArcsec: var_photometryFwhmArcsec,
       photometrySnr: var_photometrySnr,
       rigLabel: var_rigLabel,
+      pierSide: var_pierSide,
     );
   }
 
@@ -28475,6 +28478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_64(self.photometryFwhmArcsec, serializer);
     sse_encode_opt_box_autoadd_f_64(self.photometrySnr, serializer);
     sse_encode_opt_String(self.rigLabel, serializer);
+    sse_encode_opt_String(self.pierSide, serializer);
   }
 
   @protected

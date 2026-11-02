@@ -442,6 +442,7 @@ async fn save_fits_writes_the_header_from_its_own_frame_context() {
     ctx.rotator_angle_deg = Some(212.5);
     ctx.camera_pixel_size_x_um = Some(3.76);
     ctx.camera_pixel_size_y_um = Some(3.76);
+    ctx.pier_side = Some("West".to_string());
 
     let scratch = temp_scratch_dir("save_fits_ctx");
     let path = scratch.as_ref().join("save_fits_ctx_0001.fits");
@@ -460,6 +461,11 @@ async fn save_fits_writes_the_header_from_its_own_frame_context() {
     assert_eq!(parsed.get_float("ROTATPOS"), Some(212.5));
     let ra_deg = parsed.get_float("RA").expect("RA card must be present");
     assert!((ra_deg - 17.0 * 15.0).abs() < 1e-6, "RA card was {ra_deg}");
+    // The side of the pier the frame was taken on, and the frame RA/DEC are
+    // recorded in.
+    assert_eq!(parsed.get_string("PIERSIDE"), Some("West"));
+    assert_eq!(parsed.get_float("EQUINOX"), Some(2000.0));
+    assert_eq!(parsed.get_string("RADESYS"), Some("ICRS"));
 
     // The plate scale a stacker needs. This card was absent from every
     // sequenced frame because the header builder hardcoded the pitch to

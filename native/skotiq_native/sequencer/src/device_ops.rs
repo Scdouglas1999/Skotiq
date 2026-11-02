@@ -79,6 +79,9 @@ pub struct PlateSolveResult {
     /// camera attitude needs (see `polar_align::CameraAttitude`).
     pub up_position_angle_deg: f64,
     pub success: bool,
+    /// The solve's full WCS, when the solver gave one, for writing into the
+    /// solved frame's FITS header.
+    pub wcs: Option<skotiq_imaging::WcsInfo>,
 }
 
 /// Guiding status
@@ -1089,6 +1092,7 @@ impl DeviceOps for NullDeviceOps {
             rotation: 0.0,
             up_position_angle_deg: 0.0,
             success: true,
+            wcs: None,
         })
     }
 

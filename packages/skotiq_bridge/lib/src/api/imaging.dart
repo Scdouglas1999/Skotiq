@@ -1825,6 +1825,11 @@ class FitsWriteHeaderRich {
   /// sessions (FITS `SK-RIG`). `None` for the single-rig case.
   final String? rigLabel;
 
+  /// Side of the pier the mount reported for the frame, `"East"` or
+  /// `"West"` (FITS `PIERSIDE`): which side a frame was taken on matters
+  /// across a meridian flip, where the field turns by 180 degrees.
+  final String? pierSide;
+
   const FitsWriteHeaderRich({
     this.objectName,
     required this.exposureTime,
@@ -1877,6 +1882,7 @@ class FitsWriteHeaderRich {
     this.photometryFwhmArcsec,
     this.photometrySnr,
     this.rigLabel,
+    this.pierSide,
   });
 
   static Future<FitsWriteHeaderRich> default_() =>
@@ -1934,7 +1940,8 @@ class FitsWriteHeaderRich {
       photometryDifferentialMag.hashCode ^
       photometryFwhmArcsec.hashCode ^
       photometrySnr.hashCode ^
-      rigLabel.hashCode;
+      rigLabel.hashCode ^
+      pierSide.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1991,7 +1998,8 @@ class FitsWriteHeaderRich {
           photometryDifferentialMag == other.photometryDifferentialMag &&
           photometryFwhmArcsec == other.photometryFwhmArcsec &&
           photometrySnr == other.photometrySnr &&
-          rigLabel == other.rigLabel;
+          rigLabel == other.rigLabel &&
+          pierSide == other.pierSide;
 }
 
 /// A single focus data point (position and HFR)

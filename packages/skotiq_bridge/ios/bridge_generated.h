@@ -489,6 +489,7 @@ typedef struct wire_cst_fits_write_header_rich {
   double *photometry_fwhm_arcsec;
   double *photometry_snr;
   struct wire_cst_list_prim_u_8_strict *rig_label;
+  struct wire_cst_list_prim_u_8_strict *pier_side;
 } wire_cst_fits_write_header_rich;
 
 typedef struct wire_cst_api_defect_map_status {

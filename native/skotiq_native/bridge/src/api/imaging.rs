@@ -2934,6 +2934,10 @@ pub struct FitsWriteHeaderRich {
     /// Dual-rig — optical-train / camera attribution for multi-camera
     /// sessions (FITS `SK-RIG`). `None` for the single-rig case.
     pub rig_label: Option<String>,
+    /// Side of the pier the mount reported for the frame, `"East"` or
+    /// `"West"` (FITS `PIERSIDE`): which side a frame was taken on matters
+    /// across a meridian flip, where the field turns by 180 degrees.
+    pub pier_side: Option<String>,
 }
 
 impl From<FitsWriteHeader> for FitsWriteHeaderRich {
@@ -3082,6 +3086,7 @@ impl FitsWriteHeaderRich {
             photometry_snr: ctx.photometry_snr,
             // Dual-rig — carry the rig attribution into the FITS header.
             rig_label: ctx.rig_label.clone(),
+            pier_side: ctx.pier_side.clone(),
         }
     }
 }
@@ -3452,6 +3457,16 @@ pub async fn save_fits_file_rich(
     // helpers above).
     set_pointing_keywords(&mut header, header_data.ra, header_data.dec);
     set_horizon_keywords(&mut header, header_data.altitude);
+
+    // A sequenced frame's pointing is recorded in J2000 (see
+    // `FrameContext::mount_ra_hours`); say so, so a reader need not assume it.
+    if header_data.ra.is_some() || header_data.dec.is_some() {
+        header.set_float("EQUINOX", 2000.0);
+        header.set_string("RADESYS", "ICRS");
+    }
+    if let Some(side) = header_data.pier_side.as_deref() {
+        header.set_string("PIERSIDE", side);
+    }
 
     // Image grading: live device telemetry.
     if let Some(pos) = header_data.focuser_position {

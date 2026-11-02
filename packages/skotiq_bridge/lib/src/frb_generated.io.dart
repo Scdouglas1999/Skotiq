@@ -5353,6 +5353,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       apiObj.photometrySnr,
     );
     wireObj.rig_label = cst_encode_opt_String(apiObj.rigLabel);
+    wireObj.pier_side = cst_encode_opt_String(apiObj.pierSide);
   }
 
   @protected
@@ -23518,6 +23519,8 @@ final class wire_cst_fits_write_header_rich extends ffi.Struct {
   external ffi.Pointer<ffi.Double> photometry_snr;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> rig_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> pier_side;
 }
 
 final class wire_cst_api_defect_map_status extends ffi.Struct {

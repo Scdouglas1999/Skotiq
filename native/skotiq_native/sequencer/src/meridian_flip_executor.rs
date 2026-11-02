@@ -2672,6 +2672,7 @@ mod tests {
                 rotation: 0.0,
                 up_position_angle_deg: 0.0,
                 success: !should_fail,
+                wcs: None,
             })
         }
 

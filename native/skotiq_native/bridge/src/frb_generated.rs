@@ -13253,6 +13253,7 @@ impl SseDecode for crate::api::imaging::FitsWriteHeaderRich {
         let mut var_photometryFwhmArcsec = <Option<f64>>::sse_decode(deserializer);
         let mut var_photometrySnr = <Option<f64>>::sse_decode(deserializer);
         let mut var_rigLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_pierSide = <Option<String>>::sse_decode(deserializer);
         return crate::api::imaging::FitsWriteHeaderRich {
             object_name: var_objectName,
             exposure_time: var_exposureTime,
@@ -13305,6 +13306,7 @@ impl SseDecode for crate::api::imaging::FitsWriteHeaderRich {
             photometry_fwhm_arcsec: var_photometryFwhmArcsec,
             photometry_snr: var_photometrySnr,
             rig_label: var_rigLabel,
+            pier_side: var_pierSide,
         };
     }
 }
@@ -18792,6 +18794,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::FitsWriteHeaderRich 
             self.photometry_fwhm_arcsec.into_into_dart().into_dart(),
             self.photometry_snr.into_into_dart().into_dart(),
             self.rig_label.into_into_dart().into_dart(),
+            self.pier_side.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -23070,6 +23073,7 @@ impl SseEncode for crate::api::imaging::FitsWriteHeaderRich {
         <Option<f64>>::sse_encode(self.photometry_fwhm_arcsec, serializer);
         <Option<f64>>::sse_encode(self.photometry_snr, serializer);
         <Option<String>>::sse_encode(self.rig_label, serializer);
+        <Option<String>>::sse_encode(self.pier_side, serializer);
     }
 }
 
@@ -27582,6 +27586,7 @@ mod io {
                 photometry_fwhm_arcsec: self.photometry_fwhm_arcsec.cst_decode(),
                 photometry_snr: self.photometry_snr.cst_decode(),
                 rig_label: self.rig_label.cst_decode(),
+                pier_side: self.pier_side.cst_decode(),
             }
         }
     }
@@ -30757,6 +30762,7 @@ mod io {
                 photometry_fwhm_arcsec: core::ptr::null_mut(),
                 photometry_snr: core::ptr::null_mut(),
                 rig_label: core::ptr::null_mut(),
+                pier_side: core::ptr::null_mut(),
             }
         }
     }
@@ -38461,6 +38467,7 @@ mod io {
         photometry_fwhm_arcsec: *mut f64,
         photometry_snr: *mut f64,
         rig_label: *mut wire_cst_list_prim_u_8_strict,
+        pier_side: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
