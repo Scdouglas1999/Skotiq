@@ -407,7 +407,7 @@ class OpticalTrainDiagnosticsService {
         const OpticalDiagnosticIssue(
           title: 'Collimation not measured',
           detail:
-              'This session has no astrometric residuals on both sides of the field, so edge-versus-centre behavior could not be compared.',
+              'This session has no astrometric residuals on both sides of the field, so edge-versus-center behavior could not be compared.',
           severity: OpticalIssueSeverity.info,
         ),
       if (tiltMeasured &&

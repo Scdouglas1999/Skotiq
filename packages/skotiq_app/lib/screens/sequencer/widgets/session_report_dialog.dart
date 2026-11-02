@@ -441,7 +441,7 @@ class _ReportBody extends ConsumerWidget {
                               'zeros rather than report drift.',
                           resolutionHint:
                               'Plate-solve frames across the whole field so '
-                              'tilt and edge-versus-centre residuals can be '
+                              'tilt and edge-versus-center residuals can be '
                               'compared next time.',
                         ),
                       ...diagnostics.all,

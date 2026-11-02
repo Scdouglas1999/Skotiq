@@ -735,7 +735,7 @@ class DawnDraftBuilder {
         ? 'the color fit applied at full resolution against '
               '${photometry.stars.length} catalog stars'
         : 'no catalog photometry was available '
-              '(${photometry.unavailableReason ?? 'no catalogue star was resolved for this field'}), '
+              '(${photometry.unavailableReason ?? 'no catalog star was resolved for this field'}), '
               'so the balance renders the median color of the field\'s own '
               'stars neutral instead, measured at full resolution';
 

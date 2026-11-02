@@ -313,7 +313,7 @@ class _IntegrationSettingsPanelState extends State<IntegrationSettingsPanel> {
           _SwitchRow(
             label: 'Bayer drizzle',
             tooltip: 'Drizzle the raw CFA mosaic directly into RGB (no debayer '
-                'interpolation). Only for one-shot-colour sensors.',
+                'interpolation). Only for one-shot-color sensors.',
             value: _s.bayerDrizzle,
             onChanged: (v) =>
                 _emit(_s.copyWith(bayerDrizzle: v, clearSourcePreset: true)),
