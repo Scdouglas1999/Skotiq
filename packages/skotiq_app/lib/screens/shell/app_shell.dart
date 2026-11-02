@@ -232,15 +232,18 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// Put back the plan the Builder held, unsaved, when Skotiq last stopped
   /// (a crash or a killed process), and say so.
   Future<void> _restoreEditorDraft() async {
+    if (!mounted) return;
+    // The container outlives this shell; the restore can finish after it.
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      final restored = await restoreEditorDraft(ref.read);
+      final restored = await restoreEditorDraft(container.read);
       if (restored == null || !mounted) return;
       context.showInfoSnackBar(
         'Restored "${restored.name}", the plan you were editing when Skotiq '
         'last closed. It is not saved yet.',
       );
     } catch (e) {
-      ref.read(loggingServiceProvider).warning(
+      container.read(loggingServiceProvider).warning(
             'Could not restore the unsaved plan: $e',
             source: 'AppShell',
           );
@@ -427,6 +430,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     // read is what makes it tick in the GUI (the headless host eager-reads it in
     // main_headless). No-op until a session is joined and a site is configured.
     ref.watch(coImagingBatonSchedulerProvider);
+    // The end of a run has to be seen whichever screen is open, so Tonight
+    // can still show it as the finished night when the operator returns.
+    ref.listen(lastEndedRunProvider, (_, __) {});
     final isSideNavExpanded =
         sidebarCollapsed != null ? !sidebarCollapsed : _fallbackSideNavExpanded;
 
