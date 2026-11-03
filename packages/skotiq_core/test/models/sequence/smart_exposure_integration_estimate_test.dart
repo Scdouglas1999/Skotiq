@@ -155,18 +155,23 @@ void main() {
     test(
       'saving 10x60s TakeExposure + 10x60s SmartExposure stores 20m, not 10m',
       () async {
-        final id = await repository.saveSequence(
-          _sequenceOf([_takeExposures(), _smartExposure()]),
-        );
+        final sequence = _sequenceOf([_takeExposures(), _smartExposure()]);
+        final id = await repository.saveSequence(sequence);
 
+        // The stored duration is the run estimate the editor shows: both
+        // nodes' 20 minutes of exposure plus their per-frame overhead.
         final row = await database.sequencesDao.getSequenceById(id);
-        expect(row!.estimatedDurationMins, 20);
+        expect(
+          row!.estimatedDurationMins,
+          (sequenceRollupSecs(sequence) / 60).ceil(),
+        );
+        expect(row.estimatedDurationMins, greaterThanOrEqualTo(20));
 
         final summaries = await repository.loadSequenceSummaries();
         final summary = summaries.singleWhere((s) => s.id == id);
         expect(summary.exposureCount, 2);
-        // What the card's duration chip formats.
-        expect(summary.totalIntegrationSecs, 1200);
+        // What the card's duration chip formats: the same run estimate.
+        expect(summary.totalIntegrationSecs, row.estimatedDurationMins * 60);
       },
     );
   });
