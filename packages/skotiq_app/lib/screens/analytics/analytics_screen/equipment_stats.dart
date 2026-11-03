@@ -186,8 +186,11 @@ class _EquipmentStatsTab extends ConsumerWidget {
                   title: 'Focuser',
                   icon: LucideIcons.focus,
                   readouts: [
+                    // Counted from imaging sessions; a hand-run autofocus
+                    // outside a session is not recorded on one, and a bare
+                    // "Autofocus runs 0" after one read as a lost run.
                     Readout(
-                      label: 'Autofocus runs',
+                      label: 'Autofocus runs in sessions',
                       value: autofocusRuns,
                       size: ReadoutSize.sm,
                     ),

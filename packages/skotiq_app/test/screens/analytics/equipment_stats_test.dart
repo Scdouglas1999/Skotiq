@@ -141,7 +141,7 @@ void main() {
     final rms = _readout(tester, 'Avg RMS');
     expect(rms.value, '0.80');
     expect(rms.unit, '"');
-    expect(_readout(tester, 'Autofocus runs').value, '5');
+    expect(_readout(tester, 'Autofocus runs in sessions').value, '5');
   });
 
   testWidgets('session failures do not masquerade as zero autofocus runs',
@@ -161,7 +161,7 @@ void main() {
         find.textContaining('Session totals are unavailable'), findsOneWidget);
     // The count is not claimed as zero: a null readout is the em dash, which
     // is the only way this screen says "not known".
-    expect(_readout(tester, 'Autofocus runs').value, isNull);
+    expect(_readout(tester, 'Autofocus runs in sessions').value, isNull);
     expect(find.text('Retry'), findsOneWidget);
   });
 }
