@@ -96,6 +96,21 @@ void main() {
       expect(stops, 1);
     });
 
+    // qa-surfaces S38: while looping only Stop was offered; guiding needed
+    // Stop first, then Start.
+    testWidgets('looping offers Guide, which starts guiding', (tester) async {
+      var starts = 0;
+      await _pumpPanel(
+        tester,
+        state: Phd2GuidingState.looping,
+        onStartGuiding: () async => starts++,
+      );
+      expect(find.text('Stop'), findsOneWidget);
+      await tester.tap(find.text('Guide'));
+      await tester.pump();
+      expect(starts, 1);
+    });
+
     testWidgets('a double-tap issues exactly one command', (tester) async {
       var starts = 0;
       final gate = Completer<void>();

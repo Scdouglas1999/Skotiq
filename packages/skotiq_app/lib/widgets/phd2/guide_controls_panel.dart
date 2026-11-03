@@ -219,12 +219,14 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           _buildErrorBanner(colors, _errorText!),
           const SizedBox(height: _sectionGap),
         ],
+        _buildMainControls(colors),
+        const SizedBox(height: _sectionGap),
+        // Below the controls: a notice such as "Guide star selected" arrived
+        // while the operator was reaching for them and pushed them down.
         if (_noticeText != null) ...[
           _buildNoticeBanner(colors, _noticeText!),
           const SizedBox(height: _sectionGap),
         ],
-        _buildMainControls(colors),
-        const SizedBox(height: _sectionGap),
         _buildStarSelection(colors),
         const SizedBox(height: _sectionGap),
         _buildDitherControls(colors),
@@ -292,17 +294,33 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           // painted as fills, so the panel read as three primaries stacked.
           // "Loop" fits a third of the panel; the tooltip and the semantics
           // label keep the full name.
-          _buildControlButton(
-            id: 'loop',
-            icon: LucideIcons.refreshCw,
-            label: 'Loop',
-            semanticLabel: 'Loop exposures',
-            tooltip: 'Loop exposures without guiding',
-            color: colors.info,
-            colors: colors,
-            isOutline: true,
-            onPressed: connected && state.canLoop ? widget.onLoop : null,
-          ),
+          // While looping, Stop owns the first slot, so this one starts
+          // guiding from the loop; otherwise the operator had to stop the
+          // loop before guiding could start.
+          if (connected && state == Phd2GuidingState.looping)
+            _buildControlButton(
+              id: 'guide',
+              icon: LucideIcons.play,
+              label: 'Guide',
+              semanticLabel: 'Start guiding',
+              tooltip: 'Start guiding on the looped star',
+              color: colors.success,
+              colors: colors,
+              isOutline: true,
+              onPressed: widget.onStartGuiding,
+            )
+          else
+            _buildControlButton(
+              id: 'loop',
+              icon: LucideIcons.refreshCw,
+              label: 'Loop',
+              semanticLabel: 'Loop exposures',
+              tooltip: 'Loop exposures without guiding',
+              color: colors.info,
+              colors: colors,
+              isOutline: true,
+              onPressed: connected && state.canLoop ? widget.onLoop : null,
+            ),
         ]),
       ],
     );

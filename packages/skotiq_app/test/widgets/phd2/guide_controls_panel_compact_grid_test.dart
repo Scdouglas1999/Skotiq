@@ -36,7 +36,7 @@ Future<void> _pumpPanel(
           child: SizedBox(
             width: width,
             child: const GuideControlsPanel(
-              state: Phd2GuidingState.looping,
+              state: Phd2GuidingState.guiding,
               isConnected: true,
             ),
           ),

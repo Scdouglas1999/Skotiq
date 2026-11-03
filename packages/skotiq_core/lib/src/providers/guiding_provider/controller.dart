@@ -699,6 +699,7 @@ class Phd2Controller {
       );
       final guiderId =
           ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
+      _warnIfMountNotTracking();
       await backend.guiderStartGuiding(
         deviceId: guiderId,
         settlePixels: settlePixels,
@@ -706,6 +707,21 @@ class Phd2Controller {
         settleTimeout: _effectiveSettleTimeout(settleTime, settleTimeout),
       );
     });
+  }
+
+  /// Guiding a mount that is not tracking only chases the drift; say so, and
+  /// guide anyway: the operator may be about to turn tracking on.
+  void _warnIfMountNotTracking() {
+    final mount = ref.read(mountStateProvider);
+    if (mount.connectionState != DeviceConnectionState.connected) return;
+    if (mount.isTracking || mount.isSlewing) return;
+    ref
+        .read(uiNotificationProvider.notifier)
+        .showWarning(
+          'The mount is not tracking, so the guider can only chase the drift. '
+          'Turn tracking on in the Mount tab.',
+          title: 'Guiding a mount that is not tracking',
+        );
   }
 
   Future<void> stopGuiding() {

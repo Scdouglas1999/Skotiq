@@ -217,6 +217,39 @@ void main() {
     expect(logs('Guide star lost'), 3);
   });
 
+  // qa-surfaces S38: guiding started on a mount that reported "Not
+  // tracking", with no word.
+  test('starting guiding on a mount that is not tracking warns', () async {
+    final events = StreamController<SkotiqEvent>.broadcast();
+    addTearDown(events.close);
+    final backend = _MockBackend();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    when(
+      () => backend.guiderStartGuiding(
+        deviceId: any(named: 'deviceId'),
+        settlePixels: any(named: 'settlePixels'),
+        settleTime: any(named: 'settleTime'),
+        settleTimeout: any(named: 'settleTimeout'),
+      ),
+    ).thenAnswer((_) async {});
+    final container = _container(backend);
+    addTearDown(container.dispose);
+    _markConnected(container);
+    final mount = container.read(mountStateProvider.notifier);
+    mount.setConnecting('sim_mount_1', 'Simulated Mount');
+    mount.setConnected();
+
+    await container.read(phd2ControllerProvider).startGuiding();
+
+    expect(
+      container
+          .read(uiNotificationProvider)
+          .map((n) => n.title)
+          .contains('Guiding a mount that is not tracking'),
+      isTrue,
+    );
+  });
+
   group('command gate', () {
     test(
       'rapid double Start fires one native call; the second is rejected',
