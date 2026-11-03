@@ -209,11 +209,15 @@ final skyAtlasCoverageProvider =
           AtlasTileCoverage.fromJson,
         );
       }
-      // Host coverage poll reads the SkyTiles DB index (same scalars, zero sidecar
-      // I/O) rather than the native full-scan of every `.skt` sidecar.
-      return Stream.fromFuture(
-        ref.watch(skyAtlasServiceProvider).coverageFromIndex(),
-      );
+      // Host coverage reads the SkyTiles DB index (same scalars, zero sidecar
+      // I/O) rather than the native full-scan of every `.skt` sidecar, and
+      // reads it again whenever a fold changes the tiles: read once, Your sky
+      // stayed dark after a solved frame until Refresh.
+      final service = ref.watch(skyAtlasServiceProvider);
+      return ref
+          .watch(skyAtlasDaoProvider)
+          .watchAllTiles()
+          .asyncMap((_) => service.coverageFromIndex());
     });
 
 /// Atlas-wide totals counted once per frame, for the Your Sky headline. Host
