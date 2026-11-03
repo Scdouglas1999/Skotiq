@@ -36,6 +36,29 @@ void main() {
     expect(find.textContaining('Swap E/W'), findsNothing);
   });
 
+  // qa-surfaces S16: past the flip point the tab read "Flip in 0m" for a
+  // mount at hour angle +4h45m.
+  testWidgets('past the flip point the countdown reads past due',
+      (tester) async {
+    await pumpPanelTab(tester, const NightMountTab(), overrides: [
+      ...panelOverrides(),
+      meridianCountdownProvider.overrideWith(
+        (ref) => const MeridianCountdownState(
+          isArmed: true,
+          timeToFlip: Duration.zero,
+          isAutomaticWatchdog: true,
+          isSequencerOwned: false,
+          disabledReason: 'Already past meridian — flip imminent',
+          method: MeridianTriggerMethod.minutesPastMeridian,
+          hourAngleHours: 4.75,
+          sideOfPier: null,
+        ),
+      ),
+    ]);
+    expect(find.text('past due'), findsOneWidget);
+    expect(find.text('0m'), findsNothing);
+  });
+
   testWidgets('lays out at 1.3x text without overflow', (tester) async {
     await pumpPanelTab(
       tester,
