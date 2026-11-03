@@ -133,8 +133,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || ref.read(backendProvider) is! NetworkBackend) return;
       if (ref.read(lastScanTimeProvider) != null ||
-          ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt !=
-              null) {
+          ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt != null) {
         return;
       }
       unawaited(_scanForDevices());

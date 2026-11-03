@@ -177,7 +177,11 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           const SizedBox(width: 8),
           _ActionButton(
             label: state.isWarming ? 'Cancel warm-up' : 'Warm up',
-            onTap: _deviceCommandInFlight
+            // A run controls the cooler; the host refuses a hand warm-up
+            // until it stops, so the button does not offer one.
+            onTap: _deviceCommandInFlight ||
+                    (!state.isWarming &&
+                        ref.watch(sequenceExecutionStateProvider).ownsHardware)
                 ? null
                 : state.isWarming
                     ? _handleCancelWarm

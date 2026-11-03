@@ -24,9 +24,21 @@ import 'package:skotiq_core/skotiq_core.dart' as core;
 String userFacingError(Object? error) {
   if (error == null) return 'Unknown error';
   final message = _authoredMessage(error)?.trim();
-  if (message != null && message.isNotEmpty) return message;
+  if (message != null && message.isNotEmpty) return _withoutErrorCode(message);
   final rendered = error.toString().trim();
-  return rendered.isEmpty ? error.runtimeType.toString() : rendered;
+  return rendered.isEmpty
+      ? error.runtimeType.toString()
+      : _withoutErrorCode(rendered);
+}
+
+/// The imaging host words a refusal as `run_owns_cooler: <sentence>`; the
+/// code is for programs, the sentence is for the person.
+final RegExp _errorCodePrefix = RegExp(r'^[a-z][a-z0-9]*(?:_[a-z0-9]+)+: ');
+
+String _withoutErrorCode(String text) {
+  final match = _errorCodePrefix.firstMatch(text);
+  if (match == null || match.end >= text.length) return text;
+  return text.substring(match.end);
 }
 
 String? _authoredMessage(Object error) {

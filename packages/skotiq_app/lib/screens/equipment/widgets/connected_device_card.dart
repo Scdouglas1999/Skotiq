@@ -10,6 +10,7 @@ import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/cooled_camera_guard.dart';
 import '../../../utils/device_format_utils.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../../../utils/user_facing_error.dart';
 import '../../../widgets/focuser_backlash/effective_backlash_readout.dart';
 import '../../../widgets/troubleshooter/connection_troubleshooter_dialog.dart';
 import '../utils/device_error_subtitle.dart';

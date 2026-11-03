@@ -220,7 +220,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     } catch (e) {
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
-        context.showErrorSnackBar('Failed to warm up: $e');
+        context.showErrorSnackBar('Failed to warm up: ${userFacingError(e)}');
       }
     } finally {
       _finishDeviceCommand(revision, backend);

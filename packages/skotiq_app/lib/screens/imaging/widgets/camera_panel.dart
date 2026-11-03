@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import '../../../utils/user_facing_error.dart';
 import '../../../utils/cooled_camera_guard.dart' show warmupOutcomeMessage;
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
@@ -338,7 +339,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             if (context.mounted &&
                                 _isCurrentAuthority(authority)) {
                               context.showErrorSnackBar(
-                                'Failed to warm up: $e',
+                                'Failed to warm up: ${userFacingError(e)}',
                               );
                             }
                           } finally {
