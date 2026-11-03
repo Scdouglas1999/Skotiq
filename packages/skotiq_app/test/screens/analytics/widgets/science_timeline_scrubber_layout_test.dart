@@ -59,8 +59,8 @@ void main() {
       expect(find.textContaining('Sky/read noise 30.0x'), findsOneWidget);
       expect(find.textContaining('Clip H 0.00%'), findsOneWidget);
 
-      await tester.tapAt(
-          tester.getTopRight(find.byType(Slider)) + const Offset(-25, 24));
+      final track = tester.getRect(find.byType(Slider));
+      await tester.tapAt(Offset(track.right - 25, track.center.dy));
       await tester.pump();
       expect(selectedFrame, 2);
       expect(find.text('Frame 2/2'), findsOneWidget);
