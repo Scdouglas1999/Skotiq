@@ -130,6 +130,12 @@ class NightControlLayout extends StatefulWidget {
   static const double drawerMinWidth = 900;
   static const double leftWidth = 272;
   static const double panelWidth = 300;
+
+  /// The right panel's width for a window [width] wide: 300 px up to 1600,
+  /// then a quarter of the extra width, up to 400. At a fixed 300 px a
+  /// 1920-wide window truncated the same labels a 1600-wide one did.
+  static double panelWidthFor(double width) =>
+      panelWidth + ((width - 1600).clamp(0.0, 400.0) * 0.25);
   static const double headerHeight = 48;
   static const double compactBodyHeight = 720;
   static const double actionHintMinWidth = 900;
@@ -194,9 +200,9 @@ class _NightControlLayoutState extends State<NightControlLayout> {
           final centerWidth = switch (mode) {
             NightControlMode.threeColumn => width -
                 NightControlLayout.leftWidth -
-                NightControlLayout.panelWidth,
+                NightControlLayout.panelWidthFor(width),
             NightControlMode.planDrawer =>
-              width - NightControlLayout.panelWidth,
+              width - NightControlLayout.panelWidthFor(width),
             NightControlMode.singleColumn => width,
           };
           return NightControlDensity(
@@ -209,7 +215,7 @@ class _NightControlLayoutState extends State<NightControlLayout> {
             closePlanDrawer: drawerMode ? _closeDrawer : null,
             child: switch (mode) {
               NightControlMode.singleColumn => _singleColumn(colors),
-              _ => _columns(colors, mode, drawerOpen),
+              _ => _columns(colors, mode, drawerOpen, width),
             },
           );
         },
@@ -217,7 +223,12 @@ class _NightControlLayoutState extends State<NightControlLayout> {
     );
   }
 
-  Widget _columns(SkotiqColors colors, NightControlMode mode, bool drawerOpen) {
+  Widget _columns(
+    SkotiqColors colors,
+    NightControlMode mode,
+    bool drawerOpen,
+    double width,
+  ) {
     final threeColumn = mode == NightControlMode.threeColumn;
     final divider = BorderSide(color: colors.border);
     return Column(
@@ -246,7 +257,7 @@ class _NightControlLayoutState extends State<NightControlLayout> {
                       ),
                     Expanded(child: _slot(widget.center)),
                     SizedBox(
-                      width: NightControlLayout.panelWidth,
+                      width: NightControlLayout.panelWidthFor(width),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: colors.surface,
