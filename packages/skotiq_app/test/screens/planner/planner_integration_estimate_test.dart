@@ -134,4 +134,11 @@ void main() {
     // "0h 60m" and not "60m".
     expect(find.text('1h'), findsOneWidget);
   });
+
+  // qa-surfaces S26: the field preview was an empty dark box that read as an
+  // image that failed to load.
+  testWidgets('the field preview says what it draws', (tester) async {
+    await pumpPlanner(tester, 4);
+    expect(find.text('Size not catalogued'), findsOneWidget);
+  });
 }

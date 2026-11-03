@@ -137,4 +137,38 @@ void main() {
           {'gain': 139, 'offset': 21});
     });
   }
+
+  // qa-surfaces S26: the plan said "Suggested exposure 55 s" for L and Build
+  // pre-filled L 120 s.
+  testWidgets('Build pre-fills the planner\'s suggested sub length',
+      (tester) async {
+    AutoBuildOptions? result;
+    await tester.pumpWidget(MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: TextButton(
+                    child: const Text('Open'),
+                    onPressed: () async {
+                      result = await showDialog<AutoBuildOptions>(
+                          context: context,
+                          builder: (_) => AutoBuildOptionsDialog(
+                              profile: _profile,
+                              filters: const ['L', 'R', 'G', 'B'],
+                              target: _target,
+                              saved: const {},
+                              suggestedSeconds: const {'L': 55},
+                              onSave: (_) async {}));
+                    })))));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    tester
+        .widget<DropdownButtonFormField<SmartNightStrategy>>(
+            find.byType(DropdownButtonFormField<SmartNightStrategy>))
+        .onChanged!(SmartNightStrategy.monoLrgb);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Build sequence'));
+    await tester.pumpAndSettle();
+    expect(result!.exposures['L'], 55);
+  });
 }

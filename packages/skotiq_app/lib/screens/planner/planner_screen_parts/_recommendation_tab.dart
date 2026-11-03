@@ -253,7 +253,17 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     SessionOptimizationPlan plan,
   ) async {
     try {
-      final options = await showAutoBuildOptions(context, ref, target);
+      final filter = plan.recommendedFilterName;
+      final options = await showAutoBuildOptions(
+        context,
+        ref,
+        target,
+        suggestedSeconds: plan.primaryTarget?.targetId == target.targetId &&
+                filter != null &&
+                plan.recommendedExposureSeconds > 0
+            ? {filter: plan.recommendedExposureSeconds}
+            : const {},
+      );
       if (options == null || !context.mounted) return;
       final built = await buildPlanTonightTargetSequence(
         ref: ref,

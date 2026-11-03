@@ -23,7 +23,6 @@ class _PlanNightChips extends ConsumerWidget {
     }
 
     final now = DateTime.now();
-    final illumination = AstronomyCalculations.moonIllumination(now);
     final twilight = AstronomyCalculations.calculateTwilightTimes(
       date: now,
       latitudeDeg: location!.latitude,
@@ -31,6 +30,9 @@ class _PlanNightChips extends ConsumerWidget {
     );
     final dusk = twilight.astronomicalDusk;
     final dawn = twilight.astronomicalDawn;
+    final illumination = AstronomyCalculations.moonIllumination(
+      plannerMoonInstant(now: now, dusk: dusk, dawn: dawn),
+    );
     final l10n = context.l10n;
 
     return Row(
@@ -413,4 +415,17 @@ class _ControlsBarChips {
         _ResetChip(colors: colors, onPressed: resetFilters),
     ];
   }
+}
+
+/// When the planner reads the Moon's phase: the middle of tonight's dark,
+/// the instant the target ranking uses, so the header and a target's
+/// rationale cannot quote 52% and 53% for the same Moon.
+@visibleForTesting
+DateTime plannerMoonInstant({
+  required DateTime now,
+  required DateTime? dusk,
+  required DateTime? dawn,
+}) {
+  if (dusk == null || dawn == null || !dawn.isAfter(dusk)) return now;
+  return dusk.add(Duration(seconds: dawn.difference(dusk).inSeconds ~/ 2));
 }

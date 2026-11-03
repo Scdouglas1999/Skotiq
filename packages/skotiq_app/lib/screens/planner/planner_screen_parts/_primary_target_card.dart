@@ -380,6 +380,24 @@ class _TargetFieldPreview extends ConsumerWidget {
                   ),
                 ),
               ),
+            // Without a caption the well read as a preview that failed to
+            // load; it is a scale drawing of the target's size.
+            Positioned(
+              left: SkotiqTokens.spaceSm,
+              top: SkotiqTokens.spaceSm,
+              right: SkotiqTokens.spaceSm,
+              child: Text(
+                fraction == null
+                    ? 'Size not catalogued'
+                    : 'Target size to scale in a '
+                        '${_fullFrameArcmin.round()} arcmin field',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SkotiqTypography.caption.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ),
             // The two things you can do with a target that are not the page's
             // actions. A candidate row carries ONE button (05 §9) and the
             // selected row spends it on "Image tonight", so the observing list

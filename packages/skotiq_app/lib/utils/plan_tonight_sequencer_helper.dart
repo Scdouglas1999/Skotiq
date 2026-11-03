@@ -141,7 +141,13 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final fillWindow = options != null && options.end != AutoBuildEnd.integration;
   integrationBudgetHours = options == null
       ? integrationBudgetHours
-      : (fillWindow ? end.difference(start).inSeconds / 3600 : options.hours);
+      : (fillWindow
+          ? fillWindowBudgetHours(
+              start: start,
+              end: end,
+              overhead: ref.read(sequencerOverheadConfigProvider),
+            )
+          : options.hours);
 
   // The reviewed recipe owns its filters and exposure lengths. Saved
   // integration goals are used only by the automatic planning path.
@@ -847,4 +853,21 @@ String planTonightSequenceSummary(SingleTargetSequenceResult result) {
     (sum, plan) => sum + plan.count,
   );
   return '$filters ($totalFrames frames)';
+}
+
+/// Imaging hours that end by [end] when the plan starts at [start]: the plan
+/// cools the camera, slews, solves and starts guiding before its first light
+/// frame, so that time comes out of the window. Filled to the whole window,
+/// a plan meant to end at astronomical dawn imaged 19 minutes past it.
+double fillWindowBudgetHours({
+  required DateTime start,
+  required DateTime end,
+  required SequenceOverheadConfig overhead,
+}) {
+  final preambleSecs = overhead.coolingSecs +
+      overhead.slewSecs +
+      overhead.plateSolveSecs +
+      overhead.guideAcquireSecs;
+  final secs = end.difference(start).inSeconds - preambleSecs;
+  return secs <= 0 ? 0 : secs / 3600;
 }

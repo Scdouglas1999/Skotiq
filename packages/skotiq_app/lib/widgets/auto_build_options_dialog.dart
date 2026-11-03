@@ -44,8 +44,9 @@ class AutoBuildOptions {
 Future<AutoBuildOptions?> showAutoBuildOptions(
   BuildContext context,
   WidgetRef ref,
-  TargetSuggestion target,
-) async {
+  TargetSuggestion target, {
+  Map<String, double> suggestedSeconds = const {},
+}) async {
   final profile = ref.read(activeEquipmentProfileProvider);
   if (profile == null) {
     throw const SmartNightBuildException('Select an equipment profile first.');
@@ -83,6 +84,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
       filters: filters,
       target: target,
       saved: saved,
+      suggestedSeconds: suggestedSeconds,
       onSave: (recipe) => dao.setSetting(key, jsonEncode(recipe)),
     ),
   );
@@ -104,6 +106,11 @@ class AutoBuildOptionsDialog extends StatefulWidget {
   final Map<String, dynamic> saved;
   final Future<void> Function(Map<String, dynamic>) onSave;
 
+  /// The planner's suggested sub length per filter, which fills a filter the
+  /// saved recipe has no length for: the detail pane said "Suggested
+  /// exposure 55 s" and Build pre-filled L 120 s.
+  final Map<String, double> suggestedSeconds;
+
   const AutoBuildOptionsDialog(
       {super.key,
       required this.profile,
@@ -112,6 +119,7 @@ class AutoBuildOptionsDialog extends StatefulWidget {
       required this.filters,
       required this.target,
       required this.saved,
+      this.suggestedSeconds = const {},
       required this.onSave});
 
   @override
@@ -161,6 +169,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
     for (final filter in smartNightPlanningFilters(widget.filters)) {
       final spec = FilterExposureSpec.fromName(filter);
       final seconds = savedExposures[filter] ??
+          widget.suggestedSeconds[filter]?.round() ??
           const SmartNightSettings().defaultFrameDurationSecs[spec.name] ??
           180;
       _durations[filter] = TextEditingController(text: '$seconds');
