@@ -27,7 +27,7 @@
 //! `Ok(0)` it cannot distinguish from a real reading.
 
 use crate::api::devices::simulation::{
-    get_sim_camera, get_sim_filterwheel, get_sim_focuser, get_sim_mount, get_sim_rotator,
+    get_sim_filterwheel, get_sim_focuser, get_sim_mount, get_sim_rotator,
 };
 use crate::device::{CameraStatus, FilterWheelStatus, FocuserStatus, MountStatus, RotatorStatus};
 
@@ -406,6 +406,7 @@ pub(crate) fn unsupported_simulator_device(kind: &'static str) -> String {
 #[cfg(test)]
 mod fault_injection_tests {
     use super::*;
+    use crate::api::devices::simulation::get_sim_camera;
     use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
 
     /// The simulator singletons are process-global, so these serialize against

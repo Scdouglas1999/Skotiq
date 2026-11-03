@@ -114,6 +114,7 @@ impl SimulatedCamera {
 }
 
 /// The simulated imaging camera.
+#[cfg(test)]
 pub(crate) fn get_sim_camera() -> &'static Arc<RwLock<SimulatedCamera>> {
     get_sim_camera_for(SIM_IMAGING_CAMERA_ID)
 }
