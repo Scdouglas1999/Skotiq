@@ -13,34 +13,38 @@ import '../harness/in_memory_database.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('an unsaved plan is kept, and comes back unsaved after a restart',
-      () async {
-    final first = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
-    addTearDown(first.dispose);
-    final editor = first.read(currentSequenceProvider.notifier);
-    editor.createSequence(name: 'M34 tonight');
-    editor.addNode(ExposureNode(durationSecs: 20, count: 40));
-    expect(editor.isDirty, isTrue);
+  test(
+    'an unsaved plan is kept, and comes back unsaved after a restart',
+    () async {
+      final first = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
+      addTearDown(first.dispose);
+      final editor = first.read(currentSequenceProvider.notifier);
+      editor.createSequence(name: 'M34 tonight');
+      editor.addNode(ExposureNode(durationSecs: 20, count: 40));
+      expect(editor.isDirty, isTrue);
 
-    final draft = editorDraftJson(first.read);
-    expect(draft, isNotNull);
-    final dao = first.read(settingsDaoProvider);
-    await dao.setSetting(kEditorDraftKey, draft!);
+      final draft = editorDraftJson(first.read);
+      expect(draft, isNotNull);
+      final dao = first.read(settingsDaoProvider);
+      await dao.setSetting(kEditorDraftKey, draft!);
 
-    // The next launch: the same database, an empty Builder.
-    final second = ProviderContainer(overrides: [
-      settingsDaoProvider.overrideWithValue(dao),
-    ]);
-    addTearDown(second.dispose);
-    final restored = await restoreEditorDraft(second.read);
-    expect(restored?.name, 'M34 tonight');
-    final sequence = second.read(currentSequenceProvider)!;
-    expect(sequence.nodes.values.whereType<ExposureNode>(), hasLength(1));
-    expect(second.read(currentSequenceProvider.notifier).isDirty, isTrue);
-  });
+      // The next launch: the same database, an empty Builder.
+      final second = ProviderContainer(
+        overrides: [settingsDaoProvider.overrideWithValue(dao)],
+      );
+      addTearDown(second.dispose);
+      final restored = await restoreEditorDraft(second.read);
+      expect(restored?.name, 'M34 tonight');
+      final sequence = second.read(currentSequenceProvider)!;
+      expect(sequence.nodes.values.whereType<ExposureNode>(), hasLength(1));
+      expect(second.read(currentSequenceProvider.notifier).isDirty, isTrue);
+    },
+  );
 
   test('a saved or empty Builder keeps no draft', () {
-    final container = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
+    final container = ProviderContainer(
+      overrides: [inMemoryDatabaseOverride()],
+    );
     addTearDown(container.dispose);
     expect(editorDraftJson(container.read), isNull);
     final editor = container.read(currentSequenceProvider.notifier);

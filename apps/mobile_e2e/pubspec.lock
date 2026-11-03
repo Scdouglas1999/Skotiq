@@ -1294,14 +1294,14 @@ packages:
       path: "../desktop"
       relative: true
     source: path
-    version: "8.1.1+31"
+    version: "8.2.0+35"
   skotiq_mobile:
     dependency: "direct dev"
     description:
       path: "../mobile"
       relative: true
     source: path
-    version: "8.1.1+31"
+    version: "8.2.0+35"
   skotiq_planetarium:
     dependency: "direct overridden"
     description:

@@ -32,8 +32,9 @@ void main() {
     final backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => events.stream);
-    when(() => backend.polarAlignmentEvents)
-        .thenAnswer((_) => const Stream.empty());
+    when(
+      () => backend.polarAlignmentEvents,
+    ).thenAnswer((_) => const Stream.empty());
     container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
@@ -70,19 +71,20 @@ void main() {
         data: {'device_type': 'camera', 'device_id': 'sim_camera_2', ...extra},
       );
 
-  test('the guide camera connecting leaves the imaging camera in its slot',
-      () async {
-    events
-      ..add(event('Connecting'))
-      ..add(event('Connected'));
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    final camera = container.read(cameraStateProvider);
-    expect(camera.deviceId, 'sim_camera_1');
-    expect(camera.connectionState, DeviceConnectionState.connected);
-  });
+  test(
+    'the guide camera connecting leaves the imaging camera in its slot',
+    () async {
+      events
+        ..add(event('Connecting'))
+        ..add(event('Connected'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final camera = container.read(cameraStateProvider);
+      expect(camera.deviceId, 'sim_camera_1');
+      expect(camera.connectionState, DeviceConnectionState.connected);
+    },
+  );
 
-  test('the guide camera disconnecting or failing does not touch it',
-      () async {
+  test('the guide camera disconnecting or failing does not touch it', () async {
     events
       ..add(event('Disconnected'))
       ..add(event('Error', extra: {'message': 'USB transfer failed'}));

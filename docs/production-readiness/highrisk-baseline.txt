@@ -248,3 +248,5 @@ native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs:659:                Err(center.message.unwrap_or_default())
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/meridian_flip.rs:74:            .unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/dispatch.rs:244:                    slew.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/device_ops.rs:1329:        let start = device_ops.mount_get_coordinates(mount_id).await.ok();
+native/skotiq_native/sequencer/src/instructions/park.rs:38:    let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();

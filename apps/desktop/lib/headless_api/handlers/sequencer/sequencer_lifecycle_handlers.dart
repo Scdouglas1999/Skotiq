@@ -227,7 +227,11 @@ extension _SequencerLifecycle on SequencerHandlers {
       return jsonEncode(
         container.read(sequenceFileServiceProvider).sequenceToMap(sequence),
       );
-    } catch (_) {
+    } catch (e) {
+      _logger.warning(
+        'Could not compare the local and remote plans: $e',
+        source: 'SequencerHandlers',
+      );
       return null;
     }
   }
