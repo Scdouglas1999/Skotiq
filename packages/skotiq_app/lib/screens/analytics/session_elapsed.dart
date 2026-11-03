@@ -93,6 +93,16 @@ SessionElapsed sessionElapsed(
 Duration _nonNegative(Duration d) => d.isNegative ? Duration.zero : d;
 
 /// `4h 12m` / `20m` / `45s`.
+/// From the first capture to the last, for frames taken outside any session
+/// (the Quick captures bucket); an em dash with fewer than two.
+String captureSpanLabel(Iterable<DateTime> capturedAt) {
+  final times = capturedAt.toList()..sort();
+  if (times.length < 2) return kReadoutUnknown;
+  final span = times.last.difference(times.first);
+  if (span.inHours >= 48) return '${(span.inHours / 24).round()} days';
+  return formatSessionDuration(span);
+}
+
 String formatSessionDuration(Duration d) {
   final hours = d.inHours;
   final minutes = d.inMinutes.remainder(60);

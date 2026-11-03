@@ -144,7 +144,15 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
         label: elapsed == null || !elapsed.isUnfinished
             ? l10n.text('analyticsDuration')
             : '${l10n.text('analyticsDuration')} · ${elapsed.captionLabel}',
-        value: isLive ? duration : elapsed?.valueLabel,
+        value: isLive
+            ? duration
+            : quickCapturesPinned
+                ? frameMetric(
+                    (images) => captureSpanLabel(
+                      acceptedLights(images).map((i) => i.capturedAt),
+                    ),
+                  )
+                : elapsed?.valueLabel,
       ),
       Readout(
         size: ReadoutSize.md,

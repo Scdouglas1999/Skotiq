@@ -109,6 +109,8 @@ String elapsedAxisLabel(double seconds) {
   final minutes = total ~/ 60;
   if (minutes < 90) return '${minutes}m';
   final hours = minutes ~/ 60;
+  // A quick-capture bucket can span months; "3682h54m" is unreadable.
+  if (hours >= 48) return '${(hours / 24).round()}d';
   final remainder = minutes % 60;
   return remainder == 0 ? '${hours}h' : '${hours}h${remainder}m';
 }
