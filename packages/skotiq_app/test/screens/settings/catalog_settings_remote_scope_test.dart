@@ -102,7 +102,8 @@ void main() {
       expect(find.text('On this device'), findsWidgets);
       expect(find.text('Not on the rig'), findsWidgets);
       expect(
-        find.textContaining('plate solving, target search'),
+        find.textContaining(
+            'Plate solving, framing and annotation run on the rig'),
         findsOneWidget,
       );
       expect(
@@ -132,7 +133,10 @@ void main() {
     // is reported missing rather than inheriting the device's answer.
     expect(find.text('On the rig'), findsNWidgets(2));
     expect(find.text('Not on the rig'), findsOneWidget);
-    expect(find.textContaining('plate solving, target search'), findsNothing);
+    expect(
+        find.textContaining(
+            'Plate solving, framing and annotation run on the rig'),
+        findsNothing);
     expect(tester.takeException(), isNull);
   });
 
