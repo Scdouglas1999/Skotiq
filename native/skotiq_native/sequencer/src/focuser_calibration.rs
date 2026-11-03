@@ -512,6 +512,16 @@ impl fmt::Display for CalibrationRefusal {
                 direction,
                 vertex,
                 span,
+            } if *vertex == span.0 || *vertex == span.1 => write!(
+                f,
+                "The {} scan's HFR was lowest at {}, an end of the {}–{} it scanned, \
+                 so best focus lies past it and was never bracketed",
+                direction, vertex, span.0, span.1
+            ),
+            Self::VertexOutsideScan {
+                direction,
+                vertex,
+                span,
             } => write!(
                 f,
                 "The {} scan's optimum came out at {}, outside the {}–{} it scanned, so focus \

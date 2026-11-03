@@ -771,6 +771,20 @@ fn fit_one_direction(
         max_duration_secs: config.max_duration_secs,
     });
 
+    // HFR that only falls (or only rises) across the scan puts best focus past
+    // one end of it. That is a scan that missed focus, not a poor fit: said as
+    // "fitted R² 0.000 ... wait for steadier seeing" it sent the operator to
+    // the sky for a clean curve that simply did not reach focus.
+    if let Some(edge) = monotonic_scan_edge(&measured) {
+        let lo = measured.iter().map(|p| p.position).min().unwrap_or(edge);
+        let hi = measured.iter().map(|p| p.position).max().unwrap_or(edge);
+        return Err(CalibrationRefusal::VertexOutsideScan {
+            direction: approach,
+            vertex: edge,
+            span: (lo, hi),
+        });
+    }
+
     // `find_best_focus` is deliberately fail-soft — on a failed fit it falls
     // back to the lowest sampled point and reports R² 0.0, because on a real
     // sweep any focus is better than none. Here that fallback is not a
@@ -822,6 +836,33 @@ fn fit_one_direction(
     }
 
     Ok(scan)
+}
+
+/// The scan end with the lowest HFR when the HFR, in position order, moves
+/// one way only (with at least five points and a 10% change end to end);
+/// otherwise `None`.
+fn monotonic_scan_edge(points: &[crate::autofocus::FocusDataPoint]) -> Option<i32> {
+    if points.len() < 5 {
+        return None;
+    }
+    let mut sorted: Vec<_> = points.iter().collect();
+    sorted.sort_by_key(|p| p.position);
+    let first = sorted.first()?;
+    let last = sorted.last()?;
+    let falling = sorted.windows(2).all(|w| w[1].hfr <= w[0].hfr);
+    let rising = sorted.windows(2).all(|w| w[1].hfr >= w[0].hfr);
+    let spread = (first.hfr - last.hfr).abs();
+    let scale = first.hfr.max(last.hfr);
+    if scale <= 0.0 || spread < 0.1 * scale {
+        return None;
+    }
+    if falling {
+        Some(last.position)
+    } else if rising {
+        Some(first.position)
+    } else {
+        None
+    }
 }
 
 async fn settle_after_move(
@@ -1168,6 +1209,26 @@ mod tests {
 
         let refusal = fit_one_direction(&config, ApproachDirection::FromBelow, points)
             .expect_err("a vertex outside the scan is an extrapolation");
+        assert_eq!(refusal.code(), "vertex_outside_scan");
+    }
+
+    /// qa-surfaces S10: a smooth curve falling from HFR 11.2 to 7.8 across
+    /// the scan (best focus above it) was refused as "fitted R² 0.000" with
+    /// advice to wait for steadier seeing.
+    #[test]
+    fn a_curve_that_only_falls_says_focus_is_past_the_scan() {
+        let config = BacklashCalibrationConfig::default();
+        let points = (0..9)
+            .map(|index| crate::autofocus::FocusDataPoint {
+                position: 23800 + index * 50,
+                hfr: 11.2 - f64::from(index) * 0.425,
+                fwhm: None,
+                star_count: 40,
+            })
+            .collect();
+
+        let refusal = fit_one_direction(&config, ApproachDirection::FromBelow, points)
+            .expect_err("focus was never bracketed");
         assert_eq!(refusal.code(), "vertex_outside_scan");
     }
 
