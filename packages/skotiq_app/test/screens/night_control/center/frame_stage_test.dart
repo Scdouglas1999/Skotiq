@@ -31,6 +31,18 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // A run that dawn ended at its start read "Waiting for the first frame".
+  testWidgets('a finished run with no frame does not wait for one',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(NightFixtures.finished(), frames: const []),
+      child: const FrameStage(),
+    );
+    expect(find.text('The run ended before its first frame'), findsOneWidget);
+    expect(find.text('Waiting for the first frame'), findsNothing);
+  });
+
   testWidgets('during a run with no frame it waits for the first one',
       (tester) async {
     await pumpCenter(

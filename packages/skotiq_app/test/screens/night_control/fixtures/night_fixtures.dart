@@ -119,6 +119,34 @@ abstract final class NightFixtures {
         actionState: ManualActionState.idle,
       );
 
+  /// A run that ended without taking a frame (dawn ended it at its start).
+  static NightBoard finished() => NightBoard(
+        phase: NightRunPhase.finished,
+        header: header(NightRunPhase.finished),
+        timeline: timeline(now: at(18, 36), running: false),
+        target: target(),
+        plan: readyPlan(),
+        steps: steps(running: false),
+        upcoming: theNight(),
+        frames: const <StripFrameVm>[],
+        frameSeries: const NightSeriesVm(lines: <SeriesLineVm>[]),
+        guideSeries: const NightSeriesVm(lines: <SeriesLineVm>[]),
+        temperatureSeries: const NightSeriesVm(lines: <SeriesLineVm>[]),
+        lastFrame: null,
+        session: const NightSessionVm(metrics: <MetricVm>[]),
+        equipment: readyEquipment(),
+        conditions: NightConditionsVm(
+          source: ConditionsSource.none,
+          metrics: <MetricVm>[
+            MetricVm(label: _t('Moon'), value: 'set 23:09'),
+          ],
+        ),
+        log: readyLog(),
+        checklist: beforeYouStart(),
+        actions: readyActions(),
+        actionState: ManualActionState.idle,
+      );
+
   /// TonightFocus.dc.html: the operator's autofocus holds the run at point
   /// 6 of 9.
   static NightBoard autofocus() {

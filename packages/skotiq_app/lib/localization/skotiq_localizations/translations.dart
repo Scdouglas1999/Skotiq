@@ -1520,6 +1520,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrWaitingFirst': 'Waiting for the first frame',
     'nightCtrWaitingFirstBody':
         'The run\'s first frame shows here once it has downloaded.',
+    'nightCtrEndedNoFrame': 'The run ended before its first frame',
+    'nightCtrEndedNoFrameBody':
+        'Nothing was captured. The log says why it ended.',
     'nightCtrFrame': 'Frame',
     'nightCtrSnapshot': 'Snapshot',
     'nightCtrNotSaved': 'not saved',
@@ -3211,6 +3214,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrWaitingFirst': 'Esperando la primera toma',
     'nightCtrWaitingFirstBody':
         'La primera toma de la sesión aparece aquí cuando termina de descargarse.',
+    'nightCtrEndedNoFrame': 'La sesión terminó antes de su primera toma',
+    'nightCtrEndedNoFrameBody':
+        'No se capturó nada. El registro indica por qué terminó.',
     'nightCtrFrame': 'Toma',
     'nightCtrSnapshot': 'Instantánea',
     'nightCtrNotSaved': 'no guardada',

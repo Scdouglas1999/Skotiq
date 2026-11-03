@@ -689,7 +689,10 @@ class _EmptyStage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final before = nightIsBeforeRun(ref.watch(nightRunPhaseProvider));
+    final phase = ref.watch(nightRunPhaseProvider);
+    final before = nightIsBeforeRun(phase);
+    // A finished run that took no frame is not waiting for one.
+    final endedEmpty = phase == NightRunPhase.finished;
     // While an exposure is out the pills own the canvas; the prompt would
     // tell the operator to take a frame that is already being taken.
     if (ref.watch(nightStageExposureProvider) != null ||
@@ -705,10 +708,18 @@ class _EmptyStage extends ConsumerWidget {
             child: EmptyState(
               icon: SkotiqIcons.imageOff,
               title: l10n.text(
-                before ? 'nightCtrNothingYet' : 'nightCtrWaitingFirst',
+                endedEmpty
+                    ? 'nightCtrEndedNoFrame'
+                    : before
+                        ? 'nightCtrNothingYet'
+                        : 'nightCtrWaitingFirst',
               ),
               body: l10n.text(
-                before ? 'nightCtrNothingYetBody' : 'nightCtrWaitingFirstBody',
+                endedEmpty
+                    ? 'nightCtrEndedNoFrameBody'
+                    : before
+                        ? 'nightCtrNothingYetBody'
+                        : 'nightCtrWaitingFirstBody',
               ),
             ),
           ),
