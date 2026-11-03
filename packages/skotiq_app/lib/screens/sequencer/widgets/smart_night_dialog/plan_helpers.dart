@@ -263,15 +263,11 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
   /// then planned the night on a stand-in figure without anyone being asked.
   /// Sensor dimensions are not on the list — they set the field of view, not
   /// the exposure.
-  bool _shouldPromptForCameraSpecs(ResolvedCameraSensorSpecs specs) {
-    const needed = {
-      SensorSpecField.pixelSize,
-      SensorSpecField.readNoise,
-      SensorSpecField.fullWell,
-      SensorSpecField.qePeak,
-    };
-    return specs.unresolvedFields.any(needed.contains);
-  }
+  bool _shouldPromptForCameraSpecs(ResolvedCameraSensorSpecs specs) =>
+      smartNightAsksForSensorSpecs(
+        specs,
+        alreadyAsked: _askedForCameraSpecs,
+      );
 
   void _adjustFilterCount(
     SmartNightPlannedTarget target,

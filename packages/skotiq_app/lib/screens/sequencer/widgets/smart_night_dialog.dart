@@ -37,6 +37,26 @@ part 'smart_night_dialog/plan_helpers.dart';
 ///    filter breakdown). User can tweak counts before accepting.
 /// 6. Accept → the new sequence is loaded into the editor and the
 ///    dialog closes.
+/// Whether Smart Night asks for the camera's sensor values before a preview.
+///
+/// Only the values the exposure model needs count (dimensions set the field
+/// of view, not the exposure), and the wizard asks at most once: a person who
+/// closes the dialog has chosen to plan on the default figures.
+@visibleForTesting
+bool smartNightAsksForSensorSpecs(
+  ResolvedCameraSensorSpecs specs, {
+  required bool alreadyAsked,
+}) {
+  if (alreadyAsked) return false;
+  const needed = {
+    SensorSpecField.pixelSize,
+    SensorSpecField.readNoise,
+    SensorSpecField.fullWell,
+    SensorSpecField.qePeak,
+  };
+  return specs.unresolvedFields.any(needed.contains);
+}
+
 class SmartNightDialog extends ConsumerStatefulWidget {
   const SmartNightDialog({
     super.key,
@@ -160,6 +180,9 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
   /// Guards the terminal Start Sequence / Save-as-template actions against a
   /// double-tap re-entering the launcher before the dialog closes.
   bool _isStarting = false;
+
+  /// Set once the sensor-values dialog has been shown in this wizard.
+  bool _askedForCameraSpecs = false;
 
   /// Debounce timer for persisting count-tweak drafts. Each +/- tap patches
   /// the plan locally and immediately; the DB draft write is coalesced so a
@@ -469,6 +492,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       if (!_isCurrentAuthority(backend, generation)) return false;
       if (_shouldPromptForCameraSpecs(sensorSpecs)) {
         if (!mounted || !_isCurrentAuthority(backend, generation)) return false;
+        _askedForCameraSpecs = true;
         final saved = await CameraSensorSpecsDialog.show(
           this.context,
           sensorSpecs,
