@@ -94,6 +94,29 @@ enum AscomMountCommand {
     GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
+impl AscomMountCommand {
+    /// Whether this command would start the mount moving after its caller has
+    /// stopped waiting for it.
+    ///
+    /// A command queued behind a driver call that hung runs when that call
+    /// finally returns, minutes later. A slew or park nobody is waiting for
+    /// any more must not run then; stops, aborts and reads still do.
+    fn is_abandoned_motion(&self) -> bool {
+        match self {
+            Self::SlewToCoordinates(_, _, reply)
+            | Self::SyncToCoordinates(_, _, reply)
+            | Self::SlewToAltAz(_, _, reply) => reply.is_closed(),
+            Self::Park(reply)
+            | Self::Unpark(reply)
+            | Self::FindHome(reply)
+            | Self::SetPark(reply) => reply.is_closed(),
+            Self::PulseGuide(_, _, reply) => reply.is_closed(),
+            Self::MoveAxis(_, rate, reply) => *rate != 0.0 && reply.is_closed(),
+            _ => false,
+        }
+    }
+}
+
 /// Wrapper for ASCOM Mount whose COM object lives on the shared STA worker.
 #[derive(Debug)]
 pub struct AscomMountWrapper {
@@ -104,6 +127,27 @@ pub struct AscomMountWrapper {
 }
 
 impl AscomMountWrapper {
+    /// Queue a command for the STA worker.
+    ///
+    /// The queue is bounded and the worker makes one COM call at a time, on a
+    /// thread it shares with every other ASCOM device. A driver call that never
+    /// returns fills the queue, and a plain `send` would then wait forever,
+    /// holding whatever device locks its caller holds: on the rig that froze
+    /// every device request in the app behind one stuck mount. Give up after
+    /// the write timeout instead, as every reply wait already does.
+    async fn enqueue(&self, command: AscomMountCommand) -> Result<(), NativeError> {
+        match tokio::time::timeout(Timeouts::property_write(), self.sender.send(command)).await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) => Err(NativeError::Unknown(
+                "ASCOM mount worker thread is not running".to_string(),
+            )),
+            Err(_) => Err(NativeError::Timeout(format!(
+                "ASCOM mount {} is not taking commands: an earlier driver call has not returned",
+                self.id
+            ))),
+        }
+    }
+
     pub fn new(prog_id: String) -> Result<Self, String> {
         let (tx, mut rx) = mpsc::channel(32);
         let prog_id_clone = prog_id.clone();
@@ -146,6 +190,13 @@ impl AscomMountWrapper {
                         return PumpOutcome::Finished;
                     }
                 };
+                if cmd.is_abandoned_motion() {
+                    tracing::warn!(
+                        "ASCOM mount {}: dropping a motion command its caller gave up on",
+                        prog_id_clone
+                    );
+                    return PumpOutcome::DidWork;
+                }
                 match cmd {
                     AscomMountCommand::Connect(reply) => {
                         if let Some(m) = &mut mount {
@@ -565,10 +616,7 @@ impl AscomMountWrapper {
     /// calling this method.
     pub async fn get_capabilities(&self) -> Result<AscomMountCapabilities, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetCapabilities(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::GetCapabilities(tx)).await?;
         let mut caps =
             Self::recv_with_timeout(rx, Timeouts::property_read(), "get_capabilities").await?;
         match self.can_park().await {
@@ -584,28 +632,20 @@ impl AscomMountWrapper {
 
     pub async fn can_park(&self) -> Result<bool, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::CanPark(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::CanPark(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "can_park").await
     }
 
     pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SlewToAltAz(alt, az, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SlewToAltAz(alt, az, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::long_slew(), "slew_to_alt_az").await
     }
 
     pub async fn get_site(&self) -> Result<(f64, f64, Option<f64>), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetSite(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetSite(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_site").await
     }
 
@@ -616,34 +656,27 @@ impl AscomMountWrapper {
         elevation_m: Option<f64>,
     ) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SetSite(
-                latitude_deg,
-                longitude_deg,
-                elevation_m,
-                tx,
-            ))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SetSite(
+            latitude_deg,
+            longitude_deg,
+            elevation_m,
+            tx,
+        ))
+        .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_site").await
     }
 
     /// UTCDate as an OLE Automation date (days since 1899-12-30).
     pub async fn get_utc_date(&self) -> Result<f64, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetUtcDate(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetUtcDate(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_utc_date").await
     }
 
     pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SetUtcDate(utc_date, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SetUtcDate(utc_date, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_utc_date").await
     }
 
@@ -655,10 +688,7 @@ impl AscomMountWrapper {
     /// `CanFindHome` is false answers [`NativeError::NotSupported`].
     pub async fn find_home(&self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::FindHome(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::FindHome(tx)).await?;
         match Self::recv_with_timeout(rx, Timeouts::find_home(), "find_home").await {
             Err(NativeError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
                 Err(NativeError::NotSupported)
@@ -672,10 +702,7 @@ impl AscomMountWrapper {
     /// [`NativeError::NotSupported`].
     pub async fn set_park(&self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SetPark(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SetPark(tx)).await?;
         match Self::recv_with_timeout(rx, Timeouts::property_write(), "set_park").await {
             Err(NativeError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
                 Err(NativeError::NotSupported)
@@ -688,19 +715,13 @@ impl AscomMountWrapper {
     /// it only after a `FindHome` and clears it on the next slew.
     pub async fn at_home(&self) -> Result<bool, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::AtHome(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::AtHome(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "at_home").await
     }
 
     pub async fn stop(&self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::Stop(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::Stop(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::connection(), "stop").await
     }
 }
@@ -725,10 +746,7 @@ impl NativeDevice for AscomMountWrapper {
 
     async fn connect(&mut self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::Connect(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::Connect(tx)).await?;
         let result = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
@@ -752,10 +770,7 @@ impl NativeDevice for AscomMountWrapper {
             }
         }
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::Disconnect(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::Disconnect(tx)).await?;
         let disconnect_result =
             Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
         match disconnect_result {
@@ -772,65 +787,46 @@ impl NativeDevice for AscomMountWrapper {
 impl NativeMount for AscomMountWrapper {
     async fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SlewToCoordinates(ra, dec, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SlewToCoordinates(ra, dec, tx))
+            .await?;
         // Slews can take a long time
         Self::recv_with_timeout(rx, Timeouts::long_slew(), "slew_to_coordinates").await
     }
 
     async fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SyncToCoordinates(ra, dec, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SyncToCoordinates(ra, dec, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "sync_to_coordinates").await
     }
 
     async fn park(&mut self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::Park(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::Park(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::park(), "park").await
     }
 
     async fn unpark(&mut self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::Unpark(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::Unpark(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::park(), "unpark").await
     }
 
     async fn get_coordinates(&self) -> Result<(f64, f64), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetCoordinates(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetCoordinates(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_coordinates").await
     }
 
     async fn is_slewing(&self) -> Result<bool, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::IsSlewing(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::IsSlewing(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_slewing").await
     }
 
     async fn is_parked(&self) -> Result<bool, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::IsParked(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::IsParked(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_parked").await
     }
 
@@ -840,10 +836,8 @@ impl NativeMount for AscomMountWrapper {
         duration_ms: u32,
     ) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::PulseGuide(direction, duration_ms, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::PulseGuide(direction, duration_ms, tx))
+            .await?;
         // Pulse guide takes the duration plus a buffer
         // Why: `duration_ms` is u32 pulse-guide
         // milliseconds (≤ a few thousand for real guiding); u32 → u64
@@ -854,55 +848,38 @@ impl NativeMount for AscomMountWrapper {
 
     async fn abort_slew(&mut self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::AbortSlew(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::AbortSlew(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "abort_slew").await
     }
 
     async fn set_tracking(&mut self, enabled: bool) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SetTracking(enabled, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SetTracking(enabled, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking").await
     }
 
     async fn get_tracking(&self) -> Result<bool, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetTracking(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetTracking(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking").await
     }
 
     async fn get_side_of_pier(&self) -> Result<skotiq_native::traits::PierSide, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetSideOfPier(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetSideOfPier(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_side_of_pier").await
     }
 
     async fn get_alt_az(&self) -> Result<(f64, f64), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetAltAz(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetAltAz(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_alt_az").await
     }
 
     async fn get_sidereal_time(&self) -> Result<f64, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetSiderealTime(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetSiderealTime(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_sidereal_time").await
     }
 
@@ -915,19 +892,14 @@ impl NativeMount for AscomMountWrapper {
             TrackingRate::Custom => return Err(NativeError::NotSupported),
         };
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SetTrackingRate(rate_int, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SetTrackingRate(rate_int, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking_rate").await
     }
 
     async fn get_tracking_rate(&self) -> Result<TrackingRate, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetTrackingRate(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
         let rate_int =
             Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking_rate").await?;
         match rate_int {
@@ -961,20 +933,15 @@ impl AscomMountWrapper {
     /// Set the tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
     pub async fn set_tracking_rate_raw(&mut self, rate: i32) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::SetTrackingRate(rate, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::SetTrackingRate(rate, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking_rate").await
     }
 
     /// Get the current tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
     pub async fn get_tracking_rate_raw(&self) -> Result<i32, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetTrackingRate(tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking_rate").await
     }
 
@@ -983,50 +950,39 @@ impl AscomMountWrapper {
     /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
     pub async fn move_axis(&mut self, axis: i32, rate: f64) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::MoveAxis(axis, rate, tx))
-            .await
-            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        self.enqueue(AscomMountCommand::MoveAxis(axis, rate, tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::short_slew(), "move_axis").await
     }
 
     /// Get the ASCOM interface version number
     pub async fn interface_version(&self) -> Result<i32, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::GetInterfaceVersion(tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
     }
 
     /// Get the driver version string
     pub async fn driver_version(&self) -> Result<String, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::GetDriverVersion(tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
     }
 
     /// Get the driver info/description
     pub async fn driver_info(&self) -> Result<String, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::GetDriverInfo(tx)).await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
     }
 
     /// Get the list of supported actions
     pub async fn supported_actions(&self) -> Result<Vec<String>, NativeError> {
         let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomMountCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|_| NativeError::Unknown("Worker thread dead".to_string()))?;
+        self.enqueue(AscomMountCommand::GetSupportedActions(tx))
+            .await?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }
@@ -1134,6 +1090,71 @@ mod tests {
             sender: tx,
             connected: std::sync::atomic::AtomicBool::new(false),
         }
+    }
+
+    /// A driver call that never returns must not hang every later caller. The
+    /// worker below takes the first command and never answers; the queue holds
+    /// eight more. Before the bounded enqueue the tenth caller waited on `send`
+    /// forever, and on the rig that caller held the device table's read lock.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_wedged_worker_fails_every_caller_instead_of_hanging() {
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let wrapper = Arc::new(build_test_wrapper(move |_cmd| {
+            let _ = release_rx.recv();
+            true
+        }));
+        let mut calls = tokio::task::JoinSet::new();
+        for _ in 0..10 {
+            let wrapper = Arc::clone(&wrapper);
+            calls.spawn(async move { wrapper.get_tracking().await });
+        }
+        let results = tokio::time::timeout(Duration::from_secs(30), async {
+            let mut results = Vec::new();
+            while let Some(result) = calls.join_next().await {
+                results.push(result.expect("call task panicked"));
+            }
+            results
+        })
+        .await
+        .expect("a caller hung behind the wedged worker");
+        assert_eq!(results.len(), 10);
+        assert!(results
+            .iter()
+            .all(|r| matches!(r, Err(NativeError::Timeout(_)))));
+        drop(release_tx);
+    }
+
+    #[test]
+    fn a_motion_command_nobody_waits_for_is_abandoned() {
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        assert!(AscomMountCommand::Park(tx).is_abandoned_motion());
+
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        assert!(AscomMountCommand::SlewToCoordinates(1.0, 2.0, tx).is_abandoned_motion());
+
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        assert!(AscomMountCommand::MoveAxis(0, 1.0, tx).is_abandoned_motion());
+    }
+
+    #[test]
+    fn stops_reads_and_awaited_motion_are_never_abandoned() {
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        assert!(!AscomMountCommand::MoveAxis(0, 0.0, tx).is_abandoned_motion());
+
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        assert!(!AscomMountCommand::AbortSlew(tx).is_abandoned_motion());
+
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        assert!(!AscomMountCommand::IsParked(tx).is_abandoned_motion());
+
+        let (tx, _rx) = oneshot::channel();
+        assert!(!AscomMountCommand::Park(tx).is_abandoned_motion());
     }
 
     #[tokio::test]

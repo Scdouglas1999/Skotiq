@@ -162,3 +162,49 @@ async fn test_mount_get_status_uses_ascom_can_park() {
         .expect("mount_get_status");
     assert!(!status.can_park);
 }
+
+/// A mount read that takes a long time must not hold the device table.
+///
+/// Every device op looks its device up in `devices`, and the heartbeat writes
+/// it every few seconds. A status read that kept its read guard for the whole
+/// driver call queued that writer, and tokio's fair lock then queued every
+/// later reader of any device behind it. On the rig (2026-11-03) one mount
+/// whose ASCOM worker stopped answering froze the camera, the sequencer and
+/// Stop for 18 minutes.
+#[tokio::test]
+async fn a_slow_mount_read_does_not_hold_the_device_table() {
+    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let device_id = "sim_mount_slow_status";
+    register_sim_mount(&manager, device_id).await;
+    crate::api::devices::simulation::get_sim_mount()
+        .write()
+        .await
+        .status
+        .connected = true;
+    sim_faults::clear_all();
+    sim_faults::arm(
+        "mount.status",
+        FaultSpec::new(Trigger::Always, Effect::Delay(1500)),
+    );
+
+    let (status, writer_got_in) = tokio::join!(manager.mount_get_status(device_id), async {
+        // Let the status read reach the driver call first.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            manager.devices.write(),
+        )
+        .await
+        .is_ok()
+    });
+    sim_faults::clear_all();
+
+    assert!(status.is_ok(), "the delayed status read failed: {status:?}");
+    assert!(
+        writer_got_in,
+        "a writer of the device table waited behind a slow mount read"
+    );
+}

@@ -36,13 +36,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.set_tracking(enabled).await.map_err(|e| {
                             DeviceOpError::hardware(
@@ -156,6 +157,7 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         let direction_lower = direction.to_lowercase();
         let dir = match direction_lower.as_str() {
@@ -175,8 +177,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount
                             .pulse_guide(dir, duration_ms)
@@ -297,13 +299,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount
                             .set_tracking_rate_raw(rate)
@@ -382,13 +385,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         return mount
                             .get_tracking_rate_raw()

@@ -7,13 +7,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.park().await.map_err(|e| {
                             DeviceOpError::hardware(
@@ -109,13 +110,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         mount.unpark().await.map_err(DeviceOpError::driver)?;
                         let deadline =
@@ -263,8 +265,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         // `find_home` takes `&self`: the wrapper's COM worker
                         // serializes the call, so a read guard is all the map
                         // needs, and status reads are not locked out for the
@@ -363,8 +365,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         return mount
                             .get_capabilities()
@@ -468,8 +470,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         // `set_park` takes `&self`: the wrapper's COM worker
                         // serializes the call, so a read guard is enough.
                         let mount = mount.read().await;
@@ -567,8 +569,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         return mount
                             .get_capabilities()
@@ -633,13 +635,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         return mount.can_park().await.map_err(DeviceOpError::driver);
                     }

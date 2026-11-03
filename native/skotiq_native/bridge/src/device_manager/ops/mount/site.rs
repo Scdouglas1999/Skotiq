@@ -137,8 +137,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         let (latitude_deg, longitude_deg, elevation_m) =
                             mount.get_site().await.map_err(DeviceOpError::driver)?;
@@ -236,8 +236,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.write().await;
                         // Elevation tolerance lives inside the wrapper's worker,
                         // where the three property writes happen on the one COM
@@ -313,8 +313,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         let ole = mount.get_utc_date().await.map_err(DeviceOpError::driver)?;
                         return Ok(MountTimeInfo {
@@ -403,8 +403,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.write().await;
                         return mount
                             .set_utc_date(unix_seconds_to_ole(time.utc_unix_seconds))

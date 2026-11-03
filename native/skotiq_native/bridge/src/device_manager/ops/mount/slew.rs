@@ -121,7 +121,10 @@ impl DeviceManager {
                 {
                     let mounts = self.ascom_mounts.read().await;
                     tracing::debug!("mount_slew: ascom_mounts contains {} entries", mounts.len());
-                    if let Some(mount) = mounts.get(device_id) {
+                    let found = mounts.get(device_id).cloned();
+                    let available = mounts.keys().cloned().collect::<Vec<_>>();
+                    drop(mounts);
+                    if let Some(mount) = found {
                         let mut mount = mount.write().await;
                         return mount_slew_with_timeout(
                             async {
@@ -141,7 +144,7 @@ impl DeviceManager {
                         tracing::error!(
                             "mount_slew: Mount {} not found in ascom_mounts. Available: {:?}",
                             device_id,
-                            mounts.keys().collect::<Vec<_>>()
+                            available
                         );
                     }
                 }
@@ -264,13 +267,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.write().await;
                         return with_timeout_str(
                             async {
@@ -396,13 +400,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.abort_slew().await.map_err(DeviceOpError::driver);
                     }
@@ -472,13 +477,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         return mount.stop().await.map_err(DeviceOpError::driver);
                     }
@@ -566,6 +572,7 @@ impl DeviceManager {
                 );
                 DeviceOpError::device_not_found(device_id)
             })?;
+        drop(devices);
 
         tracing::debug!(
             "mount_move_axis: Found device with driver_type={:?}",
@@ -581,7 +588,10 @@ impl DeviceManager {
                         "mount_move_axis: ascom_mounts contains {} entries",
                         mounts.len()
                     );
-                    if let Some(mount) = mounts.get(device_id) {
+                    let found = mounts.get(device_id).cloned();
+                    let available = mounts.keys().cloned().collect::<Vec<_>>();
+                    drop(mounts);
+                    if let Some(mount) = found {
                         let mut mount = mount.write().await;
                         return mount.move_axis(axis, rate).await.map_err(|e| {
                             tracing::error!("mount_move_axis ASCOM error: {}", e);
@@ -591,7 +601,7 @@ impl DeviceManager {
                         tracing::error!(
                             "mount_move_axis: Mount {} not found in ascom_mounts. Available: {:?}",
                             device_id,
-                            mounts.keys().collect::<Vec<_>>()
+                            available
                         );
                     }
                 }

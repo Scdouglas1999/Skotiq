@@ -12,6 +12,7 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         // Same J2000 -> of-date conversion as mount_slew, and it MUST match:
         // sync and slew feeding the mount from different frames would skew
@@ -24,8 +25,8 @@ impl DeviceManager {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.sync_to_coordinates(ra, dec).await.map_err(|e| {
                             DeviceOpError::hardware(
@@ -127,13 +128,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
                         return mount.get_coordinates().await.map_err(DeviceOpError::driver);
                     }
@@ -199,13 +201,14 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
 
         match info.driver_type {
             DriverType::Ascom => {
                 #[cfg(windows)]
                 {
-                    let mounts = self.ascom_mounts.read().await;
-                    if let Some(mount) = mounts.get(device_id) {
+                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
+                    if let Some(mount) = mount {
                         let mount = mount.read().await;
 
                         // Required fields propagate read failures — these are not optional.
