@@ -26,7 +26,7 @@ serde = { workspace = true }
 serde_json.workspace = true
 
 # Hashing for post-apply manifest verification
-sha2 = "0.10"
+sha2 = "0.11"
 
 # Cross-process file lock
 fs2 = "0.4"
