@@ -292,14 +292,20 @@ impl SequenceExecutor {
             rc.latitude = lat;
             rc.longitude = lon;
         }
-        if let Some(tx) = &self.command_tx {
-            let _ = tx
+        // A task whose run has ended keeps its sender, and a send to it
+        // reaches nobody; patching the shared state as well is idempotent
+        // with the live task's own update.
+        let delivered = match &self.command_tx {
+            Some(tx) => tx
                 .send(ExecutorCommand::UpdateLocation {
                     latitude: lat,
                     longitude: lon,
                 })
-                .await;
-        } else {
+                .await
+                .is_ok(),
+            None => false,
+        };
+        if !delivered {
             let manager = self.trigger_manager.read().await;
             let state_lock = manager.state();
             let mut state = state_lock.write().await;

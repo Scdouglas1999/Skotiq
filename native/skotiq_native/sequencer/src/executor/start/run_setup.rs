@@ -41,6 +41,13 @@ impl SequenceExecutor {
             let mut state = state_lock.write().await;
             state.dither_settle = dither;
             state.guiding_settle = guiding;
+            // A run starts at the site the executor holds now. The trigger
+            // state kept the last run's site and its cached dawn, so a site
+            // changed between runs still ended the next run at the old
+            // site's dawn.
+            if self.latitude.is_some() && self.longitude.is_some() {
+                state.set_observer_location(self.latitude, self.longitude);
+            }
         }
         if self.focuser_id.is_none() {
             let disarmed = {
