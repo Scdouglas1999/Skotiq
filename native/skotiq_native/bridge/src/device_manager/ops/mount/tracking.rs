@@ -127,9 +127,14 @@ impl DeviceManager {
                 // `connected` read, is what advances the motion and runs the
                 // fault injector.
                 crate::device_manager::ops::sim_gate::require_mount_connected().await?;
+                let lst =
+                    crate::api::devices::simulation::sim_local_sidereal_time(chrono::Utc::now());
                 let m = crate::api::devices::simulation::get_sim_mount();
                 let mut m = m.write().await;
                 m.status.tracking = enabled;
+                if enabled {
+                    crate::api::devices::simulation::seed_unknown_pier_side(&mut m.status, lst);
+                }
                 // Tracking turns the RA axis, which carries the mount off the
                 // home pose a FindHome left it in.
                 if enabled {

@@ -973,6 +973,43 @@ mod tests {
         }
     }
 
+    /// A tracking mount that has never slewed reported pier "—": the side was
+    /// only ever set when a slew arrived. Unpark and tracking-on seed it once
+    /// from the pointing, and never overwrite a side a slew already recorded.
+    #[test]
+    fn a_mount_that_never_slewed_gets_a_side_once() {
+        use crate::api::devices::simulation::seed_unknown_pier_side;
+        let now = chrono::Utc.with_ymd_and_hms(2026, 7, 28, 3, 17, 0).unwrap();
+        let lst = skotiq_sequencer::meridian::local_sidereal_time(
+            skotiq_sequencer::meridian::julian_day(&now),
+            -75.0,
+        );
+
+        let mut status = parked_status();
+        status.right_ascension = (lst - 3.0).rem_euclid(24.0);
+        seed_unknown_pier_side(&mut status, Some(lst));
+        assert_eq!(
+            status.side_of_pier,
+            Some(crate::api::devices::simulation::pier_side_after_slew_to(
+                status.right_ascension,
+                lst
+            ))
+        );
+        assert_ne!(status.side_of_pier, Some(PierSide::Unknown));
+
+        for recorded in [PierSide::East, PierSide::West] {
+            let mut status = parked_status();
+            status.side_of_pier = Some(recorded);
+            status.right_ascension = (lst + 3.0).rem_euclid(24.0);
+            seed_unknown_pier_side(&mut status, Some(lst));
+            assert_eq!(status.side_of_pier, Some(recorded));
+        }
+
+        let mut status = parked_status();
+        seed_unknown_pier_side(&mut status, None);
+        assert_eq!(status.side_of_pier, Some(PierSide::Unknown));
+    }
+
     /// With no site there is no honest answer, so the fields must report
     /// `Unsupported` and carry `None` rather than a fabricated default — the
     /// exact distinction `FieldAvailability` exists to preserve.

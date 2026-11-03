@@ -198,7 +198,11 @@ impl DeviceManager {
                 // other mutating op does.
                 crate::device_manager::ops::sim_gate::require_mount_connected().await?;
                 let m = crate::api::devices::simulation::get_sim_mount();
-                m.write().await.status.parked = false;
+                let lst =
+                    crate::api::devices::simulation::sim_local_sidereal_time(chrono::Utc::now());
+                let mut m = m.write().await;
+                m.status.parked = false;
+                crate::api::devices::simulation::seed_unknown_pier_side(&mut m.status, lst);
                 Ok(())
             }
         }

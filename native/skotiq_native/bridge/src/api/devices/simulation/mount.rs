@@ -218,6 +218,18 @@ pub(crate) fn sim_local_sidereal_time(now: chrono::DateTime<chrono::Utc>) -> Opt
     ))
 }
 
+/// Give a mount that has never slewed the side its current pointing puts it
+/// on, once. A side already recorded is mechanical state and is never
+/// recomputed; without a site there is no hour angle, so it stays unknown.
+pub(crate) fn seed_unknown_pier_side(status: &mut MountStatus, lst_hours: Option<f64>) {
+    if !matches!(status.side_of_pier, None | Some(PierSide::Unknown)) {
+        return;
+    }
+    if let Some(lst) = lst_hours {
+        status.side_of_pier = Some(pier_side_after_slew_to(status.right_ascension, lst));
+    }
+}
+
 /// Start a simulated slew to `(ra, dec)`, deciding the pier side it will land
 /// on from the local sidereal time at `now`.
 ///
