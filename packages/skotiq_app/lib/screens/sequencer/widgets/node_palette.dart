@@ -781,6 +781,8 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
                       child: Semantics(
                         container: true,
                         button: true,
+                        // A button node without `enabled` reads as disabled to AT-SPI.
+                        enabled: true,
                         label:
                             'Add ${paletteSentenceCase(widget.item.name)} to the sequence',
                         onTap: _addNode,

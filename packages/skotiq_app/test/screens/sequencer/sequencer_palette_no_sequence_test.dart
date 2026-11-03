@@ -2,6 +2,8 @@
 // pressed with no sequence open, so a linked client showing "No sequence"
 // could not start a plan from it; its "+" was also invisible to screen
 // readers.
+import 'dart:ui' show SemanticsFlag;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
@@ -37,9 +39,13 @@ void main() {
     notifier.state = null;
     await tester.pump();
 
-    tester.semantics.tap(
-      find.semantics.byLabel('Add Take exposures to the sequence'),
+    final add = find.semantics.byLabel('Add Take exposures to the sequence');
+    expect(
+      add.evaluate().single.getSemanticsData().hasFlag(SemanticsFlag.isEnabled),
+      isTrue,
+      reason: 'a button without the enabled flag reads as disabled',
     );
+    tester.semantics.tap(add);
     await tester.pump();
 
     final sequence = handle.container.read(currentSequenceProvider);
