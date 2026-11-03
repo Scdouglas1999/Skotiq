@@ -172,4 +172,23 @@ void main() {
       expect(collapseDoubledExtension('/a.b/file'), '/a.b/file');
     });
   });
+
+  // qa-surfaces S24: with no folder given, the save dialog opened in the
+  // folder the app was started from (the install folder).
+  test('the save dialog opens in the documents folder by default', () async {
+    expect(
+      await exportInitialDirectory(
+        null,
+        documents: () async => Directory('/home/me/Documents'),
+      ),
+      '/home/me/Documents',
+    );
+    expect(
+      await exportInitialDirectory(
+        '/srv/plans',
+        documents: () async => Directory('/home/me/Documents'),
+      ),
+      '/srv/plans',
+    );
+  });
 }

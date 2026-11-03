@@ -71,7 +71,7 @@ Future<ExportTarget?> chooseExportTarget({
   }
 
   final location = await file_selector.getSaveLocation(
-    initialDirectory: initialDirectory,
+    initialDirectory: await exportInitialDirectory(initialDirectory),
     suggestedName: suggestedName,
     acceptedTypeGroups: acceptedTypeGroups,
     confirmButtonText: confirmButtonText,
@@ -81,6 +81,21 @@ Future<ExportTarget?> chooseExportTarget({
     path: collapseDoubledExtension(location.path),
     needsShareSheet: false,
   );
+}
+
+/// Where the desktop save dialog opens: the caller's folder, else the user's
+/// documents folder. Left unset, the GTK dialog opened in the folder the app
+/// was started from, the install folder.
+Future<String?> exportInitialDirectory(
+  String? requested, {
+  Future<Directory> Function() documents = resolveSkotiqDocumentsDirectory,
+}) async {
+  if (requested != null && requested.isNotEmpty) return requested;
+  try {
+    return (await documents()).path;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Removes a repeated final extension: `m51.skeq.json.json` becomes
