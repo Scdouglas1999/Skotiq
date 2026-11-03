@@ -38,10 +38,10 @@ String _fiveHoursAheadOfHost() {
   return 'UTC$sign$hh:$mm';
 }
 
-/// Seconds-since-midnight of an `HH:MM:SS` chip.
+/// Seconds-since-midnight of an `HH:MM` chip.
 int _parseClock(String text) {
   final parts = text.split(':').map(int.parse).toList();
-  return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return parts[0] * 3600 + parts[1] * 60;
 }
 
 /// Signed difference between two clock readings, folded across midnight.
@@ -52,7 +52,7 @@ int _diffSeconds(int a, int b) {
   return diff;
 }
 
-/// The `HH:MM:SS` text rendered inside [ancestor].
+/// The `HH:MM` text rendered inside [ancestor].
 String _clockTextIn(WidgetTester tester, Finder ancestor) {
   final texts = tester
       .widgetList<Text>(
@@ -60,7 +60,7 @@ String _clockTextIn(WidgetTester tester, Finder ancestor) {
       )
       .map((t) => t.data)
       .whereType<String>()
-      .where((t) => RegExp(r'^\d{2}:\d{2}:\d{2}$').hasMatch(t))
+      .where((t) => RegExp(r'^\d{2}:\d{2}$').hasMatch(t))
       .toList();
   expect(texts, hasLength(1), reason: 'expected exactly one wall clock');
   return texts.single;
@@ -99,7 +99,7 @@ void main() {
 
     expect(
       _diffSeconds(shown, hostSeconds),
-      inInclusiveRange(5 * 3600 - 5, 5 * 3600 + 5),
+      inInclusiveRange(5 * 3600 - 65, 5 * 3600 + 5),
       reason: 'the clock must read the site clock ($timezone), not the host',
     );
 
@@ -138,7 +138,7 @@ void main() {
 
     expect(
       _diffSeconds(shown, hostSeconds),
-      inInclusiveRange(-5, 5),
+      inInclusiveRange(-65, 5),
       reason: 'the site offset must be ignored while system time is on',
     );
 

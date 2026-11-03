@@ -30,10 +30,15 @@ String formatLstChip(double? lstHours) {
 /// Local time and sidereal time as one glance, in the top band's left slot.
 ///
 /// The `brandWarm` dot is the "now" marker — the one place the warm accent is
-/// allowed to mean "this is where tonight is right now". Owning the per-second
-/// tick here scopes the rebuild to this readout; on a state a level up one
-/// `setState` a second rebuilds the whole band, and on the Linux embedder a
-/// dirty frame is a full-window repaint.
+/// allowed to mean "this is where tonight is right now". Owning the tick here
+/// scopes the rebuild to this readout; on a state a level up each `setState`
+/// rebuilds the whole band, and on the Linux embedder a dirty frame is a
+/// full-window repaint.
+///
+/// The readout is `HH:MM` and ticks once a minute. With seconds it was one
+/// full-window frame every second for as long as the app was open: on a
+/// software-rendered display an idle window cost about 40% of a core, all of
+/// it to move a digit nobody reads at the telescope.
 ///
 /// The [RepaintBoundary] below is insurance against the readout dirtying the
 /// band, NOT a measured saving: Flutter's Linux embedder submits a full-window
@@ -61,11 +66,10 @@ class _ShellClockState extends ConsumerState<ShellClock>
 
   void _startTimer() {
     _timer?.cancel();
-    // Aligned to the wall-clock second so this tick shares its frame with the
-    // planetarium's two 1 Hz clocks rather than costing a full-window frame of
-    // its own. It also makes the displayed second change *on* the second.
-    // See [AlignedTicker].
-    _timer = AlignedTicker(const Duration(seconds: 1), () {
+    // Aligned to the wall-clock minute so the displayed minute changes *on*
+    // the minute, and the tick shares its frame with anything else on the
+    // epoch boundary. See [AlignedTicker].
+    _timer = AlignedTicker(const Duration(minutes: 1), () {
       if (mounted) setState(() => _now = DateTime.now());
     });
   }
@@ -136,7 +140,7 @@ class _ShellClockState extends ConsumerState<ShellClock>
     // the chip reticks — and [SystemClock] leaves host-local users untouched.
     final displayNow = ref.watch(clockProvider).fromUtc(now.toUtc());
     final timeStr =
-        '${displayNow.hour.toString().padLeft(2, '0')}:${displayNow.minute.toString().padLeft(2, '0')}:${displayNow.second.toString().padLeft(2, '0')}';
+        '${displayNow.hour.toString().padLeft(2, '0')}:${displayNow.minute.toString().padLeft(2, '0')}';
 
     return RepaintBoundary(
       child: Tooltip(

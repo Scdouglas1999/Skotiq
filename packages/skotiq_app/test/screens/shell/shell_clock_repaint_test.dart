@@ -32,7 +32,7 @@ final _quietAlerts = <Override>[
 /// is invisible on screen, which is exactly why it needs pinning: nothing about
 /// the rendered band would tell you it had regressed.
 void main() {
-  testWidgets('a second passing does not rebuild the whole status bar', (
+  testWidgets('a minute passing does not rebuild the whole status bar', (
     tester,
   ) async {
     final handle = await pumpAppScreen(
@@ -53,7 +53,7 @@ void main() {
     debugPrintRebuildDirtyWidgets = true;
 
     // One full tick of the clock.
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(minutes: 1));
 
     // Restored here rather than in a tear-down: the binding asserts that no
     // foundation debug variable is still set when the test body returns, and
@@ -76,20 +76,62 @@ void main() {
     expect(
       log,
       isNot(contains('ShellTopBand')),
-      reason: 'the per-second clock tick rebuilt ShellTopBand itself, so the '
+      reason: 'the clock tick rebuilt ShellTopBand itself, so the '
           'whole band rebuilt to move one digit',
     );
     expect(
       log,
       isNot(contains('LayoutBuilder')),
-      reason: 'the bar re-ran its width-dependent layout once a second',
+      reason: 'the bar re-ran its width-dependent layout on every clock tick',
     );
 
     // Keeps the analyzer honest that the harness was actually wired up.
     expect(handle.container, isNotNull);
 
-    // Unmount so the clock's per-second ticker cancels before the binding's
+    // Unmount so the clock's ticker cancels before the binding's
     // end-of-test pending-timer check.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('seconds passing do not rebuild the clock at all', (
+    tester,
+  ) async {
+    await pumpAppScreen(
+      tester,
+      const Column(mainAxisSize: MainAxisSize.min, children: [ShellTopBand()]),
+      extraOverrides: _quietAlerts,
+    );
+    // Let the settings load and the LST chip settle before listening, so the
+    // only thing left that could rebuild the clock is its own tick.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    // The readout is HH:MM. A per-second tick would repaint the whole window
+    // every second on the Linux embedder to change nothing on screen. Over
+    // ten seconds the clock may cross one minute boundary, never more.
+    final rebuilt = <String>[];
+    final previousPrint = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) rebuilt.add(message);
+    };
+    debugPrintRebuildDirtyWidgets = true;
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    debugPrintRebuildDirtyWidgets = false;
+    debugPrint = previousPrint;
+
+    final clockBuilds =
+        rebuilt.where((line) => line.contains('ShellClock(')).length;
+    expect(
+      clockBuilds,
+      lessThanOrEqualTo(1),
+      reason: 'the clock rebuilt $clockBuilds times in ten seconds, so it is '
+          'still ticking every second',
+    );
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
@@ -104,13 +146,13 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 50));
 
-    // Find the wall clock by its shape (HH:MM:SS) rather than a fixed string,
+    // Find the wall clock by its shape (HH:MM) rather than a fixed string,
     // since the value moves while the test runs.
     final clock = find.byWidgetPredicate(
       (widget) =>
           widget is Text &&
           widget.data != null &&
-          RegExp(r'^\d{2}:\d{2}:\d{2}$').hasMatch(widget.data!),
+          RegExp(r'^\d{2}:\d{2}$').hasMatch(widget.data!),
       description: 'wall-clock text',
     );
     expect(clock, findsOneWidget);
