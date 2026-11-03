@@ -149,8 +149,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
                   value: _computedScale != null
                       ? '${_computedScale!.toStringAsFixed(2)}"/px'
                       : null,
-                  subtitle: _pixelSize != null
-                      ? 'at ${_pixelSize!.toStringAsFixed(2)}µm'
+                  // The pixel size only qualifies a scale; on its own (no
+                  // focal length yet) it read as a value for a camera the new
+                  // profile has not chosen.
+                  subtitle: _computedScale != null && _pixelSize != null
+                      ? 'at ${_pixelSize!.toStringAsFixed(2)} µm'
                       : null,
                   colors: colors,
                 ),

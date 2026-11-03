@@ -135,10 +135,12 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
   double? get _computedScale {
     final focalLength = _effectiveFocalLengthMm;
     if (focalLength == null || focalLength <= 0) return null;
-    // Try to get pixel size from connected camera
+    // The connected camera's pixel pitch, when it is the camera this profile
+    // uses: a new profile with no camera chosen has no image scale yet.
     final cameraState = ref.read(cameraStateProvider);
     if (cameraState.connectionState == DeviceConnectionState.connected &&
-        cameraState.deviceId != null) {
+        cameraState.deviceId != null &&
+        cameraState.deviceId == _cameraId) {
       final capabilitiesAsync =
           ref.read(cameraCapabilitiesProvider(cameraState.deviceId!));
       final capabilities = capabilitiesAsync.valueOrNull;
@@ -153,7 +155,8 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
   double? get _pixelSize {
     final cameraState = ref.read(cameraStateProvider);
     if (cameraState.connectionState == DeviceConnectionState.connected &&
-        cameraState.deviceId != null) {
+        cameraState.deviceId != null &&
+        cameraState.deviceId == _cameraId) {
       final capabilitiesAsync =
           ref.read(cameraCapabilitiesProvider(cameraState.deviceId!));
       final capabilities = capabilitiesAsync.valueOrNull;
