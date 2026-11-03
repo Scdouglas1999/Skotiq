@@ -1,7 +1,6 @@
 // qa-pair QP-23: the "Add rotator, dome, flat panel, weather" tile kept
 // offering a rotator with one connected, and a linked client's Discovered
 // devices read "0 found · Never scanned" beside a host that had found 11.
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';

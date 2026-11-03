@@ -2,7 +2,6 @@
 // palette's add did nothing: the editor drops a node that has no sequence to
 // go into. It now starts a sequence for the node, as "Add a target" does.
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_palette.dart';
 import 'package:skotiq_core/skotiq_core.dart';
