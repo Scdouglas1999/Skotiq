@@ -515,16 +515,10 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _rigCatalogError != null
-                      ? 'Could not read the rig\'s catalogs: $_rigCatalogError. '
-                          'The cards below describe this device only.'
-                      : missing
-                          ? 'The rig is missing catalogs it needs — plate '
-                              'solving, target search, framing and annotation '
-                              'run on the rig, not on this device, so '
-                              'downloading here will not fix them.'
-                          : 'The cards below describe catalogs stored on this '
-                              'device. The rig keeps its own copies.',
+                  rigCatalogNote(
+                    missing: missing,
+                    error: _rigCatalogError,
+                  ),
                   style: SkotiqTypography.bodySm.copyWith(
                     color: colors.textSecondary,
                     height: 1.3,
@@ -701,3 +695,19 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
 }
 
 enum _CatalogDeleteTarget { starAndDso, annotation }
+
+/// The note above the catalog cards on a linked client: what the rig lacks,
+/// and which lookups use this device's own catalogs.
+String rigCatalogNote({required bool missing, Object? error}) {
+  if (error != null) {
+    return 'Could not read the rig\'s catalogs: $error. '
+        'The cards below describe this device only.';
+  }
+  if (missing) {
+    return 'The rig is missing catalogs it needs. Plate solving, framing and '
+        'annotation run on the rig, so download them on the rig. Name lookups '
+        'on this device (Go to, search) use the catalogs below.';
+  }
+  return 'The cards below describe catalogs stored on this device; name '
+      'lookups here (Go to, search) use them. The rig keeps its own copies.';
+}
