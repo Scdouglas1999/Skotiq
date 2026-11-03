@@ -219,7 +219,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     width: widget.isMobile ? 180 : 240,
                     child: SkotiqTextField(
                       controller: _placeSearchController,
-                      hint: 'Newtown Square, PA',
+                      // A real town as the hint read as the saved site's name.
+                      hint: 'Town, city or observatory',
                       onSubmitted: (_) => _searchPlace(),
                       suffixWidget: GestureDetector(
                         onTap: _placeSearching ? null : _searchPlace,

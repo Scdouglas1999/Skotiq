@@ -134,6 +134,14 @@ void main() {
       wifiRadioCanBeEnabled: true,
     );
 
+    // qa-surfaces S40: the search field's hint was a real town, which read
+    // as a stale saved place name beside coordinates in Japan.
+    testWidgets('the place search hint names no real place', (tester) async {
+      await _pumpLocation(tester, settings: seattle);
+      expect(find.text('Newtown Square, PA'), findsNothing);
+      expect(find.text('Town, city or observatory'), findsOneWidget);
+    });
+
     testWidgets('is not labeled GPS', (tester) async {
       await _pumpLocation(tester, settings: seattle);
       expect(find.text('Get location from GPS'), findsNothing);
