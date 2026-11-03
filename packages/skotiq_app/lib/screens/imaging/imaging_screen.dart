@@ -9,6 +9,7 @@ import '../../utils/transient_bottom_inset.dart';
 import 'widgets/fullscreen_image_viewer.dart';
 import 'widgets/imaging_capture_bar.dart';
 import 'widgets/imaging_preview_toolbar.dart';
+import 'widgets/imaging_view_prefs.dart';
 import 'widgets/imaging_session_frames.dart';
 import 'widgets/depthlock/depthlock_commit_host.dart';
 import 'widgets/depthlock/depthlock_hint.dart';
@@ -298,6 +299,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
               // instead of letting a fixed row overflow over the focused
               // controls pane.
               if (constraints.maxHeight < 96) return const SizedBox.shrink();
+              ref.watch(imagingViewPrefsBinderProvider);
               return ImagingPreviewToolbar(
                 showCrosshair:
                     ref.watch(imagingViewerStateProvider).showCrosshair,

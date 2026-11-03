@@ -7,13 +7,19 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'imaging_view_prefs.dart';
 import 'measured_width.dart';
 import 'stretch_controls.dart';
 
 /// Whether Loop keeps the frames it captures.
 ///
-/// Loop is a live-view mode, so saving defaults off and is session-scoped.
-final loopSavesFramesProvider = StateProvider<bool>((ref) => false);
+/// Loop is a live-view mode, so saving defaults off. A choice to save is
+/// remembered across restarts: forgetting it lost the next night's frames
+/// without a word.
+final loopSavesFramesProvider =
+    StateNotifierProvider<PersistedBoolNotifier, bool>(
+  (ref) => PersistedBoolNotifier('imaging.loopSavesFrames'),
+);
 
 /// Identifies the capture bar's "Save loop frames" toggle for tests.
 const loopSaveFramesToggleKey = Key('imaging.loopSaveFramesToggle');
@@ -275,7 +281,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                     toggled: saveLoopFrames,
                     onTap: () => ref
                         .read(loopSavesFramesProvider.notifier)
-                        .state = !saveLoopFrames,
+                        .set(!saveLoopFrames),
                     child: SkotiqButton(
                       key: loopSaveFramesToggleKey,
                       label: 'Save',
@@ -294,7 +300,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                           ? null
                           : () => ref
                               .read(loopSavesFramesProvider.notifier)
-                              .state = !saveLoopFrames,
+                              .set(!saveLoopFrames),
                     ),
                   ),
                   const SizedBox(width: SkotiqTokens.spaceSm),
