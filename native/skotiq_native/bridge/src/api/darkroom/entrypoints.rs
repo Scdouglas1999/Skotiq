@@ -232,7 +232,7 @@ pub fn api_darkroom_render_preview(
     let base = master
         .pyramid
         .level(level)
-        .ok_or_else(|| format!("pyramid level {level} is out of range for this master"))?
+        .ok_or_else(|| format!("resolution level {level} is out of range for this master"))?
         .clone();
 
     let (ctx, catalog_stars) =

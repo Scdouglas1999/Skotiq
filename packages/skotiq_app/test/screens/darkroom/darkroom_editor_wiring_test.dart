@@ -419,7 +419,7 @@ void main() {
     expect(notes.first.outcome, 'omitted');
     expect(notes.first.reason, contains('1 channel(s)'));
     // A note with no reason says the registry stated none, never invents one.
-    expect(notes.last.reason, 'the operation registry stated no reason');
+    expect(notes.last.reason, 'Skotiq stated no reason');
     // Printed, the operation is named the way its step card names it.
     expect(
       darkroomDraftNoteSentence(notes.first),

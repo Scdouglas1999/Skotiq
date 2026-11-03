@@ -1475,7 +1475,7 @@ void main() {
         RecipeDraftNote(
           opId: 'crop',
           outcome: 'included',
-          reason: 'measured from this master by the operation registry',
+          reason: 'measured from this master by Skotiq',
         ),
       ],
     );

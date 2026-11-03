@@ -168,7 +168,7 @@ class _DarkroomZoom {
 /// Why a render that landed still cannot be put at one screen pixel per master
 /// pixel.
 const String kDarkroomOneToOneNeedsLevel =
-    'this render did not say which pyramid level it answered at, so one screen '
+    'this render did not say which resolution it answered at, so one screen '
     'pixel per master pixel cannot be worked out';
 
 /// Why the single-recipe viewport has no pixels to zoom, in the same terms the

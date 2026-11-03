@@ -1216,7 +1216,7 @@ fn draft(
             "opId": "color_calibrate",
             "outcome": "omitted",
             "reason": format!(
-                "this master has {count} and the colour fit needs three, so this draft covers {coverage}; the color composite of this target's per-filter masters is drafted separately",
+                "this master has {count} and the color fit needs three, so this draft covers {coverage}; the color composite of this target's per-filter masters is drafted separately",
             ),
         }));
     }
@@ -1537,7 +1537,7 @@ fn render_prefix(
     let base = master
         .pyramid
         .level(level)
-        .ok_or_else(|| format!("pyramid level {level} is out of range while drafting"))?;
+        .ok_or_else(|| format!("resolution level {level} is out of range while drafting"))?;
     let mut ctx = OpContext::new().at_level(level);
     if let Some(sources) = sources {
         ctx = ctx.with_sources(Arc::clone(sources));
@@ -1586,7 +1586,7 @@ fn measure_linear_prefix(
     let base = master
         .pyramid
         .level(level)
-        .ok_or_else(|| format!("pyramid level {level} is out of range while drafting"))?;
+        .ok_or_else(|| format!("resolution level {level} is out of range while drafting"))?;
     let ops = registry()?;
     let mut ctx = OpContext::new().at_level(level);
     if let Some(sources) = sources {

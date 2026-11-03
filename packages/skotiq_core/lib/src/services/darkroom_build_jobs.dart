@@ -334,7 +334,11 @@ Future<Map<String, List<CapturedImage>>> loadDarkroomTargets(
         );
       }
     }
-    name ??= 'Session ${f.sessionId ?? 'unassigned'}';
+    // Frames with no target are grouped by session; "unassigned" read as an
+    // error state.
+    name ??= f.sessionId == null
+        ? 'Frames with no target'
+        : 'Session ${f.sessionId}';
     targets.putIfAbsent(name, () => []).add(f);
   }
   return targets;

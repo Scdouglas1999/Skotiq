@@ -1625,7 +1625,7 @@ fn registry_drafts_a_recipe_that_validates_against_this_build() {
         reply["draft"]["notes"].as_array().is_some_and(|notes| notes
             .iter()
             .any(|note| note["opId"] == json!("color_calibrate"))),
-        "a mono master records why the colour fit is left out: {reply}"
+        "a mono master records why the color fit is left out: {reply}"
     );
 
     let verdict = parse(

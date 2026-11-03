@@ -504,7 +504,7 @@ class DawnDraftBuilder {
         DawnDraftNote(
           opId: opId,
           outcome: 'included',
-          reason: 'measured from this master by the operation registry',
+          reason: 'measured from this master by Skotiq',
         ),
       );
     }
@@ -532,7 +532,7 @@ class DawnDraftBuilder {
           outcome: outcome is String ? outcome : 'omitted',
           reason: reason is String
               ? reason
-              : 'the operation registry omitted it without stating a reason',
+              : 'Skotiq left it out without stating a reason',
         ),
       );
     }

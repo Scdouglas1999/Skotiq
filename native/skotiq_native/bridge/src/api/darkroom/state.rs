@@ -85,7 +85,7 @@ pub(crate) fn registry() -> Result<&'static OpRegistry, String> {
     match REGISTRY.get_or_init(|| OpRegistry::builtin().map_err(|e| e.to_string())) {
         Ok(built) => Ok(built),
         Err(reason) => Err(format!(
-            "the Darkroom operation registry did not build: {reason}"
+            "the Darkroom's processing steps could not be loaded: {reason}"
         )),
     }
 }

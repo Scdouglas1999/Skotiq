@@ -257,16 +257,16 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
           _DarkroomTag(
             label: 'Level ${zoomed!.level}',
             tooltip: measuredOn == null
-                ? 'The pyramid level the A side was rendered from. The '
+                ? 'The reduced resolution the A side was rendered at. The '
                     'percentage beside it is about A.'
-                : 'The pyramid level the $measuredOn side was rendered from. A '
+                : 'The reduced resolution the $measuredOn side was rendered at. A '
                     'has no finished render, so the percentage beside it is '
                     'about $measuredOn.',
           ),
         if (aScale != null && bScale != null && aScale != bScale)
           _DarkroomTag(
             label: 'B answered at another level',
-            tooltip: 'The two sides rendered from different pyramid levels, so '
+            tooltip: 'The two sides rendered at different resolutions, so '
                 'the percentage is about A alone. B is level '
                 '${bState.preview!.level}.',
           ),

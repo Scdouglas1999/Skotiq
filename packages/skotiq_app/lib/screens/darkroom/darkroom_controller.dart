@@ -1089,7 +1089,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     final at = state.insertIndexFor(op);
     if (at == null) {
       _refuseInsert(
-        'The operation registry states ${op.id}@${op.version}\'s stage as '
+        'Skotiq lists ${op.id}@${op.version}\'s stage as '
         '"${op.stageWire}", which this build does not model, so this editor '
         'cannot say where in the stack it belongs. Nothing was added.',
       );
@@ -1213,7 +1213,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       final nextStep = darkroomMasterFailureNextStep(error.message, masterPath);
       return (
         params: null,
-        refusal: 'The operation registry could not measure $names from this '
+        refusal: 'Skotiq could not measure $names from this '
             'master, so no $title step was added: ${error.message}'
             '${nextStep == null ? '' : '. $nextStep'}',
       );
@@ -1225,7 +1225,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     } on DarkroomRecipeFormatException catch (error) {
       return (
         params: null,
-        refusal: 'The operation registry answered without a measured draft of '
+        refusal: 'Skotiq answered without a measured draft of '
             'this master, so $names could not be read and no $title step was '
             'added: ${error.message}',
       );
@@ -1244,14 +1244,14 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (note.opId != op.id) continue;
       return (
         params: null,
-        refusal: 'The operation registry left $title out of its measurement of '
+        refusal: 'Skotiq left $title out of its measurement of '
             'this master, and $names $has no documented default to fall back '
             'on, so nothing was added: ${note.reason}',
       );
     }
     return (
       params: null,
-      refusal: 'The operation registry\'s measurement of this master carries '
+      refusal: 'Skotiq\'s measurement of this master carries '
           'no $title step and states no reason for leaving it out. $names '
           '$has no documented default either, so nothing was added rather '
           'than a step opening on a value nothing measured.',

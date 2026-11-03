@@ -161,7 +161,7 @@ DarkroomCatalog decodeDarkroomCatalog(Map<String, dynamic> reply) {
   final ops = reply['ops'];
   if (ops is! List) {
     throw const DarkroomRecipeFormatException(
-      'the operation registry answered without an operation list, so no '
+      'Skotiq returned no list of processing steps, so no '
       'parameter ranges are known',
     );
   }
@@ -187,7 +187,7 @@ DarkroomCatalog decodeDarkroomCatalog(Map<String, dynamic> reply) {
   }
   if (specs.isEmpty) {
     throw const DarkroomRecipeFormatException(
-      'the operation registry named no operations this build can render',
+      'Skotiq named no processing steps this build can render',
     );
   }
   return DarkroomCatalog(List.unmodifiable(specs));
@@ -246,7 +246,7 @@ List<DarkroomStep> decodeDarkroomDraft(Map<String, dynamic> reply) {
   final draft = reply['draft'];
   if (draft is! Map<String, dynamic>) {
     throw const DarkroomRecipeFormatException(
-      'the operation registry answered without a draft, so there are no '
+      'Skotiq answered without a draft, so there are no '
       'measured parameters to build one from',
     );
   }
@@ -339,7 +339,7 @@ List<RecipeDraftNote> decodeDarkroomDraftNotes(Map<String, dynamic> reply) {
         outcome: outcome is String ? outcome : 'omitted',
         reason: reason is String && reason.isNotEmpty
             ? reason
-            : 'the operation registry stated no reason',
+            : 'Skotiq stated no reason',
       ),
     );
   }
@@ -365,7 +365,7 @@ List<RecipeDraftNote> darkroomComposedAccount(
       RecipeDraftNote(
         opId: step.opId,
         outcome: 'included',
-        reason: 'measured from this master by the operation registry',
+        reason: 'measured from this master by Skotiq',
       ),
     );
   }

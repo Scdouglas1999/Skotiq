@@ -708,10 +708,12 @@ class _Review extends ConsumerWidget {
           observingNight(byPath[l['path']]!.capturedAt),
     };
     final reference = plan.referencePath;
-    final limiting = [
-      for (final f in preview.limiting)
-        if (f.path != reference && !session.leftOut.containsKey(f.path)) f,
-    ];
+    final limiting = framingLimitingSubs(
+      preview.limiting,
+      retainedArea: preview.retainedArea,
+      referencePath: reference,
+      leftOut: session.leftOut.keys.toSet(),
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final aside =
@@ -790,3 +792,20 @@ class _Review extends ConsumerWidget {
     );
   }
 }
+
+/// The subs that limit the kept field: leaving one out has to keep more of
+/// it. A sub whose removal keeps the same share ("Without it: 98.9% kept"
+/// beside 98.9% covered) was listed as cutting the rest away.
+List<DarkroomLimitingFrame> framingLimitingSubs(
+  List<DarkroomLimitingFrame> candidates, {
+  required double retainedArea,
+  required String? referencePath,
+  required Set<String> leftOut,
+}) =>
+    [
+      for (final f in candidates)
+        if (f.path != referencePath &&
+            !leftOut.contains(f.path) &&
+            f.retainedWithout > retainedArea + 0.0005)
+          f,
+    ];
