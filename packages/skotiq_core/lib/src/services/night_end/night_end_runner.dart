@@ -298,7 +298,7 @@ class NightEndRunner {
             (t) => t.copyWith(
               build: NightEndStep(
                 NightEndStepState.waiting,
-                'Calibration needed: $e',
+                calibrationNeededText(e),
               ),
               waitingForCalibration: true,
             ),
@@ -633,3 +633,8 @@ class NightEndRunner {
 }
 
 final nightEndRunnerProvider = Provider<NightEndRunner>(NightEndRunner.new);
+
+/// The night-end Build step's wait reason for a calibration refusal. The
+/// refusal is a sentence; StateError's "Bad state:" prefix is not.
+String calibrationNeededText(Object error) =>
+    'Calibration needed: ${error is StateError ? error.message : error}';

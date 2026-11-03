@@ -422,8 +422,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     report.runStatus = result.runStatus;
     if (result.runStatus != 'completed' && !stopped) {
       report.problems.add(
-        'The calibration run ended ${result.runStatus} before taking every '
-        'frame',
+        'The calibration run ${eonRunEndWords(result.runStatus)} before '
+        'taking every frame',
       );
     }
 
@@ -703,3 +703,14 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     return '${t.year}${two(t.month)}${two(t.day)}-${two(t.hour)}${two(t.minute)}';
   }
 }
+
+/// How a calibration run's recorded status reads in a sentence ("The
+/// calibration run was stopped before taking every frame"); the status
+/// itself (`paused-stopped`) is a record value, not words.
+String eonRunEndWords(String runStatus) => switch (runStatus) {
+  'stopped' || 'paused-stopped' => 'was stopped',
+  'failed' => 'failed',
+  'aborted' || 'cancelled' => 'was ended',
+  'interrupted' => 'was interrupted',
+  _ => 'ended',
+};

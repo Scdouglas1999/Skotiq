@@ -310,7 +310,7 @@ void main() {
     expect(
       report.problems,
       containsAll([
-        'The calibration run ended stopped before taking every frame',
+        'The calibration run was stopped before taking every frame',
         'Only 7 frames were taken for the 90 s darks, gain 76, offset 15, '
             'bin 1x1',
       ]),
