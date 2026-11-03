@@ -8,16 +8,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/weather/weather_status_card.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-Future<void> _pumpCard(WidgetTester tester, {DateTime? lastUpdate}) async {
+Future<void> _pumpCard(
+  WidgetTester tester, {
+  DateTime? lastUpdate,
+  WeatherAlert? alert,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
         theme: SkotiqTheme.dark,
         home: Scaffold(
           body: SingleChildScrollView(
-            child: WeatherStatusCard(lastUpdate: lastUpdate),
+            child: WeatherStatusCard(lastUpdate: lastUpdate, alert: alert),
           ),
         ),
       ),
@@ -43,6 +48,23 @@ void main() {
     );
 
     expect(find.text('Updated 3 min ago'), findsOneWidget);
+    expect(find.text('Waiting for weather data'), findsNothing);
+  });
+
+  // qa-surfaces S37: "Waiting for weather data" sat under a populated 85%
+  // cloud reading.
+  testWidgets('a reading on screen is not "waiting"', (tester) async {
+    await _pumpCard(
+      tester,
+      alert: WeatherAlert(
+        level: AlertLevel.watch,
+        message: 'Clouds nearby',
+        cloudDensityPercent: 85,
+        distanceKm: 20,
+        generatedAt: DateTime.now(),
+      ),
+    );
+
     expect(find.text('Waiting for weather data'), findsNothing);
   });
 }

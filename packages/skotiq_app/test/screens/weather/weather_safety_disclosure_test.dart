@@ -83,7 +83,7 @@ void main() {
       // gate (master switch AND Sequencer policy AND this toggle) was false.
       expect(
         weatherPolicyArmedLabel(armed: false, toggledOn: true),
-        'On, not armed',
+        'On (safety off)',
       );
     });
 

@@ -44,7 +44,7 @@ String weatherPolicyArmedLabel({
   required bool toggledOn,
 }) {
   if (armed) return 'Enabled';
-  return toggledOn ? 'On, not armed' : 'Disabled';
+  return toggledOn ? 'On (safety off)' : 'Disabled';
 }
 
 /// The page header chip: the whole safety verdict in one or two words.

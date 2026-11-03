@@ -201,12 +201,15 @@ class WeatherStatusCard extends StatelessWidget {
         // Null means no fetch has landed yet — say so instead of leaving the
         // slot blank; an age is only printable once there is a real fetch time
         // to age from.
-        Text(
-          lastUpdate == null
-              ? 'Waiting for weather data'
-              : 'Updated ${_formatLastUpdate(lastUpdate!)}',
-          style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
-        ),
+        // A reading on screen is data, so "Waiting" under it is not true;
+        // without a fetch time to age it, the line is left out.
+        if (lastUpdate != null || alert == null)
+          Text(
+            lastUpdate == null
+                ? 'Waiting for weather data'
+                : 'Updated ${_formatLastUpdate(lastUpdate!)}',
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+          ),
       ],
     );
   }
