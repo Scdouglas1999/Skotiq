@@ -32,6 +32,14 @@ class _RecordingDeviceService extends DeviceService {
   Future<void> connectGuider(String deviceId, {String? host, int? port}) async {
     guiderConnects.add(deviceId);
   }
+
+  @override
+  Future<void> connectDeviceGuider(
+    String guiderId, {
+    String? guideCameraId,
+  }) async {
+    guiderConnects.add(guiderId);
+  }
 }
 
 class _RecordingPhd2Controller extends Phd2Controller {
