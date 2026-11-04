@@ -20,7 +20,7 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
 
       // Special handling for PHD2 guider - uses different connection method
       if (isPhd2) {
-        notifier.setConnecting(kPhd2CanonicalId, 'PHD2 Guiding');
+        notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
         try {
           final settings = await _ref.read(appSettingsProvider.future);
           // The caller may pin the endpoint (guiding controller's

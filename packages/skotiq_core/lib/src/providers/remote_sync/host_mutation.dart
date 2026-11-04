@@ -94,7 +94,7 @@ void _applyGuiderMutationFromHost(
         DeviceType.guider,
         'phd2_guider',
       )) {
-        notifier.setConnecting('phd2_guider', 'PHD2');
+        notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
       }
       notifier.setConnected();
     case HostMutationAction.disconnected:

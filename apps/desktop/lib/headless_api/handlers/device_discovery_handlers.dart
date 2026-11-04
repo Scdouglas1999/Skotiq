@@ -294,7 +294,10 @@ class DeviceDiscoveryHandlers {
             .map(
               (d) => {
                 'id': d.id,
-                'name': d.name,
+                // The name this host's own cards show, so a linked client's
+                // cards match them; the driver's name stays in driverName.
+                'name': _hostCardName(d) ?? d.name,
+                'driverName': d.name,
                 'deviceType': d.deviceType.name,
                 'driverType': d.driverType.name,
                 'description': d.description,
@@ -307,6 +310,18 @@ class DeviceDiscoveryHandlers {
         '[API][$requestId] Get connected devices error: $e\n$stackTrace',
       );
       return jsonInternalServerError({"error": "Internal server error"});
+    }
+  }
+
+  String? _hostCardName(DeviceInfo device) {
+    try {
+      final slot = readDeviceSlot(container, device.deviceType);
+      if (slot.deviceId != device.id) return null;
+      final name = readDeviceSlotName(container, device.deviceType)?.trim();
+      return name == null || name.isEmpty ? null : name;
+    } on Object {
+      // A headless host has no cards: the driver's name is all there is.
+      return null;
     }
   }
 }

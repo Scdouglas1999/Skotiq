@@ -76,6 +76,9 @@ const List<String> kKnownDeviceIdSingletons = <String>[
 /// profile recorded it. See `DeviceService.connectGuider`.
 const String kPhd2CanonicalId = 'phd2_guider';
 
+/// The name every machine shows for the PHD2 guider.
+const String kPhd2DisplayName = 'PHD2 Guiding';
+
 /// A parsed, canonicalizable device identity.
 ///
 /// Construct via [DeviceId.parse] (tolerant — never throws) or

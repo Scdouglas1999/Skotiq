@@ -13,7 +13,7 @@ Future<void> _applyGuidingEvent(
         DeviceType.guider,
         'phd2_guider',
       )) {
-        notifier.setConnecting('phd2_guider', 'PHD2');
+        notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
       }
       notifier.setConnected();
       break;
@@ -78,9 +78,17 @@ Future<void> _readPhd2GuiderStateOnce(
       return;
     }
     if (!_isDeviceAlreadyConnected(reader, DeviceType.guider, 'phd2_guider')) {
-      notifier.setConnecting('phd2_guider', 'PHD2');
+      notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
     }
     notifier.setConnected();
+    // The host's guider card shows PHD2's last RMS; without it this card read
+    // "—" beside the host's 0.73.
+    if (status.rmsTotal > 0) {
+      _read(
+        reader,
+        guiderStateProvider.notifier,
+      ).updateRms(status.rmsRa, status.rmsDec, status.rmsTotal);
+    }
   } catch (_) {
     // Do not clear a PHD2 guider restored from getConnectedDevices when the
     // status endpoint is briefly unavailable during host launch.

@@ -316,6 +316,10 @@ void main() {
       expect(guider.connectionState, DeviceConnectionState.connected);
 
       expect(guider.deviceId, 'phd2_guider');
+      // SY-09: the same name and RMS the host's own guider card shows.
+      expect(guider.deviceName, 'PHD2 Guiding');
+      expect(guider.rmsTotal, 0.6);
+      expect(guider.rmsRa, 0.5);
     });
 
     test('hydrates focuser capability flags from host status', () async {
