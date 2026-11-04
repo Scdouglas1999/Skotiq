@@ -23,11 +23,28 @@ import 'work_locally.dart';
 /// pulsing visuals but the messaging differs.
 enum RemoteConnectionStatus {
   connected,
+
+  /// The socket is open but the host has left a heartbeat unanswered for at
+  /// least [hostAnswerStaleAfter]: what the screen shows may be out of date.
+  notAnswering,
   connecting,
   reconnecting,
   serverOffline,
   error,
   notConnected,
+}
+
+/// How long a connected host may leave a heartbeat ping unanswered before the
+/// link reads as not answering. A LAN round trip is milliseconds; this is
+/// shorter than the 15 s heartbeat interval so one lost answer shows.
+const Duration hostAnswerStaleAfter = Duration(seconds: 10);
+
+/// Whole seconds the host has gone without answering, or null while it is
+/// answering within [hostAnswerStaleAfter].
+int? unansweredSecondsFor(NetworkBackend backend) {
+  final age = backend.unansweredPingAge;
+  if (age == null || age < hostAnswerStaleAfter) return null;
+  return age.inSeconds;
 }
 
 /// Compact pill-style indicator showing the live state of the
@@ -70,6 +87,8 @@ class _RemoteConnectionIndicatorState
   StreamSubscription<Duration>? _latencySubscription;
   NetworkBackend? _trackedBackend;
   int _backendGeneration = 0;
+  Timer? _answerTimer;
+  int? _unansweredSeconds;
 
   @override
   void initState() {
@@ -81,6 +100,7 @@ class _RemoteConnectionIndicatorState
   void dispose() {
     _backendGeneration++;
     _latencySubscription?.cancel();
+    _answerTimer?.cancel();
     super.dispose();
   }
 
@@ -92,9 +112,23 @@ class _RemoteConnectionIndicatorState
     final generation = ++_backendGeneration;
     _latencySubscription?.cancel();
     _latencySubscription = null;
+    _answerTimer?.cancel();
+    _answerTimer = null;
+    _unansweredSeconds = null;
     if (backend is NetworkBackend) {
       _trackedBackend = backend;
       _latency = backend.lastLatency;
+      // The socket state alone said "Live" through a two-minute stall on a
+      // failing Wi-Fi link: the connection stayed open while answers took
+      // seconds to tens of seconds. Look at the heartbeat every second.
+      _unansweredSeconds = unansweredSecondsFor(backend);
+      _answerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || !identical(_trackedBackend, backend)) return;
+        final seconds = unansweredSecondsFor(backend);
+        if (seconds != _unansweredSeconds) {
+          setState(() => _unansweredSeconds = seconds);
+        }
+      });
       _latencySubscription = backend.latencyStream.listen((value) {
         if (!mounted ||
             generation != _backendGeneration ||
@@ -124,7 +158,11 @@ class _RemoteConnectionIndicatorState
         initialData: backend.connectionState,
         builder: (context, snap) {
           final wsState = snap.data ?? backend.connectionState;
-          final status = _statusForBackendState(wsState);
+          var status = _statusForBackendState(wsState);
+          if (status == RemoteConnectionStatus.connected &&
+              _unansweredSeconds != null) {
+            status = RemoteConnectionStatus.notAnswering;
+          }
           return _build(context, status, backend: backend);
         },
       );
@@ -157,7 +195,7 @@ class _RemoteConnectionIndicatorState
     // disabled panel. The flags are only published when given.
     final description = backend == null
         ? 'Not linked to a remote imaging host'
-        : '${_textFor(status)} · ${backend.serverHost}';
+        : '${_textFor(status, _unansweredSeconds)} · ${backend.serverHost}';
     return Tooltip(
       message: description,
       child: Semantics(
@@ -179,7 +217,8 @@ class _RemoteConnectionIndicatorState
   Widget _buildDot(BuildContext context, RemoteConnectionStatus status) {
     final color = _colorFor(context, status);
     final pulsing = status == RemoteConnectionStatus.connecting ||
-        status == RemoteConnectionStatus.reconnecting;
+        status == RemoteConnectionStatus.reconnecting ||
+        status == RemoteConnectionStatus.notAnswering;
     // A generous transparent hit area around a small visible dot so it stays
     // tappable without claiming visual space.
     return Padding(
@@ -242,7 +281,7 @@ class _RemoteConnectionIndicatorState
           Icon(_iconFor(status), size: 18, color: color),
           const SizedBox(width: 6),
           Text(
-            _textFor(status),
+            _textFor(status, _unansweredSeconds),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: color,
               fontWeight: FontWeight.w600,
@@ -289,6 +328,7 @@ class _RemoteConnectionIndicatorState
     switch (status) {
       case RemoteConnectionStatus.connected:
         return colors?.success ?? theme.colorScheme.primary;
+      case RemoteConnectionStatus.notAnswering:
       case RemoteConnectionStatus.connecting:
       case RemoteConnectionStatus.reconnecting:
         return colors?.warning ?? theme.colorScheme.secondary;
@@ -304,6 +344,8 @@ class _RemoteConnectionIndicatorState
     switch (status) {
       case RemoteConnectionStatus.connected:
         return LucideIcons.wifi;
+      case RemoteConnectionStatus.notAnswering:
+        return LucideIcons.clock;
       case RemoteConnectionStatus.connecting:
       case RemoteConnectionStatus.reconnecting:
         return LucideIcons.refreshCw;
@@ -316,10 +358,12 @@ class _RemoteConnectionIndicatorState
     }
   }
 
-  String _textFor(RemoteConnectionStatus status) {
+  String _textFor(RemoteConnectionStatus status, int? unansweredSeconds) {
     switch (status) {
       case RemoteConnectionStatus.connected:
         return 'Live';
+      case RemoteConnectionStatus.notAnswering:
+        return 'No answer for ${unansweredSeconds ?? 0} s';
       case RemoteConnectionStatus.connecting:
         return 'Connecting...';
       case RemoteConnectionStatus.reconnecting:
@@ -466,9 +510,15 @@ class _RemoteConnectionSheetState
     final colors = SkotiqColors.of(context);
     final activeBackend = ref.watch(backendProvider);
     final backend = activeBackend is NetworkBackend ? activeBackend : null;
-    final status = backend == null
+    final unansweredSeconds =
+        backend == null ? null : unansweredSecondsFor(backend);
+    var status = backend == null
         ? RemoteConnectionStatus.notConnected
         : _statusForConnectionState(backend.connectionState);
+    if (status == RemoteConnectionStatus.connected &&
+        unansweredSeconds != null) {
+      status = RemoteConnectionStatus.notAnswering;
+    }
     final latency = backend?.lastLatency;
 
     return Padding(
@@ -496,7 +546,7 @@ class _RemoteConnectionSheetState
                       ),
                     ),
                     Text(
-                      _description(status, backend),
+                      _description(status, backend, unansweredSeconds),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -528,7 +578,9 @@ class _RemoteConnectionSheetState
                 label: _reconnecting ? 'Reconnecting...' : 'Reconnect now',
               ),
             ),
-          if (backend != null && status == RemoteConnectionStatus.connected)
+          if (backend != null &&
+              (status == RemoteConnectionStatus.connected ||
+                  status == RemoteConnectionStatus.notAnswering))
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: SizedBox(
@@ -648,6 +700,8 @@ class _RemoteConnectionSheetState
     switch (status) {
       case RemoteConnectionStatus.connected:
         return LucideIcons.checkCircle;
+      case RemoteConnectionStatus.notAnswering:
+        return LucideIcons.clock;
       case RemoteConnectionStatus.connecting:
       case RemoteConnectionStatus.reconnecting:
         return LucideIcons.loader;
@@ -666,6 +720,7 @@ class _RemoteConnectionSheetState
     switch (status) {
       case RemoteConnectionStatus.connected:
         return colors?.success ?? theme.colorScheme.primary;
+      case RemoteConnectionStatus.notAnswering:
       case RemoteConnectionStatus.connecting:
       case RemoteConnectionStatus.reconnecting:
         return colors?.warning ?? theme.colorScheme.secondary;
@@ -677,10 +732,18 @@ class _RemoteConnectionSheetState
     }
   }
 
-  String _description(RemoteConnectionStatus status, NetworkBackend? backend) {
+  String _description(
+    RemoteConnectionStatus status,
+    NetworkBackend? backend,
+    int? unansweredSeconds,
+  ) {
     switch (status) {
       case RemoteConnectionStatus.connected:
         return 'Connected to ${backend?.serverHost ?? "server"}';
+      case RemoteConnectionStatus.notAnswering:
+        return '${backend?.serverHost ?? "The host"} has not answered for '
+            '${unansweredSeconds ?? 0} s. What this screen shows may be out '
+            'of date until it answers again.';
       case RemoteConnectionStatus.connecting:
         return 'Connecting to ${backend?.serverHost ?? "server"}...';
       case RemoteConnectionStatus.reconnecting:

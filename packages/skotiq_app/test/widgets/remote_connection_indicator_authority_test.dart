@@ -38,6 +38,10 @@ void _stubHost(
       .thenAnswer((_) => const Stream<Duration>.empty());
 }
 
+Finder _linkLabel(String label) => find.byWidgetPredicate(
+      (w) => w is Semantics && w.properties.label == label,
+    );
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -135,6 +139,64 @@ void main() {
     expect(
         find.textContaining('Stop the active sequence first'), findsOneWidget);
     verifyNever(backend.dispose);
+  });
+
+  // 2026-11-03: a failing Wi-Fi link stalled the host's answers for about two
+  // minutes while the socket stayed open, and the chip kept saying "Live".
+  testWidgets('a connected host that stops answering pings reads as stale',
+      (tester) async {
+    final backend = _MockNetworkBackend();
+    _stubHost(
+      backend,
+      'imaging-host',
+      state: BackendConnectionState.connected,
+    );
+    Duration? unanswered;
+    when(() => backend.unansweredPingAge).thenAnswer((_) => unanswered);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, backend),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: RemoteConnectionIndicator()),
+        ),
+      ),
+    );
+
+    expect(
+        _linkLabel('Imaging host link: Live · imaging-host'), findsOneWidget);
+
+    // A ping a few seconds old is normal lag, not a stall.
+    unanswered = const Duration(seconds: 4);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Live'), findsOneWidget);
+
+    unanswered = const Duration(seconds: 25);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Live'), findsNothing);
+    expect(
+      _linkLabel('Imaging host link: No answer for 25 s · imaging-host'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byType(RemoteConnectionIndicator));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('imaging-host has not answered for 25 s'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    unanswered = null;
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Live'), findsOneWidget);
   });
 
   // With a DisconnectedBackend the sheet used to state "Not connected to a
