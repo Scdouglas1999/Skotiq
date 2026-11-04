@@ -326,7 +326,7 @@ void main() {
   // three different percentages are not read as one.
   testWidgets('the Moon chip names the time it is for', (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1600, 900);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
