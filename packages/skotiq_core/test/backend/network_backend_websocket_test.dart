@@ -71,6 +71,65 @@ void main() {
       }
     });
 
+    // On a failing Wi-Fi link the socket stays open and frames still trickle
+    // in, so the watchdog never fires, while the host's answers to pings lag
+    // by seconds. The age of the oldest unanswered ping must keep growing
+    // across later pings, and clear once the host answers again.
+    test(
+      'ages an unanswered ping across later pings and clears on pong',
+      () async {
+        var answer = false;
+        Timer? trickle;
+        final server = await _startServer((socket) {
+          trickle = Timer.periodic(const Duration(milliseconds: 20), (_) {
+            socket.add(jsonEncode({'type': 'ping'}));
+          });
+          socket.listen((message) {
+            final data = jsonDecode(message as String) as Map<String, dynamic>;
+            if (data['type'] == 'ping' && answer) {
+              socket.add(jsonEncode({'type': 'pong'}));
+            }
+          });
+        });
+
+        final backend = NetworkBackend(
+          serverHost: InternetAddress.loopbackIPv4.address,
+          serverPort: server.port,
+          webSocketPort: server.port,
+          webSocketHeartbeatInterval: const Duration(milliseconds: 50),
+          webSocketHeartbeatTimeout: const Duration(seconds: 5),
+        );
+
+        try {
+          await backend.connectionStateStream
+              .firstWhere((state) => state == BackendConnectionState.connected)
+              .timeout(const Duration(seconds: 2));
+          expect(backend.unansweredPingAge, isNull);
+
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          expect(backend.connectionState, BackendConnectionState.connected);
+          expect(
+            backend.unansweredPingAge,
+            greaterThanOrEqualTo(const Duration(milliseconds: 250)),
+            reason: 'a newer ping must not make a silent host look fresh',
+          );
+
+          answer = true;
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          final age = backend.unansweredPingAge;
+          expect(
+            age == null || age < const Duration(milliseconds: 100),
+            isTrue,
+            reason: 'a pong means the host is answering again',
+          );
+        } finally {
+          trickle?.cancel();
+          backend.dispose();
+          await server.close(force: true);
+        }
+      },
+    );
+
     test('rejects incompatible servers before opening WebSocket', () async {
       for (final infoBody in const [
         <String, dynamic>{'version': '1.9.9'},
