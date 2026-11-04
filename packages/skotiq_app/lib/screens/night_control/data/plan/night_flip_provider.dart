@@ -216,6 +216,13 @@ class NightFlipTracker extends Notifier<NightFlipState> {
           :final outcome,
           :final attempts,
         ):
+        // The mount reached its new side; centering and guiding are still
+        // being restored, and the verdict follows.
+        if (outcome == meridianFlipPierChangedOutcome) {
+          if (!state.inProgress) _start(at);
+          state = state.copyWith(pierChanged: true);
+          return;
+        }
         final success = outcome == 'success';
         state = state.copyWith(
           startedAt: () => null,

@@ -215,6 +215,26 @@ void main() {
     expect(rig.step?.detail.key, 'nightCtlFlipFailedMoved');
   });
 
+  test(
+      'the host saying the mount reached its new side keeps the flip under '
+      'way and done for this transit', () {
+    final rig = _Rig(now: DateTime(2026, 11, 3, 22, 44));
+    addTearDown(rig.container.dispose);
+    rig.emit(_triggerFired(_t0));
+    rig.emit(_outcome(DateTime(2026, 11, 3, 22, 38, 21), 'pier_changed'));
+
+    expect(rig.flip.inProgress, isTrue);
+    expect(rig.flip.doneForThisTransit, isTrue);
+    expect(rig.step?.status, PlanStepStatus.active);
+
+    // Recovery on the new side keeps retrying; the mount's new side is not
+    // taken as where this flip started.
+    rig.pier('East');
+    rig.emit(_attemptFailed(DateTime(2026, 11, 3, 22, 42, 26), 2, 60));
+    expect(rig.flip.doneForThisTransit, isTrue);
+    expect(rig.flip.pierAtStart, 'west');
+  });
+
   test('a pier change with no flip under way is not a flip', () {
     final rig = _Rig();
     addTearDown(rig.container.dispose);
