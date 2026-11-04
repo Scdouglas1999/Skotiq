@@ -149,7 +149,7 @@ impl AscomMountWrapper {
     }
 
     pub fn new(prog_id: String) -> Result<Self, String> {
-        let (tx, mut rx) = mpsc::channel(32);
+        let (tx, mut rx) = mpsc::channel::<AscomMountCommand>(32);
         let prog_id_clone = prog_id.clone();
 
         // Build the COM object and its command pump on the process-wide STA
