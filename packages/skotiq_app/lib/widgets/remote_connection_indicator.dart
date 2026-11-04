@@ -34,19 +34,6 @@ enum RemoteConnectionStatus {
   notConnected,
 }
 
-/// How long a connected host may leave a heartbeat ping unanswered before the
-/// link reads as not answering. A LAN round trip is milliseconds; this is
-/// shorter than the 15 s heartbeat interval so one lost answer shows.
-const Duration hostAnswerStaleAfter = Duration(seconds: 10);
-
-/// Whole seconds the host has gone without answering, or null while it is
-/// answering within [hostAnswerStaleAfter].
-int? unansweredSecondsFor(NetworkBackend backend) {
-  final age = backend.unansweredPingAge;
-  if (age == null || age < hostAnswerStaleAfter) return null;
-  return age.inSeconds;
-}
-
 /// Compact pill-style indicator showing the live state of the
 /// [NetworkBackend] WebSocket session. Designed for the mobile shell's
 /// title-bar slot but reusable anywhere a small

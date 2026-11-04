@@ -133,4 +133,74 @@ void main() {
     await tester.pump();
     expect(find.textContaining('Lost connection'), findsNothing);
   });
+
+  // 2026-11-03: the host stopped answering for about two minutes while the
+  // socket stayed open. The title-bar chip now says "No answer for N s", but
+  // the run and device values under it still looked live: no banner, no
+  // dimming, "Running 5%" and "Exposing..." as if confirmed.
+  testWidgets(
+      'a connected host that has stopped answering marks the values shown '
+      'as the last known', (tester) async {
+    final host = _MockNetworkBackend();
+    when(() => host.connectionState)
+        .thenReturn(BackendConnectionState.connected);
+    when(() => host.connectionStateStream)
+        .thenAnswer((_) => const Stream.empty());
+    when(() => host.serverHost).thenReturn('rig.local');
+    Duration? unanswered;
+    when(() => host.unansweredPingAge).thenAnswer((_) => unanswered);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, host),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(
+            body: Column(
+              children: [
+                ConnectionStaleBanner(),
+                Expanded(
+                  child: HostLinkStaleScope(child: Text('Running 5%')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('last known'), findsNothing);
+    expect(find.byType(Opacity), findsNothing);
+
+    // A few seconds without a pong is ordinary lag.
+    unanswered = const Duration(seconds: 4);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('last known'), findsNothing);
+
+    unanswered = const Duration(seconds: 25);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(
+      find.textContaining('rig.local has not answered for 25 s'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('last known, not live'), findsOneWidget);
+    expect(find.textContaining('reconnecting'), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        RegExp('Last known values, rig.local is not answering'),
+      ),
+      findsOneWidget,
+    );
+
+    unanswered = null;
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(find.textContaining('last known'), findsNothing);
+    expect(find.byType(Opacity), findsNothing);
+  });
 }
