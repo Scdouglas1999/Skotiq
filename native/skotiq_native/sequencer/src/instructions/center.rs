@@ -159,6 +159,13 @@ async fn center(
         }
     }
 
+    // Every attempt captures through whatever the wheel holds: the node's own
+    // filter when it names one, and never the dark slot a stopped calibration
+    // run can leave loaded.
+    if let Err(result) = select_step_filter(ctx, "Center", config.filter.as_deref()).await {
+        return result;
+    }
+
     let target_ra_deg = target_ra_hours * 15.0;
 
     tracing::info!(

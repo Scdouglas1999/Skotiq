@@ -1367,6 +1367,7 @@ mod focuser_backlash;
 mod frame_metadata;
 mod grading;
 mod guiding;
+mod light_filter;
 mod meridian_gate;
 mod park;
 mod pointing_gate;

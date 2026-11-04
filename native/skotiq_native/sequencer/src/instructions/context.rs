@@ -306,6 +306,10 @@ pub struct InstructionContext {
     /// (see [`super::device_retry`]). The run's live handle on the node path;
     /// a single attempt for contexts with no run behind them.
     pub device_retry: super::DeviceRetryHandle,
+    /// The light filters the current target's exposures use, first use first;
+    /// empty outside a target. A capture that finds the wheel on the dark slot
+    /// moves to the first of these.
+    pub target_light_filters: Vec<super::PlannedLightFilter>,
 }
 
 impl InstructionContext {

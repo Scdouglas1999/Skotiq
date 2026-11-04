@@ -44,6 +44,7 @@ pub async fn execute_target_header(
     context.target_ra = Some(config.ra_hours);
     context.target_dec = Some(config.dec_degrees);
     context.target_rotation = config.rotation;
+    context.target_light_filters = crate::instructions::planned_light_filters(&*node);
     // Populate target_id (stamped here so child exposures' FITS headers
     // carry a stable join key for the database row) and mosaic_panel (the
     // panel index the PANELIDX/SK-PIDX/SK-PROW/SK-PCOL FITS keywords carry).
@@ -74,6 +75,7 @@ struct TargetContextSnapshot {
     target_ra: Option<f64>,
     target_dec: Option<f64>,
     target_rotation: Option<f64>,
+    target_light_filters: Vec<crate::instructions::PlannedLightFilter>,
     mosaic_panel: Option<crate::MosaicPanelInfo>,
 }
 
@@ -85,6 +87,7 @@ impl TargetContextSnapshot {
             target_ra: ctx.target_ra,
             target_dec: ctx.target_dec,
             target_rotation: ctx.target_rotation,
+            target_light_filters: ctx.target_light_filters.clone(),
             mosaic_panel: ctx.mosaic_panel.clone(),
         }
     }
@@ -95,6 +98,7 @@ impl TargetContextSnapshot {
         ctx.target_ra = self.target_ra;
         ctx.target_dec = self.target_dec;
         ctx.target_rotation = self.target_rotation;
+        ctx.target_light_filters = self.target_light_filters;
         ctx.mosaic_panel = self.mosaic_panel;
     }
 }

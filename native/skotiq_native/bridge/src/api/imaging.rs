@@ -171,6 +171,7 @@ fn one_shot_focus_context(
         dither_barrier: None,
         // An Imaging-tab capture is attended: one attempt, as before.
         device_retry: skotiq_sequencer::instructions::DeviceRetryHandle::single_attempt(),
+        target_light_filters: Vec::new(),
     }
 }
 

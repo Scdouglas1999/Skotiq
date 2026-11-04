@@ -1492,6 +1492,7 @@ impl MeridianFlipExecutor {
             // secondary coordination.
             dither_barrier: None,
             device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
+            target_light_filters: Vec::new(),
         };
 
         tracing::info!(

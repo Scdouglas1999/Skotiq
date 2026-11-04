@@ -394,6 +394,13 @@ async fn run_autofocus_admitted(
     _guard: AutofocusRunGuard,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {
+    // Before the filter the run starts on is read: a sweep through the dark
+    // slot measures nothing, and restoring to it afterwards would leave the
+    // next capture there too.
+    if let Err(result) = leave_dark_slot_for_capture(ctx, "Autofocus").await {
+        return result;
+    }
+
     let mut effective_config = config.clone();
 
     // Resolve the imaging filter at runtime. A sequence can reach the same AF

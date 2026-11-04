@@ -244,6 +244,7 @@ pub(super) fn build_trigger_autofocus_context(
         // The run's retry policy, so a trigger-fired action's filter change
         // retries like the sequence's own.
         device_retry: runtime_config.read().device_retry.clone(),
+        target_light_filters: Vec::new(),
     }
 }
 

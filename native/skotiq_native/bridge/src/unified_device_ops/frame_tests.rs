@@ -101,6 +101,7 @@ fn target_context(mount_id: &str, target: (f64, f64)) -> InstructionContext {
         device_disconnect_recovery_pending: Arc::new(AtomicBool::new(false)),
         dither_barrier: None,
         device_retry: skotiq_sequencer::instructions::DeviceRetryHandle::single_attempt(),
+        target_light_filters: Vec::new(),
     }
 }
 

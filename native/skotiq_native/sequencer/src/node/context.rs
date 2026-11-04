@@ -150,6 +150,9 @@ pub struct ExecutionContext {
     pub target_dec: Option<f64>,
     pub target_name: Option<String>,
     pub target_rotation: Option<f64>,
+    /// The light filters the current target's exposures use, first use first;
+    /// stamped by the TargetHeader, empty outside a target.
+    pub target_light_filters: Vec<crate::instructions::PlannedLightFilter>,
     /// Current filter
     pub current_filter: Option<String>,
     /// Current binning
@@ -644,6 +647,7 @@ impl ExecutionContext {
             target_dec: None,
             target_name: None,
             target_rotation: None,
+            target_light_filters: Vec::new(),
             current_filter: None,
             current_binning: crate::Binning::One,
             is_cancelled: Arc::new(AtomicBool::new(false)),
@@ -1327,6 +1331,7 @@ impl ExecutionContext {
             // with the secondary capture loop.
             dither_barrier: self.dither_barrier.clone(),
             device_retry: self.device_retry.clone(),
+            target_light_filters: self.target_light_filters.clone(),
         }
     }
 }
