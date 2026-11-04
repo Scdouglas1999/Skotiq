@@ -9,6 +9,7 @@ import '../../services/logging_service.dart';
 import '../sequence/sequence_progress.dart';
 import '../settings_provider.dart';
 import 'focuser_state_provider.dart';
+import 'focuser_temperature_poller.dart';
 
 /// Applies the operator's temperature coefficient (steps per °C, set in
 /// Equipment → Settings → Focuser) continuously while the focuser is
@@ -28,6 +29,9 @@ import 'focuser_state_provider.dart';
 /// executing (running / paused / stopping / recovering). Otherwise two
 /// controllers would issue focuser moves off the same drift.
 final focuserTempCompensationProvider = Provider<FocuserTempCompensator>((ref) {
+  // Compensation follows the focuser's temperature, which only the poller
+  // keeps current on the machine that owns the rig.
+  ref.watch(focuserTemperaturePollerProvider);
   final compensator = FocuserTempCompensator(ref);
   ref.onDispose(compensator.dispose);
   return compensator;

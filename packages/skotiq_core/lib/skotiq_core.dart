@@ -411,7 +411,8 @@ export 'src/utils/device_id.dart'
         kBuiltinGuiderDisplayName,
         kBuiltinGuiderIdPrefix,
         kSimulatorDeviceDisplayNames,
-        kPhd2CanonicalId;
+        kPhd2CanonicalId,
+        kPhd2DisplayName;
 export 'src/services/phd2_status_poll.dart';
 export 'src/services/phd2_probe.dart'
     show Phd2ProbeOutcome, Phd2ProbeResult, normalizePhd2ProbeHost, probePhd2;

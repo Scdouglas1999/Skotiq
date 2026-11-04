@@ -173,4 +173,57 @@ void main() {
       expect(state.isCalibrated, isTrue);
     },
   );
+
+  // SY-04: the host's Guiding screen kept the RA rate it read when PHD2
+  // connected (7.26 px/s) after PHD2 recalibrated (6.21 px/s): a new
+  // calibration only flipped the calibrated flag.
+  for (final eventType in const [
+    'CalibrationComplete',
+    'CalibrationDataFlipped',
+    'GuidingStarted',
+  ]) {
+    test('$eventType re-reads the calibration rates from PHD2', () async {
+      var reads = 0;
+      when(() => mockBackend.phd2GetCalibrationData()).thenAnswer((_) async {
+        reads++;
+        return reads == 1
+            ? const Phd2CalibrationData(
+                isCalibrated: true,
+                rotationAngle: -141.6,
+                raRate: 7.26,
+                decRate: 6.63,
+              )
+            : const Phd2CalibrationData(
+                isCalibrated: true,
+                rotationAngle: -141.6,
+                raRate: 6.215,
+                decRate: 6.631,
+              );
+      });
+
+      container.read(phd2ControllerProvider);
+      container.read(calibrationStateProvider);
+      final guiderNotifier = container.read(guiderStateProvider.notifier);
+      guiderNotifier.setConnecting('phd2_guider', 'PHD2');
+      guiderNotifier.setConnected();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(container.read(calibrationStateProvider).raRate, 7.26);
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.guiding,
+          eventType: eventType,
+          data: const <String, dynamic>{},
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final state = container.read(calibrationStateProvider);
+      expect(state.raRate, 6.215);
+      expect(state.decRate, 6.631);
+      expect(state.isCalibrated, isTrue);
+    });
+  }
 }

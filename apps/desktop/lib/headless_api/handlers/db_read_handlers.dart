@@ -290,7 +290,8 @@ class DbReadHandlers {
   Map<String, dynamic> _guideRmsToJson(GuideRmsHistoryEntry row) {
     return {
       'id': row.id,
-      'sessionId': row.sessionId,
+      // Stored as text; the wire field is the numeric session id.
+      'sessionId': int.tryParse(row.sessionId),
       'mountId': row.mountId,
       'targetId': row.targetId,
       'totalRmsArcsec': row.totalRmsArcsec,

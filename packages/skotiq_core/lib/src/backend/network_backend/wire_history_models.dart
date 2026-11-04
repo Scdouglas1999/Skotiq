@@ -161,7 +161,7 @@ class RemotePage<T> {
         items.add(itemFromJson(raw.cast<String, dynamic>()));
       } on TypeError catch (error) {
         throw FormatException(
-          'Paginated response row $index has non-string keys',
+          'Paginated response row $index is malformed: $error',
           error,
         );
       }
@@ -371,7 +371,7 @@ class RemoteGuideRmsHistoryEntry {
   factory RemoteGuideRmsHistoryEntry.fromJson(Map<String, dynamic> json) {
     return RemoteGuideRmsHistoryEntry(
       id: (json['id'] as num).toInt(),
-      sessionId: (json['sessionId'] as num?)?.toInt(),
+      sessionId: _wireSessionId(json['sessionId']),
       mountId: json['mountId'] as String?,
       targetId: (json['targetId'] as num?)?.toInt(),
       totalRmsArcsec: (json['totalRmsArcsec'] as num?)?.toDouble() ?? 0.0,
@@ -380,6 +380,14 @@ class RemoteGuideRmsHistoryEntry {
       recordedAt: DateTime.parse(json['recordedAt'] as String),
     );
   }
+}
+
+// Hosts up to 8.2.0 sent the stored text id ("113"); later hosts send the
+// number. Accept both so a client works against either.
+int? _wireSessionId(Object? raw) {
+  if (raw is num) return raw.toInt();
+  if (raw is String) return int.tryParse(raw.trim());
+  return null;
 }
 
 /// Wire row for `/api/polar-alignment-history`.

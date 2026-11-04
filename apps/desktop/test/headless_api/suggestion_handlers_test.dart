@@ -10,6 +10,12 @@ import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
 
+class _LocatedSettings extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async =>
+      const AppSettingsState(latitude: 39.97, longitude: -75.36);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -185,5 +191,69 @@ void main() {
         }
       },
     );
+  });
+
+  // GET /api/suggestions/ranked serves the host's own Plan > Tonight ranking
+  // to linked clients in the TargetSuggestion shape they read back.
+  group('SuggestionHandlers ranked', () {
+    late SkotiqDatabase db;
+    late ProviderContainer container;
+    late SuggestionHandlers handlers;
+
+    setUp(() async {
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      await db.targetsDao.createTarget(
+        TargetsCompanion.insert(name: 'Polaris field', ra: 2.53, dec: 89.26),
+      );
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          appSettingsProvider.overrideWith(_LocatedSettings.new),
+        ],
+      );
+      handlers = SuggestionHandlers(container);
+    });
+    tearDown(() async {
+      container.dispose();
+      await db.close();
+    });
+
+    Future<Response> ranked(String qs) => translateHandlerErrors(
+      handlers.handleGetRankedSuggestions(
+        Request('GET', Uri.parse('http://localhost/api/suggestions/ranked$qs')),
+      ),
+    );
+
+    test(
+      'returns the ranking the host screen shows, readable by a client',
+      () async {
+        final r = await ranked('?minAltitude=0&minScore=0');
+        expect(r.statusCode, HttpStatus.ok);
+        final body = jsonDecode(await r.readAsString()) as Map<String, dynamic>;
+        final rows = (body['suggestions'] as List).cast<Map<String, dynamic>>();
+        expect(body['totalMatching'], rows.length);
+
+        final local = await container.read(
+          localTonightSuggestionsProvider(
+            const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
+          ).future,
+        );
+        final decoded = rows.map(TargetSuggestion.fromJson).toList();
+        expect(decoded.map((s) => s.targetName), ['Polaris field']);
+        expect(local.map((s) => s.targetName), ['Polaris field']);
+        expect(
+          decoded.single.totalScore,
+          closeTo(local.single.totalScore, 0.5),
+        );
+        expect(decoded.single.visibility.hoursAboveMinAlt, isNotNull);
+      },
+    );
+
+    test('rejects a malformed filter before ranking', () async {
+      final r = await ranked('?maxMoonDistance=500');
+      expect(r.statusCode, HttpStatus.badRequest);
+      final body = jsonDecode(await r.readAsString()) as Map;
+      expect(body['field'], 'maxMoonDistance');
+    });
   });
 }

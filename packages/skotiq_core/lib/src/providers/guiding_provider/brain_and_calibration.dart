@@ -252,6 +252,14 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
         break;
       case 'CalibrationDataFlipped':
         _logger.info('Calibration data flipped', source: 'PHD2');
+        unawaited(refreshCalibrationData());
+        break;
+      // PHD2's calibration can change between guiding sessions without a
+      // calibration event reaching here (restored, adjusted or redone in
+      // PHD2). A value read once at connect went stale for the whole night.
+      case 'GuidingStarted':
+      case 'GuidingStopped':
+        if (_hasFetched) unawaited(refreshCalibrationData());
         break;
     }
   }

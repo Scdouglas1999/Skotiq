@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/skotiq_core.dart'
+    show NetworkBackend, backendProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
@@ -21,16 +23,27 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final count = ref.watch(fallbackStarCountProvider);
+    // Catalogs live on each machine. A linked client draws its sky from its
+    // own catalog folder, so a fresh one shows the built-in list while the
+    // host it is linked to has the full sky.
+    final backend = ref.watch(backendProvider);
+    final host = backend is NetworkBackend ? backend.serverHost : null;
 
     return SkotiqAlert(
       severity: SkotiqAlertSeverity.warning,
       compact: true,
-      title: 'Star catalog not installed',
-      message: 'Showing the $count-star built-in list. Most stars, and every '
-          'catalog search that depends on them, are missing until you install '
-          'the HYG catalog.',
+      title: host == null
+          ? 'Star catalog not installed'
+          : 'Star catalog not installed on this computer',
+      message: host == null
+          ? 'Showing the $count-star built-in list. Most stars, and every '
+              'catalog search that depends on them, are missing until you '
+              'install the HYG catalog.'
+          : 'This sky comes from this computer\'s catalogs, not from the '
+              'imaging host ($host). Showing the $count-star built-in list '
+              'until you install the HYG catalog here.',
       action: SkotiqButton(
-        label: 'Install',
+        label: host == null ? 'Install' : 'Install here',
         variant: ButtonVariant.outline,
         size: ButtonSize.small,
         onPressed: () => _openCatalogSettings(context, ref),

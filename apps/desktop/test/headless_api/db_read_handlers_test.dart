@@ -343,6 +343,30 @@ void main() {
       );
     });
 
+    test(
+      'GET /api/guide-rms-history sends the session id as a number',
+      () async {
+        await db.guideRmsHistoryDao.insertSample(
+          GuideRmsHistoryCompanion.insert(
+            sessionId: '113',
+            mountId: 'mount-1',
+            totalRmsArcsec: 1.643,
+            sampleCount: 4,
+            recordedAt: DateTime.utc(2026, 11, 3, 18, 32, 57),
+          ),
+        );
+
+        final body = await doGet(
+          handlers.handleListGuideRmsHistory,
+          'http://localhost/api/guide-rms-history?mountId=mount-1',
+        );
+
+        final row = (body['items'] as List).single as Map;
+        expect(row['sessionId'], 113);
+        expect(row['sessionId'], isA<int>());
+      },
+    );
+
     // /api/polar-alignment-history
 
     test('GET /api/polar-alignment-history lists alignment runs', () async {

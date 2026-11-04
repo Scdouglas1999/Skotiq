@@ -30,20 +30,21 @@ class _PlanNightChips extends ConsumerWidget {
     );
     final dusk = twilight.astronomicalDusk;
     final dawn = twilight.astronomicalDawn;
-    final illumination = AstronomyCalculations.moonIllumination(
-      plannerMoonInstant(now: now, dusk: dusk, dawn: dawn),
-    );
+    final moonInstant = plannerMoonInstant(now: now, dusk: dusk, dawn: dawn);
+    final illumination = AstronomyCalculations.moonIllumination(moonInstant);
     final l10n = context.l10n;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SkotiqChip(
-          icon: LucideIcons.moon,
-          label: l10n.text(
-            'plannerChipMoon',
-            params: {'value': illumination.round().toString()},
-          ),
+        // The Moon is read at the middle of the dark, not now, so the chip
+        // names that time: Tonight and the schedule quote it for now. Where
+        // the header has no room for it, the tooltip says it instead.
+        _moonChip(
+          l10n,
+          illumination: illumination,
+          at: identical(moonInstant, now) ? null : moonInstant,
+          roomForTime: MediaQuery.sizeOf(context).width >= 1500,
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         SkotiqChip(
@@ -56,6 +57,28 @@ class _PlanNightChips extends ConsumerWidget {
                 ),
         ),
       ],
+    );
+  }
+
+  static Widget _moonChip(
+    SkotiqLocalizations l10n, {
+    required double illumination,
+    required DateTime? at,
+    required bool roomForTime,
+  }) {
+    final value = illumination.round().toString();
+    final plain = l10n.text('plannerChipMoon', params: {'value': value});
+    if (at == null) {
+      return SkotiqChip(icon: LucideIcons.moon, label: plain);
+    }
+    final timed = l10n.text(
+      'plannerChipMoonAt',
+      params: {'value': value, 'time': _hhmm(at)},
+    );
+    if (roomForTime) return SkotiqChip(icon: LucideIcons.moon, label: timed);
+    return SkotiqTooltip(
+      message: timed,
+      child: SkotiqChip(icon: LucideIcons.moon, label: plain),
     );
   }
 

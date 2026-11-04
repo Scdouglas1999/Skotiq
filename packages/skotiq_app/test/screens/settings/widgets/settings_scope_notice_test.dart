@@ -50,6 +50,25 @@ void main() {
     expect(find.textContaining('Saved on this computer only'), findsOneWidget);
   });
 
+  // SY-13: Annotations said "Saved on the imaging host" while its overlay
+  // settings are device-local keys that never leave this computer.
+  testWidgets('Annotations is this computer only, as its keys are', (
+    tester,
+  ) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.serverHost).thenReturn('192.168.1.100');
+    await _pump(tester, 'annotations', backend);
+    expect(find.textContaining('Saved on this computer only'), findsOneWidget);
+    expect(find.textContaining('imaging host (192'), findsNothing);
+    for (final key in const [
+      'annotation_settings',
+      'annotation_marker_style',
+      'annotation_presets',
+    ]) {
+      expect(isDeviceLocalSettingKey(key), isTrue, reason: key);
+    }
+  });
+
   testWidgets('the machine that owns the rig shows nothing', (tester) async {
     await _pump(tester, 'general', null);
     expect(find.textContaining('Saved on'), findsNothing);

@@ -58,37 +58,9 @@ class SuggestionHandlers {
     final prioritizeIncomplete =
         optionalQueryBool(query, 'prioritizeIncomplete') ?? false;
 
-    // Sort mode must be a real enum member; an unknown value is a 400 rather
-    // than silently defaulting to bestScore (which would hide a client typo).
-    final sortModeStr = query['sortMode'];
-    final SuggestionSortMode sortMode;
-    if (sortModeStr == null || sortModeStr.isEmpty) {
-      sortMode = SuggestionSortMode.bestScore;
-    } else {
-      final match = SuggestionSortMode.values
-          .where((m) => m.name == sortModeStr)
-          .toList();
-      if (match.isEmpty) {
-        throw BadRequestError(
-          field: 'sortMode',
-          expected: SuggestionSortMode.values.map((m) => m.name).join(', '),
-          message: 'Unknown sortMode "$sortModeStr"',
-        );
-      }
-      sortMode = match.first;
-    }
+    final sortMode = _parseSortMode(query['sortMode']);
 
-    // Normalize object types: split, trim, and drop blank entries so an empty
-    // or comma-only value (`objectTypes=` / `objectTypes=,,`) yields [] rather
-    // than a list of empty strings that would never match a target.
-    final objectTypesStr = query['objectTypes'];
-    final preferredObjectTypes = objectTypesStr == null
-        ? <String>[]
-        : objectTypesStr
-              .split(',')
-              .map((s) => s.trim())
-              .where((s) => s.isNotEmpty)
-              .toList();
+    final preferredObjectTypes = _parseObjectTypes(query['objectTypes']);
 
     final database = container.read(databaseProvider);
 
@@ -141,6 +113,76 @@ class SuggestionHandlers {
       "totalMatching": suggestions.length,
       "location": {"latitude": latitude, "longitude": longitude},
     });
+  }
+
+  // Sort mode must be a real enum member; an unknown value is a 400 rather
+  // than silently defaulting to bestScore (which would hide a client typo).
+  SuggestionSortMode _parseSortMode(String? sortModeStr) {
+    if (sortModeStr == null || sortModeStr.isEmpty) {
+      return SuggestionSortMode.bestScore;
+    }
+    for (final mode in SuggestionSortMode.values) {
+      if (mode.name == sortModeStr) return mode;
+    }
+    throw BadRequestError(
+      field: 'sortMode',
+      expected: SuggestionSortMode.values.map((m) => m.name).join(', '),
+      message: 'Unknown sortMode "$sortModeStr"',
+    );
+  }
+
+  // Split, trim, and drop blank entries so an empty or comma-only value
+  // (`objectTypes=` / `objectTypes=,,`) yields [] rather than a list of empty
+  // strings that would never match a target.
+  List<String> _parseObjectTypes(String? raw) => raw == null
+      ? <String>[]
+      : raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+  // Tonight's ranking as this host's own Plan screen computes it
+
+  /// `GET /api/suggestions/ranked`: the list a linked client shows on Plan >
+  /// Tonight. It is the host's own ranking (catalog candidates, the active
+  /// profile's optics, the horizon and target progress), in the
+  /// `TargetSuggestion` JSON shape, so the client and host list the same
+  /// targets with the same scores.
+  Future<Response> handleGetRankedSuggestions(Request request) async {
+    final query = request.url.queryParameters;
+    const defaults = TargetSuggestionConfig();
+    final config = TargetSuggestionConfig(
+      minAltitude:
+          optionalQueryDouble(query, 'minAltitude', min: -90, max: 90) ??
+          defaults.minAltitude,
+      minScore:
+          optionalQueryDouble(query, 'minScore', min: 0, max: 100) ??
+          defaults.minScore,
+      maxMoonDistance: optionalQueryDouble(
+        query,
+        'maxMoonDistance',
+        min: 0,
+        max: 180,
+      ),
+      sortMode: _parseSortMode(query['sortMode']),
+      prioritizeIncomplete:
+          optionalQueryBool(query, 'prioritizeIncomplete') ??
+          defaults.prioritizeIncomplete,
+      preferredObjectTypes: _parseObjectTypes(query['objectTypes']),
+    );
+
+    // The ranking reads the observer location from the settings.
+    await container.read(appSettingsProvider.future);
+    final subscription = container.listen(
+      localTonightSuggestionsProvider(config).future,
+      (_, _) {},
+    );
+    try {
+      final suggestions = await subscription.read();
+      return jsonOk({
+        'suggestions': suggestions.map((s) => s.toJson()).toList(),
+        'totalMatching': suggestions.length,
+      });
+    } finally {
+      subscription.close();
+    }
   }
 
   // Get suggestion config

@@ -84,4 +84,19 @@ void main() {
     await search(tester, 'if the last polar');
     expect(find.text('Polar alignment stale after'), findsOneWidget);
   });
+
+  // The Flat wizard moved onto the rail and kept its route-only row, so the
+  // palette listed it twice.
+  testWidgets('a rail screen is listed once, and keeps its search terms', (
+    tester,
+  ) async {
+    await pumpAppScreen(tester, const CommandPalette(),
+        size: const Size(1920, 1080));
+
+    await search(tester, 'flat wizard');
+    expect(find.text('Flat wizard'), findsOneWidget);
+
+    await search(tester, 'calibration');
+    expect(find.text('Flat wizard'), findsOneWidget);
+  });
 }

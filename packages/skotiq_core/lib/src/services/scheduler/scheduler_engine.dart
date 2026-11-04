@@ -3,7 +3,11 @@ import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show WeightedFactor, WeightedScore, WeightedScoreMode;
+    show
+        AstronomyCalculations,
+        WeightedFactor,
+        WeightedScore,
+        WeightedScoreMode;
 import 'package:uuid/uuid.dart';
 
 import '../../models/scheduler/integration_goal.dart';

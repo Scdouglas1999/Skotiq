@@ -89,10 +89,15 @@ class TargetVisibilityInfoConverter
           : null,
       isCircumpolar: json['isCircumpolar'] as bool? ?? false,
       neverRises: json['neverRises'] as bool? ?? false,
-      airmass: (json['airmass'] as num).toDouble(),
+      // JSON has no infinity; a target below the horizon has no airmass and
+      // travels as null.
+      airmass: (json['airmass'] as num?)?.toDouble() ?? double.infinity,
       moonDistance: (json['moonDistance'] as num).toDouble(),
       peakAltitude: json['peakAltitude'] != null
           ? (json['peakAltitude'] as num).toDouble()
+          : null,
+      peakAzimuth: json['peakAzimuth'] != null
+          ? (json['peakAzimuth'] as num).toDouble()
           : null,
       peakAltitudeTime: json['peakAltitudeTime'] != null
           ? DateTime.parse(json['peakAltitudeTime'] as String)
@@ -114,9 +119,10 @@ class TargetVisibilityInfoConverter
       'setTime': object.setTime?.toIso8601String(),
       'isCircumpolar': object.isCircumpolar,
       'neverRises': object.neverRises,
-      'airmass': object.airmass,
+      'airmass': object.airmass.isFinite ? object.airmass : null,
       'moonDistance': object.moonDistance,
       'peakAltitude': object.peakAltitude,
+      'peakAzimuth': object.peakAzimuth,
       'peakAltitudeTime': object.peakAltitudeTime?.toIso8601String(),
       'hoursAboveMinAlt': object.hoursAboveMinAlt,
     };

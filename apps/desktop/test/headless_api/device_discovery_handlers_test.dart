@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -70,6 +71,12 @@ class _FakeDeviceBackend implements DeviceBackend {
     }
     return devicesByType[deviceType] ?? const [];
   }
+
+  /// Devices `getConnectedDevices` reports.
+  List<DeviceInfo> connected = const [];
+
+  @override
+  Future<List<DeviceInfo>> getConnectedDevices() async => connected;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -420,5 +427,87 @@ void main() {
         expect(backend.rescanCallCount, 1);
       },
     );
+  });
+
+  // SY-09 / QP-02: the host's cards say "EAF" and "PegasusAstro NYX101" while
+  // a linked client showed the driver names "ZWO EAF 0" and
+  // "PegasusAstroNYX101 Telescope" it read from this endpoint.
+  group('DeviceDiscoveryHandlers.handleGetConnectedDevices', () {
+    late Directory loggerTempDir;
+    late LoggingService logger;
+
+    setUp(() async {
+      loggerTempDir = await Directory.systemTemp.createTemp(
+        'sk_device_connected_names_test_',
+      );
+      logger = LoggingService(
+        applicationSupportDirectoryProvider: () async => loggerTempDir,
+        nativeInitWithLogging: ({logDirectory}) {},
+        nativeInit: () {},
+        currentLogFileProvider: () => null,
+      );
+      await logger.ensureInitialized();
+    });
+
+    tearDown(() async {
+      await logger.dispose();
+      if (await loggerTempDir.exists()) {
+        await loggerTempDir.delete(recursive: true);
+      }
+    });
+
+    test('names each device as the host\'s own card does', () async {
+      final backend = _FakeDeviceBackend()
+        ..connected = [
+          DeviceInfo(
+            id: 'native:zwo_eaf:0',
+            name: 'ZWO EAF 0',
+            deviceType: DeviceType.focuser,
+            driverType: DriverType.native,
+            description: '',
+            driverVersion: '1.0',
+          ),
+          DeviceInfo(
+            id: 'native:zwo_efw:0',
+            name: 'ZWO EFW 0',
+            deviceType: DeviceType.filterWheel,
+            driverType: DriverType.native,
+            description: '',
+            driverVersion: '1.0',
+          ),
+        ];
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          loggingServiceProvider.overrideWithValue(logger),
+          deviceBackendProvider.overrideWithValue(backend),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(focuserStateProvider.notifier)
+          .setConnecting('native:zwo_eaf:0', 'EAF');
+      container.read(focuserStateProvider.notifier).setConnected();
+
+      final response = await translateHandlerErrors(
+        DeviceDiscoveryHandlers(container).handleGetConnectedDevices(
+          Request('GET', Uri.parse('http://localhost/api/devices/connected')),
+        ),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final devices = (body['devices'] as List).cast<Map>();
+
+      final focuser = devices.singleWhere((d) => d['deviceType'] == 'focuser');
+      expect(focuser['name'], 'EAF');
+      expect(focuser['driverName'], 'ZWO EAF 0');
+      // No card on this host for the wheel yet: the driver's name stands.
+      final wheel = devices.singleWhere(
+        (d) => d['deviceType'] == 'filterWheel',
+      );
+      expect(wheel['name'], 'ZWO EFW 0');
+    });
   });
 }

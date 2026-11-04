@@ -142,6 +142,34 @@ DeviceType? deviceTypeFromWireName(String raw) {
   }
 }
 
+/// The name [deviceType]'s card shows, or null when the slot has none.
+String? readDeviceSlotName(Object reader, DeviceType deviceType) {
+  switch (deviceType) {
+    case DeviceType.camera:
+      return readProvider(reader, cameraStateProvider).deviceName;
+    case DeviceType.mount:
+      return readProvider(reader, mountStateProvider).deviceName;
+    case DeviceType.focuser:
+      return readProvider(reader, focuserStateProvider).deviceName;
+    case DeviceType.filterWheel:
+      return readProvider(reader, filterWheelStateProvider).deviceName;
+    case DeviceType.guider:
+      return readProvider(reader, guiderStateProvider).deviceName;
+    case DeviceType.rotator:
+      return readProvider(reader, rotatorStateProvider).deviceName;
+    case DeviceType.dome:
+      return readProvider(reader, domeStateProvider).deviceName;
+    case DeviceType.weather:
+      return readProvider(reader, weatherStateProvider).deviceName;
+    case DeviceType.safetyMonitor:
+      return readProvider(reader, safetyMonitorStateProvider).deviceName;
+    case DeviceType.coverCalibrator:
+      return readProvider(reader, coverCalibratorStateProvider).deviceName;
+    case DeviceType.switch_:
+      return readProvider(reader, switchStateProvider).deviceName;
+  }
+}
+
 /// The equipment-state notifier that owns [deviceType]'s card.
 ///
 /// [reader] is a `Ref` in the app and a `ProviderContainer` on the headless

@@ -25,6 +25,7 @@ import '../services/logging_service.dart' show loggingServiceProvider;
 import '../services/phd2_status_poll.dart';
 import '../services/sequence_file_service.dart'
     show sequenceFileServiceProvider;
+import '../utils/device_id.dart' show kPhd2CanonicalId, kPhd2DisplayName;
 import '../utils/utc_timestamp.dart';
 import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';

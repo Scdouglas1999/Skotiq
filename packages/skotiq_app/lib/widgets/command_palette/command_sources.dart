@@ -37,6 +37,23 @@ List<CommandEntry> buildScreenEntries(BuildContext context) {
     String? hint,
     List<String> keywords = const [],
   }) {
+    // A route-only screen that later moved onto the rail is already listed
+    // from the rail; a second row would name the same screen twice. Its
+    // search terms still belong to that one row.
+    final existing = entries.indexWhere((entry) => entry.id == id);
+    if (existing >= 0) {
+      final listed = entries[existing];
+      entries[existing] = CommandEntry(
+        id: listed.id,
+        group: listed.group,
+        icon: listed.icon,
+        label: listed.label,
+        hint: listed.hint,
+        keywords: [...listed.keywords, ...keywords],
+        invoke: listed.invoke,
+      );
+      return;
+    }
     entries.add(
       CommandEntry(
         id: id,
