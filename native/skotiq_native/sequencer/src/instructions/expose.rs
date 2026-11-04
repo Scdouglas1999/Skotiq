@@ -171,19 +171,11 @@ pub async fn execute_exposure_with_renderer(
                 }
             },
         };
+        // In evening twilight the frame waits for dark rather than failing;
+        // see `wait_for_darkness`.
         if on_sky {
-            let max_sun_alt = resolve_max_sun_altitude(ctx).await;
-            if let Some(reason) = daylight_gate_block_reason(
-                ctx.latitude,
-                ctx.longitude,
-                max_sun_alt,
-                "light-frame exposure",
-            ) {
-                tracing::warn!("{reason}");
-                return InstructionResult::failure_with_recovery(
-                    reason,
-                    DAYLIGHT_GATE_RECOVERY_CODE,
-                );
+            if let Some(result) = wait_for_darkness(ctx, "light-frame exposure", None).await {
+                return result;
             }
         }
     }

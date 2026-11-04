@@ -143,7 +143,7 @@ struct ScriptedDomeRotatorOps {
     /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
     /// `false` (matching NullDeviceOps); the parked-rig gate test sets it
     /// `true` to prove a parked exposure is never daylight-gated.
-    mount_parked: bool,
+    mount_parked: AtomicBool,
     /// When `Some`, `mount_is_parked` fails with this message instead of
     /// answering `mount_parked`.
     mount_is_parked_error: Option<String>,
@@ -233,7 +233,7 @@ impl ScriptedDomeRotatorOps {
             cooler_commands: Mutex::new(Vec::new()),
             cooler_off_error: None,
             pause_flag_after_first_exposure: None,
-            mount_parked: false,
+            mount_parked: AtomicBool::new(false),
             mount_is_parked_error: None,
             mount_unpark_calls: AtomicU32::new(0),
             mount_find_home_calls: AtomicU32::new(0),
@@ -393,7 +393,7 @@ impl ScriptedDomeRotatorOps {
     }
 
     fn with_mount_parked(mut self, parked: bool) -> Self {
-        self.mount_parked = parked;
+        self.mount_parked = AtomicBool::new(parked);
         self
     }
 
@@ -649,6 +649,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn mount_unpark(&self, id: &str) -> DeviceResult<()> {
         self.mount_unpark_calls.fetch_add(1, Ordering::SeqCst);
+        self.mount_parked.store(false, Ordering::SeqCst);
         self.inner.mount_unpark(id).await
     }
     async fn mount_is_slewing(&self, id: &str) -> DeviceResult<bool> {
@@ -660,7 +661,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         if let Some(err) = &self.mount_is_parked_error {
             return Err(err.clone());
         }
-        Ok(self.mount_parked)
+        Ok(self.mount_parked.load(Ordering::SeqCst))
     }
     async fn mount_can_flip(&self, id: &str) -> DeviceResult<bool> {
         self.inner.mount_can_flip(id).await

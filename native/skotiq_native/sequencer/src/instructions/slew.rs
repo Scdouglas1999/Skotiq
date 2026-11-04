@@ -73,29 +73,6 @@ pub async fn execute_slew(
         Err(e) => return e,
     };
 
-    // Slewing a parked mount on most drivers either silently no-ops or
-    // errors deep in the slew loop; surfacing the precondition here gives
-    // the user a clean error with a recovery hint (unpark) before any
-    // long-running motion is attempted.
-    match ctx.device_ops.mount_is_parked(mount_id).await {
-        Ok(true) => {
-            tracing::warn!("Mount is parked, cannot slew. Please unpark the mount first.");
-            return InstructionResult::failure_with_recovery(
-                "Mount is parked. Please unpark the mount before slewing.",
-                "MOUNT_PARKED",
-            );
-        }
-        Ok(false) => {
-            tracing::debug!("Mount is not parked, proceeding with slew");
-        }
-        Err(e) => {
-            // Old INDI drivers and some serial mounts lack park-status reporting.
-            // Treat the query failure as "unknown" rather than "parked" so we do
-            // not block slewing on mounts that genuinely cannot tell us.
-            tracing::debug!("Could not check mount park status: {}", e);
-        }
-    }
-
     let (ra, dec) = if config.use_target_coords {
         match (ctx.target_ra, ctx.target_dec) {
             (Some(ra), Some(dec)) => (ra, dec),
@@ -122,20 +99,25 @@ pub async fn execute_slew(
 
     // W1 native daylight gate (structural). A slew that points the rig at the
     // active sky/science target (`use_target_coords`) is the on-sky pointing
-    // step of a LIGHT-frame run; refuse it while the Sun is up so a raw
-    // sequence started via `api_sequencer_start` (including a mosaic) cannot
-    // slew + expose lights in full daylight. Slews to custom coordinates
-    // (park positions, flat-panel pointing, alignment moves) are NOT gated —
-    // only the science-target slew. Abstains when the observer location is
-    // unset (see `daylight_gate_block_reason`).
+    // step of a LIGHT-frame run; it never happens while the Sun is up, so a
+    // raw sequence started via `api_sequencer_start` (including a mosaic)
+    // cannot slew + expose lights in full daylight. A run started in evening
+    // twilight waits for the Sun to reach the limit instead of failing its
+    // target: the rig was set up for tonight, a few minutes early. Slews to
+    // custom coordinates (park positions, flat-panel pointing, alignment
+    // moves) are NOT gated — only the science-target slew. Abstains when the
+    // observer location is unset (see `daylight_gate_block_reason`).
     if config.use_target_coords {
-        let max_sun_alt = resolve_max_sun_altitude(ctx).await;
-        if let Some(reason) =
-            daylight_gate_block_reason(ctx.latitude, ctx.longitude, max_sun_alt, "slew to target")
-        {
-            tracing::warn!("{reason}");
-            return InstructionResult::failure_with_recovery(reason, DAYLIGHT_GATE_RECOVERY_CODE);
+        if let Some(result) = wait_for_darkness(ctx, "slew to target", progress_callback).await {
+            return result;
         }
+    }
+
+    // A plan that slews expects the mount to move. A rig left parked from the
+    // night before is the normal way to start one, so the slew unparks it
+    // rather than failing the target and ending the night before it began.
+    if let Some(result) = unpark_for_slew(ctx, mount_id).await {
+        return result;
     }
 
     tracing::info!("Slewing to RA: {:.4}h, Dec: {:.4}°", ra, dec);
@@ -165,6 +147,68 @@ pub async fn execute_slew(
     }
     motion.end().await;
     result
+}
+
+/// How long an unpark may take before the slew gives up on it.
+const UNPARK_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Unpark a parked mount so a slew can go ahead. Returns `Some` to end the
+/// slew: the mount stayed parked, or the run was cancelled while waiting.
+///
+/// A park-state read that fails is treated as not parked: old INDI drivers and
+/// some serial mounts cannot report it, and the slew itself is the better test.
+async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<InstructionResult> {
+    match ctx.device_ops.mount_is_parked(mount_id).await {
+        Ok(true) => {}
+        Ok(false) => return None,
+        Err(e) => {
+            tracing::debug!("Could not check mount park status: {}", e);
+            return None;
+        }
+    }
+
+    tracing::info!("Mount is parked; unparking it to slew");
+    if let Err(e) = ctx.device_ops.mount_unpark(mount_id).await {
+        return Some(InstructionResult::failure_with_recovery(
+            format!("The mount is parked and could not be unparked: {e}"),
+            "MOUNT_PARKED",
+        ));
+    }
+    let deadline = tokio::time::Instant::now() + UNPARK_TIMEOUT;
+    loop {
+        if let Some(result) = ctx.check_cancelled() {
+            return Some(result);
+        }
+        match ctx.device_ops.mount_is_parked(mount_id).await {
+            Ok(true) => {}
+            Ok(false) | Err(_) => break,
+        }
+        if tokio::time::Instant::now() > deadline {
+            return Some(InstructionResult::failure_with_recovery(
+                format!(
+                    "The mount is parked and still reported parked {} s after the unpark \
+                     command.",
+                    UNPARK_TIMEOUT.as_secs()
+                ),
+                "MOUNT_PARKED",
+            ));
+        }
+        sleep(Duration::from_millis(500)).await;
+    }
+
+    let message = match ctx.target_name.as_deref() {
+        Some(target) => format!("The mount was parked, so Skotiq unparked it to slew to {target}."),
+        None => "The mount was parked, so Skotiq unparked it to slew.".to_string(),
+    };
+    tracing::info!("{message}");
+    if let Err(e) = ctx
+        .device_ops
+        .send_notification("info", "Mount unparked", &message, None)
+        .await
+    {
+        tracing::warn!("Could not send the unpark notification: {e}");
+    }
+    None
 }
 
 /// Command the slew, wait for it and verify where the mount arrived.

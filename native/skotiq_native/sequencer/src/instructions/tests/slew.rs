@@ -273,6 +273,47 @@ mod slew_arrival {
     }
 
     #[tokio::test]
+    async fn a_parked_mount_is_unparked_and_the_slew_goes_ahead() {
+        // A plan started on a rig left parked failed its first step with
+        // "Mount is parked" and went straight to its shutdown steps
+        // (2026-11-03 on the NYX-101).
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_mount_parked(true)
+                .with_scripted_mount_coordinates(3.25, 12.5),
+        );
+        let ctx = pointing_ctx(ops.clone(), "NGC 7331", TARGET_J2000).await;
+        let cfg = SlewConfig {
+            use_target_coords: false,
+            custom_ra: Some(3.25),
+            custom_dec: Some(12.5),
+        };
+
+        let result = execute_slew(&cfg, &ctx, None).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.mount_unpark_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn an_unparked_mount_is_not_sent_an_unpark() {
+        let ops =
+            Arc::new(ScriptedDomeRotatorOps::new().with_scripted_mount_coordinates(3.25, 12.5));
+        let ctx = pointing_ctx(ops.clone(), "NGC 7331", TARGET_J2000).await;
+        let cfg = SlewConfig {
+            use_target_coords: false,
+            custom_ra: Some(3.25),
+            custom_dec: Some(12.5),
+        };
+
+        let result = execute_slew(&cfg, &ctx, None).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.mount_unpark_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
     async fn a_slew_to_custom_coordinates_goes_where_it_was_told() {
         // Park positions, flat-panel pointing and alignment moves use custom
         // coordinates; the daylight test only proves they are not gated.

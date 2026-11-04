@@ -143,6 +143,106 @@ pub(crate) fn daylight_gate_block_reason(
     }
 }
 
+/// The longest a slew waits for the Sun to reach the darkness limit. A run
+/// started in evening twilight is waited for; one started with hours of
+/// daylight left, or at dawn when the Sun is rising, fails the target as
+/// before.
+pub(crate) const MAX_DARKNESS_WAIT: Duration = Duration::from_secs(3 * 3600);
+
+/// How often a slew waiting for dark checks the Sun.
+const DARKNESS_POLL: Duration = Duration::from_secs(15);
+
+/// Whole minutes from `now` until the Sun is at or below `max_sun_altitude`,
+/// if that happens within `horizon`. `Some(0)` means it already is.
+pub(crate) fn minutes_until_dark(
+    latitude: f64,
+    longitude: f64,
+    max_sun_altitude: f64,
+    now: chrono::DateTime<chrono::Utc>,
+    horizon: Duration,
+) -> Option<u32> {
+    let horizon_minutes = u32::try_from(horizon.as_secs() / 60).unwrap_or(u32::MAX);
+    (0..=horizon_minutes).find(|&minutes| {
+        let at = now + chrono::Duration::minutes(i64::from(minutes));
+        crate::solar::sun_altitude_degrees(latitude, longitude, &at) <= max_sun_altitude
+    })
+}
+
+/// Hold a science-target slew until the Sun is below the darkness limit.
+///
+/// Returns `None` when the slew may go ahead: it is dark, or the site is
+/// unknown (see [`daylight_gate_block_reason`]). Returns `Some` to end the
+/// slew: the Sun will not reach the limit within [`MAX_DARKNESS_WAIT`] (the
+/// daylight refusal, unchanged), or the run was cancelled while waiting.
+pub(crate) async fn wait_for_darkness(
+    ctx: &InstructionContext,
+    what: &str,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+) -> Option<InstructionResult> {
+    let max_sun_alt = resolve_max_sun_altitude(ctx).await;
+    let reason = daylight_gate_block_reason(ctx.latitude, ctx.longitude, max_sun_alt, what)?;
+    let (latitude, longitude) =
+        crate::node::context::normalized_observer_location(ctx.latitude, ctx.longitude);
+    let (Some(lat), Some(lon)) = (latitude, longitude) else {
+        return None;
+    };
+    let refuse = |reason: String| {
+        tracing::warn!("{reason}");
+        Some(InstructionResult::failure_with_recovery(
+            reason,
+            DAYLIGHT_GATE_RECOVERY_CODE,
+        ))
+    };
+    let Some(minutes) =
+        minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)
+    else {
+        return refuse(reason);
+    };
+
+    let waiting = |sun_alt: f64, minutes: u32| {
+        format!(
+            "Waiting for dark: the Sun is at {sun_alt:.1}° and light frames start below \
+             {max_sun_alt:.1}°, in about {minutes} min."
+        )
+    };
+    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+    let message = waiting(sun_alt, minutes);
+    tracing::info!("{message}");
+    if let Err(e) = ctx
+        .device_ops
+        .send_notification("info", "Waiting for dark", &message, None)
+        .await
+    {
+        tracing::warn!("Could not send the waiting-for-dark notification: {e}");
+    }
+
+    let deadline = tokio::time::Instant::now() + MAX_DARKNESS_WAIT;
+    loop {
+        if let Some(result) = ctx.check_cancelled() {
+            return Some(result);
+        }
+        let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+        if sun_alt <= max_sun_alt {
+            tracing::info!("Dark: the Sun is at {sun_alt:.1}°; the slew goes ahead");
+            return None;
+        }
+        if tokio::time::Instant::now() > deadline {
+            return refuse(format!(
+                "Daylight gate: refusing {what} — the Sun is still at {sun_alt:.1}°, above the \
+                 maximum {max_sun_alt:.1}°, after waiting {} min for dark.",
+                MAX_DARKNESS_WAIT.as_secs() / 60
+            ));
+        }
+        if let Some(cb) = progress_callback {
+            let left =
+                minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)
+                    .unwrap_or(0);
+            cb(0.0, waiting(sun_alt, left));
+        }
+        sleep(DARKNESS_POLL).await;
+    }
+}
+
 /// W1 native daylight gate — resolve the effective maximum Sun altitude for a
 /// running sequence. Reads the executor-seeded value from the shared trigger
 /// state (mirrors `RuntimeConfig::max_sun_altitude_degrees`), falling back to
