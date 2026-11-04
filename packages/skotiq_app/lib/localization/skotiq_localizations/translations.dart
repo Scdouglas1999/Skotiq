@@ -1174,6 +1174,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPillPaused': 'Paused',
     'nightCtlPillStopping': 'Stopping',
     'nightCtlPillFinished': 'Finished',
+    'nightCtlPillCompleted': 'Completed',
+    'nightCtlPillFailed': 'Failed',
     'nightCtlPausedForSnapshot': 'Paused for a snapshot',
     'nightCtlPausedForLoop': 'Paused for loop',
     'nightCtlPausedForAutofocus': 'Paused for autofocus',
@@ -1243,6 +1245,15 @@ final Map<String, Map<String, String>> _localizedValues = {
         '{filter}: {done} of {planned} frames, {time} captured',
     'nightCtlPlanRowSemOpen': '{filter}: {done} frames, {time} captured',
     'nightCtlPlanRowCurrent': 'exposing now',
+    'nightCtlStepFlip': 'Meridian flip',
+    'nightCtlFlipUnderway': 'Under way',
+    'nightCtlFlipAttempt': 'Attempt {attempt} of {max}',
+    'nightCtlFlipAttemptFailed':
+        'Attempt {attempt} of {max} failed, next try ≈{time}',
+    'nightCtlFlipFailed': 'Failed after {attempts} attempts at {time}',
+    'nightCtlFlipFailedMoved':
+        'Failed after {attempts} attempts at {time}; the mount did move to '
+            'the other side of the pier',
     'nightCtlStepsTitle': 'Steps',
     'nightCtlOpenInSequencer': 'open in Sequencer',
     'nightCtlStepsEmpty': 'The plan has no steps',
@@ -1640,6 +1651,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScrArmCheckFailed': 'The pre-flight checks could not run: {detail}',
     'nightScrArmUnparkFailed': 'The mount did not unpark: {detail}',
     'nightActWhyFlipPaused': 'Resume the run to flip it now',
+    'nightActWhyFlipDone':
+        'The mount already flipped to the other side of the pier',
     'nightActErrFlipRequest': 'Flip not requested: {detail}',
     'nightScopeSetPark': 'Set park',
     'nightScopeSetParkTitle': 'Set park here?',
@@ -2853,6 +2866,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPillPaused': 'En pausa',
     'nightCtlPillStopping': 'Deteniendo',
     'nightCtlPillFinished': 'Terminado',
+    'nightCtlPillCompleted': 'Completada',
+    'nightCtlPillFailed': 'Fallida',
     'nightCtlPausedForSnapshot': 'En pausa para una instantánea',
     'nightCtlPausedForLoop': 'En pausa para el bucle',
     'nightCtlPausedForAutofocus': 'En pausa para el enfoque automático',
@@ -2923,6 +2938,15 @@ final Map<String, Map<String, String>> _localizedValues = {
         '{filter}: {done} de {planned} tomas, {time} capturado',
     'nightCtlPlanRowSemOpen': '{filter}: {done} tomas, {time} capturado',
     'nightCtlPlanRowCurrent': 'exponiendo ahora',
+    'nightCtlStepFlip': 'Volteo de meridiano',
+    'nightCtlFlipUnderway': 'En curso',
+    'nightCtlFlipAttempt': 'Intento {attempt} de {max}',
+    'nightCtlFlipAttemptFailed':
+        'Falló el intento {attempt} de {max}; siguiente ≈{time}',
+    'nightCtlFlipFailed': 'Falló tras {attempts} intentos a las {time}',
+    'nightCtlFlipFailedMoved':
+        'Falló tras {attempts} intentos a las {time}; la montura sí pasó al '
+            'otro lado del pilar',
     'nightCtlStepsTitle': 'Pasos',
     'nightCtlOpenInSequencer': 'abrir en el Secuenciador',
     'nightCtlStepsEmpty': 'El plan no tiene pasos',
@@ -3342,6 +3366,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScrArmUnparkFailed':
         'La montura no salió de su posición de aparcado: {detail}',
     'nightActWhyFlipPaused': 'Reanuda la sesión para voltear ahora',
+    'nightActWhyFlipDone': 'La montura ya pasó al otro lado del pilar',
     'nightActErrFlipRequest': 'No se pidió el volteo: {detail}',
     'nightScopeSetPark': 'Fijar aparcado',
     'nightScopeSetParkTitle': '¿Fijar el aparcado aquí?',

@@ -187,7 +187,7 @@ class _HorizontalStrip extends StatelessWidget {
                       label: 'RMS',
                       value: guider.isGuiding
                           ? (guider.rmsTotal != null
-                              ? '${guider.rmsTotal!.toStringAsFixed(2)}"'
+                              ? _guideRms(guider.rmsTotal!, guider)
                               : 'Guiding')
                           : 'Idle',
                       valueColor: _guidingRmsColor(guider, colors),
@@ -460,20 +460,20 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'RMS Tot',
-                value: '${guider.rmsTotal!.toStringAsFixed(2)}"',
+                value: _guideRms(guider.rmsTotal!, guider),
                 valueColor: _guidingRmsColor(guider, colors),
               ),
             if (guider.isGuiding && guider.rmsRa != null)
               _TelemetryRow(
                 colors: colors,
                 label: 'RMS RA',
-                value: '${guider.rmsRa!.toStringAsFixed(2)}"',
+                value: _guideRms(guider.rmsRa!, guider),
               ),
             if (guider.isGuiding && guider.rmsDec != null)
               _TelemetryRow(
                 colors: colors,
                 label: 'RMS Dec',
-                value: '${guider.rmsDec!.toStringAsFixed(2)}"',
+                value: _guideRms(guider.rmsDec!, guider),
               ),
           ],
         ),
@@ -605,6 +605,17 @@ Color? _tempColor(double? temp, SkotiqColors colors) {
   return null;
 }
 
+/// A guide residual, which the guider reports in guide-camera pixels: in
+/// arcseconds when the guider reports its pixel scale, in pixels otherwise.
+/// The same reading Tonight's Guide tab gives.
+String _guideRms(double px, GuiderState guider) {
+  final scale = guider.pixelScaleArcsecPerPixel;
+  if (scale != null && scale.isFinite && scale > 0) {
+    return '${(px * scale).toStringAsFixed(2)}″';
+  }
+  return '${px.toStringAsFixed(2)} px';
+}
+
 Color? _guidingRmsColor(GuiderState state, SkotiqColors colors) {
   if (!state.isGuiding) return colors.textMuted;
   if (state.isCalibrating) return colors.warning;
@@ -654,31 +665,38 @@ class _TelemetryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: colors.textMuted),
-          const SizedBox(width: 4),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize10,
-              color: colors.textMuted,
-              fontWeight: FontWeight.w500,
+    // One label with its value for assistive tech: the two texts read as
+    // separate nodes ("Filter:" then "L"), which an audit took for an
+    // empty value.
+    return Semantics(
+      label: '$label: $value',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: colors.textMuted),
+            const SizedBox(width: 4),
+            Text(
+              '$label: ',
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize10,
+                color: colors.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize10,
-              color: valueColor ?? colors.textSecondary,
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize10,
+                color: valueColor ?? colors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

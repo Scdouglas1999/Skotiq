@@ -28,6 +28,15 @@ class SequencerStatus {
   /// bar.
   final SequencerRunVitals? runVitals;
 
+  /// Why guiding is stopped or held, as the host's guider names it
+  /// (`tracking_limit_hold`, `meridian_flip`, ...); null while guiding runs.
+  final String? guidingStopReason;
+
+  /// Whether the host sent [guidingStopReason] at all. A host that predates
+  /// the field says nothing about guiding, which is not the same as saying
+  /// guiding runs.
+  final bool reportsGuidingStopReason;
+
   const SequencerStatus({
     required this.state,
     this.currentNodeId,
@@ -35,6 +44,8 @@ class SequencerStatus {
     required this.progress,
     this.message,
     this.runVitals,
+    this.guidingStopReason,
+    this.reportsGuidingStopReason = false,
   });
 
   /// Create from JSON (for network transport)
@@ -50,6 +61,8 @@ class SequencerStatus {
               json['runVitals'] as Map<String, dynamic>,
             )
           : null,
+      guidingStopReason: json['guidingStopReason'] as String?,
+      reportsGuidingStopReason: json.containsKey('guidingStopReason'),
     );
   }
 
@@ -61,6 +74,7 @@ class SequencerStatus {
     'progress': progress,
     'message': message,
     if (runVitals != null) 'runVitals': runVitals!.toJson(),
+    if (reportsGuidingStopReason) 'guidingStopReason': guidingStopReason,
   };
 
   /// Check if sequencer is running

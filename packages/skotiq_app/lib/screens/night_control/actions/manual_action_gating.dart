@@ -30,6 +30,7 @@ class NightActionInputs {
     this.hasFrame = false,
     this.exposureSeconds,
     this.filterName,
+    this.flipDone = false,
   });
 
   /// `backendCanCommandProvider`: false for a disconnected backend or a
@@ -68,6 +69,10 @@ class NightActionInputs {
   /// A run is loaded into the executor (anything but a settled state).
   bool get runActive => runState.isBusy;
 
+  /// The run's meridian flip for this transit is behind it: it succeeded,
+  /// or it moved the mount across the pier and the run will not flip again.
+  final bool flipDone;
+
   /// A run whose pause or resume this screen can drive.
   bool get runPausable =>
       runState == SequenceExecutionState.running ||
@@ -77,17 +82,17 @@ class NightActionInputs {
 /// The buttons shown for [inputs], in board order.
 ///
 /// Tracking and Cooler belong to the Ready board; Dither and Flip appear only
-/// while a run is loaded.
+/// while a run is loaded, and Flip only until the run's flip is done.
 List<ManualActionId> visibleManualActions(NightActionInputs inputs) =>
     inputs.runActive
-        ? const [
+        ? [
             ManualActionId.snapshot,
             ManualActionId.loop,
             ManualActionId.autofocus,
             ManualActionId.solveSync,
             ManualActionId.center,
             ManualActionId.dither,
-            ManualActionId.flip,
+            if (!inputs.flipDone) ManualActionId.flip,
           ]
         : const [
             ManualActionId.snapshot,
@@ -160,6 +165,11 @@ NightText? manualActionDisabledReason(
       if (!inputs.isGuiding) return const NightText('nightActWhyNotGuiding');
       return null;
     case ManualActionId.flip:
+      // The run does not flip a mount that already took the other side of
+      // the pier for this transit.
+      if (inputs.runActive && inputs.flipDone) {
+        return const NightText('nightActWhyFlipDone');
+      }
       // During a run the flip is a request to the run's own meridian
       // trigger, which only acts while the run is running.
       if (inputs.runState == SequenceExecutionState.paused) {

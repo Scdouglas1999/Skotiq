@@ -441,6 +441,17 @@ class RunDashboardEvent {
   /// pushing the equipment error that actually named the cause off-panel.
   final int repeatCount;
 
+  /// What this critical event is about when a newer event about the same
+  /// thing supersedes it: a second meridian flip failure replaces the first
+  /// in the banner rather than queueing behind it. Null for events that stand
+  /// on their own.
+  final String? faultKey;
+
+  /// True for a fault of the run itself (a flip failure, a sequencer error,
+  /// a failed run). The banner drops it once the run goes on: resumed after
+  /// the pause it caused, or a new run started.
+  final bool isRunFault;
+
   const RunDashboardEvent({
     required this.eventId,
     required this.time,
@@ -450,6 +461,8 @@ class RunDashboardEvent {
     required this.message,
     required this.isCritical,
     this.repeatCount = 1,
+    this.faultKey,
+    this.isRunFault = false,
   });
 
   RunDashboardEvent withRepeatCount(int count) => RunDashboardEvent(
@@ -461,7 +474,18 @@ class RunDashboardEvent {
         message: message,
         isCritical: isCritical,
         repeatCount: count,
+        faultKey: faultKey,
+        isRunFault: isRunFault,
       );
+
+  /// Same event, same words: what the banner treats as one entry. The id
+  /// alone is not enough on a linked client, where it is the host's
+  /// millisecond timestamp and two events of one millisecond share it.
+  bool sameAs(RunDashboardEvent other) =>
+      other.eventId == eventId &&
+      other.title == title &&
+      other.message == message &&
+      other.category == category;
 }
 
 /// Identical rows further apart than this are separate happenings, not a
@@ -863,7 +887,51 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
       event,
     ),
     isCritical: isCritical,
+    faultKey: _faultKey(event),
+    isRunFault: _isRunFault(event),
   );
+}
+
+/// The banner key of a meridian flip outcome. One flip is one thing to know
+/// about: its newest failure replaces the older one, and a flip that
+/// succeeds clears it.
+const String _meridianFlipFaultKey = 'meridian_flip';
+
+String? _faultKey(sk_events.SkotiqEvent event) {
+  final payload = event.payload;
+  if (payload is! sk_events.EventPayload_Sequencer) return null;
+  return payload.field0 is sk_events.SequencerEvent_MeridianFlipOutcome
+      ? _meridianFlipFaultKey
+      : null;
+}
+
+bool _isRunFault(sk_events.SkotiqEvent event) {
+  final payload = event.payload;
+  if (payload is! sk_events.EventPayload_Sequencer) return false;
+  return switch (payload.field0) {
+    sk_events.SequencerEvent_MeridianFlipOutcome() ||
+    sk_events.SequencerEvent_Error() ||
+    sk_events.SequencerEvent_Failed() =>
+      true,
+    _ => false,
+  };
+}
+
+/// True for the flip outcome that says the flip worked.
+bool _isSuccessfulFlip(sk_events.SkotiqEvent event) {
+  final payload = event.payload;
+  if (payload is! sk_events.EventPayload_Sequencer) return false;
+  final sequencerEvent = payload.field0;
+  return sequencerEvent is sk_events.SequencerEvent_MeridianFlipOutcome &&
+      sequencerEvent.outcome == 'success';
+}
+
+/// True for the events that say the run goes on: a resume, or a new run.
+bool _isRunContinuing(sk_events.SkotiqEvent event) {
+  final payload = event.payload;
+  if (payload is! sk_events.EventPayload_Sequencer) return false;
+  return payload.field0 is sk_events.SequencerEvent_Resumed ||
+      payload.field0 is sk_events.SequencerEvent_Started;
 }
 
 /// Name the goal behind a "depth goal reached" row.
@@ -981,10 +1049,19 @@ class RunDashboardCriticalEventsNotifier
 
   void add(RunDashboardEvent event) {
     if (!mounted) return;
-    // Skip exact duplicates (same eventId) — the bridge emits the same
-    // event to multiple subscribers and we may receive it twice.
-    if (state.any((e) => e.eventId == event.eventId)) return;
-    final next = [event, ...state];
+    // Skip exact duplicates — the bridge emits the same event to multiple
+    // subscribers and we may receive it twice.
+    if (state.any(event.sameAs)) return;
+    // A newer event about the same thing replaces the older one: the banner
+    // kept the first flip failure ("still West") after a second one with the
+    // mount already on the new pier side, telling the operator the opposite
+    // of the truth.
+    final key = event.faultKey;
+    final next = [
+      event,
+      for (final e in state)
+        if (key == null || e.faultKey != key) e,
+    ];
     if (next.length > _maxRetained) {
       // Truncating drops the oldest unresolved critical events. Surface the
       // overflow count so the banner can render a "+N earlier critical
@@ -997,9 +1074,31 @@ class RunDashboardCriticalEventsNotifier
     state = next;
   }
 
-  void dismiss(BigInt eventId) {
+  void dismiss(RunDashboardEvent event) {
     if (!mounted) return;
-    state = state.where((e) => e.eventId != eventId).toList();
+    state = state.where((e) => !e.sameAs(event)).toList();
+  }
+
+  /// Drop the faults of the run once it goes on (resumed, or a new run
+  /// started). What paused it has been dealt with; a red banner that still
+  /// says "FAILED" over a Running header reads as a run in trouble.
+  void clearRunFaults() {
+    if (!mounted) return;
+    if (!state.any((e) => e.isRunFault)) return;
+    state = [
+      for (final e in state)
+        if (!e.isRunFault) e,
+    ];
+  }
+
+  /// Drop the entries about [faultKey], once that condition recovered.
+  void clearFault(String faultKey) {
+    if (!mounted) return;
+    if (!state.any((e) => e.faultKey == faultKey)) return;
+    state = [
+      for (final e in state)
+        if (e.faultKey != faultKey) e,
+    ];
   }
 
   void clearAll() {
@@ -1164,7 +1263,14 @@ bool _isRestatedFailureReason(
 final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
   // Use ref.listen on the history so we react to new entries without
   // depending on the order or count of rebuilds.
-  BigInt? lastSeenId;
+  //
+  // New entries are the ones at the front of the history that the previous
+  // list did not hold, by identity. An id watermark ("everything above the
+  // last id seen") dropped events on a linked client, where the id is the
+  // host's millisecond timestamp: a second event of the same millisecond, or
+  // any host event after one the client stamped with a clock running ahead
+  // (its own "reconnected" notice), never reached the banner.
+  List<sk_events.SkotiqEvent> seen = const [];
   // Last time we played the audible alert. We hold this in the provider
   // closure scope so the cooldown survives provider rebuilds.
   DateTime? lastAlertAt;
@@ -1176,16 +1282,12 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
   ref.listen<List<sk_events.SkotiqEvent>>(
     eventHistoryProvider,
     (previous, next) {
+      final known = Set<sk_events.SkotiqEvent>.identity()..addAll(seen);
+      seen = next;
       if (next.isEmpty) return;
-      // Iterate from oldest-to-newest among entries the bridge hasn't
-      // seen before. The history list is newest-first.
-      final fresh = <sk_events.SkotiqEvent>[];
-      for (final event in next) {
-        if (lastSeenId != null && event.eventId <= lastSeenId!) break;
-        fresh.add(event);
-      }
+      // The history list is newest-first and only gains events at its front.
+      final fresh = next.takeWhile((event) => !known.contains(event)).toList();
       if (fresh.isEmpty) return;
-      lastSeenId = fresh.first.eventId;
 
       // Read settings once per batch; the user can't toggle these mid-batch
       // and re-reading per event would race the AsyncNotifier update.
@@ -1210,6 +1312,16 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
         // is not itself a critical event.
         if (_isSequencerRunStart(event)) {
           escalatedSequencerFailureReasons.clear();
+        }
+        if (_isRunContinuing(event)) {
+          ref
+              .read(runDashboardCriticalEventsProvider.notifier)
+              .clearRunFaults();
+        }
+        if (_isSuccessfulFlip(event)) {
+          ref
+              .read(runDashboardCriticalEventsProvider.notifier)
+              .clearFault(_meridianFlipFaultKey);
         }
         if (event.severity == sk_events.EventSeverity.info) continue;
         if (!sk_events.isCriticalEvent(event)) continue;
@@ -1290,4 +1402,15 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
     },
     fireImmediately: true,
   );
+
+  // A run seen to go from paused to running has been resumed, whether or not
+  // this window saw the Resumed event: a linked client that joined while the
+  // run was paused learns of the resume from the host's status.
+  ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider,
+      (previous, next) {
+    if (previous == SequenceExecutionState.paused &&
+        next == SequenceExecutionState.running) {
+      ref.read(runDashboardCriticalEventsProvider.notifier).clearRunFaults();
+    }
+  });
 });

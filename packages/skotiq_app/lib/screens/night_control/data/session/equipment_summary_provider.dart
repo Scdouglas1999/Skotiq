@@ -33,6 +33,29 @@ String nightPhd2StateKey(Phd2State state) => switch (state) {
       Phd2State.unknown => 'nightSessionGuiderUnknown',
     };
 
+/// The guider stop reasons the app has words for (`nightScopeGuideHeld_*`),
+/// as the guider status names them.
+const Set<String> kNightGuideStopReasons = <String>{
+  'autofocus',
+  'meridian_flip',
+  'tracking_limit_hold',
+  'mount_move',
+  'pre_meridian_hold',
+  'sequence_step',
+  'dither_settle',
+  'run_stopped',
+  'operator',
+};
+
+/// Why the guider is stopped or held, in the guide tab's words.
+NightText nightGuideStopReason(String reason) =>
+    kNightGuideStopReasons.contains(reason)
+        ? NightText('nightScopeGuideHeld_$reason')
+        : NightText(
+            'nightScopeGuideHeldOther',
+            params: <String, String>{'reason': reason},
+          );
+
 /// The translations key for a reported side of pier, or null when the mount
 /// reports something else.
 String? nightPierKey(String? side) => switch (side?.trim().toLowerCase()) {
@@ -85,6 +108,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   final rotator = ref.watch(rotatorStateProvider);
   final phd2 = ref.watch(phd2StateProvider);
   final guideStats = ref.watch(guideStatsProvider);
+  final guideStopReason = ref.watch(guidingStopReasonProvider);
   final assigned = ref.watch(assignedProfileDeviceSlotsProvider).toSet();
 
   EquipmentRowVm row(
@@ -227,8 +251,18 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
         final mass = guideStats.frameCount > 0 && guideStats.starMass > 0
             ? guideStats.starMass
             : null;
+        // A held guider says why (an autofocus, a flip, the mount's
+        // tracking limit) rather than only "not looping".
+        final held = !_guiderWorking.contains(phd2) &&
+                guideStopReason != null &&
+                guideStopReason.isNotEmpty
+            ? guideStopReason
+            : null;
         return <NightText>[
-          NightText(nightPhd2StateKey(phd2)),
+          if (held != null)
+            nightGuideStopReason(held)
+          else
+            NightText(nightPhd2StateKey(phd2)),
           if (mass != null)
             NightText(
               'nightSessionGuiderMass',

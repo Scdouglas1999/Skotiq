@@ -1,7 +1,10 @@
 // The Steps list: what each row prints, the running step kept in view, and
 // "open in Sequencer" selecting the node and going there.
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/screens/night_control/left/night_left_column.dart';
 import 'package:skotiq_app/screens/night_control/left/steps_section.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
@@ -49,6 +52,59 @@ Future<NightHarness> _pumpColumn(
 }
 
 void main() {
+  // SY-28: a flip that kept failing showed nothing in Steps.
+  testWidgets('the run\'s meridian flip shows above the steps', (tester) async {
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      flipStep: const NightFlipStepVm(
+        status: PlanStepStatus.active,
+        detail: NightText(
+          'nightCtlFlipAttemptFailed',
+          params: {'attempt': '2', 'max': '4', 'time': '22:43'},
+        ),
+      ),
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightStepsSection()),
+      size: const Size(272, 758),
+    );
+    expect(find.text('Meridian flip'), findsOneWidget);
+    expect(
+      find.text('Attempt 2 of 4 failed, next try ≈22:43'),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(find.text('Meridian flip')).dy,
+      lessThan(tester.getTopLeft(find.text('44/60')).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed flip reads as failed', (tester) async {
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      flipStep: const NightFlipStepVm(
+        status: PlanStepStatus.failed,
+        detail: NightText(
+          'nightCtlFlipFailedMoved',
+          params: {'attempts': '4', 'time': '22:51'},
+        ),
+      ),
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightStepsSection()),
+      size: const Size(272, 758),
+      textScale: 1.3,
+    );
+    expect(
+      find.textContaining('the mount did move to the other side of the pier'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('recorded, running and planned times', (tester) async {
     final harness = NightHarness(board: NightFixtures.running());
     await harness.pump(
@@ -144,9 +200,14 @@ void main() {
       const SizedBox(width: 272, child: NightStepsSection()),
       size: const Size(272, 758),
     );
+    final row =
+        find.bySemanticsLabel('Ha 60 × 180 s, dither 3, running now, 44/60');
+    expect(row, findsOneWidget);
+    // A row the operator can press reads as an enabled button; without the
+    // state, the audit tree read "[DISABLED]" on every step.
     expect(
-      find.bySemanticsLabel('Ha 60 × 180 s, dither 3, running now, 44/60'),
-      findsOneWidget,
+      tester.getSemantics(row).flagsCollection.isEnabled,
+      Tristate.isTrue,
     );
     handle.dispose();
   });

@@ -8,6 +8,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../data/plan/night_plan_inputs.dart';
+import '../../data/session/equipment_summary_provider.dart'
+    show kNightGuideStopReasons;
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
 import '../mount/night_panel_parts.dart';
@@ -283,18 +285,7 @@ class NightGuideDitherSection extends ConsumerWidget {
 /// The guide tab's words for why the guider is stopped (see
 /// `guidingStopReasonProvider`).
 String guideStopReasonLabel(SkotiqLocalizations l10n, String reason) {
-  const known = {
-    'autofocus',
-    'meridian_flip',
-    'tracking_limit_hold',
-    'mount_move',
-    'pre_meridian_hold',
-    'sequence_step',
-    'dither_settle',
-    'run_stopped',
-    'operator',
-  };
-  return known.contains(reason)
+  return kNightGuideStopReasons.contains(reason)
       ? l10n.text('nightScopeGuideHeld_$reason')
       : l10n.text('nightScopeGuideHeldOther', params: {'reason': reason});
 }

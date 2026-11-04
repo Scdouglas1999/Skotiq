@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
@@ -141,6 +142,7 @@ class NightHarness {
     this.noPlan = false,
     List<PlanStepVm>? steps,
     List<UpcomingItemVm>? upcoming,
+    this.flipStep,
     this.extra = const <Override>[],
   })  : header = header ?? board.header,
         target = target ?? board.target,
@@ -156,6 +158,9 @@ class NightHarness {
   final bool noPlan;
   final List<PlanStepVm> steps;
   final List<UpcomingItemVm> upcoming;
+
+  /// The run's meridian flip row in Steps; none by default.
+  final NightFlipStepVm? flipStep;
 
   /// Overrides appended after the harness's own.
   final List<Override> extra;
@@ -176,6 +181,7 @@ class NightHarness {
         nightTargetProvider.overrideWithValue(noTarget ? null : target),
         nightPlanProgressProvider.overrideWithValue(noPlan ? null : plan),
         nightPlanStepsProvider.overrideWithValue(steps),
+        nightFlipStepProvider.overrideWithValue(flipStep),
         nightUpcomingProvider.overrideWithValue(upcoming),
         nightActionApiProvider.overrideWithValue(api),
         nightActionStateProvider.overrideWithValue(board.actionState),

@@ -61,9 +61,13 @@ class NightHeaderVm {
     this.stop,
     this.startNow,
     this.startAtDark,
+    this.ending,
   });
 
   final NightRunPhase phase;
+
+  /// How the run ended. Set only in [NightRunPhase.finished].
+  final NightRunEnding? ending;
 
   /// The manual action holding the run, for "Paused for autofocus". Set
   /// only in [NightRunPhase.pausedForAction].
@@ -128,10 +132,11 @@ class NightHeaderVm {
       other.skipStep == skipStep &&
       other.stop == stop &&
       other.startNow == startNow &&
-      other.startAtDark == startAtDark;
+      other.startAtDark == startAtDark &&
+      other.ending == ending;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
         phase,
         pausedFor,
         runStartedAt,
@@ -152,7 +157,46 @@ class NightHeaderVm {
         stop,
         startNow,
         startAtDark,
+        ending,
+      ]);
+
+  /// This header with [ending] in place of its own.
+  NightHeaderVm withEnding(NightRunEnding? ending) => NightHeaderVm(
+        phase: phase,
+        pausedFor: pausedFor,
+        runStartedAt: runStartedAt,
+        armedStartAt: armedStartAt,
+        planName: planName,
+        targetIndex: targetIndex,
+        targetCount: targetCount,
+        stepIndex: stepIndex,
+        stepCount: stepCount,
+        currentFilter: currentFilter,
+        currentExposureSecs: currentExposureSecs,
+        framesDone: framesDone,
+        framesTotal: framesTotal,
+        plannedDuration: plannedDuration,
+        restoredFrames: restoredFrames,
+        pauseResume: pauseResume,
+        skipStep: skipStep,
+        stop: stop,
+        startNow: startNow,
+        startAtDark: startAtDark,
+        ending: ending,
       );
+}
+
+/// How a finished run ended, for the header's pill.
+enum NightRunEnding {
+  /// The run reached the end of its plan.
+  completed,
+
+  /// The run failed.
+  failed,
+
+  /// The run was stopped, or ended at dawn; it settles idle, which does not
+  /// say which.
+  ended,
 }
 
 /// Where a target window stands against now.

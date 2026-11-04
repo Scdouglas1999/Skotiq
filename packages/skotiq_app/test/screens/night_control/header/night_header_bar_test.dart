@@ -190,6 +190,43 @@ void main() {
       expect(find.textContaining('Finished'), findsOneWidget);
     });
 
+    // SY-36: a failed run reads "Failed" in the error tone, like the rig
+    // chip, not a gray "Finished".
+    for (final (ending, label) in <(NightRunEnding, String)>[
+      (NightRunEnding.completed, 'Completed'),
+      (NightRunEnding.failed, 'Failed'),
+      (NightRunEnding.ended, 'Finished'),
+    ]) {
+      testWidgets('finished, $ending: the pill reads $label', (tester) async {
+        final base = headerFor(NightRunPhase.finished);
+        await _pumpHeader(
+          tester,
+          NightRunPhase.finished,
+          header: base.withEnding(ending),
+        );
+        expect(find.text(label), findsOneWidget);
+        for (final other in const ['Completed', 'Failed', 'Finished']) {
+          if (other != label) expect(find.text(other), findsNothing);
+        }
+        final pillDot = find.descendant(
+          of: find
+              .ancestor(of: find.text(label), matching: find.byType(Row))
+              .first,
+          matching: find.byType(StatusDot),
+        );
+        final dot = tester.widget<StatusDot>(pillDot);
+        final colors = tester.element(pillDot).skotiqColors;
+        expect(
+          dot.color,
+          switch (ending) {
+            NightRunEnding.completed => colors.primary,
+            NightRunEnding.failed => colors.error,
+            NightRunEnding.ended => colors.textSecondary,
+          },
+        );
+      });
+    }
+
     testWidgets('not set up: Start disabled, no plan named', (tester) async {
       await _pumpHeader(tester, NightRunPhase.notSetUp);
       _expectButtons(_readyControls, _runControls);

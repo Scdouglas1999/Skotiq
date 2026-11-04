@@ -315,6 +315,14 @@ void _applySequencerStatus(Object reader, SequencerStatus status) {
   _read(reader, liveSequenceStatsProvider.notifier).state = vitals == null
       ? null
       : SequenceRunStats.fromRemoteVitals(vitals);
+
+  // Why the host's guiding is stopped. Live StopReason events carry it too,
+  // but only to a client that was listening when it was set: one that joined
+  // during a tracking-limit hold read "Guider needs a look" with no reason.
+  if (status.reportsGuidingStopReason) {
+    _read(reader, guidingStopReasonProvider.notifier).state =
+        status.guidingStopReason;
+  }
 }
 
 SequenceExecutionState _mapSequencerState(String rawState) {

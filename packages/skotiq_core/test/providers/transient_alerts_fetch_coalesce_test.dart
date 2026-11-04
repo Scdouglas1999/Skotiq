@@ -319,4 +319,69 @@ void main() {
       );
     },
   );
+
+  // SY-02: a linked client's badge counts what the host's badge counts. The
+  // host now serves its First Light detections with their state; one the
+  // host already reviewed is not new on the client either.
+  test('the remote feed keeps the state the host gives each alert', () async {
+    final backend = _MockNetworkBackend();
+    final now = DateTime(2026, 11, 3).millisecondsSinceEpoch;
+    Map<String, dynamic> served(String id, String? state) => {
+      'id': id,
+      'name': id,
+      'type': 'other',
+      'raHours': 12.5,
+      'decDegrees': 20.0,
+      'discoveryTime': now,
+      'lastUpdated': now,
+      'source': 'manual',
+      'priority': 5,
+      if (state != null) 'state': state,
+    };
+    when(() => backend.getTransientSettings()).thenAnswer((_) async => {});
+    when(() => backend.getActiveTransients()).thenAnswer(
+      (_) async => {
+        'alerts': [
+          served('firstlight:1', 'newAlert'),
+          served('firstlight:2', 'acknowledged'),
+          // An older host sends no state: the alert reads as new.
+          served('aavso:1', null),
+          served('aavso:2', 'not-a-state'),
+        ],
+      },
+    );
+    final container = ProviderContainer(
+      overrides: [
+        inMemoryDatabaseOverride(),
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+        settingsDaoProvider.overrideWithValue(db.settingsDao),
+        allTransientDetectionsProvider.overrideWith(
+          (ref) => Stream.value(const <TransientDetectionRow>[]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(transientAlertSettingsProvider.notifier).loaded;
+    final subscription = container.listen(
+      activeTransientAlertsProvider,
+      (_, __) {},
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+
+    final alerts = await container.read(activeTransientAlertsProvider.future);
+    expect(
+      {for (final a in alerts) a.id: a.state},
+      {
+        'firstlight:1': TransientAlertState.newAlert,
+        'firstlight:2': TransientAlertState.acknowledged,
+        'aavso:1': TransientAlertState.newAlert,
+        'aavso:2': TransientAlertState.newAlert,
+      },
+    );
+    expect(container.read(unacknowledgedAlertCountProvider), 3);
+  });
 }

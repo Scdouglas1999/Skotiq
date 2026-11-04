@@ -2,6 +2,7 @@
 // nothing invented without a site.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
@@ -163,4 +164,57 @@ void main() {
     );
     expect(container.read(nightTargetProvider)!.flipAt, isNull);
   });
+
+  // SY-33: the flip moved the mount to pier east and then failed in its
+  // recovery; the host said the mount must not flip again, and Coming up and
+  // the altitude chart still read "Meridian flip 22:51".
+  test('a flip that moved the mount across the pier is not still coming', () {
+    final lst = computeLocalSiderealTimeHours(lateEvening, boston.longitude);
+    final container = planContainer(
+      now: lateEvening,
+      sequence: TwoTargetPlan().sequence,
+      clock: _edt,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: lateEvening.subtract(const Duration(hours: 1)),
+      ),
+      extra: [
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
+        isMeridianFlipEnabledProvider.overrideWithValue(true),
+        effectiveMeridianFlipSettingsProvider.overrideWithValue(
+          const MeridianFlipSettings(
+            triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
+            minutesPastMeridian: 10,
+          ),
+        ),
+        mountStateProvider.overrideWith(
+          (ref) => _Mount(
+            ref,
+            MountState(
+              connectionState: DeviceConnectionState.connected,
+              isTracking: true,
+              isParked: false,
+              ra: (lst - 1 + 24) % 24,
+              dec: 42,
+              sideOfPier: 'East',
+            ),
+          ),
+        ),
+        nightFlipProvider.overrideWith(_MovedAcrossPier.new),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(nightTargetProvider)!.flipAt, isNull);
+  });
+}
+
+class _MovedAcrossPier extends NightFlipTracker {
+  @override
+  NightFlipState build() => NightFlipState(
+        pierAtStart: 'west',
+        pierChanged: true,
+        failure: (at: DateTime(2026, 11, 3, 22, 51), attempts: 4),
+      );
 }

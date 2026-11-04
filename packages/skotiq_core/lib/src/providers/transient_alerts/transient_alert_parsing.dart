@@ -1,7 +1,9 @@
 part of '../transient_alert_provider.dart';
 
-/// Parse a TransientAlert from JSON response
-List<TransientAlert> _mergeAlerts(
+/// [local] First Light discoveries ahead of the [external] feed, each alert
+/// once. The bell and the host's /api/transients merge the same way, so a
+/// linked client counts what the host's own badge counts.
+List<TransientAlert> mergeTransientAlerts(
   List<TransientAlert> local,
   List<TransientAlert> external,
 ) {
@@ -102,7 +104,17 @@ TransientAlert? _tryParseTransientAlertFromJson(Map<String, dynamic> json) {
         ? json['classification'] as String
         : null,
     notes: json['notes'] is String ? json['notes'] as String : null,
+    // The state the host resolved, so a detection the host already reviewed
+    // does not count as new here. Older hosts send none: new.
+    state: _alertState(json['state']),
   );
+}
+
+TransientAlertState _alertState(Object? value) {
+  for (final candidate in TransientAlertState.values) {
+    if (candidate.name == value) return candidate;
+  }
+  return TransientAlertState.newAlert;
 }
 
 double? _finiteJsonDouble(Object? value) {

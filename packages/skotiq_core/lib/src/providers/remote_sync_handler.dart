@@ -36,6 +36,7 @@ import 'event_provider.dart' show eventHistoryProvider;
 import 'device_heartbeat_health_provider.dart';
 import 'equipment/device_type_registry.dart';
 import 'framing_provider.dart';
+import 'guiding_provider.dart' show guidingStopReasonProvider;
 import 'host_scheduled_start_provider.dart';
 import 'host_end_of_night_provider.dart';
 import '../services/end_of_night_calibration/eon_service.dart'

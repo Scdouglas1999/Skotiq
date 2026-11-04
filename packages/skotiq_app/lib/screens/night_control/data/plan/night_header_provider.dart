@@ -135,6 +135,13 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
     stop: stop,
     startNow: startNow,
     startAtDark: startAtDark,
+    ending: phase == NightRunPhase.finished
+        ? switch (execution) {
+            SequenceExecutionState.completed => NightRunEnding.completed,
+            SequenceExecutionState.failed => NightRunEnding.failed,
+            _ => NightRunEnding.ended,
+          }
+        : null,
   );
 });
 

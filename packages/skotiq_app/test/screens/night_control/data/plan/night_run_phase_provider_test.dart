@@ -82,6 +82,33 @@ void main() {
         container.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
   });
 
+  // SY-36: the header read "Finished" in gray for a run the host and the
+  // rig chip reported as failed.
+  test('how a finished run ended: completed, failed, or ended otherwise', () {
+    final plan = TwoTargetPlan().sequence;
+    for (final (state, ending) in <(SequenceExecutionState, NightRunEnding)>[
+      (SequenceExecutionState.completed, NightRunEnding.completed),
+      (SequenceExecutionState.failed, NightRunEnding.failed),
+      // The host's "cancelled" and "stopped" settle idle on a linked client.
+      (SequenceExecutionState.idle, NightRunEnding.ended),
+    ]) {
+      final container = planContainer(
+        now: evening,
+        sequence: plan,
+        execution: SequenceExecutionState.running,
+      );
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      expect(container.read(nightHeaderProvider).ending, isNull,
+          reason: 'a live run has not ended');
+
+      container.read(sequenceExecutionStateProvider.notifier).state = state;
+      final header = container.read(nightHeaderProvider);
+      expect(header.phase, NightRunPhase.finished, reason: '$state');
+      expect(header.ending, ending, reason: '$state');
+    }
+  });
+
   test('Start at dark needs a site, and a dark still ahead', () {
     final noSite = planContainer(
       now: evening,

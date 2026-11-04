@@ -506,6 +506,36 @@ void main() {
     });
   });
 
+  // SY-24: with the guider held for the flip, a linked client said only
+  // "Guider needs a look, not looping".
+  group('guider stop reason', () {
+    test('a held guider says why on its row', () async {
+      final h = await sessionHarness(overrides: [
+        ..._readyRig(),
+        guidingStopReasonProvider.overrideWith((ref) => 'tracking_limit_hold'),
+      ]);
+      final guider = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.guider);
+      expect(
+        guider.details.first.key,
+        'nightScopeGuideHeld_tracking_limit_hold',
+      );
+    });
+
+    test('a reason the app has no words for is shown as given', () async {
+      final h = await sessionHarness(overrides: [
+        ..._readyRig(),
+        guidingStopReasonProvider.overrideWith((ref) => 'dome_closing'),
+      ]);
+      final guider = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.guider);
+      expect(guider.details.first.key, 'nightScopeGuideHeldOther');
+      expect(guider.details.first.params, {'reason': 'dome_closing'});
+    });
+  });
+
   group('log', () {
     // Live, the camera reports progress five times a second while a frame
     // exposes, and the in-memory history keeps 100 events: read from it,
