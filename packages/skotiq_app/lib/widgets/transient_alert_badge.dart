@@ -167,6 +167,9 @@ class _TransientAlertBadgeState extends ConsumerState<TransientAlertBadge>
         message: 'Transient alerts — targets of opportunity',
         child: Semantics(
           button: true,
+          // Without an enabled state a button node reads as disabled to
+          // assistive tech (Linux reported "Transient alerts [DISABLED]").
+          enabled: true,
           label: unacknowledgedCount > 0
               ? 'Transient alerts, $unacknowledgedCount new'
               : 'Transient alerts',

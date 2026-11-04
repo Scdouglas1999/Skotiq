@@ -171,7 +171,7 @@ final activeTransientAlertsProvider =
           }
 
           // Merge local First Light discoveries ahead of the external feed.
-          final merged = _mergeAlerts(localFirstLightAlerts(), alerts);
+          final merged = mergeTransientAlerts(localFirstLightAlerts(), alerts);
 
           if (!controller.isClosed) {
             controller.add(merged);

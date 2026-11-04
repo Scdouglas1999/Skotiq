@@ -53,11 +53,39 @@ class TransientHandlers {
 
   // Get active transients
 
+  /// This host's own First Light discoveries that are not dismissed, as
+  /// alerts; the title-bar badge counts them ahead of the external feed.
+  Future<List<TransientAlert>> _firstLightAlerts() async {
+    final detections = await container.read(
+      allTransientDetectionsProvider.future,
+    );
+    return [
+      for (final detection in detections)
+        if (!detection.dismissed) transientAlertFromDetection(detection),
+    ];
+  }
+
   Future<Response> handleGetActiveTransients(Request request) async {
     final settings = await _readSettings();
 
-    // Fetch alerts from configured sources
-    final alerts = await _fetchAlerts(settings);
+    // The host's own discoveries, then the configured sources: the same list
+    // the host's badge counts. Served alone the feed left a linked client
+    // with no alerts under a host badge reading "9+".
+    final local = await _firstLightAlerts();
+    List<TransientAlert> feed;
+    try {
+      feed = await _fetchAlerts(settings);
+    } catch (error) {
+      // As in the app, a dead uplink does not hide a self-found transient.
+      if (local.isEmpty) rethrow;
+      _logger.warning(
+        'Transient feed unavailable; serving First Light detections only: '
+        '$error',
+        source: 'TransientHandlers',
+      );
+      feed = const [];
+    }
+    final alerts = mergeTransientAlerts(local, feed);
     final statesNotifier = container.read(
       transientAlertStatesProvider.notifier,
     );
@@ -329,6 +357,9 @@ class TransientHandlers {
       'isDismissed':
           resolveTransientAlertState(alert, states) ==
           TransientAlertState.dismissed,
+      // The resolved state, so a client counts new alerts the way this
+      // host's badge does.
+      'state': resolveTransientAlertState(alert, states).name,
     };
   }
 }

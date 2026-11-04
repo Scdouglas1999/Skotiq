@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,5 +53,36 @@ void main() {
 
     await tester.pump(const Duration(seconds: 2));
     expect(state.debugPulseControllerForTesting.isAnimating, isFalse);
+  });
+
+  // SY-02: the audit tree read "button: Transient alerts [DISABLED]" on a
+  // button that opens the alerts. A button node without an enabled state
+  // reads as disabled to assistive tech.
+  testWidgets('the badge reads as an enabled button', (tester) async {
+    final handle = tester.ensureSemantics();
+    final container = ProviderContainer(
+      overrides: [
+        inMemoryDatabaseOverride(),
+        activeTransientAlertsProvider.overrideWith(
+          (ref) => Stream.value(const <TransientAlert>[]),
+        ),
+        unacknowledgedAlertCountProvider.overrideWith((ref) => 0),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(body: TransientAlertBadge(onTap: () {})),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final node = tester.getSemantics(find.bySemanticsLabel('Transient alerts'));
+    expect(node.flagsCollection.isButton, isTrue);
+    expect(node.flagsCollection.isEnabled, Tristate.isTrue);
+    handle.dispose();
   });
 }
