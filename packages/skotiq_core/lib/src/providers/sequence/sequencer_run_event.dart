@@ -466,6 +466,11 @@ final class HorizonObstructionDetected extends SequencerRunEvent {
   final String? message;
 }
 
+/// [MeridianFlipOutcome.outcome] sent the moment the mount is verified on its
+/// new pier side, before the flip's centering and guiding are done. The flip's
+/// own verdict (`success`, `failed` or `aborted`) still follows.
+const String meridianFlipPierChangedOutcome = 'pier_changed';
+
 final class MeridianFlipOutcome extends SequencerRunEvent {
   const MeridianFlipOutcome({
     required super.eventType,

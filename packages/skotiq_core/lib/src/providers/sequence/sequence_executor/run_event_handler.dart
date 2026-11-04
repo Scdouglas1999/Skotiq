@@ -89,6 +89,10 @@ class RunEventHandler {
   /// Whether this run skipped a target because its end condition was
   /// already met when the run reached it.
   bool _targetSkippedAtEntry = false;
+
+  /// The flip under way was counted when the mount reached its new pier side,
+  /// so its verdict must not count it again.
+  bool _flipCountedAtPierChange = false;
   LoggingService get _logger => _loggerFn();
 
   /// Per-event-type rate limit on the debug trace, so a chatty type cannot
@@ -804,6 +808,12 @@ class RunEventHandler {
   ///    framing should be eyeballed before trusting the sub-frames;
   ///  * failed / aborted -> do NOT count it (no flip happened) and record an
   ///    error/warning so the session report cannot claim a clean night.
+  ///
+  /// The executor also sends `pier_changed` the moment the mount is verified
+  /// on its new side, before centering and guiding are done. That is the flip,
+  /// and it is counted then: on 2026-11-03 the count stayed 0 through a
+  /// twelve-minute recovery and after it, with the mount on the east side.
+  /// The verdict that follows does not count it again.
   void _handleMeridianFlipOutcome(MeridianFlipOutcome event) {
     final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
     final outcome = event.outcome ?? 'unknown';
@@ -814,9 +824,25 @@ class RunEventHandler {
     final actionTaken = event.actionTaken;
     final failedSteps = event.failedSteps;
 
+    final countedAtPierChange = _flipCountedAtPierChange;
+    _flipCountedAtPierChange = false;
     switch (outcome) {
-      case 'success':
+      case meridianFlipPierChangedOutcome:
         _stats.update((stats) => stats.recordMeridianFlip());
+        _flipCountedAtPierChange = true;
+        final side = event.newPierSide?.toLowerCase();
+        final message =
+            'Meridian flip for "$targetName": the mount is on the '
+            '${side == null || side == 'unknown' ? 'new' : side} side of the '
+            'pier';
+        _logger.info(message, source: 'SequenceExecutor');
+        progressNotifier.updateProgress(message: message);
+        break;
+
+      case 'success':
+        if (!countedAtPierChange) {
+          _stats.update((stats) => stats.recordMeridianFlip());
+        }
         if (failedSteps.isEmpty) {
           final message =
               'Meridian flip for "$targetName" completed in '
@@ -847,11 +873,18 @@ class RunEventHandler {
         break;
 
       default:
-        final message =
-            'Meridian flip for "$targetName" FAILED after $attempts '
-            'attempt${attempts == 1 ? "" : "s"}: ${error ?? "unknown error"}'
-            '${actionTaken != null ? " (action: $actionTaken)" : ""}. '
-            'Frames captured after this point may be mis-framed.';
+        final message = countedAtPierChange
+            ? 'Meridian flip for "$targetName" reached the new pier side, but '
+                  'recovery failed after $attempts '
+                  'attempt${attempts == 1 ? "" : "s"}: '
+                  '${error ?? "unknown error"}'
+                  '${actionTaken != null ? " (action: $actionTaken)" : ""}. '
+                  'Check the framing before trusting the next frames.'
+            : 'Meridian flip for "$targetName" FAILED after $attempts '
+                  'attempt${attempts == 1 ? "" : "s"}: '
+                  '${error ?? "unknown error"}'
+                  '${actionTaken != null ? " (action: $actionTaken)" : ""}. '
+                  'Frames captured after this point may be mis-framed.';
         _logger.error(message, source: 'SequenceExecutor');
         recordRunError(message);
         progressNotifier.updateProgress(message: message);

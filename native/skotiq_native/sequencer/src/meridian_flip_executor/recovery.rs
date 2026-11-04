@@ -40,6 +40,13 @@ impl MeridianFlipExecutor {
                 return result;
             }
             self.warn_operator("Target acquisition still failed; trying one nearby higher field to correct pointing before returning.".into());
+            self.say(format!(
+                "Meridian flip for '{}' (attempt {} of {}): centering did not solve; solving a \
+                 nearby higher field to correct the pointing.",
+                ctx.target_name,
+                self.attempts_made,
+                self.config.max_retries + 1
+            ));
             self.nearby_pointing_reference(ctx).await.map_err(|e| {
                 format!("{}; nearby recovery: {e}", result.unwrap_err())
             })?;

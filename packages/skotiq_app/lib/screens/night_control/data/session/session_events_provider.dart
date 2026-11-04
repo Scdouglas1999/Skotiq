@@ -95,6 +95,10 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
   int _generation = 0;
   DateTime? _autofocusStartedAt;
 
+  /// The last flip event was a pier change, so a success after it is the
+  /// same flip.
+  bool _flipMarkedAtPierChange = false;
+
   /// Each list keeps at most this many entries, oldest dropped first.
   static const int maxPerKind = 500;
 
@@ -143,9 +147,19 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
       }
       return;
     }
-    if (event.category == EventCategory.sequencer &&
-        event.eventType == 'MeridianFlipOutcome' &&
-        event.data['outcome'] == 'success') {
+    if (event.category != EventCategory.sequencer ||
+        event.eventType != 'MeridianFlipOutcome') {
+      return;
+    }
+    // The flip is marked when the mount reaches its new pier side; its
+    // verdict comes after centering and guiding, and may be a failure of
+    // those with the mount flipped. A success after a marked pier change is
+    // the same flip.
+    final outcome = event.data['outcome'];
+    final pierChanged = outcome == meridianFlipPierChangedOutcome;
+    final countedAtPierChange = _flipMarkedAtPierChange;
+    _flipMarkedAtPierChange = pierChanged;
+    if (pierChanged || (outcome == 'success' && !countedAtPierChange)) {
       state = NightSessionEvents(
         autofocusRuns: state.autofocusRuns,
         dithers: state.dithers,

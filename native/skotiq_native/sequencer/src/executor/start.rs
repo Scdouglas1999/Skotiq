@@ -1168,6 +1168,8 @@ impl SequenceExecutor {
                 // makes the RUN a failure even if the node tree walked to the
                 // end. A flip that merely retried and then succeeded is NOT
                 // coerced; it is recorded as a degraded-but-successful flip.
+                // Neither is a run whose later flip reached the new pier side:
+                // that clears the latch (see `FlipFailureLatch::clear`).
                 let result = if meridian_flip_failed.load(Ordering::Acquire)
                     && !matches!(result, NodeStatus::Failure)
                 {

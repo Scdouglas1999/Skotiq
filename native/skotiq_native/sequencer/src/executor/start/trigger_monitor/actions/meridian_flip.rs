@@ -3,18 +3,29 @@
 
 use super::*;
 
-/// Where a failed flip is latched so the run's verdict cannot read
-/// `completed`.
+/// Where a flip that left the mount on its old side is latched, so the run's
+/// verdict cannot read `completed` while the mount is not where the run
+/// thinks it is.
 pub(in super::super) struct FlipFailureLatch {
     pub failed: Arc<AtomicBool>,
     pub failure: Arc<StdRwLock<Option<String>>>,
 }
 
 impl FlipFailureLatch {
-    /// Latch the first failure; a later one keeps the first message.
+    /// Latch a failure. The newest one is the run's cause: an older one has
+    /// either been retried or describes a mount that has moved since.
     pub(in super::super) fn latch(&self, message: impl FnOnce() -> String) {
         self.failed.store(true, Ordering::Release);
-        self.failure.write().get_or_insert_with(message);
+        *self.failure.write() = Some(message());
+    }
+
+    /// A later flip reached the new pier side, so no earlier failure says
+    /// where the mount is. On 2026-11-03 the window flip failed with the mount
+    /// still west, the flip after the resume reached the east side, and the
+    /// run that then finished its plan was filed failed with "still West".
+    pub(in super::super) fn clear(&self) {
+        self.failed.store(false, Ordering::Release);
+        *self.failure.write() = None;
     }
 }
 
@@ -101,12 +112,16 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
         return ActionFlow::Finished;
     };
 
+    let progress = run.progress.clone();
     let mut flip_executor = crate::meridian_flip_executor::MeridianFlipExecutor::new(
         config.clone(),
         rig.device_ops.clone(),
     )
     // The executor emits the MeridianFlipOutcome verdict itself.
     .with_executor_event_tx(run.events.clone())
+    .with_run_message(Arc::new(move |message| {
+        progress.write().message = Some(message);
+    }))
     .with_decision_tx(decisions.tx.clone(), decisions.run_id.clone())
     .with_early_tracking_limit_flip(early);
     let flip_result = flip_executor.execute(&flip_ctx).await;
@@ -125,6 +140,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                 duration_secs
             );
             rig.trigger_state.write().await.mark_flip_performed();
+            failure.clear();
             ActionFlow::Finished
         }
         crate::meridian_flip_executor::FlipResult::Failed {
@@ -136,18 +152,25 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                 error,
                 action_taken
             );
-            failure.latch(|| {
-                format!(
-                    "Meridian flip for '{}' failed after {} attempt{}: {}",
-                    target_name,
-                    flip_attempts,
-                    plural(flip_attempts),
-                    error
-                )
-            });
             // The executor records the flip once the new pier side is
             // verified, so a later failure is acquisition recovery failing.
             let flipped = rig.trigger_state.read().await.meridian.has_flipped();
+            if flipped {
+                // The mount is where the run expects it. The pause below
+                // tells the operator; the run's verdict is no longer the
+                // flip's.
+                failure.clear();
+            } else {
+                failure.latch(|| {
+                    format!(
+                        "Meridian flip for '{}' failed after {} attempt{}: {}",
+                        target_name,
+                        flip_attempts,
+                        plural(flip_attempts),
+                        error
+                    )
+                });
+            }
             match action_taken {
                 crate::FlipFailureAction::PauseAndAlert => {
                     // No separate Error event: the Critical MeridianFlipOutcome

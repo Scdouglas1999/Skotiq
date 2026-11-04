@@ -405,6 +405,8 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_ExposureCompleted() => 'Exposure complete',
     SequencerEvent_Error() => 'Sequencer error',
     SequencerEvent_MeridianFlipOutcome(outcome: final o) => switch (o) {
+      // Sent when the mount reaches its new side; the verdict follows.
+      'pier_changed' => 'Meridian flip: mount on the new pier side',
       'success' => 'Meridian flip complete',
       'aborted' => 'Meridian flip aborted',
       _ => 'Meridian flip FAILED',
@@ -486,6 +488,12 @@ String _sequencerDetail(SequencerEvent v) {
     ) =>
       '$f/$t · ${d.toStringAsFixed(1)}s',
     SequencerEvent_Error(message: final m) => m,
+    SequencerEvent_MeridianFlipOutcome(
+      targetName: final t,
+      outcome: 'pier_changed',
+      newPierSide: final side,
+    ) =>
+      '$t · pier ${side.toLowerCase()}',
     SequencerEvent_MeridianFlipOutcome(
       targetName: final t,
       outcome: final o,

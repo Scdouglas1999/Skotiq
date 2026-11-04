@@ -802,9 +802,17 @@ mod tests {
         assert!(apply_mount_tracking_poll(&mut state, false));
     }
 
+    /// The operator turned on "Stop the run for quality problems": a guider
+    /// that does not restart after the flip pauses the run.
     #[tokio::test(start_paused = true)]
     async fn a_failed_post_flip_guider_pauses_capture_without_flipping_twice() {
         let mut h = Harness::new().await;
+        h.dispatcher
+            .rig
+            .trigger_state
+            .write()
+            .await
+            .stop_on_quality_problems = true;
         h.ops.guider_start_fails.store(true, Ordering::SeqCst);
         let mut events = h.dispatcher.run.events.subscribe();
         h.tick().await;
@@ -860,6 +868,139 @@ mod tests {
         assert_eq!(
             *h.dispatcher.run.executor_state.read().await,
             ExecutorState::Paused
+        );
+    }
+
+    fn flip_outcomes(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<(String, String)> {
+        let mut outcomes = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let ExecutorEvent::MeridianFlipOutcome {
+                outcome,
+                new_pier_side,
+                ..
+            } = event
+            {
+                outcomes.push((outcome, new_pier_side));
+            }
+        }
+        outcomes
+    }
+
+    /// The 2026-11-03 flip after the resume: the mount reached the east side
+    /// and tracked, and the guider found no star it would take. Under the
+    /// default settings that is a quality problem. The operator is told, the
+    /// hold ends and the run images on; the flip is counted when the pier
+    /// changed, and guiding reads as stopped for the flip, not as waiting for
+    /// one.
+    #[tokio::test(start_paused = true)]
+    async fn a_failed_post_flip_guider_notifies_and_the_run_images_on() {
+        let mut h = Harness::new().await;
+        h.ops.guider_start_fails.store(true, Ordering::SeqCst);
+        let mut events = h.dispatcher.run.events.subscribe();
+        let mut outcomes = h.dispatcher.run.events.subscribe();
+        h.tick().await;
+        h.dispatcher
+            .rig
+            .trigger_state
+            .write()
+            .await
+            .current_hour_angle = Some(0.4);
+        h.tick().await;
+        assert_eq!(h.slews(), 1);
+        assert_eq!(
+            *h.dispatcher.run.executor_state.read().await,
+            ExecutorState::Running
+        );
+        h.tick().await;
+        assert!(h.dispatcher.tracking_limit_hold.is_none());
+        assert!(!h.dispatcher.run.is_paused.load(Ordering::Relaxed));
+        let state = h.dispatcher.rig.trigger_state.read().await.clone();
+        assert!(state.meridian.has_flipped());
+        assert_eq!(state.run.hold(), None);
+        assert!(
+            state.guiding.resume_pending(),
+            "the next light frame tries guiding again"
+        );
+        drop(state);
+        let warnings = drain_warnings(&mut events);
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("After the meridian flip") && w.contains("The run continues")),
+            "{warnings:?}"
+        );
+        assert_eq!(
+            flip_outcomes(&mut outcomes),
+            vec![
+                ("pier_changed".to_string(), "East".to_string()),
+                ("success".to_string(), "East".to_string()),
+            ]
+        );
+        let reasons: Vec<String> = h
+            .ops
+            .calls()
+            .into_iter()
+            .filter(|c| c.starts_with("guider_stop_reason:"))
+            .collect();
+        assert_eq!(
+            reasons.last().map(String::as_str),
+            Some("guider_stop_reason:meridian_flip"),
+            "{reasons:?}"
+        );
+        assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
+        assert_eq!(h.slews(), 1, "the mount does not flip again");
+    }
+
+    /// The window flip failed with the mount still west and paused the run;
+    /// after the resume the next flip reached the east side. The first
+    /// failure no longer describes the mount, so it is not the run's verdict.
+    #[tokio::test(start_paused = true)]
+    async fn a_flip_that_reaches_the_new_side_clears_an_earlier_flip_failure() {
+        let mut h = Harness::new().await;
+        h.ops.flip_refused.store(true, Ordering::SeqCst);
+        h.tick().await;
+        h.dispatcher
+            .rig
+            .trigger_state
+            .write()
+            .await
+            .current_hour_angle = Some(0.4);
+        h.tick().await;
+        assert_eq!(
+            *h.dispatcher.run.executor_state.read().await,
+            ExecutorState::Paused
+        );
+        assert!(h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
+        let first = h.dispatcher.flip_failure.failure.read().clone();
+        assert!(
+            first.as_deref().is_some_and(|f| f.contains("Pier side")),
+            "{first:?}"
+        );
+
+        h.ops.flip_refused.store(false, Ordering::SeqCst);
+        h.dispatcher
+            .trigger_manager
+            .write()
+            .await
+            .get_trigger_mut("meridian_flip")
+            .unwrap()
+            .reset_for_new_run();
+        h.resume().await;
+        h.tick().await;
+        h.tick().await;
+        assert!(h
+            .dispatcher
+            .rig
+            .trigger_state
+            .read()
+            .await
+            .meridian
+            .has_flipped());
+        assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
+        assert_eq!(*h.dispatcher.flip_failure.failure.read(), None);
+        assert_eq!(
+            *h.dispatcher.run.executor_state.read().await,
+            ExecutorState::Running
         );
     }
 

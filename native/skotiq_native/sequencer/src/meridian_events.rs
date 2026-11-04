@@ -27,6 +27,18 @@ pub enum FlipStep {
 }
 
 impl FlipStep {
+    /// A step that runs once the mount is on its new side and tracks, so its
+    /// failure is a quality problem rather than a mount in the wrong place.
+    pub fn after_the_mount_tracks(&self) -> bool {
+        matches!(
+            self,
+            FlipStep::PlateSolvingAndCentering
+                | FlipStep::Refocusing
+                | FlipStep::ResumingGuider
+                | FlipStep::Settling
+        )
+    }
+
     pub fn description(&self) -> &'static str {
         match self {
             FlipStep::PausingGuider => "Pausing guider",

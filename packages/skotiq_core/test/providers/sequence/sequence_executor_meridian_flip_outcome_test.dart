@@ -66,6 +66,7 @@ void main() {
     String? error,
     String? actionTaken,
     double durationSecs = 41.2,
+    String newPierSide = 'West',
   }) {
     return backend_events.SkotiqEvent(
       timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -77,7 +78,7 @@ void main() {
       data: {
         'outcome': outcome,
         'target_name': 'MeridianTarget',
-        'new_pier_side': 'West',
+        'new_pier_side': newPierSide,
         'duration_secs': durationSecs,
         'attempts': attempts,
         'failed_steps': failedSteps,
@@ -282,6 +283,68 @@ void main() {
       container.read(liveSequenceStatsProvider)!.errorMessages,
       contains('Sequence failed'),
     );
+  });
+
+  // 2026-11-03: the mount reached the east side at 22:38 and meridianFlips
+  // stayed 0 through twelve minutes of recovery and after it.
+  test('a flip is counted when the pier changes, and once', () {
+    final (container, executor) = build();
+
+    executor.handleSequencerEventForTest(
+      flipEvent(outcome: meridianFlipPierChangedOutcome, newPierSide: 'East'),
+    );
+    expect(container.read(liveSequenceStatsProvider)!.meridianFlips, 1);
+
+    executor.handleSequencerEventForTest(
+      flipEvent(
+        outcome: 'success',
+        attempts: 4,
+        failedSteps: const [
+          'Resuming guider: PHD2 found no guide star',
+          'Resuming guider: PHD2 found no guide star',
+          'Plate solving and centering: Plate solve failed',
+        ],
+        newPierSide: 'East',
+      ),
+    );
+    final stats = container.read(liveSequenceStatsProvider)!;
+    expect(stats.meridianFlips, 1, reason: 'the same flip, counted once');
+    expect(stats.errorMessages, isEmpty);
+  });
+
+  test('a flip whose recovery failed after the pier changed says so', () {
+    final (container, executor) = build();
+    container.read(sequenceExecutionStateProvider.notifier).state =
+        SequenceExecutionState.running;
+
+    executor
+      ..handleSequencerEventForTest(
+        flipEvent(outcome: meridianFlipPierChangedOutcome, newPierSide: 'East'),
+      )
+      ..handleSequencerEventForTest(
+        flipEvent(
+          outcome: 'failed',
+          attempts: 4,
+          error: 'Plate solving and centering: Plate solve failed',
+          actionTaken: 'PauseAndAlert',
+          newPierSide: 'East',
+        ),
+      );
+
+    final stats = container.read(liveSequenceStatsProvider)!;
+    expect(stats.meridianFlips, 1);
+    expect(
+      stats.errorMessages.single,
+      allOf(
+        contains('reached the new pier side'),
+        contains('Plate solve failed'),
+        isNot(contains('FAILED')),
+      ),
+    );
+
+    // The next flip is counted on its own.
+    executor.handleSequencerEventForTest(flipEvent(outcome: 'success'));
+    expect(container.read(liveSequenceStatsProvider)!.meridianFlips, 2);
   });
 
   test('run vitals carry errorMessages over the remote wire', () {

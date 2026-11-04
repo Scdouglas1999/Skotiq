@@ -359,6 +359,13 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.guider_get_calibration().await
     }
 
+    async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
+        self.record(format!(
+            "guider_stop_reason:{}",
+            reason.map_or("none", |r| r.as_wire())
+        ));
+    }
+
     async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
         self.record("guider_start");
         if self.guider_start_fails.load(Ordering::SeqCst) {

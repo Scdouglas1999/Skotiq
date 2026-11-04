@@ -71,6 +71,37 @@ void main() {
     );
   });
 
+  // 2026-11-03: the mount reached the east side at 22:38 and the flip's
+  // recovery then failed. The flip is marked when the pier changes, so the
+  // "next flip" displays stop announcing it, and a success after a pier
+  // change is the same flip.
+  test('a flip is marked when the pier changes, once', () async {
+    final h = await sessionHarness();
+    final keep = h.container.listen(nightSessionEventsProvider, (_, __) {});
+    addTearDown(keep.close);
+    SkotiqEvent flip(String outcome, int minutes) => SkotiqEvent(
+          timestamp:
+              kNight.add(Duration(minutes: minutes)).millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.sequencer,
+          eventType: 'MeridianFlipOutcome',
+          data: <String, dynamic>{'outcome': outcome},
+        );
+    h.backend
+      ..emitEvent(flip(meridianFlipPierChangedOutcome, 10))
+      ..emitEvent(flip('failed', 20))
+      ..emitEvent(flip(meridianFlipPierChangedOutcome, 30))
+      ..emitEvent(flip('success', 40));
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      h.read(nightSessionEventsProvider).flips,
+      <DateTime>[
+        kNight.add(const Duration(minutes: 10)),
+        kNight.add(const Duration(minutes: 30)),
+      ],
+    );
+  });
+
   test('the temperature chart uses the cooler history inside the session',
       () async {
     final h = await sessionHarness();

@@ -477,7 +477,12 @@ pub(crate) async fn run_sequencer_event_loop(
                     // subsequent frame is suspect. A flip that only succeeded
                     // after retries is a Warning — it worked, but the recenter
                     // wobbled and the operator should look at the framing.
+                    // The pier-change notice comes before the verdict and
+                    // only says the mount reached its new side.
                     let severity = match outcome.as_str() {
+                        skotiq_sequencer::meridian_flip_executor::PIER_CHANGED_OUTCOME => {
+                            EventSeverity::Info
+                        }
                         "success" if failed_steps.is_empty() => EventSeverity::Info,
                         "success" => EventSeverity::Warning,
                         "aborted" => EventSeverity::Warning,

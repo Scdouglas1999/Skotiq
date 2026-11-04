@@ -23,7 +23,7 @@ pub(super) struct Dispatcher {
     pub(super) rig: Rig,
     pub(super) decisions: DecisionLog,
     park: ParkSignals,
-    flip_failure: FlipFailureLatch,
+    pub(super) flip_failure: FlipFailureLatch,
     custom: CustomBranches,
     pub(super) trigger_manager: Arc<RwLock<TriggerManager>>,
     pub(super) tracking_limit_hold: Option<super::tracking_limit::TrackingLimitHold>,

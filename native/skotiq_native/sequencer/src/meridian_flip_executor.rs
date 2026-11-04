@@ -40,6 +40,28 @@ use crate::{AutofocusConfig, FlipFailureAction, MeridianFlipConfig};
 /// progress on this string, so it must stay stable.
 pub const MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID: &str = "trigger:meridian_flip";
 
+/// `MeridianFlipOutcome.outcome` sent the moment the mount is verified on its
+/// new pier side, before the flip's centering and guiding are done. The flip's
+/// own verdict (`success`, `failed`, `aborted`) still follows.
+pub const PIER_CHANGED_OUTCOME: &str = "pier_changed";
+
+fn side_name(side: PierSide) -> &'static str {
+    match side {
+        PierSide::East => "east",
+        PierSide::West => "west",
+        PierSide::Unknown => "unknown",
+    }
+}
+
+/// `template` with the side's name in place of `{}`, or nothing for an
+/// unknown side.
+fn on_side(side: PierSide, template: &str) -> String {
+    match side {
+        PierSide::Unknown => String::new(),
+        side => template.replace("{}", side_name(side)),
+    }
+}
+
 // The flip's coordinate tolerance (1 arcminute), safety-action retry count
 // (3) and delay (5 s), and minimum post-flip altitude (10°) are fields on
 // `MeridianFlipConfig`, user-configurable from the meridian-flip settings
@@ -154,7 +176,15 @@ pub struct MeridianFlipExecutor {
     /// Where the mount pointed when the flip slew was sent, and when, so a
     /// flip that left the mount on its old side can tell whether it moved.
     flip_slew_start: parking_lot::Mutex<Option<((f64, f64), tokio::time::Instant)>>,
+    /// Where the run's status line goes, so `message` on the status API says
+    /// what the flip is doing instead of the hold that came before it.
+    run_message: Option<RunMessageSink>,
+    /// The pier side the flip reached, once verified.
+    reached_pier_side: parking_lot::Mutex<Option<PierSide>>,
 }
+
+/// Writes the run's one-line status message.
+pub type RunMessageSink = Arc<dyn Fn(String) + Send + Sync>;
 
 impl MeridianFlipExecutor {
     /// Create a new flip executor
@@ -173,7 +203,15 @@ impl MeridianFlipExecutor {
             early_tracking_limit_flip: false,
             original_recovery_filter: parking_lot::Mutex::new(None),
             flip_slew_start: parking_lot::Mutex::new(None),
+            run_message: None,
+            reached_pier_side: parking_lot::Mutex::new(None),
         }
+    }
+
+    /// Keep the run's status message current through the flip.
+    pub fn with_run_message(mut self, sink: RunMessageSink) -> Self {
+        self.run_message = Some(sink);
+        self
     }
 
     /// Mark this flip as an early tracking-limit flip; see the field.
@@ -294,7 +332,11 @@ impl MeridianFlipExecutor {
             } => ExecutorEvent::MeridianFlipOutcome {
                 outcome: "failed".to_string(),
                 target_name: ctx.target_name.clone(),
-                new_pier_side: "Unknown".to_string(),
+                // A flip whose recovery failed still reached its new side.
+                new_pier_side: format!(
+                    "{:?}",
+                    self.reached_pier_side.lock().unwrap_or(PierSide::Unknown)
+                ),
                 duration_secs: 0.0,
                 attempts: self.attempts_made,
                 failed_steps: self.failed_attempts.clone(),
@@ -323,6 +365,7 @@ impl MeridianFlipExecutor {
         // if one is ever reused for a second flip on the same target.
         self.attempts_made = 0;
         self.failed_attempts.clear();
+        *self.reached_pier_side.lock() = None;
 
         if self.config.max_retries > 0 && self.config.retry_delays_secs.is_empty() {
             let msg = format!(
@@ -569,6 +612,11 @@ impl MeridianFlipExecutor {
                         }
                         state.mark_flip_performed();
                     }
+                    self.say(format!(
+                        "Meridian flip for '{}' finished{}.",
+                        ctx.target_name,
+                        on_side(new_pier_side, ": the mount is on the {} side of the pier")
+                    ));
                     return FlipResult::Success {
                         new_pier_side,
                         duration_secs: duration,
@@ -610,6 +658,28 @@ impl MeridianFlipExecutor {
                             reason: reason.clone(),
                         });
                         return FlipResult::Aborted { reason };
+                    }
+                    if attempt >= max_attempts
+                        && pier_verified
+                        && failed_step.after_the_mount_tracks()
+                        && !self.stops_on_quality_problems(ctx).await
+                    {
+                        // The mount is on its new side and tracks: a recenter
+                        // that never solved or a guider that did not restart
+                        // is a quality problem. The operator is told and the
+                        // run images on; guiding is tried again before the
+                        // next frame. The flip was recorded when the side was
+                        // verified.
+                        self.carry_on_after_flip(ctx, &e).await;
+                        let duration = start_time.elapsed().as_secs_f64();
+                        self.emit_event(MeridianFlipEvent::Completed {
+                            new_pier_side: verified_pier_side,
+                            duration_secs: duration,
+                        });
+                        return FlipResult::Success {
+                            new_pier_side: verified_pier_side,
+                            duration_secs: duration,
+                        };
                     }
                     if attempt < max_attempts {
                         // With user-provided delays, saturate on the LAST entry; with an
@@ -692,6 +762,20 @@ impl MeridianFlipExecutor {
                             max_attempts: max_attempts_u8,
                             delay_secs: delay,
                         });
+                        self.say(format!(
+                            "Meridian flip for '{}': attempt {} of {} failed ({}){}. Trying \
+                             again in {:.0} s.",
+                            ctx.target_name,
+                            attempt,
+                            max_attempts,
+                            e,
+                            if pier_verified {
+                                "; the mount is already on the new pier side"
+                            } else {
+                                ""
+                            },
+                            delay
+                        ));
 
                         // Wait before retry, honouring cancellation.
                         let total = std::time::Duration::from_secs_f64(delay);
@@ -799,6 +883,7 @@ impl MeridianFlipExecutor {
                 step_index: step_index_u8,
                 total_steps,
             });
+            self.say(self.step_message(ctx, *step, *new_pier_side));
 
             let step_start = Instant::now();
 
@@ -947,6 +1032,97 @@ impl MeridianFlipExecutor {
             // run guided on before is no measure for the ones it picks now,
             // as with a new target.
             state.guide_star_reference = None;
+        }
+        *self.reached_pier_side.lock() = Some(new_pier_side);
+        // Guiding is stopped for the flip now, not for a tracking-limit hold
+        // that waits for a flip which has happened.
+        self.device_ops
+            .guider_note_stop_reason(Some(crate::GuidingStopReason::MeridianFlip))
+            .await;
+        // The pier change is the flip: counted now, while centering and
+        // guiding are still being set up, so the run's flip count and the
+        // "next flip" displays do not wait for (or miss) the rest.
+        if let Some(tx) = &self.executor_event_tx {
+            let _ = tx.send(ExecutorEvent::MeridianFlipOutcome {
+                outcome: PIER_CHANGED_OUTCOME.to_string(),
+                target_name: ctx.target_name.clone(),
+                new_pier_side: format!("{:?}", new_pier_side),
+                duration_secs: 0.0,
+                attempts: self.attempts_made,
+                failed_steps: self.failed_attempts.clone(),
+                error: None,
+                action_taken: None,
+            });
+        }
+    }
+
+    async fn stops_on_quality_problems(&self, ctx: &FlipContext) -> bool {
+        match &ctx.trigger_state {
+            Some(state) => state.read().await.stop_on_quality_problems,
+            None => false,
+        }
+    }
+
+    /// Tell the operator what failed after the mount reached its new side and
+    /// that the run goes on.
+    async fn carry_on_after_flip(&self, ctx: &FlipContext, problem: &str) {
+        let continuation = crate::executor::quality_problem_continuation(
+            "After the meridian flip",
+            &format!(
+                "{problem}. The mount is on its new pier side and tracks; imaging continues and \
+                 guiding is tried again before the next frame."
+            ),
+            serde_json::json!({ "target_name": ctx.target_name }),
+        );
+        tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
+        if let Some(tx) = &self.decision_tx {
+            let mut decision = continuation.decision;
+            decision.sequence_run_id = *self.active_sequence_run_id.read();
+            let _ = tx.send(decision);
+        }
+        self.say(continuation.operator_message.clone());
+        if let Some(tx) = &self.executor_event_tx {
+            let _ = tx.send(ExecutorEvent::Warning {
+                message: continuation.operator_message,
+            });
+        }
+    }
+
+    /// Set the run's status message.
+    fn say(&self, message: String) {
+        if let Some(sink) = &self.run_message {
+            sink(message);
+        }
+    }
+
+    /// The run's status message while `step` runs.
+    fn step_message(&self, ctx: &FlipContext, step: FlipStep, reached: PierSide) -> String {
+        let doing = match step {
+            FlipStep::PausingGuider => "stopping guiding",
+            FlipStep::EnablingTracking => "turning tracking on",
+            FlipStep::SlewingToTarget => "slewing to the other side of the pier",
+            FlipStep::VerifyingPierSide => "checking the pier side",
+            FlipStep::ConfirmingTracking => "checking that the mount tracks",
+            FlipStep::PlateSolvingAndCentering => "plate solving and centering the target",
+            FlipStep::Refocusing => "refocusing",
+            FlipStep::ResumingGuider => "restarting guiding",
+            FlipStep::Settling => "settling",
+        };
+        let max_attempts = self.config.max_retries + 1;
+        let attempt = if max_attempts > 1 {
+            format!(" (attempt {} of {})", self.attempts_made, max_attempts)
+        } else {
+            String::new()
+        };
+        match reached {
+            PierSide::Unknown => {
+                format!("Meridian flip for '{}'{attempt}: {doing}.", ctx.target_name)
+            }
+            side => format!(
+                "Meridian flip for '{}': the mount is on the {} side of the pier; {doing}{attempt}.",
+                ctx.target_name,
+                side_name(side)
+            ),
         }
     }
 
@@ -2353,6 +2529,8 @@ mod tests {
         slews_before_guider_stop: Mutex<Vec<i32>>,
         /// The guider has been stopped and not started again.
         guider_stopped: AtomicBool,
+        /// Every stop reason the flip noted, in order.
+        stop_reasons: Mutex<Vec<Option<crate::GuidingStopReason>>>,
         /// Camera exposures taken while the guider was guiding.
         exposures_while_guiding: AtomicI32,
         /// Whether the cover is closed.
@@ -2725,6 +2903,10 @@ mod tests {
                 .unwrap()
                 .push(self.state.guider_start_calls.load(Ordering::Relaxed));
             Ok(())
+        }
+
+        async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
+            self.state.stop_reasons.lock().unwrap().push(reason);
         }
 
         async fn guider_stop(&self) -> DeviceResult<()> {
@@ -3351,11 +3533,14 @@ mod tests {
         );
     }
 
-    /// Drain the executor event stream and return every flip outcome on it.
+    /// Drain the executor event stream and return every flip verdict on it.
+    /// The pier-change notice sent on the way is not a verdict.
     fn flip_outcomes(rx: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<ExecutorEvent> {
         let mut outcomes = Vec::new();
         while let Ok(event) = rx.try_recv() {
-            if matches!(event, ExecutorEvent::MeridianFlipOutcome { .. }) {
+            if matches!(&event, ExecutorEvent::MeridianFlipOutcome { outcome, .. }
+                if outcome != PIER_CHANGED_OUTCOME)
+            {
                 outcomes.push(event);
             }
         }
@@ -4461,9 +4646,61 @@ mod tests {
         );
     }
 
+    /// After the new pier side is verified, a recenter that never solves or
+    /// guiding over the RMS ceiling is told and the flip completes once its
+    /// retries are spent. Nothing pauses or parks, and the flip stays
+    /// recorded.
     #[tokio::test(start_paused = true)]
-    async fn exhausted_post_flip_recovery_honors_failure_action_even_when_quality_warnings_continue(
-    ) {
+    async fn post_flip_quality_problems_notify_and_complete_the_flip() {
+        for (solve_failures, rms_ceiling) in [(100, 3.0), (0, 0.5)] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.pier_sides.lock().unwrap().extend([
+                crate::meridian::PierSide::East,
+                crate::meridian::PierSide::West,
+            ]);
+            state
+                .plate_solve_failures_remaining
+                .store(solve_failures, Ordering::Relaxed);
+            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+            let config = MeridianFlipConfig {
+                pause_guiding: false,
+                auto_center: true,
+                refocus_after: false,
+                resume_guiding: true,
+                settle_time: 0.0,
+                max_retries: 1,
+                retry_delays_secs: vec![0.0],
+                failure_action: FlipFailureAction::AbortAndPark,
+                max_post_settle_rms_pixels: rms_ceiling,
+                ..Default::default()
+            };
+            let (tx, mut rx) = broadcast::channel(64);
+            let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+            let ts = Arc::new(RwLock::new(TriggerState::new()));
+            let ctx = FlipContext {
+                trigger_state: Some(ts.clone()),
+                ..make_ctx(&state)
+            };
+            let result = executor.execute(&ctx).await;
+            assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+            assert_eq!(executor.attempts_made, 2);
+            assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+            assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
+            assert!(ts.read().await.meridian.has_flipped());
+            let mut warned = false;
+            while let Ok(event) = rx.try_recv() {
+                if let ExecutorEvent::Warning { message } = event {
+                    warned |= message.contains("After the meridian flip");
+                }
+            }
+            assert!(warned, "the post-flip problem must be told");
+        }
+    }
+
+    /// With "Stop the run for quality problems" on, the same problems follow
+    /// the failure action.
+    #[tokio::test(start_paused = true)]
+    async fn exhausted_post_flip_recovery_follows_the_failure_action_on_request() {
         for (solve_failures, rms_ceiling) in [(100, 3.0), (0, 0.5)] {
             let state = Arc::new(MockDeviceOpsState::default());
             state.pier_sides.lock().unwrap().extend([
@@ -4488,7 +4725,9 @@ mod tests {
             };
             let (tx, _rx) = broadcast::channel(64);
             let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
-            let ts = Arc::new(RwLock::new(TriggerState::new()));
+            let mut quality_stops = TriggerState::new();
+            quality_stops.stop_on_quality_problems = true;
+            let ts = Arc::new(RwLock::new(quality_stops));
             let ctx = FlipContext {
                 trigger_state: Some(ts.clone()),
                 ..make_ctx(&state)
@@ -4633,7 +4872,8 @@ mod tests {
         }
     }
 
-    /// Failed guiding follows the configured failure action after a physical flip.
+    /// With "Stop the run for quality problems" on, failed guiding after a
+    /// physical flip follows the configured failure action.
     #[tokio::test(start_paused = true)]
     async fn post_flip_guider_failure_honors_park_policy() {
         let state = Arc::new(MockDeviceOpsState::default());
@@ -4656,6 +4896,7 @@ mod tests {
         let mut executor = MeridianFlipExecutor::new(config, ops);
         let mut guiding_run = TriggerState::new();
         guiding_run.set_guiding_enabled(true);
+        guiding_run.stop_on_quality_problems = true;
         let ts = Arc::new(RwLock::new(guiding_run));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),
@@ -4672,6 +4913,57 @@ mod tests {
             ts.read().await.guiding.resume_pending(),
             "the next light frame restarts guiding"
         );
+    }
+
+    /// A guider that will not restart after a verified flip is a lost guide
+    /// star, which only notifies: guiding is stopped, the operator is told,
+    /// nothing parks whatever the failure action says, and the next light
+    /// frame tries guiding again. The retries stay bounded.
+    #[tokio::test(start_paused = true)]
+    async fn a_post_flip_guider_failure_notifies_and_never_parks() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        state.guider_start_fails.store(true, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: true,
+            auto_center: true,
+            refocus_after: false,
+            resume_guiding: true,
+            settle_time: 0.0,
+            max_retries: 3,
+            retry_delays_secs: vec![30.0, 60.0, 120.0],
+            failure_action: FlipFailureAction::AbortAndPark,
+            ..Default::default()
+        };
+        let (tx, mut rx) = broadcast::channel(256);
+        let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+        let mut guiding_run = TriggerState::new();
+        guiding_run.set_guiding_enabled(true);
+        let ts = Arc::new(RwLock::new(guiding_run));
+        let ctx = FlipContext {
+            trigger_state: Some(ts.clone()),
+            ..make_ctx(&state)
+        };
+
+        let result = executor.execute(&ctx).await;
+
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+        assert_eq!(executor.attempts_made, 4, "the configured retries, no more");
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
+        assert!(state.guider_stopped.load(Ordering::Relaxed));
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        assert!(ts.read().await.meridian.has_flipped());
+        assert!(ts.read().await.guiding.resume_pending());
+        let warned = std::iter::from_fn(|| rx.try_recv().ok()).any(|event| {
+            matches!(event, ExecutorEvent::Warning { message }
+                if message.contains("After the meridian flip")
+                    && message.contains("The run continues"))
+        });
+        assert!(warned, "the post-flip problem must be told");
     }
 
     /// Every slew tracks, the flip's too: tracking goes on before the slew
@@ -4776,7 +5068,9 @@ mod tests {
             ..Default::default()
         };
         let mut executor = MeridianFlipExecutor::new(config, ops);
-        let ts = Arc::new(RwLock::new(TriggerState::new()));
+        let mut quality_stops = TriggerState::new();
+        quality_stops.stop_on_quality_problems = true;
+        let ts = Arc::new(RwLock::new(quality_stops));
         let ctx = FlipContext {
             trigger_state: Some(ts.clone()),
             ..make_ctx(&state)
@@ -4787,6 +5081,132 @@ mod tests {
         assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
         assert!(ts.read().await.meridian.has_flipped());
     }
+
+    /// Before the pier side changes the mount is still pointed into its
+    /// limit, so a flip that never reached the other side follows the failure
+    /// action whatever the quality setting says.
+    #[tokio::test(start_paused = true)]
+    async fn a_flip_that_never_reaches_the_other_side_follows_the_failure_action() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::West,
+            crate::meridian::PierSide::West,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: true,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 1,
+            retry_delays_secs: vec![0.0],
+            failure_action: FlipFailureAction::PauseAndAlert,
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let ts = Arc::new(RwLock::new(TriggerState::new()));
+        let ctx = FlipContext {
+            trigger_state: Some(ts.clone()),
+            ..make_ctx(&state)
+        };
+        match executor.execute(&ctx).await {
+            FlipResult::Failed { error, .. } => {
+                assert!(error.contains("Pier side did not change"), "{error}")
+            }
+            other => panic!("expected the flip to fail, got {other:?}"),
+        }
+        assert_eq!(executor.attempts_made, 2);
+        assert!(!ts.read().await.meridian.has_flipped());
+    }
+
+    /// The run's status message follows the flip: each step, the attempt it
+    /// is on, a retry and its wait, and the side the mount reached. On
+    /// 2026-11-03 it said "Holding the next 60s exposure for the meridian
+    /// flip, which is 66 min overdue and starting now" for twelve minutes.
+    /// The pier change is announced, and guiding reads as stopped for the
+    /// flip, the moment the mount is verified on its new side.
+    #[tokio::test(start_paused = true)]
+    async fn the_run_message_follows_each_flip_step_and_attempt() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::West,
+            crate::meridian::PierSide::East,
+        ]);
+        state
+            .plate_solve_failures_remaining
+            .store(3, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: true,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 1,
+            retry_delays_secs: vec![30.0],
+            ..Default::default()
+        };
+        let messages = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let sink = messages.clone();
+        let (tx, mut rx) = broadcast::channel(64);
+        let mut executor = MeridianFlipExecutor::new(config, ops)
+            .with_executor_event_tx(tx)
+            .with_run_message(Arc::new(move |m| sink.lock().unwrap().push(m)));
+        let result = executor.execute(&make_ctx(&state)).await;
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+
+        let messages = messages.lock().unwrap().clone();
+        let has = |text: &str| messages.iter().any(|m| m.contains(text));
+        assert!(
+            has("Meridian flip for 'M42' (attempt 1 of 2): slewing to the other side of the pier."),
+            "{messages:#?}"
+        );
+        assert!(
+            has(
+                "the mount is on the east side of the pier; plate solving and centering the \
+                 target (attempt 1 of 2)"
+            ),
+            "{messages:#?}"
+        );
+        assert!(
+            has("attempt 1 of 2 failed (Plate solving and centering: Plate solve failed")
+                && has("the mount is already on the new pier side. Trying again in 30 s."),
+            "{messages:#?}"
+        );
+        assert!(
+            has("plate solving and centering the target (attempt 2 of 2)"),
+            "{messages:#?}"
+        );
+        assert_eq!(
+            messages.last().map(String::as_str),
+            Some("Meridian flip for 'M42' finished: the mount is on the east side of the pier."),
+        );
+        assert!(!has("Holding"), "{messages:#?}");
+
+        let outcomes: Vec<(String, String)> = std::iter::from_fn(|| rx.try_recv().ok())
+            .filter_map(|event| match event {
+                ExecutorEvent::MeridianFlipOutcome {
+                    outcome,
+                    new_pier_side,
+                    ..
+                } => Some((outcome, new_pier_side)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            outcomes,
+            vec![
+                (PIER_CHANGED_OUTCOME.to_string(), "East".to_string()),
+                ("success".to_string(), "East".to_string()),
+            ]
+        );
+        assert_eq!(
+            state.stop_reasons.lock().unwrap().last().copied(),
+            Some(Some(crate::GuidingStopReason::MeridianFlip))
+        );
+    }
+
     #[tokio::test(start_paused = true)]
     async fn recovery_retries_in_luminance_with_longer_exposures_and_restores_filter() {
         for failures in [3, 100] {
@@ -4799,7 +5219,7 @@ mod tests {
             state
                 .plate_solve_failures_remaining
                 .store(failures, Ordering::Relaxed);
-            let mut ctx = make_ctx(&state);
+            let mut ctx = make_ctx_stopping_on_quality_problems(&state);
             ctx.autofocus_config = Some(PostFlipAutofocusConfig {
                 filterwheel_id: Some("wheel".into()),
                 ..Default::default()
@@ -4904,7 +5324,7 @@ mod tests {
             state
                 .plate_solve_failures_remaining
                 .store(6, Ordering::Relaxed);
-            let mut ctx = make_ctx(&state);
+            let mut ctx = make_ctx_stopping_on_quality_problems(&state);
             ctx.target_ra_hours = (local_sidereal_time(julian_day(&chrono::Utc::now()), -75.0)
                 - 0.5)
                 .rem_euclid(24.0);
