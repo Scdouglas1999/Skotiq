@@ -950,6 +950,8 @@ impl DeviceOps for UnifiedDeviceOps {
 
         // The Log named slots by number ("0 → 1") while Equipment read
         // "R (2 of 8)": the events carry the profile's names for the slots.
+        // Slot names are optional event labels; an unavailable config uses
+        // numeric labels. The move below still propagates device errors.
         let names = get_device_manager()
             .filter_wheel_get_config(fw_id)
             .await

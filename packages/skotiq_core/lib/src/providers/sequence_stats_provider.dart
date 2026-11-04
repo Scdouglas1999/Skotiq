@@ -540,8 +540,9 @@ final sequenceTerminalRunResultProvider =
 /// [sequenceTerminalRunResultProvider] because a change of that one opens the
 /// Session Report and starts end-of-night work, which a client joining after
 /// the run must not do.
-final hostTerminalRunResultProvider =
-    StateProvider<SequenceTerminalRunResult?>((ref) => null);
+final hostTerminalRunResultProvider = StateProvider<SequenceTerminalRunResult?>(
+  (ref) => null,
+);
 
 /// The last terminal run result the screens describe: this app's own run, or
 /// on a linked client the host's.

@@ -23,8 +23,8 @@ const Set<String> _thisDeviceSections = {
 
 SettingsScope settingsScopeFor(String sectionKey) =>
     _thisDeviceSections.contains(sectionKey)
-    ? SettingsScope.thisDevice
-    : SettingsScope.imagingHost;
+        ? SettingsScope.thisDevice
+        : SettingsScope.imagingHost;
 
 /// On a linked client, one line above a Settings section saying whose
 /// settings these are. Shows nothing on the machine that owns the rig.
@@ -41,7 +41,7 @@ class SettingsScopeNotice extends ConsumerWidget {
     final onHost = settingsScopeFor(sectionKey) == SettingsScope.imagingHost;
     final text = onHost
         ? 'Saved on the imaging host (${backend.serverHost}). A change here '
-              'changes the rig for everyone linked to it.'
+            'changes the rig for everyone linked to it.'
         : 'Saved on this computer only. The imaging host keeps its own.';
     return Padding(
       padding: const EdgeInsets.fromLTRB(

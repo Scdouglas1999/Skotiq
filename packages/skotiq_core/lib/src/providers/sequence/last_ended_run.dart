@@ -69,7 +69,9 @@ class LastEndedRunNotifier extends Notifier<LastEndedRun?> {
 
   bool get _followsHost =>
       ref.read(backendProvider) is NetworkBackend &&
-      ref.read(clientRuntimeMirrorStateProvider).hasApplied(runRecordChannelKey);
+      ref
+          .read(clientRuntimeMirrorStateProvider)
+          .hasApplied(runRecordChannelKey);
 
   /// Show the imaging host's last ended run on a linked client.
   void mirrorHost(LastEndedRun? run) => state = run;

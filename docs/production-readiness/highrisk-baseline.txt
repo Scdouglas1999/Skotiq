@@ -250,3 +250,4 @@ native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/meridi
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/dispatch.rs:244:                    slew.message.unwrap_or_default()
 native/skotiq_native/sequencer/src/device_ops.rs:1329:        let start = device_ops.mount_get_coordinates(mount_id).await.ok();
 native/skotiq_native/sequencer/src/instructions/park.rs:38:    let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();
+native/skotiq_native/bridge/src/unified_device_ops/device_ops.rs:959:            .unwrap_or_default();

@@ -308,7 +308,8 @@ void main() {
   // Rig, 2026-11-03: the run's grader rejected 1 of 8 and the science
   // pipeline's auto-grader 3 more. Tonight read "7 accepted, 1 rejected, 7m"
   // from the run's counters while Analytics read "4/8" from the rows.
-  test('session stats count the rows once frames are recorded, not the run '
+  test(
+      'session stats count the rows once frames are recorded, not the run '
       'counters', () async {
     final live = SequenceRunStats()
       ..framesCaptured = 5
