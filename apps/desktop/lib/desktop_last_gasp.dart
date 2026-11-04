@@ -37,6 +37,7 @@ class DesktopSessionRecord {
     this.lastError,
     this.rigSafed,
     this.safingError,
+    this.ownsRig,
   });
 
   final DesktopSessionOutcome outcome;
@@ -57,6 +58,10 @@ class DesktopSessionRecord {
   final bool? rigSafed;
   final String? safingError;
 
+  /// Whether the session drove equipment of its own. False for a companion
+  /// linked to an imaging host; null in a record from before this was kept.
+  final bool? ownsRig;
+
   bool get endedWithoutShutdownPath => outcome == DesktopSessionOutcome.running;
 
   Map<String, Object?> toJson() => {
@@ -68,6 +73,7 @@ class DesktopSessionRecord {
     if (lastError != null) 'lastError': lastError,
     if (rigSafed != null) 'rigSafed': rigSafed,
     if (safingError != null) 'safingError': safingError,
+    if (ownsRig != null) 'ownsRig': ownsRig,
   };
 
   /// Parses a record written by a previous session. Returns null for anything
@@ -92,6 +98,7 @@ class DesktopSessionRecord {
         lastError: decoded['lastError'] as String?,
         rigSafed: decoded['rigSafed'] as bool?,
         safingError: decoded['safingError'] as String?,
+        ownsRig: decoded['ownsRig'] as bool?,
       );
     } catch (_) {
       return null;
@@ -115,8 +122,39 @@ class DesktopSessionRecord {
       lastError: lastError ?? this.lastError,
       rigSafed: rigSafed ?? this.rigSafed,
       safingError: safingError ?? this.safingError,
+      ownsRig: ownsRig,
     );
   }
+}
+
+/// What a launch says about the previous session, or null when that session
+/// ended on a shutdown path.
+///
+/// A session that just vanished safed nothing, which matters only for one
+/// that drove equipment. A companion linked to an imaging host drives none:
+/// its startup log said "nothing was safed on the way out. Check the rig."
+/// after the companion alone had been stopped (rig, 2026-11-03). A record
+/// that does not say which it was is read by this launch's own role.
+({bool checkTheRig, String message})? previousSessionShutdownReport(
+  DesktopSessionRecord? previous, {
+  required bool thisLaunchOwnsRig,
+}) {
+  if (previous == null || !previous.endedWithoutShutdownPath) return null;
+  if (previous.ownsRig ?? thisLaunchOwnsRig) {
+    return (
+      checkTheRig: true,
+      message:
+          'The previous Skotiq session ended without a shutdown record: '
+          'nothing was safed on the way out. Check the rig.',
+    );
+  }
+  return (
+    checkTheRig: false,
+    message:
+        'The previous Skotiq session ended without a shutdown record. It was '
+        'linked to an imaging host and drove no equipment of its own; the host '
+        'keeps its own record.',
+  );
 }
 
 /// The file a desktop session records its ending in, under the data root this
@@ -145,6 +183,7 @@ class DesktopLastGasp {
     DateTime Function() now = DateTime.now,
     String? version,
     int? pid,
+    bool ownsRig = true,
   }) : _recordFile = recordFile,
        _safeRig = safeRig,
        _exitProcess = exitProcess,
@@ -156,7 +195,8 @@ class DesktopLastGasp {
        _errorRecordInterval = errorRecordInterval,
        _now = now,
        _version = version,
-       _pid = pid;
+       _pid = pid,
+       _ownsRig = ownsRig;
 
   final File _recordFile;
   final Future<void> Function() _safeRig;
@@ -170,6 +210,7 @@ class DesktopLastGasp {
   final DateTime Function() _now;
   final String? _version;
   final int? _pid;
+  final bool _ownsRig;
 
   final List<StreamSubscription<ProcessSignal>> _signalSubscriptions = [];
   DesktopSessionRecord? _current;
@@ -198,7 +239,8 @@ class DesktopLastGasp {
         _onCritical?.call(
           'The previous Skotiq session left an unreadable shutdown record '
           'at ${_recordFile.path} — it was cut off mid-write, so that session '
-          'ended without a shutdown path and nothing was safed. Check the rig.',
+          'ended without a shutdown path'
+          '${_ownsRig ? ' and nothing was safed. Check the rig.' : '.'}',
         );
       }
       return record;
@@ -223,6 +265,7 @@ class DesktopLastGasp {
         at: _now(),
         version: _version,
         pid: _pid,
+        ownsRig: _ownsRig,
       ),
     );
   }
@@ -404,6 +447,7 @@ class DesktopLastGasp {
     at: _now(),
     version: _version,
     pid: _pid,
+    ownsRig: _ownsRig,
   );
 
   void _write(DesktopSessionRecord record) {
