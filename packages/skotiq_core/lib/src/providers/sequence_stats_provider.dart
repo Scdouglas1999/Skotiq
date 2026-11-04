@@ -535,6 +535,22 @@ class SequenceTerminalRunResult {
 final sequenceTerminalRunResultProvider =
     StateProvider<SequenceTerminalRunResult?>((ref) => null);
 
+/// The imaging host's last terminal run result, on a linked client; null on
+/// the host and before the host has reported one. Kept apart from
+/// [sequenceTerminalRunResultProvider] because a change of that one opens the
+/// Session Report and starts end-of-night work, which a client joining after
+/// the run must not do.
+final hostTerminalRunResultProvider =
+    StateProvider<SequenceTerminalRunResult?>((ref) => null);
+
+/// The last terminal run result the screens describe: this app's own run, or
+/// on a linked client the host's.
+final shownTerminalRunResultProvider = Provider<SequenceTerminalRunResult?>(
+  (ref) =>
+      ref.watch(sequenceTerminalRunResultProvider) ??
+      ref.watch(hostTerminalRunResultProvider),
+);
+
 /// The last imaging run, retained when automatic calibration replaces the live
 /// run and session. Updated by the executor before publishing a terminal event.
 class CompletedImagingRun {

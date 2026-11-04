@@ -154,7 +154,7 @@ sk.SkotiqEvent nodeEvent(
 
 /// A container with every P1a input pinned. Defaults: no plan, idle, camera
 /// connected, commands allowed, Boston with the night above, meridian flips
-/// off, the host's clock.
+/// off, the host's clock, a local backend.
 ProviderContainer planContainer({
   required DateTime now,
   Clock clock = const SystemClock(),
@@ -171,12 +171,13 @@ ProviderContainer planContainer({
   List<CapturedImage> sessionFrames = const [],
   List<sk.SkotiqEvent> events = const [],
   RunDashboardFilterTotals totals = RunDashboardFilterTotals.empty,
+  SkotiqBackend? backend,
   List<Override> extra = const [],
 }) {
   final container = ProviderContainer(
     overrides: [
       backendProvider.overrideWith(
-        (ref) => TestBackendNotifier(ref, mockBackend()),
+        (ref) => TestBackendNotifier(ref, backend ?? mockBackend()),
       ),
       inMemoryDatabaseOverride(),
       clockProvider.overrideWithValue(clock),

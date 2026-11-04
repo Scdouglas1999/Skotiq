@@ -17,4 +17,9 @@ List<HeadlessRoute> buildRuntimeStateRoutes(RuntimeStateHandlers h) =>
         '/api/runtime/recent-events',
         h.handleRecentEvents,
       ),
+      HeadlessRoute(
+        HttpMethod.get,
+        '/api/runtime/night-history',
+        h.handleNightHistory,
+      ),
     ];

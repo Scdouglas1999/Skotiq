@@ -273,7 +273,9 @@ export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
 export 'src/providers/runtime_mirror/channels/meridian_flip_channel.dart';
 export 'src/providers/runtime_mirror/channels/plate_solve_channel.dart';
+export 'src/providers/runtime_mirror/channels/run_record_channel.dart';
 export 'src/providers/runtime_mirror/channels/sequence_run_channel.dart';
+export 'src/providers/runtime_mirror/channels/session_frames_channel.dart';
 // Hot-plug device-detection event bridge.
 export 'src/providers/hotplug_event_bridge_provider.dart';
 export 'src/models/backend/host_mutation_event.dart';

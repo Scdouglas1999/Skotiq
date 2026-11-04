@@ -65,15 +65,34 @@ class _ScienceSectionKeys {
 /// nights of photometry sat one row below it.
 final latestScienceSessionProvider = FutureProvider<int?>((ref) async {
   final backend = ref.watch(backendProvider);
-  // Remote rigs answer through the network backend, which has no equivalent
-  // query; the caller falls back to the newest session there.
-  if (backend is NetworkBackend) return null;
+  // A linked client asks the same question of the host's frames, so both
+  // machines open on the same session. Returning null here opened the client
+  // on the quick captures while the host opened on its last night.
+  if (backend is NetworkBackend) {
+    final rows = await ref.watch(allDbImagesProvider.future);
+    return latestSessionIdWithLightFrames(rows);
+  }
   // Watching the session stream reruns the query whenever a session row is
   // written — including the status/end-time update a run makes when it
   // finishes, which is the moment the answer changes.
   await ref.watch(allSessionsProvider.future);
   return ref.read(imagesDaoProvider).getLatestSessionIdWithLightFrames();
 });
+
+/// The session of the newest light frame that belongs to one, the question
+/// `ImagesDao.getLatestSessionIdWithLightFrames` answers on the host.
+int? latestSessionIdWithLightFrames(Iterable<DbCapturedImage> rows) {
+  DbCapturedImage? newest;
+  for (final row in rows) {
+    if (row.sessionId == null || row.frameType.toLowerCase() != 'light') {
+      continue;
+    }
+    if (newest == null || row.capturedAt.isAfter(newest.capturedAt)) {
+      newest = row;
+    }
+  }
+  return newest?.sessionId;
+}
 
 /// The most recent session that carries an actual science PRODUCT — a
 /// photometry measurement or a plate-solved frame. Not the same question as

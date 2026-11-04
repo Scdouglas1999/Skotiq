@@ -51,6 +51,18 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
     return events;
   }
 
+  /// What the host's Tonight has gathered tonight from live events: guide
+  /// steps, autofocus runs, dithers, flips, lost stars, recent solves and the
+  /// cooler history. Null when the host predates the endpoint.
+  Future<Map<String, dynamic>?> getHostNightHistory() async {
+    try {
+      return await _get('runtime/night-history');
+    } on ServerError catch (e) {
+      if (e.httpStatus == 404) return null;
+      rethrow;
+    }
+  }
+
   /// Send a value this client computed for [channel] to the host.
   Future<void> reportRuntimeState({
     required String channel,

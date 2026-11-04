@@ -17,6 +17,7 @@ import '../../night_control_contracts.dart';
 import '../session/session_frames_provider.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
+import 'plan_steps_provider.dart' show nightPlanLagProvider;
 
 /// The run dashboard's key for frames taken without a filter.
 const String _unfiltered = 'Unfiltered';
@@ -68,12 +69,17 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   // session list may still hold the previous one, and the true count is none.
   final done = <String, int>{for (final key in planned.keys) key: 0};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
-    final terminal = ref.watch(sequenceTerminalRunResultProvider);
-    final frames = terminal?.isCalibration == true
+    final terminal = ref.watch(shownTerminalRunResultProvider);
+    // A linked client counts the run's session rows: the frame list below is
+    // what this app saw arrive, and a client that joined after the run
+    // started saw none of the frames before it.
+    final sessionRows = terminal?.isCalibration == true ||
+        ref.watch(backendProvider) is NetworkBackend;
+    final frames = sessionRows
         ? ref.watch(nightSessionLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);
     // This launch's frame list runs across runs; only this run's count.
-    final startedAt = ref.watch(runStartedAtProvider);
+    final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
     final since = startedAt?.subtract(const Duration(seconds: 5));
     for (final frame in frames) {
       if (frame.settings.frameType != FrameType.light) continue;
@@ -128,7 +134,8 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     if (remaining != null) {
       eta = ref.watch(nightNowProvider).add(secs(remaining));
     } else if (!tree.openEnded) {
-      eta = timing?.end;
+      // The plan's estimate runs from the start; a run behind it ends later.
+      eta = timing?.end.add(ref.watch(nightPlanLagProvider));
     }
   } else if (phase != NightRunPhase.finished && !tree.openEnded) {
     eta = timing?.end;

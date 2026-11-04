@@ -1,5 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
+import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../response_helpers.dart';
@@ -37,7 +41,6 @@ class RuntimeStateHandlers {
     'InstructionProgress',
     'InstructionProgressStructured',
     'AutofocusProgress',
-    'IntegrationProgress',
     'Progress',
     'ProgressUpdated',
   };
@@ -50,12 +53,24 @@ class RuntimeStateHandlers {
     final requested = request.url.queryParameters['limit'];
     final parsed = requested == null ? null : int.tryParse(requested);
     final limit = (parsed ?? 100).clamp(1, 200);
-    final kept = [
-      for (final event in _retained())
-        if (!isHostSyncEnvelope(event) &&
-            !_telemetryTypes.contains(event.eventType))
-          event,
-    ];
+    final kept = <SkotiqEvent>[];
+    for (final event in _retained()) {
+      if (isHostSyncEnvelope(event) ||
+          _telemetryTypes.contains(event.eventType)) {
+        continue;
+      }
+      // Integration progress is a line per phase in the host's log
+      // (registering, integrating, writing, done), but it reports each phase
+      // many times; only the newest report of a phase is kept, so the ticks
+      // cannot push the night's other events out of the list.
+      if (event.eventType == 'IntegrationProgress' &&
+          kept.isNotEmpty &&
+          kept.last.eventType == 'IntegrationProgress' &&
+          kept.last.data['phase'] == event.data['phase']) {
+        kept.removeLast();
+      }
+      kept.add(event);
+    }
     final newest = kept.length > limit
         ? kept.sublist(kept.length - limit)
         : kept;
@@ -84,6 +99,21 @@ class RuntimeStateHandlers {
     return jsonOk({
       'updates': [for (final update in updates) update.toJson()],
     });
+  }
+
+  /// GET /api/runtime/night-history — what this host's Tonight gathered
+  /// tonight from live events (guide steps, autofocus runs, dithers, flips,
+  /// lost stars, recent solves, the cooler history). A client that connects mid-night adds the
+  /// part from before it connected, so its charts show what this one shows.
+  Future<Response> handleNightHistory(Request request) async {
+    return jsonOk(
+      encodeNightHistory(
+        guideSamples: container.read(nightGuideSamplesProvider),
+        events: container.read(nightSessionEventsProvider),
+        solves: container.read(nightRecentSolvesProvider),
+        cooler: container.read(temperatureLongHistoryProvider),
+      ),
+    );
   }
 
   Future<Response> handleReport(Request request) async {

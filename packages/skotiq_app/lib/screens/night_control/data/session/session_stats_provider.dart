@@ -20,7 +20,7 @@ final nightCaptureFreeBytesProvider = Provider<int?>((ref) {
 
 final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
   final calibrationFinished =
-      ref.watch(sequenceTerminalRunResultProvider)?.isCalibration == true;
+      ref.watch(shownTerminalRunResultProvider)?.isCalibration == true;
   final live = calibrationFinished
       ? ref.watch(completedImagingRunProvider)?.stats
       : ref.watch(liveSequenceStatsProvider);

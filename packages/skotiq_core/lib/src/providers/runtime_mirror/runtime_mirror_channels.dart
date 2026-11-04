@@ -10,7 +10,9 @@ import 'channels/frame_solve_channel.dart';
 import 'channels/manual_action_channel.dart';
 import 'channels/meridian_flip_channel.dart';
 import 'channels/plate_solve_channel.dart';
+import 'channels/run_record_channel.dart';
 import 'channels/sequence_run_channel.dart';
+import 'channels/session_frames_channel.dart';
 import 'runtime_mirror_channel.dart';
 
 /// Every runtime channel the host shares with linked clients. Host and client
@@ -28,6 +30,8 @@ final runtimeMirrorChannelsProvider =
         EnvironmentChannel(),
         CoolerReadingChannel(),
         SequenceRunChannel(),
+        RunRecordChannel(),
+        SessionFramesChannel(),
         MeridianFlipChannel(),
         ManualActionChannel(),
       ],

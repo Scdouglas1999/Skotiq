@@ -1,10 +1,13 @@
 // The solves and centerings of this session, newest first, for the Solve
 // tab's "Recent solves". Kept in memory from the moment Tonight first shows
 // the Solve tab; nothing survives an app restart, and the list says "this
-// session" because of it.
+// session" because of it. A linked client adds the host's from before it
+// connected.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+
+import '../../data/session/night_history_sync.dart';
 
 enum NightSolveKind { solve, center }
 
@@ -80,6 +83,14 @@ class NightRecentSolvesNotifier extends StateNotifier<List<NightSolveRecord>> {
         ),
       );
     });
+    _ref.listen<AsyncValue<NightHistory?>>(
+      hostNightHistoryProvider,
+      (_, next) {
+        final history = next.valueOrNull;
+        if (history != null) _addEarlier(history.solves);
+      },
+      fireImmediately: true,
+    );
   }
 
   final Ref _ref;
@@ -89,6 +100,20 @@ class NightRecentSolvesNotifier extends StateNotifier<List<NightSolveRecord>> {
   void _add(NightSolveRecord record) {
     if (!mounted) return;
     final next = <NightSolveRecord>[record, ...state];
+    state = next.length > kNightRecentSolvesMax
+        ? next.sublist(0, kNightRecentSolvesMax)
+        : next;
+  }
+
+  /// Add the host's records (newest first) from before this app's oldest.
+  void _addEarlier(List<NightSolveRecord> host) {
+    if (!mounted || host.isEmpty) return;
+    final oldest = state.isEmpty ? null : state.last.at;
+    final next = <NightSolveRecord>[
+      ...state,
+      for (final record in host)
+        if (oldest == null || record.at.isBefore(oldest)) record,
+    ];
     state = next.length > kNightRecentSolvesMax
         ? next.sublist(0, kNightRecentSolvesMax)
         : next;
