@@ -81,6 +81,12 @@ Future<void> _readPhd2GuiderStateOnce(
       notifier.setConnecting('phd2_guider', 'PHD2');
     }
     notifier.setConnected();
+    // A held guider says why. Only a reason is applied: the run status,
+    // which the host always sends, is what clears it.
+    final stopReason = status.stopReason;
+    if (stopReason != null && stopReason.isNotEmpty) {
+      _read(reader, guidingStopReasonProvider.notifier).state = stopReason;
+    }
   } catch (_) {
     // Do not clear a PHD2 guider restored from getConnectedDevices when the
     // status endpoint is briefly unavailable during host launch.

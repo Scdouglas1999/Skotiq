@@ -4,9 +4,9 @@
 // the old dashboard kept alive while it was on screen: the PHD2 controller's
 // event subscription and the critical-events bridge, both providers whose
 // work runs only while something watches them. The end-of-night request to
-// cap the telescope and the run's two alerts (the recovery offer and a
-// critical fault) sit above the layout; each hides itself when there is
-// nothing to say.
+// cap the telescope, the run's two alerts (the recovery offer and a
+// critical fault) and its warnings sit above the layout; each hides itself
+// when there is nothing to say.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -23,6 +23,7 @@ import 'panel/guide/night_guide_tab.dart';
 import 'panel/mount/night_mount_tab.dart';
 import 'panel/night_right_panel.dart';
 import 'panel/solve/night_solve_tab.dart';
+import 'run_warnings_banner.dart';
 
 /// The route Tonight is served on. The path predates the screen and stays
 /// for deep links, notification routes and the tutorial.
@@ -54,6 +55,7 @@ class NightControlScreen extends ConsumerWidget {
         EndOfNightCapBanner(),
         RunDashboardRecoveryBanner(),
         RunDashboardCriticalBanner(),
+        NightRunWarningsBanner(),
         Expanded(
           child: NightControlLayout(
             header: NightHeaderBar(),

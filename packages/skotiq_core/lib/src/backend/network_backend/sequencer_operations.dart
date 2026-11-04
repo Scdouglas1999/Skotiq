@@ -746,6 +746,8 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
               response['runVitals'] as Map<String, dynamic>,
             )
           : null,
+      guidingStopReason: response['guidingStopReason'] as String?,
+      reportsGuidingStopReason: response.containsKey('guidingStopReason'),
     );
   }
 
