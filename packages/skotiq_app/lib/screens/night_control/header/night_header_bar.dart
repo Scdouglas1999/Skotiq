@@ -604,7 +604,7 @@ class _RunPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
-    final tone = _tone(header.phase).resolve(colors);
+    final tone = _tone(header.phase, header.ending).resolve(colors);
     final ink = tone ?? colors.textSecondary;
     final state = _label(l10n);
     final started = header.runStartedAt;
@@ -677,7 +677,11 @@ class _RunPill extends StatelessWidget {
             final id => l10n.text(_pausedForKey(id)),
           },
         NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
-        NightRunPhase.finished => l10n.text('nightCtlPillFinished'),
+        NightRunPhase.finished => switch (header.ending) {
+            NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
+            NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
+            NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
+          },
       };
 
   static String _pausedForKey(ManualActionId id) => switch (id) {
@@ -694,14 +698,22 @@ class _RunPill extends StatelessWidget {
         ManualActionId.cooler => 'nightCtlPausedForCooler',
       };
 
-  static ChipTone _tone(NightRunPhase phase) => switch (phase) {
+  // The finished tones follow the rig chip: a completed run in the primary
+  // tone, a failed one in the error tone.
+  static ChipTone _tone(NightRunPhase phase, NightRunEnding? ending) =>
+      switch (phase) {
         NightRunPhase.running => ChipTone.success,
         NightRunPhase.ready || NightRunPhase.armed => ChipTone.primary,
         NightRunPhase.pausedByUser ||
         NightRunPhase.pausedForAction ||
         NightRunPhase.stopping =>
           ChipTone.warning,
-        NightRunPhase.notSetUp || NightRunPhase.finished => ChipTone.neutral,
+        NightRunPhase.finished => switch (ending) {
+            NightRunEnding.completed => ChipTone.primary,
+            NightRunEnding.failed => ChipTone.error,
+            NightRunEnding.ended || null => ChipTone.neutral,
+          },
+        NightRunPhase.notSetUp => ChipTone.neutral,
       };
 }
 
