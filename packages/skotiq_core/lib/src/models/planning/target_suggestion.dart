@@ -94,6 +94,9 @@ class TargetVisibilityInfoConverter
       peakAltitude: json['peakAltitude'] != null
           ? (json['peakAltitude'] as num).toDouble()
           : null,
+      peakAzimuth: json['peakAzimuth'] != null
+          ? (json['peakAzimuth'] as num).toDouble()
+          : null,
       peakAltitudeTime: json['peakAltitudeTime'] != null
           ? DateTime.parse(json['peakAltitudeTime'] as String)
           : null,
@@ -117,6 +120,7 @@ class TargetVisibilityInfoConverter
       'airmass': object.airmass,
       'moonDistance': object.moonDistance,
       'peakAltitude': object.peakAltitude,
+      'peakAzimuth': object.peakAzimuth,
       'peakAltitudeTime': object.peakAltitudeTime?.toIso8601String(),
       'hoursAboveMinAlt': object.hoursAboveMinAlt,
     };

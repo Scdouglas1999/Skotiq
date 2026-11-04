@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
+import '../backend/network_backend.dart';
 import '../database/database.dart' as db;
+import '../models/errors/server_error.dart';
 import '../models/planning/target_suggestion.dart';
 import '../services/logging_service.dart';
 import '../services/target_suggestion_service.dart';
+import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'settings_provider.dart';
@@ -58,12 +61,58 @@ Future<List<db.Target>>? _catalogTargetsLoadFuture;
 /// `schedulerPreviewDecisionProvider` (a read-only preview of the live
 /// autopilot); these suggestions add whole-night context — peak altitude,
 /// transit time, imaging-window hours, framing-fit — beneath it.
+///
+/// A client linked to an imaging host shows the host's ranking: the host
+/// scores its own catalog with its own optics, horizon and target progress,
+/// so both machines list the same candidates.
 final tonightSuggestionsProvider =
     FutureProvider.autoDispose<List<TargetSuggestion>>((ref) async {
       // Watch configuration for filter/sort changes
       final config = ref.watch(targetSuggestionConfigProvider);
 
       // Watch refresh trigger for manual refresh
+      ref.watch(refreshSuggestionsProvider);
+
+      final backend = ref.watch(backendProvider);
+      if (backend is NetworkBackend) {
+        try {
+          final suggestions = await backend.fetchRankedTonightSuggestions(
+            config,
+          );
+          ref.keepAlive();
+          return suggestions;
+        } on ServerError catch (error) {
+          // An older host without the ranking endpoint: rank here, as
+          // clients did before it existed.
+          if (error.httpStatus != 404) rethrow;
+          ref
+              .read(loggingServiceProvider)
+              .warning(
+                'The imaging host cannot rank tonight\'s targets; ranking '
+                'them on this computer instead',
+                source: 'TargetSuggestionProvider',
+              );
+        }
+      }
+
+      final suggestions = await ref.watch(
+        localTonightSuggestionsProvider(config).future,
+      );
+      // Keep alive to prevent constant refetching while the user is viewing
+      ref.keepAlive();
+      return suggestions;
+    });
+
+/// Tonight's ranking computed on this machine from its own catalog, optics,
+/// horizon, targets and sessions.
+///
+/// The imaging host serves this to linked clients through
+/// `GET /api/suggestions/ranked`.
+final localTonightSuggestionsProvider = FutureProvider.autoDispose
+    .family<List<TargetSuggestion>, TargetSuggestionConfig>((
+      ref,
+      config,
+    ) async {
       ref.watch(refreshSuggestionsProvider);
 
       // Watch optical config for FOV-aware framing fit scoring
@@ -137,9 +186,6 @@ final tonightSuggestionsProvider =
           opticalConfig: opticalConfig,
           horizonProfile: horizonProfile.isFlat ? null : horizonProfile,
         );
-
-        // Keep alive to prevent constant refetching while the user is viewing
-        ref.keepAlive();
 
         return suggestions;
       } catch (e, stackTrace) {

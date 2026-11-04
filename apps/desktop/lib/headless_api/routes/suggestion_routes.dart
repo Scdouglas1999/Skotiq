@@ -17,6 +17,11 @@ List<HeadlessRoute> buildSuggestionRoutes(
     '/api/suggestions/tonight',
     h.handleGetSuggestionsForTonight,
   ),
+  HeadlessRoute(
+    HttpMethod.get,
+    '/api/suggestions/ranked',
+    h.handleGetRankedSuggestions,
+  ),
   HeadlessRoute(HttpMethod.get, '/api/suggestions/config', h.handleGetConfig),
   HeadlessRoute(
     HttpMethod.get,

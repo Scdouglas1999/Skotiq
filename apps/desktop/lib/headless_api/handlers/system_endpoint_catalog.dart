@@ -495,6 +495,7 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/weather/clear-cache',
     // Suggestions
     'GET /api/suggestions/tonight',
+    'GET /api/suggestions/ranked',
     'GET /api/suggestions/config',
     'GET /api/suggestions/score/<targetId>',
     // Transients

@@ -612,6 +612,31 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return response;
   }
 
+  /// Tonight's ranking as the host computes it for its own Plan screen:
+  /// catalog candidates, the host's optics and horizon, and target progress.
+  ///
+  /// GET /api/suggestions/ranked
+  Future<List<TargetSuggestion>> fetchRankedTonightSuggestions(
+    TargetSuggestionConfig config,
+  ) async {
+    final params = <String, dynamic>{
+      'minAltitude': config.minAltitude.toString(),
+      'minScore': config.minScore.toString(),
+      'sortMode': config.sortMode.name,
+      'prioritizeIncomplete': config.prioritizeIncomplete.toString(),
+      if (config.maxMoonDistance != null)
+        'maxMoonDistance': config.maxMoonDistance.toString(),
+      if (config.preferredObjectTypes.isNotEmpty)
+        'objectTypes': config.preferredObjectTypes.join(','),
+    };
+    final response = await _get('suggestions/ranked', params);
+    return _sessionScienceObjectList(
+      response,
+      'suggestions',
+      'GET /api/suggestions/ranked',
+    ).map(TargetSuggestion.fromJson).toList(growable: false);
+  }
+
   /// Get target score
   Future<Map<String, dynamic>> getTargetScore(int targetId) async {
     final response = await _get('suggestions/score/$targetId');
