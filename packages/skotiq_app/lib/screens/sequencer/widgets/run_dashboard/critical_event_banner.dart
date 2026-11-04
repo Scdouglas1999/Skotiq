@@ -59,7 +59,7 @@ class _RunDashboardCriticalBannerState
             event: head,
             onDismiss: () => ref
                 .read(runDashboardCriticalEventsProvider.notifier)
-                .dismiss(head.eventId),
+                .dismiss(head),
             trailing: tail.isEmpty
                 ? null
                 : _MorePill(
@@ -85,7 +85,7 @@ class _RunDashboardCriticalBannerState
                   compact: true,
                   onDismiss: () => ref
                       .read(runDashboardCriticalEventsProvider.notifier)
-                      .dismiss(e.eventId),
+                      .dismiss(e),
                 ),
               ),
           if (droppedCount > 0)

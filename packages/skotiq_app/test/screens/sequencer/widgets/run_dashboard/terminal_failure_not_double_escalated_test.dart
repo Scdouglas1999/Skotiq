@@ -149,8 +149,13 @@ void main() {
     await emit(container, _runStarted(3));
     await emit(container, _terminalFailure(4));
 
+    // The new run's start retires the first run's fault from the banner, so
+    // the row left is the second run's.
+    final banner = container.read(runDashboardCriticalEventsProvider);
+    expect(banner, hasLength(1));
+    expect(banner.single.eventId, BigInt.from(4));
     expect(
-      container.read(runDashboardCriticalEventsProvider),
+      container.read(uiNotificationProvider).where((t) => t.message == _reason),
       hasLength(2),
       reason: 'the second run failing the same way is news again',
     );
