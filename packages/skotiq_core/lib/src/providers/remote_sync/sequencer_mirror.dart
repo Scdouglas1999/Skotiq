@@ -234,8 +234,10 @@ void _applySequenceEditorMirror(
 /// in the SAME payload shape that mirror broadcasts (`HostStateChanged` /
 /// [HostMutationEntity.sequenceEditor]) and feeds it through the identical
 /// [_applySequenceEditorMirror] apply path, so seed and live update share one
-/// code path. Returns silently when no sequence is open host-side (the endpoint
-/// reports `open: false`) or the endpoint is unavailable on an older host.
+/// code path. When no sequence is open host-side (the endpoint reports
+/// `open: false`, as after a host restart) the plan shown here is closed the
+/// same way a live "editor cleared" frame closes it. Returns silently when the
+/// endpoint is unavailable on an older host.
 Future<void> _hydrateOpenEditorSequence(
   Object reader,
   NetworkBackend backend,
@@ -249,13 +251,14 @@ Future<void> _hydrateOpenEditorSequence(
     return;
   }
   if (!_isCurrentRemoteBackend(reader, backend)) return;
-  if (payload == null) {
-    // No sequence open in the master's editor — leave the slave's canvas as-is
-    // (don't clear, mirroring _applySequenceEditorMirror's dirty-safe behavior).
-    return;
-  }
   try {
-    _applySequenceEditorMirror(reader, HostMutationAction.updated, payload);
+    // No plan open on the host: close the one shown here, keeping an edit
+    // made here that has not reached the host yet.
+    _applySequenceEditorMirror(
+      reader,
+      payload == null ? HostMutationAction.cleared : HostMutationAction.updated,
+      payload ?? const <String, dynamic>{},
+    );
   } catch (e) {
     // A throw from the editor must never abort the rest of hydration (PHD2
     // state, profile/settings invalidations, planner refreshes).

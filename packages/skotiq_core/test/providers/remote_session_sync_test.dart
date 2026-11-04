@@ -844,6 +844,137 @@ void main() {
       );
     });
 
+    // SY-17: the host restarted with no plan open. The re-hydrate after the
+    // reconnect must close the plan this client mirrored before the restart,
+    // or it stays on screen as loaded and startable.
+    test(
+      'a host with no plan open closes the mirrored plan on re-hydrate',
+      () async {
+        final backend = _MockNetworkBackend();
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(
+          () => backend.getConnectedDevices(),
+        ).thenAnswer((_) async => const []);
+        when(() => backend.getOpenEditorSequence()).thenAnswer(
+          (_) async => const {
+            'sequence': <String, dynamic>{
+              'name': 'Rig test NGC 7331',
+              'nodes': {},
+            },
+            'databaseId': 22,
+            'isDirty': false,
+          },
+        );
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Stopped',
+            connected: false,
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+            avgDistance: 0,
+          ),
+        );
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.connected);
+        _stubHydrationParityEndpoints(backend);
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(remoteSessionSyncProvider);
+        await pumpEventQueue();
+        expect(
+          container.read(currentSequenceProvider)?.name,
+          'Rig test NGC 7331',
+        );
+
+        // The host comes back from a restart with an empty editor.
+        when(
+          () => backend.getOpenEditorSequence(),
+        ).thenAnswer((_) async => null);
+        await hydrateRemoteSessionState(container, backend);
+
+        expect(container.read(currentSequenceProvider), isNull);
+      },
+    );
+
+    test(
+      'an edit not yet sent to the host survives a host with no plan open',
+      () async {
+        final backend = _MockNetworkBackend();
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(
+          () => backend.getConnectedDevices(),
+        ).thenAnswer((_) async => const []);
+        when(
+          () => backend.getOpenEditorSequence(),
+        ).thenAnswer((_) async => null);
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Stopped',
+            connected: false,
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+            avgDistance: 0,
+          ),
+        );
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.connected);
+        _stubHydrationParityEndpoints(backend);
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+            currentSequenceProvider.overrideWith((ref) {
+              final notifier = CurrentSequenceNotifier(ref: ref);
+              // ignore: invalid_use_of_protected_member
+              notifier.state = Sequence.create(name: 'Draft');
+              return notifier;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(currentSequenceProvider.notifier)
+            .setName('New plan here');
+
+        container.read(remoteSessionSyncProvider);
+        await pumpEventQueue();
+
+        expect(container.read(currentSequenceProvider)?.name, 'New plan here');
+      },
+    );
+
     // A dead token used to drive an endless hydration loop: the 30 s
     // pollTimer + every BackendReconnected event fanned out requests that
     // could only 403, each one feeding the server's auth-failure limiter
