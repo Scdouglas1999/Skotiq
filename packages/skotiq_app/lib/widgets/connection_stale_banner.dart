@@ -11,7 +11,8 @@ import '../utils/snackbar_helper.dart';
 final connectionStaleProvider = StateProvider<bool>((_) => false);
 
 /// Inline banner shown across all screens while a remote client has lost its
-/// link to the imaging host, or the mobile app is mid-reconnect.
+/// link to the imaging host or the host has stopped answering, or the mobile
+/// app is mid-reconnect.
 ///
 /// During the 30-second grace window the operator gets a "Retry" button to
 /// force an immediate reconnect attempt instead of waiting for the
@@ -85,9 +86,14 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
   @override
   Widget build(BuildContext context) {
     final lostHost = ref.watch(hostLinkLostProvider);
-    final stale = ref.watch(connectionStaleProvider) || lostHost != null;
+    final unansweredSeconds =
+        ref.watch(hostUnansweredSecondsProvider).valueOrNull;
+    final stale = ref.watch(connectionStaleProvider) ||
+        lostHost != null ||
+        unansweredSeconds != null;
     if (!stale) return const SizedBox.shrink();
-    final canRetry = ref.watch(backendProvider) is NetworkBackend;
+    final backend = ref.watch(backendProvider);
+    final canRetry = backend is NetworkBackend;
 
     final colors = SkotiqColors.of(context);
     final bg = colors.warning;
@@ -107,11 +113,16 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                lostHost == null
-                    ? 'Reconnecting to server… session controls may be stale.'
-                    : 'Lost connection to $lostHost, reconnecting… Device '
+                lostHost != null
+                    ? 'Lost connection to $lostHost, reconnecting… Device '
                         'values and run state shown are the last known, not '
-                        'live.',
+                        'live.'
+                    : unansweredSeconds != null && backend is NetworkBackend
+                        ? '${backend.serverHost} has not answered for '
+                            '$unansweredSeconds s. Device values and run '
+                            'state shown are the last known, not live.'
+                        : 'Reconnecting to server… session controls may be '
+                            'stale.',
                 style: TextStyle(
                   color: fg,
                   fontSize: SkotiqTypography.fontSize12,
@@ -144,7 +155,8 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
 }
 
 /// Marks everything under it as last-known while the link to the imaging
-/// host is down: dimmed, and announced as not live to assistive technology.
+/// host is down or the host has stopped answering: dimmed, and announced as
+/// not live to assistive technology.
 /// The device and run values below it are the last ones heard from the host.
 class HostLinkStaleScope extends ConsumerWidget {
   const HostLinkStaleScope({super.key, required this.child});
@@ -154,10 +166,19 @@ class HostLinkStaleScope extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lostHost = ref.watch(hostLinkLostProvider);
-    if (lostHost == null) return child;
+    final String label;
+    if (lostHost != null) {
+      label = 'Last known values, no link to $lostHost';
+    } else {
+      final backend = ref.watch(backendProvider);
+      final notAnswering =
+          ref.watch(hostUnansweredSecondsProvider).valueOrNull != null;
+      if (!notAnswering || backend is! NetworkBackend) return child;
+      label = 'Last known values, ${backend.serverHost} is not answering';
+    }
     return Semantics(
       container: true,
-      label: 'Last known values, no link to $lostHost',
+      label: label,
       child: Opacity(opacity: 0.55, child: child),
     );
   }
