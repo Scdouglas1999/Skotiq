@@ -144,6 +144,19 @@ impl GuideStarFloor {
         })
     }
 
+    /// The floor for a star on a field the run's guide star was not on, such
+    /// as the guide camera's view after a meridian flip: the SNR floor still
+    /// keeps noise out, but brightness depends on which stars the field holds,
+    /// so there is no mass floor.
+    pub fn for_new_field(reference: Option<GuideStarQuality>) -> Self {
+        Self {
+            min_snr: Self::relative_to(reference)
+                .map_or(0.0, |floor| floor.min_snr)
+                .max(Self::RECOVERY_MIN_SNR),
+            min_star_mass: 0.0,
+        }
+    }
+
     /// The floor for a guide-star recovery: relative to the run's guide star
     /// when there is one, and never below [`Self::RECOVERY_MIN_SNR`].
     pub fn for_recovery(reference: Option<GuideStarQuality>) -> Self {

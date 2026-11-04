@@ -151,6 +151,9 @@ pub struct MeridianFlipExecutor {
     /// is `Aborted` so the hold can wait for the window instead.
     early_tracking_limit_flip: bool,
     original_recovery_filter: parking_lot::Mutex<Option<(String, i32)>>,
+    /// Where the mount pointed when the flip slew was sent, and when, so a
+    /// flip that left the mount on its old side can tell whether it moved.
+    flip_slew_start: parking_lot::Mutex<Option<((f64, f64), tokio::time::Instant)>>,
 }
 
 impl MeridianFlipExecutor {
@@ -169,6 +172,7 @@ impl MeridianFlipExecutor {
             failed_attempts: Vec::new(),
             early_tracking_limit_flip: false,
             original_recovery_filter: parking_lot::Mutex::new(None),
+            flip_slew_start: parking_lot::Mutex::new(None),
         }
     }
 
@@ -806,7 +810,21 @@ impl MeridianFlipExecutor {
                         .await
                 }
                 FlipStep::VerifyingPierSide => {
-                    match self.verify_pier_side_changed(ctx, pre_flip_pier_side).await {
+                    let mut verified = self.verify_pier_side_changed(ctx, pre_flip_pier_side).await;
+                    // An early flip's target is still east of the meridian: a mount
+                    // freed and sent there again only returns to its limit.
+                    if verified.is_err()
+                        && !self.early_tracking_limit_flip
+                        && self.flip_slew_never_moved(ctx).await
+                    {
+                        if let Some(again) = self
+                            .free_from_limit_and_slew_again(ctx, pre_flip_pier_side)
+                            .await
+                        {
+                            verified = again;
+                        }
+                    }
+                    match verified {
                         Ok(ps) => {
                             *new_pier_side = ps;
                             self.record_flip(ctx, ps).await;
@@ -925,6 +943,10 @@ impl MeridianFlipExecutor {
                 state.pier_side = Some(new_pier_side);
             }
             state.mark_flip_performed();
+            // The guide camera sees other stars on this side, so the star the
+            // run guided on before is no measure for the ones it picks now,
+            // as with a new target.
+            state.guide_star_reference = None;
         }
     }
 
@@ -960,6 +982,12 @@ impl MeridianFlipExecutor {
             dec_degrees
         );
 
+        *self.flip_slew_start.lock() = self
+            .device_ops
+            .mount_get_coordinates(mount_id)
+            .await
+            .ok()
+            .map(|start| (start, tokio::time::Instant::now()));
         self.device_ops
             .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
             .await?;
@@ -1039,6 +1067,45 @@ impl MeridianFlipExecutor {
         }
 
         Ok(())
+    }
+
+    /// Whether the flip slew left the mount where it was: a mount stopped at
+    /// an axis limit takes the slew and does not move (a NYX-101 that stopped
+    /// tracking at its limit does this).
+    async fn flip_slew_never_moved(&self, ctx: &FlipContext) -> bool {
+        if ctx.simulate {
+            return false;
+        }
+        let Some((start, sent_at)) = *self.flip_slew_start.lock() else {
+            return false;
+        };
+        match self.device_ops.mount_get_coordinates(&ctx.mount_id).await {
+            Ok(now) => {
+                !crate::instructions::pointing_moved(start, now, sent_at.elapsed().as_secs_f64())
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Move the mount off the limit it is stuck at, send the flip slew again
+    /// and verify the pier side once more.
+    async fn free_from_limit_and_slew_again(
+        &self,
+        ctx: &FlipContext,
+        pre_flip_pier_side: PierSide,
+    ) -> Option<Result<PierSide, String>> {
+        let freed = crate::limit_backoff::back_off_limit(&self.device_ops, &ctx.mount_id).await;
+        crate::limit_backoff::notify(&self.device_ops, "flip slew", &freed).await;
+        // A mount that could not be freed keeps the verification's own
+        // failure; the notice says why.
+        freed.ok()?;
+        if let Err(e) = self
+            .slew_to_target(ctx, ctx.target_ra_hours, ctx.target_dec_degrees)
+            .await
+        {
+            return Some(Err(e));
+        }
+        Some(self.verify_pier_side_changed(ctx, pre_flip_pier_side).await)
     }
 
     async fn verify_pier_side_changed(
@@ -1614,15 +1681,18 @@ impl MeridianFlipExecutor {
         // a no-op. A real guider failure still fails closed below.
         // On a star picked afresh: the flip turned the field over, so the
         // guider's old lock position is not where the star is. The star must
-        // measure up to the one the run was guiding on, so noise or a faint
-        // source is never locked instead.
+        // measure up to the SNR of the one the run was guiding on, so noise is
+        // never locked instead. The guide camera sees other stars after a
+        // flip, so the old star's brightness is no measure: on 2026-11-03 the
+        // pre-flip star's mass floor refused every star the flipped field had
+        // (SNR 38-61) and the flip failed over guiding.
         let reference = match &ctx.trigger_state {
             Some(state) => state.read().await.guide_star_reference,
             None => None,
         };
         match crate::instructions::start_guiding_holding_on_settle_timeout(
             &self.device_ops,
-            crate::GuideStarFloor::relative_to(reference),
+            Some(crate::GuideStarFloor::for_new_field(reference)),
             settle,
             self.config.max_post_settle_rms_pixels,
         )
@@ -1737,6 +1807,12 @@ impl MeridianFlipExecutor {
             sample_count,
             if sample_count == 1 { "" } else { "s" }
         );
+        // The star guided on from here is the measure for later recoveries.
+        if let Some(state) = &ctx.trigger_state {
+            if let Ok(Some(star)) = self.device_ops.guider_star_quality().await {
+                state.write().await.guide_star_reference = Some(star);
+            }
+        }
         Ok(())
     }
 
@@ -2302,6 +2378,11 @@ mod tests {
         /// How far short of the commanded position a slew stops, in the
         /// mount's frame (hours, degrees).
         slew_miss: Mutex<(f64, f64)>,
+        /// The mount is stopped at an axis limit: it takes slews and does not
+        /// move until a MoveAxis drives it off.
+        stuck_at_limit: AtomicBool,
+        /// Rates of the MoveAxis calls on the primary axis.
+        move_axis_rates: Mutex<Vec<f64>>,
     }
 
     struct MockDeviceOps {
@@ -2323,6 +2404,9 @@ mod tests {
             dec: f64,
         ) -> DeviceResult<()> {
             self.state.slew_calls.fetch_add(1, Ordering::Relaxed);
+            if self.state.stuck_at_limit.load(Ordering::Relaxed) {
+                return Ok(());
+            }
             let (d_ra, d_dec) = self
                 .state
                 .readback_offset
@@ -2347,6 +2431,25 @@ mod tests {
                 .unwrap()
                 .unwrap_or((0.0, 0.0));
             Ok((ra_hours + d_ra, dec_degrees + d_dec))
+        }
+
+        async fn mount_move_axis(
+            &self,
+            _mount_id: &str,
+            _axis: i32,
+            rate_deg_per_sec: f64,
+        ) -> DeviceResult<()> {
+            self.state
+                .move_axis_rates
+                .lock()
+                .unwrap()
+                .push(rate_deg_per_sec);
+            if rate_deg_per_sec != 0.0 {
+                // East at the back-off rate for its 3 s: RA up by 0.2 h.
+                self.state.coordinates.lock().unwrap().0 += 0.2 * rate_deg_per_sec.signum();
+                self.state.stuck_at_limit.store(false, Ordering::Relaxed);
+            }
+            Ok(())
         }
 
         async fn mount_abort_slew(&self, _mount_id: &str) -> DeviceResult<()> {
@@ -2838,6 +2941,47 @@ mod tests {
         }
     }
 
+    /// A mount that stopped tracking at its axis limit takes the flip slew and
+    /// does not move (the NYX-101 on 2026-11-03 failed four flips this way and
+    /// paused the run). The flip moves the axis off the limit and slews again.
+    #[tokio::test(start_paused = true)]
+    async fn a_flip_frees_a_mount_stuck_at_its_limit_and_slews_again() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .pier_sides
+            .lock()
+            .unwrap()
+            .push(crate::meridian::PierSide::Unknown);
+        state.stuck_at_limit.store(true, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let ctx = make_ctx(&state);
+        // Stopped half an hour of RA short of the target.
+        *state.coordinates.lock().unwrap() = (9.5, 45.0);
+
+        match executor.execute(&ctx).await {
+            FlipResult::Success { .. } => {}
+            other => panic!("the flip did not free the stuck mount: {:?}", other),
+        }
+        assert_eq!(*state.move_axis_rates.lock().unwrap(), vec![1.0, 0.0]);
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 2);
+        assert!(state
+            .notifications
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(level, title)| level == "warning" && title == "Mount at its limit"));
+    }
+
     /// pier-side telemetry unavailable — verification falls back to
     /// coordinate convergence and SUCCEEDS when the mount is on-target.
     #[tokio::test(start_paused = true)]
@@ -3027,8 +3171,9 @@ mod tests {
     }
 
     /// The guider restarted after a flip must find a star that measures up to
-    /// the run's guide star: a star picked from a stale or clouded frame was
-    /// noise or a faint source, and guiding on it dragged the mount away.
+    /// the run's guide star's SNR: a star picked from a stale or clouded frame
+    /// was noise, and guiding on it dragged the mount away. The flipped field
+    /// holds other stars, so the old star's mass sets no floor.
     #[tokio::test(start_paused = true)]
     async fn the_post_flip_guider_restart_refuses_a_star_below_the_runs_guide_star() {
         let state = Arc::new(MockDeviceOpsState::default());
@@ -3052,7 +3197,10 @@ mod tests {
 
         assert_eq!(
             *state.fresh_star_floors.lock().unwrap(),
-            vec![crate::GuideStarFloor::relative_to(Some(reference)).unwrap()],
+            vec![crate::GuideStarFloor {
+                min_snr: crate::GuideStarFloor::RECOVERY_MIN_SNR,
+                min_star_mass: 0.0,
+            }],
         );
     }
 
@@ -4677,7 +4825,7 @@ mod tests {
                 "{settings:?}"
             );
             assert!(
-                settings.iter().skip(3).any(|x| *x == (15.0, 1)),
+                settings.iter().skip(3).any(|x| *x == (15.0, 0)),
                 "{settings:?}"
             );
             assert_eq!(state.wheel_position.load(Ordering::Relaxed), 4);
@@ -4709,7 +4857,8 @@ mod tests {
             .await
             .unwrap_err()
             .contains("restore the science filter"));
-        assert_eq!(state.wheel_position.load(Ordering::Relaxed), 1);
+        // Still on the recovery filter, L in slot 0.
+        assert_eq!(state.wheel_position.load(Ordering::Relaxed), 0);
         executor.attempts_made = 3;
         executor.plate_solve_and_center(&ctx).await.unwrap();
         assert_eq!(state.wheel_position.load(Ordering::Relaxed), 4);

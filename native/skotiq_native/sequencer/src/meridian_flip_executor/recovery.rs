@@ -26,7 +26,8 @@ impl MeridianFlipExecutor {
                 if let Some(index) = names.iter().position(|name| {
                     matches!(name.trim().to_ascii_lowercase().as_str(), "l" | "lum" | "luminance")
                 }) {
-                    self.recovery_filter(id, index as i32 + 1).await?;
+                    // Wheel slots are numbered from 0, as the names are.
+                    self.recovery_filter(id, index as i32).await?;
                 }
             }
             let exposure = if extended { 15.0 } else { 5.0 };
