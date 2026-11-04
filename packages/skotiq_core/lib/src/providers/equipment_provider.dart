@@ -12,6 +12,7 @@ export 'equipment/dome_state_provider.dart';
 export 'equipment/filter_wheel_state_provider.dart';
 export 'equipment/focuser_state_provider.dart';
 export 'equipment/focuser_temp_compensation_provider.dart';
+export 'equipment/focuser_temperature_poller.dart';
 export 'equipment/guider_state_provider.dart';
 export 'equipment/mount_state_provider.dart';
 export 'equipment/profile_connection_status_provider.dart';
