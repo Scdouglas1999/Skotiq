@@ -15,17 +15,23 @@ import 'package:skotiq_core/skotiq_core.dart';
 ///
 /// Constructed directly, because calling `startSession` twice reproduces
 /// something that never happens.
+///
+/// Tonight's, with frames, unless told otherwise: only a night that captured
+/// something, and only tonight's, is offered back.
 Future<int> _insertInterruptedSession(
   SessionsDao dao, {
   required String name,
   int? targetId,
+  int totalExposures = 4,
+  DateTime? startTime,
 }) {
   return dao.createSession(
     ImagingSessionsCompanion.insert(
-      startTime: DateTime.now(),
+      startTime: startTime ?? DateTime.now(),
       name: Value(name),
       targetId: Value(targetId),
       status: const Value(kInterruptedSessionStatus),
+      totalExposures: Value(totalExposures),
     ),
   );
 }
@@ -414,6 +420,37 @@ void main() {
         );
       },
     );
+
+    // Rig, 2026-11-03: every launch of the host opened "Incomplete Sessions
+    // Found" for two test runs that captured nothing and a QA plan from two
+    // nights before.
+    test('a night that captured nothing or ended on an earlier night is not '
+        'offered', () async {
+      await _insertInterruptedSession(
+        sessionsDao,
+        name: 'Rig test NGC 7331',
+        totalExposures: 0,
+      );
+      await _insertInterruptedSession(
+        sessionsDao,
+        name: 'M74 Plan',
+        startTime: DateTime.now().subtract(const Duration(days: 2)),
+      );
+      final tonight = await _insertInterruptedSession(
+        sessionsDao,
+        name: 'Rig run-through NGC 7814',
+      );
+
+      final offered = await sessionService.findIncompleteSessionsForRecovery();
+
+      expect(offered.map((s) => s.sessionId), [tonight]);
+      // Both stay in History as interrupted.
+      final all = await sessionsDao.getAllSessions();
+      expect(
+        all.where((s) => s.status == kInterruptedSessionStatus),
+        hasLength(3),
+      );
+    });
 
     test('recoverSession restores session state', () async {
       final sessionId = await _insertInterruptedSession(

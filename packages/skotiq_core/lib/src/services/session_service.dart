@@ -524,21 +524,40 @@ class SessionService {
 
       // Convert to recovery info
       final recoveryInfoList = <SessionRecoveryInfo>[];
+      final tonight = _observingNightOf(_now());
       for (final session in incompleteSessions) {
         // The session ran until its last frame, not until now: an unclosed
         // session from yesterday read "25h 25m".
         DateTime lastActivity = session.startTime;
+        var hasFrames = false;
         try {
           final recent = await _records.getRecentImagesForSession(
             session.id,
             limit: 1,
           );
+          hasFrames = recent.isNotEmpty;
           if (recent.isNotEmpty &&
               recent.first.capturedAt.isAfter(lastActivity)) {
             lastActivity = recent.first.capturedAt;
           }
         } catch (_) {
           // No frame time to read: the session is shown from its start.
+        }
+        // Resuming a night carries on its frames tonight. A session that
+        // captured nothing has nothing to carry on, and one from an earlier
+        // night would take tonight's frames into that night. Both stay in
+        // History as interrupted; offering them put the same "Incomplete
+        // Sessions Found" dialog up on every launch, for runs that had ended
+        // hours or days before (rig, 2026-11-03: two 0-exposure test runs and
+        // a QA plan from Nov 1).
+        final captured = hasFrames || session.totalExposures > 0;
+        if (!captured || _observingNightOf(lastActivity) != tonight) {
+          _logger.debug(
+            'Not offering interrupted session ${session.id} for recovery: '
+            '${captured ? 'it belongs to an earlier night' : 'it captured nothing'}',
+            source: 'SessionService',
+          );
+          continue;
         }
         final stats = SessionStats(
           completedExposures: session.successfulExposures,
@@ -572,6 +591,17 @@ class SessionService {
       // offer a retry instead of silently moving on to Quick Start.
       rethrow;
     }
+  }
+
+  /// The local date of the evening an observing night started on. A night
+  /// runs from local noon to local noon, so a frame after midnight belongs to
+  /// the evening before.
+  static DateTime _observingNightOf(DateTime time) {
+    final local = time.toLocal();
+    final evening = local.hour < 12
+        ? DateTime(local.year, local.month, local.day - 1)
+        : DateTime(local.year, local.month, local.day);
+    return evening;
   }
 
   /// Resume an interrupted session
