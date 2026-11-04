@@ -24,6 +24,24 @@ import '../sequence_validation.dart';
 final double _maxSunAltitudeDegrees =
     SchedulerConfig.defaults.maxSunAltitudeDegrees;
 
+/// The longest the executor holds a slew or light frame for the Sun to reach
+/// [_maxSunAltitudeDegrees]. Mirrors the native `MAX_DARKNESS_WAIT`.
+const Duration _maxDarknessWait = Duration(hours: 3);
+
+/// Whole minutes from [now] until the Sun is at or below the darkness limit,
+/// if that happens within [_maxDarknessWait].
+int? _minutesUntilDark(DateTime now, double latitude, double longitude) {
+  for (var minutes = 0; minutes <= _maxDarknessWait.inMinutes; minutes++) {
+    final (sunAltitude, _) = SkyCalculations.sunAltAz(
+      time: now.add(Duration(minutes: minutes)),
+      latitudeDegrees: latitude,
+      longitudeDegrees: longitude,
+    );
+    if (sunAltitude <= _maxSunAltitudeDegrees) return minutes;
+  }
+  return null;
+}
+
 /// Enabled light-frame exposures reachable in this sequence.
 bool _capturesLightFrames(Sequence sequence) {
   return sequence.nodes.values.any(
@@ -54,7 +72,7 @@ bool _waitsBeforeImaging(Sequence sequence) {
 }
 
 /// Pre-flight rule: the run cannot capture a single light frame because the
-/// Sun is up.
+/// Sun is up and will not reach the darkness limit within [_maxDarknessWait].
 ///
 /// The executor's daylight gate refuses every on-sky light exposure while the
 /// Sun is above [_maxSunAltitudeDegrees] — the run dies in the same millisecond
@@ -89,6 +107,30 @@ class DaylightGateRule implements RefAwareSequenceValidator {
       longitudeDegrees: site.longitude,
     );
     if (sunAltitude <= _maxSunAltitudeDegrees) return const [];
+
+    // In evening twilight the executor holds the first slew or light frame
+    // until the Sun reaches the limit, so the run is not refused; say how long
+    // it will wait instead.
+    final minutes = _minutesUntilDark(
+      clock().toUtc(),
+      site.latitude,
+      site.longitude,
+    );
+    if (minutes != null) {
+      return [
+        ValidationIssue(
+          severity: ValidationSeverity.info,
+          category: ValidationCategory.timing,
+          title: 'Waits for Dark',
+          description:
+              'The Sun is at ${sunAltitude.toStringAsFixed(1)}° at your site. '
+              'Light frames start below '
+              '${_maxSunAltitudeDegrees.toStringAsFixed(1)}°, in about '
+              '$minutes min; until then the run waits before its first slew '
+              'or light frame.',
+        ),
+      ];
+    }
 
     return [
       ValidationIssue(

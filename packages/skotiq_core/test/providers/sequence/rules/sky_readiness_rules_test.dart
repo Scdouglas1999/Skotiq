@@ -130,6 +130,26 @@ void main() {
       expect(issues.single.title, contains('Daylight Gate'));
     });
 
+    test('says the run waits when dark is minutes away', () async {
+      // 20:55 local at lon -105 on Aug 11: evening twilight, about ten
+      // minutes before the Sun reaches -12°.
+      final c = await _container();
+      final issues = _withRef(
+        c,
+        (ref) => DaylightGateRule(
+          clock: () => DateTime.utc(2026, 8, 12, 2, 55),
+        ).validate(_lightRun(), ValidationContext(ref)),
+      );
+      expect(issues, hasLength(1));
+      expect(
+        issues.single.severity,
+        ValidationSeverity.info,
+        reason: 'the executor waits for dark, so this run is not refused',
+      );
+      expect(issues.single.title, 'Waits for Dark');
+      expect(issues.single.description, contains('min'));
+    });
+
     test('clean at night', () async {
       final c = await _container();
       expect(
