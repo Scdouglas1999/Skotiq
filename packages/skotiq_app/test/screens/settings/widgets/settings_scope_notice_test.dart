@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_scope_notice.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/host_settings/settings_key_scope.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
