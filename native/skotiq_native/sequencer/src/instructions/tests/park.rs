@@ -241,3 +241,47 @@ async fn homing_is_never_read_as_lost_tracking() {
     ));
     assert!(!state.tracking.is_lost());
 }
+
+/// On the rig (2026-11-03) a run ended, parked, and left PHD2 looping after a
+/// failed guide-star search: the park stopped a guider only while it guided.
+/// A park stops the guider's capture first, looping included, and the run no
+/// longer wants guiding.
+#[tokio::test]
+async fn park_stops_a_looping_guider_before_the_mount_parks() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.mount_id = Some("mount-1".to_string());
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    trigger_state.write().await.set_guiding_enabled(true);
+    ctx.trigger_state = Some(trigger_state.clone());
+
+    let result = execute_park(&ctx).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(
+        *ops.guider_stops_at_park.lock().unwrap(),
+        vec![1],
+        "the guider is stopped once, before the park"
+    );
+    assert!(!trigger_state.read().await.guiding.is_enabled());
+}
+
+/// A rig with no guider, or a guider that will not answer, still parks.
+#[tokio::test]
+async fn park_goes_ahead_when_the_guider_cannot_be_stopped() {
+    for ops in [
+        ScriptedDomeRotatorOps::new().with_guider_absent(),
+        ScriptedDomeRotatorOps::new().with_guider_stop_failing("PHD2 is not answering"),
+    ] {
+        let ops = Arc::new(ops);
+        let mut ctx = ctx_with_ops(ops.clone()).await;
+        ctx.mount_id = Some("mount-1".to_string());
+
+        let result = execute_park(&ctx).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(*ops.guider_stops_at_park.lock().unwrap(), vec![1]);
+    }
+}

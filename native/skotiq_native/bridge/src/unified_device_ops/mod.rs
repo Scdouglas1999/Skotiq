@@ -90,7 +90,7 @@ use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
 use crate::api::*;
 use crate::device::DeviceType;
 use crate::event::*;
-use crate::filter_matching::find_filter_match;
+use crate::filter_matching::{filter_slot_name, find_filter_match};
 use crate::state::SharedAppState;
 use crate::FitsWriteHeader;
 use async_trait::async_trait;

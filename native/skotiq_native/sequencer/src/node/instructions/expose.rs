@@ -805,6 +805,20 @@ pub const EXPOSURE_TRIGGER_NOTIFY_SUMMARY: &str = "Exposure trigger fired — th
 /// Tell the operator that an exposure trigger's condition now holds, and that
 /// nothing was stopped. Once per episode: the caller only gets here when the
 /// condition did not hold on the trigger's previous evaluation.
+/// An exposure trigger's condition in the operator's words. Its `Debug` form
+/// ("HfrAbove(3.5)") reached the run's status line.
+fn exposure_trigger_name(condition: &TriggerCondition) -> String {
+    match condition {
+        TriggerCondition::HfrAbove(threshold) => format!("HFR above {threshold:.2} px"),
+        TriggerCondition::GuidingRmsAbove(threshold) => {
+            format!("Guiding RMS above {threshold:.2}\"")
+        }
+        TriggerCondition::DriftAbove { ra_px, dec_px } => {
+            format!("Drift above RA {ra_px:.1} px / Dec {dec_px:.1} px")
+        }
+    }
+}
+
 fn notify_exposure_trigger(
     node_id: &str,
     trigger_id: &str,
@@ -813,19 +827,15 @@ fn notify_exposure_trigger(
     latest_guiding_rms: Option<f64>,
     context: &ExecutionContext,
 ) {
-    let (trigger_name, measured) = match condition {
-        TriggerCondition::HfrAbove(threshold) => (
-            format!("HFR above {threshold:.2} px"),
-            current_hfr.map(|hfr| format!("the last frame measured {hfr:.2} px")),
-        ),
-        TriggerCondition::GuidingRmsAbove(threshold) => (
-            format!("Guiding RMS above {threshold:.2}\""),
-            latest_guiding_rms.map(|rms| format!("guiding measured {rms:.2}\" RMS")),
-        ),
-        TriggerCondition::DriftAbove { ra_px, dec_px } => (
-            format!("Drift above RA {ra_px:.1} px / Dec {dec_px:.1} px"),
-            None,
-        ),
+    let trigger_name = exposure_trigger_name(condition);
+    let measured = match condition {
+        TriggerCondition::HfrAbove(_) => {
+            current_hfr.map(|hfr| format!("the last frame measured {hfr:.2} px"))
+        }
+        TriggerCondition::GuidingRmsAbove(_) => {
+            latest_guiding_rms.map(|rms| format!("guiding measured {rms:.2}\" RMS"))
+        }
+        TriggerCondition::DriftAbove { .. } => None,
     };
     let message = format!(
         "Exposure trigger '{trigger_name}' on node '{node_id}'{}. Imaging continues; you will \
@@ -967,8 +977,8 @@ pub(crate) async fn check_exposure_triggers(
                     node_id.to_string(),
                     NodeStatus::Running,
                     format!(
-                        "Trigger fired: {:?} - Paused for recalibration",
-                        trigger.condition
+                        "Trigger fired: {}. Paused for recalibration",
+                        exposure_trigger_name(&trigger.condition)
                     ),
                 ));
                 let resumed = context.pause_and_wait_for_resume().await;
@@ -982,7 +992,10 @@ pub(crate) async fn check_exposure_triggers(
                 context.send_progress(ProgressUpdate::lifecycle(
                     node_id.to_string(),
                     NodeStatus::Running,
-                    format!("Trigger fired: {:?} - Running autofocus", trigger.condition),
+                    format!(
+                        "Trigger fired: {}. Running autofocus",
+                        exposure_trigger_name(&trigger.condition)
+                    ),
                 ));
 
                 let af_config = AutofocusConfig {
@@ -1048,7 +1061,10 @@ pub(crate) async fn check_exposure_triggers(
                 context.send_progress(ProgressUpdate::lifecycle(
                     node_id.to_string(),
                     NodeStatus::Failure,
-                    format!("Trigger fired: {:?} - Aborting sequence", trigger.condition),
+                    format!(
+                        "Trigger fired: {}. Ending the run",
+                        exposure_trigger_name(&trigger.condition)
+                    ),
                 ));
                 context.is_cancelled.store(true, Ordering::Relaxed);
                 return;
@@ -1060,6 +1076,23 @@ pub(crate) async fn check_exposure_triggers(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The status line read "Trigger fired: HfrAbove(3.5) - Running autofocus".
+    #[test]
+    fn an_exposure_trigger_is_named_in_plain_words() {
+        assert_eq!(
+            exposure_trigger_name(&TriggerCondition::HfrAbove(3.5)),
+            "HFR above 3.50 px"
+        );
+        let drift = exposure_trigger_name(&TriggerCondition::DriftAbove {
+            ra_px: 4.0,
+            dec_px: 2.5,
+        });
+        assert!(
+            !drift.contains('{') && !drift.contains("DriftAbove"),
+            "{drift}"
+        );
+    }
 
     // Verify the HFR median computation is a true median, not an
     // exponentially-weighted moving average.

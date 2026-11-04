@@ -192,7 +192,13 @@ impl Dispatcher {
         name: &str,
         _claim: &mut TriggerCameraClaim,
     ) -> Flow {
-        self.announce(id, name, &RecoveryAction::Recenter, "Recenter");
+        self.announce(
+            id,
+            name,
+            &RecoveryAction::Recenter,
+            "Recenter",
+            format!("{name} fired: recenter"),
+        );
         let target = self.rig.target().await;
         let autofocus = self
             .rig
@@ -295,12 +301,13 @@ impl Dispatcher {
             ..
         } = dispatch;
         let action_str = fired.wire_label();
+        let summary = fired.decision_summary(&trigger_name);
         let FiredTriggerAction {
             action,
             end_without_parking,
             notify_only,
         } = fired;
-        self.announce(&trigger_id, &trigger_name, &action, &action_str);
+        self.announce(&trigger_id, &trigger_name, &action, &action_str, summary);
 
         // A notice drives nothing: no in-flight guard, no camera claim.
         if notify_only {
@@ -386,6 +393,7 @@ impl Dispatcher {
         trigger_name: &str,
         action: &RecoveryAction,
         action_str: &str,
+        summary: String,
     ) {
         if matches!(action, RecoveryAction::Continue) {
             tracing::debug!(
@@ -409,7 +417,7 @@ impl Dispatcher {
         });
         self.decisions.send(crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::TriggerFired,
-            format!("Trigger {} fired → {}", trigger_name, action_str),
+            summary,
             serde_json::json!({
                 "trigger_id": trigger_id,
                 "trigger_name": trigger_name,

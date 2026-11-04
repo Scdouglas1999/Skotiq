@@ -334,4 +334,90 @@ void main() {
       expect(released, hasLength(1), reason: 'once, not once per caller');
     });
   });
+
+  // Rig, 2026-11-03: a companion linked to the imaging host was stopped, and
+  // its next launch logged "nothing was safed on the way out. Check the rig."
+  // about equipment it never drove.
+  group('a session that vanished', () {
+    DesktopSessionRecord? vanished({required bool ownsRig}) {
+      DesktopLastGasp(
+        recordFile: recordFile,
+        safeRig: () async {},
+        exitProcess: (_) {},
+        ownsRig: ownsRig,
+      ).markRunning();
+      return DesktopLastGasp(
+        recordFile: recordFile,
+        safeRig: () async {},
+        exitProcess: (_) {},
+      ).readPreviousSession();
+    }
+
+    test('is the rig to check when it drove the equipment', () {
+      final report = previousSessionShutdownReport(
+        vanished(ownsRig: true),
+        thisLaunchOwnsRig: true,
+      );
+      expect(report?.checkTheRig, isTrue);
+      expect(report?.message, contains('Check the rig.'));
+    });
+
+    test('says nothing about a rig when it was a linked companion', () {
+      final previous = vanished(ownsRig: false);
+      expect(previous?.ownsRig, isFalse);
+      // Whatever this launch is, the record says the companion drove nothing.
+      for (final owns in [true, false]) {
+        final report = previousSessionShutdownReport(
+          previous,
+          thisLaunchOwnsRig: owns,
+        );
+        expect(report?.checkTheRig, isFalse);
+        expect(report?.message, isNot(contains('safed')));
+        expect(report?.message, isNot(contains('Check the rig')));
+      }
+    });
+
+    test('an older record without the role is read by this launch', () {
+      recordFile.writeAsStringSync(
+        '{"outcome":"running","reason":"Session started",'
+        '"at":"2026-11-03T19:30:00.000"}',
+      );
+      final previous = DesktopLastGasp(
+        recordFile: recordFile,
+        safeRig: () async {},
+        exitProcess: (_) {},
+      ).readPreviousSession();
+      expect(
+        previousSessionShutdownReport(
+          previous,
+          thisLaunchOwnsRig: false,
+        )?.checkTheRig,
+        isFalse,
+      );
+      expect(
+        previousSessionShutdownReport(
+          previous,
+          thisLaunchOwnsRig: true,
+        )?.checkTheRig,
+        isTrue,
+      );
+    });
+
+    test('a session that ended on a shutdown path is not reported', () {
+      final lastGasp = DesktopLastGasp(
+        recordFile: recordFile,
+        safeRig: () async {},
+        exitProcess: (_) {},
+        ownsRig: false,
+      )..markRunning();
+      lastGasp.recordCleanExit('Window closed');
+      expect(
+        previousSessionShutdownReport(
+          lastGasp.readPreviousSession(),
+          thisLaunchOwnsRig: true,
+        ),
+        isNull,
+      );
+    });
+  });
 }

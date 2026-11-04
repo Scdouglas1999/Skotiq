@@ -25,9 +25,35 @@ pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
         Err(e) => return e,
     };
     let motion = begin_move_that_stops_tracking(ctx, "park").await;
+    stop_the_guider_for_park(ctx).await;
     let result = park_mount(ctx, &mount_id).await;
     motion.end().await;
     result
+}
+
+/// A parked mount has nothing to guide on. The move above stops a guider
+/// only while it guides, and on the rig (2026-11-03) a run parked with PHD2
+/// still looping after a failed guide-star search, exposing the guide camera
+/// until someone noticed. Parking ends the guider's capture, guiding or
+/// looping, and the run no longer wants guiding.
+async fn stop_the_guider_for_park(ctx: &InstructionContext) {
+    ctx.device_ops
+        .guider_note_stop_reason(Some(crate::GuidingStopReason::MountMove))
+        .await;
+    match ctx.device_ops.guider_stop().await {
+        Ok(()) => {}
+        Err(error) if crate::device_ops::is_no_guider_configured(&error) => {}
+        Err(error) => {
+            tracing::warn!("[GUIDING] The guider did not stop for the park: {error}");
+        }
+    }
+    if let Some(trigger_state) = &ctx.trigger_state {
+        let mut state = trigger_state.write().await;
+        state.set_guiding_enabled(false);
+        state.set_guide_star_lost(false);
+        state.guiding.set_resume_pending(false);
+        state.guiding.set_unguided(false);
+    }
 }
 
 async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResult {

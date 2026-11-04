@@ -203,7 +203,7 @@ return deviceLost(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String deviceType,  String deviceId)?  connecting,TResult Function( String deviceType,  String deviceId)?  connected,TResult Function( String deviceType,  String deviceId)?  disconnected,TResult Function( String deviceType,  String deviceId,  String property,  String value)?  propertyChanged,TResult Function( String deviceType,  String deviceId,  String message)?  error,TResult Function( double ra,  double dec)?  mountSlewStarted,TResult Function( double ra,  double dec)?  mountSlewCompleted,TResult Function()?  mountTrackingStarted,TResult Function()?  mountTrackingStopped,TResult Function()?  mountParkStarted,TResult Function()?  mountParkCompleted,TResult Function()?  mountUnparked,TResult Function( int targetPosition)?  focuserMoveStarted,TResult Function( int position)?  focuserMoveCompleted,TResult Function( double temperature)?  focuserTemperatureChanged,TResult Function( int fromPosition,  int toPosition,  String? filterName)?  filterChanging,TResult Function( int position,  String? filterName)?  filterChanged,TResult Function( double targetAngle)?  rotatorMoveStarted,TResult Function( double angle)?  rotatorMoveCompleted,TResult Function( double targetTemp)?  cameraCoolingStarted,TResult Function( double temperature)?  cameraCoolingReached,TResult Function()?  cameraWarmingStarted,TResult Function()?  cameraWarmingCompleted,TResult Function( String deviceType,  String deviceId,  BigInt intervalSecs)?  heartbeatStarted,TResult Function( String deviceType,  String deviceId)?  heartbeatStopped,TResult Function( String deviceType,  String deviceId,  HeartbeatStatus status,  int consecutiveFailures,  BigInt? lastRttMs)?  heartbeatStatusChanged,TResult Function( String deviceType,  String deviceId,  int attempt,  int maxAttempts)?  heartbeatReconnecting,TResult Function( String deviceType,  String deviceId,  int afterAttempts)?  heartbeatReconnected,TResult Function( String deviceClass,  String driver,  String id,  String name,  String displayName,  String? uniqueId)?  deviceDiscovered,TResult Function( String deviceClass,  String driver,  String id)?  deviceLost,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String deviceType,  String deviceId)?  connecting,TResult Function( String deviceType,  String deviceId)?  connected,TResult Function( String deviceType,  String deviceId)?  disconnected,TResult Function( String deviceType,  String deviceId,  String property,  String value)?  propertyChanged,TResult Function( String deviceType,  String deviceId,  String message)?  error,TResult Function( double ra,  double dec)?  mountSlewStarted,TResult Function( double ra,  double dec)?  mountSlewCompleted,TResult Function()?  mountTrackingStarted,TResult Function()?  mountTrackingStopped,TResult Function()?  mountParkStarted,TResult Function()?  mountParkCompleted,TResult Function()?  mountUnparked,TResult Function( int targetPosition)?  focuserMoveStarted,TResult Function( int position)?  focuserMoveCompleted,TResult Function( double temperature)?  focuserTemperatureChanged,TResult Function( int fromPosition,  int toPosition,  String? filterName,  String? fromFilterName)?  filterChanging,TResult Function( int position,  String? filterName)?  filterChanged,TResult Function( double targetAngle)?  rotatorMoveStarted,TResult Function( double angle)?  rotatorMoveCompleted,TResult Function( double targetTemp)?  cameraCoolingStarted,TResult Function( double temperature)?  cameraCoolingReached,TResult Function()?  cameraWarmingStarted,TResult Function()?  cameraWarmingCompleted,TResult Function( String deviceType,  String deviceId,  BigInt intervalSecs)?  heartbeatStarted,TResult Function( String deviceType,  String deviceId)?  heartbeatStopped,TResult Function( String deviceType,  String deviceId,  HeartbeatStatus status,  int consecutiveFailures,  BigInt? lastRttMs)?  heartbeatStatusChanged,TResult Function( String deviceType,  String deviceId,  int attempt,  int maxAttempts)?  heartbeatReconnecting,TResult Function( String deviceType,  String deviceId,  int afterAttempts)?  heartbeatReconnected,TResult Function( String deviceClass,  String driver,  String id,  String name,  String displayName,  String? uniqueId)?  deviceDiscovered,TResult Function( String deviceClass,  String driver,  String id)?  deviceLost,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case EquipmentEvent_Connecting() when connecting != null:
 return connecting(_that.deviceType,_that.deviceId);case EquipmentEvent_Connected() when connected != null:
@@ -221,7 +221,7 @@ return mountUnparked();case EquipmentEvent_FocuserMoveStarted() when focuserMove
 return focuserMoveStarted(_that.targetPosition);case EquipmentEvent_FocuserMoveCompleted() when focuserMoveCompleted != null:
 return focuserMoveCompleted(_that.position);case EquipmentEvent_FocuserTemperatureChanged() when focuserTemperatureChanged != null:
 return focuserTemperatureChanged(_that.temperature);case EquipmentEvent_FilterChanging() when filterChanging != null:
-return filterChanging(_that.fromPosition,_that.toPosition,_that.filterName);case EquipmentEvent_FilterChanged() when filterChanged != null:
+return filterChanging(_that.fromPosition,_that.toPosition,_that.filterName,_that.fromFilterName);case EquipmentEvent_FilterChanged() when filterChanged != null:
 return filterChanged(_that.position,_that.filterName);case EquipmentEvent_RotatorMoveStarted() when rotatorMoveStarted != null:
 return rotatorMoveStarted(_that.targetAngle);case EquipmentEvent_RotatorMoveCompleted() when rotatorMoveCompleted != null:
 return rotatorMoveCompleted(_that.angle);case EquipmentEvent_CameraCoolingStarted() when cameraCoolingStarted != null:
@@ -253,7 +253,7 @@ return deviceLost(_that.deviceClass,_that.driver,_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String deviceType,  String deviceId)  connecting,required TResult Function( String deviceType,  String deviceId)  connected,required TResult Function( String deviceType,  String deviceId)  disconnected,required TResult Function( String deviceType,  String deviceId,  String property,  String value)  propertyChanged,required TResult Function( String deviceType,  String deviceId,  String message)  error,required TResult Function( double ra,  double dec)  mountSlewStarted,required TResult Function( double ra,  double dec)  mountSlewCompleted,required TResult Function()  mountTrackingStarted,required TResult Function()  mountTrackingStopped,required TResult Function()  mountParkStarted,required TResult Function()  mountParkCompleted,required TResult Function()  mountUnparked,required TResult Function( int targetPosition)  focuserMoveStarted,required TResult Function( int position)  focuserMoveCompleted,required TResult Function( double temperature)  focuserTemperatureChanged,required TResult Function( int fromPosition,  int toPosition,  String? filterName)  filterChanging,required TResult Function( int position,  String? filterName)  filterChanged,required TResult Function( double targetAngle)  rotatorMoveStarted,required TResult Function( double angle)  rotatorMoveCompleted,required TResult Function( double targetTemp)  cameraCoolingStarted,required TResult Function( double temperature)  cameraCoolingReached,required TResult Function()  cameraWarmingStarted,required TResult Function()  cameraWarmingCompleted,required TResult Function( String deviceType,  String deviceId,  BigInt intervalSecs)  heartbeatStarted,required TResult Function( String deviceType,  String deviceId)  heartbeatStopped,required TResult Function( String deviceType,  String deviceId,  HeartbeatStatus status,  int consecutiveFailures,  BigInt? lastRttMs)  heartbeatStatusChanged,required TResult Function( String deviceType,  String deviceId,  int attempt,  int maxAttempts)  heartbeatReconnecting,required TResult Function( String deviceType,  String deviceId,  int afterAttempts)  heartbeatReconnected,required TResult Function( String deviceClass,  String driver,  String id,  String name,  String displayName,  String? uniqueId)  deviceDiscovered,required TResult Function( String deviceClass,  String driver,  String id)  deviceLost,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String deviceType,  String deviceId)  connecting,required TResult Function( String deviceType,  String deviceId)  connected,required TResult Function( String deviceType,  String deviceId)  disconnected,required TResult Function( String deviceType,  String deviceId,  String property,  String value)  propertyChanged,required TResult Function( String deviceType,  String deviceId,  String message)  error,required TResult Function( double ra,  double dec)  mountSlewStarted,required TResult Function( double ra,  double dec)  mountSlewCompleted,required TResult Function()  mountTrackingStarted,required TResult Function()  mountTrackingStopped,required TResult Function()  mountParkStarted,required TResult Function()  mountParkCompleted,required TResult Function()  mountUnparked,required TResult Function( int targetPosition)  focuserMoveStarted,required TResult Function( int position)  focuserMoveCompleted,required TResult Function( double temperature)  focuserTemperatureChanged,required TResult Function( int fromPosition,  int toPosition,  String? filterName,  String? fromFilterName)  filterChanging,required TResult Function( int position,  String? filterName)  filterChanged,required TResult Function( double targetAngle)  rotatorMoveStarted,required TResult Function( double angle)  rotatorMoveCompleted,required TResult Function( double targetTemp)  cameraCoolingStarted,required TResult Function( double temperature)  cameraCoolingReached,required TResult Function()  cameraWarmingStarted,required TResult Function()  cameraWarmingCompleted,required TResult Function( String deviceType,  String deviceId,  BigInt intervalSecs)  heartbeatStarted,required TResult Function( String deviceType,  String deviceId)  heartbeatStopped,required TResult Function( String deviceType,  String deviceId,  HeartbeatStatus status,  int consecutiveFailures,  BigInt? lastRttMs)  heartbeatStatusChanged,required TResult Function( String deviceType,  String deviceId,  int attempt,  int maxAttempts)  heartbeatReconnecting,required TResult Function( String deviceType,  String deviceId,  int afterAttempts)  heartbeatReconnected,required TResult Function( String deviceClass,  String driver,  String id,  String name,  String displayName,  String? uniqueId)  deviceDiscovered,required TResult Function( String deviceClass,  String driver,  String id)  deviceLost,}) {final _that = this;
 switch (_that) {
 case EquipmentEvent_Connecting():
 return connecting(_that.deviceType,_that.deviceId);case EquipmentEvent_Connected():
@@ -271,7 +271,7 @@ return mountUnparked();case EquipmentEvent_FocuserMoveStarted():
 return focuserMoveStarted(_that.targetPosition);case EquipmentEvent_FocuserMoveCompleted():
 return focuserMoveCompleted(_that.position);case EquipmentEvent_FocuserTemperatureChanged():
 return focuserTemperatureChanged(_that.temperature);case EquipmentEvent_FilterChanging():
-return filterChanging(_that.fromPosition,_that.toPosition,_that.filterName);case EquipmentEvent_FilterChanged():
+return filterChanging(_that.fromPosition,_that.toPosition,_that.filterName,_that.fromFilterName);case EquipmentEvent_FilterChanged():
 return filterChanged(_that.position,_that.filterName);case EquipmentEvent_RotatorMoveStarted():
 return rotatorMoveStarted(_that.targetAngle);case EquipmentEvent_RotatorMoveCompleted():
 return rotatorMoveCompleted(_that.angle);case EquipmentEvent_CameraCoolingStarted():
@@ -299,7 +299,7 @@ return deviceLost(_that.deviceClass,_that.driver,_that.id);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String deviceType,  String deviceId)?  connecting,TResult? Function( String deviceType,  String deviceId)?  connected,TResult? Function( String deviceType,  String deviceId)?  disconnected,TResult? Function( String deviceType,  String deviceId,  String property,  String value)?  propertyChanged,TResult? Function( String deviceType,  String deviceId,  String message)?  error,TResult? Function( double ra,  double dec)?  mountSlewStarted,TResult? Function( double ra,  double dec)?  mountSlewCompleted,TResult? Function()?  mountTrackingStarted,TResult? Function()?  mountTrackingStopped,TResult? Function()?  mountParkStarted,TResult? Function()?  mountParkCompleted,TResult? Function()?  mountUnparked,TResult? Function( int targetPosition)?  focuserMoveStarted,TResult? Function( int position)?  focuserMoveCompleted,TResult? Function( double temperature)?  focuserTemperatureChanged,TResult? Function( int fromPosition,  int toPosition,  String? filterName)?  filterChanging,TResult? Function( int position,  String? filterName)?  filterChanged,TResult? Function( double targetAngle)?  rotatorMoveStarted,TResult? Function( double angle)?  rotatorMoveCompleted,TResult? Function( double targetTemp)?  cameraCoolingStarted,TResult? Function( double temperature)?  cameraCoolingReached,TResult? Function()?  cameraWarmingStarted,TResult? Function()?  cameraWarmingCompleted,TResult? Function( String deviceType,  String deviceId,  BigInt intervalSecs)?  heartbeatStarted,TResult? Function( String deviceType,  String deviceId)?  heartbeatStopped,TResult? Function( String deviceType,  String deviceId,  HeartbeatStatus status,  int consecutiveFailures,  BigInt? lastRttMs)?  heartbeatStatusChanged,TResult? Function( String deviceType,  String deviceId,  int attempt,  int maxAttempts)?  heartbeatReconnecting,TResult? Function( String deviceType,  String deviceId,  int afterAttempts)?  heartbeatReconnected,TResult? Function( String deviceClass,  String driver,  String id,  String name,  String displayName,  String? uniqueId)?  deviceDiscovered,TResult? Function( String deviceClass,  String driver,  String id)?  deviceLost,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String deviceType,  String deviceId)?  connecting,TResult? Function( String deviceType,  String deviceId)?  connected,TResult? Function( String deviceType,  String deviceId)?  disconnected,TResult? Function( String deviceType,  String deviceId,  String property,  String value)?  propertyChanged,TResult? Function( String deviceType,  String deviceId,  String message)?  error,TResult? Function( double ra,  double dec)?  mountSlewStarted,TResult? Function( double ra,  double dec)?  mountSlewCompleted,TResult? Function()?  mountTrackingStarted,TResult? Function()?  mountTrackingStopped,TResult? Function()?  mountParkStarted,TResult? Function()?  mountParkCompleted,TResult? Function()?  mountUnparked,TResult? Function( int targetPosition)?  focuserMoveStarted,TResult? Function( int position)?  focuserMoveCompleted,TResult? Function( double temperature)?  focuserTemperatureChanged,TResult? Function( int fromPosition,  int toPosition,  String? filterName,  String? fromFilterName)?  filterChanging,TResult? Function( int position,  String? filterName)?  filterChanged,TResult? Function( double targetAngle)?  rotatorMoveStarted,TResult? Function( double angle)?  rotatorMoveCompleted,TResult? Function( double targetTemp)?  cameraCoolingStarted,TResult? Function( double temperature)?  cameraCoolingReached,TResult? Function()?  cameraWarmingStarted,TResult? Function()?  cameraWarmingCompleted,TResult? Function( String deviceType,  String deviceId,  BigInt intervalSecs)?  heartbeatStarted,TResult? Function( String deviceType,  String deviceId)?  heartbeatStopped,TResult? Function( String deviceType,  String deviceId,  HeartbeatStatus status,  int consecutiveFailures,  BigInt? lastRttMs)?  heartbeatStatusChanged,TResult? Function( String deviceType,  String deviceId,  int attempt,  int maxAttempts)?  heartbeatReconnecting,TResult? Function( String deviceType,  String deviceId,  int afterAttempts)?  heartbeatReconnected,TResult? Function( String deviceClass,  String driver,  String id,  String name,  String displayName,  String? uniqueId)?  deviceDiscovered,TResult? Function( String deviceClass,  String driver,  String id)?  deviceLost,}) {final _that = this;
 switch (_that) {
 case EquipmentEvent_Connecting() when connecting != null:
 return connecting(_that.deviceType,_that.deviceId);case EquipmentEvent_Connected() when connected != null:
@@ -317,7 +317,7 @@ return mountUnparked();case EquipmentEvent_FocuserMoveStarted() when focuserMove
 return focuserMoveStarted(_that.targetPosition);case EquipmentEvent_FocuserMoveCompleted() when focuserMoveCompleted != null:
 return focuserMoveCompleted(_that.position);case EquipmentEvent_FocuserTemperatureChanged() when focuserTemperatureChanged != null:
 return focuserTemperatureChanged(_that.temperature);case EquipmentEvent_FilterChanging() when filterChanging != null:
-return filterChanging(_that.fromPosition,_that.toPosition,_that.filterName);case EquipmentEvent_FilterChanged() when filterChanged != null:
+return filterChanging(_that.fromPosition,_that.toPosition,_that.filterName,_that.fromFilterName);case EquipmentEvent_FilterChanged() when filterChanged != null:
 return filterChanged(_that.position,_that.filterName);case EquipmentEvent_RotatorMoveStarted() when rotatorMoveStarted != null:
 return rotatorMoveStarted(_that.targetAngle);case EquipmentEvent_RotatorMoveCompleted() when rotatorMoveCompleted != null:
 return rotatorMoveCompleted(_that.angle);case EquipmentEvent_CameraCoolingStarted() when cameraCoolingStarted != null:
@@ -1183,12 +1183,13 @@ as double,
 
 
 class EquipmentEvent_FilterChanging extends EquipmentEvent {
-  const EquipmentEvent_FilterChanging({required this.fromPosition, required this.toPosition, this.filterName}): super._();
+  const EquipmentEvent_FilterChanging({required this.fromPosition, required this.toPosition, this.filterName, this.fromFilterName}): super._();
   
 
  final  int fromPosition;
  final  int toPosition;
  final  String? filterName;
+ final  String? fromFilterName;
 
 /// Create a copy of EquipmentEvent
 /// with the given fields replaced by the non-null parameter values.
@@ -1200,16 +1201,16 @@ $EquipmentEvent_FilterChangingCopyWith<EquipmentEvent_FilterChanging> get copyWi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is EquipmentEvent_FilterChanging&&(identical(other.fromPosition, fromPosition) || other.fromPosition == fromPosition)&&(identical(other.toPosition, toPosition) || other.toPosition == toPosition)&&(identical(other.filterName, filterName) || other.filterName == filterName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EquipmentEvent_FilterChanging&&(identical(other.fromPosition, fromPosition) || other.fromPosition == fromPosition)&&(identical(other.toPosition, toPosition) || other.toPosition == toPosition)&&(identical(other.filterName, filterName) || other.filterName == filterName)&&(identical(other.fromFilterName, fromFilterName) || other.fromFilterName == fromFilterName));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,fromPosition,toPosition,filterName);
+int get hashCode => Object.hash(runtimeType,fromPosition,toPosition,filterName,fromFilterName);
 
 @override
 String toString() {
-  return 'EquipmentEvent.filterChanging(fromPosition: $fromPosition, toPosition: $toPosition, filterName: $filterName)';
+  return 'EquipmentEvent.filterChanging(fromPosition: $fromPosition, toPosition: $toPosition, filterName: $filterName, fromFilterName: $fromFilterName)';
 }
 
 
@@ -1220,7 +1221,7 @@ abstract mixin class $EquipmentEvent_FilterChangingCopyWith<$Res> implements $Eq
   factory $EquipmentEvent_FilterChangingCopyWith(EquipmentEvent_FilterChanging value, $Res Function(EquipmentEvent_FilterChanging) _then) = _$EquipmentEvent_FilterChangingCopyWithImpl;
 @useResult
 $Res call({
- int fromPosition, int toPosition, String? filterName
+ int fromPosition, int toPosition, String? filterName, String? fromFilterName
 });
 
 
@@ -1237,11 +1238,12 @@ class _$EquipmentEvent_FilterChangingCopyWithImpl<$Res>
 
 /// Create a copy of EquipmentEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? fromPosition = null,Object? toPosition = null,Object? filterName = freezed,}) {
+@pragma('vm:prefer-inline') $Res call({Object? fromPosition = null,Object? toPosition = null,Object? filterName = freezed,Object? fromFilterName = freezed,}) {
   return _then(EquipmentEvent_FilterChanging(
 fromPosition: null == fromPosition ? _self.fromPosition : fromPosition // ignore: cast_nullable_to_non_nullable
 as int,toPosition: null == toPosition ? _self.toPosition : toPosition // ignore: cast_nullable_to_non_nullable
 as int,filterName: freezed == filterName ? _self.filterName : filterName // ignore: cast_nullable_to_non_nullable
+as String?,fromFilterName: freezed == fromFilterName ? _self.fromFilterName : fromFilterName // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

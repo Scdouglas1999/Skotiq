@@ -288,20 +288,32 @@ void main(List<String> args) async {
     ),
     version: appVersion.version,
     pid: pid,
+    ownsRig: remoteTarget == null,
   );
   final previousSession = lastGasp.readPreviousSession();
-  if (previousSession != null && previousSession.endedWithoutShutdownPath) {
-    logger.error(
-      'The previous Skotiq session ended without a shutdown record: '
-      'nothing was safed on the way out. Check the rig.',
-      source: 'desktop.shutdown',
-      fields: {
-        'endedAt': previousSession.at.toIso8601String(),
-        if (previousSession.version != null)
-          'version': previousSession.version!,
-        'lastError': previousSession.lastError ?? 'none recorded',
-      },
-    );
+  final previousReport = previousSessionShutdownReport(
+    previousSession,
+    thisLaunchOwnsRig: remoteTarget == null,
+  );
+  if (previousSession != null && previousReport != null) {
+    final fields = {
+      'endedAt': previousSession.at.toIso8601String(),
+      if (previousSession.version != null) 'version': previousSession.version!,
+      'lastError': previousSession.lastError ?? 'none recorded',
+    };
+    if (previousReport.checkTheRig) {
+      logger.error(
+        previousReport.message,
+        source: 'desktop.shutdown',
+        fields: fields,
+      );
+    } else {
+      logger.warning(
+        previousReport.message,
+        source: 'desktop.shutdown',
+        fields: fields,
+      );
+    }
   }
   lastGasp.markRunning();
   lastGasp.install(

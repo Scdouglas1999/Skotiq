@@ -800,10 +800,10 @@ class _SessionReviewBar extends StatelessWidget {
                       child: Text(
                         '${session.name ?? 'Session ${session.id}'}'
                         '  ·  ${format.format(session.startTime)}'
-                        // `successful_exposures` is the frames kept and
-                        // `total_exposures` every capture.
-                        '  ·  ${session.successfulExposures}/'
-                        '${session.totalExposures} frames kept',
+                        // Every capture, not the frames kept: the row's
+                        // `successful_exposures` ignores the auto-grader, and
+                        // "7/8 frames kept" sat over "4/8" (rig, 2026-11-03).
+                        '  ·  ${session.totalExposures} exposures',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: SkotiqTypography.bodySm

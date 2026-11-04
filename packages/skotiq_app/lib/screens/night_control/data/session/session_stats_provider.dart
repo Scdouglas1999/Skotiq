@@ -1,9 +1,14 @@
 // Overview's "Session" block.
 //
-// The run's own counters (`liveSequenceStatsProvider`) are the source while a
-// run is live: they count the autofocus runs, dithers and rejections as the
-// executor saw them. Without a run the frame counts fall back to the session
-// rows. A metric with no source is left out of the list.
+// Accepted, rejected and integration come from the session's light rows
+// (`captured_images.is_accepted`), the one place every verdict on a frame is
+// recorded: the run's grader, the science pipeline's auto-grader and the
+// operator's own flags. Analytics, History and `/api/sessions` count the same
+// rows. The run's own counters (`liveSequenceStatsProvider`) know only the
+// run's grader, so a night the auto-grader culled read "7 accepted, 1
+// rejected" here and "4 accepted, 4 excluded" in Analytics (rig, 2026-11-03).
+// They stay the source before the first row lands, and for the frame count,
+// autofocus runs and dithers. A metric with no source is left out of the list.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -40,15 +45,15 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
   int? accepted;
   int? rejected;
   double? integration;
-  if (live != null) {
-    accepted = live.framesCaptured - live.framesRejected;
-    rejected = live.framesRejected;
-    integration = live.integrationSecs;
-  } else if (lights.isNotEmpty) {
+  if (lights.isNotEmpty) {
     final kept = lights.where((row) => row.isAccepted).toList();
     accepted = kept.length;
     rejected = lights.length - kept.length;
     integration = kept.fold<double>(0, (sum, r) => sum + r.exposureDuration);
+  } else if (live != null) {
+    accepted = live.framesCaptured - live.framesRejected;
+    rejected = live.framesRejected;
+    integration = live.integrationSecs;
   }
 
   // The disconnect log is not reactive; it is read again whenever the

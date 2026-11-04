@@ -1203,6 +1203,31 @@ pub async fn select_fresh_guide_star(
         exposure.as_secs_f64()
     );
     stop_capture_completely(exposure).await?;
+    let selected = find_fresh_star(exposure, floor).await;
+    if selected.is_err() {
+        // PHD2 found nothing to guide on; left looping it exposes the guide
+        // camera until someone stops it (rig, 2026-11-03: still looping after
+        // the run parked).
+        let stopped = phd2_client().await.and_then(|mut client| {
+            client
+                .stop_capture()
+                .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+        });
+        if let Err(error) = stopped {
+            tracing::warn!(
+                "[GUIDING] Could not stop PHD2's looping after the star search: {error}"
+            );
+        }
+    }
+    selected
+}
+
+/// Loop PHD2 and auto-select a star in a frame taken after the capture
+/// [`select_fresh_guide_star`] stopped.
+async fn find_fresh_star(
+    exposure: Duration,
+    floor: Option<skotiq_sequencer::GuideStarFloor>,
+) -> Result<(f64, f64), SkotiqError> {
     // Counted only once PHD2 has stopped, so every later frame was exposed
     // after this request.
     let mut last_frame = {
@@ -1697,8 +1722,9 @@ mod fresh_guide_star_tests {
     type RecordedMethods = Arc<Mutex<Vec<String>>>;
 
     /// A PHD2 stand-in that records every method it is asked for. Its first
-    /// `find_star` fails, as PHD2's does before a frame has arrived.
-    fn spawn_recording_phd2() -> (u16, RecordedMethods, std::thread::JoinHandle<()>) {
+    /// `find_star` fails, as PHD2's does before a frame has arrived; with
+    /// `no_star` every one fails.
+    fn spawn_recording_phd2(no_star: bool) -> (u16, RecordedMethods, std::thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock PHD2");
         let port = listener.local_addr().expect("mock PHD2 addr").port();
         let methods = RecordedMethods::default();
@@ -1726,7 +1752,7 @@ mod fresh_guide_star_tests {
                     }),
                     "find_star" => {
                         find_star_calls += 1;
-                        if find_star_calls == 1 {
+                        if find_star_calls == 1 || no_star {
                             serde_json::json!({
                                 "jsonrpc": "2.0",
                                 "error": {"code": 1, "message": "no star found"},
@@ -1773,7 +1799,7 @@ mod fresh_guide_star_tests {
     #[tokio::test]
     async fn a_fresh_star_is_found_in_a_new_frame_after_capture_restarts() {
         let _slot = PHD2_TEST_SLOT.lock().await;
-        let (port, methods, server) = spawn_recording_phd2();
+        let (port, methods, server) = spawn_recording_phd2(false);
         api_phd2_connect(Some("127.0.0.1".to_string()), Some(port))
             .await
             .expect("mock PHD2 must accept the connect");
@@ -1804,6 +1830,36 @@ mod fresh_guide_star_tests {
         assert!(
             !methods.iter().any(|m| m == "guide"),
             "selecting a star must not start guiding: {methods:?}"
+        );
+        assert_eq!(
+            methods.iter().filter(|m| *m == "stop_capture").count(),
+            1,
+            "a star was found, so PHD2 is left looping on it: {methods:?}"
+        );
+    }
+
+    /// On the rig (2026-11-03) a search that found no star left PHD2 looping,
+    /// and it was still looping after the run had parked.
+    #[tokio::test]
+    async fn a_search_that_finds_no_star_stops_the_looping() {
+        let _slot = PHD2_TEST_SLOT.lock().await;
+        let (port, methods, server) = spawn_recording_phd2(true);
+        api_phd2_connect(Some("127.0.0.1".to_string()), Some(port))
+            .await
+            .expect("mock PHD2 must accept the connect");
+        methods.lock().unwrap().clear();
+
+        let selected = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
+
+        let _ = api_phd2_disconnect().await;
+        server.join().expect("mock PHD2 server thread finished");
+        let methods = methods.lock().unwrap().clone();
+        assert!(selected.is_err(), "no frame had a star");
+        let last_find = methods.iter().rposition(|m| m == "find_star");
+        let last_stop = methods.iter().rposition(|m| m == "stop_capture");
+        assert!(
+            last_find.is_some() && last_stop > last_find,
+            "the looping is stopped after the last search: {methods:?}"
         );
     }
 }

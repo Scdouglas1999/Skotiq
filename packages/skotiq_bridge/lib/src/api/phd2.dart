@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `await_settle`, `finish_pending_settle`, `guide_exposure`, `guider_stop_for_run`, `known_pixel_scale`, `note_operator_stop`, `phd2_client`, `phd2_stop_guiding`, `reported_stop_reason`, `resolve_guider_backend`, `settle_done_event`, `stop_capture_and_wait`, `stop_capture_completely`, `wait_for_looping_frame`
+// These functions are ignored because they are not marked as `pub`: `await_settle`, `find_fresh_star`, `finish_pending_settle`, `guide_exposure`, `guider_stop_for_run`, `known_pixel_scale`, `note_operator_stop`, `phd2_client`, `phd2_stop_guiding`, `reported_stop_reason`, `resolve_guider_backend`, `settle_done_event`, `stop_capture_and_wait`, `stop_capture_completely`, `wait_for_looping_frame`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GuiderBackend`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`, `guiding_stop_reason`, `select_fresh_guide_star`, `set_guiding_stop_reason`

@@ -758,6 +758,7 @@ bridge.EquipmentEvent _equipmentEventFromCore(
         fromPosition: _optionalInt(data, 'from_position') ?? 0,
         toPosition: _optionalInt(data, 'to_position') ?? 0,
         filterName: _optionalString(data, 'filter_name'),
+        fromFilterName: _optionalString(data, 'from_filter_name'),
       );
     case 'FilterChanged':
       return bridge.EquipmentEvent.filterChanged(

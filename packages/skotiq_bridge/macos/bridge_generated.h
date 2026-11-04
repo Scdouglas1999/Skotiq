@@ -700,6 +700,7 @@ typedef struct wire_cst_EquipmentEvent_FilterChanging {
   int32_t from_position;
   int32_t to_position;
   struct wire_cst_list_prim_u_8_strict *filter_name;
+  struct wire_cst_list_prim_u_8_strict *from_filter_name;
 } wire_cst_EquipmentEvent_FilterChanging;
 
 typedef struct wire_cst_EquipmentEvent_FilterChanged {
