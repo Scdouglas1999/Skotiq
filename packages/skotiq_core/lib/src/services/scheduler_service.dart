@@ -533,8 +533,8 @@ class SchedulerService {
     var raHours = (ra * 180.0 / math.pi) / 15.0;
     if (raHours < 0) raHours += 24.0;
 
-    // Calculate illumination (simplified, based on phase angle)
-    final illumination = (1.0 - math.cos(dRad)) / 2.0;
+    // The lit fraction every screen quotes; see the scheduler engine.
+    final illumination = AstronomyCalculations.moonIllumination(time) / 100.0;
 
     return (
       raHours: raHours,

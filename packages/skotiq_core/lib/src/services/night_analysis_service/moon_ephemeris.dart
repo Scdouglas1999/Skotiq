@@ -3,8 +3,9 @@ part of '../night_analysis_service.dart';
 /// Self-contained low-precision lunar ephemeris (Meeus), copied from
 /// `SchedulerService.calculateMoonPosition` + the scheduler's alt/az conversion
 /// so [NightAnalysisService] depends on neither the scheduler engine (its moon
-/// API is private) nor a live site. Illumination uses the same
-/// `(1 - cos(D)) / 2` phase approximation as the rest of the codebase.
+/// API is private) nor a live site. Illumination is
+/// [AstronomyCalculations.moonIllumination], the one computation every screen
+/// quotes.
 class _MoonEphemeris {
   /// Mean illumination over the window and whether the moon's altitude is
   /// rising across it. Altitude is computed at a nominal mid-northern-latitude
@@ -43,9 +44,7 @@ class _MoonEphemeris {
     final jd = _julianDate(time);
     final t = (jd - 2451545.0) / 36525.0;
     final l = (218.3164477 + 481267.88123421 * t) % 360.0;
-    final d = (297.8501921 + 445267.1114034 * t) % 360.0;
     final mp = (134.9633964 + 477198.8675055 * t) % 360.0;
-    final dRad = d * math.pi / 180.0;
     final mpRad = mp * math.pi / 180.0;
     final lambda = l + 6.289 * math.sin(mpRad);
     final lambdaRad = lambda * math.pi / 180.0;
@@ -63,7 +62,7 @@ class _MoonEphemeris {
     );
     var raHours = (ra * 180.0 / math.pi) / 15.0;
     if (raHours < 0) raHours += 24.0;
-    final illumination = (1.0 - math.cos(dRad)) / 2.0;
+    final illumination = AstronomyCalculations.moonIllumination(time) / 100.0;
     return (
       raHours: raHours,
       decDeg: dec * 180.0 / math.pi,

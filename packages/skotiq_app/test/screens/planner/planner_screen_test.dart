@@ -321,6 +321,36 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
+  // SY-06: the header's Moon is read at the middle of the dark, not now, and
+  // Tonight and the schedule quote it for now. The chip names its time so
+  // three different percentages are not read as one.
+  testWidgets('the Moon chip names the time it is for', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _commonOverrides(),
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: PlannerScreen()),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.textContaining(RegExp(r'^Moon \d+% at \d\d:\d\d$')),
+      findsOneWidget,
+    );
+
+    await settleProviderTeardown(tester);
+  });
+
   testWidgets('defaults to Recommendation when no query param is supplied',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;

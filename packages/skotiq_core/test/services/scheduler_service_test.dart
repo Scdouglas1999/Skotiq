@@ -25,8 +25,8 @@ void main() {
     });
 
     group('calculateMoonPosition - illumination', () {
-      // The illumination formula is: (1 - cos(d)) / 2
-      // where d is the mean elongation of the moon.
+      // The illumination is AstronomyCalculations.moonIllumination, the lit
+      // fraction from the Moon-Sun elongation (d below).
       // New Moon: d ~ 0 deg  -> illumination ~ 0.0
       // Full Moon: d ~ 180 deg -> illumination ~ 1.0
       // Quarter Moon: d ~ 90 or 270 deg -> illumination ~ 0.5

@@ -14,18 +14,17 @@ extension on SchedulerEngine {
     );
   }
 
-  /// Meeus low-precision lunar ephemeris, matching the established static
-  /// scheduler (`scheduler_service.dart`) so unit-tested moon-illumination
-  /// behaviour stays in sync.
+  /// Meeus low-precision lunar ephemeris for the Moon's position. The lit
+  /// fraction comes from [AstronomyCalculations.moonIllumination], the one
+  /// computation every screen quotes, so the schedule's reasoning and the Plan
+  /// and Tonight screens agree on the Moon at the same instant.
   _MoonPosition _moonPosition(DateTime time) {
     // Whole-second day fraction, matching `scheduler_service.dart`.
     final jd = SkyCalculations.julianDate(time, includeMilliseconds: false);
     final t = (jd - 2451545.0) / 36525.0;
     final l = (218.3164477 + 481267.88123421 * t) % 360.0;
-    final dEl = (297.8501921 + 445267.1114034 * t) % 360.0;
     final mp = (134.9633964 + 477198.8675055 * t) % 360.0;
     final mpRad = mp * math.pi / 180.0;
-    final dRad = dEl * math.pi / 180.0;
     final lambda = l + 6.289 * math.sin(mpRad);
     final lambdaRad = lambda * math.pi / 180.0;
     final beta = 5.128 * math.sin(mpRad);
@@ -43,7 +42,7 @@ extension on SchedulerEngine {
     );
     var raHours = (ra * 180.0 / math.pi) / 15.0;
     if (raHours < 0) raHours += 24.0;
-    final illumination = (1.0 - math.cos(dRad)) / 2.0;
+    final illumination = AstronomyCalculations.moonIllumination(time) / 100.0;
     return _MoonPosition(
       raHours: raHours,
       decDegrees: dec * 180.0 / math.pi,

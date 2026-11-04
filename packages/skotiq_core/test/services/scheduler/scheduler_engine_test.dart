@@ -8,6 +8,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show AstronomyCalculations;
 
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/models/scheduler/scheduler_status.dart';
@@ -299,6 +301,37 @@ void main() {
       expect(decision.reasoning, isNotEmpty);
       await engine.dispose();
     });
+  });
+
+  // SY-06: the schedule's reasoning said "ill 33%" at 19:48 on 2026-11-03
+  // while Tonight said 27% for the same instant; the engine used its own
+  // cruder phase formula.
+  test('the moon factor quotes the lit fraction every screen uses', () async {
+    final now = DateTime.utc(2026, 11, 4, 0, 48);
+    final engine = SchedulerEngine(
+      site: const SchedulerSite(
+        latitudeDegrees: 39.97,
+        longitudeDegrees: -75.36,
+        localOffset: Duration(hours: -5),
+      ),
+      sequenceSink: _RecordingSink(),
+      candidateLoader: () async => [
+        _candidate(id: 1, name: 'NGC 7331', raHours: 22.62, decDegrees: 34.4),
+      ],
+      clock: () => now,
+    );
+    await engine.start();
+    final details = engine.lastDecision!.scoredCandidates
+        .expand((s) => s.factors)
+        .map((f) => f.detail ?? '')
+        .where((d) => d.contains(' ill '));
+    final expected = AstronomyCalculations.moonIllumination(now).round();
+    expect(expected, 27);
+    expect(details, isNotEmpty);
+    for (final detail in details) {
+      expect(detail, endsWith('ill $expected%'));
+    }
+    await engine.dispose();
   });
 
   group('SchedulerEngine - hysteresis', () {

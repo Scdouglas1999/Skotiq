@@ -30,20 +30,29 @@ class _PlanNightChips extends ConsumerWidget {
     );
     final dusk = twilight.astronomicalDusk;
     final dawn = twilight.astronomicalDawn;
-    final illumination = AstronomyCalculations.moonIllumination(
-      plannerMoonInstant(now: now, dusk: dusk, dawn: dawn),
-    );
+    final moonInstant = plannerMoonInstant(now: now, dusk: dusk, dawn: dawn);
+    final illumination = AstronomyCalculations.moonIllumination(moonInstant);
     final l10n = context.l10n;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // The Moon is read at the middle of the dark, not now, so the chip
+        // names that time: Tonight and the schedule quote it for now.
         SkotiqChip(
           icon: LucideIcons.moon,
-          label: l10n.text(
-            'plannerChipMoon',
-            params: {'value': illumination.round().toString()},
-          ),
+          label: identical(moonInstant, now)
+              ? l10n.text(
+                  'plannerChipMoon',
+                  params: {'value': illumination.round().toString()},
+                )
+              : l10n.text(
+                  'plannerChipMoonAt',
+                  params: {
+                    'value': illumination.round().toString(),
+                    'time': _hhmm(moonInstant),
+                  },
+                ),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         SkotiqChip(
