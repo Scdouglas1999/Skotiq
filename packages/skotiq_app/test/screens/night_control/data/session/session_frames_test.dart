@@ -275,7 +275,8 @@ void main() {
     );
   });
 
-  test('session stats read the live run counters', () async {
+  test('session stats read the live run counters before any row lands',
+      () async {
     final live = SequenceRunStats()
       ..framesCaptured = 87
       ..framesRejected = 3
@@ -302,6 +303,36 @@ void main() {
       vm.metrics.map((m) => m.label.key),
       isNot(contains('nightSessionStatDisk')),
     );
+  });
+
+  // Rig, 2026-11-03: the run's grader rejected 1 of 8 and the science
+  // pipeline's auto-grader 3 more. Tonight read "7 accepted, 1 rejected, 7m"
+  // from the run's counters while Analytics read "4/8" from the rows.
+  test('session stats count the rows once frames are recorded, not the run '
+      'counters', () async {
+    final live = SequenceRunStats()
+      ..framesCaptured = 5
+      ..framesRejected = 0
+      ..integrationSecs = 5 * 180
+      ..autofocusRuns = 1
+      ..ditherCount = 2;
+    final h = await sessionHarness(
+      overrides: <Override>[
+        liveSequenceStatsProvider.overrideWith((ref) => live),
+        nightCaptureFreeBytesProvider.overrideWithValue(null),
+      ],
+    );
+    await _seedNight(h);
+    final vm = await h.settle(nightSessionStatsProvider);
+    String? value(String key) =>
+        vm.metrics.firstWhere((m) => m.label.key == key).value;
+
+    expect(value('nightSessionStatAccepted'), '4');
+    expect(value('nightSessionStatRejected'), '1');
+    expect(value('nightSessionStatIntegration'), '12m');
+    // Only the run knows these.
+    expect(value('nightSessionStatAutofocus'), '1');
+    expect(value('nightSessionStatDithers'), '2');
   });
 
   test('format helpers', () {

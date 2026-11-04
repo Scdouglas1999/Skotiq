@@ -326,7 +326,7 @@ class ObservationReportService {
           children: [
             pw.TableRow(children: [
               _statCell('Total Exposures', '${session.totalExposures}'),
-              _statCell('Accepted', '${session.successfulExposures}'),
+              _statCell('Completed', '${session.successfulExposures}'),
               _statCell('Failed or rejected', '${session.failedExposures}'),
               _statCell(
                 'Integration',
