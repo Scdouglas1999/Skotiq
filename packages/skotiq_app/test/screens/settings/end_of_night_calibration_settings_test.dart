@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
@@ -46,6 +44,12 @@ class _CapRig extends Fake implements EonRig {
 
   @override
   Future<List<String>?> filterNames() async => const ['L', 'R', 'G', 'B'];
+
+  @override
+  Future<int?> filterPosition() async => 0;
+
+  @override
+  Future<void> moveFilter(int position) async {}
 
   @override
   Future<String?> stopGuiding() async => null;

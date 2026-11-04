@@ -71,6 +71,23 @@ class FakeRig implements EonRig {
   @override
   Future<List<String>?> filterNames() async => wheel;
 
+  /// The wheel's slot; the calibration run moves it to the dark slot its
+  /// exposures name, as the native run does.
+  int? wheelPosition = 0;
+  final filterMoves = <int>[];
+  Object? filterMoveError;
+  Object? runError;
+
+  @override
+  Future<int?> filterPosition() async => wheel == null ? null : wheelPosition;
+
+  @override
+  Future<void> moveFilter(int position) async {
+    filterMoves.add(position);
+    if (filterMoveError != null) throw filterMoveError!;
+    wheelPosition = position;
+  }
+
   @override
   Future<String?> stopGuiding() async {
     calls.add('stopGuiding');
@@ -87,6 +104,13 @@ class FakeRig implements EonRig {
   Future<EonRunResult> runSequence(Sequence sequence) async {
     calls.add('run');
     sequences.add(sequence);
+    final darkIndex = sequence.nodes.values
+        .whereType<ExposureNode>()
+        .map((n) => n.filterIndex)
+        .whereType<int>()
+        .firstOrNull;
+    if (darkIndex != null) wheelPosition = darkIndex;
+    if (runError != null) throw runError!;
     final gate = runGate;
     if (gate != null) await gate.future;
     return EonRunResult(runId: 31, runStatus: runStatus);
@@ -376,6 +400,78 @@ void main() {
     );
     rig.runGate!.complete();
     await first;
+  });
+
+  group('the filter wheel goes back where it was', () {
+    setUp(() => rig.wheelPosition = 4);
+
+    test('after a finished run', () async {
+      final report = await service.run(reason: 'dawn ended imaging');
+      expect(report.phase, EonPhase.finished, reason: report.summary);
+      expect(rig.filterMoves, [4]);
+      expect(rig.wheelPosition, 4);
+      expect(report.filterRestored, 'Filter wheel put back on Ha (position 5)');
+      expect(report.toJson()['filterRestored'], report.filterRestored);
+    });
+
+    test('after a stopped run', () async {
+      rig.runGate = Completer<void>();
+      rig.runStatus = 'stopped';
+      final running = service.run(reason: 'manual');
+      await pumpUntil(() => rig.calls.contains('run'));
+      expect(rig.wheelPosition, 7);
+      await service.cancel();
+      final report = await running;
+      expect(report.phase, EonPhase.cancelled, reason: report.summary);
+      expect(rig.wheelPosition, 4);
+    });
+
+    test('after a run stopped from outside the step', () async {
+      // POST /api/sequencer/stop ends the native run; the step only sees
+      // the run come back stopped.
+      rig.runStatus = 'stopped';
+      final report = await service.run(reason: 'manual');
+      expect(report.runStatus, 'stopped');
+      expect(rig.wheelPosition, 4);
+    });
+
+    test('after a run that failed to run at all', () async {
+      rig.runError = StateError('the sequencer refused the plan');
+      final report = await service.run(reason: 'manual');
+      expect(report.phase, EonPhase.failed);
+      expect(rig.wheelPosition, 4);
+    });
+
+    test('a failed move back is a problem in the report', () async {
+      rig.filterMoveError = 'wheel did not answer';
+      final report = await service.run(reason: 'manual');
+      expect(rig.wheelPosition, 7);
+      expect(
+        report.problems,
+        contains(
+          'The filter wheel could not be put back on Ha (position 5) after '
+          'the darks: wheel did not answer',
+        ),
+      );
+    });
+
+    test('a wheel that started on the dark slot is left there', () async {
+      rig.wheelPosition = 7;
+      await service.run(reason: 'manual');
+      expect(rig.filterMoves, isEmpty);
+    });
+
+    test('darks behind a cap never touch the wheel', () async {
+      rig.wheel = null;
+      final capped = service.run(
+        reason: 'manual',
+        settings: const EonSettings(enabled: true),
+      );
+      await pumpUntil(() => service.waitingForCap);
+      service.confirmCapped();
+      await capped;
+      expect(rig.filterMoves, isEmpty);
+    });
   });
 }
 

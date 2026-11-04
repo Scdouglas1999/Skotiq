@@ -94,6 +94,24 @@ class ProviderEonRig implements EonRig {
   }
 
   @override
+  Future<int?> filterPosition() async {
+    final wheel = _ref.read(filterWheelStateProvider);
+    if (!_connected(wheel.connectionState, wheel.deviceId)) return null;
+    try {
+      final status = await _ref
+          .read(backendProvider)
+          .getFilterWheelStatus(wheel.deviceId!);
+      return status.position >= 0 ? status.position : null;
+    } catch (_) {
+      return wheel.currentPosition;
+    }
+  }
+
+  @override
+  Future<void> moveFilter(int position) =>
+      _ref.read(deviceServiceProvider).setFilterWheelPosition(position);
+
+  @override
   Future<String?> stopGuiding() async {
     final guider = _ref.read(guiderStateProvider);
     if (!_connected(guider.connectionState, guider.deviceId) ||

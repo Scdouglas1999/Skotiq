@@ -53,6 +53,13 @@ abstract class EonRig {
   /// Filter names of the connected wheel, or null when there is none.
   Future<List<String>?> filterNames();
 
+  /// The wheel's current zero-based slot, or null when there is no wheel or
+  /// it cannot be read.
+  Future<int?> filterPosition();
+
+  /// Move the wheel to the zero-based slot [position].
+  Future<void> moveFilter(int position);
+
   /// Stop the guider; returns what was done, or null when nothing was guiding.
   Future<String?> stopGuiding();
 
@@ -151,6 +158,10 @@ class EonReport {
   String? guiding;
   String? mount;
   String? darkSlot;
+
+  /// Where the wheel was put back after the calibration run, when it ran
+  /// through the dark slot.
+  String? filterRestored;
   List<String> plannedDarks = const [];
   int plannedBiasFrames = 0;
   int? runId;
@@ -169,6 +180,7 @@ class EonReport {
     'guiding': guiding,
     'mount': mount,
     'darkSlot': darkSlot,
+    'filterRestored': filterRestored,
     'plannedDarks': plannedDarks,
     'plannedBiasFrames': plannedBiasFrames,
     'runId': runId,
@@ -407,12 +419,19 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     _set(EonPhase.capturing, 'Taking calibration frames', report);
     await _rig.notify('End-of-night calibration started', plannedText);
 
+    // The slot the wheel was on before the darks, so it can be put back
+    // however the run ends: a stopped run once left it on the dark slot and
+    // the next night's centering frames were all taken through it.
+    final filterBefore = darkSlot == null ? null : await _readFilterPosition();
     _runInFlight = true;
     final EonRunResult result;
     try {
       result = await _rig.runSequence(sequence);
     } finally {
       _runInFlight = false;
+      if (darkSlot != null && filterBefore != null) {
+        await _restoreFilter(filterBefore, darkSlot, report);
+      }
     }
     // A stop ends the frames, not the night's calibration: the masters are
     // built from whatever was taken. A stop while they build ends that too.
@@ -475,6 +494,38 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       report.summary,
       problem: !stopped && (failed || report.problems.isNotEmpty),
     );
+  }
+
+  Future<int?> _readFilterPosition() async {
+    try {
+      return await _rig.filterPosition();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Put the wheel back on [before] when the calibration run left it
+  /// elsewhere. A failure is a problem in the report, not the end of the step.
+  Future<void> _restoreFilter(
+    int before,
+    EonDarkSlot darkSlot,
+    EonReport report,
+  ) async {
+    if (before == darkSlot.index) return;
+    final now = await _readFilterPosition();
+    if (now == before) return;
+    final names = await _rig.filterNames().catchError((_) => null);
+    final name = names != null && before < names.length
+        ? '${names[before]} (position ${before + 1})'
+        : 'position ${before + 1}';
+    try {
+      await _rig.moveFilter(before);
+      report.filterRestored = 'Filter wheel put back on $name';
+    } catch (e) {
+      report.problems.add(
+        'The filter wheel could not be put back on $name after the darks: $e',
+      );
+    }
   }
 
   void _cancelled(EonReport report) {
