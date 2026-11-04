@@ -21,7 +21,11 @@ class _LocatedSettings extends AppSettingsNotifier {
       const AppSettingsState(latitude: 39.97, longitude: -75.36);
 }
 
-TargetSuggestion _hostSuggestion(String name, double score) => TargetSuggestion(
+TargetSuggestion _hostSuggestion(
+  String name,
+  double score, {
+  double airmass = 1.2,
+}) => TargetSuggestion(
   targetId: -1,
   targetName: name,
   catalogId: name,
@@ -40,7 +44,7 @@ TargetSuggestion _hostSuggestion(String name, double score) => TargetSuggestion(
     currentAltitude: 55,
     currentAzimuth: 30,
     transitTime: DateTime.utc(2026, 11, 4, 3, 10),
-    airmass: 1.2,
+    airmass: airmass,
     moonDistance: 40,
     peakAltitude: 80,
     peakAzimuth: 0,
@@ -91,6 +95,8 @@ void main() {
     final host = [
       _hostSuggestion('IC0239', 97),
       _hostSuggestion('IC1823', 96.5),
+      // Below the horizon now: no airmass, which JSON carries as null.
+      _hostSuggestion('NGC1003', 96, airmass: double.infinity),
     ];
     fake.setResponse(
       '/api/suggestions/ranked',
@@ -104,7 +110,12 @@ void main() {
 
     final suggestions = await container.read(tonightSuggestionsProvider.future);
 
-    expect(suggestions.map((s) => s.targetName), ['IC0239', 'IC1823']);
+    expect(suggestions.map((s) => s.targetName), [
+      'IC0239',
+      'IC1823',
+      'NGC1003',
+    ]);
+    expect(suggestions.last.visibility.airmass, double.infinity);
     expect(suggestions.first.toJson(), host.first.toJson());
     expect(suggestions.first.visibility.hoursAboveMinAlt, 9.5);
     expect(suggestions.first.visibility.peakAzimuth, 0);
