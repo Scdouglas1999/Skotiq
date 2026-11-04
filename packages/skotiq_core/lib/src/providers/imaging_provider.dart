@@ -10,6 +10,8 @@ import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
+import 'runtime_mirror/channels/session_frames_channel.dart'
+    show hostSessionFrameIdsProvider;
 import 'sequence/last_ended_run.dart' show lastEndedRunProvider;
 
 /// Current exposure settings
@@ -464,10 +466,27 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
 /// the local id is absent this falls back to the host's own active session,
 /// using the same `status == 'active'` invariant
 /// `SessionsDao.getActiveSessions` relies on.
+///
+/// A host that shares its own list (see `SessionFramesChannel`) settles all
+/// of that: the client shows the host's frames, in the host's order, so the
+/// two count the same frames whenever the client connected.
 final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend is! NetworkBackend) {
     return ref.watch(sessionImagesProvider);
+  }
+
+  final hostIds = ref.watch(hostSessionFrameIdsProvider);
+  if (hostIds != null) {
+    if (hostIds.isEmpty) return const <CapturedImage>[];
+    final rows = ref.watch(allDbImagesProvider).valueOrNull;
+    if (rows == null) return const <CapturedImage>[];
+    final byId = {for (final row in rows) row.id: row};
+    return [
+      for (final id in hostIds)
+        if (byId[id] case final db.CapturedImage row)
+          capturedImageFromDbRow(row),
+    ];
   }
 
   var sessionId = ref.watch(
