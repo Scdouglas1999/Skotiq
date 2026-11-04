@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
+import 'night_history_sync.dart';
 import 'session_events_provider.dart';
 import 'session_format.dart';
 
@@ -44,6 +45,14 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
   NightGuideSamplesNotifier(this._ref) : super(const <NightGuideSample>[]) {
     _bind(_ref.read(backendProvider));
     _ref.listen<SkotiqBackend>(backendProvider, (_, next) => _bind(next));
+    _ref.listen<AsyncValue<NightHistory?>>(
+      hostNightHistoryProvider,
+      (_, next) {
+        final history = next.valueOrNull;
+        if (history != null) _addEarlier(history.guideSamples);
+      },
+      fireImmediately: true,
+    );
   }
 
   final Ref _ref;
@@ -83,6 +92,21 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
     }
     start = math.max(start, current.length + 1 - maxSamples);
     state = <NightGuideSample>[...current.skip(start), sample];
+  }
+
+  /// Put the host's guide steps from before this app's first one in front.
+  void _addEarlier(List<NightGuideSample> host) {
+    if (!mounted) return;
+    final earlier = nightHistoryBefore(host, state, (s) => s.t);
+    if (earlier.isEmpty) return;
+    final merged = <NightGuideSample>[...earlier, ...state];
+    final cutoff = merged.last.t.subtract(retention);
+    var start = 0;
+    while (start < merged.length && merged[start].t.isBefore(cutoff)) {
+      start++;
+    }
+    start = math.max(start, merged.length - maxSamples);
+    state = merged.sublist(start);
   }
 
   @override

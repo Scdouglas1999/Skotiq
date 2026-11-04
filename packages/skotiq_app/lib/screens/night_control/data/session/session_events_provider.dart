@@ -4,7 +4,8 @@
 // GuideStep arrives every one to two seconds, so a mark from 21:40 is gone
 // long before midnight. This notifier keeps only the few event kinds the
 // session charts and the log mark, for the whole session, in memory. Nothing
-// survives an app restart; the charts then start from the restart.
+// survives an app restart; the charts then start from the restart, except on
+// a linked client, which adds the host's marks from before it connected.
 
 import 'dart:async';
 
@@ -13,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
+import 'night_history_sync.dart';
 import 'session_frames_provider.dart';
 
 /// One finished autofocus run, as the log and the focus marks show it.
@@ -87,6 +89,14 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
     _ref.listen<SequenceRunStats?>(
       liveSequenceStatsProvider,
       _onRunStats,
+    );
+    _ref.listen<AsyncValue<NightHistory?>>(
+      hostNightHistoryProvider,
+      (_, next) {
+        final history = next.valueOrNull;
+        if (history != null) _addEarlier(history.events);
+      },
+      fireImmediately: true,
     );
   }
 
@@ -208,6 +218,21 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
       dithers: state.dithers,
       flips: state.flips,
       starLost: state.starLost,
+    );
+  }
+
+  /// Put the host's marks from before this app's first one of each kind in
+  /// front.
+  void _addEarlier(NightSessionEvents host) {
+    if (!mounted) return;
+    List<T> merge<T>(List<T> hostList, List<T> local, DateTime Function(T) t) =>
+        _capped([...nightHistoryBefore(hostList, local, t), ...local]);
+    state = NightSessionEvents(
+      autofocusRuns:
+          merge(host.autofocusRuns, state.autofocusRuns, (r) => r.at),
+      dithers: merge(host.dithers, state.dithers, (d) => d.at),
+      flips: merge(host.flips, state.flips, (t) => t),
+      starLost: merge(host.starLost, state.starLost, (t) => t),
     );
   }
 

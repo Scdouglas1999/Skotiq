@@ -677,6 +677,26 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
   static int _bucketOf(DateTime time) =>
       time.millisecondsSinceEpoch ~/ longBucket.inMilliseconds;
 
+  /// Put [earlier] (oldest first) in front of the twelve-hour history: the
+  /// imaging host's readings from before a linked client connected. Readings
+  /// at or after this history's first are already here.
+  void addEarlier(List<TemperaturePoint> earlier) {
+    final first = _long.isEmpty ? null : _long.first.time;
+    final older = [
+      for (final point in earlier)
+        if (first == null || _bucketOf(point.time) < _bucketOf(first)) point,
+    ];
+    if (older.isEmpty) return;
+    _long.insertAll(0, older);
+    final cutoff = _long.last.time.subtract(longBucket * maxLongPoints);
+    _long.removeWhere((p) => p.time.isBefore(cutoff));
+    if (_long.length > maxLongPoints) {
+      _long.removeRange(0, _long.length - maxLongPoints);
+    }
+    // The long history is read through this list's change signal.
+    state = [...state];
+  }
+
   void clear() {
     _long.clear();
     state = [];

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/runtime_state_handlers.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
@@ -132,5 +134,65 @@ void main() {
     final events = (jsonDecode(await response.readAsString())['events'] as List)
         .cast<Map<String, dynamic>>();
     expect(events.map((e) => e['eventType']), ['Started', 'NodeCompleted']);
+  });
+
+  // SY-15: a client's backfilled log stopped at "Sequence stopped" while the
+  // host's went on to the integration steps after it.
+  test(
+    'recent events keep the newest integration progress of each phase',
+    () async {
+      SkotiqEvent event(String type, int at, [Map<String, dynamic>? data]) =>
+          SkotiqEvent(
+            timestamp: at,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: type,
+            data: data ?? const {},
+          );
+      retained = [
+        event('Stopped', 1),
+        event('IntegrationProgress', 2, {
+          'phase': 'registering',
+          'fraction': .2,
+        }),
+        event('IntegrationProgress', 3, {
+          'phase': 'registering',
+          'fraction': .9,
+        }),
+        event('IntegrationProgress', 4, {
+          'phase': 'integrating',
+          'fraction': .5,
+        }),
+        event('IntegrationProgress', 5, {'phase': 'done', 'fraction': 1.0}),
+      ];
+
+      final response = await handlers.handleRecentEvents(
+        Request('GET', Uri.parse('http://localhost/api/runtime/recent-events')),
+      );
+
+      final events =
+          (jsonDecode(await response.readAsString())['events'] as List)
+              .cast<Map<String, dynamic>>();
+      expect(events.map((e) => e['timestamp']), [1, 3, 4, 5]);
+    },
+  );
+
+  test('night history serves what this host gathered tonight', () async {
+    final at = DateTime(2026, 11, 3, 18, 22);
+    container
+        .read(nightGuideSamplesProvider.notifier)
+        .add(NightGuideSample(at, 0.4, -0.3));
+
+    final response = await handlers.handleNightHistory(
+      Request('GET', Uri.parse('http://localhost/api/runtime/night-history')),
+    );
+
+    final body =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+    final history = NightHistory.fromJson(body);
+    expect(history.guideSamples.single.t, at);
+    expect(history.guideSamples.single.decPx, -0.3);
+    expect(history.events.autofocusRuns, isEmpty);
+    expect(history.solves, isEmpty);
   });
 }
