@@ -102,6 +102,9 @@ struct ScriptedDomeRotatorOps {
     /// Every `mount_set_tracking` the run commanded, in order.
     tracking_commands: Mutex<Vec<bool>>,
     guider_stop_calls: AtomicU32,
+    /// `guider_stop_calls` at each `mount_park`, so a test can tell whether
+    /// the guider was stopped before the mount was parked.
+    guider_stops_at_park: Mutex<Vec<u32>>,
     guider_start_calls: AtomicU32,
     /// Every reason the run gave for stopping the guider, in order.
     guider_stop_reasons: Mutex<Vec<Option<crate::GuidingStopReason>>>,
@@ -247,6 +250,7 @@ impl ScriptedDomeRotatorOps {
             guiding: AtomicBool::new(false),
             tracking_commands: Mutex::new(Vec::new()),
             guider_stop_calls: AtomicU32::new(0),
+            guider_stops_at_park: Mutex::new(Vec::new()),
             guider_lost_lock: AtomicBool::new(false),
             exposures_while_guider_active: AtomicU32::new(0),
             slews_while_guider_active: AtomicU32::new(0),
@@ -645,6 +649,11 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.mount_sync(id, ra, dec).await
     }
     async fn mount_park(&self, id: &str) -> DeviceResult<()> {
+        self.guider_stops_at_park
+            .lock()
+            .unwrap()
+            .push(self.guider_stop_calls.load(Ordering::SeqCst));
+        self.mount_parked.store(true, Ordering::SeqCst);
         self.inner.mount_park(id).await
     }
     async fn mount_unpark(&self, id: &str) -> DeviceResult<()> {
