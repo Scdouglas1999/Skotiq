@@ -1,6 +1,7 @@
 // The Steps list: the plan's instructions in run order, each with its status
 // and a time. A finished step shows when it finished, when this session's
-// events recorded it; otherwise every time is the estimator's.
+// events recorded it, and no time otherwise; a step still to run shows the
+// estimator's time.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
@@ -53,6 +54,35 @@ PlanStepStatus _statusOf(NodeStatus? status) => switch (status) {
       NodeStatus.pending || null => PlanStepStatus.pending,
     };
 
+/// How far a live run is behind its plan: the time since the planned start
+/// of its next step, once that has passed; zero otherwise.
+///
+/// The estimate runs from the run's start, so after a pause or a long flip
+/// every later step and the plan's end read as times already gone ("Park
+/// mount ≈21:19" at 22:37). Steps still to run move by this much.
+final nightPlanLagProvider = Provider<Duration>((ref) {
+  if (!ref.watch(nightRunPhaseProvider).isRunLive) return Duration.zero;
+  final tree = ref.watch(nightPlanTreeProvider);
+  final timing = ref.watch(nightPlanTimingProvider);
+  if (tree == null || timing == null) return Duration.zero;
+  final statuses = ref.watch(
+    sequenceProgressProvider.select((p) => p.nodeStatuses),
+  );
+  final active = ref.watch(nightActiveStepProvider);
+  final now = ref.watch(nightNowProvider);
+  final from = active == null ? 0 : tree.stepIndexOf(active.node.id) + 1;
+  for (var i = from; i < tree.steps.length; i++) {
+    final id = tree.steps[i].node.id;
+    final status = statuses[id];
+    if (status != null && status != NodeStatus.pending) continue;
+    final estimate = timing.of(id);
+    if (estimate == null) continue;
+    final behind = now.difference(estimate.estimatedStart);
+    return behind.isNegative ? Duration.zero : behind;
+  }
+  return Duration.zero;
+});
+
 final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
   final tree = ref.watch(nightPlanTreeProvider);
   if (tree == null || tree.steps.isEmpty) return const <PlanStepVm>[];
@@ -68,11 +98,15 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
   final recorded = ref.watch(nightNodeEventTimesProvider);
   final clock = ref.watch(clockProvider);
 
-  StepWhen? planned(String nodeId) {
+  final lag = ref.watch(nightPlanLagProvider);
+
+  StepWhen? planned(String nodeId, {Duration shift = Duration.zero}) {
     final estimate = timing?.of(nodeId);
     return estimate == null
         ? null
-        : StepWhenPlanned(clock.toNightClock(estimate.estimatedStart));
+        : StepWhenPlanned(
+            clock.toNightClock(estimate.estimatedStart.add(shift)),
+          );
   }
 
   return <PlanStepVm>[
@@ -104,11 +138,13 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
             final finished = status == PlanStepStatus.done
                 ? recorded.succeededAt(id)
                 : recorded.completed[id];
+            // An estimate for a step that already ran reads as a time still
+            // to come; a client that joined later has no event for it.
             when = finished != null
                 ? StepWhenActual(clock.toNightClock(finished))
-                : planned(id);
+                : null;
           case PlanStepStatus.pending:
-            when = planned(id);
+            when = planned(id, shift: lag);
         }
 
         return PlanStepVm(

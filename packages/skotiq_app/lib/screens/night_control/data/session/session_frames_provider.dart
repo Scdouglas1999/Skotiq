@@ -20,7 +20,7 @@ final nightSessionIdProvider = Provider<int?>((ref) {
   if (local != null) return local;
   // endSession clears SessionState; the terminal result retains the exact
   // session identity so finished-night charts and integration stay visible.
-  final terminal = ref.watch(sequenceTerminalRunResultProvider);
+  final terminal = ref.watch(shownTerminalRunResultProvider);
   if (terminal?.dbSessionId != null &&
       ref.watch(sequenceExecutionStateProvider).canStart) {
     return terminal!.isCalibration
@@ -34,6 +34,11 @@ final nightSessionIdProvider = Provider<int?>((ref) {
   if (sessions == null) return null;
   for (final session in sessions) {
     if (session.status == 'active') return session.id;
+  }
+  // A host that does not share its run record: a run that ended here closed
+  // its session on the host, and the newest session is the one it ran.
+  if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
+    return sessions.first.id;
   }
   return null;
 });
