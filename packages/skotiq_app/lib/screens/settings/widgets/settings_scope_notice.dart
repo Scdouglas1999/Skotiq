@@ -7,11 +7,13 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// Where a Settings section's values live on a linked client.
 enum SettingsScope { imagingHost, thisDevice }
 
-/// Sections whose values belong to the device showing them: its look, its
-/// own link to the host, its help and its own app version. Every other
-/// section reads and writes the imaging host's settings.
+/// Sections whose values belong to the device showing them: its look, what
+/// it draws over a frame, its own link to the host, its help and its own app
+/// version. Every other section reads and writes the imaging host's settings.
+/// A section listed here keeps only keys in `deviceLocalSettingKeys`.
 const Set<String> _thisDeviceSections = {
   'appearance',
+  'annotations',
   'connection',
   'help',
   'about',
@@ -21,8 +23,8 @@ const Set<String> _thisDeviceSections = {
 
 SettingsScope settingsScopeFor(String sectionKey) =>
     _thisDeviceSections.contains(sectionKey)
-        ? SettingsScope.thisDevice
-        : SettingsScope.imagingHost;
+    ? SettingsScope.thisDevice
+    : SettingsScope.imagingHost;
 
 /// On a linked client, one line above a Settings section saying whose
 /// settings these are. Shows nothing on the machine that owns the rig.
@@ -39,7 +41,7 @@ class SettingsScopeNotice extends ConsumerWidget {
     final onHost = settingsScopeFor(sectionKey) == SettingsScope.imagingHost;
     final text = onHost
         ? 'Saved on the imaging host (${backend.serverHost}). A change here '
-            'changes the rig for everyone linked to it.'
+              'changes the rig for everyone linked to it.'
         : 'Saved on this computer only. The imaging host keeps its own.';
     return Padding(
       padding: const EdgeInsets.fromLTRB(
