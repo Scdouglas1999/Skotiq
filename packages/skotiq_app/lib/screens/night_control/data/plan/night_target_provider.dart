@@ -11,6 +11,7 @@ import '../tonight_night.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import '../session/session_events_provider.dart';
+import 'night_flip_provider.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
 
@@ -253,8 +254,13 @@ DateTime? _flipAt(
   return clock.toNightClock(flip);
 }
 
-/// Whether a meridian flip succeeded since the run started.
+/// Whether this transit's meridian flip is behind the run: a flip succeeded
+/// since the run started, or the flip took the mount to the other side of
+/// the pier and the run will not flip it again, whatever failed after.
 bool _flippedThisRun(Ref ref) {
+  if (ref.watch(nightFlipProvider.select((f) => f.doneForThisTransit))) {
+    return true;
+  }
   final flips = ref.watch(nightSessionEventsProvider.select((e) => e.flips));
   if (flips.isEmpty) return false;
   final started = ref.watch(sessionStateProvider.select((s) => s.startTime));

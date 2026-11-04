@@ -17,6 +17,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../services/manual_capture_controller.dart';
 import '../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
+import '../data/plan/night_flip_provider.dart';
 import '../night_control_contracts.dart';
 import 'armed_start_provider.dart';
 import 'manual_action_gating.dart';
@@ -124,6 +125,7 @@ NightActionInputs readNightActionInputs(
     hasFrame: read(currentImageProvider)?.filePath != null,
     exposureSeconds: read(exposureSettingsProvider).exposureTime,
     filterName: read(filterWheelStateProvider).currentFilterName,
+    flipDone: read(nightFlipProvider).doneForThisTransit,
   );
 }
 

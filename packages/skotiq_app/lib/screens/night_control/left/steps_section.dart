@@ -16,6 +16,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
+import '../data/plan/night_flip_provider.dart';
 import '../data/plan/plan_steps_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
@@ -87,6 +88,7 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
     final steps = ref.watch(nightPlanStepsProvider);
+    final flip = ref.watch(nightFlipStepProvider);
     final scrollsItself =
         NightControlDensity.maybeOf(context)?.slotsScrollThemselves ?? true;
     final active =
@@ -103,12 +105,13 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
               label: l10n.text('nightCtlOpenInSequencer'),
               onTap: () => _open(openId),
             ),
-      child: steps.isEmpty
+      child: steps.isEmpty && flip == null
           ? NightLeftEmpty(l10n.text('nightCtlStepsEmpty'))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
+                if (flip != null) _FlipRow(flip: flip, colors: colors),
                 for (final step in steps)
                   _StepRow(
                     key: identical(step, active) ? _activeKey : null,
@@ -134,6 +137,7 @@ class _OpenLink extends StatelessWidget {
     return Semantics(
       button: true,
       link: true,
+      enabled: true,
       child: InkWell(
         onTap: onTap,
         borderRadius: SkotiqTokens.borderRadiusXs,
@@ -146,6 +150,80 @@ class _OpenLink extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             softWrap: false,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The run's meridian flip, which is not a step of the plan but holds it:
+/// what the flip is doing, or that it failed.
+class _FlipRow extends StatelessWidget {
+  const _FlipRow({required this.flip, required this.colors});
+
+  final NightFlipStepVm flip;
+  final SkotiqColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = SkotiqLocalizations.of(context);
+    final failed = flip.status == PlanStepStatus.failed;
+    final label = l10n.text('nightCtlStepFlip');
+    final detail = flip.detail.resolve(l10n);
+    return Semantics(
+      container: true,
+      label: '$label, $detail',
+      excludeSemantics: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: failed
+              ? colors.error.withValues(alpha: 0.12)
+              : colors.primary.withValues(alpha: 0.16),
+          borderRadius: SkotiqTokens.borderRadiusSm,
+        ),
+        padding: const EdgeInsetsDirectional.fromSTEB(6, 3, 6, 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SizedBox(
+              width: 14,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(
+                  failed ? LucideIcons.x : LucideIcons.refreshCw,
+                  size: _StepRow._markSize,
+                  color: failed ? colors.error : colors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    label,
+                    style: SkotiqTypography.caption.copyWith(
+                      color: failed ? colors.error : colors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                  ),
+                  Text(
+                    detail,
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -195,6 +273,8 @@ class _StepRow extends StatelessWidget {
 
     return Semantics(
       button: true,
+      // A button node with no enabled state reads as disabled.
+      enabled: true,
       selected: active,
       label: [step.label, statusText, if (when != null) when].join(', '),
       hint: l10n.text('nightCtlStepOpenHint'),
