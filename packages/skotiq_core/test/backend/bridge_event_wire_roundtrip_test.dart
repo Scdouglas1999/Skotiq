@@ -280,6 +280,7 @@ void main() {
         fromPosition: 0,
         toPosition: 2,
         filterName: 'Ha',
+        fromFilterName: 'L',
       ),
       const bridge.EquipmentEvent.filterChanged(position: 2, filterName: 'Ha'),
       const bridge.EquipmentEvent.rotatorMoveStarted(targetAngle: 90),

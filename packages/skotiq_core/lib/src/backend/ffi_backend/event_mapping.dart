@@ -314,6 +314,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
           'from_position': equipmentEvent.fromPosition,
           'to_position': equipmentEvent.toPosition,
           'filter_name': equipmentEvent.filterName,
+          'from_filter_name': equipmentEvent.fromFilterName,
         },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_FilterChanged) {

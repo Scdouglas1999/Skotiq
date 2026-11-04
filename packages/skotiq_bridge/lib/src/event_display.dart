@@ -210,14 +210,18 @@ String _equipmentDetail(EquipmentEvent v) {
     EquipmentEvent_FocuserMoveCompleted(position: final p) => 'At $p',
     EquipmentEvent_FocuserTemperatureChanged(temperature: final t) =>
       '${t.toStringAsFixed(1)}°C',
+    // Positions are the wheel's 0-based slots. The Log read "0 → 1" and
+    // "Position 1" while Equipment read "R (2 of 8)", so a slot is shown by its
+    // name and, without one, counted from 1 as Equipment counts it.
     EquipmentEvent_FilterChanging(
       fromPosition: final from,
       toPosition: final to,
       filterName: final name,
+      fromFilterName: final fromName,
     ) =>
-      name != null && name.isNotEmpty ? '$from → $to ($name)' : '$from → $to',
+      '${_filterSlot(from, fromName)} → ${_filterSlot(to, name)}',
     EquipmentEvent_FilterChanged(position: final p, filterName: final name) =>
-      name != null && name.isNotEmpty ? '$name (pos $p)' : 'Position $p',
+      _filterSlot(p, name),
     EquipmentEvent_RotatorMoveStarted(targetAngle: final a) =>
       'Target ${a.toStringAsFixed(2)}°',
     EquipmentEvent_RotatorMoveCompleted(angle: final a) =>
@@ -884,4 +888,11 @@ String triggerActionText(String action) {
     '' => action,
     _ => name,
   };
+}
+
+/// A filter wheel slot by its name, or by its 1-based number without one.
+String _filterSlot(int slot, String? name) {
+  final trimmed = name?.trim() ?? '';
+  if (trimmed.isNotEmpty) return trimmed;
+  return slot < 0 ? 'unknown slot' : 'slot ${slot + 1}';
 }

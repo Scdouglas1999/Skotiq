@@ -4872,10 +4872,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_from_position = cst_encode_i_32(apiObj.fromPosition);
       var pre_to_position = cst_encode_i_32(apiObj.toPosition);
       var pre_filter_name = cst_encode_opt_String(apiObj.filterName);
+      var pre_from_filter_name = cst_encode_opt_String(apiObj.fromFilterName);
       wireObj.tag = 15;
       wireObj.kind.FilterChanging.from_position = pre_from_position;
       wireObj.kind.FilterChanging.to_position = pre_to_position;
       wireObj.kind.FilterChanging.filter_name = pre_filter_name;
+      wireObj.kind.FilterChanging.from_filter_name = pre_from_filter_name;
       return;
     }
     if (apiObj is EquipmentEvent_FilterChanged) {
@@ -23918,6 +23920,8 @@ final class wire_cst_EquipmentEvent_FilterChanging extends ffi.Struct {
   external int to_position;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> from_filter_name;
 }
 
 final class wire_cst_EquipmentEvent_FilterChanged extends ffi.Struct {

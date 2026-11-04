@@ -60,10 +60,14 @@ sealed class EquipmentEvent with _$EquipmentEvent {
   const factory EquipmentEvent.focuserTemperatureChanged({
     required double temperature,
   }) = EquipmentEvent_FocuserTemperatureChanged;
+
+  /// Positions are the wheel's 0-based slots; the names are the profile's
+  /// names for the slots moved from and to, when it has them.
   const factory EquipmentEvent.filterChanging({
     required int fromPosition,
     required int toPosition,
     String? filterName,
+    String? fromFilterName,
   }) = EquipmentEvent_FilterChanging;
   const factory EquipmentEvent.filterChanged({
     required int position,

@@ -95,10 +95,13 @@ pub enum EquipmentEvent {
     },
 
     // Filter wheel events
+    /// Positions are the wheel's 0-based slots; the names are the profile's
+    /// names for the slots moved from and to, when it has them.
     FilterChanging {
         from_position: i32,
         to_position: i32,
         filter_name: Option<String>,
+        from_filter_name: Option<String>,
     },
     FilterChanged {
         position: i32,

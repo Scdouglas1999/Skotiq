@@ -12723,10 +12723,12 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 let mut var_fromPosition = <i32>::sse_decode(deserializer);
                 let mut var_toPosition = <i32>::sse_decode(deserializer);
                 let mut var_filterName = <Option<String>>::sse_decode(deserializer);
+                let mut var_fromFilterName = <Option<String>>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::FilterChanging {
                     from_position: var_fromPosition,
                     to_position: var_toPosition,
                     filter_name: var_filterName,
+                    from_filter_name: var_fromFilterName,
                 };
             }
             16 => {
@@ -18256,11 +18258,13 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 from_position,
                 to_position,
                 filter_name,
+                from_filter_name,
             } => [
                 15.into_dart(),
                 from_position.into_into_dart().into_dart(),
                 to_position.into_into_dart().into_dart(),
                 filter_name.into_into_dart().into_dart(),
+                from_filter_name.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::FilterChanged {
@@ -22649,11 +22653,13 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 from_position,
                 to_position,
                 filter_name,
+                from_filter_name,
             } => {
                 <i32>::sse_encode(15, serializer);
                 <i32>::sse_encode(from_position, serializer);
                 <i32>::sse_encode(to_position, serializer);
                 <Option<String>>::sse_encode(filter_name, serializer);
+                <Option<String>>::sse_encode(from_filter_name, serializer);
             }
             crate::event::equipment::EquipmentEvent::FilterChanged {
                 position,
@@ -27238,6 +27244,7 @@ mod io {
                         from_position: ans.from_position.cst_decode(),
                         to_position: ans.to_position.cst_decode(),
                         filter_name: ans.filter_name.cst_decode(),
+                        from_filter_name: ans.from_filter_name.cst_decode(),
                     }
                 }
                 16 => {
@@ -38136,6 +38143,7 @@ mod io {
         from_position: i32,
         to_position: i32,
         filter_name: *mut wire_cst_list_prim_u_8_strict,
+        from_filter_name: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

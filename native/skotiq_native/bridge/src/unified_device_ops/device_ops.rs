@@ -948,14 +948,23 @@ impl DeviceOps for UnifiedDeviceOps {
             .await
             .unwrap_or(-1);
 
-        // Emit filter changing event
+        // The Log named slots by number ("0 → 1") while Equipment read
+        // "R (2 of 8)": the events carry the profile's names for the slots.
+        let names = get_device_manager()
+            .filter_wheel_get_config(fw_id)
+            .await
+            .map(|(_, names)| names)
+            .unwrap_or_default();
+        let slot_name = |slot: i32| filter_slot_name(&names, slot);
+
         self.app_state.publish_event(create_event_auto_id(
             EventSeverity::Info,
             EventCategory::Equipment,
             EventPayload::Equipment(EquipmentEvent::FilterChanging {
                 from_position,
                 to_position: position,
-                filter_name: None, // Will be populated by UI if available
+                filter_name: slot_name(position),
+                from_filter_name: slot_name(from_position),
             }),
         ));
 
@@ -970,7 +979,7 @@ impl DeviceOps for UnifiedDeviceOps {
                 EventCategory::Equipment,
                 EventPayload::Equipment(EquipmentEvent::FilterChanged {
                     position,
-                    filter_name: None,
+                    filter_name: slot_name(position),
                 }),
             ));
         }

@@ -17980,6 +17980,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fromPosition: dco_decode_i_32(raw[1]),
           toPosition: dco_decode_i_32(raw[2]),
           filterName: dco_decode_opt_String(raw[3]),
+          fromFilterName: dco_decode_opt_String(raw[4]),
         );
       case 16:
         return EquipmentEvent_FilterChanged(
@@ -22539,10 +22540,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_fromPosition = sse_decode_i_32(deserializer);
         var var_toPosition = sse_decode_i_32(deserializer);
         var var_filterName = sse_decode_opt_String(deserializer);
+        var var_fromFilterName = sse_decode_opt_String(deserializer);
         return EquipmentEvent_FilterChanging(
           fromPosition: var_fromPosition,
           toPosition: var_toPosition,
           filterName: var_filterName,
+          fromFilterName: var_fromFilterName,
         );
       case 16:
         var var_position = sse_decode_i_32(deserializer);
@@ -28097,11 +28100,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         fromPosition: final fromPosition,
         toPosition: final toPosition,
         filterName: final filterName,
+        fromFilterName: final fromFilterName,
       ):
         sse_encode_i_32(15, serializer);
         sse_encode_i_32(fromPosition, serializer);
         sse_encode_i_32(toPosition, serializer);
         sse_encode_opt_String(filterName, serializer);
+        sse_encode_opt_String(fromFilterName, serializer);
       case EquipmentEvent_FilterChanged(
         position: final position,
         filterName: final filterName,
