@@ -216,6 +216,11 @@ abstract class _NetworkBackendTransport {
   // timestamp.
   DateTime? _pendingPingSentAt;
   Duration? _lastLatency;
+
+  // When the oldest heartbeat ping still waiting for its pong was sent. Unlike
+  // [_pendingPingSentAt] a newer ping does not move it, so a host that stops
+  // answering ages here instead of looking fresh every heartbeat.
+  DateTime? _oldestUnansweredPingAt;
   final StreamController<Duration> _latencyController =
       StreamController<Duration>.broadcast();
 
@@ -393,6 +398,18 @@ abstract class _NetworkBackendTransport {
   /// The most recent ping/pong round-trip time, or null if none has been
   /// observed yet (initial connect, or post-disconnect).
   Duration? get lastLatency => _lastLatency;
+
+  /// How long the host has left a heartbeat ping unanswered, or null when
+  /// every ping sent has had its pong.
+  ///
+  /// The socket can stay open while the link under it stalls: on a failing
+  /// Wi-Fi link events arrive seconds late and in bursts, and the heartbeat
+  /// watchdog only fires once nothing at all has arrived for its whole
+  /// timeout. This is the earlier signal that the host is not keeping up.
+  Duration? get unansweredPingAge {
+    final sentAt = _oldestUnansweredPingAt;
+    return sentAt == null ? null : DateTime.now().difference(sentAt);
+  }
 
   /// Monotonic sequence number of the last event we accepted from
   /// the server. Null before any seq-bearing event has been received (e.g.

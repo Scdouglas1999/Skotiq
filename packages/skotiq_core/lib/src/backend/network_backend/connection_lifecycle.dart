@@ -327,6 +327,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
                 final latency = DateTime.now().difference(sentAt);
                 _lastLatency = latency;
                 _pendingPingSentAt = null;
+                _oldestUnansweredPingAt = null;
                 if (!_latencyController.isClosed) {
                   _latencyController.add(latency);
                 }
@@ -691,6 +692,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         // still in flight, the older measurement is stale and the newer
         // one is what the operator cares about.
         _pendingPingSentAt = DateTime.now();
+        _oldestUnansweredPingAt ??= _pendingPingSentAt;
         _wsChannel?.sink.add(
           jsonEncode({
             'type': 'ping',
@@ -745,6 +747,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     // Drop the in-flight ping timestamp so a stale send doesn't get
     // matched against a pong from a later connection.
     _pendingPingSentAt = null;
+    _oldestUnansweredPingAt = null;
     // Drop the cached latency so the UI doesn't display a stale value
     // while we're trying to reconnect. The next pong on a fresh
     // connection will repopulate it.
