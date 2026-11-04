@@ -3,10 +3,14 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/panel/solve/solve_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/night_solve_tab.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -123,8 +127,81 @@ void main() {
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
     await tester.pump();
+    expect(find.textContaining('Center button: within 12" · 7 attempts'),
+        findsOneWidget);
+    expect(find.textContaining("Plan's Center step"), findsNothing);
+  });
+
+  // SY-19: during a run whose Center step centers within 5", the tab said
+  // "Center within 30"", the Center button's tolerance, as if it were the
+  // run's.
+  testWidgets(
+      'a plan with a Center step quotes that step, apart from the button',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightSolveTab(),
+      overrides: [
+        ...panelOverrides(),
+        nightCenteringConfigProvider.overrideWithValue(
+          const CenteringConfig(maxIterations: 5, toleranceArcsec: 30),
+        ),
+        nightPlanCenterNodeProvider.overrideWithValue(
+          CenterNode(id: 'center', accuracyArcsec: 5, maxAttempts: 5),
+        ),
+      ],
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+    await tester.pump();
+    expect(find.text('Plan\'s Center step: within 5" · 5 attempts'),
+        findsOneWidget);
+    expect(find.textContaining('Center button: within 30" · 5 attempts'),
+        findsOneWidget);
+  });
+
+  test('the plan Center step is the running one, else the first in the plan',
+      () {
+    final sequence = Sequence.create(
+      name: 'Run',
+      rootNodeId: 'root',
+      nodes: {
+        'root': InstructionSetNode(
+          id: 'root',
+          name: 'Run',
+          childIds: const ['slew', 'first', 'second'],
+        ),
+        'slew': SlewNode(id: 'slew', parentId: 'root', orderIndex: 0),
+        'first': CenterNode(
+          id: 'first',
+          parentId: 'root',
+          orderIndex: 1,
+          accuracyArcsec: 5,
+        ),
+        'second': CenterNode(
+          id: 'second',
+          parentId: 'root',
+          orderIndex: 2,
+          accuracyArcsec: 8,
+        ),
+      },
+    );
+    final tree = buildNightPlanTree(sequence);
+
+    ProviderContainer container(NightPlanTree? tree, NightPlanEntry? active) {
+      final c = ProviderContainer(overrides: [
+        nightPlanTreeProvider.overrideWithValue(tree),
+        nightActiveStepProvider.overrideWithValue(active),
+      ]);
+      addTearDown(c.dispose);
+      return c;
+    }
+
     expect(
-        find.textContaining('Center within 12" · 7 attempts'), findsOneWidget);
+        container(tree, null).read(nightPlanCenterNodeProvider)?.id, 'first');
+    final second = tree.steps.firstWhere((s) => s.node.id == 'second');
+    expect(container(tree, second).read(nightPlanCenterNodeProvider)?.id,
+        'second');
+    expect(container(null, null).read(nightPlanCenterNodeProvider), isNull);
   });
 
   testWidgets('a busy controller disables its actions with the reason',

@@ -1489,9 +1489,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveBinning': 'Binning',
     'nightScopeSolveFilter': 'Filter',
     'nightScopeSolveCenterRule':
-        'Center within {arcsec}" · {attempts} attempts · blind solve off',
+        'Center button: within {arcsec}" · {attempts} attempts · blind solve off',
     'nightScopeSolveCenterRuleBlind':
-        'Center within {arcsec}" · {attempts} attempts · blind solve on',
+        'Center button: within {arcsec}" · {attempts} attempts · blind solve on',
+    'nightScopeSolvePlanCenterRule':
+        'Plan\'s Center step: within {arcsec}" · {attempts} attempts',
     'nightScopeSolveEditSettings': 'Solver settings…',
     'nightScopeRotation': 'Rotation',
     'nightScopeRotator': 'Rotator',
@@ -3184,9 +3186,11 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveBinning': 'Binning',
     'nightScopeSolveFilter': 'Filtro',
     'nightScopeSolveCenterRule':
-        'Centrar a menos de {arcsec}" · {attempts} intentos · resolución a ciegas desactivada',
+        'Botón Centrar: a menos de {arcsec}" · {attempts} intentos · resolución a ciegas desactivada',
     'nightScopeSolveCenterRuleBlind':
-        'Centrar a menos de {arcsec}" · {attempts} intentos · resolución a ciegas activada',
+        'Botón Centrar: a menos de {arcsec}" · {attempts} intentos · resolución a ciegas activada',
+    'nightScopeSolvePlanCenterRule':
+        'Paso Centrar del plan: a menos de {arcsec}" · {attempts} intentos',
     'nightScopeSolveEditSettings': 'Ajustes del resolvedor…',
     'nightScopeRotation': 'Rotación',
     'nightScopeRotator': 'Rotador',

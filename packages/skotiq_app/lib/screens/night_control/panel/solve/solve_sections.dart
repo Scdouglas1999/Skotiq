@@ -11,6 +11,7 @@ import '../../actions/night_action_controller.dart';
 import '../../actions/night_rig_ops.dart' show nightCenteringConfigProvider;
 import '../../actions/solve_and_sync.dart' show solveFrameSettings;
 import '../../data/plan/night_plan_inputs.dart';
+import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
 import '../mount/night_panel_parts.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
@@ -20,6 +21,24 @@ const String kNightSolveSettingsRoute = '/settings?section=plate-solving';
 
 /// Rotation within this many degrees of the target needs no correction.
 const double kNightRotationToleranceDeg = 0.5;
+
+/// The plan's Center step the Solve tab quotes: the one running, else the
+/// first in the loaded plan; null when the plan has none.
+///
+/// The Center button and a plan's Center step center to different
+/// tolerances, so the tab names each rather than quoting the button's for a
+/// run whose step uses its own.
+final nightPlanCenterNodeProvider = Provider<CenterNode?>((ref) {
+  final active = ref.watch(nightActiveStepProvider)?.node;
+  if (active is CenterNode) return active;
+  final tree = ref.watch(nightPlanTreeProvider);
+  if (tree == null) return null;
+  for (final step in tree.steps) {
+    final node = step.node;
+    if (node is CenterNode) return node;
+  }
+  return null;
+});
 
 /// The frame a solve takes and how centering decides it is done.
 class NightSolveSettingsSection extends ConsumerWidget {
@@ -35,6 +54,7 @@ class NightSolveSettingsSection extends ConsumerWidget {
     );
     final filter = ref.watch(filterWheelStateProvider).currentFilterName;
     final centering = ref.watch(nightCenteringConfigProvider);
+    final planCenter = ref.watch(nightPlanCenterNodeProvider);
     final exposure = frame.exposureTime;
     return NightPanelSection(
       title: l10n.text('nightScopeSolveSettings'),
@@ -56,6 +76,16 @@ class NightSolveSettingsSection extends ConsumerWidget {
             ),
           ],
         ),
+        if (planCenter != null)
+          NightPanelNote(
+            l10n.text(
+              'nightScopeSolvePlanCenterRule',
+              params: {
+                'arcsec': _number(planCenter.accuracyArcsec),
+                'attempts': '${planCenter.maxAttempts}',
+              },
+            ),
+          ),
         if (centering != null)
           NightPanelNote(
             l10n.text(
