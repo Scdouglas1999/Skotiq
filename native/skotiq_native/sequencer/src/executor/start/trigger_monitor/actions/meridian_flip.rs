@@ -157,7 +157,8 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                             "The meridian flip for '{}' moved the mount to the new pier side, \
                              but imaging recovery failed: {}. Sequence paused under the configured \
                              flip failure action; the mount must not flip again.",
-                            target_name, error
+                            target_name,
+                            without_final_period(&error)
                         )
                     } else {
                         format!(
@@ -167,7 +168,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                             target_name,
                             flip_attempts,
                             plural(flip_attempts),
-                            error
+                            without_final_period(&error)
                         )
                     };
                     run.pause(Some(message)).await;
@@ -328,5 +329,30 @@ fn plural(count: u32) -> &'static str {
         ""
     } else {
         "s"
+    }
+}
+
+/// `error` ready to be followed by ". Sequence paused": the executor's errors
+/// often end in a period of their own, and the pause message read
+/// "...may not have flipped correctly.. Sequence paused".
+fn without_final_period(error: &str) -> &str {
+    let trimmed = error.trim_end();
+    trimmed.strip_suffix('.').unwrap_or(trimmed)
+}
+
+#[cfg(test)]
+mod message_tests {
+    use super::without_final_period;
+
+    #[test]
+    fn a_flip_error_ending_in_a_period_does_not_double_it() {
+        let error = "Verifying pier side: Pier side did not change after flip (still West). \
+                     The mount may not have flipped correctly.";
+        let message = format!("{}. Sequence paused", without_final_period(error));
+        assert!(
+            message.ends_with("flipped correctly. Sequence paused"),
+            "{message}"
+        );
+        assert_eq!(without_final_period("no solution"), "no solution");
     }
 }

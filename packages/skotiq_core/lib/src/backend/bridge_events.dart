@@ -193,4 +193,5 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         skotiqEventDisplayTitle,
         skotiqEventDisplayDetail,
         depthGoalCompletedDetail,
+        triggerActionText,
         isCriticalEvent;

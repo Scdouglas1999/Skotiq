@@ -3,7 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../backend/bridge_events.dart' show depthGoalCompletedDetail;
+import '../../../backend/bridge_events.dart'
+    show depthGoalCompletedDetail, triggerActionText;
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
@@ -451,7 +452,7 @@ class RunEventHandler {
     SequenceProgressNotifier progressNotifier,
   ) {
     final triggerName = event.triggerName ?? 'Unknown trigger';
-    final action = event.action ?? '';
+    final action = triggerActionText(event.action ?? '');
     _stats.update((stats) => stats.recordTriggerFire());
     // A target dropped by its own end_when costs the operator a whole target,
     // so it goes on the run record, not only into the trigger feed.

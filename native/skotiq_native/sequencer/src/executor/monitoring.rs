@@ -323,14 +323,87 @@ impl FiredTriggerAction {
     /// The action as the trigger-fired event and decision row name it. The
     /// app reads `ParkAndAbort` there as "the trigger ended the run and parked
     /// the mount", so a run ended without parking must not say it.
+    ///
+    /// It is the action's name alone. The `Debug` form it used to be carried
+    /// the action's whole config into the operator's Log ("MeridianFlip(
+    /// MeridianFlipConfig { trigger_method: MinutesPastMeridian, ... })").
     pub(crate) fn wire_label(&self) -> String {
         if self.notify_only {
-            "Notify".to_string()
-        } else if self.end_without_parking {
-            "Abort".to_string()
-        } else {
-            format!("{:?}", self.action)
+            return "Notify".to_string();
         }
+        if self.end_without_parking {
+            return "Abort".to_string();
+        }
+        match &self.action {
+            RecoveryAction::Retry { .. } => "Retry",
+            RecoveryAction::MeridianFlip(_) => "MeridianFlip",
+            RecoveryAction::Dither(_) => "Dither",
+            other => return format!("{other:?}"),
+        }
+        .to_string()
+    }
+
+    /// One plain sentence for the decision log: what fired and what it does.
+    pub(crate) fn decision_summary(&self, trigger_name: &str) -> String {
+        if let (false, false, RecoveryAction::MeridianFlip(config)) =
+            (self.notify_only, self.end_without_parking, &self.action)
+        {
+            return format!("Meridian flip trigger: {}", flip_trigger_point(config));
+        }
+        let action = match self.wire_label().as_str() {
+            "Notify" => "notify only".to_string(),
+            "Abort" => "end the run".to_string(),
+            "Continue" => "continue".to_string(),
+            "Pause" => "pause the run".to_string(),
+            "Autofocus" => "run autofocus".to_string(),
+            "NextTarget" => "skip to the next target".to_string(),
+            "ParkAndAbort" => "park and end the run".to_string(),
+            "Dither" => "dither".to_string(),
+            "Recenter" => "recenter".to_string(),
+            "Retry" => match self.action {
+                RecoveryAction::Retry { max_attempts } => {
+                    format!("retry (up to {max_attempts} times)")
+                }
+                _ => "retry".to_string(),
+            },
+            other => other.to_string(),
+        };
+        format!("{trigger_name} fired: {action}")
+    }
+}
+
+/// When a meridian flip trigger fires, in the operator's words.
+fn flip_trigger_point(config: &crate::MeridianFlipConfig) -> String {
+    use crate::MeridianTriggerMethod as Method;
+    let minutes = |m: f64| {
+        let m = if m.fract().abs() < 1e-9 {
+            format!("{m:.0}")
+        } else {
+            format!("{m:.1}")
+        };
+        if m == "1" {
+            "1 min".to_string()
+        } else {
+            format!("{m} min")
+        }
+    };
+    match config.trigger_method {
+        Method::MinutesPastMeridian => {
+            format!(
+                "{} past the meridian",
+                minutes(config.minutes_past_meridian)
+            )
+        }
+        Method::MinutesBeforeLimit => {
+            format!(
+                "{} before the mount's limit",
+                minutes(config.minutes_before_limit)
+            )
+        }
+        Method::HourAngleThreshold => {
+            format!("hour angle past {:.2} h", config.hour_angle_threshold)
+        }
+        Method::OnTrackingLimitHit => "when the mount reaches its tracking limit".to_string(),
     }
 }
 
@@ -1012,5 +1085,57 @@ pub fn safety_fail_mode_no_data_resolution(mode: SafetyFailMode) -> NoDataResolu
         SafetyFailMode::FailClosed => NoDataResolution::Unsafe,
         SafetyFailMode::FailOpen => NoDataResolution::Safe,
         SafetyFailMode::WarnOnly => NoDataResolution::Preserve,
+    }
+}
+
+#[cfg(test)]
+mod fired_label_tests {
+    use super::*;
+
+    fn fired(action: RecoveryAction) -> FiredTriggerAction {
+        FiredTriggerAction {
+            action,
+            end_without_parking: false,
+            notify_only: false,
+        }
+    }
+
+    /// The rig's Log (2026-11-03) read "Trigger fired · Meridian Flip →
+    /// MeridianFlip(MeridianFlipConfig { trigger_method: MinutesPastMeridian,
+    /// ... })" and the decision row carried the same dump.
+    #[test]
+    fn a_meridian_flip_trigger_is_named_and_summarized_in_plain_words() {
+        let flip = fired(RecoveryAction::MeridianFlip(crate::MeridianFlipConfig {
+            minutes_past_meridian: 20.0,
+            ..Default::default()
+        }));
+        assert_eq!(flip.wire_label(), "MeridianFlip");
+        assert_eq!(
+            flip.decision_summary("Meridian Flip"),
+            "Meridian flip trigger: 20 min past the meridian"
+        );
+    }
+
+    #[test]
+    fn no_action_label_carries_its_config() {
+        for action in [
+            RecoveryAction::Retry { max_attempts: 3 },
+            RecoveryAction::Dither(crate::DitherConfig::default()),
+            RecoveryAction::MeridianFlip(crate::MeridianFlipConfig::default()),
+            RecoveryAction::ParkAndAbort,
+        ] {
+            let fired = fired(action);
+            let label = fired.wire_label();
+            assert!(label.chars().all(|c| c.is_ascii_alphanumeric()), "{label}");
+            let summary = fired.decision_summary("Some Trigger");
+            assert!(
+                !summary.contains('{') && !summary.contains("Config"),
+                "{summary}"
+            );
+        }
+        assert_eq!(
+            fired(RecoveryAction::Retry { max_attempts: 3 }).decision_summary("Focus Drift"),
+            "Focus Drift fired: retry (up to 3 times)"
+        );
     }
 }

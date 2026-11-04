@@ -500,7 +500,7 @@ String _sequencerDetail(SequencerEvent v) {
           : '$t · after $a attempt${a == 1 ? '' : 's'}: '
                 '${e ?? "unknown error"}',
     SequencerEvent_TriggerFired(triggerName: final n, action: final a) =>
-      '$n → $a',
+      '$n → ${triggerActionText(a)}',
     SequencerEvent_InstructionProgress(
       instruction: final i,
       progressPercent: final p,
@@ -856,4 +856,32 @@ String propertyChangeText(String property, String value) {
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) return property;
   if (value.length > 80) return '$property changed';
   return '$property=$value';
+}
+
+/// A fired trigger's action label in plain words.
+///
+/// The label is the executor's name for the action ("ParkAndAbort",
+/// "MeridianFlip"). Older hosts sent the action's Rust debug form, which
+/// carried its whole config into the Log ("MeridianFlip(MeridianFlipConfig {
+/// trigger_method: MinutesPastMeridian, ... })"); only the name is kept.
+String triggerActionText(String action) {
+  final name = action.split(RegExp(r'[\s({]')).first;
+  return switch (name) {
+    'Continue' => 'continue',
+    'Notify' => 'notify only',
+    'Pause' => 'pause the run',
+    'Autofocus' => 'run autofocus',
+    'NextTarget' => 'skip to the next target',
+    'Retry' => 'retry',
+    'ParkAndAbort' => 'park and end the run',
+    'Abort' => 'end the run',
+    'MeridianFlip' => 'flip the mount',
+    'Dither' => 'dither',
+    'Recenter' => 'recenter',
+    'PauseAndWaitForClear' => 'pause until the sky clears',
+    'SlewToGapAndContinue' => 'slew to clear sky',
+    'SwitchTargetOrFilter' => 'switch to the backup target or filter',
+    '' => action,
+    _ => name,
+  };
 }

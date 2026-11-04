@@ -76,7 +76,7 @@ bool isSequenceCancelledNotice(String message) {
 //   system_event        / "Autopilot: stop"                     -> the scheduler
 //   system_event        / "System: stop" + details.origin        -> a subsystem
 //                          (`rollback`, `disk-watchdog`, …)
-//   trigger_fired       / "Trigger X fired → ParkAndAbort"       -> the trigger
+//   trigger_fired       / details.action "ParkAndAbort"          -> the trigger
 //                          monitor, which is a subsystem too
 //
 // The vocabulary is read HERE, once, so the surfaces that consume it (the Run
