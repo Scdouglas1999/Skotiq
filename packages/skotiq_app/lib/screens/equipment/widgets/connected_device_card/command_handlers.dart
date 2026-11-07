@@ -453,13 +453,11 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         ref.read(domeStateProvider).deviceId == deviceId;
   }
 
-  /// Re-read dome telemetry so the card reflects the command that just
-  /// completed. Without this the dome readouts only moved on the 5 s poll, and
-  /// before the poll existed at all they never moved — the shutter button stayed
-  /// on "Open Shutter" forever while a green toast claimed the shutter was
-  /// opening.
-  Future<void> _refreshDomeAfterCommand() =>
-      ref.read(deviceServiceProvider).refreshDomeStatus();
+  /// Dome commands go through the shared device command path, which re-reads
+  /// the dome after each one so the card reflects it at once (the readouts
+  /// otherwise move only on the 5 s poll), the same for a command a linked
+  /// client sends.
+  DeviceCommands get _deviceCommands => ref.read(deviceCommandsProvider);
 
   Future<void> _handleDomeShutter(ShutterStatus currentStatus) async {
     final domeState = ref.read(domeStateProvider);
@@ -470,11 +468,10 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final backend = ref.read(backendProvider);
     try {
       if (currentStatus == ShutterStatus.open) {
-        await backend.domeCloseShutter(deviceId);
+        await _deviceCommands.domeCloseShutter(deviceId);
       } else {
-        await backend.domeOpenShutter(deviceId);
+        await _deviceCommands.domeOpenShutter(deviceId);
       }
-      await _refreshDomeAfterCommand();
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
         // Report what we actually know. The command was accepted; whether the
         // shutter is moving is only knowable from the telemetry read above, so
@@ -508,8 +505,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     if (revision == null) return;
     final backend = ref.read(backendProvider);
     try {
-      await backend.domePark(deviceId);
-      await _refreshDomeAfterCommand();
+      await _deviceCommands.domePark(deviceId);
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
         context.showSuccessSnackBar('Parking dome');
       }
@@ -530,8 +526,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     if (revision == null) return;
     final backend = ref.read(backendProvider);
     try {
-      await backend.domeFindHome(deviceId);
-      await _refreshDomeAfterCommand();
+      await _deviceCommands.domeFindHome(deviceId);
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
         context.showSuccessSnackBar('Homing dome');
       }
@@ -552,8 +547,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     if (revision == null) return;
     final backend = ref.read(backendProvider);
     try {
-      await backend.domeAbortSlew(deviceId);
-      await _refreshDomeAfterCommand();
+      await _deviceCommands.domeAbortSlew(deviceId);
       if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
         context.showSuccessSnackBar('Stopping dome');
       }

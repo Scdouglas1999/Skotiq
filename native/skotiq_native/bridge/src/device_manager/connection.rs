@@ -450,6 +450,15 @@ impl DeviceManager {
                     self.publish_camera_settings(device_id).await;
                 }
 
+                // A focuser, wheel or rotator moved outside Skotiq is caught
+                // by the backstop poll (`ops::backstop`).
+                if matches!(
+                    info.device_type,
+                    DeviceType::Focuser | DeviceType::FilterWheel | DeviceType::Rotator
+                ) {
+                    self.ensure_backstop_poll();
+                }
+
                 // Also register in app state
                 self.app_state
                     .register_device(info.clone(), ConnectionState::Connected)

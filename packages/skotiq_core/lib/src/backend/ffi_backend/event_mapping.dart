@@ -297,10 +297,19 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     else if (equipmentEvent is bridge.EquipmentEvent_FocuserMoveStarted) {
       return (
         'FocuserMoveStarted',
-        {'target_position': equipmentEvent.targetPosition},
+        {
+          'device_id': equipmentEvent.deviceId,
+          'target_position': equipmentEvent.targetPosition,
+        },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_FocuserMoveCompleted) {
-      return ('FocuserMoveCompleted', {'position': equipmentEvent.position});
+      return (
+        'FocuserMoveCompleted',
+        {
+          'device_id': equipmentEvent.deviceId,
+          'position': equipmentEvent.position,
+        },
+      );
     } else if (equipmentEvent
         is bridge.EquipmentEvent_FocuserTemperatureChanged) {
       return (
@@ -313,6 +322,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return (
         'FilterChanging',
         {
+          'device_id': equipmentEvent.deviceId,
           'from_position': equipmentEvent.fromPosition,
           'to_position': equipmentEvent.toPosition,
           'filter_name': equipmentEvent.filterName,
@@ -323,6 +333,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return (
         'FilterChanged',
         {
+          'device_id': equipmentEvent.deviceId,
           'position': equipmentEvent.position,
           'filter_name': equipmentEvent.filterName,
         },
@@ -332,26 +343,49 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     else if (equipmentEvent is bridge.EquipmentEvent_RotatorMoveStarted) {
       return (
         'RotatorMoveStarted',
-        {'target_angle': equipmentEvent.targetAngle},
+        {
+          'device_id': equipmentEvent.deviceId,
+          'target_angle': equipmentEvent.targetAngle,
+        },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_RotatorMoveCompleted) {
-      return ('RotatorMoveCompleted', {'angle': equipmentEvent.angle});
+      return (
+        'RotatorMoveCompleted',
+        {'device_id': equipmentEvent.deviceId, 'angle': equipmentEvent.angle},
+      );
     }
     // Camera events
     else if (equipmentEvent is bridge.EquipmentEvent_CameraCoolingStarted) {
       return (
         'CameraCoolingStarted',
-        {'target_temp': equipmentEvent.targetTemp},
+        {
+          'device_id': equipmentEvent.deviceId,
+          'target_temp': equipmentEvent.targetTemp,
+        },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_CameraCoolingReached) {
       return (
         'CameraCoolingReached',
-        {'temperature': equipmentEvent.temperature},
+        {
+          'device_id': equipmentEvent.deviceId,
+          'temperature': equipmentEvent.temperature,
+        },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_CameraWarmingStarted) {
-      return ('CameraWarmingStarted', {});
+      return ('CameraWarmingStarted', {'device_id': equipmentEvent.deviceId});
     } else if (equipmentEvent is bridge.EquipmentEvent_CameraWarmingCompleted) {
-      return ('CameraWarmingCompleted', {});
+      return ('CameraWarmingCompleted', {'device_id': equipmentEvent.deviceId});
+    } else if (equipmentEvent
+        is bridge.EquipmentEvent_CameraTemperatureChanged) {
+      // `coolerPower` is the key the consumers have always read.
+      return (
+        'CameraTemperatureChanged',
+        {
+          'device_id': equipmentEvent.deviceId,
+          'temperature': equipmentEvent.temperature,
+          'coolerPower': equipmentEvent.coolerPower,
+        },
+      );
     } else if (equipmentEvent is bridge.EquipmentEvent_CameraSettingsChanged) {
       return (
         'CameraSettingsChanged',

@@ -38,6 +38,10 @@ pub(crate) mod property {
     pub const ROTATOR_REVERSE: &str = "Reverse";
     /// Value `"<ra hours> <dec degrees>"`, the J2000 position synced to.
     pub const MOUNT_SYNCED: &str = "Synced";
+    /// Value `"<altitude> <azimuth>"` in degrees: an alt/az slew started.
+    pub const MOUNT_SLEW_ALT_AZ: &str = "SlewToAltAz";
+    /// Value `""`: the slew was aborted.
+    pub const MOUNT_ABORT: &str = "AbortSlew";
     /// Value `"open"`, `"close"` or `"halt"`: the cover command accepted.
     pub const COVER: &str = "Cover";
     /// Value `"on <brightness>"` or `"off"`.
@@ -92,8 +96,13 @@ impl DeviceManager {
         }
     }
 
-    /// Publish one device state change.
+    /// Publish one device state change. The reading an end-of-move event
+    /// carries becomes the backstop poll's baseline for that device (see
+    /// `backstop`), so the poll never re-announces a command's result.
     pub(crate) fn publish_state_event(&self, event: EquipmentEvent) {
+        if let Some((device_id, reading)) = super::backstop::Reading::of_event(&event) {
+            self.command_activity.record(device_id, reading);
+        }
         self.app_state
             .publish_equipment_event(event, EventSeverity::Info);
     }

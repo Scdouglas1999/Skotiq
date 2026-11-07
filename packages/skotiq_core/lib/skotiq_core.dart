@@ -401,6 +401,7 @@ export 'src/models/backend/remote_api_compatibility.dart';
 export 'src/models/sequencer/recovery_status.dart';
 
 // Services
+export 'src/services/device_commands.dart';
 export 'src/services/device_service.dart';
 export 'src/services/mount_home_watcher.dart';
 export 'src/services/mount_slew_watcher.dart';

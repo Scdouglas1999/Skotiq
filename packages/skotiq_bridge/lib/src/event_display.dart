@@ -167,6 +167,8 @@ String _equipmentTitle(EquipmentEvent v) {
     EquipmentEvent_CameraCoolingReached() => 'Cooling reached target',
     EquipmentEvent_CameraWarmingStarted() => 'Warming started',
     EquipmentEvent_CameraWarmingCompleted() => 'Warming complete',
+    // Telemetry the night log leaves out by this title.
+    EquipmentEvent_CameraTemperatureChanged() => 'Camera temperature',
     EquipmentEvent_CameraSettingsChanged() => 'Camera settings',
     EquipmentEvent_HeartbeatStarted() => 'Heartbeat started',
     EquipmentEvent_HeartbeatStopped() => 'Heartbeat stopped',
@@ -233,6 +235,13 @@ String _equipmentDetail(EquipmentEvent v) {
       'At ${t.toStringAsFixed(1)}°C',
     EquipmentEvent_CameraWarmingStarted() => '',
     EquipmentEvent_CameraWarmingCompleted() => '',
+    EquipmentEvent_CameraTemperatureChanged(
+      temperature: final t,
+      coolerPower: final p,
+    ) =>
+      p == null
+          ? '${t.toStringAsFixed(1)}°C'
+          : '${t.toStringAsFixed(1)}°C · ${p.toStringAsFixed(0)}%',
     EquipmentEvent_CameraSettingsChanged(
       gain: final g,
       offset: final o,

@@ -168,8 +168,8 @@ async fn the_filter_move_events_name_the_slots() {
     let events = drain(&mut rx);
     assert!(events.iter().any(|e| matches!(
         e,
-        EquipmentEvent::FilterChanging { from_position: 0, to_position: 1, filter_name, from_filter_name }
-            if filter_name.as_deref() == Some(names[1].as_str())
+        EquipmentEvent::FilterChanging { device_id, from_position: 0, to_position: 1, filter_name, from_filter_name }
+            if device_id == WHEEL && filter_name.as_deref() == Some(names[1].as_str())
                 && from_filter_name.as_deref() == Some(names[0].as_str())
     )), "{events:?}");
 }
@@ -230,7 +230,8 @@ async fn an_unknown_device_publishes_nothing() {
             e,
             EquipmentEvent::FilterChanging { to_position: 1, .. }
                 | EquipmentEvent::FocuserMoveStarted {
-                    target_position: 10
+                    target_position: 10,
+                    ..
                 }
                 | EquipmentEvent::RotatorMoveStarted { .. }
                 | EquipmentEvent::MountParkStarted
@@ -270,11 +271,11 @@ async fn filter_names_publish_once() {
 fn assert_one_focuser_move(events: &[EquipmentEvent], to: i32, path: &str) {
     let started = count(
         events,
-        |e| matches!(e, EquipmentEvent::FocuserMoveStarted { target_position } if *target_position == to),
+        |e| matches!(e, EquipmentEvent::FocuserMoveStarted { device_id, target_position } if device_id == FOCUSER && *target_position == to),
     );
     let completed = count(
         events,
-        |e| matches!(e, EquipmentEvent::FocuserMoveCompleted { position } if *position == to),
+        |e| matches!(e, EquipmentEvent::FocuserMoveCompleted { device_id, position } if device_id == FOCUSER && *position == to),
     );
     assert_eq!(
         (started, completed),
@@ -323,7 +324,10 @@ async fn every_focuser_path_publishes_one_move() {
     assert_eq!(
         count(&events, |e| matches!(
             e,
-            EquipmentEvent::FocuserMoveCompleted { position: 20_300 }
+            EquipmentEvent::FocuserMoveCompleted {
+                position: 20_300,
+                ..
+            }
         )),
         1,
         "halt: {events:?}"
@@ -403,13 +407,14 @@ async fn every_cooler_path_publishes_once() {
     let cooling = |events: &[EquipmentEvent], target: f64| {
         count(
             events,
-            |e| matches!(e, EquipmentEvent::CameraCoolingStarted { target_temp } if *target_temp == target),
+            |e| matches!(e, EquipmentEvent::CameraCoolingStarted { device_id, target_temp } if device_id == CAMERA && *target_temp == target),
         )
     };
     let warming = |events: &[EquipmentEvent]| {
-        count(events, |e| {
-            matches!(e, EquipmentEvent::CameraWarmingStarted)
-        })
+        count(
+            events,
+            |e| matches!(e, EquipmentEvent::CameraWarmingStarted { device_id } if device_id == CAMERA),
+        )
     };
 
     sim::api_set_camera_cooler(CAMERA.to_string(), 1, Some(-10.0))
@@ -441,7 +446,7 @@ async fn every_cooler_path_publishes_once() {
 fn assert_one_rotator_move(events: &[EquipmentEvent], to: f64, path: &str) {
     let started = count(
         events,
-        |e| matches!(e, EquipmentEvent::RotatorMoveStarted { target_angle } if (*target_angle - to).abs() < 1e-6),
+        |e| matches!(e, EquipmentEvent::RotatorMoveStarted { device_id, target_angle } if device_id == ROTATOR && (*target_angle - to).abs() < 1e-6),
     );
     let completed = count(events, |e| {
         matches!(e, EquipmentEvent::RotatorMoveCompleted { .. })

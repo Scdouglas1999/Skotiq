@@ -7,6 +7,8 @@ import 'camera_state_provider.dart';
 import 'device_type_registry.dart';
 import 'dome_state_provider.dart';
 import 'filter_wheel_state_provider.dart';
+import 'focuser_state_provider.dart';
+import 'mount_state_provider.dart';
 import 'rotator_state_provider.dart';
 import 'switch_state_provider.dart';
 import '../../models/backend/device_types.dart';
@@ -103,6 +105,24 @@ bool applyDevicePropertyChange(Object reader, Map<String, dynamic> data) {
       }
       return false;
 
+    case DeviceType.mount:
+      // A sync, an abort or an alt/az slew: no event carries the mount's new
+      // state, so read it now rather than at the next poll tick.
+      if (read(mountStateProvider).deviceId != deviceId) return false;
+      final mount = read(mountStateProvider.notifier);
+      switch (property) {
+        case 'SlewToAltAz':
+          mount.setSlewing(true);
+        case 'AbortSlew':
+          mount.setSlewing(false);
+        case 'Synced':
+          break;
+        default:
+          return false;
+      }
+      mount.refreshNow();
+      return true;
+
     case DeviceType.dome:
       if (read(domeStateProvider).deviceId != deviceId ||
           property != 'Slaved') {
@@ -114,6 +134,100 @@ bool applyDevicePropertyChange(Object reader, Map<String, dynamic> data) {
     default:
       return false;
   }
+}
+
+/// Apply a focuser, filter wheel, rotator or camera-cooler event the host
+/// published (`FocuserMove*`, `FilterChang*`, `RotatorMove*`,
+/// `CameraCooling*`, `CameraWarming*`, `CameraTemperatureChanged`).
+///
+/// The host's `DeviceService` and a slave's equipment mirror both apply them
+/// here. Each event names its device; one for a device other than the one in
+/// the slot (a guide camera, a second focuser) is ignored, so a guide
+/// camera's cooler never shows as the imaging camera's. An event with no
+/// device id comes from a host older than the id and is applied as before.
+///
+/// Returns whether the event was one of these and was applied.
+bool applyDeviceStateEvent(
+  Object reader,
+  String eventType,
+  Map<String, dynamic> data,
+) {
+  T read<T>(ProviderListenable<T> provider) => readProvider(reader, provider);
+  bool inSlot(DeviceType type) {
+    final id = data['device_id'];
+    if (id is! String || id.isEmpty) return true;
+    return readDeviceSlot(reader, type).deviceId == id;
+  }
+
+  int? intField(String key) => (data[key] as num?)?.toInt();
+  double? doubleField(String key) => (data[key] as num?)?.toDouble();
+
+  switch (eventType) {
+    case 'FocuserMoveStarted':
+      if (!inSlot(DeviceType.focuser)) return false;
+      read(focuserStateProvider.notifier).setMoving(true);
+      return true;
+    case 'FocuserMoveCompleted':
+      if (!inSlot(DeviceType.focuser)) return false;
+      final focuser = read(focuserStateProvider.notifier)..setMoving(false);
+      final position = intField('position');
+      if (position != null) focuser.updatePosition(position);
+      return true;
+
+    case 'FilterChanging':
+      if (!inSlot(DeviceType.filterWheel)) return false;
+      read(filterWheelStateProvider.notifier).setMoving(true);
+      return true;
+    case 'FilterChanged':
+      if (!inSlot(DeviceType.filterWheel)) return false;
+      final wheel = read(filterWheelStateProvider.notifier)..setMoving(false);
+      final position = intField('position');
+      if (position != null) wheel.updatePosition(position);
+      return true;
+
+    case 'RotatorMoveStarted':
+      if (!inSlot(DeviceType.rotator)) return false;
+      read(rotatorStateProvider.notifier).setMoving(true);
+      return true;
+    case 'RotatorMoveCompleted':
+      if (!inSlot(DeviceType.rotator)) return false;
+      final rotator = read(rotatorStateProvider.notifier)..setMoving(false);
+      final angle = doubleField('angle');
+      if (angle != null) rotator.updatePosition(angle);
+      return true;
+
+    case 'CameraCoolingStarted':
+      if (!inSlot(DeviceType.camera)) return false;
+      final camera = read(cameraStateProvider.notifier)..setCooling(true);
+      final target = doubleField('target_temp');
+      if (target != null) camera.setTargetTemp(target);
+      return true;
+    case 'CameraCoolingReached':
+      if (!inSlot(DeviceType.camera)) return false;
+      final temperature = doubleField('temperature');
+      if (temperature != null) {
+        read(cameraStateProvider.notifier).updateTemperature(temperature, 0.0);
+      }
+      return true;
+    case 'CameraWarmingStarted':
+      if (!inSlot(DeviceType.camera)) return false;
+      read(cameraStateProvider.notifier).setCooling(false);
+      return true;
+    case 'CameraWarmingCompleted':
+      return inSlot(DeviceType.camera);
+    case 'CameraTemperatureChanged':
+      if (!inSlot(DeviceType.camera)) return false;
+      final temperature = doubleField('temperature');
+      if (temperature == null) return false;
+      // Null-aware on purpose: `updateTemperature` clears the cached power
+      // when this is null, so a reading without power leaves the cards
+      // saying "unknown" rather than claiming a real 0 %.
+      read(
+        cameraStateProvider.notifier,
+      ).updateTemperature(temperature, doubleField('coolerPower'));
+      return true;
+  }
+  return false;
 }
 
 /// Apply a `CameraSettingsChanged` event: the camera's full gain, offset

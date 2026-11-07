@@ -600,10 +600,15 @@ impl DeviceManager {
                         .and_then(|status| status.target_temp),
                 };
                 if let Some(target_temp) = target {
-                    self.publish_state_event(EquipmentEvent::CameraCoolingStarted { target_temp });
+                    self.publish_state_event(EquipmentEvent::CameraCoolingStarted {
+                        device_id: device_id.to_string(),
+                        target_temp,
+                    });
                 }
             } else {
-                self.publish_state_event(EquipmentEvent::CameraWarmingStarted);
+                self.publish_state_event(EquipmentEvent::CameraWarmingStarted {
+                    device_id: device_id.to_string(),
+                });
             }
         }
 

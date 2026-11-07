@@ -77,6 +77,61 @@ impl IndiFilterWheel {
         self.set_slot(wire).await
     }
 
+    /// Move to a **0-based** slot and return once the wheel reports it is
+    /// there.
+    ///
+    /// INDI accepts the new slot before the wheel turns, and the property only
+    /// goes Busy once the driver's reply arrives, so neither the slot value nor
+    /// the Busy state read right after the send says where the wheel is: a
+    /// caller that read back at once saw the old slot, not moving, and took the
+    /// move for a stall. This waits for the slot reading to equal the target
+    /// with the property no longer Busy, and fails when the property goes
+    /// Alert or after the filter-change timeout.
+    pub async fn move_to_position(&self, zero_based: i32) -> Result<(), String> {
+        let target = self.wire_slot_from_zero_based(zero_based).await;
+        let (timeout, poll) = {
+            let client = self.client.read().await;
+            let config = client.timeout_config();
+            (
+                Duration::from_secs(config.filter_change_timeout_secs),
+                Duration::from_millis(config.property_poll_interval_ms.clamp(50, 500)),
+            )
+        };
+        self.set_slot(target).await.map_err(|e| e.to_string())?;
+        let start = std::time::Instant::now();
+        loop {
+            let (state, slot) = {
+                let client = self.client.read().await;
+                (
+                    client
+                        .get_property_state(&self.device_name, FILTER_SLOT)
+                        .await,
+                    client
+                        .get_number(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+                        .await,
+                )
+            };
+            if state == Some(crate::IndiPropertyState::Alert) {
+                return Err(format!(
+                    "Filter wheel {} reported an alert moving to slot {}",
+                    self.device_name, target
+                ));
+            }
+            // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size).
+            let at_target = slot.map(|s| s as i32) == Some(target);
+            if at_target && state != Some(crate::IndiPropertyState::Busy) {
+                return Ok(());
+            }
+            if start.elapsed() >= timeout {
+                return Err(format!(
+                    "Filter wheel {} did not reach slot {} within {:?}",
+                    self.device_name, target, timeout
+                ));
+            }
+            tokio::time::sleep(poll).await;
+        }
+    }
+
     /// Set filter slot using the driver's native slot numbering (usually 1-based per INDI).
     pub async fn set_slot(&self, slot: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;

@@ -416,7 +416,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                           });
                           try {
                             await ref
-                                .read(backendProvider)
+                                .read(deviceCommandsProvider)
                                 .domeSlewToAzimuth(deviceId, azimuth);
                             if (!dialogContext.mounted) return;
                             Navigator.pop(dialogContext);

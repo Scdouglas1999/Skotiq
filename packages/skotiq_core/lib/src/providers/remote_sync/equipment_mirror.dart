@@ -72,41 +72,21 @@ void _applyEquipmentTelemetry(
   Map<String, dynamic> data,
 ) {
   switch (eventType) {
-    // Camera temperature / cooling
+    // Camera cooler and temperature, focuser, filter wheel and rotator: the
+    // applier the host's DeviceService uses too, which ignores events for a
+    // device not in the slot (a guide camera, a second focuser).
     case 'CameraTemperatureChanged':
-      final temp = (data['temperature'] as num?)?.toDouble();
-      // Null-aware on purpose: `updateTemperature` clears the cached power when
-      // this is null, so a frame without `coolerPower` leaves the cards saying
-      // "unknown" rather than claiming a real 0 % reading.
-      final power = (data['coolerPower'] as num?)?.toDouble();
-      if (temp != null) {
-        _read(
-          reader,
-          cameraStateProvider.notifier,
-        ).updateTemperature(temp, power);
-      }
-      break;
     case 'CameraCoolingStarted':
-      final targetTemp = (data['target_temp'] as num?)?.toDouble();
-      _read(reader, cameraStateProvider.notifier).setCooling(true);
-      if (targetTemp != null) {
-        _read(reader, cameraStateProvider.notifier).setTargetTemp(targetTemp);
-      }
-      break;
     case 'CameraCoolingReached':
-      final temp = (data['temperature'] as num?)?.toDouble();
-      if (temp != null) {
-        _read(
-          reader,
-          cameraStateProvider.notifier,
-        ).updateTemperature(temp, 0.0);
-      }
-      break;
     case 'CameraWarmingStarted':
-      _read(reader, cameraStateProvider.notifier).setCooling(false);
-      break;
     case 'CameraWarmingCompleted':
-      // No additional state change (matches event_handling.dart).
+    case 'FocuserMoveStarted':
+    case 'FocuserMoveCompleted':
+    case 'FilterChanging':
+    case 'FilterChanged':
+    case 'RotatorMoveStarted':
+    case 'RotatorMoveCompleted':
+      applyDeviceStateEvent(reader, eventType, data);
       break;
 
     // Mount position / motion
@@ -136,16 +116,6 @@ void _applyEquipmentTelemetry(
       break;
 
     // Focuser
-    case 'FocuserMoveStarted':
-      _read(reader, focuserStateProvider.notifier).setMoving(true);
-      break;
-    case 'FocuserMoveCompleted':
-      _read(reader, focuserStateProvider.notifier).setMoving(false);
-      final position = data['position'] as int?;
-      if (position != null) {
-        _read(reader, focuserStateProvider.notifier).updatePosition(position);
-      }
-      break;
     case 'FocuserTemperatureChanged':
       final temperature = (data['temperature'] as num?)?.toDouble();
       if (temperature != null) {
@@ -156,21 +126,6 @@ void _applyEquipmentTelemetry(
       }
       break;
 
-    // Filter wheel
-    case 'FilterChanging':
-      _read(reader, filterWheelStateProvider.notifier).setMoving(true);
-      break;
-    case 'FilterChanged':
-      _read(reader, filterWheelStateProvider.notifier).setMoving(false);
-      final position = data['position'] as int?;
-      if (position != null) {
-        _read(
-          reader,
-          filterWheelStateProvider.notifier,
-        ).updatePosition(position);
-      }
-      break;
-
     // Settings with no event of their own (gain, offset, binning, slot names,
     // rotator sync and reverse, switch writes, dome slaving).
     case 'PropertyChanged':
@@ -178,18 +133,6 @@ void _applyEquipmentTelemetry(
       break;
     case 'CameraSettingsChanged':
       applyCameraSettings(reader, data);
-      break;
-
-    // Rotator
-    case 'RotatorMoveStarted':
-      _read(reader, rotatorStateProvider.notifier).setMoving(true);
-      break;
-    case 'RotatorMoveCompleted':
-      _read(reader, rotatorStateProvider.notifier).setMoving(false);
-      final angle = (data['angle'] as num?)?.toDouble();
-      if (angle != null) {
-        _read(reader, rotatorStateProvider.notifier).updatePosition(angle);
-      }
       break;
   }
 }

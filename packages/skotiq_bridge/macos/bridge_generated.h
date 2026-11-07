@@ -687,10 +687,12 @@ typedef struct wire_cst_EquipmentEvent_MountSlewCompleted {
 } wire_cst_EquipmentEvent_MountSlewCompleted;
 
 typedef struct wire_cst_EquipmentEvent_FocuserMoveStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   int32_t target_position;
 } wire_cst_EquipmentEvent_FocuserMoveStarted;
 
 typedef struct wire_cst_EquipmentEvent_FocuserMoveCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   int32_t position;
 } wire_cst_EquipmentEvent_FocuserMoveCompleted;
 
@@ -699,6 +701,7 @@ typedef struct wire_cst_EquipmentEvent_FocuserTemperatureChanged {
 } wire_cst_EquipmentEvent_FocuserTemperatureChanged;
 
 typedef struct wire_cst_EquipmentEvent_FilterChanging {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   int32_t from_position;
   int32_t to_position;
   struct wire_cst_list_prim_u_8_strict *filter_name;
@@ -706,25 +709,44 @@ typedef struct wire_cst_EquipmentEvent_FilterChanging {
 } wire_cst_EquipmentEvent_FilterChanging;
 
 typedef struct wire_cst_EquipmentEvent_FilterChanged {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   int32_t position;
   struct wire_cst_list_prim_u_8_strict *filter_name;
 } wire_cst_EquipmentEvent_FilterChanged;
 
 typedef struct wire_cst_EquipmentEvent_RotatorMoveStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double target_angle;
 } wire_cst_EquipmentEvent_RotatorMoveStarted;
 
 typedef struct wire_cst_EquipmentEvent_RotatorMoveCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double angle;
 } wire_cst_EquipmentEvent_RotatorMoveCompleted;
 
 typedef struct wire_cst_EquipmentEvent_CameraCoolingStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double target_temp;
 } wire_cst_EquipmentEvent_CameraCoolingStarted;
 
 typedef struct wire_cst_EquipmentEvent_CameraCoolingReached {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double temperature;
 } wire_cst_EquipmentEvent_CameraCoolingReached;
+
+typedef struct wire_cst_EquipmentEvent_CameraWarmingStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_CameraWarmingStarted;
+
+typedef struct wire_cst_EquipmentEvent_CameraWarmingCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_CameraWarmingCompleted;
+
+typedef struct wire_cst_EquipmentEvent_CameraTemperatureChanged {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+  double temperature;
+  double *cooler_power;
+} wire_cst_EquipmentEvent_CameraTemperatureChanged;
 
 typedef struct wire_cst_EquipmentEvent_CameraSettingsChanged {
   struct wire_cst_list_prim_u_8_strict *device_id;
@@ -798,6 +820,9 @@ typedef union EquipmentEventKind {
   struct wire_cst_EquipmentEvent_RotatorMoveCompleted RotatorMoveCompleted;
   struct wire_cst_EquipmentEvent_CameraCoolingStarted CameraCoolingStarted;
   struct wire_cst_EquipmentEvent_CameraCoolingReached CameraCoolingReached;
+  struct wire_cst_EquipmentEvent_CameraWarmingStarted CameraWarmingStarted;
+  struct wire_cst_EquipmentEvent_CameraWarmingCompleted CameraWarmingCompleted;
+  struct wire_cst_EquipmentEvent_CameraTemperatureChanged CameraTemperatureChanged;
   struct wire_cst_EquipmentEvent_CameraSettingsChanged CameraSettingsChanged;
   struct wire_cst_EquipmentEvent_HeartbeatStarted HeartbeatStarted;
   struct wire_cst_EquipmentEvent_HeartbeatStopped HeartbeatStopped;

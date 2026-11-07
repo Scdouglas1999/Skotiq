@@ -32,6 +32,10 @@ class MountStateNotifier extends StateNotifier<MountState>
   Timer? _positionPollTimer;
   bool _isPolling = false;
 
+  /// A [refreshNow] arrived while a poll was in flight; that poll's reading
+  /// may predate the command, so another runs as soon as it ends.
+  bool _pollAgain = false;
+
   /// Normal polling interval (tracking/idle)
   static const _normalPollInterval = Duration(seconds: 2);
 
@@ -265,6 +269,20 @@ class MountStateNotifier extends StateNotifier<MountState>
     _startPositionPolling();
   }
 
+  /// Read the mount now instead of at the next poll tick.
+  ///
+  /// Called when the host reports a mount command (a sync, an abort, an
+  /// alt/az slew) that has no event carrying the new state, whoever sent
+  /// it, so every UI shows the result within one status read rather than
+  /// after the 2 s (host) or 5 s (linked client) poll.
+  Future<void> refreshNow() async {
+    if (_isPolling) {
+      _pollAgain = true;
+      return;
+    }
+    await _pollPosition();
+  }
+
   Future<void> _pollPosition() async {
     if (_isPolling) return; // Skip if previous poll is still in-flight
     if (!mounted) return;
@@ -338,6 +356,10 @@ class MountStateNotifier extends StateNotifier<MountState>
       );
     } finally {
       _isPolling = false;
+      if (_pollAgain && mounted) {
+        _pollAgain = false;
+        unawaited(_pollPosition());
+      }
     }
   }
 }
