@@ -127,4 +127,55 @@ void main() {
       isTrue,
     );
   });
+
+  test('a different identity at the remembered address gets no token', () {
+    fakeAsync((async) {
+      var connects = 0;
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          remoteLaunchTargetProvider.overrideWithValue(
+            const RemoteLaunchTarget(
+              host: '192.168.1.32',
+              port: 8099,
+              token: 'paired',
+              name: 'DESKTOP-MMAJGAK',
+              expectedFingerprint: 'dc2f261109b13423',
+              remembered: true,
+            ),
+          ),
+          remoteClientLaunchProvider.overrideWithValue(true),
+          remoteLaunchFingerprintCheckProvider.overrideWithValue(
+            (_) async => 'ffff000011112222',
+          ),
+          backendProvider.overrideWith((ref) {
+            notifier = _FailingBackendNotifier(ref, StateError('unused'));
+            return notifier;
+          }),
+        ],
+      );
+      container.read(remoteLaunchStatusProvider.notifier).connect();
+      async.flushMicrotasks();
+      connects = notifier.connects;
+
+      final status = container.read(remoteLaunchStatusProvider);
+      expect(status.failure, RemoteLaunchFailure.hostChanged);
+      expect(connects, 0, reason: 'the token must not be sent');
+      async.elapse(const Duration(minutes: 5));
+      expect(notifier.connects, 0, reason: 'not retried');
+      container.dispose();
+    });
+  });
+
+  test('a remembered rig is named in its messages', () {
+    const target = RemoteLaunchTarget(
+      host: '192.168.1.32',
+      port: 8099,
+      name: 'DESKTOP-MMAJGAK',
+    );
+    expect(
+      remoteLaunchFailureMessage(target, RemoteLaunchFailure.unreachable),
+      "Can't reach the imaging host at DESKTOP-MMAJGAK (192.168.1.32:8099).",
+    );
+  });
 }

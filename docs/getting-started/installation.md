@@ -92,20 +92,23 @@ Use the `./skotiq` launcher, not `skotiq.bin` directly; the launcher
 loads the archive's ABI-matched LibRaw first (and the hermetic `libsqlite3.so`
 native asset from `package:sqlite3`).
 
-The bundle is a portable tarball — there is no installer. To get a launcher
-entry (taskbar icon, app-menu search, correct window title) install the
-desktop entry yourself. `packaging/desktop/com.skotiq.desktop.desktop` in the
-repository is the entry; copy it to `~/.local/share/applications/` and fix its
-`Exec`/`Icon` lines to the extracted bundle's absolute paths:
+To install it for your user, with a menu entry and icon, run the installer
+from the extracted folder:
 
 ```bash
-mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/512x512/apps
-sed -e "s|@BUNDLE_DIR@|$PWD|g" \
-    /path/to/repo/packaging/desktop/com.skotiq.desktop.desktop \
-    > ~/.local/share/applications/com.skotiq.desktop.desktop
-cp icons/skotiq_512.png ~/.local/share/icons/hicolor/512x512/apps/skotiq.png
-gtk-update-icon-cache ~/.local/share/icons/hicolor 2>/dev/null || true
+./install.sh
 ```
+
+It copies the folder to `~/.local/opt/skotiq-<version>`, adds Skotiq to the
+application menu (`~/.local/share/applications/skotiq.desktop`), installs the
+icon, and links `~/.local/bin/skotiq` when that folder exists. It needs no
+root. Installing a newer version replaces the older version's menu entry,
+including one made by hand from the older instructions; the older version's
+folder stays until you delete it. `./install.sh --remove`, run from the
+installed folder, removes that version and its entry. Your observing data is
+kept elsewhere and neither step touches it.
+
+You can also run the archive in place with `./skotiq` without installing it.
 
 The app already sets its Wayland app id and X11 `WM_CLASS` to
 `com.skotiq.desktop`, so the entry resolves to the running window.

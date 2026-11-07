@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:nsd/nsd.dart';
@@ -77,7 +78,11 @@ class MdnsServiceRegistration {
 
   /// `true` after [start] successfully registered the service. Stays false
   /// when registration was skipped because of a platform / permissions error.
-  bool get isRegistered => _registration != null;
+  bool get isRegistered => _registration != null || _avahiPublisher != null;
+
+  /// `avahi-publish-service` child on Linux, where `nsd` has no
+  /// implementation. Held so [stop] can end it.
+  Process? _avahiPublisher;
 
   /// Register the service with the local DNS-SD responder.
   ///
@@ -101,6 +106,11 @@ class MdnsServiceRegistration {
         continue;
       }
       encodedTxt[key] = Uint8List.fromList(utf8.encode(entry.value));
+    }
+
+    if (Platform.isLinux) {
+      await _startAvahi();
+      return;
     }
 
     final service = Service(
@@ -151,6 +161,17 @@ class MdnsServiceRegistration {
   /// Unregister the service. Safe to call even when [start] failed or was
   /// never called.
   Future<void> stop() async {
+    final publisher = _avahiPublisher;
+    _avahiPublisher = null;
+    if (publisher != null) {
+      // Closing stdin ends the wrapper shell, which ends the publisher.
+      try {
+        await publisher.stdin.close();
+      } catch (_) {}
+      publisher.kill();
+      _started = false;
+      return;
+    }
     final reg = _registration;
     _registration = null;
     if (reg == null) {
@@ -183,6 +204,62 @@ class MdnsServiceRegistration {
       _started = false;
     }
   }
+
+  /// Linux: advertise through avahi-daemon with `avahi-publish-service`.
+  ///
+  /// The `nsd` plugin has no Linux implementation, so a Linux host was never
+  /// visible over mDNS: every registration failed with MissingPluginException.
+  /// Avahi runs on nearly every Linux desktop; when it or its tools are
+  /// missing this logs once and the UDP beacon remains.
+  ///
+  /// The publisher runs under a shell that exits when its stdin closes, which
+  /// happens when this process exits for any reason, so a crashed host never
+  /// leaves an orphan advertising an address nobody answers on.
+  Future<void> _startAvahi() async {
+    final args = <String>[
+      name,
+      _serviceType,
+      '$port',
+      for (final entry in txt.entries)
+        if (entry.key.isNotEmpty &&
+            !entry.key.contains('=') &&
+            !_hasNonPrintableAscii(entry.key))
+          '${entry.key}=${entry.value}',
+    ];
+    final quoted = args.map(_shellQuote).join(' ');
+    try {
+      final process = await Process.start('/bin/sh', [
+        '-c',
+        'command -v avahi-publish-service >/dev/null 2>&1 || exit 127; '
+            'avahi-publish-service $quoted >/dev/null 2>&1 & child=\$!; '
+            'cat >/dev/null; kill \$child 2>/dev/null',
+      ]);
+      // Give a missing tool or a dead daemon a moment to show itself.
+      final early = await process.exitCode
+          .timeout(const Duration(milliseconds: 400), onTimeout: () => -1);
+      if (early != -1) {
+        _emitWarning(
+          early == 127
+              ? 'mDNS: avahi-publish-service is not installed, so this host '
+                    'is advertised by UDP broadcast only.'
+              : 'mDNS: avahi-publish-service exited ($early); this host is '
+                    'advertised by UDP broadcast only.',
+        );
+        return;
+      }
+      _avahiPublisher = process;
+      developer.log(
+        'Advertising "$name" on port $port through avahi',
+        name: 'MdnsServiceRegistration',
+        level: 800,
+      );
+    } catch (e) {
+      _emitWarning('mDNS: could not start avahi-publish-service: $e');
+    }
+  }
+
+  static String _shellQuote(String value) =>
+      "'${value.replaceAll("'", "'\\''")}'";
 
   void _emitWarning(String message) {
     final sink = onWarning;

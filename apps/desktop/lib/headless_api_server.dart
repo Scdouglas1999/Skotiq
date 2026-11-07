@@ -82,6 +82,11 @@ class HeadlessApiServer {
   /// own image view (a desktop host with a window).
   final bool showApiCapturesInPreview;
 
+  /// Whether this server runs inside the desktop app's window process or the
+  /// headless daemon. Reported in `/api/info` (`hostMode`) so a client can say
+  /// what it found.
+  final SkotiqHostMode hostMode;
+
   /// Optional authentication token. If set, all API requests must include
   /// this token as a Bearer token in the Authorization header.
   /// Example: `Authorization: Bearer your-secret-token`
@@ -511,6 +516,7 @@ class HeadlessApiServer {
     this.bindLocalOnly = true,
     this.dispatchPluginNodes = true,
     this.showApiCapturesInPreview = false,
+    this.hostMode = SkotiqHostMode.headless,
     this.authToken,
     this.requireAuth = false,
     this.allowUnauthenticated = false,

@@ -6,6 +6,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'package:go_router/go_router.dart';
+
+import '../screens/link_rig/link_rig_actions.dart';
+import '../screens/link_rig/link_rig_dialog.dart';
+import '../screens/settings/settings_screen.dart' show SettingsSectionRequest;
 import 'share_session_dialog.dart';
 
 import 'work_locally.dart';
@@ -507,6 +512,8 @@ class _RemoteConnectionSheetState
       status = RemoteConnectionStatus.notAnswering;
     }
     final latency = backend?.lastLatency;
+    final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
+    final canSwitch = canSwitchRole(ref);
 
     return Padding(
       padding: SkotiqTokens.dialogPadding,
@@ -545,6 +552,9 @@ class _RemoteConnectionSheetState
           ),
           const SizedBox(height: 24),
           if (backend != null) ...[
+            if (linkedLaunch?.name != null &&
+                linkedLaunch!.name != backend.serverHost)
+              _row(theme, colors, 'Computer', linkedLaunch.name!),
             _row(theme, colors, 'Host', backend.serverHost),
             _row(theme, colors, 'Port', backend.serverPort.toString()),
           ],
@@ -565,7 +575,67 @@ class _RemoteConnectionSheetState
                 label: _reconnecting ? 'Reconnecting...' : 'Reconnect now',
               ),
             ),
+          // A desktop LAUNCHED linked cannot drop to "no backend" and be useful:
+          // its role is fixed for the life of the process. Its way out is to
+          // restart as this computer's own host, and its way in to the link's
+          // settings is the Remote access page.
+          if (linkedLaunch != null && canSwitch) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: SkotiqButton(
+                  key: const ValueKey('connectionSheet.manageLink'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    SettingsSectionRequest.raise('remote-access');
+                    GoRouter.maybeOf(context)
+                        ?.go('/settings?section=remote-access');
+                  },
+                  icon: LucideIcons.settings2,
+                  label: 'Manage link',
+                  variant: ButtonVariant.secondary,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: SkotiqButton(
+                  key: const ValueKey('connectionSheet.useThisComputer'),
+                  onPressed: () => useThisComputerInstead(
+                    context,
+                    ref,
+                    rigName: linkedLaunch.name,
+                  ),
+                  icon: LucideIcons.monitor,
+                  label: 'Use this computer instead',
+                  variant: ButtonVariant.ghost,
+                ),
+              ),
+            ),
+          ] else if (backend == null &&
+              activeBackend is! DisconnectedBackend &&
+              canSwitch)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: SkotiqButton(
+                  key: const ValueKey('connectionSheet.connectRig'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    showLinkRigDialog(context);
+                  },
+                  icon: LucideIcons.link,
+                  label: 'Connect to an imaging computer',
+                  variant: ButtonVariant.secondary,
+                ),
+              ),
+            ),
           if (backend != null &&
+              linkedLaunch == null &&
               (status == RemoteConnectionStatus.connected ||
                   status == RemoteConnectionStatus.notAnswering))
             Padding(

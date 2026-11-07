@@ -30,6 +30,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show SkotiqHostMode;
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -100,6 +102,12 @@ class SystemServerView {
   /// null. Same purpose as [tailscaleHost] for the relay path.
   final String? Function() relayApplianceId;
 
+  /// GUI app or headless daemon; see [SkotiqHostMode].
+  final SkotiqHostMode hostMode;
+
+  /// The computer name advertised to clients ([hostComputerName]).
+  final String hostName;
+
   const SystemServerView({
     required this.fingerprint,
     required this.instanceId,
@@ -113,6 +121,8 @@ class SystemServerView {
     required this.pairingModeWire,
     required this.tailscaleHost,
     required this.relayApplianceId,
+    this.hostMode = SkotiqHostMode.headless,
+    this.hostName = 'Skotiq',
   });
 }
 
@@ -196,15 +206,24 @@ class SystemHandlers {
     final versionInfo = container.read(appVersionProvider);
     final dashboardAvailable = staticFileHandlers.dashboardAvailable;
 
+    final headless = view.hostMode == SkotiqHostMode.headless;
     return jsonOk({
-      'name': 'Skotiq Headless',
+      // The computer's own name. It used to be the constant "Skotiq Headless"
+      // even from the desktop app, so every host in a client's list looked the
+      // same and a GUI host described itself as a daemon.
+      'name': view.hostName,
+      'hostName': view.hostName,
+      'product': 'Skotiq',
+      // `gui`: the desktop app with its window serves this API. `headless`:
+      // the daemon. Before 8.2.2 both said `headless`.
+      'hostMode': view.hostMode.wire,
       'version': versionInfo.version,
       'apiVersion': RemoteApiCompatibility.serverApiVersion.format(),
       'minimumSupportedApiVersion': RemoteApiCompatibility
           .minimumSupportedVersion
           .format(),
       'apiVersionHeader': RemoteApiCompatibility.apiVersionHeader,
-      'mode': 'headless',
+      'mode': view.hostMode.wire,
       'platform': platformCapabilities.platform,
       'platformCapabilities': platformCapabilities.toJson(),
       'authRequired': view.authRequired(),
@@ -228,7 +247,9 @@ class SystemHandlers {
       'currentEventSeq': view.currentEventSeq(),
       'eventReplayBufferSize': view.eventReplayBufferSize(),
       'eventReplayBufferOldestSeq': view.eventReplayBufferOldestSeq(),
-      'apiOnlyMode': true,
+      // True only for the daemon: a GUI host also has a window someone may be
+      // working in.
+      'apiOnlyMode': headless,
       'webUIAvailable': dashboardAvailable,
       // Read straight off the declaration the auth middleware enforces, so
       // the catalog cannot drift from what the server actually serves without

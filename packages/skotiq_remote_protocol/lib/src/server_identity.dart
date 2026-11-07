@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -26,4 +27,37 @@ String shortServerFingerprint(String fingerprint, {int length = 16}) {
     return fingerprint;
   }
   return fingerprint.substring(0, length);
+}
+
+/// Which kind of Skotiq process serves the remote API.
+///
+/// `gui` is the desktop app with its window (the usual imaging computer);
+/// `headless` is the daemon (`--headless`, a Pi appliance, a service). The two
+/// used to be indistinguishable to a client: both called themselves
+/// "Skotiq Headless".
+enum SkotiqHostMode {
+  gui('gui'),
+  headless('headless');
+
+  const SkotiqHostMode(this.wire);
+  final String wire;
+}
+
+/// The computer name a host advertises in discovery and `/api/info`, as a
+/// person would recognize it: `DESKTOP-MMAJGAK`, `observatory-pi`. A trailing
+/// `.local` (macOS) or domain suffix is dropped. Falls back to `Skotiq` when
+/// the OS reports nothing.
+String hostComputerName([String? raw]) {
+  var name = (raw ?? _localHostname()).trim();
+  final dot = name.indexOf('.');
+  if (dot > 0) name = name.substring(0, dot);
+  return name.isEmpty ? 'Skotiq' : name;
+}
+
+String _localHostname() {
+  try {
+    return Platform.localHostname;
+  } catch (_) {
+    return '';
+  }
 }
