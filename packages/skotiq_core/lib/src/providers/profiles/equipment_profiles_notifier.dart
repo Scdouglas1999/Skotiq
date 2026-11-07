@@ -183,7 +183,11 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     final authority = _remoteAuthority;
     if (authority != null) {
       final remote = authority.backend;
-      await remote.saveProfile(profile.toRemoteProfile());
+      final next = profile.toRemoteProfile();
+      await remote.saveProfileFields(
+        next,
+        fields: _changedRemoteFields(profile.id, next),
+      );
       _requireRemoteAuthority(remote, authority.owner);
       final savedId =
           int.tryParse(remote.lastSavedProfileId ?? '') ??
@@ -267,6 +271,32 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     return profile.id!;
   }
 
+  /// The wire fields [next] changes relative to the copy of profile [id] this
+  /// client last loaded, or null when it has no copy to compare with (a new
+  /// profile, or one it has not loaded), in which case the whole profile is
+  /// sent.
+  Set<String>? _changedRemoteFields(
+    int? id,
+    remote_profile.EquipmentProfile next,
+  ) {
+    if (id == null) return null;
+    EquipmentProfileModel? loaded;
+    for (final candidate in state.valueOrNull?.profiles ?? const []) {
+      if (candidate.id == id) {
+        loaded = candidate;
+        break;
+      }
+    }
+    if (loaded == null) return null;
+    final before = jsonDecode(jsonEncode(loaded.toRemoteProfile().toJson()));
+    final after = jsonDecode(jsonEncode(next.toJson()));
+    if (before is! Map || after is! Map) return null;
+    return {
+      for (final key in {...before.keys, ...after.keys})
+        if (jsonEncode(before[key]) != jsonEncode(after[key])) key as String,
+    }..removeAll(const {'id', 'createdAt', 'updatedAt'});
+  }
+
   /// Delete a profile
   Future<void> deleteProfile(int profileId) async {
     final authority = _remoteAuthority;
@@ -323,6 +353,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     final dao = ref.read(equipmentProfilesDaoProvider);
     final settingsBackend = ref.read(profileSettingsBackendProvider);
     final logger = ref.read(loggingServiceProvider);
+    final hub = ref.read(hostMutationEventHubProvider);
 
     // Transactional truth: validate the target, push it into the native
     // executor store FIRST, and only THEN commit the SQLite active flag —
@@ -335,9 +366,26 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
         logger: logger,
         profileId: profileId,
       );
+      _announceProfileChange(hub, HostMutationAction.loaded, profileId);
     } finally {
       ref.invalidateSelf();
     }
+  }
+
+  /// Tell linked clients about a profile change made on this host. Only the
+  /// clients: this app's own providers refresh through [ref.invalidateSelf].
+  /// The REST handlers announce their own changes, which do not come through
+  /// this notifier, so no change is announced twice.
+  void _announceProfileChange(
+    HostMutationEventHub hub,
+    String action,
+    int? profileId,
+  ) {
+    hub.publishRemoteOnly(
+      entityType: HostMutationEntity.profile,
+      action: action,
+      entityId: profileId?.toString(),
+    );
   }
 
   /// Set or clear the default startup profile.
@@ -370,6 +418,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     final dao = ref.read(equipmentProfilesDaoProvider);
     final settingsBackend = ref.read(profileSettingsBackendProvider);
     final logger = ref.read(loggingServiceProvider);
+    final hub = ref.read(hostMutationEventHubProvider);
     if (profileId == null) {
       await dao.clearDefaultProfile();
     } else if (makeActive) {
@@ -386,6 +435,13 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     } else {
       await dao.setDefaultProfile(profileId, makeActive: false);
     }
+    _announceProfileChange(
+      hub,
+      profileId != null && makeActive
+          ? HostMutationAction.loaded
+          : HostMutationAction.updated,
+      profileId,
+    );
     ref.invalidateSelf();
   }
 

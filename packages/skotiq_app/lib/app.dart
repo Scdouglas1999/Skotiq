@@ -100,6 +100,7 @@ class SkotiqApp extends ConsumerWidget {
     ref.watch(pushNotificationServiceProvider);
     ref.watch(remoteSessionSyncProvider);
     ref.watch(hostLocalSyncProvider);
+    ref.watch(hostStateAnnouncerProvider);
     ref.watch(sequenceLibrarySyncProvider);
     ref.watch(remoteSequenceEditorSyncProvider);
     // MASTER -> SLAVE: push the master's open sequencer canvas to slaves live.

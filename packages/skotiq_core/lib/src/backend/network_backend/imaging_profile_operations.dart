@@ -12,9 +12,21 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> saveProfile(EquipmentProfile profile) async {
+  Future<void> saveProfile(EquipmentProfile profile) =>
+      saveProfileFields(profile, fields: null);
+
+  /// Save [profile]; when [fields] is given, ask the host to update only those
+  /// fields of its existing row, so edits made elsewhere to the other fields
+  /// survive. A host that predates field updates stores the whole profile.
+  Future<void> saveProfileFields(
+    EquipmentProfile profile, {
+    required Set<String>? fields,
+  }) async {
     _lastSavedProfileId = null;
-    final response = await _post('profiles', {'profile': profile.toJson()});
+    final response = await _post('profiles', {
+      'profile': profile.toJson(),
+      if (fields != null) 'fields': fields.toList()..sort(),
+    });
     final rawId = response['id'];
     final id = rawId?.toString();
     if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
@@ -142,6 +154,45 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       'settings': settings,
       if (remove.isNotEmpty) 'remove': remove,
     });
+  }
+
+  /// Merge [fields] into the JSON-object rows of the host's key/value store.
+  ///
+  /// [fallback] carries, for every key in [fields], the whole value this
+  /// client would write: a host that predates merging ignores `merge` and
+  /// stores it, while a current host ignores it and lays only [fields] over
+  /// its own row (or over [base] when it has none). Returns the values the
+  /// host stored, or [fallback] when the host did not say.
+  Future<Map<String, String>> mergeSettingsStore(
+    Map<String, Map<String, Object?>> fields, {
+    required Map<String, String> fallback,
+    Map<String, Map<String, Object?>> base = const {},
+  }) async {
+    final response = await _post('settings/store', {
+      'settings': fallback,
+      'merge': fields,
+      if (base.isNotEmpty) 'mergeBase': base,
+    });
+    final merged = response['merged'];
+    if (merged is! Map) return fallback;
+    return {
+      ...fallback,
+      for (final entry in merged.entries)
+        entry.key.toString(): entry.value?.toString() ?? '',
+    };
+  }
+
+  /// POST only the [patch] keys of the typed settings document. The host
+  /// merges them onto its current settings, so fields this client did not
+  /// change keep whatever value the host holds now.
+  Future<void> updateSettingsPatchWithCommandId(
+    Map<String, dynamic> patch, {
+    required String? commandId,
+  }) async {
+    final extraHeaders = commandId == null
+        ? null
+        : <String, String>{'X-Skotiq-Command-Id': commandId};
+    await _post('settings', {'settings': patch}, extraHeaders);
   }
 
   @override

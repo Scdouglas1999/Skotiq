@@ -311,24 +311,57 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   // through the AppSettings notifier so values persist across navigation AND
   // full reconstruction, and remote companions share the same canonical sync.
 
-  /// Seed the settle/dither controls from the persisted authority exactly once
-  /// per screen instance. Values are clamped to the control ranges so a
-  /// corrupt/out-of-range stored value can never push a slider off its track.
+  /// Seed the settle/dither controls from the persisted settings, then follow
+  /// each setting when it changes (saved here, on the host's screen or on a
+  /// linked client). A control whose setting did not change keeps its value,
+  /// so an edit in progress is not reset by an unrelated save. Values are
+  /// clamped to the control ranges so a corrupt/out-of-range stored value can
+  /// never push a slider off its track.
   void _hydrateGuidingSettings(AppSettingsState settings) {
-    if (_guidingSettingsHydrated) return;
-    _guidingSettingsHydrated = true;
-    _settlePixels = settings.settleThreshold.clamp(0.5, 5.0).toDouble();
-    _settleTimeout = settings.settleTimeout.toDouble().clamp(30.0, 180.0);
-    _settleTime = settings.settleTime.toDouble().clamp(5.0, 60.0);
-    _ditherAmount = _ditherScaleToPixels(settings.ditherScale).clamp(1.0, 20.0);
-    _ditherRaOnly = settings.ditherRaOnly;
+    final seen = _guidingSettingsSeen;
+    _guidingSettingsSeen = settings;
+    bool follow(String setting, bool changed) =>
+        seen == null ||
+        (changed && !_guidingWritesPending.containsKey(setting));
+    if (follow('settle', seen?.settleThreshold != settings.settleThreshold)) {
+      _settlePixels = settings.settleThreshold.clamp(0.5, 5.0).toDouble();
+    }
+    if (follow('timeout', seen?.settleTimeout != settings.settleTimeout)) {
+      _settleTimeout = settings.settleTimeout.toDouble().clamp(30.0, 180.0);
+    }
+    if (follow('time', seen?.settleTime != settings.settleTime)) {
+      _settleTime = settings.settleTime.toDouble().clamp(5.0, 60.0);
+    }
+    if (follow('dither', seen?.ditherScale != settings.ditherScale)) {
+      _ditherAmount =
+          _ditherScaleToPixels(settings.ditherScale).clamp(1.0, 20.0);
+    }
+    if (follow('raOnly', seen?.ditherRaOnly != settings.ditherRaOnly)) {
+      _ditherRaOnly = settings.ditherRaOnly;
+    }
+  }
+
+  /// Run [save] for [setting], marking it pending until it settles.
+  Future<void> _trackGuidingWrite(String setting, Future<void> save) async {
+    _guidingWritesPending.update(setting, (n) => n + 1, ifAbsent: () => 1);
+    try {
+      await save;
+    } finally {
+      final left = _guidingWritesPending.update(
+        setting,
+        (n) => n - 1,
+        ifAbsent: () => 0,
+      );
+      if (left <= 0) _guidingWritesPending.remove(setting);
+    }
   }
 
   void _setSettlePixels(double value) {
     final clamped = value.clamp(0.5, 5.0).toDouble();
     final rollback = _settlePixels;
     setState(() => _settlePixels = clamped);
-    unawaited(_persistSettlePixels(clamped, rollback));
+    unawaited(
+        _trackGuidingWrite('settle', _persistSettlePixels(clamped, rollback)));
   }
 
   Future<void> _persistSettlePixels(double value, double rollback) async {
@@ -350,10 +383,11 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   void _setSettleTimeout(double value) {
-    final clamped = value.clamp(30.0, 180.0).toDouble();
+    final clamped = value.clamp(30.0, 180.0).roundToDouble();
     final rollback = _settleTimeout;
     setState(() => _settleTimeout = clamped);
-    unawaited(_persistSettleTimeout(clamped, rollback));
+    unawaited(_trackGuidingWrite(
+        'timeout', _persistSettleTimeout(clamped, rollback)));
   }
 
   Future<void> _persistSettleTimeout(double value, double rollback) async {
@@ -377,10 +411,11 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   void _setSettleTime(double value) {
-    final clamped = value.clamp(5.0, 60.0).toDouble();
+    final clamped = value.clamp(5.0, 60.0).roundToDouble();
     final rollback = _settleTime;
     setState(() => _settleTime = clamped);
-    unawaited(_persistSettleTime(clamped, rollback));
+    unawaited(
+        _trackGuidingWrite('time', _persistSettleTime(clamped, rollback)));
   }
 
   Future<void> _persistSettleTime(double value, double rollback) async {
@@ -406,7 +441,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   void _setDitherRaOnly(bool value) {
     final rollback = _ditherRaOnly;
     setState(() => _ditherRaOnly = value);
-    unawaited(_persistDitherRaOnly(value, rollback));
+    unawaited(
+        _trackGuidingWrite('raOnly', _persistDitherRaOnly(value, rollback)));
   }
 
   Future<void> _persistDitherRaOnly(bool value, bool rollback) async {
@@ -428,8 +464,12 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   void _setDitherAmount(double pixels) {
     final clamped = pixels.clamp(1.0, 20.0).toDouble();
     final rollback = _ditherAmount;
-    setState(() => _ditherAmount = clamped);
-    unawaited(_persistDitherScale(clamped, rollback));
+    // The setting holds Small/Medium/Large, so show the amount it stores
+    // rather than a pixel value no other screen will see.
+    setState(() =>
+        _ditherAmount = _ditherScaleToPixels(_pixelsToDitherScale(clamped)));
+    unawaited(
+        _trackGuidingWrite('dither', _persistDitherScale(clamped, rollback)));
   }
 
   Future<void> _persistDitherScale(double pixels, double rollback) async {

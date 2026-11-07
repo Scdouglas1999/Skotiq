@@ -22,9 +22,16 @@ mixin _GuidingStateFields on ConsumerState<GuidingScreen> {
   double _settleTime = 10.0;
   double _settleTimeout = 60.0;
 
-  /// Guards the one-time seed from persisted AppSettings. Reset per State, so a
-  /// fresh screen re-hydrates from the persisted values (survives reconstruction).
-  bool _guidingSettingsHydrated = false;
+  /// The persisted settings the controls last took their values from. Null
+  /// until the first build with settings, which seeds every control; after
+  /// that a control follows its setting whenever that setting changes, so a
+  /// change saved on a linked client or the host shows here at once.
+  AppSettingsState? _guidingSettingsSeen;
+
+  /// Saves from these controls still in flight, per setting. A setting with
+  /// one pending is not taken from the persisted value: that is an earlier
+  /// position of the same drag.
+  final Map<String, int> _guidingWritesPending = {};
 
   // Tab controller for the narrow layout's header tabs.
   late TabController _tabController;

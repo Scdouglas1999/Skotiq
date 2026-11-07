@@ -124,6 +124,61 @@ void main() {
         handle.container.read(appSettingsProvider).value!.ditherScale, 'Large');
   });
 
+  testWidgets(
+      'a setting saved elsewhere (host screen, linked client) shows on an '
+      'open screen', (tester) async {
+    _seed = const AppSettingsState(
+      settleThreshold: 2.0,
+      ditherScale: 'Small',
+      ditherRaOnly: false,
+    );
+
+    final handle = await pumpAppScreen(
+      tester,
+      const GuidingScreen(),
+      settle: false,
+      extraOverrides: [appSettingsProvider.overrideWith(_SeedSettings.new)],
+    );
+    await tester.pump();
+    await tester.pump();
+    _drainOverflow(tester);
+    expect(_panel(tester).ditherRaOnly, isFalse);
+
+    await tester.runAsync(() async {
+      final notifier = handle.container.read(appSettingsProvider.notifier);
+      await notifier.setDitherRaOnly(true);
+      await notifier.setDitherScale('Large');
+    });
+    await tester.pump();
+    _drainOverflow(tester);
+
+    expect(_panel(tester).ditherRaOnly, isTrue);
+    expect(_panel(tester).ditherAmount, 10.0);
+    // An unrelated control keeps its value.
+    expect(_panel(tester).settlePixels, 2.0);
+  });
+
+  testWidgets('the dither amount shows the bucket it is stored as',
+      (tester) async {
+    _seed = const AppSettingsState(ditherScale: 'Medium');
+    await pumpAppScreen(
+      tester,
+      const GuidingScreen(),
+      settle: false,
+      extraOverrides: [appSettingsProvider.overrideWith(_SeedSettings.new)],
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.runAsync(() async {
+      _panel(tester).onDitherAmountChanged!(16.0);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    await tester.pump();
+    _drainOverflow(tester);
+    expect(_panel(tester).ditherAmount, 10.0);
+  });
+
   testWidgets('saved settle value survives a full screen reconstruction',
       (tester) async {
     _seed = const AppSettingsState(

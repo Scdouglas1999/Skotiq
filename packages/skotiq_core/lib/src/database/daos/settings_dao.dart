@@ -249,6 +249,42 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  /// Lay [fields] over the JSON object stored under [key] and store the result,
+  /// in one transaction, so writers that changed different fields of the same
+  /// object keep each other's values. When no object is stored yet (or the row
+  /// is not a JSON object), [fields] are laid over [base]. Returns the stored
+  /// value.
+  Future<String> mergeJsonObjectSetting(
+    String key,
+    Map<String, Object?> fields, {
+    Map<String, Object?> base = const {},
+  }) {
+    return transaction(() async {
+      final merged = mergeJsonObject(await getSetting(key), fields, base: base);
+      await setSetting(key, merged);
+      return merged;
+    });
+  }
+
+  /// [fields] laid over the JSON object in [current], or over [base] when
+  /// [current] is missing or not a JSON object.
+  static String mergeJsonObject(
+    String? current,
+    Map<String, Object?> fields, {
+    Map<String, Object?> base = const {},
+  }) {
+    Map<String, Object?>? existing;
+    if (current != null && current.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(current);
+        if (decoded is Map) existing = Map<String, Object?>.from(decoded);
+      } on FormatException {
+        existing = null;
+      }
+    }
+    return jsonEncode({...(existing ?? base), ...fields});
+  }
+
   /// Set a setting
   Future<void> setSetting(String key, String value) async {
     await into(appSettings).insert(

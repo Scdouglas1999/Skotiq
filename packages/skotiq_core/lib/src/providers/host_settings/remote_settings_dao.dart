@@ -117,6 +117,27 @@ class RemoteSettingsDao extends SettingsDao {
   }
 
   @override
+  Future<String> mergeJsonObjectSetting(
+    String key,
+    Map<String, Object?> fields, {
+    Map<String, Object?> base = const {},
+  }) async {
+    if (await _isHostStoreKey(key)) {
+      return _store.mergeJsonObject(key, fields, base: base);
+    }
+    if (_isAppSettingsKey(key)) {
+      final merged = SettingsDao.mergeJsonObject(
+        (await _appSettings.read())[key],
+        fields,
+        base: base,
+      );
+      await _appSettings.write({key: merged});
+      return merged;
+    }
+    return super.mergeJsonObjectSetting(key, fields, base: base);
+  }
+
+  @override
   Future<int> deleteSetting(String key) async {
     if (isDeviceLocalSettingKey(key) || _isAppSettingsKey(key)) {
       return super.deleteSetting(key);

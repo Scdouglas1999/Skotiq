@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show mapEquals, visibleForTesting;
 
 import '../../backend/network_backend.dart';
+import '../../database/daos/settings_dao.dart' show SettingsDao;
 import '../../models/backend/host_mutation_event.dart';
 
 /// How much of the imaging host's key/value settings this client can reach.
@@ -144,6 +145,37 @@ class HostSettingsStore {
       next.remove(key);
     }
     _values = Map.unmodifiable(next);
+  }
+
+  /// Lay [fields] over the JSON object the host stores under [key] (or over
+  /// [base] when it has none), on the host, so a field another writer changed
+  /// meanwhile is kept. Returns the stored value.
+  Future<String> mergeJsonObject(
+    String key,
+    Map<String, Object?> fields, {
+    Map<String, Object?> base = const {},
+  }) async {
+    await ensureLoaded();
+    if (!covers(key)) throw HostSettingUnavailableError([key]);
+    final fallback = SettingsDao.mergeJsonObject(
+      _values[key],
+      fields,
+      base: base,
+    );
+    if (_support != HostSettingsStoreSupport.full) {
+      await write({key: fallback});
+      return fallback;
+    }
+    _writeGeneration++;
+    final stored = await _backend.mergeSettingsStore(
+      {key: fields},
+      fallback: {key: fallback},
+      base: base.isEmpty ? const {} : {key: base},
+    );
+    _writeGeneration++;
+    final value = stored[key] ?? fallback;
+    _values = Map.unmodifiable({..._values, key: value});
+    return value;
   }
 
   /// The `namespace` a host mutation carries when it changed rows this store

@@ -112,10 +112,61 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     if (generation != _backendGeneration) return fromHost;
     _hostStoreSub = store.changes.listen((keys) {
       if (generation != _backendGeneration) return;
-      if (!keys.any(hostStoreKeys.contains)) return;
-      _patchState((current) => _applyHostStoreRows(current, store.values));
+      _applyHostRowChanges(keys, store.values);
     });
     return _applyHostStoreRows(fromHost, store.values);
+  }
+
+  /// Keys with a write from this client queued or on the wire, and how many.
+  /// A host row change for one of them is not applied: it can only be this
+  /// client's own value or an older one, and the write settles it.
+  final Map<String, int> _pendingRemoteKeys = <String, int>{};
+
+  void _trackPendingRemoteWrite(Iterable<String> keys, Future<void> write) {
+    final tracked = keys.toList();
+    for (final key in tracked) {
+      _pendingRemoteKeys[key] = (_pendingRemoteKeys[key] ?? 0) + 1;
+    }
+    unawaited(
+      write.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+        for (final key in tracked) {
+          final left = (_pendingRemoteKeys[key] ?? 1) - 1;
+          if (left <= 0) {
+            _pendingRemoteKeys.remove(key);
+          } else {
+            _pendingRemoteKeys[key] = left;
+          }
+        }
+      }),
+    );
+  }
+
+  /// Apply rows the host reports changed to this client's state, per key.
+  ///
+  /// The host announces every write to its settings rows, including the ones
+  /// its own screen makes, which never produce a `settings.changed` event.
+  /// Without this, a change made on the host's screen reached this client only
+  /// at the next periodic re-fetch, and a save made here in the meantime sent
+  /// the old value back.
+  void _applyHostRowChanges(Set<String> keys, Map<String, String> rows) {
+    final storeRows = keys.any(hostStoreKeys.contains);
+    final typed = <String, String>{
+      for (final key in keys)
+        if (!hostStoreKeys.contains(key) &&
+            _AppSettingsPartialPersistenceMapping._remotableSettingKeys
+                .contains(key) &&
+            !_deviceLocalDisplayKeys.contains(key) &&
+            !_pendingRemoteKeys.containsKey(key) &&
+            rows.containsKey(key))
+          key: rows[key]!,
+    };
+    if (!storeRows && typed.isEmpty) return;
+    _patchState((current) {
+      var next = current;
+      if (storeRows) next = _applyHostStoreRows(next, rows);
+      if (typed.isNotEmpty) next = _applySettingsMap(next, typed);
+      return next;
+    });
   }
 
   AppSettingsState _applyHostStoreRows(
@@ -147,6 +198,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   }
 
   Future<void> _writeRemoteSettings(
+    AppSettingsState before,
     AppSettingsState settings, {
     required NetworkBackend backend,
     required int generation,
@@ -166,6 +218,15 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     }
 
     final remote = _toRemoteSettings(settings);
+    // Send only the fields this save changes. The host merges them onto its
+    // current settings, so a field changed elsewhere since this client last
+    // read it (on the host's own screen, say) keeps that value instead of
+    // being reverted by this client's copy.
+    final patch = remoteSettingsPatch(_toRemoteSettings(before), remote);
+    if (patch.isEmpty) {
+      _remoteSettingsSnapshot = remote;
+      return;
+    }
     // Generate a command id, register it in the
     // local echo-suppression list, and forward to the host. The host
     // stamps `correlatingCommandId` on every `settings.changed` event
@@ -174,7 +235,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final commandId = _generateLocalCommandId();
     _registerOwnCommandId(commandId);
     try {
-      await backend.updateSettingsWithCommandId(remote, commandId: commandId);
+      await backend.updateSettingsPatchWithCommandId(
+        patch,
+        commandId: commandId,
+      );
     } catch (_) {
       _ownCommandIds.remove(commandId);
       rethrow;
@@ -306,6 +370,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     _remoteFetchSucceeded = false;
     _remoteSettingsSnapshot = null;
     _ownCommandIds.clear();
+    _pendingRemoteKeys.clear();
     _settingsWriteTail = Future<void>.value();
     final backend = ref.watch(backendProvider);
 
@@ -451,7 +516,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final dao = (backend is NetworkBackend && !isDeviceLocalDisplay)
         ? null
         : ref.read(settingsDaoProvider);
-    return _serializeSettingsWrite(key, generation, () async {
+    final write = _serializeSettingsWrite(key, generation, () async {
       if (generation != _backendGeneration ||
           !identical(ref.read(backendProvider), backend)) {
         throw StateError('The settings host changed before saving $key.');
@@ -465,6 +530,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         final current = _requireLoadedSettings('saving $key');
         final updated = _applySettingsMap(current, {key: value});
         await _writeRemoteSettings(
+          current,
           updated,
           backend: backend,
           generation: generation,
@@ -491,6 +557,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // remote-write concern and would wrongly reject host-only keys
       // (`start_minimized`, `database_path`, `horizon_profile_json`, ...).
     });
+    if (backend is NetworkBackend && !isDeviceLocalDisplay) {
+      _trackPendingRemoteWrite([key], write);
+    }
+    return write;
   }
 
   /// Apply this device's locally-stored display prefs (theme / accent / font
@@ -531,7 +601,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final dao = backend is NetworkBackend
         ? null
         : ref.read(settingsDaoProvider);
-    return _serializeSettingsWrite(
+    final write = _serializeSettingsWrite(
       settings.keys.join(', '),
       generation,
       () async {
@@ -558,6 +628,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           );
           final updated = _applySettingsMap(current, typed);
           await _writeRemoteSettings(
+            current,
             updated,
             backend: backend,
             generation: generation,
@@ -582,6 +653,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // `setImageOutputPath`).
       },
     );
+    if (backend is NetworkBackend) {
+      _trackPendingRemoteWrite(settings.keys, write);
+    }
+    return write;
   }
 
   Future<void> _serializeSettingsWrite(

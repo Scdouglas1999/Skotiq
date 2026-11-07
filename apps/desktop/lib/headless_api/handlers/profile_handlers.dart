@@ -75,7 +75,26 @@ class ProfileHandlers {
   Future<Response> handleSaveProfile(Request request) async {
     _logInfo('[API] POST /api/profiles');
     final payload = await readJsonObject(request);
-    final profileJson = requireObject(payload, 'profile');
+    final postedJson = requireObject(payload, 'profile');
+    final fields = _profileFieldsOf(payload);
+    // `fields` names the fields the caller changed. They are laid over the
+    // host's current row, so an edit made elsewhere to another field since the
+    // caller loaded the profile is kept instead of reverted by a stale copy.
+    var profileJson = postedJson;
+    if (fields != null) {
+      final postedId = int.tryParse(postedJson['id']?.toString() ?? '');
+      final current = postedId == null || postedId <= 0
+          ? null
+          : await _profilesDao.getProfileById(postedId);
+      if (current != null) {
+        profileJson = {
+          ...dbProfileToRemote(current).toJson(),
+          for (final field in fields)
+            if (postedJson.containsKey(field)) field: postedJson[field],
+          'id': postedJson['id'],
+        };
+      }
+    }
 
     // Parse the wire model defensively: a malformed shape (missing required
     // field, wrong type) becomes a structured 400 instead of letting a
@@ -160,6 +179,19 @@ class ProfileHandlers {
     // Return the resulting id so the slave's saveProfile can resolve the row
     // deterministically instead of by (racy) name.
     return jsonOk({"status": "saved", "id": resultId.toString()});
+  }
+
+  /// The optional `fields` list of a profile save, or null when absent.
+  static List<String>? _profileFieldsOf(Map<String, dynamic> payload) {
+    final raw = payload['fields'];
+    if (raw == null) return null;
+    if (raw is! List || raw.any((field) => field is! String)) {
+      throw BadRequestError(
+        field: 'fields',
+        expected: 'array of profile field names',
+      );
+    }
+    return raw.cast<String>();
   }
 
   Future<Response> handleDeleteProfile(
@@ -401,14 +433,24 @@ class ProfileHandlers {
       }
       settings[entry.key] = value.toString();
     }
-    if (settings.isEmpty && remove.isEmpty) {
+    // `merge: {key: {field: value}}` lays those fields over the JSON object
+    // the row holds now, so two writers that changed different fields of the
+    // same object (the capture settings, for one) both keep their change. A
+    // client also sends its own whole value under `settings` for hosts that
+    // predate merging; for a merged key that copy is ignored here.
+    final merge = _jsonObjectsOf(payload, 'merge');
+    final mergeBase = _jsonObjectsOf(payload, 'mergeBase');
+    for (final key in merge.keys) {
+      settings.remove(key);
+    }
+    if (settings.isEmpty && remove.isEmpty && merge.isEmpty) {
       throw BadRequestError(
         field: 'settings',
         expected: 'at least one setting to change or remove',
       );
     }
 
-    for (final key in {...settings.keys, ...remove}) {
+    for (final key in {...settings.keys, ...remove, ...merge.keys}) {
       if (key.isEmpty) {
         throw BadRequestError(field: 'settings', expected: 'non-empty keys');
       }
@@ -458,17 +500,55 @@ class ProfileHandlers {
     }
     final dao = container.read(settingsDaoProvider);
     if (rows.isNotEmpty) await dao.setSettings(rows);
+    final merged = <String, String>{};
+    for (final entry in merge.entries) {
+      merged[entry.key] = await dao.mergeJsonObjectSetting(
+        entry.key,
+        entry.value,
+        base: mergeBase[entry.key] ?? const {},
+      );
+    }
     for (final key in remove) {
       await dao.deleteSetting(key);
     }
     // Providers on this machine that read these rows reload them.
     container.read(settingsStoreRevisionProvider.notifier).state++;
+    container.read(settingsRowChangesProvider).announce({
+      ...settings.keys,
+      ...merge.keys,
+      ...remove,
+    });
 
     return jsonOk({
       'status': 'updated',
-      'applied': settings.keys.toList(),
+      'applied': [...settings.keys, ...merge.keys],
       'removed': remove,
+      if (merged.isNotEmpty) 'merged': merged,
     });
+  }
+
+  /// `payload[field]` as a map of key to JSON object, or empty when absent.
+  static Map<String, Map<String, Object?>> _jsonObjectsOf(
+    Map<String, dynamic> payload,
+    String field,
+  ) {
+    final raw = payload[field];
+    if (raw == null) return const {};
+    if (raw is! Map) {
+      throw BadRequestError(field: field, expected: 'object of key: object');
+    }
+    final objects = <String, Map<String, Object?>>{};
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value is! Map) {
+        throw BadRequestError(
+          field: '$field.${entry.key}',
+          expected: 'an object of fields',
+        );
+      }
+      objects[entry.key.toString()] = Map<String, Object?>.from(value);
+    }
+    return objects;
   }
 
   /// Global meridian-flip defaults are stored separately from the generated
@@ -1010,10 +1090,31 @@ class ProfileHandlers {
   Future<Response> handleSetLocation(Request request) async {
     _logInfo('[API] POST /api/settings/location');
     final payload = await readJsonObject(request);
+    // The site goes in a `location` object, and `"location": null` clears it.
+    // A body without the key is not a request to clear the site: refuse it
+    // rather than wipe the rig's location over a malformed call.
+    if (!payload.containsKey('location')) {
+      throw BadRequestError(
+        field: 'location',
+        expected: 'an object with latitude, longitude and elevation, or null',
+        message:
+            'Send the site as {"location": {"latitude": ..., "longitude": '
+            '..., "elevation": ...}}, or {"location": null} to clear it.',
+      );
+    }
     final locationJson = optionalObject(payload, 'location');
-    final location = locationJson != null
-        ? settings_models.ObserverLocation.fromJson(locationJson)
-        : null;
+    final settings_models.ObserverLocation? location;
+    try {
+      location = locationJson != null
+          ? settings_models.ObserverLocation.fromJson(locationJson)
+          : null;
+    } on Object catch (error) {
+      throw BadRequestError(
+        field: 'location',
+        expected: 'an object with latitude, longitude and elevation',
+        message: 'The observer location could not be read: $error',
+      );
+    }
 
     final backend = container.read(profileSettingsBackendProvider);
     await backend.setLocation(location);
