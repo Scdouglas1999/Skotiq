@@ -59,3 +59,33 @@ abstract class RuntimeMirrorChannel<T> {
   ProviderSubscription<T> listen(Ref ref, void Function(T value) onChange) =>
       ref.listen<T>(source, (_, next) => onChange(next));
 }
+
+/// UI state both ends of a link hold as one value, which either end may
+/// change: a change made on the host reaches every client, and one made on a
+/// client reaches the host and, through it, the other clients.
+///
+/// A new piece of shared state is one subclass naming the [key], the
+/// [source] both screens read, the JSON form ([encode] and [decode]) and how
+/// a received value is written ([write]). A received value equal to the one
+/// already shown is not written again, so the echo of a change never
+/// re-runs the work the change started.
+abstract class SharedStateChannel<T> extends RuntimeMirrorChannel<T> {
+  const SharedStateChannel();
+
+  /// The value [json] describes. Throws [FormatException] for a value the
+  /// two ends disagree about.
+  T decode(Map<String, dynamic>? json);
+
+  /// Write [value] into the providers the screens read.
+  void write(RuntimeApplyContext context, T value);
+
+  @override
+  bool get clientReports => true;
+
+  @override
+  void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
+    final next = decode(value);
+    if (readSource(context.reader) == next) return;
+    write(context, next);
+  }
+}

@@ -731,6 +731,8 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/runtime/state',
     'GET /api/runtime/recent-events',
     'GET /api/runtime/night-history',
+    'POST /api/runtime/manual-loop',
+    'POST /api/runtime/manual-loop/stop',
     // Catalog management (download / upload / verify / etc.)
     'GET /api/catalog/status',
     'GET /api/catalog/available',

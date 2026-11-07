@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shelf/shelf.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
+import 'package:skotiq_app/services/manual_capture_controller.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../response_helpers.dart';
@@ -142,5 +145,51 @@ class RuntimeStateHandlers {
       );
     }
     return jsonOk({'status': 'applied'});
+  }
+
+  /// POST /api/runtime/manual-loop — start the manual Loop on this host with
+  /// a linked client's exposure settings (see `manualLoopRequestJson`). The
+  /// loop runs here, so this window and every client show it and can stop
+  /// it; its progress travels on the `manualLoop` runtime channel. 409 when a
+  /// snapshot or loop is already running.
+  Future<Response> handleStartManualLoop(Request request) async {
+    final payload = await readJsonObject(request);
+    final ExposureSettings settings;
+    try {
+      settings = manualLoopSettingsFromJson(payload);
+    } on FormatException catch (e) {
+      throw HandlerFailure(
+        code: 'invalid_request',
+        message: e.message,
+        statusCode: 400,
+      );
+    }
+    final controller = container.read(manualCaptureControllerProvider.notifier);
+    if (container.read(manualCaptureControllerProvider).isBusy) {
+      throw HandlerFailure(
+        code: 'capture_busy',
+        message: 'A snapshot or loop is already running on the host.',
+        statusCode: 409,
+      );
+    }
+    // Make sure the publisher is listening, so the clients see the loop.
+    container.read(hostRuntimeMirrorProvider);
+    unawaited(
+      controller.loop(
+        settings: settings,
+        saveFrames: payload['saveFrames'] == true,
+        targetName: payload['targetName'] is String
+            ? payload['targetName'] as String
+            : null,
+      ),
+    );
+    return jsonOk({'status': 'looping'});
+  }
+
+  /// POST /api/runtime/manual-loop/stop — stop this host's manual Loop (or
+  /// snapshot), whichever window started it.
+  Future<Response> handleStopManualLoop(Request request) async {
+    container.read(manualCaptureControllerProvider.notifier).stop();
+    return jsonOk({'status': 'stopping'});
   }
 }
