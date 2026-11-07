@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import '../models/imaging/imaging_models.dart';
 import '../models/imaging/auto_stretch_settings.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'host_settings/host_settings_providers.dart'
+    show settingsRowChangesProvider;
 import 'profiles_provider.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
@@ -46,17 +49,29 @@ String _exposureProfileKey(EquipmentProfileModel profile) =>
 /// write or overwrite a newer manual edit.
 void updateManualExposureSettings(Ref ref, ExposureSettings settings) {
   final profile = ref.read(activeEquipmentProfileProvider);
+  final previous = ref.read(exposureSettingsProvider);
   ref.read(exposureSettingsUserDirtyProvider.notifier).state = true;
   ref.read(_manualExposureRevisionProvider.notifier).state++;
   ref.read(exposureSettingsProvider.notifier).state = settings;
   if (profile == null) return;
 
-  final key =
-      'imaging_capture_settings_profile_${_exposureProfileKey(profile)}';
-  final json = jsonEncode(_exposureSettingsToJson(settings));
+  final key = exposureSettingsKeyFor(profile);
+  // Store only the fields this edit changed, laid over the row as it is now.
+  // The host and every linked client edit the same row, so writing the whole
+  // object from this screen's copy reverted whatever another screen had just
+  // changed (gain set on one side, exposure on the other: one was lost).
+  final full = _exposureSettingsToJson(settings);
+  final before = _exposureSettingsToJson(previous);
+  final changed = <String, Object?>{
+    for (final entry in full.entries)
+      if (before[entry.key] != entry.value) entry.key: entry.value,
+  };
+  if (changed.isEmpty) return;
   Future<void> save() async {
     try {
-      await ref.read(settingsDaoProvider).setSetting(key, json);
+      await ref
+          .read(settingsDaoProvider)
+          .mergeJsonObjectSetting(key, changed, base: full);
     } catch (error, stack) {
       developer.log(
         'Failed to save manual capture settings: $error',
@@ -68,11 +83,37 @@ void updateManualExposureSettings(Ref ref, ExposureSettings settings) {
     }
   }
 
-  final previous = ref.read(_exposureWriteTailProvider);
-  final recovered = previous.then<void>((_) {}, onError: (_, __) {});
+  final tail = ref.read(_exposureWriteTailProvider);
+  final recovered = tail.then<void>((_) {}, onError: (_, __) {});
   final next = recovered.then<void>((_) => save());
   ref.read(_exposureWriteTailProvider.notifier).state = next;
+  ref.read(_exposureWritesInFlightProvider.notifier).state++;
+  unawaited(
+    next.whenComplete(() {
+      final int left;
+      try {
+        left = --ref.read(_exposureWritesInFlightProvider.notifier).state;
+      } on StateError {
+        // The container was disposed while the write ran; nothing to update.
+        return;
+      }
+      // The stored row now holds this edit merged with any field another
+      // screen changed meanwhile; a change announced while this write was in
+      // flight was not applied, so take the row as stored.
+      if (left == 0) {
+        unawaited(_reloadExposureSettings(ref, profile, key, () => false));
+      }
+    }),
+  );
 }
+
+/// Manual capture-settings writes not yet stored. While one is pending, a
+/// changed row is not re-read: it could only bring back an older value.
+final _exposureWritesInFlightProvider = StateProvider<int>((ref) => 0);
+
+/// The `app_settings` key holding [profile]'s manual capture settings.
+String exposureSettingsKeyFor(EquipmentProfileModel profile) =>
+    'imaging_capture_settings_profile_${_exposureProfileKey(profile)}';
 
 /// Façade for callers that own a provider container/ref.
 final manualExposureSettingsUpdaterProvider =
@@ -152,7 +193,60 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
       );
     }();
   });
+
+  // Follow the row when it changes under this screen: on the host when a
+  // linked client or a script writes it, on a client when the host's screen or
+  // another client does. Without this each side showed its own values until
+  // the profile changed, and the next edit wrote them back over the other's.
+  final key = exposureSettingsKeyFor(profile);
+  final changes = ref.read(settingsRowChangesProvider).stream.listen((keys) {
+    if (!keys.contains(key)) return;
+    unawaited(_reloadExposureSettings(ref, profile, key, () => disposed));
+  });
+  ref.onDispose(changes.cancel);
 });
+
+Future<void> _reloadExposureSettings(
+  Ref ref,
+  EquipmentProfileModel profile,
+  String key,
+  bool Function() disposed,
+) async {
+  try {
+    if (ref.read(_exposureWritesInFlightProvider) > 0) return;
+    final revisionAtStart = ref.read(_manualExposureRevisionProvider);
+    ExposureSettings? stored;
+    try {
+      final value = await ref.read(settingsDaoProvider).getSetting(key);
+      if (value != null && value.isNotEmpty) {
+        stored = _exposureSettingsFromJson(jsonDecode(value));
+      }
+    } on Object catch (error) {
+      developer.log(
+        'Could not re-read the capture settings after a change: $error',
+        name: 'ImagingSettings',
+        level: 900,
+      );
+      return;
+    }
+    if (disposed() || stored == null) return;
+    final current = ref.read(activeEquipmentProfileProvider);
+    if (current == null ||
+        _exposureProfileKey(current) != _exposureProfileKey(profile)) {
+      return;
+    }
+    // An edit made on this screen while the row was being read is newer.
+    if (ref.read(_manualExposureRevisionProvider) != revisionAtStart ||
+        ref.read(_exposureWritesInFlightProvider) > 0) {
+      return;
+    }
+    if (ref.read(exposureSettingsProvider) != stored) {
+      ref.read(exposureSettingsProvider.notifier).state = stored;
+    }
+  } on StateError {
+    // The container was disposed while the row was being read.
+  }
+}
 
 Map<String, dynamic> _exposureSettingsToJson(ExposureSettings settings) => {
   'exposureTime': settings.exposureTime,
@@ -307,49 +401,43 @@ final coolingStatusProvider = StateProvider<CoolingStatus>((ref) {
   return const CoolingStatus();
 });
 
-/// Focus/Autofocus settings (persists across navigation).
+/// Focus/Autofocus panel settings.
 ///
-/// Initial values are loaded once from the persisted AppSettings autofocus
-/// fields. After initialization, user edits are held in memory and are NOT
-/// reset when unrelated app settings are saved.
+/// The autofocus fields (step size, steps out, exposure, exposures per point,
+/// method) are the persisted autofocus settings: an edit on the panel is saved
+/// to them, and a change saved anywhere else (Settings, the host's screen, a
+/// linked client) shows on the panel. The manual nudge step size is this
+/// screen's own and is kept in memory.
 final focusSettingsProvider =
     StateNotifierProvider<FocusSettingsNotifier, FocusSettings>((ref) {
       return FocusSettingsNotifier(ref);
     });
 
-/// StateNotifier for focus settings that reads from AppSettings only once.
-///
-/// Prevents the bug where every AppSettings save would reset user edits
-/// because `ref.watch(appSettingsProvider)` triggered a full rebuild.
+/// Holds the focus panel's values; see [focusSettingsProvider].
 class FocusSettingsNotifier extends StateNotifier<FocusSettings> {
   final Ref _ref;
-  bool _initialized = false;
-  bool _userEdited = false;
+
+  /// Panel edits still being saved. While one is, the persisted values can
+  /// only be older than the panel's, so they are not taken.
+  int _pendingWrites = 0;
+
+  /// Whether the manual step size has been seeded or edited. It starts from
+  /// the autofocus step size once, then is this screen's own.
+  bool _manualStepSet = false;
 
   FocusSettingsNotifier(this._ref) : super(const FocusSettings()) {
+    _ref.listen<AsyncValue<AppSettingsState>>(appSettingsProvider, (_, next) {
+      final settings = next.valueOrNull;
+      if (settings != null) _adopt(settings);
+    });
     _loadFromAppSettings();
   }
 
   Future<void> _loadFromAppSettings() async {
-    if (_initialized) return;
-    _initialized = true;
-
     try {
-      // App settings normally load asynchronously from Drift or the remote
-      // host. Reading valueOrNull once during construction races that load and
-      // permanently leaves autofocus at generic defaults. Await the real
-      // snapshot, but never let its late arrival overwrite panel edits made in
-      // the meantime.
       final settings = await _ref.read(appSettingsProvider.future);
-      if (!mounted || _userEdited) return;
-      state = FocusSettings(
-        stepSize: settings.afStepSize,
-        method: settings.afMethod,
-        afStepSize: settings.afStepSize,
-        stepsOut: settings.afInitialOffsetSteps,
-        exposuresPerPoint: settings.afExposuresPerPoint,
-        exposureTime: settings.afExposureTime,
-      );
+      if (!mounted) return;
+      _adopt(settings);
     } catch (e) {
       developer.log(
         'Failed to initialize focus settings from app settings: $e',
@@ -359,10 +447,65 @@ class FocusSettingsNotifier extends StateNotifier<FocusSettings> {
     }
   }
 
-  /// Update focus settings (user edits at runtime).
+  /// Take the persisted autofocus values.
+  void _adopt(AppSettingsState settings) {
+    if (!mounted || _pendingWrites > 0) return;
+    final seedStep = !_manualStepSet;
+    _manualStepSet = true;
+    final next = state.copyWith(
+      stepSize: seedStep ? settings.afStepSize : null,
+      method: settings.afMethod,
+      afStepSize: settings.afStepSize,
+      stepsOut: settings.afInitialOffsetSteps,
+      exposuresPerPoint: settings.afExposuresPerPoint,
+      exposureTime: settings.afExposureTime,
+    );
+    if (next != state) state = next;
+  }
+
+  /// Apply an edit from the panel and save the autofocus fields it changed.
   void update(FocusSettings newSettings) {
-    _userEdited = true;
+    final before = state;
     state = newSettings;
+    if (newSettings.stepSize != before.stepSize) _manualStepSet = true;
+    _pendingWrites++;
+    unawaited(
+      _persist(before, newSettings).whenComplete(() {
+        _pendingWrites--;
+        final settings = _ref.read(appSettingsProvider).valueOrNull;
+        if (_pendingWrites == 0 && settings != null) _adopt(settings);
+      }),
+    );
+  }
+
+  Future<void> _persist(FocusSettings before, FocusSettings next) async {
+    try {
+      // Saving needs the loaded settings; an edit made before they arrive is
+      // saved once they do.
+      await _ref.read(appSettingsProvider.future);
+      final notifier = _ref.read(appSettingsProvider.notifier);
+      if (next.afStepSize != before.afStepSize) {
+        await notifier.setAfStepSize(next.afStepSize);
+      }
+      if (next.stepsOut != before.stepsOut) {
+        await notifier.setAfInitialOffsetSteps(next.stepsOut);
+      }
+      if (next.exposureTime != before.exposureTime) {
+        await notifier.setAfExposureTime(next.exposureTime);
+      }
+      if (next.exposuresPerPoint != before.exposuresPerPoint) {
+        await notifier.setAfExposuresPerPoint(next.exposuresPerPoint);
+      }
+      if (next.method != before.method) {
+        await notifier.setAfMethod(next.method);
+      }
+    } catch (error) {
+      developer.log(
+        'Could not save the autofocus panel setting: $error',
+        name: 'FocusSettings',
+        level: 1000,
+      );
+    }
   }
 }
 

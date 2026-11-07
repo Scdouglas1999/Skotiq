@@ -371,16 +371,15 @@ class FramingHandlers {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final name = requireString(payload, 'name');
 
+    // The host announces the new target to linked clients from the framing
+    // state itself (hostStateAnnouncerProvider), the same way it does for a
+    // target picked on its own screen, so this handler does not announce it
+    // again. Reading the announcer keeps it alive on a host without a screen.
+    container.read(hostStateAnnouncerProvider);
     container
         .read(framingProvider.notifier)
         .setTargetCoordinates(ra, dec, name: name);
 
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.framing,
-      action: HostMutationAction.updated,
-      extra: {'ra': ra, 'dec': dec, 'name': name},
-    );
     return jsonOk({'status': 'ok', 'ra': ra, 'dec': dec, 'name': name});
   }
 

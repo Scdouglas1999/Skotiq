@@ -166,4 +166,64 @@ void main() {
     expect(response.statusCode, HttpStatus.ok);
     expect(await db.settingsDao.getSetting('smart_night.drafts.v1'), isNull);
   });
+
+  test(
+    'merge keeps the fields another writer changed in the same row',
+    () async {
+      const key = 'imaging_capture_settings_profile_1';
+      await db.settingsDao.setSetting(
+        key,
+        jsonEncode({'exposureTime': 12.0, 'gain': 100, 'offset': 50}),
+      );
+      final changed = <Set<String>>[];
+      final sub = container
+          .read(settingsRowChangesProvider)
+          .stream
+          .listen(changed.add);
+      addTearDown(sub.cancel);
+
+      // A client changed only the gain; its whole copy (stale exposure 7.5)
+      // rides along for hosts that cannot merge and must be ignored here.
+      final response = await post({
+        'settings': {
+          key: jsonEncode({'exposureTime': 7.5, 'gain': 222, 'offset': 50}),
+        },
+        'merge': {
+          key: {'gain': 222},
+        },
+      });
+
+      expect(response.statusCode, HttpStatus.ok);
+      final stored = jsonDecode((await db.settingsDao.getSetting(key))!) as Map;
+      expect(stored['exposureTime'], 12.0);
+      expect(stored['gain'], 222);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(jsonDecode((body['merged'] as Map)[key] as String)['gain'], 222);
+      await Future<void>.delayed(Duration.zero);
+      expect(changed.single, {key});
+    },
+  );
+
+  test('merge onto a missing row starts from mergeBase', () async {
+    const key = 'imaging_capture_settings_profile_9';
+    final response = await post({
+      'merge': {
+        key: {'gain': 5},
+      },
+      'mergeBase': {
+        key: {'exposureTime': 2.0, 'gain': 100, 'offset': 50},
+      },
+    });
+
+    expect(response.statusCode, HttpStatus.ok);
+    final stored = jsonDecode((await db.settingsDao.getSetting(key))!) as Map;
+    expect(stored, {'exposureTime': 2.0, 'gain': 5, 'offset': 50});
+  });
+
+  test('refuses a merge that is not an object of fields', () async {
+    final response = await post({
+      'merge': {'imaging_capture_settings_profile_1': 'gain=5'},
+    });
+    expect(response.statusCode, HttpStatus.badRequest);
+  });
 }

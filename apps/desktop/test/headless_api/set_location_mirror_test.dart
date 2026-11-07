@@ -20,6 +20,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
 import 'package:shelf/shelf.dart';
 
+import 'handler_test_helpers.dart';
+
 /// Minimal fake whose `setLocation` succeeds (the real disconnected backend
 /// throws NotConnected, which would short-circuit the handler before the
 /// mirror runs). Only the two location methods are exercised here.
@@ -106,4 +108,61 @@ void main() {
     expect(await db.settingsDao.getObserverLatitude(), 0.0);
     expect(await db.settingsDao.getObserverLongitude(), 0.0);
   });
+
+  test(
+    'a body without the location wrapper is refused and keeps the site',
+    () async {
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      final backend = _FakeProfileSettingsBackend();
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          profileSettingsBackendProvider.overrideWithValue(backend),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await db.close();
+      });
+      final handlers = ProfileHandlers(container);
+      Future<Response> post(Object body) => translateHandlerErrors(
+        handlers.handleSetLocation(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/settings/location'),
+            body: jsonEncode(body),
+          ),
+        ),
+      );
+
+      expect(
+        (await post({
+          'location': {
+            'latitude': 44.5,
+            'longitude': -121.3,
+            'elevation': 100.0,
+          },
+        })).statusCode,
+        200,
+      );
+      final bare = await post({
+        'latitude': 40.0,
+        'longitude': -100.0,
+        'elevation': 5.0,
+      });
+      expect(bare.statusCode, 400);
+      expect((await backend.getLocation())?.latitude, 44.5);
+      expect(await db.settingsDao.getObserverLatitude(), 44.5);
+
+      final partial = await post({
+        'location': {'latitude': 40.0},
+      });
+      expect(partial.statusCode, 400);
+      expect((await backend.getLocation())?.latitude, 44.5);
+
+      // An explicit null still clears it.
+      expect((await post({'location': null})).statusCode, 200);
+      expect(await backend.getLocation(), isNull);
+    },
+  );
 }

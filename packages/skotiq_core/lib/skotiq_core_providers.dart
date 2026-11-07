@@ -62,6 +62,7 @@ export 'src/providers/remote_sync_events.dart';
 export 'src/providers/remote_sync_handler.dart';
 export 'src/providers/host_mutation_event_provider.dart';
 export 'src/providers/host_local_sync_provider.dart';
+export 'src/providers/host_state_announcer_provider.dart';
 // Runtime state the imaging host shares with linked clients.
 export 'src/providers/runtime_mirror/runtime_mirror_channel.dart';
 export 'src/providers/runtime_mirror/runtime_mirror_channels.dart';

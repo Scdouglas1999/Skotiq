@@ -464,6 +464,56 @@ void main() {
       );
     });
 
+    test('a profile save naming its fields keeps the other fields of the '
+        'host row', () async {
+      Future<Response> save(Map<String, dynamic> body) =>
+          translateHandlerErrors(
+            handlers.handleSaveProfile(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/api/profiles'),
+                body: jsonEncode(body),
+              ),
+            ),
+          );
+
+      final created = await save({
+        'profile': const EquipmentProfile(
+          id: '',
+          name: 'Rig',
+          focalLength: 500,
+        ).toJson(),
+      });
+      expect(created.statusCode, HttpStatus.ok);
+      final id = (jsonDecode(await created.readAsString()) as Map)['id'];
+
+      // The host's screen changed the focal length since a client loaded the
+      // profile.
+      final row = (await db.equipmentProfilesDao.getProfileById(
+        int.parse(id as String),
+      ))!;
+      await db.equipmentProfilesDao.updateProfile(
+        row.copyWith(focalLength: 650),
+      );
+
+      // The client renames it, carrying its stale focal length.
+      final renamed = await save({
+        'profile': EquipmentProfile(
+          id: id,
+          name: 'Rig renamed',
+          focalLength: 500,
+        ).toJson(),
+        'fields': ['name'],
+      });
+      expect(renamed.statusCode, HttpStatus.ok);
+
+      final after = (await db.equipmentProfilesDao.getProfileById(
+        int.parse(id),
+      ))!;
+      expect(after.name, 'Rig renamed');
+      expect(after.focalLength, 650);
+    });
+
     group('the observer site and the settings document', () {
       /// POST [settings] to /api/settings.
       Future<Response> postSettings(Map<String, dynamic> settings) =>

@@ -60,6 +60,31 @@ part 'settings_sections/app_settings_stored_snapshot_mapping.dart';
 part 'settings_sections/app_settings_partial_persistence_mapping.dart';
 part 'settings_sections/app_settings_notifier.dart';
 
+/// The fields of [after] that differ from [before], in the JSON form
+/// `POST /api/settings` takes, so a client save sends only what it changed.
+///
+/// The site is one value spread over four keys; when any of them changes the
+/// patch carries all four, so the host never combines half of a new site with
+/// half of the old one.
+Map<String, dynamic> remoteSettingsPatch(
+  models.AppSettings before,
+  models.AppSettings after,
+) {
+  final b = jsonDecode(jsonEncode(before.toJson())) as Map<String, dynamic>;
+  final a = jsonDecode(jsonEncode(after.toJson())) as Map<String, dynamic>;
+  final patch = <String, dynamic>{
+    for (final key in {...b.keys, ...a.keys})
+      if (jsonEncode(b[key]) != jsonEncode(a[key])) key: a[key],
+  };
+  const siteKeys = {'latitude', 'longitude', 'elevation', 'location'};
+  if (patch.keys.any(siteKeys.contains)) {
+    for (final key in siteKeys) {
+      if (a.containsKey(key)) patch[key] = a[key];
+    }
+  }
+  return patch;
+}
+
 @immutable
 class AppSettingsWriteFailure {
   final String setting;

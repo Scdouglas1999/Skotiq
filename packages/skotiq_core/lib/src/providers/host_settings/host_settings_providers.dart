@@ -26,14 +26,42 @@ export 'settings_key_scope.dart';
 /// every provider that watches the DAO reads the new values.
 final settingsStoreRevisionProvider = StateProvider<int>((ref) => 0);
 
+/// Settings rows that changed under this app: on a linked client, rows the
+/// host's store reports changed (by the host's own screen, the API or another
+/// client); on the host, rows a client or script wrote over the API. A row
+/// this app wrote itself is not reported, so a reader can re-read on every
+/// event without fighting its own edits.
+final settingsRowChangesProvider = Provider<SettingsRowChanges>((ref) {
+  final changes = SettingsRowChanges();
+  ref.onDispose(changes.dispose);
+  return changes;
+});
+
+/// Broadcast of changed `app_settings` keys; see [settingsRowChangesProvider].
+class SettingsRowChanges {
+  final StreamController<Set<String>> _controller =
+      StreamController<Set<String>>.broadcast();
+
+  Stream<Set<String>> get stream => _controller.stream;
+
+  void announce(Iterable<String> keys) {
+    final set = keys.toSet();
+    if (set.isEmpty || _controller.isClosed) return;
+    _controller.add(set);
+  }
+
+  void dispose() => unawaited(_controller.close());
+}
+
 /// The imaging host's key/value settings, or null when this app owns the
 /// hardware itself.
 final hostSettingsStoreProvider = Provider<HostSettingsStore?>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend is! NetworkBackend) return null;
   final store = HostSettingsStore(backend);
-  final changes = store.changes.listen((_) {
+  final changes = store.changes.listen((keys) {
     ref.read(settingsStoreRevisionProvider.notifier).state++;
+    ref.read(settingsRowChangesProvider).announce(keys);
   });
   ref.onDispose(() {
     unawaited(changes.cancel());

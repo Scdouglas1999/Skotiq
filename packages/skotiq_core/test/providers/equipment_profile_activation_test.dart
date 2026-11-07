@@ -187,6 +187,94 @@ void main() {
     expect(ordered[1].captured.single, bId.toString());
   });
 
+  test(
+    'an activation on this host is announced to linked clients once',
+    () async {
+      final backend = _MockFfiBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+      when(() => backend.loadProfile(any())).thenAnswer((_) async {});
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final announced = <SkotiqEvent>[];
+      final local = <SkotiqEvent>[];
+      final hub = container.read(hostMutationEventHubProvider)
+        ..wsBroadcast = announced.add;
+      final localSub = hub.stream.listen(local.add);
+      addTearDown(localSub.cancel);
+
+      final dao = container.read(equipmentProfilesDaoProvider);
+      await dao.createProfile(
+        const EquipmentProfileModel(name: 'A').toCompanion(),
+      );
+      final bId = await dao.createProfile(
+        const EquipmentProfileModel(name: 'B').toCompanion(),
+      );
+
+      await container
+          .read(equipmentProfilesProvider.notifier)
+          .setActiveProfile(bId);
+      await Future<void>.delayed(Duration.zero);
+
+      final event = announced.single;
+      expect(event.data['entityType'], HostMutationEntity.profile);
+      expect(event.data['action'], HostMutationAction.loaded);
+      expect(event.data['entityId'], bId.toString());
+      // Clients only: this app's own providers refresh themselves.
+      expect(local, isEmpty);
+    },
+  );
+
+  test('a client profile edit sends only the fields it changed', () async {
+    final backend = _MockNetworkBackend();
+    when(
+      () => backend.eventStream,
+    ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+    when(() => backend.getProfiles()).thenAnswer(
+      (_) async => [
+        const remote_profile.EquipmentProfile(
+          id: '3',
+          name: 'Rig',
+          focalLength: 500,
+        ),
+      ],
+    );
+    when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
+    Set<String>? sentFields;
+    when(
+      () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+    ).thenAnswer((invocation) async {
+      sentFields = invocation.namedArguments[#fields] as Set<String>?;
+    });
+    when(() => backend.lastSavedProfileId).thenReturn('3');
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(equipmentProfilesProvider.future);
+    final loaded = state.profiles.single;
+    await container
+        .read(equipmentProfilesProvider.notifier)
+        .updateProfile(loaded.copyWith(name: 'Rig renamed'));
+
+    expect(sentFields, {'name'});
+  });
+
   test('remote setActiveProfile calls the host load endpoint once and never '
       'touches local SQLite or the native backend', () async {
     final backend = _MockNetworkBackend();
