@@ -3,6 +3,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
+import '../device_commands_route.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 
@@ -199,20 +200,32 @@ class AuxiliaryHandlers {
       );
     }
 
-    if (value is bool) {
-      await bridge.apiSwitchSetState(
-        deviceId: deviceId,
-        switchId: switchId,
-        state: value,
-      );
-    } else if (value is num) {
-      await bridge.apiSwitchSetValue(
-        deviceId: deviceId,
-        switchId: switchId,
-        value: value.toDouble(),
-      );
-    } else {
-      throw BadRequestError(field: 'value', expected: 'boolean or number');
+    // The host's slot switch is set through DeviceService, as from the host
+    // UI (its read-only and analog checks, its channel state); any other
+    // switch, or one whose channels the host has not read yet, is written
+    // here.
+    final viaSlot = await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(
+        container,
+      ).setSlotSwitchChannel(deviceId, switchId, value),
+    );
+    if (!viaSlot) {
+      if (value is bool) {
+        await bridge.apiSwitchSetState(
+          deviceId: deviceId,
+          switchId: switchId,
+          state: value,
+        );
+      } else if (value is num) {
+        await bridge.apiSwitchSetValue(
+          deviceId: deviceId,
+          switchId: switchId,
+          value: value.toDouble(),
+        );
+      } else {
+        throw BadRequestError(field: 'value', expected: 'boolean or number');
+      }
     }
 
     return jsonOk({
@@ -288,7 +301,7 @@ class AuxiliaryHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final notConnected = await _coverNotConnectedResponse(deviceId);
     if (notConnected != null) return notConnected;
-    await bridge.apiCoverCalibratorOpenCover(deviceId: deviceId);
+    await deviceCommandsOf(container).coverOpen(deviceId);
     return jsonOk({'status': 'opening', 'deviceId': deviceId});
   }
 
@@ -298,7 +311,7 @@ class AuxiliaryHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final notConnected = await _coverNotConnectedResponse(deviceId);
     if (notConnected != null) return notConnected;
-    await bridge.apiCoverCalibratorCloseCover(deviceId: deviceId);
+    await deviceCommandsOf(container).coverClose(deviceId);
     return jsonOk({'status': 'closing', 'deviceId': deviceId});
   }
 
@@ -309,10 +322,7 @@ class AuxiliaryHandlers {
     final brightness = requireInt(payload, 'brightness', min: 0);
     final notConnected = await _coverNotConnectedResponse(deviceId);
     if (notConnected != null) return notConnected;
-    await bridge.apiCoverCalibratorCalibratorOn(
-      deviceId: deviceId,
-      brightness: brightness,
-    );
+    await deviceCommandsOf(container).calibratorOn(deviceId, brightness);
     return jsonOk({
       'status': 'ok',
       'deviceId': deviceId,
@@ -327,10 +337,7 @@ class AuxiliaryHandlers {
     final brightness = optionalInt(payload, 'brightness', min: 0) ?? 128;
     final notConnected = await _coverNotConnectedResponse(deviceId);
     if (notConnected != null) return notConnected;
-    await bridge.apiCoverCalibratorCalibratorOn(
-      deviceId: deviceId,
-      brightness: brightness,
-    );
+    await deviceCommandsOf(container).calibratorOn(deviceId, brightness);
     return jsonOk({
       'status': 'on',
       'deviceId': deviceId,
@@ -344,7 +351,7 @@ class AuxiliaryHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final notConnected = await _coverNotConnectedResponse(deviceId);
     if (notConnected != null) return notConnected;
-    await bridge.apiCoverCalibratorCalibratorOff(deviceId: deviceId);
+    await deviceCommandsOf(container).calibratorOff(deviceId);
     return jsonOk({'status': 'off', 'deviceId': deviceId});
   }
 }

@@ -46,6 +46,7 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
+        let _command = self.command_activity.begin(device_id);
         // `-1` is the documented "position unknown" sentinel of
         // `FilterChanging.from_position`, for a wheel that cannot say where it
         // is (mid-move, or not homed yet after a reconnect).
@@ -63,6 +64,7 @@ impl DeviceManager {
         let slot_name = |slot: i32| crate::filter_matching::filter_slot_name(&names, slot);
 
         self.publish_state_event(EquipmentEvent::FilterChanging {
+            device_id: device_id.to_string(),
             from_position,
             to_position: position,
             filter_name: slot_name(position),
@@ -79,6 +81,7 @@ impl DeviceManager {
         };
         if let Some(reached) = reached {
             self.publish_state_event(EquipmentEvent::FilterChanged {
+                device_id: device_id.to_string(),
                 position: reached,
                 filter_name: slot_name(reached),
             });
@@ -191,10 +194,12 @@ impl DeviceManager {
                     .map_err(DeviceOpError::invalid_device_id)?;
                 let server_key = format!("{host}:{port}");
 
-                let clients = self.indi_clients.read().await;
-                if let Some(client) = clients.get(&server_key) {
-                    let wheel = IndiFilterWheel::new(client.clone(), &device_name);
-                    return wheel.set_position(position).await.map_err(|e| {
+                let client = self.indi_clients.read().await.get(&server_key).cloned();
+                if let Some(client) = client {
+                    // Returns once the wheel is at the slot, as the other
+                    // drivers' moves do; see `move_to_position`.
+                    let wheel = IndiFilterWheel::new(client, &device_name);
+                    return wheel.move_to_position(position).await.map_err(|e| {
                         DeviceOpError::hardware(
                             Some(device_id.to_string()),
                             format!(

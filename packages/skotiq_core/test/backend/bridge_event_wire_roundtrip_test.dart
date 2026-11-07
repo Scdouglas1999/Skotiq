@@ -281,21 +281,54 @@ void main() {
       ),
       const bridge.EquipmentEvent.mountSlewStarted(ra: 1, dec: 2),
       const bridge.EquipmentEvent.mountSlewCompleted(ra: 1, dec: 2),
-      const bridge.EquipmentEvent.focuserMoveStarted(targetPosition: 100),
-      const bridge.EquipmentEvent.focuserMoveCompleted(position: 100),
+      const bridge.EquipmentEvent.focuserMoveStarted(
+        deviceId: 'f',
+        targetPosition: 100,
+      ),
+      const bridge.EquipmentEvent.focuserMoveCompleted(
+        deviceId: 'f',
+        position: 100,
+      ),
       const bridge.EquipmentEvent.focuserTemperatureChanged(temperature: 4.5),
       const bridge.EquipmentEvent.filterChanging(
+        deviceId: 'w',
         fromPosition: 0,
         toPosition: 2,
         filterName: 'Ha',
         fromFilterName: 'L',
       ),
-      const bridge.EquipmentEvent.filterChanged(position: 2, filterName: 'Ha'),
-      const bridge.EquipmentEvent.rotatorMoveStarted(targetAngle: 90),
-      const bridge.EquipmentEvent.rotatorMoveCompleted(angle: 90),
-      const bridge.EquipmentEvent.cameraCoolingStarted(targetTemp: -10),
-      const bridge.EquipmentEvent.cameraCoolingReached(temperature: -10),
-      const bridge.EquipmentEvent.cameraWarmingStarted(),
+      const bridge.EquipmentEvent.filterChanged(
+        deviceId: 'w',
+        position: 2,
+        filterName: 'Ha',
+      ),
+      const bridge.EquipmentEvent.rotatorMoveStarted(
+        deviceId: 'r',
+        targetAngle: 90,
+      ),
+      const bridge.EquipmentEvent.rotatorMoveCompleted(
+        deviceId: 'r',
+        angle: 90,
+      ),
+      const bridge.EquipmentEvent.cameraCoolingStarted(
+        deviceId: 'c',
+        targetTemp: -10,
+      ),
+      const bridge.EquipmentEvent.cameraCoolingReached(
+        deviceId: 'c',
+        temperature: -10,
+      ),
+      const bridge.EquipmentEvent.cameraWarmingStarted(deviceId: 'c'),
+      const bridge.EquipmentEvent.cameraWarmingCompleted(deviceId: 'c'),
+      const bridge.EquipmentEvent.cameraTemperatureChanged(
+        deviceId: 'c',
+        temperature: -9.5,
+        coolerPower: 41,
+      ),
+      const bridge.EquipmentEvent.cameraTemperatureChanged(
+        deviceId: 'c',
+        temperature: 20,
+      ),
       const bridge.EquipmentEvent.propertyChanged(
         deviceType: 'focuser',
         deviceId: 'f',

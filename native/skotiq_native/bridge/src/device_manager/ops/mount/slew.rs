@@ -262,7 +262,28 @@ impl DeviceManager {
         }
     }
 
+    /// Slew to a horizon position, publishing that the slew started (see
+    /// `state_events`). There is no J2000 target to watch for arrival, so
+    /// the UIs follow the slew to its end on their mount poll, which speeds
+    /// up while the mount slews.
     pub async fn mount_slew_alt_az(
+        &self,
+        device_id: &str,
+        altitude: f64,
+        azimuth: f64,
+    ) -> Result<(), DeviceOpError> {
+        self.mount_slew_alt_az_dispatch(device_id, altitude, azimuth)
+            .await?;
+        self.publish_property_changed(
+            DeviceType::Mount,
+            device_id,
+            crate::device_manager::ops::state_events::property::MOUNT_SLEW_ALT_AZ,
+            format!("{altitude} {azimuth}"),
+        );
+        Ok(())
+    }
+
+    async fn mount_slew_alt_az_dispatch(
         &self,
         device_id: &str,
         altitude: f64,
@@ -400,7 +421,19 @@ impl DeviceManager {
         }
     }
 
+    /// Abort a slew, publishing that it was aborted (see `state_events`).
     pub async fn mount_abort(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.mount_abort_dispatch(device_id).await?;
+        self.publish_property_changed(
+            DeviceType::Mount,
+            device_id,
+            crate::device_manager::ops::state_events::property::MOUNT_ABORT,
+            String::new(),
+        );
+        Ok(())
+    }
+
+    async fn mount_abort_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)

@@ -57,10 +57,13 @@ sealed class EquipmentEvent with _$EquipmentEvent {
       EquipmentEvent_MountParkCompleted;
   const factory EquipmentEvent.mountUnparked() = EquipmentEvent_MountUnparked;
   const factory EquipmentEvent.focuserMoveStarted({
+    required String deviceId,
     required int targetPosition,
   }) = EquipmentEvent_FocuserMoveStarted;
-  const factory EquipmentEvent.focuserMoveCompleted({required int position}) =
-      EquipmentEvent_FocuserMoveCompleted;
+  const factory EquipmentEvent.focuserMoveCompleted({
+    required String deviceId,
+    required int position,
+  }) = EquipmentEvent_FocuserMoveCompleted;
   const factory EquipmentEvent.focuserTemperatureChanged({
     required double temperature,
   }) = EquipmentEvent_FocuserTemperatureChanged;
@@ -68,30 +71,49 @@ sealed class EquipmentEvent with _$EquipmentEvent {
   /// Positions are the wheel's 0-based slots; the names are the profile's
   /// names for the slots moved from and to, when it has them.
   const factory EquipmentEvent.filterChanging({
+    required String deviceId,
     required int fromPosition,
     required int toPosition,
     String? filterName,
     String? fromFilterName,
   }) = EquipmentEvent_FilterChanging;
   const factory EquipmentEvent.filterChanged({
+    required String deviceId,
     required int position,
     String? filterName,
   }) = EquipmentEvent_FilterChanged;
   const factory EquipmentEvent.rotatorMoveStarted({
+    required String deviceId,
     required double targetAngle,
   }) = EquipmentEvent_RotatorMoveStarted;
-  const factory EquipmentEvent.rotatorMoveCompleted({required double angle}) =
-      EquipmentEvent_RotatorMoveCompleted;
+  const factory EquipmentEvent.rotatorMoveCompleted({
+    required String deviceId,
+    required double angle,
+  }) = EquipmentEvent_RotatorMoveCompleted;
   const factory EquipmentEvent.cameraCoolingStarted({
+    required String deviceId,
     required double targetTemp,
   }) = EquipmentEvent_CameraCoolingStarted;
   const factory EquipmentEvent.cameraCoolingReached({
+    required String deviceId,
     required double temperature,
   }) = EquipmentEvent_CameraCoolingReached;
-  const factory EquipmentEvent.cameraWarmingStarted() =
-      EquipmentEvent_CameraWarmingStarted;
-  const factory EquipmentEvent.cameraWarmingCompleted() =
-      EquipmentEvent_CameraWarmingCompleted;
+  const factory EquipmentEvent.cameraWarmingStarted({
+    required String deviceId,
+  }) = EquipmentEvent_CameraWarmingStarted;
+  const factory EquipmentEvent.cameraWarmingCompleted({
+    required String deviceId,
+  }) = EquipmentEvent_CameraWarmingCompleted;
+
+  /// The sensor temperature and cooler power a status read of the camera
+  /// returned, published when either has changed since the last one
+  /// published for that camera (0.1 C, 1 %), so every UI and linked client
+  /// shows the reading the host took.
+  const factory EquipmentEvent.cameraTemperatureChanged({
+    required String deviceId,
+    required double temperature,
+    double? coolerPower,
+  }) = EquipmentEvent_CameraTemperatureChanged;
 
   /// The camera's readout settings as it reports them, published after a
   /// gain, offset or binning change and once on connect. Every field is

@@ -115,6 +115,7 @@ const Map<core.EventCategory, Set<String>> _faithfulCoreEventTypes = {
     'CameraCoolingReached',
     'CameraWarmingStarted',
     'CameraWarmingCompleted',
+    'CameraTemperatureChanged',
     'CameraSettingsChanged',
     'HeartbeatStarted',
     'HeartbeatStopped',
@@ -744,10 +745,12 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       );
     case 'FocuserMoveStarted':
       return bridge.EquipmentEvent.focuserMoveStarted(
+        deviceId: _deviceIdOrEmpty(data),
         targetPosition: _optionalInt(data, 'target_position') ?? 0,
       );
     case 'FocuserMoveCompleted':
       return bridge.EquipmentEvent.focuserMoveCompleted(
+        deviceId: _deviceIdOrEmpty(data),
         position: _optionalInt(data, 'position') ?? 0,
       );
     case 'FocuserTemperatureChanged':
@@ -756,6 +759,7 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       );
     case 'FilterChanging':
       return bridge.EquipmentEvent.filterChanging(
+        deviceId: _deviceIdOrEmpty(data),
         fromPosition: _optionalInt(data, 'from_position') ?? 0,
         toPosition: _optionalInt(data, 'to_position') ?? 0,
         filterName: _optionalString(data, 'filter_name'),
@@ -763,29 +767,44 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       );
     case 'FilterChanged':
       return bridge.EquipmentEvent.filterChanged(
+        deviceId: _deviceIdOrEmpty(data),
         position: _optionalInt(data, 'position') ?? 0,
         filterName: _optionalString(data, 'filter_name'),
       );
     case 'RotatorMoveStarted':
       return bridge.EquipmentEvent.rotatorMoveStarted(
+        deviceId: _deviceIdOrEmpty(data),
         targetAngle: _doubleField(data, 'target_angle'),
       );
     case 'RotatorMoveCompleted':
       return bridge.EquipmentEvent.rotatorMoveCompleted(
+        deviceId: _deviceIdOrEmpty(data),
         angle: _doubleField(data, 'angle'),
       );
     case 'CameraCoolingStarted':
       return bridge.EquipmentEvent.cameraCoolingStarted(
+        deviceId: _deviceIdOrEmpty(data),
         targetTemp: _doubleField(data, 'target_temp'),
       );
     case 'CameraCoolingReached':
       return bridge.EquipmentEvent.cameraCoolingReached(
+        deviceId: _deviceIdOrEmpty(data),
         temperature: _doubleField(data, 'temperature'),
       );
     case 'CameraWarmingStarted':
-      return const bridge.EquipmentEvent.cameraWarmingStarted();
+      return bridge.EquipmentEvent.cameraWarmingStarted(
+        deviceId: _deviceIdOrEmpty(data),
+      );
     case 'CameraWarmingCompleted':
-      return const bridge.EquipmentEvent.cameraWarmingCompleted();
+      return bridge.EquipmentEvent.cameraWarmingCompleted(
+        deviceId: _deviceIdOrEmpty(data),
+      );
+    case 'CameraTemperatureChanged':
+      return bridge.EquipmentEvent.cameraTemperatureChanged(
+        deviceId: _deviceIdOrEmpty(data),
+        temperature: _doubleField(data, 'temperature'),
+        coolerPower: (data['coolerPower'] as num?)?.toDouble(),
+      );
     case 'CameraSettingsChanged':
       return bridge.EquipmentEvent.cameraSettingsChanged(
         deviceId: _stringField(data, 'device_id'),
@@ -1054,6 +1073,13 @@ String _stringField(Map<String, dynamic> data, String key) {
   final value = data[key];
   if (value is String && value.isNotEmpty) return value;
   throw FormatException('Missing required string field "$key" in event data');
+}
+
+/// The device an event names, or empty from a host older than the id on
+/// move and cooler events; consumers treat empty as "the device in the slot".
+String _deviceIdOrEmpty(Map<String, dynamic> data) {
+  final value = data['device_id'];
+  return value is String ? value : '';
 }
 
 /// The device's name; a host from before events carried one sends only the

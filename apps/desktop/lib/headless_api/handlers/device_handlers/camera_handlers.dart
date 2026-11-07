@@ -702,16 +702,14 @@ extension CameraDeviceHandlers on DeviceHandlers {
       }
     }
 
-    // A cooler command from any client replaces a warm-up in progress here,
-    // as the host's own cooler controls do; otherwise the ramp's next step
-    // would overwrite the set-point just sent.
-    container
-        .read(deviceServiceProvider)
-        .cancelWarmCamera(restorePriorSetting: false);
-    await backend.cameraSetCooling(
-      deviceId: deviceId,
-      enabled: enabled,
-      targetTemp: targetTemp,
+    // The host's camera cools through DeviceService, as from the host UI:
+    // it replaces a warm-up in progress and records the cooling goal the
+    // "Cool to" action offers.
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(
+        container,
+      ).cameraSetCooling(deviceId, enabled: enabled, targetTemp: targetTemp),
     );
 
     return jsonOk({'status': 'ok'});
@@ -864,8 +862,11 @@ extension CameraDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final modeIndex = requireInt(payload, 'modeIndex', min: 0);
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.cameraSetReadoutMode(deviceId, modeIndex);
+    await runDeviceCommand(
+      deviceId,
+      () =>
+          deviceCommandsOf(container).cameraSetReadoutMode(deviceId, modeIndex),
+    );
 
     return jsonOk({'status': 'ok'});
   }
@@ -891,7 +892,10 @@ extension CameraDeviceHandlers on DeviceHandlers {
       width: null,
       height: null,
     );
-    await backend.cameraSetGain(deviceId, gain);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).cameraSetGain(deviceId, gain),
+    );
 
     return jsonOk({'status': 'ok'});
   }
@@ -917,7 +921,10 @@ extension CameraDeviceHandlers on DeviceHandlers {
       width: null,
       height: null,
     );
-    await backend.cameraSetOffset(deviceId, offset);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).cameraSetOffset(deviceId, offset),
+    );
 
     return jsonOk({'status': 'ok'});
   }

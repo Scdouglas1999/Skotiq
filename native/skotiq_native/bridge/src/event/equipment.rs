@@ -87,11 +87,15 @@ pub enum EquipmentEvent {
     MountParkCompleted,
     MountUnparked,
 
-    // Focuser events
+    // Focuser events. Every move, filter and rotator event names its device,
+    // so a second focuser, wheel or rotator is never taken for the one in the
+    // app's slot.
     FocuserMoveStarted {
+        device_id: String,
         target_position: i32,
     },
     FocuserMoveCompleted {
+        device_id: String,
         position: i32,
     },
     FocuserTemperatureChanged {
@@ -102,33 +106,53 @@ pub enum EquipmentEvent {
     /// Positions are the wheel's 0-based slots; the names are the profile's
     /// names for the slots moved from and to, when it has them.
     FilterChanging {
+        device_id: String,
         from_position: i32,
         to_position: i32,
         filter_name: Option<String>,
         from_filter_name: Option<String>,
     },
     FilterChanged {
+        device_id: String,
         position: i32,
         filter_name: Option<String>,
     },
 
     // Rotator events
     RotatorMoveStarted {
+        device_id: String,
         target_angle: f64,
     },
     RotatorMoveCompleted {
+        device_id: String,
         angle: f64,
     },
 
-    // Camera events
+    // Camera events. The cooler events name the camera, so a cooled guide
+    // camera is never taken for the imaging camera.
     CameraCoolingStarted {
+        device_id: String,
         target_temp: f64,
     },
     CameraCoolingReached {
+        device_id: String,
         temperature: f64,
     },
-    CameraWarmingStarted,
-    CameraWarmingCompleted,
+    CameraWarmingStarted {
+        device_id: String,
+    },
+    CameraWarmingCompleted {
+        device_id: String,
+    },
+    /// The sensor temperature and cooler power a status read of the camera
+    /// returned, published when either has changed since the last one
+    /// published for that camera (0.1 C, 1 %), so every UI and linked client
+    /// shows the reading the host took.
+    CameraTemperatureChanged {
+        device_id: String,
+        temperature: f64,
+        cooler_power: Option<f64>,
+    },
     /// The camera's readout settings as it reports them, published after a
     /// gain, offset or binning change and once on connect. Every field is
     /// the camera's full current value, not only the one that changed.

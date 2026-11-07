@@ -9,7 +9,6 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final position = requireInt(payload, 'position', min: 0);
 
-    final backend = container.read(deviceBackendProvider);
     // Why: only the lower bound was checked, so an out-of-range slot reached the
     // driver and came back as a 500. Observed on a real ZWO EFW (8 slots):
     //   POST {"position": 99} -> 500 {"error":"internal_error","message":
@@ -39,33 +38,14 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    // The wheel in the host's slot moves through DeviceService, the path the
-    // host's own UI takes, so a slave's, phone's or script's filter change
-    // also applies the per-filter focus offset. Any other wheel goes straight
-    // to the driver.
-    // A wheel nobody connected through DeviceService has no slot, and
-    // creating the slot provider here would only start its profile listener.
-    final slot = container.exists(filterWheelStateProvider)
-        ? container.read(filterWheelStateProvider)
-        : null;
-    if (slot != null &&
-        slot.deviceId == deviceId &&
-        slot.connectionState == DeviceConnectionState.connected) {
-      try {
-        await container
-            .read(deviceServiceProvider)
-            .setFilterWheelPosition(position);
-      } on StateError catch (e) {
-        return jsonError(
-          code: 'device_busy',
-          message: e.message,
-          statusCode: HttpStatus.conflict,
-          details: {'deviceId': deviceId},
-        );
-      }
-    } else {
-      await backend.filterWheelSetPosition(deviceId, position);
-    }
+    // The host's slot wheel moves through DeviceService, as from the host
+    // UI, so the per-filter focus offset applies whoever asked.
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(
+        container,
+      ).filterWheelSetPosition(deviceId, position),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
@@ -97,8 +77,10 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final names = requireList<String>(payload, 'names');
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.filterWheelSetNames(deviceId, names);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).filterWheelSetNames(deviceId, names),
+    );
 
     return jsonOk({'status': 'ok'});
   }
@@ -149,7 +131,6 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final name = requireString(payload, 'name');
 
-    final backend = container.read(deviceBackendProvider);
     // Why: an unknown filter name raised a bare Dart `ArgumentError` deeper in
     // the stack, which the top-level guard rendered as a 500. Observed on a real
     // ZWO EFW:
@@ -171,7 +152,11 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       );
     }
 
-    await backend.filterWheelSetByName(deviceId, name);
+    // Through the same path as a move by slot, focus offset included.
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).filterWheelSetByName(deviceId, name),
+    );
 
     return jsonOk({'status': 'ok'});
   }

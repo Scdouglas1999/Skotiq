@@ -166,7 +166,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
-      // Legacy camera temperature event (keep for backward compatibility)
       case 'CameraSettingsChanged':
         applyCameraSettings(_ref, data);
         break;
@@ -177,13 +176,22 @@ extension _DeviceServiceEventHandling on DeviceService {
         applyDevicePropertyChange(_ref, data);
         break;
 
+      // The camera's own temperature reading, published natively from the
+      // status reads (CameraTemperatureChanged), and the cooler, focuser,
+      // filter wheel and rotator events: one applier shared with the slave's
+      // mirror, which ignores events for a device not in the slot.
       case 'CameraTemperatureChanged':
-        final temp = (data['temperature'] as num).toDouble();
-        final power = (data['coolerPower'] as num).toDouble();
-        _ref.read(cameraStateProvider.notifier).updateTemperature(temp, power);
+      case 'FilterChanging':
+      case 'FilterChanged':
+      case 'RotatorMoveStarted':
+      case 'RotatorMoveCompleted':
+      case 'CameraCoolingStarted':
+      case 'CameraCoolingReached':
+      case 'CameraWarmingStarted':
+      case 'CameraWarmingCompleted':
+        applyDeviceStateEvent(_ref, event.eventType, data);
         break;
 
-      // Legacy mount position event (keep for backward compatibility)
       // Mount Slew Events
       case 'MountSlewStarted':
         _ref.read(mountStateProvider.notifier).setSlewing(true);
@@ -247,20 +255,17 @@ extension _DeviceServiceEventHandling on DeviceService {
             );
         break;
 
-      // Legacy focuser position event (keep for backward compatibility)
       // Focuser Events
       case 'FocuserMoveStarted':
-        _ref.read(focuserStateProvider.notifier).setMoving(true);
-        _watchFocuserMoveSettle();
+        if (applyDeviceStateEvent(_ref, event.eventType, data)) {
+          _watchFocuserMoveSettle();
+        }
         break;
 
       case 'FocuserMoveCompleted':
-        final position = data['position'] as int?;
-        _focuserMoveSettleWatch?.cancel();
-        _focuserMoveSettleWatch = null;
-        _ref.read(focuserStateProvider.notifier).setMoving(false);
-        if (position != null) {
-          _ref.read(focuserStateProvider.notifier).updatePosition(position);
+        if (applyDeviceStateEvent(_ref, event.eventType, data)) {
+          _focuserMoveSettleWatch?.cancel();
+          _focuserMoveSettleWatch = null;
         }
         break;
 
@@ -271,57 +276,6 @@ extension _DeviceServiceEventHandling on DeviceService {
               .read(focuserStateProvider.notifier)
               .updateTemperature(temperature);
         }
-        break;
-
-      // Legacy filter wheel position event (keep for backward compatibility)
-      // Filter Wheel Events
-      case 'FilterChanging':
-        _ref.read(filterWheelStateProvider.notifier).setMoving(true);
-        break;
-
-      case 'FilterChanged':
-        final position = data['position'] as int?;
-        _ref.read(filterWheelStateProvider.notifier).setMoving(false);
-        if (position != null) {
-          _ref.read(filterWheelStateProvider.notifier).updatePosition(position);
-        }
-        break;
-
-      // Rotator Events
-      case 'RotatorMoveStarted':
-        _ref.read(rotatorStateProvider.notifier).setMoving(true);
-        break;
-
-      case 'RotatorMoveCompleted':
-        final angle = (data['angle'] as num?)?.toDouble();
-        _ref.read(rotatorStateProvider.notifier).setMoving(false);
-        if (angle != null) {
-          _ref.read(rotatorStateProvider.notifier).updatePosition(angle);
-        }
-        break;
-
-      // Camera Cooling Events
-      case 'CameraCoolingStarted':
-        final targetTemp = (data['target_temp'] as num?)?.toDouble();
-        _ref.read(cameraStateProvider.notifier).setCooling(true);
-        if (targetTemp != null) {
-          _ref.read(cameraStateProvider.notifier).setTargetTemp(targetTemp);
-        }
-        break;
-
-      case 'CameraCoolingReached':
-        final temp = (data['temperature'] as num?)?.toDouble();
-        if (temp != null) {
-          _ref.read(cameraStateProvider.notifier).updateTemperature(temp, 0.0);
-        }
-        break;
-
-      case 'CameraWarmingStarted':
-        _ref.read(cameraStateProvider.notifier).setCooling(false);
-        break;
-
-      case 'CameraWarmingCompleted':
-        // Warming finished - no additional action needed
         break;
 
       // Heartbeat-health routing.

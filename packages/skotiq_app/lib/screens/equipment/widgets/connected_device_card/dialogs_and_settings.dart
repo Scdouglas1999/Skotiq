@@ -399,7 +399,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                           setState(() => isSaving = true);
                           try {
                             await ref
-                                .read(backendProvider)
+                                .read(deviceCommandsProvider)
                                 .domeSetSlaved(deviceId, slaved);
                             ref
                                 .read(domeStateProvider.notifier)

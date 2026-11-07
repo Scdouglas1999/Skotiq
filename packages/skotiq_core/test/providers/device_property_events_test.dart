@@ -194,4 +194,127 @@ void main() {
       isFalse,
     );
   });
+
+  group('events name their device', () {
+    test(
+      'a guide camera\'s cooler never shows as the imaging camera\'s',
+      () async {
+        await mirror(
+          _equipment('CameraCoolingStarted', {
+            'device_id': 'sim_camera_2',
+            'target_temp': -5.0,
+          }),
+        );
+        var camera = container.read(cameraStateProvider);
+        expect(camera.isCooling, isFalse);
+
+        await mirror(
+          _equipment('CameraCoolingStarted', {
+            'device_id': 'sim_camera_1',
+            'target_temp': -10.0,
+          }),
+        );
+        camera = container.read(cameraStateProvider);
+        expect(camera.isCooling, isTrue);
+        expect(camera.targetTemp, -10.0);
+
+        await mirror(
+          _equipment('CameraWarmingStarted', {'device_id': 'sim_camera_2'}),
+        );
+        expect(container.read(cameraStateProvider).isCooling, isTrue);
+      },
+    );
+
+    test('a second focuser, wheel or rotator leaves the slot alone', () async {
+      await mirror(
+        _equipment('FocuserMoveCompleted', {
+          'device_id': 'other_focuser',
+          'position': 1234,
+        }),
+      );
+      await mirror(
+        _equipment('FilterChanged', {
+          'device_id': 'other_wheel',
+          'position': 2,
+        }),
+      );
+      expect(container.read(focuserStateProvider).position, isNot(1234));
+      expect(
+        container.read(filterWheelStateProvider).currentPosition,
+        isNot(2),
+      );
+
+      await mirror(
+        _equipment('FilterChanged', {
+          'device_id': 'sim_filterwheel_1',
+          'position': 2,
+        }),
+      );
+      expect(container.read(filterWheelStateProvider).currentPosition, 2);
+    });
+
+    test('an event from a host older than the id still applies', () {
+      expect(
+        applyDeviceStateEvent(container, 'FocuserMoveCompleted', {
+          'position': 777,
+        }),
+        isTrue,
+      );
+      expect(container.read(focuserStateProvider).position, 777);
+    });
+  });
+
+  test('the camera temperature the host read reaches the slave', () async {
+    await mirror(
+      _equipment('CameraTemperatureChanged', {
+        'device_id': 'sim_camera_1',
+        'temperature': -9.5,
+        'coolerPower': 41.0,
+      }),
+    );
+    var camera = container.read(cameraStateProvider);
+    expect(camera.temperature, -9.5);
+    expect(camera.coolerPower, 41.0);
+
+    // Another camera's reading is not this one's.
+    await mirror(
+      _equipment('CameraTemperatureChanged', {
+        'device_id': 'sim_camera_2',
+        'temperature': 18.0,
+        'coolerPower': null,
+      }),
+    );
+    camera = container.read(cameraStateProvider);
+    expect(camera.temperature, -9.5);
+    expect(camera.coolerPower, 41.0);
+  });
+
+  test('an alt/az slew and an abort show on the mount at once', () {
+    container.read(mountStateProvider.notifier)
+      ..setConnecting('sim_mount_1')
+      ..setConnected();
+    expect(
+      applyDevicePropertyChange(
+        container,
+        _property('Mount', 'sim_mount_1', 'SlewToAltAz', '60 250'),
+      ),
+      isTrue,
+    );
+    expect(container.read(mountStateProvider).isSlewing, isTrue);
+    expect(
+      applyDevicePropertyChange(
+        container,
+        _property('Mount', 'sim_mount_1', 'AbortSlew', ''),
+      ),
+      isTrue,
+    );
+    expect(container.read(mountStateProvider).isSlewing, isFalse);
+    expect(
+      applyDevicePropertyChange(
+        container,
+        _property('Mount', 'another_mount', 'Synced', '3 10'),
+      ),
+      isFalse,
+    );
+  });
 }

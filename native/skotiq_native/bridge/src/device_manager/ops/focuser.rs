@@ -34,7 +34,9 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
+        let _command = self.command_activity.begin(device_id);
         self.publish_state_event(EquipmentEvent::FocuserMoveStarted {
+            device_id: device_id.to_string(),
             target_position: position,
         });
         let result = self.focuser_move_abs_dispatch(device_id, position).await;
@@ -52,13 +54,17 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
+        let _command = self.command_activity.begin(device_id);
         let target = self
             .focuser_get_position(device_id)
             .await
             .ok()
             .map(|from| from.saturating_add(steps));
         if let Some(target_position) = target {
-            self.publish_state_event(EquipmentEvent::FocuserMoveStarted { target_position });
+            self.publish_state_event(EquipmentEvent::FocuserMoveStarted {
+                device_id: device_id.to_string(),
+                target_position,
+            });
         }
         let result = self.focuser_move_rel_dispatch(device_id, steps).await;
         self.publish_focuser_move_end(device_id, target.filter(|_| result.is_ok()))
@@ -68,6 +74,7 @@ impl DeviceManager {
 
     /// Stop the focuser and publish where it stopped.
     pub async fn focuser_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        let _command = self.command_activity.begin(device_id);
         let result = self.focuser_halt_dispatch(device_id).await;
         if result.is_ok() {
             self.publish_focuser_move_end(device_id, None).await;
@@ -82,7 +89,10 @@ impl DeviceManager {
     async fn publish_focuser_move_end(&self, device_id: &str, fallback: Option<i32>) {
         let reached = self.focuser_get_position(device_id).await.ok().or(fallback);
         if let Some(position) = reached {
-            self.publish_state_event(EquipmentEvent::FocuserMoveCompleted { position });
+            self.publish_state_event(EquipmentEvent::FocuserMoveCompleted {
+                device_id: device_id.to_string(),
+                position,
+            });
         }
     }
 

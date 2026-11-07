@@ -614,6 +614,16 @@ pub struct DeviceManager {
     /// RAII [`UsbContentionGuard`] decrements it from `Drop`, which cannot
     /// await, and the heartbeat loop only ever reads it.
     pub(crate) usb_contention: Arc<std::sync::atomic::AtomicUsize>,
+
+    /// Commands in flight per device, and how many have started or ended; the
+    /// backstop poll skips a device while one runs and does not report the
+    /// change a command made (the command published it). See
+    /// [`ops::backstop`].
+    pub(crate) command_activity: ops::backstop::CommandActivity,
+
+    /// The last sensor temperature and cooler power published per camera, so
+    /// `CameraTemperatureChanged` goes out only when the reading changes.
+    pub(crate) published_temperatures: ops::backstop::PublishedTemperatures,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -784,6 +794,8 @@ impl DeviceManager {
             reconnect_cancel_tokens: RwLock::new(HashMap::new()),
             active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
             usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            command_activity: Default::default(),
+            published_temperatures: Default::default(),
         });
 
         // Start the reconnection background task
@@ -850,6 +862,8 @@ impl DeviceManager {
             reconnect_cancel_tokens: RwLock::new(HashMap::new()),
             active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
             usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            command_activity: Default::default(),
+            published_temperatures: Default::default(),
         });
 
         // Start the reconnection background task

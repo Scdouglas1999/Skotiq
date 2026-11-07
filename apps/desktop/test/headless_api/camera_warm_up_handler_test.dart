@@ -35,6 +35,12 @@ void main() {
       () => service.warmCamera(ratePerMin: any(named: 'ratePerMin')),
     ).thenAnswer((_) async => CameraWarmupOutcome.started);
     when(
+      () => service.setCameraCooling(
+        enabled: any(named: 'enabled'),
+        targetTemp: any(named: 'targetTemp'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
       () => backend.cameraSetCooling(
         deviceId: any(named: 'deviceId'),
         enabled: any(named: 'enabled'),
@@ -105,14 +111,45 @@ void main() {
         ),
       );
 
+      // The host's camera cools through DeviceService, as the host UI's
+      // cooler controls do, so the cooling goal is recorded too.
       verifyInOrder([
         () => service.cancelWarmCamera(restorePriorSetting: false),
-        () => backend.cameraSetCooling(
-          deviceId: 'sim_camera_1',
-          enabled: true,
-          targetTemp: -10.0,
-        ),
+        () => service.setCameraCooling(enabled: true, targetTemp: -10.0),
       ]);
+      verifyNever(
+        () => backend.cameraSetCooling(
+          deviceId: any(named: 'deviceId'),
+          enabled: any(named: 'enabled'),
+          targetTemp: any(named: 'targetTemp'),
+        ),
+      );
     },
   );
+
+  test('a cooler command for another camera does not touch the host '
+      'camera\'s warm-up', () async {
+    await translateHandlerErrors(
+      handlers.handleCameraSetCooling(
+        _post('/api/camera/cooling', {
+          'deviceId': 'guide_camera',
+          'enabled': true,
+          'targetTemp': -5.0,
+        }),
+      ),
+    );
+
+    verifyNever(
+      () => service.cancelWarmCamera(
+        restorePriorSetting: any(named: 'restorePriorSetting'),
+      ),
+    );
+    verify(
+      () => backend.cameraSetCooling(
+        deviceId: 'guide_camera',
+        enabled: true,
+        targetTemp: -5.0,
+      ),
+    ).called(1);
+  });
 }

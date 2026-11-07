@@ -7,6 +7,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../command_correlator.dart';
+import '../device_commands_route.dart';
 import '../display_buffer_jpeg.dart';
 import '../job_manager.dart';
 import '../response_helpers.dart';
