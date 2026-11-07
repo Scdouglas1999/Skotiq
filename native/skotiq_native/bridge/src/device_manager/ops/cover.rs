@@ -46,6 +46,63 @@ use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use tracing::warn;
 
+use crate::device_manager::ops::state_events::property;
+
+impl DeviceManager {
+    // Cover and calibrator commands publish the command the device accepted
+    // (see `state_events`); the device's own status polling reports when the
+    // cover finishes moving.
+
+    /// Open the cover.
+    pub async fn cover_calibrator_open_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.cover_calibrator_open_cover_dispatch(device_id).await?;
+        self.publish_cover(device_id, property::COVER, "open".to_string());
+        Ok(())
+    }
+
+    /// Close the cover.
+    pub async fn cover_calibrator_close_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.cover_calibrator_close_cover_dispatch(device_id)
+            .await?;
+        self.publish_cover(device_id, property::COVER, "close".to_string());
+        Ok(())
+    }
+
+    /// Stop the cover where it is.
+    pub async fn cover_calibrator_halt_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.cover_calibrator_halt_cover_dispatch(device_id).await?;
+        self.publish_cover(device_id, property::COVER, "halt".to_string());
+        Ok(())
+    }
+
+    /// Turn on cover calibrator light
+    pub async fn cover_calibrator_calibrator_on(
+        &self,
+        device_id: &str,
+        brightness: i32,
+    ) -> Result<(), DeviceOpError> {
+        self.cover_calibrator_calibrator_on_dispatch(device_id, brightness)
+            .await?;
+        self.publish_cover(device_id, property::CALIBRATOR, format!("on {brightness}"));
+        Ok(())
+    }
+
+    /// Turn off cover calibrator light
+    pub async fn cover_calibrator_calibrator_off(
+        &self,
+        device_id: &str,
+    ) -> Result<(), DeviceOpError> {
+        self.cover_calibrator_calibrator_off_dispatch(device_id)
+            .await?;
+        self.publish_cover(device_id, property::CALIBRATOR, "off".to_string());
+        Ok(())
+    }
+
+    fn publish_cover(&self, device_id: &str, property: &str, value: String) {
+        self.publish_property_changed(DeviceType::CoverCalibrator, device_id, property, value);
+    }
+}
+
 impl DeviceManager {
     async fn indi_cover_calibrator(
         &self,
@@ -70,7 +127,10 @@ impl DeviceManager {
     // Cover calibrator control
 
     /// Open cover calibrator cover
-    pub async fn cover_calibrator_open_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn cover_calibrator_open_cover_dispatch(
+        &self,
+        device_id: &str,
+    ) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -117,7 +177,10 @@ impl DeviceManager {
     }
 
     /// Close cover calibrator cover
-    pub async fn cover_calibrator_close_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn cover_calibrator_close_cover_dispatch(
+        &self,
+        device_id: &str,
+    ) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -164,7 +227,10 @@ impl DeviceManager {
     }
 
     /// Halt cover calibrator cover movement
-    pub async fn cover_calibrator_halt_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn cover_calibrator_halt_cover_dispatch(
+        &self,
+        device_id: &str,
+    ) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -209,7 +275,7 @@ impl DeviceManager {
     }
 
     /// Turn on cover calibrator light
-    pub async fn cover_calibrator_calibrator_on(
+    async fn cover_calibrator_calibrator_on_dispatch(
         &self,
         device_id: &str,
         brightness: i32,
@@ -269,7 +335,7 @@ impl DeviceManager {
     }
 
     /// Turn off cover calibrator light
-    pub async fn cover_calibrator_calibrator_off(
+    async fn cover_calibrator_calibrator_off_dispatch(
         &self,
         device_id: &str,
     ) -> Result<(), DeviceOpError> {

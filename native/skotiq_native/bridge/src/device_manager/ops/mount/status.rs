@@ -1,7 +1,25 @@
 use super::*;
 
 impl DeviceManager {
+    /// Sync the mount to J2000 coordinates, publishing the position synced
+    /// to (see `state_events`).
     pub async fn mount_sync(
+        &self,
+        device_id: &str,
+        ra: f64,
+        dec: f64,
+    ) -> Result<(), DeviceOpError> {
+        self.mount_sync_dispatch(device_id, ra, dec).await?;
+        self.publish_property_changed(
+            DeviceType::Mount,
+            device_id,
+            crate::device_manager::ops::state_events::property::MOUNT_SYNCED,
+            format!("{ra} {dec}"),
+        );
+        Ok(())
+    }
+
+    async fn mount_sync_dispatch(
         &self,
         device_id: &str,
         ra: f64,

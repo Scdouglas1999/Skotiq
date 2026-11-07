@@ -1,4 +1,5 @@
 use super::*;
+use crate::event::EquipmentEvent;
 
 impl DeviceManager {
     pub async fn mount_set_tracking(
@@ -18,6 +19,13 @@ impl DeviceManager {
             if let Some(dev) = devices.get_mut(device_id) {
                 dev.desired_tracking = Some(enabled);
             }
+            drop(devices);
+            // The state change every UI shows (see `state_events`).
+            self.publish_state_event(if enabled {
+                EquipmentEvent::MountTrackingStarted
+            } else {
+                EquipmentEvent::MountTrackingStopped
+            });
         }
 
         result

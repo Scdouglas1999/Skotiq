@@ -1,4 +1,5 @@
 use super::*;
+use crate::event::EquipmentEvent;
 
 /// Describe the failed half (or halves) of a two-direction axis stop.
 ///
@@ -40,7 +41,12 @@ impl DeviceManager {
         dec: f64,
     ) -> Result<(), DeviceOpError> {
         self.ensure_tracking_for_slew(device_id).await;
-        self.mount_slew_dispatch(device_id, ra, dec).await
+        self.mount_slew_dispatch(device_id, ra, dec).await?;
+        // The driver returning means the slew has started, not finished: the
+        // completion event waits for the mount to arrive (see `state_events`).
+        self.publish_state_event(EquipmentEvent::MountSlewStarted { ra, dec });
+        self.spawn_slew_completion_watch(device_id, ra, dec).await;
+        Ok(())
     }
 
     async fn ensure_tracking_for_slew(&self, device_id: &str) {

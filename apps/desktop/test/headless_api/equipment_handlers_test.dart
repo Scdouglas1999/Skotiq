@@ -195,5 +195,52 @@ void main() {
       expect(body['position'], 25000);
       expect(reads, 2);
     });
+
+    // A slave read the focuser, moved it and read it again to confirm; the
+    // second read was answered with the first and the slave reported a stall.
+    test('a read after a device change is not answered from before it', () async {
+      final backend = _MockBackend();
+      var position = 24000;
+      var reads = 0;
+      when(() => backend.getFocuserStatus('sim_focuser_1')).thenAnswer((
+        _,
+      ) async {
+        reads++;
+        return FocuserStatus(
+          connected: true,
+          position: position,
+          moving: false,
+          maxPosition: 50000,
+          stepSize: 1,
+          isAbsolute: true,
+          hasTemperature: false,
+        );
+      });
+      final now = DateTime.utc(2026, 11, 7, 16);
+      container.dispose();
+      container = ProviderContainer(
+        overrides: [deviceBackendProvider.overrideWithValue(backend)],
+      );
+      handlers = EquipmentHandlers(container, now: () => now);
+      Future<int> readPosition() async {
+        final response = await handlers.handleFocuserStatus(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/equipment/focuser/status?deviceId=sim_focuser_1',
+            ),
+          ),
+        );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        return body['position'] as int;
+      }
+
+      expect(await readPosition(), 24000);
+      position = 24500;
+      handlers.forgetSharedStatus();
+
+      expect(await readPosition(), 24500);
+      expect(reads, 2);
+    });
   });
 }

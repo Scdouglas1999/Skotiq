@@ -189,6 +189,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         // for requests that already presented a valid token. Placed
         // before the router so the 409 short-circuits the handler.
         .addMiddleware(_sessionOwnershipMiddleware())
+        .addMiddleware(_statusShareMiddleware())
         .addHandler(router.call);
 
     // Paired session tokens load from the pairing database, whose file only
@@ -591,6 +592,10 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     try {
       final backend = container.read(backendProvider);
       _eventSubscription = backend.eventStream.listen((event) {
+        // A device changed: a status read from before it is stale.
+        if (event.category == EventCategory.equipment) {
+          _equipmentHandlers.forgetSharedStatus();
+        }
         final stamped = broadcastEvent(event);
         // Host-side live-stacking auto-feed: every frame the host writes to
         // disk is offered to the stacker, which ignores it unless stacking is

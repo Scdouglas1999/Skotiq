@@ -167,6 +167,12 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Legacy camera temperature event (keep for backward compatibility)
+      case 'PropertyChanged':
+        // Gain, offset, binning, slot names and the other settings the native
+        // DeviceManager publishes whoever changed them.
+        applyDevicePropertyChange(_ref, data);
+        break;
+
       case 'CameraTemperatureChanged':
         final temp = (data['temperature'] as num).toDouble();
         final power = (data['coolerPower'] as num).toDouble();

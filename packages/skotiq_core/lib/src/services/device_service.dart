@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/equipment/device_type_registry.dart';
+import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;

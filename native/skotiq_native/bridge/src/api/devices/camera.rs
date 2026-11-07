@@ -126,24 +126,17 @@ pub async fn api_camera_set_readout_mode(
 
 // Camera binning (legacy API, kept for compatibility)
 
-/// Set camera binning
+/// Set camera binning. Simulators go through the `DeviceManager` like every
+/// other driver, so the change publishes its event whoever asked.
 pub async fn api_set_camera_binning(
     device_id: String,
     bin_x: i32,
     bin_y: i32,
 ) -> Result<(), SkotiqError> {
-    if device_id.starts_with("sim_") {
-        let mut camera = get_sim_camera_for(&device_id).write().await;
-        camera.status.bin_x = bin_x;
-        camera.status.bin_y = bin_y;
-        tracing::info!("Camera binning set to: {}x{}", bin_x, bin_y);
-        Ok(())
-    } else {
-        let mgr = get_device_manager();
-        mgr.camera_set_binning(&device_id, bin_x, bin_y)
-            .await
-            .map_err(SkotiqError::from)
-    }
+    get_device_manager()
+        .camera_set_binning(&device_id, bin_x, bin_y)
+        .await
+        .map_err(SkotiqError::from)
 }
 
 /// Capture a live-view / preview JPEG frame when the driver supports it.

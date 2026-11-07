@@ -182,6 +182,12 @@ class CameraStateNotifier extends StateNotifier<CameraStateSnapshot>
     );
   }
 
+  /// Record one setting the host just applied (a `PropertyChanged` event);
+  /// the others keep their last reading.
+  void applySetting({int? gain, int? offset, String? binning}) {
+    state = state.copyWith(gain: gain, offset: offset, binning: binning);
+  }
+
   /// Update target temperature setting (persists across navigation)
   void setTargetTemp(double temp) {
     state = state.copyWith(targetTemp: temp);

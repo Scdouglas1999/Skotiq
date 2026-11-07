@@ -41,34 +41,11 @@ impl DeviceOps for UnifiedDeviceOps {
             dec_degrees
         );
 
-        // Emit slew started event
-        self.app_state.publish_event(create_event_auto_id(
-            EventSeverity::Info,
-            EventCategory::Equipment,
-            EventPayload::Equipment(EquipmentEvent::MountSlewStarted {
-                ra: ra_hours,
-                dec: dec_degrees,
-            }),
-        ));
-
-        let result = get_device_manager()
+        // `DeviceManager::mount_slew` publishes the slew's start and arrival.
+        get_device_manager()
             .mount_slew(mount_id, ra_hours, dec_degrees)
             .await
-            .map_err(|e| format!("Slew failed: {}", e));
-
-        // The driver returning means the slew has started, not finished: the
-        // completion event waits for the mount to arrive.
-        if result.is_ok() {
-            spawn_slew_completion_watch(
-                self.app_state.clone(),
-                mount_id.to_string(),
-                ra_hours,
-                dec_degrees,
-            )
-            .await;
-        }
-
-        result
+            .map_err(|e| format!("Slew failed: {}", e))
     }
 
     async fn mount_slew_state(&self, mount_id: &str) -> skotiq_sequencer::slew_arrival::SlewSample {
@@ -175,46 +152,21 @@ impl DeviceOps for UnifiedDeviceOps {
     async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
         tracing::info!("Parking mount {}", mount_id);
 
-        // Emit park started event
-        self.app_state.publish_event(create_event_auto_id(
-            EventSeverity::Info,
-            EventCategory::Equipment,
-            EventPayload::Equipment(EquipmentEvent::MountParkStarted),
-        ));
-
-        let result = get_device_manager()
+        // `DeviceManager::mount_park` publishes the park's start and end.
+        get_device_manager()
             .mount_park(mount_id)
             .await
-            .map_err(|e| format!("Park failed: {}", e));
-
-        if result.is_ok() {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::MountParkCompleted),
-            ));
-        }
-
-        result
+            .map_err(|e| format!("Park failed: {}", e))
     }
 
     async fn mount_unpark(&self, mount_id: &str) -> DeviceResult<()> {
         tracing::info!("Unparking mount {}", mount_id);
 
-        let result = get_device_manager()
+        // `DeviceManager::mount_unpark` publishes `MountUnparked`.
+        get_device_manager()
             .mount_unpark(mount_id)
             .await
-            .map_err(|e| format!("Unpark failed: {}", e));
-
-        if result.is_ok() {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::MountUnparked),
-            ));
-        }
-
-        result
+            .map_err(|e| format!("Unpark failed: {}", e))
     }
 
     async fn mount_find_home(&self, mount_id: &str) -> DeviceResult<()> {
@@ -812,21 +764,7 @@ impl DeviceOps for UnifiedDeviceOps {
             target_temp
         );
 
-        // Emit cooling event
-        if enabled {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::CameraCoolingStarted { target_temp }),
-            ));
-        } else {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::CameraWarmingStarted),
-            ));
-        }
-
+        // `DeviceManager::camera_set_cooler` publishes the cooling event.
         api_set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
             .await
             .map_err(|e| format!("Cooler control failed: {}", e))
@@ -881,28 +819,10 @@ impl DeviceOps for UnifiedDeviceOps {
     async fn focuser_move_to(&self, focuser_id: &str, position: i32) -> DeviceResult<()> {
         tracing::info!("Moving focuser {} to position {}", focuser_id, position);
 
-        // Emit focuser move started event
-        self.app_state.publish_event(create_event_auto_id(
-            EventSeverity::Info,
-            EventCategory::Equipment,
-            EventPayload::Equipment(EquipmentEvent::FocuserMoveStarted {
-                target_position: position,
-            }),
-        ));
-
-        let result = api_focuser_move_to(focuser_id.to_string(), position)
+        // `DeviceManager::focuser_move_abs` publishes the move's start and end.
+        api_focuser_move_to(focuser_id.to_string(), position)
             .await
-            .map_err(|e| format!("Focuser move failed: {}", e));
-
-        if result.is_ok() {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::FocuserMoveCompleted { position }),
-            ));
-        }
-
-        result
+            .map_err(|e| format!("Focuser move failed: {}", e))
     }
 
     async fn focuser_get_position(&self, focuser_id: &str) -> DeviceResult<i32> {
@@ -936,55 +856,12 @@ impl DeviceOps for UnifiedDeviceOps {
     // Filter wheel operations
 
     async fn filterwheel_set_position(&self, fw_id: &str, position: i32) -> DeviceResult<()> {
-        // Get current position for the event
-        // Why: from_position is purely informational
-        // for the FilterChanging event payload. If the current position
-        // read fails (filter wheel mid-move, or wheel just reconnected
-        // and hasn't homed yet), `-1` is the documented "position unknown"
-        // sentinel consumed by the UI. The actual move-to-position call
-        // below propagates its own errors via `.map_err`.
-        let from_position = get_device_manager()
-            .filter_wheel_get_position(fw_id)
-            .await
-            .unwrap_or(-1);
-
-        // The Log named slots by number ("0 → 1") while Equipment read
-        // "R (2 of 8)": the events carry the profile's names for the slots.
-        let names = get_device_manager()
-            .filter_wheel_get_config(fw_id)
-            .await
-            .map(|(_, names)| names)
-            .unwrap_or_default();
-        let slot_name = |slot: i32| filter_slot_name(&names, slot);
-
-        self.app_state.publish_event(create_event_auto_id(
-            EventSeverity::Info,
-            EventCategory::Equipment,
-            EventPayload::Equipment(EquipmentEvent::FilterChanging {
-                from_position,
-                to_position: position,
-                filter_name: slot_name(position),
-                from_filter_name: slot_name(from_position),
-            }),
-        ));
-
-        let result = get_device_manager()
+        // `DeviceManager::filter_wheel_set_position` publishes `FilterChanging`
+        // and `FilterChanged`.
+        get_device_manager()
             .filter_wheel_set_position(fw_id, position)
             .await
-            .map_err(|e| format!("Set position failed: {}", e));
-
-        if result.is_ok() {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::FilterChanged {
-                    position,
-                    filter_name: slot_name(position),
-                }),
-            ));
-        }
-
-        result
+            .map_err(|e| format!("Set position failed: {}", e))
     }
 
     async fn filterwheel_get_position(&self, fw_id: &str) -> DeviceResult<i32> {
@@ -1026,28 +903,11 @@ impl DeviceOps for UnifiedDeviceOps {
     async fn rotator_move_to(&self, rotator_id: &str, angle: f64) -> DeviceResult<()> {
         tracing::info!("Moving rotator {} to {}°", rotator_id, angle);
 
-        // Emit rotator move started event
-        self.app_state.publish_event(create_event_auto_id(
-            EventSeverity::Info,
-            EventCategory::Equipment,
-            EventPayload::Equipment(EquipmentEvent::RotatorMoveStarted {
-                target_angle: angle,
-            }),
-        ));
-
-        let result = api_rotator_move_to(rotator_id.to_string(), angle)
+        // `DeviceManager::rotator_move_absolute` publishes the move's start and
+        // end.
+        api_rotator_move_to(rotator_id.to_string(), angle)
             .await
-            .map_err(|e| format!("Rotator move failed: {}", e));
-
-        if result.is_ok() {
-            self.app_state.publish_event(create_event_auto_id(
-                EventSeverity::Info,
-                EventCategory::Equipment,
-                EventPayload::Equipment(EquipmentEvent::RotatorMoveCompleted { angle }),
-            ));
-        }
-
-        result
+            .map_err(|e| format!("Rotator move failed: {}", e))
     }
 
     async fn rotator_move_relative(&self, rotator_id: &str, delta: f64) -> DeviceResult<()> {
@@ -1927,80 +1787,6 @@ mod guider_state_tests {
             assert!(!guider_state_may_move_mount(state), "{state}");
         }
     }
-}
-
-/// Publish `MountSlewCompleted` once a slew the sequencer commanded has
-/// actually arrived, watched in the background so the instruction's own wait
-/// is not held up. A slew that stops short, is aborted or times out publishes
-/// nothing: the mount's status events already say it stopped.
-async fn spawn_slew_completion_watch(
-    app_state: SharedAppState,
-    mount_id: String,
-    ra_hours: f64,
-    dec_degrees: f64,
-) {
-    use skotiq_sequencer::slew_arrival::{wait_for_slew_arrival, SlewArrivalTimings, SlewSample};
-
-    let Some(device) = get_device_manager().get_device(&mount_id).await else {
-        return;
-    };
-    let target = crate::device_manager::epoch::j2000_to_mount_frame(
-        device.info.driver_type,
-        ra_hours,
-        dec_degrees,
-    );
-    tokio::spawn(async move {
-        // Once a second: this runs beside the instruction's own watch and
-        // every read is a driver round trip.
-        let timings = SlewArrivalTimings {
-            poll_interval: std::time::Duration::from_secs(1),
-            max_consecutive_failures: 10,
-            ..SlewArrivalTimings::goto(crate::timeout_ops::Timeouts::long_slew())
-        };
-        let result = wait_for_slew_arrival(
-            Some(target),
-            &timings,
-            || {
-                let mount_id = mount_id.clone();
-                async move {
-                    match get_device_manager().mount_get_status(&mount_id).await {
-                        Ok(status) => SlewSample {
-                            slewing: Some(status.slewing),
-                            position: Some((status.right_ascension, status.declination)),
-                        },
-                        Err(_) => SlewSample {
-                            slewing: None,
-                            position: None,
-                        },
-                    }
-                }
-            },
-            || false,
-            |_| {},
-        )
-        .await;
-        match result {
-            Ok(progress) if progress.near_target => {
-                app_state.publish_event(create_event_auto_id(
-                    EventSeverity::Info,
-                    EventCategory::Equipment,
-                    EventPayload::Equipment(EquipmentEvent::MountSlewCompleted {
-                        ra: ra_hours,
-                        dec: dec_degrees,
-                    }),
-                ));
-            }
-            Ok(progress) => tracing::info!(
-                "Mount {} stopped {} from the slew target",
-                mount_id,
-                progress.remaining_deg.map_or_else(
-                    || "an unknown distance".to_string(),
-                    skotiq_sequencer::slew_arrival::format_arc
-                )
-            ),
-            Err(e) => tracing::info!("Mount {} slew did not complete: {}", mount_id, e),
-        }
-    });
 }
 
 /// The WCS of a successful solve of a `width` x `height` frame: the solved

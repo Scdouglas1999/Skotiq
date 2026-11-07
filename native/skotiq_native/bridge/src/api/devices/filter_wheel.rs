@@ -27,47 +27,32 @@ use super::*;
 
 // Filter wheel control
 
-/// Set filter wheel position
+/// Set filter wheel position. Simulators go through the `DeviceManager` like
+/// every other driver, so the move publishes its events whoever asked.
 pub async fn filter_wheel_set_position(
     device_id: String,
     position: i32,
 ) -> Result<(), SkotiqError> {
-    if device_id.starts_with("sim_") {
-        let mut fw = get_sim_filterwheel().write().await;
-        fw.status.position = position;
-        Ok(())
-    } else {
-        let mgr = get_device_manager();
-        mgr.filter_wheel_set_position(&device_id, position)
-            .await
-            .map_err(SkotiqError::from)
-    }
+    get_device_manager()
+        .filter_wheel_set_position(&device_id, position)
+        .await
+        .map_err(SkotiqError::from)
 }
 
 /// Get filter wheel position
 pub async fn filter_wheel_get_position(device_id: String) -> Result<i32, SkotiqError> {
-    if device_id.starts_with("sim_") {
-        let fw = get_sim_filterwheel().read().await;
-        Ok(fw.status.position)
-    } else {
-        let mgr = get_device_manager();
-        mgr.filter_wheel_get_position(&device_id)
-            .await
-            .map_err(SkotiqError::from)
-    }
+    get_device_manager()
+        .filter_wheel_get_position(&device_id)
+        .await
+        .map_err(SkotiqError::from)
 }
 
 /// Get filter wheel configuration (count, names)
 pub async fn filter_wheel_get_config(device_id: String) -> Result<(i32, Vec<String>), SkotiqError> {
-    if device_id.starts_with("sim_") {
-        let fw = get_sim_filterwheel().read().await;
-        Ok((fw.status.filter_count, fw.status.filter_names.clone()))
-    } else {
-        let mgr = get_device_manager();
-        mgr.filter_wheel_get_config(&device_id)
-            .await
-            .map_err(SkotiqError::from)
-    }
+    get_device_manager()
+        .filter_wheel_get_config(&device_id)
+        .await
+        .map_err(SkotiqError::from)
 }
 
 /// Set camera gain

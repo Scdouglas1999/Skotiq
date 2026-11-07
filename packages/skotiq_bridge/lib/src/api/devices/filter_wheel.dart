@@ -7,7 +7,8 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Set filter wheel position
+/// Set filter wheel position. Simulators go through the `DeviceManager` like
+/// every other driver, so the move publishes its events whoever asked.
 Future<void> filterWheelSetPosition({
   required String deviceId,
   required int position,

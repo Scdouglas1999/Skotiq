@@ -18,6 +18,49 @@ use crate::device::*;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 
+use crate::device_manager::ops::state_events::property;
+
+impl DeviceManager {
+    // Switch writes publish the value the switch accepted (see
+    // `state_events`).
+
+    /// Set the boolean state of switch `switch_id`.
+    pub async fn switch_set_state(
+        &self,
+        device_id: &str,
+        switch_id: i32,
+        state: bool,
+    ) -> Result<(), DeviceOpError> {
+        self.switch_set_state_dispatch(device_id, switch_id, state)
+            .await?;
+        self.publish_property_changed(
+            DeviceType::Switch,
+            device_id,
+            property::SWITCH_STATE,
+            format!("{switch_id} {state}"),
+        );
+        Ok(())
+    }
+
+    /// Set the numeric value of switch `switch_id`.
+    pub async fn switch_set_value(
+        &self,
+        device_id: &str,
+        switch_id: i32,
+        value: f64,
+    ) -> Result<(), DeviceOpError> {
+        self.switch_set_value_dispatch(device_id, switch_id, value)
+            .await?;
+        self.publish_property_changed(
+            DeviceType::Switch,
+            device_id,
+            property::SWITCH_VALUE,
+            format!("{switch_id} {value}"),
+        );
+        Ok(())
+    }
+}
+
 impl DeviceManager {
     // INDI switch helpers
 
@@ -134,7 +177,7 @@ impl DeviceManager {
     }
 
     /// Set the boolean state of a switch
-    pub async fn switch_set_state(
+    async fn switch_set_state_dispatch(
         &self,
         device_id: &str,
         switch_id: i32,
@@ -407,7 +450,7 @@ impl DeviceManager {
     }
 
     /// Set the numeric value of a switch
-    pub async fn switch_set_value(
+    async fn switch_set_value_dispatch(
         &self,
         device_id: &str,
         switch_id: i32,

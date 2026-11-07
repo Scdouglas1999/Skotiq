@@ -214,6 +214,22 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
     return _RequestBodyLimitResult.accepted(bytes.takeBytes(), receivedBytes);
   }
 
+  /// After a command (any non-GET request), forget the shared device status
+  /// reads: a read from before the command must not answer a read after it.
+  /// See [EquipmentHandlers.forgetSharedStatus].
+  Middleware _statusShareMiddleware() {
+    return (innerHandler) {
+      return (request) async {
+        final response = await innerHandler(request);
+        final method = request.method;
+        if (method != 'GET' && method != 'HEAD' && method != 'OPTIONS') {
+          _equipmentHandlers.forgetSharedStatus();
+        }
+        return response;
+      };
+    };
+  }
+
   Middleware _apiVersionMiddleware() {
     return (innerHandler) {
       return (request) async {

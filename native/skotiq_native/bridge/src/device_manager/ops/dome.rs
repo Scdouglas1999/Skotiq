@@ -20,11 +20,80 @@ use crate::dispatch::DeviceOpError;
 #[cfg(windows)]
 use tracing::warn;
 
+use crate::device_manager::ops::state_events::property;
+
+impl DeviceManager {
+    // Dome commands publish the command the dome accepted (see
+    // `state_events`); the dome status polling reports when it arrives.
+
+    /// Open the shutter.
+    pub async fn dome_open_shutter(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.dome_open_shutter_dispatch(device_id).await?;
+        self.publish_dome(device_id, property::DOME_SHUTTER, "open".to_string());
+        Ok(())
+    }
+
+    /// Close the shutter.
+    pub async fn dome_close_shutter(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.dome_close_shutter_dispatch(device_id).await?;
+        self.publish_dome(device_id, property::DOME_SHUTTER, "close".to_string());
+        Ok(())
+    }
+
+    /// Slew the dome to an azimuth in degrees.
+    pub async fn dome_slew_to_azimuth(
+        &self,
+        device_id: &str,
+        azimuth: f64,
+    ) -> Result<(), DeviceOpError> {
+        self.dome_slew_to_azimuth_dispatch(device_id, azimuth)
+            .await?;
+        self.publish_dome(device_id, property::DOME_SLEW, azimuth.to_string());
+        Ok(())
+    }
+
+    /// Park the dome.
+    pub async fn dome_park(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.dome_park_dispatch(device_id).await?;
+        self.publish_dome(device_id, property::DOME_PARK, String::new());
+        Ok(())
+    }
+
+    /// Slave the dome to the mount, or release it.
+    pub async fn dome_set_slaved(
+        &self,
+        device_id: &str,
+        slaved: bool,
+    ) -> Result<(), DeviceOpError> {
+        self.dome_set_slaved_dispatch(device_id, slaved).await?;
+        self.publish_dome(device_id, property::DOME_SLAVED, slaved.to_string());
+        Ok(())
+    }
+
+    /// Send the dome to its home position.
+    pub async fn dome_find_home(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.dome_find_home_dispatch(device_id).await?;
+        self.publish_dome(device_id, property::DOME_HOME, String::new());
+        Ok(())
+    }
+
+    /// Stop any dome motion.
+    pub async fn dome_abort_slew(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.dome_abort_slew_dispatch(device_id).await?;
+        self.publish_dome(device_id, property::DOME_ABORT, String::new());
+        Ok(())
+    }
+
+    fn publish_dome(&self, device_id: &str, property: &str, value: String) {
+        self.publish_property_changed(DeviceType::Dome, device_id, property, value);
+    }
+}
+
 impl DeviceManager {
     // Dome control
 
     /// Open dome shutter
-    pub async fn dome_open_shutter(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn dome_open_shutter_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -108,7 +177,7 @@ impl DeviceManager {
     }
 
     /// Close dome shutter
-    pub async fn dome_close_shutter(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn dome_close_shutter_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -191,7 +260,7 @@ impl DeviceManager {
     }
 
     /// Slew dome to azimuth
-    pub async fn dome_slew_to_azimuth(
+    async fn dome_slew_to_azimuth_dispatch(
         &self,
         device_id: &str,
         azimuth: f64,
@@ -481,7 +550,7 @@ impl DeviceManager {
     }
 
     /// Park dome
-    pub async fn dome_park(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn dome_park_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -892,7 +961,7 @@ impl DeviceManager {
     }
 
     /// Enable or disable dome slaving to the mount
-    pub async fn dome_set_slaved(
+    async fn dome_set_slaved_dispatch(
         &self,
         device_id: &str,
         slaved: bool,
@@ -980,7 +1049,7 @@ impl DeviceManager {
     }
 
     /// Send dome to home position
-    pub async fn dome_find_home(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn dome_find_home_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -1057,7 +1126,7 @@ impl DeviceManager {
     }
 
     /// Abort dome slew / shutter motion
-    pub async fn dome_abort_slew(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn dome_abort_slew_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())

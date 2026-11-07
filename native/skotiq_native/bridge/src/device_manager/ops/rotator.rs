@@ -5,8 +5,87 @@
 //! previous monolithic `devices.rs`.
 
 use crate::device::*;
+use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
+use crate::event::EquipmentEvent;
+
+impl DeviceManager {
+    // Rotator commands publish their state change (see `state_events`).
+
+    /// Move rotator to absolute sky position (degrees), publishing
+    /// `RotatorMoveStarted` and then `RotatorMoveCompleted` with the angle
+    /// read back (the target when it cannot be read).
+    pub async fn rotator_move_absolute(
+        &self,
+        device_id: &str,
+        position: f64,
+    ) -> Result<(), DeviceOpError> {
+        if self.registered_driver_type(device_id).await.is_none() {
+            return Err(DeviceOpError::device_not_found(device_id));
+        }
+        self.publish_state_event(EquipmentEvent::RotatorMoveStarted {
+            target_angle: position,
+        });
+        let result = self
+            .rotator_move_absolute_dispatch(device_id, position)
+            .await;
+        self.publish_rotator_move_end(device_id, result.is_ok().then_some(position))
+            .await;
+        result
+    }
+
+    /// Halt the rotator and publish where it stopped.
+    pub async fn rotator_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        let result = self.rotator_halt_dispatch(device_id).await;
+        if result.is_ok() {
+            self.publish_rotator_move_end(device_id, None).await;
+        }
+        result
+    }
+
+    /// Sync the reported sky angle without moving, publishing the new angle.
+    pub async fn rotator_sync(&self, device_id: &str, position: f64) -> Result<(), DeviceOpError> {
+        self.rotator_sync_dispatch(device_id, position).await?;
+        let angle = self
+            .rotator_get_position(device_id)
+            .await
+            .unwrap_or(position);
+        self.publish_property_changed(
+            DeviceType::Rotator,
+            device_id,
+            property::ROTATOR_POSITION,
+            angle.to_string(),
+        );
+        Ok(())
+    }
+
+    /// Set the reverse flag, publishing the new value.
+    pub async fn rotator_set_reverse(
+        &self,
+        device_id: &str,
+        reverse: bool,
+    ) -> Result<(), DeviceOpError> {
+        self.rotator_set_reverse_dispatch(device_id, reverse)
+            .await?;
+        self.publish_property_changed(
+            DeviceType::Rotator,
+            device_id,
+            property::ROTATOR_REVERSE,
+            reverse.to_string(),
+        );
+        Ok(())
+    }
+
+    /// `RotatorMoveCompleted` with the angle read back, or `fallback`; also
+    /// after a failed move, so no UI is left showing the rotator as moving.
+    async fn publish_rotator_move_end(&self, device_id: &str, fallback: Option<f64>) {
+        let reached = self.rotator_get_position(device_id).await.ok().or(fallback);
+        if let Some(angle) = reached {
+            self.publish_state_event(EquipmentEvent::RotatorMoveCompleted { angle });
+        }
+    }
+}
 
 impl DeviceManager {
     // Rotator control
@@ -82,8 +161,7 @@ impl DeviceManager {
         }
     }
 
-    /// Move rotator to absolute sky position (degrees)
-    pub async fn rotator_move_absolute(
+    async fn rotator_move_absolute_dispatch(
         &self,
         device_id: &str,
         position: f64,
@@ -168,7 +246,7 @@ impl DeviceManager {
     }
 
     /// Halt rotator motion
-    pub async fn rotator_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn rotator_halt_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -247,7 +325,11 @@ impl DeviceManager {
     /// with the astrometric PA of the last frame. Why dispatch matches
     /// `rotator_move_absolute`: identical driver layout (Alpaca/ASCOM/INDI/
     /// Native) and lock acquisition rules.
-    pub async fn rotator_sync(&self, device_id: &str, position: f64) -> Result<(), DeviceOpError> {
+    async fn rotator_sync_dispatch(
+        &self,
+        device_id: &str,
+        position: f64,
+    ) -> Result<(), DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())
@@ -331,7 +413,7 @@ impl DeviceManager {
 
     /// Set the rotator's reverse-direction flag (IRotatorV3 `Reverse`,
     /// Alpaca `reverse`, INDI `ROTATOR_REVERSE`).
-    pub async fn rotator_set_reverse(
+    async fn rotator_set_reverse_dispatch(
         &self,
         device_id: &str,
         reverse: bool,

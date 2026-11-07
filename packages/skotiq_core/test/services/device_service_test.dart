@@ -496,6 +496,76 @@ void main() {
       expect(state.temperature, 14.3);
     });
 
+    // The native DeviceManager publishes a gain change whoever made it (a
+    // slave through the API, a script); the host UI must show it at once
+    // rather than on the next 5 s camera poll.
+    test('PropertyChanged gain and binning update the slot camera', () async {
+      container.read(cameraStateProvider.notifier)
+        ..setConnecting('camera-1', 'Test Camera')
+        ..setConnected();
+
+      for (final change in const [('Gain', '139'), ('Binning', '2x2')]) {
+        eventStreamController.add(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.equipment,
+            eventType: 'PropertyChanged',
+            data: {
+              'device_type': 'Camera',
+              'device_id': 'camera-1',
+              'property': change.$1,
+              'value': change.$2,
+            },
+          ),
+        );
+      }
+      // A different camera (the guide camera) does not touch the slot.
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'PropertyChanged',
+          data: {
+            'device_type': 'Camera',
+            'device_id': 'guide-camera',
+            'property': 'Gain',
+            'value': '400',
+          },
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final state = container.read(cameraStateProvider);
+      expect(state.gain, 139);
+      expect(state.binning, '2x2');
+    });
+
+    test('FilterChanged event moves the host wheel', () async {
+      container.read(filterWheelStateProvider.notifier)
+        ..setConnecting('wheel-1', 'Test Wheel')
+        ..setConnected(filterNames: const ['L', 'R', 'G', 'B'])
+        ..setMoving(true);
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'FilterChanged',
+          data: {'position': 3, 'filter_name': 'B'},
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final state = container.read(filterWheelStateProvider);
+      expect(state.currentPosition, 3);
+      expect(state.isMoving, isFalse);
+    });
+
     test(
       'FocuserMoveCompleted event updates focuser position and stops moving',
       () async {

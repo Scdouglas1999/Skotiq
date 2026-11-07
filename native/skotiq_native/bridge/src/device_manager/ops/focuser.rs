@@ -8,6 +8,7 @@ use crate::device::*;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
+use crate::event::EquipmentEvent;
 use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
 use tracing::warn;
 // Windows: trait must be in scope so ASCOM wrapper guards resolve its methods.
@@ -17,7 +18,75 @@ use skotiq_native::traits::NativeFocuser;
 impl DeviceManager {
     // Focuser control
 
+    /// Move to an absolute position, publishing `FocuserMoveStarted` before
+    /// the move and `FocuserMoveCompleted` with the position read back after
+    /// it (see [`state_events`]). The read-back is what the focuser reached,
+    /// which after backlash or a stall is not the commanded position.
+    ///
+    /// [`state_events`]: crate::device_manager::ops::state_events
     pub async fn focuser_move_abs(
+        &self,
+        device_id: &str,
+        position: i32,
+    ) -> Result<(), DeviceOpError> {
+        // An unknown id has nothing to report on; answer before announcing a
+        // move that cannot start.
+        if self.registered_driver_type(device_id).await.is_none() {
+            return Err(DeviceOpError::device_not_found(device_id));
+        }
+        self.publish_state_event(EquipmentEvent::FocuserMoveStarted {
+            target_position: position,
+        });
+        let result = self.focuser_move_abs_dispatch(device_id, position).await;
+        self.publish_focuser_move_end(device_id, result.is_ok().then_some(position))
+            .await;
+        result
+    }
+
+    /// Move by `steps`, with the same events as [`Self::focuser_move_abs`].
+    /// `FocuserMoveStarted` needs a target, so it is published only when the
+    /// starting position can be read.
+    pub async fn focuser_move_rel(&self, device_id: &str, steps: i32) -> Result<(), DeviceOpError> {
+        // An unknown id has nothing to report on; answer before announcing a
+        // move that cannot start.
+        if self.registered_driver_type(device_id).await.is_none() {
+            return Err(DeviceOpError::device_not_found(device_id));
+        }
+        let target = self
+            .focuser_get_position(device_id)
+            .await
+            .ok()
+            .map(|from| from.saturating_add(steps));
+        if let Some(target_position) = target {
+            self.publish_state_event(EquipmentEvent::FocuserMoveStarted { target_position });
+        }
+        let result = self.focuser_move_rel_dispatch(device_id, steps).await;
+        self.publish_focuser_move_end(device_id, target.filter(|_| result.is_ok()))
+            .await;
+        result
+    }
+
+    /// Stop the focuser and publish where it stopped.
+    pub async fn focuser_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        let result = self.focuser_halt_dispatch(device_id).await;
+        if result.is_ok() {
+            self.publish_focuser_move_end(device_id, None).await;
+        }
+        result
+    }
+
+    /// `FocuserMoveCompleted` with the position the focuser reads back, or
+    /// `fallback` when it cannot be read. Published after a failed move too,
+    /// so no UI is left showing the focuser as moving; with neither a reading
+    /// nor a fallback there is nothing true to say and nothing is published.
+    async fn publish_focuser_move_end(&self, device_id: &str, fallback: Option<i32>) {
+        let reached = self.focuser_get_position(device_id).await.ok().or(fallback);
+        if let Some(position) = reached {
+            self.publish_state_event(EquipmentEvent::FocuserMoveCompleted { position });
+        }
+    }
+
+    async fn focuser_move_abs_dispatch(
         &self,
         device_id: &str,
         position: i32,
@@ -218,7 +287,11 @@ impl DeviceManager {
         }
     }
 
-    pub async fn focuser_move_rel(&self, device_id: &str, steps: i32) -> Result<(), DeviceOpError> {
+    async fn focuser_move_rel_dispatch(
+        &self,
+        device_id: &str,
+        steps: i32,
+    ) -> Result<(), DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)
@@ -352,7 +425,7 @@ impl DeviceManager {
         }
     }
 
-    pub async fn focuser_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn focuser_halt_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)

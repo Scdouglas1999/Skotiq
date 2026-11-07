@@ -16,8 +16,10 @@
 //! - **usize → i32 filter index** (line 323): same bound — index < count.
 
 use crate::device::*;
+use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
+use crate::event::EquipmentEvent;
 use skotiq_indi::IndiFilterWheel;
 // Windows: trait must be in scope so ASCOM wrapper guards resolve its methods.
 #[cfg(windows)]
@@ -26,7 +28,66 @@ use skotiq_native::traits::NativeFilterWheel;
 impl DeviceManager {
     // Filter wheel control
 
+    /// Move the wheel to a 0-based slot, publishing `FilterChanging` before
+    /// the move and `FilterChanged` once it ends (see [`state_events`]).
+    ///
+    /// A move that fails still publishes `FilterChanged` with the slot the
+    /// wheel reads back, so no UI is left showing the wheel as moving; when
+    /// the wheel cannot be read either, the disconnect handling takes over.
+    ///
+    /// [`state_events`]: crate::device_manager::ops::state_events
     pub async fn filter_wheel_set_position(
+        &self,
+        device_id: &str,
+        position: i32,
+    ) -> Result<(), DeviceOpError> {
+        // An unknown id has nothing to report on; answer before announcing a
+        // move that cannot start.
+        if self.registered_driver_type(device_id).await.is_none() {
+            return Err(DeviceOpError::device_not_found(device_id));
+        }
+        // `-1` is the documented "position unknown" sentinel of
+        // `FilterChanging.from_position`, for a wheel that cannot say where it
+        // is (mid-move, or not homed yet after a reconnect).
+        let from_position = self
+            .filter_wheel_get_position(device_id)
+            .await
+            .unwrap_or(-1);
+        // The Log names slots by the profile's names ("R (2 of 8)"), not by
+        // number.
+        let names = self
+            .filter_wheel_get_config(device_id)
+            .await
+            .map(|(_, names)| names)
+            .unwrap_or_default();
+        let slot_name = |slot: i32| crate::filter_matching::filter_slot_name(&names, slot);
+
+        self.publish_state_event(EquipmentEvent::FilterChanging {
+            from_position,
+            to_position: position,
+            filter_name: slot_name(position),
+            from_filter_name: slot_name(from_position),
+        });
+
+        let result = self
+            .filter_wheel_set_position_dispatch(device_id, position)
+            .await;
+
+        let reached = match &result {
+            Ok(()) => Some(position),
+            Err(_) => self.filter_wheel_get_position(device_id).await.ok(),
+        };
+        if let Some(reached) = reached {
+            self.publish_state_event(EquipmentEvent::FilterChanged {
+                position: reached,
+                filter_name: slot_name(reached),
+            });
+        }
+
+        result
+    }
+
+    async fn filter_wheel_set_position_dispatch(
         &self,
         device_id: &str,
         position: i32,
@@ -490,6 +551,29 @@ impl DeviceManager {
     /// Set filter names on a filter wheel.
     /// This pushes user-defined filter names from the equipment profile to the hardware driver.
     pub async fn filter_wheel_set_filter_names(
+        &self,
+        device_id: &str,
+        names: Vec<String>,
+    ) -> Result<(), DeviceOpError> {
+        self.filter_wheel_set_filter_names_dispatch(device_id, names.clone())
+            .await?;
+        // What the wheel holds now, which for a simulator is fewer names than
+        // were sent when the list was longer than the wheel.
+        let stored = self
+            .filter_wheel_get_config(device_id)
+            .await
+            .map(|(_, names)| names)
+            .unwrap_or(names);
+        self.publish_property_changed(
+            DeviceType::FilterWheel,
+            device_id,
+            property::FILTER_NAMES,
+            serde_json::to_string(&stored).unwrap_or_else(|_| "[]".to_string()),
+        );
+        Ok(())
+    }
+
+    async fn filter_wheel_set_filter_names_dispatch(
         &self,
         device_id: &str,
         names: Vec<String>,

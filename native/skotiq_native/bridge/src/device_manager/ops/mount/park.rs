@@ -1,7 +1,31 @@
 use super::*;
+use crate::event::EquipmentEvent;
 
 impl DeviceManager {
+    /// Park the mount, publishing `MountParkStarted` before the command and
+    /// `MountParkCompleted` once the driver reports it done (see
+    /// `state_events`). A park that fails publishes no completion; the mount
+    /// status polling shows where it stopped.
     pub async fn mount_park(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        if self.registered_driver_type(device_id).await.is_none() {
+            return Err(DeviceOpError::device_not_found(device_id));
+        }
+        self.publish_state_event(EquipmentEvent::MountParkStarted);
+        self.mount_park_dispatch(device_id).await?;
+        self.publish_state_event(EquipmentEvent::MountParkCompleted);
+        Ok(())
+    }
+
+    /// Unpark the mount, publishing `MountUnparked` once it is.
+    pub async fn mount_unpark(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        self.mount_unpark_dispatch(device_id).await?;
+        self.publish_state_event(EquipmentEvent::MountUnparked);
+        Ok(())
+    }
+}
+
+impl DeviceManager {
+    async fn mount_park_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)
@@ -104,7 +128,7 @@ impl DeviceManager {
         }
     }
 
-    pub async fn mount_unpark(&self, device_id: &str) -> Result<(), DeviceOpError> {
+    async fn mount_unpark_dispatch(&self, device_id: &str) -> Result<(), DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)

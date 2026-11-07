@@ -237,6 +237,12 @@ void _applyEquipmentTelemetry(
       }
       break;
 
+    // Settings with no event of their own (gain, offset, binning, slot names,
+    // rotator sync and reverse, switch writes, dome slaving).
+    case 'PropertyChanged':
+      applyDevicePropertyChange(reader, data);
+      break;
+
     // Rotator
     case 'RotatorMoveStarted':
       _read(reader, rotatorStateProvider.notifier).setMoving(true);

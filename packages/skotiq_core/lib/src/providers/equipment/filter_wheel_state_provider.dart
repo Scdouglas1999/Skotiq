@@ -275,6 +275,12 @@ class FilterWheelStateNotifier extends StateNotifier<FilterWheelState>
     state = state.copyWith(currentPosition: position);
   }
 
+  /// The slot names the wheel now holds, from the host's `FilterNames`
+  /// property event.
+  void setFilterNames(List<String> names) {
+    state = state.copyWith(filterNames: names);
+  }
+
   void setMoving(bool moving) {
     state = state.copyWith(isMoving: moving);
   }

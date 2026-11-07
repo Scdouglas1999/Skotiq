@@ -61,7 +61,8 @@ Future<void> apiCameraSetReadoutMode({
   modeIndex: modeIndex,
 );
 
-/// Set camera binning
+/// Set camera binning. Simulators go through the `DeviceManager` like every
+/// other driver, so the change publishes its event whoever asked.
 Future<void> apiSetCameraBinning({
   required String deviceId,
   required int binX,

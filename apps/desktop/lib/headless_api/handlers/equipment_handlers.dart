@@ -45,6 +45,16 @@ class EquipmentHandlers {
     return json;
   }
 
+  /// Drop every shared status read, so the next status request reads the
+  /// device again.
+  ///
+  /// Called after any command request and on every equipment event. A slave
+  /// reads a focuser's status, moves it, then reads it again to confirm the
+  /// move; inside [statusShareWindow] that second read was answered with the
+  /// first, from before the move, so the slave reported a stall and wrote the
+  /// old position over the host's `FocuserMoveCompleted` event.
+  void forgetSharedStatus() => _sharedStatus.clear();
+
   LoggingService get _logger => container.read(loggingServiceProvider);
 
   void _logInfo(String message) =>
