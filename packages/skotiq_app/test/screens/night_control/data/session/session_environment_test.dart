@@ -604,6 +604,7 @@ void main() {
                 sk_events.EquipmentEvent.connected(
                   deviceType: 'Rotator',
                   deviceId: 'sim_rotator_1',
+                  deviceName: 'Simulated Rotator',
                 ),
               ),
             ),

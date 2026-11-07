@@ -649,11 +649,13 @@ typedef struct wire_cst_dome_capabilities {
 typedef struct wire_cst_EquipmentEvent_Connecting {
   struct wire_cst_list_prim_u_8_strict *device_type;
   struct wire_cst_list_prim_u_8_strict *device_id;
+  struct wire_cst_list_prim_u_8_strict *device_name;
 } wire_cst_EquipmentEvent_Connecting;
 
 typedef struct wire_cst_EquipmentEvent_Connected {
   struct wire_cst_list_prim_u_8_strict *device_type;
   struct wire_cst_list_prim_u_8_strict *device_id;
+  struct wire_cst_list_prim_u_8_strict *device_name;
 } wire_cst_EquipmentEvent_Connected;
 
 typedef struct wire_cst_EquipmentEvent_Disconnected {
@@ -724,6 +726,14 @@ typedef struct wire_cst_EquipmentEvent_CameraCoolingReached {
   double temperature;
 } wire_cst_EquipmentEvent_CameraCoolingReached;
 
+typedef struct wire_cst_EquipmentEvent_CameraSettingsChanged {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+  int32_t gain;
+  int32_t offset;
+  int32_t bin_x;
+  int32_t bin_y;
+} wire_cst_EquipmentEvent_CameraSettingsChanged;
+
 typedef struct wire_cst_EquipmentEvent_HeartbeatStarted {
   struct wire_cst_list_prim_u_8_strict *device_type;
   struct wire_cst_list_prim_u_8_strict *device_id;
@@ -788,6 +798,7 @@ typedef union EquipmentEventKind {
   struct wire_cst_EquipmentEvent_RotatorMoveCompleted RotatorMoveCompleted;
   struct wire_cst_EquipmentEvent_CameraCoolingStarted CameraCoolingStarted;
   struct wire_cst_EquipmentEvent_CameraCoolingReached CameraCoolingReached;
+  struct wire_cst_EquipmentEvent_CameraSettingsChanged CameraSettingsChanged;
   struct wire_cst_EquipmentEvent_HeartbeatStarted HeartbeatStarted;
   struct wire_cst_EquipmentEvent_HeartbeatStopped HeartbeatStopped;
   struct wire_cst_EquipmentEvent_HeartbeatStatusChanged HeartbeatStatusChanged;

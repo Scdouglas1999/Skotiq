@@ -167,6 +167,10 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Legacy camera temperature event (keep for backward compatibility)
+      case 'CameraSettingsChanged':
+        applyCameraSettings(_ref, data);
+        break;
+
       case 'PropertyChanged':
         // Gain, offset, binning, slot names and the other settings the native
         // DeviceManager publishes whoever changed them.
@@ -180,30 +184,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Legacy mount position event (keep for backward compatibility)
-      case 'MountPositionChanged':
-        final ra = (data['ra'] as num).toDouble();
-        final dec = (data['dec'] as num).toDouble();
-        final alt = (data['altitude'] as num?)?.toDouble() ?? 0.0;
-        final az = (data['azimuth'] as num?)?.toDouble() ?? 0.0;
-        _ref.read(mountStateProvider.notifier).updatePosition(ra, dec, alt, az);
-
-        if (data['isSlewing'] != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .setSlewing(data['isSlewing'] as bool);
-        }
-        if (data['isTracking'] != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .setTracking(data['isTracking'] as bool);
-        }
-        if (data['isParked'] != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .setParked(data['isParked'] as bool);
-        }
-        break;
-
       // Mount Slew Events
       case 'MountSlewStarted':
         _ref.read(mountStateProvider.notifier).setSlewing(true);
@@ -268,21 +248,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Legacy focuser position event (keep for backward compatibility)
-      case 'FocuserPositionChanged':
-        final pos = data['position'] as int;
-        _ref.read(focuserStateProvider.notifier).updatePosition(pos);
-        if (data['isMoving'] != null) {
-          _ref
-              .read(focuserStateProvider.notifier)
-              .setMoving(data['isMoving'] as bool);
-        }
-        if (data['temperature'] != null) {
-          _ref
-              .read(focuserStateProvider.notifier)
-              .updateTemperature((data['temperature'] as num).toDouble());
-        }
-        break;
-
       // Focuser Events
       case 'FocuserMoveStarted':
         _ref.read(focuserStateProvider.notifier).setMoving(true);
@@ -309,16 +274,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Legacy filter wheel position event (keep for backward compatibility)
-      case 'FilterWheelPositionChanged':
-        final pos = data['position'] as int;
-        _ref.read(filterWheelStateProvider.notifier).updatePosition(pos);
-        if (data['isMoving'] != null) {
-          _ref
-              .read(filterWheelStateProvider.notifier)
-              .setMoving(data['isMoving'] as bool);
-        }
-        break;
-
       // Filter Wheel Events
       case 'FilterChanging':
         _ref.read(filterWheelStateProvider.notifier).setMoving(true);

@@ -349,19 +349,25 @@ async fn camera_settings_publish_once_per_change() {
         .await
         .unwrap();
 
-    let events = drain(&mut rx);
-    assert_eq!(
-        property_values(&events, CAMERA, property::GAIN),
-        vec!["139", "140"]
-    );
-    assert_eq!(
-        property_values(&events, CAMERA, property::OFFSET),
-        vec!["21"]
-    );
-    assert_eq!(
-        property_values(&events, CAMERA, property::BINNING),
-        vec!["2x2"]
-    );
+    // One event per change, each carrying the camera's full settings.
+    let settings: Vec<(i32, i32, i32, i32)> = drain(&mut rx)
+        .into_iter()
+        .filter_map(|e| match e {
+            EquipmentEvent::CameraSettingsChanged {
+                device_id,
+                gain,
+                offset,
+                bin_x,
+                bin_y,
+            } if device_id == CAMERA => Some((gain, offset, bin_x, bin_y)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(settings.len(), 4, "{settings:?}");
+    assert_eq!(settings[0].0, 139);
+    assert_eq!(settings[1].0, 140);
+    assert_eq!((settings[2].0, settings[2].1), (140, 21));
+    assert_eq!(settings[3], (140, 21, 2, 2));
     // Binning used to be written straight into the simulator, past the manager.
     let status = sim::get_sim_camera_for(CAMERA).read().await.status.clone();
     assert_eq!((status.bin_x, status.bin_y), (2, 2));
@@ -639,4 +645,44 @@ async fn switch_and_cover_commands_publish_once() {
     crate::api::devices::switch::api_switch_set_state(SWITCH.to_string(), 0, false)
         .await
         .unwrap();
+}
+
+/// `Connected` names the device, and a camera publishes its settings on
+/// connect, so a client that links later shows them without a poll.
+#[tokio::test]
+async fn a_camera_connect_names_it_and_publishes_its_settings() {
+    let _serialized = sim::sim_singleton_test_lock().lock().await;
+    let mut rx = get_state().event_bus.subscribe();
+    let info = DeviceInfo {
+        id: CAMERA.to_string(),
+        name: "Simulated Camera".to_string(),
+        device_type: DeviceType::Camera,
+        driver_type: DriverType::Simulator,
+        description: String::new(),
+        driver_version: String::new(),
+        serial_number: None,
+        unique_id: None,
+        display_name: String::new(),
+    };
+    get_device_manager().register_device(info, false).await;
+
+    get_device_manager().connect_device(CAMERA).await.unwrap();
+
+    let events = drain(&mut rx);
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            EquipmentEvent::Connected { device_id, device_name, .. }
+                if device_id == CAMERA && device_name == "Simulated Camera"
+        )),
+        "{events:?}"
+    );
+    assert_eq!(
+        count(&events, |e| matches!(
+            e,
+            EquipmentEvent::CameraSettingsChanged { device_id, .. } if device_id == CAMERA
+        )),
+        1,
+        "{events:?}"
+    );
 }

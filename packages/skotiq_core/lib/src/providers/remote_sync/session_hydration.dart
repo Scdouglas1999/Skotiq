@@ -331,6 +331,15 @@ Future<void> _hydrateDeviceTelemetry(
       notifier.updateTemperature(temp, camera.coolerPower);
     }
     notifier.setCooling(camera.coolerOn);
+    // The slave never runs the host's camera poller, so this and
+    // `CameraSettingsChanged` are its only sources for gain, offset and
+    // binning; without it the slave's camera row showed none of them.
+    notifier.updateReadout(
+      gain: camera.gain,
+      offset: camera.offset,
+      binX: camera.binX,
+      binY: camera.binY,
+    );
     final target = camera.targetTemp;
     if (target != null) {
       notifier.setTargetTemp(target);

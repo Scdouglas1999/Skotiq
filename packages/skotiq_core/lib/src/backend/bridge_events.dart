@@ -72,6 +72,7 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         EquipmentEvent_CameraCoolingReached,
         EquipmentEvent_CameraWarmingStarted,
         EquipmentEvent_CameraWarmingCompleted,
+        EquipmentEvent_CameraSettingsChanged,
         EquipmentEvent_HeartbeatStarted,
         EquipmentEvent_HeartbeatStopped,
         EquipmentEvent_HeartbeatStatusChanged,

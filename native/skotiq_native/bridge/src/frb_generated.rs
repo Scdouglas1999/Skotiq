@@ -12627,17 +12627,21 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
             0 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_deviceName = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::Connecting {
                     device_type: var_deviceType,
                     device_id: var_deviceId,
+                    device_name: var_deviceName,
                 };
             }
             1 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_deviceName = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::Connected {
                     device_type: var_deviceType,
                     device_id: var_deviceId,
+                    device_name: var_deviceName,
                 };
             }
             2 => {
@@ -12770,6 +12774,20 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 return crate::event::equipment::EquipmentEvent::CameraWarmingCompleted;
             }
             23 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_gain = <i32>::sse_decode(deserializer);
+                let mut var_offset = <i32>::sse_decode(deserializer);
+                let mut var_binX = <i32>::sse_decode(deserializer);
+                let mut var_binY = <i32>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
+                    device_id: var_deviceId,
+                    gain: var_gain,
+                    offset: var_offset,
+                    bin_x: var_binX,
+                    bin_y: var_binY,
+                };
+            }
+            24 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_intervalSecs = <u64>::sse_decode(deserializer);
@@ -12779,7 +12797,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     interval_secs: var_intervalSecs,
                 };
             }
-            24 => {
+            25 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::HeartbeatStopped {
@@ -12787,7 +12805,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     device_id: var_deviceId,
                 };
             }
-            25 => {
+            26 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_status =
@@ -12802,7 +12820,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     last_rtt_ms: var_lastRttMs,
                 };
             }
-            26 => {
+            27 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_attempt = <u32>::sse_decode(deserializer);
@@ -12814,7 +12832,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     max_attempts: var_maxAttempts,
                 };
             }
-            27 => {
+            28 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_afterAttempts = <u32>::sse_decode(deserializer);
@@ -12824,7 +12842,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     after_attempts: var_afterAttempts,
                 };
             }
-            28 => {
+            29 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -12840,7 +12858,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     unique_id: var_uniqueId,
                 };
             }
-            29 => {
+            30 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -18172,19 +18190,23 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::Connecting {
                 device_type,
                 device_id,
+                device_name,
             } => [
                 0.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
+                device_name.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::Connected {
                 device_type,
                 device_id,
+                device_name,
             } => [
                 1.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
+                device_name.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::Disconnected {
@@ -18294,12 +18316,27 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::CameraWarmingCompleted => {
                 [22.into_dart()].into_dart()
             }
+            crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
+                device_id,
+                gain,
+                offset,
+                bin_x,
+                bin_y,
+            } => [
+                23.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                gain.into_into_dart().into_dart(),
+                offset.into_into_dart().into_dart(),
+                bin_x.into_into_dart().into_dart(),
+                bin_y.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                 device_type,
                 device_id,
                 interval_secs,
             } => [
-                23.into_dart(),
+                24.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 interval_secs.into_into_dart().into_dart(),
@@ -18309,7 +18346,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => [
-                24.into_dart(),
+                25.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
             ]
@@ -18321,7 +18358,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => [
-                25.into_dart(),
+                26.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 status.into_into_dart().into_dart(),
@@ -18335,7 +18372,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => [
-                26.into_dart(),
+                27.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 attempt.into_into_dart().into_dart(),
@@ -18347,7 +18384,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => [
-                27.into_dart(),
+                28.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 after_attempts.into_into_dart().into_dart(),
@@ -18361,7 +18398,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => [
-                28.into_dart(),
+                29.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -18375,7 +18412,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => [
-                29.into_dart(),
+                30.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -22569,18 +22606,22 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::Connecting {
                 device_type,
                 device_id,
+                device_name,
             } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(device_name, serializer);
             }
             crate::event::equipment::EquipmentEvent::Connected {
                 device_type,
                 device_id,
+                device_name,
             } => {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(device_name, serializer);
             }
             crate::event::equipment::EquipmentEvent::Disconnected {
                 device_type,
@@ -22691,12 +22732,26 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::CameraWarmingCompleted => {
                 <i32>::sse_encode(22, serializer);
             }
+            crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
+                device_id,
+                gain,
+                offset,
+                bin_x,
+                bin_y,
+            } => {
+                <i32>::sse_encode(23, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <i32>::sse_encode(gain, serializer);
+                <i32>::sse_encode(offset, serializer);
+                <i32>::sse_encode(bin_x, serializer);
+                <i32>::sse_encode(bin_y, serializer);
+            }
             crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                 device_type,
                 device_id,
                 interval_secs,
             } => {
-                <i32>::sse_encode(23, serializer);
+                <i32>::sse_encode(24, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u64>::sse_encode(interval_secs, serializer);
@@ -22705,7 +22760,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => {
-                <i32>::sse_encode(24, serializer);
+                <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
@@ -22716,7 +22771,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => {
-                <i32>::sse_encode(25, serializer);
+                <i32>::sse_encode(26, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <crate::event::equipment::HeartbeatStatus>::sse_encode(status, serializer);
@@ -22729,7 +22784,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => {
-                <i32>::sse_encode(26, serializer);
+                <i32>::sse_encode(27, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(attempt, serializer);
@@ -22740,7 +22795,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => {
-                <i32>::sse_encode(27, serializer);
+                <i32>::sse_encode(28, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(after_attempts, serializer);
@@ -22753,7 +22808,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => {
-                <i32>::sse_encode(28, serializer);
+                <i32>::sse_encode(29, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -22766,7 +22821,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => {
-                <i32>::sse_encode(29, serializer);
+                <i32>::sse_encode(30, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -27168,6 +27223,7 @@ mod io {
                     crate::event::equipment::EquipmentEvent::Connecting {
                         device_type: ans.device_type.cst_decode(),
                         device_id: ans.device_id.cst_decode(),
+                        device_name: ans.device_name.cst_decode(),
                     }
                 }
                 1 => {
@@ -27175,6 +27231,7 @@ mod io {
                     crate::event::equipment::EquipmentEvent::Connected {
                         device_type: ans.device_type.cst_decode(),
                         device_id: ans.device_id.cst_decode(),
+                        device_name: ans.device_name.cst_decode(),
                     }
                 }
                 2 => {
@@ -27281,6 +27338,16 @@ mod io {
                 21 => crate::event::equipment::EquipmentEvent::CameraWarmingStarted,
                 22 => crate::event::equipment::EquipmentEvent::CameraWarmingCompleted,
                 23 => {
+                    let ans = unsafe { self.kind.CameraSettingsChanged };
+                    crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
+                        device_id: ans.device_id.cst_decode(),
+                        gain: ans.gain.cst_decode(),
+                        offset: ans.offset.cst_decode(),
+                        bin_x: ans.bin_x.cst_decode(),
+                        bin_y: ans.bin_y.cst_decode(),
+                    }
+                }
+                24 => {
                     let ans = unsafe { self.kind.HeartbeatStarted };
                     crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                         device_type: ans.device_type.cst_decode(),
@@ -27288,14 +27355,14 @@ mod io {
                         interval_secs: ans.interval_secs.cst_decode(),
                     }
                 }
-                24 => {
+                25 => {
                     let ans = unsafe { self.kind.HeartbeatStopped };
                     crate::event::equipment::EquipmentEvent::HeartbeatStopped {
                         device_type: ans.device_type.cst_decode(),
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                25 => {
+                26 => {
                     let ans = unsafe { self.kind.HeartbeatStatusChanged };
                     crate::event::equipment::EquipmentEvent::HeartbeatStatusChanged {
                         device_type: ans.device_type.cst_decode(),
@@ -27305,7 +27372,7 @@ mod io {
                         last_rtt_ms: ans.last_rtt_ms.cst_decode(),
                     }
                 }
-                26 => {
+                27 => {
                     let ans = unsafe { self.kind.HeartbeatReconnecting };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnecting {
                         device_type: ans.device_type.cst_decode(),
@@ -27314,7 +27381,7 @@ mod io {
                         max_attempts: ans.max_attempts.cst_decode(),
                     }
                 }
-                27 => {
+                28 => {
                     let ans = unsafe { self.kind.HeartbeatReconnected };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnected {
                         device_type: ans.device_type.cst_decode(),
@@ -27322,7 +27389,7 @@ mod io {
                         after_attempts: ans.after_attempts.cst_decode(),
                     }
                 }
-                28 => {
+                29 => {
                     let ans = unsafe { self.kind.DeviceDiscovered };
                     crate::event::equipment::EquipmentEvent::DeviceDiscovered {
                         device_class: ans.device_class.cst_decode(),
@@ -27333,7 +27400,7 @@ mod io {
                         unique_id: ans.unique_id.cst_decode(),
                     }
                 }
-                29 => {
+                30 => {
                     let ans = unsafe { self.kind.DeviceLost };
                     crate::event::equipment::EquipmentEvent::DeviceLost {
                         device_class: ans.device_class.cst_decode(),
@@ -38068,6 +38135,7 @@ mod io {
         RotatorMoveCompleted: wire_cst_EquipmentEvent_RotatorMoveCompleted,
         CameraCoolingStarted: wire_cst_EquipmentEvent_CameraCoolingStarted,
         CameraCoolingReached: wire_cst_EquipmentEvent_CameraCoolingReached,
+        CameraSettingsChanged: wire_cst_EquipmentEvent_CameraSettingsChanged,
         HeartbeatStarted: wire_cst_EquipmentEvent_HeartbeatStarted,
         HeartbeatStopped: wire_cst_EquipmentEvent_HeartbeatStopped,
         HeartbeatStatusChanged: wire_cst_EquipmentEvent_HeartbeatStatusChanged,
@@ -38082,12 +38150,14 @@ mod io {
     pub struct wire_cst_EquipmentEvent_Connecting {
         device_type: *mut wire_cst_list_prim_u_8_strict,
         device_id: *mut wire_cst_list_prim_u_8_strict,
+        device_name: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_Connected {
         device_type: *mut wire_cst_list_prim_u_8_strict,
         device_id: *mut wire_cst_list_prim_u_8_strict,
+        device_name: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -38170,6 +38240,15 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_CameraCoolingReached {
         temperature: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_CameraSettingsChanged {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        gain: i32,
+        offset: i32,
+        bin_x: i32,
+        bin_y: i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

@@ -23,6 +23,9 @@ use crate::state::SharedAppState;
 /// `PropertyChanged.property` names for settings with no event of their own.
 /// The Dart consumers match on these strings.
 pub(crate) mod property {
+    // Gain, offset and binning ride `CameraSettingsChanged`, which carries all
+    // three; these name them only when the camera's status cannot be read
+    // back after the change.
     pub const GAIN: &str = "Gain";
     pub const OFFSET: &str = "Offset";
     /// Value `"<x>x<y>"`, for example `"2x2"`.
@@ -54,7 +57,41 @@ pub(crate) mod property {
     pub const DOME_SLAVED: &str = "Slaved";
 }
 
+impl crate::device::DeviceInfo {
+    /// The name a device is shown by: its display name, else its driver name,
+    /// else its id.
+    pub(crate) fn shown_name(&self) -> String {
+        [&self.display_name, &self.name]
+            .into_iter()
+            .find(|name| !name.trim().is_empty())
+            .cloned()
+            .unwrap_or_else(|| self.id.clone())
+    }
+}
+
 impl DeviceManager {
+    /// Publish the camera's readout settings as it now reports them
+    /// (`CameraSettingsChanged`). A camera whose status cannot be read has no
+    /// settings to report, and nothing is published.
+    pub(crate) async fn publish_camera_settings(&self, device_id: &str) -> bool {
+        match self.camera_get_status(device_id).await {
+            Ok(status) => {
+                self.publish_state_event(EquipmentEvent::CameraSettingsChanged {
+                    device_id: device_id.to_string(),
+                    gain: status.gain,
+                    offset: status.offset,
+                    bin_x: status.bin_x,
+                    bin_y: status.bin_y,
+                });
+                true
+            }
+            Err(e) => {
+                tracing::debug!("No camera settings to publish for {}: {}", device_id, e);
+                false
+            }
+        }
+    }
+
     /// Publish one device state change.
     pub(crate) fn publish_state_event(&self, event: EquipmentEvent) {
         self.app_state

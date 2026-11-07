@@ -39,7 +39,33 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    await backend.filterWheelSetPosition(deviceId, position);
+    // The wheel in the host's slot moves through DeviceService, the path the
+    // host's own UI takes, so a slave's, phone's or script's filter change
+    // also applies the per-filter focus offset. Any other wheel goes straight
+    // to the driver.
+    // A wheel nobody connected through DeviceService has no slot, and
+    // creating the slot provider here would only start its profile listener.
+    final slot = container.exists(filterWheelStateProvider)
+        ? container.read(filterWheelStateProvider)
+        : null;
+    if (slot != null &&
+        slot.deviceId == deviceId &&
+        slot.connectionState == DeviceConnectionState.connected) {
+      try {
+        await container
+            .read(deviceServiceProvider)
+            .setFilterWheelPosition(position);
+      } on StateError catch (e) {
+        return jsonError(
+          code: 'device_busy',
+          message: e.message,
+          statusCode: HttpStatus.conflict,
+          details: {'deviceId': deviceId},
+        );
+      }
+    } else {
+      await backend.filterWheelSetPosition(deviceId, position);
+    }
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,

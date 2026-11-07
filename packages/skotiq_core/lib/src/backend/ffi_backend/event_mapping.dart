@@ -211,6 +211,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         {
           'device_type': equipmentEvent.deviceType,
           'device_id': equipmentEvent.deviceId,
+          'device_name': equipmentEvent.deviceName,
         },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_Connected) {
@@ -219,6 +220,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         {
           'device_type': equipmentEvent.deviceType,
           'device_id': equipmentEvent.deviceId,
+          'device_name': equipmentEvent.deviceName,
         },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_Disconnected) {
@@ -350,6 +352,17 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return ('CameraWarmingStarted', {});
     } else if (equipmentEvent is bridge.EquipmentEvent_CameraWarmingCompleted) {
       return ('CameraWarmingCompleted', {});
+    } else if (equipmentEvent is bridge.EquipmentEvent_CameraSettingsChanged) {
+      return (
+        'CameraSettingsChanged',
+        {
+          'device_id': equipmentEvent.deviceId,
+          'gain': equipmentEvent.gain,
+          'offset': equipmentEvent.offset,
+          'bin_x': equipmentEvent.binX,
+          'bin_y': equipmentEvent.binY,
+        },
+      );
     }
     // Heartbeat events. Rust publishes these from
     // `device_manager::heartbeat` so per-device-card health indicators

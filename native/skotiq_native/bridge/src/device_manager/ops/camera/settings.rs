@@ -3,19 +3,21 @@ use crate::device_manager::ops::state_events::property;
 use crate::event::EquipmentEvent;
 
 impl DeviceManager {
-    // Each setter publishes `PropertyChanged` once the camera accepted the
-    // value (see `state_events`), so every UI shows the new setting without
-    // waiting for its next status poll.
+    // Each setter publishes the camera's settings once it accepted the value
+    // (`CameraSettingsChanged`, see `state_events`), so every UI shows the new
+    // setting without waiting for its next status poll.
 
     /// Set camera gain
     pub async fn camera_set_gain(&self, device_id: &str, gain: i32) -> Result<(), DeviceOpError> {
         self.camera_set_gain_dispatch(device_id, gain).await?;
-        self.publish_property_changed(
-            DeviceType::Camera,
-            device_id,
-            property::GAIN,
-            gain.to_string(),
-        );
+        if !self.publish_camera_settings(device_id).await {
+            self.publish_property_changed(
+                DeviceType::Camera,
+                device_id,
+                property::GAIN,
+                gain.to_string(),
+            );
+        }
         Ok(())
     }
 
@@ -26,12 +28,14 @@ impl DeviceManager {
         offset: i32,
     ) -> Result<(), DeviceOpError> {
         self.camera_set_offset_dispatch(device_id, offset).await?;
-        self.publish_property_changed(
-            DeviceType::Camera,
-            device_id,
-            property::OFFSET,
-            offset.to_string(),
-        );
+        if !self.publish_camera_settings(device_id).await {
+            self.publish_property_changed(
+                DeviceType::Camera,
+                device_id,
+                property::OFFSET,
+                offset.to_string(),
+            );
+        }
         Ok(())
     }
 
@@ -44,12 +48,14 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         self.camera_set_binning_dispatch(device_id, bin_x, bin_y)
             .await?;
-        self.publish_property_changed(
-            DeviceType::Camera,
-            device_id,
-            property::BINNING,
-            format!("{bin_x}x{bin_y}"),
-        );
+        if !self.publish_camera_settings(device_id).await {
+            self.publish_property_changed(
+                DeviceType::Camera,
+                device_id,
+                property::BINNING,
+                format!("{bin_x}x{bin_y}"),
+            );
+        }
         Ok(())
     }
 

@@ -127,6 +127,23 @@ void main() {
     expect(camera.binning, '2x2');
   });
 
+  test('the camera\'s full settings reach the slave in one event', () async {
+    await mirror(
+      _equipment('CameraSettingsChanged', {
+        'device_id': 'sim_camera_1',
+        'gain': 139,
+        'offset': 21,
+        'bin_x': 2,
+        'bin_y': 2,
+      }),
+    );
+
+    final camera = container.read(cameraStateProvider);
+    expect(camera.gain, 139);
+    expect(camera.offset, 21);
+    expect(camera.binning, '2x2');
+  });
+
   test('a guide camera setting leaves the imaging camera alone', () async {
     container.read(cameraStateProvider.notifier).applySetting(gain: 100);
 

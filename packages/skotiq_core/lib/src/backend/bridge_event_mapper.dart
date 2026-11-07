@@ -115,6 +115,7 @@ const Map<core.EventCategory, Set<String>> _faithfulCoreEventTypes = {
     'CameraCoolingReached',
     'CameraWarmingStarted',
     'CameraWarmingCompleted',
+    'CameraSettingsChanged',
     'HeartbeatStarted',
     'HeartbeatStopped',
     'HeartbeatStatusChanged',
@@ -785,10 +786,19 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       return const bridge.EquipmentEvent.cameraWarmingStarted();
     case 'CameraWarmingCompleted':
       return const bridge.EquipmentEvent.cameraWarmingCompleted();
+    case 'CameraSettingsChanged':
+      return bridge.EquipmentEvent.cameraSettingsChanged(
+        deviceId: _stringField(data, 'device_id'),
+        gain: _intField(data, 'gain'),
+        offset: _intField(data, 'offset'),
+        binX: _intField(data, 'bin_x'),
+        binY: _intField(data, 'bin_y'),
+      );
     case 'Connecting':
       return bridge.EquipmentEvent.connecting(
         deviceType: _stringField(data, 'device_type'),
         deviceId: _stringField(data, 'device_id'),
+        deviceName: _deviceName(data),
       );
     case 'AutofocusProgress':
     case 'FocuserBacklashCalibrationProgress':
@@ -841,6 +851,7 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       return bridge.EquipmentEvent.connected(
         deviceType: _stringField(data, 'device_type'),
         deviceId: _stringField(data, 'device_id'),
+        deviceName: _deviceName(data),
       );
     case 'Disconnected':
       return bridge.EquipmentEvent.disconnected(
@@ -1043,6 +1054,14 @@ String _stringField(Map<String, dynamic> data, String key) {
   final value = data[key];
   if (value is String && value.isNotEmpty) return value;
   throw FormatException('Missing required string field "$key" in event data');
+}
+
+/// The device's name; a host from before events carried one sends only the
+/// id, which is what such a host's clients showed.
+String _deviceName(Map<String, dynamic> data) {
+  final name = data['device_name'];
+  if (name is String && name.isNotEmpty) return name;
+  return _stringField(data, 'device_id');
 }
 
 String? _optionalString(Map<String, dynamic> data, String key) {

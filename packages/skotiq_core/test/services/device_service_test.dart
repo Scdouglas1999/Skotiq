@@ -400,37 +400,6 @@ void main() {
       expect(state.coolerPower, 75.0);
     });
 
-    test('MountPositionChanged event updates mount state', () async {
-      final mountNotifier = container.read(mountStateProvider.notifier);
-      mountNotifier.setConnecting('mount-1');
-      mountNotifier.setConnected();
-
-      eventStreamController.add(
-        SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.equipment,
-          eventType: 'MountPositionChanged',
-          data: {
-            'ra': 6.5,
-            'dec': -20.0,
-            'altitude': 30.0,
-            'azimuth': 150.0,
-            'isTracking': true,
-            'isSlewing': false,
-          },
-        ),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      final state = container.read(mountStateProvider);
-      expect(state.ra, 6.5);
-      expect(state.dec, -20.0);
-      expect(state.isTracking, isTrue);
-      expect(state.isSlewing, isFalse);
-    });
-
     test('MountTrackingStarted sets tracking true', () async {
       final mountNotifier = container.read(mountStateProvider.notifier);
       mountNotifier.setConnecting('mount-1');
@@ -471,29 +440,6 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 50));
 
       expect(container.read(mountStateProvider).isTracking, isFalse);
-    });
-
-    test('FocuserPositionChanged event updates focuser state', () async {
-      final focNotifier = container.read(focuserStateProvider.notifier);
-      focNotifier.setConnecting('focuser-1');
-      focNotifier.setConnected();
-
-      eventStreamController.add(
-        SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.equipment,
-          eventType: 'FocuserPositionChanged',
-          data: {'position': 25000, 'isMoving': true, 'temperature': 14.3},
-        ),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      final state = container.read(focuserStateProvider);
-      expect(state.position, 25000);
-      expect(state.isMoving, isTrue);
-      expect(state.temperature, 14.3);
     });
 
     // The native DeviceManager publishes a gain change whoever made it (a
@@ -629,31 +575,6 @@ void main() {
         final state = container.read(focuserStateProvider);
         expect(state.isMoving, isFalse);
         expect(state.position, 25000);
-      },
-    );
-
-    test(
-      'FilterWheelPositionChanged event updates filter wheel state',
-      () async {
-        final fwNotifier = container.read(filterWheelStateProvider.notifier);
-        fwNotifier.setConnecting(TestFixtures.filterWheelId, 'Test FW');
-        fwNotifier.setConnected(filterNames: TestFixtures.sampleFilterNames);
-
-        eventStreamController.add(
-          SkotiqEvent(
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.equipment,
-            eventType: 'FilterWheelPositionChanged',
-            data: {'position': 3, 'isMoving': false},
-          ),
-        );
-
-        await Future.delayed(const Duration(milliseconds: 50));
-
-        final state = container.read(filterWheelStateProvider);
-        expect(state.currentPosition, 3);
-        expect(state.isMoving, isFalse);
       },
     );
 

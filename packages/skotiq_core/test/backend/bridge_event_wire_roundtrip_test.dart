@@ -265,6 +265,14 @@ void main() {
       const bridge.EquipmentEvent.connecting(
         deviceType: 'camera',
         deviceId: 'c',
+        deviceName: 'ZWO ASI1600MM',
+      ),
+      const bridge.EquipmentEvent.cameraSettingsChanged(
+        deviceId: 'c',
+        gain: 139,
+        offset: 21,
+        binX: 2,
+        binY: 2,
       ),
       const bridge.EquipmentEvent.error(
         deviceType: 'mount',

@@ -12,13 +12,17 @@ part 'equipment.freezed.dart';
 sealed class EquipmentEvent with _$EquipmentEvent {
   const EquipmentEvent._();
 
+  /// `device_name` is the name the device is shown by, so a linked client
+  /// that never ran discovery labels it the way the host does.
   const factory EquipmentEvent.connecting({
     required String deviceType,
     required String deviceId,
+    required String deviceName,
   }) = EquipmentEvent_Connecting;
   const factory EquipmentEvent.connected({
     required String deviceType,
     required String deviceId,
+    required String deviceName,
   }) = EquipmentEvent_Connected;
   const factory EquipmentEvent.disconnected({
     required String deviceType,
@@ -88,6 +92,17 @@ sealed class EquipmentEvent with _$EquipmentEvent {
       EquipmentEvent_CameraWarmingStarted;
   const factory EquipmentEvent.cameraWarmingCompleted() =
       EquipmentEvent_CameraWarmingCompleted;
+
+  /// The camera's readout settings as it reports them, published after a
+  /// gain, offset or binning change and once on connect. Every field is
+  /// the camera's full current value, not only the one that changed.
+  const factory EquipmentEvent.cameraSettingsChanged({
+    required String deviceId,
+    required int gain,
+    required int offset,
+    required int binX,
+    required int binY,
+  }) = EquipmentEvent_CameraSettingsChanged;
   const factory EquipmentEvent.heartbeatStarted({
     required String deviceType,
     required String deviceId,

@@ -44,13 +44,17 @@ pub enum HeartbeatStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EquipmentEvent {
     // Generic device events
+    /// `device_name` is the name the device is shown by, so a linked client
+    /// that never ran discovery labels it the way the host does.
     Connecting {
         device_type: String,
         device_id: String,
+        device_name: String,
     },
     Connected {
         device_type: String,
         device_id: String,
+        device_name: String,
     },
     Disconnected {
         device_type: String,
@@ -125,6 +129,16 @@ pub enum EquipmentEvent {
     },
     CameraWarmingStarted,
     CameraWarmingCompleted,
+    /// The camera's readout settings as it reports them, published after a
+    /// gain, offset or binning change and once on connect. Every field is
+    /// the camera's full current value, not only the one that changed.
+    CameraSettingsChanged {
+        device_id: String,
+        gain: i32,
+        offset: i32,
+        bin_x: i32,
+        bin_y: i32,
+    },
 
     // Heartbeat monitoring events
     HeartbeatStarted {

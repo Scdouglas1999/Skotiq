@@ -335,6 +335,7 @@ impl DeviceManager {
             EquipmentEvent::Connecting {
                 device_type: info.device_type.as_str().to_string(),
                 device_id: device_id.clone(),
+                device_name: info.shown_name(),
             },
             EventSeverity::Info,
         );
@@ -438,9 +439,16 @@ impl DeviceManager {
                     EquipmentEvent::Connected {
                         device_type: info.device_type.as_str().to_string(),
                         device_id: device_id.clone(),
+                        device_name: info.shown_name(),
                     },
                     EventSeverity::Info,
                 );
+
+                // A client that links later learns the gain, offset and
+                // binning from this, not from a poll it may never run.
+                if info.device_type == DeviceType::Camera {
+                    self.publish_camera_settings(device_id).await;
+                }
 
                 // Also register in app state
                 self.app_state

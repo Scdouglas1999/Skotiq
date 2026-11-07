@@ -4771,17 +4771,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_Connecting) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_device_name = cst_encode_String(apiObj.deviceName);
       wireObj.tag = 0;
       wireObj.kind.Connecting.device_type = pre_device_type;
       wireObj.kind.Connecting.device_id = pre_device_id;
+      wireObj.kind.Connecting.device_name = pre_device_name;
       return;
     }
     if (apiObj is EquipmentEvent_Connected) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_device_name = cst_encode_String(apiObj.deviceName);
       wireObj.tag = 1;
       wireObj.kind.Connected.device_type = pre_device_type;
       wireObj.kind.Connected.device_id = pre_device_id;
+      wireObj.kind.Connected.device_name = pre_device_name;
       return;
     }
     if (apiObj is EquipmentEvent_Disconnected) {
@@ -4920,11 +4924,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.tag = 22;
       return;
     }
+    if (apiObj is EquipmentEvent_CameraSettingsChanged) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_gain = cst_encode_i_32(apiObj.gain);
+      var pre_offset = cst_encode_i_32(apiObj.offset);
+      var pre_bin_x = cst_encode_i_32(apiObj.binX);
+      var pre_bin_y = cst_encode_i_32(apiObj.binY);
+      wireObj.tag = 23;
+      wireObj.kind.CameraSettingsChanged.device_id = pre_device_id;
+      wireObj.kind.CameraSettingsChanged.gain = pre_gain;
+      wireObj.kind.CameraSettingsChanged.offset = pre_offset;
+      wireObj.kind.CameraSettingsChanged.bin_x = pre_bin_x;
+      wireObj.kind.CameraSettingsChanged.bin_y = pre_bin_y;
+      return;
+    }
     if (apiObj is EquipmentEvent_HeartbeatStarted) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_interval_secs = cst_encode_u_64(apiObj.intervalSecs);
-      wireObj.tag = 23;
+      wireObj.tag = 24;
       wireObj.kind.HeartbeatStarted.device_type = pre_device_type;
       wireObj.kind.HeartbeatStarted.device_id = pre_device_id;
       wireObj.kind.HeartbeatStarted.interval_secs = pre_interval_secs;
@@ -4933,7 +4951,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_HeartbeatStopped) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      wireObj.tag = 24;
+      wireObj.tag = 25;
       wireObj.kind.HeartbeatStopped.device_type = pre_device_type;
       wireObj.kind.HeartbeatStopped.device_id = pre_device_id;
       return;
@@ -4946,7 +4964,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.consecutiveFailures,
       );
       var pre_last_rtt_ms = cst_encode_opt_box_autoadd_u_64(apiObj.lastRttMs);
-      wireObj.tag = 25;
+      wireObj.tag = 26;
       wireObj.kind.HeartbeatStatusChanged.device_type = pre_device_type;
       wireObj.kind.HeartbeatStatusChanged.device_id = pre_device_id;
       wireObj.kind.HeartbeatStatusChanged.status = pre_status;
@@ -4960,7 +4978,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_attempt = cst_encode_u_32(apiObj.attempt);
       var pre_max_attempts = cst_encode_u_32(apiObj.maxAttempts);
-      wireObj.tag = 26;
+      wireObj.tag = 27;
       wireObj.kind.HeartbeatReconnecting.device_type = pre_device_type;
       wireObj.kind.HeartbeatReconnecting.device_id = pre_device_id;
       wireObj.kind.HeartbeatReconnecting.attempt = pre_attempt;
@@ -4971,7 +4989,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_after_attempts = cst_encode_u_32(apiObj.afterAttempts);
-      wireObj.tag = 27;
+      wireObj.tag = 28;
       wireObj.kind.HeartbeatReconnected.device_type = pre_device_type;
       wireObj.kind.HeartbeatReconnected.device_id = pre_device_id;
       wireObj.kind.HeartbeatReconnected.after_attempts = pre_after_attempts;
@@ -4984,7 +5002,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_name = cst_encode_String(apiObj.name);
       var pre_display_name = cst_encode_String(apiObj.displayName);
       var pre_unique_id = cst_encode_opt_String(apiObj.uniqueId);
-      wireObj.tag = 28;
+      wireObj.tag = 29;
       wireObj.kind.DeviceDiscovered.device_class = pre_device_class;
       wireObj.kind.DeviceDiscovered.driver = pre_driver;
       wireObj.kind.DeviceDiscovered.id = pre_id;
@@ -4997,7 +5015,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_class = cst_encode_String(apiObj.deviceClass);
       var pre_driver = cst_encode_String(apiObj.driver);
       var pre_id = cst_encode_String(apiObj.id);
-      wireObj.tag = 29;
+      wireObj.tag = 30;
       wireObj.kind.DeviceLost.device_class = pre_device_class;
       wireObj.kind.DeviceLost.driver = pre_driver;
       wireObj.kind.DeviceLost.id = pre_id;
@@ -23848,12 +23866,16 @@ final class wire_cst_EquipmentEvent_Connecting extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_type;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_name;
 }
 
 final class wire_cst_EquipmentEvent_Connected extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_type;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_name;
 }
 
 final class wire_cst_EquipmentEvent_Disconnected extends ffi.Struct {
@@ -23949,6 +23971,22 @@ final class wire_cst_EquipmentEvent_CameraCoolingStarted extends ffi.Struct {
 final class wire_cst_EquipmentEvent_CameraCoolingReached extends ffi.Struct {
   @ffi.Double()
   external double temperature;
+}
+
+final class wire_cst_EquipmentEvent_CameraSettingsChanged extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  @ffi.Int32()
+  external int gain;
+
+  @ffi.Int32()
+  external int offset;
+
+  @ffi.Int32()
+  external int bin_x;
+
+  @ffi.Int32()
+  external int bin_y;
 }
 
 final class wire_cst_EquipmentEvent_HeartbeatStarted extends ffi.Struct {
@@ -24056,6 +24094,8 @@ final class EquipmentEventKind extends ffi.Union {
   external wire_cst_EquipmentEvent_CameraCoolingStarted CameraCoolingStarted;
 
   external wire_cst_EquipmentEvent_CameraCoolingReached CameraCoolingReached;
+
+  external wire_cst_EquipmentEvent_CameraSettingsChanged CameraSettingsChanged;
 
   external wire_cst_EquipmentEvent_HeartbeatStarted HeartbeatStarted;
 

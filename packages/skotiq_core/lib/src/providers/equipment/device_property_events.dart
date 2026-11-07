@@ -116,6 +116,33 @@ bool applyDevicePropertyChange(Object reader, Map<String, dynamic> data) {
   }
 }
 
+/// Apply a `CameraSettingsChanged` event: the camera's full gain, offset
+/// and binning as it reports them after a change or on connect. Returns
+/// whether it was for the camera in the slot.
+bool applyCameraSettings(Object reader, Map<String, dynamic> data) {
+  final deviceId = data['device_id'];
+  final gain = data['gain'];
+  final offset = data['offset'];
+  final binX = data['bin_x'];
+  final binY = data['bin_y'];
+  if (deviceId is! String ||
+      gain is! num ||
+      offset is! num ||
+      binX is! num ||
+      binY is! num) {
+    return false;
+  }
+  final camera = readProvider(reader, cameraStateProvider.notifier);
+  if (camera.deviceId != deviceId) return false;
+  camera.updateReadout(
+    gain: gain.toInt(),
+    offset: offset.toInt(),
+    binX: binX.toInt(),
+    binY: binY.toInt(),
+  );
+  return true;
+}
+
 List<String>? _decodeNames(String raw) {
   try {
     final decoded = jsonDecode(raw);

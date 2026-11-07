@@ -110,36 +110,6 @@ void _applyEquipmentTelemetry(
       break;
 
     // Mount position / motion
-    case 'MountPositionChanged':
-      final ra = (data['ra'] as num?)?.toDouble();
-      final dec = (data['dec'] as num?)?.toDouble();
-      final alt = (data['altitude'] as num?)?.toDouble() ?? 0.0;
-      final az = (data['azimuth'] as num?)?.toDouble() ?? 0.0;
-      if (ra != null && dec != null) {
-        _read(
-          reader,
-          mountStateProvider.notifier,
-        ).updatePosition(ra, dec, alt, az);
-      }
-      if (data['isSlewing'] is bool) {
-        _read(
-          reader,
-          mountStateProvider.notifier,
-        ).setSlewing(data['isSlewing'] as bool);
-      }
-      if (data['isTracking'] is bool) {
-        _read(
-          reader,
-          mountStateProvider.notifier,
-        ).setTracking(data['isTracking'] as bool);
-      }
-      if (data['isParked'] is bool) {
-        _read(
-          reader,
-          mountStateProvider.notifier,
-        ).setParked(data['isParked'] as bool);
-      }
-      break;
     case 'MountSlewStarted':
       _read(reader, mountStateProvider.notifier).setSlewing(true);
       break;
@@ -185,26 +155,6 @@ void _applyEquipmentTelemetry(
         ).updateTemperature(temperature);
       }
       break;
-    case 'FocuserPositionChanged':
-      final focuserPosition = data['position'] as int?;
-      if (focuserPosition != null) {
-        _read(
-          reader,
-          focuserStateProvider.notifier,
-        ).updatePosition(focuserPosition);
-      }
-      final focuserMoving = data['isMoving'] as bool?;
-      if (focuserMoving != null) {
-        _read(reader, focuserStateProvider.notifier).setMoving(focuserMoving);
-      }
-      final focuserTemp = (data['temperature'] as num?)?.toDouble();
-      if (focuserTemp != null) {
-        _read(
-          reader,
-          focuserStateProvider.notifier,
-        ).updateTemperature(focuserTemp);
-      }
-      break;
 
     // Filter wheel
     case 'FilterChanging':
@@ -220,27 +170,14 @@ void _applyEquipmentTelemetry(
         ).updatePosition(position);
       }
       break;
-    case 'FilterWheelPositionChanged':
-      final filterPosition = data['position'] as int?;
-      if (filterPosition != null) {
-        _read(
-          reader,
-          filterWheelStateProvider.notifier,
-        ).updatePosition(filterPosition);
-      }
-      final filterMoving = data['isMoving'] as bool?;
-      if (filterMoving != null) {
-        _read(
-          reader,
-          filterWheelStateProvider.notifier,
-        ).setMoving(filterMoving);
-      }
-      break;
 
     // Settings with no event of their own (gain, offset, binning, slot names,
     // rotator sync and reverse, switch writes, dome slaving).
     case 'PropertyChanged':
       applyDevicePropertyChange(reader, data);
+      break;
+    case 'CameraSettingsChanged':
+      applyCameraSettings(reader, data);
       break;
 
     // Rotator

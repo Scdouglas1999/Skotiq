@@ -167,6 +167,7 @@ String _equipmentTitle(EquipmentEvent v) {
     EquipmentEvent_CameraCoolingReached() => 'Cooling reached target',
     EquipmentEvent_CameraWarmingStarted() => 'Warming started',
     EquipmentEvent_CameraWarmingCompleted() => 'Warming complete',
+    EquipmentEvent_CameraSettingsChanged() => 'Camera settings',
     EquipmentEvent_HeartbeatStarted() => 'Heartbeat started',
     EquipmentEvent_HeartbeatStopped() => 'Heartbeat stopped',
     EquipmentEvent_HeartbeatStatusChanged() => 'Heartbeat status',
@@ -232,6 +233,13 @@ String _equipmentDetail(EquipmentEvent v) {
       'At ${t.toStringAsFixed(1)}°C',
     EquipmentEvent_CameraWarmingStarted() => '',
     EquipmentEvent_CameraWarmingCompleted() => '',
+    EquipmentEvent_CameraSettingsChanged(
+      gain: final g,
+      offset: final o,
+      binX: final x,
+      binY: final y,
+    ) =>
+      'Gain $g · offset $o · $x×$y',
     EquipmentEvent_HeartbeatStarted(deviceType: final t, deviceId: final id) =>
       '$t · $id',
     EquipmentEvent_HeartbeatStopped(deviceType: final t, deviceId: final id) =>
