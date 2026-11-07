@@ -28,7 +28,9 @@ Future<void> startDiscoveryServer({
   _discoverySocket = await SkotiqDiscovery.startBroadcasting(
     webPort: apiServer.actualPort,
     signalingPort: apiServer.actualPort,
-    name: 'Skotiq Headless',
+    name: hostComputerName(),
+    hostName: hostComputerName(),
+    hostMode: SkotiqHostMode.headless.wire,
     version: appVersion,
     scheme: apiServer.isTlsActive ? 'https' : 'http',
     fingerprint: apiServer.serverFingerprint,
@@ -158,10 +160,12 @@ Future<void> startMdnsAdvertisement({
     'scheme': apiServer.isTlsActive ? 'https' : 'http',
     'fingerprint': apiServer.serverFingerprint,
     'pairingSupported': 'true',
-    'name': 'Skotiq Headless',
+    'name': hostComputerName(),
+    'hostName': hostComputerName(),
+    'hostMode': SkotiqHostMode.headless.wire,
   };
   final registration = MdnsServiceRegistration(
-    name: 'Skotiq Headless',
+    name: 'Skotiq on ${hostComputerName()}',
     port: apiServer.actualPort,
     txt: txt,
     onWarning: (msg) => logger.warning(msg, source: _headlessLogSource),

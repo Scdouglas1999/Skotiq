@@ -104,6 +104,8 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
         pairingModeWire: () => pairingMode.wire,
         tailscaleHost: () => remoteAccessHints.tailscaleHost,
         relayApplianceId: () => remoteAccessHints.relayApplianceId,
+        hostMode: hostMode,
+        hostName: hostComputerName(),
       ),
       staticFileHandlers: _staticFileHandlers,
       logger: container.read(loggingServiceProvider),

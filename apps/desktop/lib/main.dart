@@ -16,6 +16,7 @@ import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
 import 'desktop_shutdown_safing.dart';
 import 'desktop_logging_init.dart';
+import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
 import 'main_headless.dart' as headless;
 
@@ -29,12 +30,20 @@ class _RemoteClientTarget {
   final int port;
   final String? token;
   final String scheme;
+  final String? name;
+  final String? fingerprint;
+
+  /// True when the target came from the rig the connect flow remembered.
+  final LinkedRig? rememberedRig;
 
   const _RemoteClientTarget({
     required this.host,
     required this.port,
     this.token,
     this.scheme = 'http',
+    this.name,
+    this.fingerprint,
+    this.rememberedRig,
   });
 }
 
@@ -94,9 +103,16 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // A role switch restarts the app with --relaunched-from=<pid>. It is about
+  // this one start only, so it is not part of how the app was "started".
+  final relaunchedFrom = relaunchedFromPid(args);
+  final launchArgs = [
+    for (final arg in args)
+      if (!arg.startsWith('$relaunchedFromFlag=')) arg,
+  ];
   // An update restarts the app through the updater, which needs to know how
   // it was started (for example --headless --port=...) to start it the same way.
-  setUpdateRelaunchArguments(args);
+  setUpdateRelaunchArguments(launchArgs);
 
   final isHeadless =
       args.contains('--headless') ||
@@ -107,13 +123,13 @@ void main(List<String> args) async {
     return;
   }
 
-  final remoteTarget = _parseRemoteTarget(args);
+  final explicitTarget = _parseRemoteTarget(args);
   final serveRequested = _parseServeFlag(args);
 
   // Single-owner invariant: one instance cannot both OWN the hardware (master)
   // and be a thin client of another rig (slave). Refuse the contradictory
   // combination loudly instead of silently picking one.
-  if (serveRequested && remoteTarget != null) {
+  if (serveRequested && explicitTarget != null) {
     stderr.writeln(
       'Skotiq: --serve/--master cannot be combined with --remote-host '
       '(an instance cannot be both a hardware-owning master and a remote '
@@ -121,6 +137,18 @@ void main(List<String> args) async {
     );
     exitCode = 64; // EX_USAGE
     return;
+  }
+
+  if (relaunchedFrom != null) {
+    // This start replaces process $relaunchedFrom, which is still closing. It
+    // must be gone before anything here opens a store: logging init already
+    // opens native stores that allow one process, and failed with "already
+    // open" when the restart raced the old window's teardown.
+    final databaseFile = await resolveDefaultDatabaseFile();
+    await waitForPreviousInstance(() async {
+      if (processStillRunning(relaunchedFrom)) return true;
+      return await SingleInstanceLock.probe(databaseFile) != null;
+    });
   }
 
   final bootPaths = await initialiseDesktopLogging();
@@ -135,16 +163,16 @@ void main(List<String> args) async {
   //
   // Advisory: the authoritative claim is taken when the database is actually
   // opened, so a launch that races past this still fails safely.
-  final contended = await SingleInstanceLock.probe(
-    await resolveDefaultDatabaseFile(),
-  );
-  if (contended != null) {
-    stderr.writeln('Skotiq: ${contended.message}');
+  final databaseFile = await resolveDefaultDatabaseFile();
+  final contended = await SingleInstanceLock.probe(databaseFile);
+  final heldBy = contended;
+  if (heldBy != null) {
+    stderr.writeln('Skotiq: ${heldBy.message}');
     developer.log(
-      contended.message,
+      heldBy.message,
       name: 'desktop.main',
       level: 1000,
-      error: contended,
+      error: heldBy,
     );
     // exit(), not `exitCode = …; return;`: the native bridge has already
     // started its hot-plug poll watcher and USB hotplug listener by the time
@@ -155,7 +183,33 @@ void main(List<String> args) async {
     exit(75); // EX_TEMPFAIL — try again once the other instance exits.
   }
 
+  // The role, decided once for the life of this process. Flags and variables
+  // win; without them, the rig the connect flow remembered makes this a linked
+  // client; otherwise this computer is its own host.
+  final linkedRigStore = LinkedRigStore(
+    dataDirectory: () async => Directory(bootPaths.dataDirectory),
+  );
+  var remoteTarget = explicitTarget;
+  if (remoteTarget == null && !serveRequested) {
+    final rig = await linkedRigStore.load();
+    if (rig != null && rig.active) {
+      remoteTarget = _RemoteClientTarget(
+        host: rig.host,
+        port: rig.port,
+        scheme: rig.scheme,
+        token: await linkedRigStore.readToken(),
+        name: rig.name,
+        fingerprint: rig.fingerprint,
+        rememberedRig: rig,
+      );
+    }
+  }
+
   final appVersion = await loadDesktopAppVersion();
+
+  // Pointed at the app logger once it exists.
+  void Function(String message) relaunchLog = (message) =>
+      developer.log(message, name: 'desktop.relaunch');
 
   await windowManager.ensureInitialized();
 
@@ -197,7 +251,20 @@ void main(List<String> args) async {
                 port: remoteTarget.port,
                 token: remoteTarget.token,
                 scheme: remoteTarget.scheme,
+                name: remoteTarget.name,
+                expectedFingerprint: remoteTarget.fingerprint,
+                remembered: remoteTarget.rememberedRig != null,
               ),
+      ),
+      linkedRigStoreProvider.overrideWithValue(linkedRigStore),
+      launchLinkedRigProvider.overrideWithValue(remoteTarget?.rememberedRig),
+      // Connecting to a rig, or "Use this computer instead", restarts the app
+      // so the role is chosen again from the top of main.
+      appRelauncherProvider.overrideWithValue(
+        DesktopAppRelauncher(
+          launchArguments: launchArgs,
+          log: (message) => relaunchLog(message),
+        ),
       ),
       // Initialize backendProvider for the desktop GUI. Default: the local
       // FfiBackend (this machine owns the hardware). With --remote-host, run as
@@ -245,6 +312,15 @@ void main(List<String> args) async {
 
   final logger = container.read(loggingServiceProvider);
   await logger.ensureInitialized();
+  relaunchLog = (message) => logger.info(message, source: 'desktop.relaunch');
+  if (remoteTarget?.rememberedRig != null) {
+    logger.info(
+      'Starting as the linked client of ${remoteTarget!.name} '
+      '(${remoteTarget.host}:${remoteTarget.port}), the rig remembered by '
+      'Connect to an imaging computer',
+      source: 'desktop.main',
+    );
+  }
 
   // A GUI that dies with devices connected must not leave nothing behind: no
   // shutdown record, no safing, a log whose last line is an unrelated warning.

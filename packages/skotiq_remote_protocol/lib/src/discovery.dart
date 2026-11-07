@@ -58,6 +58,21 @@ class DiscoveredServer {
   /// forcing the operator to read it off the headless daemon's log.
   final String? relayApplianceId;
 
+  /// The host's computer name (for example `DESKTOP-MMAJGAK` or `observatory`).
+  /// Filled from `/api/info` (`hostName`) on hosts that report it, or from the
+  /// mDNS SRV target (`DESKTOP-MMAJGAK.local`) on older ones. Null when neither
+  /// source has answered.
+  final String? hostName;
+
+  /// The host's operating system as `/api/info` reports it (`linux`,
+  /// `windows`, `macos`). Null until enrichment.
+  final String? platform;
+
+  /// `gui` when the desktop app with its window serves the API, `headless`
+  /// for the daemon. Read from `/api/info` `hostMode` (hosts newer than 8.2.1);
+  /// older hosts said `mode: headless` for both.
+  final String? hostMode;
+
   DiscoveredServer({
     required this.host,
     required this.webPort,
@@ -75,7 +90,25 @@ class DiscoveredServer {
     this.scheme = 'http',
     this.tailscaleHost,
     this.relayApplianceId,
+    this.hostName,
+    this.platform,
+    this.hostMode,
   });
+
+  /// The name a person recognizes: the computer name when it is known, else
+  /// the advertised name when it says more than the product name, else the
+  /// address.
+  String get displayName {
+    final computer = hostName?.trim();
+    if (computer != null && computer.isNotEmpty) return computer;
+    final advertised = name.trim();
+    if (advertised.isNotEmpty &&
+        advertised != 'Skotiq' &&
+        advertised != 'Skotiq Headless') {
+      return advertised;
+    }
+    return host;
+  }
 
   /// `true` when the server advertised TLS via mDNS. UDP-broadcast discovery
   /// always reports false — the cascade falls back to enriching via
@@ -112,6 +145,9 @@ class DiscoveredServer {
     String? scheme,
     String? tailscaleHost,
     String? relayApplianceId,
+    String? hostName,
+    String? platform,
+    String? hostMode,
   }) {
     return DiscoveredServer(
       host: host ?? this.host,
@@ -130,6 +166,9 @@ class DiscoveredServer {
       scheme: scheme ?? this.scheme,
       tailscaleHost: tailscaleHost ?? this.tailscaleHost,
       relayApplianceId: relayApplianceId ?? this.relayApplianceId,
+      hostName: hostName ?? this.hostName,
+      platform: platform ?? this.platform,
+      hostMode: hostMode ?? this.hostMode,
     );
   }
 
@@ -143,39 +182,148 @@ class DiscoveredServer {
 /// Every announcement timer is reachable through a handle; an uncancellable
 /// `Timer.periodic` leaks one timer per broadcast call.
 class DiscoveryBroadcaster {
-  final RawDatagramSocket socket;
+  final DiscoveryPortLease _lease;
   final Timer _timer;
   bool _stopped = false;
 
-  DiscoveryBroadcaster._(this.socket, this._timer);
+  DiscoveryBroadcaster._(this._lease, this._timer);
 
-  /// Cancel the periodic broadcast and close the socket. Idempotent.
+  /// The shared socket on the discovery port. Owned by [DiscoveryPortMux];
+  /// closing it here would silence every other responder in the process.
+  RawDatagramSocket get socket => _lease.socket;
+
+  /// Cancel the periodic broadcast and release the port. Idempotent.
   void stop() {
     if (_stopped) return;
     _stopped = true;
     _timer.cancel();
-    try {
-      socket.close();
-    } catch (_) {
-      // Why: stop() is idempotent shutdown; the socket may already be closed
-      // by an earlier teardown or by the OS reclaiming a stale handle on
-      // sleep/wake. Surfacing the exception would mask the real shutdown
-      // outcome — best-effort close is the contract.
-    }
+    _lease.release();
   }
 }
 
-/// Automatic discovery service for Skotiq instances on local network.
-/// Uses UDP broadcast for zero-configuration discovery.
+/// Answers a datagram that arrived on the discovery port. Returns true when it
+/// handled the message, so the next handler is not asked.
+typedef DiscoveryDatagramHandler =
+    bool Function(String message, Datagram datagram, RawDatagramSocket socket);
+
+/// One process-wide socket on UDP 45679 shared by every responder.
 ///
-/// Wire format: every datagram is a JSON object plus the UTF-8 prefix
-/// `[_responsePrefix]` (server announcements) or `[_requestPrefix]` (client
-/// probes). A JSON body rather than `:`-delimited fields, because Skotiq
-/// device IDs contain colons (e.g. `native:vendor:idx`).
+/// The desktop host used to bind the port twice: once for the discovery
+/// beacon ([SkotiqDiscovery.startBroadcasting]) and once for the LAN update
+/// responder ([UpdatePushDiscovery.startResponding]), both with
+/// `reuseAddress`. On Windows a unicast datagram to a doubly bound UDP port is
+/// delivered to only one of the sockets, and it was the update responder's,
+/// which ignores discovery probes. A Windows imaging computer therefore never
+/// answered `SKOTIQ_DISCOVERY_V2:` at all (reproduced against a live 8.2.1 GUI
+/// host: the update probe was answered on the same port, the discovery probe
+/// was not). One socket that hands each message to the responder whose prefix
+/// it carries cannot lose a datagram that way.
+class DiscoveryPortMux {
+  DiscoveryPortMux._();
+
+  static RawDatagramSocket? _socket;
+  static Future<RawDatagramSocket>? _opening;
+  static final List<DiscoveryPortLease> _leases = [];
+
+  /// Bind (or join) the shared socket on [port] and register [handler].
+  static Future<DiscoveryPortLease> acquire({
+    required DiscoveryDatagramHandler handler,
+    int port = SkotiqDiscovery.discoveryPort,
+  }) async {
+    final socket = _socket ?? await (_opening ??= _open(port));
+    final lease = DiscoveryPortLease._(socket, handler);
+    _leases.add(lease);
+    return lease;
+  }
+
+  static Future<RawDatagramSocket> _open(int port) async {
+    try {
+      final socket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        port,
+        // Still shared with OTHER processes (a second Skotiq on the machine,
+        // the update pusher tool); within this process there is one socket.
+        reuseAddress: true,
+      );
+      socket.broadcastEnabled = true;
+      socket.listen(
+        (event) {
+          if (event != RawSocketEvent.read) return;
+          final datagram = socket.receive();
+          if (datagram == null) return;
+          final String message;
+          try {
+            message = utf8.decode(datagram.data);
+          } catch (_) {
+            return; // Not text: noise on a shared LAN.
+          }
+          for (final lease in List.of(_leases)) {
+            try {
+              if (lease._handler(message, datagram, socket)) return;
+            } catch (e, stackTrace) {
+              developer.log(
+                'Discovery responder failed: $e\n$stackTrace',
+                name: 'SkotiqDiscovery',
+                level: 900,
+              );
+            }
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          developer.log(
+            'Discovery port socket error: $error\n$stackTrace',
+            name: 'SkotiqDiscovery',
+            level: 1000,
+          );
+        },
+      );
+      _socket = socket;
+      return socket;
+    } finally {
+      _opening = null;
+    }
+  }
+
+  static void _release(DiscoveryPortLease lease) {
+    _leases.remove(lease);
+    if (_leases.isEmpty) {
+      final socket = _socket;
+      _socket = null;
+      try {
+        socket?.close();
+      } catch (_) {
+        // Best-effort close on shutdown; the OS may already have reclaimed it.
+      }
+    }
+  }
+
+  /// Number of live leases. For tests.
+  static int get leaseCount => _leases.length;
+}
+
+/// A responder's hold on the shared discovery socket.
+class DiscoveryPortLease {
+  DiscoveryPortLease._(this.socket, this._handler);
+
+  final RawDatagramSocket socket;
+  final DiscoveryDatagramHandler _handler;
+  bool _released = false;
+
+  /// Unregister this responder; the socket closes with the last lease.
+  void release() {
+    if (_released) return;
+    _released = true;
+    DiscoveryPortMux._release(this);
+  }
+}
+
 class SkotiqDiscovery {
   /// Server-side fixed port — desktop instances bind here so clients can
   /// target a known address.
-  static const int _serverPort = 45679;
+  static const int _serverPort = discoveryPort;
+
+  /// The UDP port Skotiq hosts listen on for discovery and update probes.
+  static const int discoveryPort = 45679;
   // Marker bytes so we never mistake a stray UDP datagram for a Skotiq
   // packet. JSON alone is not sufficient — anything on the local LAN can
   // emit `{...}`.
@@ -197,15 +345,10 @@ class SkotiqDiscovery {
     bool authRequired = false,
     String authenticationMode = 'none',
     bool pairingSupported = false,
+    String? hostName,
+    String? hostMode,
     Duration interval = const Duration(seconds: 2),
   }) async {
-    final socket = await RawDatagramSocket.bind(
-      InternetAddress.anyIPv4,
-      _serverPort,
-      reuseAddress: true,
-    );
-    socket.broadcastEnabled = true;
-
     // Build the announcement once — payload is invariant across the run.
     final payload = {
       'protocol': _protocolVersion,
@@ -219,9 +362,22 @@ class SkotiqDiscovery {
       'pairingSupported': pairingSupported,
       if (fingerprint != null && fingerprint.isNotEmpty)
         'fingerprint': fingerprint,
+      if (hostName != null && hostName.isNotEmpty) 'hostName': hostName,
+      if (hostMode != null && hostMode.isNotEmpty) 'hostMode': hostMode,
     };
     final messageBytes = utf8.encode('$_responsePrefix${jsonEncode(payload)}');
     final broadcastTargets = await _udpBroadcastTargets();
+
+    // Respond directly to client probes so a client that joined after our
+    // last broadcast tick doesn't have to wait for the next one.
+    final lease = await DiscoveryPortMux.acquire(
+      handler: (message, datagram, socket) {
+        if (!message.startsWith(_requestPrefix)) return false;
+        socket.send(messageBytes, datagram.address, datagram.port);
+        return true;
+      },
+    );
+    final socket = lease.socket;
 
     void emit() {
       for (final target in broadcastTargets) {
@@ -252,43 +408,7 @@ class SkotiqDiscovery {
       (_) => _superviseSync('broadcastEmit', emit),
     );
 
-    // Also respond directly to client probes so a client that joined after
-    // our last broadcast tick doesn't have to wait for the next one.
-    //
-    // Why onError: socket.listen carries transport errors via the onError
-    // hook. Without one, an interface-disappearing event during shutdown
-    // (and the resulting OSError) becomes an unhandled async error in the
-    // surrounding zone and is silently dropped.
-    socket.listen(
-      (event) {
-        if (event != RawSocketEvent.read) return;
-        final datagram = socket.receive();
-        if (datagram == null) return;
-        try {
-          final raw = utf8.decode(datagram.data);
-          if (!raw.startsWith(_requestPrefix)) return;
-          socket.send(messageBytes, datagram.address, datagram.port);
-        } catch (e, stackTrace) {
-          // A malformed datagram is expected noise on a shared LAN, so log it
-          // at fine level — named, so it stays distinguishable from a real
-          // socket failure.
-          developer.log(
-            'Ignoring malformed discovery probe: $e\n$stackTrace',
-            name: 'SkotiqDiscovery',
-            level: 500,
-          );
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        developer.log(
-          'Broadcaster socket error: $error\n$stackTrace',
-          name: 'SkotiqDiscovery',
-          level: 1000,
-        );
-      },
-    );
-
-    return DiscoveryBroadcaster._(socket, timer);
+    return DiscoveryBroadcaster._(lease, timer);
   }
 
   /// Run [task] and log any thrown exception at error level.
@@ -445,6 +565,12 @@ class SkotiqDiscovery {
         pairingSupported: info['pairingSupported'] as bool? ?? false,
         fingerprint: info['fingerprint'] is String
             ? info['fingerprint'] as String
+            : null,
+        hostName: info['hostName'] is String
+            ? info['hostName'] as String
+            : null,
+        hostMode: info['hostMode'] is String
+            ? info['hostMode'] as String
             : null,
       );
     } catch (_) {
@@ -628,59 +754,42 @@ class UpdatePushDiscovery {
     }
   }
 
-  /// Start responding to update push discovery messages (desktop side)
-  static Future<RawDatagramSocket> startResponding({
+  /// Start responding to update push discovery messages (desktop side).
+  ///
+  /// Shares the discovery port's one socket through [DiscoveryPortMux]; see
+  /// there for why a second socket on the same port lost discovery probes.
+  static Future<DiscoveryPortLease> startResponding({
     required String name,
     required String version,
     required int buildNumber,
     required bool Function() isReceivingCallback,
   }) async {
-    final socket = await RawDatagramSocket.bind(
-      InternetAddress.anyIPv4,
-      _discoveryPort,
-      reuseAddress: true,
+    final lease = await DiscoveryPortMux.acquire(
+      port: _discoveryPort,
+      handler: (message, datagram, socket) {
+        if (message != _updatePushMessage) return false;
+        final info = {
+          'name': name,
+          'version': version,
+          'buildNumber': buildNumber,
+          'pushPort': _pushPort,
+          'isReceiving': isReceivingCallback(),
+        };
+        final response = '$_updateResponsePrefix${jsonEncode(info)}';
+        socket.send(utf8.encode(response), datagram.address, datagram.port);
+        developer.log(
+          'Responded to discovery from ${datagram.address.address}',
+          name: 'UpdatePushDiscovery',
+        );
+        return true;
+      },
     );
-    socket.broadcastEnabled = true;
-
-    socket.listen((RawSocketEvent event) {
-      if (event == RawSocketEvent.read) {
-        final datagram = socket.receive();
-        if (datagram != null) {
-          try {
-            final message = utf8.decode(datagram.data);
-            if (message == _updatePushMessage) {
-              // Respond with our version info
-              final info = {
-                'name': name,
-                'version': version,
-                'buildNumber': buildNumber,
-                'pushPort': _pushPort,
-                'isReceiving': isReceivingCallback(),
-              };
-              final response = '$_updateResponsePrefix${jsonEncode(info)}';
-              final data = utf8.encode(response);
-              socket.send(data, datagram.address, datagram.port);
-              developer.log(
-                'Responded to discovery from ${datagram.address.address}',
-                name: 'UpdatePushDiscovery',
-              );
-            }
-          } catch (e) {
-            developer.log(
-              'Error handling discovery: $e',
-              name: 'UpdatePushDiscovery',
-              level: 1000,
-            );
-          }
-        }
-      }
-    });
 
     developer.log(
       'Listening for update push discovery on port $_discoveryPort',
       name: 'UpdatePushDiscovery',
       level: 800,
     );
-    return socket;
+    return lease;
   }
 }

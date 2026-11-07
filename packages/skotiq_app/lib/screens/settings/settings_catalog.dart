@@ -613,6 +613,10 @@ List<SettingsGroupDef> buildSettingsGroups(BuildContext context) {
           icon: LucideIcons.globe,
           keywords: const [
             'remote control',
+            'imaging computer',
+            'link',
+            'connect',
+            'use this computer',
             'pairing',
             'discovery',
             'mobile',

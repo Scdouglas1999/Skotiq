@@ -371,6 +371,7 @@ class _ApiServerLifecycle {
       bindLocalOnly: false,
       // A client's captures appear in this window's image view too.
       showApiCapturesInPreview: true,
+      hostMode: SkotiqHostMode.gui,
       authToken: persistentToken,
       requireAuth: true,
     );
@@ -405,7 +406,9 @@ class _ApiServerLifecycle {
         _discoveryBroadcaster = await SkotiqDiscovery.startBroadcasting(
           webPort: nextServer.actualPort,
           signalingPort: nextServer.actualPort,
-          name: 'Skotiq',
+          name: hostComputerName(),
+          hostName: hostComputerName(),
+          hostMode: SkotiqHostMode.gui.wire,
           version: appVersion,
           scheme: nextServer.isTlsActive ? 'https' : 'http',
           fingerprint: nextServer.serverFingerprint,
@@ -437,10 +440,14 @@ class _ApiServerLifecycle {
           'scheme': nextServer.isTlsActive ? 'https' : 'http',
           'fingerprint': nextServer.serverFingerprint,
           'pairingSupported': 'true',
-          'name': 'Skotiq',
+          'name': hostComputerName(),
+          'hostName': hostComputerName(),
+          'hostMode': SkotiqHostMode.gui.wire,
         };
         final registration = MdnsServiceRegistration(
-          name: 'Skotiq',
+          // The instance name a phone or desktop browser lists. It was the
+          // constant "Skotiq", so two imaging computers were indistinguishable.
+          name: 'Skotiq on ${hostComputerName()}',
           port: nextServer.actualPort,
           txt: txt,
           onWarning: (msg) => logger.warning(msg, source: _logSource),

@@ -587,8 +587,22 @@ class EnhancedSkotiqDiscovery {
       tailscaleHost: info['tailscaleHost'] as String? ?? seed.tailscaleHost,
       relayApplianceId:
           info['relayApplianceId'] as String? ?? seed.relayApplianceId,
+      hostName: _nonEmpty(info['hostName']) ?? seed.hostName,
+      platform: _nonEmpty(info['platform']) ?? seed.platform,
+      hostMode: _nonEmpty(info['hostMode']) ?? seed.hostMode,
     );
   }
+
+  static String? _nonEmpty(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value.trim() : null;
+
+  /// Merge a parsed `/api/info` body into [seed]. Public for the desktop
+  /// discovery, which fetches the info itself so it can keep the fingerprint
+  /// it pins.
+  static DiscoveredServer mergeServerInfo(
+    DiscoveredServer seed,
+    Map<String, dynamic> info,
+  ) => _mergeServerInfo(seed, info);
 
   static Future<DiscoveredServer?> fetchServerInfo(
     DiscoveredServer server, {

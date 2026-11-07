@@ -1,39 +1,144 @@
 # Skotiq remote control (REST + WebSocket)
 
-Skotiq 2.x remote control runs over the **headless API** (`HeadlessApiServer`):
-HTTP/JSON for commands and status, WebSocket (`/events` or `/api/ws`) for live updates.
-There is **no in-process TLS terminator** in the Dart server for P1; production deployments
-should place a reverse proxy in front of the API port.
+The computer your camera and mount are plugged into (the imaging computer)
+serves an HTTP API with a WebSocket for live updates. The desktop app serves it
+when **Settings > Remote access** is on, and the headless service
+(`skotiq --headless`) always does. Phones, browsers and other Skotiq desktops
+use it to run the rig from somewhere else.
+
+The Dart server does not terminate TLS itself. For anything beyond a trusted
+home network, put a reverse proxy in front of it (see
+[TLS with nginx](#tls-with-nginx-recommended-for-wan-or-untrusted-lan)).
 
 ## Ports and discovery
 
 | Port / service | Protocol | Purpose |
 |----------------|----------|---------|
-| `8080` (or `SKOTIQ_PORT` / Settings → Remote access) | TCP HTTP + WS | REST API, web dashboard, WebSocket events |
-| `45679` | UDP | Legacy/broadcast discovery (optional) |
-| mDNS | — | Bonjour-style `_skotiq._tcp` discovery when enabled |
+| `8080` by default; the desktop app uses the port in Settings > Remote access, the headless service `--port` or `SKOTIQ_PORT` | TCP HTTP + WS | REST API, web dashboard, WebSocket events |
+| `45679` | UDP | Discovery probe and beacon, and LAN update discovery |
+| `5353` (mDNS) | UDP multicast | `_skotiq._tcp` service, the main way clients find a host |
 
-Mobile and desktop companions discover hosts via mDNS, UDP fallback, manual host entry,
-or a **pairing QR** generated under **Settings → Remote access**.
+Every host registers the mDNS service `_skotiq._tcp`. On Windows and macOS it
+goes through the system responder; on Linux through avahi-daemon
+(`avahi-publish-service`). The TXT record carries `version`, `scheme`,
+`fingerprint`, `pairingSupported`, `name`, `hostName` and `hostMode`.
+
+The UDP probe (`SKOTIQ_DISCOVERY_V2:` to port 45679, answered with
+`SKOTIQ_RESPONSE_V2:` and a JSON body) is a fallback. It is often blocked: many
+Wi-Fi access points drop broadcasts between clients, and a Linux client running
+ufw or firewalld drops the replies unless the port is opened. When neither
+works, enter the host's address by hand.
+
+`GET /api/info` needs no token and says who the host is:
+
+| Field | Meaning |
+|-------|---------|
+| `name`, `hostName` | The computer's name, for example `DESKTOP-MMAJGAK` |
+| `hostMode` (and `mode`) | `gui` for the desktop app, `headless` for the service |
+| `apiOnlyMode` | `true` only for the headless service |
+| `platform` | `windows`, `linux`, `macos` |
+| `version`, `apiVersion` | Skotiq version and API version |
+| `fingerprint` | The host's identity; clients pin it when they pair |
+| `pairingMode`, `lanPairing` | Whether one-tap pairing on the LAN is offered |
+
+Hosts before 8.2.2 answer `name: "Skotiq Headless"` and `mode: "headless"`
+whatever they are; clients then take the computer name from the mDNS record.
+
+## Linking a desktop to an imaging computer
+
+A second Skotiq desktop (Linux, Windows or macOS) can run the rig as if the
+equipment were plugged into it. This is how you sit at a desktop indoors while
+a laptop at the telescope does the imaging.
+
+1. On the imaging computer, open **Settings > Remote access** and turn on
+   **Enable remote access**.
+2. On the other desktop, choose **Connect to an imaging computer**. It is on
+   the first page of the setup wizard, at the top of **Settings > Remote
+   access**, and in the link button at the top right of the window.
+3. Pick the imaging computer from the list. It shows the computer name,
+   operating system, Skotiq version and address. If it is not listed, type its
+   name or IP address and port under **Enter an address**.
+4. Press **Link to ...**. On a home network that is all: the imaging computer
+   pairs this desktop without a code. If it asks for a code, or you want this
+   desktop to be able to change the imaging computer's settings, press **Start
+   pairing** under **Settings > Remote access** on the imaging computer and
+   type the code it shows (`WORD-WORD-NNNN`) instead.
+5. Skotiq restarts and runs the imaging computer's equipment. From then on it
+   starts linked to that computer every time.
+
+Nothing in this asks you to copy or paste an access token. The token the
+imaging computer issues is kept in the system keyring (Windows Credential
+Manager, macOS Keychain, or the Secret Service on Linux). On a Linux desktop
+without a keyring service it is kept in an owner-only file in the Skotiq data
+folder instead. The rest of the link (address, computer name, fingerprint) is
+in `linked_rig.json` in the same folder.
+
+### What each kind of pairing allows
+
+| | One tap (LAN) | Pairing code with "Also allow changing settings" |
+|---|---|---|
+| Camera, mount, focuser, filter wheel, rotator, guiding | yes | yes |
+| Sequences, profiles, framing, calibration frames | yes | yes |
+| View the imaging computer's settings | yes | yes |
+| Change its settings, observing site, meridian flip settings | no | yes |
+| Plugins, backups, host folder browser, updates, catalogs | no | yes |
+
+One tap gives control access, because anything on the local network can ask
+for it. Changing settings needs the code, because a code proves someone can
+see the imaging computer's screen. A desktop linked with one tap says so above
+each settings page and offers **Allow changes**, which asks for the code.
+
+### When the link breaks
+
+- **The imaging computer is off or unreachable.** The banner at the top keeps
+  retrying every 20 seconds and reconnects on its own when the computer comes
+  back. **Use this computer instead** restarts Skotiq on this desktop's own
+  equipment.
+- **The pairing was removed on the imaging computer, or has expired.** The
+  banner offers **Pair again**, which is the same one-tap step.
+- **A different computer answers at the remembered address** (its
+  fingerprint changed, usually because Skotiq was reinstalled there). The
+  token is not sent. **Pair again** shows the new identity before you accept
+  it.
+
+**Use this computer instead** keeps the pairing, so **Settings > Remote
+access > Link again** works later without a new pairing. **Forget** removes
+it.
+
+### Command-line and scripted launches
+
+`--remote-host`, `--remote-port`, `--remote-token` and `--remote-scheme` (or
+`SKOTIQ_REMOTE_HOST`, `SKOTIQ_REMOTE_PORT`, `SKOTIQ_REMOTE_TOKEN`,
+`SKOTIQ_REMOTE_SCHEME`) still work and take precedence over the remembered
+computer. `--serve` or `SKOTIQ_SERVE=1` makes this instance the imaging
+computer and ignores the remembered one. Whether an instance is the imaging
+computer or a linked client is decided once, when it starts; changing it
+restarts the app.
 
 ## Pairing model
 
-1. Enable **Remote access** on the imaging machine.
-2. Start pairing (Remote access screen or **Manage pairing**). Desktop shows a
-   `WORD-WORD-NNNN` code and, when pairing is active, a QR payload from
-   `EnhancedSkotiqDiscovery.generateQrData()`.
-3. On the phone/tablet:
-   - **Scan QR** — validates JSON schema, local-network host, and fingerprint; may
-     include `pairingCode` for one-scan enrollment; or
-   - **Enter host + pairing code** — `POST /api/pairing/verify` with
-     `requestedScope` defaulting to **`control`** (`admin` only when explicitly requested).
-4. Store the returned bearer token in secure storage and pass it to `NetworkBackend`.
+1. Enable **Remote access** on the imaging computer.
+2. A client on the same private network can pair in one step with
+   `POST /api/pairing/lan-claim` (body `{deviceId, deviceName, deviceType}`).
+   The host grants a `control` token when the request's socket address is a
+   private LAN address and the pairing mode is `lan-open` (the default). It
+   refuses loopback, Tailscale and public addresses, and every client in
+   `code-required` mode (`SKOTIQ_PAIRING_MODE=code-required` on the headless
+   service).
+3. Otherwise, start pairing on the imaging computer (**Settings > Remote
+   access**, **Start pairing**). It shows a `WORD-WORD-NNNN` code and a QR
+   payload from `EnhancedSkotiqDiscovery.generateQrData()`.
+4. On the phone, tablet or desktop:
+   - **Scan QR**: validates the JSON schema, local-network host and
+     fingerprint, and may include `pairingCode` for one-scan enrollment; or
+   - **Enter the code**: `POST /api/pairing/verify` with `requestedScope`
+     defaulting to `control` (`admin` only when explicitly requested).
+5. The client checks `GET /api/info` before sending the code or using the
+   token, and refuses a host whose fingerprint differs from the one it was
+   shown. It keeps the token in secure storage and passes it to
+   `NetworkBackend`.
 
-Public endpoints (no bearer): `/api/info`, `/api/pairing/start`, `/api/pairing/verify`,
-plus static dashboard paths documented in `docs/api/web-server-api.md`.
-
-`/api/pairing/start` does **not** return the pairing code in the HTTP body (it is shown on
-the desktop UI / embedded in QR only) so passive observers cannot harvest codes from logs.
+Paired tokens last a year and survive host restarts.
 
 ## Reaching the rig over Tailscale (internet reachability, no relay)
 

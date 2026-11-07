@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../screens/link_rig/link_rig_actions.dart';
 import '../utils/snackbar_helper.dart';
 
 /// Set true when the WebSocket connection to a remote backend has been
@@ -147,6 +148,27 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
                 ),
               ),
             ),
+            // A desktop linked to a rig that went away must not be stuck
+            // waiting for it: it can restart as this computer's own host.
+            if (lostHost != null &&
+                canSwitchRole(ref) &&
+                ref.watch(remoteLaunchTargetProvider) != null)
+              TextButton(
+                key: const ValueKey('staleBanner.useThisComputer'),
+                onPressed: () => useThisComputerInstead(
+                  context,
+                  ref,
+                  rigName: ref.read(remoteLaunchTargetProvider)?.name,
+                ),
+                child: Text(
+                  'Use this computer instead',
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: SkotiqTypography.fontSize12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

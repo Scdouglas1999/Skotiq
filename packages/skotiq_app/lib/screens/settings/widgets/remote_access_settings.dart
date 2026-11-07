@@ -12,6 +12,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../link_rig/linked_rig_panel.dart';
 import '../pairing_screen.dart' show pairingProvider;
 import 'settings_widgets.dart';
 
@@ -224,6 +225,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
           isMobile: widget.isMobile,
           hideHeader: widget.isMobile,
           children: [
+            // Which computer runs the rig comes first: on a linked desktop
+            // everything below describes the imaging computer, not this one.
+            const LinkedRigPanel(),
             SettingsSection(
               title: l10n.text('remoteAccessWebServer'),
               isMobile: widget.isMobile,
