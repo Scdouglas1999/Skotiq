@@ -635,6 +635,6 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     final notifier = ref.read(coverCalibratorStateProvider.notifier);
     notifier.updateBrightness(brightness);
     notifier.updateCalibratorStatus(CalibratorStatus.notReady);
-    ref.invalidate(equipmentCoverCalibratorCapabilitiesProvider(deviceId));
+    _refreshCoverCalibrator(deviceId);
   }
 }

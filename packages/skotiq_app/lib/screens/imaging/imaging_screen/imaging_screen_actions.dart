@@ -35,9 +35,9 @@ extension _ImagingScreenActions on _ImagingScreenState {
     if (_isSingleCapture || _isLooping || _isStoppingCapture) return;
 
     _update(() {
-      _isSingleCapture = true;
+      _isSnapshotting = true;
       _singleCapturePreviewReady = false;
-      _isStoppingCapture = false;
+      _isStoppingSnapshot = false;
     });
 
     final settings = ref.read(exposureSettingsProvider);
@@ -93,9 +93,9 @@ extension _ImagingScreenActions on _ImagingScreenState {
       previewSubscription.close();
       if (mounted) {
         _update(() {
-          _isSingleCapture = false;
+          _isSnapshotting = false;
           _singleCapturePreviewReady = false;
-          _isStoppingCapture = false;
+          _isStoppingSnapshot = false;
         });
       }
       if (identical(_manualCaptureService, imagingService)) {
@@ -105,72 +105,24 @@ extension _ImagingScreenActions on _ImagingScreenState {
     }
   }
 
+  /// Loop and Stop. The loop runs on the imaging host whichever window
+  /// starts it, so Stop here stops a loop the other window started too.
   Future<void> _toggleLoop() async {
-    if (_isSingleCapture || _isStoppingCapture) return;
-
-    if (_isLooping) {
-      // Stop looping
-      _update(() => _isStoppingCapture = true);
-      ref.read(imagingServiceProvider).cancelExposure();
+    final controller = ref.read(manualCaptureControllerProvider.notifier);
+    final loop = ref.read(manualLoopStatusProvider);
+    if (loop.looping) {
+      if (!loop.stopping) controller.stop();
       return;
     }
-
-    _update(() {
-      _isLooping = true;
-      _isStoppingCapture = false;
-    });
-    final sessionNotifier = ref.read(sessionStateProvider.notifier);
-    sessionNotifier.setCapturing(true);
-
-    final settings = ref.read(exposureSettingsProvider);
-    final imagingService = ref.read(imagingServiceProvider);
-    _manualCaptureService = imagingService;
-    // Read once, at the start of the run: the banner locks the toggle while a
-    // loop is live, and a run must not change destination halfway through.
-    final saveFrames = ref.read(loopSavesFramesProvider);
-
+    if (_isSingleCapture || _isStoppingCapture) return;
+    _startedLoop = controller;
     try {
-      await imagingService.startLoopCapture(
-          settings: settings,
-          targetName: ref.read(sessionStateProvider).targetName,
-          saveFrames: saveFrames,
-          onImageCaptured: (image) {
-            if (mounted) {
-              ref.read(currentImageProvider.notifier).state = image;
-              ref.read(lastImageStatsProvider.notifier).state = image.stats;
-              // Frame count and integration time describe what the session
-              // KEPT. A discarded live-view frame that still incremented them
-              // made the session panel claim integration the operator does not
-              // have on disk.
-              // Frame count and integration time describe what the session
-              // KEPT. A discarded live-view frame that still incremented them
-              // made the session panel claim integration the operator does not
-              // have on disk.
-              if (saveFrames) {
-                ref.read(sessionStateProvider.notifier).recordExposureComplete(
-                      exposureTime: settings.exposureTime,
-                      hfr: image.stats.hfr,
-                    );
-              }
-              _feedToLiveStacker(image);
-            }
-          },
-          onError: (error) {
-            if (!mounted) return;
-            context.showErrorSnackBar(
-                'Capture stopped: ${_captureErrorText(error)}');
-          });
+      await controller.loop(onError: (error) {
+        if (!mounted) return;
+        context.showErrorSnackBar('Capture stopped: $error');
+      });
     } finally {
-      if (mounted) {
-        _update(() {
-          _isLooping = false;
-          _isStoppingCapture = false;
-        });
-      }
-      if (identical(_manualCaptureService, imagingService)) {
-        _manualCaptureService = null;
-      }
-      if (sessionNotifier.mounted) sessionNotifier.setCapturing(false);
+      if (identical(_startedLoop, controller)) _startedLoop = null;
     }
   }
 
@@ -181,12 +133,16 @@ extension _ImagingScreenActions on _ImagingScreenState {
     // gating the action on `_isSingleCapture || _isLooping` left it offered and
     // dead for every exposure this screen did not itself start — first light,
     // centering, a sequencer run — while the countdown ran on.
+    if (_isLooping) {
+      ref.read(manualCaptureControllerProvider.notifier).stop();
+      return;
+    }
     ref.read(imagingServiceProvider).cancelExposure();
-    // The "stopping" latch is cleared in the capture methods' `finally`, which
-    // only runs for a capture this screen owns. Latching it for a foreign
-    // exposure would hide the abort button for the rest of the session.
-    if (_isSingleCapture || _isLooping) {
-      _update(() => _isStoppingCapture = true);
+    // The "stopping" latch is cleared in the snapshot's `finally`, which only
+    // runs for a capture this screen owns. Latching it for a foreign exposure
+    // would hide the abort button for the rest of the session.
+    if (_isSnapshotting) {
+      _update(() => _isStoppingSnapshot = true);
     }
   }
 

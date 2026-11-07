@@ -76,4 +76,16 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
       1,
     );
   }
+
+  /// Start the manual Loop on the host with [request] (see
+  /// [manualLoopRequestJson]). The loop runs on the host; its progress comes
+  /// back on the `manualLoop` runtime channel.
+  Future<void> startHostManualLoop(Map<String, dynamic> request) async {
+    await _post('runtime/manual-loop', request, null, 1);
+  }
+
+  /// Stop the host's manual Loop, whichever window started it.
+  Future<void> stopHostManualLoop() async {
+    await _post('runtime/manual-loop/stop', const {}, null, 1);
+  }
 }

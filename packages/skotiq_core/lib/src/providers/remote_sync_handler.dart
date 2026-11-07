@@ -137,14 +137,17 @@ Future<void> applyRemoteSyncEvent(
               event.eventType == 'ImageCaptured')) {
         unawaited(_publishRemoteCurrentFrame(reader, networkBackend));
       }
-      // Slave-only: mirror the master's per-frame exposure countdown onto the
-      // camera card + exposure-progress dashboard. These imaging events drive
-      // [cameraStateProvider.setExposing] / [exposureProgressProvider] exactly
-      // as ImagingService does on the host (whose capture loop never runs on a
-      // remote companion), so the slave's "Exposing" status and the remaining-
-      // time countdown track the master frame-for-frame.
+      // Mirror the per-frame exposure countdown onto the camera card and the
+      // exposure-progress readouts. These imaging events drive
+      // [cameraStateProvider.setExposing] / [exposureProgressProvider] the way
+      // ImagingService does for a capture it runs itself. A linked client
+      // follows every exposure the host runs; the host follows the ones it
+      // did not start (a client's snapshot, an API capture), which it used to
+      // run with no "Exposing" countdown and no Abort.
       if (networkBackend != null) {
         _applyExposureMirror(reader, event.eventType, event.data);
+      } else {
+        _applyForeignExposureOnHost(reader, event.eventType, event.data);
       }
       break;
     case EventCategory.safety:

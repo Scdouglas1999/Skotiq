@@ -1,3 +1,4 @@
+import 'widgets/linked_pending_start_listener.dart';
 import 'widgets/mount/mount_site_reconciliation_card.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
@@ -109,6 +110,10 @@ class SkotiqApp extends ConsumerWidget {
     // published by a hardware-owning host, reported up by a linked client.
     ref.watch(hostRuntimeMirrorProvider);
     ref.watch(clientRuntimeReporterProvider);
+    // Host: nothing native reports a cover, panel or switch change, so the
+    // host re-reads them for its own cards and the linked clients.
+    ref.watch(coverCalibratorStatusPollerProvider);
+    ref.watch(switchChannelPollerProvider);
     // Keep science.camera.* (read noise / gain / saturation) in sync with
     // the connected camera or active profile so photometry works without
     // manual sensor-spec entry.
@@ -211,7 +216,9 @@ class SkotiqApp extends ConsumerWidget {
                       child: DatabaseRecoveryLauncher(
                         child: EquipmentOnboardingLauncher(
                           child: MountSiteReconciliationListener(
-                            child: scaledChild,
+                            child: LinkedPendingStartListener(
+                              child: scaledChild,
+                            ),
                           ),
                         ),
                       ),

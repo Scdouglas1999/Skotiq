@@ -1,6 +1,17 @@
 part of '../connected_device_card.dart';
 
 extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
+  /// Re-read the cover/calibrator after a command so the card shows what the
+  /// device now reports; the host's poll and the runtime channel keep it
+  /// current after that.
+  void _refreshCoverCalibrator(String deviceId) {
+    unawaited(
+      refreshCoverCalibratorSnapshot(ref, deviceId).catchError((Object _) {
+        return null;
+      }),
+    );
+  }
+
   // Action handlers
 
   Future<void> _handleDisconnect() async {
@@ -592,7 +603,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         ref
             .read(coverCalibratorStateProvider.notifier)
             .updateCoverStatus(CoverStatus.moving);
-        ref.invalidate(equipmentCoverCalibratorCapabilitiesProvider(deviceId));
+        _refreshCoverCalibrator(deviceId);
         context.showSuccessSnackBar(isOpen ? 'Closing cover' : 'Opening cover');
       }
     } catch (e) {
@@ -627,9 +638,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
           ref
               .read(coverCalibratorStateProvider.notifier)
               .updateCalibratorStatus(CalibratorStatus.off);
-          ref.invalidate(
-            equipmentCoverCalibratorCapabilitiesProvider(deviceId),
-          );
+          _refreshCoverCalibrator(deviceId);
           context.showSuccessSnackBar('Calibrator light off');
         }
       } else {
@@ -648,9 +657,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
           final notifier = ref.read(coverCalibratorStateProvider.notifier);
           notifier.updateBrightness(target);
           notifier.updateCalibratorStatus(CalibratorStatus.notReady);
-          ref.invalidate(
-            equipmentCoverCalibratorCapabilitiesProvider(deviceId),
-          );
+          _refreshCoverCalibrator(deviceId);
           context.showSuccessSnackBar(
             'Calibrator light requested at brightness $target',
           );

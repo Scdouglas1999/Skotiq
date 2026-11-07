@@ -195,4 +195,23 @@ void main() {
     expect(history.events.autofocusRuns, isEmpty);
     expect(history.solves, isEmpty);
   });
+
+  test(
+    'a loop request without settings is refused before anything runs',
+    () async {
+      await expectLater(
+        handlers.handleStartManualLoop(_post({'saveFrames': false})),
+        throwsA(
+          isA<HandlerFailure>().having((f) => f.statusCode, 'status', 400),
+        ),
+      );
+      expect(container.read(manualLoopStatusProvider).looping, isFalse);
+    },
+  );
+
+  test('stop answers even when nothing is looping', () async {
+    final response = await handlers.handleStopManualLoop(_post(const {}));
+    expect(response.statusCode, 200);
+    expect(container.read(manualLoopStatusProvider).looping, isFalse);
+  });
 }

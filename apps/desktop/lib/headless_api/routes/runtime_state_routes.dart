@@ -22,4 +22,14 @@ List<HeadlessRoute> buildRuntimeStateRoutes(RuntimeStateHandlers h) =>
         '/api/runtime/night-history',
         h.handleNightHistory,
       ),
+      HeadlessRoute(
+        HttpMethod.post,
+        '/api/runtime/manual-loop',
+        h.handleStartManualLoop,
+      ),
+      HeadlessRoute(
+        HttpMethod.post,
+        '/api/runtime/manual-loop/stop',
+        h.handleStopManualLoop,
+      ),
     ];

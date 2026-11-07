@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import '../../services/manual_capture_controller.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../utils/transient_bottom_inset.dart';
 import 'widgets/fullscreen_image_viewer.dart';
@@ -65,12 +68,28 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   /// The page header's `panel-right` toggle.
   bool _sidePanelCollapsed = false;
 
-  // Local capture state
-  bool _isLooping = false;
-  bool _isSingleCapture = false;
+  // Local snapshot state. The Loop is the host's (see
+  // [manualCaptureControllerProvider]); every window reads it from
+  // [manualLoopStatusProvider].
+  bool _isSnapshotting = false;
   bool _singleCapturePreviewReady = false;
-  bool _isStoppingCapture = false;
+  bool _isStoppingSnapshot = false;
   ImagingService? _manualCaptureService;
+
+  /// The controller of a loop this screen started, so leaving the screen
+  /// stops it: a loop must not keep exposing after its Stop control goes.
+  ManualCaptureController? _startedLoop;
+
+  bool get _isLooping => ref.read(manualLoopStatusProvider).looping;
+
+  /// A frame is being taken: this window's snapshot, or an exposure the
+  /// other end of the link (or a sequence) is running.
+  bool get _isSingleCapture =>
+      _isSnapshotting ||
+      (!_isLooping && ref.read(cameraStateProvider).isExposing);
+
+  bool get _isStoppingCapture =>
+      _isStoppingSnapshot || ref.read(manualLoopStatusProvider).stopping;
 
   /// Measured lift, in logical pixels, that a floating snackbar needs in order
   /// to clear the capture controls this layout is showing — the distance from
@@ -98,14 +117,18 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
 
   @override
   void dispose() {
-    if ((_isSingleCapture || _isLooping) && _manualCaptureService != null) {
-      // Manual capture belongs to this screen. In particular, a Loop must not
-      // keep exposing indefinitely after navigation removes its only Stop
-      // control. ImagingService targets the backend/device admitted at start.
-      // ConsumerState.ref is already invalid while Riverpod unmounts this
-      // element, so retain the service admitted by the active action.
+    if (_isSnapshotting && _manualCaptureService != null) {
+      // A snapshot belongs to this screen. ImagingService targets the
+      // backend/device admitted at start. ConsumerState.ref is already
+      // invalid while Riverpod unmounts this element, so retain the service
+      // admitted by the active action.
       _manualCaptureService!.cancelExposure();
     }
+    // A Loop this screen started must not keep exposing after navigation
+    // removes the Stop control the operator used to start it. Stopped after
+    // the unmount, since stopping changes state this screen still watches.
+    final startedLoop = _startedLoop;
+    if (startedLoop != null) scheduleMicrotask(startedLoop.stop);
     super.dispose();
   }
 
@@ -120,6 +143,11 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
     ref.watch(syncExposureFromProfileProvider);
     // Put each autofocus frame on the canvas while a run measures it.
     ref.watch(autofocusPreviewFeederProvider);
+
+    // The loop and any exposure in flight decide what Snapshot and Loop
+    // offer, in this window and the one at the other end of the link.
+    ref.watch(manualLoopStatusProvider);
+    ref.watch(cameraStateProvider.select((s) => s.isExposing));
 
     final colors = context.skotiqColors;
     final selectedSection = ref.watch(selectedImagingPanelProvider);

@@ -61,6 +61,44 @@ void _applyExposureMirror(
   }
 }
 
+/// Exposures the host is showing because of [_applyForeignExposureOnHost],
+/// per provider container.
+final Expando<bool> _hostFollowsForeignExposure = Expando<bool>(
+  'hostFollowsForeignExposure',
+);
+
+/// Host only: show an exposure this process did not start.
+///
+/// A capture the host runs itself (Snapshot, Loop, autofocus, a sequence)
+/// marks the camera exposing before the native exposure begins, so an
+/// `ExposureStarted` that finds the camera idle belongs to someone else: a
+/// linked client's snapshot or an API capture. Only those are followed, and
+/// only from their start, so the host's own capture keeps sole control of
+/// its countdown.
+void _applyForeignExposureOnHost(
+  Object reader,
+  String eventType,
+  Map<String, dynamic> data,
+) {
+  final key = _read(reader, cameraStateProvider.notifier);
+  final following = _hostFollowsForeignExposure[key] == true;
+  switch (eventType) {
+    case 'ExposureStarted':
+    case 'ExposureStartedWithFrame':
+      if (!following && _read(reader, cameraStateProvider).isExposing) return;
+      _hostFollowsForeignExposure[key] = true;
+      _applyExposureMirror(reader, eventType, data);
+    case 'ExposureProgress':
+      if (following) _applyExposureMirror(reader, eventType, data);
+    case 'ExposureComplete':
+    case 'ExposureCancelled':
+    case 'ExposureFailed':
+      if (!following) return;
+      _hostFollowsForeignExposure[key] = null;
+      _applyExposureMirror(reader, eventType, data);
+  }
+}
+
 /// Guards against re-entrant / chatty frame fetches. Host frame events
 /// (`ImageReady`, `ImageSaved`, `ImageCaptured`) often arrive back-to-back for
 /// the same capture; we only ever want one in-flight `cameraGetLastImage` at a
