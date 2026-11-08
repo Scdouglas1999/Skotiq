@@ -124,6 +124,9 @@ void main() {
     expect(stop, isNotNull);
     expect(stop!.tooDark, isTrue);
     expect(stop.neededExposure, greaterThan(20));
+    // A plain figure for the message, not a runaway extrapolation (the
+    // simulator run first printed 2189671392.5 s).
+    expect(stop.neededExposure, lessThan(200));
     // A sky this fast moves the first frame out of the band before the
     // follower has a trend; the run loop discards that frame. From then on
     // every frame is inside.

@@ -159,8 +159,12 @@ class FlatExposureFollower {
         // on the exposure, so settle it in a couple of passes.
         var exposure = atLast;
         for (var i = 0; i < 3; i++) {
+          // The frame can never be longer than the longest exposure, so its
+          // midpoint is no later than half of that; letting a runaway
+          // estimate push the midpoint out would feed on itself.
+          final length = exposure.clamp(minExposure, maxExposure);
           final mid = plannedStart.add(
-            Duration(microseconds: (exposure * 1e6 / 2).round()),
+            Duration(microseconds: (length * 1e6 / 2).round()),
           );
           final dt = mid.difference(last.midpoint).inMicroseconds / 1e6;
           exposure = atLast / math.exp(trend * dt);
