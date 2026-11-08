@@ -149,9 +149,17 @@ Future<bool> hostRunHoldsCheckpoint(Object backend) async =>
 /// Whether launch offers to recover [info]'s run: only a run the app died
 /// under. A run that was stopped, failed or ended early keeps its checkpoint
 /// and is continued from History instead of being raised as an interruption.
+///
+/// Nor a run with nothing to recover (no frame taken) or one older than the
+/// Continue Session window: a "Recover Sequence? (0 frames)" prompt for a
+/// days-old checkpoint offers to restore nothing.
 @visibleForTesting
-bool offersCheckpointRecovery(CheckpointInfo? info) =>
-    info != null && info.canResume && info.wasInterrupted;
+bool offersCheckpointRecovery(CheckpointInfo? info, {DateTime? now}) =>
+    info != null &&
+    info.canResume &&
+    info.wasInterrupted &&
+    (info.completedExposures > 0 || info.completedIntegrationSecs > 0) &&
+    checkpointAgeSeconds(info, now: now) <= kContinueSessionMaxAge.inSeconds;
 
 /// How old [info]'s checkpoint is now, from its save time. A host that
 /// reports a cached age keeps reporting the age it had when first read.

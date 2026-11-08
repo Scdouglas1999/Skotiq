@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as db;
+import '../database/session_orphan_sweep.dart' show kInterruptedSessionStatus;
 import '../database/daos/equipment_profiles_dao.dart';
 import '../database/daos/sequence_checkpoints_dao.dart';
 import '../database/daos/sequences_dao.dart';
@@ -59,62 +60,24 @@ class QuickStartService {
     return profile?.name;
   }
 
-  /// Get the quick start context from the most recent recoverable session.
-  ///
-  /// This method retrieves the most recent session that has:
-  /// - A status of 'interrupted', or 'completed' within 7 days
-  /// - Preference given to interrupted sessions with progress
-  ///
-  /// Returns null if no suitable session is found.
+  /// The Continue Session prompt's context: the newest run, when it can be
+  /// continued (see [continueSessionCandidate]); null otherwise.
   Future<QuickStartContext?> getQuickStartContext() async {
-    developer.log(
-      'QuickStartService: Getting quick start context...',
-      name: 'QuickStartService',
-      level: 800,
+    final session = continueSessionCandidate(
+      await sessionsDao.getRecentSessions(limit: 10),
+      now: DateTime.now(),
     );
-
-    // First, check for sessions a previous process left unfinished — the case
-    // this dialog exists for. Read from `interrupted` rather than `active`
-    // since the boot sweep started closing abandoned rows: `active` now means
-    // a run in progress, which is not something to hand off from.
-    final interruptedSessions = await sessionsDao.getInterruptedSessions();
-    if (interruptedSessions.isNotEmpty) {
-      // Return the most recent interrupted session
-      final session = interruptedSessions.first;
+    if (session == null) {
       developer.log(
-        'QuickStartService: Found interrupted session ${session.id} from ${session.startTime}',
-        name: 'QuickStartService',
-        level: 800,
-      );
-      return _buildQuickStartContext(session);
-    }
-
-    // If no interrupted sessions, look for recent completed sessions
-    final recentSessions = await sessionsDao.getRecentSessions(limit: 10);
-
-    // Filter to sessions within the last 7 days that have meaningful progress
-    final candidateSessions = recentSessions.where((session) {
-      final sessionAge = DateTime.now().difference(session.startTime);
-      final hasProgress =
-          session.successfulExposures > 0 || session.totalIntegrationSecs > 0;
-      return session.status == 'completed' &&
-          sessionAge.inDays <= 7 &&
-          hasProgress;
-    }).toList();
-
-    if (candidateSessions.isEmpty) {
-      developer.log(
-        'QuickStartService: No suitable sessions found for quick start',
+        'QuickStartService: the newest run is not one to continue',
         name: 'QuickStartService',
         level: 800,
       );
       return null;
     }
-
-    // Return the most recent completed session with progress
-    final session = candidateSessions.first;
     developer.log(
-      'QuickStartService: Found recent session ${session.id} from ${session.startTime}',
+      'QuickStartService: offering session ${session.id} '
+      '(${session.status}) from ${session.startTime}',
       name: 'QuickStartService',
       level: 800,
     );
@@ -175,17 +138,13 @@ class QuickStartService {
       }
     }
 
-    // Get frame counts from checkpoint if available
-    int completedFrames = 0;
-    int totalFrames = 0;
-    if (checkpoint != null) {
-      completedFrames = checkpoint.completedFrames;
-      totalFrames = checkpoint.totalFrames;
-    } else {
-      // Fall back to session stats
-      completedFrames = session.successfulExposures;
-      totalFrames = session.totalExposures;
-    }
+    // The frames this session took. The stored checkpoint is the sequence's
+    // and can belong to an earlier run of it, so it only supplies the plan's
+    // total. The session's own exposure count is frames taken, not planned:
+    // as a total it made every run read as finished.
+    final completedFrames = session.successfulExposures;
+    final plannedFrames = checkpoint == null ? 0 : checkpoint.totalFrames;
+    final totalFrames = plannedFrames >= completedFrames ? plannedFrames : 0;
 
     // Calculate total integration in hours
     final totalIntegrationHours = session.totalIntegrationSecs / 3600.0;
@@ -315,55 +274,13 @@ class QuickStartService {
     }
   }
 
-  /// Check if quick start is available.
-  ///
-  /// Quick start is available if there's a recent session (within 7 days)
-  /// that has meaningful progress, or a session left interrupted.
-  Future<bool> isQuickStartAvailable() async {
-    developer.log(
-      'QuickStartService: Checking if quick start is available...',
-      name: 'QuickStartService',
-      level: 800,
-    );
-
-    // Check for sessions left unfinished first
-    final hasInterrupted = await sessionsDao.hasIncompleteSessions();
-    if (hasInterrupted) {
-      developer.log(
-        'QuickStartService: Quick start available (interrupted session found)',
-        name: 'QuickStartService',
-        level: 800,
-      );
-      return true;
-    }
-
-    // Check for recent completed sessions with progress
-    final recentSessions = await sessionsDao.getRecentSessions(limit: 5);
-
-    for (final session in recentSessions) {
-      final sessionAge = DateTime.now().difference(session.startTime);
-      final hasProgress =
-          session.successfulExposures > 0 || session.totalIntegrationSecs > 0;
-
-      if (session.status == 'completed' &&
-          sessionAge.inDays <= 7 &&
-          hasProgress) {
-        developer.log(
-          'QuickStartService: Quick start available (recent session with progress found)',
-          name: 'QuickStartService',
-          level: 800,
-        );
-        return true;
-      }
-    }
-
-    developer.log(
-      'QuickStartService: Quick start not available',
-      name: 'QuickStartService',
-      level: 800,
-    );
-    return false;
-  }
+  /// Whether the Continue Session prompt has a run to offer.
+  Future<bool> isQuickStartAvailable() async =>
+      continueSessionCandidate(
+        await sessionsDao.getRecentSessions(limit: 10),
+        now: DateTime.now(),
+      ) !=
+      null;
 
   /// Get multiple quick start contexts for displaying a list of resumable sessions.
   ///
@@ -416,4 +333,52 @@ class QuickStartService {
     );
     return contexts;
   }
+}
+
+/// Session statuses of a run that can be continued: one the app died under,
+/// and one the operator stopped keeping its resume point.
+const Set<String> kContinuableSessionStatuses = {
+  kInterruptedSessionStatus,
+  'paused-stopped',
+};
+
+/// How long a run stays on offer after it ended.
+const Duration kContinueSessionMaxAge = Duration(days: 7);
+
+/// How long a run that captured nothing stays on offer: the night it ran.
+const Duration kContinueEmptySessionMaxAge = Duration(hours: 18);
+
+/// The run the Continue Session prompt offers, from [sessionsNewestFirst].
+///
+/// Only the newest run: a later run supersedes every earlier one, so an
+/// interrupted test run from days ago is never offered over last night's,
+/// and nothing is offered while a run is in progress. It is offered when it can be continued (interrupted, or stopped
+/// with its resume point kept) and ended within [kContinueSessionMaxAge]
+/// ([kContinueEmptySessionMaxAge] when it captured nothing); a run that
+/// finished or whose resume point was discarded is not. The rig offered "Rig test NGC 7331 · 5 days ago · No
+/// progress yet" over the run stopped with its checkpoint the night before.
+db.ImagingSession? continueSessionCandidate(
+  List<db.ImagingSession> sessionsNewestFirst, {
+  required DateTime now,
+}) {
+  db.ImagingSession? latest;
+  for (final session in sessionsNewestFirst) {
+    if (latest == null || session.startTime.isAfter(latest.startTime)) {
+      latest = session;
+    }
+  }
+  // A run in progress supersedes every earlier one, and is not a run to
+  // continue.
+  if (latest == null || latest.status == 'active') return null;
+  if (!kContinuableSessionStatuses.contains(latest.status)) return null;
+  final endedAt = latest.endTime ?? latest.startTime;
+  if (now.difference(endedAt) > kContinueSessionMaxAge) return null;
+  // A run that captured nothing has only its setup to offer, which is worth
+  // it the same night and stale after that.
+  final captured =
+      latest.successfulExposures > 0 || latest.totalIntegrationSecs > 0;
+  if (!captured && now.difference(endedAt) > kContinueEmptySessionMaxAge) {
+    return null;
+  }
+  return latest;
 }

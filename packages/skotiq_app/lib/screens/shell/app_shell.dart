@@ -306,17 +306,49 @@ class _AppShellState extends ConsumerState<AppShell> {
             () => runAppCheckpointRecovery(
               choose: (lastFailure) async {
                 if (!mounted) return null;
-                return showDialog<AppCheckpointRecoveryChoice>(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (dialogContext) => buildCheckpointRecoveryDialog(
-                    context: dialogContext,
-                    info: info,
-                    failure: lastFailure,
-                    remoteHost:
-                        backend is NetworkBackend ? backend.serverHost : null,
-                  ),
+                // A linked client asks again when the prompt's turn comes:
+                // the host may have started a run while other startup
+                // prompts were up, and its checkpoint is then that run's.
+                if (await hostRunHoldsCheckpoint(backend)) {
+                  return AppCheckpointRecoveryChoice.later;
+                }
+                if (!mounted) return null;
+                BuildContext? dialogContext;
+                // The prompt describes the checkpoint at the moment it
+                // opened. Once a run starts (on a linked client: on the host)
+                // the checkpoint is that run's, so the prompt closes itself
+                // and leaves it alone: Discard would delete the live run's
+                // resume point.
+                final hostRun = ref.listenManual<SequenceExecutionState>(
+                  sequenceExecutionStateProvider,
+                  (_, next) {
+                    final open = dialogContext;
+                    if (!next.canStart && open != null && open.mounted) {
+                      Navigator.of(open).pop(
+                        AppCheckpointRecoveryChoice.later,
+                      );
+                    }
+                  },
                 );
+                try {
+                  return await showDialog<AppCheckpointRecoveryChoice>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (routeContext) {
+                      dialogContext = routeContext;
+                      return buildCheckpointRecoveryDialog(
+                        context: routeContext,
+                        info: info,
+                        failure: lastFailure,
+                        remoteHost: backend is NetworkBackend
+                            ? backend.serverHost
+                            : null,
+                      );
+                    },
+                  );
+                } finally {
+                  hostRun.close();
+                }
               },
               checkpointStillResumable: () async {
                 final current = await backend.getCheckpointInfo();

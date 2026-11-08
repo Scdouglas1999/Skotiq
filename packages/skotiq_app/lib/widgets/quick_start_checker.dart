@@ -128,7 +128,11 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         return;
       }
 
+      // A run started while the earlier prompts were up (from a client, the
+      // API or a schedule) is not to be offered a restore over it.
+      final runInProgress = !ref.read(sequenceExecutionStateProvider).canStart;
       if (quickStartContext != null &&
+          !runInProgress &&
           quickStartContext.isRecent &&
           !sessionIsFinished(quickStartContext) &&
           mounted) {
@@ -237,6 +241,9 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       if (!mounted || !context.mounted || !_isCurrentAuthority(authority)) {
         return null;
       }
+      // The prompt waited its turn behind other startup prompts; a run that
+      // started meanwhile means there is no past run to act on.
+      if (!ref.read(sequenceExecutionStateProvider).canStart) return null;
 
       BuildContext? dialogContext;
       final subscription = ref.listenManual<SkotiqBackend>(
@@ -245,6 +252,17 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           if (identical(next, authority)) return;
           final routeContext = dialogContext;
           if (routeContext != null && routeContext.mounted) {
+            closeAuthorityBoundDialog(routeContext);
+          }
+        },
+      );
+      // A startup prompt offers to continue or restore a past run; once a
+      // run starts it is not one to act on, so the prompt closes itself.
+      final runStarted = ref.listenManual<SequenceExecutionState>(
+        sequenceExecutionStateProvider,
+        (previous, next) {
+          final routeContext = dialogContext;
+          if (!next.canStart && routeContext != null && routeContext.mounted) {
             closeAuthorityBoundDialog(routeContext);
           }
         },
@@ -260,6 +278,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         );
       } finally {
         subscription.close();
+        runStarted.close();
       }
     });
   }

@@ -363,12 +363,42 @@ void main() {
           ageSeconds: 60,
           ended: ended,
         );
-    expect(offersCheckpointRecovery(info()), isTrue);
-    expect(offersCheckpointRecovery(info(ended: 'stopped')), isFalse);
-    expect(offersCheckpointRecovery(info(ended: 'failed')), isFalse);
-    expect(offersCheckpointRecovery(info(ended: 'ended_early')), isFalse);
-    expect(offersCheckpointRecovery(info(canResume: false)), isFalse);
-    expect(offersCheckpointRecovery(null), isFalse);
+    final now = DateTime.utc(2026, 11, 1, 18);
+    bool offers(CheckpointInfo? i) => offersCheckpointRecovery(i, now: now);
+    expect(offers(info()), isTrue);
+    expect(offers(info(ended: 'stopped')), isFalse);
+    expect(offers(info(ended: 'failed')), isFalse);
+    expect(offers(info(ended: 'ended_early')), isFalse);
+    expect(offers(info(canResume: false)), isFalse);
+    expect(offers(null), isFalse);
+  });
+
+  test('a stale or empty checkpoint is not offered', () {
+    // A linked client showed "Recover Sequence? (0 frames)", and the rig a
+    // run from days before.
+    CheckpointInfo info({int frames = 5, required DateTime saved}) =>
+        CheckpointInfo(
+          sequenceName: 'Rig test NGC 7331',
+          timestamp: saved,
+          completedExposures: frames,
+          completedIntegrationSecs: frames * 60.0,
+          canResume: true,
+          ageSeconds: 0,
+        );
+    final now = DateTime.utc(2026, 11, 8, 21);
+    final lastNight = DateTime.utc(2026, 11, 8, 6);
+    expect(offersCheckpointRecovery(info(saved: lastNight), now: now), isTrue);
+    expect(
+      offersCheckpointRecovery(info(frames: 0, saved: lastNight), now: now),
+      isFalse,
+    );
+    expect(
+      offersCheckpointRecovery(
+        info(saved: now.subtract(const Duration(days: 8))),
+        now: now,
+      ),
+      isFalse,
+    );
   });
 
   test('the age comes from the save time, not from an age the host cached', () {

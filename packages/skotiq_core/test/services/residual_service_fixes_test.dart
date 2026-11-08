@@ -319,11 +319,10 @@ void main() {
       'quick start propagates storage failures instead of returning empty state',
       () async {
         final sessionsDao = _MockSessionsDao();
-        // The first read the context makes: the nights a process left
-        // unfinished. (It used to read the active ones — the same set, before
-        // the boot sweep started closing an abandoned row at open.)
+        // The read the context makes: the newest sessions, of which only
+        // the newest is a candidate.
         when(
-          () => sessionsDao.getInterruptedSessions(),
+          () => sessionsDao.getRecentSessions(limit: any(named: 'limit')),
         ).thenThrow(StateError('db corrupt'));
 
         final service = QuickStartService(

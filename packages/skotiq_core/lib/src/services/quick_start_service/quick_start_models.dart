@@ -293,9 +293,10 @@ class QuickStartContext {
       completedFrames: matches
           ? math.max(completedFrames, checkpoint.completedExposures)
           : completedFrames,
-      totalFrames: matches
-          ? math.max(totalFrames, checkpoint.completedExposures)
-          : totalFrames,
+      // The plan's total, never the frames taken: a total equal to the
+      // frames taken read as a finished run, and the prompt then offered
+      // nothing for a run stopped with its resume point kept.
+      totalFrames: totalFrames,
       lastSessionDate: lastSessionDate,
       equipmentSnapshot: equipmentSnapshot,
       totalIntegrationHours: matches
@@ -337,7 +338,11 @@ class QuickStartContext {
     }
 
     if (completedFrames > 0) {
-      parts.add('$completedFrames/$totalFrames frames');
+      parts.add(
+        totalFrames > 0
+            ? '$completedFrames/$totalFrames frames'
+            : '$completedFrames frames',
+      );
     }
 
     if (totalIntegrationHours > 0) {
