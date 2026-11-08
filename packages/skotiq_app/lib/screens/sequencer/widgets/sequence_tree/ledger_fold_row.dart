@@ -392,8 +392,10 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     final group = widget.group;
 
     var total = Duration.zero;
+    NodeOpenEnd? openEnd;
     for (final memberId in group.memberIds) {
       total += ref.watch(nodeRollupDurationProvider(memberId));
+      openEnd ??= ref.watch(nodeRollupOpenEndProvider(memberId));
     }
 
     LedgerEta? earliest;
@@ -414,7 +416,11 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
         filterExp:
             durationSecs == null ? '' : '${formatLedgerSeconds(durationSecs)}s',
         count: count == null ? '' : '${count * group.memberIds.length}',
-        duration: total.inSeconds <= 0 ? '' : formatRollupDuration(total),
+        duration: openEnd != null
+            ? formatNodeRollup(total, openEnd)
+            : total.inSeconds <= 0
+                ? ''
+                : formatRollupDuration(total),
         eta: earliest == null ? '' : formatLedgerClock(earliest.start),
       ),
       etaMuted: earliest != null && !earliest.isActual && state.hasBar,

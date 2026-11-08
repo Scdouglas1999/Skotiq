@@ -144,7 +144,10 @@ class RunEventHandler {
       case ExposureCountProgress(:final current, :final total):
         progressNotifier.updateProgress(
           completedExposures: current ?? 0,
-          message: 'Progress: ${current ?? 0}/${total ?? 0} exposures',
+          // A run looping until its window closes has no total to show.
+          message: (total ?? 0) > 0
+              ? 'Progress: ${current ?? 0}/$total exposures'
+              : 'Progress: ${current ?? 0} exposures',
         );
       case TargetChanged(:final targetName, :final ra, :final dec):
         progressNotifier.updateProgress(

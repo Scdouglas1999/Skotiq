@@ -775,6 +775,10 @@ class _SubtreeActivitySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rollup = ref.watch(nodeRollupDurationProvider(nodeId));
+    final openEnd = ref.watch(nodeRollupOpenEndProvider(nodeId));
+    final length = openEnd == null
+        ? formatRollupDuration(rollup)
+        : formatNodeRollup(rollup, openEnd);
     final hasPlan = subtree.plannedFrames > 0 || subtree.hasOpenEndedLoop;
 
     if (!subtree.ran ||
@@ -787,12 +791,14 @@ class _SubtreeActivitySection extends ConsumerWidget {
           ? '${subtree.plannedFrames}+ frames planned'
           : '${subtree.plannedFrames} frames planned';
       return Semantics(
-        label: '$frameLabel, estimated ${formatRollupDuration(rollup)}',
+        label: openEnd == null
+            ? '$frameLabel, estimated $length'
+            : '$frameLabel, runs $length',
         // The wrapped Text would otherwise announce the same sentence again.
         excludeSemantics: true,
         child: Text(
           hasPlan
-              ? '$frameLabel · ${formatRollupDuration(rollup)}'
+              ? '$frameLabel · $length'
               : 'No exposures planned under this node.',
           style: SkotiqTypography.bodySm.copyWith(
             color: colors.textMuted,
@@ -805,7 +811,9 @@ class _SubtreeActivitySection extends ConsumerWidget {
     final remaining =
         Duration(seconds: (rollup.inSeconds * (1 - fraction)).round());
     final summary = '${subtree.doneFrames} / ${subtree.plannedFrames} frames';
-    final remainingLabel = '${formatRollupDuration(remaining)} left';
+    final remainingLabel = openEnd == null
+        ? '${formatRollupDuration(remaining)} left'
+        : 'runs $length';
 
     return Semantics(
       label: '$summary captured, $remainingLabel',

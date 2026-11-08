@@ -20,6 +20,7 @@ final preSessionTwilightTimesProvider =
     Provider<planetarium.TwilightTimes?>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final hasLocation = settings != null && settings.hasObserverLocation;
+  final now = DateTime.now();
   if (!hasLocation) return null;
 
   return planetarium.AstronomyCalculations.calculateTwilightTimes(
@@ -37,6 +38,7 @@ final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final twilight = ref.watch(preSessionTwilightTimesProvider);
   final hasLocation = settings != null && settings.hasObserverLocation;
+  final now = DateTime.now();
   // Shared overhead model — see the same construction in
   // preflight_validation_dialog.dart. Two surfaces describing one sequence
   // must not bill it differently.
@@ -46,12 +48,20 @@ final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
     ),
   ).simulate(
     sequence,
-    start: DateTime.now(),
+    start: now,
     latitude: hasLocation ? settings.latitude : null,
     longitude: hasLocation ? settings.longitude : null,
     minAltitude: settings?.effectiveHorizonDeg ?? 20.0,
     darkWindowStart: twilight?.astronomicalDusk,
     darkWindowEnd: twilight?.astronomicalDawn,
+    runEndsBy: hasLocation
+        ? planRunEndsBy(
+            parkBeforeDawn: settings.parkBeforeDawn,
+            latitude: settings.latitude,
+            longitude: settings.longitude,
+            now: now,
+          )
+        : null,
   );
 });
 

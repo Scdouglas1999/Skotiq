@@ -283,4 +283,83 @@ void main() {
       );
     });
   });
+
+  group('a block that loops until stopped', () {
+    // A 999-per-filter SHO rotation in "loop until stopped" mode billed by
+    // its counts read "~176h 29m" on its row and "~353h" on the plan.
+    Sequence loopingPlan({TargetTrigger? endWhen}) {
+      final target = TargetHeaderNode(
+        id: 'target',
+        name: 'Heart',
+        targetName: 'Heart',
+        raHours: 2.545,
+        decDegrees: 61.45,
+        parentId: 'root',
+        childIds: const ['se'],
+        endWhen: endWhen,
+      );
+      return _seq(
+        InstructionSetNode(
+          id: 'root',
+          name: 'Root',
+          childIds: const ['target'],
+        ),
+        {
+          'root': InstructionSetNode(
+            id: 'root',
+            name: 'Root',
+            childIds: const ['target'],
+          ),
+          'target': target,
+          'se': SmartExposureNode(
+            id: 'se',
+            name: 'SHO',
+            parentId: 'target',
+            loopUntilStopped: true,
+            plans: const [
+              FilterPlan(filterName: 'Ha', count: 999, durationSecs: 180),
+              FilterPlan(filterName: 'OIII', count: 999, durationSecs: 180),
+              FilterPlan(filterName: 'SII', count: 999, durationSecs: 180),
+            ],
+          ),
+        },
+      );
+    }
+
+    test('without a site it says what ends it, not a count', () {
+      final container = _containerWith(
+        loopingPlan(
+          endWhen: const TargetTrigger.hourAngleBetween(minHa: 5.2, maxHa: 12),
+        ),
+      );
+      for (final id in ['se', 'target', 'root']) {
+        expect(
+          container.read(nodeRollupOpenEndProvider(id)),
+          NodeOpenEnd.targetWindow,
+          reason: id,
+        );
+      }
+      // One rotation, not 2997 frames.
+      expect(
+        container.read(nodeRollupDurationProvider('se')).inMinutes,
+        lessThan(15),
+      );
+      expect(
+        formatNodeRollup(Duration.zero, NodeOpenEnd.targetWindow),
+        'until target ends',
+      );
+    });
+
+    test('with nothing to end it, it runs until stopped', () {
+      final container = _containerWith(loopingPlan());
+      expect(
+        container.read(nodeRollupOpenEndProvider('se')),
+        NodeOpenEnd.stopped,
+      );
+      expect(
+        formatNodeRollup(Duration.zero, NodeOpenEnd.stopped),
+        'until stopped',
+      );
+    });
+  });
 }

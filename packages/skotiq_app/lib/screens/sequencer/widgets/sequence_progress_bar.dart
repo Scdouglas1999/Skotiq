@@ -371,7 +371,11 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '${progress.completedExposures}/${progress.totalExposures}',
+                                  // No total for a run that loops until its
+                                  // window closes: count what it has taken.
+                                  progress.totalExposures > 0
+                                      ? '${progress.completedExposures}/${progress.totalExposures}'
+                                      : '${progress.completedExposures} taken',
                                   style: TextStyle(
                                     fontSize: SkotiqTypography.fontSize10,
                                     fontWeight: FontWeight.w600,
@@ -381,28 +385,30 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: SkotiqDecorations.statusChip(
-                                    widget.colors.primary,
-                                    borderRadius: BorderRadius.circular(
-                                        SkotiqTokens.radiusInline4),
-                                    bordered: false,
-                                  ),
-                                  child: Text(
-                                    '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
-                                    style: TextStyle(
-                                      fontSize: SkotiqTypography.fontSize10,
-                                      fontWeight: FontWeight.w700,
-                                      color: widget.colors.primary,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ],
+                                if (progress.totalExposures > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: SkotiqDecorations.statusChip(
+                                      widget.colors.primary,
+                                      borderRadius: BorderRadius.circular(
+                                          SkotiqTokens.radiusInline4),
+                                      bordered: false,
+                                    ),
+                                    child: Text(
+                                      '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
+                                      style: TextStyle(
+                                        fontSize: SkotiqTypography.fontSize10,
+                                        fontWeight: FontWeight.w700,
+                                        color: widget.colors.primary,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures()
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ],

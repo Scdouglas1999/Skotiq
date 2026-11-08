@@ -85,14 +85,19 @@ LedgerColumns ledgerColumnsFor(
   SequenceNode node,
   Sequence sequence, {
   required Duration rollup,
+  NodeOpenEnd? openEnd,
   DateTime? eta,
 }) {
   final etaText = eta == null ? '' : formatLedgerClock(eta);
   // `<1s` is what `formatRollupDuration` returns for zero, which in a column
   // of estimates reads as a measurement rather than as "this step has no
-  // length". A node with no duration leaves the column empty instead.
-  final durationText =
-      rollup.inSeconds <= 0 ? '' : formatRollupDuration(rollup);
+  // length". A node with no duration leaves the column empty instead. One
+  // that runs until something stops it says what does.
+  final durationText = openEnd != null
+      ? formatNodeRollup(rollup, openEnd)
+      : rollup.inSeconds <= 0
+          ? ''
+          : formatRollupDuration(rollup);
 
   if (node is ExposureNode) {
     return LedgerColumns(
@@ -564,6 +569,7 @@ final ledgerColumnsMapProvider =
       node,
       sequence,
       rollup: ref.watch(nodeRollupDurationProvider(node.id)),
+      openEnd: ref.watch(nodeRollupOpenEndProvider(node.id)),
     );
   }
   return Map<String, LedgerColumns>.unmodifiable(columns);
