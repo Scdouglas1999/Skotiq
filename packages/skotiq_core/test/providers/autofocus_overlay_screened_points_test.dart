@@ -123,7 +123,7 @@ void main() {
         ..._sweep.take(4),
         {
           ..._sweep.last,
-          'rejected': 'HFR fell to 1.88 away from focus, below 19.57 nearer it',
+          'rejected': 'HFR below 19.57 nearer focus, likely missed donut stars',
         },
       ]),
     );
@@ -136,7 +136,7 @@ void main() {
       state.vcurvePoints.where((p) => p.isRejected).map((p) => p.position),
       [45776],
     );
-    expect(state.vcurvePoints.last.rejectedReason, contains('away from focus'));
+    expect(state.vcurvePoints.last.rejectedReason, contains('nearer focus'));
     expect(state.bestHfr, 2.35);
   });
 
@@ -183,7 +183,7 @@ void main() {
                 'position': 45776,
                 'hfr': 1.88,
                 'star_count': 3,
-                'reason': 'HFR fell to 1.88 away from focus',
+                'reason': 'HFR below 19.57 nearer focus, likely missed donut stars',
               },
             ],
           },

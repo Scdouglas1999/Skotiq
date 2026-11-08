@@ -129,15 +129,14 @@ pub fn screen_defocus_dropouts(
                 outer.map_or(trusted.star_count, |o| o.star_count.min(trusted.star_count));
             if drop > trusted.hfr * DROPOUT_TREND_FRACTION && drop >= DROPOUT_TREND_MIN_PX {
                 reasons[order[k as usize]] = Some(format!(
-                    "HFR fell to {:.2} away from focus, below {:.2} nearer it; \
-                     {} stars found, likely donuts the detector missed",
-                    point.hfr, trusted.hfr, point.star_count
+                    "HFR below {:.2} nearer focus, likely missed donut stars",
+                    trusted.hfr
                 ));
             } else if f64::from(point.star_count)
                 < f64::from(neighbors) * STAR_COUNT_COLLAPSE_FRACTION
             {
                 reasons[order[k as usize]] = Some(format!(
-                    "Only {} stars found, against {} beside it",
+                    "only {} stars, against {} beside it",
                     point.star_count, neighbors
                 ));
             } else {
@@ -419,7 +418,7 @@ impl VCurveAutofocus {
             .map(|p| {
                 RejectedFocusPoint::new(
                     p,
-                    "HFR far above the rest of the sweep (cloud, a satellite or a lost star)"
+                    "HFR far above the rest of the sweep (cloud, satellite or lost star)"
                         .to_string(),
                 )
             })

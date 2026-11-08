@@ -53,7 +53,7 @@ void main() {
   });
 
   testWidgets('a point the fit left out is gray and says why', (tester) async {
-    const reason = 'HFR fell to 4.61 away from focus, below 12.55 nearer it';
+    const reason = 'HFR below 12.55 nearer focus, likely missed donut stars';
     await pumpPanel(
       tester,
       child: const NightFocusTab(),
@@ -79,13 +79,13 @@ void main() {
       ),
     );
 
-    expect(find.text('Left out of the fit: $reason'), findsOneWidget);
+    expect(find.text('Left out: $reason'), findsOneWidget);
     final hfr = tester.widget<Text>(find.text('4.61'));
     final kept = tester.widget<Text>(find.text('12.55'));
     expect(hfr.style?.color, isNot(kept.style?.color),
         reason: 'the left-out row reads gray, not like a used point');
     expect(
-      find.bySemanticsLabel(RegExp('Left out of the fit')),
+      find.bySemanticsLabel(RegExp('Left out: ')),
       findsOneWidget,
       reason: 'the reason is read with its row',
     );
