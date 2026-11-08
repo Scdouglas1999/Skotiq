@@ -143,7 +143,7 @@ class QuickStartService {
     // total. The session's own exposure count is frames taken, not planned:
     // as a total it made every run read as finished.
     final completedFrames = session.successfulExposures;
-    final plannedFrames = checkpoint?.totalFrames ?? 0;
+    final plannedFrames = checkpoint == null ? 0 : checkpoint.totalFrames;
     final totalFrames = plannedFrames >= completedFrames ? plannedFrames : 0;
 
     // Calculate total integration in hours
