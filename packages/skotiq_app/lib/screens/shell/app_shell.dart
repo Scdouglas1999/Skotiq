@@ -340,9 +340,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                         context: routeContext,
                         info: info,
                         failure: lastFailure,
-                        remoteHost: backend is NetworkBackend
-                            ? backend.serverHost
-                            : null,
+                        remoteHost:
+                            backend is NetworkBackend ? backend.serverHost : null,
                       );
                     },
                   );
