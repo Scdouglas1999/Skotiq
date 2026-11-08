@@ -24,6 +24,7 @@ import 'panel/mount/night_mount_tab.dart';
 import 'panel/night_right_panel.dart';
 import 'panel/solve/night_solve_tab.dart';
 import 'run_warnings_banner.dart';
+import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
 /// The route Tonight is served on. The path predates the screen and stays
 /// for deep links, notification routes and the tutorial.
@@ -52,6 +53,7 @@ class NightControlScreen extends ConsumerWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        MountGuardBanner(),
         EndOfNightCapBanner(),
         RunDashboardRecoveryBanner(),
         RunDashboardCriticalBanner(),
