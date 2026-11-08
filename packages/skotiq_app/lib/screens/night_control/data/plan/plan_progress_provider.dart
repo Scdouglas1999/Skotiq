@@ -128,7 +128,7 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   final clock = ref.watch(clockProvider);
   // No fixed length: a loop runs until a condition, or a block runs until it
   // is stopped and there is no site to bound it by its target's window.
-  final planOpenEnded = tree.openEnded || (timing?.openEnded ?? false);
+  final planOpenEnded = tree.openEnded || timing?.openEnded == true;
   DateTime? eta;
   if (phase.isRunLive) {
     // The executor's remaining time is frames left times the average frame,
