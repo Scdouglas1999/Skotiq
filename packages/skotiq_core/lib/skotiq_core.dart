@@ -278,6 +278,7 @@ export 'src/providers/runtime_mirror/channels/environment_channel.dart';
 export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
 export 'src/providers/runtime_mirror/channels/framing_geometry_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
+export 'src/providers/runtime_mirror/channels/notice_acks_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_loop_channel.dart';
 export 'src/providers/runtime_mirror/channels/meridian_flip_channel.dart';
 export 'src/providers/runtime_mirror/channels/pending_start_channel.dart';

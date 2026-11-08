@@ -176,4 +176,47 @@ void main() {
     expect(dao.store[kDepthLockHintDismissedKey], 'true');
     expect(find.textContaining('Chasing something faint?'), findsNothing);
   });
+
+  testWidgets('a dismissal reaches the other end of a link', (tester) async {
+    await _pumpHint(
+      tester,
+      backend: FakeDepthLockBackend(),
+      frame: _solvedFrame(),
+    );
+
+    await tester.tap(find.byTooltip('Dismiss'));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold)),
+    );
+    expect(
+      container
+          .read(noticeAcknowledgmentsProvider)
+          .tipDismissed(depthLockHintTipId),
+      isTrue,
+    );
+  });
+
+  testWidgets('a dismissal made in the other window hides it and sticks', (
+    tester,
+  ) async {
+    final dao = await _pumpHint(
+      tester,
+      backend: FakeDepthLockBackend(),
+      frame: _solvedFrame(),
+    );
+    expect(find.textContaining('Chasing something faint?'), findsOneWidget);
+
+    // What the runtime mirror writes when the other window dismisses it.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold)),
+    );
+    final acks = container.read(noticeAcknowledgmentsProvider.notifier);
+    acks.state = acks.state.dismissingTip(depthLockHintTipId);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Chasing something faint?'), findsNothing);
+    expect(dao.store[kDepthLockHintDismissedKey], 'true');
+  });
 }
