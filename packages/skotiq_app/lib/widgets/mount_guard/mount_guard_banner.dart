@@ -67,8 +67,8 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
     final entry = widget.entry;
     final fault = entry.fault;
     final lost = entry.positionUnknown;
-    final stillMoving = fault?.stillMoving ?? false;
-    final runPaused = (fault?.runPaused ?? false) || (lost?.runPaused ?? false);
+    final stillMoving = fault?.stillMoving == true;
+    final runPaused = fault?.runPaused == true || lost?.runPaused == true;
 
     final title = lost != null
         ? "Mount position unknown: automatic moves are stopped"

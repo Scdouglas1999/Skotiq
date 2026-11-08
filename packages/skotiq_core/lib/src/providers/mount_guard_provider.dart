@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 
 import '../backend/roles/mount_guard_backend.dart';
 import '../models/backend/event_types.dart';
@@ -23,6 +24,8 @@ const _openPoll = Duration(seconds: 3);
 /// How often it is read otherwise, so a client that missed an event (it
 /// linked later, or its socket dropped) still catches up.
 const _quietPoll = Duration(seconds: 30);
+
+final _log = Logger('MountGuard');
 
 /// Every mount with an open motion fault or an unknown position, on the host
 /// and on linked clients alike.
@@ -74,7 +77,8 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
       final entries = await guard.mountGuardState();
       state = entries;
       _schedule(entries.isEmpty ? _quietPoll : _openPoll);
-    } catch (_) {
+    } catch (error) {
+      _log.fine('Mount guard read failed: $error');
       // A client between connections reads nothing; the next poll or event
       // tries again. The last state stays on screen meanwhile, because an
       // open fault must not vanish just because one read failed.
@@ -172,10 +176,10 @@ final mountGuardAlarmProvider = Provider<void>((ref) {
 final mountGuardSettingsSyncProvider = Provider<void>((ref) {
   if (ref.watch(isRemoteClientProvider)) return;
   final enabled = ref.watch(
-    appSettingsProvider.select(
-      (s) => s.valueOrNull?.mountGuardAutoSyncResume ?? false,
-    ),
+    appSettingsProvider.select((s) => s.valueOrNull?.mountGuardAutoSyncResume),
   );
+  // Settings not loaded yet: the native guard keeps its own default (off).
+  if (enabled == null) return;
   final backend = ref.watch(backendProvider);
   if (backend is MountGuardBackend) {
     unawaited(

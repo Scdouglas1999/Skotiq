@@ -401,7 +401,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     let mgr = get_device_manager();
     let mut caught = false;
     for _ in 0..40 {
-        let _ = mgr.mount_get_status(device_id).await;
+        mgr.mount_get_status(device_id).await.ok();
         if super::block_reason(device_id).is_some() {
             caught = true;
             break;
@@ -420,7 +420,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     let mut lost_flagged = false;
     for _ in 0..40 {
         tokio::time::sleep(std::time::Duration::from_millis(400)).await;
-        let _ = mgr.mount_get_status(device_id).await;
+        mgr.mount_get_status(device_id).await.ok();
         if super::with_registry(|r| r.mounts.get(device_id).is_some_and(|e| e.lost.is_some())) {
             lost_flagged = true;
             break;

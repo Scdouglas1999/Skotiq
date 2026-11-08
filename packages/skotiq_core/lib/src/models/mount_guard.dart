@@ -6,7 +6,37 @@
 /// refused until the operator recovers the mount.
 library;
 
-double? _double(Object? value) => value is num ? value.toDouble() : null;
+/// The host's guard answer is decoded strictly: a missing field is the host
+/// answering something else, and a fault shown with made-up values would be
+/// worse than an error.
+String _string(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is String) return value;
+  throw FormatException('mount guard: "$key" is missing or not a string');
+}
+
+double _number(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is num) return value.toDouble();
+  throw FormatException('mount guard: "$key" is missing or not a number');
+}
+
+double? _optionalNumber(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  return value is num ? value.toDouble() : null;
+}
+
+bool _bool(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is bool) return value;
+  throw FormatException('mount guard: "$key" is missing or not a bool');
+}
+
+DateTime _time(Map<String, dynamic> json, String key) {
+  final value = DateTime.tryParse(_string(json, key));
+  if (value != null) return value;
+  throw FormatException('mount guard: "$key" is not a time');
+}
 
 /// The mount moved with no command from Skotiq.
 class MountMotionFault {
@@ -52,21 +82,21 @@ class MountMotionFault {
 
   factory MountMotionFault.fromJson(Map<String, dynamic> json) =>
       MountMotionFault(
-        kind: json['kind'] as String? ?? '',
-        message: json['message'] as String? ?? '',
-        detectedAt:
-            DateTime.tryParse(json['detectedAt'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        rateDegPerSec: _double(json['rateDegPerSec']) ?? 0,
-        raHours: _double(json['raHours']) ?? 0,
-        decDegrees: _double(json['decDegrees']) ?? 0,
-        altitudeDegrees: _double(json['altitudeDegrees']),
-        stillMoving: json['stillMoving'] as bool? ?? false,
-        stopAttempts: [
-          for (final a in (json['stopAttempts'] as List? ?? const []))
-            a.toString(),
-        ],
-        runPaused: json['runPaused'] as bool? ?? false,
+        kind: _string(json, 'kind'),
+        message: _string(json, 'message'),
+        detectedAt: _time(json, 'detectedAt'),
+        rateDegPerSec: _number(json, 'rateDegPerSec'),
+        raHours: _number(json, 'raHours'),
+        decDegrees: _number(json, 'decDegrees'),
+        altitudeDegrees: _optionalNumber(json, 'altitudeDegrees'),
+        stillMoving: _bool(json, 'stillMoving'),
+        stopAttempts: switch (json['stopAttempts']) {
+          final List<dynamic> list => [for (final a in list) a.toString()],
+          _ => throw const FormatException(
+            'mount guard: "stopAttempts" is missing or not a list',
+          ),
+        },
+        runPaused: _bool(json, 'runPaused'),
       );
 }
 
@@ -93,12 +123,10 @@ class MountPositionUnknown {
 
   factory MountPositionUnknown.fromJson(Map<String, dynamic> json) =>
       MountPositionUnknown(
-        reason: json['reason'] as String? ?? '',
-        message: json['message'] as String? ?? '',
-        flaggedAt:
-            DateTime.tryParse(json['flaggedAt'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        runPaused: json['runPaused'] as bool? ?? false,
+        reason: _string(json, 'reason'),
+        message: _string(json, 'message'),
+        flaggedAt: _time(json, 'flaggedAt'),
+        runPaused: _bool(json, 'runPaused'),
       );
 }
 
@@ -132,7 +160,7 @@ class MountGuardEntry {
     final fault = json['fault'];
     final lost = json['positionUnknown'];
     return MountGuardEntry(
-      deviceId: json['deviceId'] as String? ?? '',
+      deviceId: _string(json, 'deviceId'),
       fault: fault is Map<String, dynamic>
           ? MountMotionFault.fromJson(fault)
           : null,
@@ -140,7 +168,7 @@ class MountGuardEntry {
           ? MountPositionUnknown.fromJson(lost)
           : null,
       blockReason: json['blockReason'] as String?,
-      autoRecovering: json['autoRecovering'] as bool? ?? false,
+      autoRecovering: _bool(json, 'autoRecovering'),
     );
   }
 }
@@ -174,10 +202,10 @@ class MountGuardSolveResult {
 
   factory MountGuardSolveResult.fromJson(Map<String, dynamic> json) =>
       MountGuardSolveResult(
-        raHours: _double(json['raHours']) ?? 0,
-        decDegrees: _double(json['decDegrees']) ?? 0,
-        mountRaHours: _double(json['mountRaHours']) ?? 0,
-        mountDecDegrees: _double(json['mountDecDegrees']) ?? 0,
-        separationDegrees: _double(json['separationDegrees']) ?? 0,
+        raHours: _number(json, 'raHours'),
+        decDegrees: _number(json, 'decDegrees'),
+        mountRaHours: _number(json, 'mountRaHours'),
+        mountDecDegrees: _number(json, 'mountDecDegrees'),
+        separationDegrees: _number(json, 'separationDegrees'),
       );
 }

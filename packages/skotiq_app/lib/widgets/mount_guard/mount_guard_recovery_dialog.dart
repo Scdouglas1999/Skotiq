@@ -26,7 +26,7 @@ class _MountGuardRecoveryDialogState
   _Step _step = _Step.choose;
   MountGuardSolveResult? _solve;
   String? _error;
-  String? _doneText;
+  String _doneText = '';
 
   Future<void> _confirmHome() async {
     setState(() => _error = null);
@@ -221,7 +221,7 @@ class _MountGuardRecoveryDialogState
         ];
       case _Step.done:
         children = [
-          Text(_doneText ?? '', style: body),
+          Text(_doneText, style: body),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
             'A paused run stays paused. Resume it from Tonight when you are '
