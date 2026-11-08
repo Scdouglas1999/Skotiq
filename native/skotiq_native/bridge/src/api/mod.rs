@@ -148,6 +148,7 @@ pub(crate) mod hotplug;
 pub mod imaging;
 pub mod init;
 pub mod mosaic;
+pub mod mount_guard;
 pub mod phd2;
 pub mod plate_solve;
 pub mod polar_alignment;
@@ -185,6 +186,7 @@ pub use hotplug::api_rescan_devices;
 pub use imaging::*;
 pub use init::*;
 pub use mosaic::*;
+pub use mount_guard::*;
 pub use phd2::*;
 pub use plate_solve::*;
 // Both carry an `entrypoints` submodule, so the globs re-export that one NAME

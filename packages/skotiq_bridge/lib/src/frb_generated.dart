@@ -36,6 +36,7 @@ import 'api/hotplug.dart';
 import 'api/imaging.dart';
 import 'api/init.dart';
 import 'api/mosaic.dart';
+import 'api/mount_guard.dart';
 import 'api/phd2.dart';
 import 'api/plate_solve.dart';
 import 'api/polar_alignment/entrypoints.dart';
@@ -126,7 +127,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 310948540;
+  int get rustContentHash => -542435512;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1075,6 +1076,34 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiDevicesSimulationMountApiMountFindHome({
     required String deviceId,
+  });
+
+  Future<void> crateApiMountGuardApiMountGuardAcknowledgeFault({
+    required String deviceId,
+  });
+
+  Future<void> crateApiMountGuardApiMountGuardConfirmRehomed({
+    required String deviceId,
+  });
+
+  Future<MountGuardSettings> crateApiMountGuardApiMountGuardGetSettings();
+
+  Future<List<MountGuardStatus>> crateApiMountGuardApiMountGuardGetState();
+
+  Future<void> crateApiMountGuardApiMountGuardRecoverySync({
+    required String deviceId,
+    required double raHours,
+    required double decDegrees,
+  });
+
+  Future<void> crateApiMountGuardApiMountGuardSetSettings({
+    required MountGuardSettings settings,
+  });
+
+  Future<MountGuardSolve> crateApiMountGuardApiMountGuardSolve({
+    required String deviceId,
+    String? cameraId,
+    required double exposureSecs,
   });
 
   Future<void> crateApiDevicesSimulationMountApiMountPark({
@@ -8914,6 +8943,222 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_mount_find_home",
         argNames: ["deviceId"],
+      );
+
+  @override
+  Future<void> crateApiMountGuardApiMountGuardAcknowledgeFault({
+    required String deviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          return wire
+              .wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardAcknowledgeFaultConstMeta,
+        argValues: [deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardAcknowledgeFaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_mount_guard_acknowledge_fault",
+        argNames: ["deviceId"],
+      );
+
+  @override
+  Future<void> crateApiMountGuardApiMountGuardConfirmRehomed({
+    required String deviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          return wire
+              .wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardConfirmRehomedConstMeta,
+        argValues: [deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardConfirmRehomedConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_mount_guard_confirm_rehomed",
+        argNames: ["deviceId"],
+      );
+
+  @override
+  Future<MountGuardSettings> crateApiMountGuardApiMountGuardGetSettings() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__mount_guard__api_mount_guard_get_settings(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_mount_guard_settings,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardGetSettingsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardGetSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_mount_guard_get_settings",
+        argNames: [],
+      );
+
+  @override
+  Future<List<MountGuardStatus>> crateApiMountGuardApiMountGuardGetState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__mount_guard__api_mount_guard_get_state(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_mount_guard_status,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardGetStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardGetStateConstMeta =>
+      const TaskConstMeta(debugName: "api_mount_guard_get_state", argNames: []);
+
+  @override
+  Future<void> crateApiMountGuardApiMountGuardRecoverySync({
+    required String deviceId,
+    required double raHours,
+    required double decDegrees,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_f_64(raHours);
+          var arg2 = cst_encode_f_64(decDegrees);
+          return wire
+              .wire__crate__api__mount_guard__api_mount_guard_recovery_sync(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardRecoverySyncConstMeta,
+        argValues: [deviceId, raHours, decDegrees],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardRecoverySyncConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_mount_guard_recovery_sync",
+        argNames: ["deviceId", "raHours", "decDegrees"],
+      );
+
+  @override
+  Future<void> crateApiMountGuardApiMountGuardSetSettings({
+    required MountGuardSettings settings,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_mount_guard_settings(settings);
+          return wire
+              .wire__crate__api__mount_guard__api_mount_guard_set_settings(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardSetSettingsConstMeta,
+        argValues: [settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardSetSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_mount_guard_set_settings",
+        argNames: ["settings"],
+      );
+
+  @override
+  Future<MountGuardSolve> crateApiMountGuardApiMountGuardSolve({
+    required String deviceId,
+    String? cameraId,
+    required double exposureSecs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_opt_String(cameraId);
+          var arg2 = cst_encode_f_64(exposureSecs);
+          return wire.wire__crate__api__mount_guard__api_mount_guard_solve(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_mount_guard_solve,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiMountGuardApiMountGuardSolveConstMeta,
+        argValues: [deviceId, cameraId, exposureSecs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMountGuardApiMountGuardSolveConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_mount_guard_solve",
+        argNames: ["deviceId", "cameraId", "exposureSecs"],
       );
 
   @override
@@ -17308,6 +17553,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MountGuardSettings dco_decode_box_autoadd_mount_guard_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mount_guard_settings(raw);
+  }
+
+  @protected
+  MountMotionFaultInfo dco_decode_box_autoadd_mount_motion_fault_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mount_motion_fault_info(raw);
+  }
+
+  @protected
+  MountPositionUnknownInfo dco_decode_box_autoadd_mount_position_unknown_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mount_position_unknown_info(raw);
+  }
+
+  @protected
   ObserverLocation dco_decode_box_autoadd_observer_location(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_observer_location(raw);
@@ -18783,6 +19050,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MountGuardStatus> dco_decode_list_mount_guard_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_mount_guard_status).toList();
+  }
+
+  @protected
   List<NodeDefinitionApi> dco_decode_list_node_definition_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_node_definition_api).toList();
@@ -18996,6 +19269,86 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       axisCount: dco_decode_u_32(arr[21]),
       minPulseGuideMs: dco_decode_opt_box_autoadd_f_64(arr[22]),
       maxPulseGuideMs: dco_decode_opt_box_autoadd_f_64(arr[23]),
+    );
+  }
+
+  @protected
+  MountGuardSettings dco_decode_mount_guard_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return MountGuardSettings(
+      enabled: dco_decode_bool(arr[0]),
+      stopWhenIdle: dco_decode_bool(arr[1]),
+      autoSyncResume: dco_decode_bool(arr[2]),
+      solveMismatchDegrees: dco_decode_f_64(arr[3]),
+    );
+  }
+
+  @protected
+  MountGuardSolve dco_decode_mount_guard_solve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return MountGuardSolve(
+      raHours: dco_decode_f_64(arr[0]),
+      decDegrees: dco_decode_f_64(arr[1]),
+      mountRaHours: dco_decode_f_64(arr[2]),
+      mountDecDegrees: dco_decode_f_64(arr[3]),
+      separationDegrees: dco_decode_f_64(arr[4]),
+    );
+  }
+
+  @protected
+  MountGuardStatus dco_decode_mount_guard_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return MountGuardStatus(
+      deviceId: dco_decode_String(arr[0]),
+      fault: dco_decode_opt_box_autoadd_mount_motion_fault_info(arr[1]),
+      positionUnknown: dco_decode_opt_box_autoadd_mount_position_unknown_info(
+        arr[2],
+      ),
+      blockReason: dco_decode_opt_String(arr[3]),
+      autoRecovering: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  MountMotionFaultInfo dco_decode_mount_motion_fault_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return MountMotionFaultInfo(
+      kind: dco_decode_String(arr[0]),
+      message: dco_decode_String(arr[1]),
+      detectedAtUnix: dco_decode_i_64(arr[2]),
+      rateDegPerSec: dco_decode_f_64(arr[3]),
+      raHours: dco_decode_f_64(arr[4]),
+      decDegrees: dco_decode_f_64(arr[5]),
+      altitudeDegrees: dco_decode_opt_box_autoadd_f_64(arr[6]),
+      stillMoving: dco_decode_bool(arr[7]),
+      stopAttempts: dco_decode_list_String(arr[8]),
+      runPaused: dco_decode_bool(arr[9]),
+    );
+  }
+
+  @protected
+  MountPositionUnknownInfo dco_decode_mount_position_unknown_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return MountPositionUnknownInfo(
+      reason: dco_decode_String(arr[0]),
+      message: dco_decode_String(arr[1]),
+      flaggedAtUnix: dco_decode_i_64(arr[2]),
+      runPaused: dco_decode_bool(arr[3]),
     );
   }
 
@@ -19238,6 +19591,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_live_stacking_broadcast_snapshot(raw);
+  }
+
+  @protected
+  MountMotionFaultInfo? dco_decode_opt_box_autoadd_mount_motion_fault_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_mount_motion_fault_info(raw);
+  }
+
+  @protected
+  MountPositionUnknownInfo?
+  dco_decode_opt_box_autoadd_mount_position_unknown_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_mount_position_unknown_info(raw);
   }
 
   @protected
@@ -19767,6 +20139,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SafetyEvent_ParkInitiated(reason: dco_decode_String(raw[1]));
       case 4:
         return SafetyEvent_ParkCompleted();
+      case 5:
+        return SafetyEvent_MountMotionFault(
+          deviceId: dco_decode_String(raw[1]),
+          kind: dco_decode_String(raw[2]),
+          message: dco_decode_String(raw[3]),
+        );
+      case 6:
+        return SafetyEvent_MountPositionUnknown(
+          deviceId: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+          message: dco_decode_String(raw[3]),
+        );
+      case 7:
+        return SafetyEvent_MountGuardCleared(
+          deviceId: dco_decode_String(raw[1]),
+          message: dco_decode_String(raw[2]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -21677,6 +22066,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_mount_capabilities(deserializer));
+  }
+
+  @protected
+  MountGuardSettings sse_decode_box_autoadd_mount_guard_settings(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mount_guard_settings(deserializer));
+  }
+
+  @protected
+  MountMotionFaultInfo sse_decode_box_autoadd_mount_motion_fault_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mount_motion_fault_info(deserializer));
+  }
+
+  @protected
+  MountPositionUnknownInfo sse_decode_box_autoadd_mount_position_unknown_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mount_position_unknown_info(deserializer));
   }
 
   @protected
@@ -23742,6 +24155,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MountGuardStatus> sse_decode_list_mount_guard_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MountGuardStatus>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_mount_guard_status(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<NodeDefinitionApi> sse_decode_list_node_definition_api(
     SseDeserializer deserializer,
   ) {
@@ -24094,6 +24521,106 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       axisCount: var_axisCount,
       minPulseGuideMs: var_minPulseGuideMs,
       maxPulseGuideMs: var_maxPulseGuideMs,
+    );
+  }
+
+  @protected
+  MountGuardSettings sse_decode_mount_guard_settings(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_stopWhenIdle = sse_decode_bool(deserializer);
+    var var_autoSyncResume = sse_decode_bool(deserializer);
+    var var_solveMismatchDegrees = sse_decode_f_64(deserializer);
+    return MountGuardSettings(
+      enabled: var_enabled,
+      stopWhenIdle: var_stopWhenIdle,
+      autoSyncResume: var_autoSyncResume,
+      solveMismatchDegrees: var_solveMismatchDegrees,
+    );
+  }
+
+  @protected
+  MountGuardSolve sse_decode_mount_guard_solve(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_raHours = sse_decode_f_64(deserializer);
+    var var_decDegrees = sse_decode_f_64(deserializer);
+    var var_mountRaHours = sse_decode_f_64(deserializer);
+    var var_mountDecDegrees = sse_decode_f_64(deserializer);
+    var var_separationDegrees = sse_decode_f_64(deserializer);
+    return MountGuardSolve(
+      raHours: var_raHours,
+      decDegrees: var_decDegrees,
+      mountRaHours: var_mountRaHours,
+      mountDecDegrees: var_mountDecDegrees,
+      separationDegrees: var_separationDegrees,
+    );
+  }
+
+  @protected
+  MountGuardStatus sse_decode_mount_guard_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_fault = sse_decode_opt_box_autoadd_mount_motion_fault_info(
+      deserializer,
+    );
+    var var_positionUnknown =
+        sse_decode_opt_box_autoadd_mount_position_unknown_info(deserializer);
+    var var_blockReason = sse_decode_opt_String(deserializer);
+    var var_autoRecovering = sse_decode_bool(deserializer);
+    return MountGuardStatus(
+      deviceId: var_deviceId,
+      fault: var_fault,
+      positionUnknown: var_positionUnknown,
+      blockReason: var_blockReason,
+      autoRecovering: var_autoRecovering,
+    );
+  }
+
+  @protected
+  MountMotionFaultInfo sse_decode_mount_motion_fault_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_detectedAtUnix = sse_decode_i_64(deserializer);
+    var var_rateDegPerSec = sse_decode_f_64(deserializer);
+    var var_raHours = sse_decode_f_64(deserializer);
+    var var_decDegrees = sse_decode_f_64(deserializer);
+    var var_altitudeDegrees = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_stillMoving = sse_decode_bool(deserializer);
+    var var_stopAttempts = sse_decode_list_String(deserializer);
+    var var_runPaused = sse_decode_bool(deserializer);
+    return MountMotionFaultInfo(
+      kind: var_kind,
+      message: var_message,
+      detectedAtUnix: var_detectedAtUnix,
+      rateDegPerSec: var_rateDegPerSec,
+      raHours: var_raHours,
+      decDegrees: var_decDegrees,
+      altitudeDegrees: var_altitudeDegrees,
+      stillMoving: var_stillMoving,
+      stopAttempts: var_stopAttempts,
+      runPaused: var_runPaused,
+    );
+  }
+
+  @protected
+  MountPositionUnknownInfo sse_decode_mount_position_unknown_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_reason = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_flaggedAtUnix = sse_decode_i_64(deserializer);
+    var var_runPaused = sse_decode_bool(deserializer);
+    return MountPositionUnknownInfo(
+      reason: var_reason,
+      message: var_message,
+      flaggedAtUnix: var_flaggedAtUnix,
+      runPaused: var_runPaused,
     );
   }
 
@@ -24458,6 +24985,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       return (sse_decode_box_autoadd_live_stacking_broadcast_snapshot(
         deserializer,
       ));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MountMotionFaultInfo? sse_decode_opt_box_autoadd_mount_motion_fault_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_mount_motion_fault_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MountPositionUnknownInfo?
+  sse_decode_opt_box_autoadd_mount_position_unknown_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_mount_position_unknown_info(deserializer));
     } else {
       return null;
     }
@@ -25126,6 +25680,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SafetyEvent_ParkInitiated(reason: var_reason);
       case 4:
         return SafetyEvent_ParkCompleted();
+      case 5:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_kind = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SafetyEvent_MountMotionFault(
+          deviceId: var_deviceId,
+          kind: var_kind,
+          message: var_message,
+        );
+      case 6:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SafetyEvent_MountPositionUnknown(
+          deviceId: var_deviceId,
+          reason: var_reason,
+          message: var_message,
+        );
+      case 7:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SafetyEvent_MountGuardCleared(
+          deviceId: var_deviceId,
+          message: var_message,
+        );
       default:
         throw UnimplementedError('');
     }
@@ -27461,6 +28040,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_mount_guard_settings(
+    MountGuardSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mount_guard_settings(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_mount_motion_fault_info(
+    MountMotionFaultInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mount_motion_fault_info(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mount_position_unknown_info(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_observer_location(
     ObserverLocation self,
     SseSerializer serializer,
@@ -29087,6 +29693,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_mount_guard_status(
+    List<MountGuardStatus> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_mount_guard_status(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_node_definition_api(
     List<NodeDefinitionApi> self,
     SseSerializer serializer,
@@ -29401,6 +30019,77 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.axisCount, serializer);
     sse_encode_opt_box_autoadd_f_64(self.minPulseGuideMs, serializer);
     sse_encode_opt_box_autoadd_f_64(self.maxPulseGuideMs, serializer);
+  }
+
+  @protected
+  void sse_encode_mount_guard_settings(
+    MountGuardSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.stopWhenIdle, serializer);
+    sse_encode_bool(self.autoSyncResume, serializer);
+    sse_encode_f_64(self.solveMismatchDegrees, serializer);
+  }
+
+  @protected
+  void sse_encode_mount_guard_solve(
+    MountGuardSolve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.raHours, serializer);
+    sse_encode_f_64(self.decDegrees, serializer);
+    sse_encode_f_64(self.mountRaHours, serializer);
+    sse_encode_f_64(self.mountDecDegrees, serializer);
+    sse_encode_f_64(self.separationDegrees, serializer);
+  }
+
+  @protected
+  void sse_encode_mount_guard_status(
+    MountGuardStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_opt_box_autoadd_mount_motion_fault_info(self.fault, serializer);
+    sse_encode_opt_box_autoadd_mount_position_unknown_info(
+      self.positionUnknown,
+      serializer,
+    );
+    sse_encode_opt_String(self.blockReason, serializer);
+    sse_encode_bool(self.autoRecovering, serializer);
+  }
+
+  @protected
+  void sse_encode_mount_motion_fault_info(
+    MountMotionFaultInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.message, serializer);
+    sse_encode_i_64(self.detectedAtUnix, serializer);
+    sse_encode_f_64(self.rateDegPerSec, serializer);
+    sse_encode_f_64(self.raHours, serializer);
+    sse_encode_f_64(self.decDegrees, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.altitudeDegrees, serializer);
+    sse_encode_bool(self.stillMoving, serializer);
+    sse_encode_list_String(self.stopAttempts, serializer);
+    sse_encode_bool(self.runPaused, serializer);
+  }
+
+  @protected
+  void sse_encode_mount_position_unknown_info(
+    MountPositionUnknownInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.reason, serializer);
+    sse_encode_String(self.message, serializer);
+    sse_encode_i_64(self.flaggedAtUnix, serializer);
+    sse_encode_bool(self.runPaused, serializer);
   }
 
   @protected
@@ -29721,6 +30410,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_live_stacking_broadcast_snapshot(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_mount_motion_fault_info(
+    MountMotionFaultInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_mount_motion_fault_info(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_mount_position_unknown_info(self, serializer);
     }
   }
 
@@ -30259,6 +30974,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(reason, serializer);
       case SafetyEvent_ParkCompleted():
         sse_encode_i_32(4, serializer);
+      case SafetyEvent_MountMotionFault(
+        deviceId: final deviceId,
+        kind: final kind,
+        message: final message,
+      ):
+        sse_encode_i_32(5, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(kind, serializer);
+        sse_encode_String(message, serializer);
+      case SafetyEvent_MountPositionUnknown(
+        deviceId: final deviceId,
+        reason: final reason,
+        message: final message,
+      ):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(reason, serializer);
+        sse_encode_String(message, serializer);
+      case SafetyEvent_MountGuardCleared(
+        deviceId: final deviceId,
+        message: final message,
+      ):
+        sse_encode_i_32(7, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(message, serializer);
     }
   }
 

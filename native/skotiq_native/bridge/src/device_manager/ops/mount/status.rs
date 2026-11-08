@@ -9,6 +9,21 @@ impl DeviceManager {
         ra: f64,
         dec: f64,
     ) -> Result<(), DeviceOpError> {
+        // A sync far from where the mount says it points is a lost position
+        // model, not a pointing correction (see `motion_guard::check_sync`).
+        if let Ok(status) = self.mount_get_status(device_id).await {
+            crate::device_manager::motion_guard::check_sync(
+                device_id,
+                (status.right_ascension, status.declination),
+                (ra, dec),
+            )
+            .await
+            .map_err(|reason| DeviceOpError::invalid_state(device_id, reason))?;
+        }
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Sync,
+        );
         self.mount_sync_dispatch(device_id, ra, dec).await?;
         self.publish_property_changed(
             DeviceType::Mount,
@@ -213,7 +228,17 @@ impl DeviceManager {
         }
     }
 
+    /// Read the mount's status. Every reading also goes to the motion guard,
+    /// which compares it with the commands the mount was sent.
     pub async fn mount_get_status(&self, device_id: &str) -> Result<MountStatus, DeviceOpError> {
+        let result = self.mount_read_status(device_id).await;
+        if !matches!(result, Err(DeviceOpError::DeviceNotFound(_))) {
+            crate::device_manager::motion_guard::observe_status(device_id, &result).await;
+        }
+        result
+    }
+
+    async fn mount_read_status(&self, device_id: &str) -> Result<MountStatus, DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)

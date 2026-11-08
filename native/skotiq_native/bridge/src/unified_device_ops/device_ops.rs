@@ -1077,6 +1077,18 @@ impl DeviceOps for UnifiedDeviceOps {
         crate::api::phd2::set_guiding_stop_reason(reason);
     }
 
+    async fn request_mount_fault_hold(&self, mount_id: &str, message: &str) {
+        tracing::warn!("[MOTION GUARD] {mount_id}: {message}");
+        let message = message.to_string();
+        // The executor lock is not taken from inside the run's own task.
+        tokio::spawn(async move {
+            let executor = skotiq_sequencer::get_executor().read().await;
+            if let Err(e) = executor.hold_for_mount_fault(&message).await {
+                tracing::error!("[MOTION GUARD] Could not hold the run: {e}");
+            }
+        });
+    }
+
     // Plate solving
 
     async fn plate_solve(

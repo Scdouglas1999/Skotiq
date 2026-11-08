@@ -36,6 +36,7 @@ import 'api/hotplug.dart';
 import 'api/imaging.dart';
 import 'api/init.dart';
 import 'api/mosaic.dart';
+import 'api/mount_guard.dart';
 import 'api/phd2.dart';
 import 'api/plate_solve.dart';
 import 'api/polar_alignment/entrypoints.dart';
@@ -349,6 +350,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MountCapabilities dco_decode_box_autoadd_mount_capabilities(dynamic raw);
 
   @protected
+  MountGuardSettings dco_decode_box_autoadd_mount_guard_settings(dynamic raw);
+
+  @protected
+  MountMotionFaultInfo dco_decode_box_autoadd_mount_motion_fault_info(
+    dynamic raw,
+  );
+
+  @protected
+  MountPositionUnknownInfo dco_decode_box_autoadd_mount_position_unknown_info(
+    dynamic raw,
+  );
+
+  @protected
   ObserverLocation dco_decode_box_autoadd_observer_location(dynamic raw);
 
   @protected
@@ -634,6 +648,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MosaicPanelResult> dco_decode_list_mosaic_panel_result(dynamic raw);
 
   @protected
+  List<MountGuardStatus> dco_decode_list_mount_guard_status(dynamic raw);
+
+  @protected
   List<NodeDefinitionApi> dco_decode_list_node_definition_api(dynamic raw);
 
   @protected
@@ -713,6 +730,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MountCapabilities dco_decode_mount_capabilities(dynamic raw);
+
+  @protected
+  MountGuardSettings dco_decode_mount_guard_settings(dynamic raw);
+
+  @protected
+  MountGuardSolve dco_decode_mount_guard_solve(dynamic raw);
+
+  @protected
+  MountGuardStatus dco_decode_mount_guard_status(dynamic raw);
+
+  @protected
+  MountMotionFaultInfo dco_decode_mount_motion_fault_info(dynamic raw);
+
+  @protected
+  MountPositionUnknownInfo dco_decode_mount_position_unknown_info(dynamic raw);
 
   @protected
   MountSite dco_decode_mount_site(dynamic raw);
@@ -803,6 +835,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   LiveStackingBroadcastSnapshot?
   dco_decode_opt_box_autoadd_live_stacking_broadcast_snapshot(dynamic raw);
+
+  @protected
+  MountMotionFaultInfo? dco_decode_opt_box_autoadd_mount_motion_fault_info(
+    dynamic raw,
+  );
+
+  @protected
+  MountPositionUnknownInfo?
+  dco_decode_opt_box_autoadd_mount_position_unknown_info(dynamic raw);
 
   @protected
   ObserverLocation? dco_decode_opt_box_autoadd_observer_location(dynamic raw);
@@ -1397,6 +1438,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MountGuardSettings sse_decode_box_autoadd_mount_guard_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MountMotionFaultInfo sse_decode_box_autoadd_mount_motion_fault_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MountPositionUnknownInfo sse_decode_box_autoadd_mount_position_unknown_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ObserverLocation sse_decode_box_autoadd_observer_location(
     SseDeserializer deserializer,
   );
@@ -1756,6 +1812,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<MountGuardStatus> sse_decode_list_mount_guard_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<NodeDefinitionApi> sse_decode_list_node_definition_api(
     SseDeserializer deserializer,
   );
@@ -1855,6 +1916,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MountCapabilities sse_decode_mount_capabilities(SseDeserializer deserializer);
+
+  @protected
+  MountGuardSettings sse_decode_mount_guard_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MountGuardSolve sse_decode_mount_guard_solve(SseDeserializer deserializer);
+
+  @protected
+  MountGuardStatus sse_decode_mount_guard_status(SseDeserializer deserializer);
+
+  @protected
+  MountMotionFaultInfo sse_decode_mount_motion_fault_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MountPositionUnknownInfo sse_decode_mount_position_unknown_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MountSite sse_decode_mount_site(SseDeserializer deserializer);
@@ -1961,6 +2043,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   LiveStackingBroadcastSnapshot?
   sse_decode_opt_box_autoadd_live_stacking_broadcast_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MountMotionFaultInfo? sse_decode_opt_box_autoadd_mount_motion_fault_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MountPositionUnknownInfo?
+  sse_decode_opt_box_autoadd_mount_position_unknown_info(
     SseDeserializer deserializer,
   );
 
@@ -2687,6 +2780,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_mount_guard_settings>
+  cst_encode_box_autoadd_mount_guard_settings(MountGuardSettings raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_mount_guard_settings();
+    cst_api_fill_to_wire_mount_guard_settings(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_mount_motion_fault_info>
+  cst_encode_box_autoadd_mount_motion_fault_info(MountMotionFaultInfo raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_mount_motion_fault_info();
+    cst_api_fill_to_wire_mount_motion_fault_info(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_mount_position_unknown_info>
+  cst_encode_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_mount_position_unknown_info();
+    cst_api_fill_to_wire_mount_position_unknown_info(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_observer_location>
   cst_encode_box_autoadd_observer_location(ObserverLocation raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -3025,6 +3147,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_mosaic_panel_result(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_mosaic_panel_result(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_mount_guard_status>
+  cst_encode_list_mount_guard_status(List<MountGuardStatus> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_mount_guard_status(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_mount_guard_status(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3442,6 +3575,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_live_stacking_broadcast_snapshot(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_mount_motion_fault_info>
+  cst_encode_opt_box_autoadd_mount_motion_fault_info(
+    MountMotionFaultInfo? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_mount_motion_fault_info(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_mount_position_unknown_info>
+  cst_encode_opt_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_mount_position_unknown_info(raw);
   }
 
   @protected
@@ -4162,6 +4317,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_mount_capabilities> wireObj,
   ) {
     cst_api_fill_to_wire_mount_capabilities(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_mount_guard_settings(
+    MountGuardSettings apiObj,
+    ffi.Pointer<wire_cst_mount_guard_settings> wireObj,
+  ) {
+    cst_api_fill_to_wire_mount_guard_settings(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_mount_motion_fault_info(
+    MountMotionFaultInfo apiObj,
+    ffi.Pointer<wire_cst_mount_motion_fault_info> wireObj,
+  ) {
+    cst_api_fill_to_wire_mount_motion_fault_info(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo apiObj,
+    ffi.Pointer<wire_cst_mount_position_unknown_info> wireObj,
+  ) {
+    cst_api_fill_to_wire_mount_position_unknown_info(apiObj, wireObj.ref);
   }
 
   @protected
@@ -5892,6 +6071,78 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_mount_guard_settings(
+    MountGuardSettings apiObj,
+    wire_cst_mount_guard_settings wireObj,
+  ) {
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.stop_when_idle = cst_encode_bool(apiObj.stopWhenIdle);
+    wireObj.auto_sync_resume = cst_encode_bool(apiObj.autoSyncResume);
+    wireObj.solve_mismatch_degrees = cst_encode_f_64(
+      apiObj.solveMismatchDegrees,
+    );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_mount_guard_solve(
+    MountGuardSolve apiObj,
+    wire_cst_mount_guard_solve wireObj,
+  ) {
+    wireObj.ra_hours = cst_encode_f_64(apiObj.raHours);
+    wireObj.dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+    wireObj.mount_ra_hours = cst_encode_f_64(apiObj.mountRaHours);
+    wireObj.mount_dec_degrees = cst_encode_f_64(apiObj.mountDecDegrees);
+    wireObj.separation_degrees = cst_encode_f_64(apiObj.separationDegrees);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_mount_guard_status(
+    MountGuardStatus apiObj,
+    wire_cst_mount_guard_status wireObj,
+  ) {
+    wireObj.device_id = cst_encode_String(apiObj.deviceId);
+    wireObj.fault = cst_encode_opt_box_autoadd_mount_motion_fault_info(
+      apiObj.fault,
+    );
+    wireObj.position_unknown =
+        cst_encode_opt_box_autoadd_mount_position_unknown_info(
+          apiObj.positionUnknown,
+        );
+    wireObj.block_reason = cst_encode_opt_String(apiObj.blockReason);
+    wireObj.auto_recovering = cst_encode_bool(apiObj.autoRecovering);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_mount_motion_fault_info(
+    MountMotionFaultInfo apiObj,
+    wire_cst_mount_motion_fault_info wireObj,
+  ) {
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.message = cst_encode_String(apiObj.message);
+    wireObj.detected_at_unix = cst_encode_i_64(apiObj.detectedAtUnix);
+    wireObj.rate_deg_per_sec = cst_encode_f_64(apiObj.rateDegPerSec);
+    wireObj.ra_hours = cst_encode_f_64(apiObj.raHours);
+    wireObj.dec_degrees = cst_encode_f_64(apiObj.decDegrees);
+    wireObj.altitude_degrees = cst_encode_opt_box_autoadd_f_64(
+      apiObj.altitudeDegrees,
+    );
+    wireObj.still_moving = cst_encode_bool(apiObj.stillMoving);
+    wireObj.stop_attempts = cst_encode_list_String(apiObj.stopAttempts);
+    wireObj.run_paused = cst_encode_bool(apiObj.runPaused);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_mount_position_unknown_info(
+    MountPositionUnknownInfo apiObj,
+    wire_cst_mount_position_unknown_info wireObj,
+  ) {
+    wireObj.reason = cst_encode_String(apiObj.reason);
+    wireObj.message = cst_encode_String(apiObj.message);
+    wireObj.flagged_at_unix = cst_encode_i_64(apiObj.flaggedAtUnix);
+    wireObj.run_paused = cst_encode_bool(apiObj.runPaused);
+  }
+
+  @protected
   void cst_api_fill_to_wire_mount_site(
     MountSite apiObj,
     wire_cst_mount_site wireObj,
@@ -6380,6 +6631,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (apiObj is SafetyEvent_ParkCompleted) {
       wireObj.tag = 4;
+      return;
+    }
+    if (apiObj is SafetyEvent_MountMotionFault) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_kind = cst_encode_String(apiObj.kind);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 5;
+      wireObj.kind.MountMotionFault.device_id = pre_device_id;
+      wireObj.kind.MountMotionFault.kind = pre_kind;
+      wireObj.kind.MountMotionFault.message = pre_message;
+      return;
+    }
+    if (apiObj is SafetyEvent_MountPositionUnknown) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 6;
+      wireObj.kind.MountPositionUnknown.device_id = pre_device_id;
+      wireObj.kind.MountPositionUnknown.reason = pre_reason;
+      wireObj.kind.MountPositionUnknown.message = pre_message;
+      return;
+    }
+    if (apiObj is SafetyEvent_MountGuardCleared) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 7;
+      wireObj.kind.MountGuardCleared.device_id = pre_device_id;
+      wireObj.kind.MountGuardCleared.message = pre_message;
       return;
     }
   }
@@ -8188,6 +8467,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_mount_guard_settings(
+    MountGuardSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_mount_motion_fault_info(
+    MountMotionFaultInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_observer_location(
     ObserverLocation self,
     SseSerializer serializer,
@@ -8647,6 +8944,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_mount_guard_status(
+    List<MountGuardStatus> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_node_definition_api(
     List<NodeDefinitionApi> self,
     SseSerializer serializer,
@@ -8794,6 +9097,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_mount_guard_settings(
+    MountGuardSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mount_guard_solve(
+    MountGuardSolve self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mount_guard_status(
+    MountGuardStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mount_motion_fault_info(
+    MountMotionFaultInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mount_position_unknown_info(
+    MountPositionUnknownInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_mount_site(MountSite self, SseSerializer serializer);
 
   @protected
@@ -8918,6 +9251,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_live_stacking_broadcast_snapshot(
     LiveStackingBroadcastSnapshot? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_mount_motion_fault_info(
+    MountMotionFaultInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_mount_position_unknown_info(
+    MountPositionUnknownInfo? self,
     SseSerializer serializer,
   );
 
@@ -15147,6 +15492,187 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__devices__simulation__mount__api_mount_find_homePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+  ) {
+    return _wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault(
+      port_,
+      device_id,
+    );
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_acknowledge_faultPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault =
+      _wire__crate__api__mount_guard__api_mount_guard_acknowledge_faultPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+  ) {
+    return _wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed(
+      port_,
+      device_id,
+    );
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_confirm_rehomedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed =
+      _wire__crate__api__mount_guard__api_mount_guard_confirm_rehomedPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__mount_guard__api_mount_guard_get_settings(int port_) {
+    return _wire__crate__api__mount_guard__api_mount_guard_get_settings(port_);
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_get_settingsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_get_settings',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_get_settings =
+      _wire__crate__api__mount_guard__api_mount_guard_get_settingsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__mount_guard__api_mount_guard_get_state(int port_) {
+    return _wire__crate__api__mount_guard__api_mount_guard_get_state(port_);
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_get_statePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_get_state',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_get_state =
+      _wire__crate__api__mount_guard__api_mount_guard_get_statePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__mount_guard__api_mount_guard_recovery_sync(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    double ra_hours,
+    double dec_degrees,
+  ) {
+    return _wire__crate__api__mount_guard__api_mount_guard_recovery_sync(
+      port_,
+      device_id,
+      ra_hours,
+      dec_degrees,
+    );
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_recovery_syncPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Double,
+            ffi.Double,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_recovery_sync',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_recovery_sync =
+      _wire__crate__api__mount_guard__api_mount_guard_recovery_syncPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              double,
+              double,
+            )
+          >();
+
+  void wire__crate__api__mount_guard__api_mount_guard_set_settings(
+    int port_,
+    ffi.Pointer<wire_cst_mount_guard_settings> settings,
+  ) {
+    return _wire__crate__api__mount_guard__api_mount_guard_set_settings(
+      port_,
+      settings,
+    );
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_set_settingsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_mount_guard_settings>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_set_settings',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_set_settings =
+      _wire__crate__api__mount_guard__api_mount_guard_set_settingsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_mount_guard_settings>)
+          >();
+
+  void wire__crate__api__mount_guard__api_mount_guard_solve(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
+    double exposure_secs,
+  ) {
+    return _wire__crate__api__mount_guard__api_mount_guard_solve(
+      port_,
+      device_id,
+      camera_id,
+      exposure_secs,
+    );
+  }
+
+  late final _wire__crate__api__mount_guard__api_mount_guard_solvePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Double,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_solve',
+      );
+  late final _wire__crate__api__mount_guard__api_mount_guard_solve =
+      _wire__crate__api__mount_guard__api_mount_guard_solvePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              double,
+            )
           >();
 
   void wire__crate__api__devices__simulation__mount__api_mount_park(
@@ -21959,6 +22485,55 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_mount_capabilitiesPtr
           .asFunction<ffi.Pointer<wire_cst_mount_capabilities> Function()>();
 
+  ffi.Pointer<wire_cst_mount_guard_settings>
+  cst_new_box_autoadd_mount_guard_settings() {
+    return _cst_new_box_autoadd_mount_guard_settings();
+  }
+
+  late final _cst_new_box_autoadd_mount_guard_settingsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_mount_guard_settings> Function()
+        >
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_mount_guard_settings');
+  late final _cst_new_box_autoadd_mount_guard_settings =
+      _cst_new_box_autoadd_mount_guard_settingsPtr
+          .asFunction<ffi.Pointer<wire_cst_mount_guard_settings> Function()>();
+
+  ffi.Pointer<wire_cst_mount_motion_fault_info>
+  cst_new_box_autoadd_mount_motion_fault_info() {
+    return _cst_new_box_autoadd_mount_motion_fault_info();
+  }
+
+  late final _cst_new_box_autoadd_mount_motion_fault_infoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_mount_motion_fault_info> Function()
+        >
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_mount_motion_fault_info');
+  late final _cst_new_box_autoadd_mount_motion_fault_info =
+      _cst_new_box_autoadd_mount_motion_fault_infoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_mount_motion_fault_info> Function()
+          >();
+
+  ffi.Pointer<wire_cst_mount_position_unknown_info>
+  cst_new_box_autoadd_mount_position_unknown_info() {
+    return _cst_new_box_autoadd_mount_position_unknown_info();
+  }
+
+  late final _cst_new_box_autoadd_mount_position_unknown_infoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_mount_position_unknown_info> Function()
+        >
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_mount_position_unknown_info');
+  late final _cst_new_box_autoadd_mount_position_unknown_info =
+      _cst_new_box_autoadd_mount_position_unknown_infoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_mount_position_unknown_info> Function()
+          >();
+
   ffi.Pointer<wire_cst_observer_location>
   cst_new_box_autoadd_observer_location() {
     return _cst_new_box_autoadd_observer_location();
@@ -22465,6 +23040,24 @@ class RustLibWire implements BaseWire {
       _cst_new_list_mosaic_panel_resultPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_mosaic_panel_result> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_mount_guard_status> cst_new_list_mount_guard_status(
+    int len,
+  ) {
+    return _cst_new_list_mount_guard_status(len);
+  }
+
+  late final _cst_new_list_mount_guard_statusPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_mount_guard_status> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_mount_guard_status');
+  late final _cst_new_list_mount_guard_status =
+      _cst_new_list_mount_guard_statusPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_mount_guard_status> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_node_definition_api>
@@ -23029,6 +23622,20 @@ final class wire_cst_star_detection_config_api extends ffi.Struct {
   external ffi.Pointer<ffi.Double> min_snr;
 
   external ffi.Pointer<ffi.Double> max_sharpness;
+}
+
+final class wire_cst_mount_guard_settings extends ffi.Struct {
+  @ffi.Bool()
+  external bool enabled;
+
+  @ffi.Bool()
+  external bool stop_when_idle;
+
+  @ffi.Bool()
+  external bool auto_sync_resume;
+
+  @ffi.Double()
+  external double solve_mismatch_degrees;
 }
 
 final class wire_cst_plate_solver_config_payload extends ffi.Struct {
@@ -24620,6 +25227,46 @@ final class wire_cst_mount_capabilities extends ffi.Struct {
   external ffi.Pointer<ffi.Double> max_pulse_guide_ms;
 }
 
+final class wire_cst_mount_motion_fault_info extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Int64()
+  external int detected_at_unix;
+
+  @ffi.Double()
+  external double rate_deg_per_sec;
+
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  external ffi.Pointer<ffi.Double> altitude_degrees;
+
+  @ffi.Bool()
+  external bool still_moving;
+
+  external ffi.Pointer<wire_cst_list_String> stop_attempts;
+
+  @ffi.Bool()
+  external bool run_paused;
+}
+
+final class wire_cst_mount_position_unknown_info extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Int64()
+  external int flagged_at_unix;
+
+  @ffi.Bool()
+  external bool run_paused;
+}
+
 final class wire_cst_polar_alignment_event extends ffi.Struct {
   @ffi.Double()
   external double azimuth_error;
@@ -24721,12 +25368,40 @@ final class wire_cst_SafetyEvent_ParkInitiated extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
 }
 
+final class wire_cst_SafetyEvent_MountMotionFault extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class wire_cst_SafetyEvent_MountPositionUnknown extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class wire_cst_SafetyEvent_MountGuardCleared extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
 final class SafetyEventKind extends ffi.Union {
   external wire_cst_SafetyEvent_WeatherUnsafe WeatherUnsafe;
 
   external wire_cst_SafetyEvent_EmergencyStop EmergencyStop;
 
   external wire_cst_SafetyEvent_ParkInitiated ParkInitiated;
+
+  external wire_cst_SafetyEvent_MountMotionFault MountMotionFault;
+
+  external wire_cst_SafetyEvent_MountPositionUnknown MountPositionUnknown;
+
+  external wire_cst_SafetyEvent_MountGuardCleared MountGuardCleared;
 }
 
 final class wire_cst_safety_event extends ffi.Struct {
@@ -25657,6 +26332,26 @@ final class wire_cst_list_mosaic_panel_result extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_mount_guard_status extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_mount_motion_fault_info> fault;
+
+  external ffi.Pointer<wire_cst_mount_position_unknown_info> position_unknown;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> block_reason;
+
+  @ffi.Bool()
+  external bool auto_recovering;
+}
+
+final class wire_cst_list_mount_guard_status extends ffi.Struct {
+  external ffi.Pointer<wire_cst_mount_guard_status> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_phd_2_algo_param extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
 
@@ -26485,6 +27180,23 @@ final class wire_cst_indi_autofocus_result_api extends ffi.Struct {
   external bool success;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> error_message;
+}
+
+final class wire_cst_mount_guard_solve extends ffi.Struct {
+  @ffi.Double()
+  external double ra_hours;
+
+  @ffi.Double()
+  external double dec_degrees;
+
+  @ffi.Double()
+  external double mount_ra_hours;
+
+  @ffi.Double()
+  external double mount_dec_degrees;
+
+  @ffi.Double()
+  external double separation_degrees;
 }
 
 final class wire_cst_mount_site extends ffi.Struct {

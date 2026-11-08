@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 310948540;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -542435512;
 
 // Section: executor
 
@@ -5211,6 +5211,180 @@ fn wire__crate__api__devices__simulation__mount__api_mount_find_home_impl(
                                 api_device_id,
                             )
                             .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_acknowledge_fault",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok =
+                        crate::api::mount_guard::api_mount_guard_acknowledge_fault(api_device_id)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_confirm_rehomed",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
+                    let output_ok =
+                        crate::api::mount_guard::api_mount_guard_confirm_rehomed(api_device_id)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_get_settings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_get_settings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::mount_guard::api_mount_guard_get_settings(),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_get_state_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_get_state",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::mount_guard::api_mount_guard_get_state())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_recovery_sync_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_id: impl CstDecode<String>,
+    ra_hours: impl CstDecode<f64>,
+    dec_degrees: impl CstDecode<f64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_recovery_sync",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            let api_ra_hours = ra_hours.cst_decode();
+            let api_dec_degrees = dec_degrees.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok = crate::api::mount_guard::api_mount_guard_recovery_sync(
+                            api_device_id,
+                            api_ra_hours,
+                            api_dec_degrees,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_set_settings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    settings: impl CstDecode<crate::api::mount_guard::MountGuardSettings>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_set_settings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_settings = settings.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::mount_guard::api_mount_guard_set_settings(api_settings);
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__mount_guard__api_mount_guard_solve_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_id: impl CstDecode<String>,
+    camera_id: impl CstDecode<Option<String>>,
+    exposure_secs: impl CstDecode<f64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_mount_guard_solve",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            let api_camera_id = camera_id.cst_decode();
+            let api_exposure_secs = exposure_secs.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok = crate::api::mount_guard::api_mount_guard_solve(
+                            api_device_id,
+                            api_camera_id,
+                            api_exposure_secs,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -14011,6 +14185,20 @@ impl SseDecode for Vec<crate::api::sequencer::mosaic::MosaicPanelResult> {
     }
 }
 
+impl SseDecode for Vec<crate::api::mount_guard::MountGuardStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::mount_guard::MountGuardStatus>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sequencer::NodeDefinitionApi> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14358,6 +14546,104 @@ impl SseDecode for crate::device_capabilities::types::MountCapabilities {
     }
 }
 
+impl SseDecode for crate::api::mount_guard::MountGuardSettings {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_stopWhenIdle = <bool>::sse_decode(deserializer);
+        let mut var_autoSyncResume = <bool>::sse_decode(deserializer);
+        let mut var_solveMismatchDegrees = <f64>::sse_decode(deserializer);
+        return crate::api::mount_guard::MountGuardSettings {
+            enabled: var_enabled,
+            stop_when_idle: var_stopWhenIdle,
+            auto_sync_resume: var_autoSyncResume,
+            solve_mismatch_degrees: var_solveMismatchDegrees,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mount_guard::MountGuardSolve {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_raHours = <f64>::sse_decode(deserializer);
+        let mut var_decDegrees = <f64>::sse_decode(deserializer);
+        let mut var_mountRaHours = <f64>::sse_decode(deserializer);
+        let mut var_mountDecDegrees = <f64>::sse_decode(deserializer);
+        let mut var_separationDegrees = <f64>::sse_decode(deserializer);
+        return crate::api::mount_guard::MountGuardSolve {
+            ra_hours: var_raHours,
+            dec_degrees: var_decDegrees,
+            mount_ra_hours: var_mountRaHours,
+            mount_dec_degrees: var_mountDecDegrees,
+            separation_degrees: var_separationDegrees,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mount_guard::MountGuardStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceId = <String>::sse_decode(deserializer);
+        let mut var_fault =
+            <Option<crate::api::mount_guard::MountMotionFaultInfo>>::sse_decode(deserializer);
+        let mut var_positionUnknown =
+            <Option<crate::api::mount_guard::MountPositionUnknownInfo>>::sse_decode(deserializer);
+        let mut var_blockReason = <Option<String>>::sse_decode(deserializer);
+        let mut var_autoRecovering = <bool>::sse_decode(deserializer);
+        return crate::api::mount_guard::MountGuardStatus {
+            device_id: var_deviceId,
+            fault: var_fault,
+            position_unknown: var_positionUnknown,
+            block_reason: var_blockReason,
+            auto_recovering: var_autoRecovering,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mount_guard::MountMotionFaultInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        let mut var_detectedAtUnix = <i64>::sse_decode(deserializer);
+        let mut var_rateDegPerSec = <f64>::sse_decode(deserializer);
+        let mut var_raHours = <f64>::sse_decode(deserializer);
+        let mut var_decDegrees = <f64>::sse_decode(deserializer);
+        let mut var_altitudeDegrees = <Option<f64>>::sse_decode(deserializer);
+        let mut var_stillMoving = <bool>::sse_decode(deserializer);
+        let mut var_stopAttempts = <Vec<String>>::sse_decode(deserializer);
+        let mut var_runPaused = <bool>::sse_decode(deserializer);
+        return crate::api::mount_guard::MountMotionFaultInfo {
+            kind: var_kind,
+            message: var_message,
+            detected_at_unix: var_detectedAtUnix,
+            rate_deg_per_sec: var_rateDegPerSec,
+            ra_hours: var_raHours,
+            dec_degrees: var_decDegrees,
+            altitude_degrees: var_altitudeDegrees,
+            still_moving: var_stillMoving,
+            stop_attempts: var_stopAttempts,
+            run_paused: var_runPaused,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mount_guard::MountPositionUnknownInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        let mut var_flaggedAtUnix = <i64>::sse_decode(deserializer);
+        let mut var_runPaused = <bool>::sse_decode(deserializer);
+        return crate::api::mount_guard::MountPositionUnknownInfo {
+            reason: var_reason,
+            message: var_message,
+            flagged_at_unix: var_flaggedAtUnix,
+            run_paused: var_runPaused,
+        };
+    }
+}
+
 impl SseDecode for crate::device::MountSite {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14701,6 +14987,32 @@ impl SseDecode for Option<crate::api::sequencer::mosaic::LiveStackingBroadcastSn
                 <crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot>::sse_decode(
                     deserializer,
                 ),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::mount_guard::MountMotionFaultInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::mount_guard::MountMotionFaultInfo>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::mount_guard::MountPositionUnknownInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::mount_guard::MountPositionUnknownInfo>::sse_decode(deserializer),
             );
         } else {
             return None;
@@ -15374,6 +15686,34 @@ impl SseDecode for crate::event::system::SafetyEvent {
             }
             4 => {
                 return crate::event::system::SafetyEvent::ParkCompleted;
+            }
+            5 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_kind = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::event::system::SafetyEvent::MountMotionFault {
+                    device_id: var_deviceId,
+                    kind: var_kind,
+                    message: var_message,
+                };
+            }
+            6 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::event::system::SafetyEvent::MountPositionUnknown {
+                    device_id: var_deviceId,
+                    reason: var_reason,
+                    message: var_message,
+                };
+            }
+            7 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::event::system::SafetyEvent::MountGuardCleared {
+                    device_id: var_deviceId,
+                    message: var_message,
+                };
             }
             _ => {
                 unimplemented!("");
@@ -19528,6 +19868,129 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_capabilities::types::MountC
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountGuardSettings {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.enabled.into_into_dart().into_dart(),
+            self.stop_when_idle.into_into_dart().into_dart(),
+            self.auto_sync_resume.into_into_dart().into_dart(),
+            self.solve_mismatch_degrees.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mount_guard::MountGuardSettings
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mount_guard::MountGuardSettings>
+    for crate::api::mount_guard::MountGuardSettings
+{
+    fn into_into_dart(self) -> crate::api::mount_guard::MountGuardSettings {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountGuardSolve {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.ra_hours.into_into_dart().into_dart(),
+            self.dec_degrees.into_into_dart().into_dart(),
+            self.mount_ra_hours.into_into_dart().into_dart(),
+            self.mount_dec_degrees.into_into_dart().into_dart(),
+            self.separation_degrees.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mount_guard::MountGuardSolve
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mount_guard::MountGuardSolve>
+    for crate::api::mount_guard::MountGuardSolve
+{
+    fn into_into_dart(self) -> crate::api::mount_guard::MountGuardSolve {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountGuardStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device_id.into_into_dart().into_dart(),
+            self.fault.into_into_dart().into_dart(),
+            self.position_unknown.into_into_dart().into_dart(),
+            self.block_reason.into_into_dart().into_dart(),
+            self.auto_recovering.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mount_guard::MountGuardStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mount_guard::MountGuardStatus>
+    for crate::api::mount_guard::MountGuardStatus
+{
+    fn into_into_dart(self) -> crate::api::mount_guard::MountGuardStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountMotionFaultInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.detected_at_unix.into_into_dart().into_dart(),
+            self.rate_deg_per_sec.into_into_dart().into_dart(),
+            self.ra_hours.into_into_dart().into_dart(),
+            self.dec_degrees.into_into_dart().into_dart(),
+            self.altitude_degrees.into_into_dart().into_dart(),
+            self.still_moving.into_into_dart().into_dart(),
+            self.stop_attempts.into_into_dart().into_dart(),
+            self.run_paused.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mount_guard::MountMotionFaultInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mount_guard::MountMotionFaultInfo>
+    for crate::api::mount_guard::MountMotionFaultInfo
+{
+    fn into_into_dart(self) -> crate::api::mount_guard::MountMotionFaultInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountPositionUnknownInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.reason.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.flagged_at_unix.into_into_dart().into_dart(),
+            self.run_paused.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mount_guard::MountPositionUnknownInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mount_guard::MountPositionUnknownInfo>
+    for crate::api::mount_guard::MountPositionUnknownInfo
+{
+    fn into_into_dart(self) -> crate::api::mount_guard::MountPositionUnknownInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::device::MountSite {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -20181,6 +20644,34 @@ impl flutter_rust_bridge::IntoDart for crate::event::system::SafetyEvent {
                 [3.into_dart(), reason.into_into_dart().into_dart()].into_dart()
             }
             crate::event::system::SafetyEvent::ParkCompleted => [4.into_dart()].into_dart(),
+            crate::event::system::SafetyEvent::MountMotionFault {
+                device_id,
+                kind,
+                message,
+            } => [
+                5.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                kind.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::event::system::SafetyEvent::MountPositionUnknown {
+                device_id,
+                reason,
+                message,
+            } => [
+                6.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::event::system::SafetyEvent::MountGuardCleared { device_id, message } => [
+                7.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -23776,6 +24267,16 @@ impl SseEncode for Vec<crate::api::sequencer::mosaic::MosaicPanelResult> {
     }
 }
 
+impl SseEncode for Vec<crate::api::mount_guard::MountGuardStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::mount_guard::MountGuardStatus>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sequencer::NodeDefinitionApi> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -24022,6 +24523,67 @@ impl SseEncode for crate::device_capabilities::types::MountCapabilities {
         <u32>::sse_encode(self.axis_count, serializer);
         <Option<f64>>::sse_encode(self.min_pulse_guide_ms, serializer);
         <Option<f64>>::sse_encode(self.max_pulse_guide_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mount_guard::MountGuardSettings {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.enabled, serializer);
+        <bool>::sse_encode(self.stop_when_idle, serializer);
+        <bool>::sse_encode(self.auto_sync_resume, serializer);
+        <f64>::sse_encode(self.solve_mismatch_degrees, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mount_guard::MountGuardSolve {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.ra_hours, serializer);
+        <f64>::sse_encode(self.dec_degrees, serializer);
+        <f64>::sse_encode(self.mount_ra_hours, serializer);
+        <f64>::sse_encode(self.mount_dec_degrees, serializer);
+        <f64>::sse_encode(self.separation_degrees, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mount_guard::MountGuardStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.device_id, serializer);
+        <Option<crate::api::mount_guard::MountMotionFaultInfo>>::sse_encode(self.fault, serializer);
+        <Option<crate::api::mount_guard::MountPositionUnknownInfo>>::sse_encode(
+            self.position_unknown,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.block_reason, serializer);
+        <bool>::sse_encode(self.auto_recovering, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mount_guard::MountMotionFaultInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.message, serializer);
+        <i64>::sse_encode(self.detected_at_unix, serializer);
+        <f64>::sse_encode(self.rate_deg_per_sec, serializer);
+        <f64>::sse_encode(self.ra_hours, serializer);
+        <f64>::sse_encode(self.dec_degrees, serializer);
+        <Option<f64>>::sse_encode(self.altitude_degrees, serializer);
+        <bool>::sse_encode(self.still_moving, serializer);
+        <Vec<String>>::sse_encode(self.stop_attempts, serializer);
+        <bool>::sse_encode(self.run_paused, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mount_guard::MountPositionUnknownInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.reason, serializer);
+        <String>::sse_encode(self.message, serializer);
+        <i64>::sse_encode(self.flagged_at_unix, serializer);
+        <bool>::sse_encode(self.run_paused, serializer);
     }
 }
 
@@ -24288,6 +24850,26 @@ impl SseEncode for Option<crate::api::sequencer::mosaic::LiveStackingBroadcastSn
             <crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot>::sse_encode(
                 value, serializer,
             );
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::mount_guard::MountMotionFaultInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::mount_guard::MountMotionFaultInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::mount_guard::MountPositionUnknownInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::mount_guard::MountPositionUnknownInfo>::sse_encode(value, serializer);
         }
     }
 }
@@ -24770,6 +25352,31 @@ impl SseEncode for crate::event::system::SafetyEvent {
             }
             crate::event::system::SafetyEvent::ParkCompleted => {
                 <i32>::sse_encode(4, serializer);
+            }
+            crate::event::system::SafetyEvent::MountMotionFault {
+                device_id,
+                kind,
+                message,
+            } => {
+                <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(kind, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::event::system::SafetyEvent::MountPositionUnknown {
+                device_id,
+                reason,
+                message,
+            } => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(reason, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::event::system::SafetyEvent::MountGuardCleared { device_id, message } => {
+                <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(message, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -26742,6 +27349,31 @@ mod io {
                 .into()
         }
     }
+    impl CstDecode<crate::api::mount_guard::MountGuardSettings> for *mut wire_cst_mount_guard_settings {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountGuardSettings {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::mount_guard::MountGuardSettings>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountMotionFaultInfo>
+        for *mut wire_cst_mount_motion_fault_info
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountMotionFaultInfo {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::mount_guard::MountMotionFaultInfo>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountPositionUnknownInfo>
+        for *mut wire_cst_mount_position_unknown_info
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountPositionUnknownInfo {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::mount_guard::MountPositionUnknownInfo>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::storage::ObserverLocation> for *mut wire_cst_observer_location {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::storage::ObserverLocation {
@@ -28238,6 +28870,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::mount_guard::MountGuardStatus>>
+        for *mut wire_cst_list_mount_guard_status
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::mount_guard::MountGuardStatus> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sequencer::NodeDefinitionApi>>
         for *mut wire_cst_list_node_definition_api
     {
@@ -28524,6 +29168,71 @@ mod io {
                 axis_count: self.axis_count.cst_decode(),
                 min_pulse_guide_ms: self.min_pulse_guide_ms.cst_decode(),
                 max_pulse_guide_ms: self.max_pulse_guide_ms.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountGuardSettings> for wire_cst_mount_guard_settings {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountGuardSettings {
+            crate::api::mount_guard::MountGuardSettings {
+                enabled: self.enabled.cst_decode(),
+                stop_when_idle: self.stop_when_idle.cst_decode(),
+                auto_sync_resume: self.auto_sync_resume.cst_decode(),
+                solve_mismatch_degrees: self.solve_mismatch_degrees.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountGuardSolve> for wire_cst_mount_guard_solve {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountGuardSolve {
+            crate::api::mount_guard::MountGuardSolve {
+                ra_hours: self.ra_hours.cst_decode(),
+                dec_degrees: self.dec_degrees.cst_decode(),
+                mount_ra_hours: self.mount_ra_hours.cst_decode(),
+                mount_dec_degrees: self.mount_dec_degrees.cst_decode(),
+                separation_degrees: self.separation_degrees.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountGuardStatus> for wire_cst_mount_guard_status {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountGuardStatus {
+            crate::api::mount_guard::MountGuardStatus {
+                device_id: self.device_id.cst_decode(),
+                fault: self.fault.cst_decode(),
+                position_unknown: self.position_unknown.cst_decode(),
+                block_reason: self.block_reason.cst_decode(),
+                auto_recovering: self.auto_recovering.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountMotionFaultInfo> for wire_cst_mount_motion_fault_info {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountMotionFaultInfo {
+            crate::api::mount_guard::MountMotionFaultInfo {
+                kind: self.kind.cst_decode(),
+                message: self.message.cst_decode(),
+                detected_at_unix: self.detected_at_unix.cst_decode(),
+                rate_deg_per_sec: self.rate_deg_per_sec.cst_decode(),
+                ra_hours: self.ra_hours.cst_decode(),
+                dec_degrees: self.dec_degrees.cst_decode(),
+                altitude_degrees: self.altitude_degrees.cst_decode(),
+                still_moving: self.still_moving.cst_decode(),
+                stop_attempts: self.stop_attempts.cst_decode(),
+                run_paused: self.run_paused.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::mount_guard::MountPositionUnknownInfo>
+        for wire_cst_mount_position_unknown_info
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::mount_guard::MountPositionUnknownInfo {
+            crate::api::mount_guard::MountPositionUnknownInfo {
+                reason: self.reason.cst_decode(),
+                message: self.message.cst_decode(),
+                flagged_at_unix: self.flagged_at_unix.cst_decode(),
+                run_paused: self.run_paused.cst_decode(),
             }
         }
     }
@@ -28973,6 +29682,29 @@ mod io {
                     }
                 }
                 4 => crate::event::system::SafetyEvent::ParkCompleted,
+                5 => {
+                    let ans = unsafe { self.kind.MountMotionFault };
+                    crate::event::system::SafetyEvent::MountMotionFault {
+                        device_id: ans.device_id.cst_decode(),
+                        kind: ans.kind.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                6 => {
+                    let ans = unsafe { self.kind.MountPositionUnknown };
+                    crate::event::system::SafetyEvent::MountPositionUnknown {
+                        device_id: ans.device_id.cst_decode(),
+                        reason: ans.reason.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                7 => {
+                    let ans = unsafe { self.kind.MountGuardCleared };
+                    crate::event::system::SafetyEvent::MountGuardCleared {
+                        device_id: ans.device_id.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
                 _ => unreachable!(),
             }
         }
@@ -31246,6 +31978,89 @@ mod io {
         }
     }
     impl Default for wire_cst_mount_capabilities {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_mount_guard_settings {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                enabled: Default::default(),
+                stop_when_idle: Default::default(),
+                auto_sync_resume: Default::default(),
+                solve_mismatch_degrees: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_mount_guard_settings {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_mount_guard_solve {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                ra_hours: Default::default(),
+                dec_degrees: Default::default(),
+                mount_ra_hours: Default::default(),
+                mount_dec_degrees: Default::default(),
+                separation_degrees: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_mount_guard_solve {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_mount_guard_status {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                device_id: core::ptr::null_mut(),
+                fault: core::ptr::null_mut(),
+                position_unknown: core::ptr::null_mut(),
+                block_reason: core::ptr::null_mut(),
+                auto_recovering: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_mount_guard_status {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_mount_motion_fault_info {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                kind: core::ptr::null_mut(),
+                message: core::ptr::null_mut(),
+                detected_at_unix: Default::default(),
+                rate_deg_per_sec: Default::default(),
+                ra_hours: Default::default(),
+                dec_degrees: Default::default(),
+                altitude_degrees: core::ptr::null_mut(),
+                still_moving: Default::default(),
+                stop_attempts: core::ptr::null_mut(),
+                run_paused: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_mount_motion_fault_info {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_mount_position_unknown_info {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                reason: core::ptr::null_mut(),
+                message: core::ptr::null_mut(),
+                flagged_at_unix: Default::default(),
+                run_paused: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_mount_position_unknown_info {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -34408,6 +35223,74 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault(
+        port_: i64,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault_impl(port_, device_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed(
+        port_: i64,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed_impl(port_, device_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_get_settings(
+        port_: i64,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_get_settings_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_get_state(
+        port_: i64,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_get_state_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_recovery_sync(
+        port_: i64,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        ra_hours: f64,
+        dec_degrees: f64,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_recovery_sync_impl(
+            port_,
+            device_id,
+            ra_hours,
+            dec_degrees,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_set_settings(
+        port_: i64,
+        settings: *mut wire_cst_mount_guard_settings,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_set_settings_impl(port_, settings)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_solve(
+        port_: i64,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        camera_id: *mut wire_cst_list_prim_u_8_strict,
+        exposure_secs: f64,
+    ) {
+        wire__crate__api__mount_guard__api_mount_guard_solve_impl(
+            port_,
+            device_id,
+            camera_id,
+            exposure_secs,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_park(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -37033,6 +37916,30 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_mount_guard_settings(
+    ) -> *mut wire_cst_mount_guard_settings {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_mount_guard_settings::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_mount_motion_fault_info(
+    ) -> *mut wire_cst_mount_motion_fault_info {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_mount_motion_fault_info::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_mount_position_unknown_info(
+    ) -> *mut wire_cst_mount_position_unknown_info {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_mount_position_unknown_info::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_observer_location(
     ) -> *mut wire_cst_observer_location {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -37352,6 +38259,20 @@ mod io {
         let wrap = wire_cst_list_mosaic_panel_result {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_mosaic_panel_result>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_mount_guard_status(
+        len: i32,
+    ) -> *mut wire_cst_list_mount_guard_status {
+        let wrap = wire_cst_list_mount_guard_status {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_mount_guard_status>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -39071,6 +39992,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_mount_guard_status {
+        ptr: *mut wire_cst_mount_guard_status,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_node_definition_api {
         ptr: *mut wire_cst_node_definition_api,
         len: i32,
@@ -39253,6 +40180,54 @@ mod io {
         axis_count: u32,
         min_pulse_guide_ms: *mut f64,
         max_pulse_guide_ms: *mut f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_mount_guard_settings {
+        enabled: bool,
+        stop_when_idle: bool,
+        auto_sync_resume: bool,
+        solve_mismatch_degrees: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_mount_guard_solve {
+        ra_hours: f64,
+        dec_degrees: f64,
+        mount_ra_hours: f64,
+        mount_dec_degrees: f64,
+        separation_degrees: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_mount_guard_status {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        fault: *mut wire_cst_mount_motion_fault_info,
+        position_unknown: *mut wire_cst_mount_position_unknown_info,
+        block_reason: *mut wire_cst_list_prim_u_8_strict,
+        auto_recovering: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_mount_motion_fault_info {
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+        detected_at_unix: i64,
+        rate_deg_per_sec: f64,
+        ra_hours: f64,
+        dec_degrees: f64,
+        altitude_degrees: *mut f64,
+        still_moving: bool,
+        stop_attempts: *mut wire_cst_list_String,
+        run_paused: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_mount_position_unknown_info {
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+        flagged_at_unix: i64,
+        run_paused: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -39596,6 +40571,9 @@ mod io {
         WeatherUnsafe: wire_cst_SafetyEvent_WeatherUnsafe,
         EmergencyStop: wire_cst_SafetyEvent_EmergencyStop,
         ParkInitiated: wire_cst_SafetyEvent_ParkInitiated,
+        MountMotionFault: wire_cst_SafetyEvent_MountMotionFault,
+        MountPositionUnknown: wire_cst_SafetyEvent_MountPositionUnknown,
+        MountGuardCleared: wire_cst_SafetyEvent_MountGuardCleared,
         nil__: (),
     }
     #[repr(C)]
@@ -39612,6 +40590,26 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_SafetyEvent_ParkInitiated {
         reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SafetyEvent_MountMotionFault {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SafetyEvent_MountPositionUnknown {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SafetyEvent_MountGuardCleared {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

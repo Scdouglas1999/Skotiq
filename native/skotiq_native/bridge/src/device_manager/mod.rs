@@ -22,6 +22,7 @@ pub(crate) mod connection;
 pub(crate) mod epoch;
 pub(crate) mod heartbeat;
 pub mod identity;
+pub(crate) mod motion_guard;
 pub(crate) mod ops;
 
 use crate::device::*;

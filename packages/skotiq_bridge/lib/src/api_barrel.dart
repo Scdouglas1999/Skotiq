@@ -35,6 +35,7 @@ export 'api/hotplug.dart';
 export 'api/imaging.dart';
 export 'api/init.dart';
 export 'api/mosaic.dart';
+export 'api/mount_guard.dart';
 export 'api/phd2.dart';
 export 'api/plate_solve.dart';
 export 'api/polar_alignment/entrypoints.dart';
