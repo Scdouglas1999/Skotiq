@@ -102,7 +102,9 @@ pub fn screen_defocus_dropouts(
     let mut order: Vec<usize> = (0..points.len()).collect();
     order.sort_by_key(|&i| points[i].position);
 
-    let most_stars = points.iter().map(|p| p.star_count).max().unwrap_or(0);
+    let Some(most_stars) = points.iter().map(|p| p.star_count).max() else {
+        return (points.to_vec(), Vec::new());
+    };
     let anchor_floor = f64::from(most_stars) * ANCHOR_MIN_STAR_FRACTION;
     let lowest = |eligible: &dyn Fn(&FocusDataPoint) -> bool| {
         (0..order.len())
