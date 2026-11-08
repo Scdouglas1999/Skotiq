@@ -283,9 +283,9 @@ fn polar_globals_test_lock() -> &'static tokio::sync::Mutex<()> {
 #[tokio::test]
 async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
+    use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
-    use crate::api::get_device_manager;
 
     let _serialized = sim_singleton_test_lock().lock().await;
     let _globals = polar_globals_test_lock().lock().await;
@@ -360,4 +360,77 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
             "point {point}: RA landed {ra_error_arcsec:.0}\" off the step"
         );
     }
+}
+
+/// The pole-region slew lands on the meridian of date at Dec 60 of date.
+///
+/// Its target is the local sidereal time, an hour angle of zero of date, and
+/// sending it down the J2000 slew path unconverted landed it off the meridian
+/// and off Dec 60 by the precession.
+#[tokio::test]
+async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
+    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
+    use crate::api::get_device_manager;
+    use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
+    use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
+
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _globals = polar_globals_test_lock().lock().await;
+    let _frame = SimFrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_polar_pole_region";
+    get_device_manager()
+        .register_device(
+            DeviceInfo {
+                id: mount_id.to_string(),
+                name: "Simulated Mount".to_string(),
+                device_type: DeviceType::Mount,
+                driver_type: DriverType::Simulator,
+                description: "Simulated mount".to_string(),
+                driver_version: "1.0".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Simulated Mount".to_string(),
+            },
+            false,
+        )
+        .await;
+    crate::api::devices::simulation::cancel_sim_slew().await;
+    {
+        let mut mount = get_sim_mount().write().await;
+        mount.status.connected = true;
+        mount.status.parked = false;
+        mount.status.tracking = true;
+        mount.status.slewing = false;
+    }
+
+    let longitude = -75.3576;
+    get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
+    let generation = polar_generation().load(PolarOrdering::Relaxed);
+    let lst = local_sidereal_time(julian_day(&chrono::Utc::now()), longitude);
+    let outcome = super::slew_to_pole_region(mount_id, true, longitude, generation)
+        .await
+        .expect("pole-region slew");
+    assert!(matches!(outcome, super::SlewOutcome::Settled));
+
+    let status = get_device_manager()
+        .mount_get_status(mount_id)
+        .await
+        .unwrap();
+    let dec_off_arcsec = (status.declination - 60.0) * 3600.0;
+    let mut ra_off_hours = (status.right_ascension - lst).rem_euclid(24.0);
+    if ra_off_hours > 12.0 {
+        ra_off_hours -= 24.0;
+    }
+    assert!(
+        dec_off_arcsec.abs() < 1.0,
+        "landed {dec_off_arcsec:.0}\" off Dec 60 of date"
+    );
+    // The target is the sidereal time when it was computed; a second of
+    // clock between that and this test's reading is 15".
+    assert!(
+        (ra_off_hours * 15.0 * 3600.0).abs() < 60.0,
+        "landed {:.0}\" of RA off the meridian of date",
+        ra_off_hours * 15.0 * 3600.0
+    );
 }

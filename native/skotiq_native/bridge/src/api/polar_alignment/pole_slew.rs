@@ -86,8 +86,20 @@ pub(crate) async fn slew_to_pole_region(
         PolarLoopControl::Cancelled => return Ok(SlewOutcome::Cancelled),
     }
 
+    // RA = local sidereal time is an hour angle of zero OF DATE; the slew
+    // path takes J2000, so express it there or the mount lands off the
+    // meridian by the precession in RA.
+    let (slew_ra_h, slew_dec) = device_ops
+        .mount_readback_to_j2000(mount_id, target_ra_h, target_dec)
+        .await
+        .map_err(|e| {
+            format!(
+                "Could not express the pole-region target for the mount: {}",
+                e
+            )
+        })?;
     device_ops
-        .mount_slew_to_coordinates(mount_id, target_ra_h, target_dec)
+        .mount_slew_to_coordinates(mount_id, slew_ra_h, slew_dec)
         .await
         .map_err(|e| format!("Failed to slew to pole region: {}", e))?;
 
