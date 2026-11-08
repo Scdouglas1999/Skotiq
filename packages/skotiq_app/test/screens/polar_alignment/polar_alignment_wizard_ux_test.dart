@@ -164,6 +164,14 @@ void main() {
     );
     await _openWizard(tester);
 
+    // A run in progress is the frame: the locked settings are out of the way
+    // until History brings the column back, and then it says why it is
+    // locked.
+    expect(find.text('Essential'), findsNothing);
+    await tester.tap(find.widgetWithText(SkotiqButton, 'History'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(
       find.textContaining('Settings are locked while aligning'),
       findsOneWidget,

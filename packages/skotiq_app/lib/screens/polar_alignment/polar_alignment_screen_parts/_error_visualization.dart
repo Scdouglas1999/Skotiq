@@ -381,16 +381,22 @@ class _PolarErrorPainter extends CustomPainter {
       }
     }
 
-    // Ring labels, just outside each ring on the horizontal axis.
+    // Ring labels, just outside each ring on the horizontal axis. On a small
+    // target the inner rings sit closer together than their labels are wide,
+    // so a label that would run into the next ring's is left out; the outer
+    // ring's always stays, and gives the scale.
+    var nextLabelLeft = double.infinity;
     for (int i = 0; i < labels.length; i++) {
       final radius = maxRadius * (rings[i] / outerScale);
+      final left = center.dx + radius + kPolarBullseyeLabelGap;
+      if (left + labels[i].width + kPolarBullseyeLabelGap > nextLabelLeft) {
+        continue;
+      }
       labels[i].paint(
         canvas,
-        Offset(
-          center.dx + radius + kPolarBullseyeLabelGap,
-          center.dy - labels[i].height / 2,
-        ),
+        Offset(left, center.dy - labels[i].height / 2),
       );
+      nextLabelLeft = left;
     }
   }
 
