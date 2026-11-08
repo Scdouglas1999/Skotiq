@@ -13,6 +13,32 @@ use super::sim_faults;
 use crate::api::devices::simulation::{cancel_sim_slew, get_sim_mount, sim_home_position};
 
 const KEY: &str = "mount.runaway";
+const EXTERNAL_KEY: &str = "mount.external";
+
+/// The outside slew has been sent.
+static EXTERNAL_SENT: Mutex<bool> = Mutex::new(false);
+
+/// Send the armed outside slew once its delay has passed, straight to the
+/// simulated mount: Skotiq's device manager never sees the command, as with a
+/// goto from the mount's own software or hand controller.
+async fn step_external() -> Result<(), String> {
+    sim_faults::check(EXTERNAL_KEY).await?;
+    let Some((at, ra, dec, delay)) = sim_faults::external_slew_latch(EXTERNAL_KEY) else {
+        return Ok(());
+    };
+    if at.elapsed().as_secs_f64() < delay {
+        return Ok(());
+    }
+    let send = !std::mem::replace(
+        &mut *EXTERNAL_SENT.lock().unwrap_or_else(|p| p.into_inner()),
+        true,
+    );
+    if send {
+        tracing::warn!("simulator fault: a slew from outside Skotiq to RA {ra}h Dec {dec}");
+        crate::api::devices::simulation::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Phase {
@@ -85,6 +111,7 @@ fn dec_axis_position(start: (f64, f64), degrees: f64) -> (f64, f64) {
 /// Called by both simulator mount gates before anything else touches the
 /// mount, so status reads and commands see the same thing.
 pub(crate) async fn step() -> Result<(), String> {
+    step_external().await?;
     // Consulting the key is what latches the runaway once it is armed.
     sim_faults::check(KEY).await?;
     let Some((at, rate, run_secs, blackout_secs, delay_secs)) = sim_faults::runaway_latch(KEY)
@@ -161,6 +188,7 @@ pub(crate) fn reset() {
     state.start = None;
     state.rebooted = false;
     clear_physical_pointing();
+    *EXTERNAL_SENT.lock().unwrap_or_else(|p| p.into_inner()) = false;
 }
 
 #[cfg(test)]

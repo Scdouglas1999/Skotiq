@@ -55,9 +55,11 @@ pub(crate) const DEFAULT_SOLVE_MISMATCH_DEG: f64 = 10.0;
 pub struct GuardConfig {
     /// Watch the mount at all.
     pub enabled: bool,
-    /// Try to stop uncommanded motion when no run is active. During a run
-    /// the guard always tries.
-    pub stop_when_idle: bool,
+    /// The altitude below which uncommanded motion is a danger to the rig and
+    /// the guard sends stop commands. Above it the guard never fights motion
+    /// it did not command: it may be someone using the mount's own software
+    /// or hand controller.
+    pub min_altitude_deg: f64,
     /// When a run is held by a mount fault, take a frame, plate solve it,
     /// sync and resume without waiting for the operator. Off by default: the
     /// first recovery is the operator's call.
@@ -71,7 +73,7 @@ impl Default for GuardConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            stop_when_idle: true,
+            min_altitude_deg: 0.0,
             auto_sync_resume: false,
             solve_mismatch_deg: DEFAULT_SOLVE_MISMATCH_DEG,
         }
@@ -119,6 +121,12 @@ pub(crate) struct MountEntry {
     /// position.
     pub(crate) last_reminder: Option<f64>,
     pub(crate) auto_recovering: bool,
+    /// Stop commands are going out for a dive below the altitude limit.
+    pub(crate) stopping: bool,
+    /// Motion with no command that the guard noticed and, with no run active
+    /// and no danger, left alone: kind and rate, kept in case it turns into a
+    /// dive.
+    pub(crate) unrecorded_motion: Option<(MotionKind, f64)>,
 }
 
 #[derive(Default)]
@@ -252,12 +260,27 @@ pub(crate) async fn observe_status<E>(device_id: &str, result: &Result<MountStat
                 };
                 let fault_recorded = entry.fault.is_some();
                 let sample = sample_of(status, t);
-                let findings =
+                tracing::debug!(
+                    device_id,
+                    slewing = sample.slewing,
+                    expected = entry.ledger.expects_motion(t),
+                    moving = entry.detector.fault_moving(),
+                    "motion guard reading"
+                );
+                let mut findings =
                     entry
                         .detector
                         .observe(sample, &mut entry.ledger, ctx, fault_recorded);
                 if let Some(fault) = entry.fault.as_mut() {
                     fault.still_moving = entry.detector.fault_moving();
+                }
+                // Uncommanded motion heading below the altitude limit is the
+                // one case the guard stops, run or no run.
+                if entry.detector.fault_moving() && !entry.stopping {
+                    if let Some(reason) = entry.detector.danger(cfg.min_altitude_deg) {
+                        entry.stopping = true;
+                        findings.push(Finding::Danger(reason));
+                    }
                 }
                 findings
             }
@@ -268,6 +291,7 @@ pub(crate) async fn observe_status<E>(device_id: &str, result: &Result<MountStat
         }
     });
     for finding in findings {
+        tracing::debug!(device_id, ?finding, run_active, "motion guard finding");
         response::handle_finding(device_id.to_string(), finding, run_active).await;
     }
 }

@@ -171,8 +171,20 @@ pub(crate) enum Finding {
     },
     /// A motion fault the detector reported has stopped.
     Stopped,
+    /// Uncommanded motion is taking the mount below its altitude limit; the
+    /// reason says what the mount reported. Raised by the guard, not here.
+    Danger(String),
     PositionLost(LostReason),
 }
+
+/// How far ahead, in seconds, a mount dropping toward the altitude limit is
+/// projected: one idle reading interval, so a dive is stopped before it gets
+/// there rather than a reading after.
+pub(crate) const DIVE_LOOKAHEAD_SECS: f64 = 5.0;
+
+/// Falling faster than this, in degrees of altitude per second, is a dive.
+/// Tracking a setting target falls at most about 0.004 deg/s.
+pub(crate) const DIVE_DEG_PER_SEC: f64 = 0.5;
 
 /// Great-circle separation of two equatorial positions, in degrees.
 pub(crate) fn separation_deg(a: (f64, f64), b: (f64, f64)) -> f64 {
@@ -235,6 +247,40 @@ impl Detector {
         self.history.back().map(|e| e.sample)
     }
 
+    /// Why the motion is a danger to the rig, or `None`: the mount reports
+    /// pointing below `min_altitude_deg`, or its altitude is falling fast
+    /// enough to get there within [`DIVE_LOOKAHEAD_SECS`]. Anything else
+    /// moving the mount (a user in the mount's own software or at the hand
+    /// controller) is not Skotiq's to stop.
+    pub(crate) fn danger(&self, min_altitude_deg: f64) -> Option<String> {
+        let n = self.history.len();
+        let last = self.history.back()?.sample;
+        let altitude = last.altitude_deg?;
+        if altitude < min_altitude_deg {
+            return Some(format!(
+                "It reports altitude {altitude:+.1}, below the {min_altitude_deg:.0} degree limit."
+            ));
+        }
+        if n < 2 {
+            return None;
+        }
+        let prev = self.history[n - 2].sample;
+        let dt = last.t - prev.t;
+        let previous_altitude = prev.altitude_deg?;
+        if dt < MIN_INTERVAL_SECS {
+            return None;
+        }
+        let falling = (previous_altitude - altitude) / dt;
+        if falling > DIVE_DEG_PER_SEC && altitude - min_altitude_deg < falling * DIVE_LOOKAHEAD_SECS
+        {
+            return Some(format!(
+                "It is dropping {falling:.1} degrees a second at altitude {altitude:+.1} and will \
+                 be below the {min_altitude_deg:.0} degree limit in a few seconds."
+            ));
+        }
+        None
+    }
+
     /// The fastest rate across the last two readings, if there are two.
     pub(crate) fn latest_rate(&self) -> Option<f64> {
         let n = self.history.len();
@@ -279,7 +325,9 @@ impl Detector {
             let before = self.before_silence.take();
             // Rates across a gap are meaningless.
             self.history.clear();
-            let after_fault = fault_recorded || self.fault_moving;
+            // Only a fault the guard recorded counts: motion it noticed and
+            // left alone (someone moving an idle mount) is not a fault.
+            let after_fault = fault_recorded;
             // While the mount is moving on its own, any silence that ends at
             // home is the controller restarting, however short.
             let restarted_at_home = after_fault
@@ -337,7 +385,7 @@ impl Detector {
         // home, while a fast move that simply stopped between two readings is
         // the fault ending.
         let n = self.history.len();
-        if n >= 3 && (ctx.watch_position || self.fault_moving) {
+        if n >= 3 && (ctx.watch_position || fault_recorded) {
             let (e0, e1, e2) = (
                 self.history[n - 3],
                 self.history[n - 2],
@@ -349,7 +397,7 @@ impl Detector {
                     Some(reason @ LostReason::JumpedToHome { .. }) => {
                         findings.push(Finding::PositionLost(reason));
                     }
-                    Some(reason) if !self.fault_moving => {
+                    Some(reason) if !self.fault_moving && ctx.watch_position => {
                         findings.push(Finding::PositionLost(reason));
                     }
                     _ => {}

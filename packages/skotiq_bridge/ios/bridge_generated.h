@@ -200,7 +200,7 @@ typedef struct wire_cst_star_detection_config_api {
 
 typedef struct wire_cst_mount_guard_settings {
   bool enabled;
-  bool stop_when_idle;
+  double min_altitude_degrees;
   bool auto_sync_resume;
   double solve_mismatch_degrees;
 } wire_cst_mount_guard_settings;

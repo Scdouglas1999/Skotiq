@@ -92,7 +92,7 @@ mixin _FfiMountGuardOperations on _FfiBackendBase implements MountGuardBackend {
     await bridge_api.apiMountGuardSetSettings(
       settings: bridge_api.MountGuardSettings(
         enabled: current.enabled,
-        stopWhenIdle: current.stopWhenIdle,
+        minAltitudeDegrees: current.minAltitudeDegrees,
         autoSyncResume: enabled,
         solveMismatchDegrees: current.solveMismatchDegrees,
       ),

@@ -116,6 +116,15 @@ pub enum Effect {
         blackout_secs: f64,
         delay_secs: f64,
     },
+    /// Someone outside Skotiq (the mount's own software, a hand controller)
+    /// sends the mount to `(ra_hours, dec_deg)` after `delay_secs`: an
+    /// ordinary goto at the simulated slew rate that never passes through
+    /// Skotiq's device manager. Returns `Ok(())`; see [`super::sim_runaway`].
+    ExternalSlew {
+        ra_hours: f64,
+        dec_deg: f64,
+        delay_secs: f64,
+    },
 }
 
 /// A fault armed against one operation key.
@@ -219,8 +228,10 @@ pub fn arm(key: &str, spec: FaultSpec) {
     // Every simulator connect re-arms from the environment, and the mount
     // reconnects after the runaway's blackout. Re-arming the same runaway
     // must not start it over.
-    if matches!(spec.effect, Effect::Runaway { .. })
-        && reg.faults.get(key).is_some_and(|armed| armed.spec == spec)
+    if matches!(
+        spec.effect,
+        Effect::Runaway { .. } | Effect::ExternalSlew { .. }
+    ) && reg.faults.get(key).is_some_and(|armed| armed.spec == spec)
     {
         return;
     }
@@ -393,7 +404,7 @@ fn decide(key: &str) -> Decision {
                 "Injected simulator fault: the device dropped off the bus ({key})"
             ))
         }
-        effect @ Effect::Runaway { .. } => {
+        effect @ (Effect::Runaway { .. } | Effect::ExternalSlew { .. }) => {
             // One runaway per arming: a trigger that keeps firing must not
             // restart it.
             reg.runaway
@@ -401,6 +412,23 @@ fn decide(key: &str) -> Decision {
                 .or_insert((std::time::Instant::now(), effect));
             Decision::Proceed
         }
+    }
+}
+
+/// The outside slew latched on `key`: when it was latched and its target
+/// `(ra_hours, dec_deg, delay_secs)`.
+pub fn external_slew_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f64)> {
+    let reg = registry().lock().expect("sim fault registry poisoned");
+    match reg.runaway.get(key)? {
+        (
+            at,
+            Effect::ExternalSlew {
+                ra_hours,
+                dec_deg,
+                delay_secs,
+            },
+        ) => Some((*at, *ra_hours, *dec_deg, *delay_secs)),
+        _ => None,
     }
 }
 
@@ -640,6 +668,35 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
                 "unplug takes no argument or `reorder`, not '{other}'"
             )),
         },
+        "externalslew" => {
+            let arg = arg.ok_or_else(|| {
+                "externalslew needs a target, e.g. externalslew(5.5,30,60)".to_string()
+            })?;
+            let numbers: Vec<f64> = arg
+                .split(',')
+                .map(|part| {
+                    part.trim()
+                        .parse::<f64>()
+                        .map_err(|_| format!("externalslew argument '{part}' is not a number"))
+                })
+                .collect::<Result<_, _>>()?;
+            match numbers.as_slice() {
+                [ra, dec, delay]
+                    if (0.0..24.0).contains(ra)
+                        && (-90.0..=90.0).contains(dec)
+                        && *delay >= 0.0 =>
+                {
+                    Ok(Effect::ExternalSlew {
+                        ra_hours: *ra,
+                        dec_deg: *dec,
+                        delay_secs: *delay,
+                    })
+                }
+                _ => Err(format!(
+                    "externalslew takes RA hours, Dec degrees and a delay in seconds, got '{arg}'"
+                )),
+            }
+        }
         "runaway" => {
             let arg = arg.unwrap_or("");
             let numbers: Vec<f64> = arg
@@ -676,7 +733,7 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
         }
         other => Err(format!(
             "unknown effect '{other}' (want error(msg)/notimplemented/notconnected/\
-             delay(MS)/delaythenerror(MS,msg)/stall/backlash(N)/unplug[(reorder)]/runaway(...))"
+             delay(MS)/delaythenerror(MS,msg)/stall/backlash(N)/unplug[(reorder)]/runaway(...)/externalslew(RA,DEC,DELAY))"
         )),
     }
 }

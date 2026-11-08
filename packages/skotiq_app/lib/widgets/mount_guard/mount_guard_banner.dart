@@ -80,9 +80,13 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
       if (lost != null) lost.message,
       if (fault != null && fault.stopAttempts.isNotEmpty)
         'Stop commands sent: ${_summarizeAttempts(fault.stopAttempts)}',
-      if (stillMoving)
+      if (stillMoving && fault?.stopAttempts.isNotEmpty == true)
         'It is still moving after every stop command Skotiq has. Stop it at '
             'the mount or cut its power.',
+      if (stillMoving && fault?.stopAttempts.isEmpty == true)
+        'Skotiq has not tried to stop it: it is not heading below the '
+            'horizon, and it may be someone moving the mount from outside '
+            'Skotiq.',
       if (runPaused)
         'The run is paused. It can be resumed once the mount is recovered, '
             'and it centers on the target before the next frame.',

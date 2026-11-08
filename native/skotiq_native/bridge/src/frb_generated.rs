@@ -14583,12 +14583,12 @@ impl SseDecode for crate::api::mount_guard::MountGuardSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_enabled = <bool>::sse_decode(deserializer);
-        let mut var_stopWhenIdle = <bool>::sse_decode(deserializer);
+        let mut var_minAltitudeDegrees = <f64>::sse_decode(deserializer);
         let mut var_autoSyncResume = <bool>::sse_decode(deserializer);
         let mut var_solveMismatchDegrees = <f64>::sse_decode(deserializer);
         return crate::api::mount_guard::MountGuardSettings {
             enabled: var_enabled,
-            stop_when_idle: var_stopWhenIdle,
+            min_altitude_degrees: var_minAltitudeDegrees,
             auto_sync_resume: var_autoSyncResume,
             solve_mismatch_degrees: var_solveMismatchDegrees,
         };
@@ -19905,7 +19905,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::mount_guard::MountGuardSettin
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.enabled.into_into_dart().into_dart(),
-            self.stop_when_idle.into_into_dart().into_dart(),
+            self.min_altitude_degrees.into_into_dart().into_dart(),
             self.auto_sync_resume.into_into_dart().into_dart(),
             self.solve_mismatch_degrees.into_into_dart().into_dart(),
         ]
@@ -24563,7 +24563,7 @@ impl SseEncode for crate::api::mount_guard::MountGuardSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.enabled, serializer);
-        <bool>::sse_encode(self.stop_when_idle, serializer);
+        <f64>::sse_encode(self.min_altitude_degrees, serializer);
         <bool>::sse_encode(self.auto_sync_resume, serializer);
         <f64>::sse_encode(self.solve_mismatch_degrees, serializer);
     }
@@ -29209,7 +29209,7 @@ mod io {
         fn cst_decode(self) -> crate::api::mount_guard::MountGuardSettings {
             crate::api::mount_guard::MountGuardSettings {
                 enabled: self.enabled.cst_decode(),
-                stop_when_idle: self.stop_when_idle.cst_decode(),
+                min_altitude_degrees: self.min_altitude_degrees.cst_decode(),
                 auto_sync_resume: self.auto_sync_resume.cst_decode(),
                 solve_mismatch_degrees: self.solve_mismatch_degrees.cst_decode(),
             }
@@ -32019,7 +32019,7 @@ mod io {
         fn new_with_null_ptr() -> Self {
             Self {
                 enabled: Default::default(),
-                stop_when_idle: Default::default(),
+                min_altitude_degrees: Default::default(),
                 auto_sync_resume: Default::default(),
                 solve_mismatch_degrees: Default::default(),
             }
@@ -40233,7 +40233,7 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_mount_guard_settings {
         enabled: bool,
-        stop_when_idle: bool,
+        min_altitude_degrees: f64,
         auto_sync_resume: bool,
         solve_mismatch_degrees: f64,
     }

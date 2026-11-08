@@ -6076,7 +6076,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wire_cst_mount_guard_settings wireObj,
   ) {
     wireObj.enabled = cst_encode_bool(apiObj.enabled);
-    wireObj.stop_when_idle = cst_encode_bool(apiObj.stopWhenIdle);
+    wireObj.min_altitude_degrees = cst_encode_f_64(apiObj.minAltitudeDegrees);
     wireObj.auto_sync_resume = cst_encode_bool(apiObj.autoSyncResume);
     wireObj.solve_mismatch_degrees = cst_encode_f_64(
       apiObj.solveMismatchDegrees,
@@ -23666,8 +23666,8 @@ final class wire_cst_mount_guard_settings extends ffi.Struct {
   @ffi.Bool()
   external bool enabled;
 
-  @ffi.Bool()
-  external bool stop_when_idle;
+  @ffi.Double()
+  external double min_altitude_degrees;
 
   @ffi.Bool()
   external bool auto_sync_resume;

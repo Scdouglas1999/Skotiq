@@ -62,21 +62,62 @@ pub(crate) fn handle_finding(
                 rate_deg_per_sec,
             } => on_motion(&device_id, kind, rate_deg_per_sec, run_active).await,
             Finding::Stopped => on_stopped(&device_id),
+            Finding::Danger(reason) => on_danger(&device_id, reason, run_active).await,
             Finding::PositionLost(reason) => on_position_lost(&device_id, reason, run_active).await,
         }
     })
 }
 
+/// Uncommanded motion started. With no run active it is left alone and not
+/// announced: it may be someone using the mount's own software or hand
+/// controller, and Skotiq does not know why the mount is moving. During a run
+/// it pauses the run (frames from a moving mount are worthless) and is
+/// announced. Neither case sends stop commands; only a dive below the altitude
+/// limit does (see [`on_danger`]).
 async fn on_motion(device_id: &str, kind: MotionKind, rate: f64, run_active: bool) {
-    let Some(sample) = with_registry(|r| r.mounts.get(device_id).and_then(|e| e.detector.last()))
-    else {
+    if !run_active {
+        with_registry(|r| {
+            r.mounts
+                .entry(device_id.to_string())
+                .or_default()
+                .unrecorded_motion = Some((kind, rate));
+        });
+        tracing::info!(
+            "[MOTION GUARD] {device_id}: moving with no command from Skotiq at {rate:.1} deg/s \
+             and no run is active; left alone unless it heads below the altitude limit"
+        );
+        return;
+    }
+    let Some(message) = record_fault(device_id, kind, rate) else {
         return;
     };
+    let device_id = device_id.to_string();
+    tokio::spawn(async move {
+        let paused = hold_run_or_stop_guiding(&message).await;
+        with_registry(|r| {
+            if let Some(fault) = r.mounts.get_mut(&device_id).and_then(|e| e.fault.as_mut()) {
+                fault.run_paused = paused;
+            }
+        });
+        announce_fault_update(&device_id);
+        if paused {
+            maybe_auto_recover(device_id).await;
+        }
+    });
+}
+
+/// Record a motion fault and announce it. Returns the message for a new
+/// fault, `None` when one was already open.
+fn record_fault(device_id: &str, kind: MotionKind, rate: f64) -> Option<String> {
+    let sample = with_registry(|r| r.mounts.get(device_id).and_then(|e| e.detector.last()))?;
     let position = position_text(sample.ra_hours, sample.dec_deg, sample.altitude_deg);
     let message = motion_message(kind, rate, &position);
     let first = with_registry(|r| {
         let entry = r.mounts.entry(device_id.to_string()).or_default();
-        let first = entry.fault.is_none();
+        if entry.fault.is_some() {
+            return false;
+        }
+        entry.unrecorded_motion = None;
         entry.fault = Some(FaultRecord {
             kind,
             message: message.clone(),
@@ -86,16 +127,15 @@ async fn on_motion(device_id: &str, kind: MotionKind, rate: f64, run_active: boo
             dec_deg: sample.dec_deg,
             altitude_deg: sample.altitude_deg,
             still_moving: true,
-            stop_attempts: entry
-                .fault
-                .as_ref()
-                .map(|f| f.stop_attempts.clone())
-                .unwrap_or_default(),
-            run_paused: entry.fault.as_ref().is_some_and(|f| f.run_paused),
+            stop_attempts: Vec::new(),
+            run_paused: false,
         });
         entry.last_reminder = Some(now());
-        first
+        true
     });
+    if !first {
+        return None;
+    }
     tracing::error!("[MOTION GUARD] {device_id}: {message}");
     publish(
         SafetyEvent::MountMotionFault {
@@ -105,35 +145,52 @@ async fn on_motion(device_id: &str, kind: MotionKind, rate: f64, run_active: boo
         },
         EventSeverity::Critical,
     );
-    if !first {
-        return;
-    }
+    Some(message)
+}
 
-    let device_id = device_id.to_string();
-    let stop = run_active || config().stop_when_idle;
-    tokio::spawn(async move {
-        if stop {
-            stop_round(&device_id, 1).await;
+/// Uncommanded motion is taking the mount below its altitude limit: the one
+/// case Skotiq stops a mount it did not command, run or no run.
+async fn on_danger(device_id: &str, reason: String, run_active: bool) {
+    // Motion left alone while idle becomes a fault now.
+    let pending = with_registry(|r| {
+        r.mounts
+            .get_mut(device_id)
+            .and_then(|e| e.unrecorded_motion.take())
+    });
+    let new_fault = match pending {
+        Some((kind, rate)) => record_fault(device_id, kind, rate),
+        None => None,
+    };
+    with_registry(|r| {
+        if let Some(fault) = r.mounts.get_mut(device_id).and_then(|e| e.fault.as_mut()) {
+            fault.message = format!("{} {reason}", fault.message);
         }
-        let paused = hold_run_or_stop_guiding(&message).await;
-        with_registry(|r| {
-            if let Some(fault) = r.mounts.get_mut(&device_id).and_then(|e| e.fault.as_mut()) {
-                fault.run_paused = paused;
-            }
-        });
-        if stop {
-            for round in 2..=STOP_ROUNDS {
-                tokio::time::sleep(STOP_ROUND_GAP).await;
-                if !still_moving(&device_id) {
-                    break;
+    });
+    tracing::error!("[MOTION GUARD] {device_id}: heading below the altitude limit: {reason}");
+    let device_id = device_id.to_string();
+    tokio::spawn(async move {
+        stop_round(&device_id, 1).await;
+        if new_fault.is_some() {
+            let paused = if run_active {
+                hold_run_or_stop_guiding(&reason).await
+            } else {
+                stop_guiding().await;
+                false
+            };
+            with_registry(|r| {
+                if let Some(fault) = r.mounts.get_mut(&device_id).and_then(|e| e.fault.as_mut()) {
+                    fault.run_paused = paused;
                 }
-                stop_round(&device_id, round).await;
+            });
+        }
+        for round in 2..=STOP_ROUNDS {
+            tokio::time::sleep(STOP_ROUND_GAP).await;
+            if !still_moving(&device_id) {
+                break;
             }
+            stop_round(&device_id, round).await;
         }
         announce_fault_update(&device_id);
-        if paused {
-            maybe_auto_recover(device_id).await;
-        }
     });
 }
 
@@ -242,10 +299,15 @@ fn announce_fault_update(device_id: &str) {
         return;
     };
     let mut message = fault.message.clone();
-    if fault.still_moving {
-        message.push_str(" It was still moving after every stop command Skotiq has.");
-    } else {
-        message.push_str(" It has stopped.");
+    match (fault.still_moving, fault.stop_attempts.is_empty()) {
+        (true, false) => {
+            message.push_str(" It was still moving after every stop command Skotiq has.")
+        }
+        (true, true) => message.push_str(
+            " Skotiq has not tried to stop it: it is not heading below the altitude limit, and \
+             it may be someone moving the mount from outside Skotiq.",
+        ),
+        (false, _) => message.push_str(" It has stopped."),
     }
     if fault.run_paused {
         message.push_str(" The run is paused.");
@@ -262,9 +324,14 @@ fn announce_fault_update(device_id: &str) {
 
 fn on_stopped(device_id: &str) {
     let stopped = with_registry(|r| {
-        r.mounts
-            .get_mut(device_id)
-            .and_then(|e| e.fault.as_mut())
+        let Some(entry) = r.mounts.get_mut(device_id) else {
+            return false;
+        };
+        entry.stopping = false;
+        entry.unrecorded_motion = None;
+        entry
+            .fault
+            .as_mut()
             .map(|f| {
                 f.still_moving = false;
             })
@@ -368,6 +435,7 @@ pub fn acknowledge_fault(device_id: &str) -> Result<(), String> {
             );
         }
         entry.detector.clear_fault();
+        entry.stopping = false;
         Ok(entry.fault.take().is_some())
     })?;
     if result {
@@ -390,6 +458,8 @@ fn clear_position(device_id: &str, how: &str) {
         let had = entry.lost.take().is_some() || entry.fault.is_some();
         entry.detector.clear_fault();
         entry.fault = None;
+        entry.stopping = false;
+        entry.unrecorded_motion = None;
         had
     });
     if cleared {
