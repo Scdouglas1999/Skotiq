@@ -142,6 +142,7 @@ impl DeviceManager {
                 // first — otherwise the interpolation would overwrite the
                 // synced coordinates on the next status read.
                 crate::api::devices::simulation::cancel_sim_slew().await;
+                crate::device_manager::ops::sim_runaway::clear_physical_pointing();
                 let m = crate::api::devices::simulation::get_sim_mount();
                 let mut m = m.write().await;
                 m.status.right_ascension = ra;

@@ -35,6 +35,31 @@ static STATE: Mutex<State> = Mutex::new(State {
     rebooted: false,
 });
 
+/// Where the tube really points after the restart, in the mount's frame,
+/// while the mount reports its home position. The simulated camera renders
+/// the sky here, so a plate solve disagrees with the mount the way it would on
+/// the rig. A sync or a home makes the two agree again.
+static PHYSICAL: Mutex<Option<(f64, f64)>> = Mutex::new(None);
+
+/// The real pointing when it differs from what the mount reports.
+pub(crate) fn physical_pointing() -> Option<(f64, f64)> {
+    *PHYSICAL.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+/// The mount's model and the tube agree again (sync or home).
+pub(crate) fn clear_physical_pointing() {
+    *PHYSICAL.lock().unwrap_or_else(|p| p.into_inner()) = None;
+}
+
+/// A slew moves the tube by as much as it moves the reading.
+pub(crate) fn shift_physical_pointing(from: (f64, f64), to: (f64, f64)) {
+    let mut physical = PHYSICAL.lock().unwrap_or_else(|p| p.into_inner());
+    if let Some((ra, dec)) = physical.as_mut() {
+        *ra = (*ra + (to.0 - from.0)).rem_euclid(24.0);
+        *dec = (*dec + (to.1 - from.1)).clamp(-90.0, 90.0);
+    }
+}
+
 /// Where a Dec axis that has turned `degrees` from `start` points: past the
 /// pole the declination falls again and RA is 12 h round.
 fn dec_axis_position(start: (f64, f64), degrees: f64) -> (f64, f64) {
@@ -115,6 +140,8 @@ pub(crate) async fn step() -> Result<(), String> {
                 cancel_sim_slew().await;
                 let (ra, dec) = sim_home_position();
                 let mut mount = get_sim_mount().write().await;
+                *PHYSICAL.lock().unwrap_or_else(|p| p.into_inner()) =
+                    Some((mount.status.right_ascension, mount.status.declination));
                 mount.status.right_ascension = ra;
                 mount.status.declination = dec;
                 mount.status.at_home = Some(true);
@@ -133,6 +160,7 @@ pub(crate) fn reset() {
     let mut state = STATE.lock().unwrap_or_else(|p| p.into_inner());
     state.start = None;
     state.rebooted = false;
+    clear_physical_pointing();
 }
 
 #[cfg(test)]
