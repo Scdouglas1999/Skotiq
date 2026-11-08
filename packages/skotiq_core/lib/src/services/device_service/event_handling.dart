@@ -86,6 +86,11 @@ extension _DeviceServiceEventHandling on DeviceService {
         'resolve-device-name',
       );
     }
+    // The model the profile slot expects at this id: after the bus enumerated
+    // in another order the cached discovery below still names the device
+    // that used to be here, and the host refuses any device but this model.
+    final expected = _expectedSlotName(type, deviceId);
+    if (expected != null) return expected;
     // Before connect completes the backend's connected list is empty, so fall
     // back to the friendly model name captured during startup discovery (e.g.
     // "ZWO ASI1600MM-Cool"). This is the same source the rest of the UI uses,
@@ -96,6 +101,20 @@ extension _DeviceServiceEventHandling on DeviceService {
       return discoveryName;
     }
     return _friendlyNameFromId(deviceId);
+  }
+
+  /// The model the active profile's [type] slot expects at [deviceId], or
+  /// null (see [_expectedModelFor]).
+  String? _expectedSlotName(DeviceType type, String deviceId) {
+    final label = switch (type) {
+      DeviceType.camera => 'camera',
+      DeviceType.mount => 'mount',
+      DeviceType.focuser => 'focuser',
+      DeviceType.filterWheel => 'filter wheel',
+      DeviceType.rotator => 'rotator',
+      _ => null,
+    };
+    return label == null ? null : _expectedModelFor(label, deviceId);
   }
 
   /// The friendly model name for [deviceId] from the last device-discovery
@@ -400,11 +419,13 @@ extension _DeviceServiceEventHandling on DeviceService {
     // Prefer the startup-discovery model name (e.g. "ZWO ASI1600MM-Cool");
     // when discovery hasn't seen the device, fall back to the id-pattern
     // formatter rather than the bare id.
-    final resolvedName =
-        _discoveryNameFromId(deviceId) ?? _friendlyNameFromId(deviceId);
     // Unknown wire types leave every notifier untouched, exactly as the
     // eleven-case switch this replaced did (it had no default branch).
     final type = deviceTypeFromWireName(deviceType);
+    final resolvedName =
+        (type == null ? null : _expectedSlotName(type, deviceId)) ??
+        _discoveryNameFromId(deviceId) ??
+        _friendlyNameFromId(deviceId);
     if (type != null) {
       readDeviceConnectionNotifier(_ref, type)
         ..setConnecting(deviceId, resolvedName)

@@ -467,11 +467,22 @@ impl DeviceManager {
             Ok(_) => {
                 crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
 
+                // The name the identity check just read off the driver, not
+                // the one registered before the connect: after the bus
+                // re-enumerates, that one names the device that used to
+                // answer this id.
+                let device_name = self
+                    .devices
+                    .read()
+                    .await
+                    .get(device_id)
+                    .map(|d| d.info.shown_name())
+                    .unwrap_or_else(|| info.shown_name());
                 self.app_state.publish_equipment_event(
                     EquipmentEvent::Connected {
                         device_type: info.device_type.as_str().to_string(),
                         device_id: device_id.clone(),
-                        device_name: info.shown_name(),
+                        device_name,
                     },
                     EventSeverity::Info,
                 );
