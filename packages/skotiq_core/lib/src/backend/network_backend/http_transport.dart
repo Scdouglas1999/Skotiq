@@ -470,7 +470,10 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
           ),
         );
 
-        if (response.statusCode != 200) {
+        // Any 2xx is success: the host answers a create with 201 Created
+        // (POST /api/calibration/flats did), and treating that as a failure
+        // told the operator their flats were not recorded when they were.
+        if (response.statusCode < 200 || response.statusCode >= 300) {
           throw _parseErrorResponse(
             response.statusCode,
             response.body,
@@ -478,6 +481,7 @@ extension _NetworkBackendHttpTransport on _NetworkBackendTransport {
             endpoint,
           );
         }
+        if (response.body.trim().isEmpty) return <String, dynamic>{};
 
         return jsonDecode(response.body) as Map<String, dynamic>;
       },
