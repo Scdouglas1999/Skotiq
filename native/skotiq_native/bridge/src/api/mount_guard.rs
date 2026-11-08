@@ -45,7 +45,7 @@ pub struct MountGuardStatus {
 #[derive(Debug, Clone, Copy)]
 pub struct MountGuardSettings {
     pub enabled: bool,
-    pub stop_when_idle: bool,
+    pub min_altitude_degrees: f64,
     pub auto_sync_resume: bool,
     pub solve_mismatch_degrees: f64,
 }
@@ -119,7 +119,7 @@ pub fn api_mount_guard_get_settings() -> MountGuardSettings {
     let c = guard::config();
     MountGuardSettings {
         enabled: c.enabled,
-        stop_when_idle: c.stop_when_idle,
+        min_altitude_degrees: c.min_altitude_deg,
         auto_sync_resume: c.auto_sync_resume,
         solve_mismatch_degrees: c.solve_mismatch_deg,
     }
@@ -134,7 +134,11 @@ pub fn api_mount_guard_set_settings(settings: MountGuardSettings) {
         };
     guard::set_config(GuardConfig {
         enabled: settings.enabled,
-        stop_when_idle: settings.stop_when_idle,
+        min_altitude_deg: if settings.min_altitude_degrees.is_finite() {
+            settings.min_altitude_degrees.clamp(-10.0, 45.0)
+        } else {
+            0.0
+        },
         auto_sync_resume: settings.auto_sync_resume,
         solve_mismatch_deg: mismatch,
     });

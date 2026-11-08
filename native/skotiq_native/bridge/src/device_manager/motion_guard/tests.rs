@@ -342,10 +342,10 @@ fn a_runaway_that_ends_at_home_is_a_lost_position() {
     );
 }
 
-/// The live path through the device manager: the simulated NYX runaway is
-/// detected, the stop commands are sent and recorded, slews are refused, the
-/// restart that follows marks the position unknown, and the operator's
-/// confirmation clears it.
+/// The live path through the device manager, idle: the simulated NYX runaway
+/// is left alone while it climbs, caught and stopped once it dives toward the
+/// horizon, slews are refused, the restart that follows marks the position
+/// unknown, and the operator's confirmation clears it.
 #[tokio::test]
 async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
@@ -382,9 +382,19 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
         mount.status.connected = true;
         mount.status.parked = false;
         mount.status.tracking = true;
-        mount.status.right_ascension = 3.0;
-        mount.status.declination = 40.0;
+        // On the meridian, north of the zenith: the Dec run climbs to the
+        // pole, then over it the tube falls toward the northern horizon.
+        let jd = skotiq_sequencer::meridian::julian_day(&chrono::Utc::now());
+        mount.status.right_ascension = skotiq_sequencer::meridian::local_sidereal_time(jd, 0.0);
+        mount.status.declination = 80.0;
     }
+    crate::api::get_state()
+        .set_observer_location(Some(crate::storage::ObserverLocation {
+            latitude: 40.0,
+            longitude: 0.0,
+            elevation: 0.0,
+        }))
+        .expect("test site");
     // Idle, so the position rules only start once the fault is recorded.
     sim_faults::arm(
         "mount.runaway",
@@ -392,7 +402,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
             sim_faults::Trigger::Times(1),
             sim_faults::Effect::Runaway {
                 deg_per_sec: 4.7,
-                run_secs: 3.0,
+                run_secs: 14.0,
                 blackout_secs: 1.5,
                 delay_secs: 0.6,
             },
@@ -400,7 +410,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     );
     let mgr = get_device_manager();
     let mut caught = false;
-    for _ in 0..40 {
+    for _ in 0..60 {
         mgr.mount_get_status(device_id).await.ok();
         if super::block_reason(device_id).is_some() {
             caught = true;
@@ -409,6 +419,17 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
         tokio::time::sleep(std::time::Duration::from_millis(400)).await;
     }
     assert!(caught, "the runaway was never flagged");
+    let caught_at = super::with_registry(|r| {
+        r.mounts
+            .get(device_id)
+            .and_then(|e| e.detector.last())
+            .and_then(|s| s.altitude_deg)
+    })
+    .expect("an altitude with a site set");
+    assert!(
+        caught_at < 25.0,
+        "an idle mount moving above the horizon was treated as a fault at altitude {caught_at}"
+    );
     let refused = mgr.mount_slew(device_id, 5.0, 20.0).await;
     assert!(
         refused.is_err(),
@@ -447,4 +468,78 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
     sim_faults::clear_all();
     sim_runaway::reset();
     super::reset_for_tests();
+}
+
+/// With no run active, motion Skotiq did not command and that is not heading
+/// below the horizon is someone else's business: no fault, no alarm, no stop.
+#[tokio::test]
+async fn idle_motion_from_outside_skotiq_is_left_alone() {
+    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+        .lock()
+        .await;
+    super::reset_for_tests();
+    super::set_config(super::GuardConfig::default());
+    let device_id = "guard_idle_outside_motion";
+    super::with_registry(|r| {
+        r.mounts.entry(device_id.to_string()).or_default();
+    });
+    super::response::handle_finding(
+        device_id.to_string(),
+        Finding::Motion {
+            kind: MotionKind::Slewing,
+            rate_deg_per_sec: 4.0,
+        },
+        false,
+    )
+    .await;
+    let (fault, pending, stopping) = super::with_registry(|r| {
+        let e = r.mounts.get(device_id).unwrap();
+        (e.fault.clone(), e.unrecorded_motion, e.stopping)
+    });
+    assert!(fault.is_none(), "an outside slew while idle became a fault");
+    assert!(pending.is_some());
+    assert!(!stopping);
+    assert!(super::block_reason(device_id).is_none());
+    super::reset_for_tests();
+}
+
+#[test]
+fn a_dive_toward_the_horizon_is_a_danger_and_a_slew_to_a_target_is_not() {
+    let mut rig = Rig::new(IDLE);
+    let mut alt = |t: f64, a: f64| {
+        let mut s = at(t, 3.0, 40.0);
+        s.altitude_deg = Some(a);
+        s
+    };
+    // Falling 4 deg/s at 30 degrees: not there within the lookahead.
+    rig.feed_all([alt(0.0, 34.0), alt(1.0, 30.0)]);
+    assert_eq!(rig.detector.danger(0.0), None);
+    // Falling 4 deg/s at 15 degrees: there within 5 s.
+    rig.feed(alt(2.0, 15.0));
+    assert!(rig.detector.danger(0.0).is_some());
+    // Below the limit is a danger however it got there.
+    let mut rig = Rig::new(IDLE);
+    rig.feed(alt(0.0, -3.0));
+    assert!(rig.detector.danger(0.0).is_some());
+    // Climbing, or setting with the sky, is not.
+    let mut rig = Rig::new(IDLE);
+    rig.feed_all([alt(0.0, 5.0), alt(1.0, 9.0)]);
+    assert_eq!(rig.detector.danger(0.0), None);
+    let mut rig = Rig::new(IDLE);
+    rig.feed_all([alt(0.0, 0.02), alt(1.0, 0.016)]);
+    assert_eq!(rig.detector.danger(0.0), None);
+}
+
+/// An idle mount homed from outside Skotiq is not a lost position.
+#[test]
+fn an_outside_home_while_idle_is_not_a_lost_position() {
+    let mut rig = Rig::new(IDLE);
+    rig.feed_all((0..3).map(|i| at(i as f64, 3.0, 40.0)));
+    let findings = rig.feed_all((1..=10).map(|i| {
+        let mut s = at(2.0 + i as f64, 3.0, (40.0 + 5.0 * i as f64).min(90.0));
+        s.slewing = i < 10;
+        s.at_home = Some(i == 10);
+        s
+    }));
+    assert!(lost(&findings).is_empty(), "{findings:?}");
 }

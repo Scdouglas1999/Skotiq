@@ -60,13 +60,13 @@ Future<void> apiMountGuardRecoverySync({
 /// The guard's settings.
 class MountGuardSettings {
   final bool enabled;
-  final bool stopWhenIdle;
+  final double minAltitudeDegrees;
   final bool autoSyncResume;
   final double solveMismatchDegrees;
 
   const MountGuardSettings({
     required this.enabled,
-    required this.stopWhenIdle,
+    required this.minAltitudeDegrees,
     required this.autoSyncResume,
     required this.solveMismatchDegrees,
   });
@@ -74,7 +74,7 @@ class MountGuardSettings {
   @override
   int get hashCode =>
       enabled.hashCode ^
-      stopWhenIdle.hashCode ^
+      minAltitudeDegrees.hashCode ^
       autoSyncResume.hashCode ^
       solveMismatchDegrees.hashCode;
 
@@ -84,7 +84,7 @@ class MountGuardSettings {
       other is MountGuardSettings &&
           runtimeType == other.runtimeType &&
           enabled == other.enabled &&
-          stopWhenIdle == other.stopWhenIdle &&
+          minAltitudeDegrees == other.minAltitudeDegrees &&
           autoSyncResume == other.autoSyncResume &&
           solveMismatchDegrees == other.solveMismatchDegrees;
 }

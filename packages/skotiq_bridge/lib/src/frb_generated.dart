@@ -19323,7 +19323,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return MountGuardSettings(
       enabled: dco_decode_bool(arr[0]),
-      stopWhenIdle: dco_decode_bool(arr[1]),
+      minAltitudeDegrees: dco_decode_f_64(arr[1]),
       autoSyncResume: dco_decode_bool(arr[2]),
       solveMismatchDegrees: dco_decode_f_64(arr[3]),
     );
@@ -24573,12 +24573,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_enabled = sse_decode_bool(deserializer);
-    var var_stopWhenIdle = sse_decode_bool(deserializer);
+    var var_minAltitudeDegrees = sse_decode_f_64(deserializer);
     var var_autoSyncResume = sse_decode_bool(deserializer);
     var var_solveMismatchDegrees = sse_decode_f_64(deserializer);
     return MountGuardSettings(
       enabled: var_enabled,
-      stopWhenIdle: var_stopWhenIdle,
+      minAltitudeDegrees: var_minAltitudeDegrees,
       autoSyncResume: var_autoSyncResume,
       solveMismatchDegrees: var_solveMismatchDegrees,
     );
@@ -30071,7 +30071,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.enabled, serializer);
-    sse_encode_bool(self.stopWhenIdle, serializer);
+    sse_encode_f_64(self.minAltitudeDegrees, serializer);
     sse_encode_bool(self.autoSyncResume, serializer);
     sse_encode_f_64(self.solveMismatchDegrees, serializer);
   }
