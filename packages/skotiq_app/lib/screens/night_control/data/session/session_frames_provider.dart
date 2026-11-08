@@ -98,6 +98,7 @@ final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
         exclusion: frameExclusionKindOf(rows[i].rejectionReason),
         // The path is the host's; a remote viewer has no file there.
         filePath: remote || rows[i].filePath.isEmpty ? null : rows[i].filePath,
+        hostPath: rows[i].filePath.isEmpty ? null : rows[i].filePath,
         isNewest: i == rows.length - 1,
       ),
   ];

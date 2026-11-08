@@ -597,7 +597,7 @@ StripFrameVm? _stripFrameFor(
   final path = image?.filePath;
   if (path == null || path.isEmpty) return null;
   for (var i = frames.length - 1; i >= 0; i--) {
-    if (frames[i].filePath == path) return frames[i];
+    if (frames[i].hostPath == path) return frames[i];
   }
   return null;
 }

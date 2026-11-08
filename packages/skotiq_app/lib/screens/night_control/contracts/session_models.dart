@@ -21,6 +21,7 @@ class StripFrameVm {
     this.exclusion,
     this.thumbnailPath,
     this.filePath,
+    this.hostPath,
   });
 
   /// The captured_images row id.
@@ -49,6 +50,11 @@ class StripFrameVm {
   /// The FITS file; null on a remote viewer without the file.
   final String? filePath;
 
+  /// Where the imaging host saved the FITS file, on a remote viewer too: the
+  /// frame on the main image names the same path, which is how its pill
+  /// finds its frame number and verdict.
+  final String? hostPath;
+
   /// Ringed in the strip.
   final bool isNewest;
 
@@ -66,6 +72,7 @@ class StripFrameVm {
       other.exclusion == exclusion &&
       other.thumbnailPath == thumbnailPath &&
       other.filePath == filePath &&
+      other.hostPath == hostPath &&
       other.isNewest == isNewest;
 
   @override
@@ -81,6 +88,7 @@ class StripFrameVm {
         exclusion,
         thumbnailPath,
         filePath,
+        hostPath,
         isNewest,
       );
 }
