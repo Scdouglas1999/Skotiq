@@ -99,6 +99,14 @@ void _applyForeignExposureOnHost(
   }
 }
 
+/// The widest JPEG a linked client asks the host for when it follows the
+/// host's frame. Measured for a 26 MP frame with the app's encoder, compiled:
+/// the host spent 2.6 s encoding the full frame into 9.4 MB and the client
+/// 2.9 s decoding it; at 2560 px wide that is 0.55 s, 1.7 MB and 0.5 s. The
+/// stage shows a frame at the window's width anyway; the saved FITS keeps
+/// full resolution.
+const kRemotePreviewMaxWidth = 2560;
+
 /// Guards against re-entrant / chatty frame fetches. Host frame events
 /// (`ImageReady`, `ImageSaved`, `ImageCaptured`) often arrive back-to-back for
 /// the same capture; we only ever want one in-flight `cameraGetLastImage` at a
@@ -181,7 +189,10 @@ Future<void> _publishRemoteCurrentFrame(
       return;
     }
 
-    final result = await backend.cameraGetLastImage(deviceId);
+    final result = await backend.cameraGetLastImage(
+      deviceId,
+      maxWidth: kRemotePreviewMaxWidth,
+    );
     if (!_isCurrentRemoteBackend(reader, backend)) return;
     if (result == null) {
       // No frame cached host-side yet — leave the tile as-is.

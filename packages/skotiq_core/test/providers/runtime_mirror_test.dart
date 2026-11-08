@@ -282,7 +282,7 @@ void main() {
         'not', () async {
       final backend = _clientBackend();
       when(
-        () => backend.cameraGetLastImage(any()),
+        () => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) async => null);
       final client = _client(backend);
       addTearDown(client.dispose);
@@ -306,7 +306,7 @@ void main() {
       );
       await pumpEventQueue();
 
-      verify(() => backend.cameraGetLastImage('sim_camera_1')).called(1);
+      verify(() => backend.cameraGetLastImage('sim_camera_1', maxWidth: any(named: 'maxWidth'))).called(1);
     });
   });
 
@@ -441,7 +441,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 2100));
       final backend = _clientBackend();
       when(
-        () => backend.cameraGetLastImage(any()),
+        () => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) async => null);
       final client = _client(backend);
       addTearDown(client.dispose);
@@ -648,7 +648,7 @@ void main() {
         client.read(currentImageProvider)?.filePath,
         r'C:\data\L_001.fits',
       );
-      verifyNever(() => backend.cameraGetLastImage(any()));
+      verifyNever(() => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')));
     });
   });
 

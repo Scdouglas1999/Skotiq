@@ -424,12 +424,18 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     }
   }
 
+  /// [maxWidth] asks the host for a smaller JPEG; the frame still comes
+  /// back at the sensor's size (see [capturedImageFromRemoteJpegWire]), so
+  /// overlays and zoom keep their geometry. Null is the full frame.
   @override
-  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async {
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async {
     try {
       final downloaded = await _downloadBytesWithHeaders(
         'camera/last-image/jpeg',
-        {'deviceId': deviceId},
+        {'deviceId': deviceId, if (maxWidth != null) 'maxWidth': '$maxWidth'},
       );
       final metaHeader = _headerValue(downloaded.headers, 'x-image-meta');
       if (metaHeader == null || metaHeader.isEmpty) {
