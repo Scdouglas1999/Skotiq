@@ -551,10 +551,6 @@ extension FlatWizardRun on FlatWizardNotifier {
           if (image != null) setLastImage(filePath, image);
         }
 
-        // The light ran out of range, or kept leaving the band: this filter
-        // stops with what it has and the run moves on. A notice, not a halt.
-        if (lightStop != null) setWarningMessage(lightStop);
-
         // Truthful per-filter status from the real saved count
         final FilterCalibrationStatus finalStatus;
         if (savedCount == 0) {
@@ -587,6 +583,11 @@ extension FlatWizardRun on FlatWizardNotifier {
                 runSettings.histogramTarget,
           );
         }
+
+        // The light ran out of range, or kept leaving the band: this filter
+        // stops with what it has and the run moves on. A notice, not a halt;
+        // set last so a later notice for this filter does not hide it.
+        if (lightStop != null) setWarningMessage(lightStop);
 
         // Fail-safe stop: a timed-out / uncertain-camera frame stops the whole
         // run, never just this filter.
