@@ -30,6 +30,30 @@ const _result = AutofocusResult(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('a running panel can be hidden without cancelling the run',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const Stack(children: [AutofocusProgressOverlay()]),
+      settle: false,
+    );
+    handle.container.read(autofocusOverlayProvider.notifier)
+        .onAutofocusStarted();
+    await tester.pump();
+
+    // Cancel was the only control, so a run whose end never reached this
+    // window left a panel nobody could close.
+    expect(find.byTooltip('Cancel autofocus'), findsOneWidget);
+    expect(find.byTooltip('Hide panel'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Hide panel'));
+    await tester.pump();
+    final state = handle.container.read(autofocusOverlayProvider);
+    expect(state.isVisible, isFalse);
+    expect(state.isRunning, isTrue);
+    expect(find.byTooltip('Cancel autofocus'), findsNothing);
+  });
+
   testWidgets('a completed run clears its own summary', (tester) async {
     final handle = await pumpAppScreen(
       tester,
