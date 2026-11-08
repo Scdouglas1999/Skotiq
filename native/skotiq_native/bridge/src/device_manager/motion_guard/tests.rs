@@ -563,5 +563,9 @@ fn an_outside_slew_after_a_commanded_one_is_noticed() {
             rig.feed(s)
         })
         .collect();
-    assert_eq!(motion_kinds(&findings), vec![MotionKind::Slewing], "{findings:?}");
+    assert_eq!(
+        motion_kinds(&findings),
+        vec![MotionKind::Slewing],
+        "{findings:?}"
+    );
 }
