@@ -119,6 +119,7 @@ class HostFrameHint {
     this.filePath,
     this.targetName,
     this.settings,
+    this.capturedAt,
     this.purpose = FramePurpose.capture,
     this.purposeStep,
     this.purposeSteps,
@@ -129,6 +130,13 @@ class HostFrameHint {
   final String? filePath;
   final String? targetName;
   final ExposureSettings? settings;
+
+  /// When the host says the frame was captured. The camera's own timestamp
+  /// is the end of the readout, the host's the start of the exposure; a
+  /// client that kept the camera's could not tell the host's later
+  /// announcement of the same frame (with its saved path) from a new frame,
+  /// and downloaded it a second time.
+  final DateTime? capturedAt;
 
   /// What the host's frame is for (an autofocus point, a centering attempt).
   final FramePurpose purpose;
@@ -208,6 +216,7 @@ Future<void> _publishRemoteCurrentFrame(
         hint != null &&
         hint.width == result.width &&
         hint.height == result.height;
+    if (hinted && hint.capturedAt != null) capturedAt = hint.capturedAt!;
     final imageData = capturedImageDataFromResult(
       capturedImage: result,
       settings: hinted && hint.settings != null ? hint.settings! : settings,

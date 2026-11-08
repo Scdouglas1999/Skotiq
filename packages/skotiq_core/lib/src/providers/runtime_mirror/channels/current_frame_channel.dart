@@ -100,6 +100,7 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
               height: height,
               filePath: jsonString(value['filePath']),
               targetName: jsonString(value['targetName']),
+              capturedAt: jsonInstant(value['capturedAt']),
               purpose: FramePurpose.values.firstWhere(
                 (p) => p.name == value['purpose'],
                 orElse: () => FramePurpose.capture,
