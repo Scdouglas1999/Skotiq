@@ -50,6 +50,8 @@ struct ReplayRig {
     lock_after: Option<Duration>,
     focuser_read_ms: std::sync::atomic::AtomicU64,
     lights: Vec<ImageData>,
+    /// Served once, as the first light, before [`Self::lights`].
+    first_light: Option<ImageData>,
     lights_taken: AtomicUsize,
     focused: ImageData,
 }
@@ -70,9 +72,26 @@ impl ReplayRig {
             .iter()
             .map(|name| fixture(name))
             .collect(),
+            first_light: None,
             lights_taken: AtomicUsize::new(0),
             focused: fixture("focused_L_0005.fits"),
         }
+    }
+
+    /// Lights that are in focus and round. Since frame watch (8b88f7262) an
+    /// autofocus that falls due on trailed stars waits for a clean frame, so a
+    /// test about what follows the sweep needs lights the sweep may run on.
+    fn with_clean_lights(mut self) -> Self {
+        self.lights = vec![fixture("focused_L_0006.fits")];
+        self
+    }
+
+    /// One clean light before the night's trailed ones: the autofocus that
+    /// falls due after it sweeps (it would wait out trailed stars), and every
+    /// light after the sweep is the night's own rejected frame.
+    fn with_clean_first_light(mut self) -> Self {
+        self.first_light = Some(fixture("focused_L_0006.fits"));
+        self
     }
 
     fn is_guiding(&self) -> bool {
@@ -173,7 +192,11 @@ impl DeviceOps for ReplayRig {
         // taken; the autofocus sweep gets the in-focus 2 s frame.
         if d >= 1.0 {
             let n = self.lights_taken.fetch_add(1, Ordering::SeqCst);
-            Ok(self.lights[n % self.lights.len()].clone())
+            match (&self.first_light, n) {
+                (Some(first), 0) => Ok(first.clone()),
+                (Some(_), n) => Ok(self.lights[(n - 1) % self.lights.len()].clone()),
+                (None, n) => Ok(self.lights[n % self.lights.len()].clone()),
+            }
         } else {
             Ok(self.focused.clone())
         }
@@ -465,7 +488,8 @@ async fn replay(
     // baseline reset to current value"), which is what let it carry on
     // imaging on the last-good focus. Here that reference is the first
     // light's own measured HFR. (Invalidation clears it, so it goes first.)
-    let first_light_hfr = shape(&rig.lights[0]).expect("measurable").hfr;
+    let first_light = rig.first_light.as_ref().unwrap_or(&rig.lights[0]);
+    let first_light_hfr = shape(first_light).expect("measurable").hfr;
     executor
         .update_trigger_state(move |ts| {
             ts.invalidate_autofocus("replay: filter changed");
@@ -532,7 +556,10 @@ fn lights_after_sweep(calls: &[String]) -> usize {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_guider_that_never_resumes_stops_the_lights_and_parks_nothing() {
     let _serial = SERIAL.lock().await;
-    let rig = Arc::new(ReplayRig::new(None));
+    // The night's own lights are trailed, and an autofocus now waits for a
+    // clean frame instead of sweeping on trailed stars. This test is about the
+    // guider after the sweep, so its lights are clean and the sweep runs.
+    let rig = Arc::new(ReplayRig::new(None).with_clean_lights());
     let Outcome {
         state,
         calls,
@@ -574,7 +601,7 @@ fn is_streak_notice(message: &str) -> bool {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_real_night_notifies_and_keeps_imaging() {
     let _serial = SERIAL.lock().await;
-    let rig = Arc::new(ReplayRig::new(Some(Duration::from_secs(9))));
+    let rig = Arc::new(ReplayRig::new(Some(Duration::from_secs(9))).with_clean_first_light());
     let Outcome {
         state,
         calls,
