@@ -230,16 +230,19 @@ class _FocuserSettingsCard extends ConsumerWidget {
             _SettingRow(
               label: 'Smallest compensation move',
               subtitle: 'Waits until the correction owed reaches this size',
-              child: _compactNumberField(
-                context,
-                initialValue: settings.tempCompensationMinSteps.toString(),
-                suffix: 'steps',
-                onChanged: (value) {
-                  final parsed = int.tryParse(value);
-                  if (parsed != null && parsed >= 1 && parsed <= 10000) {
-                    notifier.setTempCompensationMinSteps(parsed);
-                  }
-                },
+              child: KeyedSubtree(
+                key: const ValueKey('temp-comp-min-steps'),
+                child: _compactNumberField(
+                  context,
+                  initialValue: settings.tempCompensationMinSteps.toString(),
+                  suffix: 'steps',
+                  onChanged: (value) {
+                    final parsed = int.tryParse(value);
+                    if (parsed != null && parsed >= 1 && parsed <= 10000) {
+                      notifier.setTempCompensationMinSteps(parsed);
+                    }
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 12),
