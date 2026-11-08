@@ -432,6 +432,14 @@ pub struct TriggerState {
     /// The operator has been told this run's settle bar is tighter than the
     /// guiding the rig achieves.
     pub settle_bar_warning_given: bool,
+    /// Unix seconds of the latest mount fault (the mount moved on its own or
+    /// lost its position) that held this run. A light frame that was
+    /// exposing at that moment is rejected.
+    pub mount_fault_at: Option<i64>,
+    /// The run was held for a mount fault and has not recentered since: the
+    /// next light frame first centers on the target, because the mount is no
+    /// longer where the run left it.
+    pub mount_fault_recenter_pending: bool,
 }
 
 impl Default for TriggerState {
@@ -522,6 +530,8 @@ impl Default for TriggerState {
             dither_settle: crate::GuiderSettle::default(),
             guiding_settle: None,
             settle_bar_warning_given: false,
+            mount_fault_at: None,
+            mount_fault_recenter_pending: false,
         }
     }
 }
@@ -739,6 +749,8 @@ impl TriggerState {
         self.autofocus_hold = None;
         self.autofocus_wanted_while_held = false;
         self.settle_bar_warning_given = false;
+        self.mount_fault_at = None;
+        self.mount_fault_recenter_pending = false;
         self.run.reset_for_new_run();
         // A resumed run carries on the guiding and target its checkpoint
         // recorded.

@@ -10,6 +10,13 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
+        if let Some(reason) = crate::device_manager::motion_guard::block_reason(device_id) {
+            return Err(DeviceOpError::invalid_state(device_id, reason));
+        }
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Park,
+        );
         self.publish_state_event(EquipmentEvent::MountParkStarted);
         self.mount_park_dispatch(device_id).await?;
         self.publish_state_event(EquipmentEvent::MountParkCompleted);
@@ -18,6 +25,10 @@ impl DeviceManager {
 
     /// Unpark the mount, publishing `MountUnparked` once it is.
     pub async fn mount_unpark(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Unpark,
+        );
         self.mount_unpark_dispatch(device_id).await?;
         self.publish_state_event(EquipmentEvent::MountUnparked);
         Ok(())
@@ -258,6 +269,9 @@ impl DeviceManager {
     /// abort reaches the mount through [`Self::mount_abort`] in the first case;
     /// in the second it waits for the driver to hand the call back.
     pub async fn mount_find_home(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        if let Some(reason) = crate::device_manager::motion_guard::block_reason(device_id) {
+            return Err(DeviceOpError::invalid_state(device_id, reason));
+        }
         if !self.mount_can_find_home(device_id).await? {
             return Err(DeviceOpError::unsupported(format!(
                 "Mount {} cannot find home: its driver does not report a home position",
@@ -277,6 +291,10 @@ impl DeviceManager {
                 ),
             ));
         }
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::FindHome,
+        );
 
         let devices = self.devices.read().await;
         let info = devices

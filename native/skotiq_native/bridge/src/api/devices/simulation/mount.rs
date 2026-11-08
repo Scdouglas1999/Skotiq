@@ -252,6 +252,7 @@ pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chro
         to_pier != current_pier && current_pier != PierSide::Unknown,
     );
 
+    crate::device_manager::ops::sim_runaway::shift_physical_pointing(from, (ra, dec));
     let start_lag_secs = sim_slew_start_lag_secs();
     *sim_slew().write().await = Some(SimSlew {
         start: std::time::Instant::now(),
@@ -281,6 +282,8 @@ pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chro
 /// `AtHome` is cleared now and set by [`advance_sim_slew`] only once the
 /// motion has finished its settle.
 pub(crate) async fn begin_sim_home() {
+    // Homing moves the tube to the pose the mount will report.
+    crate::device_manager::ops::sim_runaway::clear_physical_pointing();
     let (from, current_pier) = {
         let mount = get_sim_mount().read().await;
         (

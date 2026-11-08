@@ -605,6 +605,25 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
+                  icon: LucideIcons.crosshair,
+                  title: 'Recover the mount on its own after a mount fault',
+                  subtitle: 'When the mount moves on its own or loses its '
+                      'position, the run pauses and Skotiq stops moving the '
+                      'mount. Off: you recover the position (re-home it, or '
+                      'plate solve and sync) and resume. On: once the mount '
+                      'has been still for 30 s, Skotiq takes a frame, plate '
+                      'solves it, syncs the mount and resumes the run, which '
+                      'centers on its target first.',
+                  trailing: SettingsSwitch(
+                    value: settings.mountGuardAutoSyncResume,
+                    onChanged: (value) {
+                      return ref
+                          .read(appSettingsProvider.notifier)
+                          .setMountGuardAutoSyncResume(value);
+                    },
+                  ),
+                ),
+                SettingRow(
                   icon: LucideIcons.alertTriangle,
                   title: 'Safety fail mode',
                   subtitle: settings.safetyFailMode.description,

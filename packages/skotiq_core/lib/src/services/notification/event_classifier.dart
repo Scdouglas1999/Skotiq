@@ -142,6 +142,20 @@ class NotificationEventClassifier {
       case EventCategory.guiding:
         return _classifyGuiding(event);
       case EventCategory.safety:
+        switch (event.eventType) {
+          case 'MountMotionFault':
+          case 'MountPositionUnknown':
+            return (
+              NotificationCategory.mountFault,
+              <String, String>{
+                'mount.device': event.data['device_id']?.toString() ?? '',
+                'mount.message': event.data['message']?.toString() ?? '',
+              },
+            );
+          case 'MountGuardCleared':
+            // The operator did this; nothing to tell them.
+            return null;
+        }
         return (
           event.eventType.toLowerCase().contains('safe') &&
                   !event.eventType.toLowerCase().contains('unsafe')

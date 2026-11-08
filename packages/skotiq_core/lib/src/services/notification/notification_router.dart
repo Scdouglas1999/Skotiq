@@ -831,6 +831,8 @@ class NotificationRouter {
         return 'Guiding recovered';
       case NotificationCategory.weatherUnsafe:
         return 'Weather unsafe';
+      case NotificationCategory.mountFault:
+        return 'Mount fault';
       case NotificationCategory.weatherSafeAgain:
         return 'Weather safe again';
       case NotificationCategory.cloudArriving:
@@ -887,6 +889,8 @@ class NotificationRouter {
         return '\${equipment.device_name} disconnected.';
       case NotificationCategory.weatherUnsafe:
         return 'Safety monitor reports unsafe conditions.';
+      case NotificationCategory.mountFault:
+        return '\${mount.message}';
       case NotificationCategory.weatherSafeAgain:
         return 'Conditions safe again.';
       case NotificationCategory.diskSpaceLow:

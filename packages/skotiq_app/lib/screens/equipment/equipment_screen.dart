@@ -23,6 +23,7 @@ import '../../utils/cooled_camera_guard.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../widgets/tutorial_keys/equipment_keys.dart';
 import '../sequencer/widgets/run_dashboard/recovery_banner.dart';
+import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
 part 'equipment_screen/layout_rail.dart';
 part 'equipment_screen/profile_undo.dart';
@@ -231,6 +232,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
               ],
             ],
           ),
+          const MountGuardBanner(),
           Expanded(
             child: switch (tabIndex) {
               1 => _ProfilesTab(

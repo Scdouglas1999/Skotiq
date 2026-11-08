@@ -131,6 +131,9 @@ const Map<core.EventCategory, Set<String>> _faithfulCoreEventTypes = {
     'EmergencyStop',
     'ParkInitiated',
     'ParkCompleted',
+    'MountMotionFault',
+    'MountPositionUnknown',
+    'MountGuardCleared',
   },
   core.EventCategory.system: {
     'BackendReconnected',
@@ -932,6 +935,23 @@ bridge.SafetyEvent _safetyEventFromCore(
       );
     case 'ParkCompleted':
       return const bridge.SafetyEvent.parkCompleted();
+    case 'MountMotionFault':
+      return bridge.SafetyEvent.mountMotionFault(
+        deviceId: _stringField(data, 'device_id'),
+        kind: data['kind'] as String? ?? '',
+        message: data['message'] as String? ?? '',
+      );
+    case 'MountPositionUnknown':
+      return bridge.SafetyEvent.mountPositionUnknown(
+        deviceId: _stringField(data, 'device_id'),
+        reason: data['reason'] as String? ?? '',
+        message: data['message'] as String? ?? '',
+      );
+    case 'MountGuardCleared':
+      return bridge.SafetyEvent.mountGuardCleared(
+        deviceId: _stringField(data, 'device_id'),
+        message: data['message'] as String? ?? '',
+      );
     default:
       return bridge.SafetyEvent.weatherUnsafe(
         reason:

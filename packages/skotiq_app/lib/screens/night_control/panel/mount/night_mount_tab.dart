@@ -23,6 +23,7 @@ import 'mount_go_to.dart';
 import 'mount_move_pad.dart';
 import 'night_panel_parts.dart';
 import '../stale_readings_note.dart';
+import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
 /// What every Mount-tab control gates on, read once per build.
 @immutable
@@ -32,6 +33,7 @@ class NightMountFacts {
     required this.inputs,
     required this.capabilities,
     required this.capabilitiesLoading,
+    this.guardBlockReason,
   });
 
   final MountState mount;
@@ -40,6 +42,10 @@ class NightMountFacts {
   /// Null while loading, or when the driver did not report them.
   final MountCapabilities? capabilities;
   final bool capabilitiesLoading;
+
+  /// Why the mount guard refuses automatic moves (the mount moved on its own
+  /// or its position is unknown), or null.
+  final String? guardBlockReason;
 
   bool get connected =>
       mount.connectionState == DeviceConnectionState.connected &&
@@ -50,14 +56,20 @@ class NightMountFacts {
   /// The first reason any mount command is refused, or null.
   ///
   /// [allowParked] for Unpark and the commands that work on a parked mount;
-  /// [allowDuringRun] for the ones a loaded run does not own.
+  /// [allowDuringRun] for the ones a loaded run does not own;
+  /// [allowWhileGuarded] for jogging, which stays open while the mount guard
+  /// refuses automatic moves.
   String? baseReason(
     SkotiqLocalizations l10n, {
     bool allowParked = false,
     bool allowDuringRun = false,
+    bool allowWhileGuarded = false,
   }) {
     if (!inputs.canCommand) return l10n.text('nightActWhyNoHost');
     if (!connected) return l10n.text('nightActWhyNoMount');
+    if (!allowWhileGuarded && guardBlockReason != null) {
+      return guardBlockReason;
+    }
     if (!allowDuringRun && runActive) return l10n.text('nightActWhyRunOwns');
     final action = inputs.action;
     if (action.isBusy) {
@@ -92,6 +104,7 @@ NightMountFacts watchNightMountFacts(WidgetRef ref) {
     inputs: ref.watch(nightActionInputsProvider),
     capabilities: caps?.valueOrNull,
     capabilitiesLoading: caps?.isLoading == true,
+    guardBlockReason: ref.watch(mountGuardEntryProvider(deviceId))?.blockReason,
   );
 }
 
@@ -135,9 +148,12 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
     final facts = watchNightMountFacts(ref);
     final mount = facts.mount;
 
-    final padReason = facts.baseReason(l10n);
+    // Jogging stays open while the guard refuses automatic moves: moving the
+    // mount home by hand is one way to recover it.
+    final padReason = facts.baseReason(l10n, allowWhileGuarded: true);
     return NightPanelScroll(
       children: [
+        MountGuardBanner(deviceId: mount.deviceId),
         NightStaleReadingsNote(
           type: DeviceType.mount,
           deviceId: facts.connected ? mount.deviceId : null,

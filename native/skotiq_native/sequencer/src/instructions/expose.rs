@@ -311,6 +311,16 @@ pub async fn execute_exposure_with_renderer(
                 return InstructionResult::cancelled("Exposure cancelled while paused");
             }
 
+            // A mount fault held the run: the mount is not where the run left
+            // it, so center on the target before the next light frame.
+            if is_light_frame {
+                match recenter_after_mount_fault(ctx, control).await {
+                    MountFaultRecenter::NotNeeded | MountFaultRecenter::Done => {}
+                    MountFaultRecenter::HeldAgain => continue,
+                    MountFaultRecenter::Stop(result) => return result,
+                }
+            }
+
             // Pre-frame meridian gate (N.I.N.A.-style): when the flip trigger
             // would fire while this frame is still exposing, hold here until the
             // trigger-driven flip completes instead of starting a frame the slew
@@ -1237,11 +1247,106 @@ fn wait_for_tracking(
 
 /// Why a light frame started at `started` was not tracked throughout, if it
 /// was not: the mount stopped during it, or a tracking-limit hold began.
+/// What the pre-frame recenter after a mount fault did.
+enum MountFaultRecenter {
+    /// No fault held the run since it last centered.
+    NotNeeded,
+    /// The mount is centered on the target again.
+    Done,
+    /// The center did not succeed; the run is paused again and the center is
+    /// tried after the next resume.
+    HeldAgain,
+    /// The run was cancelled.
+    Stop(InstructionResult),
+}
+
+/// Center on the target after a mount fault held the run (see
+/// `SequenceExecutor::hold_for_mount_fault`). A center that fails holds the
+/// run again rather than exposing wherever the fault left the mount.
+async fn recenter_after_mount_fault(
+    ctx: &InstructionContext,
+    control: &BurstControl<'_>,
+) -> MountFaultRecenter {
+    let Some(trigger_state) = ctx.trigger_state.as_ref() else {
+        return MountFaultRecenter::NotNeeded;
+    };
+    if !trigger_state.read().await.mount_fault_recenter_pending {
+        return MountFaultRecenter::NotNeeded;
+    }
+    let Some(mount_id) = ctx.mount_id.clone() else {
+        trigger_state.write().await.mount_fault_recenter_pending = false;
+        return MountFaultRecenter::NotNeeded;
+    };
+    if ctx.target_ra.is_none() || ctx.target_dec.is_none() {
+        tracing::warn!(
+            "[SEQ] The mount fault left the mount off target, and this frame has no target \
+             coordinates to center on"
+        );
+        trigger_state.write().await.mount_fault_recenter_pending = false;
+        return MountFaultRecenter::NotNeeded;
+    }
+    tracing::info!("[SEQ] Centering on the target after the mount fault before the next frame");
+    let claim =
+        match ImagingTrainClaimGuard::acquire(ctx, "the recenter after a mount fault", 120.0).await
+        {
+            Ok(claim) => claim,
+            Err(cancelled) => return MountFaultRecenter::Stop(cancelled),
+        };
+    let config = crate::CenterConfig {
+        use_target_coords: true,
+        custom_ra: None,
+        custom_dec: None,
+        accuracy_arcsec: 10.0,
+        max_attempts: 3,
+        exposure_duration: 5.0,
+        filter: None,
+    };
+    let result = crate::instructions::execute_center(&config, ctx, None).await;
+    claim.release(ctx).await;
+    if let Some(cancelled) = ctx.check_cancelled() {
+        return MountFaultRecenter::Stop(cancelled);
+    }
+    if result.status == NodeStatus::Success {
+        trigger_state.write().await.mount_fault_recenter_pending = false;
+        return MountFaultRecenter::Done;
+    }
+    let message = format!(
+        "Centering on the target after the mount fault did not succeed ({}).",
+        result.message.as_deref().unwrap_or("no detail")
+    );
+    tracing::warn!("[SEQ] {message}");
+    ctx.device_ops
+        .request_mount_fault_hold(&mount_id, &message)
+        .await;
+    // The hold arrives over the executor's command channel; wait for it
+    // so the loop does not try again before the pause lands.
+    for _ in 0..50 {
+        if control.pause.is_paused() {
+            break;
+        }
+        if let Some(cancelled) = ctx.check_cancelled() {
+            return MountFaultRecenter::Stop(cancelled);
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+    MountFaultRecenter::HeldAgain
+}
+
 async fn untracked_exposure_reason(
     ctx: &InstructionContext,
     started: chrono::DateTime<chrono::Utc>,
 ) -> Option<String> {
     let trigger_state = ctx.trigger_state.as_ref()?;
+    if trigger_state
+        .read()
+        .await
+        .mount_fault_at
+        .is_some_and(|at| at >= started.timestamp())
+    {
+        return Some(
+            "the mount moved on its own or lost its position during this exposure".to_string(),
+        );
+    }
     let (limit_hold, lost_since_start, expected, run_owns_tracking) = {
         let state = trigger_state.read().await;
         (

@@ -249,6 +249,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
       case NotificationCategory.weatherUnsafe:
       case NotificationCategory.weatherSafeAgain:
         return LucideIcons.cloudRain;
+      case NotificationCategory.mountFault:
+        return LucideIcons.octagon;
       case NotificationCategory.cloudArriving:
       case NotificationCategory.cloudOpening:
         return LucideIcons.cloud;

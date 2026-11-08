@@ -40,7 +40,14 @@ impl DeviceManager {
         ra: f64,
         dec: f64,
     ) -> Result<(), DeviceOpError> {
+        if let Some(reason) = crate::device_manager::motion_guard::block_reason(device_id) {
+            return Err(DeviceOpError::invalid_state(device_id, reason));
+        }
         self.ensure_tracking_for_slew(device_id).await;
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Slew,
+        );
         self.mount_slew_dispatch(device_id, ra, dec).await?;
         // The driver returning means the slew has started, not finished: the
         // completion event waits for the mount to arrive (see `state_events`).
@@ -272,6 +279,13 @@ impl DeviceManager {
         altitude: f64,
         azimuth: f64,
     ) -> Result<(), DeviceOpError> {
+        if let Some(reason) = crate::device_manager::motion_guard::block_reason(device_id) {
+            return Err(DeviceOpError::invalid_state(device_id, reason));
+        }
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Slew,
+        );
         self.mount_slew_alt_az_dispatch(device_id, altitude, azimuth)
             .await?;
         self.publish_property_changed(
@@ -423,6 +437,10 @@ impl DeviceManager {
 
     /// Abort a slew, publishing that it was aborted (see `state_events`).
     pub async fn mount_abort(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Abort,
+        );
         self.mount_abort_dispatch(device_id).await?;
         self.publish_property_changed(
             DeviceType::Mount,
@@ -511,6 +529,10 @@ impl DeviceManager {
     }
 
     pub async fn mount_stop(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Abort,
+        );
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)
@@ -598,6 +620,10 @@ impl DeviceManager {
             device_id,
             axis,
             rate
+        );
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::MoveAxis { axis, rate },
         );
 
         let devices = self.devices.read().await;

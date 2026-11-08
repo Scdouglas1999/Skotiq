@@ -131,6 +131,13 @@ class SystemPushTransport extends NotificationTransport {
           enabled: (c) => c.notifyWeatherUnsafe,
           priority: PushNotificationPriority.critical,
         );
+      // An equipment safety fault has no off switch: the mount may be
+      // pointing at the ground.
+      case NotificationCategory.mountFault:
+        return _PushSpec(
+          enabled: (_) => true,
+          priority: PushNotificationPriority.critical,
+        );
       case NotificationCategory.autofocusFailed:
         return _PushSpec(
           enabled: (c) => c.notifyAutofocusFailed,
@@ -282,6 +289,7 @@ class SystemPushTransport extends NotificationTransport {
       case NotificationCategory.weatherSafeAgain:
       case NotificationCategory.cloudArriving:
       case NotificationCategory.cloudOpening:
+      case NotificationCategory.mountFault:
         return core.EventCategory.safety;
       case NotificationCategory.equipmentDisconnected:
         return core.EventCategory.equipment;

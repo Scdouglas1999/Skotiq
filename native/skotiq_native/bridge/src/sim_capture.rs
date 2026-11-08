@@ -81,10 +81,15 @@ pub(crate) async fn sim_sky_view(
         // 22.7892h, so the field is rendered there — which is also what makes
         // a plate solve of this frame disagree with the mount's read-back by
         // exactly the precession offset, as it does on the rig.
+        // After a simulated restart the tube points somewhere other than the
+        // home position the mount reports (`sim_runaway`).
+        let (pointing_ra, pointing_dec) =
+            crate::device_manager::ops::sim_runaway::physical_pointing()
+                .unwrap_or((mount.status.right_ascension, mount.status.declination));
         let (ra_hours, dec_deg) = crate::device_manager::epoch::mount_frame_to_j2000(
             crate::device::DriverType::Simulator,
-            mount.status.right_ascension,
-            mount.status.declination,
+            pointing_ra,
+            pointing_dec,
         );
         (ra_hours * 15.0, dec_deg)
     };

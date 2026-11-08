@@ -578,6 +578,11 @@ pub trait DeviceOps: Send + Sync {
     /// A successful start of guiding clears it as well.
     async fn guider_note_stop_reason(&self, _reason: Option<crate::GuidingStopReason>) {}
 
+    /// Hold the run for a mount fault the run itself ran into (a recenter
+    /// after a fault that could not finish). The device layer pauses the
+    /// run and tells the operator; the default does nothing.
+    async fn request_mount_fault_hold(&self, _mount_id: &str, _message: &str) {}
+
     // Plate solving
 
     /// Plate solve an image

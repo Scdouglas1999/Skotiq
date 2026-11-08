@@ -37,6 +37,13 @@ extension SequencerSettingsSection on AppSettingsNotifier {
     _patchState((s) => s.copyWith(stopRunOnQualityProblems: value));
   }
 
+  /// Whether a run held by a mount fault solves, syncs and resumes on its
+  /// own (off by default: the operator recovers the mount).
+  Future<void> setMountGuardAutoSyncResume(bool value) async {
+    await _saveSetting('mount_guard_auto_sync_resume', value.toString());
+    _patchState((s) => s.copyWith(mountGuardAutoSyncResume: value));
+  }
+
   Future<void> setSafetyFailMode(SafetyFailMode value) async {
     await _saveSetting('safety_fail_mode', value.name);
     _patchState((s) => s.copyWith(safetyFailMode: value));

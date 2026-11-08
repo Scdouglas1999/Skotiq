@@ -111,6 +111,8 @@ bool isCriticalEvent(SkotiqEvent event) {
     EventPayload_Safety(field0: final v) => switch (v) {
       SafetyEvent_EmergencyStop() => true,
       SafetyEvent_WeatherUnsafe() => true,
+      // The mount guard has its own banner on Tonight, Mount and Equipment,
+      // which stays until the fault is dealt with.
       _ => false,
     },
     EventPayload_System(field0: final v) => switch (v) {
@@ -822,6 +824,9 @@ String _safetyTitle(SafetyEvent v) {
     SafetyEvent_EmergencyStop() => 'Emergency stop',
     SafetyEvent_ParkInitiated() => 'Park initiated',
     SafetyEvent_ParkCompleted() => 'Park complete',
+    SafetyEvent_MountMotionFault() => 'Mount moved on its own',
+    SafetyEvent_MountPositionUnknown() => 'Mount position unknown',
+    SafetyEvent_MountGuardCleared() => 'Mount recovered',
   };
 }
 
@@ -832,6 +837,9 @@ String _safetyDetail(SafetyEvent v) {
     SafetyEvent_EmergencyStop(reason: final r) => r,
     SafetyEvent_ParkInitiated(reason: final r) => r,
     SafetyEvent_ParkCompleted() => '',
+    SafetyEvent_MountMotionFault(message: final m) => m,
+    SafetyEvent_MountPositionUnknown(message: final m) => m,
+    SafetyEvent_MountGuardCleared(message: final m) => m,
   };
 }
 

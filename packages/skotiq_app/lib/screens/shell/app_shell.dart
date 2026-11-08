@@ -410,6 +410,10 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     // Activate the error notification bridge so backend errors show as toast notifications
     ref.watch(errorNotificationBridgeProvider);
+    // A mount that moves on its own or loses its position sounds the alarm on
+    // every screen, and the host's guard follows the operator's settings.
+    ref.watch(mountGuardAlarmProvider);
+    ref.watch(mountGuardSettingsSyncProvider);
     // Why: keep the meridian-flip disconnect guard alive
     // for the shell's lifetime so a mount disconnect during an in-flight flip
     // resets `flipExecutionStateProvider` to `aborted` and unsticks the UI.

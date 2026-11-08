@@ -20,6 +20,32 @@ sealed class SafetyEvent with _$SafetyEvent {
   const factory SafetyEvent.parkInitiated({required String reason}) =
       SafetyEvent_ParkInitiated;
   const factory SafetyEvent.parkCompleted() = SafetyEvent_ParkCompleted;
+
+  /// A mount moved with no command from Skotiq to explain it: an axis
+  /// running far faster than tracking and guiding, `Slewing` with no slew,
+  /// or a dive below the horizon. `kind` is `runaway`, `slewing` or
+  /// `below_horizon`; `message` says what the mount reported.
+  const factory SafetyEvent.mountMotionFault({
+    required String deviceId,
+    required String kind,
+    required String message,
+  }) = SafetyEvent_MountMotionFault;
+
+  /// Skotiq no longer trusts the mount's reported position (it reported
+  /// home without a home command, went silent and came back at home, or a
+  /// plate solve disagreed with it). Automatic moves are refused until the
+  /// operator recovers the position.
+  const factory SafetyEvent.mountPositionUnknown({
+    required String deviceId,
+    required String reason,
+    required String message,
+  }) = SafetyEvent_MountPositionUnknown;
+
+  /// A motion fault was acknowledged or the mount's position was recovered.
+  const factory SafetyEvent.mountGuardCleared({
+    required String deviceId,
+    required String message,
+  }) = SafetyEvent_MountGuardCleared;
 }
 
 @freezed

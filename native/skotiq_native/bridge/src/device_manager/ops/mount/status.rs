@@ -9,6 +9,21 @@ impl DeviceManager {
         ra: f64,
         dec: f64,
     ) -> Result<(), DeviceOpError> {
+        // A sync far from where the mount says it points is a lost position
+        // model, not a pointing correction (see `motion_guard::check_sync`).
+        if let Ok(status) = self.mount_get_status(device_id).await {
+            crate::device_manager::motion_guard::check_sync(
+                device_id,
+                (status.right_ascension, status.declination),
+                (ra, dec),
+            )
+            .await
+            .map_err(|reason| DeviceOpError::invalid_state(device_id, reason))?;
+        }
+        crate::device_manager::motion_guard::record_command(
+            device_id,
+            crate::device_manager::motion_guard::CommandKind::Sync,
+        );
         self.mount_sync_dispatch(device_id, ra, dec).await?;
         self.publish_property_changed(
             DeviceType::Mount,
@@ -127,6 +142,7 @@ impl DeviceManager {
                 // first — otherwise the interpolation would overwrite the
                 // synced coordinates on the next status read.
                 crate::api::devices::simulation::cancel_sim_slew().await;
+                crate::device_manager::ops::sim_runaway::clear_physical_pointing();
                 let m = crate::api::devices::simulation::get_sim_mount();
                 let mut m = m.write().await;
                 m.status.right_ascension = ra;
@@ -214,10 +230,16 @@ impl DeviceManager {
     }
 
     /// Read the mount's status. The outcome feeds the device's read health (see
-    /// [`crate::device_manager::read_health`]).
+    /// [`crate::device_manager::read_health`]), and every reading also goes to
+    /// the motion guard, which compares it with the commands the mount was
+    /// sent. Both count the same failed reads: a mount that goes silent is a
+    /// run of failed reads to the heartbeat and a silence to the guard.
     pub async fn mount_get_status(&self, device_id: &str) -> Result<MountStatus, DeviceOpError> {
         let result = self.mount_get_status_dispatch(device_id).await;
         self.note_status_read(device_id, &result);
+        if !matches!(result, Err(DeviceOpError::DeviceNotFound(_))) {
+            crate::device_manager::motion_guard::observe_status(device_id, &result).await;
+        }
         result
     }
 

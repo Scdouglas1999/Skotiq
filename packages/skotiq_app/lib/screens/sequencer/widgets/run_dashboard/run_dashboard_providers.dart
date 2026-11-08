@@ -1177,6 +1177,8 @@ bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
     sk_events.EventPayload_Safety(field0: final v) => switch (v) {
         sk_events.SafetyEvent_WeatherUnsafe() => true,
         sk_events.SafetyEvent_EmergencyStop() => true,
+        sk_events.SafetyEvent_MountMotionFault() => true,
+        sk_events.SafetyEvent_MountPositionUnknown() => true,
         _ => false,
       },
     sk_events.EventPayload_System(field0: final v) => switch (v) {

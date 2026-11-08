@@ -46,6 +46,7 @@ part 'network_backend/replay_debug_operations.dart';
 part 'network_backend/stacking_operations.dart';
 part 'network_backend/post_session_operations.dart';
 part 'network_backend/depthlock_operations.dart';
+part 'network_backend/mount_guard_operations.dart';
 part 'network_backend/runtime_mirror_operations.dart';
 part 'network_backend/imaging_profile_operations.dart';
 part 'network_backend/webrtc_subscription.dart';
@@ -487,8 +488,13 @@ class NetworkBackend extends _NetworkBackendTransport
         _NetworkBackendPlanningDataOperations,
         _NetworkBackendObservingListOperations,
         _NetworkBackendDepthLockOperations,
-        _NetworkBackendRuntimeMirrorOperations
-    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
+        _NetworkBackendRuntimeMirrorOperations,
+        _NetworkBackendMountGuardOperations
+    implements
+        SkotiqBackend,
+        EnvironmentalStatusBackend,
+        DomeStatusBackend,
+        MountGuardBackend {
   static const _requestIdHeader = _NetworkBackendTransport._requestIdHeader;
 
   NetworkBackend({

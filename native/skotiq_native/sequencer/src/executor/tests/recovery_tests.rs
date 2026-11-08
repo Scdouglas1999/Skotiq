@@ -105,7 +105,10 @@ fn calculate_totals_loop_until_stopped_smart_exposure_is_indeterminate() {
     }
 
     let (_, _, indeterminate) = exec.calculate_totals(&seq);
-    assert!(indeterminate, "a loop-until-stopped block has no frame total");
+    assert!(
+        indeterminate,
+        "a loop-until-stopped block has no frame total"
+    );
 }
 
 /// SmartExposure under a Loop multiplies the totals — same pattern as

@@ -130,6 +130,12 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
 pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
 
+    // A run held for a mount fault resumes only once the mount is recovered:
+    // its first act would be a slew, and the mount is not where it says.
+    if let Some(reason) = crate::device_manager::motion_guard::any_block_reason() {
+        return Err(SkotiqError::OperationFailed(reason));
+    }
+
     let executor = get_sequence_executor().read().await;
     executor
         .resume()

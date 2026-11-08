@@ -19,4 +19,5 @@ pub(crate) mod weather;
 
 pub(crate) mod sim_faults;
 pub(crate) mod sim_gate;
+pub(crate) mod sim_runaway;
 pub(crate) mod state_events;

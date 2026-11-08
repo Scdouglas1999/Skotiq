@@ -45,6 +45,11 @@ class AppSettingsState {
   /// and the run keeps imaging (owner decision 2026-10-06). DB key
   /// `stop_run_on_quality_problems`.
   final bool stopRunOnQualityProblems;
+
+  /// A run held by a mount fault solves, syncs and resumes on its own. Off
+  /// by default: the operator recovers the mount. DB key
+  /// `mount_guard_auto_sync_resume`.
+  final bool mountGuardAutoSyncResume;
   final int meridianFlipMinutes; // minutes before meridian
   final bool autoFocusOnFilterChange;
   final bool useFilterFocusOffsets; // Apply focus offsets when changing filters
@@ -498,6 +503,7 @@ class AppSettingsState {
     this.parkOnUnsafeWeather = true,
     this.parkBeforeDawn = true,
     this.stopRunOnQualityProblems = false,
+    this.mountGuardAutoSyncResume = false,
     this.meridianFlipMinutes = 5,
     this.autoFocusOnFilterChange = false,
     this.useFilterFocusOffsets = true,

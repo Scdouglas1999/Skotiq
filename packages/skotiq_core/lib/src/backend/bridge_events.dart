@@ -128,6 +128,9 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         SafetyEvent_EmergencyStop,
         SafetyEvent_ParkInitiated,
         SafetyEvent_ParkCompleted,
+        SafetyEvent_MountMotionFault,
+        SafetyEvent_MountPositionUnknown,
+        SafetyEvent_MountGuardCleared,
         // Sequencer event family — includes the Science / photometry variants
         // added in the Rust/FRB phase (`PhotometryFrame`,
         // `PhotometryCadenceBroken`, `PhotometrySummary`).

@@ -502,6 +502,12 @@ impl DeviceManager {
                     self.ensure_backstop_poll();
                 }
 
+                // A mount that moves on its own or loses its position is
+                // caught by the motion guard (`motion_guard`).
+                if info.device_type == DeviceType::Mount {
+                    crate::device_manager::motion_guard::ensure_sampler();
+                }
+
                 // Also register in app state
                 self.app_state
                     .register_device(info.clone(), ConnectionState::Connected)

@@ -105,6 +105,17 @@ pub enum Effect {
     /// key applies it; see [`take_unplug`]. Only the first fire after arming
     /// unplugs; later fires just fail.
     Unplug { reorder: bool },
+    /// The NYX-101 runaway (2026-10-17, 10-19, 11-08): after `delay_secs`
+    /// the mount's Dec axis runs on its own at `deg_per_sec` for `run_secs`,
+    /// ignoring every stop command, then the mount stops answering for
+    /// `blackout_secs` and comes back reporting its home position, tracking.
+    /// Returns `Ok(())`; see [`super::sim_runaway`].
+    Runaway {
+        deg_per_sec: f64,
+        run_secs: f64,
+        blackout_secs: f64,
+        delay_secs: f64,
+    },
 }
 
 /// A fault armed against one operation key.
@@ -161,6 +172,8 @@ struct Registry {
     /// Keys an [`Effect::Unplug`] fired on: whether to reorder, and whether
     /// the gate has applied it yet.
     unplugged: HashMap<String, (bool, bool)>,
+    /// Runaways latched by [`Effect::Runaway`], with when they were latched.
+    runaway: HashMap<String, (std::time::Instant, Effect)>,
 }
 
 fn registry() -> &'static StdMutex<Registry> {
@@ -203,6 +216,14 @@ pub fn arm(key: &str, spec: FaultSpec) {
         _ => 0,
     };
     let mut reg = registry().lock().expect("sim fault registry poisoned");
+    // Every simulator connect re-arms from the environment, and the mount
+    // reconnects after the runaway's blackout. Re-arming the same runaway
+    // must not start it over.
+    if matches!(spec.effect, Effect::Runaway { .. })
+        && reg.faults.get(key).is_some_and(|armed| armed.spec == spec)
+    {
+        return;
+    }
     reg.faults.insert(
         key.to_string(),
         Armed {
@@ -216,6 +237,7 @@ pub fn arm(key: &str, spec: FaultSpec) {
     reg.stalled.remove(key);
     reg.backlash.remove(key);
     reg.unplugged.remove(key);
+    reg.runaway.remove(key);
 }
 
 /// Part of the fault-injection CONTROL SURFACE: driven from tests today, and
@@ -231,6 +253,7 @@ pub fn clear(key: &str) {
     reg.stalled.remove(key);
     reg.backlash.remove(key);
     reg.unplugged.remove(key);
+    reg.runaway.remove(key);
 }
 
 /// Disarm everything. Call this between tests: the registry is process-global
@@ -242,6 +265,7 @@ pub fn clear_all() {
     reg.faults.clear();
     reg.stalled.clear();
     reg.backlash.clear();
+    reg.runaway.clear();
     reg.unplugged.clear();
 }
 
@@ -369,6 +393,32 @@ fn decide(key: &str) -> Decision {
                 "Injected simulator fault: the device dropped off the bus ({key})"
             ))
         }
+        effect @ Effect::Runaway { .. } => {
+            // One runaway per arming: a trigger that keeps firing must not
+            // restart it.
+            reg.runaway
+                .entry(key.to_string())
+                .or_insert((std::time::Instant::now(), effect));
+            Decision::Proceed
+        }
+    }
+}
+
+/// The runaway latched on `key`: when it was latched and its parameters
+/// `(deg_per_sec, run_secs, blackout_secs, delay_secs)`.
+pub fn runaway_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f64, f64)> {
+    let reg = registry().lock().expect("sim fault registry poisoned");
+    match reg.runaway.get(key)? {
+        (
+            at,
+            Effect::Runaway {
+                deg_per_sec,
+                run_secs,
+                blackout_secs,
+                delay_secs,
+            },
+        ) => Some((*at, *deg_per_sec, *run_secs, *blackout_secs, *delay_secs)),
+        _ => None,
     }
 }
 
@@ -450,7 +500,8 @@ pub fn arm_from_env() {
 /// Triggers: `once`, `times(N)`, `always`, `after(N)`, `every(N)`, `p(0.25)`.
 /// Effects: `error`, `error(msg)`, `notconnected`, `delay(MS)`,
 /// `delaythenerror(MS)`, `delaythenerror(MS,msg)`, `stall`, `backlash(STEPS)`,
-/// `notimplemented`.
+/// `notimplemented`, `runaway(DEG_PER_S,RUN_S,BLACKOUT_S,DELAY_S)` (key
+/// `mount.runaway`, every argument optional).
 ///
 /// Example: `mount.slew=once:error,camera.download=always:delaythenerror(30000)`
 pub fn parse_spec_list(raw: &str) -> Result<Vec<(String, FaultSpec)>, String> {
@@ -589,6 +640,31 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
                 "unplug takes no argument or `reorder`, not '{other}'"
             )),
         },
+        "runaway" => {
+            let arg = arg.unwrap_or("");
+            let numbers: Vec<f64> = arg
+                .split(',')
+                .filter(|part| !part.trim().is_empty())
+                .map(|part| {
+                    part.trim()
+                        .parse::<f64>()
+                        .map_err(|_| format!("runaway argument '{part}' is not a number"))
+                })
+                .collect::<Result<_, _>>()?;
+            if numbers.len() > 4 || numbers.iter().any(|n| !n.is_finite() || *n < 0.0) {
+                return Err(format!(
+                    "runaway takes up to four non-negative numbers \
+                     (deg_per_sec,run_secs,blackout_secs,delay_secs), got '{arg}'"
+                ));
+            }
+            let get = |i: usize, default: f64| numbers.get(i).copied().unwrap_or(default);
+            Ok(Effect::Runaway {
+                deg_per_sec: get(0, 4.7),
+                run_secs: get(1, 20.0),
+                blackout_secs: get(2, 15.0),
+                delay_secs: get(3, 0.0),
+            })
+        }
         "backlash" => {
             let arg =
                 arg.ok_or_else(|| "backlash needs a step count, e.g. backlash(40)".to_string())?;
@@ -600,7 +676,7 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
         }
         other => Err(format!(
             "unknown effect '{other}' (want error(msg)/notimplemented/notconnected/\
-             delay(MS)/delaythenerror(MS,msg)/stall/backlash(N)/unplug[(reorder)])"
+             delay(MS)/delaythenerror(MS,msg)/stall/backlash(N)/unplug[(reorder)]/runaway(...))"
         )),
     }
 }
