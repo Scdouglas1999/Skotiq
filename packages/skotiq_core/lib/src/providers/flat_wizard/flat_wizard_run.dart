@@ -499,6 +499,9 @@ extension FlatWizardRun on FlatWizardNotifier {
               continue;
             }
             discardedInARow = 0;
+            // The filter card shows the exposure the frames are being taken
+            // at now, not the calibration's.
+            updateFilterCalibration(idx, frameExposure, frameAdu);
           }
 
           // Save the frame. A save failure IS a capture failure: the frame is
