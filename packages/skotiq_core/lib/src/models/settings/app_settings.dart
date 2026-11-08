@@ -220,6 +220,10 @@ abstract class AppSettings with _$AppSettings {
     /// Temp-comp coefficient (steps per °C). DB key `temp_coefficient`.
     @Default(-12.0) double tempCoefficient,
 
+    /// Smallest correction temp compensation moves the focuser for (steps).
+    /// DB key `temp_compensation_min_steps`.
+    @Default(5) int tempCompensationMinSteps,
+
     /// Focuser backlash compensation (steps). DB key `backlash_compensation`.
     @Default(0) int backlashCompensation,
     // Guider settle (calibration).

@@ -85,6 +85,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       enableMeridianFlip: remote.enableMeridianFlip,
       tempCompensation: remote.tempCompensation,
       tempCoefficient: remote.tempCoefficient,
+      tempCompensationMinSteps: remote.tempCompensationMinSteps,
       backlashCompensation: remote.backlashCompensation,
       settleThreshold: remote.settleThreshold,
       settleTimeout: remote.settleTimeout,
@@ -277,6 +278,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       enableMeridianFlip: settings.enableMeridianFlip,
       tempCompensation: settings.tempCompensation,
       tempCoefficient: settings.tempCoefficient,
+      tempCompensationMinSteps: settings.tempCompensationMinSteps,
       backlashCompensation: settings.backlashCompensation,
       settleThreshold: settings.settleThreshold,
       settleTimeout: settings.settleTimeout,
@@ -652,6 +654,10 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       case 'tempCoefficient':
         return value is num
             ? current.copyWith(tempCoefficient: value.toDouble())
+            : null;
+      case 'tempCompensationMinSteps':
+        return value is num
+            ? current.copyWith(tempCompensationMinSteps: value.toInt())
             : null;
       case 'backlashCompensation':
         return value is num

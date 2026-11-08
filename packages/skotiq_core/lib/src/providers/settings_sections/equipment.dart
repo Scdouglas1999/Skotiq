@@ -5,7 +5,8 @@
 // Owns:
 //   * Camera: defaultGain, defaultOffset
 //   * Mount: enableMeridianFlip
-//   * Focuser: tempCompensation, tempCoefficient, backlashCompensation
+//   * Focuser: tempCompensation, tempCoefficient, tempCompensationMinSteps,
+//     backlashCompensation
 //   * Guider: ditherScale, settleThreshold, settleTimeout, settleTime,
 //     ditherRaOnly
 //
@@ -81,6 +82,11 @@ extension EquipmentSettingsSection on AppSettingsNotifier {
   Future<void> setTempCoefficient(double value) async {
     await _saveSetting('temp_coefficient', value.toString());
     _patchState((s) => s.copyWith(tempCoefficient: value));
+  }
+
+  Future<void> setTempCompensationMinSteps(int value) async {
+    await _saveSetting('temp_compensation_min_steps', value.toString());
+    _patchState((s) => s.copyWith(tempCompensationMinSteps: value));
   }
 
   Future<void> setBacklashCompensation(int value) async {

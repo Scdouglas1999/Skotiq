@@ -178,6 +178,10 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       // Equipment Settings - Focuser
       tempCompensation: _parseBool(allSettings['temp_compensation'], false),
       tempCoefficient: _parseDouble(allSettings['temp_coefficient'], -12.0),
+      tempCompensationMinSteps: _parseInt(
+        allSettings['temp_compensation_min_steps'],
+        5,
+      ),
       backlashCompensation: _parseInt(allSettings['backlash_compensation'], 0),
 
       // Equipment Settings - Guider
@@ -616,6 +620,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       // Equipment Settings - Focuser
       'temp_compensation': s.tempCompensation.toString(),
       'temp_coefficient': s.tempCoefficient.toString(),
+      'temp_compensation_min_steps': s.tempCompensationMinSteps.toString(),
       'backlash_compensation': s.backlashCompensation.toString(),
 
       // Equipment Settings - Guider

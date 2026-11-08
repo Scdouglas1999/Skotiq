@@ -80,6 +80,7 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     bool? enableMeridianFlip,
     bool? tempCompensation,
     double? tempCoefficient,
+    int? tempCompensationMinSteps,
     int? backlashCompensation,
     String? ditherScale,
     double? settleThreshold,
@@ -279,6 +280,8 @@ extension AppSettingsStateCopyWith on AppSettingsState {
       enableMeridianFlip: enableMeridianFlip ?? this.enableMeridianFlip,
       tempCompensation: tempCompensation ?? this.tempCompensation,
       tempCoefficient: tempCoefficient ?? this.tempCoefficient,
+      tempCompensationMinSteps:
+          tempCompensationMinSteps ?? this.tempCompensationMinSteps,
       backlashCompensation: backlashCompensation ?? this.backlashCompensation,
       ditherScale: ditherScale ?? this.ditherScale,
       settleThreshold: settleThreshold ?? this.settleThreshold,

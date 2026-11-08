@@ -58,6 +58,7 @@ const Map<String, String> _defaultSettings = {
   'enable_meridian_flip': 'true',
   'temp_compensation': 'false',
   'temp_coefficient': '-12.0',
+  'temp_compensation_min_steps': '5',
   'backlash_compensation': '0',
   'dither_scale': 'Medium',
   'settle_threshold': '1.5',
