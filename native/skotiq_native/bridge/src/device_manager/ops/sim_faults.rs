@@ -206,6 +206,14 @@ pub fn arm(key: &str, spec: FaultSpec) {
         _ => 0,
     };
     let mut reg = registry().lock().expect("sim fault registry poisoned");
+    // Every simulator connect re-arms from the environment, and the mount
+    // reconnects after the runaway's blackout. Re-arming the same runaway
+    // must not start it over.
+    if matches!(spec.effect, Effect::Runaway { .. })
+        && reg.faults.get(key).is_some_and(|armed| armed.spec == spec)
+    {
+        return;
+    }
     reg.faults.insert(
         key.to_string(),
         Armed {
