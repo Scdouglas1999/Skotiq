@@ -126,25 +126,34 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
 
   final timing = ref.watch(nightPlanTimingProvider);
   final clock = ref.watch(clockProvider);
+  // No fixed length: a loop runs until a condition, or a block runs until it
+  // is stopped and there is no site to bound it by its target's window.
+  final planOpenEnded = tree.openEnded || (timing?.openEnded ?? false);
   DateTime? eta;
   if (phase.isRunLive) {
-    final remaining = ref.watch(
-      sequenceProgressProvider.select((p) => p.estimatedRemainingSecs),
-    );
+    // The executor's remaining time is frames left times the average frame,
+    // and a block looping until its window closes has no frames left to
+    // count; the plan's estimate bounds it by the window instead.
+    final remaining = tree.loopsUntilWindowEnds
+        ? null
+        : ref.watch(
+            sequenceProgressProvider.select((p) => p.estimatedRemainingSecs),
+          );
     if (remaining != null) {
       eta = ref.watch(nightNowProvider).add(secs(remaining));
-    } else if (!tree.openEnded) {
+    } else if (!planOpenEnded) {
       // The plan's estimate runs from the start; a run behind it ends later.
       eta = timing?.end.add(ref.watch(nightPlanLagProvider));
     }
-  } else if (phase != NightRunPhase.finished && !tree.openEnded) {
+  } else if (phase != NightRunPhase.finished && !planOpenEnded) {
     eta = timing?.end;
   }
 
   return NightPlanVm(
     rows: rows,
     integrated: integrated,
-    planned: tree.openEnded ? null : timing?.total,
+    openEnded: planOpenEnded,
+    planned: planOpenEnded ? null : timing?.total,
     eta: eta == null ? null : clock.toNightClock(eta),
   );
 });

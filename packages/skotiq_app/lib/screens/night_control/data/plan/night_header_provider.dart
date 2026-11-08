@@ -127,7 +127,9 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
         : frames.planned ??
             (activeNode == null ? null : nightPlannedFrames(activeNode)),
     plannedDuration:
-        timing == null || tree == null || tree.openEnded ? null : timing.total,
+        timing == null || tree == null || tree.openEnded || timing.openEnded
+            ? null
+            : timing.total,
     restoredFrames:
         live ? null : ref.watch(restoredCheckpointProvider)?.completedExposures,
     pauseResume: pauseResume,

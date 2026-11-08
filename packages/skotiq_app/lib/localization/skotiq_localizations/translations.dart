@@ -1241,6 +1241,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPlanTitle': 'Plan',
     'nightCtlPlanEta': 'ETA {time}',
     'nightCtlPlanEnds': 'ends {time}',
+    'nightCtlPlanUntilStopped': 'until stopped',
     'nightCtlPlanNoFrames': 'The plan has no exposures',
     'nightCtlPlanRowSem':
         '{filter}: {done} of {planned} frames, {time} captured',
@@ -2935,6 +2936,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPlanTitle': 'Plan',
     'nightCtlPlanEta': 'fin estimado {time}',
     'nightCtlPlanEnds': 'termina {time}',
+    'nightCtlPlanUntilStopped': 'hasta que se detenga',
     'nightCtlPlanNoFrames': 'El plan no tiene exposiciones',
     'nightCtlPlanRowSem':
         '{filter}: {done} de {planned} tomas, {time} capturado',

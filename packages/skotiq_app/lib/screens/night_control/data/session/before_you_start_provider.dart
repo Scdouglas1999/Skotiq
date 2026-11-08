@@ -28,7 +28,7 @@ const String _solverRoute = '/settings/plate-solving';
 const String _weatherRoute = '/settings?section=weather-safety';
 
 /// The dawn rule's lead time, as `WeatherSafetyNotifier` applies it.
-const Duration kNightParkBeforeDawnLead = Duration(minutes: 30);
+const Duration kNightParkBeforeDawnLead = kParkBeforeDawnLead;
 
 /// The plate solver the operator picked, and whether it is installed.
 @immutable
@@ -65,29 +65,13 @@ final nightDiskProjectionProvider = Provider<DiskSpaceProjection?>((ref) {
   return ref.watch(sequenceDiskProjectionProvider).valueOrNull?.projection;
 });
 
-/// When the dawn rule parks a running run tonight: 30 minutes before the
-/// next astronomical dawn at the site. Null when the site has no
-/// astronomical dawn (a night that never gets fully dark).
-///
-/// "Next" the way the rule reads it: last night's dawn while it is still
-/// ahead (after midnight), otherwise tonight's.
+/// When the dawn rule parks a running run tonight (see [dawnParkTime]).
 DateTime? nightDawnParkTime({
   required DateTime now,
   required double latitude,
   required double longitude,
-}) {
-  for (final day in [now.subtract(const Duration(days: 1)), now]) {
-    final dawn = SkyCalculations.computeTwilight(
-      noonLocal: DateTime(day.year, day.month, day.day, 12),
-      latitudeDegrees: latitude,
-      longitudeDegrees: longitude,
-      kind: TwilightKind.astronomical,
-    ).morningStart;
-    if (dawn == null || now.isAfter(dawn)) continue;
-    return dawn.subtract(kNightParkBeforeDawnLead);
-  }
-  return null;
-}
+}) =>
+    dawnParkTime(now: now, latitude: latitude, longitude: longitude);
 
 ChecklistItemVm _row(
   ChecklistItemId id,

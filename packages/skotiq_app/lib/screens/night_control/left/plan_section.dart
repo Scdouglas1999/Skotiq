@@ -49,7 +49,7 @@ class NightPlanSection extends ConsumerWidget {
       plan.rows.any((r) => r.framesDone > 0);
 
   /// "5 h 10 m / ≈7 h · ETA ≈05:30" during a run, "0 / ≈7 h · ends ≈05:30"
-  /// before one.
+  /// before one, "1 h 12 m · until stopped" for a plan nothing bounds.
   static String _summary(
     SkotiqLocalizations l10n,
     NightPlanVm plan, {
@@ -66,7 +66,9 @@ class NightPlanSection extends ConsumerWidget {
       if (plan.eta case final eta?)
         l10n.text(live ? 'nightCtlPlanEta' : 'nightCtlPlanEnds', params: {
           'time': nightHmMaybeEstimated(eta, estimated: true),
-        }),
+        })
+      else if (plan.openEnded)
+        l10n.text('nightCtlPlanUntilStopped'),
     ];
     return parts.join(' · ');
   }

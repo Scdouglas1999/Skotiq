@@ -479,6 +479,7 @@ class NightPlanVm {
     required this.integrated,
     this.planned,
     this.eta,
+    this.openEnded = false,
   });
 
   final List<PlanFilterRowVm> rows;
@@ -490,17 +491,22 @@ class NightPlanVm {
   /// Estimated end of the run ("≈").
   final DateTime? eta;
 
+  /// The plan runs until it is stopped: nothing bounds a loop or a "loop
+  /// until stopped" block, so it has no length or end to show.
+  final bool openEnded;
+
   @override
   bool operator ==(Object other) =>
       other is NightPlanVm &&
       listEquals(other.rows, rows) &&
       other.integrated == integrated &&
       other.planned == planned &&
-      other.eta == eta;
+      other.eta == eta &&
+      other.openEnded == openEnded;
 
   @override
   int get hashCode =>
-      Object.hash(Object.hashAll(rows), integrated, planned, eta);
+      Object.hash(Object.hashAll(rows), integrated, planned, eta, openEnded);
 }
 
 /// What the Steps list prints on the right of a step.

@@ -134,6 +134,15 @@ class NightPlanTree {
   /// length.
   bool get openEnded => entries.any((e) => e.openEnded);
 
+  /// A Smart Exposure loops until its target's window closes. Its length is
+  /// the window's, which a frame count cannot give: the executor's
+  /// per-frame remaining time counts the plans' per-filter counts.
+  bool get loopsUntilWindowEnds => entries.any(
+        (e) =>
+            e.node is SmartExposureNode &&
+            (e.node as SmartExposureNode).loopUntilStopped,
+      );
+
   int stepIndexOf(String nodeId) =>
       steps.indexWhere((entry) => entry.node.id == nodeId);
 }
@@ -236,6 +245,11 @@ class NightPlanTiming {
   /// The whole plan, loops included.
   final Duration total;
 
+  /// A step runs until it is stopped and nothing bounds it (no site to solve
+  /// its target's window from), so [total] and [end] are not the plan's
+  /// length.
+  bool get openEnded => timings.any((timing) => timing.openEnded);
+
   final Map<String, NodeTiming> _firstByNode;
 
   DateTime get end => anchor.add(total);
@@ -276,17 +290,28 @@ final nightPlanTimingProvider = Provider<NightPlanTiming?>((ref) {
   final estimator = SequenceTimeEstimator(
     overhead: ref.watch(sequencerOverheadConfigProvider),
   );
+  // The dawn park stops the run, so a target's window ends there at latest.
+  final runEndsBy = planRunEndsBy(
+    parkBeforeDawn: ref.watch(
+      appSettingsProvider.select((s) => s.valueOrNull?.parkBeforeDawn ?? true),
+    ),
+    latitude: site?.latitude,
+    longitude: site?.longitude,
+    now: anchor,
+  );
   final timings = estimator.estimateSequenceTiming(
     tree.sequence,
     anchor,
     latitude: site?.latitude,
     longitude: site?.longitude,
+    runEndsBy: runEndsBy,
   );
   final total = estimator.estimateTotalDuration(
     tree.sequence,
     anchor,
     latitude: site?.latitude,
     longitude: site?.longitude,
+    runEndsBy: runEndsBy,
   );
   return NightPlanTiming(anchor: anchor, timings: timings, total: total);
 });
