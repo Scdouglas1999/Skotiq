@@ -169,6 +169,30 @@ void main() {
       expect(shown, isEmpty);
     });
 
+    test('a meridian flip shows its re-centering frames until the run '
+        'takes a light again', () async {
+      final shown = <UtilityFrameRequest>[];
+      final feeder = AutofocusPreviewFeeder((r) async => shown.add(r));
+
+      feed(
+        feeder,
+        event(EventCategory.sequencer, 'TriggerFired', {
+          'action': 'MeridianFlip',
+        }),
+      );
+      // The flip spans the step it interrupted.
+      feed(feeder, event(EventCategory.sequencer, 'NodeStarted'));
+      feed(feeder, done);
+      await pumpEventQueue();
+      feed(feeder, event(EventCategory.sequencer, 'FrameAccepted'));
+      feed(feeder, done);
+      await pumpEventQueue();
+
+      expect(shown.map((r) => (r.purpose, r.step)), [
+        (FramePurpose.centering, null),
+      ]);
+    });
+
     test('polar alignment frames show with their point', () async {
       final shown = <UtilityFrameRequest>[];
       final feeder = AutofocusPreviewFeeder((r) async => shown.add(r));

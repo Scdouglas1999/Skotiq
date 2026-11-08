@@ -46,6 +46,10 @@ class AutofocusPreviewFeeder {
   /// progress; null outside a Center step.
   ({int attempt, int? maxAttempts})? _centering;
 
+  /// True while a sequence's meridian flip runs: its re-centering frames are
+  /// solve frames too, and the flip reports no Center progress of its own.
+  bool _flipping = false;
+
   void onOverlayChanged(
     AutofocusOverlayState? prev,
     AutofocusOverlayState next,
@@ -78,7 +82,13 @@ class AutofocusPreviewFeeder {
     required int polarPoint,
   }) {
     switch ((event.category, event.eventType)) {
+      case (EventCategory.sequencer, 'TriggerFired')
+          when event.data['action'] == 'MeridianFlip':
+        _flipping = true;
+      case (EventCategory.sequencer, 'InstructionProgress'):
+        _flipping = event.data['instruction'] == 'MeridianFlip';
       case (EventCategory.sequencer, 'InstructionProgressStructured'):
+        _flipping = event.data['instruction'] == 'MeridianFlip';
         if (event.data['detail_kind'] == 'Center') {
           final detail = _jsonObject(event.data['detail_json']);
           final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;
@@ -89,11 +99,22 @@ class AutofocusPreviewFeeder {
           _centering = null;
         }
       case (EventCategory.sequencer, 'NodeStarted' || 'NodeCompleted'):
+        // A flip spans the step it interrupted, so only a Center step ends
+        // here.
+        _centering = null;
+      case (
+        EventCategory.sequencer,
+        'FrameAccepted' || 'FrameRejected' || 'ExposureCompleted',
+      ):
+        // A light of the run: whatever came before it is over.
+        _centering = null;
+        _flipping = false;
       case (
         EventCategory.sequencer,
         'Stopped' || 'Completed' || 'SequenceFailed' || 'sequenceFailed',
       ):
         _centering = null;
+        _flipping = false;
       case (EventCategory.imaging, 'ExposureComplete'):
         if (event.data['success'] != true || autofocusRunning) return;
         final centering = _centering;
@@ -105,6 +126,8 @@ class AutofocusPreviewFeeder {
               steps: centering.maxAttempts,
             ),
           );
+        } else if (_flipping) {
+          _request(const UtilityFrameRequest(FramePurpose.centering));
         } else if (polarPhase == PolarAlignPhase.measuring ||
             polarPhase == PolarAlignPhase.adjusting) {
           _request(
