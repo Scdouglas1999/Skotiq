@@ -119,6 +119,18 @@ String observingNight(DateTime time) {
   return '${evening.year}-${two(evening.month)}-${two(evening.day)}';
 }
 
+/// The observing night [time] falls in, as the local noon it starts at and
+/// the next local noon, the same night [observingNight] names.
+({DateTime start, DateTime end}) observingNightWindow(DateTime time) {
+  final local = time.toLocal();
+  final evening = local.hour < 12
+      ? DateTime(local.year, local.month, local.day - 1)
+      : DateTime(local.year, local.month, local.day);
+  final start = DateTime(evening.year, evening.month, evening.day, 12);
+  final end = DateTime(evening.year, evening.month, evening.day + 1, 12);
+  return (start: start, end: end);
+}
+
 class DarkroomBuildGroup {
   DarkroomBuildGroup({
     required this.label,

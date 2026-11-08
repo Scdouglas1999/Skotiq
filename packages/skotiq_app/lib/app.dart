@@ -114,6 +114,9 @@ class SkotiqApp extends ConsumerWidget {
     // Host: put every autofocus, centering and polar alignment frame on the
     // main image (Tonight and the Imaging preview) while the run takes it.
     ref.watch(autofocusPreviewFeederProvider);
+    // Host: the session frames list is the whole observing night, rebuilt
+    // from the database after a crash, an update or a restart.
+    ref.watch(sessionNightSeedProvider);
     // Host: nothing native reports a cover, panel or switch change, so the
     // host re-reads them for its own cards and the linked clients.
     ref.watch(coverCalibratorStatusPollerProvider);
