@@ -1662,6 +1662,23 @@ pub struct FlatWizardConfig {
     /// Number of flat frames the wizard captures and saves after finding optimal exposure
     #[serde(default = "default_flat_count")]
     pub flat_count: u32,
+    /// Test exposures the search may take to find the flat exposure: the
+    /// app's "Exposure calibration attempts" setting. Clamped to
+    /// 1..=[`MAX_FLAT_CALIBRATION_ATTEMPTS`].
+    #[serde(default = "default_flat_calibration_attempts")]
+    pub max_iterations: u32,
+}
+
+/// Default for the "Exposure calibration attempts" flat setting. Twilight
+/// skies and dim panels need well over the 3 to 10 tries the paths used to
+/// hard-code.
+pub const DEFAULT_FLAT_CALIBRATION_ATTEMPTS: u32 = 20;
+
+/// Ceiling on that setting.
+pub const MAX_FLAT_CALIBRATION_ATTEMPTS: u32 = 100;
+
+fn default_flat_calibration_attempts() -> u32 {
+    DEFAULT_FLAT_CALIBRATION_ATTEMPTS
 }
 
 fn default_brightness() -> i32 {
@@ -1699,6 +1716,7 @@ impl Default for FlatWizardConfig {
             min_brightness: 10,
             max_brightness: 255,
             flat_count: default_flat_count(),
+            max_iterations: DEFAULT_FLAT_CALIBRATION_ATTEMPTS,
         }
     }
 }
