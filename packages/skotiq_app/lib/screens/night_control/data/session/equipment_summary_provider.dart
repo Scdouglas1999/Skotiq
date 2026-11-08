@@ -133,8 +133,6 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   final assigned = ref.watch(assignedProfileDeviceSlotsProvider).toSet();
   final reads = ref.watch(deviceReadHealthProvider);
   final heartbeats = ref.watch(deviceHeartbeatHealthProvider);
-  // Keeps the age beside stale readouts counting.
-  ref.watch(staleAgeTickerProvider);
   final now = DateTime.now();
 
   EquipmentRowVm row(
@@ -161,6 +159,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
         ? null
         : staleReadingsFor(reads, heartbeats, type, deviceId);
     if (stale != null) {
+      // Keeps the age beside stale readouts counting; only while one is
+      // shown, so an idle Tonight holds no timer.
+      ref.watch(staleAgeTickerProvider);
       return EquipmentRowVm(
         kind: kind,
         status: EquipmentStatus.attention,
