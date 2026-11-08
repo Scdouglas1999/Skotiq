@@ -282,11 +282,14 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
               label: l10n.text('nightScopeFlipIn'),
               // Past the flip point the countdown is zero; "0m" read as a
               // flip about to happen at an hour angle of +4h45m.
-              value: toFlip == null
-                  ? null
-                  : toFlip == Duration.zero
-                      ? l10n.text('nightScopeFlipPastDue')
-                      : formatCountdown(toFlip),
+              // On the post-flip side no flip is pending at all.
+              value: countdown.onPostFlipSide && connected
+                  ? l10n.text('nightScopeFlipNotNeeded')
+                  : toFlip == null
+                      ? null
+                      : toFlip == Duration.zero
+                          ? l10n.text('nightScopeFlipPastDue')
+                          : formatCountdown(toFlip),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSlewingLabel'),
