@@ -541,7 +541,10 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   }
 
   @override
-  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async =>
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async =>
       _image(_onTargetAdu);
 
   @override
@@ -647,7 +650,10 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
   }
 
   @override
-  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async =>
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async =>
       _image(_onTargetAdu);
 
   @override

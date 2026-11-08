@@ -141,8 +141,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   Widget build(BuildContext context) {
     // Sync snapshot exposure defaults from the active equipment profile
     ref.watch(syncExposureFromProfileProvider);
-    // Put each autofocus frame on the canvas while a run measures it.
-    ref.watch(autofocusPreviewFeederProvider);
 
     // The loop and any exposure in flight decide what Snapshot and Loop
     // offer, in this window and the one at the other end of the link.

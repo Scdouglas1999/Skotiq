@@ -293,7 +293,7 @@ void main() {
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(() => backend.cameraGetLastImage('asi:0')).thenAnswer(
+      when(() => backend.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth'))).thenAnswer(
         (_) async => makeCapturedImageResult(
           width: 4,
           height: 2,
@@ -346,7 +346,7 @@ void main() {
       expect(frame.height, 2);
       expect(frame.settings.exposureTime, 12.0);
       expect(frame.previewSource, CapturePreviewSource.remote);
-      verify(() => backend.cameraGetLastImage('asi:0')).called(1);
+      verify(() => backend.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth'))).called(1);
     });
 
     test('late current-frame response from an old host is discarded', () async {
@@ -354,7 +354,7 @@ void main() {
       final hostB = _connectedBackend();
       final delayedFrame = Completer<CapturedImageResult?>();
       when(
-        () => hostA.cameraGetLastImage('asi:0'),
+        () => hostA.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) => delayedFrame.future);
 
       final container = ProviderContainer(
@@ -382,7 +382,7 @@ void main() {
         networkBackend: hostA,
       );
       await pumpEventQueue();
-      verify(() => hostA.cameraGetLastImage('asi:0')).called(1);
+      verify(() => hostA.cameraGetLastImage('asi:0', maxWidth: any(named: 'maxWidth'))).called(1);
 
       final notifier =
           container.read(backendProvider.notifier) as _FixedBackendNotifier;
@@ -398,7 +398,7 @@ void main() {
       await pumpEventQueue(times: 20);
 
       expect(container.read(currentImageProvider), isNull);
-      verifyNever(() => hostB.cameraGetLastImage(any()));
+      verifyNever(() => hostB.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')));
     });
 
     test(
@@ -438,7 +438,7 @@ void main() {
         await pumpEventQueue();
 
         expect(container.read(currentImageProvider), isNull);
-        verifyNever(() => backend.cameraGetLastImage(any()));
+        verifyNever(() => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')));
       },
     );
 

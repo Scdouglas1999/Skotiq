@@ -138,11 +138,17 @@ class MockImagingService extends _i1.Mock implements _i6.ImagingService {
   _i7.Future<_i2.CapturedImageData?> captureUtilityFrame({
     required _i2.ExposureSettings? settings,
     String? targetName,
+    _i2.FramePurpose? purpose = _i2.FramePurpose.capture,
+    int? purposeStep,
+    int? purposeSteps,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#captureUtilityFrame, [], {
               #settings: settings,
               #targetName: targetName,
+              #purpose: purpose,
+              #purposeStep: purposeStep,
+              #purposeSteps: purposeSteps,
             }),
             returnValue: _i7.Future<_i2.CapturedImageData?>.value(),
           )

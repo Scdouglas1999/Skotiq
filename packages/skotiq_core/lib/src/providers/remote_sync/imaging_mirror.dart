@@ -99,6 +99,14 @@ void _applyForeignExposureOnHost(
   }
 }
 
+/// The widest JPEG a linked client asks the host for when it follows the
+/// host's frame. Measured for a 26 MP frame with the app's encoder, compiled:
+/// the host spent 2.6 s encoding the full frame into 9.4 MB and the client
+/// 2.9 s decoding it; at 2560 px wide that is 0.55 s, 1.7 MB and 0.5 s. The
+/// stage shows a frame at the window's width anyway; the saved FITS keeps
+/// full resolution.
+const kRemotePreviewMaxWidth = 2560;
+
 /// Guards against re-entrant / chatty frame fetches. Host frame events
 /// (`ImageReady`, `ImageSaved`, `ImageCaptured`) often arrive back-to-back for
 /// the same capture; we only ever want one in-flight `cameraGetLastImage` at a
@@ -119,6 +127,10 @@ class HostFrameHint {
     this.filePath,
     this.targetName,
     this.settings,
+    this.capturedAt,
+    this.purpose = FramePurpose.capture,
+    this.purposeStep,
+    this.purposeSteps,
   });
 
   final int width;
@@ -126,6 +138,18 @@ class HostFrameHint {
   final String? filePath;
   final String? targetName;
   final ExposureSettings? settings;
+
+  /// When the host says the frame was captured. The camera's own timestamp
+  /// is the end of the readout, the host's the start of the exposure; a
+  /// client that kept the camera's could not tell the host's later
+  /// announcement of the same frame (with its saved path) from a new frame,
+  /// and downloaded it a second time.
+  final DateTime? capturedAt;
+
+  /// What the host's frame is for (an autofocus point, a centering attempt).
+  final FramePurpose purpose;
+  final int? purposeStep;
+  final int? purposeSteps;
 }
 
 final Expando<_RemoteFrameFetchState> _remoteFrameFetchStates =
@@ -165,7 +189,10 @@ Future<void> _publishRemoteCurrentFrame(
       return;
     }
 
-    final result = await backend.cameraGetLastImage(deviceId);
+    final result = await backend.cameraGetLastImage(
+      deviceId,
+      maxWidth: kRemotePreviewMaxWidth,
+    );
     if (!_isCurrentRemoteBackend(reader, backend)) return;
     if (result == null) {
       // No frame cached host-side yet — leave the tile as-is.
@@ -200,6 +227,7 @@ Future<void> _publishRemoteCurrentFrame(
         hint != null &&
         hint.width == result.width &&
         hint.height == result.height;
+    if (hinted && hint.capturedAt != null) capturedAt = hint.capturedAt!;
     final imageData = capturedImageDataFromResult(
       capturedImage: result,
       settings: hinted && hint.settings != null ? hint.settings! : settings,
@@ -207,6 +235,9 @@ Future<void> _publishRemoteCurrentFrame(
       targetName: hinted ? hint.targetName : null,
       filePath: hinted ? hint.filePath : null,
       previewSource: CapturePreviewSource.remote,
+      purpose: hinted ? hint.purpose : FramePurpose.capture,
+      purposeStep: hinted ? hint.purposeStep : null,
+      purposeSteps: hinted ? hint.purposeSteps : null,
     );
 
     // A frame already on screen is not published again: that would clear its

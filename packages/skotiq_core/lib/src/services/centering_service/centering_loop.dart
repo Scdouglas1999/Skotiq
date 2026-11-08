@@ -322,6 +322,9 @@ extension _CenteringLoop on CenteringService {
         capturedImage = await imagingService.captureUtilityFrame(
           settings: exposureSettings,
           targetName: 'Centering',
+          purpose: FramePurpose.centering,
+          purposeStep: iteration,
+          purposeSteps: config.maxIterations,
         );
       } catch (e) {
         // Abort interrupts the in-flight exposure via cancelExposure() — the

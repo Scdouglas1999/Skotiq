@@ -177,6 +177,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage());
           when(
@@ -282,6 +285,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -329,6 +335,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((invocation) async {
             commandedSettings =
@@ -405,6 +414,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => raUnitFixture('/tmp/ra_unit_on.fits'));
 
@@ -495,6 +507,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => raUnitFixture('/tmp/ra_unit_off.fits'));
 
@@ -587,6 +602,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => raUnitFixture('/tmp/ra_unit_sync.fits'));
           when(
@@ -723,6 +741,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage('/tmp/pointing.fits'));
           when(mockDeviceService.slewMountToCoordinates(any, any)).thenAnswer((
@@ -904,6 +925,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1033,6 +1057,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1157,6 +1184,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         );
         expect(service.isRunning, isFalse);
@@ -1184,6 +1214,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) {
             if (!captureStarted.isCompleted) captureStarted.complete();
@@ -1252,6 +1285,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           );
         },
@@ -1267,6 +1303,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => _centeringImage('/tmp/cancel-solve.fits'));
         when(
@@ -1317,6 +1356,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) => exposureCompleter.future);
 
@@ -1330,6 +1372,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           );
 
@@ -1344,6 +1389,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).called(1);
 
@@ -1417,6 +1465,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1501,6 +1552,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1624,6 +1678,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage('/tmp/initial-slew.fits'));
           when(
@@ -1648,6 +1705,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           );
 
@@ -1658,6 +1718,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).called(1);
         },
@@ -1700,6 +1763,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => buildPollFixtureImage());
         when(
@@ -1805,6 +1871,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).called(1);
         },
@@ -1903,6 +1972,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => buildPollFixtureImage());
         when(
@@ -2123,6 +2195,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => _centeringImage());
         stubSolve(10.0, 45.0);
@@ -2139,6 +2214,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).called(greaterThanOrEqualTo(1));
         verifyNever(
@@ -2168,6 +2246,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage());
           stubSolve(10.0, 45.0);
@@ -2192,6 +2273,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ]);
         });

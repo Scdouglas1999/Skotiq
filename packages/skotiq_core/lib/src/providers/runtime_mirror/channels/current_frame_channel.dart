@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import '../../../models/imaging/imaging_models.dart'
-    show CapturedImageData, ExposureSettings, FrameType;
+    show CapturedImageData, ExposureSettings, FramePurpose, FrameType;
 import '../../../services/imaging_service.dart' show currentImageProvider;
+import '../../database_provider.dart' show remoteImageRowsProvider;
 import '../../remote_sync_handler.dart'
     show HostFrameHint, requestHostCurrentFrame;
 import '../runtime_mirror_channel.dart';
@@ -39,6 +42,9 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
       'binY': settings.binningY,
       if (settings.filter != null) 'filter': settings.filter,
       'frameType': settings.frameType.name,
+      if (value.isUtilityFrame) 'purpose': value.purpose.name,
+      if (value.purposeStep != null) 'purposeStep': value.purposeStep,
+      if (value.purposeSteps != null) 'purposeSteps': value.purposeSteps,
     };
   }
 
@@ -46,6 +52,17 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     final backend = context.networkBackend;
     if (backend == null || value == null) return;
+    // A frame the host saved: its row (frame number, verdict) is fetched now
+    // instead of at the next poll of the host's image table. Live-view frames
+    // land on a scratch file that has no row.
+    final saved = jsonString(value['filePath']);
+    if (saved != null &&
+        saved.isNotEmpty &&
+        // The host's path: a Windows host's separators are not this
+        // process's.
+        !saved.split(RegExp(r'[\\/]')).last.startsWith('liveview_')) {
+      unawaited(context.read(remoteImageRowsProvider)?.refreshSessionOf(saved));
+    }
     final shown = context.read(currentImageProvider);
     if (shown != null) {
       final path = jsonString(value['filePath']);
@@ -83,6 +100,13 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
               height: height,
               filePath: jsonString(value['filePath']),
               targetName: jsonString(value['targetName']),
+              capturedAt: jsonInstant(value['capturedAt']),
+              purpose: FramePurpose.values.firstWhere(
+                (p) => p.name == value['purpose'],
+                orElse: () => FramePurpose.capture,
+              ),
+              purposeStep: jsonInt(value['purposeStep']),
+              purposeSteps: jsonInt(value['purposeSteps']),
               settings: exposure == null || gain == null || offset == null
                   ? null
                   : ExposureSettings(

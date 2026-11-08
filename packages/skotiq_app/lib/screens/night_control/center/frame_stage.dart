@@ -22,6 +22,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/preview_transform.dart';
 import '../../../widgets/catalog_overlay_widget.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
+import '../../../widgets/frame_purpose_label.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 import '../../imaging/widgets/image_display.dart';
 import '../../imaging/widgets/overlay_painters.dart';
@@ -597,7 +598,7 @@ StripFrameVm? _stripFrameFor(
   final path = image?.filePath;
   if (path == null || path.isEmpty) return null;
   for (var i = frames.length - 1; i >= 0; i--) {
-    if (frames[i].filePath == path) return frames[i];
+    if ((frames[i].hostPath ?? frames[i].filePath) == path) return frames[i];
   }
   return null;
 }

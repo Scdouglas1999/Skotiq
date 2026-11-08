@@ -299,9 +299,13 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
     return const <DateTime, FrameSolveVm>{};
   }
 
+  /// A light or snapshot the operator looks at. A solve or centering frame
+  /// is solved by the run that took it, and an autofocus frame is no field
+  /// worth solving.
   static bool _isLight(CapturedImageData image) =>
-      image.settings.frameType == FrameType.light ||
-      image.settings.frameType == FrameType.snapshot;
+      !image.isUtilityFrame &&
+      (image.settings.frameType == FrameType.light ||
+          image.settings.frameType == FrameType.snapshot);
 
   bool _isCurrent(DateTime key) =>
       ref.read(currentImageProvider)?.capturedAt == key;

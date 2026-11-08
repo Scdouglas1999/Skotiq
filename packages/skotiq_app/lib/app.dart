@@ -111,6 +111,9 @@ class SkotiqApp extends ConsumerWidget {
     // published by a hardware-owning host, reported up by a linked client.
     ref.watch(hostRuntimeMirrorProvider);
     ref.watch(clientRuntimeReporterProvider);
+    // Host: put every autofocus, centering and polar alignment frame on the
+    // main image (Tonight and the Imaging preview) while the run takes it.
+    ref.watch(autofocusPreviewFeederProvider);
     // Host: nothing native reports a cover, panel or switch change, so the
     // host re-reads them for its own cards and the linked clients.
     ref.watch(coverCalibratorStatusPollerProvider);

@@ -44,7 +44,12 @@ class CapturePreviewPublisher {
     );
 
     _read(ref, currentImageProvider.notifier).state = withSource;
-    _read(ref, lastImageStatsProvider.notifier).state = withSource.stats;
+    // An autofocus or solve frame is shown, but its numbers are not the
+    // night's: the sub-quality badge and the narrator read these stats as the
+    // latest light frame's.
+    if (!withSource.isUtilityFrame) {
+      _read(ref, lastImageStatsProvider.notifier).state = withSource.stats;
+    }
 
     if (!scheduleRaw) {
       return;
@@ -176,6 +181,9 @@ CapturedImageData capturedImageDataFromResult({
   String? targetName,
   String? filePath,
   CapturePreviewSource previewSource = CapturePreviewSource.local,
+  FramePurpose purpose = FramePurpose.capture,
+  int? purposeStep,
+  int? purposeSteps,
 }) {
   return CapturedImageData(
     width: capturedImage.width,
@@ -208,5 +216,8 @@ CapturedImageData capturedImageDataFromResult({
     filePath: filePath,
     isColor: capturedImage.isColor,
     previewSource: previewSource,
+    purpose: purpose,
+    purposeStep: purposeStep,
+    purposeSteps: purposeSteps,
   );
 }

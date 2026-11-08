@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../localization/skotiq_localizations.dart';
+import '../../../widgets/frame_purpose_label.dart';
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
 import 'overlay_widgets.dart' show HistogramPainter;
 
@@ -79,7 +81,11 @@ class FrameInfoPill extends ConsumerWidget {
               StatusDot(color: colors.success),
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
-                frameIdentity(image.settings),
+                switch (framePurposeLabel(context.l10n, image)) {
+                  final String purpose =>
+                    '$purpose · ${frameIdentity(image.settings)}',
+                  null => frameIdentity(image.settings),
+                },
                 style: SkotiqTypography.labelSm.copyWith(
                   color: colors.textPrimary,
                   fontWeight: FontWeight.w600,

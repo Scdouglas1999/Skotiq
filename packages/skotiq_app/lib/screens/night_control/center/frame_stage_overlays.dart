@@ -42,6 +42,15 @@ _PillText _framePill(
   }
   final what =
       nightFilterExposure(image.settings.filter, image.settings.exposureTime);
+  final purpose = framePurposeLabel(l10n, image);
+  if (purpose != null) {
+    return _PillText(
+      title: what == null ? purpose : '$purpose · $what',
+      time: time,
+      status: l10n.text('nightCtrNotSaved'),
+      statusTone: _PillTone.muted,
+    );
+  }
   if (nightIsScratchFrame(image.filePath)) {
     final snapshot = l10n.text('nightCtrSnapshot');
     return _PillText(

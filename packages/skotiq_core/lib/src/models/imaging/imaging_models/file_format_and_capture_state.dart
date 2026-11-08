@@ -77,6 +77,32 @@ enum RawLoadStatus { idle, loading, ready, failed }
 /// Whether the preview pixels came from a local FFI backend or remote host.
 enum CapturePreviewSource { local, remote }
 
+/// Why the camera took a frame.
+///
+/// Every frame the camera reads out can be shown, but only a [capture] is a
+/// frame of the night: the others are a means to an end. They are labeled
+/// for what they are, and never counted as light frames, listed in the
+/// session, or fed to the night's quality numbers.
+enum FramePurpose {
+  /// A frame taken to keep or to look at: a run's light, a snapshot, a loop.
+  capture,
+
+  /// A frame an autofocus run measured.
+  autofocus,
+
+  /// A frame taken to plate solve where the mount points.
+  plateSolve,
+
+  /// A frame a centering run solved to correct the pointing.
+  centering,
+
+  /// A frame a polar alignment run solved.
+  polarAlignment;
+
+  /// True for a frame that is a means, not a product.
+  bool get isUtility => this != FramePurpose.capture;
+}
+
 /// Captured image data with display buffer
 class CapturedImageData extends Equatable {
   final int width;
@@ -100,6 +126,16 @@ class CapturedImageData extends Equatable {
   /// Where the JPEG/display buffer was obtained.
   final CapturePreviewSource previewSource;
 
+  /// Why the camera took this frame.
+  final FramePurpose purpose;
+
+  /// The step of the run that took it (autofocus point 5, centering attempt
+  /// 2), when the run has steps; null otherwise.
+  final int? purposeStep;
+
+  /// How many steps that run has; null when unknown.
+  final int? purposeSteps;
+
   const CapturedImageData({
     required this.width,
     required this.height,
@@ -114,7 +150,13 @@ class CapturedImageData extends Equatable {
     this.rawU16,
     this.rawLoadStatus = RawLoadStatus.idle,
     this.previewSource = CapturePreviewSource.local,
+    this.purpose = FramePurpose.capture,
+    this.purposeStep,
+    this.purposeSteps,
   });
+
+  /// True for an autofocus, solve, centering or alignment frame.
+  bool get isUtilityFrame => purpose.isUtility;
 
   bool get hasRawReady =>
       rawLoadStatus == RawLoadStatus.ready &&
@@ -135,6 +177,9 @@ class CapturedImageData extends Equatable {
     Uint16List? rawU16,
     RawLoadStatus? rawLoadStatus,
     CapturePreviewSource? previewSource,
+    FramePurpose? purpose,
+    int? purposeStep,
+    int? purposeSteps,
     bool clearRawU16 = false,
   }) {
     return CapturedImageData(
@@ -151,6 +196,9 @@ class CapturedImageData extends Equatable {
       rawU16: clearRawU16 ? null : (rawU16 ?? this.rawU16),
       rawLoadStatus: rawLoadStatus ?? this.rawLoadStatus,
       previewSource: previewSource ?? this.previewSource,
+      purpose: purpose ?? this.purpose,
+      purposeStep: purposeStep ?? this.purposeStep,
+      purposeSteps: purposeSteps ?? this.purposeSteps,
     );
   }
 
@@ -169,6 +217,9 @@ class CapturedImageData extends Equatable {
     rawU16,
     rawLoadStatus,
     previewSource,
+    purpose,
+    purposeStep,
+    purposeSteps,
   ];
 }
 

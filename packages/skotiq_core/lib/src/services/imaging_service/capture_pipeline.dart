@@ -15,6 +15,9 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     String? producingNodeId,
     String? producingRunId,
     required bool persistFrame,
+    FramePurpose purpose = FramePurpose.capture,
+    int? purposeStep,
+    int? purposeSteps,
   }) async {
     if (_isCapturing) {
       throw const DeviceBusyException(
@@ -383,6 +386,9 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             previewSource: backend is NetworkBackend
                 ? CapturePreviewSource.remote
                 : CapturePreviewSource.local,
+            purpose: purpose,
+            purposeStep: purposeStep,
+            purposeSteps: purposeSteps,
           );
         } catch (e) {
           _logger.error(
