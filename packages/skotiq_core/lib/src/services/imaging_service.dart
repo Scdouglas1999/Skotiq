@@ -157,14 +157,23 @@ class ImagingService {
   /// session's frame and integration totals. Centering runs up to
   /// [CenteringConfig.maxIterations] of these per target; as keepers they
   /// inflated the night's frame count with images nobody will ever stack.
+  ///
+  /// [purpose] labels the frame on screen ("Plate solve", "Centering ·
+  /// attempt 2 of 5"); a framing snapshot keeps [FramePurpose.capture].
   Future<CapturedImageData?> captureUtilityFrame({
     required ExposureSettings settings,
     String? targetName,
+    FramePurpose purpose = FramePurpose.capture,
+    int? purposeStep,
+    int? purposeSteps,
   }) {
     return _capture(
       settings: settings,
       targetName: targetName,
       persistFrame: false,
+      purpose: purpose,
+      purposeStep: purposeStep,
+      purposeSteps: purposeSteps,
     );
   }
 

@@ -88,7 +88,10 @@ String nightAngle(double arcsec) {
 }
 
 final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
-  final current = ref.watch(currentImageProvider);
+  // An autofocus or solve frame on screen is not the night's last frame:
+  // the newest light row stands in for it, as it does with nothing shown.
+  final shown = ref.watch(currentImageProvider);
+  final current = shown != null && shown.isUtilityFrame ? null : shown;
   final lights = ref.watch(nightSessionLightRowsProvider);
   if (current == null && lights.isEmpty) return null;
 

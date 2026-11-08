@@ -1,5 +1,5 @@
 import '../../../models/imaging/imaging_models.dart'
-    show CapturedImageData, ExposureSettings, FrameType;
+    show CapturedImageData, ExposureSettings, FramePurpose, FrameType;
 import '../../../services/imaging_service.dart' show currentImageProvider;
 import '../../remote_sync_handler.dart'
     show HostFrameHint, requestHostCurrentFrame;
@@ -39,6 +39,9 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
       'binY': settings.binningY,
       if (settings.filter != null) 'filter': settings.filter,
       'frameType': settings.frameType.name,
+      if (value.isUtilityFrame) 'purpose': value.purpose.name,
+      if (value.purposeStep != null) 'purposeStep': value.purposeStep,
+      if (value.purposeSteps != null) 'purposeSteps': value.purposeSteps,
     };
   }
 
@@ -83,6 +86,12 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
               height: height,
               filePath: jsonString(value['filePath']),
               targetName: jsonString(value['targetName']),
+              purpose: FramePurpose.values.firstWhere(
+                (p) => p.name == value['purpose'],
+                orElse: () => FramePurpose.capture,
+              ),
+              purposeStep: jsonInt(value['purposeStep']),
+              purposeSteps: jsonInt(value['purposeSteps']),
               settings: exposure == null || gain == null || offset == null
                   ? null
                   : ExposureSettings(

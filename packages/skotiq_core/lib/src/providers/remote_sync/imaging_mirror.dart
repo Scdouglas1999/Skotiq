@@ -119,6 +119,9 @@ class HostFrameHint {
     this.filePath,
     this.targetName,
     this.settings,
+    this.purpose = FramePurpose.capture,
+    this.purposeStep,
+    this.purposeSteps,
   });
 
   final int width;
@@ -126,6 +129,11 @@ class HostFrameHint {
   final String? filePath;
   final String? targetName;
   final ExposureSettings? settings;
+
+  /// What the host's frame is for (an autofocus point, a centering attempt).
+  final FramePurpose purpose;
+  final int? purposeStep;
+  final int? purposeSteps;
 }
 
 final Expando<_RemoteFrameFetchState> _remoteFrameFetchStates =
@@ -207,6 +215,9 @@ Future<void> _publishRemoteCurrentFrame(
       targetName: hinted ? hint.targetName : null,
       filePath: hinted ? hint.filePath : null,
       previewSource: CapturePreviewSource.remote,
+      purpose: hinted ? hint.purpose : FramePurpose.capture,
+      purposeStep: hinted ? hint.purposeStep : null,
+      purposeSteps: hinted ? hint.purposeSteps : null,
     );
 
     // A frame already on screen is not published again: that would clear its

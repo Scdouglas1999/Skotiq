@@ -213,6 +213,7 @@ class ServiceNightRigOps implements NightRigOps {
               profile: _ref.read(activeEquipmentProfileProvider),
             ),
             targetName: _ref.read(sessionStateProvider).targetName,
+            purpose: FramePurpose.plateSolve,
           );
         } finally {
           _solveCapture = null;

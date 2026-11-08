@@ -16,7 +16,7 @@ import '../models/sequence/sequence_models.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/imaging/imaging_models.dart'
-    show CapturePreviewSource, ExposureSettings;
+    show CapturePreviewSource, ExposureSettings, FramePurpose;
 import '../services/capture_preview_loader.dart'
     show capturePreviewPublisherProvider, capturedImageDataFromResult;
 import '../services/imaging_service.dart'
