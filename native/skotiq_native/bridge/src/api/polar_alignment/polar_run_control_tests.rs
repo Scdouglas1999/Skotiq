@@ -210,6 +210,7 @@ fn pole_region_target_on_meridian_and_offset_from_pole() {
 /// each other over the process-wide statics.
 #[test]
 fn generation_admission_and_release_no_overlap() {
+    let _serialized = polar_globals_test_lock().blocking_lock();
     // Clean baseline.
     get_polar_align_flag().store(false, PolarOrdering::Relaxed);
     get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
@@ -262,4 +263,101 @@ fn generation_admission_and_release_no_overlap() {
     get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
     // Nudge the generation so a later admission is still strictly greater.
     let _ = polar_generation().load(PolarOrdering::Relaxed);
+}
+
+/// Serializes the tests that touch the process-wide run generation and cancel
+/// flag.
+fn polar_globals_test_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+/// A rotation step on an of-date mount turns the RA axis and leaves the
+/// declination axis where it was.
+///
+/// This is the 2026-11-07 defect on the simulator, which keeps coordinates of
+/// date like the rig's mount: the step was built from the mount's of-date
+/// read-back and sent down the J2000 slew path, which precessed it a second
+/// time, so the mount's declination moved by the precession in declination at
+/// that RA (several arcminutes in 2026) on every step.
+#[tokio::test]
+async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
+    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
+    use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
+    use crate::api::get_device_manager;
+
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _globals = polar_globals_test_lock().lock().await;
+    let _frame = SimFrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_polar_rotation";
+    get_device_manager()
+        .register_device(
+            DeviceInfo {
+                id: mount_id.to_string(),
+                name: "Simulated Mount".to_string(),
+                device_type: DeviceType::Mount,
+                driver_type: DriverType::Simulator,
+                description: "Simulated mount".to_string(),
+                driver_version: "1.0".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Simulated Mount".to_string(),
+            },
+            false,
+        )
+        .await;
+    crate::api::devices::simulation::cancel_sim_slew().await;
+
+    // Three hours west of the meridian at Dec 60 of date, like run 1.
+    let longitude = -75.3576;
+    let lst = {
+        use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
+        local_sidereal_time(julian_day(&chrono::Utc::now()), longitude)
+    };
+    let start_ra = (lst - 3.0).rem_euclid(24.0);
+    let start_dec = 60.1105;
+    {
+        let mut mount = get_sim_mount().write().await;
+        mount.status.connected = true;
+        mount.status.parked = false;
+        mount.status.tracking = true;
+        mount.status.slewing = false;
+        mount.status.right_ascension = start_ra;
+        mount.status.declination = start_dec;
+        mount.status.sidereal_time = Some(lst);
+    }
+
+    get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
+    let generation = polar_generation().load(PolarOrdering::Relaxed);
+    for (point, expected_ra) in [(2, start_ra - 20.0 / 15.0), (3, start_ra - 40.0 / 15.0)] {
+        let outcome = super::rotate_for_next_point(
+            mount_id,
+            point,
+            20.0,
+            false,
+            longitude,
+            generation,
+            Some(start_dec),
+        )
+        .await
+        .expect("rotation step");
+        assert!(matches!(outcome, super::SlewOutcome::Settled));
+        let status = get_device_manager()
+            .mount_get_status(mount_id)
+            .await
+            .unwrap();
+        let dec_moved_arcsec = (status.declination - start_dec) * 3600.0;
+        let ra_error_arcsec =
+            ((status.right_ascension - expected_ra.rem_euclid(24.0)) * 15.0 * 3600.0)
+                * start_dec.to_radians().cos();
+        assert!(
+            dec_moved_arcsec.abs() < 1.0,
+            "point {point}: the declination axis moved {dec_moved_arcsec:.0}\""
+        );
+        assert!(
+            ra_error_arcsec.abs() < 1.0,
+            "point {point}: RA landed {ra_error_arcsec:.0}\" off the step"
+        );
+    }
 }

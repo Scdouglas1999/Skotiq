@@ -300,6 +300,18 @@ pub(crate) async fn rotate_for_next_point(
 
     let device_ops = create_unified_device_ops();
 
+    // The target is in the mount's frame (of date on every real mount) and
+    // the slew path takes J2000 and precesses it on the way out. Handing it
+    // the mount-frame numbers precessed them twice: on 2026-11-07 that moved
+    // the declination axis 75-384" between points and the fitted axis about
+    // 1° off, with a sign that followed the pier side. Express the target in
+    // J2000 here so the slew path's conversion lands it back on exactly the
+    // mount-frame position computed above.
+    let (slew_ra_hours, slew_dec) = device_ops
+        .mount_readback_to_j2000(mount_id, target_ra_hours, target_dec)
+        .await
+        .map_err(|e| format!("Could not express the rotation target for the mount: {}", e))?;
+
     match polar_loop_control(generation) {
         PolarLoopControl::Continue => {}
         PolarLoopControl::Superseded => return Ok(SlewOutcome::Superseded),
@@ -307,7 +319,7 @@ pub(crate) async fn rotate_for_next_point(
     }
 
     device_ops
-        .mount_slew_to_coordinates(mount_id, target_ra_hours, target_dec)
+        .mount_slew_to_coordinates(mount_id, slew_ra_hours, slew_dec)
         .await
         .map_err(|e| format!("Failed to rotate to point {}: {}", next_point, e))?;
 
