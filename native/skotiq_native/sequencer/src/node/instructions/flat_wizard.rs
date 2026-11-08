@@ -59,7 +59,7 @@ impl InstructionNode for FlatWizardInstruction {
                 .as_ref()
                 .and_then(|data| data.get(crate::flat_wizard::FLAT_NOT_CONVERGED_KEY))
                 .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false);
+                == Some(true);
         if not_converged {
             let reason = result
                 .message
