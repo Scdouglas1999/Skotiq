@@ -506,6 +506,78 @@ void main() {
     });
   });
 
+  // The rig, Nov 8 2026: the mount's reads all failed and the row kept
+  // saying "tracking · pier E · alt 2.5°" as if current.
+  group('stale and failed devices', () {
+    test('a connected mount whose reads fail leads with how old its values '
+        'are', () async {
+      final h = await sessionHarness(overrides: [
+        ..._readyRig(),
+        mountStateProvider.overrideWith(
+          (ref) => FixedMount(
+            ref,
+            const MountState(
+              connectionState: DeviceConnectionState.connected,
+              deviceId: 'ascom:NYX',
+              deviceName: 'NYX-101',
+              sideOfPier: 'East',
+              isTracking: true,
+              isParked: false,
+            ),
+          ),
+        ),
+      ]);
+      final reads = h.container.read(deviceReadHealthProvider.notifier);
+      reads.recordSuccess(DeviceType.mount, 'ascom:NYX');
+      for (var i = 0; i < 2; i++) {
+        reads.recordFailure(
+          DeviceType.mount,
+          'ascom:NYX',
+          Exception('Failed to get RA: 0x80040401'),
+        );
+      }
+      final mount = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.mount);
+      expect(mount.status, EquipmentStatus.attention);
+      expect(mount.details.first.key, 'nightSessionStale');
+      expect(mount.details.first.params['reason'], contains('0x80040401'));
+      expect(
+        mount.details.skip(1).map((d) => d.key),
+        <String>['nightSessionMountTracking', 'nightSessionPierEast'],
+        reason: 'the last values stay, behind the stale note',
+      );
+    });
+
+    test('a camera in error says why', () async {
+      final h = await sessionHarness(overrides: [
+        ..._readyRig(),
+        cameraStateProvider.overrideWith(
+          (ref) => FixedCamera(
+            ref,
+            CameraStateSnapshot(
+              connectionState: DeviceConnectionState.error,
+              deviceName: 'ZWO ASI1600MM-Cool',
+              lastError: DeviceError(
+                type: DeviceErrorType.connectionFailed,
+                message: 'native:zwo:1 is now ZWO ASI178MM',
+                timestamp: DateTime.utc(2026, 11, 8),
+              ),
+            ),
+          ),
+        ),
+      ]);
+      final camera = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.camera);
+      expect(camera.status, EquipmentStatus.fault);
+      expect(
+        camera.details.map((d) => d.literal),
+        contains('native:zwo:1 is now ZWO ASI178MM'),
+      );
+    });
+  });
+
   // SY-24: with the guider held for the flip, a linked client said only
   // "Guider needs a look, not looping".
   group('guider stop reason', () {

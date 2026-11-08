@@ -22,6 +22,7 @@ import 'mount_actions_section.dart';
 import 'mount_go_to.dart';
 import 'mount_move_pad.dart';
 import 'night_panel_parts.dart';
+import '../stale_readings_note.dart';
 
 /// What every Mount-tab control gates on, read once per build.
 @immutable
@@ -137,6 +138,10 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
     final padReason = facts.baseReason(l10n);
     return NightPanelScroll(
       children: [
+        NightStaleReadingsNote(
+          type: DeviceType.mount,
+          deviceId: facts.connected ? mount.deviceId : null,
+        ),
         const _PositionSection(),
         NightPanelSection(
           title: l10n.text('nightScopeMove'),

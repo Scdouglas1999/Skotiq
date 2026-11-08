@@ -409,6 +409,8 @@ extension _DeviceServiceEventHandling on DeviceService {
       readDeviceConnectionNotifier(_ref, type)
         ..setConnecting(deviceId, resolvedName)
         ..setConnected();
+      // A new connection starts with no stale readings.
+      _ref.read(deviceReadHealthProvider.notifier).clear(type);
     }
 
     // Reset the reconnect lifecycle for every device type, then drive

@@ -7,6 +7,7 @@
 // saying why.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -17,6 +18,7 @@ import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'camera_capture_section.dart';
 import 'camera_panel_vm.dart';
+import '../stale_readings_note.dart';
 
 class NightCameraTab extends ConsumerWidget {
   const NightCameraTab({super.key});
@@ -26,6 +28,14 @@ class NightCameraTab extends ConsumerWidget {
     final vm = ref.watch(nightCameraPanelProvider);
     return NightPanelBody(
       children: <Widget>[
+        NightStaleReadingsNote(
+          type: DeviceType.camera,
+          deviceId: ref.watch(cameraStateProvider).deviceId,
+        ),
+        NightStaleReadingsNote(
+          type: DeviceType.filterWheel,
+          deviceId: ref.watch(filterWheelStateProvider).deviceId,
+        ),
         NightCoolerSection(
           vm: vm,
           history: ref.watch(nightCoolerHistoryProvider),
