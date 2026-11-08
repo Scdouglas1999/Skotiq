@@ -42,8 +42,9 @@ MountState _mountAtHourAngle(
   bool isTracking = true,
   bool isParked = false,
   String? sideOfPier = 'east',
+  DateTime? nowUtc,
 }) {
-  final lst = computeLocalSiderealTimeHours(_fixedNowUtc, _longitude);
+  final lst = computeLocalSiderealTimeHours(nowUtc ?? _fixedNowUtc, _longitude);
   var ra = lst - haHours;
   while (ra < 0) {
     ra += 24.0;
@@ -512,10 +513,16 @@ void main() {
     }
 
     test('emits an armed countdown after settings load', () async {
-      // HA chosen so that for any plausible real "now" the target is east of
-      // the meridian (negative HA) and well before the 5-minute-past threshold,
-      // giving a positive countdown rather than an imminent flip.
-      container = makeContainer(mount: _mountAtHourAngle(-2.0));
+      // The stream reads the real clock, so the mount is placed two hours
+      // east of the meridian at the real "now". Placing it against the fixed
+      // test clock made the hour angle depend on the time of day the test ran.
+      container = makeContainer(
+        mount: _mountAtHourAngle(
+          -2.0,
+          sideOfPier: 'west',
+          nowUtc: DateTime.now().toUtc(),
+        ),
+      );
 
       final state = await latestAfterSettingsLoad();
       expect(state.isArmed, isTrue);
