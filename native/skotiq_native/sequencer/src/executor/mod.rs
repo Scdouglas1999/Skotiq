@@ -114,6 +114,7 @@ pub const WEATHER_HOLD_RECENTER_AFTER_SECS: f64 = 15.0 * 60.0;
 mod failure_cause;
 mod flip_request;
 mod monitoring;
+mod mount_fault;
 mod preflight;
 mod recovery_ops;
 mod start;
