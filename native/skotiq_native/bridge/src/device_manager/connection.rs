@@ -72,9 +72,8 @@ impl DeviceManager {
     /// Subscribe to the existing cancel token for `device_id`, if any.
     ///
     /// Unlike `install_reconnect_cancel_token`, this does NOT create a new
-    /// sender on miss — it only borrows an existing one. Used by
-    /// `connect_device_internal` to consult an in-flight reconnect's token
-    /// without accidentally arming a user-initiated connect path.
+    /// sender on miss, nor reset a tripped one: it only borrows the token the
+    /// caller of `connect_device_internal` installed for this attempt.
     async fn subscribe_existing_cancel_token(
         &self,
         device_id: &str,
@@ -281,7 +280,14 @@ impl DeviceManager {
         devices.get(device_id).map(|d| d.info.display_name.clone())
     }
 
-    /// Connect to a device
+    /// Connect to a device on request (the user, a profile, the API).
+    ///
+    /// A requested connect starts with its own un-tripped cancel token. A
+    /// manual disconnect trips the device's token and leaves it tripped, so
+    /// borrowing the old one made every later connect fail at once with
+    /// "reconnect canceled by manual disconnect" until the app restarted. A
+    /// disconnect that arrives while this connect runs still trips the fresh
+    /// token and cancels it.
     pub async fn connect_device(&self, device_id: &str) -> Result<(), String> {
         let device_info = {
             let devices = self.devices.read().await;
@@ -291,6 +297,7 @@ impl DeviceManager {
                 .ok_or_else(|| format!("Device not found: {}", device_id))?
         };
 
+        let _cancel_rx = self.install_reconnect_cancel_token(device_id).await;
         self.connect_device_internal(&device_info).await
     }
 
@@ -298,9 +305,9 @@ impl DeviceManager {
     pub(crate) async fn connect_device_internal(&self, info: &DeviceInfo) -> Result<(), String> {
         let device_id = &info.id;
 
-        // Subscribe to the device's reconnect cancel token (if any). Only the
-        // reconnection loop installs these, so a user-initiated `connect_device`
-        // call usually sees `None` here and the cancel checks below are no-ops.
+        // Subscribe to the device's cancel token. The reconnection loop and
+        // `connect_device` each install a fresh one before calling here, so a
+        // `disconnect_device` during the attempt cancels it.
         let cancel_rx = self.subscribe_existing_cancel_token(device_id).await;
 
         // Pre-dispatch cancel check: a manual `disconnect_device` may have run

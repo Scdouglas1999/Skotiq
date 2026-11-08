@@ -239,3 +239,96 @@ async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
         "canceled reconnect must NOT flip state back to Connected"
     );
 }
+
+// The rig repro (Nov 8 2026): the mount sat in Error with the reconnection
+// loop holding a cancel token, the user disconnected it, then every
+// `POST /api/devices/connect` failed with "reconnect canceled by manual
+// disconnect" until the app restarted, because the requested connect borrowed
+// the token the disconnect had tripped.
+#[tokio::test]
+async fn requested_connect_after_manual_disconnect_is_not_canceled() {
+    use crate::api::devices::simulation::get_sim_mount;
+
+    let _guard = super::simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let device_id = "sim_mount_1";
+    let info = DeviceInfo {
+        id: device_id.to_string(),
+        name: "Simulated Mount".to_string(),
+        device_type: DeviceType::Mount,
+        driver_type: DriverType::Simulator,
+        description: "Simulator device".to_string(),
+        driver_version: "Simulator".to_string(),
+        serial_number: None,
+        unique_id: None,
+        display_name: "Simulated Mount".to_string(),
+    };
+    manager.register_device(info.clone(), true).await;
+    {
+        let mut devices = manager.devices.write().await;
+        devices.get_mut(device_id).unwrap().connection_state = ConnectionState::Error;
+    }
+    // What the reconnection loop does for a device in Error.
+    let _loop_rx = manager.install_reconnect_cancel_token(device_id).await;
+
+    manager.disconnect_device(device_id).await.unwrap();
+
+    for attempt in 1..=2 {
+        manager
+            .connect_device(device_id)
+            .await
+            .unwrap_or_else(|e| panic!("requested connect {attempt} failed: {e}"));
+        assert!(
+            manager
+                .is_device_connected(DeviceType::Mount, device_id)
+                .await
+        );
+        manager.disconnect_device(device_id).await.unwrap();
+    }
+    get_sim_mount().write().await.status.connected = false;
+}
+
+// A disconnect that lands while a requested connect is in flight still
+// cancels it: the fresh token the connect installs is the one the disconnect
+// trips.
+#[tokio::test]
+async fn disconnect_during_requested_connect_still_cancels_it() {
+    use crate::device_manager::connection::RECONNECT_CANCELED_MSG;
+    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+
+    let _guard = super::simulator_singleton_test_lock().lock().await;
+    let manager = std::sync::Arc::new(build_device_manager());
+    let device_id = "sim_mount_1";
+    let info = DeviceInfo {
+        id: device_id.to_string(),
+        name: "Simulated Mount".to_string(),
+        device_type: DeviceType::Mount,
+        driver_type: DriverType::Simulator,
+        description: "Simulator device".to_string(),
+        driver_version: "Simulator".to_string(),
+        serial_number: None,
+        unique_id: None,
+        display_name: "Simulated Mount".to_string(),
+    };
+    manager.register_device(info.clone(), false).await;
+    sim_faults::arm(
+        "mount.connect",
+        FaultSpec::new(Trigger::Times(1), Effect::Delay(300)),
+    );
+
+    let connecting = {
+        let manager = manager.clone();
+        tokio::spawn(async move { manager.connect_device(device_id).await })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    manager.disconnect_device(device_id).await.unwrap();
+
+    let result = connecting.await.unwrap();
+    sim_faults::clear_all();
+    crate::api::devices::simulation::get_sim_mount()
+        .write()
+        .await
+        .status
+        .connected = false;
+    assert_eq!(result, Err(RECONNECT_CANCELED_MSG.to_string()));
+}
