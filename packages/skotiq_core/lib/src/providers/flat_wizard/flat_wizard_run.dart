@@ -58,7 +58,14 @@ extension FlatWizardRun on FlatWizardNotifier {
       // than `ref.read(flatWizardServiceProvider)`: that provider `ref.watch`es
       // THIS provider's state, so reading it from our own notifier would form a
       // circular provider dependency.
-      final flatService = FlatWizardService.fromSettings(backend, runSettings);
+      final calibrationAttempts =
+          ref.read(appSettingsProvider).valueOrNull?.flatCalibrationAttempts ??
+          20;
+      final flatService = FlatWizardService.fromSettings(
+        backend,
+        runSettings,
+        calibrationAttempts: calibrationAttempts,
+      );
       final db = ref.read(databaseProvider);
       final activeProfile = ref.read(activeEquipmentProfileProvider);
       final profileId = activeProfile?.id;
@@ -351,11 +358,53 @@ extension FlatWizardRun on FlatWizardNotifier {
         var frameCancelled = false;
         var frameHalted = false;
 
+        // Every frame's ADU steers the next exposure, so the frames stay in
+        // the tolerance band while twilight changes the sky; see
+        // [FlatExposureFollower]. A frame that lands outside the band is not
+        // saved and not counted (as in NINA): a flat at the wrong level
+        // calibrates worse than one fewer flat.
+        final follower = FlatExposureFollower(
+          targetAdu: targetAdu,
+          tolerancePercent: tolerance,
+          minExposure: minExp,
+          maxExposure: maxExp,
+          changingLight: runMode == FlatWizardMode.skyFlats,
+        );
+        follower.record(
+          exposure: calibration.exposure,
+          adu: calibration.adu,
+          start: DateTime.now().subtract(
+            Duration(microseconds: (calibration.exposure * 1e6).round()),
+          ),
+        );
+        var frameExposure = calibration.exposure;
+        var discarded = 0;
+        var discardedInARow = 0;
+        String? lightStop;
+
         for (int frameNum = 1; frameNum <= frameCount; frameNum++) {
           if (cancelToken.isCancelled) {
             frameCancelled = true;
             break;
           }
+
+          switch (follower.next(plannedStart: DateTime.now())) {
+            case FlatExposureNext(exposure: final planned):
+              frameExposure = planned;
+            case FlatExposureOutOfRange(:final tooDark, :final neededExposure):
+              lightStop = tooDark
+                  ? '${filterSetting.filterName}: the sky is now too dark '
+                        'for flats — the target needs '
+                        '${neededExposure.toStringAsFixed(1)} s, over the '
+                        '${maxExp.toStringAsFixed(1)} s maximum exposure. '
+                        'Stopped with $savedCount of $frameCount frames.'
+                  : '${filterSetting.filterName}: the sky is now too bright '
+                        'for flats — the target needs '
+                        '${neededExposure.toStringAsFixed(3)} s, under the '
+                        '${minExp.toStringAsFixed(3)} s minimum exposure. '
+                        'Stopped with $savedCount of $frameCount frames.';
+          }
+          if (lightStop != null) break;
 
           // Fast-fail if the camera dropped between frames rather than waiting
           // out this frame's exposure timeout.
@@ -371,18 +420,15 @@ extension FlatWizardRun on FlatWizardNotifier {
           setStatusMessage(
             '${filterSetting.filterName}: Capturing frame $frameNum/$frameCount',
           );
-          setExposing(
-            true,
-            startTime: DateTime.now(),
-            duration: calibration.exposure,
-          );
+          final frameStart = DateTime.now();
+          setExposing(true, startTime: frameStart, duration: frameExposure);
 
           // Authoritative capture: waits for the real completion event (no
           // fixed delay), aborts the hardware on cancel/timeout, and uses the
           // one resolved effective config (gain/offset/binning).
           final capture = await flatService.exposeAndAwait(
             deviceId: cameraId,
-            exposureTime: calibration.exposure,
+            exposureTime: frameExposure,
             gain: config.gain,
             offset: config.offset,
             binX: config.binX,
@@ -422,6 +468,39 @@ extension FlatWizardRun on FlatWizardNotifier {
             continue;
           }
 
+          final frameAdu = capture.image?.stats.mean;
+          if (frameAdu != null) {
+            follower.record(
+              exposure: frameExposure,
+              adu: frameAdu,
+              start: frameStart,
+            );
+            addAduMeasurement(frameExposure, frameAdu);
+            if (!follower.inBand(frameAdu)) {
+              discarded++;
+              discardedInARow++;
+              setWarningMessage(
+                '${filterSetting.filterName}: $discarded frame'
+                '${discarded == 1 ? '' : 's'} outside the '
+                '±${tolerance.toStringAsFixed(0)}% band not kept (last '
+                '${frameAdu.round()} ADU at '
+                '${frameExposure.toStringAsFixed(2)} s); adjusting the '
+                'exposure.',
+              );
+              if (discardedInARow >= calibrationAttempts) {
+                lightStop =
+                    '${filterSetting.filterName}: $discardedInARow frames in a '
+                    'row landed outside the band — stopped with $savedCount '
+                    'of $frameCount frames. Raise "Exposure calibration '
+                    'attempts" or widen the tolerance.';
+                break;
+              }
+              frameNum--; // not counted toward the requested frames
+              continue;
+            }
+            discardedInARow = 0;
+          }
+
           // Save the frame. A save failure IS a capture failure: the frame is
           // surfaced as failed and NOT counted.
           final captureTime = DateTime.now();
@@ -436,7 +515,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               headerData: FitsWriteHeader(
                 frameType: 'FLAT',
                 filter: filterSetting.filterName,
-                exposureTime: calibration.exposure,
+                exposureTime: frameExposure,
                 captureTimestamp: captureTime.toUtc().toIso8601String(),
                 gain: config.gain,
                 offset: config.offset,
@@ -457,7 +536,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             backend: backend,
             filePath: filePath,
             filter: filterSetting.filterName,
-            exposureSeconds: calibration.exposure,
+            exposureSeconds: frameExposure,
             capturedAt: captureTime,
             gain: config.gain,
             offset: config.offset,
@@ -466,11 +545,12 @@ extension FlatWizardRun on FlatWizardNotifier {
           );
           incrementFilterCapturedCount(idx);
           final image = capture.image;
-          if (image != null) {
-            setLastImage(filePath, image);
-            addAduMeasurement(calibration.exposure, image.stats.mean);
-          }
+          if (image != null) setLastImage(filePath, image);
         }
+
+        // The light ran out of range, or kept leaving the band: this filter
+        // stops with what it has and the run moves on. A notice, not a halt.
+        if (lightStop != null) setWarningMessage(lightStop);
 
         // Truthful per-filter status from the real saved count
         final FilterCalibrationStatus finalStatus;

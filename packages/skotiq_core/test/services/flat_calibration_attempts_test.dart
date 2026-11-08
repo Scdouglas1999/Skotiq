@@ -16,14 +16,11 @@ class _Backend extends Mock implements SkotiqBackend {}
 
 /// A sky whose mean ADU is a pedestal plus a rate, clipped at full scale.
 class _Sky extends FlatWizardService {
-  _Sky({
-    required this.aduPerSecond,
-    this.pedestal = 2000,
-    super.defaultMaxIterations,
-  }) : super(_Backend());
+  _Sky({required this.aduPerSecond, super.defaultMaxIterations})
+    : super(_Backend());
 
   final double aduPerSecond;
-  final double pedestal;
+  static const double pedestal = 2000;
   final List<double> exposures = [];
 
   @override
@@ -70,8 +67,11 @@ void main() {
       final sky = _Sky(aduPerSecond: rate);
       final result = await _skyFlat(sky);
       expect(result.success, isTrue, reason: result.errorMessage);
-      expect(sky.exposures.length, greaterThan(3),
-          reason: 'this sky would have failed at the old limit of 3');
+      expect(
+        sky.exposures.length,
+        greaterThan(3),
+        reason: 'this sky would have failed at the old limit of 3',
+      );
     });
   }
 

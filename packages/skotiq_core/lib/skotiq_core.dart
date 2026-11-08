@@ -532,6 +532,7 @@ export 'src/services/error_service.dart';
 export 'src/services/flat_wizard_service.dart';
 export 'src/services/sky_brightness_tracker.dart';
 export 'src/services/flat_exposure_calculator.dart';
+export 'src/services/flat_exposure_follower.dart';
 export 'src/services/backup_service.dart';
 export 'src/services/auto_save_service.dart';
 // Cloud backup/sync — bundle-based push/pull of configuration across

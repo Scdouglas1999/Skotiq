@@ -16,6 +16,8 @@ import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../services/flat_exposure_calculator.dart';
 import '../services/calibration_backlog_service.dart';
+import '../services/flat_exposure_follower.dart';
+import 'settings_provider.dart';
 import '../services/flat_wizard_service.dart';
 import '../services/sky_brightness_tracker.dart';
 import 'backend_provider.dart';
