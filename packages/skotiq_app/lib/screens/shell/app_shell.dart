@@ -22,6 +22,7 @@ import '../night_control/night_control_screen.dart' show isTonightLocation;
 import '../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../widgets/notification_toast_overlay.dart';
 import '../../widgets/autofocus_progress_overlay.dart';
+import '../../widgets/polar_alignment_run_overlay.dart';
 import '../../widgets/connection_stale_banner.dart';
 import '../../widgets/disconnected_backend_banner.dart';
 import '../../widgets/ios_background_banner.dart';
@@ -631,6 +632,14 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                     currentLocation,
                                                   ))
                                                     const AutofocusProgressOverlay(),
+                                                  // A live polar alignment,
+                                                  // on every screen but its
+                                                  // own, however it started.
+                                                  if (currentLocation
+                                                          .split('?')
+                                                          .first !=
+                                                      kPolarAlignmentRoutePath)
+                                                    const PolarAlignmentRunOverlay(),
                                                   // Toast notifications -
                                                   // always on top
                                                   const NotificationToastOverlay(),
