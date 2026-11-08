@@ -89,6 +89,13 @@ extension EquipmentSettingsSection on AppSettingsNotifier {
     _patchState((s) => s.copyWith(tempCompensationMinSteps: value));
   }
 
+  /// The "Exposure calibration attempts" flat setting, 1..100.
+  Future<void> setFlatCalibrationAttempts(int value) async {
+    final attempts = value.clamp(1, 100);
+    await _saveSetting('flat_calibration_attempts', attempts.toString());
+    _patchState((s) => s.copyWith(flatCalibrationAttempts: attempts));
+  }
+
   Future<void> setBacklashCompensation(int value) async {
     await _saveSetting('backlash_compensation', value.toString());
     _patchState((s) => s.copyWith(backlashCompensation: value));

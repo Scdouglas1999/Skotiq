@@ -41,9 +41,9 @@ use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// Maximum number of binary-search iterations before declaring
-/// non-convergence.
-const MAX_BINARY_SEARCH_ITERATIONS: u32 = 10;
+/// Data key on a result that failed only because the search ran out of
+/// attempts. The node reports that as a notice and lets the run go on.
+pub(crate) const FLAT_NOT_CONVERGED_KEY: &str = "flat_calibration_not_converged";
 
 /// Steps in the flat-wizard plan. The plan begins as `[Filter, Position,
 /// Panel, Iter(1)]` and dynamically appends `Iter(n+1)` until
@@ -75,6 +75,15 @@ struct FlatWizardRun<'a> {
     /// On success: the converged (exposure, adu, brightness) triple.
     converged: Option<(f64, u16, i32)>,
     panel_cleanup_required: Arc<AtomicBool>,
+}
+
+impl FlatWizardRun<'_> {
+    /// The "Exposure calibration attempts" setting this run was given.
+    fn max_iterations(&self) -> u32 {
+        self.config
+            .max_iterations
+            .clamp(1, crate::MAX_FLAT_CALIBRATION_ATTEMPTS)
+    }
 }
 
 #[async_trait]
@@ -111,7 +120,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
         // iterations (the natural cap) — `do_binary_search_iteration`
         // returns `Done` on convergence and trims the rest.
         let mut next_iter = 2_u32;
-        while plan.len() <= resume_idx && next_iter <= MAX_BINARY_SEARCH_ITERATIONS {
+        while plan.len() <= resume_idx && next_iter <= self.max_iterations() {
             plan.push(FlatStep::Iter(next_iter));
             next_iter += 1;
         }
@@ -123,10 +132,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
             FlatStep::Filter => "Changing filter".to_string(),
             FlatStep::Position => "Positioning for flats".to_string(),
             FlatStep::Panel => "Setting up flat panel".to_string(),
-            FlatStep::Iter(n) => format!(
-                "Binary search iteration {}/{}",
-                n, MAX_BINARY_SEARCH_ITERATIONS
-            ),
+            FlatStep::Iter(n) => format!("Binary search iteration {}/{}", n, self.max_iterations()),
         }
     }
 
@@ -206,9 +212,10 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                 let tolerance = (f64::from(self.config.target_adu) * self.config.tolerance_percent
                     / 100.0) as u16;
                 let message = format!(
-                    "Flat wizard did not converge after {} iterations (range {:.3}s-{:.3}s, last ADU={:?}, target={}±{}). \
-Try adjusting panel brightness or exposure bounds.",
-                    MAX_BINARY_SEARCH_ITERATIONS,
+                    "Flat exposure did not converge within {} exposure calibration attempts \
+(range {:.3}s-{:.3}s, last ADU={:?}, target={}±{}). Raise \"Exposure calibration attempts\" \
+in the Flat Wizard settings, or adjust panel brightness or exposure bounds.",
+                    self.max_iterations(),
                     self.min_exp,
                     self.max_exp,
                     self.last_adu,
@@ -216,7 +223,9 @@ Try adjusting panel brightness or exposure bounds.",
                     tolerance
                 );
                 tracing::warn!("{}", message);
-                InstructionResult::failure(message)
+                let mut result = InstructionResult::failure(message);
+                result.data = Some(serde_json::json!({ FLAT_NOT_CONVERGED_KEY: true }));
+                result
             }
         }
     }
@@ -280,21 +289,21 @@ impl<'a> FlatWizardRun<'a> {
         let test_exposure = (self.min_exp + self.max_exp) / 2.0;
 
         // Iterations span 30%..85% of overall progress.
-        // Why: iteration is u32 in 1..=10; both lossless to f64.
-        let fraction =
-            0.30 + (f64::from(iteration) / f64::from(MAX_BINARY_SEARCH_ITERATIONS)) * 0.55;
+        // Why: iteration and the attempt cap are small u32s; lossless to f64.
+        let fraction = 0.30 + (f64::from(iteration) / f64::from(self.max_iterations())) * 0.55;
         progress.report(
             fraction,
             format!(
                 "Capturing flat frame {}/{}",
-                iteration, MAX_BINARY_SEARCH_ITERATIONS
+                iteration,
+                self.max_iterations()
             ),
         );
 
         tracing::info!(
             "Iteration {}/{}: testing {:.3}s exposure at brightness {}, binning {}",
             iteration,
-            MAX_BINARY_SEARCH_ITERATIONS,
+            self.max_iterations(),
             test_exposure,
             self.current_brightness,
             ctx.current_binning.as_str()
@@ -422,7 +431,7 @@ Try adjusting panel brightness or widening exposure limits.",
             return WizardStepOutcome::Failed(message);
         }
 
-        if iteration < MAX_BINARY_SEARCH_ITERATIONS {
+        if iteration < self.max_iterations() {
             WizardStepOutcome::ContinueWithNext(FlatStep::Iter(iteration + 1))
         } else {
             // Plan exhausts; finalize emits the non-convergence error.
@@ -741,19 +750,43 @@ mod tests {
     #[test]
     fn resume_at_or_beyond_max_iterations_does_not_overflow() {
         // Defensive: resume_idx larger than the max iteration cap
-        // (3 structural + 10 iterations = 13 max) should bound at
-        // MAX_BINARY_SEARCH_ITERATIONS.
+        // (3 structural + the configured attempts) should bound at the
+        // configured attempts.
         let config = test_config();
         let run = make_run(&config);
         let plan = run.plan_steps(100);
-        // Total cap = 3 structural + MAX_BINARY_SEARCH_ITERATIONS.
-        let expected_cap = 3 + MAX_BINARY_SEARCH_ITERATIONS as usize;
+        // Total cap = 3 structural + the configured attempts.
+        let attempts = config.max_iterations;
+        let expected_cap = 3 + attempts as usize;
         assert_eq!(plan.len(), expected_cap);
         // Last entry is Iter(MAX).
-        assert_eq!(
-            iter_of(&plan[expected_cap - 1]),
-            Some(MAX_BINARY_SEARCH_ITERATIONS)
-        );
+        assert_eq!(iter_of(&plan[expected_cap - 1]), Some(attempts));
+    }
+
+    #[test]
+    fn a_wire_node_without_the_setting_gets_twenty_attempts() {
+        let config: crate::FlatWizardConfig = serde_json::from_value(serde_json::json!({
+            "target_adu": 30000,
+            "min_exposure": 0.01,
+            "max_exposure": 10.0,
+            "tolerance_percent": 5.0,
+            "panel_location": "FlatPanel",
+            "filter": null
+        }))
+        .unwrap();
+        assert_eq!(config.max_iterations, 20);
+    }
+
+    #[test]
+    fn the_attempts_setting_bounds_the_search() {
+        let mut config = test_config();
+        config.max_iterations = 4;
+        let run = make_run(&config);
+        let plan = run.plan_steps(100);
+        assert_eq!(plan.len(), 3 + 4);
+        config.max_iterations = 0;
+        let run = make_run(&config);
+        assert_eq!(run.max_iterations(), 1, "never zero attempts");
     }
 
     #[test]

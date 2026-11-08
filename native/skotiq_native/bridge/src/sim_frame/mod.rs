@@ -264,6 +264,36 @@ fn sim_star_flux_scale() -> f64 {
     })
 }
 
+/// Twilight for sky flats, armed by `SKOTIQ_SIM_SKY_FLAT_HALF_LIFE_S`: the
+/// flat illumination halves every that many seconds (dusk), or doubles for a
+/// negative value (dawn), counted from the first flat frame. Unset keeps the
+/// constant panel-like illumination.
+fn sim_sky_flat_scale() -> f64 {
+    static HALF_LIFE: std::sync::OnceLock<Option<f64>> = std::sync::OnceLock::new();
+    static EPOCH: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    let half_life = *HALF_LIFE.get_or_init(|| {
+        let raw = std::env::var("SKOTIQ_SIM_SKY_FLAT_HALF_LIFE_S").ok()?;
+        match raw.trim().parse::<f64>() {
+            Ok(value) if value.is_finite() && value.abs() >= 1.0 => Some(value),
+            _ => {
+                tracing::error!(
+                    "SKOTIQ_SIM_SKY_FLAT_HALF_LIFE_S={raw:?} is not a number of seconds \
+                     (at least 1 either way); simulated flats stay constant"
+                );
+                None
+            }
+        }
+    });
+    let Some(half_life) = half_life else {
+        return 1.0;
+    };
+    let elapsed = EPOCH
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_secs_f64();
+    0.5f64.powf(elapsed / half_life)
+}
+
 /// A simulated star's light profile, per unit of total flux.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SimPsf {
@@ -426,6 +456,12 @@ fn collect_electrons(
         0.0
     };
 
+    let flat_e_per_sec = if is_flat {
+        SIM_FLAT_E_PER_SEC * sim_sky_flat_scale()
+    } else {
+        0.0
+    };
+
     let mut signal = vec![0.0f64; width * height];
 
     let sensor_w = request.width as f64;
@@ -443,7 +479,7 @@ fn collect_electrons(
                 let dx = sensor_col_x - centre_x;
                 let dy = sensor_row_y - centre_y;
                 let vignette = 1.0 - SIM_VIGNETTE_DEPTH * (dx * dx + dy * dy) / max_radius_sq;
-                e += SIM_FLAT_E_PER_SEC * effective_exposure * vignette;
+                e += flat_e_per_sec * effective_exposure * vignette;
             }
             signal[y * width + x] = e;
         }

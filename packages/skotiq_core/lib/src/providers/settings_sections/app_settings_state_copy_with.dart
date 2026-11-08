@@ -82,6 +82,7 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     bool? tempCompensation,
     double? tempCoefficient,
     int? tempCompensationMinSteps,
+    int? flatCalibrationAttempts,
     int? backlashCompensation,
     String? ditherScale,
     double? settleThreshold,
@@ -285,6 +286,8 @@ extension AppSettingsStateCopyWith on AppSettingsState {
       tempCoefficient: tempCoefficient ?? this.tempCoefficient,
       tempCompensationMinSteps:
           tempCompensationMinSteps ?? this.tempCompensationMinSteps,
+      flatCalibrationAttempts:
+          flatCalibrationAttempts ?? this.flatCalibrationAttempts,
       backlashCompensation: backlashCompensation ?? this.backlashCompensation,
       ditherScale: ditherScale ?? this.ditherScale,
       settleThreshold: settleThreshold ?? this.settleThreshold,

@@ -56,7 +56,7 @@ class _SpyFlatWizardService extends FlatWizardService {
     required double tolerance,
     required double minExposure,
     required double maxExposure,
-    int maxIterations = 10,
+    int? maxIterations,
     int binX = 1,
     int binY = 1,
     FlatCancelToken? cancelToken,
@@ -95,7 +95,7 @@ class _SpyFlatWizardService extends FlatWizardService {
     required double tolerance,
     required double minExposure,
     required double maxExposure,
-    int maxIterations = 10,
+    int? maxIterations,
     int binX = 1,
     int binY = 1,
     FlatCancelToken? cancelToken,
@@ -408,7 +408,9 @@ void main() {
       expect(spy.lastTolerance, 10.0);
       expect(spy.lastMinExposure, 0.001);
       expect(spy.lastMaxExposure, 30.0);
-      expect(spy.lastMaxIterations, 10);
+      // No limit in the request: the service applies the host's
+      // "Exposure calibration attempts" setting.
+      expect(spy.lastMaxIterations, isNull);
       expect(spy.lastBinX, 1);
       expect(spy.lastBinY, 1);
       expect(spy.lastGain, 100);

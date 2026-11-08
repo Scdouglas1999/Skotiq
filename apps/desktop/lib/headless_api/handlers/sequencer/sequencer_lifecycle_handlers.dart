@@ -685,7 +685,16 @@ extension _SequencerLifecycle on SequencerHandlers {
     if (rejection != null) return rejection;
 
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerLoadJson(json);
+    await backend.sequencerLoadJson(
+      withFlatCalibrationAttempts(
+        json,
+        container
+                .read(appSettingsProvider)
+                .valueOrNull
+                ?.flatCalibrationAttempts ??
+            20,
+      ),
+    );
     // Keep what the start path needs to open a session row. The native
     // executor owns the tree from here on and exposes no way to ask it for the
     // sequence name or its targets, so if this is dropped the headless run has
@@ -778,4 +787,38 @@ extension _SequencerLifecycle on SequencerHandlers {
       'sequenceId': sequenceId,
     });
   }
+}
+
+/// [wireJson] with every `FlatWizard` step that names no attempt limit given
+/// the host's "Exposure calibration attempts" setting, so a flat step in a
+/// loaded sequence obeys the same limit as the Flat Wizard. A step that sets
+/// its own `max_iterations` keeps it. JSON that will not decode is returned
+/// unchanged for the native loader to reject with its own error.
+String withFlatCalibrationAttempts(String wireJson, int attempts) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(wireJson);
+  } on FormatException {
+    return wireJson;
+  }
+  var changed = false;
+  void visit(Object? node) {
+    if (node is Map) {
+      final flat = node['FlatWizard'];
+      if (flat is Map && !flat.containsKey('max_iterations')) {
+        flat['max_iterations'] = attempts;
+        changed = true;
+      }
+      for (final value in node.values) {
+        visit(value);
+      }
+    } else if (node is List) {
+      for (final value in node) {
+        visit(value);
+      }
+    }
+  }
+
+  visit(decoded);
+  return changed ? jsonEncode(decoded) : wireJson;
 }

@@ -152,6 +152,11 @@ class AppSettingsState {
   /// this many steps, so probe noise and slow drift do not step the focuser
   /// by one every reading.
   final int tempCompensationMinSteps;
+
+  /// "Exposure calibration attempts": test exposures every flat calibration
+  /// path (sky, panel, the native flat wizard, API runs) may take to find a
+  /// filter's flat exposure before it gives up on that filter.
+  final int flatCalibrationAttempts;
   final int backlashCompensation;
 
   // Equipment Settings - Guider
@@ -576,6 +581,7 @@ class AppSettingsState {
     this.tempCompensation = false,
     this.tempCoefficient = -12.0,
     this.tempCompensationMinSteps = 5,
+    this.flatCalibrationAttempts = 20,
     this.backlashCompensation = 0,
 
     // Equipment Settings - Guider

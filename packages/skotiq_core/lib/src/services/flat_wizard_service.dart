@@ -11,8 +11,10 @@ import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart';
 import '../providers/backend_provider.dart';
 import '../providers/flat_wizard_provider.dart';
+import '../providers/settings_provider.dart';
 import 'sky_brightness_tracker.dart';
 import 'flat_exposure_calculator.dart';
+import 'flat_exposure_follower.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
 part 'flat_wizard_service/exposure_event_keys.dart';
@@ -26,14 +28,19 @@ class FlatWizardService {
   // very large sensors or slow USB hubs can be tuned without a recompile.
   final Duration imageDownloadTimeout;
 
-  /// Default maximum binary-search iterations used by [quickCalibrate]. Wired
-  /// from [FlatWizardGlobalSettings.maxIterations] (default 8).
+  /// The "Exposure calibration attempts" setting: test exposures every
+  /// calibration path may take per filter when its caller gives no limit of
+  /// its own. From [AppSettingsState.flatCalibrationAttempts] (default 20).
   final int defaultMaxIterations;
+
+  /// The operator's name for [defaultMaxIterations], used in failure messages
+  /// so they point at the control that raises the limit.
+  static const String attemptsSettingName = 'Exposure calibration attempts';
 
   FlatWizardService(
     this.backend, {
     this.imageDownloadTimeout = const Duration(seconds: 60),
-    this.defaultMaxIterations = 8,
+    this.defaultMaxIterations = 20,
     this.quickMinExposure = 0.001,
     this.quickMaxExposure = 30.0,
   });
@@ -42,14 +49,15 @@ class FlatWizardService {
   /// flow into the service in one place.
   factory FlatWizardService.fromSettings(
     SkotiqBackend backend,
-    FlatWizardGlobalSettings settings,
-  ) {
+    FlatWizardGlobalSettings settings, {
+    int calibrationAttempts = 20,
+  }) {
     return FlatWizardService(
       backend,
       imageDownloadTimeout: Duration(
         seconds: settings.imageDownloadTimeoutSeconds,
       ),
-      defaultMaxIterations: settings.maxIterations,
+      defaultMaxIterations: calibrationAttempts.clamp(1, 100),
       quickMinExposure: settings.minExposure,
       quickMaxExposure: settings.maxExposure,
     );
@@ -526,7 +534,7 @@ class FlatWizardService {
     required double tolerance,
     required double minExposure,
     required double maxExposure,
-    int maxIterations = 10,
+    int? maxIterations,
     int binX = 1,
     int binY = 1,
     FlatCancelToken? cancelToken,
@@ -534,6 +542,7 @@ class FlatWizardService {
     Duration? overallTimeout,
     void Function(int iteration, double exposure, double adu)? onProgress,
   }) async {
+    final attempts = (maxIterations ?? defaultMaxIterations).clamp(1, 100);
     // Start with midpoint exposure
     double exposure = math.sqrt(minExposure * maxExposure);
     double? lastAdu;
@@ -548,7 +557,7 @@ class FlatWizardService {
       level: 800,
     );
 
-    for (iteration = 1; iteration <= maxIterations; iteration++) {
+    for (iteration = 1; iteration <= attempts; iteration++) {
       // Cooperative cancel BETWEEN iterations: a cancel requested during the
       // previous exposure (or the settle wait) stops the solver immediately
       // instead of running another test frame.
@@ -565,7 +574,7 @@ class FlatWizardService {
       }
 
       developer.log(
-        'FlatWizardService: Iteration $iteration/$maxIterations - '
+        'FlatWizardService: Iteration $iteration/$attempts - '
         'Testing exposure: ${exposure.toStringAsFixed(3)}s',
         name: 'FlatWizardService',
         level: 800,
@@ -708,10 +717,16 @@ class FlatWizardService {
       exposure: exposure,
       adu: lastAdu ?? 0,
       success: false,
-      iterations: maxIterations,
-      errorMessage: 'Max iterations reached without convergence',
+      iterations: attempts,
+      errorMessage: notConvergedMessage(attempts),
     );
   }
+
+  /// Why a calibration gave up, naming the setting that raises the limit.
+  static String notConvergedMessage(int attempts) =>
+      'Did not reach the target ADU within $attempts test exposures. '
+      'Raise "$attemptsSettingName" in the Flat Wizard settings, or widen '
+      'the tolerance.';
 
   /// Calibrate filter with rate tracking for sky flats
   ///
@@ -727,7 +742,9 @@ class FlatWizardService {
     required double maxExposure,
     required SkyBrightnessTracker brightnessTracker,
     double? historicalExposure,
-    int maxIterations = 3, // Fewer iterations for sky flats (speed matters)
+    // Sky flats used to stop after 3 tries, which a darkening twilight sky
+    // routinely needs more than; they now get the operator's setting too.
+    int? maxIterations,
     int binX = 1,
     int binY = 1,
     FlatCancelToken? cancelToken,
@@ -744,10 +761,24 @@ class FlatWizardService {
       currentSkyAduRate: brightnessTracker.calculateRate(),
     );
 
+    final attempts = (maxIterations ?? defaultMaxIterations).clamp(1, 100);
+    // Twilight moves while the search runs, so each test frame is judged
+    // along the light's measured trend, the same way the frames that follow
+    // are (see [FlatExposureFollower]). The brightness tracker's own
+    // prediction fitted ADU per second linearly against time, and the bias
+    // pedestal in test frames of very different lengths showed up as a false
+    // trend, so a darkening sky kept the search a step behind it.
+    final follower = FlatExposureFollower(
+      targetAdu: targetAdu,
+      tolerancePercent: tolerance,
+      minExposure: minExposure,
+      maxExposure: maxExposure,
+      changingLight: true,
+    );
     double? lastAdu;
     int iteration = 0;
 
-    for (iteration = 1; iteration <= maxIterations; iteration++) {
+    for (iteration = 1; iteration <= attempts; iteration++) {
       if (cancelToken?.isCancelled ?? false) {
         return FlatResult(
           filter: filter,
@@ -765,6 +796,7 @@ class FlatWizardService {
       // Measure through the overridable [captureTestFrame] seam; the FULL
       // outcome comes back with it (cancel-aware; a timeout halts the whole run
       // fail-safe).
+      final testStart = DateTime.now();
       final (:adu, :outcome) = await captureTestFrame(
         deviceId: deviceId,
         exposureTime: exposure,
@@ -845,27 +877,30 @@ class FlatWizardService {
         );
       }
 
-      // Calculate next exposure using rate-aware prediction
-      final predictedExposure = brightnessTracker.calculateOptimalExposure(
-        targetAdu: targetAdu,
-        minExposure: minExposure,
-        maxExposure: maxExposure,
-      );
-
-      if (predictedExposure != null) {
-        exposure = predictedExposure;
-      } else {
-        // Fall back to the single canonical proportional-adjustment engine
-        // (the same [calculateNextExposure] that drives the standalone wizard
-        // screen and the headless /api/flat-wizard handlers via
-        // [calibrateFilter]).
-        exposure = calculateNextExposure(
-          currentExposure: exposure,
-          currentAdu: adu,
-          targetAdu: targetAdu,
-          minExposure: minExposure,
-          maxExposure: maxExposure,
-        );
+      // Next exposure along the light's trend.
+      follower.record(exposure: exposure, adu: adu, start: testStart);
+      switch (follower.next(plannedStart: DateTime.now())) {
+        case FlatExposureNext(exposure: final planned):
+          exposure = planned;
+        case FlatExposureOutOfRange(:final tooDark, :final neededExposure):
+          final status = tooDark
+              ? 'Max exposure reached'
+              : 'Min exposure reached';
+          onProgress?.call(iteration, exposure, adu, status);
+          return FlatResult(
+            filter: filter,
+            exposure: exposure,
+            adu: adu,
+            success: false,
+            iterations: iteration,
+            errorMessage: tooDark
+                ? 'The sky is too dark for flats: the target needs '
+                      '${neededExposure.toStringAsFixed(1)} s, over the '
+                      '${maxExposure.toStringAsFixed(1)} s maximum exposure.'
+                : 'The sky is too bright for flats: the target needs '
+                      '${neededExposure.toStringAsFixed(3)} s, under the '
+                      '${minExposure.toStringAsFixed(3)} s minimum exposure.',
+          );
       }
 
       // Check limits
@@ -909,8 +944,8 @@ class FlatWizardService {
       exposure: exposure,
       adu: lastAdu ?? 0,
       success: false,
-      iterations: maxIterations,
-      errorMessage: 'Did not converge within $maxIterations iterations',
+      iterations: attempts,
+      errorMessage: notConvergedMessage(attempts),
     );
   }
 
@@ -926,7 +961,7 @@ class FlatWizardService {
     required double tolerance,
     required double minExposure,
     required double maxExposure,
-    int maxIterations = 10,
+    int? maxIterations,
     int binX = 1,
     int binY = 1,
     FlatCancelToken? cancelToken,
@@ -1154,5 +1189,14 @@ final flatWizardServiceProvider = Provider<FlatWizardService>((ref) {
   final settings = ref.watch(
     flatWizardProvider.select((s) => s.globalSettings),
   );
-  return FlatWizardService.fromSettings(backend, settings);
+  final attempts = ref.watch(
+    appSettingsProvider.select(
+      (s) => s.valueOrNull?.flatCalibrationAttempts ?? 20,
+    ),
+  );
+  return FlatWizardService.fromSettings(
+    backend,
+    settings,
+    calibrationAttempts: attempts,
+  );
 });

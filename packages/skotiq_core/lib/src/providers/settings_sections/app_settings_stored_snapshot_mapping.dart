@@ -186,6 +186,10 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
         allSettings['temp_compensation_min_steps'],
         5,
       ),
+      flatCalibrationAttempts: _parseInt(
+        allSettings['flat_calibration_attempts'],
+        20,
+      ),
       backlashCompensation: _parseInt(allSettings['backlash_compensation'], 0),
 
       // Equipment Settings - Guider
@@ -626,6 +630,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       'temp_compensation': s.tempCompensation.toString(),
       'temp_coefficient': s.tempCoefficient.toString(),
       'temp_compensation_min_steps': s.tempCompensationMinSteps.toString(),
+      'flat_calibration_attempts': s.flatCalibrationAttempts.toString(),
       'backlash_compensation': s.backlashCompensation.toString(),
 
       // Equipment Settings - Guider
