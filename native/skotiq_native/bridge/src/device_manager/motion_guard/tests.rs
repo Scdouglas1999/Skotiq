@@ -543,3 +543,25 @@ fn an_outside_home_while_idle_is_not_a_lost_position() {
     }));
     assert!(lost(&findings).is_empty(), "{findings:?}");
 }
+
+/// A slew from outside Skotiq after one of Skotiq's own has settled is seen.
+#[test]
+fn an_outside_slew_after_a_commanded_one_is_noticed() {
+    let mut rig = Rig::new(IDLE);
+    rig.feed(at(0.0, 8.0, 45.0));
+    rig.ledger.record(0.5, CommandKind::Slew);
+    for i in 1..30 {
+        let mut s = at(i as f64, 8.0 - 0.03 * i as f64, 45.0);
+        s.slewing = true;
+        rig.feed(s);
+    }
+    rig.feed_all((30..65).map(|i| at(i as f64, 7.1, 45.0)));
+    let findings: Vec<Finding> = (65..75)
+        .flat_map(|i| {
+            let mut s = at(i as f64, 7.1 + 0.03 * (i - 64) as f64, 45.0);
+            s.slewing = true;
+            rig.feed(s)
+        })
+        .collect();
+    assert_eq!(motion_kinds(&findings), vec![MotionKind::Slewing], "{findings:?}");
+}

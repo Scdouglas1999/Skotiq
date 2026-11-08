@@ -260,6 +260,13 @@ pub(crate) async fn observe_status<E>(device_id: &str, result: &Result<MountStat
                 };
                 let fault_recorded = entry.fault.is_some();
                 let sample = sample_of(status, t);
+                tracing::debug!(
+                    device_id,
+                    slewing = sample.slewing,
+                    expected = entry.ledger.expects_motion(t),
+                    moving = entry.detector.fault_moving(),
+                    "motion guard reading"
+                );
                 let mut findings =
                     entry
                         .detector
@@ -284,6 +291,7 @@ pub(crate) async fn observe_status<E>(device_id: &str, result: &Result<MountStat
         }
     });
     for finding in findings {
+        tracing::debug!(device_id, ?finding, run_active, "motion guard finding");
         response::handle_finding(device_id.to_string(), finding, run_active).await;
     }
 }
