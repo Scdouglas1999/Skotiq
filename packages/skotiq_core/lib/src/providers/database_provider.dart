@@ -224,9 +224,11 @@ class RemoteImageRows {
     controller = StreamController<List<db.CapturedImage>>(
       onListen: () {
         _listeners.add(controller);
-        final rows = current;
-        if (rows != null) controller.add(rows);
-        _pollSubscription ??= _poll().listen(
+        // A new listener is a rebuild of the provider, for instance after the
+        // host announced a change to its images: it waits for the table read
+        // again now, not for the rows from before the change.
+        unawaited(_pollSubscription?.cancel());
+        _pollSubscription = _poll().listen(
           _onPolled,
           onError: (Object error, StackTrace stackTrace) {
             for (final listener in _listeners) {

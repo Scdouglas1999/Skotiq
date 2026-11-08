@@ -60,14 +60,6 @@ void main() {
     await poll.close();
   });
 
-  Future<List<int>> latest(Stream<List<db.CapturedImage>> stream) async {
-    final seen = <List<int>>[];
-    final sub = stream.listen((r) => seen.add([for (final x in r) x.id]));
-    await pumpEventQueue();
-    await sub.cancel();
-    return seen.last;
-  }
-
   test('a frame the host lists is fetched by id at once', () async {
     final seen = <List<int>>[];
     final sub = rows.watch().listen((r) => seen.add([for (final x in r) x.id]));
@@ -123,11 +115,34 @@ void main() {
     expect(rowFetches, isEmpty);
   });
 
-  test('a provider rebuilt by an invalidation can listen again', () async {
-    final first = rows.watch().listen((_) {});
+  test('a provider rebuilt by an invalidation reads the table again',
+      () async {
+    var polls = 0;
+    final rebuilt = RemoteImageRows(
+      poll: () {
+        polls++;
+        return poll.stream;
+      },
+      fetchRow: (_) async => null,
+      fetchSessionRows: (_) async => const [],
+    );
+    addTearDown(rebuilt.dispose);
+    final first = rebuilt.watch().listen((_) {});
     poll.add([_row(1)]);
     await pumpEventQueue();
+
+    final seen = <List<int>>[];
+    final second = rebuilt.watch().listen(
+      (r) => seen.add([for (final x in r) x.id]),
+    );
     await first.cancel();
-    expect(await latest(rows.watch()), [1]);
+    poll.add([_row(2), _row(1)]);
+    await pumpEventQueue();
+
+    expect(polls, 2);
+    expect(seen, [
+      [2, 1],
+    ], reason: 'no rows from before the change first');
+    await second.cancel();
   });
 }
