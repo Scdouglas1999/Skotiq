@@ -56,9 +56,8 @@ impl SequenceExecutor {
             let mut progress = self.progress.write();
             progress.message = Some(format!("Paused: {message}"));
         }
-        self.emit(ExecutorEvent::Error {
-            message: format!("{message} The run is paused; resume it once the mount is recovered."),
-        });
+        // No executor error: an error reads as the run failing, and the
+        // device layer already raised the alarm with what the mount did.
         self.emit_manual_intervention("mount_fault_hold", serde_json::json!({ "reason": message }));
         Ok(true)
     }

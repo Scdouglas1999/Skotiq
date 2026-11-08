@@ -111,8 +111,8 @@ bool isCriticalEvent(SkotiqEvent event) {
     EventPayload_Safety(field0: final v) => switch (v) {
       SafetyEvent_EmergencyStop() => true,
       SafetyEvent_WeatherUnsafe() => true,
-      SafetyEvent_MountMotionFault() => true,
-      SafetyEvent_MountPositionUnknown() => true,
+      // The mount guard has its own banner on Tonight, Mount and Equipment,
+      // which stays until the fault is dealt with.
       _ => false,
     },
     EventPayload_System(field0: final v) => switch (v) {

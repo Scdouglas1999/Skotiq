@@ -32,16 +32,17 @@ fn position_text(ra_hours: f64, dec_deg: f64, altitude_deg: Option<f64>) -> Stri
 fn motion_message(kind: MotionKind, rate: f64, position: &str) -> String {
     match kind {
         MotionKind::Runaway => format!(
-            "The mount is moving at {rate:.1} degrees per second and Skotiq did not command \
-             it. It reports {position}."
+            "The mount moved at {rate:.1} degrees per second with no command from Skotiq. When \
+             it was caught it reported {position}."
         ),
         MotionKind::Slewing => format!(
-            "The mount reports it is slewing and Skotiq did not command a slew. It reports \
+            "The mount reported a slew Skotiq did not command. When it was caught it reported \
              {position}."
         ),
-        MotionKind::BelowHorizon => {
-            format!("The mount dropped below the horizon with no command. It reports {position}.")
-        }
+        MotionKind::BelowHorizon => format!(
+            "The mount dropped below the horizon with no command from Skotiq. When it was \
+             caught it reported {position}."
+        ),
     }
 }
 
@@ -242,7 +243,7 @@ fn announce_fault_update(device_id: &str) {
     };
     let mut message = fault.message.clone();
     if fault.still_moving {
-        message.push_str(" It is still moving after every stop command Skotiq has.");
+        message.push_str(" It was still moving after every stop command Skotiq has.");
     } else {
         message.push_str(" It has stopped.");
     }

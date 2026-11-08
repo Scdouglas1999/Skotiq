@@ -832,7 +832,7 @@ class NotificationRouter {
       case NotificationCategory.weatherUnsafe:
         return 'Weather unsafe';
       case NotificationCategory.mountFault:
-        return 'Mount fault: the run is paused';
+        return 'Mount fault';
       case NotificationCategory.weatherSafeAgain:
         return 'Weather safe again';
       case NotificationCategory.cloudArriving:

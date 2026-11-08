@@ -8,7 +8,6 @@ import '../models/mount_guard.dart';
 import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'settings_provider.dart';
-import 'ui_notification_provider.dart';
 
 /// The safety events the host's mount guard publishes.
 const mountGuardEventTypes = {
@@ -139,9 +138,10 @@ final mountGuardEntryProvider = Provider.family<MountGuardEntry?, String?>((
   return null;
 });
 
-/// Sounds the alarm and shows a toast the first time each fault or lost
-/// position appears, on whatever screen is showing. Watched from the app
-/// shell, so it runs on the host and on linked clients.
+/// Sounds the alarm the first time each fault or lost position appears, on
+/// whatever screen is showing. Watched from the app shell, so it runs on the
+/// host and on linked clients. The toast comes from the notification router
+/// and the banner from the screens.
 final mountGuardAlarmProvider = Provider<void>((ref) {
   final announced = <String>{};
   ref.listen<List<MountGuardEntry>>(mountGuardProvider, (previous, next) {
@@ -153,13 +153,6 @@ final mountGuardAlarmProvider = Provider<void>((ref) {
         final key = '${entry.deviceId}/fault/${fault.detectedAt}';
         if (announced.add(key)) {
           unawaited(ref.read(criticalAlertPlayerProvider).play(sound: sound));
-          ref
-              .read(uiNotificationProvider.notifier)
-              .showError(
-                fault.message,
-                title: 'The mount moved on its own',
-                duration: const Duration(seconds: 30),
-              );
         }
       }
       final lost = entry.positionUnknown;
@@ -167,13 +160,6 @@ final mountGuardAlarmProvider = Provider<void>((ref) {
         final key = '${entry.deviceId}/lost/${lost.flaggedAt}';
         if (announced.add(key)) {
           unawaited(ref.read(criticalAlertPlayerProvider).play(sound: sound));
-          ref
-              .read(uiNotificationProvider.notifier)
-              .showError(
-                lost.message,
-                title: "The mount's position is unknown",
-                duration: const Duration(seconds: 30),
-              );
         }
       }
     }
