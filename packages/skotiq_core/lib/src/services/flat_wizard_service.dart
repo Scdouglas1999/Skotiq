@@ -14,6 +14,7 @@ import '../providers/flat_wizard_provider.dart';
 import '../providers/settings_provider.dart';
 import 'sky_brightness_tracker.dart';
 import 'flat_exposure_calculator.dart';
+import 'flat_exposure_follower.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
 part 'flat_wizard_service/exposure_event_keys.dart';
@@ -761,6 +762,19 @@ class FlatWizardService {
     );
 
     final attempts = (maxIterations ?? defaultMaxIterations).clamp(1, 100);
+    // Twilight moves while the search runs, so each test frame is judged
+    // along the light's measured trend, the same way the frames that follow
+    // are (see [FlatExposureFollower]). The brightness tracker's own
+    // prediction fitted ADU per second linearly against time, and the bias
+    // pedestal in test frames of very different lengths showed up as a false
+    // trend, so a darkening sky kept the search a step behind it.
+    final follower = FlatExposureFollower(
+      targetAdu: targetAdu,
+      tolerancePercent: tolerance,
+      minExposure: minExposure,
+      maxExposure: maxExposure,
+      changingLight: true,
+    );
     double? lastAdu;
     int iteration = 0;
 
@@ -782,6 +796,7 @@ class FlatWizardService {
       // Measure through the overridable [captureTestFrame] seam; the FULL
       // outcome comes back with it (cancel-aware; a timeout halts the whole run
       // fail-safe).
+      final testStart = DateTime.now();
       final (:adu, :outcome) = await captureTestFrame(
         deviceId: deviceId,
         exposureTime: exposure,
@@ -862,27 +877,30 @@ class FlatWizardService {
         );
       }
 
-      // Calculate next exposure using rate-aware prediction
-      final predictedExposure = brightnessTracker.calculateOptimalExposure(
-        targetAdu: targetAdu,
-        minExposure: minExposure,
-        maxExposure: maxExposure,
-      );
-
-      if (predictedExposure != null) {
-        exposure = predictedExposure;
-      } else {
-        // Fall back to the single canonical proportional-adjustment engine
-        // (the same [calculateNextExposure] that drives the standalone wizard
-        // screen and the headless /api/flat-wizard handlers via
-        // [calibrateFilter]).
-        exposure = calculateNextExposure(
-          currentExposure: exposure,
-          currentAdu: adu,
-          targetAdu: targetAdu,
-          minExposure: minExposure,
-          maxExposure: maxExposure,
-        );
+      // Next exposure along the light's trend.
+      follower.record(exposure: exposure, adu: adu, start: testStart);
+      switch (follower.next(plannedStart: DateTime.now())) {
+        case FlatExposureNext(exposure: final planned):
+          exposure = planned;
+        case FlatExposureOutOfRange(:final tooDark, :final neededExposure):
+          final status = tooDark
+              ? 'Max exposure reached'
+              : 'Min exposure reached';
+          onProgress?.call(iteration, exposure, adu, status);
+          return FlatResult(
+            filter: filter,
+            exposure: exposure,
+            adu: adu,
+            success: false,
+            iterations: iteration,
+            errorMessage: tooDark
+                ? 'The sky is too dark for flats: the target needs '
+                      '${neededExposure.toStringAsFixed(1)} s, over the '
+                      '${maxExposure.toStringAsFixed(1)} s maximum exposure.'
+                : 'The sky is too bright for flats: the target needs '
+                      '${neededExposure.toStringAsFixed(3)} s, under the '
+                      '${minExposure.toStringAsFixed(3)} s minimum exposure.',
+          );
       }
 
       // Check limits

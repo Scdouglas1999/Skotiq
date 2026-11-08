@@ -65,6 +65,15 @@ class FlatExposureFollower {
   /// Most frames the trend is fitted over.
   static const int trendFrames = 6;
 
+  /// Fastest light change believed, per second: e-fold in 20 s, far faster
+  /// than any twilight. Bounds a trend fitted from frames whose bias pedestal
+  /// or a passing cloud would otherwise extrapolate wildly.
+  static const double maxTrendPerSecond = 0.05;
+
+  /// Frames whose exposures differ by more than this factor are not
+  /// compared when fitting the trend.
+  static const double comparableExposureRatio = 1.5;
+
   /// Largest change of exposure from one frame to the next.
   static const double maxStepRatio = 3.0;
 
@@ -96,12 +105,25 @@ class FlatExposureFollower {
   /// The light's trend: d ln(ADU per second) / dt, per second. Null until two
   /// frames at least a second apart exist.
   double? get trendPerSecond {
+    // Only frames of about the same length as the latest. ADU per second
+    // includes the bias pedestal divided by the exposure, so a short frame
+    // reads brighter per second than a long one under the same sky; comparing
+    // a 0.2 s test frame with a 10 s one would invent a trend.
     if (_frames.length < 2) return null;
-    final t0 = _frames.first.midpoint;
-    final xs = [
-      for (final f in _frames) f.midpoint.difference(t0).inMicroseconds / 1e6,
+    final last = _frames.last;
+    final comparable = [
+      for (final f in _frames)
+        if (f.exposure <= last.exposure * comparableExposureRatio &&
+            f.exposure >= last.exposure / comparableExposureRatio)
+          f,
     ];
-    final ys = [for (final f in _frames) math.log(f.adu / f.exposure)];
+    if (comparable.length < 2) return null;
+    final t0 = comparable.first.midpoint;
+    final xs = [
+      for (final f in comparable)
+        f.midpoint.difference(t0).inMicroseconds / 1e6,
+    ];
+    final ys = [for (final f in comparable) math.log(f.adu / f.exposure)];
     final n = xs.length;
     final meanX = xs.reduce((a, b) => a + b) / n;
     final meanY = ys.reduce((a, b) => a + b) / n;
@@ -112,7 +134,9 @@ class FlatExposureFollower {
       sxy += (xs[i] - meanX) * (ys[i] - meanY);
     }
     if (sxx < 1.0) return null;
-    return sxy / sxx;
+    final slope = sxy / sxx;
+    if (!slope.isFinite) return null;
+    return slope.clamp(-maxTrendPerSecond, maxTrendPerSecond);
   }
 
   /// The exposure for a frame that starts at [plannedStart].
@@ -141,7 +165,7 @@ class FlatExposureFollower {
           final dt = mid.difference(last.midpoint).inMicroseconds / 1e6;
           exposure = atLast / math.exp(trend * dt);
         }
-        needed = exposure;
+        needed = exposure.isFinite && exposure > 0 ? exposure : atLast;
       }
     }
 
