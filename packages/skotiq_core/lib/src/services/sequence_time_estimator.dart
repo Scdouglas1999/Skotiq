@@ -4,6 +4,7 @@ import '../models/sequence/sequence_models.dart';
 part 'sequence_time_estimator/timing_models.dart';
 part 'sequence_time_estimator/node_durations.dart';
 part 'sequence_time_estimator/window_solver.dart';
+part 'sequence_time_estimator/target_window.dart';
 
 /// Service for estimating sequence execution timing with astronomical awareness.
 ///
@@ -66,12 +67,17 @@ class SequenceTimeEstimator {
   /// [latitude] - Observer latitude in degrees (optional, needed for twilight waits)
   /// [longitude] - Observer longitude in degrees (optional, needed for twilight waits)
   ///
+  /// [runEndsBy] is when the run is stopped whatever the plan says (the
+  /// dawn park); a target is not started after it and its window ends there.
+  /// It needs the site, as do the targets' start and end conditions.
+  ///
   /// Returns a list of [NodeTiming] objects in execution order.
   List<NodeTiming> estimateSequenceTiming(
     Sequence sequence,
     DateTime startTime, {
     double? latitude,
     double? longitude,
+    DateTime? runEndsBy,
   }) {
     final timings = <NodeTiming>[];
     var currentTime = startTime;
@@ -82,6 +88,7 @@ class SequenceTimeEstimator {
             latitude: latitude,
             longitude: longitude,
             date: startTime,
+            runEndsBy: runEndsBy,
           )
         : null;
 
@@ -308,12 +315,14 @@ class SequenceTimeEstimator {
     required double latitude,
     required double longitude,
     double minAltitude = _defaultMinAltitude,
+    DateTime? runEndsBy,
   }) {
     final timings = estimateSequenceTiming(
       sequence,
       startTime,
       latitude: latitude,
       longitude: longitude,
+      runEndsBy: runEndsBy,
     );
     final windows = calculateTargetWindows(
       sequence,
@@ -399,12 +408,14 @@ class SequenceTimeEstimator {
     double? longitude,
     bool autoFocusOnFilterChange = false,
     int autoFocusEveryMinutes = 0,
+    DateTime? runEndsBy,
   }) {
     final timings = estimateSequenceTiming(
       sequence,
       startTime,
       latitude: latitude,
       longitude: longitude,
+      runEndsBy: runEndsBy,
     );
     if (timings.isEmpty) {
       return Duration.zero;
@@ -422,6 +433,7 @@ class SequenceTimeEstimator {
       startTime,
       latitude: latitude,
       longitude: longitude,
+      runEndsBy: runEndsBy,
     );
     final lastTiming = timings.last;
     final end = lastTiming.estimatedEnd.isAfter(walkEnd)

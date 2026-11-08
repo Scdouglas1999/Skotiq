@@ -95,6 +95,7 @@ extension _SequenceTimeEstimatorWindowSolver on SequenceTimeEstimator {
     DateTime startTime, {
     double? latitude,
     double? longitude,
+    DateTime? runEndsBy,
   }) {
     final throwaway = <NodeTiming>[];
     final locationContext = (latitude != null && longitude != null)
@@ -102,6 +103,7 @@ extension _SequenceTimeEstimatorWindowSolver on SequenceTimeEstimator {
             latitude: latitude,
             longitude: longitude,
             date: startTime,
+            runEndsBy: runEndsBy,
           )
         : null;
 

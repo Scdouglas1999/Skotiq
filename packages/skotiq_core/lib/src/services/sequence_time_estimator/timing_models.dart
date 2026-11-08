@@ -6,10 +6,15 @@ class _LocationContext {
   final double longitude;
   final DateTime date;
 
+  /// When the run is stopped whatever the plan says (the dawn park), or null
+  /// when nothing stops it.
+  final DateTime? runEndsBy;
+
   const _LocationContext({
     required this.latitude,
     required this.longitude,
     required this.date,
+    this.runEndsBy,
   });
 }
 
@@ -39,6 +44,12 @@ class NodeTiming {
   /// ID of the parent target header node, if any
   final String? targetHeaderId;
 
+  /// The node runs until it is stopped and nothing in the estimate bounds
+  /// it, so [duration] is one pass rather than its length: a "loop until
+  /// stopped" Smart Exposure with no budget and no target window the
+  /// estimate could solve.
+  final bool openEnded;
+
   NodeTiming({
     required this.nodeId,
     required this.nodeName,
@@ -48,6 +59,7 @@ class NodeTiming {
     required this.duration,
     this.warnings,
     this.targetHeaderId,
+    this.openEnded = false,
   });
 
   /// Create a copy with updated warnings
@@ -61,6 +73,7 @@ class NodeTiming {
       duration: duration,
       warnings: newWarnings.isNotEmpty ? newWarnings : null,
       targetHeaderId: targetHeaderId,
+      openEnded: openEnded,
     );
   }
 

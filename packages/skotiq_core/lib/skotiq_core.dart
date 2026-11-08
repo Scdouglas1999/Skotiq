@@ -221,6 +221,7 @@ export 'src/providers/sequence/run_frame_assessment.dart';
 // Sequencer events, typed once at the Dart boundary.
 export 'src/providers/sequence/sequencer_run_event.dart';
 export 'src/providers/sequence/target_end_when_notice.dart';
+export 'src/providers/sequence/plan_run_end.dart';
 // The one vocabulary for an exposure node's per-frame progress line.
 export 'src/providers/sequence/exposure_progress_vocabulary.dart';
 // Whether a finished run's report interrupts the operator or waits for them.
