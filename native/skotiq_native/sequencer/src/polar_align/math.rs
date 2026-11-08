@@ -49,7 +49,32 @@ pub struct RotationAxisFit {
 /// insufficient mount rotation". The mount turns about the pole of the
 /// hemisphere the operator is standing in, whichever way it was stepped.
 pub fn fit_rotation_axis(points: &[(f64, f64)], is_north: bool) -> Option<RotationAxisFit> {
-    let axis = fit_axis_vector(points, is_north)?;
+    fit_rotation_axis_with_dec_moves(points, &[0.0; 3], is_north)
+}
+
+/// [`fit_rotation_axis`] for points between which the mount's declination
+/// axis also turned.
+///
+/// `dec_moves_degrees[i]` is how far the mount's own declination read-back at
+/// point `i` differs from point 1's. A pure RA rotation leaves every point the
+/// same distance from the axis; a declination move of `d` brings the point `d`
+/// closer to the pole of the operator's hemisphere. Ignoring a move the mount
+/// did make puts the whole move into the fitted axis, amplified by the short
+/// arc (on 2026-11-07 a 384" move put the axis about 1° off).
+pub fn fit_rotation_axis_with_dec_moves(
+    points: &[(f64, f64)],
+    dec_moves_degrees: &[f64],
+    is_north: bool,
+) -> Option<RotationAxisFit> {
+    if points.len() < 3 || dec_moves_degrees.len() < 3 {
+        return None;
+    }
+    let moves = [
+        dec_moves_degrees[0],
+        dec_moves_degrees[1],
+        dec_moves_degrees[2],
+    ];
+    let axis = fit_axis_vector(points, moves, is_north)?;
     let p1 = radec_to_vec(points[0].0, points[0].1);
     let p3 = radec_to_vec(points[2].0, points[2].1);
 
@@ -59,24 +84,185 @@ pub fn fit_rotation_axis(points: &[(f64, f64)], is_north: bool) -> Option<Rotati
         dec_degrees,
         radius_degrees: dot(axis, p1).clamp(-1.0, 1.0).acos().to_degrees(),
         arc_degrees: arc_about_axis(axis, p1, p3).to_degrees(),
-        axis_degrees_per_arcmin: axis_sensitivity_degrees_per_arcmin(points, is_north, axis),
+        axis_degrees_per_arcmin: axis_sensitivity_degrees_per_arcmin(points, moves, is_north, axis),
     })
 }
 
-/// The plane normal, in the hemisphere the operator declared.
-fn fit_axis_vector(points: &[(f64, f64)], is_north: bool) -> Option<[f64; 3]> {
+/// The axis the points turn about, in the hemisphere the operator declared.
+///
+/// With no declination moves this is the normal of the plane through the
+/// points. With moves, point `i` sits `rho - s * moves[i]` from the axis
+/// (`s` = +1 north, -1 south), and the three equations are solved for the
+/// axis and `rho` by Gauss-Newton started from the plane normal.
+fn fit_axis_vector(points: &[(f64, f64)], moves: [f64; 3], is_north: bool) -> Option<[f64; 3]> {
     if points.len() < 3 {
         return None;
     }
-    let p1 = radec_to_vec(points[0].0, points[0].1);
-    let p2 = radec_to_vec(points[1].0, points[1].1);
-    let p3 = radec_to_vec(points[2].0, points[2].1);
-    let axis = normalise(cross(sub(p2, p1), sub(p3, p1)))?;
-    Some(if (axis[2] > 0.0) == is_north {
+    let p = [
+        radec_to_vec(points[0].0, points[0].1),
+        radec_to_vec(points[1].0, points[1].1),
+        radec_to_vec(points[2].0, points[2].1),
+    ];
+    let axis = normalise(cross(sub(p[1], p[0]), sub(p[2], p[0])))?;
+    let axis = if (axis[2] > 0.0) == is_north {
         axis
     } else {
         [-axis[0], -axis[1], -axis[2]]
-    })
+    };
+    if moves.iter().all(|m| *m == 0.0) {
+        return Some(axis);
+    }
+    refine_axis_for_dec_moves(axis, p, moves, if is_north { 1.0 } else { -1.0 })
+}
+
+fn refine_axis_for_dec_moves(
+    start: [f64; 3],
+    p: [[f64; 3]; 3],
+    moves: [f64; 3],
+    hemisphere: f64,
+) -> Option<[f64; 3]> {
+    let moves_rad = moves.map(f64::to_radians);
+    let distance = |n: [f64; 3], q: [f64; 3]| dot(n, q).clamp(-1.0, 1.0).acos();
+    let mut axis = start;
+    let mut rho = (0..3).map(|i| distance(axis, p[i])).sum::<f64>() / 3.0;
+    for _ in 0..50 {
+        // Tangent basis at the current axis; the axis moves by (a, b).
+        let seed = if axis[2].abs() < 0.9 {
+            [0.0, 0.0, 1.0]
+        } else {
+            [1.0, 0.0, 0.0]
+        };
+        let e1 = normalise(cross(axis, seed))?;
+        let e2 = cross(axis, e1);
+        let at = |a: f64, b: f64| {
+            normalise([
+                axis[0] + a * e1[0] + b * e2[0],
+                axis[1] + a * e1[1] + b * e2[1],
+                axis[2] + a * e1[2] + b * e2[2],
+            ])
+        };
+        let residuals = |n: [f64; 3], r: f64| -> [f64; 3] {
+            [0, 1, 2].map(|i| distance(n, p[i]) - (r - hemisphere * moves_rad[i]))
+        };
+        let r0 = residuals(axis, rho);
+        const H: f64 = 1e-8;
+        let ra = residuals(at(H, 0.0)?, rho);
+        let rb = residuals(at(0.0, H)?, rho);
+        // d(residual)/d(rho) is -1 for every point.
+        let jacobian = [0, 1, 2].map(|i| [(ra[i] - r0[i]) / H, (rb[i] - r0[i]) / H, -1.0]);
+        let step = solve_3x3(jacobian, r0.map(|v| -v))?;
+        axis = at(step[0], step[1])?;
+        rho += step[2];
+        if step.iter().all(|s| s.abs() < 1e-13) {
+            break;
+        }
+    }
+    Some(axis)
+}
+
+/// Solve `m · x = b` by Cramer's rule; `None` when `m` is singular.
+fn solve_3x3(m: [[f64; 3]; 3], b: [f64; 3]) -> Option<[f64; 3]> {
+    let det = |m: [[f64; 3]; 3]| {
+        m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+            - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+    };
+    let d = det(m);
+    if d.abs() < 1e-18 {
+        return None;
+    }
+    let mut x = [0.0; 3];
+    for (col, xc) in x.iter_mut().enumerate() {
+        let mut mc = m;
+        for row in 0..3 {
+            mc[row][col] = b[row];
+        }
+        *xc = det(mc) / d;
+    }
+    Some(x)
+}
+
+/// The sky's rotation relative to the ground, degrees per second of time.
+const SIDEREAL_DEGREES_PER_SECOND: f64 = 360.985_647_366_29 / 86_400.0;
+
+/// One three-point measurement: where the frame solved, when it was taken, and
+/// where the mount said its declination axis was.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AlignmentPoint {
+    /// Plate-solved field center, J2000, degrees.
+    pub ra_degrees: f64,
+    pub dec_degrees: f64,
+    /// Middle of the exposure.
+    pub taken_at: chrono::DateTime<chrono::Utc>,
+    /// The mount's own declination read-back for this frame, in the mount's
+    /// frame. Only differences between points are used.
+    pub mount_dec_degrees: Option<f64>,
+}
+
+/// The mount's polar axis, fitted in the frame it is fixed in: the ground.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MountAxisFit {
+    /// The fit. `ra_degrees`/`dec_degrees` are the axis of date at `at`.
+    pub fit: RotationAxisFit,
+    /// The instant the axis coordinates refer to (the last point's).
+    pub at: chrono::DateTime<chrono::Utc>,
+}
+
+impl MountAxisFit {
+    /// The axis of date at `when`. The axis is fixed to the ground, so its
+    /// right ascension advances with sidereal time.
+    pub fn axis_of_date_at(&self, when: chrono::DateTime<chrono::Utc>) -> (f64, f64) {
+        let seconds = (when - self.at).num_microseconds().unwrap_or(0) as f64 / 1e6;
+        (
+            (self.fit.ra_degrees + SIDEREAL_DEGREES_PER_SECOND * seconds).rem_euclid(360.0),
+            self.fit.dec_degrees,
+        )
+    }
+
+    /// The axis at `when` in J2000, the frame plate solves report in.
+    pub fn axis_j2000_at(&self, when: chrono::DateTime<chrono::Utc>) -> (f64, f64) {
+        let (ra, dec) = self.axis_of_date_at(when);
+        axis_date_to_j2000(ra, dec, when)
+    }
+}
+
+/// Fit the mount's polar axis to three measurement points.
+///
+/// The axis is fixed to the ground while the sky turns past it, and the three
+/// frames are taken tens of seconds apart, so each solve is first expressed
+/// in one ground-fixed frame: precessed to date and turned back by the
+/// sidereal rotation since it was taken, to where that pointing sits at the
+/// last point's time. A fit in the plate solver's J2000 frame instead treats
+/// the sky's own turn between frames as part of the measurement. Declination
+/// moves the mount reports between points are taken out (see
+/// [`fit_rotation_axis_with_dec_moves`]). Refraction is not modeled.
+pub fn fit_mount_axis(points: &[AlignmentPoint], is_north: bool) -> Option<MountAxisFit> {
+    if points.len() < 3 {
+        return None;
+    }
+    let points = &points[..3];
+    let at = points[2].taken_at;
+    let ground: Vec<(f64, f64)> = points
+        .iter()
+        .map(|p| {
+            let (ra, dec) = axis_j2000_to_date(p.ra_degrees, p.dec_degrees, p.taken_at);
+            let seconds = (at - p.taken_at).num_microseconds().unwrap_or(0) as f64 / 1e6;
+            (
+                (ra + SIDEREAL_DEGREES_PER_SECOND * seconds).rem_euclid(360.0),
+                dec,
+            )
+        })
+        .collect();
+    let moves: Vec<f64> = match (
+        points[0].mount_dec_degrees,
+        points[1].mount_dec_degrees,
+        points[2].mount_dec_degrees,
+    ) {
+        (Some(d0), Some(d1), Some(d2)) => vec![0.0, d1 - d0, d2 - d0],
+        _ => vec![0.0; 3],
+    };
+    let fit = fit_rotation_axis_with_dec_moves(&ground, &moves, is_north)?;
+    Some(MountAxisFit { fit, at })
 }
 
 /// Measure the fit's sensitivity by doing to the points what the sky does to
@@ -89,6 +275,7 @@ fn fit_axis_vector(points: &[(f64, f64)], is_north: bool) -> Option<[f64; 3]> {
 /// effect is half the answer.
 fn axis_sensitivity_degrees_per_arcmin(
     points: &[(f64, f64)],
+    moves: [f64; 3],
     is_north: bool,
     axis: [f64; 3],
 ) -> f64 {
@@ -108,7 +295,7 @@ fn axis_sensitivity_degrees_per_arcmin(
                 },
                 dec + d_dec,
             );
-            let Some(moved) = fit_axis_vector(&nudged, is_north) else {
+            let Some(moved) = fit_axis_vector(&nudged, moves, is_north) else {
                 return f64::INFINITY;
             };
             worst = worst.max(dot(axis, moved).clamp(-1.0, 1.0).acos().to_degrees());
@@ -188,6 +375,26 @@ pub fn axis_j2000_to_date(
         (z + a.atan2(b)).to_degrees().rem_euclid(360.0),
         c.clamp(-1.0, 1.0).asin().to_degrees(),
     )
+}
+
+/// The inverse of [`axis_j2000_to_date`]: a mean-of-date direction in J2000.
+///
+/// Precession is a rotation, so the forward map applied to the three basis
+/// directions gives its matrix and the transpose undoes it.
+pub fn axis_date_to_j2000(
+    ra_degrees: f64,
+    dec_degrees: f64,
+    when: chrono::DateTime<chrono::Utc>,
+) -> (f64, f64) {
+    let column = |ra: f64, dec: f64| {
+        let (r, d) = axis_j2000_to_date(ra, dec, when);
+        radec_to_vec(r, d)
+    };
+    // Columns of the forward matrix: images of x, y and z.
+    let m = [column(0.0, 0.0), column(90.0, 0.0), column(0.0, 90.0)];
+    let v = radec_to_vec(ra_degrees, dec_degrees);
+    // (Mᵀ v)_k = column_k · v.
+    unit_to_radec((dot(m[0], v), dot(m[1], v), dot(m[2], v)))
 }
 
 /// Compute (Δaz, Δalt, total) alignment error in arcminutes from the
@@ -542,6 +749,43 @@ mod tests {
         assert!((fit.arc_degrees - 30.0).abs() < 1e-6, "{fit:?}");
     }
 
+    /// A declination move between points is the mount's own motion, not a
+    /// property of the axis, in either hemisphere.
+    #[test]
+    fn declination_moves_between_points_are_taken_out_of_the_axis() {
+        for (axis, is_north, sign) in [((100.0, 88.5), true, 1.0), ((250.0, -88.5), false, -1.0)] {
+            let base = sample_circle(axis, 30.0, 10.0, 20.0, 3, true);
+            // How much closer to the axis the declination axis carried each
+            // point. The mount reports that as a declination increase in the
+            // north and a decrease in the south.
+            let closer: [f64; 3] = [0.0, 0.05, -0.03];
+            let a = radec_to_vec(axis.0, axis.1);
+            let moved: Vec<(f64, f64)> = base
+                .iter()
+                .zip(closer)
+                .map(|(&(ra, dec), d)| {
+                    let p = radec_to_vec(ra, dec);
+                    let r = dot(a, p).acos();
+                    let t = normalise(sub(p, a.map(|c| c * r.cos()))).unwrap();
+                    let r = r - d.to_radians();
+                    let q = [0, 1, 2].map(|k| a[k] * r.cos() + t[k] * r.sin());
+                    unit_to_radec((q[0], q[1], q[2]))
+                })
+                .collect();
+            let signed_moves = closer.map(|d| d * sign);
+            let plain = fit_rotation_axis(&moved, is_north).unwrap();
+            let fit = fit_rotation_axis_with_dec_moves(&moved, &signed_moves, is_north).unwrap();
+            assert!(
+                angle_between((plain.ra_degrees, plain.dec_degrees), axis) > 0.1,
+                "{plain:?}"
+            );
+            assert!(
+                angle_between((fit.ra_degrees, fit.dec_degrees), axis) * 3600.0 < 0.01,
+                "{fit:?}"
+            );
+        }
+    }
+
     /// Why the owner's run produced an axis 9° from the pole from three good
     /// plate solves: three points determine a circle exactly, so the whole
     /// measurement is the arc's curvature, and a short arc has almost none.
@@ -890,5 +1134,199 @@ mod tests {
                 "the centre-only estimate was expected to be arcminutes out, got {worst_old:.1}\""
             );
         }
+    }
+}
+
+/// Replays the three-point runs the owner's rig made on 2026-11-07 (local
+/// evening; solves from `~/.cache/ns-link-1107/tppa/analysis/skotiq_runs.py`).
+///
+/// Those runs stepped the mount with a double-precessed target, so the
+/// declination axis moved 75-384" between points, and the J2000 sky-frame fit
+/// turned that into an axis about 1° off with a sign that flipped with the
+/// pier side. The expected values are the independent reduction of the same
+/// solves (astropy, ground-frame fit with the reported declination moves taken
+/// out), which also predicted the drift the adjustment frames then showed.
+#[cfg(test)]
+mod rig_replay_2026_11_07 {
+    use super::*;
+    use chrono::{DateTime, Utc};
+
+    const LATITUDE: f64 = 39.9719;
+    const LONGITUDE: f64 = -75.3576;
+
+    struct Run {
+        name: &'static str,
+        solves: [(f64, f64); 3],
+        times: [&'static str; 3],
+        mount_dec: [f64; 3],
+        /// What Skotiq showed the owner, (az, alt) arcsec.
+        reported: (f64, f64),
+        /// The independent reduction, (az, alt) arcsec.
+        expected: (f64, f64),
+    }
+
+    const RUNS: [Run; 3] = [
+        Run {
+            name: "run 1, 19:33, pier west",
+            solves: [
+                (322.4830, 61.1625),
+                (301.4923, 62.8023),
+                (279.2931, 64.0291),
+            ],
+            times: [
+                "2026-11-08T00:33:40.1Z",
+                "2026-11-08T00:33:56.5Z",
+                "2026-11-08T00:34:13.2Z",
+            ],
+            mount_dec: [60.1105, 60.1805, 60.1314],
+            reported: (25068.0, -659.0),
+            expected: (21705.0, 1925.0),
+        },
+        Run {
+            name: "run 2, 20:19, pier west",
+            solves: [
+                (334.0113, 61.1478),
+                (313.0539, 62.8020),
+                (290.8896, 64.0286),
+            ],
+            times: [
+                "2026-11-08T01:19:36.9Z",
+                "2026-11-08T01:19:55.9Z",
+                "2026-11-08T01:20:12.1Z",
+            ],
+            mount_dec: [60.1139, 60.2089, 60.1639],
+            reported: (25723.0, -1010.0),
+            expected: (21622.0, 1981.0),
+        },
+        Run {
+            name: "run 3, 20:27, pier east",
+            solves: [(21.3506, 69.8928), (41.7363, 70.2970), (62.5509, 70.5576)],
+            times: [
+                "2026-11-08T01:27:22.1Z",
+                "2026-11-08T01:27:39.8Z",
+                "2026-11-08T01:27:57.7Z",
+            ],
+            mount_dec: [70.1367, 70.2433, 70.1998],
+            reported: (-7365.0, -785.0),
+            expected: (-2635.0, 1832.0),
+        },
+    ];
+
+    fn time(s: &str) -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc)
+    }
+
+    fn error_arcsec(axis_of_date: (f64, f64), when: DateTime<Utc>) -> (f64, f64) {
+        let (az, alt, _) = calculate_alignment_error_arcmin(
+            axis_of_date.0,
+            axis_of_date.1,
+            true,
+            LATITUDE,
+            LONGITUDE,
+            when,
+        );
+        (az * 60.0, alt * 60.0)
+    }
+
+    fn points(run: &Run) -> Vec<AlignmentPoint> {
+        (0..3)
+            .map(|i| AlignmentPoint {
+                ra_degrees: run.solves[i].0,
+                dec_degrees: run.solves[i].1,
+                taken_at: time(run.times[i]),
+                mount_dec_degrees: Some(run.mount_dec[i]),
+            })
+            .collect()
+    }
+
+    /// The old reduction is what produced the numbers on the owner's screen.
+    #[test]
+    fn the_sky_frame_fit_reproduces_what_the_rig_reported() {
+        for run in &RUNS {
+            let fit = fit_rotation_axis(&run.solves, true).unwrap();
+            let when = time(run.times[2]);
+            let (az, alt) = error_arcsec(
+                axis_j2000_to_date(fit.ra_degrees, fit.dec_degrees, when),
+                when,
+            );
+            assert!(
+                (az - run.reported.0).abs() < 60.0 && (alt - run.reported.1).abs() < 60.0,
+                "{}: az {az:.0}\" alt {alt:.0}\", reported {:?}",
+                run.name,
+                run.reported
+            );
+        }
+    }
+
+    #[test]
+    fn the_ground_frame_fit_with_dec_moves_matches_the_independent_reduction() {
+        for run in &RUNS {
+            let fit = fit_mount_axis(&points(run), true).unwrap();
+            let (az, alt) = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
+            eprintln!(
+                "{}: az {az:+.0}\" alt {alt:+.0}\" expected {:?}",
+                run.name, run.expected
+            );
+            assert!(
+                (az - run.expected.0).abs() < 40.0 && (alt - run.expected.1).abs() < 40.0,
+                "{}: az {az:.0}\" alt {alt:.0}\", expected {:?}",
+                run.name,
+                run.expected
+            );
+        }
+    }
+
+    /// Without the declination moves the same solves give the analysis's
+    /// plain ground-frame fit, which is how much of the error the moves made.
+    #[test]
+    fn without_the_dec_moves_the_ground_frame_fit_keeps_the_old_error() {
+        let plain = [(24934.0, -675.0), (25557.0, -1003.0), (-7409.0, -805.0)];
+        for (run, expected) in RUNS.iter().zip(plain) {
+            let mut pts = points(run);
+            for p in &mut pts {
+                p.mount_dec_degrees = None;
+            }
+            let fit = fit_mount_axis(&pts, true).unwrap();
+            let (az, alt) = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
+            assert!(
+                (az - expected.0).abs() < 40.0 && (alt - expected.1).abs() < 40.0,
+                "{}: az {az:.0}\" alt {alt:.0}\", expected {expected:?}",
+                run.name
+            );
+        }
+    }
+
+    /// Runs 1 and 2 had no bolt moves between them, so they measured the same
+    /// axis; the old reduction agreed with itself there too, so the test that
+    /// matters is the altitude sign the two pier sides now share.
+    #[test]
+    fn both_pier_sides_now_agree_on_the_altitude_error() {
+        let alts: Vec<f64> = RUNS
+            .iter()
+            .map(|run| {
+                let fit = fit_mount_axis(&points(run), true).unwrap();
+                error_arcsec(fit.axis_of_date_at(fit.at), fit.at).1
+            })
+            .collect();
+        let spread = alts.iter().cloned().fold(f64::MIN, f64::max)
+            - alts.iter().cloned().fold(f64::MAX, f64::min);
+        assert!(alts.iter().all(|a| *a > 0.0), "{alts:?}");
+        assert!(spread < 300.0, "{alts:?}");
+    }
+
+    #[test]
+    fn the_axis_keeps_its_place_on_the_ground_as_time_passes() {
+        let fit = fit_mount_axis(&points(&RUNS[0]), true).unwrap();
+        let later = fit.at + chrono::Duration::seconds(600);
+        let now = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
+        let then = error_arcsec(fit.axis_of_date_at(later), later);
+        assert!(
+            (now.0 - then.0).abs() < 1.0 && (now.1 - then.1).abs() < 1.0,
+            "{now:?} {then:?}"
+        );
+        let (ra, dec) = fit.axis_j2000_at(later);
+        let back = axis_j2000_to_date(ra, dec, later);
+        let direct = fit.axis_of_date_at(later);
+        assert!((back.0 - direct.0).abs() < 1e-6 && (back.1 - direct.1).abs() < 1e-6);
     }
 }
