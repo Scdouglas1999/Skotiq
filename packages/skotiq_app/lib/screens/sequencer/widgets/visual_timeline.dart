@@ -20,7 +20,6 @@ final preSessionTwilightTimesProvider =
     Provider<planetarium.TwilightTimes?>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final hasLocation = settings != null && settings.hasObserverLocation;
-  final now = DateTime.now();
   if (!hasLocation) return null;
 
   return planetarium.AstronomyCalculations.calculateTwilightTimes(
