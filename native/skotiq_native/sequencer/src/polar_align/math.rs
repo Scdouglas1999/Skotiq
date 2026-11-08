@@ -185,6 +185,12 @@ fn solve_3x3(m: [[f64; 3]; 3], b: [f64; 3]) -> Option<[f64; 3]> {
 /// The sky's rotation relative to the ground, degrees per second of time.
 const SIDEREAL_DEGREES_PER_SECOND: f64 = 360.985_647_366_29 / 86_400.0;
 
+/// `to - from` in seconds, to the millisecond (a millisecond of sidereal
+/// rotation is 0.015").
+fn seconds_between(from: chrono::DateTime<chrono::Utc>, to: chrono::DateTime<chrono::Utc>) -> f64 {
+    (to - from).num_milliseconds() as f64 / 1000.0
+}
+
 /// One three-point measurement: where the frame solved, when it was taken, and
 /// where the mount said its declination axis was.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -212,7 +218,7 @@ impl MountAxisFit {
     /// The axis of date at `when`. The axis is fixed to the ground, so its
     /// right ascension advances with sidereal time.
     pub fn axis_of_date_at(&self, when: chrono::DateTime<chrono::Utc>) -> (f64, f64) {
-        let seconds = (when - self.at).num_microseconds().unwrap_or(0) as f64 / 1e6;
+        let seconds = seconds_between(self.at, when);
         (
             (self.fit.ra_degrees + SIDEREAL_DEGREES_PER_SECOND * seconds).rem_euclid(360.0),
             self.fit.dec_degrees,
@@ -246,7 +252,7 @@ pub fn fit_mount_axis(points: &[AlignmentPoint], is_north: bool) -> Option<Mount
         .iter()
         .map(|p| {
             let (ra, dec) = axis_j2000_to_date(p.ra_degrees, p.dec_degrees, p.taken_at);
-            let seconds = (at - p.taken_at).num_microseconds().unwrap_or(0) as f64 / 1e6;
+            let seconds = seconds_between(p.taken_at, at);
             (
                 (ra + SIDEREAL_DEGREES_PER_SECOND * seconds).rem_euclid(360.0),
                 dec,
