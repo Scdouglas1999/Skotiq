@@ -917,3 +917,38 @@ fn grid_field(arcsec_per_px: f64) -> Vec<crate::sim_sky::SkyStar> {
     }
     stars
 }
+
+#[test]
+fn an_obstructed_defocused_star_is_a_donut_with_the_same_flux() {
+    let sigma = sim_star_sigma(Some(SIM_TRUE_FOCUS + 600));
+    let donut = SimPsf::new(sigma, Some(0.35), 3.0);
+    assert!(donut.is_donut());
+    // Dark in the middle, bright on the ring.
+    let ring_r = 0.5 * 1.35 * 2.0 * sigma;
+    assert!(donut.at(0.0, 0.0, 0.0) < 0.05 * donut.at(ring_r, 0.0, 0.3));
+
+    // Light is conserved: the donut and the Gaussian carry the same flux.
+    let gaussian = SimPsf::new(sigma, None, 6.0);
+    let total = |psf: &SimPsf| {
+        let reach = psf.reach.ceil() as i32;
+        let mut sum = 0.0;
+        for y in -reach..=reach {
+            for x in -reach..=reach {
+                sum += psf.at(f64::from(x), f64::from(y), 0.3);
+            }
+        }
+        sum
+    };
+    assert!(
+        (total(&donut) - 1.0).abs() < 0.1,
+        "donut flux {}",
+        total(&donut)
+    );
+    assert!((total(&gaussian) - 1.0).abs() < 0.01);
+}
+
+#[test]
+fn a_star_near_focus_stays_gaussian_behind_an_obstruction() {
+    let psf = SimPsf::new(sim_star_sigma(Some(SIM_TRUE_FOCUS)), Some(0.35), 3.0);
+    assert!(!psf.is_donut());
+}

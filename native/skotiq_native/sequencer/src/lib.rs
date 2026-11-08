@@ -4,6 +4,8 @@
 
 pub mod all_sky_polar;
 pub mod autofocus;
+#[cfg(test)]
+mod autofocus_screen_tests;
 // live-stacking broadcast service.
 pub mod broadcast;
 pub mod checkpoint;

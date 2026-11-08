@@ -611,22 +611,12 @@ pub(crate) async fn run_sequencer_event_loop(
                     message,
                     result_json,
                 } => {
-                    let result = result_json
-                        .as_deref()
-                        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok());
-                    let value = serde_json::json!({
-                        "status": status,
-                        "message": message,
-                        "result": result,
-                    });
-                    state.publish_equipment_event(
-                        crate::event::EquipmentEvent::PropertyChanged {
-                            device_type: "focuser".to_string(),
-                            device_id: focuser_id.clone(),
-                            property: "AutofocusFinished".to_string(),
-                            value: value.to_string(),
-                        },
-                        EventSeverity::Info,
+                    crate::util::executor_event_bridge::publish_autofocus_finished(
+                        state,
+                        focuser_id,
+                        *status,
+                        message.as_deref(),
+                        result_json.as_deref(),
                     );
                     None
                 }

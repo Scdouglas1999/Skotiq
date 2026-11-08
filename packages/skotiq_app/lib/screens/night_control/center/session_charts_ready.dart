@@ -69,7 +69,8 @@ class _LastAutofocus extends Notifier<NightAutofocusCurveVm?> {
     }
     return NightAutofocusCurveVm(
       points: <(int, double)>[
-        for (final point in af.vcurvePoints) (point.position, point.hfr),
+        for (final point in af.vcurvePoints)
+          if (!point.isRejected) (point.position, point.hfr),
       ],
       bestPosition: result.bestPosition,
       bestHfr: result.bestHfr,

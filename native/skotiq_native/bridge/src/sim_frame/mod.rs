@@ -211,6 +211,142 @@ pub fn sim_star_sigma(focus_position: Option<i32>) -> f64 {
     SIM_MIN_SIGMA + defocus * SIM_SIGMA_PER_STEP
 }
 
+/// Defocus blur, in Gaussian sigma pixels, beyond which an obstructed
+/// telescope's stars render as donuts.
+const SIM_DONUT_MIN_SIGMA: f64 = 3.5;
+/// Half-width of a spider vane's shadow across the ring, as |sin 2θ|.
+const SIM_DONUT_VANE_HALF_WIDTH: f64 = 0.08;
+
+/// The central obstruction armed by `SKOTIQ_SIM_OBSTRUCTION` (a diameter
+/// ratio, such as 0.35 for a Newtonian's secondary). Unset means an
+/// unobstructed telescope whose defocused stars stay Gaussian.
+///
+/// It exists because the owner's 10" f/4 Newtonian turns defocused stars into
+/// donuts that the star detector misses: those frames find a few specks and
+/// report a falsely low HFR, which no Gaussian simulator ever produced.
+fn sim_obstruction() -> Option<f64> {
+    static OBSTRUCTION: std::sync::OnceLock<Option<f64>> = std::sync::OnceLock::new();
+    *OBSTRUCTION.get_or_init(|| {
+        let raw = std::env::var("SKOTIQ_SIM_OBSTRUCTION").ok()?;
+        match raw.trim().parse::<f64>() {
+            Ok(ratio) if ratio.is_finite() && (0.05..=0.9).contains(&ratio) => Some(ratio),
+            _ => {
+                tracing::error!(
+                    "SKOTIQ_SIM_OBSTRUCTION={raw:?} is not a ratio between 0.05 and 0.9; \
+                     simulated stars stay Gaussian"
+                );
+                None
+            }
+        }
+    })
+}
+
+/// Scale on every simulated star's flux, armed by
+/// `SKOTIQ_SIM_STAR_FLUX_SCALE`. A narrowband filter passes a few percent of
+/// a star's broadband light, and that is what turns a defocused field into
+/// donuts too faint to detect; 1 (unset) keeps the broadband field.
+fn sim_star_flux_scale() -> f64 {
+    static SCALE: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *SCALE.get_or_init(|| {
+        let Ok(raw) = std::env::var("SKOTIQ_SIM_STAR_FLUX_SCALE") else {
+            return 1.0;
+        };
+        match raw.trim().parse::<f64>() {
+            Ok(scale) if scale.is_finite() && scale > 0.0 && scale <= 10.0 => scale,
+            _ => {
+                tracing::error!(
+                    "SKOTIQ_SIM_STAR_FLUX_SCALE={raw:?} is not a scale above 0 and at most 10; \
+                     simulated stars keep their flux"
+                );
+                1.0
+            }
+        }
+    })
+}
+
+/// A simulated star's light profile, per unit of total flux.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SimPsf {
+    two_sigma_sq: f64,
+    gaussian_norm: f64,
+    /// Ring radius, twice the ring's cross-section variance, and the ring's
+    /// normalization, when the star is a donut.
+    ring: Option<(f64, f64, f64)>,
+    /// Pixels from the centre beyond which the profile is not drawn.
+    pub(crate) reach: f64,
+}
+
+impl SimPsf {
+    /// The profile for a defocus blur of `sigma` pixels behind a central
+    /// obstruction of `obstruction` (diameter ratio), drawn out to
+    /// `reach_sigmas` of a Gaussian's width.
+    pub(crate) fn new(sigma: f64, obstruction: Option<f64>, reach_sigmas: f64) -> Self {
+        let two_sigma_sq = 2.0 * sigma * sigma;
+        let gaussian_norm = 1.0 / (std::f64::consts::TAU * sigma * sigma);
+        let ring = obstruction
+            .filter(|_| sigma >= SIM_DONUT_MIN_SIGMA)
+            .map(|obs| {
+                // The geometric blur disc of a defocused star spans the pupil's
+                // image: out to R, with the secondary's shadow inside obs * R.
+                let outer = 2.0 * sigma;
+                let r0 = 0.5 * (1.0 + obs) * outer;
+                let width = SIM_MIN_SIGMA.hypot((1.0 - obs) * outer / 3.0);
+                let norm =
+                    1.0 / (std::f64::consts::TAU * r0 * (std::f64::consts::TAU).sqrt() * width);
+                (r0, 2.0 * width * width, norm)
+            });
+        let reach = match ring {
+            Some((r0, two_w_sq, _)) => r0 + 3.0 * (two_w_sq / 2.0).sqrt(),
+            None => reach_sigmas * sigma,
+        };
+        Self {
+            two_sigma_sq,
+            gaussian_norm,
+            ring,
+            reach,
+        }
+    }
+
+    /// The profile for a focuser position, with the armed obstruction.
+    pub(crate) fn for_focus(focus_position: Option<i32>, reach_sigmas: f64) -> Self {
+        Self::new(
+            sim_star_sigma(focus_position),
+            sim_obstruction(),
+            reach_sigmas,
+        )
+    }
+
+    /// Light per unit flux at offset (`dx`, `dy`) from the centre.
+    ///
+    /// A real donut is not a smooth ring: seeing breaks it into knots and the
+    /// secondary's spider vanes cut it into arcs. `phase` turns that pattern
+    /// per star. It is what makes a detector find a few specks in a field of
+    /// donuts rather than the donuts themselves.
+    pub(crate) fn at(&self, dx: f64, dy: f64, phase: f64) -> f64 {
+        let r_sq = dx * dx + dy * dy;
+        match self.ring {
+            Some((r0, two_w_sq, norm)) => {
+                let d = r_sq.sqrt() - r0;
+                let theta = dy.atan2(dx);
+                // ((1 + cos) / 2)^6 averages 924 / 4096 around the ring, so
+                // dividing by that keeps the star's flux.
+                let knots = (0.5 + 0.5 * (5.0 * theta + phase).cos()).powi(6) * (4096.0 / 924.0);
+                let vane = if (2.0 * (theta - phase)).sin().abs() < SIM_DONUT_VANE_HALF_WIDTH {
+                    0.0
+                } else {
+                    1.0
+                };
+                norm * knots * vane * (-d * d / two_w_sq).exp()
+            }
+            None => self.gaussian_norm * (-r_sq / self.two_sigma_sq).exp(),
+        }
+    }
+
+    pub(crate) fn is_donut(&self) -> bool {
+        self.ring.is_some()
+    }
+}
+
 struct Lcg(u64);
 
 impl Lcg {
@@ -355,13 +491,12 @@ fn add_stars(
     region_h: u32,
     exposure: f64,
 ) {
-    let sigma = sim_star_sigma(request.focus_position);
-    let two_sigma_sq = 2.0 * sigma * sigma;
-    let peak_e = SIM_STAR_E_PER_SEC * exposure / (std::f64::consts::TAU * sigma * sigma);
-    if peak_e <= 0.0 {
+    let psf = SimPsf::for_focus(request.focus_position, 3.0);
+    let flux_e = SIM_STAR_E_PER_SEC * sim_star_flux_scale() * exposure;
+    if flux_e <= 0.0 {
         return;
     }
-    let radius = (3.0 * sigma).ceil() as isize;
+    let radius = psf.reach.ceil() as isize;
     let width = region_w as isize;
     let height = region_h as isize;
 
@@ -383,7 +518,13 @@ fn add_stars(
             margin + field.next_f64() * (request.height as f64 - 2.0 * margin) + request.offset_y;
         // Some brightness spread, so the detector sees a realistic magnitude
         // range rather than 45 identical stars.
-        let star_peak = peak_e * (0.45 + 0.55 * field.next_f64());
+        let star_flux = flux_e * (0.45 + 0.55 * field.next_f64());
+        // Drawn only for a donut, so a Gaussian field's sequence is untouched.
+        let star_phase = if psf.is_donut() {
+            field.next_f64() * std::f64::consts::TAU
+        } else {
+            0.0
+        };
 
         let cx = sensor_cx - f64::from(region_x);
         let cy = sensor_cy - f64::from(region_y);
@@ -396,8 +537,7 @@ fn add_stars(
                 if px < 0 || py < 0 || px >= width || py >= height {
                     continue;
                 }
-                let r_sq = (px as f64 - cx).powi(2) + (py as f64 - cy).powi(2);
-                let value = star_peak * (-r_sq / two_sigma_sq).exp();
+                let value = star_flux * psf.at(px as f64 - cx, py as f64 - cy, star_phase);
                 if value < 1.0 {
                     continue;
                 }
@@ -486,17 +626,14 @@ fn add_sky_stars(
     region_h: u32,
     exposure: f64,
 ) {
-    let sigma = sim_star_sigma(request.focus_position);
-    let two_sigma_sq = 2.0 * sigma * sigma;
-    // Peak electrons per electron/second of total flux.
-    let unit_peak = exposure / (std::f64::consts::TAU * sigma * sigma);
-    if unit_peak <= 0.0 {
-        return;
-    }
     // Four sigma, where the pseudo-random field uses three: a catalogue field is
     // dominated by stars near the detection floor, and clipping their wings a
     // sigma early costs exactly the flux the solver centroids on.
-    let radius = (4.0 * sigma).ceil() as isize;
+    let psf = SimPsf::for_focus(request.focus_position, 4.0);
+    if exposure <= 0.0 {
+        return;
+    }
+    let radius = psf.reach.ceil() as isize;
 
     let sensor_w = request.width as f64;
     let sensor_h = request.height as f64;
@@ -529,12 +666,15 @@ fn add_sky_stars(
         .iter()
         .map(|(_, _, mag)| *mag)
         .fold(f64::MIN, f64::max);
-    let faint_peak_e = SIM_SKY_FAINT_E_PER_SEC * unit_peak;
+    let faint_flux_e = SIM_SKY_FAINT_E_PER_SEC * sim_star_flux_scale() * exposure;
 
     let width = region_w as isize;
     let height = region_h as isize;
     for (sensor_cx, sensor_cy, mag) in placed {
-        let peak_e = faint_peak_e * 10f64.powf(0.4 * (faintest - mag));
+        let flux_e = faint_flux_e * 10f64.powf(0.4 * (faintest - mag));
+        // Fixed per star position, so a pointing renders the same frame.
+        let star_phase = (sensor_cx * 12.9898 + sensor_cy * 78.233).sin().abs() * 43_758.545;
+        let star_phase = star_phase.fract() * std::f64::consts::TAU;
         let cx = sensor_cx - f64::from(region_x);
         let cy = sensor_cy - f64::from(region_y);
         let cxi = cx.round() as isize;
@@ -549,8 +689,7 @@ fn add_sky_stars(
                 if px < 0 || px >= width {
                     continue;
                 }
-                let r_sq = (px as f64 - cx).powi(2) + (py as f64 - cy).powi(2);
-                let value = peak_e * (-r_sq / two_sigma_sq).exp();
+                let value = flux_e * psf.at(px as f64 - cx, py as f64 - cy, star_phase);
                 if value < 1.0 {
                     continue;
                 }

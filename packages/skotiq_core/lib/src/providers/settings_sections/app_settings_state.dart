@@ -142,6 +142,11 @@ class AppSettingsState {
   // Equipment Settings - Focuser
   final bool tempCompensation;
   final double tempCoefficient;
+
+  /// Temperature compensation waits until the correction it owes is at least
+  /// this many steps, so probe noise and slow drift do not step the focuser
+  /// by one every reading.
+  final int tempCompensationMinSteps;
   final int backlashCompensation;
 
   // Equipment Settings - Guider
@@ -564,6 +569,7 @@ class AppSettingsState {
     // Equipment Settings - Focuser
     this.tempCompensation = false,
     this.tempCoefficient = -12.0,
+    this.tempCompensationMinSteps = 5,
     this.backlashCompensation = 0,
 
     // Equipment Settings - Guider

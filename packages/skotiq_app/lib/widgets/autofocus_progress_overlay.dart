@@ -470,29 +470,49 @@ class _AutofocusProgressOverlayState
     AutofocusOverlayState overlayState,
   ) {
     if (overlayState.isRunning) {
-      return _buildIconButton(
-        icon: LucideIcons.square,
-        tooltip: 'Cancel autofocus',
-        onPressed: () {
-          unawaited(
-            ref.read(deviceServiceProvider).cancelAutofocus().catchError((
-              Object error,
-            ) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not cancel autofocus: $error')),
-                );
-              }
-            }),
-          );
-        },
-        colors: colors,
+      // Cancel stops the sweep; the X only puts the panel away. A run whose
+      // end never reached this window used to leave Cancel as the panel's
+      // only control, so it could not be closed at all.
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildCancelButton(colors),
+          const SizedBox(width: 2),
+          _buildIconButton(
+            icon: LucideIcons.x,
+            tooltip: 'Hide panel',
+            onPressed: () =>
+                ref.read(autofocusOverlayProvider.notifier).hide(),
+            colors: colors,
+          ),
+        ],
       );
     }
     return _buildIconButton(
       icon: LucideIcons.x,
       tooltip: 'Dismiss',
       onPressed: () => ref.read(autofocusOverlayProvider.notifier).dismiss(),
+      colors: colors,
+    );
+  }
+
+  Widget _buildCancelButton(SkotiqColors colors) {
+    return _buildIconButton(
+      icon: LucideIcons.square,
+      tooltip: 'Cancel autofocus',
+      onPressed: () {
+        unawaited(
+          ref.read(deviceServiceProvider).cancelAutofocus().catchError((
+            Object error,
+          ) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Could not cancel autofocus: $error')),
+              );
+            }
+          }),
+        );
+      },
       colors: colors,
     );
   }

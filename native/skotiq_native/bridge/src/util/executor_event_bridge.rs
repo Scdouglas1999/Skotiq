@@ -82,15 +82,61 @@ pub fn spawn_executor_event_bridge(state: SharedAppState) -> broadcast::Sender<E
     tx
 }
 
+/// Publish an autofocus sweep's outcome as the focuser's `AutofocusFinished`
+/// property, the one shape every window settles its focus panel from,
+/// whoever started the sweep.
+pub(crate) fn publish_autofocus_finished(
+    state: &SharedAppState,
+    focuser_id: &str,
+    status: skotiq_sequencer::NodeStatus,
+    message: Option<&str>,
+    result_json: Option<&str>,
+) {
+    let result = result_json.and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok());
+    let value = serde_json::json!({
+        "status": status,
+        "message": message,
+        "result": result,
+    });
+    state.publish_equipment_event(
+        crate::event::EquipmentEvent::PropertyChanged {
+            device_type: "focuser".to_string(),
+            device_id: focuser_id.to_string(),
+            property: "AutofocusFinished".to_string(),
+            value: value.to_string(),
+        },
+        EventSeverity::Info,
+    );
+}
+
 fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
     let (severity, message) = match event {
         ExecutorEvent::Error { message } => (EventSeverity::Error, message),
         ExecutorEvent::Warning { message } => (EventSeverity::Warning, message),
         ExecutorEvent::SequenceFailed { error } => (EventSeverity::Error, error),
-        // The one-shot autofocus publishes its own points and returns its
-        // result to the caller; forwarding these too would double the
-        // V-curve and log a line per point.
-        ExecutorEvent::AutofocusProgress { .. } | ExecutorEvent::AutofocusFinished { .. } => return,
+        // The one-shot autofocus publishes its own points; forwarding these
+        // too would double the V-curve and log a line per point.
+        ExecutorEvent::AutofocusProgress { .. } => return,
+        // Its outcome does go out. The caller that started the sweep gets the
+        // result back, but every other window drew the sweep from the events
+        // and would show it running for the rest of the night: on 2026-11-07
+        // an autofocus started through the REST API succeeded and the host's
+        // focus panel read "point 13 of 13" with only a Cancel button.
+        ExecutorEvent::AutofocusFinished {
+            focuser_id,
+            status,
+            message,
+            result_json,
+        } => {
+            publish_autofocus_finished(
+                state,
+                &focuser_id,
+                status,
+                message.as_deref(),
+                result_json.as_deref(),
+            );
+            return;
+        }
         // A one-shot dither is not a run's dither; there is no run to count it.
         ExecutorEvent::DitherPerformed { .. } => return,
         // Frame measurements belong to a run's frame record.
@@ -110,4 +156,49 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         EventCategory::Sequencer,
         EventPayload::Sequencer(SequencerEvent::Error { message }),
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::EquipmentEvent;
+    use skotiq_sequencer::NodeStatus;
+
+    /// On 2026-11-07 an autofocus started through the REST API succeeded and
+    /// the host's focus panel read "point 13 of 13" all night: the one-shot
+    /// bridge dropped the sweep's end, so only the API caller learned of it.
+    #[tokio::test]
+    async fn a_one_shot_autofocus_end_reaches_every_window() {
+        let state = crate::state::AppState::new();
+        let mut events = state.event_bus.subscribe();
+        let tx = spawn_executor_event_bridge(state.clone());
+
+        tx.send(ExecutorEvent::AutofocusFinished {
+            focuser_id: "native:zwo_eaf:0".to_string(),
+            status: NodeStatus::Success,
+            message: None,
+            result_json: Some(r#"{"best_position":45416,"best_hfr":2.35}"#.to_string()),
+        })
+        .unwrap();
+        drop(tx);
+
+        let event = tokio::time::timeout(std::time::Duration::from_secs(5), events.recv())
+            .await
+            .expect("the outcome was published")
+            .unwrap();
+        let EventPayload::Equipment(EquipmentEvent::PropertyChanged {
+            device_id,
+            property,
+            value,
+            ..
+        }) = event.payload
+        else {
+            panic!("unexpected event {:?}", event.payload);
+        };
+        assert_eq!(device_id, "native:zwo_eaf:0");
+        assert_eq!(property, "AutofocusFinished");
+        let value: serde_json::Value = serde_json::from_str(&value).unwrap();
+        assert_eq!(value["status"], "Success");
+        assert_eq!(value["result"]["best_position"], 45416);
+    }
 }
