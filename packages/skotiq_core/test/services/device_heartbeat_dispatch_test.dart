@@ -486,6 +486,7 @@ void main() {
       'arriving on the bus restarts an exhausted reconnect', () async {
     final attempted = <String>[];
     var arrived = false;
+    var resolveFailures = 0;
     late DeviceReconnectCoordinator coordinator;
     final coordinatorProvider = Provider<DeviceReconnectCoordinator>((ref) {
       coordinator = DeviceReconnectCoordinator(
@@ -496,7 +497,10 @@ void main() {
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
         retryDelays: const [Duration(milliseconds: 2)],
         reconnectTarget: (type, deviceId) async {
-          if (!arrived) throw StateError('the camera is not on the bus');
+          if (!arrived) {
+            resolveFailures++;
+            throw StateError('the camera is not on the bus');
+          }
           return 'native:zwo:0';
         },
         reconnectAttempt: (type, deviceId) async => attempted.add(deviceId),
@@ -508,17 +512,31 @@ void main() {
     // A camera is Dart-owned for reconnect; enable it.
     container.read(cameraStateProvider.notifier).setAutoReconnect(true);
     await coordinator.attemptReconnect(DeviceType.camera, 'native:zwo:1');
-    await Future<void>.delayed(const Duration(milliseconds: 60));
+    // Wait (bounded, not a fixed sleep: the full suite runs under load) for
+    // the three quick attempts to run out.
+    Future<void> until(bool Function() done) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!done() && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    }
+
+    await until(
+      () => resolveFailures >= DeviceReconnectCoordinator.maxReconnectAttempts,
+    );
+    expect(resolveFailures, DeviceReconnectCoordinator.maxReconnectAttempts);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(attempted, isEmpty, reason: 'every attempt failed to resolve');
 
     arrived = true;
     coordinator.onDeviceArrived(DeviceType.focuser);
-    await Future<void>.delayed(const Duration(milliseconds: 30));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(attempted, isEmpty, reason: 'a focuser is not the camera');
 
     coordinator.onDeviceArrived(DeviceType.camera);
-    await Future<void>.delayed(const Duration(milliseconds: 30));
+    await until(() => attempted.isNotEmpty);
     expect(attempted, ['native:zwo:0']);
+
     coordinator.cancelAll();
   });
 
