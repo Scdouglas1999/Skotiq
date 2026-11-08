@@ -426,7 +426,23 @@ where
         &mut self,
         ctx: &InstructionContext,
     ) -> WizardStepOutcome<PolarStep> {
-        let Some(mount_axis) = math::fit_mount_axis(&self.points, self.config.is_north) else {
+        let (observer_latitude, observer_longitude) = match (ctx.latitude, ctx.longitude) {
+            (Some(lat), Some(lon)) => (lat, lon),
+            _ => match ctx.device_ops.get_observer_location() {
+                Some(loc) => loc,
+                None => {
+                    return WizardStepOutcome::Failed(
+                        "Polar alignment requires observer latitude/longitude to calculate azimuth and altitude error".to_string(),
+                    );
+                }
+            },
+        };
+
+        let Some(mount_axis) = math::fit_mount_axis(
+            &self.points,
+            self.config.is_north,
+            Some((observer_latitude, observer_longitude)),
+        ) else {
             return WizardStepOutcome::Failed(
                 "The three measurement points do not describe a rotation — the mount did not \
                  turn between them, or the same field was solved three times."
@@ -458,18 +474,6 @@ where
         // to the measured axis so the displayed error actually tracks the
         // adjustment instead of being frozen at the initial measurement.
         let mut initial_solved: Option<(math::CameraAttitude, (f64, f64))> = None;
-
-        let (observer_latitude, observer_longitude) = match (ctx.latitude, ctx.longitude) {
-            (Some(lat), Some(lon)) => (lat, lon),
-            _ => match ctx.device_ops.get_observer_location() {
-                Some(loc) => loc,
-                None => {
-                    return WizardStepOutcome::Failed(
-                        "Polar alignment requires observer latitude/longitude to calculate azimuth and altitude error".to_string(),
-                    );
-                }
-            },
-        };
 
         loop {
             if let Some(result) = ctx.check_cancelled() {

@@ -241,22 +241,36 @@ impl MountAxisFit {
 /// last point's time. A fit in the plate solver's J2000 frame instead treats
 /// the sky's own turn between frames as part of the measurement. Declination
 /// moves the mount reports between points are taken out (see
-/// [`fit_rotation_axis_with_dec_moves`]). Refraction is not modeled.
-pub fn fit_mount_axis(points: &[AlignmentPoint], is_north: bool) -> Option<MountAxisFit> {
+/// [`fit_rotation_axis_with_dec_moves`]).
+///
+/// With the site (`(latitude, longitude)` degrees) each point is also lifted
+/// by atmospheric refraction: a plate solve says where the stars are, and the
+/// telescope points where they appear, higher by about an arcminute at 45°
+/// and by different amounts at the three altitudes. The axis is then the
+/// geometric one and is compared with the true pole. Leaving it out moved the
+/// axis 30-70" in altitude on the 2026-11-07 runs.
+pub fn fit_mount_axis(
+    points: &[AlignmentPoint],
+    is_north: bool,
+    site: Option<(f64, f64)>,
+) -> Option<MountAxisFit> {
     if points.len() < 3 {
         return None;
     }
     let points = &points[..3];
     let at = points[2].taken_at;
+    let lst_degrees =
+        site.map(|(_, lon)| crate::local_sidereal_time(crate::julian_day(&at), lon) * 15.0);
     let ground: Vec<(f64, f64)> = points
         .iter()
         .map(|p| {
             let (ra, dec) = axis_j2000_to_date(p.ra_degrees, p.dec_degrees, p.taken_at);
             let seconds = seconds_between(p.taken_at, at);
-            (
-                (ra + SIDEREAL_DEGREES_PER_SECOND * seconds).rem_euclid(360.0),
-                dec,
-            )
+            let ra = (ra + SIDEREAL_DEGREES_PER_SECOND * seconds).rem_euclid(360.0);
+            match (site, lst_degrees) {
+                (Some((lat, _)), Some(lst)) => refracted_of_date(ra, dec, lst, lat),
+                _ => (ra, dec),
+            }
         })
         .collect();
     let moves: Vec<f64> = match (
@@ -269,6 +283,49 @@ pub fn fit_mount_axis(points: &[AlignmentPoint], is_north: bool) -> Option<Mount
     };
     let fit = fit_rotation_axis_with_dec_moves(&ground, &moves, is_north)?;
     Some(MountAxisFit { fit, at })
+}
+
+/// Standard atmosphere for refraction, the same NINA and astropy use by
+/// default: 1013.25 hPa, 15 °C.
+const REFRACTION_PRESSURE_HPA: f64 = 1013.25;
+const REFRACTION_TEMPERATURE_C: f64 = 15.0;
+
+/// Refraction in degrees at true altitude `altitude_degrees` (Saemundsson,
+/// Meeus eq. 16.4, scaled for pressure and temperature). Zero below -1°,
+/// where the formula no longer holds and no frame can be solved anyway.
+fn refraction_degrees(altitude_degrees: f64) -> f64 {
+    if altitude_degrees < -1.0 {
+        return 0.0;
+    }
+    let h = altitude_degrees;
+    let arcmin = 1.02 / (h + 10.3 / (h + 5.11)).to_radians().tan();
+    arcmin / 60.0
+        * (REFRACTION_PRESSURE_HPA / 1010.0)
+        * (283.0 / (273.0 + REFRACTION_TEMPERATURE_C))
+}
+
+/// A direction of date, as the telescope sees it through the atmosphere at a
+/// site of `latitude_degrees`, with local sidereal time `lst_degrees`.
+fn refracted_of_date(
+    ra_degrees: f64,
+    dec_degrees: f64,
+    lst_degrees: f64,
+    latitude_degrees: f64,
+) -> (f64, f64) {
+    let phi = latitude_degrees.to_radians();
+    let ha = (lst_degrees - ra_degrees).to_radians();
+    let dec = dec_degrees.to_radians();
+    let alt = (phi.sin() * dec.sin() + phi.cos() * dec.cos() * ha.cos()).asin();
+    let az =
+        (-ha.sin() * dec.cos()).atan2(dec.sin() * phi.cos() - dec.cos() * phi.sin() * ha.cos());
+    let alt = alt + refraction_degrees(alt.to_degrees()).to_radians();
+    let dec = (phi.sin() * alt.sin() + phi.cos() * alt.cos() * az.cos()).asin();
+    let ha =
+        (-az.sin() * alt.cos()).atan2(phi.cos() * alt.sin() - phi.sin() * alt.cos() * az.cos());
+    (
+        (lst_degrees - ha.to_degrees()).rem_euclid(360.0),
+        dec.to_degrees(),
+    )
 }
 
 /// Measure the fit's sensitivity by doing to the points what the sky does to
@@ -1167,7 +1224,8 @@ mod rig_replay_2026_11_07 {
         mount_dec: [f64; 3],
         /// What Skotiq showed the owner, (az, alt) arcsec.
         reported: (f64, f64),
-        /// The independent reduction, (az, alt) arcsec.
+        /// The independent reduction (astropy, with refraction), (az, alt)
+        /// arcsec.
         expected: (f64, f64),
     }
 
@@ -1186,7 +1244,7 @@ mod rig_replay_2026_11_07 {
             ],
             mount_dec: [60.1105, 60.1805, 60.1314],
             reported: (25068.0, -659.0),
-            expected: (21705.0, 1925.0),
+            expected: (21691.0, 1979.0),
         },
         Run {
             name: "run 2, 20:19, pier west",
@@ -1202,7 +1260,7 @@ mod rig_replay_2026_11_07 {
             ],
             mount_dec: [60.1139, 60.2089, 60.1639],
             reported: (25723.0, -1010.0),
-            expected: (21622.0, 1981.0),
+            expected: (21607.0, 2035.0),
         },
         Run {
             name: "run 3, 20:27, pier east",
@@ -1214,7 +1272,7 @@ mod rig_replay_2026_11_07 {
             ],
             mount_dec: [70.1367, 70.2433, 70.1998],
             reported: (-7365.0, -785.0),
-            expected: (-2635.0, 1832.0),
+            expected: (-2615.0, 1893.0),
         },
     ];
 
@@ -1267,7 +1325,7 @@ mod rig_replay_2026_11_07 {
     #[test]
     fn the_ground_frame_fit_with_dec_moves_matches_the_independent_reduction() {
         for run in &RUNS {
-            let fit = fit_mount_axis(&points(run), true).unwrap();
+            let fit = fit_mount_axis(&points(run), true, Some((LATITUDE, LONGITUDE))).unwrap();
             let (az, alt) = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
             eprintln!(
                 "{}: az {az:+.0}\" alt {alt:+.0}\" expected {:?}",
@@ -1286,13 +1344,13 @@ mod rig_replay_2026_11_07 {
     /// plain ground-frame fit, which is how much of the error the moves made.
     #[test]
     fn without_the_dec_moves_the_ground_frame_fit_keeps_the_old_error() {
-        let plain = [(24934.0, -675.0), (25557.0, -1003.0), (-7409.0, -805.0)];
+        let plain = [(24920.0, -621.0), (25544.0, -950.0), (-7391.0, -745.0)];
         for (run, expected) in RUNS.iter().zip(plain) {
             let mut pts = points(run);
             for p in &mut pts {
                 p.mount_dec_degrees = None;
             }
-            let fit = fit_mount_axis(&pts, true).unwrap();
+            let fit = fit_mount_axis(&pts, true, Some((LATITUDE, LONGITUDE))).unwrap();
             let (az, alt) = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
             assert!(
                 (az - expected.0).abs() < 40.0 && (alt - expected.1).abs() < 40.0,
@@ -1310,7 +1368,7 @@ mod rig_replay_2026_11_07 {
         let alts: Vec<f64> = RUNS
             .iter()
             .map(|run| {
-                let fit = fit_mount_axis(&points(run), true).unwrap();
+                let fit = fit_mount_axis(&points(run), true, Some((LATITUDE, LONGITUDE))).unwrap();
                 error_arcsec(fit.axis_of_date_at(fit.at), fit.at).1
             })
             .collect();
@@ -1322,7 +1380,7 @@ mod rig_replay_2026_11_07 {
 
     #[test]
     fn the_axis_keeps_its_place_on_the_ground_as_time_passes() {
-        let fit = fit_mount_axis(&points(&RUNS[0]), true).unwrap();
+        let fit = fit_mount_axis(&points(&RUNS[0]), true, Some((LATITUDE, LONGITUDE))).unwrap();
         let later = fit.at + chrono::Duration::seconds(600);
         let now = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
         let then = error_arcsec(fit.axis_of_date_at(later), later);
@@ -1334,5 +1392,270 @@ mod rig_replay_2026_11_07 {
         let back = axis_j2000_to_date(ra, dec, later);
         let direct = fit.axis_of_date_at(later);
         assert!((back.0 - direct.0).abs() < 1e-6 && (back.1 - direct.1).abs() < 1e-6);
+    }
+}
+
+/// Cross-check against NINA 3.2's three-point polar alignment, run five times
+/// on the owner's rig on 2026-11-07 between 20:39 and 20:54 EST (NINA log,
+/// `PolarAlignment.cs` lines 493-547; site 39.9719 N, 75.3576 W).
+///
+/// NINA reports Az as the plain azimuth difference between its fitted axis
+/// and the pole (no cos-latitude factor) and Alt as the altitude difference,
+/// axis minus pole, which is Skotiq's convention too.
+#[cfg(test)]
+mod nina_cross_check_2026_11_07 {
+    use super::*;
+    use chrono::{DateTime, Utc};
+
+    const LATITUDE: f64 = 39.9719;
+    const LONGITUDE: f64 = -75.3576;
+
+    struct NinaRun {
+        start: &'static str,
+        /// Local (EST) solve times.
+        times: [&'static str; 3],
+        /// Logged J2000 solves: RA h, m, s; Dec d, m, s.
+        ra: [(f64, f64, f64); 3],
+        dec: [(f64, f64, f64); 3],
+        mount_dec: [(f64, f64, f64); 3],
+        /// NINA's own topocentric unit vectors (x north, y west, z up).
+        vectors: [[f64; 3]; 3],
+        /// NINA's "Calculated Error", arcsec.
+        nina: (f64, f64),
+    }
+
+    const fn dms(d: f64, m: f64, s: f64) -> f64 {
+        d * 3600.0 + m * 60.0 + s
+    }
+
+    const RUNS: [NinaRun; 5] = [
+        NinaRun {
+            start: "20:39",
+            times: [
+                "2026-11-07T20:39:55.0434-05:00",
+                "2026-11-07T20:40:13.6469-05:00",
+                "2026-11-07T20:40:33.3507-05:00",
+            ],
+            ra: [(4., 10., 0.), (4., 55., 22.), (5., 41., 17.)],
+            dec: [(68., 59., 43.), (69., 7., 46.), (69., 18., 30.)],
+            mount_dec: [(70., 12., 2.), (70., 11., 49.), (70., 11., 34.)],
+            vectors: [
+                [0.6229627743796404, -0.326648328191562, 0.7107870647577085],
+                [0.6665873760973013, -0.346959024741668, 0.6597580656407509],
+                [0.712386376864247, -0.35299006275699923, 0.6065506290929397],
+            ],
+            nina: (dms(1., 10., 49.), dms(0., 49., 17.)),
+        },
+        NinaRun {
+            start: "20:43",
+            times: [
+                "2026-11-07T20:43:42.8451-05:00",
+                "2026-11-07T20:44:01.2189-05:00",
+                "2026-11-07T20:44:19.4360-05:00",
+            ],
+            ra: [(2., 24., 18.), (1., 36., 42.), (0., 48., 57.)],
+            dec: [(39., 37., 44.), (39., 42., 27.), (39., 50., 49.)],
+            mount_dec: [(40., 56., 35.), (40., 56., 39.), (40., 56., 42.)],
+            vectors: [
+                [0.10366546079729418, -0.47811265760800176, 0.872159250866892],
+                [0.0498655858174982, -0.3420939976683661, 0.93834168622648],
+                [
+                    0.016327161959623863,
+                    -0.19084544952941482,
+                    0.9814843035811932,
+                ],
+            ],
+            nina: (dms(1., 24., 9.), dms(0., 49., 24.)),
+        },
+        NinaRun {
+            start: "20:46",
+            times: [
+                "2026-11-07T20:46:38.9302-05:00",
+                "2026-11-07T20:46:56.2541-05:00",
+                "2026-11-07T20:47:13.8949-05:00",
+            ],
+            ra: [(4., 22., 18.), (3., 34., 52.), (2., 47., 40.)],
+            dec: [(39., 15., 25.), (39., 13., 33.), (39., 16., 31.)],
+            mount_dec: [(40., 56., 13.), (40., 56., 25.), (40., 56., 33.)],
+            vectors: [
+                [0.29373130348587323, -0.7133321834980898, 0.6363011215912929],
+                [0.2030318660925983, -0.636073288100738, 0.744438602918785],
+                [0.12608026182040988, -0.5312209239402035, 0.8377995569033284],
+            ],
+            nina: (dms(2., 1., 58.), dms(0., 50., 33.)),
+        },
+        NinaRun {
+            start: "20:50",
+            times: [
+                "2026-11-07T20:50:25.4730-05:00",
+                "2026-11-07T20:50:44.1163-05:00",
+                "2026-11-07T20:51:02.2692-05:00",
+            ],
+            ra: [(4., 6., 8.), (3., 17., 43.), (2., 30., 16.)],
+            dec: [(40., 39., 45.), (40., 47., 32.), (40., 56., 15.)],
+            mount_dec: [(40., 56., 20.), (40., 56., 29.), (40., 56., 35.)],
+            vectors: [
+                [0.27389333193248017, -0.6706033772293963, 0.6894008653689464],
+                [0.19035294488178178, -0.5796815354966409, 0.7922973392477662],
+                [
+                    0.12262815349284407,
+                    -0.46543328527082817,
+                    0.8765467431534609,
+                ],
+            ],
+            nina: (dms(0., 58., 24.), -dms(0., 23., 12.)),
+        },
+        NinaRun {
+            start: "20:54",
+            times: [
+                "2026-11-07T20:54:06.7577-05:00",
+                "2026-11-07T20:54:24.4137-05:00",
+                "2026-11-07T20:54:42.1023-05:00",
+            ],
+            ra: [(2., 29., 56.), (1., 42., 16.), (0., 53., 40.)],
+            dec: [(41., 5., 51.), (41., 6., 51.), (41., 7., 58.)],
+            mount_dec: [(40., 56., 36.), (40., 56., 40.), (40., 56., 42.)],
+            vectors: [
+                [0.12076746655094926, -0.4554292974667932, 0.8820427280079851],
+                [0.06887109852725724, -0.3207500938243168, 0.9446566302627324],
+                [0.03562291319228254, -0.1691587142799004, 0.9849448397950344],
+            ],
+            nina: (dms(0., 7., 37.), -dms(0., 9., 19.)),
+        },
+    ];
+
+    fn time(s: &str) -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc)
+    }
+
+    fn error_arcsec(axis_of_date: (f64, f64), when: DateTime<Utc>) -> (f64, f64) {
+        let (az, alt, _) = calculate_alignment_error_arcmin(
+            axis_of_date.0,
+            axis_of_date.1,
+            true,
+            LATITUDE,
+            LONGITUDE,
+            when,
+        );
+        (az * 60.0, alt * 60.0)
+    }
+
+    /// Skotiq's own pipeline from NINA's logged J2000 solves and times.
+    fn skotiq_from_solves(run: &NinaRun, with_dec_moves: bool) -> (f64, f64, RotationAxisFit) {
+        let points: Vec<AlignmentPoint> = (0..3)
+            .map(|i| AlignmentPoint {
+                ra_degrees: (run.ra[i].0 + run.ra[i].1 / 60.0 + run.ra[i].2 / 3600.0) * 15.0,
+                dec_degrees: dms(run.dec[i].0, run.dec[i].1, run.dec[i].2) / 3600.0,
+                taken_at: time(run.times[i]),
+                mount_dec_degrees: with_dec_moves.then(|| {
+                    dms(run.mount_dec[i].0, run.mount_dec[i].1, run.mount_dec[i].2) / 3600.0
+                }),
+            })
+            .collect();
+        let fit = fit_mount_axis(&points, true, Some((LATITUDE, LONGITUDE))).unwrap();
+        let (az, alt) = error_arcsec(fit.axis_of_date_at(fit.at), fit.at);
+        (az, alt, fit.fit)
+    }
+
+    /// Skotiq's circle fit and error decomposition on NINA's own vectors.
+    fn skotiq_from_vectors(run: &NinaRun) -> (f64, f64) {
+        let at = time(run.times[2]);
+        let lst = crate::local_sidereal_time(crate::julian_day(&at), LONGITUDE) * 15.0;
+        let phi = LATITUDE.to_radians();
+        // Each vector is in the horizon frame of its own moment, which is
+        // fixed to the ground; as RA/Dec of date at the last point's time.
+        let points: Vec<(f64, f64)> = run
+            .vectors
+            .iter()
+            .map(|v| {
+                let (north, east, up) = (v[0], -v[1], v[2]);
+                let dec = (phi.sin() * up + phi.cos() * north).asin();
+                let ha = (-east).atan2(phi.cos() * up - phi.sin() * north);
+                ((lst - ha.to_degrees()).rem_euclid(360.0), dec.to_degrees())
+            })
+            .collect();
+        let fit = fit_rotation_axis(&points, true).unwrap();
+        error_arcsec((fit.ra_degrees, fit.dec_degrees), at)
+    }
+
+    /// The independent astropy/ERFA reduction of NINA's logged J2000 solves
+    /// (apparent place with refraction, ground-frame circle;
+    /// `nina_runs.py`), (az, alt) arcsec.
+    const ASTROPY: [(f64, f64); 5] = [
+        (4205.0, 3007.0),
+        (5065.0, 3020.0),
+        (7313.0, 3075.0),
+        (3495.0, -1335.0),
+        (440.0, -518.0),
+    ];
+
+    /// Solver for solver: NINA's own topocentric vectors through Skotiq's
+    /// circle fit and error decomposition give NINA's answer.
+    ///
+    /// Same full-precision inputs, so the fits must agree closely. Azimuth
+    /// agrees to under a second; altitude sits 7-8" below NINA's in every run,
+    /// a constant offset in the pole each side measures from, not in the fit.
+    #[test]
+    fn on_ninas_own_points_the_fit_gives_ninas_error() {
+        for run in &RUNS {
+            let (az, alt) = skotiq_from_vectors(run);
+            assert!(
+                (az - run.nina.0).abs() <= 5.0,
+                "{}: az {az:.0} vs NINA {:.0}",
+                run.start,
+                run.nina.0
+            );
+            assert!(
+                (alt - run.nina.1).abs() <= 15.0,
+                "{}: alt {alt:.0} vs NINA {:.0}",
+                run.start,
+                run.nina.1
+            );
+        }
+    }
+
+    /// Skotiq's whole reduction of the J2000 solves NINA logged, as a Skotiq
+    /// run reduces its own.
+    ///
+    /// Against the independent ERFA reduction of the same logged numbers it
+    /// agrees within 25" (the two refraction models and the nutation and
+    /// aberration Skotiq leaves out). Against NINA's reported error azimuth
+    /// agrees within 50" and altitude reads 56-73" higher in every run: NINA's
+    /// own J2000-to-horizon conversion places the points 175-520" from where
+    /// ERFA places them (`nina_runs.py`), and its error carries that, while on
+    /// identical horizon points the two fits agree (test above). The 1"
+    /// rounding of the logged RA and Dec allows a few tens of arcseconds on
+    /// its own at these arcs, so these are the tightest bounds the logged data
+    /// supports.
+    #[test]
+    fn on_ninas_solves_the_reduction_matches_erfa_and_nina() {
+        for (run, erfa) in RUNS.iter().zip(ASTROPY) {
+            let (az, alt, _) = skotiq_from_solves(run, false);
+            assert!(
+                (az - erfa.0).abs() <= 25.0 && (alt - erfa.1).abs() <= 25.0,
+                "{}: {az:.0}/{alt:.0} vs ERFA {erfa:?}",
+                run.start
+            );
+            assert!(
+                (az - run.nina.0).abs() <= 50.0,
+                "{}: az {az:.0} vs NINA {:.0}",
+                run.start,
+                run.nina.0
+            );
+            let d_alt = alt - run.nina.1;
+            assert!(
+                (40.0..=90.0).contains(&d_alt),
+                "{}: alt {alt:.0} vs NINA {:.0}",
+                run.start,
+                run.nina.1
+            );
+            let total = az.hypot(alt);
+            let nina_total = run.nina.0.hypot(run.nina.1);
+            assert!(
+                (total - nina_total).abs() <= 90.0,
+                "{}: total {total:.0} vs NINA {nina_total:.0}",
+                run.start
+            );
+        }
     }
 }
