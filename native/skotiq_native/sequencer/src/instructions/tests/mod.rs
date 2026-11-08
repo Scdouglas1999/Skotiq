@@ -76,6 +76,10 @@ struct ScriptedDomeRotatorOps {
     /// only changes the returned message while still driving the mount is
     /// indistinguishable from a real gate without this.
     mount_slew_calls: AtomicU32,
+    /// Every slew target, in the order sent.
+    mount_slew_targets: Mutex<Vec<(f64, f64)>>,
+    /// The (RA degrees, Dec) hint of every plate solve.
+    plate_solve_hints: Mutex<Vec<(Option<f64>, Option<f64>)>>,
     // Camera
     camera_exposure_calls: AtomicU32,
     /// For each `guider_dither`, how many exposures had been started when it
@@ -173,6 +177,8 @@ struct ScriptedDomeRotatorOps {
     /// identity default, so a test can stand in for a real mount whose
     /// read-back is of date while the target is J2000.
     scripted_readback_frame: Option<DeviceResult<(f64, f64)>>,
+    /// Added to a read-back to express it in J2000, standing in for precession.
+    scripted_readback_to_j2000_offset: Option<(f64, f64)>,
     /// When `Some((hfr, stars, eccentricity))`, what the per-frame star
     /// analysis measures on every frame, so grading sees real numbers.
     scripted_frame_metrics: Option<(f64, usize, f64)>,
@@ -229,6 +235,8 @@ impl ScriptedDomeRotatorOps {
             mount_slewing_states: Mutex::new(vec![false]),
             mount_slew_state_calls: AtomicU32::new(0),
             mount_slew_calls: AtomicU32::new(0),
+            mount_slew_targets: Mutex::new(Vec::new()),
+            plate_solve_hints: Mutex::new(Vec::new()),
             camera_exposure_calls: AtomicU32::new(0),
             dithers_after_frame: Mutex::new(Vec::new()),
             camera_abort_calls: AtomicU32::new(0),
@@ -273,6 +281,7 @@ impl ScriptedDomeRotatorOps {
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
             scripted_readback_frame: None,
+            scripted_readback_to_j2000_offset: None,
             scripted_frame_metrics: None,
             scripted_pier_side: None,
             scripted_cooler_power: None,
@@ -354,6 +363,11 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Make `mount_readback_frame` answer `frame` for every target.
+    fn with_readback_to_j2000_offset(mut self, ra_hours: f64, dec_degrees: f64) -> Self {
+        self.scripted_readback_to_j2000_offset = Some((ra_hours, dec_degrees));
+        self
+    }
+
     fn with_scripted_readback_frame(mut self, frame: DeviceResult<(f64, f64)>) -> Self {
         self.scripted_readback_frame = Some(frame);
         self
@@ -607,6 +621,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     // Delegating methods
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.mount_slew_calls.fetch_add(1, Ordering::SeqCst);
+        self.mount_slew_targets.lock().unwrap().push((ra, dec));
         if self.guider_active() {
             self.slews_while_guider_active
                 .fetch_add(1, Ordering::SeqCst);
@@ -641,6 +656,21 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             None => {
                 self.inner
                     .mount_readback_frame(id, ra_hours, dec_degrees)
+                    .await
+            }
+        }
+    }
+    async fn mount_readback_to_j2000(
+        &self,
+        id: &str,
+        ra_hours: f64,
+        dec_degrees: f64,
+    ) -> DeviceResult<(f64, f64)> {
+        match self.scripted_readback_to_j2000_offset {
+            Some((dra, ddec)) => Ok((ra_hours + dra, dec_degrees + ddec)),
+            None => {
+                self.inner
+                    .mount_readback_to_j2000(id, ra_hours, dec_degrees)
                     .await
             }
         }
@@ -943,6 +973,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         dec: Option<f64>,
         s: Option<f64>,
     ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
+        self.plate_solve_hints.lock().unwrap().push((ra, dec));
         if self.plate_solve_fails {
             return Err("no solution: too few stars".to_string());
         }
