@@ -104,6 +104,8 @@ class LinkedRig {
       return value is String && value.isNotEmpty ? value : null;
     }
 
+    final pairedAtText = text('pairedAt');
+
     return LinkedRig(
       host: host.trim(),
       port: port,
@@ -115,7 +117,8 @@ class LinkedRig {
       hostMode: text('hostMode'),
       tokenScope: text('tokenScope') ?? 'control',
       pairedAt:
-          DateTime.tryParse(text('pairedAt') ?? '')?.toUtc() ??
+          (pairedAtText == null ? null : DateTime.tryParse(pairedAtText))
+              ?.toUtc() ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       active: json['active'] != false,
     );
@@ -251,7 +254,15 @@ class LinkedRigStore {
         final existing = (await file.readAsString()).trim();
         if (existing.isNotEmpty) return existing;
       }
-    } catch (_) {}
+    } catch (e) {
+      // An unreadable id file is replaced with a fresh id below; the host
+      // then sees this desktop as a new device and asks to pair again.
+      developer.log(
+        'device id file unreadable, minting a new id: $e',
+        name: 'LinkedRigStore',
+        level: 900,
+      );
+    }
     final rng = Random.secure();
     final hex = List.generate(
       16,
@@ -268,8 +279,21 @@ class LinkedRigStore {
     if (!await file.exists()) await file.create();
     if (!Platform.isWindows) {
       try {
-        await Process.run('chmod', ['600', file.path]);
-      } catch (_) {}
+        final result = await Process.run('chmod', ['600', file.path]);
+        if (result.exitCode != 0) {
+          developer.log(
+            'chmod 600 ${file.path} exited ${result.exitCode}: ${result.stderr}',
+            name: 'LinkedRigStore',
+            level: 900,
+          );
+        }
+      } on ProcessException catch (e) {
+        developer.log(
+          'chmod 600 ${file.path} failed: $e',
+          name: 'LinkedRigStore',
+          level: 900,
+        );
+      }
     }
     await file.writeAsString(contents, flush: true);
   }

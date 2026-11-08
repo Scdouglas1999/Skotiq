@@ -72,12 +72,13 @@ abstract final class ShellExit {
       pending.complete(false);
       return;
     }
+    var spawned = false;
     try {
       await spawn();
-      pending.complete(true);
-    } catch (_) {
-      pending.complete(false);
-      rethrow;
+      spawned = true;
+    } finally {
+      // A failed spawn still answers the waiter before the error propagates.
+      pending.complete(spawned);
     }
   }
 }

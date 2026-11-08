@@ -646,7 +646,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
                       onChanged: _busy
                           ? null
                           : (value) =>
-                              setState(() => _fullAccess = value ?? false),
+                              setState(() => _fullAccess = value == true),
                     ),
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     Expanded(

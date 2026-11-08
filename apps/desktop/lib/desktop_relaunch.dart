@@ -117,7 +117,8 @@ bool processStillRunning(int pid) {
   if (Platform.isWindows) return false;
   try {
     return Process.killPid(pid, ProcessSignal.sigcont);
-  } catch (_) {
+  } catch (e) {
+    debugPrint('probing pid $pid failed, treating it as gone: $e');
     return false;
   }
 }

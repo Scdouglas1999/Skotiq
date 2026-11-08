@@ -143,7 +143,11 @@ void main() {
       deleted = true;
     });
     when(() => backend.lastSavedProfileId).thenReturn('9');
-    when(() => backend.saveProfile(any())).thenAnswer((_) async {
+    // Saves go through the per-field call; a restored profile has no loaded
+    // copy to diff against, so it is sent whole (fields: null).
+    when(
+      () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+    ).thenAnswer((_) async {
       restored = true;
     });
     when(() => backend.loadProfile('9')).thenAnswer((_) async {});
@@ -162,9 +166,9 @@ void main() {
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
 
-    final restoredProfile = verify(() => backend.saveProfile(captureAny()))
-        .captured
-        .single as EquipmentProfile;
+    final restoredProfile = verify(
+      () => backend.saveProfileFields(captureAny(), fields: null),
+    ).captured.single as EquipmentProfile;
     expect(restoredProfile.id, isEmpty);
     expect(restoredProfile.name, _source.name);
     expect(restoredProfile.description, _source.description);

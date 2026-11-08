@@ -167,7 +167,14 @@ class MdnsServiceRegistration {
       // Closing stdin ends the wrapper shell, which ends the publisher.
       try {
         await publisher.stdin.close();
-      } catch (_) {}
+      } catch (e) {
+        // The publisher may already have exited; kill() below still runs.
+        developer.log(
+          'closing the avahi publisher stdin failed: $e',
+          name: 'MdnsRegistration',
+          level: 500,
+        );
+      }
       publisher.kill();
       _started = false;
       return;

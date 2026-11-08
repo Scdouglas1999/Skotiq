@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:crypto/crypto.dart';
 
@@ -57,7 +58,12 @@ String hostComputerName([String? raw]) {
 String _localHostname() {
   try {
     return Platform.localHostname;
-  } catch (_) {
+  } catch (e) {
+    developer.log(
+      'reading the local hostname failed: $e',
+      name: 'ServerIdentity',
+      level: 900,
+    );
     return '';
   }
 }

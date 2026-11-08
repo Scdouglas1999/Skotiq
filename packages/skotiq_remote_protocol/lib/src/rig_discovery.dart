@@ -287,9 +287,7 @@ class RigDiscovery {
               name: txt['name'] ?? instance.split('.').first,
               version: txt['version'] ?? 'unknown',
               scheme: scheme == 'https' ? 'https' : 'http',
-              fingerprint: (txt['fingerprint']?.isNotEmpty ?? false)
-                  ? txt['fingerprint']
-                  : null,
+              fingerprint: _nonEmpty(txt['fingerprint']),
               pairingSupported: txt['pairingSupported'] == 'true',
               hostName: txt['hostName'] ?? computer,
               hostMode: txt['hostMode'],
@@ -356,10 +354,18 @@ class RigDiscovery {
               !i.name.startsWith('br-'))
             ...i.addresses,
       ];
-    } catch (_) {
+    } on SocketException catch (e) {
+      developer.log(
+        'listing local interfaces failed, no subnet preference: $e',
+        name: 'RigDiscovery',
+        level: 900,
+      );
       return const [];
     }
   }
+
+  static String? _nonEmpty(String? value) =>
+      (value == null || value.isEmpty) ? null : value;
 
   /// `multicast_dns` hands a TXT record's strings joined by newlines.
   static Map<String, String> parseTxtRecord(String text) {
