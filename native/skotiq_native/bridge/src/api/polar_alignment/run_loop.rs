@@ -173,7 +173,15 @@ pub(crate) async fn run_polar_alignment(
     // Slew-to-pole start mode: point the mount at the pole region before
     // measuring, instead of measuring from wherever it currently points.
     if !start_from_current {
-        match slew_to_pole_region(&mount_id, is_north, observer_longitude, generation).await? {
+        match slew_to_pole_region(
+            &mount_id,
+            is_north,
+            rotate_east,
+            observer_longitude,
+            generation,
+        )
+        .await?
+        {
             SlewOutcome::Settled => {}
             SlewOutcome::Cancelled => {
                 emit_polar_status("Cancelled by user", "idle", 0);
