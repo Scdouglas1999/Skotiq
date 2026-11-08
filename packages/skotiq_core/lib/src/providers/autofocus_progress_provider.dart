@@ -175,12 +175,9 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
       onAutofocusStarted();
     }
 
-    // Compute best HFR from all V-curve points
-    final newBestHfr = progressData.vcurvePoints.isEmpty
-        ? 0.0
-        : progressData.vcurvePoints
-              .map((p) => p.hfr)
-              .reduce((a, b) => a < b ? a : b);
+    // Best HFR from the points the fit uses: a point left out for reading
+    // falsely low must not become the "best" figure.
+    final newBestHfr = progressData.minHfr;
 
     final phase =
         'Measuring point ${progressData.point}/${progressData.totalPoints}';

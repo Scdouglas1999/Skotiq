@@ -234,7 +234,10 @@ class VCurvePainter extends CustomPainter {
     // Sorted by position so the polyline forms a clean V regardless of the
     // order the points were acquired in — which, for the from-above scan, is
     // descending.
-    final sorted = List.of(s.points)
+    // Points the fit left out stay on the chart, hollow and gray, but the
+    // line skips them: drawn through, a few falsely low dropouts turn the V
+    // into a W.
+    final sorted = s.points.where((p) => !p.isRejected).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
 
     if (sorted.length > 1) {
@@ -271,9 +274,21 @@ class VCurvePainter extends CustomPainter {
       final y = toY(p.hfr);
       if (!x.isFinite || !y.isFinite) continue;
 
+      final isLatest = s.highlightLatest && i == s.points.length - 1;
+      if (p.isRejected) {
+        canvas.drawCircle(
+          Offset(x, y),
+          isLatest ? _latestRadius : _pointRadius,
+          Paint()
+            ..color = textColor.withValues(alpha: 0.8)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+        continue;
+      }
+
       final isVertexSample =
           s.vertexPosition != null && p.position == s.vertexPosition;
-      final isLatest = s.highlightLatest && i == s.points.length - 1;
 
       if (isVertexSample) {
         canvas.drawCircle(
@@ -447,6 +462,8 @@ class VCurvePainter extends CustomPainter {
       final a = series[i];
       final b = old.series[i];
       if (a.points.length != b.points.length ||
+          a.points.where((p) => p.isRejected).length !=
+              b.points.where((p) => p.isRejected).length ||
           a.vertexPosition != b.vertexPosition ||
           a.color != b.color ||
           a.vertexColor != b.vertexColor ||
@@ -493,10 +510,12 @@ class VCurveChart extends StatelessWidget {
       if (s.points.isEmpty) continue;
       final name = s.label ?? 'Focus curve';
       final vertex = s.vertexPosition;
+      final left = s.points.where((p) => p.isRejected).length;
+      final count = left == 0
+          ? '${s.points.length} points'
+          : '${s.points.length} points, $left left out of the fit';
       parts.add(
-        vertex == null
-            ? '$name: ${s.points.length} points'
-            : '$name: ${s.points.length} points, optimum at $vertex',
+        vertex == null ? '$name: $count' : '$name: $count, optimum at $vertex',
       );
     }
     if (parts.isEmpty) return 'Focus curve chart, no points yet';

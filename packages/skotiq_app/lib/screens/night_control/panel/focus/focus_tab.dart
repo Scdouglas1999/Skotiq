@@ -229,7 +229,7 @@ class NightAutofocusSection extends ConsumerWidget {
 }
 
 /// "#  pos  HFR  [stars]", the newest row in the warning tone while the run
-/// goes on.
+/// goes on. A point the fit left out is gray, with the reason under it.
 class _PointsTable extends StatelessWidget {
   const _PointsTable({
     required this.points,
@@ -286,17 +286,39 @@ class _PointsTable extends StatelessWidget {
           ),
           for (var i = 0; i < points.length; i++)
             MergeSemantics(
-              child: row(
-                <String>[
-                  '${i + 1}',
-                  nightGrouped(points[i].position),
-                  points[i].hfr.toStringAsFixed(2),
-                  if (showStars)
-                    i < stars.length && stars[i] != null
-                        ? '${stars[i]}'
-                        : kReadoutUnknown,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  row(
+                    <String>[
+                      '${i + 1}',
+                      nightGrouped(points[i].position),
+                      points[i].hfr.toStringAsFixed(2),
+                      if (showStars)
+                        i < stars.length && stars[i] != null
+                            ? '${stars[i]}'
+                            : kReadoutUnknown,
+                    ],
+                    points[i].isRejected
+                        ? colors.textMuted
+                        : i == highlight
+                            ? colors.warning
+                            : colors.textPrimary,
+                  ),
+                  if (points[i].rejectedReason case final reason?)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 22, bottom: 2),
+                      child: Text(
+                        l10n.text(
+                          'nightPanelAfLeftOut',
+                          params: <String, String>{'reason': reason},
+                        ),
+                        style: SkotiqTypography.monoXs
+                            .copyWith(color: colors.textMuted),
+                      ),
+                    ),
                 ],
-                i == highlight ? colors.warning : colors.textPrimary,
               ),
             ),
         ],
