@@ -417,18 +417,22 @@ pub(crate) async fn run_polar_alignment(
     // Phase 2: Calculate center of rotation
     emit_polar_status("Calculating polar alignment error...", "adjusting", 3);
 
-    let mount_axis = skotiq_sequencer::fit_mount_axis(
-        &solved_points,
-        is_north,
-        Some((observer_latitude, observer_longitude)),
-    )
-    .ok_or_else(|| {
-        let msg = "The three measurement points do not describe a rotation. The mount did not \
+    // Refraction is the sky's, and the simulator renders a sky without an
+    // atmosphere: correcting its frames for refraction would report about a
+    // minute of error on a perfectly aligned simulated mount.
+    let simulated_sky = get_device_manager()
+        .get_device(&mount_id)
+        .await
+        .is_some_and(|d| d.info.driver_type == DriverType::Simulator);
+    let refraction_site = (!simulated_sky).then_some((observer_latitude, observer_longitude));
+    let mount_axis = skotiq_sequencer::fit_mount_axis(&solved_points, is_north, refraction_site)
+        .ok_or_else(|| {
+            let msg = "The three measurement points do not describe a rotation. The mount did not \
              turn between them, or the same frame was solved three times."
-            .to_string();
-        emit_polar_status(&format!("Error: {}", msg), "error", 0);
-        msg
-    })?;
+                .to_string();
+            emit_polar_status(&format!("Error: {}", msg), "error", 0);
+            msg
+        })?;
     let fit = mount_axis.fit;
     // The fit is of date at the last point; the adjustment loop works in the
     // plate solver's J2000, at each frame's own time.
