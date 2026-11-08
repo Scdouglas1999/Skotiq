@@ -14,6 +14,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// Shown while the current or last run has warnings; one line with the
 /// newest, expandable to all of them. Hiding it lasts until the run records
 /// another.
+///
+/// What was hidden is shared state ([noticeAcknowledgmentsProvider]), not
+/// this widget's: it used to live in the State, so leaving Tonight and coming
+/// back showed the banner again, and hiding it on the host never reached a
+/// linked client.
 class NightRunWarningsBanner extends ConsumerStatefulWidget {
   const NightRunWarningsBanner({super.key});
 
@@ -26,18 +31,16 @@ class _NightRunWarningsBannerState
     extends ConsumerState<NightRunWarningsBanner> {
   bool _expanded = false;
 
-  /// The run and the warning count the operator hid the banner at.
-  ({DateTime run, int count})? _hidden;
-
   @override
   Widget build(BuildContext context) {
     final stats = ref.watch(liveSequenceStatsProvider);
     final warnings = stats?.warningMessages ?? const <String>[];
     if (stats == null || warnings.isEmpty) return const SizedBox.shrink();
-    final hidden = _hidden;
-    if (hidden != null &&
-        hidden.run == stats.startTime &&
-        hidden.count >= warnings.length) {
+    final hidden = ref.watch(
+      noticeAcknowledgmentsProvider.select((acks) => acks.runWarnings),
+    );
+    final runStart = ref.watch(runStartedAtProvider);
+    if (hidden != null && hidden.covers(runStart, warnings)) {
       return const SizedBox.shrink();
     }
 
@@ -107,10 +110,13 @@ class _NightRunWarningsBannerState
                   ),
                   IconButton(
                     tooltip: 'Hide until the next warning',
-                    onPressed: () => setState(() {
-                      _hidden = (run: stats.startTime, count: count);
-                      _expanded = false;
-                    }),
+                    onPressed: () {
+                      final acks =
+                          ref.read(noticeAcknowledgmentsProvider.notifier);
+                      acks.state =
+                          acks.state.hidingRunWarnings(runStart, warnings);
+                      setState(() => _expanded = false);
+                    },
                     icon: const Icon(LucideIcons.x, size: 16),
                     color: colors.textSecondary,
                     visualDensity: VisualDensity.compact,

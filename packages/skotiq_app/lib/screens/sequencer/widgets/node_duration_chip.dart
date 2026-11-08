@@ -28,11 +28,14 @@ class NodeDurationChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final duration = ref.watch(nodeRollupDurationProvider(nodeId));
+    final openEnd = ref.watch(nodeRollupOpenEndProvider(nodeId));
     // Don't draw anything for empty / zero-duration containers — the chip
     // would just read "<1s" which is noise.
-    if (duration.inSeconds <= 0) return const SizedBox.shrink();
+    if (openEnd == null && duration.inSeconds <= 0) {
+      return const SizedBox.shrink();
+    }
 
-    final text = formatRollupDuration(duration);
+    final text = formatNodeRollup(duration, openEnd);
     final fontSize = compact ? 10.0 : 11.0;
 
     return Row(

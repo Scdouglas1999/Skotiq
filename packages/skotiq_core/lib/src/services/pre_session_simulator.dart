@@ -82,6 +82,7 @@ class PreSessionSimulator {
     double minAltitude = 20.0,
     DateTime? darkWindowStart,
     DateTime? darkWindowEnd,
+    DateTime? runEndsBy,
   }) {
     final analysis = latitude == null || longitude == null
         ? (
@@ -95,6 +96,7 @@ class PreSessionSimulator {
             latitude: latitude,
             longitude: longitude,
             minAltitude: minAltitude,
+            runEndsBy: runEndsBy,
           );
 
     final segments = analysis.timings
@@ -117,6 +119,7 @@ class PreSessionSimulator {
         start,
         latitude: latitude,
         longitude: longitude,
+        runEndsBy: runEndsBy,
       ),
     );
     final end = segments.isEmpty

@@ -211,9 +211,10 @@ void main() {
     });
 
     test('(d) HA past threshold -> flip imminent (zero duration)', () {
-      // HA = +0.5h (30 min past meridian), well past the 5-minute threshold.
+      // HA = +0.5h (30 min past meridian), well past the 5-minute threshold,
+      // on the pre-flip side (pier West, looking East).
       final result = computeMeridianCountdown(
-        mount: _mountAtHourAngle(0.5),
+        mount: _mountAtHourAngle(0.5, sideOfPier: 'west'),
         longitude: _longitude,
         latitude: _latitude,
         settings: const MeridianFlipSettings(
@@ -234,7 +235,7 @@ void main() {
     test('hourAngleThreshold method computes against HA hours directly', () {
       // HA = +0.2h, threshold 0.5h => (0.5 - 0.2) * 60 = 18 minutes.
       final result = computeMeridianCountdown(
-        mount: _mountAtHourAngle(0.2),
+        mount: _mountAtHourAngle(0.2, sideOfPier: 'west'),
         longitude: _longitude,
         latitude: _latitude,
         settings: const MeridianFlipSettings(
@@ -253,6 +254,54 @@ void main() {
         isTrue,
         reason: 'expected ~18 minutes, got ${result.timeToFlip}',
       );
+    });
+  });
+
+  group('computeMeridianCountdown — the post-flip side', () {
+    const settings = MeridianFlipSettings(
+      triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
+      minutesPastMeridian: 20.0,
+    );
+
+    MeridianCountdownState at(double ha, String? pier) =>
+        computeMeridianCountdown(
+          mount: _mountAtHourAngle(ha, sideOfPier: pier),
+          longitude: _longitude,
+          latitude: _latitude,
+          settings: settings,
+          execState: SequenceExecutionState.running,
+          enabled: true,
+          nowUtc: _fixedNowUtc,
+        );
+
+    test('pier East past the meridian owes no flip', () {
+      // The run homed through the meridian and slewed to the target from
+      // the west-pointing side: no flip was done and none is due.
+      for (final ha in [0.1, 0.55, 4.5]) {
+        final result = at(ha, 'east');
+        expect(result.onPostFlipSide, isTrue, reason: 'HA $ha');
+        expect(result.isArmed, isFalse);
+        expect(result.timeToFlip, isNull);
+        expect(result.isFlipImminent, isFalse);
+      }
+      expect(at(0.55, 'pierside_east').onPostFlipSide, isTrue);
+    });
+
+    test('pier West past the threshold is still due, unknown counts down', () {
+      final west = at(0.55, 'west');
+      expect(west.onPostFlipSide, isFalse);
+      expect(west.isFlipImminent, isTrue);
+
+      final unknown = at(0.55, null);
+      expect(unknown.onPostFlipSide, isFalse);
+      expect(unknown.isFlipImminent, isTrue);
+    });
+
+    test('east of the meridian counts down whatever the pier says', () {
+      final result = at(-0.5, 'east');
+      expect(result.onPostFlipSide, isFalse);
+      expect(result.timeToFlip, isNotNull);
+      expect(result.timeToFlip! > Duration.zero, isTrue);
     });
   });
 

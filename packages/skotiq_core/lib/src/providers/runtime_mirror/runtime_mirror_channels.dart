@@ -12,6 +12,7 @@ import 'channels/framing_geometry_channel.dart';
 import 'channels/manual_action_channel.dart';
 import 'channels/manual_loop_channel.dart';
 import 'channels/meridian_flip_channel.dart';
+import 'channels/notice_acks_channel.dart';
 import 'channels/pending_start_channel.dart';
 import 'channels/plate_solve_channel.dart';
 import 'channels/run_record_channel.dart';
@@ -43,6 +44,7 @@ final runtimeMirrorChannelsProvider =
         PendingStartChannel(),
         CoverCalibratorChannel(),
         SwitchChannelsChannel(),
+        NoticeAcknowledgmentsChannel(),
       ],
     );
 

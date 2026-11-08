@@ -235,6 +235,10 @@ DateTime? _flipAt(
       enabled: true,
       nowUtc: now,
     );
+    // The mount already points from the post-flip side: this transit needs
+    // no flip, whatever the transit time predicts (a run that homed through
+    // the meridian and slewed back never flipped, and owes none).
+    if (countdown.onPostFlipSide) return null;
     final toFlip = countdown.timeToFlip;
     if (countdown.isArmed && toFlip != null) {
       // Past the threshold the countdown reads zero whether or not the flip

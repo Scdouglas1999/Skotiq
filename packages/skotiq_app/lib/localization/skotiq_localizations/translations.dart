@@ -1241,6 +1241,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPlanTitle': 'Plan',
     'nightCtlPlanEta': 'ETA {time}',
     'nightCtlPlanEnds': 'ends {time}',
+    'nightCtlPlanUntilStopped': 'until stopped',
     'nightCtlPlanNoFrames': 'The plan has no exposures',
     'nightCtlPlanRowSem':
         '{filter}: {done} of {planned} frames, {time} captured',
@@ -1309,6 +1310,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeHourAngle': 'Hour angle',
     'nightScopeLst': 'LST',
     'nightScopeFlipIn': 'Flip in',
+    'nightScopeFlipNotNeeded': 'not needed',
     'nightScopeFlipPastDue': 'past due',
     'nightScopeSlewingLabel': 'Slewing',
     'nightScopeYes': 'yes',
@@ -1554,7 +1556,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrAfStarting': 'Autofocus starting',
     'nightCtrHfrValue': 'HFR {hfr}',
     'nightCtrSolved': 'Solved {ra} {dec}',
-    'nightCtrSolveOff': "{offset}' off",
+    'nightCtrSolveOff': '{offset} off',
     'nightCtrBackToLatest': 'Back to latest',
     'nightCtrViewStretch': 'Stretch',
     'nightCtrViewStretchTip':
@@ -2935,6 +2937,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPlanTitle': 'Plan',
     'nightCtlPlanEta': 'fin estimado {time}',
     'nightCtlPlanEnds': 'termina {time}',
+    'nightCtlPlanUntilStopped': 'hasta que se detenga',
     'nightCtlPlanNoFrames': 'El plan no tiene exposiciones',
     'nightCtlPlanRowSem':
         '{filter}: {done} de {planned} tomas, {time} capturado',
@@ -3003,6 +3006,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeHourAngle': 'Ángulo horario',
     'nightScopeLst': 'TSL',
     'nightScopeFlipIn': 'Volteo en',
+    'nightScopeFlipNotNeeded': 'no hace falta',
     'nightScopeFlipPastDue': 'atrasado',
     'nightScopeSlewingLabel': 'Moviéndose',
     'nightScopeYes': 'sí',
@@ -3265,7 +3269,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrAfStarting': 'Autoenfoque iniciando',
     'nightCtrHfrValue': 'HFR {hfr}',
     'nightCtrSolved': 'Resuelto {ra} {dec}',
-    'nightCtrSolveOff': "desviado {offset}'",
+    'nightCtrSolveOff': 'desviado {offset}',
     'nightCtrBackToLatest': 'Volver a la última',
     'nightCtrViewStretch': 'Estirar',
     'nightCtrViewStretchTip':

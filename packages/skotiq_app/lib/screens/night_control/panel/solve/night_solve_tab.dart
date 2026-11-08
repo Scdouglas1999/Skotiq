@@ -17,6 +17,7 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
+import '../../data/session/last_frame_metrics_provider.dart' show nightAngle;
 import '../../night_control_contracts.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../mount/night_panel_parts.dart';
@@ -55,13 +56,9 @@ double separationArcsec(
   return 2 * math.asin(math.sqrt(h.clamp(0.0, 1.0))) / rad * 3600;
 }
 
-/// `0.8"`, `4.2'`, `2.2°`: an angle in arcseconds at a readable unit.
-/// Plain ASCII marks: the mono face has no double prime.
-String formatArcsec(double arcsec) {
-  if (arcsec < 60) return '${arcsec.toStringAsFixed(1)}"';
-  if (arcsec < 3600) return "${(arcsec / 60).toStringAsFixed(1)}'";
-  return '${(arcsec / 3600).toStringAsFixed(1)}°';
-}
+/// An offset in arcseconds, formatted as every off-target reading on Tonight
+/// is (see [nightAngle]).
+String formatArcsec(double arcsec) => nightAngle(arcsec);
 
 /// `23:49`.
 String formatClockTime(DateTime t) =>

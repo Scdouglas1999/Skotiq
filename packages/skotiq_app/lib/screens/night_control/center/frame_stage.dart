@@ -28,6 +28,7 @@ import '../../imaging/widgets/overlay_painters.dart';
 import '../../imaging/widgets/preview_display_scale.dart';
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
+import '../data/session/last_frame_metrics_provider.dart' show nightAngle;
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/night_target_provider.dart';
 import '../data/session/camera_exposure_provider.dart';

@@ -99,6 +99,49 @@ void main() {
     expect(find.text(_early), findsOneWidget);
   });
 
+  testWidgets('hiding it outlasts leaving Tonight and reaches the link',
+      (tester) async {
+    final container = await _pump(tester, _stats(const [_center, _limit]));
+    await tester.tap(find.byTooltip('Hide until the next warning'));
+    await tester.pump();
+
+    // The hidden list is shared state, not the widget's: the noticeAcks
+    // runtime channel carries it to the other end of a link.
+    final acks = container.read(noticeAcknowledgmentsProvider);
+    expect(acks.runWarnings?.covers(null, const [_center, _limit]), isTrue);
+
+    // Leaving Tonight disposes the banner; coming back must not show it.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: SizedBox()),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: NightRunWarningsBanner()),
+        ),
+      ),
+    );
+    expect(find.textContaining('run warning'), findsNothing);
+  });
+
+  testWidgets('hidden on the other end of a link hides it here',
+      (tester) async {
+    final container = await _pump(tester, _stats(const [_center]));
+    expect(find.text('1 run warning'), findsOneWidget);
+    container.read(noticeAcknowledgmentsProvider.notifier).state =
+        const NoticeAcknowledgments().hidingRunWarnings(null, const [_center]);
+    await tester.pump();
+    expect(find.textContaining('run warning'), findsNothing);
+  });
+
   testWidgets('fits a phone width', (tester) async {
     await _pump(tester, _stats(const [_center, _limit, _early]), width: 390);
     expect(tester.takeException(), isNull);

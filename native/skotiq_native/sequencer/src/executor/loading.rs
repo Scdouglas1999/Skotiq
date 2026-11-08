@@ -121,7 +121,7 @@ impl SequenceExecutor {
     ///   * a `Loop` with a non-`Count` condition (`while-dark`,
     ///     `forever`, …) is encountered,
     ///   * a `SmartExposure` node has an integration-budget cap that
-    ///     trims the un-capped plan total,
+    ///     trims the un-capped plan total, or loops until stopped,
     ///   * the un-capped exposure total exceeds `u32::MAX` and was
     ///     clamped.
     ///
@@ -231,7 +231,11 @@ impl SequenceExecutor {
                     let frames_total = plan_total_count.saturating_mul(multiplier);
                     *total_exposures = total_exposures.saturating_add(frames_total);
                     *total_integration += effective_secs * multiplier as f64;
-                    if budget_engaged {
+                    // Loop-until-stopped ignores the counts and runs until the
+                    // target's window or the budget ends it, so the per-filter
+                    // counts are no total at all: a 999-per-filter rotation
+                    // showed "4/5994 exposures" and a 300-hour ETA.
+                    if budget_engaged || config.loop_until_stopped {
                         *totals_indeterminate = true;
                     }
                 }
