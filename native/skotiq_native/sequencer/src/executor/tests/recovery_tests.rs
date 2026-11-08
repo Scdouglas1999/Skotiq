@@ -87,6 +87,27 @@ fn calculate_totals_caps_smart_exposure_to_integration_budget() {
     );
 }
 
+/// Loop-until-stopped ignores the per-filter counts, so they make no total:
+/// the run reports none (and no ETA) instead of counts × filters frames.
+#[test]
+fn calculate_totals_loop_until_stopped_smart_exposure_is_indeterminate() {
+    let exec = SequenceExecutor::new();
+    let mut seq = build_smart_exposure_sequence(
+        vec![
+            plan_row("Ha", 999, 180.0),
+            plan_row("OIII", 999, 180.0),
+            plan_row("SII", 999, 180.0),
+        ],
+        0.0,
+    );
+    if let crate::NodeType::SmartExposure(config) = &mut seq.nodes[0].node_type {
+        config.loop_until_stopped = true;
+    }
+
+    let (_, _, indeterminate) = exec.calculate_totals(&seq);
+    assert!(indeterminate, "a loop-until-stopped block has no frame total");
+}
+
 /// SmartExposure under a Loop multiplies the totals — same pattern as
 /// TakeExposure under a Loop. Sanity-checks that the new arm doesn't
 /// short-circuit the multiplier propagation when an outer Loop wraps it.
