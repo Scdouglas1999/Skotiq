@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 310948540;
+  int get rustContentHash => -1746945493;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -330,6 +330,12 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiConnectionApiConnectDevice({
     required DeviceType deviceType,
     required String deviceId,
+  });
+
+  Future<void> crateApiConnectionApiConnectDeviceExpecting({
+    required DeviceType deviceType,
+    required String deviceId,
+    String? expectedModel,
   });
 
   Future<void> crateApiDevicesCoverCalibratorApiCoverCalibratorCalibratorOff({
@@ -3446,6 +3452,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_connect_device",
         argNames: ["deviceType", "deviceId"],
+      );
+
+  @override
+  Future<void> crateApiConnectionApiConnectDeviceExpecting({
+    required DeviceType deviceType,
+    required String deviceId,
+    String? expectedModel,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_device_type(deviceType);
+          var arg1 = cst_encode_String(deviceId);
+          var arg2 = cst_encode_opt_String(expectedModel);
+          return wire
+              .wire__crate__api__connection__api_connect_device_expecting(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiConnectionApiConnectDeviceExpectingConstMeta,
+        argValues: [deviceType, deviceId, expectedModel],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiConnectionApiConnectDeviceExpectingConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_connect_device_expecting",
+        argNames: ["deviceType", "deviceId", "expectedModel"],
       );
 
   @override

@@ -65,6 +65,7 @@ fn build_device_manager() -> DeviceManager {
         app_state: AppState::new(),
         devices: RwLock::new(HashMap::new()),
         observed_identities: RwLock::new(HashMap::new()),
+        expected_models: Default::default(),
         reconnect_config: ReconnectConfig::default(),
         stop_reconnect: Arc::new(RwLock::new(false)),
         native_devices: RwLock::new(HashMap::new()),
@@ -109,6 +110,7 @@ fn build_device_manager() -> DeviceManager {
         usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         command_activity: Default::default(),
         published_temperatures: Default::default(),
+        status_reads: Default::default(),
     }
 }
 

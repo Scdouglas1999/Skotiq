@@ -185,6 +185,26 @@ pub async fn api_connect_device(
     device_type: DeviceType,
     device_id: String,
 ) -> Result<(), SkotiqError> {
+    connect_device_expecting(device_type, device_id, None).await
+}
+
+/// Connect to a device, naming the model expected at the id (the profile's
+/// saved device name, or the one the user picked). A device that answers as
+/// another model is refused, whatever answered at the id before. See
+/// `DeviceManager::connect_device_expecting`.
+pub async fn api_connect_device_expecting(
+    device_type: DeviceType,
+    device_id: String,
+    expected_model: Option<String>,
+) -> Result<(), SkotiqError> {
+    connect_device_expecting(device_type, device_id, expected_model).await
+}
+
+async fn connect_device_expecting(
+    device_type: DeviceType,
+    device_id: String,
+    expected_model: Option<String>,
+) -> Result<(), SkotiqError> {
     tracing::info!(
         "Connecting to {} device: {}",
         device_type.as_str(),
@@ -266,7 +286,7 @@ pub async fn api_connect_device(
 
     // Use the DeviceManager to handle the connection
     device_manager
-        .connect_device(&device_id)
+        .connect_device_expecting(&device_id, expected_model.as_deref())
         .await
         .map_err(|e| SkotiqError::connection_failed(&device_id, e))
 }

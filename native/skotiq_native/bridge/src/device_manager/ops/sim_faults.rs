@@ -98,6 +98,13 @@ pub enum Effect {
     /// silent mechanical fault, not a driver error, and the only way to detect
     /// it is to re-read the position instead of trusting the command.
     Backlash(i32),
+    /// The device drops off the bus: this call fails and the device reads as
+    /// disconnected until something connects it again. With `reorder`, the
+    /// bus enumerates again in another order, so ids point at other devices
+    /// (the rig's USB hub dropout of Nov 8 2026). The gate that consults the
+    /// key applies it; see [`take_unplug`]. Only the first fire after arming
+    /// unplugs; later fires just fail.
+    Unplug { reorder: bool },
 }
 
 /// A fault armed against one operation key.
@@ -151,6 +158,9 @@ struct Registry {
     stalled: HashMap<String, bool>,
     /// Backlash, in steps, currently latched on a key by [`Effect::Backlash`].
     backlash: HashMap<String, i32>,
+    /// Keys an [`Effect::Unplug`] fired on: whether to reorder, and whether
+    /// the gate has applied it yet.
+    unplugged: HashMap<String, (bool, bool)>,
 }
 
 fn registry() -> &'static StdMutex<Registry> {
@@ -205,6 +215,7 @@ pub fn arm(key: &str, spec: FaultSpec) {
     // not inherit a stuck or backlashed device from an earlier case.
     reg.stalled.remove(key);
     reg.backlash.remove(key);
+    reg.unplugged.remove(key);
 }
 
 /// Part of the fault-injection CONTROL SURFACE: driven from tests today, and
@@ -219,6 +230,7 @@ pub fn clear(key: &str) {
     reg.faults.remove(key);
     reg.stalled.remove(key);
     reg.backlash.remove(key);
+    reg.unplugged.remove(key);
 }
 
 /// Disarm everything. Call this between tests: the registry is process-global
@@ -230,6 +242,19 @@ pub fn clear_all() {
     reg.faults.clear();
     reg.stalled.clear();
     reg.backlash.clear();
+    reg.unplugged.clear();
+}
+
+/// The unplug an [`Effect::Unplug`] on `key` asked for and the gate has not
+/// applied yet: `Some(reorder)` once, then `None`.
+pub fn take_unplug(key: &str) -> Option<bool> {
+    let mut reg = registry().lock().expect("sim fault registry poisoned");
+    let (reorder, applied) = reg.unplugged.get_mut(key)?;
+    if *applied {
+        return None;
+    }
+    *applied = true;
+    Some(*reorder)
 }
 
 /// Currently armed keys and their specs, for diagnostics and for asserting that
@@ -335,6 +360,14 @@ fn decide(key: &str) -> Decision {
         Effect::Backlash(steps) => {
             reg.backlash.insert(key.to_string(), steps);
             Decision::Proceed
+        }
+        Effect::Unplug { reorder } => {
+            reg.unplugged
+                .entry(key.to_string())
+                .or_insert((reorder, false));
+            Decision::Fail(format!(
+                "Injected simulator fault: the device dropped off the bus ({key})"
+            ))
         }
     }
 }
@@ -549,6 +582,13 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
             Ok(Effect::DelayThenError(ms, message))
         }
         "stall" => Ok(Effect::Stall),
+        "unplug" => match arg.map(str::trim) {
+            None | Some("") => Ok(Effect::Unplug { reorder: false }),
+            Some("reorder") => Ok(Effect::Unplug { reorder: true }),
+            Some(other) => Err(format!(
+                "unplug takes no argument or `reorder`, not '{other}'"
+            )),
+        },
         "backlash" => {
             let arg =
                 arg.ok_or_else(|| "backlash needs a step count, e.g. backlash(40)".to_string())?;
@@ -560,7 +600,7 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
         }
         other => Err(format!(
             "unknown effect '{other}' (want error(msg)/notimplemented/notconnected/\
-             delay(MS)/delaythenerror(MS,msg)/stall)"
+             delay(MS)/delaythenerror(MS,msg)/stall/backlash(N)/unplug[(reorder)])"
         )),
     }
 }
@@ -870,5 +910,38 @@ mod tests {
                 "'{bad}' parsed successfully but is not a valid spec"
             );
         }
+    }
+
+    /// The hub dropout: an unplug fires once per arming, and only the first
+    /// fire asks the gate to drop (and reorder) the device.
+    #[tokio::test]
+    async fn unplug_is_parsed_and_applied_once() {
+        let _guard = Guard::new(&["test_unplug.status"]).await;
+        let specs = parse_spec_list("camera.status=after(2):unplug(reorder)").unwrap();
+        assert_eq!(specs[0].1.effect, Effect::Unplug { reorder: true });
+        assert_eq!(
+            parse_spec_list("mount.status=once:unplug").unwrap()[0]
+                .1
+                .effect,
+            Effect::Unplug { reorder: false }
+        );
+        assert!(parse_spec_list("camera.status=once:unplug(sideways)").is_err());
+
+        let key = "test_unplug.status";
+        arm(
+            key,
+            FaultSpec::new(Trigger::AfterCalls(1), Effect::Unplug { reorder: true }),
+        );
+        assert!(matches!(decide(key), Decision::Proceed));
+        assert_eq!(take_unplug(key), None);
+        assert!(matches!(decide(key), Decision::Fail(_)));
+        assert_eq!(take_unplug(key), Some(true));
+        assert!(matches!(decide(key), Decision::Fail(_)));
+        assert_eq!(
+            take_unplug(key),
+            None,
+            "a later fire must not reorder again"
+        );
+        clear(key);
     }
 }

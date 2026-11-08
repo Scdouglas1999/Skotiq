@@ -31,6 +31,21 @@ pub(crate) enum HeartbeatEventKind {
     DisconnectedAndError,
 }
 
+/// A heartbeat probe's answer, overruled by failing status reads: a driver can
+/// keep answering the probe while every read the app shows fails (the NYX-101
+/// answered `Tracking` and failed `RightAscension` all night), so a run of
+/// failed reads counts as a failed poll. See
+/// [`crate::device_manager::read_health`].
+pub(crate) fn with_status_reads(
+    probe: Result<bool, String>,
+    failing_reads: Option<String>,
+) -> Result<bool, String> {
+    match (probe, failing_reads) {
+        (Ok(true), Some(reason)) => Err(format!("Status reads are failing: {reason}")),
+        (probe, _) => probe,
+    }
+}
+
 /// Pure decision for one failed heartbeat poll.
 ///
 /// Given the previous one-shot Degraded latch (`prev_was_degraded`), the
@@ -483,6 +498,13 @@ impl DeviceManager {
             let health_check_result = manager
                 .perform_health_check(&device_id_clone, &device_type, &driver_type)
                 .await;
+            // A driver can keep answering the probe while every read the app
+            // shows fails (the NYX-101 answered Tracking and failed RA all
+            // night). Failing status reads count as a failed poll.
+            let health_check_result = with_status_reads(
+                health_check_result,
+                manager.failing_status_reads(&device_id_clone),
+            );
 
             match health_check_result {
                 Ok(true) => {
@@ -811,7 +833,7 @@ impl DeviceManager {
 
 #[cfg(test)]
 mod heartbeat_event_tests {
-    use super::{heartbeat_events_for_poll, HeartbeatEventKind};
+    use super::{heartbeat_events_for_poll, with_status_reads, HeartbeatEventKind};
 
     const THRESHOLD: u32 = 5;
     // Most existing tests describe an escalating device, where crossing the
@@ -821,6 +843,22 @@ mod heartbeat_event_tests {
 
     /// (a) The first failing poll of an episode emits exactly one Degraded
     /// and arms the latch.
+    #[test]
+    fn failing_status_reads_overrule_a_passing_probe() {
+        let reads = Some("the last 3 status reads failed: Failed to get RA".to_string());
+        let result = with_status_reads(Ok(true), reads.clone());
+        assert!(
+            matches!(&result, Err(e) if e.contains("Failed to get RA")),
+            "{result:?}"
+        );
+        assert_eq!(with_status_reads(Ok(true), None), Ok(true));
+        // A failing probe keeps its own, more specific reason.
+        assert_eq!(
+            with_status_reads(Err("probe".into()), reads),
+            Err("probe".to_string())
+        );
+    }
+
     #[test]
     fn first_failure_below_threshold_emits_one_degraded() {
         let (events, was_degraded) = heartbeat_events_for_poll(false, 1, THRESHOLD, ESCALATE);

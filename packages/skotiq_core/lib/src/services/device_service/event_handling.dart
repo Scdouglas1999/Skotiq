@@ -86,6 +86,11 @@ extension _DeviceServiceEventHandling on DeviceService {
         'resolve-device-name',
       );
     }
+    // The model the profile slot expects at this id: after the bus enumerated
+    // in another order the cached discovery below still names the device
+    // that used to be here, and the host refuses any device but this model.
+    final expected = _expectedSlotName(type, deviceId);
+    if (expected != null) return expected;
     // Before connect completes the backend's connected list is empty, so fall
     // back to the friendly model name captured during startup discovery (e.g.
     // "ZWO ASI1600MM-Cool"). This is the same source the rest of the UI uses,
@@ -96,6 +101,20 @@ extension _DeviceServiceEventHandling on DeviceService {
       return discoveryName;
     }
     return _friendlyNameFromId(deviceId);
+  }
+
+  /// The model the active profile's [type] slot expects at [deviceId], or
+  /// null (see [_expectedModelFor]).
+  String? _expectedSlotName(DeviceType type, String deviceId) {
+    final label = switch (type) {
+      DeviceType.camera => 'camera',
+      DeviceType.mount => 'mount',
+      DeviceType.focuser => 'focuser',
+      DeviceType.filterWheel => 'filter wheel',
+      DeviceType.rotator => 'rotator',
+      _ => null,
+    };
+    return label == null ? null : _expectedModelFor(label, deviceId);
   }
 
   /// The friendly model name for [deviceId] from the last device-discovery
@@ -339,6 +358,19 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
+      // A device came onto the bus. A profile device whose automatic
+      // reconnects ran out (a hub that took minutes to come back) gets
+      // another attempt now, which also finds it if it came back at another
+      // position.
+      case 'DeviceDiscovered':
+        final arrivedType = deviceTypeFromWireName(
+          (data['device_class'] as String?) ?? '',
+        );
+        if (arrivedType != null) {
+          _reconnectCoordinator.onDeviceArrived(arrivedType);
+        }
+        break;
+
       case 'HeartbeatStopped':
         // Heartbeat monitoring intentionally stopped (e.g. user
         // disconnected the device through the UI). Clear the entry so
@@ -362,9 +394,22 @@ extension _DeviceServiceEventHandling on DeviceService {
 
   /// Whether a `deviceType`/`deviceId` event is about the profile's guide
   /// camera, which has no slot of its own and must not take the camera's.
-  bool _isGuideCameraEvent(String? deviceType, String? deviceId) =>
-      deviceTypeFromWireName(deviceType ?? '') == DeviceType.camera &&
-      isProfileGuideCamera(_ref.read(activeEquipmentProfileProvider), deviceId);
+  bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
+    if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||
+        deviceId == null) {
+      return false;
+    }
+    // The cameras' ids were just moved (the bus enumerated them in another
+    // order) and the profile may not show it yet: the main camera can be at
+    // the guide camera's old id.
+    if (_slotExpectation('camera')?.deviceId == deviceId) return false;
+    final guide = _slotExpectation('guide camera')?.deviceId;
+    if (guide == deviceId) return true;
+    return isProfileGuideCamera(
+      _ref.read(activeEquipmentProfileProvider),
+      deviceId,
+    );
+  }
 
   /// Handle device connection event from the native EventBus.
   void _applyDeviceConnected(String deviceType, String deviceId) {
@@ -374,15 +419,19 @@ extension _DeviceServiceEventHandling on DeviceService {
     // Prefer the startup-discovery model name (e.g. "ZWO ASI1600MM-Cool");
     // when discovery hasn't seen the device, fall back to the id-pattern
     // formatter rather than the bare id.
-    final resolvedName =
-        _discoveryNameFromId(deviceId) ?? _friendlyNameFromId(deviceId);
     // Unknown wire types leave every notifier untouched, exactly as the
     // eleven-case switch this replaced did (it had no default branch).
     final type = deviceTypeFromWireName(deviceType);
+    final resolvedName =
+        (type == null ? null : _expectedSlotName(type, deviceId)) ??
+        _discoveryNameFromId(deviceId) ??
+        _friendlyNameFromId(deviceId);
     if (type != null) {
       readDeviceConnectionNotifier(_ref, type)
         ..setConnecting(deviceId, resolvedName)
         ..setConnected();
+      // A new connection starts with no stale readings.
+      _ref.read(deviceReadHealthProvider.notifier).clear(type);
     }
 
     // Reset the reconnect lifecycle for every device type, then drive

@@ -144,6 +144,9 @@ class CameraTemperaturePoller {
       if (_connectedCameraId != deviceId || _generation != generation) {
         return;
       }
+      _ref
+          .read(deviceReadHealthProvider.notifier)
+          .recordSuccess(DeviceType.camera, deviceId);
 
       _settleStaleExposure(status.state);
 
@@ -220,6 +223,11 @@ class CameraTemperaturePoller {
       if (_connectedCameraId != deviceId || _generation != generation) {
         return;
       }
+      // The temperature, cooler and settings the camera slot shows are now
+      // older than this poll; say so wherever they are shown.
+      _ref
+          .read(deviceReadHealthProvider.notifier)
+          .recordFailure(DeviceType.camera, deviceId, e);
       try {
         final logger = _ref.read(loggingServiceProvider);
         logger.warning(

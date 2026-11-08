@@ -126,8 +126,19 @@ abstract class DeviceBackend {
   /// Discover Alpaca devices at a specific server address
   Future<List<DeviceInfo>> discoverAlpacaAtAddress(String host, int port);
 
-  /// Connect to a device
-  Future<void> connectDevice(DeviceType deviceType, String deviceId);
+  /// Connect to a device.
+  ///
+  /// [expectedModel] names the model the caller wants at [deviceId] (the
+  /// profile's saved device name). Ids such as `native:zwo:1` are positions
+  /// on the bus, so the host refuses a device that answers as another model,
+  /// rather than binding, say, the guide camera as the main camera after the
+  /// USB bus enumerates the cameras in another order. A linked client leaves
+  /// it to the host, which applies its own profile.
+  Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    String? expectedModel,
+  });
 
   /// Disconnect from a device
   Future<void> disconnectDevice(DeviceType deviceType, String deviceId);

@@ -6,7 +6,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart' show VCurvePoint;
+import 'package:skotiq_core/skotiq_core.dart'
+    show DeviceType, VCurvePoint, focuserStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -17,6 +18,7 @@ import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'focus_panel_vm.dart';
+import '../stale_readings_note.dart';
 
 /// Where "Settings…" goes.
 const String kNightAutofocusSettingsRoute = '/settings?section=autofocus';
@@ -35,6 +37,10 @@ class NightFocusTab extends ConsumerWidget {
     final vm = ref.watch(nightFocusPanelProvider);
     return NightPanelBody(
       children: <Widget>[
+        NightStaleReadingsNote(
+          type: DeviceType.focuser,
+          deviceId: ref.watch(focuserStateProvider).deviceId,
+        ),
         NightAutofocusSection(vm: vm),
         NightFocuserSection(vm: vm),
         if (vm.tempComp != null) NightTempCompSection(tempComp: vm.tempComp!),

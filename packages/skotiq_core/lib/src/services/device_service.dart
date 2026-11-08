@@ -160,6 +160,25 @@ class DeviceService {
   static const Duration _focuserMoveTimeout = Duration(seconds: 300);
   static const Duration _focuserMovePollInterval = Duration(milliseconds: 500);
 
+  /// The device each profile slot resolved to, and the model it must be,
+  /// keyed by slot label (`camera`, `guide camera`, ...). Read by
+  /// [_expectedModelFor] before the profile itself, which may not have
+  /// caught up with a correction written a moment earlier.
+  final Map<String, ({String deviceId, String model})> _slotExpectations = {};
+
+  /// The profile [_slotExpectations] were resolved for.
+  int? _slotExpectationsProfileId;
+
+  /// [_slotExpectations] for [label], while the active profile is still the
+  /// one they were resolved for.
+  ({String deviceId, String model})? _slotExpectation(String label) {
+    final profileId = _ref.read(activeEquipmentProfileProvider)?.id;
+    if (profileId == null || profileId != _slotExpectationsProfileId) {
+      return null;
+    }
+    return _slotExpectations[label];
+  }
+
   int _focuserVerifyGeneration = 0;
   int _rotatorVerifyGeneration = 0;
   int _filterWheelVerifyGeneration = 0;
@@ -266,6 +285,7 @@ class DeviceService {
             attempt: attempt,
             maxAttempts: maxAttempts,
           ),
+      reconnectTarget: _reconnectTarget,
     );
     _switchChannels = SwitchChannelService(ref: _ref, backend: _backend);
     DeviceServiceLifecycle.register(this);

@@ -249,7 +249,11 @@ class _OpticalTrainBackend extends DisconnectedBackend {
   double? syncedPa;
 
   @override
-  Future<void> connectDevice(DeviceType type, String deviceId) async {}
+  Future<void> connectDevice(
+    DeviceType type,
+    String deviceId, {
+    String? expectedModel,
+  }) async {}
 
   @override
   Future<List<DeviceInfo>> getConnectedDevices() async => const [];

@@ -3,8 +3,10 @@
 // A connected device shows its live readouts. One that is not connected
 // shows no readouts at all, because a stale number beside a dead device is
 // the easiest lie this block could tell; a device the profile assigns says
-// "not connected", one it does not reads "none". Power has no telemetry in
-// the app, so the board's Power row is left out.
+// "not connected", one it does not reads "none", and one in error says why.
+// A connected device whose reads are failing keeps its last readouts but
+// leads with how old they are, so they are never read as current. Power has
+// no telemetry in the app, so the board's Power row is left out.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide EquipmentStatus;
@@ -64,20 +66,39 @@ String? nightPierKey(String? side) => switch (side?.trim().toLowerCase()) {
       _ => null,
     };
 
+/// The lead detail of a connected device whose readouts are stale: how old
+/// they are and why.
+NightText nightStaleText(StaleReadings stale, DateTime now) {
+  final age = stale.ageAt(now);
+  final reason = stale.reason?.trim();
+  return NightText(
+    age == null ? 'nightSessionStaleNoRead' : 'nightSessionStale',
+    params: <String, String>{
+      if (age != null) 'age': staleAgeText(age),
+      'reason': reason == null || reason.isEmpty ? '' : ': $reason',
+    },
+  );
+}
+
 /// The dot for a device that is not plainly connected, with the reason.
 EquipmentRowVm _notConnected(
   EquipmentKind kind,
   DeviceConnectionState state,
   String? name, {
   required bool assigned,
+  DeviceError? error,
 }) {
   switch (state) {
     case DeviceConnectionState.error:
+      final reason = error?.message.trim();
       return EquipmentRowVm(
         kind: kind,
         status: EquipmentStatus.fault,
         deviceName: name,
-        details: const <NightText>[NightText('nightSessionDeviceFault')],
+        details: <NightText>[
+          const NightText('nightSessionDeviceFault'),
+          if (reason != null && reason.isNotEmpty) NightText.literal(reason),
+        ],
       );
     case DeviceConnectionState.connecting:
       return EquipmentRowVm(
@@ -110,6 +131,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   final guideStats = ref.watch(guideStatsProvider);
   final guideStopReason = ref.watch(guidingStopReasonProvider);
   final assigned = ref.watch(assignedProfileDeviceSlotsProvider).toSet();
+  final reads = ref.watch(deviceReadHealthProvider);
+  final heartbeats = ref.watch(deviceHeartbeatHealthProvider);
+  final now = DateTime.now();
 
   EquipmentRowVm row(
     EquipmentKind kind,
@@ -118,6 +142,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     String? name,
     List<NightText> Function() details, {
     EquipmentStatus connectedStatus = EquipmentStatus.ok,
+    DeviceType? type,
+    String? deviceId,
+    DeviceError? error,
   }) {
     if (!nightConnected(state)) {
       return _notConnected(
@@ -125,6 +152,21 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
         state,
         name,
         assigned: assigned.contains(slot),
+        error: error,
+      );
+    }
+    final stale = type == null
+        ? null
+        : staleReadingsFor(reads, heartbeats, type, deviceId);
+    if (stale != null) {
+      // Keeps the age beside stale readouts counting; only while one is
+      // shown, so an idle Tonight holds no timer.
+      ref.watch(staleAgeTickerProvider);
+      return EquipmentRowVm(
+        kind: kind,
+        status: EquipmentStatus.attention,
+        deviceName: name,
+        details: <NightText>[nightStaleText(stale, now), ...details()],
       );
     }
     return EquipmentRowVm(
@@ -175,6 +217,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
             NightText.literal(binning.replaceAll(RegExp('[xX]'), '×')),
         ];
       },
+      type: DeviceType.camera,
+      deviceId: camera.deviceId,
+      error: camera.lastError,
     ),
     row(
       EquipmentKind.filterWheel,
@@ -200,6 +245,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
           ),
         ];
       },
+      type: DeviceType.filterWheel,
+      deviceId: wheel.deviceId,
+      error: wheel.lastError,
     ),
     row(
       EquipmentKind.focuser,
@@ -213,6 +261,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
           NightText.literal(nightCelsius(focuser.temperature!)),
         if (focuser.isMoving) const NightText('nightSessionFocuserMoving'),
       ],
+      type: DeviceType.focuser,
+      deviceId: focuser.deviceId,
+      error: focuser.lastError,
     ),
     row(
       EquipmentKind.mount,
@@ -241,6 +292,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
             ),
         ];
       },
+      type: DeviceType.mount,
+      deviceId: mount.deviceId,
+      error: mount.lastError,
     ),
     row(
       EquipmentKind.guider,
@@ -277,6 +331,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
       connectedStatus: _guiderWorking.contains(phd2)
           ? EquipmentStatus.ok
           : EquipmentStatus.attention,
+      type: DeviceType.guider,
+      deviceId: guider.deviceId,
+      error: guider.lastError,
     ),
     row(
       EquipmentKind.rotator,
@@ -288,6 +345,9 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
           NightText.literal('${nightFixed(rotator.position!, 1)}°'),
         if (rotator.isMoving) const NightText('nightSessionRotatorMoving'),
       ],
+      type: DeviceType.rotator,
+      deviceId: rotator.deviceId,
+      error: rotator.lastError,
     ),
   ];
 });

@@ -512,7 +512,15 @@ impl DeviceManager {
         }
     }
 
+    /// Read the focuser's position. The outcome feeds the device's read health (see
+    /// [`crate::device_manager::read_health`]).
     pub async fn focuser_get_position(&self, device_id: &str) -> Result<i32, DeviceOpError> {
+        let result = self.focuser_get_position_dispatch(device_id).await;
+        self.note_status_read(device_id, &result);
+        result
+    }
+
+    async fn focuser_get_position_dispatch(&self, device_id: &str) -> Result<i32, DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)

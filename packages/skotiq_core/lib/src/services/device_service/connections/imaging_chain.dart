@@ -25,7 +25,11 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
 
       try {
         // Connect via native bridge
-        await _backend.connectDevice(DeviceType.camera, deviceId);
+        await _backend.connectDevice(
+          DeviceType.camera,
+          deviceId,
+          expectedModel: _expectedModelFor('camera', deviceId),
+        );
 
         notifier.setConnected();
 
@@ -366,7 +370,11 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       notifier.setConnecting(deviceId, deviceName);
 
       try {
-        await _backend.connectDevice(DeviceType.mount, deviceId);
+        await _backend.connectDevice(
+          DeviceType.mount,
+          deviceId,
+          expectedModel: _expectedModelFor('mount', deviceId),
+        );
 
         notifier.setConnected();
 
@@ -583,7 +591,11 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       notifier.setConnecting(deviceId, deviceName);
 
       try {
-        await _backend.connectDevice(DeviceType.focuser, deviceId);
+        await _backend.connectDevice(
+          DeviceType.focuser,
+          deviceId,
+          expectedModel: _expectedModelFor('focuser', deviceId),
+        );
 
         // Get actual focuser status from the backend (now typed FocuserStatus).
         // Some drivers (notably INDI) stream device properties asynchronously
@@ -703,7 +715,11 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       notifier.setConnecting(deviceId, deviceName);
 
       try {
-        await _backend.connectDevice(DeviceType.filterWheel, deviceId);
+        await _backend.connectDevice(
+          DeviceType.filterWheel,
+          deviceId,
+          expectedModel: _expectedModelFor('filter wheel', deviceId),
+        );
 
         // Give the filter wheel firmware time to synchronise the actual
         // encoder position after the USB/COM connection is established.

@@ -23,6 +23,7 @@ pub(crate) mod epoch;
 pub(crate) mod heartbeat;
 pub mod identity;
 pub(crate) mod ops;
+pub(crate) mod read_health;
 
 use crate::device::*;
 use crate::state::SharedAppState;
@@ -427,6 +428,13 @@ pub struct DeviceManager {
     /// [`identity`].
     pub(crate) observed_identities: RwLock<HashMap<String, identity::DeviceIdentity>>,
 
+    /// The model the caller that connects an id expects to find there, keyed
+    /// by device id (a profile's saved camera name, or the device the user
+    /// picked). Takes precedence over [`Self::observed_identities`], whose
+    /// entry for an id describes whatever answered it last: after the bus
+    /// re-enumerates, that is the device that moved away.
+    pub(crate) expected_models: std::sync::Mutex<HashMap<String, String>>,
+
     /// Reconnection configuration
     reconnect_config: ReconnectConfig,
 
@@ -624,6 +632,10 @@ pub struct DeviceManager {
     /// The last sensor temperature and cooler power published per camera, so
     /// `CameraTemperatureChanged` goes out only when the reading changes.
     pub(crate) published_temperatures: ops::backstop::PublishedTemperatures,
+
+    /// Whether each device's status reads are still succeeding; the heartbeat
+    /// counts a run of failures as a failed poll. See [`read_health`].
+    pub(crate) status_reads: read_health::StatusReadHealth,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -752,6 +764,7 @@ impl DeviceManager {
             app_state,
             devices: RwLock::new(HashMap::new()),
             observed_identities: RwLock::new(HashMap::new()),
+            expected_models: Default::default(),
             reconnect_config: ReconnectConfig::default(),
             stop_reconnect: Arc::new(RwLock::new(false)),
             native_devices: RwLock::new(HashMap::new()),
@@ -796,6 +809,7 @@ impl DeviceManager {
             usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             command_activity: Default::default(),
             published_temperatures: Default::default(),
+            status_reads: Default::default(),
         });
 
         // Start the reconnection background task
@@ -820,6 +834,7 @@ impl DeviceManager {
             app_state,
             devices: RwLock::new(HashMap::new()),
             observed_identities: RwLock::new(HashMap::new()),
+            expected_models: Default::default(),
             reconnect_config: config,
             stop_reconnect: Arc::new(RwLock::new(false)),
             native_devices: RwLock::new(HashMap::new()),
@@ -864,6 +879,7 @@ impl DeviceManager {
             usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             command_activity: Default::default(),
             published_temperatures: Default::default(),
+            status_reads: Default::default(),
         });
 
         // Start the reconnection background task

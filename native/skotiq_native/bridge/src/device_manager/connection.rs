@@ -72,9 +72,8 @@ impl DeviceManager {
     /// Subscribe to the existing cancel token for `device_id`, if any.
     ///
     /// Unlike `install_reconnect_cancel_token`, this does NOT create a new
-    /// sender on miss — it only borrows an existing one. Used by
-    /// `connect_device_internal` to consult an in-flight reconnect's token
-    /// without accidentally arming a user-initiated connect path.
+    /// sender on miss, nor reset a tripped one: it only borrows the token the
+    /// caller of `connect_device_internal` installed for this attempt.
     async fn subscribe_existing_cancel_token(
         &self,
         device_id: &str,
@@ -281,7 +280,14 @@ impl DeviceManager {
         devices.get(device_id).map(|d| d.info.display_name.clone())
     }
 
-    /// Connect to a device
+    /// Connect to a device on request (the user, a profile, the API).
+    ///
+    /// A requested connect starts with its own un-tripped cancel token. A
+    /// manual disconnect trips the device's token and leaves it tripped, so
+    /// borrowing the old one made every later connect fail at once with
+    /// "reconnect canceled by manual disconnect" until the app restarted. A
+    /// disconnect that arrives while this connect runs still trips the fresh
+    /// token and cancels it.
     pub async fn connect_device(&self, device_id: &str) -> Result<(), String> {
         let device_info = {
             let devices = self.devices.read().await;
@@ -291,16 +297,41 @@ impl DeviceManager {
                 .ok_or_else(|| format!("Device not found: {}", device_id))?
         };
 
+        let _cancel_rx = self.install_reconnect_cancel_token(device_id).await;
         self.connect_device_internal(&device_info).await
+    }
+
+    /// [`Self::connect_device`], naming the model the caller expects at the
+    /// id. The expectation stays with the id, so the reconnection loop checks
+    /// it too, until a later connect names another.
+    ///
+    /// Device ids such as `native:zwo:1` are positions on the bus. The
+    /// identity the id was last seen with is the wrong reference once the bus
+    /// re-enumerates: it then describes the device that moved away, and a
+    /// connect to where the wanted device now sits would be refused for not
+    /// being the device that left. The expectation is the reference that
+    /// survives that.
+    pub async fn connect_device_expecting(
+        &self,
+        device_id: &str,
+        expected_model: Option<&str>,
+    ) -> Result<(), String> {
+        if let Some(model) = expected_model.map(str::trim).filter(|m| !m.is_empty()) {
+            self.expected_models
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .insert(device_id.to_string(), model.to_string());
+        }
+        self.connect_device(device_id).await
     }
 
     /// Internal connection logic
     pub(crate) async fn connect_device_internal(&self, info: &DeviceInfo) -> Result<(), String> {
         let device_id = &info.id;
 
-        // Subscribe to the device's reconnect cancel token (if any). Only the
-        // reconnection loop installs these, so a user-initiated `connect_device`
-        // call usually sees `None` here and the cancel checks below are no-ops.
+        // Subscribe to the device's cancel token. The reconnection loop and
+        // `connect_device` each install a fresh one before calling here, so a
+        // `disconnect_device` during the attempt cancels it.
         let cancel_rx = self.subscribe_existing_cancel_token(device_id).await;
 
         // Pre-dispatch cancel check: a manual `disconnect_device` may have run
@@ -398,6 +429,7 @@ impl DeviceManager {
                         dev.connection_state = ConnectionState::Connected;
                         dev.last_error = None;
                         dev.reconnect_attempts = 0;
+                        self.status_reads.forget(device_id);
                     }
                     Err(e) => {
                         dev.connection_state = ConnectionState::Error;
@@ -435,11 +467,22 @@ impl DeviceManager {
             Ok(_) => {
                 crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
 
+                // The name the identity check just read off the driver, not
+                // the one registered before the connect: after the bus
+                // re-enumerates, that one names the device that used to
+                // answer this id.
+                let device_name = self
+                    .devices
+                    .read()
+                    .await
+                    .get(device_id)
+                    .map(|d| d.info.shown_name())
+                    .unwrap_or_else(|| info.shown_name());
                 self.app_state.publish_equipment_event(
                     EquipmentEvent::Connected {
                         device_type: info.device_type.as_str().to_string(),
                         device_id: device_id.clone(),
-                        device_name: info.shown_name(),
+                        device_name,
                     },
                     EventSeverity::Info,
                 );
@@ -542,17 +585,24 @@ impl DeviceManager {
     ///
     /// * driver reports nothing identifiable → `Ok`, nothing recorded. We do
     ///   not store an empty baseline, because it would later match anything.
+    /// * the caller named the model it expects (see
+    ///   [`Self::connect_device_expecting`]) and the driver named a model →
+    ///   that comparison decides; the id's baseline describes whatever
+    ///   answered it last, which after a re-enumeration is the device that
+    ///   moved away.
     /// * no baseline yet → record it, refresh the registered `DeviceInfo` so
     ///   the API stops reporting the id-derived placeholder name, `Ok`.
     /// * baseline agrees → refresh and `Ok`.
-    /// * baseline contradicted → tear the driver back down and `Err`.
+    /// * contradicted → tear the driver back down, drop the discovery cache
+    ///   (it describes the bus before the change), and `Err`.
     ///
     /// The teardown on conflict is the point: leaving the handle open would
     /// leave a live connection to the wrong sensor that every later command
     /// would happily address. `disconnect_device` also clears `auto_reconnect`,
-    /// so the manager stops re-opening the wrong camera in a loop. Recovering
-    /// from a genuine swap needs a human, and stopping is the safe answer for
-    /// an unattended run.
+    /// so the manager stops re-opening the wrong camera in a loop. Finding
+    /// where the wanted device went is the caller's: the app looks the
+    /// profile's device up by name in a fresh enumeration and connects it at
+    /// its new id with the model expected.
     pub(crate) async fn verify_identity_after_connect(
         &self,
         info: &DeviceInfo,
@@ -568,32 +618,86 @@ impl DeviceManager {
         }
 
         let previous = self.observed_identities.read().await.get(&info.id).cloned();
+        let expected = self
+            .expected_models
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&info.id)
+            .cloned();
 
-        if let Some(previous) = previous {
-            if let Some(reason) = observed.conflict_with(&previous) {
-                let message = format!(
-                    "Device id {} {}: {}. \
-                     Connected device reports {}; previously it was {}. \
+        let conflict = match (&expected, &observed.model) {
+            // The caller said which model it wants and the driver named one:
+            // that decides it. The id's last observation is not consulted for
+            // the model or sensor, because after a re-enumeration it describes
+            // the device that moved away.
+            (Some(expected), Some(_)) => match observed.conflict_with_expected(expected) {
+                // A driver can name itself differently from how discovery
+                // labels it (the profile saved discovery's name). Before
+                // refusing on the name alone, ask a fresh enumeration what is
+                // at this id.
+                Some(_) if self.enumeration_names(info, expected).await => {
+                    tracing::info!(
+                        "{} names itself {:?}; discovery lists it as {}, so it is the expected device",
+                        info.id,
+                        observed.model,
+                        expected
+                    );
+                    None
+                }
+                Some(reason) => Some(reason),
+                // Two identical bodies trading places: only a serial tells
+                // them apart, and only against the same model.
+                None => previous
+                    .as_ref()
+                    .filter(|p| {
+                        p.model.as_deref().is_some_and(|m| {
+                            crate::device_manager::identity::same_model(m, expected)
+                        })
+                    })
+                    .and_then(|p| match (&observed.serial_number, &p.serial_number) {
+                        (Some(now), Some(before)) if now != before => {
+                            Some(format!("serial number changed from {} to {}", before, now))
+                        }
+                        _ => None,
+                    }),
+            },
+            _ => previous.as_ref().and_then(|p| observed.conflict_with(p)),
+        };
+
+        if let Some(reason) = conflict {
+            let previously = match (&expected, &previous) {
+                (Some(expected), _) => format!("the caller expected {}", expected),
+                (None, Some(previous)) => format!("previously it was {}", previous.describe()),
+                (None, None) => "nothing was expected".to_string(),
+            };
+            let message = format!(
+                "Device id {} {}: {}. \
+                     Connected device reports {}; {}. \
                      This id is a position on the bus, not an identity, so it \
                      re-binds when devices are replugged or re-enumerated. \
                      Refusing the connection rather than using the wrong device.",
-                    info.id,
-                    IDENTITY_CONFLICT_MARKER,
-                    reason,
-                    observed.describe(),
-                    previous.describe(),
-                );
-                tracing::error!("{}", message);
+                info.id,
+                IDENTITY_CONFLICT_MARKER,
+                reason,
+                observed.describe(),
+                previously,
+            );
+            tracing::error!("{}", message);
 
-                if let Err(e) = self.disconnect_device(&info.id).await {
-                    tracing::warn!(
-                        "Failed to release the mismatched device {} after an identity conflict: {}",
-                        info.id,
-                        e
-                    );
-                }
-                return Err(message);
+            // The id answered as a different device, so the enumeration
+            // the discovery cache holds is out of date: drop it, so the
+            // caller's next look for the device it wanted sees where it
+            // went.
+            crate::api::api_invalidate_discovery_cache().await;
+
+            if let Err(e) = self.disconnect_device(&info.id).await {
+                tracing::warn!(
+                    "Failed to release the mismatched device {} after an identity conflict: {}",
+                    info.id,
+                    e
+                );
             }
+            return Err(message);
         }
 
         tracing::info!("Device {} identified as {}", info.id, observed.describe());
@@ -613,6 +717,33 @@ impl DeviceManager {
         }
 
         Ok(())
+    }
+
+    /// Whether a fresh enumeration lists `expected_model` at `info.id`.
+    ///
+    /// The discovery cache is dropped first: after a re-enumeration it still
+    /// describes the bus as it was, which is exactly the question here.
+    async fn enumeration_names(&self, info: &DeviceInfo, expected_model: &str) -> bool {
+        crate::api::api_invalidate_discovery_cache().await;
+        match crate::api::api_discover_devices(info.device_type.clone()).await {
+            Ok(devices) => devices.iter().any(|d| {
+                d.id == info.id
+                    && (crate::device_manager::identity::same_model(&d.name, expected_model)
+                        || crate::device_manager::identity::same_model(
+                            &d.display_name,
+                            expected_model,
+                        ))
+            }),
+            Err(e) => {
+                tracing::warn!(
+                    "Could not enumerate {} devices to check {}: {}",
+                    info.device_type.as_str(),
+                    info.id,
+                    e
+                );
+                false
+            }
+        }
     }
 
     /// Read identity straight off the connected driver.
@@ -636,7 +767,32 @@ impl DeviceManager {
             return Self::identity_from_device(&info.id, device.as_ref());
         }
 
+        if info.driver_type == DriverType::Simulator && info.device_type == DeviceType::Camera {
+            return Self::simulated_camera_identity(&info.id).await;
+        }
+
         DeviceIdentity::default()
+    }
+
+    /// What a simulated camera says it is: the name and sensor of the body
+    /// at the id, which can change when the simulated bus re-enumerates
+    /// (the `unplug(reorder)` fault), so the identity check runs against the
+    /// simulators the same way it does against a ZWO pair.
+    async fn simulated_camera_identity(device_id: &str) -> DeviceIdentity {
+        let status = crate::api::devices::simulation::get_sim_camera_for(device_id)
+            .read()
+            .await
+            .status
+            .clone();
+        DeviceIdentity {
+            model: crate::api::discovery::simulator_display_name(device_id, DeviceType::Camera),
+            serial_number: None,
+            sensor: DeviceIdentity::sensor_fingerprint(
+                status.sensor_width,
+                status.sensor_height,
+                status.pixel_size_x,
+            ),
+        }
     }
 
     /// Identity of a connected ASCOM camera, when this platform has ASCOM.
@@ -722,6 +878,21 @@ impl DeviceManager {
         }
     }
 
+    /// The fault-injection key prefix for a simulated device, as the
+    /// simulator's own gates name it.
+    pub(crate) fn sim_fault_prefix(info: &DeviceInfo) -> Option<&'static str> {
+        Some(match info.device_type {
+            DeviceType::Camera => {
+                crate::api::devices::simulation::sim_camera_fault_prefix(&info.id)
+            }
+            DeviceType::Mount => "mount",
+            DeviceType::Focuser => "focuser",
+            DeviceType::FilterWheel => "filterwheel",
+            DeviceType::Rotator => "rotator",
+            _ => return None,
+        })
+    }
+
     /// Connect to a simulator device.
     ///
     /// Sets the matching `simulation.rs` singleton's `connected = true` so
@@ -764,6 +935,12 @@ impl DeviceManager {
         // build without a rebuild. Idempotent — re-arming the same spec on a
         // second connect just resets its counters.
         crate::device_manager::ops::sim_faults::arm_from_env();
+
+        // `<device>.connect`: a simulated device that cannot be opened (a
+        // camera whose USB hub dropped), or opens slowly.
+        if let Some(prefix) = Self::sim_fault_prefix(info) {
+            crate::device_manager::ops::sim_faults::check(&format!("{prefix}.connect")).await?;
+        }
 
         match info.device_type {
             DeviceType::Camera => {
@@ -907,6 +1084,8 @@ impl DeviceManager {
                 .map(|d| d.info.clone())
                 .ok_or_else(|| format!("Device not found: {}", device_id))?
         };
+
+        self.status_reads.forget(device_id);
 
         // Update state
         {

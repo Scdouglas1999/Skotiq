@@ -11,7 +11,9 @@ impl DeviceManager {
         &self,
         device_id: &str,
     ) -> Result<crate::device::CameraStatus, DeviceOpError> {
-        let status = self.camera_get_status_dispatch(device_id).await?;
+        let result = self.camera_get_status_dispatch(device_id).await;
+        self.note_status_read(device_id, &result);
+        let status = result?;
         if let Some(temperature) = status.sensor_temp {
             self.publish_camera_temperature(device_id, temperature, status.cooler_power);
         }

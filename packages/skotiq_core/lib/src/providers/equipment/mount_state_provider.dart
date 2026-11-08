@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/equipment/equipment_models.dart';
-import '../../models/backend/device_types.dart' show PierSide;
+import '../../models/backend/device_types.dart' show DeviceType, PierSide;
+import 'device_read_health_provider.dart';
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
 import '../../backend/network_backend.dart';
@@ -304,6 +305,9 @@ class MountStateNotifier extends StateNotifier<MountState>
         // connected mount or repopulate state after disconnect.
         return;
       }
+      _ref
+          .read(deviceReadHealthProvider.notifier)
+          .recordSuccess(DeviceType.mount, deviceId);
 
       updatePosition(
         status.rightAscension,
@@ -345,9 +349,18 @@ class MountStateNotifier extends StateNotifier<MountState>
         _restartPollingWithCurrentRate();
       }
     } catch (e) {
-      // Don't spam errors for transient failures during polling.
-      // A persistent failure will eventually be caught by the heartbeat
-      // monitor which handles reconnection.
+      // The position, pier side and tracking state shown are now older than
+      // this poll. A driver can keep answering the heartbeat while every
+      // position read fails (the NYX-101, Nov 8 2026), so the values are
+      // marked stale here, and the host's heartbeat counts the failed reads
+      // too and takes the mount through error and reconnect.
+      if (mounted &&
+          state.deviceId == deviceId &&
+          state.connectionState == DeviceConnectionState.connected) {
+        _ref
+            .read(deviceReadHealthProvider.notifier)
+            .recordFailure(DeviceType.mount, deviceId, e);
+      }
       developer.log(
         '[Mount] Position poll failed: $e',
         name: 'MountStateNotifier',
