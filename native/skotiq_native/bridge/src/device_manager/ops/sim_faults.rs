@@ -98,6 +98,17 @@ pub enum Effect {
     /// silent mechanical fault, not a driver error, and the only way to detect
     /// it is to re-read the position instead of trusting the command.
     Backlash(i32),
+    /// The NYX-101 runaway (2026-10-17, 10-19, 11-08): after `delay_secs`
+    /// the mount's Dec axis runs on its own at `deg_per_sec` for `run_secs`,
+    /// ignoring every stop command, then the mount stops answering for
+    /// `blackout_secs` and comes back reporting its home position, tracking.
+    /// Returns `Ok(())`; see [`super::sim_runaway`].
+    Runaway {
+        deg_per_sec: f64,
+        run_secs: f64,
+        blackout_secs: f64,
+        delay_secs: f64,
+    },
 }
 
 /// A fault armed against one operation key.
@@ -151,6 +162,8 @@ struct Registry {
     stalled: HashMap<String, bool>,
     /// Backlash, in steps, currently latched on a key by [`Effect::Backlash`].
     backlash: HashMap<String, i32>,
+    /// Runaways latched by [`Effect::Runaway`], with when they were latched.
+    runaway: HashMap<String, (std::time::Instant, Effect)>,
 }
 
 fn registry() -> &'static StdMutex<Registry> {
@@ -205,6 +218,7 @@ pub fn arm(key: &str, spec: FaultSpec) {
     // not inherit a stuck or backlashed device from an earlier case.
     reg.stalled.remove(key);
     reg.backlash.remove(key);
+    reg.runaway.remove(key);
 }
 
 /// Part of the fault-injection CONTROL SURFACE: driven from tests today, and
@@ -219,6 +233,7 @@ pub fn clear(key: &str) {
     reg.faults.remove(key);
     reg.stalled.remove(key);
     reg.backlash.remove(key);
+    reg.runaway.remove(key);
 }
 
 /// Disarm everything. Call this between tests: the registry is process-global
@@ -230,6 +245,7 @@ pub fn clear_all() {
     reg.faults.clear();
     reg.stalled.clear();
     reg.backlash.clear();
+    reg.runaway.clear();
 }
 
 /// Currently armed keys and their specs, for diagnostics and for asserting that
@@ -336,6 +352,32 @@ fn decide(key: &str) -> Decision {
             reg.backlash.insert(key.to_string(), steps);
             Decision::Proceed
         }
+        effect @ Effect::Runaway { .. } => {
+            // One runaway per arming: a trigger that keeps firing must not
+            // restart it.
+            reg.runaway
+                .entry(key.to_string())
+                .or_insert((std::time::Instant::now(), effect));
+            Decision::Proceed
+        }
+    }
+}
+
+/// The runaway latched on `key`: when it was latched and its parameters
+/// `(deg_per_sec, run_secs, blackout_secs, delay_secs)`.
+pub fn runaway_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f64, f64)> {
+    let reg = registry().lock().expect("sim fault registry poisoned");
+    match reg.runaway.get(key)? {
+        (
+            at,
+            Effect::Runaway {
+                deg_per_sec,
+                run_secs,
+                blackout_secs,
+                delay_secs,
+            },
+        ) => Some((*at, *deg_per_sec, *run_secs, *blackout_secs, *delay_secs)),
+        _ => None,
     }
 }
 
@@ -417,7 +459,8 @@ pub fn arm_from_env() {
 /// Triggers: `once`, `times(N)`, `always`, `after(N)`, `every(N)`, `p(0.25)`.
 /// Effects: `error`, `error(msg)`, `notconnected`, `delay(MS)`,
 /// `delaythenerror(MS)`, `delaythenerror(MS,msg)`, `stall`, `backlash(STEPS)`,
-/// `notimplemented`.
+/// `notimplemented`, `runaway(DEG_PER_S,RUN_S,BLACKOUT_S,DELAY_S)` (key
+/// `mount.runaway`, every argument optional).
 ///
 /// Example: `mount.slew=once:error,camera.download=always:delaythenerror(30000)`
 pub fn parse_spec_list(raw: &str) -> Result<Vec<(String, FaultSpec)>, String> {
@@ -549,6 +592,31 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
             Ok(Effect::DelayThenError(ms, message))
         }
         "stall" => Ok(Effect::Stall),
+        "runaway" => {
+            let arg = arg.unwrap_or("");
+            let numbers: Vec<f64> = arg
+                .split(',')
+                .filter(|part| !part.trim().is_empty())
+                .map(|part| {
+                    part.trim()
+                        .parse::<f64>()
+                        .map_err(|_| format!("runaway argument '{part}' is not a number"))
+                })
+                .collect::<Result<_, _>>()?;
+            if numbers.len() > 4 || numbers.iter().any(|n| !n.is_finite() || *n < 0.0) {
+                return Err(format!(
+                    "runaway takes up to four non-negative numbers \
+                     (deg_per_sec,run_secs,blackout_secs,delay_secs), got '{arg}'"
+                ));
+            }
+            let get = |i: usize, default: f64| numbers.get(i).copied().unwrap_or(default);
+            Ok(Effect::Runaway {
+                deg_per_sec: get(0, 4.7),
+                run_secs: get(1, 20.0),
+                blackout_secs: get(2, 15.0),
+                delay_secs: get(3, 0.0),
+            })
+        }
         "backlash" => {
             let arg =
                 arg.ok_or_else(|| "backlash needs a step count, e.g. backlash(40)".to_string())?;

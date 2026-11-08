@@ -179,6 +179,7 @@ pub(crate) async fn read_mount_status() -> Result<MountStatus, String> {
     if !get_sim_mount().read().await.status.connected {
         return Err(not_connected("mount"));
     }
+    super::sim_runaway::step().await?;
     advance_mount_motion().await;
     let mut status = get_sim_mount().read().await.status.clone();
     apply_derived_mount_telemetry(&mut status, observer_site(), chrono::Utc::now());
@@ -273,6 +274,7 @@ pub(crate) async fn require_mount_connected() -> Result<(), String> {
     if !get_sim_mount().read().await.status.connected {
         return Err(not_connected("mount"));
     }
+    super::sim_runaway::step().await?;
     advance_mount_motion().await;
     Ok(())
 }
