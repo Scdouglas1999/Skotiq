@@ -1556,7 +1556,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrAfStarting': 'Autofocus starting',
     'nightCtrHfrValue': 'HFR {hfr}',
     'nightCtrSolved': 'Solved {ra} {dec}',
-    'nightCtrSolveOff': "{offset}' off",
+    'nightCtrSolveOff': '{offset} off',
     'nightCtrBackToLatest': 'Back to latest',
     'nightCtrViewStretch': 'Stretch',
     'nightCtrViewStretchTip':
@@ -3269,7 +3269,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrAfStarting': 'Autoenfoque iniciando',
     'nightCtrHfrValue': 'HFR {hfr}',
     'nightCtrSolved': 'Resuelto {ra} {dec}',
-    'nightCtrSolveOff': "desviado {offset}'",
+    'nightCtrSolveOff': 'desviado {offset}',
     'nightCtrBackToLatest': 'Volver a la última',
     'nightCtrViewStretch': 'Estirar',
     'nightCtrViewStretchTip':

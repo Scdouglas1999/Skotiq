@@ -80,10 +80,15 @@ double nightSeparationArcsec(
   return 2 * math.asin(math.min(1, math.sqrt(h))) / toRad * 3600;
 }
 
-/// `0.8"`, `12.4'`, `1.2°`. ASCII marks: the bundled faces have no ″ or ′.
+/// An offset from the target: `0.8"`, `46.3"`, `2574"`, and `1.2°` only
+/// past a degree, where the mount is nowhere near the target. One unit for
+/// every offset a centered or nearly centered frame has, so consecutive
+/// readings compare at a glance: switching to arcminutes at 60" made a frame
+/// 42.9' off and the next 46.3" off read as if they were measured in the
+/// same unit. ASCII marks: the bundled faces have no ″ or ′.
 String nightAngle(double arcsec) {
-  if (arcsec < 60) return '${arcsec.toStringAsFixed(1)}"';
-  if (arcsec < 3600) return "${(arcsec / 60).toStringAsFixed(1)}'";
+  if (arcsec < 100) return '${arcsec.toStringAsFixed(1)}"';
+  if (arcsec < 3600) return '${arcsec.round()}"';
   return '${(arcsec / 3600).toStringAsFixed(1)}°';
 }
 

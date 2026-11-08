@@ -87,7 +87,8 @@ void main() {
     expect(find.text('Solved · 2.1 s'), findsOneWidget);
     expect(find.text('0.77"/px'), findsOneWidget);
     expect(find.text("60'×45'"), findsOneWidget);
-    expect(find.text("8.7'"), findsOneWidget, reason: 'off target');
+    // In arcseconds, the unit every off-target reading uses.
+    expect(find.text('520"'), findsOneWidget, reason: 'off target');
   });
 
   testWidgets('Solve, Solve & sync and Center go through the action controller',
