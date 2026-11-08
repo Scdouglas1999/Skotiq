@@ -131,8 +131,24 @@ async fn center(
     } else if let (Some(ra), Some(dec)) = (config.custom_ra, config.custom_dec) {
         (ra, dec)
     } else {
+        // The read-back is in the mount's frame (of date); the centering
+        // target, like the plate solves it is compared with and the slew it
+        // is sent to, is J2000. Used raw, "center where the mount points"
+        // centered about 20' away.
         match ctx.device_ops.mount_get_coordinates(&mount_id).await {
-            Ok((ra, dec)) => (ra, dec),
+            Ok((ra, dec)) => match ctx
+                .device_ops
+                .mount_readback_to_j2000(&mount_id, ra, dec)
+                .await
+            {
+                Ok(j2000) => j2000,
+                Err(e) => {
+                    return InstructionResult::failure(format!(
+                        "The mount's current position could not be expressed in J2000: {}",
+                        e
+                    ))
+                }
+            },
             Err(e) => {
                 return InstructionResult::failure(format!(
                     "Custom center coordinates were not provided and current mount coordinates could not be read: {}",

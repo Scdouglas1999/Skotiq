@@ -111,3 +111,36 @@ async fn a_center_that_does_not_converge_notifies_and_the_run_goes_on() {
     );
     assert!(run.decisions.is_empty(), "{:?}", run.decisions);
 }
+
+/// "Center where the mount points" takes the mount's read-back, which is of
+/// date, and centers on it in J2000: the solves it is compared with and the
+/// slew path both speak J2000.
+#[tokio::test(start_paused = true)]
+async fn centering_on_the_mount_position_centers_on_it_in_j2000() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_scripted_mount_coordinates(10.0, 50.0)
+            .with_readback_to_j2000_offset(-0.02, -0.1),
+    );
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.mount_id = Some("mount-1".to_string());
+    let config = CenterConfig {
+        use_target_coords: false,
+        custom_ra: None,
+        custom_dec: None,
+        max_attempts: 1,
+        exposure_duration: 0.01,
+        ..CenterConfig::default()
+    };
+
+    execute_center(&config, &ctx, None).await;
+
+    // The solve is checked against the target it is handed as a hint.
+    let hints = ops.plate_solve_hints.lock().unwrap().clone();
+    let (ra_deg, dec) = *hints.first().expect("centering solves a frame");
+    let (ra_deg, dec) = (ra_deg.unwrap(), dec.unwrap());
+    assert!(
+        (ra_deg - 9.98 * 15.0).abs() < 1e-9 && (dec - 49.9).abs() < 1e-9,
+        "centered on ({ra_deg}, {dec}), not the J2000 place of the mount's position"
+    );
+}

@@ -173,7 +173,15 @@ pub(crate) async fn run_polar_alignment(
     // Slew-to-pole start mode: point the mount at the pole region before
     // measuring, instead of measuring from wherever it currently points.
     if !start_from_current {
-        match slew_to_pole_region(&mount_id, is_north, observer_longitude, generation).await? {
+        match slew_to_pole_region(
+            &mount_id,
+            is_north,
+            rotate_east,
+            observer_longitude,
+            generation,
+        )
+        .await?
+        {
             SlewOutcome::Settled => {}
             SlewOutcome::Cancelled => {
                 emit_polar_status("Cancelled by user", "idle", 0);
@@ -183,7 +191,8 @@ pub(crate) async fn run_polar_alignment(
         }
     }
 
-    let mut solved_points: Vec<(f64, f64)> = Vec::new();
+    let mut solved_points: Vec<skotiq_sequencer::AlignmentPoint> = Vec::new();
+    let device_ops = create_unified_device_ops();
 
     // The declination every rotation step holds, read ONCE.
     //
@@ -245,6 +254,7 @@ pub(crate) async fn run_polar_alignment(
 
         // Capture image. gain/offset are Option — None leaves the camera's
         // current value untouched (never forced to 0).
+        let taken_at = skotiq_sequencer::polar_mid_exposure(chrono::Utc::now(), exposure_time);
         crate::api::imaging::camera_start_exposure_opt(
             camera_id.clone(),
             exposure_time,
@@ -255,6 +265,23 @@ pub(crate) async fn run_polar_alignment(
         )
         .await
         .map_err(|e| format!("Failed to capture: {:?}", e))?;
+
+        // Where the mount's declination axis was for this frame. A rotation
+        // step should leave it alone; when it did not (a slewing mount that
+        // rounds, or the double-precessed steps of 2026-11-07), the fit takes
+        // the move out instead of reading it as polar misalignment.
+        let mount_dec_degrees = match device_ops.mount_get_coordinates(&mount_id).await {
+            Ok((_, dec)) => Some(dec),
+            Err(e) => {
+                tracing::warn!(
+                    "Polar alignment point {}: could not read the mount declination ({}); \
+                     the fit assumes it did not move",
+                    point,
+                    e
+                );
+                None
+            }
+        };
 
         match polar_loop_control(generation) {
             PolarLoopControl::Continue => {}
@@ -314,12 +341,21 @@ pub(crate) async fn run_polar_alignment(
         // degrees. Multiplying by 15 here corrupted both the rotation-center
         // fit and the next mount slew target.
         let ra_degrees = plate_solve_ra_degrees(solve_result.ra);
-        solved_points.push((ra_degrees, solve_result.dec));
+        solved_points.push(skotiq_sequencer::AlignmentPoint {
+            ra_degrees,
+            dec_degrees: solve_result.dec,
+            taken_at,
+            mount_dec_degrees,
+        });
         tracing::info!(
-            "Point {} solved: RA={:.4}°, Dec={:.4}°",
+            "Point {} solved: RA={:.4}°, Dec={:.4}° at {} (mount Dec {})",
             point,
             ra_degrees,
-            solve_result.dec
+            solve_result.dec,
+            taken_at.to_rfc3339(),
+            mount_dec_degrees
+                .map(|d| format!("{d:.4}°"))
+                .unwrap_or_else(|| "unknown".to_string())
         );
 
         // Emit image again with plate solve coordinates
@@ -381,14 +417,26 @@ pub(crate) async fn run_polar_alignment(
     // Phase 2: Calculate center of rotation
     emit_polar_status("Calculating polar alignment error...", "adjusting", 3);
 
-    let fit = skotiq_sequencer::fit_rotation_axis(&solved_points, is_north).ok_or_else(|| {
-        let msg = "The three measurement points do not describe a rotation. The mount did not \
+    // Refraction is the sky's, and the simulator renders a sky without an
+    // atmosphere: correcting its frames for refraction would report about a
+    // minute of error on a perfectly aligned simulated mount.
+    let simulated_sky = get_device_manager()
+        .get_device(&mount_id)
+        .await
+        .is_some_and(|d| d.info.driver_type == DriverType::Simulator);
+    let refraction_site = (!simulated_sky).then_some((observer_latitude, observer_longitude));
+    let mount_axis = skotiq_sequencer::fit_mount_axis(&solved_points, is_north, refraction_site)
+        .ok_or_else(|| {
+            let msg = "The three measurement points do not describe a rotation. The mount did not \
              turn between them, or the same frame was solved three times."
-            .to_string();
-        emit_polar_status(&format!("Error: {}", msg), "error", 0);
-        msg
-    })?;
-    let (mut center_ra, mut center_dec) = (fit.ra_degrees, fit.dec_degrees);
+                .to_string();
+            emit_polar_status(&format!("Error: {}", msg), "error", 0);
+            msg
+        })?;
+    let fit = mount_axis.fit;
+    // The fit is of date at the last point; the adjustment loop works in the
+    // plate solver's J2000, at each frame's own time.
+    let (mut center_ra, mut center_dec) = mount_axis.axis_j2000_at(mount_axis.at);
     let pole_dec = if is_north { 90.0 } else { -90.0 };
 
     // The axis is the ANSWER, but a three-point circle is exactly determined:
@@ -397,10 +445,12 @@ pub(crate) async fn run_polar_alignment(
     // answer is what turns "the axis came out 9° off" into a number the next
     // run can act on.
     tracing::info!(
-        "Rotation center: RA={:.4}°, Dec={:.4}° (circle radius {:.2}°, arc {:.1}°, \
-         one arcmin of error in one point moves this axis {:.2}°)",
+        "Rotation center: RA={:.4}°, Dec={:.4}° J2000 (of date RA={:.4}°, Dec={:.4}°; circle \
+         radius {:.2}°, arc {:.1}°, one arcmin of error in one point moves this axis {:.2}°)",
         center_ra,
         center_dec,
+        fit.ra_degrees,
+        fit.dec_degrees,
         fit.radius_degrees,
         fit.arc_degrees,
         fit.axis_degrees_per_arcmin
@@ -451,8 +501,9 @@ pub(crate) async fn run_polar_alignment(
     // special case: it turns the camera about the axis itself, which leaves the
     // axis where it was. `reference_solve` is captured on the first successful
     // adjustment solve below.
-    let initial_axis = (center_ra, center_dec);
-    let mut reference_solve: Option<skotiq_sequencer::CameraAttitude> = None;
+    // The axis is fixed to the ground, so in J2000 it moves with the sky: it
+    // is taken at the reference frame's own time.
+    let mut reference_solve: Option<(skotiq_sequencer::CameraAttitude, (f64, f64))> = None;
 
     // Auto-complete timer: tracks when error first dropped below threshold
     let mut auto_complete_start: Option<std::time::Instant> = None;
@@ -486,6 +537,7 @@ pub(crate) async fn run_polar_alignment(
 
         // Capture and solve to get current position
         emit_polar_status("Capturing...", "adjusting", 0);
+        let frame_time = skotiq_sequencer::polar_mid_exposure(chrono::Utc::now(), exposure_time);
         if let Err(e) = crate::api::imaging::camera_start_exposure_opt(
             camera_id.clone(),
             exposure_time,
@@ -672,7 +724,8 @@ pub(crate) async fn run_polar_alignment(
         );
         let current_attitude =
             skotiq_sequencer::CameraAttitude::from_solve(ra_degrees, solve_result.dec, up_angle);
-        let reference_attitude = *reference_solve.get_or_insert(current_attitude);
+        let (reference_attitude, initial_axis) = *reference_solve
+            .get_or_insert((current_attitude, mount_axis.axis_j2000_at(frame_time)));
         let (cur_axis_ra, cur_axis_dec) = skotiq_sequencer::rotate_axis_by_attitude_change(
             initial_axis,
             &reference_attitude,
@@ -694,7 +747,7 @@ pub(crate) async fn run_polar_alignment(
         // fires the auto-complete ~60x too early.
         // The axis is in the plate solver's J2000 frame; the pole it has to
         // reach is tonight's.
-        let now = chrono::Utc::now();
+        let now = frame_time;
         let (axis_ra_of_date, axis_dec_of_date) =
             skotiq_sequencer::axis_j2000_to_date(cur_axis_ra, cur_axis_dec, now);
         let (az_arcmin, alt_arcmin, total_arcmin) =

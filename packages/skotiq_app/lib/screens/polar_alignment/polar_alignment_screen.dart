@@ -10,6 +10,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../widgets/tutorial_keys/polar_alignment_keys.dart';
+import 'polar_alignment_activity.dart';
 import 'polar_alignment_body_layout.dart';
 import 'polar_alignment_error_format.dart';
 import 'widgets/all_sky_target_reticle.dart';
@@ -28,6 +29,7 @@ part 'polar_alignment_screen_parts/_center_panel.dart';
 part 'polar_alignment_screen_parts/_measurement_panel.dart';
 part 'polar_alignment_screen_parts/_completion_panel.dart';
 part 'polar_alignment_screen_parts/_right_panel.dart';
+part 'polar_alignment_screen_parts/_live_panel.dart';
 
 /// The footer line that names why Start Alignment is refusing.
 ///
@@ -321,13 +323,19 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
           // Main content — responsive layout avoids squeezing the guide
           // column when embedded beside the app shell or on smaller displays.
           Expanded(
-            child: PolarAlignmentBodyLayout(
-              leftPanel: _buildLeftPanel(colors, state, config, isRunning),
-              centerPanel: state.phase == PolarAlignPhase.idle
-                  ? null
-                  : _buildCenterPanel(colors, state, config),
-              rightPanel: _buildRightPanel(colors, state, config),
-            ),
+            // A run in progress is the frame: the settings are locked and the
+            // error is a compact readout beside it. Idle and the finished
+            // states keep the three panels.
+            child: polarRunIsLive(state)
+                ? _buildLiveBody(colors, state, config)
+                : PolarAlignmentBodyLayout(
+                    leftPanel:
+                        _buildLeftPanel(colors, state, config, isRunning),
+                    centerPanel: state.phase == PolarAlignPhase.idle
+                        ? null
+                        : _buildCenterPanel(colors, state, config),
+                    rightPanel: _buildRightPanel(colors, state, config),
+                  ),
           ),
         ],
       ),

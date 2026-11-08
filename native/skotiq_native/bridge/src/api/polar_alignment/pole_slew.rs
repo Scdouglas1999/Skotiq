@@ -26,18 +26,33 @@ pub(crate) enum SlewOutcome {
     Superseded,
 }
 
-/// Compute the "slew to pole region" target `(ra_hours, dec_degrees)`.
+/// How far beside the meridian the pole-region target sits, in hours of
+/// hour angle: enough that the first rotation step moves away from the
+/// meridian instead of across it, with room for the minutes the slew and the
+/// first frame take while the sky turns.
+pub(crate) const POLE_REGION_MERIDIAN_MARGIN_HOURS: f64 = 0.25;
+
+/// Compute the "slew to pole region" target `(ra_hours, dec_degrees)`, both
+/// of date.
 ///
-/// The target sits on the local meridian (RA == LST, i.e. hour angle 0) so it
-/// culminates — highest above the horizon, least atmosphere, best for plate
-/// solving — and [`POLE_REGION_OFFSET_DEG`] from the celestial pole toward the
-/// equator so the subsequent three-point RA arc keeps good geometry. Northern
+/// The target sits just beside the local meridian, so it is near culmination
+/// (high, little atmosphere, good for plate solving), on the side the
+/// rotation steps move away from: [`POLE_REGION_MERIDIAN_MARGIN_HOURS`] east
+/// of it when the run rotates east (RA increasing, hour angle decreasing),
+/// west of it when the run rotates west. On the meridian itself the first
+/// step in one of the two directions crosses it, and the rotation guard then
+/// refuses the run. Dec is [`POLE_REGION_OFFSET_DEG`] from the celestial pole
+/// toward the equator so the three-point arc keeps good geometry. Northern
 /// observers point at +Dec, southern at −Dec.
 ///
-/// Pure and deterministic given `(lst_hours, is_north)` so it can be unit
-/// tested without hardware.
-pub(crate) fn pole_region_target(lst_hours: f64, is_north: bool) -> (f64, f64) {
-    let ra_hours = lst_hours.rem_euclid(24.0);
+/// Pure and deterministic so it can be unit tested without hardware.
+pub(crate) fn pole_region_target(lst_hours: f64, is_north: bool, rotate_east: bool) -> (f64, f64) {
+    let ra_hours = if rotate_east {
+        lst_hours + POLE_REGION_MERIDIAN_MARGIN_HOURS
+    } else {
+        lst_hours - POLE_REGION_MERIDIAN_MARGIN_HOURS
+    }
+    .rem_euclid(24.0);
     let dec_degrees = if is_north {
         90.0 - POLE_REGION_OFFSET_DEG
     } else {
@@ -58,6 +73,7 @@ pub(crate) fn pole_region_target(lst_hours: f64, is_north: bool) -> (f64, f64) {
 pub(crate) async fn slew_to_pole_region(
     mount_id: &str,
     is_north: bool,
+    rotate_east: bool,
     longitude_deg: f64,
     generation: u64,
 ) -> Result<SlewOutcome, String> {
@@ -66,7 +82,7 @@ pub(crate) async fn slew_to_pole_region(
     let now = chrono::Utc::now();
     let jd = julian_day(&now);
     let lst = local_sidereal_time(jd, longitude_deg);
-    let (target_ra_h, target_dec) = pole_region_target(lst, is_north);
+    let (target_ra_h, target_dec) = pole_region_target(lst, is_north, rotate_east);
 
     emit_polar_status(
         &format!(
@@ -86,8 +102,20 @@ pub(crate) async fn slew_to_pole_region(
         PolarLoopControl::Cancelled => return Ok(SlewOutcome::Cancelled),
     }
 
+    // RA = local sidereal time is an hour angle of zero OF DATE; the slew
+    // path takes J2000, so express it there or the mount lands off the
+    // meridian by the precession in RA.
+    let (slew_ra_h, slew_dec) = device_ops
+        .mount_readback_to_j2000(mount_id, target_ra_h, target_dec)
+        .await
+        .map_err(|e| {
+            format!(
+                "Could not express the pole-region target for the mount: {}",
+                e
+            )
+        })?;
     device_ops
-        .mount_slew_to_coordinates(mount_id, target_ra_h, target_dec)
+        .mount_slew_to_coordinates(mount_id, slew_ra_h, slew_dec)
         .await
         .map_err(|e| format!("Failed to slew to pole region: {}", e))?;
 
@@ -300,6 +328,18 @@ pub(crate) async fn rotate_for_next_point(
 
     let device_ops = create_unified_device_ops();
 
+    // The target is in the mount's frame (of date on every real mount) and
+    // the slew path takes J2000 and precesses it on the way out. Handing it
+    // the mount-frame numbers precessed them twice: on 2026-11-07 that moved
+    // the declination axis 75-384" between points and the fitted axis about
+    // 1° off, with a sign that followed the pier side. Express the target in
+    // J2000 here so the slew path's conversion lands it back on exactly the
+    // mount-frame position computed above.
+    let (slew_ra_hours, slew_dec) = device_ops
+        .mount_readback_to_j2000(mount_id, target_ra_hours, target_dec)
+        .await
+        .map_err(|e| format!("Could not express the rotation target for the mount: {}", e))?;
+
     match polar_loop_control(generation) {
         PolarLoopControl::Continue => {}
         PolarLoopControl::Superseded => return Ok(SlewOutcome::Superseded),
@@ -307,7 +347,7 @@ pub(crate) async fn rotate_for_next_point(
     }
 
     device_ops
-        .mount_slew_to_coordinates(mount_id, target_ra_hours, target_dec)
+        .mount_slew_to_coordinates(mount_id, slew_ra_hours, slew_dec)
         .await
         .map_err(|e| format!("Failed to rotate to point {}: {}", next_point, e))?;
 

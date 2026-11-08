@@ -5,7 +5,13 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart'
-    show LinkedManualAction, linkedManualActionProvider;
+    show
+        LinkedManualAction,
+        PolarAlignPhase,
+        PolarAlignmentState,
+        PolarAlignmentStateNotifier,
+        linkedManualActionProvider,
+        polarAlignmentStateProvider;
 import 'package:skotiq_app/screens/night_control/center/manual_action_bar.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 
@@ -193,4 +199,39 @@ void main() {
       findsOneWidget,
     );
   });
+
+  // 2026-11-07 on the rig: the bar said "Nothing is running" through every
+  // exposure of a polar alignment, which runs outside the plan.
+  testWidgets('a polar alignment run is named in the hint', (tester) async {
+    await pumpCenter(
+      tester,
+      [
+        ...centerOverrides(NightFixtures.ready()),
+        polarAlignmentStateProvider.overrideWith(
+          (ref) => _FixedPolar(
+            ref,
+            const PolarAlignmentState(
+              phase: PolarAlignPhase.measuring,
+              currentPoint: 1,
+              statusMessage: 'Capturing point 2/3...',
+            ),
+          ),
+        ),
+      ],
+      child: const ManualActionBar(),
+      size: const Size(1000, ManualActionBar.height),
+    );
+    expect(
+      find.text('Polar alignment is running · Capturing point 2 of 3'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Nothing is running'), findsNothing);
+  });
+}
+
+class _FixedPolar extends PolarAlignmentStateNotifier {
+  _FixedPolar(super.ref, PolarAlignmentState fixed) {
+    // ignore: invalid_use_of_protected_member
+    state = fixed;
+  }
 }

@@ -28,11 +28,22 @@ mod math;
 mod preview;
 
 pub use math::{
-    axis_j2000_to_date, calculate_alignment_error_arcmin, fit_rotation_axis,
-    rotate_axis_by_attitude_change, rotate_axis_by_star_motion, up_position_angle_deg,
-    CameraAttitude, RotationAxisFit,
+    axis_date_to_j2000, axis_j2000_to_date, calculate_alignment_error_arcmin, fit_mount_axis,
+    fit_rotation_axis, fit_rotation_axis_with_dec_moves, rotate_axis_by_attitude_change,
+    rotate_axis_by_star_motion, up_position_angle_deg, AlignmentPoint, CameraAttitude,
+    MountAxisFit, RotationAxisFit,
 };
 pub use preview::prepare_image_for_display;
+
+/// The middle of an exposure of `exposure_secs` started at `started`: the
+/// instant a polar-alignment frame's solve describes.
+pub fn polar_mid_exposure(
+    started: chrono::DateTime<chrono::Utc>,
+    exposure_secs: f64,
+) -> chrono::DateTime<chrono::Utc> {
+    let half_us = (exposure_secs.max(0.0) * 500_000.0).round() as i64;
+    started + chrono::Duration::microseconds(half_us)
+}
 
 use crate::wizard::{
     wait_for_slew_complete, NoopProgressReporter, NullCheckpointSink, Wizard, WizardExecutor,
@@ -148,7 +159,7 @@ where
     status_callback: &'a S,
     image_callback: &'a I,
     /// Solved (RA°, Dec°) coordinates of each measurement point.
-    points: Vec<(f64, f64)>,
+    points: Vec<math::AlignmentPoint>,
     /// Terminal `InstructionResult`. Populated by the adjustment step
     /// when auto-complete fires (and on cancellation paths).
     terminal_result: Option<InstructionResult>,
@@ -272,6 +283,7 @@ where
             Some(f64::from(i) / 3.0),
         );
 
+        let taken_at = polar_mid_exposure(chrono::Utc::now(), self.config.exposure_time);
         let image_data = match ctx
             .device_ops
             .camera_start_exposure(
@@ -289,6 +301,14 @@ where
                 return WizardStepOutcome::Failed(format!("Failed to capture image: {}", e));
             }
         };
+        // The mount's declination for this frame, in its own frame; the fit
+        // takes any move between points out (see `math::fit_mount_axis`).
+        let mount_dec_degrees = ctx
+            .device_ops
+            .mount_get_coordinates(&self.mount_id)
+            .await
+            .ok()
+            .map(|(_, dec)| dec);
 
         preview::emit_preview(
             &image_data,
@@ -326,8 +346,12 @@ where
             "measuring",
         );
 
-        self.points
-            .push((solve_result.ra_degrees, solve_result.dec_degrees));
+        self.points.push(math::AlignmentPoint {
+            ra_degrees: solve_result.ra_degrees,
+            dec_degrees: solve_result.dec_degrees,
+            taken_at,
+            mount_dec_degrees,
+        });
 
         // Rotate the mount toward the next measurement position (unless
         // this was the third point).
@@ -337,18 +361,47 @@ where
                 tracing::info!("Waiting for manual rotation...");
                 sleep(Duration::from_secs(10)).await;
             } else {
-                let current_ra = solve_result.ra_degrees;
-                let current_dec = solve_result.dec_degrees;
-                let move_amount = if self.config.rotate_east {
-                    self.config.step_size
+                // Step in the MOUNT's frame: same mount declination, mount RA
+                // moved by the step. A target built from the solved position
+                // makes the mount correct the very misalignment being
+                // measured on the way, a move in both axes. The slew path
+                // takes J2000 and precesses it, so the mount-frame target is
+                // expressed in J2000 first; passing it through unconverted
+                // precessed it twice (2026-11-07).
+                let (mount_ra_hours, mount_dec) =
+                    match ctx.device_ops.mount_get_coordinates(&self.mount_id).await {
+                        Ok(position) => position,
+                        Err(e) => {
+                            return WizardStepOutcome::Failed(format!(
+                                "Could not read the mount's position before rotating: {}",
+                                e
+                            ));
+                        }
+                    };
+                let step_hours = self.config.step_size / 15.0;
+                let target_ra_hours = if self.config.rotate_east {
+                    mount_ra_hours + step_hours
                 } else {
-                    -self.config.step_size
+                    mount_ra_hours - step_hours
+                }
+                .rem_euclid(24.0);
+                let (slew_ra_hours, slew_dec) = match ctx
+                    .device_ops
+                    .mount_readback_to_j2000(&self.mount_id, target_ra_hours, mount_dec)
+                    .await
+                {
+                    Ok(target) => target,
+                    Err(e) => {
+                        return WizardStepOutcome::Failed(format!(
+                            "Could not express the rotation target for the mount: {}",
+                            e
+                        ));
+                    }
                 };
-                let target_ra = (current_ra + move_amount + 360.0) % 360.0;
 
                 if let Err(e) = ctx
                     .device_ops
-                    .mount_slew_to_coordinates(&self.mount_id, target_ra / 15.0, current_dec)
+                    .mount_slew_to_coordinates(&self.mount_id, slew_ra_hours, slew_dec)
                     .await
                 {
                     return WizardStepOutcome::Failed(format!("Failed to rotate mount: {}", e));
@@ -373,14 +426,31 @@ where
         &mut self,
         ctx: &InstructionContext,
     ) -> WizardStepOutcome<PolarStep> {
-        let Some(fit) = math::fit_rotation_axis(&self.points, self.config.is_north) else {
+        let (observer_latitude, observer_longitude) = match (ctx.latitude, ctx.longitude) {
+            (Some(lat), Some(lon)) => (lat, lon),
+            _ => match ctx.device_ops.get_observer_location() {
+                Some(loc) => loc,
+                None => {
+                    return WizardStepOutcome::Failed(
+                        "Polar alignment requires observer latitude/longitude to calculate azimuth and altitude error".to_string(),
+                    );
+                }
+            },
+        };
+
+        let Some(mount_axis) = math::fit_mount_axis(
+            &self.points,
+            self.config.is_north,
+            Some((observer_latitude, observer_longitude)),
+        ) else {
             return WizardStepOutcome::Failed(
                 "The three measurement points do not describe a rotation — the mount did not \
                  turn between them, or the same field was solved three times."
                     .to_string(),
             );
         };
-        let (center_ra, center_dec) = (fit.ra_degrees, fit.dec_degrees);
+        let fit = mount_axis.fit;
+        let (center_ra, center_dec) = mount_axis.axis_j2000_at(mount_axis.at);
         tracing::info!(
             "Calculated Center of Rotation: RA {:.4}°, Dec {:.4}° \
              (circle radius {:.2}°, arc {:.1}°, {:.2}°/arcmin of point error)",
@@ -403,19 +473,7 @@ where
         // position drifts from this; the rigid rotation between them is applied
         // to the measured axis so the displayed error actually tracks the
         // adjustment instead of being frozen at the initial measurement.
-        let mut initial_solved: Option<math::CameraAttitude> = None;
-
-        let (observer_latitude, observer_longitude) = match (ctx.latitude, ctx.longitude) {
-            (Some(lat), Some(lon)) => (lat, lon),
-            _ => match ctx.device_ops.get_observer_location() {
-                Some(loc) => loc,
-                None => {
-                    return WizardStepOutcome::Failed(
-                        "Polar alignment requires observer latitude/longitude to calculate azimuth and altitude error".to_string(),
-                    );
-                }
-            },
-        };
+        let mut initial_solved: Option<(math::CameraAttitude, (f64, f64))> = None;
 
         loop {
             if let Some(result) = ctx.check_cancelled() {
@@ -423,6 +481,7 @@ where
                 return WizardStepOutcome::Cancelled;
             }
 
+            let frame_time = polar_mid_exposure(chrono::Utc::now(), self.config.exposure_time);
             let image_data = match ctx
                 .device_ops
                 .camera_start_exposure(
@@ -480,14 +539,17 @@ where
                 solve_result.dec_degrees,
                 solve_result.up_position_angle_deg,
             );
-            let initial_attitude = *initial_solved.get_or_insert(current_attitude);
+            // The axis is fixed to the ground, so its J2000 place is taken at
+            // the anchor frame's own time.
+            let (initial_attitude, initial_axis) = *initial_solved
+                .get_or_insert((current_attitude, mount_axis.axis_j2000_at(frame_time)));
             let (live_axis_ra, live_axis_dec) = math::rotate_axis_by_attitude_change(
-                (center_ra, center_dec),
+                initial_axis,
                 &initial_attitude,
                 &current_attitude,
             );
 
-            let now = chrono::Utc::now();
+            let now = frame_time;
             let (axis_ra_of_date, axis_dec_of_date) =
                 math::axis_j2000_to_date(live_axis_ra, live_axis_dec, now);
             let (az_error_am, alt_error_am, total_error_am) =

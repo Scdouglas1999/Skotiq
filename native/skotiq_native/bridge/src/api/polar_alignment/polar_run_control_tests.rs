@@ -2,7 +2,7 @@ use super::{
     get_polar_align_cancel, get_polar_align_flag, normalize_hour_angle, plate_solve_ra_degrees,
     polar_generation, polar_loop_control, pole_region_target, release_polar_run_if_current,
     rotation_step_target, step_crosses_meridian, try_admit_polar_run, PolarLoopControl,
-    PolarOrdering, POLE_REGION_OFFSET_DEG,
+    PolarOrdering, POLE_REGION_MERIDIAN_MARGIN_HOURS, POLE_REGION_OFFSET_DEG,
 };
 
 /// The rotation between measurement points is a step about the polar axis in
@@ -170,31 +170,55 @@ fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
     let _ = std::fs::remove_file(&path);
 }
 
-/// The pole-region slew target sits on the meridian (RA == LST, wrapped into
-/// [0,24)) and `POLE_REGION_OFFSET_DEG` from the pole toward the equator,
-/// with the correct sign per hemisphere.
+/// The pole-region slew target sits just beside the meridian on the side the
+/// rotation moves away from, and `POLE_REGION_OFFSET_DEG` from the pole
+/// toward the equator, with the correct sign per hemisphere.
 #[test]
-fn pole_region_target_on_meridian_and_offset_from_pole() {
-    let (ra, dec) = pole_region_target(6.5, true);
-    assert!((ra - 6.5).abs() < 1e-9, "north RA should equal LST");
+fn pole_region_target_beside_meridian_and_offset_from_pole() {
+    let m = POLE_REGION_MERIDIAN_MARGIN_HOURS;
+    // Rotating east lowers the hour angle, so it starts east of the meridian
+    // (RA above LST); rotating west starts west of it.
+    let (ra_e, dec) = pole_region_target(6.5, true, true);
+    assert!(
+        (ra_e - (6.5 + m)).abs() < 1e-9,
+        "east run starts at HA -margin"
+    );
+    let (ra_w, _) = pole_region_target(6.5, true, false);
+    assert!(
+        (ra_w - (6.5 - m)).abs() < 1e-9,
+        "west run starts at HA +margin"
+    );
     assert!(
         (dec - (90.0 - POLE_REGION_OFFSET_DEG)).abs() < 1e-9,
         "north dec should be 90 - offset, got {dec}"
     );
 
-    let (_, dec_s) = pole_region_target(6.5, false);
+    // Two default steps from either start never cross the meridian.
+    for rotate_east in [true, false] {
+        let (ra, _) = pole_region_target(6.5, true, rotate_east);
+        let step = if rotate_east {
+            15.0 / 15.0
+        } else {
+            -15.0 / 15.0
+        };
+        let ha0 = normalize_hour_angle(6.5 - ra);
+        let ha2 = normalize_hour_angle(6.5 - (ra + 2.0 * step));
+        assert!(!step_crosses_meridian(ha0, ha2), "east={rotate_east}");
+    }
+
+    let (_, dec_s) = pole_region_target(6.5, false, true);
     assert!(
         (dec_s - (-90.0 + POLE_REGION_OFFSET_DEG)).abs() < 1e-9,
         "south dec should be -90 + offset, got {dec_s}"
     );
 
-    // LST wraps into [0, 24) both above 24 and below 0.
-    assert!((pole_region_target(25.0, true).0 - 1.0).abs() < 1e-9);
-    assert!((pole_region_target(-1.0, true).0 - 23.0).abs() < 1e-9);
+    // RA wraps into [0, 24) both above 24 and below 0.
+    assert!((pole_region_target(25.0, true, false).0 - (1.0 - m)).abs() < 1e-9);
+    assert!((pole_region_target(-1.0, true, true).0 - (23.0 + m)).abs() < 1e-9);
 
     // The offset keeps the target within the ≈30° pole region but off the
     // degenerate pole itself.
-    let (_, dec_n) = pole_region_target(0.0, true);
+    let (_, dec_n) = pole_region_target(0.0, true, true);
     assert!(
         (60.0..90.0).contains(&dec_n),
         "north dec in pole region: {dec_n}"
@@ -210,6 +234,7 @@ fn pole_region_target_on_meridian_and_offset_from_pole() {
 /// each other over the process-wide statics.
 #[test]
 fn generation_admission_and_release_no_overlap() {
+    let _serialized = polar_globals_test_lock().blocking_lock();
     // Clean baseline.
     get_polar_align_flag().store(false, PolarOrdering::Relaxed);
     get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
@@ -262,4 +287,176 @@ fn generation_admission_and_release_no_overlap() {
     get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
     // Nudge the generation so a later admission is still strictly greater.
     let _ = polar_generation().load(PolarOrdering::Relaxed);
+}
+
+/// Serializes the tests that touch the process-wide run generation and cancel
+/// flag.
+fn polar_globals_test_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+/// A rotation step on an of-date mount turns the RA axis and leaves the
+/// declination axis where it was.
+///
+/// This is the 2026-11-07 defect on the simulator, which keeps coordinates of
+/// date like the rig's mount: the step was built from the mount's of-date
+/// read-back and sent down the J2000 slew path, which precessed it a second
+/// time, so the mount's declination moved by the precession in declination at
+/// that RA (several arcminutes in 2026) on every step.
+#[tokio::test]
+async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
+    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
+    use crate::api::get_device_manager;
+    use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
+
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _globals = polar_globals_test_lock().lock().await;
+    let _frame = SimFrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_polar_rotation";
+    get_device_manager()
+        .register_device(
+            DeviceInfo {
+                id: mount_id.to_string(),
+                name: "Simulated Mount".to_string(),
+                device_type: DeviceType::Mount,
+                driver_type: DriverType::Simulator,
+                description: "Simulated mount".to_string(),
+                driver_version: "1.0".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Simulated Mount".to_string(),
+            },
+            false,
+        )
+        .await;
+    crate::api::devices::simulation::cancel_sim_slew().await;
+
+    // Three hours west of the meridian at Dec 60 of date, like run 1.
+    let longitude = -75.3576;
+    let lst = {
+        use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
+        local_sidereal_time(julian_day(&chrono::Utc::now()), longitude)
+    };
+    let start_ra = (lst - 3.0).rem_euclid(24.0);
+    let start_dec = 60.1105;
+    {
+        let mut mount = get_sim_mount().write().await;
+        mount.status.connected = true;
+        mount.status.parked = false;
+        mount.status.tracking = true;
+        mount.status.slewing = false;
+        mount.status.right_ascension = start_ra;
+        mount.status.declination = start_dec;
+        mount.status.sidereal_time = Some(lst);
+    }
+
+    get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
+    let generation = polar_generation().load(PolarOrdering::Relaxed);
+    for (point, expected_ra) in [(2, start_ra - 20.0 / 15.0), (3, start_ra - 40.0 / 15.0)] {
+        let outcome = super::rotate_for_next_point(
+            mount_id,
+            point,
+            20.0,
+            false,
+            longitude,
+            generation,
+            Some(start_dec),
+        )
+        .await
+        .expect("rotation step");
+        assert!(matches!(outcome, super::SlewOutcome::Settled));
+        let status = get_device_manager()
+            .mount_get_status(mount_id)
+            .await
+            .unwrap();
+        let dec_moved_arcsec = (status.declination - start_dec) * 3600.0;
+        let ra_error_arcsec =
+            ((status.right_ascension - expected_ra.rem_euclid(24.0)) * 15.0 * 3600.0)
+                * start_dec.to_radians().cos();
+        assert!(
+            dec_moved_arcsec.abs() < 1.0,
+            "point {point}: the declination axis moved {dec_moved_arcsec:.0}\""
+        );
+        assert!(
+            ra_error_arcsec.abs() < 1.0,
+            "point {point}: RA landed {ra_error_arcsec:.0}\" off the step"
+        );
+    }
+}
+
+/// The pole-region slew lands beside the meridian of date at Dec 60 of date.
+///
+/// Its target is the local sidereal time, an hour angle of zero of date, and
+/// sending it down the J2000 slew path unconverted landed it off the meridian
+/// and off Dec 60 by the precession.
+#[tokio::test]
+async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
+    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
+    use crate::api::get_device_manager;
+    use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
+    use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
+
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _globals = polar_globals_test_lock().lock().await;
+    let _frame = SimFrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_polar_pole_region";
+    get_device_manager()
+        .register_device(
+            DeviceInfo {
+                id: mount_id.to_string(),
+                name: "Simulated Mount".to_string(),
+                device_type: DeviceType::Mount,
+                driver_type: DriverType::Simulator,
+                description: "Simulated mount".to_string(),
+                driver_version: "1.0".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Simulated Mount".to_string(),
+            },
+            false,
+        )
+        .await;
+    crate::api::devices::simulation::cancel_sim_slew().await;
+    {
+        let mut mount = get_sim_mount().write().await;
+        mount.status.connected = true;
+        mount.status.parked = false;
+        mount.status.tracking = true;
+        mount.status.slewing = false;
+    }
+
+    let longitude = -75.3576;
+    get_polar_align_cancel().store(false, PolarOrdering::Relaxed);
+    let generation = polar_generation().load(PolarOrdering::Relaxed);
+    let lst = local_sidereal_time(julian_day(&chrono::Utc::now()), longitude);
+    let outcome = super::slew_to_pole_region(mount_id, true, true, longitude, generation)
+        .await
+        .expect("pole-region slew");
+    assert!(matches!(outcome, super::SlewOutcome::Settled));
+
+    let status = get_device_manager()
+        .mount_get_status(mount_id)
+        .await
+        .unwrap();
+    let dec_off_arcsec = (status.declination - 60.0) * 3600.0;
+    // A run rotating east starts just east of the meridian.
+    let mut ra_off_hours =
+        (status.right_ascension - (lst + POLE_REGION_MERIDIAN_MARGIN_HOURS)).rem_euclid(24.0);
+    if ra_off_hours > 12.0 {
+        ra_off_hours -= 24.0;
+    }
+    assert!(
+        dec_off_arcsec.abs() < 1.0,
+        "landed {dec_off_arcsec:.0}\" off Dec 60 of date"
+    );
+    // The target is the sidereal time when it was computed; a second of
+    // clock between that and this test's reading is 15".
+    assert!(
+        (ra_off_hours * 15.0 * 3600.0).abs() < 60.0,
+        "landed {:.0}\" of RA off its hour angle of date",
+        ra_off_hours * 15.0 * 3600.0
+    );
 }

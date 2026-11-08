@@ -8,10 +8,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show linkedManualActionProvider;
+import 'package:skotiq_core/skotiq_core.dart'
+    show linkedManualActionProvider, polarAlignmentStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../polar_alignment/polar_alignment_activity.dart';
 import '../actions/manual_action_gating.dart' show manualActionKey;
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_run_phase_provider.dart';
@@ -53,10 +55,17 @@ class ManualActionBar extends ConsumerWidget {
     final collapseHint = density?.collapseActionHint == true;
 
     final linked = state.isBusy ? null : _linkedAction(ref);
+    // Polar alignment runs outside the plan and the action controller, so
+    // neither knows about it; without this the bar said "Nothing is running"
+    // through every alignment exposure.
+    final polar = polarRunSummary(ref.watch(polarAlignmentStateProvider));
     final hint = linked != null
         ? '${l10n.text(manualActionKey('nightActBusy', linked))} · '
             '${l10n.text('nightActOtherWindow')}'
-        : l10n.text(_runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle');
+        : polar != null
+            ? l10n.text('nightActPolarRunning', params: {'status': polar})
+            : l10n
+                .text(_runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle');
     final error = state.error?.resolve(l10n);
 
     return Semantics(
@@ -103,7 +112,9 @@ class ManualActionBar extends ConsumerWidget {
               _HintIcon(
                 message: hint,
                 icon: LucideIcons.info,
-                color: linked != null ? colors.warning : colors.textMuted,
+                color: linked != null || polar != null
+                    ? colors.warning
+                    : colors.textMuted,
                 collapsed: collapseHint,
               ),
           ],
