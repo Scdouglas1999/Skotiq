@@ -1,7 +1,10 @@
 // The Saved library card read "QA M35 Plan · 2m" for a plan the Builder
 // estimated at "~2h 49m" (qa-rig RIG-18): the stored estimate counted one
 // pass of a loop-until-stopped Smart Exposure. It now stores the Builder's
-// own rollup.
+// own rollup. A block that loops until its target's window closes has no
+// length a saved plan can store (the Builder bills it by tonight's window, or
+// says "until target ends"), so such a plan stores none rather than one
+// rotation or its per-filter counts.
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -26,12 +29,33 @@ void main() {
       rootNodeId: root.id,
     );
 
-    final secs = sequenceRollupSecs(sequence);
-    // 120 frames of 20 s, plus download and filter changes.
+    expect(sequenceRollupSecs(sequence), 0);
+
+    // With counts the plan has a length: 120 frames of 20 s, plus download
+    // and filter changes.
+    final counted = Sequence.create(
+      id: 'seq',
+      name: 'M35',
+      nodes: {
+        root.id: root,
+        smart.id: SmartExposureNode(
+          id: 'smart',
+          parentId: 'root',
+          plans: smart.plans,
+        ),
+      },
+      rootNodeId: root.id,
+    );
+    final secs = sequenceRollupSecs(counted);
     expect(secs, greaterThan(120 * 20));
     expect(
       secs,
-      closeTo(const SequenceTimeEstimator().nodeDuration(smart).inSeconds, 1),
+      closeTo(
+        const SequenceTimeEstimator()
+            .nodeDuration(counted.nodes['smart']!)
+            .inSeconds,
+        1,
+      ),
     );
   });
 
