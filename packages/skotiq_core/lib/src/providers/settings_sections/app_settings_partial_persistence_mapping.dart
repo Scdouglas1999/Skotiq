@@ -88,6 +88,7 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     // Weather-safety / dawn.
     'park_before_dawn',
     'stop_run_on_quality_problems',
+    'mount_guard_auto_sync_resume',
     // Meridian flip detail.
     'enable_meridian_flip',
     // Focuser temp-comp + backlash (calibration).
@@ -290,6 +291,13 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
           ? _parseBool(
               settings['stop_run_on_quality_problems'],
               current.stopRunOnQualityProblems,
+            )
+          : null,
+      mountGuardAutoSyncResume:
+          settings.containsKey('mount_guard_auto_sync_resume')
+          ? _parseBool(
+              settings['mount_guard_auto_sync_resume'],
+              current.mountGuardAutoSyncResume,
             )
           : null,
       meridianFlipMinutes: settings.containsKey('meridian_flip_minutes')

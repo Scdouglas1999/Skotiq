@@ -120,6 +120,27 @@ List<HeadlessRoute> buildDeviceRoutes(DeviceHandlers h) => <HeadlessRoute>[
   // existed keep working. Same handler, same checks.
   HeadlessRoute(HttpMethod.post, '/api/mount/find-home', h.handleMountHome),
   HeadlessRoute(HttpMethod.post, '/api/mount/set-park', h.handleMountSetPark),
+  HeadlessRoute(HttpMethod.get, '/api/mount/guard', h.handleMountGuardState),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/mount/guard/acknowledge',
+    h.handleMountGuardAcknowledge,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/mount/guard/confirm-home',
+    h.handleMountGuardConfirmHome,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/mount/guard/solve',
+    h.handleMountGuardSolve,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/mount/guard/recovery-sync',
+    h.handleMountGuardRecoverySync,
+  ),
 
   // Focuser Control
   HeadlessRoute(HttpMethod.post, '/api/focuser/move-to', h.handleFocuserMoveTo),

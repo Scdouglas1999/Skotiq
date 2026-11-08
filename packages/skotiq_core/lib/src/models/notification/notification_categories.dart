@@ -72,6 +72,11 @@ enum NotificationCategory {
   // Weather / safety
   weatherUnsafe('Weather Unsafe'),
   weatherSafeAgain('Weather Safe Again'),
+
+  /// The mount moved with no command from Skotiq, or Skotiq no longer trusts
+  /// its reported position. An equipment safety fault: the run is paused and
+  /// automatic moves are refused until the operator recovers the mount.
+  mountFault('Mount Fault'),
   cloudArriving('Cloud Arriving'),
   cloudOpening('Cloud Clearing'),
 
@@ -149,6 +154,7 @@ enum NotificationCategory {
       // default min-severity bar on the systemPush transport.
       case NotificationCategory.transientDiscovered:
       case NotificationCategory.recoveryGaveUp:
+      case NotificationCategory.mountFault:
         return EventSeverity.critical;
     }
   }
@@ -162,6 +168,7 @@ enum NotificationCategory {
   /// elsewhere derive from this one list so they can never drift.
   bool get isCritical {
     switch (this) {
+      case NotificationCategory.mountFault:
       case NotificationCategory.sequenceFailed:
       case NotificationCategory.recoveryGaveUp:
       case NotificationCategory.weatherUnsafe:

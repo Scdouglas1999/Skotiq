@@ -24,6 +24,7 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     bool? parkOnUnsafeWeather,
     bool? parkBeforeDawn,
     bool? stopRunOnQualityProblems,
+    bool? mountGuardAutoSyncResume,
     int? meridianFlipMinutes,
     bool? autoFocusOnFilterChange,
     bool? useFilterFocusOffsets,
@@ -204,6 +205,8 @@ extension AppSettingsStateCopyWith on AppSettingsState {
       parkBeforeDawn: parkBeforeDawn ?? this.parkBeforeDawn,
       stopRunOnQualityProblems:
           stopRunOnQualityProblems ?? this.stopRunOnQualityProblems,
+      mountGuardAutoSyncResume:
+          mountGuardAutoSyncResume ?? this.mountGuardAutoSyncResume,
       meridianFlipMinutes: meridianFlipMinutes ?? this.meridianFlipMinutes,
       autoFocusOnFilterChange:
           autoFocusOnFilterChange ?? this.autoFocusOnFilterChange,

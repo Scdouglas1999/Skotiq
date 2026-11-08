@@ -70,6 +70,8 @@ const Map<String, String> _defaultSettings = {
   // notify and the run keeps imaging unless the operator turns this on (owner
   // decision 2026-10-06: only a risk to the hardware stops a run by itself).
   'stop_run_on_quality_problems': 'false',
+  // A run held for a mount fault waits for the operator unless this is on.
+  'mount_guard_auto_sync_resume': 'false',
   'meridian_flip_minutes': '5',
   'auto_focus_on_filter_change': 'false',
   'use_filter_focus_offsets': 'true',

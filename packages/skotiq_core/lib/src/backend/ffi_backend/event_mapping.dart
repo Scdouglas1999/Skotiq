@@ -163,6 +163,29 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return ('ParkInitiated', {'reason': safetyEvent.reason});
     } else if (safetyEvent is bridge.SafetyEvent_ParkCompleted) {
       return ('ParkCompleted', {});
+    } else if (safetyEvent is bridge.SafetyEvent_MountMotionFault) {
+      return (
+        'MountMotionFault',
+        {
+          'device_id': safetyEvent.deviceId,
+          'kind': safetyEvent.kind,
+          'message': safetyEvent.message,
+        },
+      );
+    } else if (safetyEvent is bridge.SafetyEvent_MountPositionUnknown) {
+      return (
+        'MountPositionUnknown',
+        {
+          'device_id': safetyEvent.deviceId,
+          'reason': safetyEvent.reason,
+          'message': safetyEvent.message,
+        },
+      );
+    } else if (safetyEvent is bridge.SafetyEvent_MountGuardCleared) {
+      return (
+        'MountGuardCleared',
+        {'device_id': safetyEvent.deviceId, 'message': safetyEvent.message},
+      );
     }
     return _unreadEvent(safetyEvent, 'SafetyEvent', 'safety');
   }

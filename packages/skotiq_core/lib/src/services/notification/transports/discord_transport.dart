@@ -44,6 +44,7 @@ class DiscordTransport extends NotificationTransport {
 
   int _colorFor(NotificationCategory category) {
     switch (category) {
+      case NotificationCategory.mountFault:
       case NotificationCategory.sequenceFailed:
       case NotificationCategory.recoveryGaveUp:
       case NotificationCategory.weatherUnsafe:

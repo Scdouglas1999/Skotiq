@@ -82,6 +82,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       // Full-night audit 2026-06-04 follow-up (long tail).
       parkBeforeDawn: remote.parkBeforeDawn,
       stopRunOnQualityProblems: remote.stopRunOnQualityProblems,
+      mountGuardAutoSyncResume: remote.mountGuardAutoSyncResume,
       enableMeridianFlip: remote.enableMeridianFlip,
       tempCompensation: remote.tempCompensation,
       tempCoefficient: remote.tempCoefficient,
@@ -274,6 +275,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       // unattended-night knobs to the host so a remote save keeps them.
       parkBeforeDawn: settings.parkBeforeDawn,
       stopRunOnQualityProblems: settings.stopRunOnQualityProblems,
+      mountGuardAutoSyncResume: settings.mountGuardAutoSyncResume,
       enableMeridianFlip: settings.enableMeridianFlip,
       tempCompensation: settings.tempCompensation,
       tempCoefficient: settings.tempCoefficient,
@@ -642,6 +644,10 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       case 'stopRunOnQualityProblems':
         return value is bool
             ? current.copyWith(stopRunOnQualityProblems: value)
+            : null;
+      case 'mountGuardAutoSyncResume':
+        return value is bool
+            ? current.copyWith(mountGuardAutoSyncResume: value)
             : null;
       case 'enableMeridianFlip':
         return value is bool

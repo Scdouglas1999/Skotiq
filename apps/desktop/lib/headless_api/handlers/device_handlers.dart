@@ -18,6 +18,7 @@ import 'frame_measurement_headers.dart';
 part 'device_handlers/connection_lifecycle.dart';
 part 'device_handlers/camera_handlers.dart';
 part 'device_handlers/mount_handlers.dart';
+part 'device_handlers/mount_guard_handlers.dart';
 part 'device_handlers/focuser_handlers.dart';
 part 'device_handlers/filter_wheel_handlers.dart';
 part 'device_handlers/rotator_handlers.dart';

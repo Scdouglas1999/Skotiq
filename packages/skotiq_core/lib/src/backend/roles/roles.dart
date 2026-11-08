@@ -12,4 +12,5 @@ export 'diagnostics_backend.dart';
 export 'guiding_backend.dart';
 export 'imaging_backend.dart';
 export 'profile_settings_backend.dart';
+export 'mount_guard_backend.dart';
 export 'sequencer_backend.dart';

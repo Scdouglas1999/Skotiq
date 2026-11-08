@@ -30,6 +30,7 @@ part 'ffi_backend/image_polar_operations.dart';
 part 'ffi_backend/session_heartbeat_operations.dart';
 part 'ffi_backend/bridge_model_mappers.dart';
 part 'ffi_backend/depthlock_operations.dart';
+part 'ffi_backend/mount_guard_operations.dart';
 
 /// Map user-facing curve-fitting labels onto the native bridge's actual
 /// autofocus method enum strings. "Trend Lines" is the V-curve/trend-line
@@ -141,8 +142,13 @@ class FfiBackend extends _FfiBackendBase
         _FfiStatusProfileOperations,
         _FfiImagePolarOperations,
         _FfiSessionHeartbeatOperations,
-        _FfiDepthLockOperations
-    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
+        _FfiDepthLockOperations,
+        _FfiMountGuardOperations
+    implements
+        SkotiqBackend,
+        EnvironmentalStatusBackend,
+        DomeStatusBackend,
+        MountGuardBackend {
   /// [thumbnailSidecars] is a seam for tests that need to observe or stub
   /// thumbnail generation without a live Rust bridge; production leaves it
   /// null and gets the default service.

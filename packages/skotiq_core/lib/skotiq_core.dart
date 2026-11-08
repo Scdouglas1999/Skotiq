@@ -57,6 +57,7 @@ export 'src/database/daos/sequence_runs_dao.dart';
 export 'src/models/equipment/equipment_models.dart';
 export 'src/models/equipment/unified_device.dart';
 export 'src/models/equipment/discovery_state.dart';
+export 'src/models/mount_guard.dart';
 export 'src/models/mount_site_reconciliation.dart';
 export 'src/models/equipment_profile.dart';
 export 'src/models/equipment_profile_remote_mapping.dart';
@@ -319,6 +320,7 @@ export 'src/providers/target_suggestion_provider.dart';
 export 'src/providers/suggestion_filter_provider.dart';
 export 'src/providers/transient_alert_provider.dart';
 export 'src/providers/critical_alert_provider.dart';
+export 'src/providers/mount_guard_provider.dart';
 export 'src/providers/device_connection_progress_provider.dart';
 // Recovery Mode — providers for the recovery state machine
 // (currentRecoveryProvider, recoveryHistoryProvider, recoveryControlProvider,

@@ -32,6 +32,8 @@ const _expectedHighRiskActions = {
   '/api/mount/home': 'mount_home',
   '/api/mount/find-home': 'mount_home',
   '/api/mount/set-park': 'mount_set_park',
+  '/api/mount/guard/confirm-home': 'mount_guard_confirm_home',
+  '/api/mount/guard/recovery-sync': 'mount_guard_recovery_sync',
   '/api/framing/slew-to-target': 'framing_slew_to_target',
   '/api/framing/center-on-target': 'framing_center_on_target',
   '/api/framing/park': 'framing_park',
