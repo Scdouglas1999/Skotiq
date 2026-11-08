@@ -101,7 +101,13 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
     // Faults are consulted before anything else, including the connected gate,
     // so an armed fault is deterministic for the test that armed it rather than
     // depending on singleton state left behind by an earlier case.
-    faults(&format!("{prefix}.status")).await?;
+    let key = format!("{prefix}.status");
+    if let Err(e) = faults(&key).await {
+        if let Some(reorder) = super::sim_faults::take_unplug(&key) {
+            crate::api::devices::simulation::unplug_sim_camera(device_id, reorder).await;
+        }
+        return Err(e);
+    }
     // Let the simulated sensor temperature move toward its setpoint before the
     // caller samples it. Every simulated status read funnels through here, so
     // this is the one place the ramp needs driving.
@@ -175,7 +181,13 @@ pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), Stri
 /// With no site configured there is no honest answer, so the horizon-frame
 /// fields report `Unsupported` and carry `None` instead of a fabricated default.
 pub(crate) async fn read_mount_status() -> Result<MountStatus, String> {
-    faults("mount.status").await?;
+    if let Err(e) = faults("mount.status").await {
+        // `unplug`: the mount's cable or hub dropped.
+        if super::sim_faults::take_unplug("mount.status").is_some() {
+            get_sim_mount().write().await.status.connected = false;
+        }
+        return Err(e);
+    }
     if !get_sim_mount().read().await.status.connected {
         return Err(not_connected("mount"));
     }

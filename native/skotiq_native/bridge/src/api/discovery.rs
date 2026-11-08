@@ -894,8 +894,16 @@ fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static
 /// The name discovery gives the simulator with [device_id], so a device
 /// reads the same in discovery, the connected list and on a linked client.
 pub(crate) fn simulator_display_name(device_id: &str, device_type: DeviceType) -> Option<String> {
-    if device_id == crate::api::devices::simulation::SIM_GUIDE_CAMERA_ID {
+    if device_type == DeviceType::Camera
+        && crate::api::devices::simulation::is_sim_guide_camera(device_id)
+    {
         return Some(crate::api::devices::simulation::SIM_GUIDE_CAMERA_NAME.to_string());
+    }
+    if device_type == DeviceType::Camera
+        && device_id == crate::api::devices::simulation::SIM_GUIDE_CAMERA_ID
+    {
+        // The imaging camera, re-enumerated at the guide camera's id.
+        return simulator_for_type(device_type).map(|(_, name)| name.to_string());
     }
     let (id, name) = simulator_for_type(device_type)?;
     (id == device_id).then(|| name.to_string())
@@ -921,16 +929,29 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
         unique_id: Some(id.to_string()),
         display_name: name.to_string(),
     };
-    let mut devices = vec![simulator(id, name, format!("SIM-{}", device_type.as_str()))];
     // A second camera, so the built-in guider has a guide camera of its own.
+    // Each camera's name and serial follow the body, not the id: the bus can
+    // re-enumerate them in the other order (see `unplug_sim_camera`).
     if device_type == DeviceType::Camera {
-        devices.push(simulator(
-            crate::api::devices::simulation::SIM_GUIDE_CAMERA_ID,
-            crate::api::devices::simulation::SIM_GUIDE_CAMERA_NAME,
-            "SIM-guide-camera".to_string(),
-        ));
+        use crate::api::devices::simulation::{
+            is_sim_guide_camera, SIM_GUIDE_CAMERA_ID, SIM_GUIDE_CAMERA_NAME,
+        };
+        return [id, SIM_GUIDE_CAMERA_ID]
+            .into_iter()
+            .map(|camera_id| {
+                if is_sim_guide_camera(camera_id) {
+                    simulator(
+                        camera_id,
+                        SIM_GUIDE_CAMERA_NAME,
+                        "SIM-guide-camera".to_string(),
+                    )
+                } else {
+                    simulator(camera_id, name, format!("SIM-{}", device_type.as_str()))
+                }
+            })
+            .collect();
     }
-    devices
+    vec![simulator(id, name, format!("SIM-{}", device_type.as_str()))]
 }
 
 /// Discover available devices of a specific type.

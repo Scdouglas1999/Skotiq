@@ -17,9 +17,48 @@ pub const SIM_GUIDE_PIXEL_UM: f64 = 3.75;
 /// Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
 pub const SIM_GUIDE_FOCAL_LENGTH_MM: f64 = 240.0;
 
-/// Whether `device_id` names the simulated guide camera.
+/// Whether the two simulated cameras have traded ids, as two USB cameras do
+/// when a hub drops and the SDK enumerates them again in the other order (the
+/// reference rig, Nov 8 2026: `native:zwo:1` came back as the guide camera).
+/// Set by the `unplug(reorder)` fault; see [`unplug_sim_camera`].
+static SIM_CAMERA_BUS_SWAPPED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Whether `device_id` names the simulated guide camera. After a reorder the
+/// guide camera answers the imaging camera's id and the other way round.
 pub(crate) fn is_sim_guide_camera(device_id: &str) -> bool {
-    device_id == SIM_GUIDE_CAMERA_ID
+    let swapped = SIM_CAMERA_BUS_SWAPPED.load(std::sync::atomic::Ordering::SeqCst);
+    match device_id {
+        SIM_GUIDE_CAMERA_ID => !swapped,
+        SIM_IMAGING_CAMERA_ID => swapped,
+        _ => false,
+    }
+}
+
+/// The simulated camera at `device_id` drops off the bus: it reads as
+/// disconnected until something connects it again. With `reorder`, the two
+/// simulated cameras come back at each other's ids.
+pub(crate) async fn unplug_sim_camera(device_id: &str, reorder: bool) {
+    get_sim_camera_for(device_id).write().await.status.connected = false;
+    if reorder {
+        // Both cameras sat behind the hub, so both re-enumerate.
+        for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+            get_sim_camera_for(id).write().await.status.connected = false;
+        }
+        SIM_CAMERA_BUS_SWAPPED.fetch_xor(true, std::sync::atomic::Ordering::SeqCst);
+        tracing::warn!(
+            "Simulated camera bus re-enumerated: {} and {} traded places",
+            SIM_IMAGING_CAMERA_ID,
+            SIM_GUIDE_CAMERA_ID
+        );
+        crate::api::api_invalidate_discovery_cache().await;
+    }
+}
+
+/// Put the simulated cameras back at their own ids (tests).
+#[cfg(test)]
+pub(crate) fn reset_sim_camera_bus() {
+    SIM_CAMERA_BUS_SWAPPED.store(false, std::sync::atomic::Ordering::SeqCst);
 }
 
 /// Fault-injection key prefix for a simulated camera: the guide camera has its

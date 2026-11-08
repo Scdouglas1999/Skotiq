@@ -636,7 +636,32 @@ impl DeviceManager {
             return Self::identity_from_device(&info.id, device.as_ref());
         }
 
+        if info.driver_type == DriverType::Simulator && info.device_type == DeviceType::Camera {
+            return Self::simulated_camera_identity(&info.id).await;
+        }
+
         DeviceIdentity::default()
+    }
+
+    /// What a simulated camera says it is: the name and sensor of the body
+    /// at the id, which can change when the simulated bus re-enumerates
+    /// (the `unplug(reorder)` fault), so the identity check runs against the
+    /// simulators the same way it does against a ZWO pair.
+    async fn simulated_camera_identity(device_id: &str) -> DeviceIdentity {
+        let status = crate::api::devices::simulation::get_sim_camera_for(device_id)
+            .read()
+            .await
+            .status
+            .clone();
+        DeviceIdentity {
+            model: crate::api::discovery::simulator_display_name(device_id, DeviceType::Camera),
+            serial_number: None,
+            sensor: DeviceIdentity::sensor_fingerprint(
+                status.sensor_width,
+                status.sensor_height,
+                status.pixel_size_x,
+            ),
+        }
     }
 
     /// Identity of a connected ASCOM camera, when this platform has ASCOM.
@@ -722,6 +747,21 @@ impl DeviceManager {
         }
     }
 
+    /// The fault-injection key prefix for a simulated device, as the
+    /// simulator's own gates name it.
+    pub(crate) fn sim_fault_prefix(info: &DeviceInfo) -> Option<&'static str> {
+        Some(match info.device_type {
+            DeviceType::Camera => {
+                crate::api::devices::simulation::sim_camera_fault_prefix(&info.id)
+            }
+            DeviceType::Mount => "mount",
+            DeviceType::Focuser => "focuser",
+            DeviceType::FilterWheel => "filterwheel",
+            DeviceType::Rotator => "rotator",
+            _ => return None,
+        })
+    }
+
     /// Connect to a simulator device.
     ///
     /// Sets the matching `simulation.rs` singleton's `connected = true` so
@@ -764,6 +804,12 @@ impl DeviceManager {
         // build without a rebuild. Idempotent — re-arming the same spec on a
         // second connect just resets its counters.
         crate::device_manager::ops::sim_faults::arm_from_env();
+
+        // `<device>.connect`: a simulated device that cannot be opened (a
+        // camera whose USB hub dropped), or opens slowly.
+        if let Some(prefix) = Self::sim_fault_prefix(info) {
+            crate::device_manager::ops::sim_faults::check(&format!("{prefix}.connect")).await?;
+        }
 
         match info.device_type {
             DeviceType::Camera => {
