@@ -96,7 +96,11 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
           'for guiding in the equipment profile.',
         );
       }
-      await _backend.connectDevice(DeviceType.camera, deviceId);
+      await _backend.connectDevice(
+        DeviceType.camera,
+        deviceId,
+        expectedModel: _expectedModelFor('guide camera', deviceId),
+      );
     });
   }
 
@@ -150,7 +154,11 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
       );
 
       try {
-        await _backend.connectDevice(DeviceType.rotator, deviceId);
+        await _backend.connectDevice(
+          DeviceType.rotator,
+          deviceId,
+          expectedModel: _expectedModelFor('rotator', deviceId),
+        );
         notifier.setConnected();
 
         // Seed the real angle immediately. Otherwise a newly connected local

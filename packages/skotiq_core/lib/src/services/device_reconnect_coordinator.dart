@@ -38,6 +38,7 @@ class DeviceReconnectCoordinator {
     surfaceReconnecting,
     List<Duration>? retryDelays,
     Future<void> Function(DeviceType type, String deviceId)? reconnectAttempt,
+    Future<String> Function(DeviceType type, String deviceId)? reconnectTarget,
   }) : assert(retryDelays == null || retryDelays.isNotEmpty),
        _ref = ref,
        _backend = backend,
@@ -45,7 +46,8 @@ class DeviceReconnectCoordinator {
        _pauseSequence = pauseSequence,
        _surfaceReconnecting = surfaceReconnecting,
        _retryDelays = retryDelays ?? reconnectDelays,
-       _reconnectAttemptOverride = reconnectAttempt;
+       _reconnectAttemptOverride = reconnectAttempt,
+       _reconnectTarget = reconnectTarget;
 
   final Ref _ref;
   final SkotiqBackend _backend;
@@ -59,6 +61,14 @@ class DeviceReconnectCoordinator {
   final List<Duration> _retryDelays;
   final Future<void> Function(DeviceType type, String deviceId)?
   _reconnectAttemptOverride;
+
+  /// Where a reconnect of a device last at an id has to go. Profile devices
+  /// on a USB bus are found by the name the profile saved: after the bus
+  /// enumerates in another order (a hub dropout), the camera last at
+  /// `native:zwo:1` can be at `native:zwo:0`. Throws when the device cannot
+  /// be found safely, which counts as a failed attempt.
+  final Future<String> Function(DeviceType type, String deviceId)?
+  _reconnectTarget;
 
   /// Drive the per-device heartbeat-health indicator into the
   /// "reconnecting" state. Injected (rather than reaching into the
@@ -358,11 +368,25 @@ class DeviceReconnectCoordinator {
           ),
         );
 
+        final resolveTarget = _reconnectTarget;
+        final target = resolveTarget == null
+            ? deviceId
+            : await resolveTarget(type, deviceId);
+        if (target != deviceId) {
+          _safeLog(
+            (logger) => logger.warning(
+              '${type.displayName} last at $deviceId is now at $target; '
+              'reconnecting it there',
+              source: 'DeviceReconnectCoordinator',
+            ),
+          );
+        }
+
         final reconnectAttempt = _reconnectAttemptOverride;
         if (reconnectAttempt == null) {
-          await _performReconnection(type, deviceId);
+          await _performReconnection(type, target);
         } else {
-          await reconnectAttempt(type, deviceId);
+          await reconnectAttempt(type, target);
         }
 
         _reconnectionAttempts.remove(reconnectKey);
@@ -402,6 +426,30 @@ class DeviceReconnectCoordinator {
         }
       }
     });
+  }
+
+  /// A device of [type] came onto the bus. Each device of that type whose
+  /// automatic reconnects ran out gets a fresh round: a hub that takes
+  /// minutes to power back up outlasts the three quick attempts, and the
+  /// device then stayed in error all night.
+  void onDeviceArrived(DeviceType type) {
+    if (_suppressAutoReconnect || _hostOwnsRecovery) return;
+    final prefix = '${type.name}:';
+    final exhausted = _reconnectExhausted
+        .where((key) => key.startsWith(prefix))
+        .toList();
+    for (final key in exhausted) {
+      _reconnectExhausted.remove(key);
+      _reconnectionAttempts.remove(key);
+      final deviceId = key.substring(prefix.length);
+      _safeLog(
+        (logger) => logger.info(
+          'A ${type.displayName} came onto the bus; trying $deviceId again',
+          source: 'DeviceReconnectCoordinator',
+        ),
+      );
+      unawaited(attemptReconnect(type, deviceId));
+    }
   }
 
   void _markReconnectExhausted(

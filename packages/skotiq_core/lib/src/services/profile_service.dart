@@ -426,6 +426,7 @@ class ProfileService {
   Future<void> updateProfileDevices(
     int profileId, {
     String? cameraId,
+    String? guideCameraId,
     String? mountId,
     String? focuserId,
     String? filterWheelId,
@@ -446,6 +447,7 @@ class ProfileService {
     await _persistProfileModel(
       profile.copyWith(
         cameraId: cameraId ?? profile.cameraId,
+        guideCameraId: guideCameraId ?? profile.guideCameraId,
         mountId: mountId ?? profile.mountId,
         focuserId: focuserId ?? profile.focuserId,
         filterWheelId: filterWheelId ?? profile.filterWheelId,

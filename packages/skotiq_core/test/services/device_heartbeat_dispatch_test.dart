@@ -480,6 +480,48 @@ void main() {
     coordinator.cancelAll();
   });
 
+  // The rig, Nov 8 2026: the camera at native:zwo:1 came back at
+  // native:zwo:0 and the reconnect kept asking for native:zwo:1.
+  test('a reconnect goes where the profile device is now, and a device '
+      'arriving on the bus restarts an exhausted reconnect', () async {
+    final attempted = <String>[];
+    var arrived = false;
+    late DeviceReconnectCoordinator coordinator;
+    final coordinatorProvider = Provider<DeviceReconnectCoordinator>((ref) {
+      coordinator = DeviceReconnectCoordinator(
+        ref: ref,
+        backend: mockBackend,
+        resumeSequence: () async {},
+        pauseSequence: () async {},
+        surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        retryDelays: const [Duration(milliseconds: 2)],
+        reconnectTarget: (type, deviceId) async {
+          if (!arrived) throw StateError('the camera is not on the bus');
+          return 'native:zwo:0';
+        },
+        reconnectAttempt: (type, deviceId) async => attempted.add(deviceId),
+      );
+      return coordinator;
+    });
+    coordinator = container.read(coordinatorProvider);
+
+    // A camera is Dart-owned for reconnect; enable it.
+    container.read(cameraStateProvider.notifier).setAutoReconnect(true);
+    await coordinator.attemptReconnect(DeviceType.camera, 'native:zwo:1');
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(attempted, isEmpty, reason: 'every attempt failed to resolve');
+
+    arrived = true;
+    coordinator.onDeviceArrived(DeviceType.focuser);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(attempted, isEmpty, reason: 'a focuser is not the camera');
+
+    coordinator.onDeviceArrived(DeviceType.camera);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(attempted, ['native:zwo:0']);
+    coordinator.cancelAll();
+  });
+
   test(
     'Heartbeat dispatch does not interfere with the Disconnected handler',
     () async {

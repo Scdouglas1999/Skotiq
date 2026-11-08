@@ -339,6 +339,19 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
+      // A device came onto the bus. A profile device whose automatic
+      // reconnects ran out (a hub that took minutes to come back) gets
+      // another attempt now, which also finds it if it came back at another
+      // position.
+      case 'DeviceDiscovered':
+        final arrivedType = deviceTypeFromWireName(
+          (data['device_class'] as String?) ?? '',
+        );
+        if (arrivedType != null) {
+          _reconnectCoordinator.onDeviceArrived(arrivedType);
+        }
+        break;
+
       case 'HeartbeatStopped':
         // Heartbeat monitoring intentionally stopped (e.g. user
         // disconnected the device through the UI). Clear the entry so
@@ -362,9 +375,22 @@ extension _DeviceServiceEventHandling on DeviceService {
 
   /// Whether a `deviceType`/`deviceId` event is about the profile's guide
   /// camera, which has no slot of its own and must not take the camera's.
-  bool _isGuideCameraEvent(String? deviceType, String? deviceId) =>
-      deviceTypeFromWireName(deviceType ?? '') == DeviceType.camera &&
-      isProfileGuideCamera(_ref.read(activeEquipmentProfileProvider), deviceId);
+  bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
+    if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||
+        deviceId == null) {
+      return false;
+    }
+    // The cameras' ids were just moved (the bus enumerated them in another
+    // order) and the profile may not show it yet: the main camera can be at
+    // the guide camera's old id.
+    if (_slotExpectation('camera')?.deviceId == deviceId) return false;
+    final guide = _slotExpectation('guide camera')?.deviceId;
+    if (guide == deviceId) return true;
+    return isProfileGuideCamera(
+      _ref.read(activeEquipmentProfileProvider),
+      deviceId,
+    );
+  }
 
   /// Handle device connection event from the native EventBus.
   void _applyDeviceConnected(String deviceType, String deviceId) {

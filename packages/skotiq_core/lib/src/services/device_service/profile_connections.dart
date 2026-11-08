@@ -235,56 +235,85 @@ extension _DeviceServiceProfileConnections on DeviceService {
     return controller.stream;
   }
 
-  /// Check each positional native id in [active] against the name the profile
-  /// saved for it, and move it to the device that carries that name. The
-  /// corrected ids are written back to the profile so the next connect, and
-  /// every screen that shows the profile, names the right device.
+  /// Check each positional id in [active] against the name the profile saved
+  /// for it, and move it to the device that carries that name. The corrected
+  /// ids are written back to the profile so the next connect, and every screen
+  /// that shows the profile, names the right device.
   ///
   /// Discovery for a type that fails or does not answer in time leaves that
-  /// slot on its saved id: an unverifiable position is connected as before.
+  /// slot on its saved id: an unverifiable position is connected as before,
+  /// and the host still refuses a device that answers as another model.
   Future<Map<String, ProfileSlotResolution>> _resolveProfilePositions(
     EquipmentProfileModel profile,
     List<(String, String, Future<void> Function(String), String?, DeviceType)>
     active,
+  ) => _resolveProfileSlots(profile, [
+    for (final (savedId, label, _, savedName, type) in active)
+      (label: label, savedId: savedId, savedName: savedName, type: type),
+  ]);
+
+  /// Resolve [slots] of [profile] together (see [resolveProfileSlots]),
+  /// write any moved ids back to the profile, and record what each slot must
+  /// be for [_expectedModelFor].
+  Future<Map<String, ProfileSlotResolution>> _resolveProfileSlots(
+    EquipmentProfileModel profile,
+    List<({String label, String savedId, String? savedName, DeviceType type})>
+    slots,
   ) async {
-    final resolutions = <String, ProfileSlotResolution>{};
-    final corrections = <DeviceType, String>{};
-    for (final (savedId, label, _, savedName, type) in active) {
-      if (!isPositionalDeviceId(savedId) ||
-          savedName == null ||
-          savedName.trim().isEmpty) {
-        resolutions[label] = ProfileSlotResolution.keep(savedId);
+    final discovered = <DeviceType, List<DeviceInfo>>{};
+    for (final slot in slots) {
+      final name = slot.savedName;
+      if (!isPositionalDeviceId(slot.savedId) ||
+          name == null ||
+          name.trim().isEmpty ||
+          discovered.containsKey(slot.type)) {
         continue;
       }
-      List<DeviceInfo> discovered;
       try {
-        discovered = await _backend
-            .discoverDevices(type)
+        discovered[slot.type] = await _backend
+            .discoverDevices(slot.type)
             .timeout(DeviceService._profilePositionDiscoveryTimeout);
       } catch (e) {
         _ref
             .read(loggingServiceProvider)
             .warning(
-              'Could not check which $label is at $savedId ($e); '
-              'connecting the saved id',
+              'Could not check which ${slot.label} is at ${slot.savedId} '
+              '($e); connecting the saved id',
               source: 'DeviceService',
             );
-        discovered = const [];
+        discovered[slot.type] = const [];
       }
-      final resolution = resolveProfileSlot(
-        savedId: savedId,
-        savedName: savedName,
-        deviceLabel: label,
-        discovered: discovered,
-      );
-      resolutions[label] = resolution;
+    }
+    final typeOf = {for (final slot in slots) slot.label: slot.type};
+    final resolutions = resolveProfileSlots(
+      [
+        for (final slot in slots)
+          (label: slot.label, savedId: slot.savedId, savedName: slot.savedName),
+      ],
+      (label) => discovered[typeOf[label]] ?? const [],
+    );
+
+    if (_slotExpectationsProfileId != profile.id) {
+      _slotExpectations.clear();
+      _slotExpectationsProfileId = profile.id;
+    }
+    final corrections = <String, String>{};
+    for (final slot in slots) {
+      final resolution = resolutions[slot.label]!;
+      final id = resolution.deviceId;
+      final name = slot.savedName?.trim();
+      if (id != null && name != null && name.isNotEmpty) {
+        _slotExpectations[slot.label] = (deviceId: id, model: name);
+      } else {
+        _slotExpectations.remove(slot.label);
+      }
       if (resolution.corrected) {
-        corrections[type] = resolution.deviceId!;
+        corrections[slot.label] = id!;
         _ref
             .read(loggingServiceProvider)
             .warning(
-              'Profile ${profile.name}: $savedName moved from $savedId to '
-              '${resolution.deviceId}; connecting it there and updating the '
+              'Profile ${profile.name}: ${slot.savedName} moved from '
+              '${slot.savedId} to $id; connecting it there and updating the '
               'profile',
               source: 'DeviceService',
             );
@@ -297,14 +326,15 @@ extension _DeviceServiceProfileConnections on DeviceService {
             .read(profileServiceProvider)
             .updateProfileDevices(
               profileId,
-              cameraId: corrections[DeviceType.camera],
-              mountId: corrections[DeviceType.mount],
-              focuserId: corrections[DeviceType.focuser],
-              filterWheelId: corrections[DeviceType.filterWheel],
-              guiderId: corrections[DeviceType.guider],
-              rotatorId: corrections[DeviceType.rotator],
-              safetyMonitorId: corrections[DeviceType.safetyMonitor],
-              switchId: corrections[DeviceType.switch_],
+              cameraId: corrections['camera'],
+              guideCameraId: corrections['guide camera'],
+              mountId: corrections['mount'],
+              focuserId: corrections['focuser'],
+              filterWheelId: corrections['filter wheel'],
+              guiderId: corrections['guider'],
+              rotatorId: corrections['rotator'],
+              safetyMonitorId: corrections['safety monitor'],
+              switchId: corrections['switch'],
             );
       } catch (e) {
         _ref
@@ -317,6 +347,88 @@ extension _DeviceServiceProfileConnections on DeviceService {
       }
     }
     return resolutions;
+  }
+
+  /// The profile slots a reconnect of [type] at [deviceId] has to resolve,
+  /// main slot first. Empty when [deviceId] is not the active profile's
+  /// device for [type], or is not a position on the bus.
+  ///
+  /// Both camera slots resolve together: after the bus re-enumerates, the
+  /// main camera can come back at the guide camera's old id.
+  List<({String label, String savedId, String? savedName, DeviceType type})>
+  _reconnectSlots(EquipmentProfileModel profile, DeviceType type, String id) {
+    if (!isPositionalDeviceId(id)) return const [];
+    ({String label, String savedId, String? savedName, DeviceType type})? slot(
+      String label,
+      String? savedId,
+      String? savedName,
+    ) => savedId == null || savedId.isEmpty
+        ? null
+        : (label: label, savedId: savedId, savedName: savedName, type: type);
+    final slots = switch (type) {
+      DeviceType.camera => [
+        slot('camera', profile.cameraId, profile.cameraName),
+        slot('guide camera', profile.guideCameraId, profile.guideCameraName),
+      ],
+      DeviceType.focuser => [
+        slot('focuser', profile.focuserId, profile.focuserName),
+      ],
+      DeviceType.filterWheel => [
+        slot('filter wheel', profile.filterWheelId, profile.filterWheelName),
+      ],
+      DeviceType.rotator => [
+        slot('rotator', profile.rotatorId, profile.rotatorName),
+      ],
+      DeviceType.mount => [slot('mount', profile.mountId, profile.mountName)],
+      _ => const <Null>[],
+    }.nonNulls.toList();
+    if (slots.isEmpty || slots.first.savedId != id) return const [];
+    return slots;
+  }
+
+  /// Where a reconnect of the profile's [type] device, last at [deviceId],
+  /// has to go: the id the profile's saved name is at now. Returns
+  /// [deviceId] unchanged for a device the profile does not name. Throws
+  /// with the reason when the slot cannot be resolved safely (the device the
+  /// profile names is not found and something else is at its id, or two
+  /// devices carry its name).
+  Future<String> _reconnectTarget(DeviceType type, String deviceId) async {
+    final profile = _ref.read(activeEquipmentProfileProvider);
+    if (profile == null) return deviceId;
+    final slots = _reconnectSlots(profile, type, deviceId);
+    if (slots.isEmpty) return deviceId;
+    final resolution = (await _resolveProfileSlots(
+      profile,
+      slots,
+    ))[slots.first.label]!;
+    final refusal = resolution.refusal;
+    if (refusal != null) throw StateError(refusal);
+    return resolution.deviceId!;
+  }
+
+  /// The model the device at [deviceId] must be for the profile slot
+  /// [label], or null when nothing is expected (the id is not a bus position,
+  /// or it is not the profile's device for that slot). The host passes it to
+  /// the driver layer, which refuses a device that answers as another model.
+  String? _expectedModelFor(String label, String deviceId) {
+    if (!isPositionalDeviceId(deviceId)) return null;
+    final resolved = _slotExpectation(label);
+    if (resolved != null && resolved.deviceId == deviceId) {
+      return resolved.model;
+    }
+    final profile = _ref.read(activeEquipmentProfileProvider);
+    if (profile == null) return null;
+    final (id, name) = switch (label) {
+      'camera' => (profile.cameraId, profile.cameraName),
+      'guide camera' => (profile.guideCameraId, profile.guideCameraName),
+      'mount' => (profile.mountId, profile.mountName),
+      'focuser' => (profile.focuserId, profile.focuserName),
+      'filter wheel' => (profile.filterWheelId, profile.filterWheelName),
+      'rotator' => (profile.rotatorId, profile.rotatorName),
+      _ => (null, null),
+    };
+    if (id != deviceId || name == null || name.trim().isEmpty) return null;
+    return name.trim();
   }
 
   /// Disconnect all devices
