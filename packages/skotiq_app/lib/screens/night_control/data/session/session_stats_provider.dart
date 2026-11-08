@@ -37,7 +37,17 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
   final freeBytes = ref.watch(nightCaptureFreeBytesProvider);
   final now = ref.watch(nightSessionNowProvider);
 
-  final start = session.isActive ? session.startTime : live?.startTime;
+  final runStart = session.isActive ? session.startTime : live?.startTime;
+  // The night's first frame, when an earlier run of the same night (one a
+  // crash or a restart ended) began before this one.
+  final firstFrame = lights.isEmpty ? null : lights.first.capturedAt;
+  final start = runStart == null
+      ? firstFrame
+      : firstFrame != null &&
+              firstFrame.isBefore(runStart) &&
+              observingNight(firstFrame) == observingNight(runStart)
+          ? firstFrame
+          : runStart;
   final end = session.isActive ? now : live?.endTime ?? now;
   final elapsed =
       start == null || end.isBefore(start) ? null : end.difference(start);
@@ -64,7 +74,9 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
       : ref.watch(usbDisconnectLogProvider).countSince(start);
 
   return NightSessionVm(
-    frameCount: live?.framesCaptured ?? (lights.isEmpty ? null : lights.length),
+    // The night's rows once there are any: the run's own counter starts
+    // over with a run restored after a restart.
+    frameCount: lights.isNotEmpty ? lights.length : live?.framesCaptured,
     elapsed: elapsed,
     metrics: <MetricVm>[
       if (accepted != null)

@@ -76,7 +76,7 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     final sessionRows = terminal?.isCalibration == true ||
         ref.watch(backendProvider) is NetworkBackend;
     final frames = sessionRows
-        ? ref.watch(nightSessionLightRowsProvider).map(capturedImageFromDbRow)
+        ? ref.watch(nightRunLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);
     // This launch's frame list runs across runs; only this run's count.
     final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
@@ -93,7 +93,7 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
 
   final acceptedSecs = <String, double>{};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
-    for (final row in ref.watch(nightSessionLightRowsProvider)) {
+    for (final row in ref.watch(nightRunLightRowsProvider)) {
       if (!row.isAccepted) continue;
       acceptedSecs.update(
         _filterKey(row.filter),

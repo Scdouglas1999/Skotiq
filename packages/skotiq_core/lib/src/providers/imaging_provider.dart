@@ -8,6 +8,8 @@ import '../models/imaging/imaging_models.dart';
 import '../models/imaging/auto_stretch_settings.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import '../services/darkroom_build_service.dart'
+    show observingNight, observingNightWindow;
 import 'host_settings/host_settings_providers.dart'
     show settingsRowChangesProvider;
 import 'profiles_provider.dart';
@@ -565,11 +567,42 @@ final sessionImagesProvider =
       return SessionImagesNotifier();
     });
 
+/// The session frames list: every kept frame of the observing night (local
+/// noon to noon, the night Darkroom groups by), oldest first.
+///
+/// It lived only in memory, so a crash, an update or a restart mid-night
+/// emptied it, and the restored run's frames started a new list: the host and
+/// every linked client then showed a night that began at the restart.
+/// [seedNight] rebuilds it from the database at startup; a frame already in
+/// the list is never added twice, and the first frame of the next night
+/// starts a new list.
 class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
   SessionImagesNotifier() : super([]);
 
   void addImage(CapturedImage image) {
+    if (state.any((existing) => existing.id == image.id)) return;
+    final night = observingNight(image.capturedAt);
+    if (state.isNotEmpty && observingNight(state.last.capturedAt) != night) {
+      state = [image];
+      return;
+    }
     state = [...state, image];
+  }
+
+  /// Merge the night's frames read from the database into the list.
+  ///
+  /// [frames] are the kept frames of the night containing [now]; anything in
+  /// the list from another night is dropped.
+  void seedNight(List<CapturedImage> frames, {required DateTime now}) {
+    final night = observingNight(now);
+    final byId = <String, CapturedImage>{
+      for (final image in frames)
+        if (observingNight(image.capturedAt) == night) image.id: image,
+      for (final image in state)
+        if (observingNight(image.capturedAt) == night) image.id: image,
+    };
+    state = byId.values.toList()
+      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
   }
 
   void removeImage(String id) {
@@ -590,6 +623,30 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
     );
   }
 }
+
+/// Seeds [sessionImagesProvider] with the observing night's kept frames from
+/// the database, on the process that owns it. Watch it for the whole app.
+///
+/// "Kept" is what the run's frame recorder and the capture pipeline add to
+/// the list as frames land: rows still accepted (a grader's reject or a
+/// frame-watch exclusion clears `is_accepted`).
+final sessionNightSeedProvider = FutureProvider<void>((ref) async {
+  if (ref.watch(backendProvider) is NetworkBackend) return;
+  final now = DateTime.now();
+  final window = observingNightWindow(now);
+  final rows = await ref
+      .read(imagesDaoProvider)
+      .getImagesCapturedBetween(window.start, window.end);
+  ref
+      .read(sessionImagesProvider.notifier)
+      .seedNight(
+        [
+          for (final row in rows)
+            if (row.isAccepted) capturedImageFromDbRow(row),
+        ],
+        now: now,
+      );
+});
 
 /// Recent frames for the active session, remote-aware.
 ///

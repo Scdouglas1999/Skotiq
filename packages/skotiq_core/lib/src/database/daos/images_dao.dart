@@ -234,6 +234,36 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         .watch();
   }
 
+  /// Watch the images captured in `[start, end)`, oldest first: one
+  /// observing night, whatever runs and sessions it held.
+  Stream<List<CapturedImage>> watchImagesCapturedBetween(
+    DateTime start,
+    DateTime end,
+  ) {
+    return _capturedBetween(start, end).watch();
+  }
+
+  /// The images captured in `[start, end)`, oldest first.
+  Future<List<CapturedImage>> getImagesCapturedBetween(
+    DateTime start,
+    DateTime end,
+  ) {
+    return _capturedBetween(start, end).get();
+  }
+
+  SimpleSelectStatement<$CapturedImagesTable, CapturedImage> _capturedBetween(
+    DateTime start,
+    DateTime end,
+  ) {
+    return select(capturedImages)
+      ..where(
+        (i) =>
+            i.capturedAt.isBiggerOrEqualValue(start) &
+            i.capturedAt.isSmallerThanValue(end),
+      )
+      ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]);
+  }
+
   /// Get images for a target
   Future<List<CapturedImage>> getImagesForTarget(int targetId) {
     return (select(capturedImages)
