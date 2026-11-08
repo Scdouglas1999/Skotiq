@@ -77,34 +77,39 @@ class CapturePanel extends ConsumerWidget {
     final cameraState = ref.watch(cameraStateProvider);
     final hostSuffix = isRemoteMode ? ' (host)' : '';
 
-    // The Session card's "Captured" and "Integration" lines must come from the
-    // SAME record or they can contradict each other. `recentSessionFramesProvider`
-    // only holds frames captured in THIS app run, so after resuming an
-    // interrupted session the card read "Captured 0 frames" directly above
-    // "Integration 40m 0s". SessionService.recoverSession restores
-    // completedExposures from the DB row alongside totalIntegrationSecs, so
-    // prefer it whenever a session row is open; the in-run frame list is only
-    // the fallback for captures taken with no session (dbSessionId == null).
-    // ...and the fallback has to obey the same rule, which it did not. With no
-    // session row open, the count came from `sessionImages` — which includes
-    // frames the SEQUENCER captured this app run — while the integration below
-    // came from `sessionState`, which only accumulates captures this screen
-    // performed. Measured on 2026-08-10 after a ten-frame sequencer run at 8s:
-    // the card read "Captured 10 frames / Integration 0s", and one 2s Snapshot
-    // moved it to "11 frames / 2s". Eleven frames cannot total two seconds at
-    // any exposure.
-    //
-    // So derive both from the same list here, exactly as the DB branch derives
-    // both from the same row.
-    final capturedCount = sessionState.dbSessionId != null
-        ? sessionState.completedExposures
-        : sessionImages.length;
-    final integrationSecs = sessionState.dbSessionId != null
-        ? sessionState.totalIntegrationSecs
-        : sessionImages.fold<double>(
+    // The whole observing night (owner, 2026-11-08: "always the whole
+    // night"). `recentSessionFramesProvider` is the night's kept frames on the
+    // host and, mirrored, on a linked client, rebuilt from the database after
+    // a crash or a restart, so a restored run's session row (which starts
+    // over) no longer decides the count. Both numbers come from that one list
+    // so they cannot contradict each other; the session row stands in only
+    // until the night has a frame.
+    final nightCounted = sessionImages.isNotEmpty;
+    final capturedCount = nightCounted
+        ? sessionImages.length
+        : sessionState.dbSessionId != null
+            ? sessionState.completedExposures
+            : 0;
+    final integrationSecs = nightCounted
+        ? sessionImages.fold<double>(
             0.0,
             (sum, image) => sum + image.settings.exposureTime,
-          );
+          )
+        : sessionState.dbSessionId != null
+            ? sessionState.totalIntegrationSecs
+            : 0.0;
+    // Imaging for: from the night's first frame, or the session's start when
+    // that is earlier or the night has no frame yet.
+    final sessionDuration = sessionState.isActive ? sessionState.duration : null;
+    final nightSpan = nightCounted
+        ? DateTime.now().difference(sessionImages.first.capturedAt)
+        : null;
+    final Duration? imagingFor = switch ((sessionDuration, nightSpan)) {
+      (final Duration s, final Duration n) => s > n ? s : n,
+      (final Duration s, null) => s,
+      (null, final Duration n) when sessionState.isActive => n,
+      _ => null,
+    };
 
     // Get binning options based on connected camera's capabilities
     final binningOptions = ref.watch(
@@ -319,11 +324,11 @@ class CapturePanel extends ConsumerWidget {
               ),
             ],
           ),
-          if (sessionState.isActive && sessionState.duration != null) ...[
+          if (imagingFor != null) ...[
             const SizedBox(height: SkotiqTokens.spaceMd),
             KeyValueList(
               rows: [
-                ('Running for', _formatSessionDuration(sessionState.duration!)),
+                ('Running for', _formatSessionDuration(imagingFor)),
               ],
             ),
           ],
