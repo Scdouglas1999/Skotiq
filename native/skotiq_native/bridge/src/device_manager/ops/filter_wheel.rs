@@ -243,7 +243,18 @@ impl DeviceManager {
         }
     }
 
+    /// Read the filter wheel's position. The outcome feeds the device's read health (see
+    /// [`crate::device_manager::read_health`]).
     pub async fn filter_wheel_get_position(&self, device_id: &str) -> Result<i32, DeviceOpError> {
+        let result = self.filter_wheel_get_position_dispatch(device_id).await;
+        self.note_status_read(device_id, &result);
+        result
+    }
+
+    async fn filter_wheel_get_position_dispatch(
+        &self,
+        device_id: &str,
+    ) -> Result<i32, DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             let info = devices

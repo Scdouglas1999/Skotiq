@@ -100,7 +100,15 @@ impl DeviceManager {
     // Rotator control
 
     /// Get rotator position (sky angle in degrees)
+    /// Read the rotator's position. The outcome feeds the device's read health (see
+    /// [`crate::device_manager::read_health`]).
     pub async fn rotator_get_position(&self, device_id: &str) -> Result<f64, DeviceOpError> {
+        let result = self.rotator_get_position_dispatch(device_id).await;
+        self.note_status_read(device_id, &result);
+        result
+    }
+
+    async fn rotator_get_position_dispatch(&self, device_id: &str) -> Result<f64, DeviceOpError> {
         let driver_type = {
             let devices = self.devices.read().await;
             devices.get(device_id).map(|d| d.info.driver_type.clone())

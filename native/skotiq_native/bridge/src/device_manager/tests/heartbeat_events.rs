@@ -332,3 +332,41 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
         .connected = false;
     assert_eq!(result, Err(RECONNECT_CANCELED_MSG.to_string()));
 }
+
+// The NYX-101 night: a mount whose status reads fail while its heartbeat
+// probe passes. The failed reads must be what the heartbeat sees.
+#[tokio::test]
+async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
+    use crate::api::devices::simulation::get_sim_mount;
+    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+
+    let _guard = super::simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let device_id = "sim_mount_1";
+    manager
+        .register_device(super::build_sim_info(device_id, DeviceType::Mount), false)
+        .await;
+    manager.connect_device(device_id).await.unwrap();
+    sim_faults::arm(
+        "mount.status",
+        FaultSpec::new(
+            Trigger::Always,
+            Effect::Error("Failed to get RA: Starting the driver is required 0x80040401".into()),
+        ),
+    );
+
+    for _ in 0..3 {
+        assert!(manager.mount_get_status(device_id).await.is_err());
+    }
+    let reason = manager
+        .failing_status_reads(device_id)
+        .expect("three failed reads must count");
+    assert!(reason.contains("0x80040401"), "{reason}");
+
+    sim_faults::clear_all();
+    manager.mount_get_status(device_id).await.unwrap();
+    assert_eq!(manager.failing_status_reads(device_id), None);
+
+    manager.disconnect_device(device_id).await.unwrap();
+    get_sim_mount().write().await.status.connected = false;
+}

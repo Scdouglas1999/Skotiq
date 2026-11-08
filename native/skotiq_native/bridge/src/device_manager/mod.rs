@@ -23,6 +23,7 @@ pub(crate) mod epoch;
 pub(crate) mod heartbeat;
 pub mod identity;
 pub(crate) mod ops;
+pub(crate) mod read_health;
 
 use crate::device::*;
 use crate::state::SharedAppState;
@@ -624,6 +625,10 @@ pub struct DeviceManager {
     /// The last sensor temperature and cooler power published per camera, so
     /// `CameraTemperatureChanged` goes out only when the reading changes.
     pub(crate) published_temperatures: ops::backstop::PublishedTemperatures,
+
+    /// Whether each device's status reads are still succeeding; the heartbeat
+    /// counts a run of failures as a failed poll. See [`read_health`].
+    pub(crate) status_reads: read_health::StatusReadHealth,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -796,6 +801,7 @@ impl DeviceManager {
             usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             command_activity: Default::default(),
             published_temperatures: Default::default(),
+            status_reads: Default::default(),
         });
 
         // Start the reconnection background task
@@ -864,6 +870,7 @@ impl DeviceManager {
             usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             command_activity: Default::default(),
             published_temperatures: Default::default(),
+            status_reads: Default::default(),
         });
 
         // Start the reconnection background task

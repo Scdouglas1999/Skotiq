@@ -109,6 +109,7 @@ fn build_device_manager() -> DeviceManager {
         usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         command_activity: Default::default(),
         published_temperatures: Default::default(),
+        status_reads: Default::default(),
     }
 }
 

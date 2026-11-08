@@ -405,6 +405,7 @@ impl DeviceManager {
                         dev.connection_state = ConnectionState::Connected;
                         dev.last_error = None;
                         dev.reconnect_attempts = 0;
+                        self.status_reads.forget(device_id);
                     }
                     Err(e) => {
                         dev.connection_state = ConnectionState::Error;
@@ -960,6 +961,8 @@ impl DeviceManager {
                 .map(|d| d.info.clone())
                 .ok_or_else(|| format!("Device not found: {}", device_id))?
         };
+
+        self.status_reads.forget(device_id);
 
         // Update state
         {

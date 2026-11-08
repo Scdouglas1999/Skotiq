@@ -213,7 +213,18 @@ impl DeviceManager {
         }
     }
 
+    /// Read the mount's status. The outcome feeds the device's read health (see
+    /// [`crate::device_manager::read_health`]).
     pub async fn mount_get_status(&self, device_id: &str) -> Result<MountStatus, DeviceOpError> {
+        let result = self.mount_get_status_dispatch(device_id).await;
+        self.note_status_read(device_id, &result);
+        result
+    }
+
+    async fn mount_get_status_dispatch(
+        &self,
+        device_id: &str,
+    ) -> Result<MountStatus, DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices
             .get(device_id)
