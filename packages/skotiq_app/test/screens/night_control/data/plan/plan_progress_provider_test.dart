@@ -113,7 +113,7 @@ void main() {
         inFlightFilter: 'Ha',
       ),
       extra: [
-        nightSessionLightRowsProvider.overrideWithValue([
+        nightRunLightRowsProvider.overrideWithValue([
           _row(1, 'L', 60),
           _row(2, 'L', 60, kept: false),
           _row(3, 'L', 60),
@@ -231,7 +231,7 @@ void main() {
         inFlightFilter: 'R',
       ),
       extra: [
-        nightSessionLightRowsProvider.overrideWithValue([
+        nightRunLightRowsProvider.overrideWithValue([
           _row(1, 'L', 90),
           _row(2, 'R', 90),
           _row(3, 'L', 90),

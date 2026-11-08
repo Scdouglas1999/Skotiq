@@ -327,4 +327,51 @@ void main() {
     expect(done.status, PlanStepStatus.done);
     expect(done.when, isNull);
   });
+
+  // Owner, 2026-11-08: a crash or an update mid-night must not start the
+  // night over. The restored run opens a new session on the host.
+  test('a host restarted mid-night: the client lists the whole night, the '
+      'plan counts the restored run', () async {
+    final plan = TwoTargetPlan();
+    final runStart = DateTime(2026, 11, 7, 21, 10);
+    final restored = DateTime(2026, 11, 8, 0, 40);
+    final rows = <db.CapturedImage>[
+      for (var i = 0; i < 3; i++)
+        _row(700 + i, 130, runStart.add(Duration(minutes: 3 * i))),
+      for (var i = 0; i < 2; i++)
+        _row(710 + i, 131, restored.add(Duration(minutes: 3 * i))),
+      // The night before: not tonight's.
+      _row(600, 129, DateTime(2026, 11, 6, 23)),
+    ];
+    final backend = _link();
+    final client = planContainer(
+      now: restored.add(const Duration(minutes: 10)),
+      sequence: plan.sequence,
+      backend: backend,
+      extra: [
+        allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
+        allSessionsProvider.overrideWith(
+          (ref) => Stream.value([
+            _session(131, restored, 'active'),
+            _session(130, runStart, 'interrupted'),
+            _session(129, DateTime(2026, 11, 6, 22), 'completed'),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _settle(client, [
+      nightSessionFramesProvider,
+      nightSessionStatsProvider,
+      nightFrameSeriesProvider,
+    ]);
+
+    expect(client.read(nightSessionIdProvider), 131);
+    final frames = client.read(nightSessionFramesProvider);
+    expect(frames.map((f) => f.id), [700, 701, 702, 710, 711]);
+    expect(frames.last.frameNumber, 5);
+    expect(client.read(nightFrameSeriesProvider).sampleCount, 5);
+    expect(client.read(nightSessionStatsProvider).frameCount, 5);
+    expect(client.read(nightRunLightRowsProvider), hasLength(2));
+  });
 }

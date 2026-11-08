@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
+import 'session_format.dart' show nightSessionNowProvider;
 
 /// The session whose frames Tonight shows; null when nothing is imaging.
 final nightSessionIdProvider = Provider<int?>((ref) {
@@ -49,9 +50,54 @@ final _hostSessionRowsProvider =
       ref.watch(imagesDaoProvider).watchImagesForSession(sessionId),
 );
 
-/// Every captured_images row of the session, oldest first. Empty without a
-/// session or while the rows load.
+/// The observing night Tonight shows: local noon to the next local noon,
+/// the night Darkroom groups frames by. It is the night of the run Tonight
+/// shows (a finished run stays on screen the next morning and afternoon),
+/// else the night it is now.
+final nightWindowProvider = Provider<({DateTime start, DateTime end})>((ref) {
+  final run = ref.watch(nightRunRowsProvider);
+  return observingNightWindow(
+    run.isNotEmpty ? run.first.capturedAt : ref.watch(nightSessionNowProvider),
+  );
+});
+
+final _hostNightRowsProvider = StreamProvider.autoDispose
+    .family<List<DbCapturedImage>, ({DateTime start, DateTime end})>(
+  (ref, window) => ref
+      .watch(imagesDaoProvider)
+      .watchImagesCapturedBetween(window.start, window.end),
+);
+
+/// Every captured_images row of the observing night, oldest first, across
+/// every run and session it held.
+///
+/// The frame strip, the HFR and star charts, the session counts and the
+/// integration read this. They followed one session, so a crash, an update
+/// or a restart mid-night (whose restored run opens a new session) started
+/// the night over on the host and on every linked client.
 final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  final window = ref.watch(nightWindowProvider);
+  if (ref.watch(backendProvider) is NetworkBackend) {
+    // The host's rows arrive through the remote-aware poll of all images.
+    final rows = ref.watch(allDbImagesProvider).valueOrNull;
+    if (rows == null) return const <DbCapturedImage>[];
+    return rows
+        .where(
+          (row) =>
+              !row.capturedAt.isBefore(window.start) &&
+              row.capturedAt.isBefore(window.end),
+        )
+        .toList()
+      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+  }
+  return ref.watch(_hostNightRowsProvider(window)).valueOrNull ??
+      const <DbCapturedImage>[];
+});
+
+/// Every captured_images row of the run's own session, oldest first: what
+/// the plan's progress counts. Empty without a session or while the rows
+/// load.
+final nightRunRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   final sessionId = ref.watch(nightSessionIdProvider);
   if (sessionId == null) return const <DbCapturedImage>[];
   if (ref.watch(backendProvider) is NetworkBackend) {
@@ -65,11 +111,19 @@ final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
       const <DbCapturedImage>[];
 });
 
-/// The session's light frames, oldest first. Darks, flats and snapshots
+/// The night's light frames, oldest first. Darks, flats and snapshots
 /// belong to other strips.
 final nightSessionLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   return ref
       .watch(nightSessionRowsProvider)
+      .where((row) => row.frameType.toLowerCase() == 'light')
+      .toList(growable: false);
+});
+
+/// The run's own light frames, oldest first.
+final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  return ref
+      .watch(nightRunRowsProvider)
       .where((row) => row.frameType.toLowerCase() == 'light')
       .toList(growable: false);
 });
