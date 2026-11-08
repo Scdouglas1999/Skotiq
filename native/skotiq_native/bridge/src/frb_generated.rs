@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 310948540;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1746945493;
 
 // Section: executor
 
@@ -1070,6 +1070,39 @@ fn wire__crate__api__connection__api_connect_device_impl(
                         let output_ok = crate::api::connection::api_connect_device(
                             api_device_type,
                             api_device_id,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__connection__api_connect_device_expecting_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_type: impl CstDecode<crate::device::DeviceType>,
+    device_id: impl CstDecode<String>,
+    expected_model: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_connect_device_expecting",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_type = device_type.cst_decode();
+            let api_device_id = device_id.cst_decode();
+            let api_expected_model = expected_model.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok = crate::api::connection::api_connect_device_expecting(
+                            api_device_type,
+                            api_device_id,
+                            api_expected_model,
                         )
                         .await?;
                         Ok(output_ok)
@@ -32774,6 +32807,21 @@ mod io {
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__connection__api_connect_device_impl(port_, device_type, device_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting(
+        port_: i64,
+        device_type: i32,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        expected_model: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__connection__api_connect_device_expecting_impl(
+            port_,
+            device_type,
+            device_id,
+            expected_model,
+        )
     }
 
     #[unsafe(no_mangle)]

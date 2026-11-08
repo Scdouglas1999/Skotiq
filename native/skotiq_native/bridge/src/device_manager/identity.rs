@@ -156,6 +156,24 @@ impl DeviceIdentity {
         None
     }
 
+    /// Compare against the model the caller expects at this id.
+    ///
+    /// `Some(reason)` when the driver named a different model. `None` when it
+    /// named the expected one, or named nothing (an ASCOM camera reports
+    /// geometry only), in which case the caller falls back to
+    /// [`Self::conflict_with`] against the id's last observation.
+    pub fn conflict_with_expected(&self, expected_model: &str) -> Option<String> {
+        let model = self.model.as_ref()?;
+        if same_model(model, expected_model) {
+            return None;
+        }
+        Some(format!(
+            "expected {}, found {}",
+            expected_model.trim(),
+            model
+        ))
+    }
+
     /// Overwrite the placeholder fields of a registered [`DeviceInfo`] with what
     /// the driver actually reported.
     ///
@@ -180,6 +198,34 @@ impl DeviceIdentity {
             info.serial_number = Some(serial.clone());
         }
     }
+}
+
+/// Whether two model names name the same model.
+///
+/// Discovery labels same-model devices `Name #2` or `Name (serial)`, and a
+/// profile may have saved either form, so both sides are compared without
+/// that suffix and without case or spacing differences. Matches the Dart
+/// `resolveProfileSlot` comparison.
+pub fn same_model(a: &str, b: &str) -> bool {
+    normalized_model(a) == normalized_model(b)
+}
+
+fn normalized_model(name: &str) -> String {
+    let mut trimmed = name.trim();
+    if let Some(open) = trimmed.rfind(" (") {
+        if trimmed.ends_with(')') {
+            trimmed = &trimmed[..open];
+        }
+    } else if let Some(hash) = trimmed.rfind(" #") {
+        if trimmed[hash + 2..].chars().all(|c| c.is_ascii_digit()) && hash + 2 < trimmed.len() {
+            trimmed = &trimmed[..hash];
+        }
+    }
+    trimmed
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 #[cfg(test)]
@@ -327,6 +373,41 @@ mod tests {
             ..Default::default()
         }
         .is_empty());
+    }
+
+    #[test]
+    fn same_model_ignores_discovery_suffixes_case_and_spacing() {
+        assert!(same_model("ZWO ASI1600MM-Cool", "ZWO ASI1600MM-Cool #2"));
+        assert!(same_model(
+            "ZWO ASI178MM (3520810329000900)",
+            "zwo  asi178mm"
+        ));
+        assert!(!same_model("ZWO ASI1600MM-Cool", "ZWO ASI178MM"));
+    }
+
+    /// The rig after the hub dropout: the profile's camera is the 1600 and the
+    /// id it asked for now answers as the 178.
+    #[test]
+    fn expected_model_refuses_the_other_camera() {
+        let observed = DeviceIdentity {
+            model: Some("ZWO ASI178MM".to_string()),
+            serial_number: Some("3520810329000900".to_string()),
+            sensor: DeviceIdentity::sensor_fingerprint(3096, 2080, 2.4),
+        };
+        let reason = observed
+            .conflict_with_expected("ZWO ASI1600MM-Cool")
+            .expect("the guide camera is not the main camera");
+        assert!(reason.contains("ZWO ASI1600MM-Cool") && reason.contains("ZWO ASI178MM"));
+        assert_eq!(observed.conflict_with_expected("ZWO ASI178MM #1"), None);
+        // Geometry only: no opinion, the caller falls back to the baseline.
+        assert_eq!(
+            DeviceIdentity {
+                model: None,
+                ..observed
+            }
+            .conflict_with_expected("ZWO ASI1600MM-Cool"),
+            None
+        );
     }
 
     /// The placeholder name derived from the id is replaced by the driver's.

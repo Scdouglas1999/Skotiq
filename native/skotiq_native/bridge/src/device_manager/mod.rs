@@ -428,6 +428,13 @@ pub struct DeviceManager {
     /// [`identity`].
     pub(crate) observed_identities: RwLock<HashMap<String, identity::DeviceIdentity>>,
 
+    /// The model the caller that connects an id expects to find there, keyed
+    /// by device id (a profile's saved camera name, or the device the user
+    /// picked). Takes precedence over [`Self::observed_identities`], whose
+    /// entry for an id describes whatever answered it last: after the bus
+    /// re-enumerates, that is the device that moved away.
+    pub(crate) expected_models: std::sync::Mutex<HashMap<String, String>>,
+
     /// Reconnection configuration
     reconnect_config: ReconnectConfig,
 
@@ -757,6 +764,7 @@ impl DeviceManager {
             app_state,
             devices: RwLock::new(HashMap::new()),
             observed_identities: RwLock::new(HashMap::new()),
+            expected_models: Default::default(),
             reconnect_config: ReconnectConfig::default(),
             stop_reconnect: Arc::new(RwLock::new(false)),
             native_devices: RwLock::new(HashMap::new()),
@@ -826,6 +834,7 @@ impl DeviceManager {
             app_state,
             devices: RwLock::new(HashMap::new()),
             observed_identities: RwLock::new(HashMap::new()),
+            expected_models: Default::default(),
             reconnect_config: config,
             stop_reconnect: Arc::new(RwLock::new(false)),
             native_devices: RwLock::new(HashMap::new()),

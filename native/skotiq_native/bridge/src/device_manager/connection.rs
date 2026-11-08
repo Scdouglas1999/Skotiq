@@ -301,6 +301,30 @@ impl DeviceManager {
         self.connect_device_internal(&device_info).await
     }
 
+    /// [`Self::connect_device`], naming the model the caller expects at the
+    /// id. The expectation stays with the id, so the reconnection loop checks
+    /// it too, until a later connect names another.
+    ///
+    /// Device ids such as `native:zwo:1` are positions on the bus. The
+    /// identity the id was last seen with is the wrong reference once the bus
+    /// re-enumerates: it then describes the device that moved away, and a
+    /// connect to where the wanted device now sits would be refused for not
+    /// being the device that left. The expectation is the reference that
+    /// survives that.
+    pub async fn connect_device_expecting(
+        &self,
+        device_id: &str,
+        expected_model: Option<&str>,
+    ) -> Result<(), String> {
+        if let Some(model) = expected_model.map(str::trim).filter(|m| !m.is_empty()) {
+            self.expected_models
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .insert(device_id.to_string(), model.to_string());
+        }
+        self.connect_device(device_id).await
+    }
+
     /// Internal connection logic
     pub(crate) async fn connect_device_internal(&self, info: &DeviceInfo) -> Result<(), String> {
         let device_id = &info.id;
@@ -550,17 +574,24 @@ impl DeviceManager {
     ///
     /// * driver reports nothing identifiable → `Ok`, nothing recorded. We do
     ///   not store an empty baseline, because it would later match anything.
+    /// * the caller named the model it expects (see
+    ///   [`Self::connect_device_expecting`]) and the driver named a model →
+    ///   that comparison decides; the id's baseline describes whatever
+    ///   answered it last, which after a re-enumeration is the device that
+    ///   moved away.
     /// * no baseline yet → record it, refresh the registered `DeviceInfo` so
     ///   the API stops reporting the id-derived placeholder name, `Ok`.
     /// * baseline agrees → refresh and `Ok`.
-    /// * baseline contradicted → tear the driver back down and `Err`.
+    /// * contradicted → tear the driver back down, drop the discovery cache
+    ///   (it describes the bus before the change), and `Err`.
     ///
     /// The teardown on conflict is the point: leaving the handle open would
     /// leave a live connection to the wrong sensor that every later command
     /// would happily address. `disconnect_device` also clears `auto_reconnect`,
-    /// so the manager stops re-opening the wrong camera in a loop. Recovering
-    /// from a genuine swap needs a human, and stopping is the safe answer for
-    /// an unattended run.
+    /// so the manager stops re-opening the wrong camera in a loop. Finding
+    /// where the wanted device went is the caller's: the app looks the
+    /// profile's device up by name in a fresh enumeration and connects it at
+    /// its new id with the model expected.
     pub(crate) async fn verify_identity_after_connect(
         &self,
         info: &DeviceInfo,
@@ -576,32 +607,86 @@ impl DeviceManager {
         }
 
         let previous = self.observed_identities.read().await.get(&info.id).cloned();
+        let expected = self
+            .expected_models
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&info.id)
+            .cloned();
 
-        if let Some(previous) = previous {
-            if let Some(reason) = observed.conflict_with(&previous) {
-                let message = format!(
-                    "Device id {} {}: {}. \
-                     Connected device reports {}; previously it was {}. \
+        let conflict = match (&expected, &observed.model) {
+            // The caller said which model it wants and the driver named one:
+            // that decides it. The id's last observation is not consulted for
+            // the model or sensor, because after a re-enumeration it describes
+            // the device that moved away.
+            (Some(expected), Some(_)) => match observed.conflict_with_expected(expected) {
+                // A driver can name itself differently from how discovery
+                // labels it (the profile saved discovery's name). Before
+                // refusing on the name alone, ask a fresh enumeration what is
+                // at this id.
+                Some(_) if self.enumeration_names(info, expected).await => {
+                    tracing::info!(
+                        "{} names itself {:?}; discovery lists it as {}, so it is the expected device",
+                        info.id,
+                        observed.model,
+                        expected
+                    );
+                    None
+                }
+                Some(reason) => Some(reason),
+                // Two identical bodies trading places: only a serial tells
+                // them apart, and only against the same model.
+                None => previous
+                    .as_ref()
+                    .filter(|p| {
+                        p.model.as_deref().is_some_and(|m| {
+                            crate::device_manager::identity::same_model(m, expected)
+                        })
+                    })
+                    .and_then(|p| match (&observed.serial_number, &p.serial_number) {
+                        (Some(now), Some(before)) if now != before => {
+                            Some(format!("serial number changed from {} to {}", before, now))
+                        }
+                        _ => None,
+                    }),
+            },
+            _ => previous.as_ref().and_then(|p| observed.conflict_with(p)),
+        };
+
+        if let Some(reason) = conflict {
+            let previously = match (&expected, &previous) {
+                (Some(expected), _) => format!("the caller expected {}", expected),
+                (None, Some(previous)) => format!("previously it was {}", previous.describe()),
+                (None, None) => "nothing was expected".to_string(),
+            };
+            let message = format!(
+                "Device id {} {}: {}. \
+                     Connected device reports {}; {}. \
                      This id is a position on the bus, not an identity, so it \
                      re-binds when devices are replugged or re-enumerated. \
                      Refusing the connection rather than using the wrong device.",
-                    info.id,
-                    IDENTITY_CONFLICT_MARKER,
-                    reason,
-                    observed.describe(),
-                    previous.describe(),
-                );
-                tracing::error!("{}", message);
+                info.id,
+                IDENTITY_CONFLICT_MARKER,
+                reason,
+                observed.describe(),
+                previously,
+            );
+            tracing::error!("{}", message);
 
-                if let Err(e) = self.disconnect_device(&info.id).await {
-                    tracing::warn!(
-                        "Failed to release the mismatched device {} after an identity conflict: {}",
-                        info.id,
-                        e
-                    );
-                }
-                return Err(message);
+            // The id answered as a different device, so the enumeration
+            // the discovery cache holds is out of date: drop it, so the
+            // caller's next look for the device it wanted sees where it
+            // went.
+            crate::api::api_invalidate_discovery_cache().await;
+
+            if let Err(e) = self.disconnect_device(&info.id).await {
+                tracing::warn!(
+                    "Failed to release the mismatched device {} after an identity conflict: {}",
+                    info.id,
+                    e
+                );
             }
+            return Err(message);
         }
 
         tracing::info!("Device {} identified as {}", info.id, observed.describe());
@@ -621,6 +706,33 @@ impl DeviceManager {
         }
 
         Ok(())
+    }
+
+    /// Whether a fresh enumeration lists `expected_model` at `info.id`.
+    ///
+    /// The discovery cache is dropped first: after a re-enumeration it still
+    /// describes the bus as it was, which is exactly the question here.
+    async fn enumeration_names(&self, info: &DeviceInfo, expected_model: &str) -> bool {
+        crate::api::api_invalidate_discovery_cache().await;
+        match crate::api::api_discover_devices(info.device_type.clone()).await {
+            Ok(devices) => devices.iter().any(|d| {
+                d.id == info.id
+                    && (crate::device_manager::identity::same_model(&d.name, expected_model)
+                        || crate::device_manager::identity::same_model(
+                            &d.display_name,
+                            expected_model,
+                        ))
+            }),
+            Err(e) => {
+                tracing::warn!(
+                    "Could not enumerate {} devices to check {}: {}",
+                    info.device_type.as_str(),
+                    info.id,
+                    e
+                );
+                false
+            }
+        }
     }
 
     /// Read identity straight off the connected driver.

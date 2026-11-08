@@ -65,6 +65,7 @@ fn build_device_manager() -> DeviceManager {
         app_state: AppState::new(),
         devices: RwLock::new(HashMap::new()),
         observed_identities: RwLock::new(HashMap::new()),
+        expected_models: Default::default(),
         reconnect_config: ReconnectConfig::default(),
         stop_reconnect: Arc::new(RwLock::new(false)),
         native_devices: RwLock::new(HashMap::new()),

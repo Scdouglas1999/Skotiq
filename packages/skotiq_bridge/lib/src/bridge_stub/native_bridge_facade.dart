@@ -13,8 +13,15 @@ abstract final class NativeBridge {
   static Stream<SkotiqEvent> eventStream() => _nativeBridge.eventStream();
   static Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) =>
       _nativeBridge.discoverDevices(deviceType);
-  static Future<void> connectDevice(DeviceType deviceType, String deviceId) =>
-      _nativeBridge.connectDevice(deviceType, deviceId);
+  static Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    String? expectedModel,
+  }) => _nativeBridge.connectDevice(
+    deviceType,
+    deviceId,
+    expectedModel: expectedModel,
+  );
   static Future<void> disconnectDevice(
     DeviceType deviceType,
     String deviceId,

@@ -99,9 +99,17 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> connectDevice(DeviceType deviceType, String deviceId) async {
+  Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    String? expectedModel,
+  }) async {
     final bridgeType = _toBridgeDeviceType(deviceType);
-    await bridge.NativeBridge.connectDevice(bridgeType, deviceId);
+    await bridge.NativeBridge.connectDevice(
+      bridgeType,
+      deviceId,
+      expectedModel: expectedModel,
+    );
   }
 
   @override

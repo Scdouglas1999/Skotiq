@@ -50,7 +50,11 @@ extension _NativeBridgeConnectionOperations on _NativeBridgeImplementation {
   }
 
   /// Connect to a device
-  Future<void> connectDevice(DeviceType deviceType, String deviceId) async {
+  Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    String? expectedModel,
+  }) async {
     // Check if this is PHD2 (supports new format: phd2:host:port or legacy: phd2)
     if (_isPhd2DeviceId(deviceId)) {
       String? host;
@@ -98,10 +102,18 @@ extension _NativeBridgeConnectionOperations on _NativeBridgeImplementation {
         level: 800,
       );
       final genDeviceType = _toGenDeviceType(deviceType);
-      await gen_api.apiConnectDevice(
-        deviceType: genDeviceType,
-        deviceId: deviceId,
-      );
+      if (expectedModel == null) {
+        await gen_api.apiConnectDevice(
+          deviceType: genDeviceType,
+          deviceId: deviceId,
+        );
+      } else {
+        await gen_api.apiConnectDeviceExpecting(
+          deviceType: genDeviceType,
+          deviceId: deviceId,
+          expectedModel: expectedModel,
+        );
+      }
       developer.log(
         '[Bridge] Successfully connected to $deviceId via native bridge',
         name: 'NativeBridge',

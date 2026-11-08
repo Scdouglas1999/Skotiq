@@ -2794,6 +2794,11 @@ void frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device(int64
                                                                            int32_t device_type,
                                                                            struct wire_cst_list_prim_u_8_strict *device_id);
 
+void frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting(int64_t port_,
+                                                                                     int32_t device_type,
+                                                                                     struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                     struct wire_cst_list_prim_u_8_strict *expected_model);
+
 void frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_calibrator_off(int64_t port_,
                                                                                                            struct wire_cst_list_prim_u_8_strict *device_id);
 
@@ -4544,6 +4549,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__alpaca_connections__get_alpaca_client);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__alpaca_connections__is_connected);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_disconnect_device);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_get_connected_devices);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_get_device_display_name);

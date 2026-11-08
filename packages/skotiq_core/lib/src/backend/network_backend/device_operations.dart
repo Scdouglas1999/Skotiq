@@ -263,7 +263,13 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> connectDevice(DeviceType deviceType, String deviceId) {
+  Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    // The host connects through its own DeviceService, which expects the
+    // model its active profile names.
+    String? expectedModel,
+  }) {
     return _dedupedConnectOp(deviceType, deviceId, 'devices/connect');
   }
 

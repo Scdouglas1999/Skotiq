@@ -10504,6 +10504,44 @@ class RustLibWire implements BaseWire {
             void Function(int, int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__connection__api_connect_device_expecting(
+    int port_,
+    int device_type,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_model,
+  ) {
+    return _wire__crate__api__connection__api_connect_device_expecting(
+      port_,
+      device_type,
+      device_id,
+      expected_model,
+    );
+  }
+
+  late final _wire__crate__api__connection__api_connect_device_expectingPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Int32,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting',
+      );
+  late final _wire__crate__api__connection__api_connect_device_expecting =
+      _wire__crate__api__connection__api_connect_device_expectingPtr
+          .asFunction<
+            void Function(
+              int,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void
   wire__crate__api__devices__cover_calibrator__api_cover_calibrator_calibrator_off(
     int port_,

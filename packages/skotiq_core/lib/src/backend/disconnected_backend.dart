@@ -69,7 +69,11 @@ class DisconnectedBackend
   }
 
   @override
-  Future<void> connectDevice(DeviceType deviceType, String deviceId) async {
+  Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    String? expectedModel,
+  }) async {
     _throwNotConnected();
   }
 
