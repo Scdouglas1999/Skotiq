@@ -30,6 +30,153 @@ pub struct AutofocusResult {
     pub data_points: Vec<FocusDataPoint>,
     pub temperature_celsius: Option<f64>,
     pub backlash_applied: bool,
+    /// Sweep points measured but left out of the fit, each with the reason.
+    /// `data_points` holds only the points the fit used.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rejected_points: Vec<RejectedFocusPoint>,
+}
+
+/// A sweep point measured but left out of the curve fit, and why.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RejectedFocusPoint {
+    pub position: i32,
+    pub hfr: f64,
+    pub star_count: u32,
+    /// One short line for the operator.
+    pub reason: String,
+}
+
+impl RejectedFocusPoint {
+    fn new(point: &FocusDataPoint, reason: String) -> Self {
+        Self {
+            position: point.position,
+            hfr: point.hfr,
+            star_count: point.star_count,
+            reason,
+        }
+    }
+}
+
+/// How far below the last trusted point nearer focus a point's HFR must fall
+/// before the drop is a measuring failure rather than noise: 15%, and at
+/// least [`DROPOUT_TREND_MIN_PX`].
+const DROPOUT_TREND_FRACTION: f64 = 0.15;
+const DROPOUT_TREND_MIN_PX: f64 = 0.5;
+
+/// A point whose star count is below this fraction of its neighbors' has
+/// lost most of its stars to something other than focus. Across the clean
+/// sweeps of 2026-11-07 (broadband and narrowband, 60 and 100 steps) no point
+/// fell below 0.46 of the smaller neighbor; the dropouts were 0.05-0.3.
+const STAR_COUNT_COLLAPSE_FRACTION: f64 = 0.35;
+
+/// The point the screen walks outward from has to have kept at least this
+/// share of the sweep's best star count, so a falsely low dropout cannot
+/// pose as focus.
+const ANCHOR_MIN_STAR_FRACTION: f64 = 0.25;
+
+/// Fewest points the screen leaves for the fit. A screen that would leave
+/// fewer keeps the whole sweep: by then the sweep, not a few frames, is bad.
+const SCREEN_MIN_KEPT: usize = 5;
+
+/// Leave out sweep points whose measurement collapsed far from focus.
+///
+/// Far from focus an obstructed telescope's stars become donuts, and the star
+/// detector misses most of them. What it does find is a few specks, so the
+/// frame reports a fraction of the stars and an HFR far BELOW the true one:
+/// on the owner's 10" f/4 Newtonian on 2026-11-07 the outer points of a
+/// 100-step sweep found 7-32 stars against ~90 and read 4.6-9 px where the
+/// curve stood at 12-17, so the curve became a W.
+///
+/// Outside focus the HFR can only grow, so the screen walks outward from the
+/// best point on each side and leaves out a point whose HFR falls clearly
+/// below the last trusted point nearer focus, or whose star count collapses
+/// against its neighbors. Nothing nearer focus than a trusted point is ever
+/// judged against a wing, which is how the old symmetric MAD clip deleted the
+/// focus region of a clean sweep. Points come back in their measured order.
+pub fn screen_defocus_dropouts(
+    points: &[FocusDataPoint],
+) -> (Vec<FocusDataPoint>, Vec<RejectedFocusPoint>) {
+    if points.len() < SCREEN_MIN_KEPT {
+        return (points.to_vec(), Vec::new());
+    }
+    let mut order: Vec<usize> = (0..points.len()).collect();
+    order.sort_by_key(|&i| points[i].position);
+
+    let most_stars = points.iter().map(|p| p.star_count).max().unwrap_or(0);
+    let anchor_floor = f64::from(most_stars) * ANCHOR_MIN_STAR_FRACTION;
+    let lowest = |eligible: &dyn Fn(&FocusDataPoint) -> bool| {
+        (0..order.len())
+            .filter(|&k| eligible(&points[order[k]]))
+            .min_by(|&a, &b| points[order[a]].hfr.total_cmp(&points[order[b]].hfr))
+    };
+    let Some(anchor) =
+        lowest(&|p| f64::from(p.star_count) >= anchor_floor).or_else(|| lowest(&|_| true))
+    else {
+        return (points.to_vec(), Vec::new());
+    };
+
+    let mut reasons: Vec<Option<String>> = vec![None; points.len()];
+    for step in [-1isize, 1] {
+        let mut trusted = &points[order[anchor]];
+        let mut k = anchor as isize + step;
+        while (0..order.len() as isize).contains(&k) {
+            let point = &points[order[k as usize]];
+            let outer = (0..order.len() as isize)
+                .contains(&(k + step))
+                .then(|| &points[order[(k + step) as usize]]);
+            let drop = trusted.hfr - point.hfr;
+            let neighbors =
+                outer.map_or(trusted.star_count, |o| o.star_count.min(trusted.star_count));
+            if drop > trusted.hfr * DROPOUT_TREND_FRACTION && drop >= DROPOUT_TREND_MIN_PX {
+                reasons[order[k as usize]] = Some(format!(
+                    "HFR fell to {:.2} away from focus, below {:.2} nearer it; \
+                     {} stars found, likely donuts the detector missed",
+                    point.hfr, trusted.hfr, point.star_count
+                ));
+            } else if f64::from(point.star_count)
+                < f64::from(neighbors) * STAR_COUNT_COLLAPSE_FRACTION
+            {
+                reasons[order[k as usize]] = Some(format!(
+                    "Only {} stars found, against {} beside it",
+                    point.star_count, neighbors
+                ));
+            } else {
+                trusted = point;
+            }
+            k += step;
+        }
+    }
+
+    let rejected_count = reasons.iter().filter(|r| r.is_some()).count();
+    if rejected_count == 0 || points.len() - rejected_count < SCREEN_MIN_KEPT {
+        if rejected_count > 0 {
+            tracing::warn!(
+                "Autofocus screen would leave {} of {} points; fitting the whole sweep",
+                points.len() - rejected_count,
+                points.len()
+            );
+        }
+        return (points.to_vec(), Vec::new());
+    }
+
+    let mut kept = Vec::with_capacity(points.len() - rejected_count);
+    let mut rejected = Vec::with_capacity(rejected_count);
+    for (point, reason) in points.iter().zip(reasons) {
+        match reason {
+            Some(reason) => {
+                tracing::warn!(
+                    "Autofocus point {} (HFR {:.2}, {} stars) left out of the fit: {}",
+                    point.position,
+                    point.hfr,
+                    point.star_count,
+                    reason
+                );
+                rejected.push(RejectedFocusPoint::new(point, reason));
+            }
+            None => kept.push(point.clone()),
+        }
+    }
+    (kept, rejected)
 }
 
 /// A single data point in the autofocus curve
@@ -261,6 +408,23 @@ impl VCurveAutofocus {
             })
             .ok_or_else(|| "No valid HFR values found".to_string())?;
 
+        // Points are identified by position: a sweep measures each once.
+        let rejected_points = data_points
+            .iter()
+            .filter(|p| {
+                !filtered_points
+                    .iter()
+                    .any(|kept| kept.position == p.position)
+            })
+            .map(|p| {
+                RejectedFocusPoint::new(
+                    p,
+                    "HFR far above the rest of the sweep (cloud, a satellite or a lost star)"
+                        .to_string(),
+                )
+            })
+            .collect();
+
         Ok(AutofocusResult {
             best_position,
             best_hfr,
@@ -270,6 +434,7 @@ impl VCurveAutofocus {
             temperature_celsius: None, // Set by caller
             backlash_applied: self.config.backlash_compensation > 0
                 || self.config.backlash_out_compensation > 0,
+            rejected_points,
         })
     }
 

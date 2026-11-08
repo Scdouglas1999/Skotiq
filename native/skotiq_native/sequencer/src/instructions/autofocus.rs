@@ -676,6 +676,36 @@ pub(crate) async fn execute_autofocus_attempts(
     }
 }
 
+/// Re-send the sweep's last progress payload with every measured point marked
+/// by whether the fit uses it, so the graph and the points table gray out the
+/// points left out and say why.
+fn publish_screened_points(
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    last_progress: Option<&serde_json::Value>,
+    measured: &[crate::autofocus::FocusDataPoint],
+    rejected: &[crate::autofocus::RejectedFocusPoint],
+) {
+    let (Some(cb), Some(last)) = (progress_callback, last_progress) else {
+        return;
+    };
+    let mut payload = last.clone();
+    payload["vcurve_points"] = measured
+        .iter()
+        .map(|point| {
+            let mut entry = serde_json::json!({
+                "position": point.position,
+                "hfr": point.hfr,
+                "star_count": point.star_count,
+            });
+            if let Some(why) = rejected.iter().find(|r| r.position == point.position) {
+                entry["rejected"] = serde_json::Value::String(why.reason.clone());
+            }
+            entry
+        })
+        .collect();
+    cb(92.0, payload.to_string());
+}
+
 /// The sweep edge with the lowest HFR when focus lies beyond the sweep: the
 /// HFR still falls toward that edge, so the sweep did not bracket a minimum.
 pub(crate) fn focus_beyond_sweep_edge(points: &[crate::autofocus::FocusDataPoint]) -> Option<i32> {
@@ -1100,6 +1130,9 @@ pub(crate) async fn execute_autofocus_sweep_around(
 
         let mut focus_data: Vec<crate::autofocus::FocusDataPoint> =
             Vec::with_capacity(total_points);
+        // The last point's progress payload, re-sent with the screen's verdict
+        // on every point once the sweep is measured.
+        let mut last_progress: Option<serde_json::Value> = None;
 
         if let Some(cb) = progress_callback {
             cb(5.0, format!("Moving to start position: {}", start_position));
@@ -1394,10 +1427,26 @@ pub(crate) async fn execute_autofocus_sweep_around(
             if let Some(cb) = progress_callback {
                 cb(point_progress, progress_json.to_string());
             }
+            last_progress = Some(progress_json);
         }
 
         if let Some(cb) = progress_callback {
             cb(92.0, "Validating focus data...".to_string());
+        }
+
+        // Far from focus a frame can find a few specks of donut stars and read
+        // a falsely low HFR. Those points come out before anything reads the
+        // curve, so neither the flatness check, the edge check nor the fit
+        // sees a W.
+        let measured = focus_data;
+        let (focus_data, screened_out) = crate::autofocus::screen_defocus_dropouts(&measured);
+        if !screened_out.is_empty() {
+            publish_screened_points(
+                progress_callback,
+                last_progress.as_ref(),
+                &measured,
+                &screened_out,
+            );
         }
 
         // A flat HFR curve (variance < MIN_HFR_VARIANCE) is not a V-curve to fit
@@ -1443,6 +1492,17 @@ pub(crate) async fn execute_autofocus_sweep_around(
 
         let af_result = match af_engine.find_best_focus(focus_data) {
             Ok(mut result) => {
+                if !result.rejected_points.is_empty() {
+                    let mut all = screened_out.clone();
+                    all.extend(result.rejected_points.iter().cloned());
+                    publish_screened_points(
+                        progress_callback,
+                        last_progress.as_ref(),
+                        &measured,
+                        &all,
+                    );
+                }
+                result.rejected_points.splice(0..0, screened_out);
                 result.temperature_celsius = ctx
                     .device_ops
                     .focuser_get_temperature(&focuser_id)
