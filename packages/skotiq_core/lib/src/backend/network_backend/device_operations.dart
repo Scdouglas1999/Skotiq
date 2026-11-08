@@ -439,7 +439,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
               'GET /api/camera/last-image/jpeg missing x-image-meta header',
         );
       }
-      return capturedImageFromRemoteJpegWire(
+      return await decodeRemoteJpegWire(
         jpegBytes: downloaded.bytes,
         metaHeaderBase64: metaHeader,
       );

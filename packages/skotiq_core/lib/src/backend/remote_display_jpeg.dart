@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
@@ -37,5 +38,23 @@ CapturedImageResult capturedImageFromRemoteJpegWire({
     exposureTime: (meta['exposureTime'] as num).toDouble(),
     timestamp: meta['timestamp'] as String,
     isColor: meta['isColor'] as bool? ?? false,
+  );
+}
+
+/// [capturedImageFromRemoteJpegWire] on a worker isolate.
+///
+/// The decode is pure Dart: 2.2 s for a 26 MP frame on a desktop CPU, during
+/// which a linked client's whole UI stood still each time the host announced
+/// a frame. The RGBA result comes back without a copy.
+Future<CapturedImageResult> decodeRemoteJpegWire({
+  required Uint8List jpegBytes,
+  required String metaHeaderBase64,
+}) {
+  return Isolate.run(
+    () => capturedImageFromRemoteJpegWire(
+      jpegBytes: jpegBytes,
+      metaHeaderBase64: metaHeaderBase64,
+    ),
+    debugName: 'remote-jpeg-decode',
   );
 }
