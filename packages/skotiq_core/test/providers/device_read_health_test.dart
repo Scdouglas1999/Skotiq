@@ -78,6 +78,25 @@ void main() {
     expect(stale.reason, 'Device not responding');
   });
 
+  // As seen live: the host's reason arrives wrapped by the bridge, a linked
+  // client's by the host's error code.
+  test('read errors lose their wrappers', () {
+    const driver =
+        'Failed to get RA: Starting the driver is required 0x80040401';
+    expect(
+      readErrorText('SkotiqError.operationFailed(field0: $driver)'),
+      driver,
+    );
+    expect(readErrorText('internal_error: $driver'), driver);
+    expect(
+      readErrorText(
+        'Exception: SkotiqError.connectionFailed(deviceId: m, reason: $driver)',
+      ),
+      driver,
+    );
+    expect(readErrorText(driver), driver);
+  });
+
   test('stale ages read plainly', () {
     expect(staleAgeText(const Duration(seconds: 45)), '45 s');
     expect(staleAgeText(const Duration(minutes: 130)), '2 h 10 min');

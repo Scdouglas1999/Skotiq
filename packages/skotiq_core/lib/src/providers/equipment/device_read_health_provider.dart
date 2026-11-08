@@ -95,6 +95,15 @@ String readErrorText(Object error) {
   }
   final newline = text.indexOf('\n');
   if (newline > 0) text = text.substring(0, newline);
+  // The bridge's error type, `SkotiqError.operationFailed(field0: <driver
+  // message>)`, and a linked host's error code, `internal_error: <message>`,
+  // wrap the sentence the operator needs.
+  final bridge = RegExp(
+    r'^SkotiqError\.\w+\((?:.*?\b(?:field0|reason|message): )?(.*)\)$',
+  ).firstMatch(text);
+  if (bridge != null) text = bridge.group(1)!.trim();
+  final code = RegExp(r'^[a-z]+(?:_[a-z]+)+: (.*)$').firstMatch(text);
+  if (code != null) text = code.group(1)!.trim();
   return text;
 }
 
