@@ -358,15 +358,15 @@ class FlatWizardHandlers {
     return value;
   }
 
-  /// Optional maximum iteration count, defaulting to 10, bounded and positive.
-  int _optionalMaxIterations(Map<String, dynamic> payload) {
+  /// Optional maximum iteration count, bounded and positive. Absent means the
+  /// host's "Exposure calibration attempts" setting, which the service applies.
+  int? _optionalMaxIterations(Map<String, dynamic> payload) {
     return optionalInt(
-          payload,
-          'maxIterations',
-          min: 1,
-          max: _maxIterationsLimit,
-        ) ??
-        10;
+      payload,
+      'maxIterations',
+      min: 1,
+      max: _maxIterationsLimit,
+    );
   }
 
   /// Optional binning, defaulting to 1x1, each axis a positive value within the

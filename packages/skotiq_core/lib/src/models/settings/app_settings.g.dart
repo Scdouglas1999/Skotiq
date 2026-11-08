@@ -124,6 +124,8 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   tempCoefficient: (json['tempCoefficient'] as num?)?.toDouble() ?? -12.0,
   tempCompensationMinSteps:
       (json['tempCompensationMinSteps'] as num?)?.toInt() ?? 5,
+  flatCalibrationAttempts:
+      (json['flatCalibrationAttempts'] as num?)?.toInt() ?? 20,
   backlashCompensation: (json['backlashCompensation'] as num?)?.toInt() ?? 0,
   settleThreshold: (json['settleThreshold'] as num?)?.toDouble() ?? 1.5,
   settleTimeout: (json['settleTimeout'] as num?)?.toInt() ?? 60,
@@ -317,6 +319,7 @@ Map<String, dynamic> _$AppSettingsToJson(
   'tempCompensation': instance.tempCompensation,
   'tempCoefficient': instance.tempCoefficient,
   'tempCompensationMinSteps': instance.tempCompensationMinSteps,
+  'flatCalibrationAttempts': instance.flatCalibrationAttempts,
   'backlashCompensation': instance.backlashCompensation,
   'settleThreshold': instance.settleThreshold,
   'settleTimeout': instance.settleTimeout,

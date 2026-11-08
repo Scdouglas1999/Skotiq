@@ -17,7 +17,7 @@ void main() {
         const FlatWizardGlobalSettings(),
       );
       expect(svc.imageDownloadTimeout, const Duration(seconds: 60));
-      expect(svc.defaultMaxIterations, 8);
+      expect(svc.defaultMaxIterations, 20);
       expect(svc.quickMinExposure, 0.001);
       expect(svc.quickMaxExposure, 30.0);
     });
@@ -27,10 +27,10 @@ void main() {
         _FakeBackend(),
         const FlatWizardGlobalSettings(
           imageDownloadTimeoutSeconds: 180,
-          maxIterations: 16,
           minExposure: 0.0005,
           maxExposure: 60.0,
         ),
+        calibrationAttempts: 16,
       );
       expect(svc.imageDownloadTimeout, const Duration(seconds: 180));
       expect(svc.defaultMaxIterations, 16);

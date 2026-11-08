@@ -96,8 +96,8 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
         '${last.adu.round()} ADU without settling on the $targetPercent '
         'target.',
     nextStep:
-        'Widen the tolerance, allow more solver iterations, or steady the '
-        'light source — a changing sky will not converge.',
+        'Raise "Exposure calibration attempts" in the Flat Wizard settings, '
+        'or widen the tolerance.',
   );
 }
 

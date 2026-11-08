@@ -181,6 +181,10 @@ class _FrameCountInput extends StatefulWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.minValue = minFrames,
+    this.maxValue = maxFrames,
+    this.fewerTooltip = 'One fewer frame',
+    this.moreTooltip = 'One more frame',
   });
 
   /// The range `FlatWizardNotifier.setFrameCount` clamps to. Mirrored here so a
@@ -188,6 +192,12 @@ class _FrameCountInput extends StatefulWidget {
   /// silently snapping somewhere else.
   static const int minFrames = 1;
   static const int maxFrames = 999;
+
+  /// The range this field accepts; the frame count's unless given.
+  final int minValue;
+  final int maxValue;
+  final String fewerTooltip;
+  final String moreTooltip;
 
   @override
   State<_FrameCountInput> createState() => _FrameCountInputState();
@@ -235,14 +245,13 @@ class _FrameCountInputState extends State<_FrameCountInput> {
     final typed = int.tryParse(_controller.text.trim());
     final resolved = typed == null
         ? widget.value
-        : typed.clamp(_FrameCountInput.minFrames, _FrameCountInput.maxFrames);
+        : typed.clamp(widget.minValue, widget.maxValue);
     if (resolved != widget.value) widget.onChanged(resolved);
     if (_controller.text != '$resolved') _controller.text = '$resolved';
   }
 
   void _step(int delta) {
-    final next = (widget.value + delta)
-        .clamp(_FrameCountInput.minFrames, _FrameCountInput.maxFrames);
+    final next = (widget.value + delta).clamp(widget.minValue, widget.maxValue);
     if (next == widget.value) return;
     _controller.text = '$next';
     widget.onChanged(next);
@@ -270,11 +279,9 @@ class _FrameCountInputState extends State<_FrameCountInput> {
       children: [
         SkotiqIconButton(
           icon: LucideIcons.minus,
-          tooltip: 'One fewer frame',
+          tooltip: widget.fewerTooltip,
           size: IconButtonSize.sm,
-          onPressed: widget.value > _FrameCountInput.minFrames
-              ? () => _step(-1)
-              : null,
+          onPressed: widget.value > widget.minValue ? () => _step(-1) : null,
         ),
         const SizedBox(width: SkotiqTokens.spaceXs),
         // Flexible, not a fixed width: FormRow squeezes its control column to
@@ -305,10 +312,9 @@ class _FrameCountInputState extends State<_FrameCountInput> {
         const SizedBox(width: SkotiqTokens.spaceXs),
         SkotiqIconButton(
           icon: LucideIcons.plus,
-          tooltip: 'One more frame',
+          tooltip: widget.moreTooltip,
           size: IconButtonSize.sm,
-          onPressed:
-              widget.value < _FrameCountInput.maxFrames ? () => _step(1) : null,
+          onPressed: widget.value < widget.maxValue ? () => _step(1) : null,
         ),
       ],
     );
@@ -408,6 +414,40 @@ class _TwilightOption extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "Exposure calibration attempts": how many test exposures each filter's
+/// exposure search may take. An app setting, so the imaging computer and a
+/// linked desktop share one value and every flat path (sky, panel, a
+/// sequence's flat step, an API run) uses it. Sky flats used to stop after 3.
+class _CalibrationAttemptsRow extends ConsumerWidget {
+  const _CalibrationAttemptsRow();
+
+  static const int minAttempts = 1;
+  static const int maxAttempts = 100;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final attempts = ref.watch(
+      appSettingsProvider.select(
+        (s) => s.valueOrNull?.flatCalibrationAttempts ?? 20,
+      ),
+    );
+    return FormRow(
+      label: 'Exposure calibration attempts',
+      child: _FrameCountInput(
+        key: const ValueKey('flat-calibration-attempts'),
+        value: attempts,
+        minValue: minAttempts,
+        maxValue: maxAttempts,
+        fewerTooltip: 'One fewer attempt',
+        moreTooltip: 'One more attempt',
+        onChanged: (value) => ref
+            .read(appSettingsProvider.notifier)
+            .setFlatCalibrationAttempts(value),
       ),
     );
   }

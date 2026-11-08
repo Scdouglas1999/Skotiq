@@ -44,12 +44,9 @@ abstract class FlatWizardGlobalSettings with _$FlatWizardGlobalSettings {
     /// `_imageDownloadTimeout = Duration(seconds: 60)`. Increase for very
     /// large sensors or slow USB hubs.
     @Default(60) int imageDownloadTimeoutSeconds,
-
-    /// Max binary-search iterations for the calibration solver. Was a
-    /// `int maxIterations = 8` default parameter in the service. Fewer
-    /// iterations exits faster on stubborn filters but risks missing the
-    /// target ADU; more iterations is slower but more accurate.
-    @Default(8) int maxIterations,
+    // The calibration attempt limit lives in app settings
+    // (`AppSettingsState.flatCalibrationAttempts`), so the host and every
+    // linked client use one value and every flat path reads it.
   }) = _FlatWizardGlobalSettings;
 
   factory FlatWizardGlobalSettings.fromJson(Map<String, dynamic> json) =>

@@ -95,6 +95,7 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     'temp_compensation',
     'temp_coefficient',
     'temp_compensation_min_steps',
+    'flat_calibration_attempts',
     'backlash_compensation',
     'focuser_backlash_calibration_settings',
     // Guider settle (calibration).
@@ -457,6 +458,12 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
           ? _parseInt(
               settings['temp_compensation_min_steps'],
               current.tempCompensationMinSteps,
+            )
+          : null,
+      flatCalibrationAttempts: settings.containsKey('flat_calibration_attempts')
+          ? _parseInt(
+              settings['flat_calibration_attempts'],
+              current.flatCalibrationAttempts,
             )
           : null,
       backlashCompensation: settings.containsKey('backlash_compensation')

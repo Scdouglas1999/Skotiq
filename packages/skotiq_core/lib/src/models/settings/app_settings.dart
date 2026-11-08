@@ -230,6 +230,10 @@ abstract class AppSettings with _$AppSettings {
     /// DB key `temp_compensation_min_steps`.
     @Default(5) int tempCompensationMinSteps,
 
+    /// Test exposures a flat run may take to find each filter's exposure
+    /// ("Exposure calibration attempts"). DB key `flat_calibration_attempts`.
+    @Default(20) int flatCalibrationAttempts,
+
     /// Focuser backlash compensation (steps). DB key `backlash_compensation`.
     @Default(0) int backlashCompensation,
     // Guider settle (calibration).

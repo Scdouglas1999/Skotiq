@@ -87,6 +87,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       tempCompensation: remote.tempCompensation,
       tempCoefficient: remote.tempCoefficient,
       tempCompensationMinSteps: remote.tempCompensationMinSteps,
+      flatCalibrationAttempts: remote.flatCalibrationAttempts,
       backlashCompensation: remote.backlashCompensation,
       settleThreshold: remote.settleThreshold,
       settleTimeout: remote.settleTimeout,
@@ -281,6 +282,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       tempCompensation: settings.tempCompensation,
       tempCoefficient: settings.tempCoefficient,
       tempCompensationMinSteps: settings.tempCompensationMinSteps,
+      flatCalibrationAttempts: settings.flatCalibrationAttempts,
       backlashCompensation: settings.backlashCompensation,
       settleThreshold: settings.settleThreshold,
       settleTimeout: settings.settleTimeout,
@@ -664,6 +666,10 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       case 'tempCompensationMinSteps':
         return value is num
             ? current.copyWith(tempCompensationMinSteps: value.toInt())
+            : null;
+      case 'flatCalibrationAttempts':
+        return value is num
+            ? current.copyWith(flatCalibrationAttempts: value.toInt())
             : null;
       case 'backlashCompensation':
         return value is num
