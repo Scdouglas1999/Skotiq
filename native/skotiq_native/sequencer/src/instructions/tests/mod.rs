@@ -173,6 +173,16 @@ struct ScriptedDomeRotatorOps {
     /// Distinctive live telemetry so a `FrameContext::default()` cannot
     /// masquerade as a real read. `None` keeps NullDeviceOps' answer.
     scripted_mount_coordinates: Option<(f64, f64)>,
+    /// Where the mount reports it stopped after each slew, in order; the last
+    /// entry repeats. Overrides `scripted_mount_coordinates` once a slew ran.
+    coordinates_per_slew: Vec<(f64, f64)>,
+    /// `mount_set_tracking` calls the mount accepts but ignores, as the
+    /// NYX-101 does while parked past its meridian limit.
+    ignored_tracking_commands: AtomicU32,
+    /// When true, an accepted tracking command changes `mount_is_tracking`.
+    tracking_follows_commands: bool,
+    /// Every notification sent, as (level, title, message).
+    notifications: Mutex<Vec<(String, String, String)>>,
     /// When `Some`, what `mount_readback_frame` answers instead of the
     /// identity default, so a test can stand in for a real mount whose
     /// read-back is of date while the target is J2000.
@@ -280,6 +290,10 @@ impl ScriptedDomeRotatorOps {
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
+            coordinates_per_slew: Vec::new(),
+            ignored_tracking_commands: AtomicU32::new(0),
+            tracking_follows_commands: false,
+            notifications: Mutex::new(Vec::new()),
             scripted_readback_frame: None,
             scripted_readback_to_j2000_offset: None,
             scripted_frame_metrics: None,
@@ -501,6 +515,19 @@ impl ScriptedDomeRotatorOps {
         self
     }
 
+    fn with_coordinates_per_slew(mut self, coordinates: Vec<(f64, f64)>) -> Self {
+        self.coordinates_per_slew = coordinates;
+        self
+    }
+
+    /// The first `count` tracking commands are accepted and ignored; later
+    /// ones change what `mount_is_tracking` answers.
+    fn with_ignored_tracking_commands(mut self, count: u32) -> Self {
+        self.ignored_tracking_commands.store(count, Ordering::SeqCst);
+        self.tracking_follows_commands = true;
+        self
+    }
+
     fn with_mount_tracking(self, tracking: bool) -> Self {
         *self.mount_tracking.lock().unwrap() = Some(tracking);
         self
@@ -640,6 +667,11 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.scripted_at_home.clone()
     }
     async fn mount_get_coordinates(&self, id: &str) -> DeviceResult<(f64, f64)> {
+        let slews = self.mount_slew_calls.load(Ordering::SeqCst) as usize;
+        if slews > 0 && !self.coordinates_per_slew.is_empty() {
+            let index = (slews - 1).min(self.coordinates_per_slew.len() - 1);
+            return Ok(self.coordinates_per_slew[index]);
+        }
         match self.scripted_mount_coordinates {
             Some(coords) => Ok(coords),
             None => self.inner.mount_get_coordinates(id).await,
@@ -719,6 +751,15 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         self.tracking_commands.lock().unwrap().push(enabled);
+        let ignored = self.ignored_tracking_commands.load(Ordering::SeqCst);
+        if ignored > 0 {
+            self.ignored_tracking_commands
+                .store(ignored - 1, Ordering::SeqCst);
+            return Ok(());
+        }
+        if self.tracking_follows_commands {
+            *self.mount_tracking.lock().unwrap() = Some(enabled);
+        }
         self.inner.mount_set_tracking(id, enabled).await
     }
     async fn camera_start_exposure(
@@ -1004,6 +1045,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         m: &str,
         x: Option<&[String]>,
     ) -> DeviceResult<()> {
+        self.notifications
+            .lock()
+            .unwrap()
+            .push((l.to_string(), t.to_string(), m.to_string()));
         self.inner.send_notification(l, t, m, x).await
     }
     fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {

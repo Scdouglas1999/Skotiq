@@ -10,6 +10,21 @@ use super::*;
 /// Default tolerance for slew position validation in degrees (1 arcminute = 1/60 degree)
 pub(crate) const SLEW_POSITION_TOLERANCE_DEG: f64 = 1.0 / 60.0;
 
+/// Recovery code of a slew that finished away from its target.
+pub(crate) const SLEW_POSITION_MISMATCH_CODE: &str = "SLEW_POSITION_MISMATCH";
+
+/// Whether `result` is a slew that completed but stopped outside the
+/// tolerance, as opposed to a slew the mount refused or never finished.
+pub(crate) fn slew_position_mismatch(result: &InstructionResult) -> bool {
+    result.status == NodeStatus::Failure
+        && result
+            .data
+            .as_ref()
+            .and_then(|data| data.get("recovery_code"))
+            .and_then(serde_json::Value::as_str)
+            == Some(SLEW_POSITION_MISMATCH_CODE)
+}
+
 /// Normalize RA difference to account for wraparound at 24 hours
 /// Returns the shortest angular distance between two RA values in hours
 pub(crate) fn normalize_ra_diff_hours(diff: f64) -> f64 {
@@ -145,6 +160,14 @@ pub async fn execute_slew(
             result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
         }
     }
+    // A mount that stopped tracking during the slew drifts in RA while it
+    // settles and lands a few arcminutes off (the NYX on 2026-11-08, parked
+    // past its meridian limit, ignored the tracking command and arrived
+    // 2.11' off). Tracking is back on by now, so one more slew lands it.
+    if slew_position_mismatch(&result) {
+        tracing::info!("Slew landed off target; slewing once more");
+        result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
+    }
     motion.end().await;
     result
 }
@@ -211,6 +234,37 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
     None
 }
 
+/// Turn tracking back on when the mount ends a slew without it.
+///
+/// Tracking is enabled before every slew, but a mount may ignore that: the
+/// NYX-101 refuses tracking while it sits past its meridian limit, and some
+/// drivers stop tracking at the end of a slew. A mount that cannot report
+/// tracking is left alone.
+async fn restore_tracking_after_slew(ctx: &InstructionContext, mount_id: &str) {
+    if !matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+        return;
+    }
+    let (title, message) = match ctx.device_ops.mount_set_tracking(mount_id, true).await {
+        Ok(()) => (
+            "Tracking turned back on",
+            "The mount was not tracking when the slew ended, so Skotiq turned tracking back on."
+                .to_string(),
+        ),
+        Err(e) => (
+            "Mount is not tracking",
+            format!("The mount was not tracking when the slew ended, and turning it on failed: {e}"),
+        ),
+    };
+    tracing::warn!("{message}");
+    if let Err(e) = ctx
+        .device_ops
+        .send_notification("warning", title, &message, None)
+        .await
+    {
+        tracing::warn!("Could not send the tracking notification: {e}");
+    }
+}
+
 /// Command the slew, wait for it and verify where the mount arrived.
 async fn slew_mount(
     mount_id: &str,
@@ -259,6 +313,7 @@ async fn slew_mount(
                     .await
                     {
                         Ok(_) => {
+                            restore_tracking_after_slew(ctx, mount_id).await;
                             // The mount reports "not slewing" before its
                             // axes have fully settled on some drivers, so we
                             // re-read coordinates and validate against the
@@ -312,7 +367,7 @@ async fn slew_mount(
                                         tracing::warn!("Slew position validation failed: {}", e);
                                         return InstructionResult::failure_with_recovery(
                                             &e,
-                                            "SLEW_POSITION_MISMATCH",
+                                            SLEW_POSITION_MISMATCH_CODE,
                                         );
                                     }
 
