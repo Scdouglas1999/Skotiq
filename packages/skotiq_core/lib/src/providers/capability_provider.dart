@@ -3,14 +3,28 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/backend/device_capabilities.dart';
+import '../models/equipment/equipment_models.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'equipment/camera_state_provider.dart';
 
 /// Provider to fetch camera capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities
 final cameraCapabilitiesProvider =
     FutureProvider.family<CameraCapabilities?, String>((ref, deviceId) async {
       if (deviceId.isEmpty) return null;
+      // Read again when this camera finishes connecting. Before that a native
+      // driver answers with a 0 x 0, 0-bit sensor rather than an error, and
+      // the answer was kept for the life of the app: on the rig 2026-11-08 the
+      // pre-flight check said "Connect a camera" with the camera connected and
+      // the plan "needs 0 MB".
+      ref.watch(
+        cameraStateProvider.select(
+          (state) =>
+              state.deviceId == deviceId &&
+              state.connectionState == DeviceConnectionState.connected,
+        ),
+      );
       final backend = ref.watch(deviceBackendProvider);
       final capabilities = await backend.getCameraCapabilities(deviceId);
       // Sensor geometry is a fixed property of the body, and this is the point
@@ -21,7 +35,10 @@ final cameraCapabilitiesProvider =
       if (capabilities != null) {
         final px = capabilities.pixelSizeX;
         final py = capabilities.pixelSizeY;
-        if (px != null && py != null) {
+        if (px != null &&
+            py != null &&
+            capabilities.maxWidth > 0 &&
+            capabilities.maxHeight > 0) {
           try {
             await ref
                 .read(settingsDaoProvider)
