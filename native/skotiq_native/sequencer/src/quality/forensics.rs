@@ -105,6 +105,10 @@ pub struct RecentFrameSample {
 /// 5-10 frames) without consuming significant memory.
 pub const FORENSIC_HISTORY_LEN: usize = 10;
 
+/// At or below this many detected stars a frame is treated as near-empty:
+/// the field's stars were removed, not added to.
+const NEAR_EMPTY_STAR_COUNT: u32 = 3;
+
 /// Snapshot of environmental telemetry at the moment a frame was captured.
 /// Threaded into [`analyze_rejection`] so the classifier can correlate the
 /// reject with conditions.
@@ -357,11 +361,46 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         }
     }
 
-    // 6) Single-frame isolated reject — distinguish satellite trail
+    // 6) A frame with almost no stars. Satellites, aircraft, hot pixels and
+    //    cosmic rays add detections; none of them removes a field's stars.
+    //    What does is cloud or something in front of the optics (a tree, a
+    //    dew-covered corrector, a cap). On the rig 2026-11-08 the first frame
+    //    of a clouded night, 2 stars where there are hundreds, was called a
+    //    hot pixel because it had no neighbours to compare with.
+    let near_empty = match inputs.star_count {
+        Some(count) => count <= NEAR_EMPTY_STAR_COUNT,
+        None => inputs.grader_reason.contains("no stars"),
+    };
+    if near_empty {
+        evidence.push(match inputs.star_count {
+            Some(count) => format!("Only {count} stars detected"),
+            None => "No stars detected".to_string(),
+        });
+        evidence.push(
+            "Too few stars for a satellite or hot pixel; cloud or something blocking the \
+             optics removes them"
+                .to_string(),
+        );
+        if nearby_rejects >= 2 {
+            evidence.push(format!(
+                "{} other frames in same window also rejected",
+                nearby_rejects
+            ));
+        }
+        return ForensicVerdict {
+            likely_cause: Some(LikelyCause::CloudPassage),
+            evidence,
+        };
+    }
+
+    // 7) Single-frame isolated reject — distinguish satellite trail
     //    (HFR or eccentricity elevated, no neighbours bad) from a hot
     //    pixel / cosmic event (no HFR elevation, no neighbours bad).
+    //    Isolated means good frames around it; a run's first frames have
+    //    nothing to compare with.
     let nearby_bad = recent.iter().rev().take(3).filter(|s| !s.accepted).count();
-    if nearby_bad == 0 {
+    let has_good_neighbours = recent.iter().rev().take(3).any(|s| s.accepted);
+    if nearby_bad == 0 && has_good_neighbours {
         // Look at the rejected frame's own metrics to decide the flavour.
         let hfr_elevated = match (inputs.hfr, inputs.hfr_baseline) {
             (Some(hfr), Some(baseline)) if baseline > 0.0 => hfr >= baseline * 1.5,
@@ -398,7 +437,7 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         }
     }
 
-    // 7) Unknown — emit raw metrics so the user still has *something* to
+    // 8) Unknown — emit raw metrics so the user still has *something* to
     //    look at instead of a blank panel.
     if let Some(h) = inputs.hfr {
         evidence.push(format!("HFR {:.2} px", h));
@@ -797,6 +836,45 @@ mod tests {
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::HotPixelOrCosmic));
+    }
+
+    /// The rig's first frame of 2026-11-08: a clouded sky, 2 stars where
+    /// there are hundreds, and no earlier frames. It was called a hot pixel.
+    #[test]
+    fn a_first_frame_with_almost_no_stars_is_cloud_or_obstruction() {
+        let inputs = ForensicInputs {
+            hfr: None,
+            eccentricity: None,
+            star_count: Some(2),
+            hfr_baseline: None,
+            environment: EnvironmentSnapshot::default(),
+            recent_frames: &[],
+            grader_reason: "star count 2 below minimum 10 (possible obstruction or cloud, or an \
+                            off-target frame)",
+        };
+        let verdict = analyze_rejection(&inputs);
+        assert_eq!(verdict.likely_cause, Some(LikelyCause::CloudPassage));
+        assert!(verdict.evidence.iter().any(|e| e.contains("Only 2 stars")));
+    }
+
+    #[test]
+    fn a_frame_with_no_stars_is_cloud_or_obstruction_even_among_good_frames() {
+        let now = 1_700_000_000.0;
+        let recent: Vec<RecentFrameSample> = (0..4)
+            .map(|i| with_hfr(sample(now - 240.0 + i as f64 * 60.0, true), 2.0))
+            .collect();
+        let inputs = ForensicInputs {
+            hfr: None,
+            eccentricity: None,
+            star_count: None,
+            hfr_baseline: Some(2.0),
+            environment: EnvironmentSnapshot::default(),
+            recent_frames: &recent,
+            grader_reason: "no stars detected — frame quality is unmeasurable (clouds, trailing, \
+                            off-target or out of focus)",
+        };
+        let verdict = analyze_rejection(&inputs);
+        assert_eq!(verdict.likely_cause, Some(LikelyCause::CloudPassage));
     }
 
     #[test]
