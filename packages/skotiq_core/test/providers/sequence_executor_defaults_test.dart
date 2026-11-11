@@ -368,7 +368,7 @@ void main() {
 
     test('metadata carries temperature compensation when it is on', () async {
       final metadata = await runMetadata(
-        AppSettingsState(
+        const AppSettingsState(
           tempCompensation: true,
           tempCoefficient: -12.5,
           tempCompensationMinSteps: 5,
@@ -382,7 +382,7 @@ void main() {
 
     test('metadata has no temperature compensation when it is off', () async {
       final metadata = await runMetadata(
-        AppSettingsState(tempCoefficient: -12.5),
+        const AppSettingsState(tempCoefficient: -12.5),
       );
       expect(metadata.containsKey('temperature_compensation'), isFalse);
     });
