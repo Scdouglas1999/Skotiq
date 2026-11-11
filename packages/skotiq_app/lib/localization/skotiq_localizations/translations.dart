@@ -195,7 +195,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsEditGoal': 'Edit Goal',
     'analyticsAcceptedLights': 'Accepted',
     'analyticsExposureCountsLightOnly':
-        'Exposure counts are light frames only. "Camera Returned" is what the '
+        'Exposure counts are light frames only. "Total exposures" is what the '
             'camera handed back; "Accepted" and "Rejected" are what the culling '
             'decided about those frames.',
     'analyticsGradingUnread':
@@ -1775,7 +1775,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsAcceptedLights': 'Aceptadas',
     'analyticsExposureCountsLightOnly':
         'Los recuentos de exposiciones incluyen solo cuadros de luz. '
-            '"Devueltas por la c\u00E1mara" es lo que entreg\u00F3 la '
+            '"Exposiciones totales" es lo que entreg\u00F3 la '
             'c\u00E1mara; '
             '"Aceptadas" y "Rechazadas" son lo que decidi\u00F3 el descarte sobre '
             'esos cuadros.',

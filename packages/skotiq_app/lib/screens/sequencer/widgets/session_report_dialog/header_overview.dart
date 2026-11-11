@@ -3,14 +3,12 @@ part of '../session_report_dialog.dart';
 class _Header extends StatelessWidget {
   final SessionReport report;
   final SkotiqColors colors;
-  final DateFormat dateFormat;
   final VoidCallback onCopyMarkdown;
   final VoidCallback onExportTxt;
 
   const _Header({
     required this.report,
     required this.colors,
-    required this.dateFormat,
     required this.onCopyMarkdown,
     required this.onExportTxt,
   });
@@ -31,7 +29,8 @@ class _Header extends StatelessWidget {
               ),
               if (report.endTime != null)
                 Text(
-                  '${dateFormat.format(report.startTime)} - ${dateFormat.format(report.endTime!)}',
+                  '${ClockFormat.monthDayYearHm(report.startTime)}–'
+                  '${ClockFormat.hmOrMonthDayHm(report.endTime!, report.startTime)}',
                   style: SkotiqTypography.captionSm
                       .copyWith(color: colors.textMuted),
                 ),

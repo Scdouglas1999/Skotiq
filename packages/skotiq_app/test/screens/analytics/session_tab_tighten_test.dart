@@ -111,7 +111,7 @@ void main() {
       findsNothing,
       reason: 'the date is already in the picker',
     );
-    expect(find.text('failed'), findsOneWidget);
+    expect(find.text('Failed'), findsOneWidget);
   });
 
   testWidgets('no frame with anything to plot is one line, not four charts',

@@ -50,6 +50,11 @@ class SessionChart extends StatelessWidget {
   /// data comes near it. Optional — most series have no meaningful limit.
   final double? warnAbove;
 
+  /// A value of this quantity as text, for the median, P90 and range: to the
+  /// precision it is measured to, not the axis step's (a flat 20.0 °C trace
+  /// read "20.000").
+  final String Function(double value) reading;
+
   const SessionChart({
     super.key,
     required this.title,
@@ -60,6 +65,7 @@ class SessionChart extends StatelessWidget {
     this.minY,
     this.maxY,
     this.warnAbove,
+    required this.reading,
   });
 
   @override
@@ -101,10 +107,17 @@ class SessionChart extends StatelessWidget {
     final range = ChartScale.niceRange(minY ?? dataMin, maxY ?? dataMax);
     final isFlat = dataMax - dataMin <= 0;
     final firstTimestamp = points.first.timestamp;
+    // Clock time, so a point lines up with the night log; a run of a few
+    // minutes has no clock ticks to label and keeps elapsed seconds.
+    final onClock = points.last.timestamp.difference(firstTimestamp) >=
+        _clockAxisMinSpan;
     final samples = <Offset>[
       for (final point in points)
         Offset(
-          point.timestamp.difference(firstTimestamp).inMilliseconds / 1000.0,
+          onClock
+              ? point.timestamp.millisecondsSinceEpoch.toDouble()
+              : point.timestamp.difference(firstTimestamp).inMilliseconds /
+                  1000.0,
           point.value,
         ),
     ];
@@ -116,11 +129,10 @@ class SessionChart extends StatelessWidget {
       colors: colors,
       summary: _ChartSummary(
         colors: colors,
-        median: range.ticks.reading(median),
+        median: reading(median),
         // "to", not a dash: a dash after a negative reads as -15–20.
-        spread:
-            '${range.ticks.reading(dataMin)} to ${range.ticks.reading(dataMax)}',
-        p90: range.ticks.reading(p90),
+        spread: '${reading(dataMin)} to ${reading(dataMax)}',
+        p90: reading(p90),
         count: points.length,
       ),
       child: AdaptiveChartContainer(
@@ -128,10 +140,9 @@ class SessionChart extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
           child: SkotiqChart(
-            semanticLabel: '$title, $yAxisLabel: median '
-                '${range.ticks.reading(median)}, '
-                '${range.ticks.reading(dataMin)} to '
-                '${range.ticks.reading(dataMax)} over ${points.length} frames',
+            semanticLabel: '$title, $yAxisLabel: median ${reading(median)}, '
+                '${reading(dataMin)} to ${reading(dataMax)} over '
+                '${points.length} frames',
             series: <ChartSeries>[
               ChartSeries(
                 points: samples,
@@ -152,17 +163,30 @@ class SessionChart extends StatelessWidget {
                   dotRadius: 2,
                 ),
             ],
-            x: ChartAxis(
-              kind: ChartAxisKind.elapsed,
-              min: 0,
-              readout: (seconds) {
-                final when = firstTimestamp.add(
-                  Duration(milliseconds: (seconds * 1000).round()),
-                );
-                return '${ClockFormat.hms(when)}  ·  '
-                    '+${ChartScale.elapsedLabel(seconds)}';
-              },
-            ),
+            x: onClock
+                ? ChartAxis(
+                    kind: ChartAxisKind.clock,
+                    readout: (ms) {
+                      final when =
+                          DateTime.fromMillisecondsSinceEpoch(ms.round());
+                      final seconds =
+                          when.difference(firstTimestamp).inMilliseconds /
+                              1000.0;
+                      return '${ClockFormat.hms(when)}  ·  '
+                          '+${ChartScale.elapsedLabel(seconds)}';
+                    },
+                  )
+                : ChartAxis(
+                    kind: ChartAxisKind.elapsed,
+                    min: 0,
+                    readout: (seconds) {
+                      final when = firstTimestamp.add(
+                        Duration(milliseconds: (seconds * 1000).round()),
+                      );
+                      return '${ClockFormat.hms(when)}  ·  '
+                          '+${ChartScale.elapsedLabel(seconds)}';
+                    },
+                  ),
             y: ChartAxis(
               min: range.min,
               max: range.max,
@@ -193,6 +217,12 @@ class SessionChart extends StatelessWidget {
     return sorted[lower] * (1 - weight) + sorted[upper] * weight;
   }
 }
+
+String _twoDecimals(double value) =>
+    QuantityFormat.trimmed(value, maxDecimals: 2);
+
+/// The shortest run whose axis is labeled in clock time.
+const Duration _clockAxisMinSpan = Duration(minutes: 5);
 
 /// The narrowest a chart panel can be and still hold its title and its four
 /// summary readouts on one line.
@@ -341,6 +371,7 @@ class HfrChart extends StatelessWidget {
       yAxisLabel: 'HFR (px)',
       measurementName: 'half-flux radius',
       dataPoints: dataPoints,
+      reading: _twoDecimals,
       lineColor: SkotiqChartColors.seriesBlue,
     );
   }
@@ -365,6 +396,7 @@ class TemperatureChart extends StatelessWidget {
       title: 'Sensor temperature',
       yAxisLabel: '°C',
       dataPoints: dataPoints,
+      reading: formatCelsius,
       lineColor: SkotiqChartColors.seriesOrange,
     );
   }
@@ -390,6 +422,7 @@ class GuidingRmsChart extends StatelessWidget {
       yAxisLabel: 'RMS (arcsec)',
       measurementName: 'guiding RMS',
       dataPoints: dataPoints,
+      reading: _twoDecimals,
       lineColor: SkotiqChartColors.seriesGreen,
       // Guiding worse than about 1" starts to bloat stars at typical
       // amateur focal lengths, so it is worth marking on the plot.
@@ -419,6 +452,7 @@ class FocuserPositionChart extends StatelessWidget {
       yAxisLabel: 'Focuser position (steps)',
       measurementName: 'focuser position',
       dataPoints: dataPoints,
+      reading: (steps) => QuantityFormat.grouped(steps.round()),
       lineColor: SkotiqChartColors.seriesViolet,
     );
   }

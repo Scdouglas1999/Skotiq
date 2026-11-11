@@ -83,7 +83,7 @@ class _SessionHistoryCard extends ConsumerWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         SkotiqChip(
-          label: session.status,
+          label: runStatusLabel(session.status),
           tone: _statusTone(session.status),
         ),
       ],
