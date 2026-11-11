@@ -872,6 +872,11 @@ const Map<String, Object?> _changedOnPurpose = {
   'tutorials enabled': {
     'reads': {'upper case off': false, 'empty': false},
   },
+  'sequencer defaults': {
+    'reads': {
+      'unreadable values': {'ditherRaOnly': true, 'exposureFilter': null},
+    },
+  },
 };
 
 /// A change that replaces the base value whole instead of being laid over it.

@@ -11,6 +11,8 @@
 /// one, means "nothing saved", and the feature decodes the document itself.
 library;
 
+import '../models/sequence/sequence_models.dart'
+    show BinningMode, LiveStackingThumbnailSize;
 import 'setting.dart';
 
 abstract final class StoreSettings {
@@ -213,6 +215,177 @@ abstract final class StoreSettings {
     sync: SettingSync.thisComputer,
   );
 
+  // Rig settings kept by the feature that uses them. A linked client reads
+  // and writes the host's rows.
+
+  // What a new sequence node starts from.
+
+  static const sequencerAutofocusStepSize = IntSetting(
+    'autofocusStepSize',
+    'sequencer_autofocus_step_size',
+    100,
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerAutofocusStepsOut = IntSetting(
+    'autofocusStepsOut',
+    'sequencer_autofocus_steps_out',
+    7,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Seconds.
+  static const sequencerAutofocusExposure = DoubleSetting(
+    'autofocusExposureDuration',
+    'sequencer_autofocus_exposure_duration',
+    3.0,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Frames between the runs of the standard autofocus-interval trigger. The
+  /// executor refuses 0.
+  static const sequencerAutofocusIntervalFrames = IntSetting(
+    'autofocusIntervalFrames',
+    'sequencer_autofocus_interval_frames',
+    25,
+    inputMin: 1,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Pixels.
+  static const sequencerDitherPixels = DoubleSetting(
+    'ditherPixels',
+    'sequencer_dither_pixels',
+    5.0,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Seconds.
+  static const sequencerDitherSettleTime = DoubleSetting(
+    'ditherSettleTime',
+    'sequencer_dither_settle_time',
+    30.0,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Pixels.
+  static const sequencerDitherSettlePixels = DoubleSetting(
+    'ditherSettlePixels',
+    'sequencer_dither_settle_pixels',
+    1.5,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Seconds.
+  static const sequencerDitherSettleTimeout = DoubleSetting(
+    'ditherSettleTimeout',
+    'sequencer_dither_settle_timeout',
+    120.0,
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerDitherRaOnly = BoolSetting(
+    'ditherRaOnly',
+    'sequencer_dither_ra_only',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Seconds. Not set, or not above zero, means no exposure length has been
+  /// chosen yet.
+  static const sequencerExposureDuration = OptionalDoubleSetting(
+    'exposureDuration',
+    'sequencer_exposure_duration',
+    null,
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerExposureCount = IntSetting(
+    'exposureCount',
+    'sequencer_exposure_count',
+    10,
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerExposureFilter = OptionalTextSetting(
+    'exposureFilter',
+    'sequencer_exposure_filter',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerExposureGain = OptionalIntSetting(
+    'exposureGain',
+    'sequencer_exposure_gain',
+    null,
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerExposureOffset = OptionalIntSetting(
+    'exposureOffset',
+    'sequencer_exposure_offset',
+    null,
+    sync: SettingSync.hostStore,
+  );
+  static const sequencerExposureBinning = EnumSetting<BinningMode>(
+    'exposureBinning',
+    'sequencer_exposure_binning',
+    BinningMode.one,
+    BinningMode.values,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Frames between dithers.
+  static const sequencerExposureDitherEvery = IntSetting(
+    'exposureDitherEvery',
+    'sequencer_exposure_dither_every',
+    3,
+    sync: SettingSync.hostStore,
+  );
+
+  /// TCP port a new Live Stacking node broadcasts on, clear of the headless
+  /// API server's default (8080).
+  static const liveStackingPort = IntSetting(
+    'livestackingDefaultPort',
+    'livestacking_default_port',
+    8081,
+    sync: SettingSync.hostStore,
+  );
+
+  /// A new Live Stacking node broadcasts without an access token.
+  static const liveStackingPublicByDefault = BoolSetting(
+    'livestackingPublicByDefault',
+    'livestacking_public_by_default',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// A `LiveStackingMethod.storageKey`.
+  static const liveStackingStackMethod = TextSetting(
+    'livestackingDefaultStackMethod',
+    'livestacking_default_stack_method',
+    'average',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Watermark template of a new Live Stacking node. Not set: no watermark.
+  static const liveStackingWatermark = OptionalTextSetting(
+    'livestackingDefaultWatermark',
+    'livestacking_default_watermark',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+  static const liveStackingThumbnailSize =
+      EnumSetting<LiveStackingThumbnailSize>(
+        'livestackingDefaultThumbnailSize',
+        'livestacking_default_thumbnail_size',
+        LiveStackingThumbnailSize.medium,
+        LiveStackingThumbnailSize.values,
+        sync: SettingSync.hostStore,
+      );
+
+  /// Every Live Stacking node runs with its broadcast off.
+  static const liveStackingDisableEverywhere = BoolSetting(
+    'livestackingDisableEverywhere',
+    'livestacking_disable_everywhere',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
   static const List<Setting<Object?>> all = [
     glanceMode,
     tutorialsEnabled,
@@ -236,6 +409,28 @@ abstract final class StoreSettings {
     constellationDisplayName,
     constellationPublicKey,
     constellationPrivacy,
+    sequencerAutofocusStepSize,
+    sequencerAutofocusStepsOut,
+    sequencerAutofocusExposure,
+    sequencerAutofocusIntervalFrames,
+    sequencerDitherPixels,
+    sequencerDitherSettleTime,
+    sequencerDitherSettlePixels,
+    sequencerDitherSettleTimeout,
+    sequencerDitherRaOnly,
+    sequencerExposureDuration,
+    sequencerExposureCount,
+    sequencerExposureFilter,
+    sequencerExposureGain,
+    sequencerExposureOffset,
+    sequencerExposureBinning,
+    sequencerExposureDitherEvery,
+    liveStackingPort,
+    liveStackingPublicByDefault,
+    liveStackingStackMethod,
+    liveStackingWatermark,
+    liveStackingThumbnailSize,
+    liveStackingDisableEverywhere,
   ];
 
   static const List<SettingFamily> families = [

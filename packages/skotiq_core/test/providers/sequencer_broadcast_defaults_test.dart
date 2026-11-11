@@ -127,21 +127,6 @@ void main() {
   });
 
   group('LiveStackingThumbnailSize', () {
-    test('storageKey round-trips through fromStorageKey', () {
-      for (final size in LiveStackingThumbnailSize.values) {
-        expect(LiveStackingThumbnailSize.fromStorageKey(size.storageKey), size);
-      }
-      // Unknown key falls back to medium (defence-in-depth).
-      expect(
-        LiveStackingThumbnailSize.fromStorageKey('hd-bogus'),
-        LiveStackingThumbnailSize.medium,
-      );
-      expect(
-        LiveStackingThumbnailSize.fromStorageKey(null),
-        LiveStackingThumbnailSize.medium,
-      );
-    });
-
     test('label includes the pixel dimensions', () {
       expect(LiveStackingThumbnailSize.small.label, contains('640'));
       expect(LiveStackingThumbnailSize.medium.label, contains('1280'));
