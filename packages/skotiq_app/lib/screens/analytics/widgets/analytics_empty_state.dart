@@ -40,11 +40,9 @@ class AnalyticsEmptyState extends StatelessWidget {
     this.onAction,
   });
 
-  /// The title as a label: never punctuated like a sentence.
   String get _label =>
       title.endsWith('.') ? title.substring(0, title.length - 1) : title;
 
-  /// The body as a sentence: always punctuated like one.
   String get _sentence =>
       RegExp(r'[.!?]$').hasMatch(body.trimRight()) ? body : '$body.';
 

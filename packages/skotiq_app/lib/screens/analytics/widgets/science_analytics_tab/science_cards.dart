@@ -313,7 +313,6 @@ class _LightCurveChartCard extends StatelessWidget {
                   ),
                 ),
                 lineBarsData: [
-                  // Main data line with dot markers.
                   LineChartBarData(
                     spots: spots,
                     color: colors.primary,

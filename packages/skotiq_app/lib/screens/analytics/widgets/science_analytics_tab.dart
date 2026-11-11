@@ -259,7 +259,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         ref.watch(sessionTileMetricsProvider(activeSessionId)),
       );
     } else {
-      // No session available — show standalone/quick capture science data
       final sessionlessPhotometry = ref.watch(sessionlessPhotometryProvider);
       track(sessionlessPhotometry);
       photometryObjectId = _reviewedPhotometryObjectId(
@@ -627,7 +626,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           const SizedBox(height: 12),
           NightStoryTimeline(sessionId: activeSessionId),
           const SizedBox(height: 24),
-          // Section: photometry
           KeyedSubtree(
             key: _sectionKeys.photometry,
             child: _SectionHeading(
@@ -694,7 +692,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             campaignSessionCount: campaignSessionCount,
           ),
           const SizedBox(height: 24),
-          // Section: field quality
           KeyedSubtree(
             key: _sectionKeys.fieldQuality,
             child: _SectionHeading(
@@ -777,7 +774,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           const SizedBox(height: 16),
           _PhotometricTransformsCard(colors: colors),
           const SizedBox(height: 24),
-          // Section: anomalies
           KeyedSubtree(
             key: _sectionKeys.anomalies,
             child: _SectionHeading(
@@ -805,7 +801,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
               lineRatios: lineRatios,
             ),
           ),
-          // MPC export panel -- only shown when moving object candidates exist
           if (moving.isNotEmpty) ...[
             const SizedBox(height: 16),
             MpcExportPanel(colors: colors, candidates: moving),

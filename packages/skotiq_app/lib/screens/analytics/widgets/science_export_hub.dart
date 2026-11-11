@@ -266,7 +266,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -294,7 +293,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
               ),
             ),
 
-            // Filters
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -344,7 +342,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
               ),
             ),
 
-            // Data type list
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -480,7 +477,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                       onExport: () => _openMpcPanel(mpcCandidates),
                     ),
                     const SizedBox(height: 8),
-                    // First Light transient discovery report (AAVSO / MPC / TNS).
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.transientReport],
                       colors: colors,
@@ -513,7 +509,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                     const SizedBox(height: 16),
                     Divider(color: colors.border),
                     const SizedBox(height: 12),
-                    // Generate Report button
                     SizedBox(
                       width: double.infinity,
                       child: SkotiqButton(
@@ -537,7 +532,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
               ),
             ),
 
-            // Status bar
             if (_lastExportResult != null)
               Container(
                 width: double.infinity,

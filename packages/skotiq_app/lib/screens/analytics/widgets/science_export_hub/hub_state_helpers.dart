@@ -64,7 +64,6 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         if (isStart) {
           _startDate = picked;
         } else {
-          // Set end date to end of day
           _endDate =
               DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
@@ -249,7 +248,6 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       if (!_isCurrentAuthority(backend, generation)) return;
 
       if (rows.length <= 1) {
-        // Only header row, no data
         if (mounted) {
           setState(() {
             _isExporting = false;
@@ -389,8 +387,6 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       context.showErrorSnackBar('Report generation failed: $e');
     }
   }
-
-  // CSV row builders
 
   bool _withinDateRange(DateTime timestamp) {
     if (_startDate != null && timestamp.isBefore(_startDate!)) return false;

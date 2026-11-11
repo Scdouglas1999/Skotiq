@@ -301,14 +301,6 @@ class _StageTicker extends StatelessWidget {
   }
 }
 
-/// The three tones this banner takes, as tokens rather than as a decoration
-/// it takes apart.
-///
-/// It used to read its own colours back out of a [BoxDecoration] and cast
-/// `decoration.border` to a `Border`. That was already fragile, and it broke
-/// outright when the deprecated `emphasisSurface` collapsed into
-/// `SkotiqDecorations.chip`, which has no border at all -- because in this
-/// language a tinted fill IS its own boundary (02 rule 2: tone, not lines).
 class _BannerStyle {
   final Color background;
   final Color accent;

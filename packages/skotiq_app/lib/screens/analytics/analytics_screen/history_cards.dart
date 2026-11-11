@@ -45,7 +45,6 @@ class _ProjectsTab extends ConsumerWidget {
   }
 }
 
-/// Session history card widget
 class _SessionHistoryCard extends ConsumerWidget {
   final ImagingSession session;
 
@@ -84,8 +83,6 @@ class _SessionHistoryCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
-        // One chip component, one chip geometry. The old badge was a solid
-        // fill with 9 px text -- a size that 03 §2 says does not exist.
         SkotiqChip(
           label: session.status,
           tone: _statusTone(session.status),
@@ -105,9 +102,6 @@ class _SessionHistoryCard extends ConsumerWidget {
     // Every chip carries a caption. Four bare numbers behind icons ("4h 12m",
     // "206", "3.4h", "2.14") left the two durations indistinguishable and gave
     // no clue that the last figure was HFR in pixels.
-    // Five measurements, so five Readouts (05 §3): a mono value over a quiet
-    // uppercase label. They used to be boxed icon+number chips, which is the
-    // chip component's job and not a measurement's.
     final statReadouts = <Widget>[
       Readout(
         size: ReadoutSize.sm,
@@ -252,5 +246,3 @@ class _SessionHistoryCard extends ConsumerWidget {
 
 /// Gap between two of a history card's [Readout]s.
 const double _historyReadoutGap = 20;
-
-/// Session detail dialog with export functionality

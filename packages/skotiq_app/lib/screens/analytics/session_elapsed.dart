@@ -144,7 +144,6 @@ class SessionFrameGrading {
   final int accepted;
   final int rejected;
 
-  /// Light frames this session has a verdict for at all.
   int get graded => accepted + rejected;
 }
 

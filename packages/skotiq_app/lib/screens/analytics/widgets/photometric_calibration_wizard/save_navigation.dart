@@ -60,8 +60,6 @@ extension _PhotometricWizardSaveNavigation
     );
   }
 
-  // Navigation
-
   Widget _buildNavigationButtons(SkotiqColors colors) {
     final isBusy = _isComputing || _isSaving;
     return Row(

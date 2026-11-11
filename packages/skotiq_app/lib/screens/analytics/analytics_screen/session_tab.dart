@@ -426,7 +426,6 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                   onRetry: retryImages,
                 )
               else ...[
-                // Graph grid
                 imagesAsyncValue.when(
                   data: chartGrid,
                   loading: () => const _AnalyticsLoading(
@@ -437,7 +436,6 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
 
                 const SizedBox(height: SkotiqTokens.space2xl),
 
-                // Captured images strip
                 SkotiqPanel(
                   head: PanelHead(
                     icon: LucideIcons.image,
@@ -446,9 +444,6 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // One line, not the four-sentence reassurance that used
-                      // to sit here: the only fact a reader cannot get from
-                      // the badges themselves is WHERE the bulk grader lives.
                       Text(
                         'Quality badges are advisory. To reject frames in '
                         'bulk, use Science ▸ Field quality ▸ Grade frames.',
@@ -539,7 +534,6 @@ const double _chartGridSkeletonHeight = 320;
 class _AnalyticsLoading extends StatelessWidget {
   const _AnalyticsLoading({required this.height});
 
-  /// How much vertical space to hold open.
   final double height;
 
   @override
@@ -622,11 +616,6 @@ String? _formatAnalyticsIntegration(double seconds) {
   return '${hours}h ${minutes}m';
 }
 
-/// Provider for watching session images (Drift rows) on the Analytics screen.
-///
-/// Renamed from `sessionImagesProvider` (which collided with the
-/// in-memory `sessionImagesProvider` in skotiq_core) so importers don't
-/// have to `hide` either declaration.
 final dbSessionImagesProvider =
     StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
   final backend = ref.watch(backendProvider);
@@ -640,7 +629,6 @@ final dbSessionImagesProvider =
   return ref.watch(imagesDaoProvider).watchImagesForSession(sessionId);
 });
 
-/// Provider for watching standalone (sessionless) images
 final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend is NetworkBackend) {
@@ -723,7 +711,6 @@ bool sessionMatchesTargetFilter(
   return name == filter;
 }
 
-/// Picks which past session the Session tab is reviewing.
 class _SessionReviewBar extends StatelessWidget {
   final List<ImagingSession> sessions;
   final int? selectedId;

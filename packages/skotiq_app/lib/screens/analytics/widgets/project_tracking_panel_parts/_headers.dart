@@ -1,8 +1,6 @@
 // Cleanup header row, summary stats header and sort bar.
 part of '../project_tracking_panel.dart';
 
-// Cleanup header row
-
 /// Opt-in affordance to remove "untracked" library targets (no goal, no
 /// favorite, no captured data, no sessions) that accumulated as phantom rows.
 /// Hidden entirely when there is nothing to remove. Works against both the
@@ -67,7 +65,6 @@ class _CleanupHeaderRow extends ConsumerWidget {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      // Refresh the library-backed views and this panel's count.
       ref.invalidate(allDbTargetsProvider);
       ref.invalidate(favoriteDbTargetsProvider);
       ref.invalidate(untrackedTargetsCountProvider);
@@ -90,7 +87,6 @@ class _CleanupHeaderRow extends ConsumerWidget {
 
     final count = countAsync.valueOrNull ?? 0;
     if (count <= 0) {
-      // Nothing to clean up — don't clutter the header.
       return const SizedBox.shrink();
     }
 
@@ -110,8 +106,6 @@ class _CleanupHeaderRow extends ConsumerWidget {
     );
   }
 }
-
-// Summary stats header
 
 class _SummaryStatsHeader extends ConsumerWidget {
   final List<ProjectProgress> projects;
@@ -242,8 +236,6 @@ class _SummaryStat extends StatelessWidget {
     );
   }
 }
-
-// Sort bar
 
 class _SortBar extends StatelessWidget {
   final ProjectSortMode currentSort;

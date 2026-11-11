@@ -1,8 +1,5 @@
 part of '../period_analysis_panel.dart';
 
-// Custom painters for the periodogram and phase-fold plots
-
-/// Paints the Lomb-Scargle power spectrum.
 class _PeriodogramPainter extends StatelessWidget {
   final SkotiqColors colors;
   final List<double> frequencies;
@@ -118,14 +115,12 @@ class _PeriodogramCustomPainter extends CustomPainter {
     final plotRect =
         Rect.fromLTWH(leftMargin, topMargin, plotWidth, plotHeight);
 
-    // Draw border.
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     canvas.drawRect(plotRect, borderPaint);
 
-    // Compute data range.
     final minFreq = frequencies.first;
     final maxFreq = frequencies.last;
     final freqRange = maxFreq - minFreq;
@@ -134,7 +129,6 @@ class _PeriodogramCustomPainter extends CustomPainter {
     final powerRange = powerAxis.max;
     final tickCount = powerTickCount;
 
-    // Draw grid lines.
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 0.5;
@@ -149,13 +143,10 @@ class _PeriodogramCustomPainter extends CustomPainter {
           Offset(x, plotRect.top), Offset(x, plotRect.bottom), gridPaint);
     }
 
-    // Draw axis labels.
     _drawAxisLabels(canvas, plotRect, minFreq, maxFreq);
 
-    // Down-sample for rendering if there are too many points.
     final step = math.max(1, frequencies.length ~/ plotWidth.toInt());
 
-    // Draw the power spectrum line.
     final linePaint = Paint()
       ..color = plotColor
       ..style = PaintingStyle.stroke
@@ -177,7 +168,6 @@ class _PeriodogramCustomPainter extends CustomPainter {
     }
     canvas.drawPath(path, linePaint);
 
-    // Mark the best frequency with a vertical line.
     final bestX =
         plotRect.left + (bestFrequency - minFreq) / freqRange * plotWidth;
     final peakPaint = Paint()
@@ -189,7 +179,6 @@ class _PeriodogramCustomPainter extends CustomPainter {
       peakPaint,
     );
 
-    // Draw a small label at the peak.
     final peakLabel = TextPainter(
       text: TextSpan(
         text: periodogramPeakLabel(bestFrequency),
@@ -236,7 +225,6 @@ class _PeriodogramCustomPainter extends CustomPainter {
       tp.paint(canvas, Offset(x - tp.width / 2, plotRect.bottom + 4));
     }
 
-    // Axis names.
     final xLabelPainter = TextPainter(
       text: TextSpan(text: xLabel, style: textStyle),
       textDirection: TextDirection.ltr,

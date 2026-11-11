@@ -67,7 +67,6 @@ class _SessionHeaderAction {
   /// only exists while the menu is open.
   final Key? buttonKey;
 
-  /// True when the action can run on this machine.
   bool get available => unavailableReason == null;
 }
 
@@ -101,7 +100,6 @@ class _SessionGrading {
   }
 }
 
-/// Gap between two of the detail dialog's [Readout]s.
 const double _dialogStatGap = 24;
 
 class _SessionDetailDialog extends ConsumerStatefulWidget {
@@ -189,7 +187,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
               decoration: BoxDecoration(
@@ -284,14 +281,12 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                 ),
               ),
 
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Statistics
                     _buildStatisticsSection(
                       context,
                       colors,
@@ -299,7 +294,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                     ),
                     const SizedBox(height: SkotiqTokens.spaceLg),
 
-                    // Images
                     imagesAsyncValue.when(
                       data: (images) =>
                           _buildImagesSection(context, colors, images),
@@ -334,7 +328,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     required SkotiqLocalizations l10n,
   }) {
     return [
-      // Open the Session Review / Morning Report (cull + integrate).
       _SessionHeaderAction(
         buttonKey: const ValueKey('session_detail_review'),
         icon: LucideIcons.sparkles,
@@ -385,13 +378,11 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
           openDarkroomForMaster(context, masterId);
         },
       ),
-      // View the rich Feature-A session report.
       _SessionHeaderAction(
         icon: LucideIcons.fileBarChart,
         label: 'Session report',
         onPressed: () => SessionReportDialog.show(context, session.id),
       ),
-      // Export buttons
       _SessionHeaderAction(
         icon: LucideIcons.fileJson,
         label: l10n.text('analyticsExportJson'),
@@ -622,9 +613,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     );
   }
 
-  /// One of the night's numbers. A [Readout], so the value leads and the label
-  /// sits under it in 11 px muted caps — the pair used to be the other way up,
-  /// with the label above a `h5` value.
   Widget _buildStat(String label, String? value, {String? unit}) {
     return Readout(label: label, value: value, unit: unit);
   }

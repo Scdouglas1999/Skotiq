@@ -152,11 +152,6 @@ class _PhotometricCalibrationWizardState
   }
 }
 
-/// Provider for session images (used by the calibration wizard).
-///
-/// Renamed from `sessionImagesProvider` (which collided with the in-memory
-/// `sessionImagesProvider` in skotiq_core and the analytics
-/// `dbSessionImagesProvider`) so importers don't have to `hide` declarations.
 final calibrationSessionImagesProvider =
     FutureProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
   final backend = ref.watch(backendProvider);
