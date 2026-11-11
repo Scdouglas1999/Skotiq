@@ -627,6 +627,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActSubSidereal': 'sidereal',
     'nightActSubTracking': 'tracking',
     'nightActHint': 'Each button opens its tab · actions pause the run',
+    'nightActOpensTab': 'Opens the {tab} tab',
     'nightActWhyNoHost': 'Not connected to the host that runs the rig',
     'nightActWhyBusy': 'Another action is running',
     'nightActWhyRunSettling':
@@ -2221,6 +2222,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActSubTracking': 'siguiendo',
     'nightActHint':
         'Cada botón abre su pestaña · las acciones pausan la sesión',
+    'nightActOpensTab': 'Abre la pestaña {tab}',
     'nightActWhyNoHost': 'Sin conexión con el equipo que controla el montaje',
     'nightActWhyBusy': 'Hay otra acción en curso',
     'nightActWhyRunSettling':

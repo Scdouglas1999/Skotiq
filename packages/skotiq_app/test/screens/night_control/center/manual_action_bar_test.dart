@@ -52,7 +52,8 @@ void main() {
       child: const ManualActionBar(),
       size: const Size(1000, ManualActionBar.height),
     );
-    const reason = "The run's meridian trigger owns flips";
+    const reason =
+        "The run's meridian trigger owns flips · Opens the Mount tab";
     final flip = find.bySemanticsLabel('Flip now');
     expect(flip, findsOneWidget);
     final data = tester.getSemantics(flip).getSemanticsData();
@@ -69,6 +70,31 @@ void main() {
     await tester.pump();
     expect(api.ran, isEmpty);
     expect(container.read(nightPanelTabProvider), NightPanelTab.mount);
+    handle.dispose();
+  });
+
+  testWidgets('every button says which tab it opens', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpCenter(
+      tester,
+      centerOverrides(NightFixtures.running()),
+      child: const ManualActionBar(),
+      size: const Size(1000, ManualActionBar.height),
+    );
+    for (final (label, tab) in <(String, String)>[
+      ('Snapshot', 'Camera'),
+      ('Autofocus', 'Focus'),
+      ('Solve & sync', 'Solve'),
+      ('Center', 'Solve'),
+    ]) {
+      final button = find.bySemanticsLabel(RegExp('^${RegExp.escape(label)}'));
+      expect(button, findsOneWidget, reason: label);
+      expect(
+        tester.getSemantics(button).getSemanticsData().hint,
+        endsWith('Opens the $tab tab'),
+        reason: label,
+      );
+    }
     handle.dispose();
   });
 

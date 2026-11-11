@@ -1,8 +1,9 @@
 // The manual-action bar under the frame: Snapshot, Loop, Autofocus, Solve &
 // sync, Center, plus Dither and Flip during a run. The buttons and their
-// gating come from the action controller (P2). Pressing one only opens its
-// panel tab; the action itself starts from the button in that tab, and the
-// bar's hint says so.
+// gating come from the action controller (P2). Every one of them only opens
+// its panel tab, where the action itself starts. Each says which tab it
+// opens and is outlined while that tab is open, so none reads as a button
+// that did nothing.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -146,6 +147,13 @@ class _ActionButton extends ConsumerWidget {
     final Color ink;
     if (running) {
       fill = colors.warning.withValues(alpha: SkotiqTokens.opacityStatusFill);
+    // Outlined while its tab is the one open, so a press visibly lands
+    // somewhere: the button and the tab light up together.
+    final showing = ref.watch(nightPanelTabProvider) == action.id.panelTab;
+    final opens = l10n.text('nightActOpensTab', params: <String, String>{
+      'tab': l10n.text(action.id.panelTab.labelKey),
+    });
+    final note = reason == null ? opens : '$reason · $opens';
       ink = colors.warning;
     } else if (action.enabled) {
       fill = colors.surfaceHover;
@@ -159,7 +167,7 @@ class _ActionButton extends ConsumerWidget {
       button: true,
       enabled: true,
       label: sub == null ? label : '$label, $sub',
-      hint: reason,
+      hint: note,
       excludeSemantics: true,
       onTap: () => _press(ref),
       child: Material(
@@ -172,7 +180,13 @@ class _ActionButton extends ConsumerWidget {
                     alpha: SkotiqTokens.opacityEmphasisBorder,
                   ),
                 )
-              : BorderSide.none,
+              : showing
+                  ? BorderSide(
+                      color: colors.primary.withValues(
+                        alpha: SkotiqTokens.opacityEmphasisBorder,
+                      ),
+                    )
+                  : BorderSide.none,
         ),
         child: InkWell(
           onTap: () => _press(ref),
@@ -204,13 +218,10 @@ class _ActionButton extends ConsumerWidget {
         ),
       ),
     );
-    if (reason == null) return button;
-    return Tooltip(message: reason, excludeFromSemantics: true, child: button);
+    return Tooltip(message: note, excludeFromSemantics: true, child: button);
   }
 
-  void _press(WidgetRef ref) {
-    ref.read(nightPanelTabProvider.notifier).state = action.id.panelTab;
-  }
+  void _press(WidgetRef ref) => nightOpenPanelTab(ref, action.id.panelTab);
 }
 
 class _CancelButton extends StatelessWidget {
