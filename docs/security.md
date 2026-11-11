@@ -47,11 +47,25 @@ fail-safe default.
 | Scope | Grants |
 |-------|--------|
 | `view` | Read status endpoints, subscribe to WebSocket events |
-| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control |
-| `admin` | Full protected API: self-test, settings, file browse, backup/restore |
+| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, and the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except credential settings |
+| `admin` | Full protected API: credential settings, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
 
 The legacy `--auth-token` / `SKOTIQ_AUTH_TOKEN` value is an **admin** token.
 Give monitoring clients a `view` token instead.
+
+**Credential settings.** A setting that holds a credential is declared so in
+the settings catalog (`credential: true` in
+`packages/skotiq_core/lib/src/settings/app_settings_table.dart`: the Discord
+webhook and the Pushover keys). Rows that say where the host sends a credential
+it keeps in its keyring (`notification_transport_*`, `cloud_sync_*`) count as
+credentials too (`credential_settings.dart`). The settings routes are `control`,
+but the host refuses a change to any of these from a request without admin
+access with `403 credential_setting`, naming the settings. A full settings
+document that carries a credential back unchanged is accepted. The auth
+middleware passes the grant it admitted the request with to the handler on the
+request context (`authGrantContextKey`), and a handler that finds none treats
+the request as not admin. `GET /api/settings/store` answers `adminAccess` so a
+client can mark these rows before anyone edits them.
 
 **Fail-closed on unknown scope.** `HeadlessAuthPolicy.requiredScopeFor` resolves
 the scope required by a route from its metadata. If a route ever declares a
@@ -143,7 +157,8 @@ the code even on the LAN.
 
 **Assumption.** `lan-open` treats LAN membership as authorization. On a network
 where untrusted devices share the subnet, any of them can one-tap pair and
-obtain a `control` token. Use `code-required` there.
+obtain a `control` token, which runs the rig and changes its app settings
+(not its credentials). Use `code-required` there.
 
 ## 6. TLS / self-signed certificates
 

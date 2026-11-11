@@ -106,8 +106,8 @@ When authentication is enabled, tokens can be scoped:
 | Scope | Access |
 | --- | --- |
 | `view` | Ordinary read endpoints and WebSocket event subscriptions. |
-| `control` | View access plus imaging and device-control routes. |
-| `admin` | Full protected API access, including settings, self-test, file browsing, and backup/restore. |
+| `control` | View access plus imaging and device-control routes, and changing the app settings except credential settings. |
+| `admin` | Full protected API access, including credential settings (a `403` with code `credential_setting` names them otherwise), Home Assistant, self-test, file browsing, backup/restore, plugins and updates. |
 
 The legacy `--auth-token` and `SKOTIQ_AUTH_TOKEN` values are admin tokens.
 Optional `SKOTIQ_VIEW_TOKEN`, `SKOTIQ_CONTROL_TOKEN`, `--view-token`,

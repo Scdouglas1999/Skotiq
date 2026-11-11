@@ -114,6 +114,55 @@ void main() {
       );
     });
 
+    // Owner 2026-11-11: a linked app paired the normal way changes the host's
+    // app settings mid-session; credentials, backups and the rest stay admin.
+    test('control tokens change app settings but not admin-only ones', () {
+      for (final path in const [
+        '/api/settings',
+        '/api/settings/store',
+        '/api/settings/meridian-flip',
+        '/api/settings/location',
+      ]) {
+        expect(
+          allowsPath(
+            actual: HeadlessTokenScope.control,
+            method: 'POST',
+            path: path,
+          ),
+          isTrue,
+          reason: path,
+        );
+        expect(
+          allowsPath(
+            actual: HeadlessTokenScope.view,
+            method: 'POST',
+            path: path,
+          ),
+          isFalse,
+          reason: path,
+        );
+      }
+      for (final (method, path) in const [
+        ('GET', '/api/settings/home-assistant'),
+        ('POST', '/api/settings/home-assistant'),
+        ('GET', '/api/files/browse'),
+        ('POST', '/api/plugins/upload'),
+        ('POST', '/api/system/update/apply'),
+        ('POST', '/api/logs/clear'),
+        ('GET', '/api/pairing/active'),
+      ]) {
+        expect(
+          allowsPath(
+            actual: HeadlessTokenScope.control,
+            method: method,
+            path: path,
+          ),
+          isFalse,
+          reason: '$method $path',
+        );
+      }
+    });
+
     test('admin tokens can access administrative endpoints', () {
       expect(
         allowsPath(

@@ -68,6 +68,12 @@ class HostSettingsStore {
 
   HostSettingsStoreSupport get support => _support;
 
+  /// Whether this client's credential has admin access to the host, as the
+  /// host last said; null before the first fetch and from a host that does
+  /// not say.
+  bool? get adminAccess => _adminAccess;
+  bool? _adminAccess;
+
   /// Host-owned keys this client has needed but the host could not serve, so
   /// their values came from this computer's own database.
   Set<String> get unsharedKeys => Set.unmodifiable(_unsharedKeys);
@@ -267,9 +273,11 @@ class HostSettingsStore {
     final store = await _backend.getSettingsStore();
     if (store != null) {
       _support = HostSettingsStoreSupport.full;
-      return store;
+      _adminAccess = store.adminAccess;
+      return store.values;
     }
     _support = HostSettingsStoreSupport.legacy;
+    _adminAccess = null;
     final results = await Future.wait([
       _backend.getScienceSettings(),
       _backend.getSmartNightSettings(),

@@ -10,7 +10,9 @@
 ///   * the SHA-256 digest of the bearer token that authenticated the
 ///     request, if any ([authIdentityContextKey] / [authIdentityFrom]),
 ///   * the [ApiBucket] the request mapped to
-///     ([authRouteClassContextKey]).
+///     ([authRouteClassContextKey]),
+///   * the [HeadlessAuthGrant] the request was let in with
+///     ([authGrantContextKey] / [requestHasAdminAccess]).
 ///
 /// The constants and accessor functions live in this module rather than
 /// the server class so handler classes extracted out of
@@ -22,6 +24,8 @@ library;
 import 'package:shelf/shelf.dart';
 
 import 'package:skotiq_remote_protocol/wire.dart';
+
+import 'auth_policy.dart';
 
 /// HTTP header name carrying the per-request id. Echoed back on every
 /// non-WebSocket response by `_requestTrackingMiddleware`.
@@ -46,6 +50,18 @@ const String authIdentityContextKey = 'skotiq.authIdentity';
 /// the auth middleware so the rate-limit middleware doesn't have to
 /// re-classify the path.
 const String authRouteClassContextKey = 'skotiq.authRouteClass';
+
+/// Shelf request-context key holding the [HeadlessAuthGrant] the auth
+/// middleware let the request in with. A server with no tokens that was told
+/// to stay open lets every request in with an admin grant.
+const String authGrantContextKey = 'skotiq.authGrant';
+
+/// Whether [request] was let in with admin access. False when the auth
+/// middleware did not run, so a handler that asks fails closed.
+bool requestHasAdminAccess(Request request) {
+  final grant = request.context[authGrantContextKey];
+  return grant is HeadlessAuthGrant && grant.isAdmin;
+}
 
 /// Extract the per-request id off [request]. Returns the literal string
 /// `unknown` when the request-tracking middleware did not run (e.g. unit

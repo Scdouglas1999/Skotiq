@@ -75,18 +75,21 @@ in `linked_rig.json` in the same folder.
 
 ### What each kind of pairing allows
 
-| | One tap (LAN) | Pairing code with "Also allow changing settings" |
+| | One tap (LAN), or a code without admin access | Pairing code with admin access |
 |---|---|---|
 | Camera, mount, focuser, filter wheel, rotator, guiding | yes | yes |
 | Sequences, profiles, framing, calibration frames | yes | yes |
-| View the imaging computer's settings | yes | yes |
-| Change its settings, observing site, meridian flip settings | no | yes |
-| Plugins, backups, host folder browser, updates, catalogs | no | yes |
+| The imaging computer's settings, observing site, meridian flip settings | yes | yes |
+| Stored credentials: Discord webhook, Pushover keys, Home Assistant and mail servers, cloud backup target | no | yes |
+| Plugins, backups, host folder browser, updates, catalogs, clearing logs | no | yes |
 
-One tap gives control access, because anything on the local network can ask
-for it. Changing settings needs the code, because a code proves someone can
-see the imaging computer's screen. A desktop linked with one tap says so above
-each settings page and offers **Allow changes**, which asks for the code.
+A linked desktop or phone changes the imaging computer's settings mid-session
+the same way the imaging computer does; the change is saved there and a
+running sequence picks up the ones it uses. Credentials stay with a link that
+has admin access, which needs the code, because a code proves someone can see
+the imaging computer's screen. Where a setting or page needs that access, the
+row says **Change this on the imaging computer, or link with admin access**,
+and a desktop offers **Link with admin access**, which asks for the code.
 
 ### When the link breaks
 

@@ -286,16 +286,14 @@ class SecretsStore {
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.email.storageKey}',
+          transportKey: NotificationTransportKind.email.settingKey,
           secretFields: const {'password': SecretField.emailPassword},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.pushover.storageKey}',
+          transportKey: NotificationTransportKind.pushover.settingKey,
           secretFields: const {
             'apiToken': SecretField.pushoverApiToken,
             'userKey': SecretField.pushoverUserKey,
@@ -305,24 +303,21 @@ class SecretsStore {
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.telegram.storageKey}',
+          transportKey: NotificationTransportKind.telegram.settingKey,
           secretFields: const {'botToken': SecretField.telegramBotToken},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.discord.storageKey}',
+          transportKey: NotificationTransportKind.discord.settingKey,
           secretFields: const {'webhookUrl': SecretField.discordWebhookUrl},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.mqtt.storageKey}',
+          transportKey: NotificationTransportKind.mqtt.settingKey,
           secretFields: const {'password': SecretField.mqttPassword},
         ) &&
         complete;
@@ -383,7 +378,7 @@ class SecretsStore {
   }
 
   Future<bool> _migrateWebhookBlob(SettingsDao dao) async {
-    const transportKey = 'notification_transport_webhookGeneric';
+    final transportKey = NotificationTransportKind.webhookGeneric.settingKey;
     final raw = await dao.getSetting(transportKey);
     if (raw == null) return true;
 

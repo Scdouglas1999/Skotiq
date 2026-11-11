@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -462,6 +464,89 @@ void main() {
         isTrue,
         reason: 'a partial update must preserve keys it does not mention',
       );
+    });
+
+    group('credential settings', () {
+      Future<Response> postAs(
+        HeadlessTokenScope scope,
+        Map<String, dynamic> settings,
+      ) => translateHandlerErrors(
+        handlers.handleUpdateSettings(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/settings'),
+            body: jsonEncode({'settings': settings}),
+            headers: {'content-type': 'application/json'},
+            context: {authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope)},
+          ),
+        ),
+      );
+
+      Future<AppSettingsState> stored() =>
+          container.read(appSettingsProvider.future);
+
+      setUp(() {
+        when(
+          () => profileBackend.updateSettings(any()),
+        ).thenAnswer((_) async {});
+      });
+
+      test('a link without admin access changes ordinary settings but not '
+          'a credential, and is told which and why', () async {
+        var response = await postAs(HeadlessTokenScope.control, {
+          'ditherEnabled': false,
+        });
+        expect(response.statusCode, HttpStatus.ok);
+        expect((await stored()).ditherEnabled, isFalse);
+
+        response = await postAs(HeadlessTokenScope.control, {
+          'ditherEnabled': true,
+          'discordWebhook': 'https://discord.com/api/webhooks/1/attacker',
+        });
+
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'credential_setting');
+        expect(body['settings'], ['discordWebhook']);
+        expect(body['message'], contains('link with admin access'));
+        expect((await stored()).discordWebhook, isEmpty);
+        expect(
+          (await stored()).ditherEnabled,
+          isFalse,
+          reason: 'a refused write changes nothing',
+        );
+      });
+
+      test('a full document that carries the credentials back unchanged is '
+          'accepted from a link without admin access', () async {
+        await postAs(HeadlessTokenScope.admin, {
+          'pushoverKey': 'app-token',
+          'pushoverUser': 'user-key',
+        });
+        final full = container
+            .read(appSettingsProvider.notifier)
+            .exportRemoteSettings()
+            .copyWith(parkOnUnsafeWeather: false)
+            .toJson();
+
+        final response = await postAs(HeadlessTokenScope.control, full);
+
+        expect(response.statusCode, HttpStatus.ok);
+        final after = await stored();
+        expect(after.parkOnUnsafeWeather, isFalse);
+        expect(after.pushoverKey, 'app-token');
+      });
+
+      test('a link with admin access changes a credential', () async {
+        final response = await postAs(HeadlessTokenScope.admin, {
+          'discordWebhook': 'https://discord.com/api/webhooks/1/abc',
+        });
+        expect(response.statusCode, HttpStatus.ok);
+        expect(
+          (await stored()).discordWebhook,
+          'https://discord.com/api/webhooks/1/abc',
+        );
+      });
     });
 
     test('a profile save naming its fields keeps the other fields of the '
