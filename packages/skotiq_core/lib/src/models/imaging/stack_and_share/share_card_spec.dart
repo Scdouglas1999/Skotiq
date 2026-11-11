@@ -65,7 +65,6 @@ class ShareCardSpec {
   /// Card title (typically the target name).
   final String title;
 
-  /// Stat lines rendered on the card.
   final List<ShareStatLine> stats;
 
   /// Optional watermark text overlaid on the image.
@@ -77,7 +76,6 @@ class ShareCardSpec {
   /// Target render height in pixels.
   final int targetHeight;
 
-  /// Layout of the stat overlay.
   final ShareCardLayout layout;
 
   /// Glyph-size policy for the watermark + stat overlay. Defaults to

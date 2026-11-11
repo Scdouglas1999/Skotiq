@@ -164,7 +164,6 @@ class PlateSolverPreference {
   /// "look next to the executable and in well-known catalog locations".
   final String catalogPath;
 
-  /// Active solver choice.
   final PlateSolverChoice choice;
 
   const PlateSolverPreference({

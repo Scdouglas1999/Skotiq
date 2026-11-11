@@ -18,7 +18,6 @@ enum MeridianTriggerMethod {
   onTrackingLimitHit,
 }
 
-/// Extension for MeridianTriggerMethod display
 extension MeridianTriggerMethodExtension on MeridianTriggerMethod {
   /// Whether the Dart-side standalone monitor can evaluate this trigger
   /// without an active native sequence.
@@ -101,7 +100,6 @@ enum FlipFailureAction {
   abortAndPark,
 }
 
-/// Extension for FlipFailureAction display
 extension FlipFailureActionExtension on FlipFailureAction {
   String get displayName {
     switch (this) {
@@ -122,18 +120,14 @@ extension FlipFailureActionExtension on FlipFailureAction {
   }
 }
 
-/// Settings for auto meridian flip behavior
 @freezed
 abstract class MeridianFlipSettings with _$MeridianFlipSettings {
   const MeridianFlipSettings._();
 
   const factory MeridianFlipSettings({
-    // Mode control
     /// Enable standalone monitoring when no sequence is running
     @Default(false) bool standaloneMonitoringEnabled,
 
-    // Trigger conditions
-    /// Which method to use for determining flip timing
     @Default(MeridianTriggerMethod.minutesPastMeridian)
     MeridianTriggerMethod triggerMethod,
 
@@ -162,14 +156,11 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
     @Default(TrackingLimitPolicy.flipEarly)
     TrackingLimitPolicy trackingLimitPolicy,
 
-    // Flip sequence options
-    /// Pause guider before flip
     @Default(true) bool pauseGuidingBeforeFlip,
 
     /// Plate solve and re-center after flip
     @Default(true) bool recenterAfterFlip,
 
-    /// Run autofocus after flip
     @Default(false) bool refocusAfterFlip,
 
     /// Settle time in seconds after flip completes
@@ -178,17 +169,13 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
     /// Resume guiding after flip (if was running)
     @Default(true) bool resumeGuidingAfterFlip,
 
-    // Error handling
-    /// Maximum retry attempts
     @Default(3) int maxRetries,
 
     /// Delay between retries in seconds
     @Default([30.0, 60.0, 120.0]) List<double> retryDelaysSeconds,
 
-    /// Action to take on permanent failure
     @Default(FlipFailureAction.pauseAndAlert) FlipFailureAction failureAction,
 
-    // Notifications
     /// Play sound alert when flip starts/completes/fails
     @Default(false) bool soundAlertOnFlip,
 
@@ -243,7 +230,6 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
   bool get hasPostFlipOperations =>
       recenterAfterFlip || refocusAfterFlip || resumeGuidingAfterFlip;
 
-  /// Validate settings and return any validation errors
   List<String> validate() {
     final errors = <String>[];
 

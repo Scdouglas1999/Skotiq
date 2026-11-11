@@ -4,7 +4,6 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 part 'target_suggestion.freezed.dart';
 part 'target_suggestion.g.dart';
 
-/// How to sort target suggestions
 enum SuggestionSortMode {
   /// Sort by overall score (highest first)
   bestScore,
@@ -133,10 +132,8 @@ class TargetVisibilityInfoConverter
 @freezed
 abstract class TargetSuggestion with _$TargetSuggestion {
   const factory TargetSuggestion({
-    /// Database target ID
     required int targetId,
 
-    /// Display name of the target
     required String targetName,
 
     /// Catalog identifier (e.g., "NGC 7000", "M31")
@@ -155,12 +152,10 @@ abstract class TargetSuggestion with _$TargetSuggestion {
     /// Keys: altitude, moonDistance, transitProximity, darkness, airmass
     @Default(<String, double>{}) Map<String, double> scoreBreakdown,
 
-    /// Warnings about target conditions
     @TargetWarningListConverter()
     @Default(<TargetWarning>[])
     List<TargetWarning> warnings,
 
-    /// Visibility information for this target
     @TargetVisibilityInfoConverter() required TargetVisibilityInfo visibility,
 
     /// Human-readable explanation of why this target is suggested
@@ -190,7 +185,6 @@ abstract class TargetSuggestion with _$TargetSuggestion {
       _$TargetSuggestionFromJson(json);
 }
 
-/// Configuration for target suggestion generation
 @freezed
 abstract class TargetSuggestionConfig with _$TargetSuggestionConfig {
   const factory TargetSuggestionConfig({
@@ -209,7 +203,6 @@ abstract class TargetSuggestionConfig with _$TargetSuggestionConfig {
     /// Minimum score (0-100) for a target to be suggested
     @Default(50.0) double minScore,
 
-    /// How to sort the suggestions
     @Default(SuggestionSortMode.bestScore) SuggestionSortMode sortMode,
   }) = _TargetSuggestionConfig;
 

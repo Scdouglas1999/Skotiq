@@ -95,7 +95,6 @@ class ReplayDecision {
   /// UTC timestamp the decision was made.
   final DateTime timestamp;
 
-  /// Category bucket.
   final DecisionCategory category;
 
   /// One-line human-readable summary.
