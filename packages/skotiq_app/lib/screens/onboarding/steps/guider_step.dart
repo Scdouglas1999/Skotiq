@@ -386,6 +386,7 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
               selectedDeviceId: draft.guiderId,
               selectedDeviceName: draft.guiderName,
               allowSkip: true,
+              pickLoneDevice: false,
               onSelected: (device) => notifier.setGuider(
                 id: device.activeDeviceId,
                 name: device.displayName,

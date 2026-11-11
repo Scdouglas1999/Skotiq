@@ -21,8 +21,10 @@ import '../../harness/pump_app_screen.dart';
 /// names it — the prefill has to survive going through the name matcher.
 class _OneCameraDiscovery extends UnifiedDiscoveryNotifier {
   _OneCameraDiscovery(super.ref) {
+    // Two cameras, so the step does not pick a lone one by itself and the
+    // tap below is what chooses.
     state = state.copyWith(
-      groupedDevices: [_camera],
+      groupedDevices: [_camera, _guideCamera],
       rawDevices: const [],
     );
   }
@@ -42,6 +44,22 @@ const _camera = UnifiedDevice(
     DriverType.native: DeviceInfo(
       id: 'native:asi2600mm',
       name: 'ASI2600MM Pro',
+      deviceType: DeviceType.camera,
+      driverType: DriverType.native,
+      description: '',
+      driverVersion: '',
+    ),
+  },
+);
+
+const _guideCamera = UnifiedDevice(
+  canonicalName: 'asi120mm mini',
+  displayName: 'ASI120MM Mini',
+  type: DeviceType.camera,
+  availableBackends: {
+    DriverType.native: DeviceInfo(
+      id: 'native:asi120mm',
+      name: 'ASI120MM Mini',
       deviceType: DeviceType.camera,
       driverType: DriverType.native,
       description: '',

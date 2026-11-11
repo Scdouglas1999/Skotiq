@@ -456,6 +456,11 @@ class _OnboardingOpticalTrainStepState
                       unit: '"/px',
                       label: 'Image scale',
                     ),
+                    if (_fieldOfView(draft) case final fov?)
+                      Readout(
+                        value: _derived(fov, [focalOk, reducerOk, pixelOk]),
+                        label: 'Field of view',
+                      ),
                   ],
                 ),
               ],
@@ -475,6 +480,27 @@ class _OnboardingOpticalTrainStepState
   /// the reason.
   String? _derived(String? value, List<bool?> inputs) =>
       inputs.contains(false) ? null : value;
+
+  /// The sensor's field of view, `1.73° × 1.16°`, when the camera library
+  /// knows the sensor the user has: the preset chosen on the camera-defaults
+  /// step, or the one the driver's camera name matches. Null when the sensor
+  /// size is unknown, or when the pixel size on screen is not that sensor's.
+  String? _fieldOfView(OnboardingDraft draft) {
+    final scale = draft.imageScaleArcsecPerPixel;
+    if (scale == null) return null;
+    final presets = ref.read(hardwarePresetsServiceProvider);
+    final presetId = draft.cameraPresetId;
+    final sensor = presetId == null
+        ? presets.matchCameraByName(draft.cameraName)
+        : presets.allCameras().where((p) => p.id == presetId).firstOrNull;
+    if (sensor == null ||
+        (sensor.pixelSizeMicrons - (draft.pixelSizeMicrons ?? 0)).abs() >
+            0.001) {
+      return null;
+    }
+    String side(int pixels) => AngleFormat.adaptive(pixels * scale / 3600);
+    return '${side(sensor.sensorWidthPx)} × ${side(sensor.sensorHeightPx)}';
+  }
 
   /// True when the optics on screen still describe the telescope the badge
   /// names.

@@ -7,6 +7,13 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../equipment/dialogs/indi_server_dialog.dart';
 import '../../settings/widgets/connection_settings_alpaca_dialog.dart';
 
+/// The pickers that already chose for the user this session because the scan
+/// found exactly one device, keyed by [OnboardingDevicePickerBody.question].
+/// Each picks at most once, so a device the user cleared, or a step they
+/// skipped and came back to, stays as they left it.
+final onboardingLoneDeviceAutoPickedProvider =
+    StateProvider<Set<String>>((ref) => const {});
+
 /// Reusable device-picker step body shared between Camera / Mount /
 /// Focuser / Filter Wheel / Guider onboarding steps.
 ///
@@ -31,6 +38,7 @@ class OnboardingDevicePickerBody extends ConsumerStatefulWidget {
     required this.onSelected,
     required this.onCleared,
     this.allowSkip = false,
+    this.pickLoneDevice = true,
   });
 
   final String title;
@@ -45,6 +53,14 @@ class OnboardingDevicePickerBody extends ConsumerStatefulWidget {
   /// True for steps that should render an explicit "Skip this device"
   /// affordance (focuser, filter wheel, guider).
   final bool allowSkip;
+
+  /// Select the device when a finished scan found exactly one and nothing is
+  /// chosen yet, as NINA and ASIAIR do. Off where the list is not the whole
+  /// question (the guider step, whose usual answer is PHD2 above the list).
+  final bool pickLoneDevice;
+
+  /// What this picker asks.
+  String get question => deviceType.name;
 
   @override
   ConsumerState<OnboardingDevicePickerBody> createState() =>
@@ -91,6 +107,28 @@ class _OnboardingDevicePickerBodyState
     await _runDiscovery();
   }
 
+  void _maybePickLoneDevice(List<UnifiedDevice> devices, bool isDiscovering) {
+    if (!widget.pickLoneDevice ||
+        !_scanRequested ||
+        isDiscovering ||
+        devices.length != 1 ||
+        (widget.selectedDeviceId ?? '').isNotEmpty) {
+      return;
+    }
+    final picked = ref.read(onboardingLoneDeviceAutoPickedProvider);
+    if (picked.contains(widget.question)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final already = ref.read(onboardingLoneDeviceAutoPickedProvider);
+      if (already.contains(widget.question)) return;
+      ref.read(onboardingLoneDeviceAutoPickedProvider.notifier).state = {
+        ...already,
+        widget.question,
+      };
+      widget.onSelected(devices.single);
+    });
+  }
+
   Future<void> _runDiscovery() async {
     if (!mounted) return;
     setState(() => _scanRequested = true);
@@ -122,6 +160,7 @@ class _OnboardingDevicePickerBodyState
     }).toList();
 
     final isDiscovering = discovery.isDiscovering;
+    _maybePickLoneDevice(devices, isDiscovering);
 
     // The picker is handed a FIXED height by the steps that embed it (the
     // filter-wheel step gives it 240 px so the slot editor has room). Its own

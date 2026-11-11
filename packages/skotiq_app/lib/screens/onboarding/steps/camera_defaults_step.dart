@@ -278,6 +278,24 @@ class _OnboardingCameraDefaultsStepState
     });
   }
 
+  /// What the step asks for, given what the camera step already knows. The
+  /// camera was picked two steps ago, so "pick your camera" asked again.
+  String _introText(OnboardingDraft draft) {
+    const lead = 'These seed every new sequence. ';
+    const tail = 'You can change them any time later.';
+    final camera = draft.cameraName;
+    if (camera == null || camera.trim().isEmpty) {
+      return '${lead}Choose your camera from the library to load the '
+          'recommended set-points, then adjust to taste. $tail';
+    }
+    if (_matchedPreset != null || draft.cameraPresetId != null) {
+      return '${lead}Load the recommended set-points for $camera, then '
+          'adjust to taste. $tail';
+    }
+    return '$lead$camera is not in the camera library. Choose the closest '
+        'model, or enter the gain and offset from its manual. $tail';
+  }
+
   /// Micron value without a trailing `.0`.
   static String _trimMicrons(double value) => value == value.roundToDouble()
       ? value.toStringAsFixed(0)
@@ -301,9 +319,7 @@ class _OnboardingCameraDefaultsStepState
             title: 'Set your capture defaults',
           ),
           Text(
-            'These seed every new sequence. Pick your camera to load the '
-            'recommended set-points, then adjust to taste — you can change '
-            'them any time later.',
+            _introText(draft),
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
             ),
