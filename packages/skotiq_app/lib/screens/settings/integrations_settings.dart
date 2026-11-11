@@ -33,7 +33,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 // http is a transitive dependency (via skotiq_plugins / skotiq_core).
 // It is used only for the Discord test-send client-factory type, mirroring the
 // plugin's own `http.Client Function()` seam.
@@ -60,6 +59,7 @@ import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart'
 import 'package:skotiq_core/skotiq_core.dart'
     show NetworkBackend, backendProvider;
 
+import 'settings_sections.dart';
 import 'widgets/settings_widgets.dart';
 
 part 'integrations_settings/plugin_rows.dart';
