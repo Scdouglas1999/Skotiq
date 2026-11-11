@@ -8,6 +8,7 @@
 //! profiles, so the token and address a family writes must never change.
 
 use crate::vendor::lx200::Lx200MountType;
+use crate::vendor::serial_link::sanitize_port_name;
 use skotiq_device::{
     CameraDriver, DeviceKind, DriverError, FilterWheelDriver, FocuserDriver, MountDriver, Vendor,
 };
@@ -215,15 +216,9 @@ pub fn display_name(name: &str, serial_number: Option<&str>, index: Option<usize
     name.to_string()
 }
 
-/// A port or device path as it appears in an id: ids are split on `:` and
-/// shown in file names, so path separators are replaced.
-pub fn path_in_id(path: &str) -> String {
-    path.replace("/", "_").replace("\\", "_")
-}
-
 /// The serial port an id address names.
 ///
-/// [`path_in_id`] cannot be undone by rule (`/dev/ttyUSB0` and a port
+/// [`sanitize_port_name`] cannot be undone by rule (`/dev/ttyUSB0` and a port
 /// really named `_dev_ttyUSB0` write the same address), so the address is
 /// matched against the ports present. A name without a replaced separator
 /// (every Windows `COMn`) is used as written, without asking the system.
@@ -237,7 +232,7 @@ fn port_from_address(address: &str) -> String {
             ports
                 .into_iter()
                 .map(|p| p.port_name)
-                .find(|name| path_in_id(name) == address)
+                .find(|name| sanitize_port_name(name) == address)
         })
         .unwrap_or_else(|| address.to_string())
 }
@@ -1025,7 +1020,7 @@ fn fli_found(devices: Vec<crate::vendor::fli::FliDiscoveryInfo>) -> Vec<Found> {
         .map(|d| {
             let display = display_name(&d.name, d.serial_number.as_deref(), None);
             found(
-                path_in_id(&d.device_path),
+                sanitize_port_name(&d.device_path),
                 d.name,
                 display,
                 d.serial_number,
@@ -1039,7 +1034,7 @@ fn fli_found(devices: Vec<crate::vendor::fli::FliDiscoveryInfo>) -> Vec<Found> {
 /// reopened at the LX200 default of 9600 times out on every command.
 fn serial_found(port: &str, baud_rate: u32, name: String, firmware: Option<String>) -> Found {
     found(
-        format!("{}:{}", path_in_id(port), baud_rate),
+        format!("{}:{}", sanitize_port_name(port), baud_rate),
         name.clone(),
         name,
         None,
