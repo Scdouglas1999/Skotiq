@@ -41,11 +41,6 @@ void _applyHostMutation(Object reader, Map<String, dynamic> data) {
       _invalidateHostSessions(reader);
     case HostMutationEntity.capturedImage:
       _invalidateHostCapturedImages(reader);
-    case HostMutationEntity.scheduledStart:
-      _read(reader, hostScheduledStartProvider.notifier).state =
-          parseHostScheduledStart(data['at']);
-    case HostMutationEntity.endOfNight:
-      _applyHostEndOfNight(reader, EonStatus.fromHostJson(data['status']));
     default:
       break;
   }
@@ -164,21 +159,4 @@ void _invalidateHostSessions(Object reader) {
 void _invalidateTargetProgress(Object reader) {
   _invalidate(reader, allTargetProgressProvider);
   _invalidate(reader, targetProgressProvider);
-}
-
-/// Mirror the host's end-of-night status, and say so on this screen when the
-/// host starts waiting for a cap: the darks are skipped if nobody answers.
-void _applyHostEndOfNight(Object reader, EonStatus? next) {
-  final notifier = _read(reader, hostEndOfNightStatusProvider.notifier);
-  final previous = notifier.state;
-  notifier.state = next;
-  if (next?.phase == EonPhase.waitingForCap &&
-      previous?.phase != EonPhase.waitingForCap) {
-    _read(reader, uiNotificationProvider.notifier).showWarning(
-      'The filter wheel has no dark slot. Cap the telescope, then confirm on '
-      'Tonight. The darks and bias are skipped if nobody confirms.',
-      title: 'Cap the telescope for darks',
-      duration: const Duration(seconds: 30),
-    );
-  }
 }

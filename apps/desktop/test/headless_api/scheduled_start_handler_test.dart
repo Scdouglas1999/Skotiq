@@ -1,13 +1,12 @@
 // Start at dark is held on the imaging host: a client arms, reads and cancels
-// the host's schedule through these endpoints, and every change is published
-// to clients so they show what the host will do.
+// the host's schedule through these endpoints, and the host's scheduledStart
+// runtime channel tells clients what it will do.
 
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -52,12 +51,9 @@ class _HostNightActions implements NightActionApi {
 void main() {
   final dark = DateTime.now().toUtc().add(const Duration(hours: 2));
 
-  ({
-    ProviderContainer container,
-    SequencerHandlers handlers,
-    List<Map<String, dynamic>> published,
-  })
-  setUpHost({NightText? refuse}) {
+  ({ProviderContainer container, SequencerHandlers handlers}) setUpHost({
+    NightText? refuse,
+  }) {
     final container = createHeadlessTestContainer(
       overrides: [
         nightActionApiProvider.overrideWith(
@@ -66,14 +62,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final published = <Map<String, dynamic>>[];
-    container.read(hostMutationEventHubProvider).wsBroadcast = (event) =>
-        published.add(event.data);
-    return (
-      container: container,
-      handlers: SequencerHandlers(container),
-      published: published,
-    );
+    return (container: container, handlers: SequencerHandlers(container));
   }
 
   Request req(String method, String path) =>
@@ -93,6 +82,8 @@ void main() {
       final at = jsonDecode(await armed.readAsString())['at'] as String;
       expect(DateTime.parse(at), dark);
       expect(host.container.read(nightArmedStartProvider), dark);
+      const channel = ScheduledStartChannel();
+      expect(channel.encodeCurrent(host.container), {'at': at});
 
       final read = await host.handlers.handleGetScheduledStart(
         req('GET', '/api/night/scheduled-start'),
@@ -106,13 +97,7 @@ void main() {
       );
       expect(canceled.statusCode, 200);
       expect(host.container.read(nightArmedStartProvider), isNull);
-      await Future<void>.delayed(Duration.zero);
-      expect(
-        host.published
-            .where((e) => e['entityType'] == HostMutationEntity.scheduledStart)
-            .map((e) => e['at']),
-        [at, null],
-      );
+      expect(channel.encodeCurrent(host.container), isNull);
     },
   );
 

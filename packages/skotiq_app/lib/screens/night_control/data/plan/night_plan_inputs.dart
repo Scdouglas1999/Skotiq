@@ -13,7 +13,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 // names collide with the wire event model the barrel keeps canonical.
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
-import '../../actions/armed_start_provider.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 
