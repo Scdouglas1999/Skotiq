@@ -11,6 +11,7 @@ apps/desktop/lib/headless_api_server.dart	HeadlessApiServer	highrisk	1	baseline	
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_HeadlessApiServerEventForwarding	highrisk	1	baseline	/// scaffolds throw [UnimplementedError]; the headless server logs
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_deliverRemotePush	highrisk	1	baseline	} on UnimplementedError catch (e) {
 apps/mobile/lib/screens/replay/session_replay_screen.dart	_resolveDataSource	highrisk	1	baseline	// genuinely not implemented, and an empty timeline would read as a
+apps/mobile/lib/services/battery_service.dart	_saverOn	highrisk	1	baseline	} on UnimplementedError {
 apps/mobile/lib/services/voice_control_service.dart	-	highrisk	1	baseline	/// failure rather than a silent no-op.
 native/skotiq_native/alpaca/src/client/config.rs	rand_simple	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/alpaca/src/safetymonitor.rs	get_info	highrisk	1	baseline	driver_info: driver_info.unwrap_or_default(),
@@ -117,6 +118,7 @@ native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_s
 native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let gain = camera.gain().await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let offset = camera.offset().await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	highrisk	1	baseline	.unwrap_or_default();
+native/skotiq_native/bridge/src/frame_header/golden_tests.rs	card_value_text	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	current_time_ms	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	highrisk	1	baseline	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_DIR.set(log_path.clone()).ok();
@@ -189,6 +191,7 @@ native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs	first_pick_mat
 native/skotiq_native/sequencer/src/node/progress.rs	detail_text	highrisk	2	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/node/progress.rs	legacy_message	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/scheduling/adaptive_swap.rs	saturating_duration_since	highrisk	1	baseline	self.checked_duration_since(other).unwrap_or_default()
+native/skotiq_native/sequencer/src/temperature_compensation.rs	compensate_before_frame	highrisk	1	baseline	let reason = failed.message.unwrap_or_default();
 native/skotiq_native/sequencer/src/triggers/trigger.rs	new	highrisk	1	baseline	.unwrap_or_default();
 packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart	_createDump	highrisk	1	baseline	// Android/iOS, so asking for one there threw UnimplementedError and this
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	highrisk	1	baseline	// `canPark` no longer ships a button that hits a "Not implemented"

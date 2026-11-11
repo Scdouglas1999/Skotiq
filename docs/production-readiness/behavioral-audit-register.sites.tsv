@@ -202,6 +202,7 @@ apps/mobile/lib/services/notification_service.dart	initialize	literal_null_coale
 apps/mobile/lib/services/notification_service.dart	notifyPush	literal_null_coalesce	1	V0042	final body = data['body'] as String? ?? '';
 apps/mobile/lib/services/notification_service.dart	refreshAndroidNotificationsAuthorization	literal_null_coalesce	1	V0042	_androidNotificationsAuthorized = enabled ?? false;
 apps/mobile/lib/services/notification_service.dart	refreshCriticalAlertsAuthorization	literal_null_coalesce	1	V0042	_criticalAlertsAuthorized = status?.isCriticalEnabled ?? false;
+apps/mobile/lib/services/notification_service.dart	routeForNotificationPayload	literal_null_coalesce	1	U2-17	final recipeId = int.tryParse(arg ?? '');
 apps/mobile/lib/services/saved_servers_service.dart	_upsertRelayUnqueued	comment_best_effort	1	V0121	// placeholder so the (required) host/port fields round-trip and the
 apps/mobile/lib/services/saved_servers_service.dart	_migrateLegacyIfNeeded	empty_catch	2	V0121	} on FormatException catch (_) {
 apps/mobile/lib/services/saved_servers_service.dart	_upsertRelayUnqueued	literal_null_coalesce	1	V0121	notes: notes ?? '',
@@ -286,11 +287,9 @@ native/skotiq_native/bridge/src/api/imaging.rs	api_run_autofocus	unwrap_or_liter
 native/skotiq_native/bridge/src/api/imaging.rs	camera_start_exposure_configured_opt	unwrap_or_literal	1	V0047	let max_val = raw_data.iter().max().copied().unwrap_or(0);
 native/skotiq_native/bridge/src/api/imaging.rs	camera_start_exposure_configured_opt	unwrap_or_literal	1	V0047	let min_val = raw_data.iter().min().copied().unwrap_or(0);
 native/skotiq_native/bridge/src/api/imaging.rs	camera_start_exposure_configured_opt	unwrap_or_literal	1	V0047	let sim_gain = gain.unwrap_or(0);
-native/skotiq_native/bridge/src/api/imaging/rich_header_tests.rs	drop	comment_best_effort	1	V0630	// Best-effort: a test asserting on a half-removed tree should fail
-native/skotiq_native/bridge/src/api/imaging/rich_header_tests.rs	drop	rust_let_underscore	1	V0630	let _ = std::fs::remove_dir_all(&self.0);
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0631	let _ = api_clear_device_image(device_id).await;
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0631	let _ = crate::state::save_platesolver_preference(&previous);
-native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	simulated_frame_stats_track_focus_instead_of_a_random_draw	rust_let_underscore	1	V0631	let _ = api_clear_device_image(device_id.to_string()).await;
+native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	detach_sim_camera	rust_let_underscore	1	V0631	let _ = api_clear_device_image(device_id.to_string()).await;
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	rust_let_underscore	1	V0631	let _ = api_clear_device_image(device_id).await;
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	rust_let_underscore	1	V0631	let _ = crate::state::save_platesolver_preference(&previous);
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	unwrap_or_default	1	V0631	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
@@ -833,6 +832,10 @@ native/skotiq_native/bridge/src/dispatch/indi.rs	indi_mount_tracking_rate	unwrap
 native/skotiq_native/bridge/src/dispatch/indi.rs	indi_mount_tracking_rate	unwrap_or_literal	1	V0051	// definition not-currently-active, so `unwrap_or(false)` correctly
 native/skotiq_native/bridge/src/dispatch/native.rs	connect_native	rust_let_underscore	1	V0051	let _ = old_fw.disconnect().await;
 native/skotiq_native/bridge/src/event/sequencer.rs	SequencerEvent	nonconvergence_best_guess	1	V0705	/// consulted or could not pick a single best guess. Dart maps
+native/skotiq_native/bridge/src/frame_header/golden_tests.rs	drop	rust_let_underscore	1	V0630	let _ = std::fs::remove_dir_all(&self.0);
+native/skotiq_native/bridge/src/frame_header/golden_tests.rs	card_value_text	unwrap_or_default	1	U2-17	.unwrap_or_default()
+native/skotiq_native/bridge/src/frame_header/tests.rs	drop	comment_best_effort	1	V0630	// Best-effort: a test asserting on a half-removed tree should fail
+native/skotiq_native/bridge/src/frame_header/tests.rs	drop	rust_let_underscore	1	U2-17	let _ = std::fs::remove_dir_all(&self.0);
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	unimplemented_behavior	1	V0121	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
 native/skotiq_native/bridge/src/hotplug.rs	current_time_ms	unwrap_or_default	1	V0121	.unwrap_or_default()
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	rust_drop_result	1	V0052	LOG_DIR.set(log_path.clone()).ok();
@@ -863,6 +866,7 @@ native/skotiq_native/bridge/src/state.rs	AppState	comment_best_effort	1	V0052	//
 native/skotiq_native/bridge/src/state.rs	is_device_connected	unwrap_or_literal	1	V0052	.unwrap_or(false)
 native/skotiq_native/bridge/src/unified_device_ops/camera.rs	camera_start_exposure	rust_let_underscore	1	V0711	let _ = mgr.camera_abort_exposure(camera_id).await;
 native/skotiq_native/bridge/src/unified_device_ops/camera.rs	camera_start_exposure	unwrap_or_literal	1	V0710	// `unwrap_or(0)` here would silently command gain/offset 0.
+native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	disconnect_fixed_camera	rust_let_underscore	1	U2-17	let _ = crate::api::api_clear_device_image(device_id.to_string()).await;
 native/skotiq_native/bridge/src/unified_device_ops/frame_tests.rs	a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount	rust_let_underscore	1	V0715	let _ = crate::api::get_state().set_observer_location(previous_site);
 native/skotiq_native/bridge/src/unified_device_ops/mod.rs	UnifiedDeviceOps	comment_best_effort	1	V0713	/// Best-effort in the same sense as the focuser/rotator telemetry the
 native/skotiq_native/bridge/src/unified_device_ops/plate_solve.rs	plate_solve	rust_let_underscore	1	V0714	let _ = std::fs::remove_file(&temp_path);
@@ -1453,7 +1457,7 @@ native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_sat
 native/skotiq_native/sequencer/src/node/instructions/autofocus.rs	execute	unwrap_or_literal	1	V0077	step: step.unwrap_or(0),
 native/skotiq_native/sequencer/src/node/instructions/center.rs	-	comment_best_effort	1	V0078	/// Best-effort parse of "attempt N/M" from the instruction's legacy detail.
 native/skotiq_native/sequencer/src/node/instructions/center.rs	-	comment_best_effort	1	V0078	/// Best-effort parse of an arcsecond separation if surfaced.
-native/skotiq_native/sequencer/src/node/instructions/center.rs	execute	unwrap_or_literal	1	V0078	let attempt = extract_attempt(&detail_str).unwrap_or(0);
+native/skotiq_native/sequencer/src/node/instructions/center.rs	execute	unwrap_or_literal	1	V0078	attempt: progress.attempt().unwrap_or(0),
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	a_number_in_the_reject_folder_is_taken	rust_let_underscore	1	V0079	let _ = std::fs::remove_dir_all(&root);
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	calibration_frames_do_not_advance_the_frame_cadence	rust_let_underscore	1	V0079	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	each_filter_numbers_its_own_frames	rust_let_underscore	1	V0079	let _ = std::fs::remove_dir_all(&root);
@@ -1535,7 +1539,16 @@ native/skotiq_native/sequencer/src/scheduling/adaptive_swap.rs	saturating_durati
 native/skotiq_native/sequencer/src/scheduling/integration_budget.rs	accepted_frames	unwrap_or_literal	1	V0077	let done = self.completed_by_filter.get(filter).copied().unwrap_or(0.0);
 native/skotiq_native/sequencer/src/scheduling/integration_budget.rs	evaluate	unwrap_or_literal	1	V0077	let done = self.completed_by_filter.get(filter).copied().unwrap_or(0.0);
 native/skotiq_native/sequencer/src/slew_arrival.rs	-	unwrap_or_literal	1	V0329	slewing: sample.slewing.unwrap_or(false),
+native/skotiq_native/sequencer/src/temperature_compensation.rs	a_correction_below_the_minimum_waits	rust_let_underscore	1	U2-17	let _ = compensation.step(10.0, 25_000);
+native/skotiq_native/sequencer/src/temperature_compensation.rs	a_move_it_did_not_make_is_the_new_reference_not_drift_to_undo	rust_let_underscore	1	U2-17	let _ = compensation.step(10.0, 25_000);
+native/skotiq_native/sequencer/src/temperature_compensation.rs	a_move_it_did_not_make_is_the_new_reference_not_drift_to_undo	rust_let_underscore	1	U2-17	let _ = compensation.step(8.6, 25_400);
+native/skotiq_native/sequencer/src/temperature_compensation.rs	a_zero_coefficient_tracks_without_moving_and_a_negative_target_is_refused	rust_let_underscore	1	U2-17	let _ = compensation.step(0.0, 10);
+native/skotiq_native/sequencer/src/temperature_compensation.rs	a_zero_coefficient_tracks_without_moving_and_a_negative_target_is_refused	rust_let_underscore	1	U2-17	let _ = idle.step(10.0, 100);
 native/skotiq_native/sequencer/src/temperature_compensation.rs	execute_temperature_compensation	rust_let_underscore	2	U2-13	let _ = ctx.run.device_ops.focuser_halt(&focuser_id).await;
+native/skotiq_native/sequencer/src/temperature_compensation.rs	forgetting_the_reference_measures_from_the_next_reading	rust_let_underscore	1	U2-17	let _ = compensation.step(10.0, 25_000);
+native/skotiq_native/sequencer/src/temperature_compensation.rs	move_focuser_and_wait	rust_let_underscore	2	U2-17	let _ = ctx.run.device_ops.focuser_halt(focuser_id).await;
+native/skotiq_native/sequencer/src/temperature_compensation.rs	tell_once	rust_let_underscore	1	U2-17	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
+native/skotiq_native/sequencer/src/temperature_compensation.rs	compensate_before_frame	unwrap_or_default	1	U2-17	let reason = failed.message.unwrap_or_default();
 native/skotiq_native/sequencer/src/triggers/trigger.rs	new	unwrap_or_default	1	V0796	.unwrap_or_default();
 native/skotiq_native/sequencer/src/wizard/mod.rs	cancellation_between_steps_is_respected	rust_let_underscore	1	V0081	let _ = &mut ctx;
 native/skotiq_native/sequencer/src/wizard/mod.rs	dummy_ctx	simulated_runtime_path	1	V0081	crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps)),
@@ -1556,6 +1569,13 @@ packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	U2-16	i
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	int.tryParse(state.uri.queryParameters['session'] ?? '');
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	int.tryParse(state.uri.queryParameters['target'] ?? '');
 packages/skotiq_app/lib/router/app_router.dart	-	literal_null_coalesce	1	V0121	startedAt: DateTime.tryParse(q['started'] ?? ''),
+packages/skotiq_app/lib/router/app_router.dart	_id	literal_null_coalesce	1	U2-17	int _id(String? raw) => int.tryParse(raw ?? '') ?? _noSuchRow;
+packages/skotiq_app/lib/router/app_router.dart	_screen	literal_null_coalesce	1	U2-17	endedAt: DateTime.tryParse(query['ended'] ?? ''),
+packages/skotiq_app/lib/router/app_router.dart	_screen	literal_null_coalesce	1	U2-17	int.tryParse(query['session'] ?? ''),
+packages/skotiq_app/lib/router/app_router.dart	_screen	literal_null_coalesce	1	U2-17	int.tryParse(query['target'] ?? ''),
+packages/skotiq_app/lib/router/app_router.dart	_screen	literal_null_coalesce	1	U2-17	startedAt: DateTime.tryParse(query['started'] ?? ''),
+packages/skotiq_app/lib/router/app_routes.dart	fromQuery	literal_null_coalesce	1	U2-17	final dec = double.tryParse(query['dec'] ?? '');
+packages/skotiq_app/lib/router/app_routes.dart	fromQuery	literal_null_coalesce	1	U2-17	final ra = double.tryParse(query['ra'] ?? '');
 packages/skotiq_app/lib/screens/analytics/analytics_screen/equipment_stats.dart	build	literal_null_coalesce	1	V0727	(runsAsync.valueOrNull?.isEmpty ?? false) &&
 packages/skotiq_app/lib/screens/analytics/analytics_screen/equipment_stats.dart	build	literal_null_coalesce	1	V0727	(sessionsAsync.valueOrNull?.isEmpty ?? false)) {
 packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart	build	literal_null_coalesce	1	V0487	(standaloneAsync.valueOrNull?.isNotEmpty ?? false);
