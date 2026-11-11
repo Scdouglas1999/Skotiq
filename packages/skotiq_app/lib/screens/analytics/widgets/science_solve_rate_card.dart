@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Inline card on the Analytics Science tab that reports the plate-solve
 /// success rate for the current session and offers a one-click jump to the
@@ -115,7 +116,8 @@ class ScienceSolveRateCard extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: SkotiqButton(
-                onPressed: () => context.push('/settings/plate-solving'),
+                onPressed: () =>
+                    context.push(AppRoute.plateSolvingSettings.path),
                 label: 'Configure plate solver',
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,

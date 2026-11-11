@@ -13,6 +13,8 @@ import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
 import 'panel_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../analytics/analytics_route.dart';
 
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
 
@@ -357,9 +359,11 @@ class CapturePanel extends ConsumerWidget {
                       ? () {
                           final sessionId = sessionState.dbSessionId;
                           if (sessionId != null) {
-                            context.push('/session-review?session=$sessionId');
+                            context.push(
+                                AppRoutes.sessionReviewOfSession(sessionId));
                           } else {
-                            context.push('/analytics?tab=session');
+                            context.push(AppRoutes.analytics(
+                                tab: AnalyticsTab.session));
                           }
                         }
                       : null,

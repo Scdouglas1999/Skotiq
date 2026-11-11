@@ -295,7 +295,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
         ),
       );
 
-      context.go('/sequencer');
+      context.go(AppRoute.sequencer.path);
     } on SmartNightBuildException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -313,7 +313,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     TargetSuggestion target,
   ) {
     ref.read(framingProvider.notifier).setTargetSuggestion(target);
-    context.goNamed('framing');
+    context.go(AppRoutes.planner(tab: PlannerTab.framing));
   }
 
   Widget _buildLoadingState(SkotiqColors colors) {

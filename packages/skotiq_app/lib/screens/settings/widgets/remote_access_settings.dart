@@ -15,6 +15,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../link_rig/linked_rig_panel.dart';
 import '../pairing_screen.dart' show pairingProvider;
 import 'settings_widgets.dart';
+import '../../../router/app_routes.dart';
 
 part 'remote_access_settings/shared_controls.dart';
 part 'remote_access_settings/lan_pairing_panel.dart';
@@ -376,7 +377,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               // Routed, not `Navigator.push`ed: a page pushed straight onto
               // the shell's navigator survives every rail destination the
               // operator picks afterwards.
-              onPressed: () => context.push('/pairing'),
+              onPressed: () => context.push(AppRoute.pairing.path),
             ),
             if (webState.isRunning &&
                 webState.serverFingerprint.isNotEmpty) ...[

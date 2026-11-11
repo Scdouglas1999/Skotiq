@@ -336,7 +336,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
         unavailableReason: reviewRefusal,
         onPressed: () {
           Navigator.of(context).pop();
-          context.push('/session-review?session=${session.id}');
+          context.push(AppRoutes.sessionReviewOfSession(session.id));
         },
       ),
       // Open the night's linear master in the Darkroom. Both refusals are

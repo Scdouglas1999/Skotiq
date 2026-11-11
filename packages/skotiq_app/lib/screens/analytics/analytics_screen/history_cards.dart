@@ -32,7 +32,7 @@ class _ProjectsTab extends ConsumerWidget {
                   );
                   return;
                 }
-                context.push('/mosaic');
+                context.push(AppRoute.mosaicProjects.path);
               },
             ),
           ),

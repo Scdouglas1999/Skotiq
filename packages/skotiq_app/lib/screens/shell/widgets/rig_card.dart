@@ -13,6 +13,7 @@ import '../../../utils/device_format_utils.dart';
 import '../../../widgets/operation_status_bar.dart';
 import '../../settings/settings_sections.dart';
 import '../../../utils/guide_distance.dart';
+import '../../../router/app_routes.dart';
 
 /// What the shell actually knows about the configured capture directory.
 ///
@@ -310,7 +311,7 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/equipment',
+        route: AppRoute.equipment.path,
         // Only for a COOLED camera: a DSLR has no sensor setpoint, and an em
         // dash where a temperature should be is a permanent question.
         trailing: cameraConnected && cameraState.temperature != null
@@ -334,7 +335,7 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/equipment',
+        route: AppRoute.equipment.path,
       ),
       _RigRow(
         icon: SkotiqIcons.crosshair,
@@ -352,7 +353,7 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/guiding',
+        route: AppRoute.guiding.path,
         // Guiding RMS is the one live figure a guiding row can carry that
         // the glyph cannot; it trails the word the way temperature trails
         // the camera's name.
@@ -382,7 +383,7 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/equipment',
+        route: AppRoute.equipment.path,
         mono: focuserConnected && focuserState.position != null,
         trailingChild: const _TempCompMark(),
       ),
@@ -401,7 +402,7 @@ class RigCard extends ConsumerWidget {
               semanticLabel: '${l10n.text('statusFilterWheel')}, $filter',
               isExpanded: true,
               isMenuItem: !isExpanded,
-              route: '/equipment',
+              route: AppRoute.equipment.path,
             );
           },
         ),
@@ -421,7 +422,7 @@ class RigCard extends ConsumerWidget {
               semanticLabel: 'Rotator, $value',
               isExpanded: true,
               isMenuItem: !isExpanded,
-              route: '/equipment',
+              route: AppRoute.equipment.path,
             );
           },
         ),
@@ -901,7 +902,7 @@ class _RunStateRowState extends ConsumerState<_RunStateRow> {
 
     void open() {
       try {
-        context.go('/sequencer');
+        context.go(AppRoute.sequencer.path);
       } catch (_) {
         // Same rule as the device rows: a row that cannot navigate is inert.
       }
@@ -1097,7 +1098,7 @@ class _SavePathRow extends ConsumerWidget {
       semanticLabel: chip.tooltip,
       tooltipMessage: chip.tooltip,
       isExpanded: isExpanded,
-      route: settingsLocation(SettingsSectionId.filesStorage),
+      route: AppRoutes.settings(SettingsSectionId.filesStorage),
     );
   }
 

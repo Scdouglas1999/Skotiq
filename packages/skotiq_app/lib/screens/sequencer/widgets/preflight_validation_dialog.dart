@@ -10,6 +10,7 @@ import 'mount_unpark_dialog.dart';
 import 'sequence_diff_dialog.dart';
 import 'session_handoff_dialog.dart';
 import 'visual_timeline.dart';
+import '../../../utils/darkroom_navigation.dart';
 part 'preflight_validation_dialog/simulation_widgets.dart';
 part 'preflight_validation_dialog/action_widgets.dart';
 part 'preflight_validation_dialog/issue_section.dart';

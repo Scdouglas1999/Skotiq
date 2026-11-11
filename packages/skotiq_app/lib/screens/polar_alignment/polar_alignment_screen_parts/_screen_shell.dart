@@ -69,7 +69,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
       if (context.canPop()) {
         context.pop();
       } else {
-        context.go('/imaging');
+        context.go(AppRoute.imaging.path);
       }
     }
 
@@ -331,7 +331,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go('/imaging');
+                context.go(AppRoute.imaging.path);
               }
             },
           ),

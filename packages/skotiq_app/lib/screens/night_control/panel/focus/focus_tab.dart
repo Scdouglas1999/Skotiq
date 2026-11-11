@@ -22,10 +22,11 @@ import '../panel_widgets.dart';
 import 'focus_panel_vm.dart';
 import '../stale_readings_note.dart';
 import '../../../settings/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Where "Settings…" goes.
 final String kNightAutofocusSettingsRoute =
-    settingsLocation(SettingsSectionId.autofocus);
+    AppRoutes.settings(SettingsSectionId.autofocus);
 
 /// The jog buttons' steps, in board order.
 const List<int> kNightFocuserJogSteps = <int>[-500, -100, -10, 10, 100, 500];

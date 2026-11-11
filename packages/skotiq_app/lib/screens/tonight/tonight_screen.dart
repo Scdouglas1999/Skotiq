@@ -11,9 +11,7 @@ import '../planetarium/show_in_sky.dart';
 import 'one_tap_target_provider.dart';
 import 'one_tap_tonight_controller.dart';
 import '../settings/settings_sections.dart';
-
-/// The route the one-tap night is served on.
-const String kOneTapTonightRoutePath = '/tonight';
+import '../../router/app_routes.dart';
 
 /// The opinionated one-tap "image this target tonight" screen.
 ///
@@ -475,7 +473,7 @@ class _PrimaryAction extends StatelessWidget {
             icon: LucideIcons.layoutDashboard,
             variant: ButtonVariant.outline,
             size: ButtonSize.large,
-            onPressed: () => context.go('/dashboard'),
+            onPressed: () => context.go(AppRoute.tonight.path),
           ),
         ],
       );
@@ -576,7 +574,7 @@ class _MorningPayoff extends StatelessWidget {
   Widget _reportCard(BuildContext context, int sessionId) {
     return SkotiqCard(
       variant: CardVariant.subtle,
-      onTap: () => context.push('/session-review?session=$sessionId'),
+      onTap: () => context.push(AppRoutes.sessionReviewOfSession(sessionId)),
       padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
       child: Row(
         children: [
@@ -683,7 +681,7 @@ class _AdvancedFooter extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         TextButton.icon(
-          onPressed: () => context.go('/planner'),
+          onPressed: () => context.go(AppRoute.planner.path),
           icon:
               Icon(LucideIcons.sliders, size: 15, color: colors.textSecondary),
           label: Text(

@@ -11,136 +11,37 @@ import '../../localization/skotiq_localizations.dart';
 import '../../screens/settings/settings_catalog.dart';
 import '../../screens/equipment/utils/connect_all_action.dart';
 import '../../screens/settings/settings_search_index.g.dart';
+import '../../router/app_routes.dart';
+import '../../screens/planner/planner_route.dart';
 import '../../screens/shell/shell_navigation.dart';
-import '../../screens/tonight/tonight_screen.dart' show kOneTapTonightRoutePath;
 import '../../services/mount_command_service.dart';
 import '../../services/sequence_action_service.dart';
 import 'command_entry.dart';
-import '../../screens/settings/settings_sections.dart';
 
 /// Every rail destination, every Settings section, and the screens that own a
 /// route but no rail slot.
 ///
-/// That last set is the point of the group: `/polar-alignment`,
-/// `/flat-wizard`, `/session-review`, `/mosaic`, `/pairing` and `/diagnostics`
-/// are reachable from inside other screens and from deep links, and the rail
-/// deliberately does not carry nine more items to name them. The palette is
-/// how an operator who knows the screen exists gets to it.
+/// That last set is the point of the group: Polar alignment, Session review,
+/// Mosaic, Pairing and Diagnostics are reachable from inside other screens and
+/// from deep links, and the rail deliberately does not carry them. The palette
+/// is how an operator who knows the screen exists gets to it.
 List<CommandEntry> buildScreenEntries(BuildContext context) {
   final l10n = context.l10n;
-  final entries = <CommandEntry>[];
-
-  void screen({
-    required String id,
-    required IconData icon,
-    required String label,
-    required String route,
-    String? hint,
-    List<String> keywords = const [],
-  }) {
-    // A route-only screen that later moved onto the rail is already listed
-    // from the rail; a second row would name the same screen twice. Its
-    // search terms still belong to that one row.
-    final existing = entries.indexWhere((entry) => entry.id == id);
-    if (existing >= 0) {
-      final listed = entries[existing];
-      entries[existing] = CommandEntry(
-        id: listed.id,
-        group: listed.group,
-        icon: listed.icon,
-        label: listed.label,
-        hint: listed.hint,
-        keywords: [...listed.keywords, ...keywords],
-        invoke: listed.invoke,
-      );
-      return;
-    }
-    entries.add(
+  final entries = <CommandEntry>[
+    for (final route in [
+      ...ShellNavigation.rail,
+      for (final route in AppRoute.values)
+        if (route.palette && route.group == null) route,
+    ])
       CommandEntry(
-        id: id,
+        id: 'screen:${route.path}',
         group: CommandGroup.screens,
-        icon: icon,
-        label: label,
-        hint: hint,
-        keywords: keywords,
-        invoke: (context, ref) => context.go(route),
+        icon: route.icon!,
+        label: route.label!.of(l10n),
+        keywords: route.keywords,
+        invoke: (context, ref) => context.go(route.path),
       ),
-    );
-  }
-
-  for (final dest in ShellNavigation.primaryDestinations) {
-    screen(
-      id: 'screen:${dest.route}',
-      icon: dest.icon,
-      label: dest.label(l10n),
-      route: dest.route,
-    );
-  }
-
-  screen(
-    id: 'screen:/settings',
-    icon: ShellNavigation.settings.icon,
-    label: ShellNavigation.settings.label(l10n),
-    route: ShellNavigation.settings.route,
-  );
-
-  // Route-only screens (04 §7). Each keeps the label the screen itself uses.
-  screen(
-    id: 'screen:/polar-alignment',
-    icon: LucideIcons.compass,
-    label: 'Polar alignment',
-    route: '/polar-alignment',
-    keywords: const ['polar', 'align', 'drift', 'tppa'],
-  );
-  screen(
-    id: 'screen:/flat-wizard',
-    icon: LucideIcons.sun,
-    label: l10n.text('navFlatWizard'),
-    route: '/flat-wizard',
-    keywords: const ['flat', 'calibration', 'wizard'],
-  );
-  screen(
-    id: 'screen:$kOneTapTonightRoutePath',
-    icon: LucideIcons.moonStar,
-    label: "Image tonight's best target",
-    route: kOneTapTonightRoutePath,
-    keywords: const ['one tap', 'best', 'tonight', 'automatic', 'start'],
-  );
-  screen(
-    id: 'screen:${ShellNavigation.sessionReplay.route}',
-    icon: ShellNavigation.sessionReplay.icon,
-    label: ShellNavigation.sessionReplay.label(l10n),
-    route: ShellNavigation.sessionReplay.route,
-    keywords: const ['replay', 'history', 'past', 'night', 'run', 'timeline'],
-  );
-  screen(
-    id: 'screen:/session-review',
-    icon: LucideIcons.clipboardList,
-    label: 'Session review',
-    route: '/session-review',
-    keywords: const ['session', 'review', 'night', 'report'],
-  );
-  screen(
-    id: 'screen:/mosaic',
-    icon: LucideIcons.layoutGrid,
-    label: 'Mosaic',
-    route: '/mosaic',
-    keywords: const ['mosaic', 'panel', 'tile'],
-  );
-  screen(
-    id: 'screen:/pairing',
-    icon: LucideIcons.smartphone,
-    label: 'Pairing',
-    route: '/pairing',
-    keywords: const ['pair', 'phone', 'remote', 'device'],
-  );
-  screen(
-    id: 'screen:/diagnostics',
-    icon: LucideIcons.stethoscope,
-    label: 'Diagnostics',
-    route: '/diagnostics',
-    keywords: const ['diagnostics', 'logs', 'dump', 'support'],
-  );
+  ];
 
   // Settings sections are screens too: they are where you GO, as opposed to
   // the individual settings in the Settings group, which are what you change.
@@ -370,7 +271,7 @@ List<CommandEntry> buildTargetEntries(WidgetRef ref, String query) {
                 object.coordinates.dec,
                 name: object.name,
               );
-          context.go('/framing');
+          context.go(AppRoutes.planner(tab: PlannerTab.framing));
         },
       ),
   ];

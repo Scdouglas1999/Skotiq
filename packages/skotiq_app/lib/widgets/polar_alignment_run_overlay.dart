@@ -11,9 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../screens/polar_alignment/polar_alignment_activity.dart';
 import '../screens/polar_alignment/polar_alignment_error_format.dart';
 import '../utils/snackbar_helper.dart';
-
-/// The route of the polar alignment screen, which shows the run itself.
-const String kPolarAlignmentRoutePath = '/polar-alignment';
+import '../router/app_routes.dart';
 
 /// A live polar alignment run, floating over every screen but its own.
 ///
@@ -214,7 +212,7 @@ class _PolarAlignmentRunOverlayState
                 child: SkotiqButton(
                   label: 'Open alignment',
                   size: ButtonSize.small,
-                  onPressed: () => context.push(kPolarAlignmentRoutePath),
+                  onPressed: () => context.push(AppRoute.polarAlignment.path),
                 ),
               ),
               const SizedBox(width: 8),

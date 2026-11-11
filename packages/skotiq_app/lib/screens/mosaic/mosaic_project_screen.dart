@@ -14,6 +14,7 @@ import 'mosaic_contribute_sheet.dart';
 import 'mosaic_format.dart';
 import 'mosaic_project_controller.dart';
 import 'widgets/mosaic_panel_grid.dart';
+import '../../router/app_routes.dart';
 
 /// Present the consent sheet (license + anonymity opt-in) and, if the user
 /// confirms, upload either one panel ([panelIndex] set) or every
@@ -572,7 +573,7 @@ class _MosaicProjectBackAction extends StatelessWidget {
       navigator.pop();
       return;
     }
-    context.go('/mosaic');
+    context.go(AppRoute.mosaicProjects.path);
   }
 }
 

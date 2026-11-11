@@ -11,6 +11,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'framing_panel_parts.dart';
+import '../../../router/app_routes.dart';
 
 part 'framing_controls_parts/_rotation_fields.dart';
 part 'framing_controls_parts/_fov_controls.dart';

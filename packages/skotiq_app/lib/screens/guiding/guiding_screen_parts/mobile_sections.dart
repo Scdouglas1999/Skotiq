@@ -260,7 +260,7 @@ mixin _GuidingMobileSections
               icon: SkotiqIcons.settings,
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
-              onPressed: () => context.go('/equipment'),
+              onPressed: () => context.go(AppRoute.equipment.path),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
             Expanded(child: _buildNonPhd2GuiderInfo(colors)),

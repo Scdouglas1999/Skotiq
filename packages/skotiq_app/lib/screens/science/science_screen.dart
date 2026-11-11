@@ -5,45 +5,19 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../analytics/analytics_route.dart';
 import '../analytics/widgets/science_analytics_tab.dart';
 import '../analytics/widgets/science_export_hub.dart';
 import '../first_light/first_light_view.dart';
 import '../transients/transients_screen.dart';
-
-/// Identifies a Science sub-tab for deep-linking via `?tab=`/`?view=` query.
-enum ScienceTab {
-  workspace,
-  firstLight,
-  transients,
-}
-
-/// Maps the router `?tab=`/`?view=` query value to a [ScienceTab]. Returns null
-/// for an unrecognised value so the caller can fall back. Public so router code
-/// can share the same canonical mapping (notably `view=transients` from the
-/// legacy `/transients` redirect).
-ScienceTab? scienceTabFromQuery(String? value) {
-  if (value == null) return null;
-  switch (value.toLowerCase()) {
-    case 'workspace':
-      return ScienceTab.workspace;
-    case 'firstlight':
-    case 'first_light':
-    case 'discovery':
-      return ScienceTab.firstLight;
-    case 'transients':
-    case 'alerts':
-      return ScienceTab.transients;
-  }
-  return null;
-}
 
 /// Scaffold-free science workspace body: the photometry / first-light /
 /// observing-alerts tab host. Science ships folded into Analytics → Science,
 /// which mounts this with `showHeader: false` — the `/science` path is a pure
 /// deep-link redirect onto that tab and builds no page of its own.
 class ScienceWorkspaceView extends ConsumerStatefulWidget {
-  /// Selects the initial sub-tab (workspace / first light / observing alerts).
-  final String? initialViewQuery;
+  /// The view a link asked for; null opens the workspace.
+  final ScienceTab? initialView;
 
   /// When true, the science title folds inline to the left of the sub-tab bar,
   /// for a host that does not name the surface itself. Analytics — the only
@@ -53,7 +27,7 @@ class ScienceWorkspaceView extends ConsumerStatefulWidget {
 
   const ScienceWorkspaceView({
     super.key,
-    this.initialViewQuery,
+    this.initialView,
     this.showHeader = true,
   });
 
@@ -68,9 +42,7 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
   @override
   void initState() {
     super.initState();
-    final resolved =
-        scienceTabFromQuery(widget.initialViewQuery) ?? ScienceTab.workspace;
-    _currentSubTab = resolved.index;
+    _currentSubTab = (widget.initialView ?? ScienceTab.workspace).index;
   }
 
   @override
@@ -80,8 +52,8 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
     // new `?view=` while already mounted reuses this State without re-running
     // initState. Re-resolve so deep-links (notably the /transients alert link)
     // select the target sub-tab.
-    if (widget.initialViewQuery != oldWidget.initialViewQuery) {
-      final resolved = scienceTabFromQuery(widget.initialViewQuery);
+    if (widget.initialView != oldWidget.initialView) {
+      final resolved = widget.initialView;
       if (resolved != null && resolved.index != _currentSubTab) {
         setState(() => _currentSubTab = resolved.index);
       }

@@ -7,6 +7,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/transient_type_style.dart';
 import 'widgets/transient_card.dart';
+import '../../router/app_routes.dart';
+import '../analytics/analytics_route.dart';
+import '../planner/planner_route.dart';
 
 enum TransientFilter {
   all('All'),
@@ -262,23 +265,21 @@ class TransientsView extends ConsumerWidget {
   }
 
   void _planAlert(BuildContext context) {
-    context.go('/planner?tab=scheduler');
+    context.go(AppRoutes.planner(tab: PlannerTab.schedule));
   }
 
   void _viewInFraming(
       BuildContext context, WidgetRef ref, TransientAlert alert) {
-    // Seed the target before navigating: the /framing route redirects to
-    // /planner?tab=sky&view=framing, which drops any query params.
     ref.read(framingProvider.notifier).setTargetCoordinates(
           alert.raHours,
           alert.decDegrees,
           name: alert.name,
         );
-    context.goNamed('framing');
+    context.go(AppRoutes.planner(tab: PlannerTab.framing));
   }
 
   void _openScience(BuildContext context, TransientAlert alert) {
-    context.go('/science');
+    context.go(AppRoutes.analytics(tab: AnalyticsTab.science));
   }
 
   Future<void> _dismissAlert(

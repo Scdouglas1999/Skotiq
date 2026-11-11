@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'optical_train_step.dart';
 import '../../settings/settings_sections.dart';
+import '../../../router/app_routes.dart';
 
 /// Terminal "what's next" step shown after the equipment profile is created.
 ///
@@ -111,7 +112,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
             title: 'Capture your first light',
             subtitle:
                 'Connect your camera and take your very first exposure, guided step by step.',
-            onTap: () => onNavigate('/imaging?firstLight=1'),
+            onTap: () => onNavigate(AppRoutes.imaging(firstLight: true)),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           _NextStepCard(
@@ -119,7 +120,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
             title: 'Take the first-night walkthrough',
             subtitle:
                 'A short tour of the imaging, sequencing, and guiding workflow.',
-            onTap: () => onNavigate('/tutorial/first-night'),
+            onTap: () => onNavigate(AppRoute.firstNightWizard.path),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           _NextStepCard(
@@ -127,7 +128,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
             title: 'Review readiness checklist',
             subtitle:
                 'Confirm your gear connects and everything is configured before you head out.',
-            onTap: () => onNavigate('/equipment'),
+            onTap: () => onNavigate(AppRoute.equipment.path),
           ),
           // Only shown when the user skipped the site step. `/settings?section=
           // location` is the same deep link the weather screen uses to jump to
@@ -140,7 +141,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
               subtitle:
                   'Your location powers Tonight, the planner, meridian flips, and the weather radar.',
               onTap: () =>
-                  onNavigate(settingsLocation(SettingsSectionId.location)),
+                  onNavigate(AppRoutes.settings(SettingsSectionId.location)),
             ),
           ],
         ],

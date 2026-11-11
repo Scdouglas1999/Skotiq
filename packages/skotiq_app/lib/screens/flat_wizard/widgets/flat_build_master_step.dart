@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/utils/darkroom_navigation.dart';
 
 /// The flat wizard's last step: build a master flat from each filter's
 /// frames of the run that just finished and add it to the calibration
@@ -169,7 +170,8 @@ class _FlatBuildMasterStepState extends ConsumerState<FlatBuildMasterStep> {
               SkotiqButton(
                 label: 'Open Calibration',
                 variant: ButtonVariant.ghost,
-                onPressed: () => context.go('/darkroom?tab=calibration'),
+                onPressed: () =>
+                    context.go(darkroomTabLocation(DarkroomTab.calibration)),
               ),
             ],
           ),

@@ -255,7 +255,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
                         onPressed: () {
                           final router = GoRouter.of(context);
                           Navigator.of(context).pop();
-                          router.go('/settings/plate-solving');
+                          router.go(AppRoute.plateSolvingSettings.path);
                         },
                       ),
                     );

@@ -49,6 +49,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'focuser_backlash/focuser_backlash_offer.dart';
 import '../screens/settings/settings_sections.dart';
+import '../router/app_routes.dart';
 part 'focus_model_curve_card/chart.dart';
 part 'focus_model_curve_card/actions.dart';
 part 'focus_model_curve_card/filter_offsets.dart';

@@ -39,6 +39,7 @@ import '../darkroom_branch_controller.dart';
 import '../darkroom_controller.dart';
 import '../darkroom_measured_values.dart';
 import 'darkroom_image_library.dart';
+import '../../../router/app_routes.dart';
 
 part 'editor_parts/_image_surface.dart';
 part 'editor_parts/_viewport.dart';
@@ -639,7 +640,7 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
       icon: SkotiqIcons.history,
       variant: ButtonVariant.secondary,
       size: ButtonSize.small,
-      onPressed: () => context.go(sessionReviewLocation(sessionId)),
+      onPressed: () => context.go(AppRoutes.sessionReviewOfSession(sessionId)),
     );
   }
 }

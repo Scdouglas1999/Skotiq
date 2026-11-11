@@ -73,8 +73,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(topRouteLocation(built.router), '/analytics');
     expect(
-      ShellNavigation.primaryIndexForLocation(topRouteLocation(built.router)),
-      ShellNavigation.primaryRoutes.indexOf('/analytics'),
+      ShellNavigation.railIndexFor(topRouteLocation(built.router)),
+      ShellNavigation.rail.indexOf(AppRoute.analytics),
     );
   });
 
@@ -100,11 +100,11 @@ void main() {
     // match. Reading the shell's own `matchedLocation` answers `/analytics`
     // here, which would light Analytics while the Darkroom is on screen.
     expect(
-      ShellNavigation.primaryIndexForLocation(topRouteLocation(built.router)),
-      ShellNavigation.primaryRoutes.indexOf('/darkroom'),
+      ShellNavigation.railIndexFor(topRouteLocation(built.router)),
+      ShellNavigation.rail.indexOf(AppRoute.darkroom),
       reason: 'the rail follows the route that is actually painted',
     );
-    expect(locationToAppScreen(topRouteLocation(built.router)),
+    expect(AppRoute.of(topRouteLocation(built.router))?.screen,
         AppScreen.darkroom);
   });
 
@@ -124,8 +124,8 @@ void main() {
     // shares no path prefix with /darkroom — which is exactly why the table
     // exists and a prefix walk could not answer this.
     expect(
-      ShellNavigation.primaryIndexForLocation(topRouteLocation(built.router)),
-      ShellNavigation.primaryRoutes.indexOf('/darkroom'),
+      ShellNavigation.railIndexFor(topRouteLocation(built.router)),
+      ShellNavigation.rail.indexOf(AppRoute.darkroom),
     );
   });
 
@@ -145,8 +145,8 @@ void main() {
 
     expect(topRouteLocation(built.router), '/analytics');
     expect(
-      ShellNavigation.primaryIndexForLocation(topRouteLocation(built.router)),
-      ShellNavigation.primaryRoutes.indexOf('/analytics'),
+      ShellNavigation.railIndexFor(topRouteLocation(built.router)),
+      ShellNavigation.rail.indexOf(AppRoute.analytics),
     );
   });
 
@@ -161,8 +161,8 @@ void main() {
 
     expect(topRouteLocation(built.router), '/imaging/preview/42');
     expect(
-      ShellNavigation.primaryIndexForLocation(topRouteLocation(built.router)),
-      ShellNavigation.primaryRoutes.indexOf('/imaging'),
+      ShellNavigation.railIndexFor(topRouteLocation(built.router)),
+      ShellNavigation.rail.indexOf(AppRoute.imaging),
     );
   });
 }

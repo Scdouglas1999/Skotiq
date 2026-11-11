@@ -15,7 +15,7 @@ import '../shell_navigation.dart';
 /// second bar the way the six-slot version did.
 class SkotiqBottomNavigation extends StatelessWidget {
   final String currentRoute;
-  final ValueChanged<String> onRouteSelected;
+  final ValueChanged<AppRoute> onRouteSelected;
 
   const SkotiqBottomNavigation({
     super.key,
@@ -27,11 +27,8 @@ class SkotiqBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final currentPath = currentRoute.split('?').first;
-
-    final overflowIsCurrent = ShellNavigation.overflowDestinations.any(
-      (d) => ShellNavigation.locationIsUnder(currentPath, d.route),
-    );
+    final overflowIsCurrent =
+        ShellNavigation.moreSheet.any((d) => d.contains(currentRoute));
 
     return Container(
       decoration: BoxDecoration(
@@ -44,21 +41,18 @@ class SkotiqBottomNavigation extends StatelessWidget {
           height: BottomNavMetrics.barHeight,
           child: Row(
             children: [
-              for (final dest in ShellNavigation.bottomNavigationDestinations)
+              for (final dest in ShellNavigation.phoneBar)
                 Expanded(
                   child: _BottomNavItem(
-                    icon: dest.icon,
-                    label: dest.bottomNavLabel(l10n),
+                    icon: dest.icon!,
+                    label: (dest.shortLabel ?? dest.label!).of(l10n),
                     // Sub-route aware: the image-ready deep link
                     // (/imaging/preview/:id) renders the Imaging screen, so
                     // the Imaging slot must own it. Exact matching left the
                     // whole bar unlit on those routes.
-                    isSelected: ShellNavigation.locationIsUnder(
-                      currentPath,
-                      dest.route,
-                    ),
+                    isSelected: dest.contains(currentRoute),
                     colors: colors,
-                    onTap: () => onRouteSelected(dest.route),
+                    onTap: () => onRouteSelected(dest),
                   ),
                 ),
               Expanded(
@@ -88,7 +82,6 @@ class SkotiqBottomNavigation extends StatelessWidget {
     SkotiqLocalizations l10n,
     SkotiqColors colors,
   ) {
-    final currentPath = currentRoute.split('?').first;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: colors.surface,
@@ -102,13 +95,10 @@ class SkotiqBottomNavigation extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (final dest in ShellNavigation.overflowDestinations)
+                for (final dest in ShellNavigation.moreSheet)
                   Builder(
                     builder: (context) {
-                      final isCurrent = ShellNavigation.locationIsUnder(
-                        currentPath,
-                        dest.route,
-                      );
+                      final isCurrent = dest.contains(currentRoute);
                       return ListTile(
                         leading: Icon(
                           dest.icon,
@@ -116,7 +106,7 @@ class SkotiqBottomNavigation extends StatelessWidget {
                               isCurrent ? colors.primary : colors.textSecondary,
                         ),
                         title: Text(
-                          dest.label(l10n),
+                          dest.label!.of(l10n),
                           style: SkotiqTypography.body.copyWith(
                             color:
                                 isCurrent ? colors.primary : colors.textPrimary,
@@ -127,7 +117,7 @@ class SkotiqBottomNavigation extends StatelessWidget {
                         selected: isCurrent,
                         onTap: () {
                           Navigator.of(sheetContext).pop();
-                          onRouteSelected(dest.route);
+                          onRouteSelected(dest);
                         },
                       );
                     },

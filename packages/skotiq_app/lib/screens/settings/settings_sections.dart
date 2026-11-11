@@ -1,6 +1,3 @@
-import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
-
 /// The sidebar groups of the Settings screen, in display order.
 enum SettingsGroupId {
   general('General', 'settingsGroupGeneral'),
@@ -129,33 +126,4 @@ enum SettingsSectionId {
     }
     return aliases[key];
   }
-
-  /// The section a `/settings…` route string names, or null when [route] is
-  /// not a Settings route or names no section. Routes arrive as strings from
-  /// core models (readiness checks, next-use steps) and from tour data.
-  static SettingsSectionId? fromRoute(String route) {
-    final uri = Uri.tryParse(route);
-    if (uri == null || uri.path != settingsPath) return null;
-    return resolve(uri.queryParameters['section']);
-  }
 }
-
-/// Path of the Settings screen.
-const String settingsPath = '/settings';
-
-/// The location that opens Settings on [section] (or on whatever it last
-/// showed, when null).
-String settingsLocation([SettingsSectionId? section]) =>
-    section == null ? settingsPath : '$settingsPath?section=${section.key}';
-
-extension SettingsNavigation on GoRouter {
-  /// Shows Settings on [section]. Works whether or not Settings is already
-  /// open: the Settings screen follows every navigation to its route, so a
-  /// link names its destination and nothing else.
-  void goToSettings([SettingsSectionId? section]) =>
-      go(settingsLocation(section));
-}
-
-/// The one way to open Settings from a widget.
-void openSettings(BuildContext context, [SettingsSectionId? section]) =>
-    GoRouter.of(context).goToSettings(section);

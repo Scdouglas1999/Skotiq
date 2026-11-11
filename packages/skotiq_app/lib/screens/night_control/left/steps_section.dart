@@ -16,13 +16,13 @@ import 'package:skotiq_core/skotiq_core.dart' show selectedNodeIdProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../data/plan/night_flip_provider.dart';
 import '../data/plan/plan_steps_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
+import '../../../router/app_routes.dart';
 
 class NightStepsSection extends ConsumerStatefulWidget {
   const NightStepsSection({super.key});
@@ -81,7 +81,7 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
   void _open(String nodeId) {
     ref.read(selectedNodeIdProvider.notifier).state = nodeId;
     NightControlDensity.maybeOf(context)?.closePlanDrawer?.call();
-    context.go(kSequencerRoutePath);
+    context.go(AppRoute.sequencer.path);
   }
 
   @override

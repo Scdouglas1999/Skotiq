@@ -427,7 +427,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       }
       setState(() => _isCreatingProject = false);
       Navigator.of(context).pop();
-      unawaited(context.push('/mosaic/$projectId'));
+      unawaited(context.push(AppRoutes.mosaicProject(projectId)));
     } catch (e) {
       if (mounted) {
         setState(() => _isCreatingProject = false);

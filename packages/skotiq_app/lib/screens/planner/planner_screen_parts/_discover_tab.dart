@@ -4,33 +4,11 @@
 // nightly tools.
 part of '../planner_screen.dart';
 
-/// Which view the "Discover" tab's inner segmented control shows.
-enum DiscoverView { yourSky, constellation, collaborative }
-
-/// Maps a router `?view=` query value to a [DiscoverView]. Returns null for an
-/// unrecognised value so the caller can fall back to [DiscoverView.yourSky].
-/// Public so the `/your-sky`, `/constellation`, and `/collaborative-sky`
-/// redirects (and tests) share the same mapping.
-DiscoverView? plannerDiscoverViewFromQuery(String? value) {
-  if (value == null) return null;
-  switch (value.toLowerCase()) {
-    case 'yoursky':
-    case 'your-sky':
-    case 'atlas':
-      return DiscoverView.yourSky;
-    case 'constellation':
-    case 'swarm':
-      return DiscoverView.constellation;
-    case 'collaborative':
-    case 'collaborative-sky':
-    case 'collab':
-      return DiscoverView.collaborative;
-  }
-  return null;
-}
-
 class _DiscoverTab extends ConsumerStatefulWidget {
-  const _DiscoverTab();
+  const _DiscoverTab({this.requestedView});
+
+  /// The view a link asked for; null keeps Your sky.
+  final DiscoverView? requestedView;
 
   @override
   ConsumerState<_DiscoverTab> createState() => _DiscoverTabState();
@@ -38,40 +16,24 @@ class _DiscoverTab extends ConsumerStatefulWidget {
 
 class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
   late DiscoverView _view;
-  String? _lastViewQuery;
 
   @override
   void initState() {
     super.initState();
-    _lastViewQuery = _viewQuery();
-    _view =
-        plannerDiscoverViewFromQuery(_lastViewQuery) ?? DiscoverView.yourSky;
+    _view = widget.requestedView ?? DiscoverView.yourSky;
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // The Discover tab stays mounted while the planner shows it. When a `/your-sky` or `/constellation`
-    // deep-link re-enters the already-mounted planner with a new `?view=`,
-    // re-apply it here (GoRouterState is an inherited dependency). Guarded on the
-    // query changing so a user's manual segment toggle isn't snapped back.
-    final viewQuery = _viewQuery();
-    if (viewQuery != _lastViewQuery) {
-      _lastViewQuery = viewQuery;
-      final resolved = plannerDiscoverViewFromQuery(viewQuery);
-      if (resolved != null && resolved != _view) {
-        setState(() => _view = resolved);
-      }
-    }
-  }
-
-  /// Reads the `?view=` query from the current GoRouter location. Returns null
-  /// outside the GoRouter tree (tests mount the screen standalone).
-  String? _viewQuery() {
-    try {
-      return GoRouterState.of(context).uri.queryParameters['view'];
-    } catch (_) {
-      return null;
+  void didUpdateWidget(_DiscoverTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A link with a new `?view=` re-enters the planner already showing this
+    // tab. Applied only when the request changes, so the operator's own
+    // segment choice is not snapped back by an unrelated rebuild.
+    final requested = widget.requestedView;
+    if (requested != oldWidget.requestedView &&
+        requested != null &&
+        requested != _view) {
+      setState(() => _view = requested);
     }
   }
 

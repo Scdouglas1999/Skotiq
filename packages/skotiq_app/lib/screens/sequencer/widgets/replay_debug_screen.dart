@@ -9,6 +9,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'run_dashboard/frame_detail_dialog.dart';
+import '../../../router/app_routes.dart';
 
 /// The window the time-range slider scrubs, as the UNION of the run's
 /// wall-clock span and the decisions actually on record.
@@ -63,25 +64,6 @@ class ReplayDebugScreen extends ConsumerStatefulWidget {
   final DateTime? startedAt;
   final DateTime? endedAt;
 
-  /// The router location for one run's replay, query-encoded so a deep link
-  /// (and the back stack) carries the header label and the scrub window.
-  static String locationFor({
-    required int sequenceRunId,
-    required String sequenceName,
-    DateTime? startedAt,
-    DateTime? endedAt,
-  }) {
-    final query = <String, String>{
-      'name': sequenceName,
-      if (startedAt != null) 'started': startedAt.toIso8601String(),
-      if (endedAt != null) 'ended': endedAt.toIso8601String(),
-    };
-    return Uri(
-      path: '/replay/$sequenceRunId',
-      queryParameters: query,
-    ).toString();
-  }
-
   /// Convenience launcher.
   ///
   /// Goes through the ROUTER, not `Navigator.push`: a [MaterialPageRoute] lands
@@ -96,9 +78,9 @@ class ReplayDebugScreen extends ConsumerStatefulWidget {
     DateTime? startedAt,
     DateTime? endedAt,
   }) {
-    final location = locationFor(
-      sequenceRunId: sequenceRunId,
-      sequenceName: sequenceName,
+    final location = AppRoutes.replay(
+      runId: sequenceRunId,
+      name: sequenceName,
       startedAt: startedAt,
       endedAt: endedAt,
     );

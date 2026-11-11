@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'science_overlay_legend.dart';
+import '../../../router/app_routes.dart';
 
 class ScienceOverlayComposer extends ConsumerWidget {
   final SkotiqColors colors;
@@ -88,7 +89,7 @@ class ScienceOverlayComposer extends ConsumerWidget {
                 ),
               ),
               TextButton.icon(
-                onPressed: () => context.go('/imaging'),
+                onPressed: () => context.go(AppRoute.imaging.path),
                 icon: Icon(
                   LucideIcons.arrowRight,
                   size: 12,

@@ -28,7 +28,11 @@ import 'widgets/progress_tab_content.dart';
 import 'widgets/projects_tab_content.dart';
 import 'widgets/scheduler_tab_content.dart';
 import 'widgets/week_forecast_strip.dart';
+import 'planner_route.dart';
 import '../settings/settings_sections.dart';
+import '../../router/app_routes.dart';
+
+export 'planner_route.dart' show PlannerTab, DiscoverView;
 // File split: the rest of this library lives in `planner_screen_parts/`.
 // Each part is `part of '../planner_screen.dart';` and contains a cohesive
 // group of private widgets / helpers. Imports are owned here so part files
@@ -47,67 +51,6 @@ part 'planner_screen_parts/_schedule_tab.dart';
 part 'planner_screen_parts/_discover_tab.dart';
 part 'planner_screen_parts/_candidate_observing_list.dart';
 part 'planner_screen_parts/_range_controls.dart';
-
-/// Identifies a Plan Tonight sub-tab for deep-linking via `?tab=` query
-/// param. Order here matches the rendered tab order; Recommendation is the
-/// default.
-///
-/// The tabs read left-to-right as a planning-to-execution funnel: what is best
-/// right now, the multi-night campaign workspace, the forecast strip over the
-/// target queue, the two sky-work surfaces, then discovery.
-///
-/// The rendered `tabs` list and the `IndexedStack` children in
-/// [_PlannerScreenState.build] MUST be kept in lockstep with this order,
-/// because the selected-tab index is [PlannerTab.index]: reordering here
-/// without matching both lists mis-routes deep-links and tab taps.
-enum PlannerTab {
-  recommendation,
-  projects,
-  schedule,
-  framing,
-  planetarium,
-  discover,
-}
-
-/// Maps the router `?tab=` query value to a [PlannerTab]. Returns null for
-/// an unrecognised value so the caller can fall back to a default. Public
-/// so router code (and tests) can share the same canonical mapping.
-PlannerTab? plannerTabFromQuery(String? value) {
-  if (value == null) return null;
-  switch (value.toLowerCase()) {
-    case 'recommendation':
-    case 'recommend':
-      return PlannerTab.recommendation;
-    case 'projects':
-    case 'project':
-    case 'campaign':
-    case 'campaigns':
-    case 'progress':
-    case 'history':
-      return PlannerTab.projects;
-    case 'schedule':
-    case 'scheduler':
-    case 'queue':
-    case 'target-queue':
-    case 'targetqueue':
-    case 'week':
-    case 'forecast':
-    case 'thisweek':
-    case 'this-week':
-      return PlannerTab.schedule;
-    case 'framing':
-      return PlannerTab.framing;
-    case 'planetarium':
-      return PlannerTab.planetarium;
-    case 'discover':
-    case 'sky':
-    case 'yoursky':
-    case 'your-sky':
-    case 'constellation':
-      return PlannerTab.discover;
-  }
-  return null;
-}
 
 /// Page size for the candidate list. The list starts at one page and grows
 /// when the user taps "Load more" or scrolls to the bottom.
@@ -217,22 +160,17 @@ final _plannerVisibleCountProvider = StateProvider.autoDispose<int>(
 ///     which nights to run, and the queue that runs them.
 ///   * Framing / Planetarium — the sky-work surfaces.
 ///   * Discover — the Your Sky / Constellation discovery surfaces.
-///
-/// Query param `?tab=` selects the initial tab via [plannerTabFromQuery].
 class PlannerScreen extends ConsumerStatefulWidget {
-  /// Optional initial tab selection. When null, falls back to
-  /// [initialTabQuery] parsing, then to [PlannerTab.recommendation].
+  /// The tab a link asked for; null opens Recommendation.
   final PlannerTab? initialTab;
 
-  /// Raw `?tab=` value parsed from the router. Lets deep-links select a
-  /// specific Plan Tonight tab (notably `?tab=scheduler` from the legacy
-  /// `/scheduler` redirect).
-  final String? initialTabQuery;
+  /// The Discover view a link asked for; null keeps Your sky.
+  final DiscoverView? initialDiscoverView;
 
   const PlannerScreen({
     super.key,
     this.initialTab,
-    this.initialTabQuery,
+    this.initialDiscoverView,
   });
 
   @override
@@ -245,10 +183,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   @override
   void initState() {
     super.initState();
-    final resolved = widget.initialTab ??
-        plannerTabFromQuery(widget.initialTabQuery) ??
-        PlannerTab.recommendation;
-    _currentSubTab = resolved.index;
+    _currentSubTab = (widget.initialTab ?? PlannerTab.recommendation).index;
   }
 
   @override
@@ -258,8 +193,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     // `?tab=` while the planner is already the active host reuses this State
     // without re-running initState. Re-resolve so deep-links and the in-planner
     // "Send to framing" / scheduler handoffs select the target tab.
-    if (widget.initialTabQuery != oldWidget.initialTabQuery) {
-      final resolved = plannerTabFromQuery(widget.initialTabQuery);
+    if (widget.initialTab != oldWidget.initialTab) {
+      final resolved = widget.initialTab;
       if (resolved != null && resolved.index != _currentSubTab) {
         setState(() => _currentSubTab = resolved.index);
       }
@@ -269,64 +204,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-
-    // Order MUST match [PlannerTab] declaration order: the selected index is
-    // [PlannerTab.index], so a mismatch would mis-route deep-links and taps.
-    // The assert is a developer guard against future drift; the tab-structure
-    // tests assert the same invariant at runtime. Each tab carries an icon so
-    // [AdaptiveTabBar] can collapse to icon-only on a compact phone rather than
-    // overflowing the tab strip.
     final l10n = context.l10n;
-    final tabs = <(PlannerTab, AdaptiveTab)>[
-      (
-        PlannerTab.recommendation,
-        AdaptiveTab(
-          label: l10n.text('plannerTabTonight'),
-          icon: LucideIcons.sparkles,
-        ),
-      ),
-      (
-        PlannerTab.projects,
-        AdaptiveTab(
-          label: l10n.text('plannerTabProjects'),
-          icon: LucideIcons.folderKanban,
-        ),
-      ),
-      (
-        PlannerTab.schedule,
-        AdaptiveTab(
-          label: l10n.text('plannerTabSchedule'),
-          icon: LucideIcons.calendarDays,
-        ),
-      ),
-      (
-        PlannerTab.framing,
-        AdaptiveTab(
-          label: l10n.text('plannerTabFraming'),
-          icon: LucideIcons.crop,
-        ),
-      ),
-      (
-        PlannerTab.planetarium,
-        AdaptiveTab(
-          label: l10n.text('plannerTabPlanetarium'),
-          icon: LucideIcons.globe,
-        ),
-      ),
-      (
-        PlannerTab.discover,
-        AdaptiveTab(
-          label: l10n.text('plannerTabYourSky'),
-          icon: LucideIcons.orbit,
-        ),
-      ),
-    ];
-    assert(
-      tabs.length == PlannerTab.values.length &&
-          tabs.asMap().entries.every((e) => e.value.$1.index == e.key),
-      'Planner tab list is out of sync with PlannerTab: each entry must sit at '
-      'its enum index and the list must cover every value.',
-    );
 
     // On a phone with the software keyboard up the whole viewport is ~200px
     // tall; the header is the one row that can go, because the field the
@@ -335,7 +213,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         MediaQuery.viewInsetsOf(context).bottom > 0;
 
     final tabBar = AdaptiveTabBar(
-      tabs: [for (final t in tabs) t.$2],
+      tabs: [for (final tab in PlannerTab.values) _tabFor(tab, l10n)],
       selectedIndex: _currentSubTab,
       onSelected: (index) => setState(() => _currentSubTab = index),
       // The page header owns the 24px gutter, so the strip starts flush
@@ -388,37 +266,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
             Expanded(
               child: IndexedStack(
                 index: _currentSubTab,
-                // Order MUST match `tabs` / [PlannerTab] — one child per enum
-                // value, at the same index.
-                //
-                // Schedule and Your sky read host state (scheduler snapshot,
-                // atlas regions, coverage and per-region timelines) for as long
-                // as they are mounted, which on a companion means requests to
-                // the imaging host. They are built only while selected, so a
-                // hidden tab never polls; the other tabs keep their state.
-                //
-                // Framing and Planetarium stay built for instant switching but
-                // sit under a TickerMode, so their sky animations stop while
-                // off-tab.
                 children: [
-                  const _RecommendationTab(),
-                  const _ProjectsTab(),
-                  if (_currentSubTab == PlannerTab.schedule.index)
-                    const _ScheduleTab()
-                  else
-                    const SizedBox.shrink(),
-                  TickerMode(
-                    enabled: _currentSubTab == PlannerTab.framing.index,
-                    child: const FramingView(),
-                  ),
-                  TickerMode(
-                    enabled: _currentSubTab == PlannerTab.planetarium.index,
-                    child: const PlanetariumView(),
-                  ),
-                  if (_currentSubTab == PlannerTab.discover.index)
-                    const _DiscoverTab()
-                  else
-                    const SizedBox.shrink(),
+                  for (final tab in PlannerTab.values)
+                    _bodyFor(tab, selected: tab.index == _currentSubTab),
                 ],
               ),
             ),
@@ -427,4 +277,55 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
       ),
     );
   }
+
+  /// Each tab carries an icon so [AdaptiveTabBar] can collapse to icon-only
+  /// on a compact phone rather than overflowing the strip.
+  static AdaptiveTab _tabFor(PlannerTab tab, SkotiqLocalizations l10n) =>
+      switch (tab) {
+        PlannerTab.recommendation => AdaptiveTab(
+            label: l10n.text('plannerTabTonight'),
+            icon: LucideIcons.sparkles,
+          ),
+        PlannerTab.projects => AdaptiveTab(
+            label: l10n.text('plannerTabProjects'),
+            icon: LucideIcons.folderKanban,
+          ),
+        PlannerTab.schedule => AdaptiveTab(
+            label: l10n.text('plannerTabSchedule'),
+            icon: LucideIcons.calendarDays,
+          ),
+        PlannerTab.framing => AdaptiveTab(
+            label: l10n.text('plannerTabFraming'),
+            icon: LucideIcons.crop,
+          ),
+        PlannerTab.planetarium => AdaptiveTab(
+            label: l10n.text('plannerTabPlanetarium'),
+            icon: LucideIcons.globe,
+          ),
+        PlannerTab.discover => AdaptiveTab(
+            label: l10n.text('plannerTabYourSky'),
+            icon: LucideIcons.orbit,
+          ),
+      };
+
+  /// Schedule and Discover read host state (scheduler snapshot, atlas
+  /// regions, coverage and per-region timelines) for as long as they are
+  /// mounted, which on a companion means requests to the imaging host. They
+  /// are built only while selected, so a hidden tab never polls; the other
+  /// tabs keep their state. Framing and Planetarium stay built for instant
+  /// switching but sit under a TickerMode, so their sky animations stop while
+  /// off-tab.
+  Widget _bodyFor(PlannerTab tab, {required bool selected}) => switch (tab) {
+        PlannerTab.recommendation => const _RecommendationTab(),
+        PlannerTab.projects => const _ProjectsTab(),
+        PlannerTab.schedule =>
+          selected ? const _ScheduleTab() : const SizedBox.shrink(),
+        PlannerTab.framing =>
+          TickerMode(enabled: selected, child: const FramingView()),
+        PlannerTab.planetarium =>
+          TickerMode(enabled: selected, child: const PlanetariumView()),
+        PlannerTab.discover => selected
+            ? _DiscoverTab(requestedView: widget.initialDiscoverView)
+            : const SizedBox.shrink(),
+      };
 }

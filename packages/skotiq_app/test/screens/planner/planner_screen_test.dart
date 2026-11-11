@@ -246,28 +246,28 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
-  group('plannerTabFromQuery', () {
+  group('PlannerTab.fromQuery', () {
     test('returns null for null input', () {
-      expect(plannerTabFromQuery(null), isNull);
+      expect(PlannerTab.fromQuery(null), isNull);
     });
 
     test('returns null for an unrecognized value', () {
-      expect(plannerTabFromQuery('made-up-tab'), isNull);
+      expect(PlannerTab.fromQuery('made-up-tab'), isNull);
     });
 
     test('maps canonical tab names', () {
-      expect(plannerTabFromQuery('recommendation'), PlannerTab.recommendation);
+      expect(PlannerTab.fromQuery('recommendation'), PlannerTab.recommendation);
       // Scheduler folded into Schedule; Progress folded into Projects.
-      expect(plannerTabFromQuery('scheduler'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('progress'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('progress'), PlannerTab.projects);
     });
 
     test('accepts case-insensitive aliases', () {
-      expect(plannerTabFromQuery('Scheduler'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('queue'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('target-queue'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('history'), PlannerTab.projects);
-      expect(plannerTabFromQuery('recommend'), PlannerTab.recommendation);
+      expect(PlannerTab.fromQuery('Scheduler'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('queue'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('history'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('recommend'), PlannerTab.recommendation);
     });
 
     test('Recommendation is the first enum entry', () {
@@ -422,8 +422,8 @@ void main() {
         overrides: _commonOverrides(),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: PlannerScreen(initialTabQuery: 'scheduler'),
+          home: Scaffold(
+            body: PlannerScreen(initialTab: PlannerTab.fromQuery('scheduler')),
           ),
         ),
       ),
@@ -450,8 +450,8 @@ void main() {
         overrides: _commonOverrides(),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: PlannerScreen(initialTabQuery: 'progress'),
+          home: Scaffold(
+            body: PlannerScreen(initialTab: PlannerTab.fromQuery('progress')),
           ),
         ),
       ),

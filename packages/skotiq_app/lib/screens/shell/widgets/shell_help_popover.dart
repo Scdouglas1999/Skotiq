@@ -54,7 +54,7 @@ class ShellHelpButton extends ConsumerWidget {
       ),
     );
 
-    final screen = _currentScreen(context);
+    final tourHere = _tourHere(context);
     showMenu<_HelpAction>(
       context: context,
       position: position,
@@ -70,7 +70,7 @@ class ShellHelpButton extends ConsumerWidget {
           value: _HelpAction.tour,
           icon: LucideIcons.compass,
           label: 'Tour this screen',
-          enabled: screen.tour != null,
+          enabled: tourHere != null,
         ),
         _item(
           colors,
@@ -89,9 +89,8 @@ class ShellHelpButton extends ConsumerWidget {
       if (action == null || !context.mounted) return;
       switch (action) {
         case _HelpAction.tour:
-          final tour = screen.tour;
-          if (tour == null) return;
-          ref.read(tutorialProvider.notifier).startTutorial(tour);
+          if (tourHere == null) return;
+          ref.read(tutorialProvider.notifier).startTutorial(tourHere);
         case _HelpAction.shortcuts:
           showShellShortcuts(context);
         case _HelpAction.manual:
@@ -151,46 +150,22 @@ class ShellHelpButton extends ConsumerWidget {
     );
   }
 
-  _HelpScreen _currentScreen(BuildContext context) {
+  /// The deep tour that covers the screen on show. Routes without one get a
+  /// disabled "Tour this screen", because a menu item that silently does
+  /// nothing is worse than one that says it has nothing to offer.
+  TutorialCategory? _tourHere(BuildContext context) {
     final location = GoRouter.of(context)
         .routerDelegate
         .currentConfiguration
         .lastOrNull
         ?.matchedLocation;
-    final path = (location ?? '/dashboard').split('?').first;
-    for (final entry in _tours.entries) {
-      if (ShellNavigation.locationIsUnder(path, entry.key)) {
-        return _HelpScreen(path, entry.value);
-      }
+    for (var route = AppRoute.of(location ?? AppRoute.tonight.path);
+        route != null;
+        route = route.parent) {
+      if (route.tour != null) return route.tour;
     }
-    return _HelpScreen(path, null);
+    return null;
   }
-}
-
-/// Which deep tour covers which route.
-///
-/// Only the routes that HAVE a tour appear; the rest get a disabled "Tour this
-/// screen", because a menu item that silently does nothing is worse than one
-/// that says it has nothing to offer.
-const Map<String, TutorialCategory> _tours = {
-  '/dashboard': TutorialCategory.dashboardTour,
-  '/equipment': TutorialCategory.equipmentTour,
-  '/imaging': TutorialCategory.imagingTour,
-  '/guiding': TutorialCategory.guidingTour,
-  '/sequencer': TutorialCategory.sequencerTour,
-  '/planetarium': TutorialCategory.planetariumTour,
-  '/framing': TutorialCategory.framingTour,
-  '/analytics': TutorialCategory.analyticsTour,
-  '/flat-wizard': TutorialCategory.flatWizardTour,
-  '/weather': TutorialCategory.weatherTour,
-  '/settings': TutorialCategory.settingsTour,
-  '/polar-alignment': TutorialCategory.polarAlignmentTour,
-};
-
-class _HelpScreen {
-  final String route;
-  final TutorialCategory? tour;
-  const _HelpScreen(this.route, this.tour);
 }
 
 enum _HelpAction { tour, shortcuts, manual }

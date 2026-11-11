@@ -16,6 +16,8 @@ import '../../framing/add_target_to_sequence_flow.dart';
 import '../providers/sequenced_object_ids_provider.dart';
 import 'fov_presets_panel.dart';
 import 'sidebar_shared_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../planner/planner_route.dart';
 
 class InfoTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -121,7 +123,7 @@ class InfoTab extends ConsumerWidget {
             );
             if (!context.mounted) return;
             ref.read(framingProvider.notifier).setTargetSuggestion(target);
-            context.goNamed('framing');
+            context.go(AppRoutes.planner(tab: PlannerTab.framing));
           },
           onAddToSequence: () async {
             // Drop this object into a sequence the user picks (or a new one)

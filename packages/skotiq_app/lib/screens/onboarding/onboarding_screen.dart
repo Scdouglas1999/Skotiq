@@ -25,6 +25,7 @@ import 'steps/optical_train_step.dart';
 import 'steps/site_step.dart';
 import 'steps/summary_step.dart';
 import 'steps/welcome_step.dart';
+import '../../router/app_routes.dart';
 
 part 'onboarding_screen_parts/_chrome.dart';
 
@@ -192,7 +193,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       // Primary action on the terminal step: retire the wizard and land on
       // the dashboard. The secondary "Capture first light" path is handled by
       // [_finishToFirstLight].
-      await _finishToInternal('/dashboard');
+      await _finishToInternal(AppRoute.tonight.path);
       return;
     }
 
@@ -297,7 +298,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       if (!mounted || !leave) return;
       if (step == OnboardingStep.nextSteps) {
-        await _finishTo('/dashboard');
+        await _finishTo(AppRoute.tonight.path);
       } else {
         await _onExitWizard();
       }
@@ -315,7 +316,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _clearNotice();
     await ref.read(onboardingDraftProvider.notifier).skip();
     if (!mounted) return;
-    context.go('/dashboard');
+    context.go(AppRoute.tonight.path);
   }
 
   /// Summary step "Save profile": create the equipment profile, then advance
@@ -383,7 +384,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  Future<void> _finishToFirstLight() => _finishTo('/imaging?firstLight=1');
+  Future<void> _finishToFirstLight() =>
+      _finishTo(AppRoutes.imaging(firstLight: true));
 
   /// Validate that the user has provided the data this step requires.
   /// Returns null if OK, or a human-readable message that we surface in

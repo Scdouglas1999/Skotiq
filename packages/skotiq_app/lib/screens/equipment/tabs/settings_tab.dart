@@ -8,6 +8,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/focuser_backlash/effective_backlash_readout.dart';
 import '../utils/meridian_flip_pointer.dart';
 import '../../settings/settings_sections.dart';
+import '../../../router/app_routes.dart';
 
 class EquipmentSettingsTab extends ConsumerWidget {
   const EquipmentSettingsTab({super.key});

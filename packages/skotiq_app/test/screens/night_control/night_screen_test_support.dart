@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
@@ -357,13 +358,13 @@ Future<void> pumpNightShell(
   addTearDown(db.close);
 
   final router = GoRouter(
-    initialLocation: kTonightRoutePath,
+    initialLocation: AppRoute.tonight.path,
     routes: <RouteBase>[
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: <RouteBase>[
           GoRoute(
-            path: kTonightRoutePath,
+            path: AppRoute.tonight.path,
             builder: (context, state) => const NightControlScreen(),
           ),
           for (final path in const <String>[

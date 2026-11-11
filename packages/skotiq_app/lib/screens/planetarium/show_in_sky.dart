@@ -1,7 +1,7 @@
 // "Show in sky" hand-off into the planetarium.
 //
 // The mirror image of the framing hand-off (`framingProvider` +
-// `goNamed('framing')` / `/framing?ra=&dec=&name=`): every surface that can
+// `AppRoutes.framingAt`): every surface that can
 // name a target — planner recommendation, candidate list, catalog search,
 // dashboard, one-tap Tonight — can point the sky view at it.
 //
@@ -13,10 +13,10 @@
 //    deliberately NOT used here — its listener is registered inside the sky
 //    view widget and only reacts to requests raised after that widget mounts,
 //    so a jump made *before* navigating would be silently dropped.
-//  * [showTargetInSky] does that and then navigates to `/planetarium` carrying
-//    `?ra=&dec=&name=`, so the same link also works when pasted, restored, or
-//    followed from outside a live app session (the planetarium view parses the
-//    query itself on mount).
+//  * [showTargetInSky] does that and then navigates to the Planetarium tab
+//    carrying the target as a [SkyTarget] query, so the same link also works
+//    when pasted, restored, or followed from outside a live app session (the
+//    planetarium view parses the query itself on mount).
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,24 +24,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// Route + query for a planetarium hand-off to [raHours] / [decDegrees].
-///
-/// RA is decimal hours and Dec decimal degrees — the same units the `/framing`
-/// hand-off uses, so the two links are interchangeable at a call site.
-String planetariumTargetLocation({
-  required double raHours,
-  required double decDegrees,
-  String? name,
-}) {
-  return Uri(
-    path: '/planetarium',
-    queryParameters: {
-      'ra': raHours.toStringAsFixed(6),
-      'dec': decDegrees.toStringAsFixed(6),
-      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-    },
-  ).toString();
-}
+import '../../router/app_routes.dart';
 
 /// Center the sky view on [coordinate] and select it.
 ///
@@ -59,25 +42,6 @@ void focusSkyOn(WidgetRef ref, CelestialCoordinate coordinate) {
   ref.read(selectedObjectProvider.notifier).selectCoordinates(coordinate);
 }
 
-/// Parse an inbound `?ra=&dec=` hand-off, or null when it is absent or invalid.
-///
-/// Out-of-range values are rejected rather than clamped: a link that says
-/// "Dec 130°" is a broken link, and silently showing some other patch of sky
-/// would be worse than ignoring it.
-CelestialCoordinate? parseSkyTargetQuery(Map<String, String> params) {
-  final raStr = params['ra'];
-  final decStr = params['dec'];
-  if (raStr == null || decStr == null) return null;
-
-  final raHours = double.tryParse(raStr);
-  final decDegrees = double.tryParse(decStr);
-  if (raHours == null || decDegrees == null) return null;
-  if (raHours < 0 || raHours >= 24) return null;
-  if (decDegrees < -90 || decDegrees > 90) return null;
-
-  return CelestialCoordinate(ra: raHours, dec: decDegrees);
-}
-
 /// Point the planetarium at a target and go there.
 void showTargetInSky(
   BuildContext context,
@@ -86,18 +50,11 @@ void showTargetInSky(
   required double decDegrees,
   String? name,
 }) {
-  final coordinate = parseSkyTargetQuery({
-    'ra': '$raHours',
-    'dec': '$decDegrees',
-  });
+  final target =
+      SkyTarget(raHours: raHours, decDegrees: decDegrees, name: name);
   // Seed the view before navigating so the sky is on target at first paint.
-  if (coordinate != null) focusSkyOn(ref, coordinate);
-
-  context.go(
-    planetariumTargetLocation(
-      raHours: raHours,
-      decDegrees: decDegrees,
-      name: name,
-    ),
-  );
+  if (target.isOnTheSky) {
+    focusSkyOn(ref, CelestialCoordinate(ra: raHours, dec: decDegrees));
+  }
+  context.go(AppRoutes.skyAt(target));
 }

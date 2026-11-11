@@ -36,6 +36,8 @@ import 'widgets/redesign/layers_panel.dart';
 import 'show_in_sky.dart';
 import '../imaging/centering_dialog.dart';
 import '../../services/equipment_fov_binding.dart';
+import '../../router/app_routes.dart';
+import '../planner/planner_route.dart';
 
 part 'planetarium_screen/actions.dart';
 part 'planetarium_screen/local_widgets.dart';

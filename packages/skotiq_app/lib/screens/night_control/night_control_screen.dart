@@ -24,16 +24,6 @@ import 'panel/solve/night_solve_tab.dart';
 import 'run_warnings_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
-/// The route Tonight is served on. The path predates the screen and stays
-/// for deep links, notification routes and the tutorial.
-const String kTonightRoutePath = '/dashboard';
-
-/// Whether [location] shows Tonight. The shell hides its running-sequence
-/// bar and its autofocus overlay there: the header carries the run controls
-/// and the Focus tab and the frame carry the autofocus.
-bool isTonightLocation(String location) =>
-    location.split('?').first == kTonightRoutePath;
-
 class NightControlScreen extends ConsumerWidget {
   const NightControlScreen({super.key});
 

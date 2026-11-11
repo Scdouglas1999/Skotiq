@@ -31,11 +31,10 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     // sync here — a second writer would race it.
   }
 
-  /// Honour an inbound `/planetarium?ra=<hours>&dec=<deg>&name=<n>` hand-off.
+  /// Honour an inbound [SkyTarget] hand-off on the Planetarium tab.
   ///
-  /// Mirrors [FramingView]'s `_applyQueryParamsTarget`. The route redirects onto
-  /// the Plan Tonight host, which forwards the query, so this reads it from
-  /// whichever router state is above us.
+  /// Mirrors [FramingView]'s `_applyQueryParamsTarget`. The query rides on the
+  /// Plan location, so this reads it from whichever router state is above us.
   ///
   /// Must be called from `didChangeDependencies`: reading `GoRouterState.of`
   /// there is what makes a later location change re-run this while the view
@@ -56,17 +55,18 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       return;
     }
 
-    final params = uri.queryParameters;
-    final signature = '${params['ra']}|${params['dec']}|${params['name']}';
+    final target = SkyTarget.fromQuery(uri.queryParameters);
+    if (target == null) return;
+    final signature = '${target.query}';
     if (signature == _appliedSkyTargetQuery) return;
-
-    final coordinate = parseSkyTargetQuery(params);
-    if (coordinate == null) return;
 
     _appliedSkyTargetQuery = signature;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      focusSkyOn(ref, coordinate);
+      focusSkyOn(
+        ref,
+        CelestialCoordinate(ra: target.raHours, dec: target.decDegrees),
+      );
     });
   }
 
@@ -259,7 +259,7 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     // above, so a failure here strands the user on the planetarium with the
     // framing target silently changed — log it rather than absorb it.
     try {
-      context.goNamed('framing');
+      context.go(AppRoutes.planner(tab: PlannerTab.framing));
     } catch (e, stack) {
       developer.log(
         '[Planetarium] Could not open ${obj.name} in Framing: $e',

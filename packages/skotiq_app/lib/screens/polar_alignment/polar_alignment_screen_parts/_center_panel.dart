@@ -51,7 +51,7 @@ extension _CenterPanel on _PolarAlignmentScreenState {
               label: 'Set up plate solver',
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
-              onPressed: () => context.push('/settings/plate-solving'),
+              onPressed: () => context.push(AppRoute.plateSolvingSettings.path),
             ),
           ),
           bannerGap,

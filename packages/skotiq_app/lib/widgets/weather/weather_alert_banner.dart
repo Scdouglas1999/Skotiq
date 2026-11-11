@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Global weather alert banner that appears at the top of the app
 /// when weather conditions reach warning or critical levels.
@@ -93,7 +94,7 @@ class _WeatherAlertBannerState extends ConsumerState<WeatherAlertBanner>
                         reason: 'Operator snoozed the weather banner',
                       );
                 },
-                onTap: () => context.go('/weather'),
+                onTap: () => context.go(AppRoute.weather.path),
               ),
             ),
           ),

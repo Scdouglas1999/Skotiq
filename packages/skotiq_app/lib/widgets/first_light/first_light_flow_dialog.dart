@@ -16,6 +16,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 // package, so a relative import is the correct reuse seam.
 import '../../screens/imaging/widgets/image_display.dart';
 import '../troubleshooter/connection_troubleshooter_dialog.dart';
+import '../../router/app_routes.dart';
 
 /// The "wow-moment" first-light flow dialog.
 ///
@@ -92,7 +93,7 @@ class FirstLightFlowDialog extends ConsumerWidget {
             icon: LucideIcons.image,
             onPressed: () {
               Navigator.of(context).pop();
-              context.go('/imaging');
+              context.go(AppRoute.imaging.path);
             },
           ),
         ];
@@ -652,7 +653,7 @@ class _AnnotationSummary extends ConsumerWidget {
             icon: LucideIcons.settings,
             onPressed: () {
               Navigator.of(context).pop();
-              context.go('/settings/plate-solving');
+              context.go(AppRoute.plateSolvingSettings.path);
             },
           ),
         ],

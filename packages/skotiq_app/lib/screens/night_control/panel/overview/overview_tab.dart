@@ -31,6 +31,7 @@ import '../panel_widgets.dart';
 import 'next_step_section.dart';
 import 'overview_sections.dart';
 import 'run_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Whether [phase] comes before tonight's run, when "Before you start"
 /// replaces the frame and session blocks.
@@ -129,7 +130,7 @@ class NightOverviewTab extends ConsumerWidget {
         return;
       }
       // No profile to connect: Equipment is where one is made.
-      GoRouter.maybeOf(context)?.go('/equipment');
+      GoRouter.maybeOf(context)?.go(AppRoute.equipment.path);
       return;
     }
     final route = item.route;

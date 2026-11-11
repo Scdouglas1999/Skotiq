@@ -9,6 +9,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics/widgets/science_status_banner.dart';
 import '../imaging_science_state.dart';
+import '../../../router/app_routes.dart';
+import '../../analytics/analytics_route.dart';
 
 part 'science_hud_parts/_offers_and_chips.dart';
 
@@ -141,7 +143,8 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           InkWell(
-            onTap: () => context.go('/science'),
+            onTap: () =>
+                context.go(AppRoutes.analytics(tab: AnalyticsTab.science)),
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),

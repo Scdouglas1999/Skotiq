@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// The stacks Stack & Share has saved, newest first; a row opens the result.
 class RecentStacksPanel extends ConsumerStatefulWidget {
@@ -195,7 +196,7 @@ class _RecentStackRowState extends State<_RecentStackRow> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => context.push('/stack-result?id=$id'),
+          onTap: () => context.push(AppRoutes.stackResult(id)),
           child: ExcludeSemantics(child: row),
         ),
       ),

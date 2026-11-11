@@ -5,6 +5,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/widgets/skotiq_bottom_navigation.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Pump the bar at [route] and return the labels of the selected slots.
 ///
@@ -185,7 +186,7 @@ void main() {
   });
 
   testWidgets('the More sheet opens Session replay', (tester) async {
-    final selected = <String>[];
+    final selected = <AppRoute>[];
     await tester.pumpWidget(
       MaterialApp(
         theme: SkotiqTheme.dark,
@@ -207,7 +208,7 @@ void main() {
     await tester.tap(find.text('Session replay'));
     await tester.pumpAndSettle();
 
-    expect(selected, ['/session-replay']);
+    expect(selected, [AppRoute.sessionReplay]);
     expect(find.text('Session replay'), findsNothing);
     expect(await _selectedLabels(tester, '/session-replay/12'), ['More']);
   });

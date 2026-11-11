@@ -21,6 +21,7 @@ import 'package:skotiq_app/screens/settings/widgets/about_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/help_tutorials_settings.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Rebuilds [SettingsScreen] in place with whatever section it is given,
 /// exactly as the `/settings` route's pageBuilder does on a new query string.
@@ -152,10 +153,10 @@ void main() {
   // router's navigation announcements instead, so the link still lands.
   group('with the router', () {
     GoRouter buildRouter() => GoRouter(
-          initialLocation: settingsLocation(SettingsSectionId.help),
+          initialLocation: AppRoutes.settings(SettingsSectionId.help),
           routes: [
             GoRoute(
-              path: settingsPath,
+              path: AppRoute.settings.path,
               builder: (context, state) => SettingsScreen(
                 initialSection: SettingsSectionId.resolve(
                   state.uri.queryParameters['section'],

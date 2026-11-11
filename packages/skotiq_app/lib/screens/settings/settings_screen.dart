@@ -15,6 +15,7 @@ import 'settings_search_index.g.dart';
 import 'widgets/host_settings_notice.dart';
 import 'widgets/settings_scope_notice.dart';
 import 'widgets/settings_widgets.dart';
+import '../../router/app_routes.dart';
 
 export 'settings_sections.dart';
 
@@ -78,7 +79,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// to that instead: any link, from anywhere, lands.
   void _onNavigation() {
     final uri = _routes?.value.uri;
-    if (!mounted || uri == null || uri.path != settingsPath) return;
+    if (!mounted || uri == null || uri.path != AppRoute.settings.path) return;
     _showSection(SettingsSectionId.resolve(uri.queryParameters['section']));
   }
 

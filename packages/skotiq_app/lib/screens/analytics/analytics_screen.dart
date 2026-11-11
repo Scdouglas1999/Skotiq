@@ -27,6 +27,7 @@ import '../accessible_dropdown.dart';
 import '../diagnostics/diagnostics_screen.dart';
 import '../science/science_screen.dart';
 import '../sequencer/widgets/session_report_dialog.dart';
+import 'analytics_route.dart';
 import 'quick_capture_selection.dart';
 import 'session_elapsed.dart';
 import 'widgets/analytics_empty_state.dart';
@@ -34,6 +35,9 @@ import 'widgets/science_analytics_tab.dart' show latestScienceSessionProvider;
 import 'widgets/session_chart.dart';
 import 'widgets/image_thumbnail_strip.dart';
 import 'widgets/project_tracking_panel.dart';
+import '../../router/app_routes.dart';
+export 'analytics_route.dart' show AnalyticsTab, ScienceTab;
+
 part 'analytics_screen/session_tab.dart';
 part 'analytics_screen/history_tab.dart';
 part 'analytics_screen/history_cards.dart';
@@ -41,61 +45,17 @@ part 'analytics_screen/session_detail_dialog.dart';
 part 'analytics_screen/equipment_stats.dart';
 part 'analytics_screen/skeletons.dart';
 
-/// Identifies an Analytics sub-tab for deep-linking via `?tab=` query param.
-/// Order here matches the rendered tab order — Diagnostics is right-most.
-enum AnalyticsTab {
-  session,
-  history,
-  projects,
-  equipment,
-  science,
-  diagnostics,
-}
-
-/// Maps the router `?tab=` query value to an [AnalyticsTab]. Returns null
-/// for an unrecognised value so the caller can decide on a fallback. Public
-/// so router code (and tests) can share the same canonical mapping.
-AnalyticsTab? analyticsTabFromQuery(String? value) {
-  if (value == null) return null;
-  switch (value.toLowerCase()) {
-    case 'session':
-      return AnalyticsTab.session;
-    case 'history':
-      return AnalyticsTab.history;
-    case 'projects':
-      return AnalyticsTab.projects;
-    case 'equipment':
-    case 'equipment-stats':
-    case 'equipmentstats':
-      return AnalyticsTab.equipment;
-    case 'science':
-      return AnalyticsTab.science;
-    case 'diagnostics':
-      return AnalyticsTab.diagnostics;
-  }
-  return null;
-}
-
 class AnalyticsScreen extends ConsumerStatefulWidget {
-  /// Optional initial tab selection. When null, falls back to
-  /// [initialTabQuery] parsing, then to [AnalyticsTab.session].
+  /// The tab a link asked for; null opens Session.
   final AnalyticsTab? initialTab;
 
-  /// Raw `?tab=` value parsed from the router. Lets deep-links select a
-  /// specific Analytics tab (notably `?tab=diagnostics` from the legacy
-  /// `/diagnostics` redirect).
-  final String? initialTabQuery;
-
-  /// Raw `?view=` value parsed from the router. Selects the inner science
-  /// sub-view (workspace / first light / observing alerts) and, when present,
-  /// forces the Science tab open — fed by the `/science` and `/transients`
-  /// redirects.
-  final String? initialScienceView;
+  /// The Science view a link asked for. When set, the Science tab opens on it
+  /// whatever [initialTab] says.
+  final ScienceTab? initialScienceView;
 
   const AnalyticsScreen({
     super.key,
     this.initialTab,
-    this.initialTabQuery,
     this.initialScienceView,
   });
 
@@ -109,15 +69,26 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    // A `?view=` deep-link (from /science or /transients) always lands on the
-    // Science tab; otherwise honour `initialTab` / `?tab=`, then fall back to
-    // Session.
-    final resolved = widget.initialScienceView != null
-        ? AnalyticsTab.science
-        : widget.initialTab ??
-            analyticsTabFromQuery(widget.initialTabQuery) ??
-            AnalyticsTab.session;
-    _currentSubTab = resolved.index;
+    _currentSubTab = (_requestedTab ?? AnalyticsTab.session).index;
+  }
+
+  AnalyticsTab? get _requestedTab => widget.initialScienceView != null
+      ? AnalyticsTab.science
+      : widget.initialTab;
+
+  @override
+  void didUpdateWidget(AnalyticsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // go_router keeps this State when only the query changes, so a link that
+    // names another tab while Analytics is showing (the transient alerts
+    // menu's "View all alerts") has to be applied here or it does nothing. A
+    // link that names no tab keeps the one the operator is on.
+    final requested = _requestedTab;
+    if (requested != null &&
+        (widget.initialTab != oldWidget.initialTab ||
+            widget.initialScienceView != oldWidget.initialScienceView)) {
+      setState(() => _currentSubTab = requested.index);
+    }
   }
 
   /// The Analytics sub-tabs, in [AnalyticsTab] enum order. Each carries an icon
@@ -192,7 +163,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   const _ProjectsTab(),
                   const _EquipmentStatsTab(),
                   ScienceWorkspaceView(
-                    initialViewQuery: widget.initialScienceView,
+                    initialView: widget.initialScienceView,
                     showHeader: false,
                   ),
                   const DiagnosticsTabContent(),

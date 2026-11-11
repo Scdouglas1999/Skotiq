@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Panel that displays optical configuration from the active equipment profile.
 /// Shows telescope specs, camera specs, FOV, and image scale.
@@ -120,7 +121,7 @@ class OpticalConfigPanel extends ConsumerWidget {
           icon: SkotiqIcons.settings2,
           variant: ButtonVariant.secondary,
           size: ButtonSize.small,
-          onPressed: () => context.go('/equipment'),
+          onPressed: () => context.go(AppRoute.equipment.path),
         ),
       ],
     );

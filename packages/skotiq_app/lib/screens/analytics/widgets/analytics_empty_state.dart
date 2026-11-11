@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// The one empty state every Analytics tab uses.
 ///
@@ -61,7 +62,8 @@ class AnalyticsEmptyState extends StatelessWidget {
         label: actionLabel,
         variant: ButtonVariant.secondary,
         size: ButtonSize.small,
-        onPressed: onAction ?? () => GoRouter.maybeOf(context)?.go('/imaging'),
+        onPressed: onAction ??
+            () => GoRouter.maybeOf(context)?.go(AppRoute.imaging.path),
       ),
     );
 

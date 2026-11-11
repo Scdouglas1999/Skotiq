@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
 import '../../../widgets/first_light/first_light_flow_dialog.dart';
 import 'settings_widgets.dart';
+import '../../../router/app_routes.dart';
 
 class HelpTutorialsSettings extends ConsumerWidget {
   final bool isMobile;
@@ -65,7 +66,9 @@ class HelpTutorialsSettings extends ConsumerWidget {
                 // behavior, not what they asked for here.)
                 onPressed: () async {
                   await ref.read(firstNightWizardProvider.notifier).restart();
-                  if (context.mounted) context.go('/tutorial/first-night');
+                  if (context.mounted) {
+                    context.go(AppRoute.firstNightWizard.path);
+                  }
                 },
               ),
             ),
@@ -113,7 +116,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
                 onPressed: () async {
                   await ref.read(onboardingDraftProvider.notifier).reset();
                   if (!context.mounted) return;
-                  context.go('/onboarding');
+                  context.go(AppRoute.onboarding.path);
                 },
               ),
             ),
@@ -155,7 +158,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
                 icon: LucideIcons.play,
-                onPressed: () => context.push('/diagnostics/dump'),
+                onPressed: () => context.push(AppRoute.diagnosticsDump.path),
               ),
               isLast: true,
             ),

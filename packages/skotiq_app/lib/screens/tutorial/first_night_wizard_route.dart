@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../night_control/night_control_screen.dart';
 import 'first_night_wizard.dart';
+import '../../router/app_routes.dart';
 
 /// Route widget for `/tutorial/first-night`.
 ///
@@ -45,7 +46,7 @@ class _FirstNightWizardRouteState extends ConsumerState<FirstNightWizardRoute> {
     _hasOpened = true;
     await FirstNightWizard.show(context);
     if (!mounted) return;
-    context.go('/dashboard');
+    context.go(AppRoute.tonight.path);
   }
 
   @override

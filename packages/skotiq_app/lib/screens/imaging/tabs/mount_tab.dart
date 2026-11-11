@@ -12,6 +12,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';
 import '../widgets/meridian_flip_countdown_banner.dart' show pierSideLabel;
 import '../widgets/panel_widgets.dart';
+import '../../../router/app_routes.dart';
 
 /// The trailing half of [SlewDropdownButton]: a 4px gap and the popup that
 /// opens the slew alternatives, which is an `IconButton` at Material's minimum
@@ -342,7 +343,7 @@ class _MountTabState extends ConsumerState<MountTab> {
                     icon: SkotiqIcons.compass,
                     size: ButtonSize.small,
                     variant: ButtonVariant.secondary,
-                    onPressed: () => context.push('/polar-alignment'),
+                    onPressed: () => context.push(AppRoute.polarAlignment.path),
                   ),
                 ),
               ],

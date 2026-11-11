@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../router/app_router.dart';
+import '../router/app_routes.dart';
 import '../startup/startup_surface_queue.dart';
 import '../utils/startup_ui_context.dart';
 
@@ -91,8 +92,9 @@ class _EquipmentOnboardingLauncherState
         final currentLocation =
             router.routerDelegate.currentConfiguration.uri.toString();
         if (_isCurrentCheck(authority, generation) &&
-            (currentLocation == '/' || currentLocation == '/dashboard')) {
-          router.go('/onboarding');
+            (currentLocation == '/' ||
+                currentLocation == AppRoute.tonight.path)) {
+          router.go(AppRoute.onboarding.path);
         }
       });
     } catch (error, stackTrace) {

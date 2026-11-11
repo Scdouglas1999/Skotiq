@@ -454,7 +454,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     }
     if (!mounted) return;
     Navigator.of(context).pop();
-    GoRouter.maybeOf(context)?.go('/imaging');
+    GoRouter.maybeOf(context)?.go(AppRoute.imaging.path);
     context.showSuccessSnackBar(
       'Smart Night plan loaded — '
       '${plan.plannedTargets.length} '

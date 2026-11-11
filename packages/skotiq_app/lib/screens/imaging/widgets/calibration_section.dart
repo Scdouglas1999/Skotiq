@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
 import 'panel_widgets.dart';
+import '../../../router/app_routes.dart';
 
 part 'calibration_section_parts/_status_blocks.dart';
 part 'calibration_section_parts/_build_controls.dart';
@@ -113,7 +114,7 @@ class CalibrationSection extends ConsumerWidget {
                 label: 'Go to Equipment',
                 icon: SkotiqIcons.connected,
                 size: ButtonSize.small,
-                onPressed: () => context.go('/equipment'),
+                onPressed: () => context.go(AppRoute.equipment.path),
               ),
             ),
           ],
@@ -162,7 +163,7 @@ class CalibrationSection extends ConsumerWidget {
               icon: LucideIcons.sun,
               variant: ButtonVariant.outline,
               size: ButtonSize.small,
-              onPressed: () => context.push('/flat-wizard'),
+              onPressed: () => context.push(AppRoute.flatWizard.path),
             ),
           ),
         ],
