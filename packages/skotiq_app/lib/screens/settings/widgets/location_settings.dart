@@ -78,9 +78,6 @@ class LocationSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
-  final _latController = TextEditingController();
-  final _lonController = TextEditingController();
-  final _elevController = TextEditingController();
   final _placeSearchController = TextEditingController();
   final Map<String, TextEditingController> _horizonControllers = {};
   bool _isImportingHorizon = false;
@@ -118,9 +115,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
   @override
   void dispose() {
-    _latController.dispose();
-    _lonController.dispose();
-    _elevController.dispose();
     _placeSearchController.dispose();
     _googleKeyController.dispose();
     _googleKeyFocus.dispose();
@@ -293,7 +287,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   subtitle: 'Decimal degrees or DMS (44 3 29 N). Positive is '
                       'North, negative is South',
                   trailing: SettingsNumberInput(
-                    controller: _latController,
                     authoritativeValue: settings.latitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
@@ -322,7 +315,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   subtitle: 'Decimal degrees or DMS (121 18 55 W). Positive is '
                       'East, negative is West',
                   trailing: SettingsNumberInput(
-                    controller: _lonController,
                     authoritativeValue: settings.longitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
@@ -350,7 +342,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Elevation',
                   subtitle: 'Height above sea level',
                   trailing: SettingsNumberInput(
-                    controller: _elevController,
                     authoritativeValue: settings.elevation,
                     authorityKey: authority,
                     suffix: 'm',

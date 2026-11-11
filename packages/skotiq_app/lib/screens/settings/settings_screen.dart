@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -15,63 +16,15 @@ import 'widgets/host_settings_notice.dart';
 import 'widgets/settings_scope_notice.dart';
 import 'widgets/settings_widgets.dart';
 
-// Re-export the derived deep-link index map so existing importers keep
-// resolving `package:.../settings_screen.dart` → kSettingsSectionIndex. The map
-// itself is now derived from the declarative catalog (see settings_catalog.dart)
-// and is a backward-compatibility shim only; selection is driven by KEY.
-export 'settings_catalog.dart'
-    show kSettingsSectionIndex, kMergedSectionAliases;
+export 'settings_sections.dart';
 
 part 'settings_screen_parts/_search_index.dart';
 part 'settings_screen_parts/_desktop_layout.dart';
 part 'settings_screen_parts/_mobile_layout.dart';
 
-/// A deliberate request to show one Settings section, raised by chrome that
-/// deep-links into Settings.
-///
-/// The router cannot express this on its own. `/settings` is a keyless page, so
-/// navigating to `/settings?section=equipment-profiles` while Settings is
-/// already open UPDATES the existing element with an identical
-/// [SettingsScreen.initialSection] — indistinguishable, from inside
-/// [State.didUpdateWidget], from an ordinary parent rebuild. Comparing the key
-/// therefore made the title bar's profile icon dead the moment the operator
-/// picked any other section by hand: they clicked it, the pane stayed on
-/// Connection, and nothing said why.
-///
-/// The serial makes the *event* observable rather than the value: chrome bumps
-/// it on every click, a rebuild never does.
-abstract final class SettingsSectionRequest {
-  SettingsSectionRequest._();
-
-  /// Increments once per raised request. Listen to act on repeats.
-  static final ValueNotifier<int> serial = ValueNotifier<int>(0);
-
-  static String? _section;
-
-  /// The section key named by the most recent request.
-  static String? get section => _section;
-
-  /// Raise a request for [sectionKey]. Call immediately before the `context.go`
-  /// that carries the same key, so a cold open and a repeat click agree.
-  static void raise(String sectionKey) {
-    _section = sectionKey;
-    serial.value++;
-  }
-
-  /// Test hook: forget any pending request.
-  @visibleForTesting
-  static void reset() {
-    _section = null;
-    serial.value = 0;
-  }
-}
-
 class SettingsScreen extends ConsumerStatefulWidget {
-  /// Optional stable section key (e.g. `'location'`) to open directly. Unknown
-  /// or null keys fall back to the first section; merged-away keys
-  /// (`auto-save`, `predictive-af`, `notification-routing`) resolve to their
-  /// combined section. See [kSettingsSectionIndex] / [kMergedSectionAliases].
-  final String? initialSection;
+  /// The section to open on. Null opens the first section.
+  final SettingsSectionId? initialSection;
 
   const SettingsScreen({super.key, this.initialSection});
 
@@ -80,8 +33,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  /// The currently selected section's stable key.
-  late String _selectedKey;
+  late SettingsSectionId _selected;
+
+  GoRouteInformationProvider? _routes;
 
   /// On mobile, false means show the grouped list; true shows the detail pane.
   bool _mobileShowingDetail = false;
@@ -97,61 +51,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Resolve the initial section by KEY (locale-independent; no BuildContext
-    // is required, so this is safe in initState). Merged-away keys resolve to
-    // their combined section; unknown/null keys fall back to the first section.
-    final resolvedKey = resolveSectionKey(widget.initialSection);
-    if (resolvedKey != null) {
-      _selectedKey = resolvedKey;
-      _mobileShowingDetail = true;
-    } else {
-      _selectedKey = kFirstSectionKey;
-    }
+    final initial = widget.initialSection;
+    _selected = initial ?? SettingsSectionId.first;
+    // A link that names a section wants the section, so on a phone it opens
+    // the detail pane rather than the list.
+    _mobileShowingDetail = initial != null;
     ShellBackDispatcher.register(_handleSystemBack);
-    SettingsSectionRequest.serial.addListener(_onSectionRequested);
   }
 
-  /// Honour a repeat deep link raised while this screen is already open.
-  void _onSectionRequested() {
-    if (!mounted) return;
-    _showSection(SettingsSectionRequest.section);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final routes = GoRouter.maybeOf(context)?.routeInformationProvider;
+    if (identical(routes, _routes)) return;
+    _routes?.removeListener(_onNavigation);
+    _routes = routes?..addListener(_onNavigation);
   }
 
-  /// Move the screen to [sectionKey] if it names a section we are not on.
-  void _showSection(String? sectionKey) {
-    final resolvedKey = resolveSectionKey(sectionKey);
-    if (resolvedKey == null || resolvedKey == _selectedKey) return;
+  /// Follows links into Settings while this screen is already open.
+  ///
+  /// `/settings` is one keyless page. A link to a section the route already
+  /// names reaches this widget as a rebuild with unchanged arguments, so
+  /// reading the section from the widget alone left most links dead once the
+  /// operator had picked another section by hand. The router announces every
+  /// navigation, including a repeat of the current location, so this listens
+  /// to that instead: any link, from anywhere, lands.
+  void _onNavigation() {
+    final uri = _routes?.value.uri;
+    if (!mounted || uri == null || uri.path != settingsPath) return;
+    _showSection(SettingsSectionId.resolve(uri.queryParameters['section']));
+  }
+
+  @override
+  void didUpdateWidget(SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSection != oldWidget.initialSection) {
+      _showSection(widget.initialSection);
+    }
+  }
+
+  void _showSection(SettingsSectionId? section) {
+    if (section == null) return;
+    if (section == _selected && _mobileShowingDetail) return;
     _highlightTimer?.cancel();
     setState(() {
-      _selectedKey = resolvedKey;
+      _selected = section;
       _highlightRow = null;
       // The link named a destination, so on a phone the detail pane is the
-      // destination — not the grouped list the operator would otherwise land
-      // back on.
+      // destination, not the list.
       _mobileShowingDetail = true;
     });
   }
 
-  /// A second `/settings?section=<key>` navigation while this screen is open.
-  ///
-  /// The `/settings` page is keyless, so the router UPDATES this element with a
-  /// new [SettingsScreen.initialSection] instead of pushing a second screen —
-  /// and reading the key only in [initState] meant every in-Settings link back
-  /// into Settings (the title bar's profile icon, the plate-solver and weather
-  /// banners, the tour's jump targets) silently did nothing once the screen was
-  /// up. Only a CHANGED key is a navigation request: a plain parent rebuild
-  /// carrying the same deep link must leave the operator wherever they walked
-  /// to, and an unknown key names no section, so it moves nothing.
-  @override
-  void didUpdateWidget(SettingsScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.initialSection == oldWidget.initialSection) return;
-    _showSection(widget.initialSection);
-  }
-
   @override
   void dispose() {
-    SettingsSectionRequest.serial.removeListener(_onSectionRequested);
+    _routes?.removeListener(_onNavigation);
     ShellBackDispatcher.unregister(_handleSystemBack);
     _highlightTimer?.cancel();
     _searchController.dispose();
@@ -179,16 +133,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   SettingsSectionDef _selectedSection(List<SettingsGroupDef> groups) {
     for (final group in groups) {
       for (final section in group.sections) {
-        if (section.key == _selectedKey) return section;
+        if (section.id == _selected) return section;
       }
     }
     return groups.first.sections.first;
   }
 
-  void _selectSection(String key, {required bool isMobile, String? rowTitle}) {
+  void _selectSection(
+    SettingsSectionId section, {
+    required bool isMobile,
+    String? rowTitle,
+  }) {
     _highlightTimer?.cancel();
     setState(() {
-      _selectedKey = key;
+      _selected = section;
       _highlightRow = rowTitle;
       if (isMobile) _mobileShowingDetail = true;
     });
@@ -217,7 +175,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final sections = <SettingsSectionDef>[];
     for (final group in groups) {
       for (final section in group.sections) {
-        if (tokens.every((token) => sectionMatchesToken(section, token))) {
+        if (tokens.every(section.matches)) {
           sections.add(section);
         }
       }
@@ -354,11 +312,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const HostSettingsNotice(),
-                SettingsScopeNotice(sectionKey: section.key),
+                SettingsScopeNotice(section: section.id),
                 Expanded(
-                  child: SettingsRowHighlight(
-                    rowTitle: _highlightRow,
-                    child: section.build(true),
+                  child: SettingsFormScope(
+                    isMobile: true,
+                    authority: ref.watch(backendProvider),
+                    child: SettingsRowHighlight(
+                      rowTitle: _highlightRow,
+                      child: Builder(builder: section.build),
+                    ),
                   ),
                 ),
               ],
@@ -390,7 +352,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: LucideIcons.download,
               variant: ButtonVariant.ghost,
               size: ButtonSize.small,
-              onPressed: () => _selectSection('backup', isMobile: false),
+              onPressed: () =>
+                  _selectSection(SettingsSectionId.backup, isMobile: false),
             ),
           ],
         ),
@@ -400,7 +363,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               _DesktopNav(
                 groups: groups,
-                selectedKey: _selectedKey,
+                selected: _selected,
                 colors: colors,
                 searchController: _searchController,
                 searching: searching,
@@ -421,13 +384,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const HostSettingsNotice(),
-                    SettingsScopeNotice(
-                      sectionKey: _selectedSection(groups).key,
-                    ),
+                    SettingsScopeNotice(section: _selected),
                     Expanded(
-                      child: SettingsRowHighlight(
-                        rowTitle: _highlightRow,
-                        child: _selectedSection(groups).build(false),
+                      child: SettingsFormScope(
+                        isMobile: false,
+                        authority: ref.watch(backendProvider),
+                        child: SettingsRowHighlight(
+                          rowTitle: _highlightRow,
+                          child:
+                              Builder(builder: _selectedSection(groups).build),
+                        ),
                       ),
                     ),
                   ],

@@ -20,9 +20,11 @@ import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
 import 'night_panel_parts.dart';
+import '../../../settings/settings_sections.dart';
 
 /// Where Limits… goes: the sequencer settings, which hold the meridian flip.
-const String kNightMountLimitsRoute = '/settings?section=sequencer';
+final String kNightMountLimitsRoute =
+    settingsLocation(SettingsSectionId.sequencer);
 
 class NightMountActionsSection extends ConsumerStatefulWidget {
   const NightMountActionsSection({super.key});

@@ -22,33 +22,6 @@ class WeatherSafetySettings extends ConsumerStatefulWidget {
 }
 
 class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
-  final _humidityController = TextEditingController();
-  final _windController = TextEditingController();
-  final _cloudController = TextEditingController();
-  final _distanceController = TextEditingController();
-  final _leadTimeController = TextEditingController();
-  WeatherSettings? _controllerSettings;
-
-  @override
-  void dispose() {
-    _humidityController.dispose();
-    _windController.dispose();
-    _cloudController.dispose();
-    _distanceController.dispose();
-    _leadTimeController.dispose();
-    super.dispose();
-  }
-
-  void _syncControllers(WeatherSettings settings) {
-    if (_controllerSettings == settings) return;
-    _humidityController.text = settings.maxHumidityPercent.toStringAsFixed(0);
-    _windController.text = settings.maxWindSpeedKph.toStringAsFixed(0);
-    _cloudController.text = settings.maxCloudCoverPercent.toStringAsFixed(0);
-    _distanceController.text = settings.triggerDistanceKm.toStringAsFixed(0);
-    _leadTimeController.text = settings.leadTimeMinutes.toString();
-    _controllerSettings = settings;
-  }
-
   Future<void> _updateSettings({
     double? triggerDistanceKm,
     int? leadTimeMinutes,
@@ -123,7 +96,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
         ],
       );
     }
-    _syncControllers(settings);
     final policy = ref.watch(weatherDecisionPolicyProvider).valueOrNull;
 
     return SettingsPage(
@@ -226,7 +198,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               title: l10n.text('weatherSafetyMaxHumidity'),
               subtitle: l10n.text('weatherSafetyMaxHumidityDesc'),
               trailing: SettingsNumberInput(
-                controller: _humidityController,
+                authoritativeValue: settings.maxHumidityPercent,
                 suffix: '%',
                 min: 0,
                 max: 100,
@@ -241,7 +213,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               title: l10n.text('weatherSafetyMaxWind'),
               subtitle: l10n.text('weatherSafetyMaxWindDesc'),
               trailing: SettingsNumberInput(
-                controller: _windController,
+                authoritativeValue: settings.maxWindSpeedKph,
                 suffix: 'km/h',
                 min: 0,
                 max: 150,
@@ -255,7 +227,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               title: l10n.text('weatherSafetyMaxCloud'),
               subtitle: l10n.text('weatherSafetyMaxCloudDesc'),
               trailing: SettingsNumberInput(
-                controller: _cloudController,
+                authoritativeValue: settings.maxCloudCoverPercent,
                 suffix: '%',
                 min: 0,
                 max: 100,
@@ -277,7 +249,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               title: l10n.text('weatherSafetyAlertDistance'),
               subtitle: l10n.text('weatherSafetyAlertDistanceDesc'),
               trailing: SettingsNumberInput(
-                controller: _distanceController,
+                authoritativeValue: settings.triggerDistanceKm,
                 suffix: 'km',
                 min: 1,
                 max: 500,
@@ -291,7 +263,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               title: l10n.text('weatherSafetyLeadTime'),
               subtitle: l10n.text('weatherSafetyLeadTimeDesc'),
               trailing: SettingsNumberInput(
-                controller: _leadTimeController,
+                authoritativeValue: settings.leadTimeMinutes.toDouble(),
                 suffix: 'min',
                 min: 1,
                 max: 180,
@@ -387,15 +359,13 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
           icon: LucideIcons.alertTriangle,
           title: 'Safety fail mode',
           subtitle: failMode.description,
-          trailing: settingsTrailingDropdown(
-            context: context,
-            value: failMode.label,
-            items: SafetyFailModeLabels.labels,
+          trailing: settingsTrailingChoice<SafetyFailMode>(
+            value: failMode,
+            values: SafetyFailModeLabels.choices,
+            labelOf: (mode) => mode.label,
             designWidth: 180,
-            isMobile: isMobile,
-            onChanged: (value) => ref
-                .read(appSettingsProvider.notifier)
-                .setSafetyFailMode(SafetyFailModeLabels.fromLabel(value)),
+            onChanged: (mode) =>
+                ref.read(appSettingsProvider.notifier).setSafetyFailMode(mode),
           ),
           isMobile: isMobile,
         ),

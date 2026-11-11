@@ -7,31 +7,35 @@ class SettingsPage extends StatelessWidget {
 
   final List<Widget> children;
 
-  final bool isMobile;
+  /// Overrides the enclosing [SettingsFormScope].
+  final bool? isMobile;
 
   /// If true, don't show title/description (used when mobile header already shows title)
 
   final bool hideHeader;
 
-  /// When false, the page renders without its own scroll view — used when it's
-  /// embedded inside another scrolling container (e.g. a merged section) so two
-  /// same-axis viewports don't fight and split the view into independent panes.
-
-  final bool scrollable;
+  /// When false, the page renders without its own scroll view: it sits inside
+  /// another scrolling container (a merged section), and two same-axis
+  /// viewports would split the view into independent panes. Defaults to the
+  /// enclosing [SettingsFormScope]'s `embedded` flag.
+  final bool? scrollable;
 
   const SettingsPage({
     super.key,
     required this.title,
     required this.description,
     required this.children,
-    this.isMobile = false,
+    this.isMobile,
     this.hideHeader = false,
-    this.scrollable = true,
+    this.scrollable,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final isMobile = this.isMobile ?? SettingsFormScope.isMobileOf(context);
+    final scrollable =
+        this.scrollable ?? !SettingsFormScope.embeddedOf(context);
 
     final padding = isMobile ? SkotiqTokens.paddingLg : settingsPagePadding;
 
@@ -107,23 +111,26 @@ const EdgeInsets settingsPagePadding = EdgeInsets.fromLTRB(
 const double settingsContentMaxWidth = 880;
 
 class SettingsLoadingState extends StatelessWidget {
-  final bool isMobile;
+  final bool? isMobile;
 
   final String message;
 
-  /// See [SettingsPage.scrollable] — false when embedded in another scroll view.
-  final bool scrollable;
+  /// See [SettingsPage.scrollable].
+  final bool? scrollable;
 
   const SettingsLoadingState({
     super.key,
-    this.isMobile = false,
+    this.isMobile,
     this.message = 'Loading settings...',
-    this.scrollable = true,
+    this.scrollable,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final isMobile = this.isMobile ?? SettingsFormScope.isMobileOf(context);
+    final scrollable =
+        this.scrollable ?? !SettingsFormScope.embeddedOf(context);
 
     final padding = isMobile ? SkotiqTokens.paddingLg : settingsPagePadding;
 
@@ -193,7 +200,9 @@ class SettingsLoadingState extends StatelessWidget {
 }
 
 class SettingsErrorState extends StatelessWidget {
-  final bool isMobile;
+  /// Unused: the error state is the same on every layout. Accepted so
+  /// existing call sites keep compiling.
+  final bool? isMobile;
 
   final Object error;
 
@@ -202,7 +211,7 @@ class SettingsErrorState extends StatelessWidget {
   const SettingsErrorState({
     super.key,
     required this.error,
-    this.isMobile = false,
+    this.isMobile,
     this.onRetry,
   });
 

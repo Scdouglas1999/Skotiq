@@ -7,6 +7,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/focuser_backlash/effective_backlash_readout.dart';
 import '../utils/meridian_flip_pointer.dart';
+import '../../settings/settings_sections.dart';
 
 class EquipmentSettingsTab extends ConsumerWidget {
   const EquipmentSettingsTab({super.key});
@@ -145,7 +146,7 @@ class _MountSettingsCard extends StatelessWidget {
               onPressed: () {
                 final router = GoRouter.of(context);
                 Navigator.of(context).maybePop();
-                router.go('/settings?section=sequencer');
+                router.goToSettings(SettingsSectionId.sequencer);
               },
             ),
           ],

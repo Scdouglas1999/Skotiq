@@ -15,7 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/device_format_utils.dart';
 import '../../../widgets/operation_status_bar.dart';
-import '../../settings/settings_screen.dart' show SettingsSectionRequest;
+import '../../settings/settings_sections.dart';
 
 /// What the shell actually knows about the configured capture directory.
 ///
@@ -646,10 +646,6 @@ class _RigRow extends StatefulWidget {
   final bool mono;
   final bool isMenuItem;
 
-  /// Runs before the row navigates — for the save-path row, which raises the
-  /// section request that moves an already-open Settings detail pane.
-  final VoidCallback? onNavigate;
-
   const _RigRow({
     required this.icon,
     required this.dotTone,
@@ -663,7 +659,6 @@ class _RigRow extends StatefulWidget {
     this.trailingChild,
     this.mono = false,
     this.isMenuItem = false,
-    this.onNavigate,
   });
 
   @override
@@ -677,7 +672,6 @@ class _RigRowState extends State<_RigRow> {
     final route = widget.route;
     if (route == null) return;
     try {
-      widget.onNavigate?.call();
       context.go(route);
     } catch (_) {
       // A row that cannot navigate is inert, not broken; the card keeps
@@ -1123,12 +1117,7 @@ class _SavePathRow extends ConsumerWidget {
       semanticLabel: chip.tooltip,
       tooltipMessage: chip.tooltip,
       isExpanded: isExpanded,
-      route: '/settings?section=storage',
-      onNavigate: () {
-        // Raised as an event as well as a route, so a second click while
-        // Settings is already open still moves the detail pane.
-        SettingsSectionRequest.raise('storage');
-      },
+      route: settingsLocation(SettingsSectionId.filesStorage),
     );
   }
 

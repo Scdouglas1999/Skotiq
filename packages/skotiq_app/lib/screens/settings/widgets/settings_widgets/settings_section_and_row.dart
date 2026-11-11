@@ -11,13 +11,15 @@ class SettingsSection extends StatelessWidget {
 
   final List<Widget> children;
 
-  final bool isMobile;
+  /// Unused: a section looks the same on every layout. Accepted so existing
+  /// call sites keep compiling.
+  final bool? isMobile;
 
   const SettingsSection({
     super.key,
     required this.title,
     required this.children,
-    this.isMobile = false,
+    this.isMobile,
   });
 
   @override
@@ -196,10 +198,10 @@ class SettingRow extends StatelessWidget {
   /// wave 4 removes it.
   final bool isLast;
 
-  final bool isMobile;
+  /// Overrides the enclosing [SettingsFormScope].
+  final bool? isMobile;
 
-  /// If true, stack the trailing widget below the title on mobile
-
+  /// Stack the control below the title on the phone layout.
   final bool stackOnMobile;
 
   /// Optional field-level help. When supplied, a [helpAffordance] icon is
@@ -224,7 +226,7 @@ class SettingRow extends StatelessWidget {
     this.subtitle,
     required this.trailing,
     this.isLast = false,
-    this.isMobile = false,
+    this.isMobile,
     this.stackOnMobile = false,
     this.helpId,
     this.controlFlex = 1,
@@ -279,6 +281,7 @@ class SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final isMobile = this.isMobile ?? SettingsFormScope.isMobileOf(context);
 
     final shouldStack = isMobile && stackOnMobile;
 
@@ -288,21 +291,25 @@ class SettingRow extends StatelessWidget {
     // Without this the switch is a correctly-toggled but ANONYMOUS node —
     // assistive tech can report that something is on without being able to say
     // which setting it is. Merging binds each control to the label beside it.
-    return MergeSemantics(
-      child: _HighlightedRow(
-        active: SettingsRowHighlight.targets(
-          context,
-          title: title,
-          subtitle: subtitle,
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
-            vertical: SkotiqTokens.spaceMd,
+    return SettingRowLabel(
+      title: title,
+      child: MergeSemantics(
+        child: _HighlightedRow(
+          active: SettingsRowHighlight.targets(
+            context,
+            title: title,
+            subtitle: subtitle,
           ),
-          child: shouldStack
-              ? _buildStackedLayout(context, colors)
-              : _buildRowLayout(context, colors),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal:
+                  isMobile ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
+              vertical: SkotiqTokens.spaceMd,
+            ),
+            child: shouldStack
+                ? _buildStackedLayout(context, colors)
+                : _buildRowLayout(context, colors),
+          ),
         ),
       ),
     );

@@ -240,8 +240,9 @@ class _PredictiveAfSettingsPageState
             subtitle: 'Below this count, even a high-R² model still forces a '
                 'real AF sweep so the predictor cannot lock onto a tiny '
                 'sample window by coincidence.',
-            trailing: _NumberField(
-              initialValue: config.minSamplesForTrust.toDouble(),
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.minSamplesForTrust.toDouble(),
               min: 3,
               max: 50,
               decimals: 0,
@@ -257,8 +258,9 @@ class _PredictiveAfSettingsPageState
             icon: LucideIcons.checkCircle,
             title: 'High-confidence threshold (R²)',
             subtitle: 'R² ≥ this → apply prediction directly.',
-            trailing: _NumberField(
-              initialValue: config.highConfidenceThreshold,
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.highConfidenceThreshold,
               min: 0.5,
               max: 1.0,
               decimals: 2,
@@ -274,8 +276,9 @@ class _PredictiveAfSettingsPageState
             icon: LucideIcons.alertCircle,
             title: 'Low-confidence threshold (R²)',
             subtitle: 'R² < this → force a real AF sweep.',
-            trailing: _NumberField(
-              initialValue: config.lowConfidenceThreshold,
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.lowConfidenceThreshold,
               min: 0.0,
               max: 0.9,
               decimals: 2,
@@ -292,8 +295,9 @@ class _PredictiveAfSettingsPageState
             title: 'Drift threshold (steps)',
             subtitle: 'How many focuser steps a prediction can be off before '
                 'counting as a "bad" run for drift tracking.',
-            trailing: _NumberField(
-              initialValue: config.driftThresholdSteps.toDouble(),
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.driftThresholdSteps.toDouble(),
               min: 20,
               max: 2000,
               decimals: 0,
@@ -310,8 +314,9 @@ class _PredictiveAfSettingsPageState
             title: 'Bad runs before warning',
             subtitle: 'Consecutive bad predictions required before the app '
                 'surfaces a re-train notification.',
-            trailing: _NumberField(
-              initialValue: config.driftRunsBeforeWarn.toDouble(),
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.driftRunsBeforeWarn.toDouble(),
               min: 1,
               max: 20,
               decimals: 0,
@@ -868,71 +873,4 @@ class _ScatterPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ScatterPainter old) =>
       old.samples != samples || old.model.uuid != model.uuid;
-}
-
-/// Single number field used by the settings page. Avoids requiring callers
-/// to manage a TextEditingController for each row.
-class _NumberField extends StatefulWidget {
-  final double initialValue;
-  final double min;
-  final double max;
-  final int decimals;
-  final FutureOr<void> Function(double) onChanged;
-
-  const _NumberField({
-    required this.initialValue,
-    required this.min,
-    required this.max,
-    required this.decimals,
-    required this.onChanged,
-  });
-
-  @override
-  State<_NumberField> createState() => _NumberFieldState();
-}
-
-class _NumberFieldState extends State<_NumberField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initialValue.toStringAsFixed(widget.decimals),
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant _NumberField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialValue == widget.initialValue &&
-        oldWidget.decimals == widget.decimals) {
-      return;
-    }
-
-    final nextText = widget.initialValue.toStringAsFixed(widget.decimals);
-    if (_controller.text == nextText) return;
-    _controller.value = TextEditingValue(
-      text: nextText,
-      selection: TextSelection.collapsed(offset: nextText.length),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsNumberInput(
-      controller: _controller,
-      suffix: '',
-      min: widget.min,
-      max: widget.max,
-      decimals: widget.decimals,
-      onChanged: widget.onChanged,
-    );
-  }
 }

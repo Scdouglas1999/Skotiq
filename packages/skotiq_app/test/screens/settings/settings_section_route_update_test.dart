@@ -15,6 +15,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_app/screens/settings/widgets/about_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/help_tutorials_settings.dart';
@@ -44,7 +45,7 @@ class _RouteHostState extends State<_RouteHost> {
 
   @override
   Widget build(BuildContext context) =>
-      SettingsScreen(initialSection: _section);
+      SettingsScreen(initialSection: SettingsSectionId.resolve(_section));
 }
 
 /// Drops "overflowed" layout exceptions; re-forwards everything else. Some
@@ -146,68 +147,79 @@ void main() {
   // The same link CLICKED AGAIN after the operator moved by hand.
   //
   // Click the person icon (lands on Equipment Profiles), click "Connection" in
-  // the sidebar, click the person icon again: the route is unchanged, so a key
-  // comparison declines and the pane stays on Connection — but the operator is
-  // not looking at what the link names, so from the outside the icon is dead.
-  testWidgets('a repeat click on the same deep link moves the screen back',
-      (tester) async {
-    _swallowKnownOverflows();
-    SettingsSectionRequest.reset();
-    addTearDown(SettingsSectionRequest.reset);
-    final hostKey = GlobalKey<_RouteHostState>();
+  // the sidebar, click the person icon again: the route is unchanged, so the
+  // screen is rebuilt with the arguments it already has. It follows the
+  // router's navigation announcements instead, so the link still lands.
+  group('with the router', () {
+    GoRouter buildRouter() => GoRouter(
+          initialLocation: settingsLocation(SettingsSectionId.help),
+          routes: [
+            GoRoute(
+              path: settingsPath,
+              builder: (context, state) => SettingsScreen(
+                initialSection: SettingsSectionId.resolve(
+                  state.uri.queryParameters['section'],
+                ),
+              ),
+            ),
+          ],
+        );
 
-    await pumpAppScreen(
-      tester,
-      _RouteHost(key: hostKey, initialSection: 'help'),
-      size: const Size(1280, 800),
-      settle: false,
-    );
-    await tester.pump(const Duration(milliseconds: 16));
+    Future<GoRouter> pumpRouted(WidgetTester tester) async {
+      _swallowKnownOverflows();
+      final router = buildRouter();
+      addTearDown(router.dispose);
+      await pumpAppScreen(
+        tester,
+        Router<Object>.withConfig(config: router),
+        size: const Size(1280, 800),
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.byType(HelpTutorialsSettings), findsOneWidget);
 
-    // The operator walks away from the section the link names.
-    await tester.tap(find.text('About').last);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
-    expect(find.byType(AboutSettings), findsOneWidget);
+      // The operator walks away from the section the link names.
+      await tester.tap(find.text('About').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.byType(AboutSettings), findsOneWidget);
+      return router;
+    }
 
-    // The chrome raises the SAME link again. The route does not change, so
-    // the host is rebuilt unchanged exactly as go_router does.
-    SettingsSectionRequest.raise('help');
-    hostKey.currentState!.rebuildUnchanged();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
+    testWidgets('a repeat of the same link moves the screen back',
+        (tester) async {
+      final router = await pumpRouted(tester);
 
-    expect(find.byType(HelpTutorialsSettings), findsOneWidget,
-        reason: 'clicking a deep link is a request even when the URL is '
-            'identical to the one already loaded');
-  });
+      router.goToSettings(SettingsSectionId.help);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
 
-  testWidgets('a stale request is not replayed by a later rebuild',
-      (tester) async {
-    _swallowKnownOverflows();
-    SettingsSectionRequest.reset();
-    addTearDown(SettingsSectionRequest.reset);
-    final hostKey = GlobalKey<_RouteHostState>();
+      expect(find.byType(HelpTutorialsSettings), findsOneWidget,
+          reason: 'clicking a link is a request even when the URL is '
+              'identical to the one already loaded');
+    });
 
-    SettingsSectionRequest.raise('help');
-    await pumpAppScreen(
-      tester,
-      _RouteHost(key: hostKey, initialSection: 'help'),
-      size: const Size(1280, 800),
-      settle: false,
-    );
-    await tester.pump(const Duration(milliseconds: 16));
+    testWidgets('a plain string route lands the same way', (tester) async {
+      final router = await pumpRouted(tester);
 
-    await tester.tap(find.text('About').last);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
-    expect(find.byType(AboutSettings), findsOneWidget);
+      // Core models and tour data carry routes as strings, old keys included.
+      router.go('/settings?section=help');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.byType(HelpTutorialsSettings), findsOneWidget);
+    });
 
-    // No new click: a rebuild alone must not resurrect the last request.
-    hostKey.currentState!.rebuildUnchanged();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
+    testWidgets('opening Settings without a section stays put',
+        (tester) async {
+      final router = await pumpRouted(tester);
 
-    expect(find.byType(AboutSettings), findsOneWidget);
+      router.goToSettings();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(find.byType(AboutSettings), findsOneWidget,
+          reason: 'the gear icon names no section, so it must not move the '
+              'operator off the one they chose');
+    });
   });
 }

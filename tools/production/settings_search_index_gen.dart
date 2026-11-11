@@ -28,6 +28,8 @@ const _generatedPath =
     'packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart';
 const _catalogPath =
     'packages/skotiq_app/lib/screens/settings/settings_catalog.dart';
+const _sectionIdsPath =
+    'packages/skotiq_app/lib/screens/settings/settings_sections.dart';
 const _translationsPath =
     'packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart';
 const _libRoot = 'packages/skotiq_app/lib';
@@ -100,18 +102,34 @@ String? _findRepoRoot() {
 }
 
 /// `key` -> widget class that renders that section's detail pane.
-Map<String, String> _sectionWidgets(String catalogSource) {
+///
+/// The catalog names each section by its `SettingsSectionId` member; the
+/// member's string key is declared once, in the enum.
+Map<String, String> _sectionWidgets(String catalogSource, String idsSource) {
+  final keyOf = <String, String>{};
+  final enumBody = RegExp(
+    r'enum SettingsSectionId \{(.*?)const SettingsSectionId\(',
+    dotAll: true,
+  ).firstMatch(idsSource)?.group(1);
+  if (enumBody != null) {
+    for (final m in RegExp(
+      r"^\s*([a-zA-Z0-9]+)\(\s*'([^']+)'",
+      multiLine: true,
+    ).allMatches(enumBody)) {
+      keyOf[m.group(1)!] = m.group(2)!;
+    }
+  }
   final result = <String, String>{};
-  // Each SettingsSectionDef literal spans from `SettingsSectionDef(` to the
-  // `build:` line that names its widget, which is always the last field.
+  // Each arm spans from `SettingsSectionId.<member> => SettingsSectionDef(` to
+  // the `build:` line that names its widget, which is always the last field.
   final defs = RegExp(
-    r'SettingsSectionDef\((.*?)build:\s*\(isMobile\)\s*=>\s*(?:const\s+)?([A-Za-z0-9_]+)',
+    r'SettingsSectionId\.([a-zA-Z0-9]+)\s*=>\s*SettingsSectionDef\((.*?)build:\s*\(context\)\s*=>\s*(?:const\s+)?([A-Za-z0-9_]+)',
     dotAll: true,
   );
   for (final m in defs.allMatches(catalogSource)) {
-    final key = RegExp(r"key:\s*'([^']+)'").firstMatch(m.group(1)!);
+    final key = keyOf[m.group(1)!];
     if (key == null) continue;
-    result[key.group(1)!] = m.group(2)!;
+    result[key] = m.group(3)!;
   }
   return result;
 }
@@ -546,7 +564,10 @@ String _generate(String repoRoot) {
   final english = _englishStrings(
     File('$repoRoot/$_translationsPath').readAsStringSync(),
   );
-  final widgets = _sectionWidgets(catalog);
+  final widgets = _sectionWidgets(
+    catalog,
+    File('$repoRoot/$_sectionIdsPath').readAsStringSync(),
+  );
   final roots = widgets.values.toSet();
 
   final missing = <String>[];

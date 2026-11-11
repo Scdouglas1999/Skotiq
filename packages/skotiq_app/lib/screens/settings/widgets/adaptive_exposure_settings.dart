@@ -37,7 +37,6 @@ class AdaptiveExposureSettings extends ConsumerStatefulWidget {
 
 class _AdaptiveExposureSettingsState
     extends ConsumerState<AdaptiveExposureSettings> {
-  final _refMagController = TextEditingController();
   final _minSecsController = TextEditingController();
   final _maxSecsController = TextEditingController();
   String? _globalBoundsError;
@@ -45,7 +44,6 @@ class _AdaptiveExposureSettingsState
 
   @override
   void dispose() {
-    _refMagController.dispose();
     _minSecsController.dispose();
     _maxSecsController.dispose();
     super.dispose();
@@ -145,7 +143,6 @@ class _AdaptiveExposureSettingsState
                         'in mag/arcsec²',
                     trailing: SettingsNumberInput(
                       key: const ValueKey('adaptive-reference-mag'),
-                      controller: _refMagController,
                       authoritativeValue: settings.adaptiveExposureReferenceMag,
                       authorityKey: authority,
                       suffix: 'mag',
@@ -293,6 +290,8 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
               : 'Could not save per-filter exposure bounds: $error';
         });
       }
+      // The message above tells the operator; this puts the field back.
+      throw SettingWriteHandled(error);
     }
   }
 
@@ -413,16 +412,15 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
             child: _OverrideField(
               key: ValueKey('adaptiveExposure.$filter.min'),
               label: 'min s',
-              initial: minMap[filter],
+              value: minMap[filter],
               onChanged: (v) {
                 if (v == null) {
                   minMap.remove(filter);
                 } else {
                   minMap[filter] = v;
                 }
-                unawaited(_commitBounds(minMap, maxMap));
+                return _commitBounds(minMap, maxMap);
               },
-              onInvalid: _showBoundsError,
             ),
           ),
           const SizedBox(width: 8),
@@ -430,16 +428,15 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
             child: _OverrideField(
               key: ValueKey('adaptiveExposure.$filter.max'),
               label: 'max s',
-              initial: maxMap[filter],
+              value: maxMap[filter],
               onChanged: (v) {
                 if (v == null) {
                   maxMap.remove(filter);
                 } else {
                   maxMap[filter] = v;
                 }
-                unawaited(_commitBounds(minMap, maxMap));
+                return _commitBounds(minMap, maxMap);
               },
-              onInvalid: _showBoundsError,
             ),
           ),
         ],
@@ -448,98 +445,56 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
   }
 }
 
-class _OverrideField extends StatefulWidget {
+/// A per-filter exposure bound: empty means "use the global bound".
+class _OverrideField extends StatelessWidget {
   const _OverrideField({
     super.key,
     required this.label,
-    required this.initial,
+    required this.value,
     required this.onChanged,
-    required this.onInvalid,
   });
+
   final String label;
-  final double? initial;
-  final ValueChanged<double?> onChanged;
-  final ValueChanged<String> onInvalid;
+  final double? value;
+  final FutureOr<void> Function(double? value) onChanged;
 
-  @override
-  State<_OverrideField> createState() => _OverrideFieldState();
-}
-
-class _OverrideFieldState extends State<_OverrideField> {
-  late TextEditingController _controller;
-  final _focusNode = FocusNode();
-  late String _lastSubmitted;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initial == null ? '' : widget.initial!.toStringAsFixed(1),
-    );
-    _lastSubmitted = _controller.text;
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    // Persist on blur, not only on Enter, so an override edit survives leaving
-    // the field without submitting.
-    if (!_focusNode.hasFocus) {
-      _submit(_controller.text);
-    }
-  }
-
-  void _submit(String v) {
-    final text = v.trim();
-    if (text == _lastSubmitted) return;
-    _lastSubmitted = text;
-    if (text.isEmpty) {
-      widget.onChanged(null);
-      return;
-    }
-    final parsed = double.tryParse(text);
-    if (parsed == null || !parsed.isFinite || parsed <= 0) {
-      widget.onInvalid('${widget.label} must be a positive number.');
-      return;
-    }
-    widget.onChanged(parsed);
-  }
-
-  @override
-  void didUpdateWidget(_OverrideField old) {
-    super.didUpdateWidget(old);
-    if (widget.initial != old.initial) {
-      _controller.text =
-          widget.initial == null ? '' : widget.initial!.toStringAsFixed(1);
-      _lastSubmitted = _controller.text;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
+  static const _codec = OptionalCodec(
+    NumberCodec(
+      min: 0.1,
+      max: 3600,
+      decimals: 1,
+      unit: 's',
+      fixedDecimals: true,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      style: SkotiqTypography.caption.copyWith(
-        color: SkotiqColors.of(context).textPrimary,
-      ),
-      decoration: InputDecoration(
-        labelText: widget.label,
-        labelStyle: SkotiqTypography.captionSm.copyWith(
-          color: SkotiqColors.of(context).textMuted,
+    final colors = SkotiqColors.of(context);
+    return SettingRowLabel(
+      title: label,
+      child: SettingsValueField<double?>(
+        codec: _codec,
+        value: value,
+        onChanged: onChanged,
+        builder: (context, parts) => TextField(
+          controller: parts.controller,
+          focusNode: parts.focusNode,
+          style: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle:
+                SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          ),
+          keyboardType: parts.keyboardType,
+          inputFormatters: parts.inputFormatters,
+          onChanged: parts.onChanged,
+          onSubmitted: parts.onSubmitted,
         ),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onSubmitted: _submit,
     );
   }
 }

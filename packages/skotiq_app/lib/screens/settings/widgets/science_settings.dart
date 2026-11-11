@@ -577,7 +577,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
 }
 
 class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
-  final _controller = TextEditingController();
   late final List<TextInputFormatter>? _formatters = _buildFormatters();
   String? _rowError;
   int _commits = 0;
@@ -592,12 +591,6 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
         ),
     ];
     return formatters.isEmpty ? null : formatters;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   Future<void> _commit(String raw) async {
@@ -634,7 +627,6 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
       title: widget.title,
       subtitle: _rowError ?? widget.subtitle,
       trailing: SettingsTextInput(
-        controller: _controller,
         authoritativeValue: widget.value,
         authorityKey: _rowAuthority(ref.watch(backendProvider), _commits),
         hint: widget.hint,
@@ -659,7 +651,6 @@ class _TnsApiKeyRow extends ConsumerStatefulWidget {
 }
 
 class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
-  final _controller = TextEditingController();
   bool _hasKey = false;
   String? _writeError;
 
@@ -672,12 +663,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
   void initState() {
     super.initState();
     _loadHas();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   Future<void> _loadHas() async {
@@ -736,7 +721,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
                   'it.'
               : 'Your TNS bot API key — stored securely, never in backups.'),
       trailing: SettingsTextInput(
-        controller: _controller,
         authoritativeValue: '',
         authorityKey: _authority,
         hint: _hasKey ? '•••••• (stored securely)' : 'paste key',
@@ -943,7 +927,6 @@ class _ScienceCameraValueRow extends ConsumerStatefulWidget {
 
 class _ScienceCameraValueRowState
     extends ConsumerState<_ScienceCameraValueRow> {
-  final _controller = TextEditingController();
   String? _rowError;
   int _commits = 0;
 
@@ -951,12 +934,6 @@ class _ScienceCameraValueRowState
   /// up. It is what makes a clamped entry ("100000" → "65535") visible the
   /// moment it is written instead of a frame later.
   String? _pendingWrite;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   Future<void> _commit(String raw) async {
     final parsed = double.tryParse(raw.trim());
@@ -1012,7 +989,6 @@ class _ScienceCameraValueRowState
       title: widget.title,
       subtitle: _rowError ?? widget.subtitle,
       trailing: SettingsTextInput(
-        controller: _controller,
         authoritativeValue: _pendingWrite ?? stored ?? widget.defaultText,
         authorityKey: _rowAuthority(ref.watch(backendProvider), _commits),
         width: 72,

@@ -379,7 +379,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Coordinates',
     'Decimal degrees or DMS (121 18 55 W). Positive is',
     'Decimal degrees or DMS (44 3 29 N). Positive is',
-    'Detect location',
     'Elevation',
     'Fetch location from the connected imaging host',
     'Google Geolocation API key',
@@ -390,7 +389,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Local horizon mask',
     'Location',
     'Longitude',
-    'Nearby Wi-Fi networks place you to within',
     'Observing environment',
     'Optional. beaconDB, the key-free service Detect',
     'Search place',
@@ -747,6 +745,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Public by default',
     'Push notification',
     'Recenter after flip',
+    'Recover the mount on its own after a mount fault',
     'Refocus after flip',
     'Rendered on the broadcast JPEG. Variable interpolation',
     'Restart autoguider if it was running',
@@ -775,6 +774,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use the scheduler when target count reaches this',
     'Wait before flip',
     'Wait time after flip before resuming',
+    'When the mount moves on its own or loses its',
     'When the mount stops at its limit',
     'Wrap multi-target plans in a TargetScheduler so',
   ],
@@ -968,7 +968,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Decimal degrees or DMS (44 3 29 N). Positive is': 'Latitude',
     'Fetch location from the connected imaging host': 'Sync from server',
     'Height above sea level': 'Elevation',
-    'Nearby Wi-Fi networks place you to within': 'Detect location',
     'Optional. beaconDB, the key-free service Detect':
         'Google Geolocation API key',
     'Sync time from operating system': 'Use system time',
@@ -1141,6 +1140,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Use the scheduler when target count reaches this':
         'Scheduler threshold (targets)',
     'Wait time after flip before resuming': 'Settle time',
+    'When the mount moves on its own or loses its':
+        'Recover the mount on its own after a mount fault',
     'Wrap multi-target plans in a TargetScheduler so':
         'Scheduler for multi-target nights',
   },

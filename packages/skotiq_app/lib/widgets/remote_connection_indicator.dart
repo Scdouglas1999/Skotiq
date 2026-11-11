@@ -10,7 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/link_rig/link_rig_actions.dart';
 import '../screens/link_rig/link_rig_dialog.dart';
-import '../screens/settings/settings_screen.dart' show SettingsSectionRequest;
+import '../screens/settings/settings_sections.dart';
 import 'share_session_dialog.dart';
 
 import 'work_locally.dart';
@@ -588,9 +588,8 @@ class _RemoteConnectionSheetState
                   key: const ValueKey('connectionSheet.manageLink'),
                   onPressed: () {
                     Navigator.of(context).pop();
-                    SettingsSectionRequest.raise('remote-access');
                     GoRouter.maybeOf(context)
-                        ?.go('/settings?section=remote-access');
+                        ?.goToSettings(SettingsSectionId.remoteAccess);
                   },
                   icon: LucideIcons.settings2,
                   label: 'Manage link',

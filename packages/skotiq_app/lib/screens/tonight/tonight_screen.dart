@@ -10,6 +10,7 @@ import '../../utils/plan_tonight_sequencer_helper.dart';
 import '../planetarium/show_in_sky.dart';
 import 'one_tap_target_provider.dart';
 import 'one_tap_tonight_controller.dart';
+import '../settings/settings_sections.dart';
 
 /// The opinionated one-tap "image this target tonight" screen.
 ///
@@ -710,7 +711,7 @@ class _NoPickCard extends ConsumerWidget {
             'in Settings.',
         actionLabel: 'Open settings',
         actionIcon: LucideIcons.mapPin,
-        onAction: () => context.go('/settings?section=location'),
+        onAction: () => openSettings(context, SettingsSectionId.location),
       );
     }
 
