@@ -678,6 +678,7 @@ class _RunPill extends StatelessWidget {
       NightRunPhase.finished => switch (header.ending) {
           NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
           NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
+          NightRunEnding.stopped => l10n.text('nightCtlPillStopped'),
           NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
         },
     };
@@ -698,7 +699,7 @@ class _RunPill extends StatelessWidget {
       };
 
   // A completed run reads as a success and a failed one as an error, like
-  // the rig chip; any other ending is neutral.
+  // the rig chip; a stopped or otherwise ended run is neutral.
   static ChipTone _tone(NightRunPhase phase, NightRunEnding? ending) =>
       switch (phase) {
         NightRunPhase.running => ChipTone.success,
@@ -710,7 +711,10 @@ class _RunPill extends StatelessWidget {
         NightRunPhase.finished => switch (ending) {
             NightRunEnding.completed => ChipTone.success,
             NightRunEnding.failed => ChipTone.error,
-            NightRunEnding.ended || null => ChipTone.neutral,
+            NightRunEnding.stopped ||
+            NightRunEnding.ended ||
+            null =>
+              ChipTone.neutral,
           },
         NightRunPhase.notSetUp => ChipTone.neutral,
       };

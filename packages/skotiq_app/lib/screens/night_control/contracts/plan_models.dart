@@ -198,8 +198,11 @@ enum NightRunEnding {
 
   failed,
 
-  /// The run was stopped, or ended at dawn; it settles idle, which does not
-  /// say which.
+  /// The operator stopped the run, here, from a linked window or a phone.
+  stopped,
+
+  /// The run ended some other way (the dawn park, the weather, the
+  /// autopilot) or nothing on the wire said who ended it.
   ended,
 }
 

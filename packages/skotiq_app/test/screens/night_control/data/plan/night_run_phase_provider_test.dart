@@ -109,6 +109,41 @@ void main() {
     }
   });
 
+  test('a run the operator stopped reads as stopped; a dawn park does not', () {
+    final plan = TwoTargetPlan().sequence;
+    for (final (evidence, ending) in <(SequenceStopDecision?, NightRunEnding)>[
+      (
+        const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+        NightRunEnding.stopped,
+      ),
+      (
+        const SequenceStopDecision(
+          SequenceStopAuthor.system,
+          origin: 'dawn_approaching',
+          parked: true,
+        ),
+        NightRunEnding.ended,
+      ),
+      (null, NightRunEnding.ended),
+    ]) {
+      final container = planContainer(
+        now: evening,
+        sequence: plan,
+        execution: SequenceExecutionState.running,
+      );
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      container.read(sequenceStopEvidenceProvider.notifier).state = evidence;
+      container.read(sequenceExecutionStateProvider.notifier).state =
+          SequenceExecutionState.idle;
+      expect(
+        container.read(nightHeaderProvider).ending,
+        ending,
+        reason: '${evidence?.author}',
+      );
+    }
+  });
+
   test('Start at dark needs a site, and a dark still ahead', () {
     final noSite = planContainer(
       now: evening,

@@ -149,7 +149,10 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
         ? switch (execution) {
             SequenceExecutionState.completed => NightRunEnding.completed,
             SequenceExecutionState.failed => NightRunEnding.failed,
-            _ => NightRunEnding.ended,
+            _ => ref.watch(sequenceStopEvidenceProvider)?.author ==
+                    SequenceStopAuthor.operatorPress
+                ? NightRunEnding.stopped
+                : NightRunEnding.ended,
           }
         : null,
   );
