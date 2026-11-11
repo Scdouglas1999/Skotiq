@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../services/app_update.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
 

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show
         AstronomyCalculations,
         WeightedFactor,
@@ -18,10 +18,8 @@ import '../../models/sequence/sequence_models.dart';
 import 'horizon_profile.dart';
 import 'rejection_labels.dart';
 import 'scheduler_log.dart';
-import 'sky_calculations.dart';
 
 part 'scheduler_engine/contracts.dart';
-part 'scheduler_engine/astronomy_helpers.dart';
 part 'scheduler_engine/evaluation.dart';
 part 'scheduler_engine/scoring.dart';
 
@@ -541,9 +539,6 @@ class SchedulerEngine {
   /// without mutating state. Pass a pre-fetched candidate list.
   TargetScore scoreCandidate(SchedulerCandidate c, DateTime now) =>
       _scoreCandidate(c, now);
-
-  double _localSiderealTime(DateTime time) =>
-      SkyCalculations.localSiderealTimeHours(time, _site.longitudeDegrees);
 
   /// Normalise a filter name for an emitted node: the unfiltered sentinel (an
   /// empty or whitespace name) must reach the executor as null.

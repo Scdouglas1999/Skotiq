@@ -24,6 +24,7 @@ import 'mount_move_pad.dart';
 import 'night_panel_parts.dart';
 import '../stale_readings_note.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// What every Mount-tab control gates on, read once per build.
 @immutable
@@ -207,9 +208,9 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final dec = connected ? mount.dec : null;
     final lst = site == null
         ? null
-        : computeLocalSiderealTimeHours(now, site.longitude);
+        : AstronomyCalculations.localSiderealTime(now, site.longitude);
     final hourAngle =
-        lst == null || ra == null ? null : computeHourAngleHours(ra, lst);
+        lst == null || ra == null ? null : AstronomyCalculations.hourAngleHours(ra, lst);
     final toFlip = countdown.isArmed ? countdown.timeToFlip : null;
     final pierKey = switch (mount.sideOfPier?.trim().toLowerCase()) {
       'east' || 'pierside_east' => 'nightScopePierEast',

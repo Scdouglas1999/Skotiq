@@ -11,7 +11,7 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';

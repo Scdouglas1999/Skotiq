@@ -46,6 +46,7 @@ export 'screens/sequencer/widgets/mosaic_wizard_dialog.dart';
 export 'screens/sequencer/widgets/flat_wizard_dialog.dart';
 export 'screens/sequencer/widgets/trigger_configuration_dialog.dart';
 
+export 'services/app_update.dart';
 export 'services/location_sync_service.dart';
 export 'screens/session_review/auto_integration_service.dart';
 export 'services/plugin_node_dispatcher_wiring.dart';

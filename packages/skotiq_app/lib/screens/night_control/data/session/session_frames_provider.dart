@@ -12,6 +12,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
 import 'session_format.dart' show nightSessionNowProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The session whose frames Tonight shows; null when nothing is imaging.
 final nightSessionIdProvider = Provider<int?>((ref) {

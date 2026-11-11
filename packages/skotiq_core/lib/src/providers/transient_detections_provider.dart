@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +20,7 @@ import 'database_provider.dart' show imagesDaoProvider;
 import 'remote_snapshot_stream.dart';
 import 'sky_atlas_provider.dart'
     show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Riverpod surface for Pillar B ("First Light") — difference-imaging transients.
 ///
@@ -309,39 +309,13 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       final kept = rows
           .where(
             (r) =>
-                _angularSeparationDeg(
-                  query.raDeg,
-                  query.decDeg,
-                  r.raDeg,
-                  r.decDeg,
-                ) <=
+                AstronomyCalculations.angularSeparation(ra1Deg: query.raDeg, dec1Deg: query.decDeg, ra2Deg: r.raDeg, dec2Deg: r.decDeg,) <=
                 query.radiusDeg,
           )
           .toList(growable: false);
       kept.sort((a, b) => a.detectedAt.compareTo(b.detectedAt));
       return kept;
     });
-
-/// Great-circle angular separation between two equatorial points, in degrees.
-/// Uses the haversine form so it stays accurate for the small separations the
-/// cross-night grouping cares about.
-double _angularSeparationDeg(
-  double ra1Deg,
-  double dec1Deg,
-  double ra2Deg,
-  double dec2Deg,
-) {
-  const deg2rad = math.pi / 180.0;
-  final dRa = (ra2Deg - ra1Deg) * deg2rad;
-  final dDec = (dec2Deg - dec1Deg) * deg2rad;
-  final lat1 = dec1Deg * deg2rad;
-  final lat2 = dec2Deg * deg2rad;
-  final a =
-      math.sin(dDec / 2) * math.sin(dDec / 2) +
-      math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-  return c / deg2rad;
-}
 
 /// Triage a First Light candidate (mark reviewed/confirmed, or dismiss as an
 /// artefact). Routes to the host over REST in companion mode, else writes the

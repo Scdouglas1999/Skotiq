@@ -7,14 +7,9 @@ import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../database/database.dart';
-import 'airmass.dart';
 import 'photometric_bands.dart';
 import '../../utils/skotiq_data_directory.dart';
-
-// Surfaced through the science-services barrel, which already exports this
-// library, so every consumer reaches the one airmass model by importing
-// skotiq_core rather than re-deriving the formula locally.
-export 'airmass.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Generates AAVSO Extended Format (Version 1.11) text files from photometry
 /// measurements stored in the Skotiq database.

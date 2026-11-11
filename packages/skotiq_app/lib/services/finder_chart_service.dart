@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:pdf/pdf.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:pdf/widgets.dart' as pw;

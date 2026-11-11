@@ -1,4 +1,4 @@
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/sequence/sequence_models.dart';
 part 'sequence_time_estimator/timing_models.dart';

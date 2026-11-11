@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
 
   # Shared packages
+  skotiq_astro:
+    path: ../../packages/skotiq_astro
   skotiq_core:
     path: ../../packages/skotiq_core
   skotiq_ui:

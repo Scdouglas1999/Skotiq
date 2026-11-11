@@ -80,9 +80,10 @@ dependencies:
   skotiq_bridge:
     path: ../skotiq_bridge
   
-  # Planetarium (for catalog access)
-  skotiq_planetarium:
-    path: ../skotiq_planetarium
+  # Astronomy, catalogs, planning and FOV math (pure Dart).
+  skotiq_astro:
+    path: ../skotiq_astro
+
 
   # Plugin host + the C3 plugin-status registry. skotiq_core implements the
   # [PluginEnablementStore] contract (defined in skotiq_plugins) against the

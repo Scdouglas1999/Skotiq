@@ -8,7 +8,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/integrated_masters_dao.dart';

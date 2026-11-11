@@ -12,6 +12,7 @@ import '../../data/session/equipment_summary_provider.dart'
     show kNightGuideStopReasons;
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
+import '../../../guiding/widgets/guide_star_view.dart';
 import '../mount/night_panel_parts.dart';
 import 'guide_metrics.dart';
 import 'guide_scatter.dart';

@@ -28,6 +28,7 @@ import 'package:skotiq_core/src/models/framing_guide_star.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/models/framing_hips_projection.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../painters/guide_star_overlay_painter.dart';

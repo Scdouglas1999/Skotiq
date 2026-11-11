@@ -1,8 +1,7 @@
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -136,17 +135,17 @@ class PlanetariumHandlers {
           1000.0;
 
       if (sensorWidthMm > 0 && sensorHeightMm > 0) {
-        // FOV = 2 * atan(sensor_size / (2 * focal_length)) * (180/pi)
-        fovWidthDegrees =
-            2 * (180 / math.pi) * math.atan(sensorWidthMm / (2 * focalLength));
-        fovHeightDegrees =
-            2 * (180 / math.pi) * math.atan(sensorHeightMm / (2 * focalLength));
+        (fovWidthDegrees, fovHeightDegrees) = FOVCalculator.calculateFOV(
+          sensorWidthMm: sensorWidthMm,
+          sensorHeightMm: sensorHeightMm,
+          focalLengthMm: focalLength,
+        );
       }
 
-      if (pixelSize != null && pixelSize > 0) {
-        // Image scale = (pixel_size_microns / focal_length_mm) * 206.265
-        imageScaleArcsecPerPixel = (pixelSize / focalLength) * 206.265;
-      }
+      imageScaleArcsecPerPixel = FOVCalculator.imageScaleOrNull(
+        pixelSizeMicrons: pixelSize,
+        focalLengthMm: focalLength,
+      );
     }
 
     return jsonOk({

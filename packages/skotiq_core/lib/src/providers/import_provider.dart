@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../backend/network_backend.dart';
 import 'backend_provider.dart';
 import '../services/import/astrobin_importer.dart';
 import '../services/import/sequence_importer.dart';
 import '../services/sesame_name_resolver.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Provides the singleton [SequenceImporter] used by the UI.
 final sequenceImporterProvider = Provider<SequenceImporter>((ref) {
@@ -53,7 +53,9 @@ final sequenceImporterProvider = Provider<SequenceImporter>((ref) {
               })
               .toList(growable: false);
         })
-      : ResolverCatalogLookup(() => ref.read(loadedDsosProvider.future));
+      : ResolverCatalogLookup(
+          () => OpenNgcDsoCatalog(magnitudeLimit: 16.0).loadObjects(),
+        );
   return SequenceImporter(
     astrobin: AstrobinImporter(
       catalog: OnlineFallbackLookup(

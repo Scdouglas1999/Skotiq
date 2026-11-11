@@ -13,8 +13,6 @@ dependencies:
   flutter:
     sdk: flutter
   lucide_icons: ^0.257.0
-  skotiq_core:
-    path: ../skotiq_core
 
 dev_dependencies:
   flutter_test:

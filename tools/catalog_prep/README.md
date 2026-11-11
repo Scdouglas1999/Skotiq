@@ -23,7 +23,7 @@ deterministic tileset with no external dependency; that synthetic data is
 ## Tile format (SKDT v1)
 
 Little-endian; this layout is byte-identical to the Dart decoder in
-`packages/skotiq_planetarium/lib/src/catalogs/deep_star_tile.dart`. If you
+`packages/skotiq_astro/lib/src/catalogs/deep_star_tile.dart`. If you
 change one, change both.
 
 ```
@@ -46,7 +46,7 @@ Synthetic test tileset (used by the unit tests; tiny, deterministic):
 
 ```bash
 python3 make_deep_star_tiles.py --synthetic \
-    --out ../../packages/skotiq_planetarium/test/fixtures/deep_star_tiles \
+    --out ../../packages/skotiq_astro/test/fixtures/deep_star_tiles \
     --synthetic-per-tile 12
 ```
 

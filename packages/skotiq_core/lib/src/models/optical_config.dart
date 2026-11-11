@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'optical_config.freezed.dart';
 part 'optical_config.g.dart';
@@ -66,14 +67,10 @@ abstract class OpticalConfig with _$OpticalConfig {
   /// Image scale in arcseconds per pixel
   ///
   /// Returns null if focal length or pixel size is missing/invalid.
-  /// Uses the formula: scale = 206.265 * pixelSize / focalLength
-  /// where 206.265 is the number of arcseconds in a radian divided by 1000
-  /// (to convert microns to mm).
-  double? get imageScale {
-    if (focalLength == null || pixelSize == null) return null;
-    if (focalLength == 0) return null;
-    return 206.265 * pixelSize! / focalLength!;
-  }
+  double? get imageScale => FOVCalculator.imageScaleOrNull(
+    pixelSizeMicrons: pixelSize,
+    focalLengthMm: focalLength,
+  );
 
   /// Computed focal ratio from aperture and focal length
   ///

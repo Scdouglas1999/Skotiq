@@ -146,7 +146,10 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       final capabilities = capabilitiesAsync.valueOrNull;
       final pixelSize = capabilities?.pixelSizeX;
       if (pixelSize != null && pixelSize > 0) {
-        return (pixelSize / focalLength) * 206.265;
+        return FOVCalculator.calculateImageScale(
+          pixelSizeMicrons: pixelSize,
+          focalLengthMm: focalLength,
+        );
       }
     }
     return null;

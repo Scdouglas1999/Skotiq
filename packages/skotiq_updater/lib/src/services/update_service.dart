@@ -4,7 +4,6 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
@@ -125,7 +124,7 @@ class UpdateService {
     AntiFreezeStore? antiFreezeStore,
     http.Client? httpClient,
     Duration httpTimeout = defaultUpdateHttpTimeout,
-    Future<Directory> Function()? applicationSupportDirectoryProvider,
+    required Future<Directory> Function() applicationSupportDirectoryProvider,
     Future<Directory> Function()? installDirectoryProvider,
     String? currentPlatform,
     String? currentArch,
@@ -142,13 +141,11 @@ class UpdateService {
        _verifier = verifier ?? UpdateVerifier(),
        _antiFreezeStore =
            antiFreezeStore ??
-           AntiFreezeStore(
-             applicationSupportDirectoryProvider ?? resolveSkotiqDataDirectory,
-           ),
+           AntiFreezeStore(applicationSupportDirectoryProvider),
        _httpClient = httpClient ?? http.Client(),
        _httpTimeout = httpTimeout,
        _applicationSupportDirectoryProvider =
-           applicationSupportDirectoryProvider ?? resolveSkotiqDataDirectory,
+           applicationSupportDirectoryProvider,
        _installDirectoryProvider =
            installDirectoryProvider ?? _executableDirectory,
        _allowInsecureUpdateSource = allowInsecureUpdateSource,

@@ -8,6 +8,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../screens/settings/widgets/settings_widgets.dart';
+import '../../utils/v_curve_chart_data.dart';
 import 'focuser_backlash_text.dart';
 
 /// The focuser backlash calibration wizard.
@@ -1010,13 +1011,13 @@ class _ScanChartPanel extends StatelessWidget {
           SizedBox(
             height: _chartHeight,
             child: VCurveChart(
-              focusRange: scanRange,
+              focusRange: scanRange?.toChartRange(),
               gridColor: colors.border,
               textColor: colors.textMuted,
               repaintTick: repaintTick,
               series: [
                 VCurveSeries(
-                  points: belowPoints,
+                  points: belowPoints.toChartSamples(),
                   color: belowColor,
                   label: 'From below',
                   vertexPosition: belowVertex,
@@ -1025,7 +1026,7 @@ class _ScanChartPanel extends StatelessWidget {
                       liveApproach == FocuserBacklashApproach.fromBelow,
                 ),
                 VCurveSeries(
-                  points: abovePoints,
+                  points: abovePoints.toChartSamples(),
                   color: aboveColor,
                   label: 'From above',
                   vertexPosition: aboveVertex,

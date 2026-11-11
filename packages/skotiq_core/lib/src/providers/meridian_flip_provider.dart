@@ -13,9 +13,8 @@ import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
 import '../services/logging_service.dart';
 import '../services/notification_service.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
-import '../services/scheduler/sky_calculations.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart'
@@ -492,23 +491,6 @@ final isMeridianFlipEnabledProvider = Provider<bool>((ref) {
   }
 });
 
-/// Compute Local Sidereal Time (hours) for the given UTC instant and observer
-/// longitude (degrees, east positive).
-///
-/// Thin alias over [SkyCalculations.localSiderealTimeHours] — the single
-/// shared LST implementation also used by the dynamic scheduler engine. Kept
-/// as a free function because `meridian_countdown_provider.dart` imports it by
-/// this name; the math now lives in one place.
-double computeLocalSiderealTimeHours(DateTime utc, double longitudeDeg) =>
-    SkyCalculations.localSiderealTimeHours(utc, longitudeDeg);
-
-/// Compute the mount's hour angle in hours, normalized to (-12, +12].
-///
-/// HA = LST - RA, where positive HA means the target is west of the meridian
-/// (i.e., already crossed). Thin alias over [SkyCalculations.hourAngleHours].
-double computeHourAngleHours(double raHours, double lstHours) =>
-    SkyCalculations.hourAngleHours(raHours, lstHours);
-
 /// Result of a standalone-monitor poll, exposed so tests can validate the
 /// decision logic without faking timers.
 enum MeridianMonitorDecision {
@@ -643,11 +625,11 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
       return MeridianMonitorDecision.inactive;
     }
 
-    final lst = computeLocalSiderealTimeHours(
+    final lst = AstronomyCalculations.localSiderealTime(
       DateTime.now().toUtc(),
       appSettings.longitude,
     );
-    final ha = computeHourAngleHours(mount.ra!, lst);
+    final ha = AstronomyCalculations.hourAngleHours(mount.ra!, lst);
 
     final fired = _evaluateTrigger(settings, ha);
     if (!fired) {

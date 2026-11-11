@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../celestial_object.dart';
-import '../coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Status of a queued target
 enum QueuedTargetStatus {

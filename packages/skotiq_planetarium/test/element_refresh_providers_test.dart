@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_planetarium/src/providers/element_refresh_providers.dart';
-import 'package:skotiq_planetarium/src/services/element_refresh_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Controllable stand-in for [ElementRefreshService] that never touches disk
 /// or the network. Its knobs let each test decide whether the config authority

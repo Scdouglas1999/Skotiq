@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 import '../backend/roles/device_backend.dart';
 import 'plate_solve_service.dart';

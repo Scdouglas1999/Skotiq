@@ -8,7 +8,7 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dar
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/skotiq_core_events.dart' as sk;
 
 import '../../../../harness/harness.dart';

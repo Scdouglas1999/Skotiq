@@ -9,7 +9,7 @@ import '../models/imaging/auto_stretch_settings.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import '../services/darkroom_build_service.dart'
-    show observingNight, observingNightWindow;
+    show observingNight;
 import 'host_settings/host_settings_providers.dart'
     show settingsRowChangesProvider;
 import 'profiles_provider.dart';
@@ -18,6 +18,7 @@ import 'settings_provider.dart';
 import 'runtime_mirror/channels/session_frames_channel.dart'
     show hostSessionFrameIdsProvider;
 import 'sequence/last_ended_run.dart' show lastEndedRunProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Current exposure settings
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {

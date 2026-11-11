@@ -22,6 +22,7 @@ import 'scheduler_provider.dart' show schedulerEngineProvider;
 import 'settings_provider.dart' show appSettingsProvider;
 import 'sky_atlas_provider.dart';
 import '../utils/skotiq_data_directory.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Riverpod surface for the Constellation community hub client.
 ///
@@ -324,11 +325,11 @@ class _CoImagingAutopilotBatonPolicy {
       final tRa = row.targetRaDeg;
       final tDec = row.targetDecDeg;
       if (tRa == null || tDec == null) continue;
-      final sep = CoImagingSessionService.angularSeparationDegrees(
-        coords.raDeg,
-        coords.decDeg,
-        tRa,
-        tDec,
+      final sep = AstronomyCalculations.angularSeparation(
+        ra1Deg: coords.raDeg,
+        dec1Deg: coords.decDeg,
+        ra2Deg: tRa,
+        dec2Deg: tDec,
       );
       if (sep <= CoImagingSessionService.membershipMatchToleranceDeg) {
         return true;

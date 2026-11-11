@@ -20,7 +20,6 @@ import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
 import '../wcs/gnomonic_projection.dart';
 import '../wcs/wcs_sip_codec.dart';
-import 'airmass.dart';
 import 'aperture_photometry.dart';
 import 'default_science_backend.dart';
 import 'fits_header_writer.dart';
@@ -32,6 +31,7 @@ import 'science_backend.dart';
 import 'frame_auto_grader.dart';
 import 'science_status.dart';
 import 'sub_exposure_noise.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'science_processing_service/private_helpers.dart';
 part 'science_processing_service/provider.dart';

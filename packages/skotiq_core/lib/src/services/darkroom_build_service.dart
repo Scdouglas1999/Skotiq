@@ -19,6 +19,7 @@ import 'dark_library_service.dart';
 import 'disk_space_service.dart';
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 export 'darkroom_build_plan.dart';
 export 'darkroom_registration_preview.dart';
 
@@ -107,28 +108,12 @@ String describeIntegration(num seconds) => seconds < 3600
     ? '${(seconds / 60).round()} min'
     : '${(seconds / 3600).toStringAsFixed(1)} h';
 
-/// The evening date of the observing night [time] belongs to. A night runs
-/// from local noon to local noon, so frames after midnight stay with the
-/// evening they started.
+/// The observing night [time] belongs to as a `YYYY-MM-DD` key: the evening
+/// date [observingNightOf] names.
 String observingNight(DateTime time) {
-  final local = time.toLocal();
-  final evening = local.hour < 12
-      ? DateTime(local.year, local.month, local.day - 1)
-      : DateTime(local.year, local.month, local.day);
+  final evening = observingNightOf(time);
   String two(int v) => v.toString().padLeft(2, '0');
   return '${evening.year}-${two(evening.month)}-${two(evening.day)}';
-}
-
-/// The observing night [time] falls in, as the local noon it starts at and
-/// the next local noon, the same night [observingNight] names.
-({DateTime start, DateTime end}) observingNightWindow(DateTime time) {
-  final local = time.toLocal();
-  final evening = local.hour < 12
-      ? DateTime(local.year, local.month, local.day - 1)
-      : DateTime(local.year, local.month, local.day);
-  final start = DateTime(evening.year, evening.month, evening.day, 12);
-  final end = DateTime(evening.year, evening.month, evening.day + 1, 12);
-  return (start: start, end: end);
 }
 
 class DarkroomBuildGroup {

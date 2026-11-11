@@ -7,9 +7,10 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provi
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'plan_test_support.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 class _Mount extends MountStateNotifier {
   _Mount(super.ref, MountState value) {
@@ -115,7 +116,7 @@ void main() {
   // after it alike; Coming up said "Meridian flip now" for the rest of the
   // target after the flip had run.
   test('a flip done this run is not still coming', () {
-    final lst = computeLocalSiderealTimeHours(lateEvening, boston.longitude);
+    final lst = AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
     final container = planContainer(
       now: lateEvening,
       sequence: TwoTargetPlan().sequence,
@@ -169,7 +170,7 @@ void main() {
   // recovery; the host said the mount must not flip again, and Coming up and
   // the altitude chart still read "Meridian flip 22:51".
   test('a flip that moved the mount across the pier is not still coming', () {
-    final lst = computeLocalSiderealTimeHours(lateEvening, boston.longitude);
+    final lst = AstronomyCalculations.localSiderealTime(lateEvening, boston.longitude);
     final container = planContainer(
       now: lateEvening,
       sequence: TwoTargetPlan().sequence,

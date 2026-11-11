@@ -1267,6 +1267,13 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
+  skotiq_astro:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/skotiq_astro"
+      relative: true
+    source: path
+    version: "1.0.0"
   skotiq_bridge:
     dependency: "direct overridden"
     description:

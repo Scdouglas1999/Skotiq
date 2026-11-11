@@ -50,6 +50,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../../framing/painters/hips_tile_layer_painter.dart';
 import '../../framing/widgets/hips_attribution_badge.dart';

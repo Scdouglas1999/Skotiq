@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../rendering/sky_renderer.dart';
 import 'fov_presets.dart';
 // For [SkyFovProjector] — the one projection shared with the sky painter and

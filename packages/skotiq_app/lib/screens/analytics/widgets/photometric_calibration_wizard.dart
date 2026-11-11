@@ -8,6 +8,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'adaptive_chart_container.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'photometric_calibration_wizard/header_and_steps.dart';
 part 'photometric_calibration_wizard/frame_selection.dart';
@@ -22,29 +23,18 @@ part 'photometric_calibration_wizard/save_navigation.dart';
 @visibleForTesting
 const double kDefaultFallbackPixelScale = 1.5;
 
-/// Compute image scale in arcsec/pixel from sensor pitch and focal length.
-///
-/// Standard small-angle formula: `206.265 * pixelSizeUm / focalLengthMm`
-/// (206.265 = arcsec per radian / 1000, folding the µm→mm unit conversion).
-/// Returns [kDefaultFallbackPixelScale] when either input is missing or
-/// non-positive — we never invent a scale from a single known dimension.
-///
-/// Pure + [visibleForTesting] so the "compute from geometry, fall back only
-/// when both inputs are missing" rule is unit-tested directly. Example: a
-/// 3.76 µm sensor at 530 mm yields ~1.464"/px.
+/// Image scale from sensor pitch and focal length, or
+/// [kDefaultFallbackPixelScale] when either is missing or not positive.
 @visibleForTesting
 double fallbackPixelScaleArcsecPerPixel({
   double? pixelSizeUm,
   double? focalLengthMm,
-}) {
-  if (pixelSizeUm == null ||
-      pixelSizeUm <= 0 ||
-      focalLengthMm == null ||
-      focalLengthMm <= 0) {
-    return kDefaultFallbackPixelScale;
-  }
-  return 206.265 * pixelSizeUm / focalLengthMm;
-}
+}) =>
+    FOVCalculator.imageScaleOrNull(
+      pixelSizeMicrons: pixelSizeUm,
+      focalLengthMm: focalLengthMm,
+    ) ??
+    kDefaultFallbackPixelScale;
 
 /// Multi-step calibration wizard dialog for computing photometric
 /// transformation coefficients from standard star fields.

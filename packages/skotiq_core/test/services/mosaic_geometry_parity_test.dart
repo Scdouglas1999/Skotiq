@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/mosaic_service.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Proves the imaging-side [MosaicService.generatePanels] and the planetarium
 /// preview [MosaicPlanner] share a single panel-layout source of truth: for an

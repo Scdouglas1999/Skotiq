@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import '../../../services/observing_site.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
@@ -400,7 +401,7 @@ class TonightTab extends ConsumerWidget {
                     return TargetCard(
                       name: displayName,
                       catalog: catalogTag,
-                      type: dsoTypeName(dso.type),
+                      type: dso.type.displayName,
                       metric: '${item.hoursInDarkness.toStringAsFixed(1)}h',
                       caption: peakTime,
                       colors: colors,

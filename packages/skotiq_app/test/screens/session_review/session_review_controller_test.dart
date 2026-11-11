@@ -12,7 +12,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
 // ignore: implementation_imports
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show Star;
+import 'package:skotiq_astro/skotiq_astro.dart' show Star;
 
 import '../../harness/mock_database.dart';
 

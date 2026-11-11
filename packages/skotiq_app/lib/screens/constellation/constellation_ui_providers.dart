@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // The core barrel also exports a `ConstellationPrivacy` (the wire enum
@@ -6,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // the same name, so the core one is imported under a prefix to disambiguate.
 import 'package:skotiq_core/skotiq_core.dart' hide ConstellationPrivacy;
 import 'package:skotiq_core/skotiq_core.dart' as core show ConstellationPrivacy;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// App-side Riverpod surface for the Constellation screens (Pillar C).
 ///
@@ -134,11 +134,11 @@ final yourContributionSecondsProvider =
   final coverage = await ref.watch(skyAtlasCoverageProvider.future);
   var total = 0.0;
   for (final tile in coverage) {
-    final sep = _angularSeparationDeg(
-      target.raDeg,
-      target.decDeg,
-      tile.centerRaDeg,
-      tile.centerDecDeg,
+    final sep = AstronomyCalculations.angularSeparation(
+      ra1Deg: target.raDeg,
+      dec1Deg: target.decDeg,
+      ra2Deg: tile.centerRaDeg,
+      dec2Deg: tile.centerDecDeg,
     );
     if (sep <= target.radiusDeg) {
       total += tile.integrationSeconds;
@@ -146,21 +146,3 @@ final yourContributionSecondsProvider =
   }
   return total;
 });
-
-/// Great-circle separation (deg) via the haversine formula.
-double _angularSeparationDeg(
-  double ra1Deg,
-  double dec1Deg,
-  double ra2Deg,
-  double dec2Deg,
-) {
-  const deg2rad = math.pi / 180.0;
-  final dRa = (ra2Deg - ra1Deg) * deg2rad;
-  final dDec = (dec2Deg - dec1Deg) * deg2rad;
-  final lat1 = dec1Deg * deg2rad;
-  final lat2 = dec2Deg * deg2rad;
-  final a = math.sin(dDec / 2) * math.sin(dDec / 2) +
-      math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-  return c / deg2rad;
-}

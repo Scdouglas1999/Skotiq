@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 
 import '../database/daos/images_dao.dart';
@@ -14,7 +14,6 @@ import '../models/imaging/night_report.dart';
 import '../providers/database_provider.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
-import 'scheduler/sky_calculations.dart';
 part 'night_analysis_service/detectors.dart';
 part 'night_analysis_service/night_data.dart';
 part 'night_analysis_service/moon_ephemeris.dart';

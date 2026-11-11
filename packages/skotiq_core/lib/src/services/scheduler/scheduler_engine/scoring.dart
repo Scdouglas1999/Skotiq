@@ -5,10 +5,12 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     final rejections = <String>[];
 
     // Altitude / azimuth.
-    final (alt, az) = _calculateAltAz(
-      raHours: c.raHours,
-      decDegrees: c.decDegrees,
-      time: now,
+    final (alt, az) = AstronomyCalculations.objectAltAz(
+      raDeg: c.raHours * 15.0,
+      decDeg: c.decDegrees,
+      dt: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
     );
 
     // Hard constraint: minimum altitude.
@@ -23,10 +25,10 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     // darkness at dusk and stop at dawn (the empty-eligible path in
     // _evaluateOnce stops the running sequence once every candidate is
     // rejected).
-    final (sunAlt, _) = SkyCalculations.sunAltAz(
-      time: now,
-      latitudeDegrees: _site.latitudeDegrees,
-      longitudeDegrees: _site.longitudeDegrees,
+    final (sunAlt, _) = AstronomyCalculations.sunAltAz(
+      dt: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
     );
     if (sunAlt > _config.maxSunAltitudeDegrees) {
       rejections.add(
@@ -94,29 +96,27 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           }
           break;
         case TargetConstraintKind.moonIlluminationMax:
-          final moon = _moonPosition(now);
+          final moonLitPercent = AstronomyCalculations.moonIllumination(now);
           if (ct.moonIlluminationMax != null &&
-              moon.illumination > ct.moonIlluminationMax!) {
+              moonLitPercent / 100.0 > ct.moonIlluminationMax!) {
             rejections.add(
-              'moon illumination ${(moon.illumination * 100).toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
+              'moon illumination ${moonLitPercent.toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
             );
           }
           break;
         case TargetConstraintKind.moonSeparationMin:
           final minSep = ct.moonSeparationMinDeg;
           if (minSep != null) {
-            final moon = _moonPosition(now);
-            final sep = _angularSeparation(
-              ra1Hours: c.raHours,
-              dec1Degrees: c.decDegrees,
-              ra2Hours: moon.raHours,
-              dec2Degrees: moon.decDegrees,
+            final sep = _moonSeparationDegrees(
+              raHours: c.raHours,
+              decDegrees: c.decDegrees,
+              now: now,
             );
             if (sep < minSep) {
               rejections.add(
                 'moon separation ${sep.toStringAsFixed(0)}° below minimum '
                 '${minSep.toStringAsFixed(0)}° '
-                '(moon ${(moon.illumination * 100).toStringAsFixed(0)}% lit)',
+                '(moon ${AstronomyCalculations.moonIllumination(now).toStringAsFixed(0)}% lit)',
               );
             }
           }
@@ -239,6 +239,33 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
   }
 
+  double _hourAngleHours(double raHours, DateTime now) =>
+      AstronomyCalculations.hourAngleHours(
+        raHours,
+        AstronomyCalculations.localSiderealTime(now, _site.longitudeDegrees),
+      );
+
+  /// Separation between a J2000 position and the Moon, both taken to the
+  /// equinox of [now].
+  double _moonSeparationDegrees({
+    required double raHours,
+    required double decDegrees,
+    required DateTime now,
+  }) {
+    final (moonRa, moonDec, _) = AstronomyCalculations.moonPosition(now);
+    final (ra, dec) = AstronomyCalculations.precessFromJ2000ToDate(
+      raDeg: raHours * 15.0,
+      decDeg: decDegrees,
+      dt: now,
+    );
+    return AstronomyCalculations.angularSeparation(
+      ra1Deg: ra,
+      dec1Deg: dec,
+      ra2Deg: moonRa,
+      dec2Deg: moonDec,
+    );
+  }
+
   /// Altitude factor: 0 at minAltitude, 1 at 90°, sin² ramp between.
   double _altitudeFactor(double altDeg) {
     final minAlt = _config.minAltitudeDegrees;
@@ -252,15 +279,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
   /// Meridian-proximity factor: 1 at the meridian, falling linearly to 0
   /// when hour angle reaches ±6h.
   double _meridianFactor({required double raHours, required DateTime now}) {
-    final lst = _localSiderealTime(now);
-    var ha = lst - raHours;
-    while (ha > 12) {
-      ha -= 24;
-    }
-    while (ha < -12) {
-      ha += 24;
-    }
-    final absH = ha.abs();
+    final absH = _hourAngleHours(raHours, now).abs();
     if (absH >= 6.0) return 0.0;
     return 1.0 - (absH / 6.0);
   }
@@ -273,26 +292,25 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     required double decDegrees,
     required DateTime now,
   }) {
-    final moon = _moonPosition(now);
-    final sep = _angularSeparation(
-      ra1Hours: raHours,
-      dec1Degrees: decDegrees,
-      ra2Hours: moon.raHours,
-      dec2Degrees: moon.decDegrees,
+    final sep = _moonSeparationDegrees(
+      raHours: raHours,
+      decDegrees: decDegrees,
+      now: now,
     );
+    final moonLit = AstronomyCalculations.moonIllumination(now) / 100.0;
     final radius = _config.moonAvoidanceRadiusDegrees;
     if (sep >= radius) {
       return (
         1.0,
-        'sep ${sep.toStringAsFixed(0)}° ill ${(moon.illumination * 100).toStringAsFixed(0)}%',
+        'sep ${sep.toStringAsFixed(0)}° ill ${(moonLit * 100).toStringAsFixed(0)}%',
       );
     }
     final closeness = 1.0 - (sep / radius);
-    final penalty = closeness * moon.illumination;
+    final penalty = closeness * moonLit;
     final factor = (1.0 - penalty).clamp(0.0, 1.0);
     return (
       factor,
-      'sep ${sep.toStringAsFixed(0)}° ill ${(moon.illumination * 100).toStringAsFixed(0)}%',
+      'sep ${sep.toStringAsFixed(0)}° ill ${(moonLit * 100).toStringAsFixed(0)}%',
     );
   }
 
@@ -340,14 +358,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     if (cosH >= 1.0) return 0.0;
     final haHorizon = math.acos(cosH) * 180.0 / math.pi / 15.0; // hours
 
-    final lst = _localSiderealTime(now);
-    var ha = lst - raHours;
-    while (ha > 12) {
-      ha -= 24;
-    }
-    while (ha < -12) {
-      ha += 24;
-    }
+    final ha = _hourAngleHours(raHours, now);
     if (ha.abs() >= haHorizon) return 0.0;
     final hoursToSet = (haHorizon - ha) * 0.9972695663;
     if (hoursToSet < 0) return 0.0;

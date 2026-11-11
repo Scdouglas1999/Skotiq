@@ -12,6 +12,7 @@ import '../../../widgets/hardware/hardware_preset_picker_dialog.dart';
 import '../../../widgets/help/field_help_label.dart';
 import '../utils/profile_save_errors.dart';
 import '../../../utils/count_label.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'profile_editor_dialog/profile_data_operations.dart';
 part 'profile_editor_dialog/shell_and_identity.dart';

@@ -9,8 +9,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 // catalogs, not only the target library. catalogStateProvider: and when no
 // catalog has been downloaded there is nothing on this machine to search, so
 // the sheet must say that instead of "nothing matches".
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CatalogSearchResult, catalogStateProvider;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' show catalogStateProvider;
+import 'package:skotiq_astro/skotiq_astro.dart' show CatalogSearchResult;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../scheduler/widgets/integration_goals_editor.dart';

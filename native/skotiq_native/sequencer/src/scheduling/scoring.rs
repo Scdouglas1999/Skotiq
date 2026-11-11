@@ -492,7 +492,7 @@ fn score_moon_distance(distance: f64, illumination: f64) -> f64 {
     // under a bright moon.
     //
     // This is a line-for-line port of the Dart fix in
-    // `skotiq_planetarium/lib/src/planning/target_scoring.dart`. The Dart
+    // `skotiq_astro/lib/src/planning/target_scoring.dart`. The Dart
     // side was corrected and this twin was not, which silently broke the
     // cross-language parity contract stated at the top of this file — and it is
     // the copy that matters most at runtime, because `score_targets` here is
@@ -587,7 +587,7 @@ mod tests {
     /// Parity fixture mirroring `target_scoring_test.dart`. The Dart numbers
     /// below were captured by running the same observer+target inputs through
     /// `TargetScoringService.scoreTarget` (see
-    /// `packages/skotiq_planetarium/test/planning/target_scoring_parity_test.dart`).
+    /// `packages/skotiq_astro/test/planning/target_scoring_parity_test.dart`).
     #[test]
     fn altitude_score_breakpoints_match_dart() {
         // 0° → 0

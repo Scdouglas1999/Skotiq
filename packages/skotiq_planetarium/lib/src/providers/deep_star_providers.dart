@@ -3,14 +3,10 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../catalogs/catalog_manager.dart';
-import '../catalogs/deep_star_store.dart';
-import '../catalogs/deep_star_tile.dart';
-import '../catalogs/hyg_depth.dart';
-import '../celestial_object.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
 
-export '../catalogs/hyg_depth.dart' show kHygFaintFloorMag;
+
 
 // Deep-star tier — downloadable Tycho-2 / Gaia subset below the HYG floor
 

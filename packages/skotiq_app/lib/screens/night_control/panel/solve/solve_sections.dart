@@ -15,6 +15,7 @@ import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
 import '../mount/night_panel_parts.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Where the solver settings live.
 const String kNightSolveSettingsRoute = '/settings?section=plate-solving';
@@ -211,7 +212,13 @@ class NightRecentSolvesSection extends ConsumerWidget {
         final dec = record.decDegrees;
         if (ra != null && dec != null && target != null) {
           value = formatArcsec(
-            separationArcsec(ra, dec, target.raHours * 15, target.decDegrees),
+            AstronomyCalculations.angularSeparation(
+                  ra1Deg: ra,
+                  dec1Deg: dec,
+                  ra2Deg: target.raHours * 15,
+                  dec2Deg: target.decDegrees,
+                ) *
+                3600,
           );
         }
       }

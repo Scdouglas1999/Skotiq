@@ -10,7 +10,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 import '../../night_control_contracts.dart';

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 // [SkyFovProjector] is declared in a part of the interactive sky view library
 // because Dart part files cannot declare their own imports, so that is the only
 // place all three FOV overlays can share one projection from. Reaching for it

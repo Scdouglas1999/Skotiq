@@ -4,7 +4,7 @@
 // row durations) bound a "loop until stopped" block by its target's window;
 // the dawn park bounds the night itself, so a window that would run past it
 // ends there.
-import '../../services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../settings_provider.dart' show siteLocationIsSet;
 
 /// How long before astronomical dawn the dawn rule parks a running run, as
@@ -21,19 +21,11 @@ DateTime? dawnParkTime({
   required DateTime now,
   required double latitude,
   required double longitude,
-}) {
-  for (final day in [now.subtract(const Duration(days: 1)), now]) {
-    final dawn = SkyCalculations.computeTwilight(
-      noonLocal: DateTime(day.year, day.month, day.day, 12),
-      latitudeDegrees: latitude,
-      longitudeDegrees: longitude,
-      kind: TwilightKind.astronomical,
-    ).morningStart;
-    if (dawn == null || now.isAfter(dawn)) continue;
-    return dawn.subtract(kParkBeforeDawnLead);
-  }
-  return null;
-}
+}) => AstronomyCalculations.nextDawn(
+  now: now,
+  latitudeDeg: latitude,
+  longitudeDeg: longitude,
+)?.subtract(kParkBeforeDawnLead);
 
 /// When a run started at [now] is stopped by the dawn park, or null when
 /// "Park before dawn" is off, the site is unset, or no dawn comes.

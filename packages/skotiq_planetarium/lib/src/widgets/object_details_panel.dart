@@ -3,9 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../celestial_object.dart';
-import '../astronomy/astronomy_calculations.dart';
-import '../services/survey_image_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../providers/planetarium_providers.dart';
 
 part 'object_details_panel/header_sections.dart';

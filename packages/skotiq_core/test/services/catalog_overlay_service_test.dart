@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/catalog_overlay_service.dart';
 import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 class _FakeCatalogOverlaySource implements CatalogOverlaySource {
   _FakeCatalogOverlaySource({

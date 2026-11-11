@@ -3,37 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'annotation_pipeline.dart';
 part 'annotation_snr_tracker.dart';
 part 'click_identify_service.dart';
-
-/// Calculate angular distance between two points on a sphere (in degrees)
-/// Uses the Haversine formula for better numerical stability
-double _angularDistance(double ra1, double dec1, double ra2, double dec2) {
-  // Convert to radians
-  final ra1Rad = ra1 * math.pi / 180.0;
-  final dec1Rad = dec1 * math.pi / 180.0;
-  final ra2Rad = ra2 * math.pi / 180.0;
-  final dec2Rad = dec2 * math.pi / 180.0;
-
-  // Haversine formula
-  final dRa = ra2Rad - ra1Rad;
-  final dDec = dec2Rad - dec1Rad;
-
-  final a =
-      math.sin(dDec / 2) * math.sin(dDec / 2) +
-      math.cos(dec1Rad) *
-          math.cos(dec2Rad) *
-          math.sin(dRa / 2) *
-          math.sin(dRa / 2);
-
-  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-
-  // Return distance in degrees
-  return c * 180.0 / math.pi;
-}
 
 final annotationServiceProvider = Provider<AnnotationService>((ref) {
   final service = AnnotationService(ref, attachListeners: false);

@@ -12,6 +12,7 @@ import '../wcs/gnomonic_projection.dart';
 import 'sky_atlas_models.dart';
 import 'sky_atlas_seam.dart';
 import '../../utils/skotiq_data_directory.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 part 'sky_atlas_service/atlas_models.dart';
 part 'sky_atlas_service/internals.dart';
 
@@ -710,11 +711,11 @@ class SkyAtlasService {
     return candidates
         .where(
           (t) =>
-              _coneSeparationDeg(
-                centerRaDeg,
-                centerDecDeg,
-                t.centerRaDeg,
-                t.centerDecDeg,
+              AstronomyCalculations.angularSeparation(
+                ra1Deg: centerRaDeg,
+                dec1Deg: centerDecDeg,
+                ra2Deg: t.centerRaDeg,
+                dec2Deg: t.centerDecDeg,
               ) <=
               radiusDeg,
         )
@@ -735,26 +736,6 @@ class SkyAtlasService {
         lastFoldIso: row.lastFoldAt?.toUtc().toIso8601String(),
         channels: row.channels,
       );
-
-  /// Great-circle separation (deg) via the haversine formula — robust at the
-  /// small angles cone selection queries at.
-  static double _coneSeparationDeg(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const deg2rad = math.pi / 180.0;
-    final dRa = (ra2Deg - ra1Deg) * deg2rad;
-    final dDec = (dec2Deg - dec1Deg) * deg2rad;
-    final lat1 = dec1Deg * deg2rad;
-    final lat2 = dec2Deg * deg2rad;
-    final a =
-        math.sin(dDec / 2) * math.sin(dDec / 2) +
-        math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return c / deg2rad;
-  }
 
   /// Per-tile coverage rows for the heat overlay / gallery, deepest first, by
   /// the native full-scan of the on-disk `.skt` sidecars.

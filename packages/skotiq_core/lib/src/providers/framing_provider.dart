@@ -28,6 +28,7 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';

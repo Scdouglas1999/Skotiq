@@ -19,10 +19,6 @@ dependencies:
   archive: ^3.4.10
   crypto: ^3.0.3
   cryptography: ^2.7.0
-  skotiq_core:
-    path: ../skotiq_core
-  skotiq_ui:
-    path: ../skotiq_ui
 
 dev_dependencies:
   # Pinned exact version across all 10 workspace packages to prevent

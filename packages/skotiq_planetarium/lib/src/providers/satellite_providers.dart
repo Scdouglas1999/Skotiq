@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../astronomy/sgp4.dart';
-import '../catalogs/satellite_catalog.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
 
 // Satellite toggle provider

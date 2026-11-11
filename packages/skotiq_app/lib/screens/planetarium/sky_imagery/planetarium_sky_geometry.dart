@@ -59,6 +59,7 @@ import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The planetarium view pose resolved into everything the imagery layer needs:
 /// the projector the stars are drawn with, the equatorial centre of the canvas,

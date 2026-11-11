@@ -4,6 +4,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import '../planetarium_screen.dart';
 import 'sidebar_shared_widgets.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 class CatalogTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -24,7 +25,7 @@ class CatalogTab extends ConsumerWidget {
           return TargetCard(
             name: displayName,
             catalog: catalogTag,
-            type: dsoTypeName(dso.type),
+            type: dso.type.displayName,
             magnitude: dso.magnitude?.toStringAsFixed(1) ?? '-',
             caption: 'mag',
             colors: colors,

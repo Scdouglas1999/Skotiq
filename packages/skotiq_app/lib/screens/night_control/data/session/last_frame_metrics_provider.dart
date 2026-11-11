@@ -10,7 +10,6 @@
 // shows its value with no delta; nothing is compared against a made-up
 // baseline.
 
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -20,6 +19,7 @@ import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
 import 'session_frames_provider.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Which way is better for a metric.
 enum _Better { lower, higher, neither }
@@ -60,24 +60,6 @@ MetricVm _metric(
     delta: nightSignedDelta(delta, decimals),
     deltaTone: tone,
   );
-}
-
-/// Great-circle separation in arcseconds; RA in hours, Dec in degrees.
-double nightSeparationArcsec(
-  double ra1Hours,
-  double dec1Deg,
-  double ra2Hours,
-  double dec2Deg,
-) {
-  const toRad = math.pi / 180;
-  final ra1 = ra1Hours * 15 * toRad;
-  final ra2 = ra2Hours * 15 * toRad;
-  final d1 = dec1Deg * toRad;
-  final d2 = dec2Deg * toRad;
-  final sinDd = math.sin((d2 - d1) / 2);
-  final sinDr = math.sin((ra2 - ra1) / 2);
-  final h = sinDd * sinDd + math.cos(d1) * math.cos(d2) * sinDr * sinDr;
-  return 2 * math.asin(math.min(1, math.sqrt(h))) / toRad * 3600;
 }
 
 /// An offset from the target: `0.8"`, `46.3"`, `2574"`, and `1.2°` only
@@ -129,12 +111,13 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
       solvedRa != null &&
       solvedDec != null) {
     solve = nightAngle(
-      nightSeparationArcsec(
-        solvedRa,
-        solvedDec,
-        target.raHours,
-        target.decDegrees,
-      ),
+      AstronomyCalculations.angularSeparation(
+            ra1Deg: solvedRa * 15.0,
+            dec1Deg: solvedDec,
+            ra2Deg: target.raHours * 15.0,
+            dec2Deg: target.decDegrees,
+          ) *
+          3600,
     );
   }
 

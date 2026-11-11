@@ -3,13 +3,13 @@
 // Solves the last frame when it was taken at the current pointing; otherwise
 // takes a short utility frame with the centering settings. The solve's wall
 // time goes to the Solve tab through `ManualActionState.lastSolveDuration`.
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../models/command_action_result.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Where the mount pointed when a frame reached the screen.
 @immutable
@@ -92,30 +92,13 @@ String? frameAtCurrentPointing({
       dec == null) {
     return null;
   }
-  final separation = angularSeparationDegrees(
-    raHoursA: pointing.raHours,
-    decDegreesA: pointing.decDegrees,
-    raHoursB: ra,
-    decDegreesB: dec,
+  final separation = AstronomyCalculations.angularSeparation(
+    ra1Deg: pointing.raHours * 15.0,
+    dec1Deg: pointing.decDegrees,
+    ra2Deg: ra * 15.0,
+    dec2Deg: dec,
   );
   return separation <= kSamePointingToleranceDegrees ? path : null;
-}
-
-/// Great-circle distance between two equatorial positions, in degrees.
-double angularSeparationDegrees({
-  required double raHoursA,
-  required double decDegreesA,
-  required double raHoursB,
-  required double decDegreesB,
-}) {
-  const toRad = math.pi / 180;
-  final ra1 = raHoursA * 15 * toRad;
-  final ra2 = raHoursB * 15 * toRad;
-  final d1 = decDegreesA * toRad;
-  final d2 = decDegreesB * toRad;
-  final cosSep = math.sin(d1) * math.sin(d2) +
-      math.cos(d1) * math.cos(d2) * math.cos(ra1 - ra2);
-  return math.acos(cosSep.clamp(-1.0, 1.0)) / toRad;
 }
 
 /// What a Solve & sync did.

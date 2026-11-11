@@ -6,6 +6,7 @@ import '../../database/database.dart' as db;
 import '../../models/scheduler/integration_goal.dart';
 import '../../models/scheduler/target_progress.dart';
 import 'integration_goal_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 typedef _Clock = DateTime Function();
 
@@ -156,9 +157,9 @@ class TargetProgressService {
     List<db.CapturedImage> images,
   ) {
     final now = _now();
-    final windowStart = _nightStart(
+    final windowStart = observingNightWindow(
       now,
-    ).subtract(const Duration(days: TargetProgress.etaWindowNights));
+    ).start.subtract(const Duration(days: TargetProgress.etaWindowNights));
 
     final framesByFilterLower = <String, int>{};
     var totalCapturedAny = 0;
@@ -183,7 +184,7 @@ class TargetProgressService {
 
       if (!capturedAt.isBefore(windowStart)) {
         windowFrameCount += 1;
-        distinctNights.add(_nightStart(capturedAt));
+        distinctNights.add(observingNightOf(capturedAt));
       }
     }
 
@@ -200,9 +201,9 @@ class TargetProgressService {
   /// rolling-window stats needed for the ETA.
   Future<_CaptureAggregates> _captureAggregatesForTarget(int targetId) async {
     final now = _now();
-    final windowStart = _nightStart(
+    final windowStart = observingNightWindow(
       now,
-    ).subtract(const Duration(days: TargetProgress.etaWindowNights));
+    ).start.subtract(const Duration(days: TargetProgress.etaWindowNights));
     // Drift stores DateTimeColumn as Unix seconds (see e.g.
     // IntegrationGoalService which divides millis by 1000), so the
     // captured_at comparison and re-hydration both use seconds.
@@ -270,7 +271,7 @@ class TargetProgressService {
         ts * 1000,
         isUtc: true,
       ).toLocal();
-      distinctNights.add(_nightStart(dt));
+      distinctNights.add(observingNightOf(dt));
     }
 
     return _CaptureAggregates(
@@ -280,23 +281,6 @@ class TargetProgressService {
       windowFrameCount: windowRows.length,
       windowDistinctNights: distinctNights.length,
     );
-  }
-
-  /// Returns the local-time instant of "noon" preceding [t]. A frame
-  /// captured at 03:00 belongs to the night that started at noon the day
-  /// before; a frame captured at 14:00 belongs to the night that started
-  /// at noon the same day.
-  ///
-  /// We deliberately keep the result in the local timezone of [t] (no
-  /// .toUtc()) so the bucketing matches the observer's wall clock.
-  DateTime _nightStart(DateTime t) {
-    final local = t.isUtc ? t.toLocal() : t;
-    final noonToday = DateTime(local.year, local.month, local.day, 12);
-    if (local.isBefore(noonToday)) {
-      final yesterday = noonToday.subtract(const Duration(days: 1));
-      return yesterday;
-    }
-    return noonToday;
   }
 }
 

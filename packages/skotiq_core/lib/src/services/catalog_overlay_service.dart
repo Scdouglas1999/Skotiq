@@ -18,7 +18,7 @@
 
 import 'dart:math' as math;
 
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'wcs/gnomonic_projection.dart';
 

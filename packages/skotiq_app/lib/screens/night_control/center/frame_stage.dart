@@ -36,6 +36,7 @@ import '../data/session/camera_exposure_provider.dart';
 import '../data/session/session_frames_provider.dart';
 import '../night_control_contracts.dart';
 import 'center_format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'frame_stage_overlays.dart';
 
@@ -290,11 +291,11 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
         sip: sip,
         offTargetArcmin: target == null
             ? null
-            : nightSeparationDegrees(
-                  ra,
-                  dec,
-                  target.raHours * 15,
-                  target.decDegrees,
+            : AstronomyCalculations.angularSeparation(
+                  ra1Deg: ra,
+                  dec1Deg: dec,
+                  ra2Deg: target.raHours * 15,
+                  dec2Deg: target.decDegrees,
                 ) *
                 60,
       );
@@ -333,23 +334,6 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
     ),
   );
 });
-
-/// Angular distance in degrees between two J2000 positions in degrees.
-double nightSeparationDegrees(
-  double ra1Deg,
-  double dec1Deg,
-  double ra2Deg,
-  double dec2Deg,
-) {
-  const toRad = math.pi / 180;
-  final dRa = (ra2Deg - ra1Deg) * toRad;
-  final dDec = (dec2Deg - dec1Deg) * toRad;
-  final a = math.pow(math.sin(dDec / 2), 2) +
-      math.cos(dec1Deg * toRad) *
-          math.cos(dec2Deg * toRad) *
-          math.pow(math.sin(dRa / 2), 2);
-  return 2 * math.asin(math.min(1, math.sqrt(a))) / toRad;
-}
 
 /// Snapshots and loop frames that are not kept land on one reused scratch
 /// file per camera (`liveview_<camera>.fits`, see ImagingService); a frame

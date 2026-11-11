@@ -6,7 +6,7 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/services/import/astrobin_importer.dart';
 import 'package:skotiq_core/src/services/import/canonical_node_mapper.dart';
 import 'package:skotiq_core/src/services/sesame_name_resolver.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show CelestialCoordinate, DeepSkyObject, DsoType;
 
 class _FakeSesame extends SesameNameResolver {

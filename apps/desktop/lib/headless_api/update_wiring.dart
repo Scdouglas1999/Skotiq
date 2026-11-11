@@ -75,6 +75,7 @@ Future<UpdateStack?> provisionUpdateStack({
   final service = UpdateService(
     currentVersion: currentVersion,
     currentBuildNumber: currentBuildNumber,
+    applicationSupportDirectoryProvider: resolveSkotiqDataDirectory,
   );
   // An explicit update server wins — that is how an appliance is pointed at a
   // private build host. With none set, read the project's GitHub releases,
@@ -123,6 +124,7 @@ Future<UpdateStack?> provisionUpdateStack({
   final receiver = LanPushReceiver(
     currentVersion: currentVersion,
     currentBuildNumber: currentBuildNumber,
+    dataDirectory: resolveSkotiqDataDirectory,
     pushSecret: pushSecret,
   );
 

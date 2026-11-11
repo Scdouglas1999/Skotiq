@@ -16,7 +16,7 @@ import '../../models/sequence/sequence_models.dart'
 import '../../providers/sequence_stats_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../logging_service.dart';
-import '../scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'eon_deferral.dart';
 import 'eon_providers.dart';
 import 'eon_service.dart' show EonReport;
@@ -54,15 +54,15 @@ bool isNightEnding({
   required double latitude,
   required double longitude,
 }) {
-  final (now, _) = SkyCalculations.sunAltAz(
-    time: time.toUtc(),
-    latitudeDegrees: latitude,
-    longitudeDegrees: longitude,
+  final (now, _) = AstronomyCalculations.sunAltAz(
+    dt: time.toUtc(),
+    latitudeDeg: latitude,
+    longitudeDeg: longitude,
   );
-  final (later, _) = SkyCalculations.sunAltAz(
-    time: time.toUtc().add(const Duration(minutes: 10)),
-    latitudeDegrees: latitude,
-    longitudeDegrees: longitude,
+  final (later, _) = AstronomyCalculations.sunAltAz(
+    dt: time.toUtc().add(const Duration(minutes: 10)),
+    latitudeDeg: latitude,
+    longitudeDeg: longitude,
   );
   return now >= eonDawnSunAltitudeDeg && later > now;
 }

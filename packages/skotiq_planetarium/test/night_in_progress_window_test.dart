@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// `calculateTwilightTimes(date:)` describes a dusk-tonight → dawn-tomorrow
 /// window. Anchoring the dashboard on the calendar date therefore describes the

@@ -3,6 +3,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'backend_protocol_colors.dart';
+
 /// A row of selectable chips for choosing which driver backend to use.
 ///
 /// Shows all available backends for a device, with the recommended one

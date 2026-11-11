@@ -12,6 +12,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^2.5.1
+  skotiq_astro:
+    path: ../skotiq_astro
   skotiq_core:
     path: ../skotiq_core
   skotiq_bridge:

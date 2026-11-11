@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Explains which exposure ceiling selected the final sub length.
 enum ExposureLimitingFactor { glover, saturation, mount, userCap, floor }
@@ -261,7 +262,10 @@ class SmartNightExposureCalculator {
   ExposureRecommendation recommend(ExposureCalculatorInput input) {
     _validate(input);
 
-    final pixelScale = 206.265 * input.pixelSizeMicrons / input.focalLengthMm;
+    final pixelScale = FOVCalculator.calculateImageScale(
+      pixelSizeMicrons: input.pixelSizeMicrons,
+      focalLengthMm: input.focalLengthMm,
+    );
     final skyRate = _skyElectronsPerSecondPerPixel(input, pixelScale);
     final snrScale = math.pow(input.targetSnr / 30.0, 2).toDouble();
     final glover =

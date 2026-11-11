@@ -5,7 +5,6 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
@@ -40,6 +39,7 @@ class LanPushReceiver {
   static const int maxManifestBytes = 1024 * 1024;
 
   final String _currentVersion;
+  final Future<Directory> Function() _dataDirectory;
   final int _currentBuildNumber;
   final UpdateVerifier _verifier;
   final int _serverPort;
@@ -65,6 +65,7 @@ class LanPushReceiver {
   LanPushReceiver({
     required String currentVersion,
     required int currentBuildNumber,
+    required Future<Directory> Function() dataDirectory,
     String? pushSecret,
     UpdateVerifier? verifier,
     int serverPort = pushPort,
@@ -72,6 +73,7 @@ class LanPushReceiver {
     String? currentArch,
   }) : _currentVersion = currentVersion,
        _currentBuildNumber = currentBuildNumber,
+       _dataDirectory = dataDirectory,
        _pushSecret = pushSecret,
        _serverPort = serverPort,
        _currentPlatform = normalizeUpdatePlatform(
@@ -525,7 +527,7 @@ class LanPushReceiver {
 
   /// Get staging directory
   Future<Directory> _getStagingDirectory() async {
-    final appData = await resolveSkotiqDataDirectory();
+    final appData = await _dataDirectory();
     final staging = Directory(path.join(appData.path, 'updates', 'staging'));
     if (!await staging.exists()) {
       await staging.create(recursive: true);

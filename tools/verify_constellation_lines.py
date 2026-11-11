@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DART = (
     ROOT
-    / "packages/skotiq_planetarium/lib/src/catalogs/constellation_data.dart"
+    / "packages/skotiq_astro/lib/src/catalogs/constellation_data.dart"
 )
 RUST = (
     ROOT

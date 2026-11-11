@@ -22,6 +22,7 @@ import 'package:skotiq_desktop/headless_api/handlers/science_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Reports enough stars to clear the handler's 4-star gate, then refuses to
 /// calibrate. Refusing is deliberate: a successful match needs a loaded HYG

@@ -247,7 +247,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     }
 
     // Airmass for this frame, from the product's one airmass model
-    // (skotiq_core .../services/science/airmass.dart) applied to the same
+    // (`airmassForTrueAltitude` in skotiq_astro) applied to the same
     // recorded mount altitude the AAVSO exporter reads, so the extinction
     // coefficient fitted here and the AMASS column of a submission built from
     // these frames describe one atmosphere. (The FITS AIRMASS card of the same

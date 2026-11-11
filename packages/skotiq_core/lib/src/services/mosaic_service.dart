@@ -1,7 +1,7 @@
 import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart' show FrameType;
 import 'package:uuid/uuid.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show mosaicPanelCenters;
 
 /// Result of mosaic panel generation
@@ -265,7 +265,7 @@ class MosaicService {
     final stepDecDeg = config.panelHeightArcmin * overlapFactor / 60.0;
 
     // Delegate the panel-center/overlap/rotation/cos(dec) math to the shared,
-    // canonical [mosaicPanelCenters] implementation (in skotiq_planetarium)
+    // canonical [mosaicPanelCenters] implementation (in skotiq_astro)
     // so the imaging-side layout and the planetarium preview stay identical —
     // one source of truth for panel geometry.
     final centers = mosaicPanelCenters(

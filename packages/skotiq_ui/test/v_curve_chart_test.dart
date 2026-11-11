@@ -4,7 +4,6 @@
 // each destroy the only thing worth looking at.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart' show VCurvePoint;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A canvas that records what a painter asked for, so the test can assert on
@@ -33,19 +32,19 @@ class _RecordingCanvas implements Canvas {
 
 // The owner's ZWO EAF near position 6600 on 2026-09-14: the from-below scan
 // fitted 6620, the from-above scan 6515. 105 steps.
-const _belowPoints = <VCurvePoint>[
-  VCurvePoint(position: 6500, hfr: 5.1),
-  VCurvePoint(position: 6560, hfr: 3.4),
-  VCurvePoint(position: 6620, hfr: 2.1),
-  VCurvePoint(position: 6680, hfr: 3.6),
-  VCurvePoint(position: 6740, hfr: 5.3),
+const _belowPoints = <VCurveSample>[
+  VCurveSample(position: 6500, hfr: 5.1),
+  VCurveSample(position: 6560, hfr: 3.4),
+  VCurveSample(position: 6620, hfr: 2.1),
+  VCurveSample(position: 6680, hfr: 3.6),
+  VCurveSample(position: 6740, hfr: 5.3),
 ];
-const _abovePoints = <VCurvePoint>[
-  VCurvePoint(position: 6740, hfr: 5.6),
-  VCurvePoint(position: 6680, hfr: 4.0),
-  VCurvePoint(position: 6620, hfr: 2.6),
-  VCurvePoint(position: 6560, hfr: 2.3),
-  VCurvePoint(position: 6500, hfr: 3.9),
+const _abovePoints = <VCurveSample>[
+  VCurveSample(position: 6740, hfr: 5.6),
+  VCurveSample(position: 6680, hfr: 4.0),
+  VCurveSample(position: 6620, hfr: 2.6),
+  VCurveSample(position: 6560, hfr: 2.3),
+  VCurveSample(position: 6500, hfr: 3.9),
 ];
 
 VCurvePainter _twoCurves({bool guides = true}) => VCurvePainter(
@@ -150,7 +149,7 @@ void main() {
       final grown = VCurvePainter(
         series: const [
           VCurveSeries(
-            points: [..._belowPoints, VCurvePoint(position: 6800, hfr: 7)],
+            points: [..._belowPoints, VCurveSample(position: 6800, hfr: 7)],
             color: SkotiqChartColors.seriesBlue,
             vertexPosition: 6620,
             showVertexGuide: true,

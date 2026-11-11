@@ -223,8 +223,15 @@ void main() {
 
       final chart = tester.widget<VCurveChart>(find.byType(VCurveChart));
       expect(chart.series, hasLength(2));
-      expect(chart.series[0].points, belowPoints6620);
-      expect(chart.series[1].points, abovePoints6515);
+      List<(int, double)> plotted(VCurveSeries series) => [
+        for (final sample in series.points) (sample.position, sample.hfr),
+      ];
+      expect(plotted(chart.series[0]), [
+        for (final point in belowPoints6620) (point.position, point.hfr),
+      ]);
+      expect(plotted(chart.series[1]), [
+        for (final point in abovePoints6515) (point.position, point.hfr),
+      ]);
       // The live scan is the one whose newest point is ringed.
       expect(chart.series[1].highlightLatest, isTrue);
       expect(chart.series[0].highlightLatest, isFalse);

@@ -22,6 +22,7 @@ import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Capture-fake for the audio path so the test can assert how many times
 /// the alert was fired without touching the platform audio channel.
@@ -313,37 +314,28 @@ void main() {
     });
 
     test(
-        'schedulerService.nextSetTime differs between horizonDeg=0 and '
+        'timeUntilBelow differs between horizonDeg=0 and '
         'horizonDeg=18 for a non-circumpolar target', () {
       // Why this assertion: the user's complaint is "set time should
       // respect the trees". Pin the differential here so a refactor that
       // accidentally hard-codes horizonDeg=0 fires a red test.
-      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-
-      final container = ProviderContainer(
-        overrides: [databaseProvider.overrideWithValue(db)],
-      );
-      addTearDown(container.dispose);
-
-      final scheduler = container.read(schedulerServiceProvider);
       // Use a target at +30° dec from a +30° latitude, currently 30 min
       // past transit, so it is still high in the sky.
       final now = DateTime.utc(2026, 5, 18, 6, 0); // arbitrary fixed time
-      final tToSet0 = scheduler.nextSetTime(
-        raHours: 6.5, // 30 min west of meridian at LST=6.0
-        decDegrees: 30.0,
+      final tToSet0 = AstronomyCalculations.timeUntilBelow(
+        raDeg: 6.5 * 15.0, // 30 min west of meridian at LST=6.0
+        decDeg: 30.0,
         now: now,
-        latitudeDegrees: 30.0,
-        longitudeDegrees: 0.0,
+        latitudeDeg: 30.0,
+        longitudeDeg: 0.0,
         horizonDeg: 0.0,
       );
-      final tToSet18 = scheduler.nextSetTime(
-        raHours: 6.5,
-        decDegrees: 30.0,
+      final tToSet18 = AstronomyCalculations.timeUntilBelow(
+        raDeg: 6.5 * 15.0,
+        decDeg: 30.0,
         now: now,
-        latitudeDegrees: 30.0,
-        longitudeDegrees: 0.0,
+        latitudeDeg: 30.0,
+        longitudeDeg: 0.0,
         horizonDeg: 18.0,
       );
 

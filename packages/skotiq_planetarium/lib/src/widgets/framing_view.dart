@@ -2,8 +2,7 @@ import 'package:skotiq_design/skotiq_design.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../coordinate_system.dart';
-import '../services/mosaic_planner.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../providers/planetarium_providers.dart';
 
 /// Framing view widget for imaging planning
