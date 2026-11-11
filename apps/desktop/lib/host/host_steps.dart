@@ -336,7 +336,9 @@ Future<void> _printConnectBanner(
     if (pairingCodePath != null) {
       // This daemon has no screen: say where the code a computer asks for
       // goes, before anyone asks.
-      stdout.writeln('\n  To link a computer, press Link on it. A code it asks for');
+      stdout.writeln(
+        '\n  To link a computer, press Link on it. A code it asks for',
+      );
       stdout.writeln('  is written to $pairingCodePath');
       stdout.writeln(
         pairingPrintCodes

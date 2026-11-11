@@ -71,21 +71,21 @@ class SessionChartsRow extends ConsumerWidget {
         border: Border(top: BorderSide(color: colors.border)),
       ),
       child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (var i = 0; i < cells.length; i++)
-                  Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: i < cells.length - 1
-                            ? Border(right: BorderSide(color: colors.border))
-                            : const Border(),
-                      ),
-                      child: cells[i],
-                    ),
-                  ),
-              ],
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (var i = 0; i < cells.length; i++)
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: i < cells.length - 1
+                      ? Border(right: BorderSide(color: colors.border))
+                      : const Border(),
+                ),
+                child: cells[i],
+              ),
             ),
+        ],
+      ),
     );
   }
 }

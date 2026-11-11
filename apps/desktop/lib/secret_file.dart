@@ -89,6 +89,7 @@ Future<({String value, bool created})> readOrCreateSecretFile(
 String generateSecretHex() {
   final rng = Random.secure();
   return [
-    for (var i = 0; i < 32; i++) rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    for (var i = 0; i < 32; i++)
+      rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
   ].join();
 }
