@@ -152,7 +152,7 @@ final RegExp _errorCodePrefix = RegExp(r'^[a-z][a-z0-9]*(?:_[a-z0-9]+)+: ');
 /// Class names Dart and the bridge stamp in front of a message.
 final RegExp _classPrefix = RegExp(
   r'^(?:(?:[A-Za-z_]\w*)?(?:Exception|Error|Failure)(?:\([^)]*\))?|Bad state|Operation failed|Invalid argument\(s\)|'
-  r'Unsupported operation|Failed assertion): ',
+  r'Unsupported operation|Failed assertion):(?: |$)',
 );
 
 /// `AnyhowException(text)`, `PanicException(text)`: the bridge's wrappers
@@ -183,10 +183,15 @@ String _clean(String text) {
       out = wrapped.group(1)!.trim();
       continue;
     }
-    final prefix =
-        _classPrefix.firstMatch(out) ?? _errorCodePrefix.firstMatch(out);
-    if (prefix == null || prefix.end >= out.length) break;
-    out = out.substring(prefix.end).trim();
+    // A class name with nothing after it ("Exception:") is an empty message.
+    final classPrefix = _classPrefix.firstMatch(out);
+    if (classPrefix != null) {
+      out = out.substring(classPrefix.end).trim();
+      continue;
+    }
+    final code = _errorCodePrefix.firstMatch(out);
+    if (code == null || code.end >= out.length) break;
+    out = out.substring(code.end).trim();
   }
   return out;
 }

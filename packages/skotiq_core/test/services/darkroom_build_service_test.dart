@@ -481,7 +481,7 @@ void main() {
               'message',
               allOf(
                 contains('needs'),
-                contains('2.0 GB is free'),
+                contains('2.0 GiB is free'),
                 isNot(contains('null')),
               ),
             ),

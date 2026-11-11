@@ -97,7 +97,7 @@ void main() {
 
     await _enterCentre(tester, '83.82', '-5.39');
 
-    expect(find.textContaining('05h 35m 16'), findsOneWidget);
+    expect(find.textContaining('Reads as 05h 35m 16'), findsOneWidget);
     expect(find.textContaining('83.820°'), findsOneWidget);
   });
 }

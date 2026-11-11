@@ -198,7 +198,7 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.text('639 GB free · ~11 nights'),
+      find.text('639 GiB free · ~11 nights'),
       200,
       scrollable: find.byType(Scrollable).first,
     );

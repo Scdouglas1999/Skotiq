@@ -64,7 +64,7 @@ void main() {
     expect(steps.reading(45438.4), '45438');
     const temp = ChartTicks(<double>[-10.2, -10, -9.8], 1);
     expect(temp.reading(-10.0), '-10.00');
-    expect(temp.reading(-0.001), '0.000');
+    expect(temp.reading(-0.001), '0.00');
   });
 
   group('ticksWithin', () {
