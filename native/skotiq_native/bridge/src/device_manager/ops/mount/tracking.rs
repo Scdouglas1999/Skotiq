@@ -247,22 +247,8 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
-                        let direction = match dir {
-                            skotiq_native::traits::GuideDirection::North => {
-                                skotiq_indi::IndiMountGuideDirection::North
-                            }
-                            skotiq_native::traits::GuideDirection::South => {
-                                skotiq_indi::IndiMountGuideDirection::South
-                            }
-                            skotiq_native::traits::GuideDirection::East => {
-                                skotiq_indi::IndiMountGuideDirection::East
-                            }
-                            skotiq_native::traits::GuideDirection::West => {
-                                skotiq_indi::IndiMountGuideDirection::West
-                            }
-                        };
                         return mount
-                            .pulse_guide(direction, duration_ms)
+                            .pulse_guide(dir, duration_ms)
                             .await
                             .map_err(DeviceOpError::driver);
                     }

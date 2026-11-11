@@ -5,16 +5,7 @@
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 
-/// Pier side enumeration for German Equatorial Mounts
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PierSide {
-    /// Mount is on the east side of the pier (pointing west)
-    East,
-    /// Mount is on the west side of the pier (pointing east)
-    West,
-    /// Unknown pier side (mount doesn't support reporting)
-    Unknown,
-}
+pub use skotiq_device::PierSide;
 
 /// Calculate the UTC time at which a target crosses the meridian for an
 /// observer at `longitude` (west-negative).

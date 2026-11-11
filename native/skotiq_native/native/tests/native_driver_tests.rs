@@ -567,7 +567,8 @@ async fn test_qhy_cfw_operations() {
 /// Test that the unified discovery finds all device types
 #[tokio::test]
 async fn test_unified_discovery() {
-    use skotiq_native::discovery::{discover_all_devices, DeviceType};
+    use skotiq_device::DeviceKind as DeviceType;
+    use skotiq_native::discovery::discover_all_devices;
 
     let devices = discover_all_devices().await.expect("Discovery should work");
     println!("Unified discovery found {} total devices:", devices.len());
@@ -652,7 +653,8 @@ async fn test_lx200_mount_discovery_no_crash() {
 /// Test that unified discovery includes mounts
 #[tokio::test]
 async fn test_unified_discovery_includes_mounts() {
-    use skotiq_native::discovery::{discover_all_devices, DeviceType};
+    use skotiq_device::DeviceKind as DeviceType;
+    use skotiq_native::discovery::discover_all_devices;
 
     let devices = discover_all_devices().await.expect("Discovery should work");
     let mounts: Vec<_> = devices

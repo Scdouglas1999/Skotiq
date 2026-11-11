@@ -6,6 +6,7 @@ use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
 use crate::protocol::coord_elements::*;
 use crate::protocol::standard_properties::*;
+use skotiq_device::GuideDirection;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -38,15 +39,6 @@ fn resolve_equatorial_coord_property(has_eod: bool, has_j2000: bool) -> Equatori
     } else {
         EquatorialCoordProperty::OfDate
     }
-}
-
-/// Timed pulse-guide direction (INDI `TELESCOPE_TIMED_GUIDE_*`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IndiMountGuideDirection {
-    North,
-    South,
-    East,
-    West,
 }
 
 /// INDI Mount device wrapper
@@ -557,16 +549,12 @@ impl IndiMount {
     }
 
     /// Pulse-guide for `duration_ms` using standard timed-guide number properties.
-    pub async fn pulse_guide(
-        &self,
-        direction: IndiMountGuideDirection,
-        duration_ms: u32,
-    ) -> IndiResult<()> {
+    pub async fn pulse_guide(&self, direction: GuideDirection, duration_ms: u32) -> IndiResult<()> {
         let (property, element) = match direction {
-            IndiMountGuideDirection::North => (TELESCOPE_TIMED_GUIDE_NS, "TIMED_GUIDE_N"),
-            IndiMountGuideDirection::South => (TELESCOPE_TIMED_GUIDE_NS, "TIMED_GUIDE_S"),
-            IndiMountGuideDirection::East => (TELESCOPE_TIMED_GUIDE_WE, "TIMED_GUIDE_E"),
-            IndiMountGuideDirection::West => (TELESCOPE_TIMED_GUIDE_WE, "TIMED_GUIDE_W"),
+            GuideDirection::North => (TELESCOPE_TIMED_GUIDE_NS, "TIMED_GUIDE_N"),
+            GuideDirection::South => (TELESCOPE_TIMED_GUIDE_NS, "TIMED_GUIDE_S"),
+            GuideDirection::East => (TELESCOPE_TIMED_GUIDE_WE, "TIMED_GUIDE_E"),
+            GuideDirection::West => (TELESCOPE_TIMED_GUIDE_WE, "TIMED_GUIDE_W"),
         };
         let mut client = self.client.write().await;
         client

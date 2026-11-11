@@ -26,6 +26,7 @@
 pub mod camera {
     pub use skotiq_device::camera::*;
 }
+pub mod catalog;
 pub mod discovery;
 pub mod quirks;
 pub mod sync;
@@ -47,45 +48,3 @@ pub use sync::*;
 pub use traits::*;
 pub use utils::*;
 pub use vendor::*;
-
-/// Canonical lower-case vendor tokens accepted by bridge device IDs.
-pub const SUPPORTED_NATIVE_VENDORS: &[&str] = &[
-    "zwo",
-    "zwo_eaf",
-    "zwo_efw",
-    "qhy",
-    "qhy_cfw",
-    "playerone",
-    "player_one",
-    "playerone_pw",
-    "svbony",
-    "atik",
-    "atik_efw",
-    "fli",
-    "fli_focuser",
-    "fli_fw",
-    "touptek",
-    "moravian",
-    "fujifilm",
-    "gphoto2",
-    "ascom",
-    "skywatcher",
-    "ioptron",
-    "lx200",
-    "meade",
-    "onstep",
-    "losmandy",
-    "10micron",
-    // Pegasus NYX speaks the OnStep/LX200 mount path; this is a
-    // protocol-backed alias, not a standalone Pegasus Astro SDK module.
-    "pegasus",
-    "builtin_guider",
-];
-
-/// Native vendor subtype tokens carried as a separate device ID segment.
-pub const NATIVE_VENDOR_SUBTYPES: &[(&str, &[&str])] = &[
-    ("zwo", &["eaf", "efw"]),
-    ("qhy", &["cfw"]),
-    ("atik", &["efw"]),
-    ("fli", &["focuser", "fw"]),
-];

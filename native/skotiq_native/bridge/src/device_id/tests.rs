@@ -130,7 +130,7 @@ fn test_invalid_alpaca_bad_port() {
 //
 // Every observed `format!("native:...")` site in `discovery.rs` and
 // the per-vendor modules is exercised here. If a vendor agent adds a
-// new prefix without updating `SUPPORTED_NATIVE_VENDORS`, one of
+// new prefix without a row in `skotiq_native::catalog::FAMILIES`, one of
 // these tests fails and the bug is caught at `cargo test` time
 // instead of at user-machine "Unknown vendor" startup.
 
@@ -430,10 +430,10 @@ fn native_subtype_empty_payload_is_rejected() {
 fn native_supported_vendors_constant_is_exhaustive() {
     // Smoke-test that every token in the registry parses for at
     // least one minimal payload. Catches typos / dead entries in
-    // SUPPORTED_NATIVE_VENDORS.
-    for vendor in skotiq_native::SUPPORTED_NATIVE_VENDORS {
+    // the vendor catalog.
+    for vendor in &skotiq_native::catalog::id_tokens() {
         // Touptek requires a brand segment; supply one.
-        let raw = if *vendor == "touptek" {
+        let raw = if vendor == "touptek" {
             "native:touptek:ogma:0".to_string()
         } else {
             format!("native:{}:0", vendor)
