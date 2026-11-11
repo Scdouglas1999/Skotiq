@@ -1,15 +1,12 @@
 //! ASCOM (Windows COM) driver dispatch helpers.
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
-//! provide ASCOM-only logic for `connect_*`, `query_*_api_version`, and
-//! `perform_*_health_check`. They are invoked from the dispatcher methods in
+//! provide ASCOM-only logic for `connect_*` and `perform_*_health_check`. They are invoked from the dispatcher methods in
 //! `crate::device_manager`. No behavior or signature has changed relative to the
 //! previous monolithic `devices.rs`.
 
 use crate::device::*;
 use crate::device_manager::DeviceManager;
-#[cfg(windows)]
-use crate::dispatch::device_common_metadata::{fetch_api_version, DeviceCommonMetadata};
 // DeviceDriver / MountDriver required so the trait methods `connect`,
 // `disconnect`, `get_tracking` — which the ASCOM wrappers implement via the
 // trait — are resolvable here.
@@ -28,47 +25,6 @@ use tokio::sync::RwLock;
 /// ASCOM connect must never block the appliance on an undismissable dialog.
 #[cfg(windows)]
 use crate::ascom_wrapper::sta_worker::interactive_dialogs_allowed;
-
-/// Probe an ASCOM typed wrapper for its four ASCOM-Common identification
-/// properties, releasing the per-type map lock before acquiring the
-/// per-wrapper lock so other ops can interleave.
-///
-/// `not_found_label` is the human-readable role (e.g. `"camera"`) used in
-/// the "not connected" error message; the per-arm strings in the original
-/// `query_ascom_api_version` differed only in this label so it's the only
-/// per-arm parameter required.
-///
-/// Returns `Err` only when the device is absent from the typed storage map
-/// (hard "not connected" signal). Optional-property failures inside the
-/// connected wrapper are masked per the silent-fallback contract documented
-/// in [`crate::dispatch::device_common_metadata`].
-///
-/// This helper is `#[cfg(windows)]`-gated because its only caller —
-/// [`DeviceManager::query_ascom_api_version`] — is Windows-only.
-#[cfg(windows)]
-async fn probe_ascom_metadata<W>(
-    map: &RwLock<HashMap<String, Arc<RwLock<W>>>>,
-    device_id: &str,
-    not_found_label: &str,
-) -> Result<DeviceApiVersion, String>
-where
-    W: DeviceCommonMetadata + Send + Sync + 'static,
-{
-    // Clone the wrapper Arc out of the storage map so the map's RwLock is
-    // released before the per-wrapper probe (which holds its own RwLock for
-    // the duration of the four awaits). Mirrors the Alpaca pattern in
-    // dispatch/alpaca.rs::query_alpaca_api_version.
-    let wrapper_arc = {
-        let map_guard = map.read().await;
-        map_guard.get(device_id).cloned()
-    };
-    let wrapper_arc = wrapper_arc
-        .ok_or_else(|| format!("ASCOM {} {} not connected", not_found_label, device_id))?;
-
-    let guard = wrapper_arc.read().await;
-    Ok(fetch_api_version(&*guard, device_id, DeviceApiVersion::from_ascom).await)
-}
-
 impl DeviceManager {
     /// Connect to an ASCOM device
     #[cfg(windows)]
@@ -229,106 +185,6 @@ impl DeviceManager {
     #[cfg(not(windows))]
     pub(crate) async fn connect_ascom(&self, _info: &DeviceInfo) -> Result<(), String> {
         Err("ASCOM is only available on Windows".to_string())
-    }
-
-    /// Query API version for an ASCOM device (Windows only).
-    ///
-    /// The per-device-type fan-out below selects the correct typed storage
-    /// map (`ascom_cameras`, `ascom_mounts`, …); the actual ASCOM-Common
-    /// metadata probe (`InterfaceVersion` / `DriverVersion` / `DriverInfo` /
-    /// `SupportedActions`) is centralized in
-    /// [`crate::dispatch::device_common_metadata::fetch_api_version`] via the
-    /// [`DeviceCommonMetadata`] trait — see that module for the silent-fallback
-    /// contract and the `tracing::warn!` instrumentation
-    /// that surfaces discarded `supported_actions` errors. The closure
-    /// argument `DeviceApiVersion::from_ascom` is the only thing that
-    /// distinguishes this from the Alpaca-side query.
-    ///
-    /// # Silent-fallback contract
-    ///
-    /// * Legacy ASCOM drivers raise `PropertyNotImplementedException`
-    ///   (HRESULT `0x80040400`) for optional properties; the helper maps
-    ///   `interface_version` failure to `1` (ASCOM V1 baseline) and the two
-    ///   description strings to `None` (UI renders as "Unknown").
-    /// * `supported_actions` is documented as ASCOM V2+ optional; the helper
-    ///   defaults to an empty `Vec` and emits a `tracing::warn!` so the
-    ///   discarded error is observable in logs.
-    ///
-    /// Device-absence (registry miss) remains a hard `Err` via the per-arm
-    /// `probe_ascom_metadata` call; silent fallbacks only mask
-    /// optional-property failures, never the device-not-connected signal.
-    #[cfg(windows)]
-    pub async fn query_ascom_api_version(
-        &self,
-        device_id: &str,
-    ) -> Result<DeviceApiVersion, String> {
-        // Get the device info
-        let device_info = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.clone())
-        };
-
-        let info = device_info.ok_or_else(|| format!("Device not found: {}", device_id))?;
-
-        if info.driver_type != DriverType::Ascom {
-            return Err(format!("Device {} is not an ASCOM device", device_id));
-        }
-
-        // The 10-arm fan-out below differs only in (a) which typed storage map
-        // we read from and (b) the human-readable role label embedded in the
-        // "not connected" error message. The four-property probe body is
-        // identical and lives in `fetch_api_version<T: DeviceCommonMetadata>`
-        // — see `crate::dispatch::device_common_metadata`.
-        let version = match info.device_type {
-            DeviceType::Camera => {
-                probe_ascom_metadata(&self.ascom_cameras, device_id, "camera").await?
-            }
-            DeviceType::Mount => {
-                probe_ascom_metadata(&self.ascom_mounts, device_id, "mount").await?
-            }
-            DeviceType::Focuser => {
-                probe_ascom_metadata(&self.ascom_focusers, device_id, "focuser").await?
-            }
-            DeviceType::FilterWheel => {
-                probe_ascom_metadata(&self.ascom_filter_wheels, device_id, "filter wheel").await?
-            }
-            DeviceType::Dome => probe_ascom_metadata(&self.ascom_domes, device_id, "dome").await?,
-            DeviceType::Switch => {
-                probe_ascom_metadata(&self.ascom_switches, device_id, "switch").await?
-            }
-            DeviceType::CoverCalibrator => {
-                probe_ascom_metadata(&self.ascom_cover_calibrators, device_id, "cover calibrator")
-                    .await?
-            }
-            DeviceType::Rotator => {
-                probe_ascom_metadata(&self.ascom_rotators, device_id, "rotator").await?
-            }
-            DeviceType::SafetyMonitor => {
-                probe_ascom_metadata(&self.ascom_safety_monitors, device_id, "safety monitor")
-                    .await?
-            }
-            DeviceType::Weather => {
-                probe_ascom_metadata(&self.ascom_weather, device_id, "observing conditions").await?
-            }
-            _ => {
-                return Err(format!(
-                    "Unsupported ASCOM device type: {:?}",
-                    info.device_type
-                ));
-            }
-        };
-
-        // Cache the version
-        self.set_device_api_version(device_id, version.clone())
-            .await;
-        tracing::info!(
-            "Queried API version for {}: interface_version={:?}, driver_version={:?}",
-            device_id,
-            version.interface_version,
-            version.driver_version
-        );
-
-        Ok(version)
     }
 
     /// Perform health check for ASCOM devices (Windows only)

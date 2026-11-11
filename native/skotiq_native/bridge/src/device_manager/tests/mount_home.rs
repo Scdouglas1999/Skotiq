@@ -22,7 +22,6 @@ pub(super) async fn register_mount(
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
-            api_version: None,
             desired_cooler: None,
             desired_tracking: None,
         },

@@ -27,7 +27,6 @@ async fn register_native_test_device(id: &str, device_type: crate::device::Devic
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
-            api_version: None,
             desired_cooler: None,
             desired_tracking: None,
         },

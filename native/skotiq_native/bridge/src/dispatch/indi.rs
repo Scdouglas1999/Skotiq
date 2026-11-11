@@ -1,11 +1,9 @@
 //! INDI driver dispatch helpers.
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
-//! provide INDI-only logic: device discovery, connection, API version query,
-//! switch helpers, and the per-device health check. Two free helper functions
-//! that map INDI properties / names to a `DeviceType` also live here. They are
-//! invoked from dispatcher methods in `crate::device_manager`. No behavior or
-//! signature has changed relative to the previous monolithic `devices.rs`.
+//! provide INDI-only logic: device discovery, connection, switch helpers, and
+//! the per-device health check. Two free helper functions that map INDI
+//! properties / names to a `DeviceType` also live here.
 
 use crate::device::*;
 use crate::device_manager::DeviceManager;
@@ -323,57 +321,6 @@ impl DeviceManager {
             server_key
         );
         Ok(())
-    }
-
-    /// Query and cache API version for an INDI device
-    pub async fn query_indi_api_version(
-        &self,
-        device_id: &str,
-    ) -> Result<DeviceApiVersion, String> {
-        // Get the device info
-        let device_info = {
-            let devices = self.devices.read().await;
-            devices.get(device_id).map(|d| d.info.clone())
-        };
-
-        let info = device_info.ok_or_else(|| format!("Device not found: {}", device_id))?;
-
-        if info.driver_type != DriverType::Indi {
-            return Err(format!("Device {} is not an INDI device", device_id));
-        }
-
-        // Parse INDI connection info from device ID
-        let parsed = crate::device_id::parse_device_id_cached(device_id)
-            .map_err(|e| format!("Failed to parse device ID: {}", e))?;
-
-        let (host, port) = match &parsed.connection_info {
-            crate::device_id::ConnectionInfo::Indi { host, port, .. } => (host.clone(), *port),
-            _ => return Err("Invalid INDI device ID".to_string()),
-        };
-
-        let client_key = format!("{}:{}", host, port);
-
-        // Get protocol version from INDI client
-        let indi_clients = self.indi_clients.read().await;
-        let protocol_version = if let Some(client) = indi_clients.get(&client_key) {
-            let client_guard = client.read().await;
-            client_guard.get_server_version().await.ok()
-        } else {
-            None
-        };
-
-        let version = DeviceApiVersion::from_indi(device_id.to_string(), protocol_version);
-
-        // Cache the version
-        self.set_device_api_version(device_id, version.clone())
-            .await;
-        tracing::info!(
-            "Queried API version for {}: protocol_version={:?}",
-            device_id,
-            version.protocol_version
-        );
-
-        Ok(version)
     }
 
     pub async fn get_indi_client(

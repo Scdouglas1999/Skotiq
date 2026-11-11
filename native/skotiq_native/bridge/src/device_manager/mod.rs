@@ -1,23 +1,10 @@
-//! Device Manager with connection state management and auto-reconnection
+//! The device registry and the per-device state that goes with it.
 //!
-//! Provides a unified interface for managing device connections across
-//! different driver backends (ASCOM, Alpaca, INDI, Native vendor SDKs).
-//!
-//! This module is the residual shell: it holds the `DeviceManager` and
-//! `ManagedDevice` struct definitions, configuration types, constructors, and
-//! lightweight query helpers (`get_all_devices`, `get_devices_by_type`,
-//! `get_device`, `is_connected`). Heavier method groups live in sibling
-//! submodules using Rust's split-impl-block feature:
-//!
-//! - `connection` — `register_device`, `connect_device`, `disconnect_device`,
-//!   `reconnection_loop`, `set_auto_reconnect`, `report_error`, `shutdown`,
-//!   `unregister_device`.
-//! - `api_version` — cached `DeviceApiVersion` access + `query_*` dispatch +
-//!   `device_supports_*` predicates.
-//! - Per-driver `connect_*` and `query_*_api_version` helpers live in
-//!   `crate::dispatch::{ascom,alpaca,indi,native}`.
+//! `DeviceManager` is split over sibling modules: `connection` (register,
+//! connect, disconnect, reconnect), `heartbeat`, and `ops/*` (one module per
+//! device type). The per-protocol connect and health-check helpers live in
+//! `crate::dispatch`.
 
-pub(crate) mod api_version;
 pub(crate) mod connection;
 pub(crate) mod epoch;
 pub(crate) mod heartbeat;
@@ -29,8 +16,6 @@ pub(crate) mod read_health;
 use crate::device::*;
 use crate::state::SharedAppState;
 use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
-// Vendor SDK imports moved to crate::dispatch::native (the only consumer of
-// the camera/mount/filter wheel/focuser constructors).
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -348,8 +333,6 @@ impl Default for ReconnectConfig {
     }
 }
 
-// INDI device-type inference helpers were moved to `crate::dispatch::indi`.
-
 /// State of a managed device
 #[derive(Debug, Clone)]
 pub struct ManagedDevice {
@@ -367,8 +350,6 @@ pub struct ManagedDevice {
     pub heartbeat_deferred_at: Option<i64>,
     /// Whether heartbeat monitoring is active
     pub heartbeat_active: bool,
-    /// Cached API version information for the device
-    pub api_version: Option<DeviceApiVersion>,
     /// Last commanded camera cooler state `(enabled, target_temp_c)`, recorded
     /// whenever `camera_set_cooler` succeeds. Re-applied after an unplanned
     /// reconnect so a USB yank mid-run does not silently leave the sensor
@@ -800,20 +781,6 @@ impl DeviceManager {
 
         manager
     }
-
-    // `parse_indi_device_id` and `indi_mount_tracking_rate` moved to
-    // `crate::dispatch::indi` (split-impl-block); call sites use `Self::...`
-    // unchanged.
-    //
-    // Connection lifecycle (reconnection_loop, calculate_backoff_delay,
-    // register_device, is_device_registered, get_device_display_name,
-    // connect_device, connect_device_internal, connect_simulator,
-    // disconnect_device, set_auto_reconnect, report_error, shutdown,
-    // unregister_device) moved to `crate::device_manager::connection`.
-    //
-    // API version helpers (get/set/query_device_api_version,
-    // device_supports_version, device_supports_action) moved to
-    // `crate::device_manager::api_version`.
 
     /// Get all managed devices
     pub async fn get_all_devices(&self) -> Vec<ManagedDevice> {
