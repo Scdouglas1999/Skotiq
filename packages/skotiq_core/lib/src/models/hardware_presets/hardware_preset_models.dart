@@ -489,8 +489,6 @@ bool _listEquals(List<String> a, List<String> b) {
   return true;
 }
 
-// Id generation for user-created presets.
-
 final math.Random _presetIdRandom = math.Random();
 
 /// Generates a collision-free id for a user-created preset, combining the

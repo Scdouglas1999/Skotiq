@@ -1,6 +1,5 @@
 part of '../imaging_models.dart';
 
-/// Frame type for imaging
 enum FrameType {
   light,
   dark,
@@ -37,7 +36,6 @@ enum BayerPattern {
   String get displayName => name.toUpperCase();
 }
 
-/// Debayer algorithm
 enum DebayerAlgorithm {
   bilinear,
   vng,
@@ -55,7 +53,6 @@ enum DebayerAlgorithm {
   }
 }
 
-/// Image statistics
 class ImageStats extends Equatable {
   final double? hfr;
   final double? fwhm;
@@ -146,7 +143,6 @@ class ImageStats extends Equatable {
   ];
 }
 
-/// Detected star information
 class DetectedStar extends Equatable {
   final double x;
   final double y;
@@ -172,7 +168,6 @@ class DetectedStar extends Equatable {
   List<Object?> get props => [x, y, flux, hfr, fwhm, peak, background, snr];
 }
 
-/// Star detection result
 class StarDetectionResult extends Equatable {
   final List<DetectedStar> stars;
   final int starCount;

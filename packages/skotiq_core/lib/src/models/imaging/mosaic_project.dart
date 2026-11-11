@@ -82,7 +82,6 @@ class MosaicProject {
   /// Mosaic-wide position angle (degrees), applied to every panel.
   final double positionAngleDeg;
 
-  /// Lifecycle status.
   final MosaicProjectStatus status;
 
   /// The stitched output's `integrated_masters.id`, or null until the stitcher
@@ -130,7 +129,6 @@ class MosaicProject {
   /// mosaic (it carries a hub mosaic id).
   bool get isPublished => hubMosaicId != null && hubMosaicId!.isNotEmpty;
 
-  /// Total panels in the grid.
   int get totalPanels => rows * cols;
 
   /// True once the stitched output master has been produced.
@@ -253,7 +251,6 @@ class MosaicProjectPanel {
   /// Number of accepted frames captured for this panel so far.
   final int capturedCount;
 
-  /// Lifecycle status.
   final MosaicPanelStatus status;
 
   /// The hub rig fingerprint this panel is assigned to for distributed capture,

@@ -30,7 +30,6 @@ class NamingPattern extends Equatable {
   @override
   List<Object?> get props => [pattern, baseDir, format, createSubdirs];
 
-  /// Available pattern variables
   static const List<String> availableVariables = [
     r'$TARGET',
     r'$FILTER',
@@ -51,7 +50,6 @@ class NamingPattern extends Equatable {
   ];
 }
 
-/// Star detection configuration
 class StarDetectionConfig extends Equatable {
   final double detectionSigma;
   final int minArea;
@@ -96,7 +94,6 @@ class FilterAutofocusConfig extends Equatable {
   /// (null = use the designated autofocus filter from settings)
   final String? afFilterName;
 
-  /// AF binning for this filter
   final int binning;
 
   /// AF gain override (null = use camera default)
@@ -175,7 +172,6 @@ class FilterAutofocusConfig extends Equatable {
 /// This is derived from AppSettings autofocus fields and provides a
 /// convenient, typed view for the autofocus subsystem.
 class AutofocusSettings extends Equatable {
-  // General AF parameters
   final String method;
   final String curveFitting;
   final int stepSize;
@@ -201,7 +197,6 @@ class AutofocusSettings extends Equatable {
   final int backlashIn;
   final int backlashOut;
 
-  // Filter-specific
   final String autofocusFilterName;
   final Map<String, FilterAutofocusConfig> filterSettings;
 

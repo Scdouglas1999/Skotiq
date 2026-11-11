@@ -130,7 +130,6 @@ class IntegrationCurve {
   /// The predicted integration curve over the weight-ranked prefixes.
   final List<IntegrationCurvePoint> points;
 
-  /// The keep/cull recommendation.
   final SubsetRecommendation recommendation;
 
   const IntegrationCurve({required this.points, required this.recommendation});
