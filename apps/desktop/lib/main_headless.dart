@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_relay/skotiq_relay.dart';
-import 'package:skotiq_updater/skotiq_updater.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import 'desktop_app_bootstrap.dart';
 import 'desktop_logging_init.dart';
