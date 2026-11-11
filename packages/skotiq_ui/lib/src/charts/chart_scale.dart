@@ -18,9 +18,28 @@ class ChartTicks {
 
   /// [value] as this axis prints it. `-0.00` is a rounding artifact, never a
   /// measurement, so it prints as zero.
-  String label(double value) {
-    final text = value.toStringAsFixed(decimals);
-    return double.parse(text) == 0 ? 0.toStringAsFixed(decimals) : text;
+  String label(double value) => _fixed(value, decimals);
+
+  /// [value] read off this axis: a measured value (a median, the point under
+  /// the pointer) to a finer place than the ticks, so a 2.02 px median on an
+  /// axis ticked every 0.5 px does not read "2.0".
+  String reading(double value) {
+    final s = step.abs();
+    final digits = s == 0 || s >= 10
+        ? decimals
+        : s >= 1
+        ? 1
+        : s >= 0.1
+        ? 2
+        : s >= 0.01
+        ? 3
+        : 4;
+    return _fixed(value, digits < decimals ? decimals : digits);
+  }
+
+  static String _fixed(double value, int digits) {
+    final text = value.toStringAsFixed(digits);
+    return double.parse(text) == 0 ? 0.toStringAsFixed(digits) : text;
   }
 }
 

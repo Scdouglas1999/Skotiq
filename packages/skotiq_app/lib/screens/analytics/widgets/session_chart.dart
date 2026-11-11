@@ -116,11 +116,11 @@ class SessionChart extends StatelessWidget {
       colors: colors,
       summary: _ChartSummary(
         colors: colors,
-        median: range.ticks.label(median),
+        median: range.ticks.reading(median),
         // "to", not a dash: a dash after a negative reads as -15–20.
         spread:
-            '${range.ticks.label(dataMin)} to ${range.ticks.label(dataMax)}',
-        p90: range.ticks.label(p90),
+            '${range.ticks.reading(dataMin)} to ${range.ticks.reading(dataMax)}',
+        p90: range.ticks.reading(p90),
         count: points.length,
       ),
       child: AdaptiveChartContainer(
@@ -129,9 +129,9 @@ class SessionChart extends StatelessWidget {
           padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
           child: SkotiqChart(
             semanticLabel: '$title, $yAxisLabel: median '
-                '${range.ticks.label(median)}, '
-                '${range.ticks.label(dataMin)} to '
-                '${range.ticks.label(dataMax)} over ${points.length} frames',
+                '${range.ticks.reading(median)}, '
+                '${range.ticks.reading(dataMin)} to '
+                '${range.ticks.reading(dataMax)} over ${points.length} frames',
             series: <ChartSeries>[
               ChartSeries(
                 points: samples,

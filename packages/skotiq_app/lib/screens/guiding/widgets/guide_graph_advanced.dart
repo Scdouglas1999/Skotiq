@@ -180,7 +180,12 @@ class GuideGraphAdvanced extends StatelessWidget {
             tone: SeriesChartTone.tertiary,
           ),
       ],
-      x: ChartAxis(kind: ChartAxisKind.elapsed, min: -span, max: 0),
+      x: ChartAxis(
+        kind: ChartAxisKind.elapsed,
+        min: -span,
+        max: 0,
+        maxTicks: 6,
+      ),
       y: ChartAxis(
         min: -limit,
         max: limit,

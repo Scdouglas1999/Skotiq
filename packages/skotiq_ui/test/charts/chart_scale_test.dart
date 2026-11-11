@@ -56,6 +56,17 @@ void main() {
     });
   });
 
+  test('a reading is one place finer than the ticks', () {
+    const hfr = ChartTicks(<double>[1.5, 2, 2.5, 3, 3.5], 1);
+    expect(hfr.label(2.02), '2.0');
+    expect(hfr.reading(2.02), '2.02');
+    const steps = ChartTicks(<double>[45420, 45440, 45460], 0);
+    expect(steps.reading(45438.4), '45438');
+    const temp = ChartTicks(<double>[-10.2, -10, -9.8], 1);
+    expect(temp.reading(-10.0), '-10.00');
+    expect(temp.reading(-0.001), '0.000');
+  });
+
   group('ticksWithin', () {
     test('picks round values inside the range', () {
       expect(ChartScale.ticksWithin(0, 90, 4).values, <double>[0, 25, 50, 75]);

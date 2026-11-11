@@ -370,7 +370,10 @@ class _SkotiqChartState extends State<SkotiqChart> {
               ),
             ),
             if (!hasData)
-              Center(
+              // Above the middle: an empty chart with a fixed scale still
+              // draws its zero line there.
+              Align(
+                alignment: const Alignment(0, -0.35),
                 child: widget.loading
                     ? SizedBox.square(
                         dimension: 16,
@@ -636,19 +639,16 @@ class ChartLayout {
     }
   }
 
-  /// [value] on a value axis as its tick label, without the unit.
-  String valueLabel(
-    double value,
-    ChartValueAxis axis, {
-    int extraDecimals = 0,
-  }) {
+  /// [value] on a value axis as its tick label, without the unit; with
+  /// [reading], as a measured value read off the axis (see
+  /// [ChartTicks.reading]).
+  String valueLabel(double value, ChartValueAxis axis, {bool reading = false}) {
     final config = axis == ChartValueAxis.left ? y : (y2 ?? y);
     final format = config.format;
     if (format != null) return format(value);
     final ticks = valueRange(axis)?.ticks;
     if (ticks == null) return value.toStringAsFixed(1);
-    if (extraDecimals == 0) return ticks.label(value);
-    return value.toStringAsFixed(math.min(4, ticks.decimals + extraDecimals));
+    return reading ? ticks.reading(value) : ticks.label(value);
   }
 
   /// The plot rectangle inside [size] once the gutters for [leftLabelWidth],
@@ -1243,7 +1243,7 @@ class _ReadoutPainter extends CustomPainter {
       }
       final unit = (s.axis == ChartValueAxis.left ? layout.y : layout.y2)?.unit;
       final value =
-          '${layout.valueLabel(hit.dy, s.axis, extraDecimals: 1)}${unit ?? ''}';
+          '${layout.valueLabel(hit.dy, s.axis, reading: true)}${unit ?? ''}';
       lines.add(
         labels.of(s.label == null ? value : '${s.label}  $value', color: color),
       );
