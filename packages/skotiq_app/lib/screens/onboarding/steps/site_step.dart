@@ -12,6 +12,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
+import '../../../widgets/site/place_search.dart';
 
 /// Why the observing-site step will not let the wizard advance, or null when the
 /// current entry is acceptable.
@@ -91,6 +92,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   final _latController = TextEditingController();
   final _lonController = TextEditingController();
   final _elevController = TextEditingController();
+  final _placeSearch = PlaceSearch();
 
   String? _latError;
   String? _lonError;
@@ -122,6 +124,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _latController.dispose();
     _lonController.dispose();
     _elevController.dispose();
+    _placeSearch.dispose();
     super.dispose();
   }
 
@@ -202,6 +205,17 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     final (lat, lon, _) = estimate;
     _latController.text = _trimNumber(_roundLookup(lat));
     _lonController.text = _trimNumber(_roundLookup(lon));
+    _onFieldChanged();
+  }
+
+  /// Put a searched place in the fields, the same way typing it would.
+  void _applyPlace(PlaceSearchHit hit) {
+    _latController.text = _trimNumber(_roundLookup(hit.latitude));
+    _lonController.text = _trimNumber(_roundLookup(hit.longitude));
+    final elevation = hit.elevation;
+    _elevController.text =
+        elevation == null ? '' : elevation.round().toString();
+    _placeSearch.clear();
     _onFieldChanged();
   }
 
@@ -565,6 +579,15 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                 _buildIpEstimate(),
               ],
               const SizedBox(height: SkotiqTokens.spaceLg),
+              // The same place search as Settings > Location: on a desktop
+              // with no GPS a town name is the quickest accurate answer.
+              FormRow(
+                label: 'Search place',
+                help: 'Town or observatory by name',
+                child: PlaceSearchInput(search: _placeSearch),
+              ),
+              PlaceSearchResults(search: _placeSearch, onPicked: _applyPlace),
+              const SizedBox(height: FormRow.rowGap),
               // One form, one label column: side by side, latitude and
               // longitude left a 42 px field on a phone.
               _CoordinateField(

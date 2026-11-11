@@ -17,7 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/location_settings.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_app/widgets/site/place_search.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -93,7 +93,7 @@ void main() {
             attempt;
 
     Future<void> consentAndDetect(WidgetTester tester) async {
-      await tester.tap(find.byIcon(LucideIcons.crosshair));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Detect'));
       await tester.pumpAndSettle();
       // The consent dialog's confirm button, not the row that opened it:
       // both read 'Detect location' now that the row title is sentence case.
@@ -164,7 +164,7 @@ void main() {
         },
       );
 
-      await tester.tap(find.byIcon(LucideIcons.crosshair));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Detect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Detect this site’s location?'), findsOneWidget);
@@ -190,7 +190,7 @@ void main() {
       await consentAndDetect(tester);
       expect(find.text('Detect this site’s location?'), findsNothing);
 
-      await tester.tap(find.byIcon(LucideIcons.crosshair));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Detect'));
       await tester.pumpAndSettle();
       expect(
         find.text('Detect this site’s location?'),
@@ -436,7 +436,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(LucideIcons.crosshair));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Detect'));
       await tester.pumpAndSettle();
       await tester.tap(
         find.widgetWithText(SkotiqButton, 'Detect location'),
