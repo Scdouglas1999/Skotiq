@@ -6,6 +6,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import '../utils/skotiq_data_directory.dart';
 
 /// Provider for the focus model service
@@ -580,8 +581,8 @@ class FocusModelService {
     } else if (tempSpread < _highConfidenceTemperatureSpreadC) {
       batchBand = FilterOffsetConfidence.medium;
       batchReason =
-          'Samples span only ${tempSpread.toStringAsFixed(1)}°C '
-          '(< ${_highConfidenceTemperatureSpreadC.toStringAsFixed(0)}°C); '
+          'Samples span only ${formatCelsius(tempSpread)} '
+          '(< ${formatCelsius(_highConfidenceTemperatureSpreadC, decimals: 0)}); '
           'temperature correction applied but the slope estimate has '
           'limited leverage.';
     } else {
@@ -590,7 +591,7 @@ class FocusModelService {
           'Temperature correction applied (within-filter slope='
           '${slope.toStringAsFixed(2)} steps/°C, global model R²='
           '${temperatureModel.rSquared.toStringAsFixed(2)}, '
-          'span=${tempSpread.toStringAsFixed(1)}°C).';
+          'span=${formatCelsius(tempSpread)}).';
     }
 
     // Calculate offsets for each non-reference filter

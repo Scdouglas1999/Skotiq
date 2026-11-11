@@ -842,7 +842,7 @@ class CalibrationMasterRow extends StatelessWidget {
       if (r.gain != null) 'gain ${r.gain}',
       if (r.offset != null) 'offset ${r.offset}',
       'bin ${r.binX}x${r.binY}',
-      if (r.temperature != null) '${r.temperature!.toStringAsFixed(1)} °C',
+      if (r.temperature != null) formatCelsius(r.temperature!),
       if (r.cameraId?.isNotEmpty ?? false) r.cameraId!,
     ].join(' · ');
   }

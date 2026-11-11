@@ -153,7 +153,7 @@ String depthLockMasterSummary(CalibrationMasterRecord record) {
       parts.add(_seconds(exposure));
     }
     if (record.temperature != null) {
-      parts.add('${record.temperature!.toStringAsFixed(0)} °C');
+      parts.add(formatCelsius(record.temperature!, decimals: 0));
     }
     if (record.gain != null) parts.add('gain ${record.gain}');
   }

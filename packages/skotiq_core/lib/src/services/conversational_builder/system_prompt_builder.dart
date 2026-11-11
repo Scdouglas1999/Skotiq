@@ -142,7 +142,7 @@ class SystemPromptBuilder {
     if (profile.defaultCoolingTemp != null) {
       buf.writeln(
         '- Default cooling target: '
-        '${profile.defaultCoolingTemp!.toStringAsFixed(0)}°C',
+        '${formatCelsius(profile.defaultCoolingTemp!, decimals: 0)}',
       );
     }
     if (ctx.latitudeDeg != null && ctx.longitudeDeg != null) {

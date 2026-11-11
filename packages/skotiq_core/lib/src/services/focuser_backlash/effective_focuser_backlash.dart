@@ -134,7 +134,7 @@ String _measuredPhrase(FocuserBacklashCalibrationRecord record) {
   final temperature = record.temperatureCelsius;
   final at = temperature == null
       ? ''
-      : ', ${temperature.toStringAsFixed(1)} °C';
+      : ', ${formatCelsius(temperature)}';
   return 'measured on ${ClockFormat.date(record.measuredAt.toLocal())} at position '
       '${record.measuredAtPosition}$at';
 }

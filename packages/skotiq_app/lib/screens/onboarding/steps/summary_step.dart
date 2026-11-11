@@ -161,7 +161,7 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
       if (draft.defaultBinX != null || draft.defaultBinY != null)
         'bin ${draft.defaultBinX ?? 1}×${draft.defaultBinY ?? 1}',
       if (draft.defaultCoolingTempC != null)
-        '${draft.defaultCoolingTempC!.toStringAsFixed(0)} °C',
+        formatCelsius(draft.defaultCoolingTempC!, decimals: 0),
     ];
     return parts.isEmpty ? null : parts.join(' · ');
   }

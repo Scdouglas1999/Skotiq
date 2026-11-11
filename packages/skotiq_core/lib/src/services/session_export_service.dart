@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:path/path.dart' as path;
+import 'package:skotiq_astro/format.dart';
 import '../utils/fwhm_conversion.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/images_dao.dart';
@@ -403,7 +404,7 @@ class SessionExportService {
 
       if (session.avgTemperature != null) {
         buffer.writeln(
-          'Avg Temperature: ${session.avgTemperature!.toStringAsFixed(1)} °C',
+          'Avg Temperature: ${formatCelsius(session.avgTemperature!)}',
         );
       }
 

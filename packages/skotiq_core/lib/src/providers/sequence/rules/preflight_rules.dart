@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../../../backend/network_backend.dart';
 import '../../../database/database.dart' show DarkLibraryEntry, Target;
@@ -821,10 +822,10 @@ class CoolerDeltaRule implements RefAwareSequenceValidator {
         category: ValidationCategory.equipmentHealth,
         title: 'Cooler May Not Reach Setpoint',
         description:
-            'Ambient/sensor is ${ambient.toStringAsFixed(1)}°C, target '
-            'is ${cam.targetTemp.toStringAsFixed(1)}°C — '
-            '${delta.toStringAsFixed(0)}°C below ambient exceeds typical '
-            'TEC headroom (~${maxRealisticDeltaC.toStringAsFixed(0)}°C).',
+            'Ambient/sensor is ${formatCelsius(ambient)}, target '
+            'is ${formatCelsius(cam.targetTemp)} — '
+            '${formatCelsius(delta, decimals: 0)} below ambient exceeds typical '
+            'TEC headroom (~${formatCelsius(maxRealisticDeltaC, decimals: 0)}).',
         resolutionHint:
             'Raise the target temperature in the cooling controls, or wait '
             'for ambient to drop before starting.',

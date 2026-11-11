@@ -54,11 +54,11 @@ class _WeatherConditions extends ConsumerWidget {
         ),
       if (hasWeatherDevice) ...[
         if (weatherState.temperature != null)
-          ('Temperature', '${weatherState.temperature!.toStringAsFixed(1)} °C'),
+          ('Temperature', formatCelsius(weatherState.temperature!)),
         if (weatherState.humidity != null)
           ('Humidity', '${weatherState.humidity!.toStringAsFixed(0)} %'),
         if (weatherState.dewPoint != null)
-          ('Dew point', '${weatherState.dewPoint!.toStringAsFixed(1)} °C'),
+          ('Dew point', formatCelsius(weatherState.dewPoint!)),
         if (weatherState.windSpeed != null)
           ('Wind', '${weatherState.windSpeed!.toStringAsFixed(1)} m/s'),
         if (weatherState.cloudCover != null)

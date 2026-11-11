@@ -222,7 +222,7 @@ class _DepthLockRegionCommitHostState
       '${acquisition.exposureSecs.toStringAsFixed(acquisition.exposureSecs % 1 == 0 ? 0 : 1)} s',
       if (acquisition.gain != null) 'gain ${acquisition.gain}',
       if (acquisition.ccdTempC != null)
-        '${acquisition.ccdTempC!.toStringAsFixed(0)} °C',
+        formatCelsius(acquisition.ccdTempC!, decimals: 0),
       'bin ${acquisition.binX}×${acquisition.binY}',
     ];
     return 'matches this sub (${parts.join(', ')}). Choose one.';

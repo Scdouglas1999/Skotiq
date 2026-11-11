@@ -761,7 +761,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
                   'Sensor temperature',
                   acquisition.ccdTempC == null
                       ? '—'
-                      : '${acquisition.ccdTempC!.toStringAsFixed(1)} °C',
+                      : formatCelsius(acquisition.ccdTempC!),
                 ),
               ],
             ),

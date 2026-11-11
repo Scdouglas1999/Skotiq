@@ -263,7 +263,7 @@ class _WarmCameraProperties extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Gradual warming prevents thermal shock while warming toward ${node.targetTemp.toStringAsFixed(1)}°C',
+                  'Gradual warming prevents thermal shock while warming toward ${formatCelsius(node.targetTemp)}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 12),
                     color: colors.warning,

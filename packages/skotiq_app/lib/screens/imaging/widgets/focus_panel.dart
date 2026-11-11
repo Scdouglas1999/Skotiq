@@ -248,7 +248,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                             style: SkotiqTypography.caption
                                 .copyWith(color: widget.colors.textSecondary)),
                         Text(
-                          '${temperature.toStringAsFixed(1)}°C',
+                          formatCelsius(temperature),
                           style: SkotiqTypography.caption
                               .copyWith(color: widget.colors.textPrimary),
                         ),

@@ -209,7 +209,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
       if (image.offset != null) ('Offset', '${image.offset}'),
       ('Binning', '${image.binX}x${image.binY}'),
       if (image.sensorTemp != null)
-        ('Sensor temperature', '${image.sensorTemp!.toStringAsFixed(1)} °C'),
+        ('Sensor temperature', formatCelsius(image.sensorTemp!)),
       if (image.hfr != null) ('HFR', '${image.hfr!.toStringAsFixed(2)} px'),
       if (image.starCount != null) ('Stars detected', '${image.starCount}'),
       // Both scores, each named. The rail's tile shows the advisory number; the

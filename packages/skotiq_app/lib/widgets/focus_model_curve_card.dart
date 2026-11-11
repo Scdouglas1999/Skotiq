@@ -325,7 +325,7 @@ class _StatusRow extends StatelessWidget {
           child: _MetricCell(
             icon: LucideIcons.thermometer,
             label: 'Temp',
-            value: temp != null ? '${temp.toStringAsFixed(1)} °C' : '—',
+            value: temp != null ? formatCelsius(temp) : '—',
             colors: colors,
           ),
         ),

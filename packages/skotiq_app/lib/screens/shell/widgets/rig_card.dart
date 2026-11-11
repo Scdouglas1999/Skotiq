@@ -312,7 +312,7 @@ class RigCard extends ConsumerWidget {
         // Only for a COOLED camera: a DSLR has no sensor setpoint, and an em
         // dash where a temperature should be is a permanent question.
         trailing: cameraConnected && cameraState.temperature != null
-            ? '${cameraState.temperature!.toStringAsFixed(1)}°C'
+            ? formatCelsius(cameraState.temperature!)
             : null,
         trailingSemanticLabel: cameraConnected &&
                 cameraState.temperature != null

@@ -157,7 +157,7 @@ class _HorizontalStrip extends StatelessWidget {
                       icon: LucideIcons.thermometer,
                       label: 'Cam',
                       value: camera.temperature != null
-                          ? '${camera.temperature!.toStringAsFixed(1)}°C'
+                          ? formatCelsius(camera.temperature!)
                           : '--',
                       valueColor: _tempColor(camera.temperature, colors),
                     ),
@@ -305,7 +305,7 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'Sensor',
-                value: '${camera.temperature!.toStringAsFixed(1)}°C',
+                value: formatCelsius(camera.temperature!),
                 valueColor: _tempColor(camera.temperature, colors),
               ),
             if (camera.coolerPower != null)
@@ -389,7 +389,7 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'Temp',
-                value: '${focuser.temperature!.toStringAsFixed(1)}°C',
+                value: formatCelsius(focuser.temperature!),
               ),
             if (afResult != null)
               _TelemetryRow(

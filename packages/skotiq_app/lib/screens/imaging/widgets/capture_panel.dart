@@ -136,7 +136,7 @@ class CapturePanel extends ConsumerWidget {
             trailing: cameraState.temperature == null
                 ? null
                 : SkotiqChip(
-                    label: '${cameraState.temperature!.toStringAsFixed(1)} °C',
+                    label: formatCelsius(cameraState.temperature!),
                     tone: ChipTone.success,
                     dot: true,
                   ),

@@ -47,7 +47,7 @@ class ImagingStatusStrip extends ConsumerWidget {
               icon: SkotiqIcons.camera,
               dotTone: _tone(cameraState.connectionState),
               value: cameraConnected && cameraState.temperature != null
-                  ? '${cameraState.temperature!.toStringAsFixed(1)} °C'
+                  ? formatCelsius(cameraState.temperature!)
                   : (cameraConnected ? 'Ready' : 'Not connected'),
               mono: cameraConnected && cameraState.temperature != null,
               semanticLabel:

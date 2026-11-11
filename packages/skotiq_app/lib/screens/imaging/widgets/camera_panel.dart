@@ -158,7 +158,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                       children: [
                         Text(
                           isConnected && cameraState.temperature != null
-                              ? '${cameraState.temperature!.toStringAsFixed(1)}°C'
+                              ? formatCelsius(cameraState.temperature!)
                               : '\u2014',
                           style: SkotiqTypography.readoutSm.copyWith(
                             color: isConnected
@@ -212,7 +212,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             style: SkotiqTypography.caption
                                 .copyWith(color: widget.colors.textSecondary)),
                         Text(
-                          '${coolingStatus.targetTemp.toStringAsFixed(1)}°C',
+                          formatCelsius(coolingStatus.targetTemp),
                           style: SkotiqTypography.caption
                               .copyWith(color: widget.colors.textSecondary),
                         ),
