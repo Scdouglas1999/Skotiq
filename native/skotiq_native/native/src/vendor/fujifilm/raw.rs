@@ -2,8 +2,6 @@
 
 use super::*;
 
-// Raw sample depth
-
 /// A bit depth this driver is willing to believe. LibRaw clamps its own derived
 /// depth to 8..=16 and `SensorInfo` pixels are `u16`, so anything outside that
 /// range is a bad read rather than a real sensor.
@@ -60,8 +58,6 @@ pub(crate) fn resolve_max_adu(measured_white_level: Option<u32>, bit_depth: u32)
         _ => (1u32 << bit_depth.clamp(8, 16)) - 1,
     }
 }
-
-// RAF processing
 
 /// Decode a RAF buffer into its native single-channel LINEAR CFA mosaic.
 ///

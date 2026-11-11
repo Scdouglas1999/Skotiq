@@ -2,9 +2,6 @@
 
 use super::*;
 
-// Type definitions from XAPI.h.
-
-/// Camera handle type
 pub(crate) type XsdkHandle = *mut c_void;
 
 /// Camera list for device detection (XAPI.h lines 52-60)
@@ -91,8 +88,6 @@ impl Default for XsdkImageInformation {
         }
     }
 }
-
-// SDK constants from XAPI.h.
 
 // Return values (XAPI.h lines 2264-2267)
 pub(crate) const XSDK_COMPLETE: c_long = 0;

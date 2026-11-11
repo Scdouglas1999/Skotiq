@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Information about a discovered Fujifilm device
 pub struct FujifilmDeviceInfo {
     pub name: String,
     pub serial_number: Option<String>,
@@ -11,7 +10,6 @@ pub struct FujifilmDeviceInfo {
     pub connection_type: String,
 }
 
-/// Discover all connected Fujifilm cameras
 pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, DriverError> {
     let sdk = FujifilmSdk::lock().await?;
 
@@ -21,7 +19,6 @@ pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, DriverError> 
 
     let mut devices = Vec::new();
 
-    // Step 1: Detect USB devices with retry logic
     let mut count: c_long = 0;
     for attempt in 1..=3 {
         // SAFETY: XSDK_Detect accepts NULL for the two reserved interface-options pointers (per XAPI.h); `&mut count` is a valid stack out-pointer to c_long; XSDK_DSC_IF_USB is the documented USB interface constant.
@@ -45,7 +42,6 @@ pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, DriverError> 
         return Ok(devices);
     }
 
-    // Step 2: Get camera list
     let mut camera_list = vec![XsdkCameraList::default(); count as usize];
     let mut actual_count: c_long = 0;
     // SAFETY: `camera_list` is a Vec of exactly `count` XsdkCameraList entries (each `#[repr(C, packed)]`); `camera_list.as_mut_ptr()` is a valid pointer to that contiguous buffer; XSDK_Append will write at most `count` entries and update `*actual_count` to the number written, per XAPI.h.
@@ -63,7 +59,6 @@ pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, DriverError> 
         return Err(DriverError::SdkError("XSDK_Append failed".into()));
     }
 
-    // Step 3: Convert to FujifilmDeviceInfo
     for i in 0..actual_count as usize {
         let cam = &camera_list[i];
         if !cam.b_valid {
@@ -90,7 +85,6 @@ pub async fn discover_devices() -> Result<Vec<FujifilmDeviceInfo>, DriverError> 
     Ok(devices)
 }
 
-/// Check if the Fujifilm X Acquire SDK is available
 pub fn is_sdk_available() -> bool {
     FujifilmSdk::is_available()
 }
