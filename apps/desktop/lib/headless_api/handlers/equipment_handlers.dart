@@ -21,6 +21,7 @@ class EquipmentHandlers implements RouteSource {
     EquipmentApi.focuserCapabilities: handleFocuserCapabilities,
     EquipmentApi.filterWheelCapabilities: handleFilterWheelCapabilities,
     EquipmentApi.rotatorCapabilities: handleRotatorCapabilities,
+    EquipmentApi.deviceQuirks: handleDeviceQuirks,
     EquipmentApi.startDeviceHeartbeat: handleStartDeviceHeartbeat,
     EquipmentApi.stopDeviceHeartbeat: handleStopDeviceHeartbeat,
     EquipmentApi.getDeviceHealth: handleGetDeviceHealth,
@@ -158,6 +159,19 @@ class EquipmentHandlers implements RouteSource {
       });
     }
     return jsonOk(caps.toJson());
+  }
+
+  /// GET /api/equipment/quirks?deviceId=… — the workarounds the host's
+  /// drivers apply to one of its connected devices.
+  Future<Response> handleDeviceQuirks(Request request) async {
+    final deviceId = _requireDeviceId(request);
+    final backend = container.read(backendProvider);
+    final quirks = backend is DeviceQuirksBackend
+        ? await (backend as DeviceQuirksBackend).deviceQuirks(deviceId)
+        : const <DeviceQuirk>[];
+    return jsonOk({
+      'quirks': [for (final quirk in quirks) quirk.toJson()],
+    });
   }
 
   Future<Response> handleMountCapabilities(Request request) async {

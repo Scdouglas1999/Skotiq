@@ -983,4 +983,12 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       rethrow;
     }
   }
+
+  Future<List<DeviceQuirk>> deviceQuirks(String deviceId) async {
+    final response = await _get('equipment/quirks', {'deviceId': deviceId});
+    return [
+      for (final quirk in response['quirks'] as List<dynamic>)
+        DeviceQuirk.fromJson(quirk as Map<String, dynamic>),
+    ];
+  }
 }

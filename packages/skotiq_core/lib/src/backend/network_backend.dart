@@ -521,6 +521,7 @@ class NetworkBackend extends _NetworkBackendTransport
         HostSequenceLibrary,
         EnvironmentalStatusBackend,
         DomeStatusBackend,
+        DeviceQuirksBackend,
         MountGuardBackend,
         HostWeather,
         HostReplayDebug,

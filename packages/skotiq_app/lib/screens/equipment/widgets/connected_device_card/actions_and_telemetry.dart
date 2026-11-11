@@ -591,7 +591,21 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
       child: Container(
         padding: SkotiqTokens.paddingMd,
         decoration: SkotiqDecorations.well(colors),
-        child: KeyValueList(rows: _buildExpandedTelemetry(colors)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KeyValueList(rows: _buildExpandedTelemetry(colors)),
+            // Asked for only while the details are open: on a linked client
+            // each card's answer is a request to the host.
+            if (_isExpanded)
+              if (_slot.deviceId case final deviceId?
+                  when deviceId.isNotEmpty) ...[
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                _DeviceQuirksSection(deviceId: deviceId),
+              ],
+          ],
+        ),
       ),
     );
   }

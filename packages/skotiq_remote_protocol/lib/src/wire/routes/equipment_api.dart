@@ -49,6 +49,9 @@ enum EquipmentApi implements ApiEndpoint {
       resource: ApiResource.system,
     ),
   ),
+  deviceQuirks(
+    ApiRoute.get('/api/equipment/quirks', resource: ApiResource.system),
+  ),
   startDeviceHeartbeat(
     ApiRoute.post('/api/device/heartbeat/start', resource: ApiResource.system),
   ),

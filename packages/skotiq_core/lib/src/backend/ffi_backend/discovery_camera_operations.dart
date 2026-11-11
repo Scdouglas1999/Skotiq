@@ -176,6 +176,38 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     await bridge.apiRescanDevices();
   }
 
+  /// The quirk table is keyed by the model name for most vendors
+  /// (`native:<vendor>:<model>`, as each driver looks its own quirks up) and
+  /// by the device id for the rest, so both keys are asked.
+  Future<List<DeviceQuirk>> deviceQuirks(String deviceId) async {
+    // Only the native vendor drivers have entries; the table logs a warning
+    // for an id it cannot key, such as a simulator's.
+    final id = DeviceId.parse(deviceId);
+    if (!bridge.NativeBridge.isNativeAvailable ||
+        id.kind != DeviceDriverKind.native) {
+      return const [];
+    }
+    String? name;
+    for (final device in await _connectedNativeDevices()) {
+      if (device.id == deviceId) name = device.name;
+    }
+    final keys = [
+      deviceId,
+      if (name != null && id.segments.isNotEmpty)
+        'native:${id.segments.first}:$name',
+    ];
+    final seen = <String>{};
+    return [
+      for (final key in keys)
+        for (final quirk in bridge.apiGetDeviceQuirks(deviceId: key))
+          if (seen.add('${quirk.category}\n${quirk.description}'))
+            DeviceQuirk(
+              category: quirk.category,
+              description: quirk.description,
+            ),
+    ];
+  }
+
   /// The native registry's connected devices. If the read fails, the last
   /// list it returned stands in so one failed poll does not report every
   /// device as gone.
