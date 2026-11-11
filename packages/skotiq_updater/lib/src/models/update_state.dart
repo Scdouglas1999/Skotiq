@@ -8,7 +8,6 @@ enum UpdateStatus {
   /// Initial state, not checked yet
   idle,
 
-  /// Checking for updates
   checking,
 
   /// No update available
@@ -17,7 +16,6 @@ enum UpdateStatus {
   /// Update available, waiting for user action
   available,
 
-  /// Currently downloading update
   downloading,
 
   /// Download complete, verifying
@@ -29,7 +27,6 @@ enum UpdateStatus {
   /// Applying update (shouldn't see this in UI, app is restarting)
   applying,
 
-  /// Error occurred
   error,
 }
 
@@ -39,13 +36,10 @@ abstract class UpdateState with _$UpdateState {
   const UpdateState._();
 
   const factory UpdateState({
-    /// Current status
     @Default(UpdateStatus.idle) UpdateStatus status,
 
-    /// Current app version
     required String currentVersion,
 
-    /// Current build number
     required int currentBuildNumber,
 
     /// Available update manifest (if any)
@@ -54,10 +48,8 @@ abstract class UpdateState with _$UpdateState {
     /// Download progress (0.0 to 1.0)
     @Default(0.0) double downloadProgress,
 
-    /// Downloaded bytes
     @Default(0) int downloadedBytes,
 
-    /// Total bytes to download
     @Default(0) int totalBytes,
 
     /// Error message if status is error
@@ -66,7 +58,6 @@ abstract class UpdateState with _$UpdateState {
     /// Path to staged update (if staged)
     String? stagingPath,
 
-    /// Last update check time
     DateTime? lastCheckTime,
 
     /// Version user chose to skip
@@ -76,7 +67,6 @@ abstract class UpdateState with _$UpdateState {
     /// must be installed manually (no download/apply path).
     @Default(false) bool requiresManualUpgrade,
 
-    /// Update server URL
     String? updateServerUrl,
 
     /// Whether any update source is configured (an update server, or the
@@ -102,7 +92,6 @@ abstract class UpdateState with _$UpdateState {
     /// "you are running the latest release", which is not what happened.
     String? unavailableReason,
 
-    /// Current update channel
     @Default('stable') String channel,
   }) = _UpdateState;
 
@@ -153,7 +142,6 @@ abstract class UpdateSettings with _$UpdateSettings {
     /// Whether automatic update checking is enabled
     @Default(true) bool autoCheckEnabled,
 
-    /// Update server URL
     required String serverUrl,
 
     /// Update channel (stable, beta, alpha)

@@ -241,7 +241,6 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     await _promptStore.write(_promptState);
   }
 
-  /// Check for updates
   Future<void> checkForUpdates({DateTime? now}) async {
     // Also awaited here, not just in the throttled path: the Settings button
     // reaches this directly, and a press during startup would otherwise race
@@ -302,7 +301,6 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     _project();
   }
 
-  /// Cancel an in-progress download
   void cancelDownload() {
     if (state.status != UpdateStatus.downloading) return;
     try {
@@ -357,7 +355,6 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     unawaited(_promptStore.write(_promptState));
   }
 
-  /// Clear any staged update
   Future<void> clearStagedUpdate() async {
     _applyError = null;
     await _controller.discardStaged();

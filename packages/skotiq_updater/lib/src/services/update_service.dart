@@ -195,13 +195,11 @@ class UpdateService {
     );
   }
 
-  /// Cancel any in-progress download
   void cancelDownload() {
     _currentDownloadToken?.cancel();
     _currentDownloadToken = null;
   }
 
-  /// Configure the update server URL and channel
   void configure({required String serverUrl, String channel = 'stable'}) {
     _updateServerUrl = serverUrl.endsWith('/')
         ? serverUrl.substring(0, serverUrl.length - 1)
@@ -348,7 +346,6 @@ class UpdateService {
         ),
       );
 
-  /// Check for available updates
   Future<UpdateCheckResult> checkForUpdates() async {
     final github = _githubSource;
     if (github != null) return _checkGithubForUpdates(github);
@@ -358,7 +355,6 @@ class UpdateService {
     }
 
     try {
-      // Fetch version info from server
       final versionUrl = '$_updateServerUrl/api/version';
       _assertSecureUpdateUrl(versionUrl, 'update version check');
       final response = await _get(Uri.parse(versionUrl));
@@ -371,7 +367,6 @@ class UpdateService {
         jsonDecode(response.body) as Map<String, dynamic>,
       );
 
-      // Get the channel info
       final channelInfo = versionInfo.channels[_channel];
       if (channelInfo == null) {
         return UpdateCheckResult(
@@ -396,7 +391,6 @@ class UpdateService {
       // version). An identical version+build is never offered, so there is
       // no self-update loop.
       if (manifest.isNewerBuildThan(_currentVersion, _currentBuildNumber)) {
-        // Check if we can upgrade from current version
         if (!manifest.canUpgradeFrom(_currentVersion)) {
           return UpdateCheckResult(
             hasUpdate: true,
@@ -550,7 +544,6 @@ class UpdateService {
     if (incompatibility != null) throw UpdateException(incompatibility);
   }
 
-  /// Download and stage an update
   Future<void> downloadAndStage(
     UpdateManifest manifest, {
     DownloadProgressCallback? onProgress,
@@ -607,11 +600,9 @@ class UpdateService {
       );
     }
 
-    // Get staging directory
     final stagingDir = await _getStagingDirectory();
     final packagePath = path.join(stagingDir.path, 'update.zip');
 
-    // Create cancel token for this download
     _currentDownloadToken = CancelToken();
 
     // Download the package
@@ -652,7 +643,6 @@ class UpdateService {
     // already accepted (a rollback/freeze attack) or implausibly future-dated.
     await _assertManifestNotRolledBack(manifest);
 
-    // Extract the package
     final extractDir = Directory(path.join(stagingDir.path, 'extracted'));
     if (await extractDir.exists()) {
       await extractDir.delete(recursive: true);
@@ -661,7 +651,6 @@ class UpdateService {
 
     await extractZipSafely(packageFile, extractDir);
 
-    // Verify extracted files
     final verification = await _verifier.verifyDirectory(extractDir, manifest);
     if (!verification.success) {
       await extractDir.delete(recursive: true);
@@ -799,7 +788,6 @@ class UpdateService {
   Future<UpdateManifest?> readStagedManifest() async =>
       _readStagedManifest(await _getStagingDirectory());
 
-  /// Get the staging directory for updates
   Future<Directory> _getStagingDirectory() async {
     final updatesRoot = await _getUpdatesRootDirectory();
     final staging = Directory(path.join(updatesRoot.path, 'staging'));
@@ -881,7 +869,6 @@ class UpdateService {
     }
   }
 
-  /// Clear any staged update
   Future<void> clearStagedUpdate() async {
     final staging = await _getStagingDirectory();
     if (await staging.exists()) {
@@ -1291,7 +1278,6 @@ class UpdateService {
     }
   }
 
-  /// Get the backup directory
   Future<Directory> _getBackupDirectory() async {
     final updatesRoot = await _getUpdatesRootDirectory();
     final backup = Directory(path.join(updatesRoot.path, 'backup'));
@@ -1467,7 +1453,6 @@ class UpdateService {
     }
   }
 
-  /// Dispose resources
   void dispose() {
     _downloader.dispose();
     _httpClient.close();
@@ -1500,7 +1485,6 @@ String computeStagedManifestHash(UpdateManifest manifest) {
   return sha256.convert(utf8.encode(jsonEncode(manifest.toJson()))).toString();
 }
 
-/// Result of checking for updates
 class UpdateCheckResult {
   final bool hasUpdate;
   final String currentVersion;
@@ -1538,7 +1522,6 @@ class UpdateCheckResult {
   }) : releaseNotes = releaseNotes ?? manifest?.releaseNotes;
 }
 
-/// Information about a staged update
 class StagedUpdate {
   final String version;
   final int buildNumber;
@@ -1590,7 +1573,6 @@ enum UpdateApplyOutcome {
   handedToPlatformInstaller,
 }
 
-/// Exception thrown by update operations
 class UpdateException implements Exception {
   final String message;
 

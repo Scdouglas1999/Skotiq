@@ -13,7 +13,6 @@ import 'update_compatibility.dart';
 import 'update_service.dart' show persistStagedManifest;
 import 'update_verifier.dart';
 
-/// Callback for push progress updates
 typedef PushProgressCallback =
     void Function(
       int receivedBytes,
@@ -56,10 +55,8 @@ class LanPushReceiver {
   /// Callback when an update push is complete
   void Function(UpdateManifest manifest, String stagingPath)? onUpdateReceived;
 
-  /// Callback for push progress
   PushProgressCallback? onProgress;
 
-  /// Callback for errors
   void Function(String error)? onError;
 
   LanPushReceiver({
@@ -156,7 +153,6 @@ class LanPushReceiver {
     );
   }
 
-  /// Stop the server
   Future<void> stopServer() async {
     await _server?.close();
     _server = null;
@@ -402,7 +398,6 @@ class LanPushReceiver {
       }
     }
 
-    // Verify package size
     final actualSize = await packageFile.length();
     if (actualSize != manifest.compressedSize) {
       await packageFile.delete();
@@ -469,7 +464,6 @@ class LanPushReceiver {
     _assertCompatibleManifest(manifest);
     onProgress?.call(packageBytes, packageBytes, 1.0, 'Extracting...');
 
-    // Extract package
     final extractDir = Directory(path.join(staging.path, 'extracted'));
     if (await extractDir.exists()) {
       await extractDir.delete(recursive: true);
@@ -480,7 +474,6 @@ class LanPushReceiver {
 
     onProgress?.call(packageBytes, packageBytes, 1.0, 'Verifying...');
 
-    // Verify extracted files
     final verification = await _verifier.verifyDirectory(extractDir, manifest);
     if (!verification.success) {
       await extractDir.delete(recursive: true);
@@ -496,7 +489,6 @@ class LanPushReceiver {
     // the marker is never written over an unverified or partial tree.
     await persistStagedManifest(staging, manifest);
 
-    // Write ready marker
     final markerFile = File(path.join(staging.path, 'ready.json'));
     developer.log(
       'Writing ready marker to: ${markerFile.path}',
@@ -525,7 +517,6 @@ class LanPushReceiver {
     if (incompatibility != null) throw Exception(incompatibility);
   }
 
-  /// Get staging directory
   Future<Directory> _getStagingDirectory() async {
     final appData = await _dataDirectory();
     final staging = Directory(path.join(appData.path, 'updates', 'staging'));
@@ -535,7 +526,6 @@ class LanPushReceiver {
     return staging;
   }
 
-  /// Dispose resources
   void dispose() {
     stopServer();
   }

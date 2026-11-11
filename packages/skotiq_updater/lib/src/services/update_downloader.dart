@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
-/// Callback for download progress updates
 typedef DownloadProgressCallback =
     void Function(int downloadedBytes, int totalBytes, double progress);
 
-/// Token for cancelling downloads
 class CancelToken {
   bool _isCancelled = false;
   final Completer<void> _cancelled = Completer<void>();
@@ -105,7 +103,6 @@ class UpdateDownloader {
       await destination.delete();
     }
 
-    // Determine total size
     int totalBytes;
     if (isPartialContent) {
       // Parse Content-Range header: bytes 1000-2000/3000
@@ -215,7 +212,6 @@ class UpdateDownloader {
   }
 }
 
-/// Exception thrown when download fails
 class DownloadException implements Exception {
   final String message;
   final int? statusCode;
@@ -226,7 +222,6 @@ class DownloadException implements Exception {
   String toString() => 'DownloadException: $message (status: $statusCode)';
 }
 
-/// Exception thrown when download is cancelled
 class DownloadCancelledException implements Exception {
   @override
   String toString() => 'Download was canceled';

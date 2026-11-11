@@ -97,7 +97,6 @@ class UpdateVerifier {
     return sha256.convert(bytes).toString();
   }
 
-  /// Verify a single file against expected hash
   Future<bool> verifyFile(File file, String expectedHash) async {
     if (!await file.exists()) {
       return false;
@@ -201,7 +200,6 @@ class UpdateVerifier {
       return false;
     }
 
-    // Check size
     final actualSize = await packageFile.length();
     if (actualSize != manifest.compressedSize) {
       return false;

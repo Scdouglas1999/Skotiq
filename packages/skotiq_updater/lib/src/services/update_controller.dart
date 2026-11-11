@@ -600,7 +600,6 @@ class UpdateController {
   /// The running app's version string (e.g. `2.5.0`).
   String get currentVersion => _currentVersion;
 
-  /// The running app's build number.
   int get currentBuildNumber => _currentBuildNumber;
 
   /// Configured channel (`stable`, `beta`, ...).
