@@ -5,3 +5,16 @@
 //! driver traits and the driver error.
 
 pub mod ascom;
+pub mod camera;
+pub mod driver;
+pub mod error;
+pub mod kind;
+pub mod mount;
+pub mod vendor;
+
+pub use camera::*;
+pub use driver::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
+pub use error::DriverError;
+pub use kind::DeviceKind;
+pub use mount::{GuideDirection, MountClock, MountSiteInfo, PierSide, TrackingRate};
+pub use vendor::Vendor;

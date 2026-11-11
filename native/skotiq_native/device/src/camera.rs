@@ -1,4 +1,4 @@
-//! Camera-specific types and structures for native drivers
+//! Camera vocabulary.
 
 use serde::{Deserialize, Serialize};
 

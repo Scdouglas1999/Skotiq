@@ -22,11 +22,21 @@
     clippy::needless_range_loop
 )]
 
-pub mod camera;
+/// Temporary names for the vocabulary that moved to `skotiq_device`.
+pub mod camera {
+    pub use skotiq_device::camera::*;
+}
 pub mod discovery;
 pub mod quirks;
 pub mod sync;
-pub mod traits;
+pub mod traits {
+    pub use skotiq_device::{
+        CameraDriver as NativeCamera, DeviceDriver as NativeDevice, DriverError as NativeError,
+        FilterWheelDriver as NativeFilterWheel, FocuserDriver as NativeFocuser, GuideDirection,
+        MountClock, MountDriver as NativeMount, MountSiteInfo, PierSide, TrackingRate,
+    };
+}
+pub use skotiq_device::Vendor as NativeVendor;
 pub mod utils;
 pub mod vendor;
 
@@ -37,51 +47,6 @@ pub use sync::*;
 pub use traits::*;
 pub use utils::*;
 pub use vendor::*;
-
-/// Native driver vendor types
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum NativeVendor {
-    // Camera vendors
-    Zwo,
-    Qhy,
-    PlayerOne,
-    Svbony,
-    Atik,
-    Fli,
-    Touptek,
-    Moravian,
-    Fujifilm,
-    GPhoto2,
-    Ascom,
-    // Mount vendors
-    SkyWatcher,
-    IOptron,
-    Meade,
-    // Generic
-    Other(String),
-}
-
-impl NativeVendor {
-    pub fn as_str(&self) -> &str {
-        match self {
-            NativeVendor::Zwo => "ZWO",
-            NativeVendor::Qhy => "QHY",
-            NativeVendor::PlayerOne => "PlayerOne",
-            NativeVendor::Svbony => "SVBony",
-            NativeVendor::Atik => "Atik",
-            NativeVendor::Fli => "FLI",
-            NativeVendor::Touptek => "Touptek",
-            NativeVendor::Moravian => "Moravian",
-            NativeVendor::Fujifilm => "Fujifilm",
-            NativeVendor::GPhoto2 => "gPhoto2",
-            NativeVendor::Ascom => "ASCOM",
-            NativeVendor::SkyWatcher => "Sky-Watcher",
-            NativeVendor::IOptron => "iOptron",
-            NativeVendor::Meade => "Meade",
-            NativeVendor::Other(s) => s,
-        }
-    }
-}
 
 /// Canonical lower-case vendor tokens accepted by bridge device IDs.
 pub const SUPPORTED_NATIVE_VENDORS: &[&str] = &[
