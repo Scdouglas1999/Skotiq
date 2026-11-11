@@ -450,7 +450,7 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
       ),
       const SizedBox(height: SkotiqTokens.spaceSm),
       SizedBox(
-        height: 260,
+        height: 210,
         child: OnboardingDevicePickerBody(
           title: 'Guide camera',
           subtitle: 'The built-in guider takes its frames with this camera. '
