@@ -584,15 +584,22 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
               FormRow(
                 label: 'Search place',
                 help: 'Town or observatory by name',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    PlaceSearchInput(search: _placeSearch),
-                    PlaceSearchResults(
-                      search: _placeSearch,
-                      onPicked: _applyPlace,
-                    ),
-                  ],
+                child: PlaceSearchInput(search: _placeSearch),
+              ),
+              // Under the field, in the form's control column.
+              LayoutBuilder(
+                builder: (context, constraints) => Padding(
+                  padding: EdgeInsets.only(
+                    left: FormRow.resolveLabelWidth(
+                          FormRow.defaultLabelWidth,
+                          constraints.maxWidth,
+                        ) +
+                        FormRow.columnGap,
+                  ),
+                  child: PlaceSearchResults(
+                    search: _placeSearch,
+                    onPicked: _applyPlace,
+                  ),
                 ),
               ),
               const SizedBox(height: FormRow.rowGap),

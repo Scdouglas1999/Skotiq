@@ -449,8 +449,10 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
         style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
       ),
       const SizedBox(height: SkotiqTokens.spaceSm),
+      // Fits the picker's chrome and one camera at phone width, where its
+      // subtitle wraps to two lines, without a second scroll box.
       SizedBox(
-        height: 210,
+        height: 250,
         child: OnboardingDevicePickerBody(
           title: 'Guide camera',
           subtitle: 'The built-in guider takes its frames with this camera. '
