@@ -89,3 +89,108 @@ final starCatalogFallbackProvider = Provider<bool>((ref) {
   if (!stars.hasValue) return false;
   return ref.watch(starCatalogProvider).isUsingFallback;
 });
+
+/// Installs one catalog, reporting progress and polling for a cancel.
+typedef SkyCatalogInstaller = Future<Object?> Function(
+  SkyCatalog catalog, {
+  void Function(DownloadProgress)? onProgress,
+  Future<bool> Function()? isCancelled,
+});
+
+enum SkyCatalogInstallPhase { idle, running, failed, done }
+
+/// Where the one-download install of the star and deep-sky catalogs stands.
+class SkyCatalogInstallState {
+  const SkyCatalogInstallState({
+    this.phase = SkyCatalogInstallPhase.idle,
+    this.progress = 0,
+    this.status = '',
+    this.error,
+  });
+
+  final SkyCatalogInstallPhase phase;
+
+  /// 0..1 across both catalogs.
+  final double progress;
+
+  /// The installer's own line for the step in progress.
+  final String status;
+
+  /// Why the last attempt failed; present only in [SkyCatalogInstallPhase.failed].
+  final Object? error;
+
+  bool get isRunning => phase == SkyCatalogInstallPhase.running;
+}
+
+/// The star and deep-sky catalogs as one install, the set the planner,
+/// planetarium and search need. Shared by every place that offers it
+/// (first-run setup, the planner, Settings > Catalogs), so a download started
+/// in one is the download the others show.
+class SkyCatalogInstallNotifier extends StateNotifier<SkyCatalogInstallState> {
+  SkyCatalogInstallNotifier(this._install)
+      : super(const SkyCatalogInstallState());
+
+  final SkyCatalogInstaller _install;
+  bool _cancelRequested = false;
+
+  static const List<SkyCatalog> catalogs = [SkyCatalog.stars, SkyCatalog.dso];
+
+  /// Download and install both catalogs. Returns the final state; never
+  /// throws. A second call while one is running is ignored.
+  Future<SkyCatalogInstallState> start() async {
+    if (state.isRunning) return state;
+    _cancelRequested = false;
+    state = const SkyCatalogInstallState(
+      phase: SkyCatalogInstallPhase.running,
+      status: 'Preparing download…',
+    );
+    try {
+      for (var i = 0; i < catalogs.length; i++) {
+        await _install(
+          catalogs[i],
+          isCancelled: () async => _cancelRequested,
+          onProgress: (p) {
+            if (!mounted || p.isTerminal) return;
+            state = SkyCatalogInstallState(
+              phase: SkyCatalogInstallPhase.running,
+              progress: (i + p.progress) / catalogs.length,
+              status: p.status,
+            );
+          },
+        );
+      }
+      if (mounted) {
+        state = const SkyCatalogInstallState(
+          phase: SkyCatalogInstallPhase.done,
+          progress: 1,
+        );
+      }
+    } on CatalogCancelled {
+      if (mounted) state = const SkyCatalogInstallState();
+    } catch (error) {
+      if (mounted) {
+        state = SkyCatalogInstallState(
+          phase: SkyCatalogInstallPhase.failed,
+          error: error,
+        );
+      }
+    }
+    return state;
+  }
+
+  /// Ask the running install to stop at its next check.
+  void cancel() {
+    if (!state.isRunning) return;
+    _cancelRequested = true;
+    state = SkyCatalogInstallState(
+      phase: SkyCatalogInstallPhase.running,
+      progress: state.progress,
+      status: 'Canceling…',
+    );
+  }
+}
+
+final skyCatalogInstallProvider =
+    StateNotifierProvider<SkyCatalogInstallNotifier, SkyCatalogInstallState>(
+  (ref) => SkyCatalogInstallNotifier(CatalogManager.instance.install),
+);

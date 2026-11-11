@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show catalogStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+import '../../../widgets/catalogs/sky_catalog_download_panel.dart';
 
 /// Summary + Save step.
 ///
@@ -147,6 +151,23 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
               ('Site', siteValue),
             ],
           ),
+          if (skyCatalogsMissing(ref.watch(catalogStateProvider))) ...[
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            Container(
+              decoration: SkotiqDecorations.well(colors),
+              padding: SkotiqTokens.paddingMd,
+              child: SkotiqSwitchRow(
+                label: 'Download the sky catalogs when I save',
+                subtitle: 'The planner and planetarium need them. '
+                    '${skyCatalogDownloadContents()} Leave off to download '
+                    'them later from Plan or Settings → Catalogs.',
+                value: draft.downloadSkyCatalogs,
+                onChanged: (value) => ref
+                    .read(onboardingDraftProvider.notifier)
+                    .setDownloadSkyCatalogs(value),
+              ),
+            ),
+          ],
         ],
       ),
     );

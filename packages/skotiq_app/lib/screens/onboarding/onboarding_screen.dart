@@ -7,10 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show catalogStateProvider, skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../shell/shell_chrome.dart';
 import '../shell/widgets/window_chrome.dart';
+import '../../widgets/catalogs/sky_catalog_download_panel.dart';
 
 import 'steps/blocked_next.dart';
 import 'steps/camera_defaults_step.dart';
@@ -334,6 +337,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     try {
       final notifier = ref.read(onboardingDraftProvider.notifier);
       await notifier.complete();
+      if (ref.read(onboardingDraftProvider).downloadSkyCatalogs &&
+          skyCatalogsMissing(ref.read(catalogStateProvider))) {
+        // Runs on while the user reads the next step, which shows it.
+        unawaited(ref.read(skyCatalogInstallProvider.notifier).start());
+      }
       await notifier.next();
       if (!mounted) return;
       setState(() {

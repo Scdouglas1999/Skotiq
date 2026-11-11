@@ -373,6 +373,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     await _persistDraft();
   }
 
+  Future<void> setDownloadSkyCatalogs(bool download) async {
+    state = state.copyWith(downloadSkyCatalogs: download);
+    await _persistDraft();
+  }
+
   Future<void> setProfileName(String name) async {
     state = state.copyWith(profileName: name);
     await _persistDraft();

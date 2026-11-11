@@ -21,6 +21,7 @@ import '../../utils/authority_bound_dialog.dart';
 import '../../utils/darkroom_navigation.dart' show unavailableControlName;
 import '../../utils/plan_tonight_sequencer_helper.dart';
 import '../../widgets/auto_build_options_dialog.dart';
+import '../../widgets/catalogs/sky_catalog_download_panel.dart';
 import '../imaging/widgets/camera_panel.dart';
 import '../night_control/center/chart_axes.dart';
 import 'widgets/planning_risks_banner.dart';

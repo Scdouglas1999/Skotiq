@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show SkyCatalogInstallPhase, skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
 
@@ -248,26 +250,26 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
 
     _logOutcome('Catalog download started', fields: {'catalogs': 'stars+dso'});
     try {
-      for (final catalog in const [SkyCatalog.stars, SkyCatalog.dso]) {
-        await CatalogManager.instance.install(
-          catalog,
-          isCancelled: () async => _cancelRequested,
-        );
+      // The same install the planner and first-run setup start, so the three
+      // never run two downloads of one file.
+      final result = await ref.read(skyCatalogInstallProvider.notifier).start();
+      switch (result.phase) {
+        case SkyCatalogInstallPhase.done:
+          _logOutcome(
+            'Catalog download completed',
+            fields: {'catalogs': 'stars+dso'},
+          );
+          await _loadCatalogStatus();
+          if (mounted) {
+            context.showSuccessSnackBar('Catalogs downloaded successfully!');
+          }
+        case SkyCatalogInstallPhase.failed:
+          _showError('Download failed: ${result.error}');
+        case SkyCatalogInstallPhase.idle:
+          await _onDownloadCancelled();
+        case SkyCatalogInstallPhase.running:
+          break;
       }
-
-      _logOutcome(
-        'Catalog download completed',
-        fields: {'catalogs': 'stars+dso'},
-      );
-      await _loadCatalogStatus();
-
-      if (mounted) {
-        context.showSuccessSnackBar('Catalogs downloaded successfully!');
-      }
-    } on CatalogCancelled {
-      await _onDownloadCancelled();
-    } catch (e) {
-      _showError('Download failed: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -289,6 +291,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   }
 
   void _requestCancelDownload() {
+    ref.read(skyCatalogInstallProvider.notifier).cancel();
     setState(() {
       _cancelRequested = true;
       _downloadStatus = 'Canceling…';

@@ -6,7 +6,14 @@ import 'package:skotiq_core/skotiq_core.dart';
 // `cameraPresetsProvider`); imported by source path, as the optics step does.
 // ignore: implementation_imports
 import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show
+        SkyCatalogInstallPhase,
+        catalogStateProvider,
+        skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+import '../../../widgets/catalogs/sky_catalog_download_panel.dart';
 
 import 'optical_train_step.dart';
 import '../../settings/settings_sections.dart';
@@ -104,6 +111,21 @@ class OnboardingNextStepsStep extends ConsumerWidget {
               ],
             ),
           ),
+          // Until they are installed the planner has nothing to plan with.
+          // The download the user asked for on the review step shows its
+          // progress here; otherwise it is offered once more.
+          if (skyCatalogsMissing(ref.watch(catalogStateProvider)) ||
+              ref.watch(skyCatalogInstallProvider).phase ==
+                  SkyCatalogInstallPhase.done) ...[
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            SkyCatalogDownloadPanel(
+              inline: true,
+              showSettingsLink: false,
+              title: 'Sky catalogs not installed',
+              body: 'The planner and planetarium need them. '
+                  '${skyCatalogDownloadContents()}',
+            ),
+          ],
           const SizedBox(height: SkotiqTokens.space2xl),
           const SectionTitle(title: 'Where to next?'),
           _NextStepCard(

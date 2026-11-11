@@ -181,6 +181,11 @@ class OnboardingDraft {
   /// full power for the rest of the afternoon.
   final bool coolOnConnect;
 
+  /// Whether saving the profile also starts the star and deep-sky catalog
+  /// download. Opt-in and off by default: it is a large download, and a
+  /// laptop being set up at a dark site has no internet.
+  final bool downloadSkyCatalogs;
+
   const OnboardingDraft({
     this.currentStep = OnboardingStep.welcome,
     this.selectedDrivers = const {},
@@ -213,6 +218,7 @@ class OnboardingDraft {
     this.defaultBinY,
     this.defaultCoolingTempC,
     this.coolOnConnect = false,
+    this.downloadSkyCatalogs = false,
   });
 
   OnboardingDraft copyWith({
@@ -247,6 +253,7 @@ class OnboardingDraft {
     int? defaultBinY,
     double? defaultCoolingTempC,
     bool? coolOnConnect,
+    bool? downloadSkyCatalogs,
     bool clearCamera = false,
     bool clearMount = false,
     bool clearFocuser = false,
@@ -318,6 +325,7 @@ class OnboardingDraft {
       coolOnConnect: clearCoolingTempC
           ? false
           : (coolOnConnect ?? this.coolOnConnect),
+      downloadSkyCatalogs: downloadSkyCatalogs ?? this.downloadSkyCatalogs,
     );
   }
 
@@ -420,6 +428,7 @@ class OnboardingDraft {
     'defaultBinY': defaultBinY,
     'defaultCoolingTempC': defaultCoolingTempC,
     'coolOnConnect': coolOnConnect,
+    'downloadSkyCatalogs': downloadSkyCatalogs,
   };
 
   /// Deserialize a draft. Returns the default draft on parse failure so a
@@ -485,6 +494,7 @@ class OnboardingDraft {
       defaultBinY: (json['defaultBinY'] as num?)?.toInt(),
       defaultCoolingTempC: (json['defaultCoolingTempC'] as num?)?.toDouble(),
       coolOnConnect: json['coolOnConnect'] as bool? ?? false,
+      downloadSkyCatalogs: json['downloadSkyCatalogs'] as bool? ?? false,
     );
   }
 
@@ -538,7 +548,8 @@ class OnboardingDraft {
         other.defaultBinX == defaultBinX &&
         other.defaultBinY == defaultBinY &&
         other.defaultCoolingTempC == defaultCoolingTempC &&
-        other.coolOnConnect == coolOnConnect;
+        other.coolOnConnect == coolOnConnect &&
+        other.downloadSkyCatalogs == downloadSkyCatalogs;
   }
 
   @override
@@ -569,6 +580,7 @@ class OnboardingDraft {
       defaultBinY,
       defaultCoolingTempC,
       coolOnConnect,
+      downloadSkyCatalogs,
     ),
   );
 }

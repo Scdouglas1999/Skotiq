@@ -22,19 +22,14 @@ class _PlannerFilteredEmptyState extends ConsumerWidget {
         ref.watch(catalogStateProvider).dsoCatalogStatus.isInstalled;
 
     if (breakdown.total == 0 && !catalogInstalled) {
+      // The download itself, here: a link to Settings was one more place to
+      // find before a fresh install could plan anything.
       return plannerCentredEmptyState(
-        EmptyState(
-          icon: LucideIcons.download,
+        SkyCatalogDownloadPanel(
           title: l10n.text('plannerNoCatalogTitle'),
-          body: l10n.text('plannerNoCatalogBody'),
-          action: SkotiqButton(
-            label: l10n.text('plannerNoCatalogAction'),
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.small,
-            onPressed: () => GoRouter.of(
-              context,
-            ).goToSettings(SettingsSectionId.catalogs),
-          ),
+          body: '${l10n.text('plannerNoCatalogBody')} '
+              '${skyCatalogDownloadContents()}',
+          settingsLabel: l10n.text('plannerNoCatalogAction'),
         ),
       );
     }
