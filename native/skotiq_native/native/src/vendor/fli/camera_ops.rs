@@ -14,10 +14,8 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
-        // Get temperature
         let sensor_temp = {
             let mut temp: c_double = 0.0;
             // SAFETY: self.handle is valid (connected=true checked); `temp` is a valid stack pointer.
@@ -28,7 +26,6 @@ impl CameraDriver for FliCamera {
             }
         };
 
-        // Get cooler power
         let cooler_power = {
             let mut power: c_double = 0.0;
             // SAFETY: self.handle is valid (connected=true checked); `power` is a valid stack pointer.
@@ -39,7 +36,6 @@ impl CameraDriver for FliCamera {
             }
         };
 
-        // Get exposure remaining
         let exposure_remaining = if self.state == CameraState::Exposing {
             let mut timeleft: c_long = 0;
             // SAFETY: self.handle is valid; `timeleft` is a valid stack pointer.
@@ -77,7 +73,6 @@ impl CameraDriver for FliCamera {
         // Set subframe (has its own mutex lock)
         self.set_subframe(params.subframe.clone()).await?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // Dark/bias frames must keep the mechanical shutter CLOSED
@@ -99,7 +94,6 @@ impl CameraDriver for FliCamera {
         let result = unsafe { (sdk.set_exposure_time)(self.handle, exposure_ms) };
         check_fli_error(result, "set exposure time")?;
 
-        // Start exposure
         // SAFETY: self.handle is valid; FLIExposeFrame takes only the device handle.
         let result = unsafe { (sdk.expose_frame)(self.handle) };
         check_fli_error(result, "expose frame")?;
@@ -115,7 +109,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle is valid (connected=true checked).
@@ -131,16 +124,13 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
-        // Check device status
         let mut status: c_long = 0;
         // SAFETY: self.handle is valid (connected=true checked); `status` is a valid stack pointer.
         let result = unsafe { (sdk.get_device_status)(self.handle, &mut status) };
         check_fli_error(result, "get device status")?;
 
-        // Check if data is ready
         Ok((status & FLI_CAMERA_DATA_READY) != 0)
     }
 
@@ -149,7 +139,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         self.state = CameraState::Downloading;
@@ -234,11 +223,9 @@ impl CameraDriver for FliCamera {
         // Decode the byte buffer into u16 pixels with explicit little-endian framing.
         let data = unpack_samples(&byte_buffer, SampleLayout::U16Little);
 
-        // End exposure
         // SAFETY: self.handle is valid; FLIEndExposure takes only the handle.
         let _ = unsafe { (sdk.end_exposure)(self.handle) };
 
-        // Get temperature for metadata
         let temperature = {
             let mut temp: c_double = 0.0;
             // SAFETY: self.handle is valid; `temp` is a valid stack pointer.
@@ -292,7 +279,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // FLISetTemperature *is* the enable on this SDK: cooling needs a
@@ -322,7 +308,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut temp: c_double = 0.0;
@@ -339,7 +324,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut power: c_double = 0.0;
@@ -372,7 +356,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle is valid (connected=true checked); bin_x is a pass-by-value c_long bounded by max_bin_x=16 in capabilities.
@@ -397,7 +380,6 @@ impl CameraDriver for FliCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // Why: SubFrame.start_x/y/width/height are u32. We convert to i32 with overflow

@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Discovered FLI device info
 #[derive(Debug, Clone)]
 pub struct FliDiscoveryInfo {
     pub device_path: String,
@@ -19,17 +18,14 @@ pub enum FliDeviceType {
     FilterWheel,
 }
 
-/// Discover connected FLI cameras
 pub async fn discover_cameras() -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     discover_devices_by_type(FLIDEVICE_CAMERA, FliDeviceType::Camera).await
 }
 
-/// Discover connected FLI focusers
 pub async fn discover_focusers() -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     discover_devices_by_type(FLIDEVICE_FOCUSER, FliDeviceType::Focuser).await
 }
 
-/// Discover connected FLI filter wheels
 pub async fn discover_filter_wheels() -> Result<Vec<FliDiscoveryInfo>, DriverError> {
     discover_devices_by_type(FLIDEVICE_FILTERWHEEL, FliDeviceType::FilterWheel).await
 }
@@ -50,19 +46,16 @@ async fn discover_devices_by_type(
     let sdk_version = sdk_version_from_sdk(&sdk);
     let mut devices = Vec::new();
 
-    // Create device list
     // SAFETY: FLICreateList takes a pass-by-value c_long with no pointer arguments.
     let result = unsafe { (sdk.create_list)(domain) };
     if result != 0 {
         return Ok(Vec::new());
     }
 
-    // Iterate through devices
     let mut dev_domain: c_long = 0;
     let mut filename = [0 as c_char; 256];
     let mut name_buf = [0 as c_char; 256];
 
-    // Get first device
     // SAFETY: all four out-pointers point to stack buffers (dev_domain c_long and 256-byte arrays); lengths are passed correctly so SDK can't overrun.
     let mut result = unsafe {
         (sdk.list_first)(
@@ -127,7 +120,6 @@ async fn discover_devices_by_type(
             device_type,
         });
 
-        // Get next device
         // SAFETY: same buffer-pointer invariants as FLIListFirst above.
         result = unsafe {
             (sdk.list_next)(
@@ -140,14 +132,12 @@ async fn discover_devices_by_type(
         };
     }
 
-    // Clean up
     // SAFETY: FLIDeleteList takes no arguments and releases the SDK-internal list created by FLICreateList above.
     let _ = unsafe { (sdk.delete_list)() };
 
     Ok(devices)
 }
 
-/// Check if SDK is available
 pub fn is_sdk_available() -> bool {
     FliSdk::is_available()
 }

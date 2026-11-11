@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// FLI focuser native driver
 pub struct FliFocuser {
     pub(crate) device_path: String,
     pub(crate) device_id: String,
@@ -58,7 +57,6 @@ impl DeviceDriver for FliFocuser {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
@@ -87,7 +85,6 @@ impl DeviceDriver for FliFocuser {
             )));
         }
 
-        // Get model name
         let mut model_buf = [0 as c_char; 128];
         // SAFETY: self.handle was just opened above; model_buf is a 128-byte stack array with truthful length.
         if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
@@ -117,7 +114,6 @@ impl DeviceDriver for FliFocuser {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
@@ -138,7 +134,6 @@ impl FocuserDriver for FliFocuser {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut position: c_long = 0;
@@ -157,19 +152,15 @@ impl FocuserDriver for FliFocuser {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
-        // Get current position
         let mut current: c_long = 0;
         // SAFETY: self.handle is valid (connected=true checked); `current` is a valid stack pointer.
         let result = unsafe { (sdk.get_stepper_position)(self.handle, &mut current) };
         check_fli_error(result, "get current position")?;
 
-        // Calculate steps needed
         let steps = position as c_long - current;
 
-        // Move asynchronously
         // SAFETY: self.handle is valid; `steps` is a delta computed from valid c_long values.
         let result = unsafe { (sdk.step_motor_async)(self.handle, steps) };
         check_fli_error(result, "move focuser")?;
@@ -182,7 +173,6 @@ impl FocuserDriver for FliFocuser {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle is valid (connected=true checked); `steps` is a pass-by-value c_long.
@@ -197,7 +187,6 @@ impl FocuserDriver for FliFocuser {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut steps_remaining: c_long = 0;
@@ -215,7 +204,6 @@ impl FocuserDriver for FliFocuser {
         }
 
         // FLI doesn't have a direct halt - move 0 steps
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle is valid (connected=true checked); 0 is a pass-by-value c_long that causes the motor to stop per libfli docs.
@@ -238,7 +226,6 @@ impl FocuserDriver for FliFocuser {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut temp: c_double = 0.0;

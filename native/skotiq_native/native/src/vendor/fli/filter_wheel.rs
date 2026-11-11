@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// FLI filter wheel native driver
 pub struct FliFilterWheel {
     pub(crate) device_path: String,
     pub(crate) device_id: String,
@@ -58,7 +57,6 @@ impl DeviceDriver for FliFilterWheel {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
@@ -87,7 +85,6 @@ impl DeviceDriver for FliFilterWheel {
             )));
         }
 
-        // Get model name
         let mut model_buf = [0 as c_char; 128];
         // SAFETY: self.handle was just opened above; model_buf is a 128-byte stack array with truthful length.
         if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
@@ -97,7 +94,6 @@ impl DeviceDriver for FliFilterWheel {
                 .to_string();
         }
 
-        // Get filter count
         let mut count: c_long = 0;
         // SAFETY: self.handle is open; `count` is a valid stack pointer.
         let result = unsafe { (sdk.get_filter_count)(self.handle, &mut count) };
@@ -138,7 +134,6 @@ impl DeviceDriver for FliFilterWheel {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
@@ -159,7 +154,6 @@ impl FilterWheelDriver for FliFilterWheel {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut position: c_long = 0;
@@ -186,7 +180,6 @@ impl FilterWheelDriver for FliFilterWheel {
             )));
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         // SAFETY: self.handle is valid (connected=true checked); `position` was bounds-checked against filter_count earlier in this function.
@@ -201,7 +194,6 @@ impl FilterWheelDriver for FliFilterWheel {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
         let mut status: c_long = 0;
