@@ -1,6 +1,7 @@
 //! `NativeCamera` implementation for `FliCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
 impl NativeCamera for FliCamera {
@@ -231,12 +232,7 @@ impl NativeCamera for FliCamera {
         }
 
         // Decode the byte buffer into u16 pixels with explicit little-endian framing.
-        let data: Vec<u16> = byte_buffer
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
-            .collect();
+        let data = unpack_samples(&byte_buffer, SampleLayout::U16Little);
 
         // End exposure
         // SAFETY: self.handle is valid; FLIEndExposure takes only the handle.

@@ -136,7 +136,9 @@ impl IndiRotator {
                 return Ok(angle);
             }
         }
-        Err(IndiError::Unavailable("Mechanical position not available".to_string()))
+        Err(IndiError::Unavailable(
+            "Mechanical position not available".to_string(),
+        ))
     }
 
     /// Reverse direction
@@ -179,7 +181,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention the angle or that we're not connected
-            assert!(e.contains("90") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("90")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

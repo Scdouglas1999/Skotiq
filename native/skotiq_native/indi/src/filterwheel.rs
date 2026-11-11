@@ -283,7 +283,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the slot or that we're not connected
-            assert!(e.contains("slot 3") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("slot 3")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

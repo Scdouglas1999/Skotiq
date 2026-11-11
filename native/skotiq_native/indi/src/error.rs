@@ -84,7 +84,10 @@ pub enum IndiError {
     /// sentence shown to the user.
     Incomplete(String),
     /// `what` was started and then failed for `cause`.
-    Failed { what: String, cause: Box<IndiError> },
+    Failed {
+        what: String,
+        cause: Box<crate::IndiTimeoutError>,
+    },
 }
 
 impl std::error::Error for IndiError {}

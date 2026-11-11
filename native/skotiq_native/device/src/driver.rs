@@ -2,12 +2,20 @@
 //!
 //! One connected device is one value behind one of these traits, whichever
 //! protocol reaches it (vendor SDK, serial, ASCOM COM, Alpaca, INDI, simulator).
+//!
+//! The camera, mount, focuser and filter wheel traits are implemented by the
+//! vendor drivers and by the bridge's ASCOM wrappers. The dome, rotator,
+//! switch, weather, safety monitor and cover calibrator traits name the
+//! operations the bridge performs on those devices today through one match
+//! per protocol; nothing implements them yet.
 
+use crate::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
 use crate::camera::*;
 use crate::error::DriverError;
 use crate::mount::*;
 use crate::vendor::Vendor;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// Common interface for all native devices
@@ -391,4 +399,136 @@ pub trait FilterWheelDriver: DeviceDriver {
 
     /// Set filter name
     async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError>;
+}
+
+/// A dome or roll-off roof.
+#[async_trait]
+pub trait DomeDriver: DeviceDriver {
+    async fn open_shutter(&self) -> Result<(), DriverError>;
+
+    async fn close_shutter(&self) -> Result<(), DriverError>;
+
+    async fn shutter_status(&self) -> Result<ShutterStatus, DriverError>;
+
+    /// Degrees, north through east.
+    async fn slew_to_azimuth(&self, azimuth_deg: f64) -> Result<(), DriverError>;
+
+    async fn azimuth(&self) -> Result<f64, DriverError>;
+
+    async fn is_slewing(&self) -> Result<bool, DriverError>;
+
+    async fn abort_slew(&self) -> Result<(), DriverError>;
+
+    async fn park(&self) -> Result<(), DriverError>;
+
+    async fn find_home(&self) -> Result<(), DriverError>;
+
+    async fn at_home(&self) -> Result<bool, DriverError>;
+
+    async fn at_park(&self) -> Result<bool, DriverError>;
+
+    /// Whether the dome follows the mount by itself.
+    async fn set_slaved(&self, slaved: bool) -> Result<(), DriverError>;
+}
+
+/// A camera rotator.
+#[async_trait]
+pub trait RotatorDriver: DeviceDriver {
+    /// Degrees of sky position angle.
+    async fn move_absolute(&self, position_deg: f64) -> Result<(), DriverError>;
+
+    async fn position(&self) -> Result<f64, DriverError>;
+
+    async fn is_moving(&self) -> Result<bool, DriverError>;
+
+    async fn halt(&self) -> Result<(), DriverError>;
+
+    /// Declares the current mechanical angle to be `position_deg` on the sky.
+    async fn sync(&self, position_deg: f64) -> Result<(), DriverError>;
+
+    async fn set_reverse(&self, reverse: bool) -> Result<(), DriverError>;
+}
+
+/// A box of switches and gauges (power ports, dew heaters, sensors).
+#[async_trait]
+pub trait SwitchDriver: DeviceDriver {
+    /// Number of switches; they are addressed `0..count`.
+    async fn count(&self) -> Result<i32, DriverError>;
+
+    async fn switch_name(&self, index: i32) -> Result<String, DriverError>;
+
+    async fn switch_description(&self, index: i32) -> Result<String, DriverError>;
+
+    async fn can_write(&self, index: i32) -> Result<bool, DriverError>;
+
+    async fn state(&self, index: i32) -> Result<bool, DriverError>;
+
+    async fn set_state(&self, index: i32, on: bool) -> Result<(), DriverError>;
+
+    async fn value(&self, index: i32) -> Result<f64, DriverError>;
+
+    async fn set_value(&self, index: i32, value: f64) -> Result<(), DriverError>;
+
+    async fn min_value(&self, index: i32) -> Result<f64, DriverError>;
+
+    async fn max_value(&self, index: i32) -> Result<f64, DriverError>;
+}
+
+/// What a weather station reports. A reading the station does not have is
+/// `None`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct WeatherReadings {
+    /// Percent of sky covered.
+    pub cloud_cover: Option<f64>,
+    /// Degrees Celsius.
+    pub dew_point: Option<f64>,
+    /// Percent relative humidity.
+    pub humidity: Option<f64>,
+    /// Hectopascals at the station.
+    pub pressure: Option<f64>,
+    /// Millimetres per hour.
+    pub rain_rate: Option<f64>,
+    /// Magnitudes per square arc second.
+    pub sky_quality: Option<f64>,
+    /// Degrees Celsius.
+    pub sky_temperature: Option<f64>,
+    /// Degrees Celsius.
+    pub temperature: Option<f64>,
+    /// Degrees, north through east, the wind comes from.
+    pub wind_direction: Option<f64>,
+    /// Metres per second.
+    pub wind_speed: Option<f64>,
+}
+
+#[async_trait]
+pub trait WeatherDriver: DeviceDriver {
+    async fn readings(&self) -> Result<WeatherReadings, DriverError>;
+}
+
+#[async_trait]
+pub trait SafetyMonitorDriver: DeviceDriver {
+    async fn is_safe(&self) -> Result<bool, DriverError>;
+}
+
+/// A dust cover, a flat panel, or both in one device.
+#[async_trait]
+pub trait CoverCalibratorDriver: DeviceDriver {
+    async fn open_cover(&self) -> Result<(), DriverError>;
+
+    async fn close_cover(&self) -> Result<(), DriverError>;
+
+    async fn halt_cover(&self) -> Result<(), DriverError>;
+
+    async fn cover_status(&self) -> Result<CoverStatus, DriverError>;
+
+    /// Lights the panel at `brightness`, between 0 and `max_brightness`.
+    async fn calibrator_on(&self, brightness: i32) -> Result<(), DriverError>;
+
+    async fn calibrator_off(&self) -> Result<(), DriverError>;
+
+    async fn calibrator_status(&self) -> Result<CalibratorStatus, DriverError>;
+
+    async fn brightness(&self) -> Result<i32, DriverError>;
+
+    async fn max_brightness(&self) -> Result<i32, DriverError>;
 }

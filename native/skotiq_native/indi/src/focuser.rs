@@ -413,7 +413,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the position or that we're not connected
-            assert!(e.contains("position 5000") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("position 5000")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -430,7 +433,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the steps or that we're not connected
-            assert!(e.contains("100 steps") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("100 steps")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

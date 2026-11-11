@@ -1,6 +1,7 @@
 //! `NativeDevice` / `NativeCamera` implementations for `QhyCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
 impl NativeDevice for QhyCamera {
@@ -379,17 +380,12 @@ impl NativeCamera for QhyCamera {
         // hand the SDK a u8 buffer from a pool). We decode each pixel via from_le_bytes so
         // alignment and host endianness are both irrelevant — only SDK length matters,
         // and we already truncated the buffer to actual_size = width*height*(bpp/8)*channels.
-        let data: Vec<u16> = if bpp == 16 {
-            pooled_buffer
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                .collect()
+        let layout = if bpp == 16 {
+            SampleLayout::U16Little
         } else {
-            // 8-bit to 16-bit scaling
-            pooled_buffer.iter().map(|&x| (x as u16) * 256).collect()
+            SampleLayout::U8Scaled
         };
+        let data = unpack_samples(&pooled_buffer[..], layout);
 
         // Get temperature and vendor features while still holding mutex
         let temperature = self.get_control(&sdk, QhyControl::CONTROL_CURTEMP).ok();

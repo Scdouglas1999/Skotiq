@@ -35,12 +35,38 @@ pub struct CameraStatus {
 /// Camera operational state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CameraState {
-    Idle,
-    Waiting,
-    Exposing,
-    Reading,
-    Downloading,
-    Error,
+    Idle = 0,
+    Waiting = 1,
+    Exposing = 2,
+    Reading = 3,
+    Downloading = 4,
+    Error = 5,
+}
+
+impl From<i32> for CameraState {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => CameraState::Idle,
+            1 => CameraState::Waiting,
+            2 => CameraState::Exposing,
+            3 => CameraState::Reading,
+            4 => CameraState::Downloading,
+            _ => CameraState::Error,
+        }
+    }
+}
+
+impl std::fmt::Display for CameraState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CameraState::Idle => write!(f, "Idle"),
+            CameraState::Waiting => write!(f, "Waiting"),
+            CameraState::Exposing => write!(f, "Exposing"),
+            CameraState::Reading => write!(f, "Reading"),
+            CameraState::Downloading => write!(f, "Downloading"),
+            CameraState::Error => write!(f, "Error"),
+        }
+    }
 }
 
 /// The kind of frame being captured.

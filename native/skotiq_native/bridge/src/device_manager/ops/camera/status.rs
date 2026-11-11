@@ -219,7 +219,7 @@ impl DeviceManager {
                             skotiq_alpaca::CameraState::Reading => {
                                 crate::device::CameraState::Reading
                             }
-                            skotiq_alpaca::CameraState::Download => {
+                            skotiq_alpaca::CameraState::Downloading => {
                                 crate::device::CameraState::Download
                             }
                             skotiq_alpaca::CameraState::Error => crate::device::CameraState::Error,

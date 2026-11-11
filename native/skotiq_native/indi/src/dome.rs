@@ -202,10 +202,7 @@ impl IndiDome {
     }
 
     /// Close the dome shutter with timeout
-    pub async fn close_shutter_with_timeout(
-        &self,
-        timeout: Option<Duration>,
-    ) -> IndiResult<()> {
+    pub async fn close_shutter_with_timeout(&self, timeout: Option<Duration>) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -513,7 +510,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention the azimuth or that we're not connected
-            assert!(e.contains("180") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("180")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -530,7 +530,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention shutter or connection
-            assert!(e.contains("shutter") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("shutter")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

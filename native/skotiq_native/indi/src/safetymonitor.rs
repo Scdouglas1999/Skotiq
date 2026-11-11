@@ -370,7 +370,8 @@ mod tests {
         let err = monitor
             .is_safe()
             .await
-            .expect_err("missing INDI safety indicators must be an error");
+            .expect_err("missing INDI safety indicators must be an error")
+            .to_string();
         assert!(
             err.contains("No INDI safety indicators resolved"),
             "error should identify the missing safety telemetry: {}",
@@ -413,7 +414,8 @@ mod tests {
         let err = safety
             .is_safe()
             .await
-            .expect_err("silent safety monitor must surface an error");
+            .expect_err("silent safety monitor must surface an error")
+            .to_string();
 
         assert!(err.contains("No INDI safety indicators resolved"));
         assert!(err.contains("SilentSafety"));

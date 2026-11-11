@@ -369,10 +369,7 @@ impl IndiMount {
             .wait_for_property_not_busy(&self.device_name, coord_prop, timeout_duration)
             .await
             .map_err(|e| IndiError::Failed {
-                what: format!(
-                    "Mount slew to RA={:.4}h, Dec={:.4}°",
-                    ra_hours, dec_degrees
-                ),
+                what: format!("Mount slew to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees),
                 cause: Box::new(e),
             })
     }
@@ -1224,7 +1221,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the coordinates or that we're not connected
-            assert!(e.contains("RA=10.5") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("RA=10.5")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 

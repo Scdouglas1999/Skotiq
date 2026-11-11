@@ -6,6 +6,9 @@
 
 use serde::Deserialize;
 
+pub use crate::camera::CameraState;
+pub use crate::mount::PierSide;
+
 /// Builds the typed value a transport hands out from the value an ASCOM
 /// member carries on the wire.
 pub trait FromWire<W> {
@@ -21,34 +24,6 @@ impl<T: From<i32>> FromWire<i32> for T {
 impl<T: From<i32>> FromWire<Vec<i32>> for Vec<T> {
     fn from_wire(wire: Vec<i32>) -> Self {
         wire.into_iter().map(T::from).collect()
-    }
-}
-
-/// `ASCOM.DeviceInterface.PierSide`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PierSide {
-    East = 0,
-    West = 1,
-    Unknown = -1,
-}
-
-impl From<i32> for PierSide {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => PierSide::East,
-            1 => PierSide::West,
-            _ => PierSide::Unknown,
-        }
-    }
-}
-
-impl std::fmt::Display for PierSide {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PierSide::East => write!(f, "East"),
-            PierSide::West => write!(f, "West"),
-            PierSide::Unknown => write!(f, "Unknown"),
-        }
     }
 }
 
@@ -230,43 +205,6 @@ impl std::fmt::Display for CalibratorStatus {
             CalibratorStatus::Ready => write!(f, "Ready"),
             CalibratorStatus::Unknown => write!(f, "Unknown"),
             CalibratorStatus::Error => write!(f, "Error"),
-        }
-    }
-}
-
-/// `ASCOM.DeviceInterface.CameraStates`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CameraState {
-    Idle = 0,
-    Waiting = 1,
-    Exposing = 2,
-    Reading = 3,
-    Download = 4,
-    Error = 5,
-}
-
-impl From<i32> for CameraState {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => CameraState::Idle,
-            1 => CameraState::Waiting,
-            2 => CameraState::Exposing,
-            3 => CameraState::Reading,
-            4 => CameraState::Download,
-            _ => CameraState::Error,
-        }
-    }
-}
-
-impl std::fmt::Display for CameraState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CameraState::Idle => write!(f, "Idle"),
-            CameraState::Waiting => write!(f, "Waiting"),
-            CameraState::Exposing => write!(f, "Exposing"),
-            CameraState::Reading => write!(f, "Reading"),
-            CameraState::Download => write!(f, "Downloading"),
-            CameraState::Error => write!(f, "Error"),
         }
     }
 }

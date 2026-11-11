@@ -1,6 +1,7 @@
 //! `NativeDevice` / `NativeCamera` implementations for `PlayerOneCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
 impl NativeDevice for PlayerOneCamera {
@@ -362,17 +363,12 @@ impl NativeCamera for PlayerOneCamera {
         // Convert to u16
         // Why: 8-bit -> 16-bit promotion (u8 -> u16 is always lossless; * 256 stays
         // within u16 because the max product is 255 * 256 = 65280 < u16::MAX).
-        let data: Vec<u16> = if bytes_per_pixel == 2 {
-            pooled_buffer
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|chunk| u16::from_ne_bytes([chunk[0], chunk[1]]))
-                .collect()
+        let layout = if bytes_per_pixel == 2 {
+            SampleLayout::U16Native
         } else {
-            // 8-bit to 16-bit scaling
-            pooled_buffer.iter().map(|&x| (x as u16) * 256).collect()
+            SampleLayout::U8Scaled
         };
+        let data = unpack_samples(&pooled_buffer[..], layout);
 
         tracing::info!(
             "Downloaded {}x{} image ({} bytes)",

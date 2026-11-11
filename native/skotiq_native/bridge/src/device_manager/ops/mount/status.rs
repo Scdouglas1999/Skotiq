@@ -779,12 +779,12 @@ impl DeviceManager {
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::ALTITUDE,
-                                FieldAvailability::Error(e.clone()),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             Self::set_mount_availability(
                                 &mut availability,
                                 mount_status_field::AZIMUTH,
-                                FieldAvailability::Error(e),
+                                FieldAvailability::Error(e.to_string()),
                             );
                             (None, None)
                         }

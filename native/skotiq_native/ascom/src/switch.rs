@@ -1,8 +1,6 @@
 //! ASCOM Switch wrapper and batch status types.
 
 use crate::com::ComDispatch;
-use crate::error::AscomResult;
-use crate::health::ConnectionHealth;
 
 com_device!(
     /// ASCOM Switch

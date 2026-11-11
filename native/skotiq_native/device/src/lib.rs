@@ -13,7 +13,11 @@ pub mod mount;
 pub mod vendor;
 
 pub use camera::*;
-pub use driver::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
+pub use driver::{
+    CameraDriver, CoverCalibratorDriver, DeviceDriver, DomeDriver, FilterWheelDriver,
+    FocuserDriver, MountDriver, RotatorDriver, SafetyMonitorDriver, SwitchDriver, WeatherDriver,
+    WeatherReadings,
+};
 pub use error::DriverError;
 pub use kind::DeviceKind;
 pub use mount::{GuideDirection, MountClock, MountSiteInfo, PierSide, TrackingRate};

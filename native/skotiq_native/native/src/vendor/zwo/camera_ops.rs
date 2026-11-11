@@ -1,6 +1,7 @@
 //! `NativeDevice` / `NativeCamera` implementations for `ZwoCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
 impl NativeDevice for ZwoCamera {
@@ -462,16 +463,12 @@ impl NativeCamera for ZwoCamera {
         // Convert to u16 if needed.
         // Why: 8-bit pixel `x: u8` widened to u16 then multiplied by 256 is the standard
         // 8-bit to 16-bit promotion; u8 -> u16 is always lossless.
-        let data: Vec<u16> = if bytes_per_pixel == 2 {
-            pooled_buffer
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|chunk| u16::from_ne_bytes([chunk[0], chunk[1]]))
-                .collect()
+        let layout = if bytes_per_pixel == 2 {
+            SampleLayout::U16Native
         } else {
-            pooled_buffer.iter().map(|&x| (x as u16) * 256).collect()
+            SampleLayout::U8Scaled
         };
+        let data = unpack_samples(&pooled_buffer[..], layout);
 
         // Raw-buffer statistics, for diagnosing blank or mid-gray frames.
         //

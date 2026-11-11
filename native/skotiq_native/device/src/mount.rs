@@ -33,12 +33,33 @@ pub struct MountClock {
 }
 
 /// Side of the pier of a German equatorial mount, in the ASCOM sense: `East`
-/// is the normal state for a target west of the meridian.
+/// is the normal state for a target west of the meridian. The numbers are
+/// ASCOM's `PierSide`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PierSide {
-    East,
-    West,
-    Unknown,
+    East = 0,
+    West = 1,
+    Unknown = -1,
+}
+
+impl From<i32> for PierSide {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => PierSide::East,
+            1 => PierSide::West,
+            _ => PierSide::Unknown,
+        }
+    }
+}
+
+impl std::fmt::Display for PierSide {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PierSide::East => write!(f, "East"),
+            PierSide::West => write!(f, "West"),
+            PierSide::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

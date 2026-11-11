@@ -199,8 +199,12 @@ macro_rules! __ascom_member {
 /// enumeration when the member has one, otherwise the wire type.
 #[macro_export]
 macro_rules! ascom_surface_type {
-    ($wire:ty) => { $wire };
-    ($wire:ty, $surface:ty) => { $surface };
+    ($wire:ty) => {
+        $wire
+    };
+    ($wire:ty, $surface:ty) => {
+        $surface
+    };
 }
 
 /// Converts a wire value to the type [`ascom_surface_type!`] names.

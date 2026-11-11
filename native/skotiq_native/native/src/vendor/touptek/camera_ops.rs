@@ -1,6 +1,7 @@
 //! `NativeDevice` / `NativeCamera` / `Drop` implementations for `TouptekCamera`.
 
 use super::*;
+use crate::camera_core::{unpack_samples, SampleLayout};
 
 #[async_trait]
 impl NativeDevice for TouptekCamera {
@@ -799,12 +800,7 @@ impl NativeCamera for TouptekCamera {
                 )));
             }
 
-            let data: Vec<u16> = buffer[..pulled_bytes]
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                .collect();
+            let data = unpack_samples(&buffer[..pulled_bytes], SampleLayout::U16Little);
 
             Ok((data, info.width, info.height))
         })?;
