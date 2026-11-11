@@ -14,6 +14,7 @@ void main() {
         ).toJson(),
         {
           'error': 'goal_not_found',
+          'code': 'goal_not_found',
           'message': 'No such goal',
           'requestId': 'r1',
           'goalId': 'm42',

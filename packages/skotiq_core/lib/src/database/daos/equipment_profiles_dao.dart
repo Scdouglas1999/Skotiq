@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/equipment_profiles.dart';
 
@@ -7,7 +8,8 @@ part 'equipment_profiles_dao.g.dart';
 
 @DriftAccessor(tables: [EquipmentProfiles])
 class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$EquipmentProfilesDaoMixin {
+    with _$EquipmentProfilesDaoMixin
+    implements EquipmentProfileLibrary {
   EquipmentProfilesDao(super.db);
 
   /// Get all equipment profiles
@@ -15,6 +17,7 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
       select(equipmentProfiles).get();
 
   /// Watch all equipment profiles
+  @override
   Stream<List<EquipmentProfile>> watchAllProfiles() =>
       select(equipmentProfiles).watch();
 
@@ -26,6 +29,7 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch the active profile
+  @override
   Stream<EquipmentProfile?> watchActiveProfile() {
     return (select(
       equipmentProfiles,

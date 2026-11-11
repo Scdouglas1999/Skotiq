@@ -142,7 +142,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     wireNames: const ['safetymonitor', 'safety monitor'],
     state: safetyMonitorStateProvider,
     notifier: safetyMonitorStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.switch_,

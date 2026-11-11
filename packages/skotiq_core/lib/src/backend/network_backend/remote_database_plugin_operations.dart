@@ -398,7 +398,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   // We deliberately keep these methods OUT of [SkotiqBackend]'s
   // abstract surface because the local FFI backend has no equivalent
   // remote-log concept (it consumes the LoggingService directly). UI
-  // callers do an `is NetworkBackend` check before invoking these.
+  // callers reach these through `backend.remoteHost?.logs`.
 
   /// Fetch the last `limit` entries from the server's in-memory ring
   /// buffer, optionally filtered by severity and source substring.

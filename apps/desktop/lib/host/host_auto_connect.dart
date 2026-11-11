@@ -44,12 +44,12 @@ Future<void> hostAutoConnect({
 
   try {
     final backend = container.read(backendProvider);
-    if (backend is! FfiBackend) {
+    if (!backend.ownsDeviceBridge) {
       // A host always owns local hardware; if it somehow does not, skip
       // rather than drive someone else's rig.
       logger.warning(
-        'Startup auto-connect skipped: backend is not a local FfiBackend '
-        '(${backend.runtimeType})',
+        'Startup auto-connect skipped: the drivers are not loaded in this '
+        'process (${backend.runtimeType})',
         source: _logSource,
       );
       return;

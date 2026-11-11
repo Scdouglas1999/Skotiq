@@ -355,7 +355,6 @@ void main() {
       DeviceType.mount, // for_mount: auto_reconnect = true
       DeviceType.dome, // for_dome: auto_reconnect = true
       DeviceType.weather, // for_weather: auto_reconnect = true
-      DeviceType.safetyMonitor, // for_safety_monitor: auto_reconnect = true
       DeviceType.guider, // for_guider: auto_reconnect = true
       DeviceType.coverCalibrator, // for_cover_calibrator: auto_reconnect = true
     };
@@ -365,6 +364,10 @@ void main() {
       DeviceType.filterWheel, // for_filter_wheel: auto_reconnect = false
       DeviceType.rotator, // for_rotator: auto_reconnect = false
       DeviceType.switch_, // for_switch: auto_reconnect = false
+      // for_safety_monitor: auto_reconnect = false. Its heartbeat never
+      // reports a drop; the environment poll hands a monitor whose reads keep
+      // failing to the Dart coordinator.
+      DeviceType.safetyMonitor,
     };
 
     test('every DeviceType is classified exactly once', () {

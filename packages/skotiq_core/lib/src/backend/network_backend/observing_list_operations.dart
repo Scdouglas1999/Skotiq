@@ -12,8 +12,8 @@ part of '../network_backend.dart';
 ///
 /// These methods mirror the host's rows over REST and route slave mutations to
 /// the host so they persist on the master. They are NOT part of the abstract
-/// [SkotiqBackend] surface — only a slave calls them, behind an
-/// `is NetworkBackend` branch in the corresponding provider/notifier.
+/// [SkotiqBackend] surface — only a slave calls them, through the
+/// `ObservingListsStore` that `backend.remoteHost` hands out.
 mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
   // Reads
 

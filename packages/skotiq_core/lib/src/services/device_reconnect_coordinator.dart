@@ -104,6 +104,11 @@ class DeviceReconnectCoordinator {
   final Set<String> _userInitiatedDisconnects = {};
   Timer? _userDisconnectDebounceTimer;
 
+  /// Devices this app is disconnecting itself because their connect opened
+  /// the driver but never came up, each with the timer that forgets it if
+  /// no Disconnected arrives.
+  final Map<String, Timer> _cleanupDisconnects = {};
+
   /// Set during backend swap so stray Disconnected events cannot
   /// reconnect against a backend that is mid-tear-down.
   bool _suppressAutoReconnect = false;
@@ -151,6 +156,27 @@ class DeviceReconnectCoordinator {
     return _userInitiatedDisconnects.contains(deviceId);
   }
 
+  /// The app is about to disconnect [deviceId] to let go of a connect that
+  /// opened the driver but did not come up. The Disconnected that follows is
+  /// not a drop. Unlike [markUserInitiatedDisconnect] this leaves the
+  /// reconnect bookkeeping alone: the failed connect may be one of this
+  /// coordinator's own attempts, which has to keep counting.
+  void expectCleanupDisconnect(String deviceId) {
+    _cleanupDisconnects.remove(deviceId)?.cancel();
+    _cleanupDisconnects[deviceId] = Timer(
+      userDisconnectSuppressDuration,
+      () => _cleanupDisconnects.remove(deviceId),
+    );
+  }
+
+  /// Whether a Disconnected for [deviceId] is the clean-up announced with
+  /// [expectCleanupDisconnect]. Answers true once per announcement.
+  bool takeCleanupDisconnect(String deviceId) {
+    final timer = _cleanupDisconnects.remove(deviceId);
+    timer?.cancel();
+    return timer != null;
+  }
+
   /// A disconnect command failed before the backend acknowledged teardown.
   /// Remove the temporary suppression so the still-connected device is not
   /// stranded without reconnect handling for the debounce window.
@@ -184,6 +210,10 @@ class DeviceReconnectCoordinator {
     _userInitiatedDisconnects.clear();
     _userDisconnectDebounceTimer?.cancel();
     _userDisconnectDebounceTimer = null;
+    for (final timer in _cleanupDisconnects.values) {
+      timer.cancel();
+    }
+    _cleanupDisconnects.clear();
   }
 
   /// Re-enable auto-reconnect after a swap. Not currently called (the
@@ -577,10 +607,18 @@ class DeviceReconnectCoordinator {
     String deviceType,
     String deviceId,
   ) async {
+    // The driver reports Connected as soon as it opens, before the app has
+    // brought the device up. During one of this coordinator's own attempts
+    // that is not yet a recovery: the attempt's outcome decides, and its
+    // count must survive a bring-up that then fails.
     final reconnectKeys = _reconnectionTimers.keys
         .followedBy(_reconnectionAttempts.keys)
         .followedBy(_reconnectExhausted)
-        .where((key) => key.endsWith(':$deviceId'))
+        .where(
+          (key) =>
+              key.endsWith(':$deviceId') &&
+              !_reconnectionsInFlight.contains(key),
+        )
         .toSet();
     for (final key in reconnectKeys) {
       _reconnectionTimers.remove(key)?.cancel();

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../services/logging_service.dart';
@@ -57,7 +57,7 @@ class FocuserTemperaturePoller {
   void follow(FocuserState state) {
     final deviceId = state.deviceId;
     final readable =
-        _backend is! NetworkBackend &&
+        _backend.remoteHost == null &&
         state.connectionState == DeviceConnectionState.connected &&
         deviceId != null &&
         deviceId.isNotEmpty &&

@@ -1,5 +1,13 @@
 import '../../../database/database.dart'
-    show ImagingSession, Sequence, SequenceRun, Target;
+    show EquipmentProfile, ImagingSession, Sequence, SequenceRun, Target;
+
+/// The equipment profiles saved in the imaging host's database.
+abstract interface class EquipmentProfileLibrary {
+  Stream<List<EquipmentProfile>> watchAllProfiles();
+
+  /// The profile marked active, or null when none is.
+  Stream<EquipmentProfile?> watchActiveProfile();
+}
 
 /// The targets saved in the imaging host's database.
 abstract interface class TargetLibrary {

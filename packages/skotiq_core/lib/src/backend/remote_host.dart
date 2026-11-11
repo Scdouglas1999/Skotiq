@@ -258,6 +258,12 @@ extension DiagnosticsRoleHostDispatch on DiagnosticsBackend {
   bool get ownsDeviceBridge => this is FfiBackend;
 }
 
+/// The same question for a backend held as its device role, which is how the
+/// device state notifiers receive it.
+extension DeviceRoleHostDispatch on DeviceBackend {
+  RemoteHost? get remoteHost => _remoteHostOf(this);
+}
+
 extension HostLinkIdentity on HostLink {
   /// Names this host among the hosts this client has linked to: address,
   /// port, scheme and pinned certificate. Used to key per-host preferences.

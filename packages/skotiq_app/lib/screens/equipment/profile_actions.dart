@@ -64,7 +64,7 @@ String describeProfileImportFailure(Object error, {String? fileName}) {
   if (error is ProfileImportException) {
     return error.message.replaceFirst('That file', subject);
   }
-  return 'Could not import $subject: $error';
+  return failureText('Could not import $subject', error);
 }
 
 /// The profile the profile list has selected; starts on the active one.
@@ -129,7 +129,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (!mounted) return;
       context.showErrorSnackBar(
         context.l10n
-            .text('equipmentCreateProfileFailed', params: {'error': '$e'}),
+            .text('equipmentCreateProfileFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -156,7 +156,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (!isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        'Could not switch to "${profile.name}": $e',
+        failureText('Could not switch to "${profile.name}"', e),
       );
     }
   }
@@ -186,7 +186,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (!isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentSetDefaultFailed', params: {'error': '$e'}),
+        context.l10n.text('equipmentSetDefaultFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -219,7 +219,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (!isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentDuplicateFailed', params: {'error': '$e'}),
+        context.l10n.text('equipmentDuplicateFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -244,7 +244,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       // Keep the undo payload in the authority that owns it. A remote profile
       // is already fully represented by [deletedProfile], while a local
       // profile retains the service's versioned JSON for an exact restore.
-      final deletedProfileJson = backendAtDelete is NetworkBackend
+      final deletedProfileJson = backendAtDelete.remoteHost != null
           ? null
           : await ref.read(profileServiceProvider).exportProfileToJson(
                 profileId,
@@ -316,7 +316,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (!isCurrentProfileOperation(generation, backendAtDelete)) return;
       if (!mounted) return;
       context.showErrorSnackBar(
-        context.l10n.text('equipmentDeleteFailed', params: {'error': '$e'}),
+        context.l10n.text('equipmentDeleteFailed', params: {'error': userFacingError(e)}),
       );
     }
   }
@@ -355,7 +355,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     } catch (e) {
       if (!isCurrentProfileOperation(generation, authority)) return;
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to reorder: $e');
+      context.showErrorSnackBar(failureText('Failed to reorder', e));
     }
   }
 
@@ -434,7 +434,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       );
     } catch (e) {
       if (!mounted || !sameHost()) return;
-      context.showErrorSnackBar('Export failed: $e');
+      context.showErrorSnackBar(failureText('Export failed', e));
     } finally {
       _exportingProfile = false;
     }
@@ -521,7 +521,7 @@ Future<void> restoreDeletedProfile(
 
   try {
     final int restoredId;
-    if (backendAtDelete is NetworkBackend) {
+    if (backendAtDelete.remoteHost != null) {
       final notifier = container.read(equipmentProfilesProvider.notifier);
       restoredId = await notifier.updateProfile(
         deletedProfile.toInsertionCopy(name: deletedProfile.name),
@@ -552,7 +552,7 @@ Future<void> restoreDeletedProfile(
     report(l10n.text('equipmentProfileRestored'), colors.success);
   } catch (e) {
     report(
-      l10n.text('equipmentRestoreFailed', params: {'error': '$e'}),
+      l10n.text('equipmentRestoreFailed', params: {'error': userFacingError(e)}),
       colors.error,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show listEquals;
 
 import '../../../database/database.dart' as db;
+import '../../../models/equipment_profile_remote_mapping.dart';
 import '../../../services/imaging_records_repository.dart'
     show imagingSessionFromWireJson, wireTimestamp;
 import '../../network_backend.dart';
@@ -12,10 +13,15 @@ import 'host_poll.dart';
 /// it at once; the poll is the safety net.
 const _recordsPollInterval = Duration(seconds: 30);
 
-/// The saved targets, sequences, sessions and runs of a linked host, as the
-/// row types the local database yields.
+/// The saved targets, sequences, sessions, runs and equipment profiles of a
+/// linked host, as the row types the local database yields.
 final class RemoteHostRecords
-    implements TargetLibrary, SequenceLibrary, SessionHistory, RunHistory {
+    implements
+        TargetLibrary,
+        SequenceLibrary,
+        SessionHistory,
+        RunHistory,
+        EquipmentProfileLibrary {
   RemoteHostRecords(this._host);
 
   final NetworkBackend _host;
@@ -53,6 +59,23 @@ final class RemoteHostRecords
   @override
   Stream<List<db.SequenceRun>> watchRunsForSequence(int sequenceId) =>
       _watch(() => _fetchRuns(sequenceId: sequenceId));
+
+  @override
+  Stream<List<db.EquipmentProfile>> watchAllProfiles() => _watch(() async {
+    final profiles = await _host.getProfiles();
+    return profiles.map(remoteProfileToDbRow).toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  });
+
+  @override
+  Stream<db.EquipmentProfile?> watchActiveProfile() => _poll.watch(
+    () async {
+      final active = await _host.getActiveProfile();
+      return active == null ? null : remoteProfileToDbRow(active);
+    },
+    (a, b) => a == b,
+    interval: _recordsPollInterval,
+  );
 
   Future<List<db.Target>> _fetchTargets() async {
     final targets = await _host.getAllTargets();

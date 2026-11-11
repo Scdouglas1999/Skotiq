@@ -6,7 +6,7 @@ import '../../models/backend/device_types.dart' show DeviceType, PierSide;
 import 'device_read_health_provider.dart';
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
@@ -135,7 +135,7 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
     _stopPositionPolling();
     // A companion reads the position from the imaging host, where every read
     // is a driver round trip; it polls at a slower pace than the host itself.
-    final companion = ref.read(deviceBackendProvider) is NetworkBackend;
+    final companion = ref.read(deviceBackendProvider).remoteHost != null;
     final interval = state.isSlewing
         ? (companion ? _companionSlewingPollInterval : _slewingPollInterval)
         : (companion ? _companionPollInterval : _normalPollInterval);
