@@ -308,12 +308,14 @@ final List<AlwaysOnService> alwaysOnServices = [
     'a dismissed DepthLock tip staying dismissed on both ends of a link',
   ),
 
-  // This window.
   AlwaysOnService(
     'location sync',
     locationSyncProvider,
-    _windows,
-    'the planetarium following the site in Settings',
+    // A daemon's linked clients read the site from the native store, so it
+    // must follow the stored settings there too.
+    _everyRole,
+    "the planetarium and the host's native site following the site in "
+        'Settings',
   ),
 ];
 
