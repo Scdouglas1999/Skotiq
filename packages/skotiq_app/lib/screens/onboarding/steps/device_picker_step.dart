@@ -39,6 +39,8 @@ class OnboardingDevicePickerBody extends ConsumerStatefulWidget {
     required this.onCleared,
     this.allowSkip = false,
     this.pickLoneDevice = true,
+    this.excludeDeviceIds = const {},
+    this.showBackendStatus = true,
   });
 
   final String title;
@@ -59,8 +61,17 @@ class OnboardingDevicePickerBody extends ConsumerStatefulWidget {
   /// question (the guider step, whose usual answer is PHD2 above the list).
   final bool pickLoneDevice;
 
-  /// What this picker asks.
-  String get question => deviceType.name;
+  /// Devices that cannot be the answer here, by any of their backend ids: the
+  /// imaging camera when the question is which camera guides.
+  final Set<String> excludeDeviceIds;
+
+  /// False for a picker placed under another one that already shows how each
+  /// backend's scan went.
+  final bool showBackendStatus;
+
+  /// What this picker asks: its device type, narrowed by what it excludes.
+  String get question =>
+      [deviceType.name, ...excludeDeviceIds.toList()..sort()].join(':');
 
   @override
   ConsumerState<OnboardingDevicePickerBody> createState() =>
@@ -156,7 +167,9 @@ class _OnboardingDevicePickerBodyState
       // Keep the device if it has at least one backend in the user's
       // selected driver set; otherwise we'd surface a device the user
       // can't actually connect to.
-      return device.availableBackends.keys.any(selectedDrivers.contains);
+      return device.availableBackends.keys.any(selectedDrivers.contains) &&
+          !device.availableBackends.values
+              .any((info) => widget.excludeDeviceIds.contains(info.id));
     }).toList();
 
     final isDiscovering = discovery.isDiscovering;
@@ -245,14 +258,15 @@ class _OnboardingDevicePickerBodyState
 
         // Per-backend status (so the user understands why some lists are
         // empty — e.g. INDI server unreachable).
-        _BackendStatusRow(
-          discovery: discovery,
-          drivers: selectedDrivers,
-          deviceType: widget.deviceType,
-          onChangeAddress: _changeServerAddress,
-        ),
-
-        const SizedBox(height: SkotiqTokens.spaceMd),
+        if (widget.showBackendStatus) ...[
+          _BackendStatusRow(
+            discovery: discovery,
+            drivers: selectedDrivers,
+            deviceType: widget.deviceType,
+            onChangeAddress: _changeServerAddress,
+          ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+        ],
 
         // Device list. A minimum, not a slot: the surrounding box is a fixed
         // height that the chrome above can eat into, and a list laid out at

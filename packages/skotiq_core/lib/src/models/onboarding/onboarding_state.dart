@@ -122,6 +122,14 @@ class OnboardingDraft {
   final String? guiderId;
   final String? guiderName;
 
+  /// The camera the built-in guider takes its frames with, and the focal
+  /// length of the scope in front of it (null for an off-axis guider, which
+  /// shares the telescope's). Only meaningful while [guiderId] is the built-in
+  /// guider; changing the guider clears them.
+  final String? guideCameraId;
+  final String? guideCameraName;
+  final double? guideFocalLengthMm;
+
   /// Optical-train inputs. Pixel size is microns, focal length and
   /// aperture are millimeters, reducer is a multiplier (1.0 = no reducer).
   final double? pixelSizeMicrons;
@@ -186,6 +194,9 @@ class OnboardingDraft {
     this.filterWheelName,
     this.guiderId,
     this.guiderName,
+    this.guideCameraId,
+    this.guideCameraName,
+    this.guideFocalLengthMm,
     this.pixelSizeMicrons,
     this.focalLengthMm,
     this.apertureMm,
@@ -217,6 +228,9 @@ class OnboardingDraft {
     String? filterWheelName,
     String? guiderId,
     String? guiderName,
+    String? guideCameraId,
+    String? guideCameraName,
+    double? guideFocalLengthMm,
     double? pixelSizeMicrons,
     double? focalLengthMm,
     double? apertureMm,
@@ -238,6 +252,8 @@ class OnboardingDraft {
     bool clearFocuser = false,
     bool clearFilterWheel = false,
     bool clearGuider = false,
+    bool clearGuideCamera = false,
+    bool clearGuideFocalLength = false,
     bool clearFocalLength = false,
     bool clearAperture = false,
     bool clearPixelSize = false,
@@ -268,6 +284,15 @@ class OnboardingDraft {
           : (filterWheelName ?? this.filterWheelName),
       guiderId: clearGuider ? null : (guiderId ?? this.guiderId),
       guiderName: clearGuider ? null : (guiderName ?? this.guiderName),
+      guideCameraId: clearGuider || clearGuideCamera
+          ? null
+          : (guideCameraId ?? this.guideCameraId),
+      guideCameraName: clearGuider || clearGuideCamera
+          ? null
+          : (guideCameraName ?? this.guideCameraName),
+      guideFocalLengthMm: clearGuider || clearGuideFocalLength
+          ? null
+          : (guideFocalLengthMm ?? this.guideFocalLengthMm),
       pixelSizeMicrons: clearPixelSize
           ? null
           : (pixelSizeMicrons ?? this.pixelSizeMicrons),
@@ -341,6 +366,11 @@ class OnboardingDraft {
     }
   }
 
+  /// True when the chosen guider is the built-in one, which guides with a
+  /// camera of its own.
+  bool get usesBuiltinGuider =>
+      guiderId?.startsWith('native:builtin_guider') ?? false;
+
   /// Effective focal length after applying the reducer factor.
   /// Returns null if focal length is unset so callers don't have to guard.
   double? get effectiveFocalLengthMm {
@@ -371,6 +401,9 @@ class OnboardingDraft {
     'filterWheelName': filterWheelName,
     'guiderId': guiderId,
     'guiderName': guiderName,
+    'guideCameraId': guideCameraId,
+    'guideCameraName': guideCameraName,
+    'guideFocalLengthMm': guideFocalLengthMm,
     'pixelSizeMicrons': pixelSizeMicrons,
     'focalLengthMm': focalLengthMm,
     'apertureMm': apertureMm,
@@ -433,6 +466,9 @@ class OnboardingDraft {
       filterWheelName: json['filterWheelName'] as String?,
       guiderId: json['guiderId'] as String?,
       guiderName: json['guiderName'] as String?,
+      guideCameraId: json['guideCameraId'] as String?,
+      guideCameraName: json['guideCameraName'] as String?,
+      guideFocalLengthMm: (json['guideFocalLengthMm'] as num?)?.toDouble(),
       pixelSizeMicrons: (json['pixelSizeMicrons'] as num?)?.toDouble(),
       focalLengthMm: (json['focalLengthMm'] as num?)?.toDouble(),
       apertureMm: (json['apertureMm'] as num?)?.toDouble(),
@@ -484,6 +520,9 @@ class OnboardingDraft {
         other.filterWheelName == filterWheelName &&
         other.guiderId == guiderId &&
         other.guiderName == guiderName &&
+        other.guideCameraId == guideCameraId &&
+        other.guideCameraName == guideCameraName &&
+        other.guideFocalLengthMm == guideFocalLengthMm &&
         other.pixelSizeMicrons == pixelSizeMicrons &&
         other.focalLengthMm == focalLengthMm &&
         other.apertureMm == apertureMm &&
@@ -510,7 +549,7 @@ class OnboardingDraft {
     mountId,
     focuserId,
     filterWheelId,
-    guiderId,
+    Object.hash(guiderId, guideCameraId, guideFocalLengthMm),
     pixelSizeMicrons,
     focalLengthMm,
     apertureMm,

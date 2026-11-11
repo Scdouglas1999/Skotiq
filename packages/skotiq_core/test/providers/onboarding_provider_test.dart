@@ -327,6 +327,47 @@ void main() {
   );
 
   test(
+    'complete() saves the guide camera chosen for the built-in guider',
+    () async {
+      final notifier = container.read(onboardingDraftProvider.notifier);
+      await notifier.loaded;
+      await notifier.setCamera(id: 'native:asi2600', name: 'ASI2600MM Pro');
+      await notifier.setGuider(
+        id: 'native:builtin_guider:multi_star',
+        name: 'Built-in Multi-Star Guider',
+      );
+      await notifier.setGuideCamera(
+        id: 'native:asi120',
+        name: 'ASI120MM Mini',
+      );
+      await notifier.setGuideFocalLength(162);
+
+      final profileId = await notifier.complete();
+      final profile = await container
+          .read(equipmentProfilesDaoProvider)
+          .getProfileById(profileId);
+      expect(profile!.guideCameraId, 'native:asi120');
+      expect(profile.guideCameraName, 'ASI120MM Mini');
+      expect(profile.guideFocalLength, 162);
+    },
+  );
+
+  test('choosing another guider drops the built-in guider\'s camera',
+      () async {
+    final notifier = container.read(onboardingDraftProvider.notifier);
+    await notifier.loaded;
+    await notifier.setGuider(id: 'native:builtin_guider:multi_star');
+    await notifier.setGuideCamera(id: 'native:asi120', name: 'ASI120MM Mini');
+    await notifier.setGuideFocalLength(162);
+
+    await notifier.setGuider(id: 'phd2:localhost:4400', name: 'PHD2');
+
+    final draft = container.read(onboardingDraftProvider);
+    expect(draft.guideCameraId, isNull);
+    expect(draft.guideFocalLengthMm, isNull);
+  });
+
+  test(
     'finishNextSteps marks completed, wipes the draft, and flips the gate',
     () async {
       final notifier = container.read(onboardingDraftProvider.notifier);

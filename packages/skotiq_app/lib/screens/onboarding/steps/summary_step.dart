@@ -104,6 +104,8 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
               if (draft.filterNames.isNotEmpty)
                 ('Filters', draft.filterNames.join(', ')),
               ('Guider', draft.guiderName),
+              if (draft.usesBuiltinGuider)
+                ('Guide camera', _guideCamera(draft)),
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
@@ -148,6 +150,16 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
         ],
       ),
     );
+  }
+
+  /// The built-in guider's camera and the scope in front of it.
+  static String? _guideCamera(OnboardingDraft draft) {
+    final camera = draft.guideCameraName;
+    if (camera == null) return null;
+    final focal = draft.guideFocalLengthMm;
+    return focal == null
+        ? '$camera · off-axis'
+        : '$camera · ${focal.toStringAsFixed(0)} mm guide scope';
   }
 
   /// The acquisition set-points as one line, listing only what is actually on

@@ -411,7 +411,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return null;
       case OnboardingStep.focuser:
       case OnboardingStep.filterWheel:
+        return null;
       case OnboardingStep.guider:
+        if (draft.usesBuiltinGuider && draft.guideCameraId == null) {
+          return 'Pick the camera the built-in guider uses, or choose another '
+              'guider.';
+        }
         return null;
       case OnboardingStep.opticalTrain:
         // Bounds, not just "> 0": focal length 999999999 with aperture 0.0001
