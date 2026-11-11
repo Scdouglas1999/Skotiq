@@ -147,10 +147,6 @@ part 'contracts/plan_models.dart';
 part 'contracts/session_models.dart';
 part 'contracts/action_models.dart';
 
-// ---------------------------------------------------------------------------
-// Enums
-// ---------------------------------------------------------------------------
-
 /// The right panel's tabs, in display order.
 enum NightPanelTab { overview, camera, focus, mount, guide, solve }
 
@@ -165,10 +161,8 @@ enum NightRunPhase {
   /// "Start at dark" is armed; the run starts at astronomical dark.
   armed,
 
-  /// The run is executing.
   running,
 
-  /// The operator paused the run.
   pausedByUser,
 
   /// The action controller paused the run to perform a manual action, or a
@@ -229,10 +223,6 @@ final nightPanelTabProvider =
 /// `MetricGridTone`.
 enum MetricTone { neutral, good, warning, bad }
 
-// ---------------------------------------------------------------------------
-// Copy
-// ---------------------------------------------------------------------------
-
 /// Copy produced away from a BuildContext.
 ///
 /// Either a translations.dart key with `{name}` parameters, or a literal that
@@ -279,10 +269,6 @@ class NightText {
   @override
   String toString() => literal ?? 'NightText($key, $params)';
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 bool _nullableListEquals<T>(List<T>? a, List<T>? b) =>
     a == null ? b == null : b != null && listEquals(a, b);
