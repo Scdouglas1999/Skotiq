@@ -7,6 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_tab.dart';
+import 'package:skotiq_core/skotiq_core.dart'
+    show NextUseActionId, stepFor, tutorialProgressDaoProvider;
+
+import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 import '../fixtures/night_fixtures.dart';
 import 'panel_test_support.dart';
@@ -172,6 +176,87 @@ void main() {
     expect(find.text('forecast only'), findsOneWidget);
     expect(find.text('Clouds (forecast)'), findsOneWidget);
     expect(find.text('Safe'), findsNothing);
+  });
+
+  group('next step', () {
+    testWidgets('before a run it follows the checklist', (tester) async {
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(
+          board: NightFixtures.ready(),
+          nextStep: stepFor(NextUseActionId.configurePlateSolver),
+        ),
+      );
+      expect(find.text('Next step'), findsOneWidget);
+      expect(find.text('Confirm your plate solver'), findsOneWidget);
+      expect(find.text('Review solving'), findsOneWidget);
+      expect(find.text('Not now'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('with no step left it is not shown', (tester) async {
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(board: NightFixtures.ready()),
+      );
+      expect(find.text('Next step'), findsNothing);
+    });
+
+    testWidgets('a running night does not show it', (tester) async {
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(
+          board: NightFixtures.running(),
+          nextStep: stepFor(NextUseActionId.configurePlateSolver),
+        ),
+      );
+      expect(find.text('Next step'), findsNothing);
+    });
+
+    testWidgets('its action goes to the step\'s screen', (tester) async {
+      final router = await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(
+          board: NightFixtures.ready(),
+          nextStep: stepFor(NextUseActionId.configurePlateSolver),
+        ),
+      );
+      await tester.tap(find.text('Review solving'));
+      await tester.pumpAndSettle();
+      expect(routerLocation(router), '/settings?section=plate-solving');
+    });
+
+    testWidgets('Not now puts the step aside for good', (tester) async {
+      final container = ProviderContainer(
+        overrides: <Override>[
+          inMemoryDatabaseOverride(),
+          ...panelOverrides(
+            board: NightFixtures.ready(),
+            nextStep: stepFor(NextUseActionId.frameTarget),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: const <Override>[],
+        container: container,
+      );
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      final dismissed = await tester.runAsync(
+        () => container
+            .read(tutorialProgressDaoProvider)
+            .watchDismissedPromptScreenIds()
+            .first,
+      );
+      expect(dismissed, contains('next_use.frameTarget'));
+    });
   });
 
   testWidgets('a checklist route action navigates', (tester) async {

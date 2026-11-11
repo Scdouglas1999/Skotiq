@@ -281,6 +281,7 @@ List<Override> panelOverrides({
   FakeActionApi? api,
   bool focusActive = false,
   bool guideAlert = false,
+  NextUseStep? nextStep,
 }) =>
     <Override>[
       nightRunPhaseProvider.overrideWithValue(board.phase),
@@ -306,6 +307,7 @@ List<Override> panelOverrides({
       nightPanelOpsProvider.overrideWithValue(ops ?? FakePanelOps()),
       nightFocusActiveProvider.overrideWithValue(focusActive),
       nightGuideAlertProvider.overrideWithValue(guideAlert),
+      nextUsePromptProvider.overrideWithValue(nextStep),
     ];
 
 /// Pumps [child] at the panel's size (300 × 758 by default) inside a router,

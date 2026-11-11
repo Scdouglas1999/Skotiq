@@ -186,15 +186,17 @@ final nextUseCompletedActionsProvider = Provider<Set<NextUseActionId>>((ref) {
   return completed;
 });
 
-/// Loads the count of stored Smart Night drafts.
+/// The count of stored Smart Night drafts, again each time the store changes.
 ///
 /// A non-empty draft store is the "user has engaged with Smart Night" signal
-/// for [nextUseCompletedActionsProvider]. We watch the count (not the full
-/// draft list) so downstream rebuilds are gated on the presence/absence of
-/// drafts, not on every field of every plan.
-final _smartNightDraftCountProvider = FutureProvider<int>((ref) async {
-  final drafts = await ref.watch(smartNightDraftServiceProvider).loadAll();
-  return drafts.length;
+/// for [nextUseCompletedActionsProvider]. Watching the store, not reading it
+/// once, is what retires the step as soon as the first plan is built.
+final _smartNightDraftCountProvider = StreamProvider<int>((ref) {
+  return ref
+      .watch(smartNightDraftServiceProvider)
+      .watchAll()
+      .map((drafts) => drafts.length)
+      .distinct();
 });
 
 /// The next first-real-use step to surface, or `null` when none should show.

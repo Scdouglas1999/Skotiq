@@ -159,8 +159,14 @@ class SmartNightDraftService {
     }
   }
 
-  Future<List<SmartNightDraft>> loadAll() async {
-    final raw = await settingsDao.getSetting(settingsKey);
+  Future<List<SmartNightDraft>> loadAll() async =>
+      _decode(await settingsDao.getSetting(settingsKey));
+
+  /// Every stored draft, again each time the store changes.
+  Stream<List<SmartNightDraft>> watchAll() =>
+      settingsDao.watchSetting(settingsKey).map(_decode);
+
+  static List<SmartNightDraft> _decode(String? raw) {
     if (raw == null || raw.trim().isEmpty) return <SmartNightDraft>[];
     final decoded = jsonDecode(raw);
     if (decoded is! List) {

@@ -76,6 +76,24 @@ void main() {
     );
   });
 
+  test('watchAll emits the store again after each change', () async {
+    final seen = <int>[];
+    final sub = service.watchAll().listen((drafts) => seen.add(drafts.length));
+    addTearDown(sub.cancel);
+    await pumpEventQueue();
+
+    final draft = await service.savePending(
+      profileId: 'rig-a',
+      astronomicalDay: DateTime.utc(2026, 5, 21),
+      plan: testSmartNightPlan('M51'),
+    );
+    await pumpEventQueue();
+    await service.discard(draft.id);
+    await pumpEventQueue();
+
+    expect(seen, [0, 1, 0]);
+  });
+
   test('cleanupExpiredPending removes stale pending drafts only', () async {
     final stale = await service.savePending(
       profileId: 'rig-a',
