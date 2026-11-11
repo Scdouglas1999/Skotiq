@@ -275,15 +275,13 @@ jobs:
       - name: Bootstrap workspace
         run: dart run melos bootstrap
 
-      # Same two steps as `melos run build:desktop:linux`, spelled out so the
+      # The recipe `melos run build:desktop:linux` uses, called directly so the
       # update public key can be compiled in. A build without it cannot
       # authenticate any OTA manifest, signed or not.
       - name: Build Linux release bundle
         run: |
           set -euo pipefail
-          cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-          cd apps/desktop
-          flutter build linux --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
+          dart scripts/build.dart desktop linux -- "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Bundle native libs + verify the bridge is present
         run: |
@@ -342,8 +340,7 @@ jobs:
       - name: Build the updater binary
         run: |
           set -euo pipefail
-          cargo build --locked --release --package skotiq_updater \
-            --manifest-path native/skotiq_native/Cargo.toml
+          dart scripts/build.dart updater
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           install -m 0755 \
             native/skotiq_native/target/release/updater "$BUNDLE/updater"
@@ -486,14 +483,13 @@ jobs:
       # Build phases run as explicit steps (the melos multi-line `run:` only
       # executes its first line on the Windows shell).
       - name: Build Rust native bridge (release)
-        run: cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
+        run: dart scripts/build.dart bridge
 
       # Bake the trusted OTA public key into the binary. Empty secret
       # -> empty define -> runtime OTA stays fail-closed-disabled; the build
       # still succeeds (unsigned beta).
       - name: Build Flutter Windows app (release)
-        working-directory: apps/desktop
-        run: flutter build windows --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
+        run: dart scripts/build.dart flutter windows -- "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage native DLLs (bridge, libraw, MSVC runtime) into Release
         shell: pwsh
@@ -505,7 +501,7 @@ jobs:
       - name: Build + stage updater.exe
         shell: pwsh
         run: |
-          cargo build --locked --release --package skotiq_updater --manifest-path native/skotiq_native/Cargo.toml
+          dart scripts/build.dart updater
           $rel = "apps/desktop/build/windows/x64/runner/Release"
           Copy-Item native/skotiq_native/target/release/updater.exe (Join-Path $rel "updater.exe") -Force
           Write-Host "Staged updater.exe into $rel"

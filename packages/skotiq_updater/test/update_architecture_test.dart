@@ -82,14 +82,21 @@ void main() {
           'release.yml',
         ),
       ).readAsStringSync();
-      for (final target in ['apk', 'linux', 'windows']) {
+      // The phone build calls flutter itself; the desktop builds go through
+      // the shared recipe, which hands everything after `--` to flutter.
+      const buildSteps = {
+        'apk': r'flutter build apk\b[^\n]*',
+        'linux': r'scripts/build\.dart (?:desktop|flutter) linux\b[^\n]*',
+        'windows': r'scripts/build\.dart (?:desktop|flutter) windows\b[^\n]*',
+      };
+      for (final MapEntry(key: target, value: pattern) in buildSteps.entries) {
         final builds = RegExp(
-          'flutter build $target\\b[^\\n]*',
+          pattern,
         ).allMatches(workflow).map((m) => m.group(0)!).toList();
         expect(
           builds,
           isNotEmpty,
-          reason: 'release.yml has no `flutter build $target` step',
+          reason: 'release.yml has no build step for $target',
         );
         for (final line in builds) {
           expect(
