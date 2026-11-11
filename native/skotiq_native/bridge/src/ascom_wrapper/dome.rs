@@ -28,10 +28,6 @@ enum AscomDomeCommand {
         reply: oneshot::Sender<Result<(), String>>,
     },
     // Version query commands
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
     Heartbeat(oneshot::Sender<Result<(), String>>),
 }
 
@@ -131,18 +127,6 @@ impl AscomDomeWrapper {
                     }
                     AscomDomeCommand::SetSlaved { slaved, reply } => {
                         let _ = reply.send(dome.set_slaved(slaved).map_err(|e| e.to_string()));
-                    }
-                    AscomDomeCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(dome.interface_version().map_err(|e| e.to_string()));
-                    }
-                    AscomDomeCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(dome.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomDomeCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(dome.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomDomeCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(dome.supported_actions().map_err(|e| e.to_string()));
                     }
                     AscomDomeCommand::Heartbeat(reply) => {
                         let _ = reply.send(dome.heartbeat().map_err(|e| e.to_string()));
@@ -318,46 +302,6 @@ impl AscomDomeWrapper {
             .await
             .map_err(|e| format!("Send error: {}", e))?;
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_slaved").await
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomDomeCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomDomeCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomDomeCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomDomeCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }
 

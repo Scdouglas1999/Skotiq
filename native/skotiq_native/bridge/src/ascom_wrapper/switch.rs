@@ -21,9 +21,6 @@ enum AscomSwitchCommand {
     CanWrite(i32, oneshot::Sender<Result<bool, String>>),
     // Version query commands
     GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 pub struct AscomSwitchWrapper {
@@ -136,15 +133,6 @@ impl AscomSwitchWrapper {
                     }
                     AscomSwitchCommand::GetInterfaceVersion(reply) => {
                         let _ = reply.send(switch.interface_version().map_err(|e| e.to_string()));
-                    }
-                    AscomSwitchCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(switch.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomSwitchCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(switch.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomSwitchCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(switch.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork
@@ -299,35 +287,5 @@ impl AscomSwitchWrapper {
             .await
             .map_err(|e| format!("Send error: {}", e))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomSwitchCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomSwitchCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomSwitchCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }

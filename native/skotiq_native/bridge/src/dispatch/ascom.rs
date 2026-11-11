@@ -13,8 +13,6 @@ use crate::device_manager::DeviceManager;
 #[cfg(windows)]
 use skotiq_device::{DeviceDriver, MountDriver};
 #[cfg(windows)]
-use std::collections::HashMap;
-#[cfg(windows)]
 use std::sync::Arc;
 #[cfg(windows)]
 use tokio::sync::RwLock;

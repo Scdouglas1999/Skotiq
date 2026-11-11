@@ -88,10 +88,6 @@ enum AscomMountCommand {
     GetUtcDate(oneshot::Sender<Result<f64, String>>),
     SetUtcDate(f64, oneshot::Sender<Result<(), String>>),
     // Version query commands
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 impl AscomMountCommand {
@@ -436,34 +432,6 @@ impl AscomMountWrapper {
                     AscomMountCommand::MoveAxis(axis, rate, reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply.send(m.move_axis(axis, rate).map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetInterfaceVersion(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.interface_version().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetDriverVersion(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.driver_version().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetDriverInfo(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.driver_info().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetSupportedActions(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.supported_actions().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
@@ -952,37 +920,6 @@ impl AscomMountWrapper {
         self.enqueue(AscomMountCommand::MoveAxis(axis, rate, tx))
             .await?;
         Self::recv_with_timeout(rx, Timeouts::short_slew(), "move_axis").await
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetInterfaceVersion(tx))
-            .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetDriverVersion(tx))
-            .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetDriverInfo(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetSupportedActions(tx))
-            .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }
 

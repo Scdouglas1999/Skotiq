@@ -19,10 +19,6 @@ enum AscomCoverCalibratorCommand {
     GetBrightness(oneshot::Sender<Result<i32, String>>),
     GetMaxBrightness(oneshot::Sender<Result<i32, String>>),
     // Version query commands
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 pub struct AscomCoverCalibratorWrapper {
@@ -128,20 +124,6 @@ impl AscomCoverCalibratorWrapper {
                     }
                     AscomCoverCalibratorCommand::GetMaxBrightness(reply) => {
                         let _ = reply.send(cover_cal.max_brightness().map_err(|e| e.to_string()));
-                    }
-                    AscomCoverCalibratorCommand::GetInterfaceVersion(reply) => {
-                        let _ =
-                            reply.send(cover_cal.interface_version().map_err(|e| e.to_string()));
-                    }
-                    AscomCoverCalibratorCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(cover_cal.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomCoverCalibratorCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(cover_cal.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomCoverCalibratorCommand::GetSupportedActions(reply) => {
-                        let _ =
-                            reply.send(cover_cal.supported_actions().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork
@@ -281,45 +263,5 @@ impl AscomCoverCalibratorWrapper {
 
     pub fn cached_max_brightness(&self) -> i32 {
         self.max_brightness
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCoverCalibratorCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCoverCalibratorCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCoverCalibratorCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, String> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomCoverCalibratorCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }

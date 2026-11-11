@@ -16,10 +16,6 @@ enum AscomFilterWheelCommand {
     GetPosition(oneshot::Sender<Result<i32, String>>),
     GetNames(oneshot::Sender<Result<Vec<String>, String>>),
     // Version query commands
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
     Heartbeat(oneshot::Sender<Result<(), String>>),
 }
 
@@ -165,18 +161,6 @@ impl AscomFilterWheelWrapper {
                         }
                         let _ = reply.send(result.map_err(|e| e.to_string()));
                     }
-                    AscomFilterWheelCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(fw.interface_version().map_err(|e| e.to_string()));
-                    }
-                    AscomFilterWheelCommand::GetDriverVersion(reply) => {
-                        let _ = reply.send(fw.driver_version().map_err(|e| e.to_string()));
-                    }
-                    AscomFilterWheelCommand::GetDriverInfo(reply) => {
-                        let _ = reply.send(fw.driver_info().map_err(|e| e.to_string()));
-                    }
-                    AscomFilterWheelCommand::GetSupportedActions(reply) => {
-                        let _ = reply.send(fw.supported_actions().map_err(|e| e.to_string()));
-                    }
                     AscomFilterWheelCommand::Heartbeat(reply) => {
                         let _ = reply.send(fw.heartbeat().map_err(|e| e.to_string()));
                     }
@@ -319,46 +303,6 @@ impl AscomFilterWheelWrapper {
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "heartbeat").await
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFilterWheelCommand::GetInterfaceVersion(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFilterWheelCommand::GetDriverVersion(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFilterWheelCommand::GetDriverInfo(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, DriverError> {
-        let (tx, rx) = oneshot::channel();
-        self.sender
-            .send(AscomFilterWheelCommand::GetSupportedActions(tx))
-            .await
-            .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
     }
 }
 
