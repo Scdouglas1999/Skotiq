@@ -42,7 +42,7 @@ const _phonePortraitSizes = <Size>[
 Future<void> _pumpAndCheck(WidgetTester tester, Size size) async {
   await pumpAppScreen(
     tester,
-    const DiagnosticsScreen(),
+    const DiagnosticsTabContent(showTitle: true),
     size: size,
     settle: false,
     extraOverrides: _overrides(),

@@ -26,23 +26,6 @@ part 'diagnostics_screen/issues_and_skeleton.dart';
 /// the `sessionless*` providers when it is chosen.
 const int _kQuickCaptureSessionId = kQuickCaptureSessionSelection;
 
-/// Thin shell that hosts [DiagnosticsTabContent].
-///
-/// Diagnostics lives inside Analytics as a tab, and the `/diagnostics` route
-/// redirects to `/analytics?tab=diagnostics`, so this screen is unreachable
-/// through the router. It is kept so any direct embedding (tests, debug entry
-/// points) keeps working until the redirect is removed.
-class DiagnosticsScreen extends StatelessWidget {
-  const DiagnosticsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // Standalone route: nothing else on screen names the page, so this one
-    // surface keeps the title the Analytics tab drops.
-    return const DiagnosticsTabContent(showTitle: true);
-  }
-}
-
 /// Optical-train diagnostics surface, embedded inside the Analytics screen.
 class DiagnosticsTabContent extends ConsumerStatefulWidget {
   /// Whether to paint the page title. False inside Analytics: the tab strip

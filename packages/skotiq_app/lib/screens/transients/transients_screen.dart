@@ -50,31 +50,9 @@ final _tnsCredentialsReadyProvider = FutureProvider.autoDispose<bool>((
   return ref.watch(secretsStoreProvider).has(SecretField.tnsApiKey);
 });
 
-/// Screen for managing astronomical transient alerts.
-///
-/// Displays a filterable list of transient alerts (novae, supernovae, comets, etc.)
-/// with options to queue targets for observation, view in framing, or dismiss.
-class TransientsScreen extends StatelessWidget {
-  const TransientsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: const SafeArea(
-        bottom: false,
-        child: TransientsView(),
-      ),
-    );
-  }
-}
-
 /// Embeddable transient-alerts content: header, citizen-science strip, filter
-/// bar, and the filtered alert list. Supplies no Scaffold/AppBar so it can sit
-/// inside the Science screen's "Observing Alerts" tab as well as the standalone
-/// [TransientsScreen].
+/// bar, and the filtered alert list. Supplies no Scaffold/AppBar: it sits
+/// inside the Science screen's "Observing Alerts" tab.
 class TransientsView extends ConsumerWidget {
   const TransientsView({super.key, this.showHeader = true});
 
