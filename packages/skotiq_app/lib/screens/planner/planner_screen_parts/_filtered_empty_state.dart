@@ -31,34 +31,56 @@ class _PlannerFilteredEmptyState extends ConsumerWidget {
             label: l10n.text('plannerNoCatalogAction'),
             variant: ButtonVariant.secondary,
             size: ButtonSize.small,
-            onPressed: () => context.go('/settings/plate-solving'),
+            onPressed: () => GoRouter.of(
+              context,
+            ).goToSettings(SettingsSectionId.catalogs),
           ),
         ),
       );
     }
 
-    return plannerCentredEmptyState(
-      EmptyState(
-        icon: LucideIcons.filterX,
-        title: l10n.text('plannerNoMatchesTitle'),
-        body: l10n.text(
-          'plannerNoMatchesBody',
-          params: {
-            'total': '${breakdown.total}',
-            'passed': '${breakdown.passed}',
-          },
-        ),
-        action: SkotiqButton(
-          label: l10n.text('plannerNoMatchesAction'),
-          icon: LucideIcons.rotateCcw,
-          variant: ButtonVariant.secondary,
-          size: ButtonSize.small,
-          onPressed: () {
-            ref.read(suggestionFilterProvider.notifier).state =
-                const SuggestionFilterState();
-            ref.read(_plannerVisibleCountProvider.notifier).state =
-                _kPlannerPageSize;
-          },
+    final noMatches = EmptyState(
+      icon: LucideIcons.filterX,
+      title: l10n.text('plannerNoMatchesTitle'),
+      body: l10n.text(
+        'plannerNoMatchesBody',
+        params: {
+          'total': '${breakdown.total}',
+          'passed': '${breakdown.passed}',
+        },
+      ),
+      action: SkotiqButton(
+        label: l10n.text('plannerNoMatchesAction'),
+        icon: LucideIcons.rotateCcw,
+        variant: ButtonVariant.secondary,
+        size: ButtonSize.small,
+        onPressed: () {
+          ref.read(suggestionFilterProvider.notifier).state =
+              const SuggestionFilterState();
+          ref.read(_plannerVisibleCountProvider.notifier).state =
+              _kPlannerPageSize;
+        },
+      ),
+    );
+
+    // A typed name that matches none of tonight's candidates is the case the
+    // catalog and SIMBAD lookups exist for, so they belong here as much as
+    // under a list that still has rows.
+    final query = ref.watch(
+      suggestionFilterProvider.select((f) => f.searchQuery.trim()),
+    );
+    if (query.length < _PlannerSearchResults.localQueryFloor) {
+      return plannerCentredEmptyState(noMatches);
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(SkotiqTokens.space2xl),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [noMatches, _PlannerSearchResults(query: query)],
+          ),
         ),
       ),
     );
