@@ -101,7 +101,7 @@ impl InstructionNode for ExposeInstruction {
                 previous_binning,
                 config.binning
             );
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.invalidate_autofocus(format!(
                     "binning changed from {:?} to {:?}",
@@ -132,7 +132,7 @@ impl InstructionNode for ExposeInstruction {
                 context.default_adaptive_exposure.read().await.clone()
             }
         };
-        let live_sky_mag = *context.current_sky_brightness_mag.read().await;
+        let live_sky_mag = *context.run.conditions.sky_brightness_mag.read().await;
         let decision = compute_adaptive_exposure(
             effective_adaptive_config.as_ref(),
             nominal_secs,
@@ -157,6 +157,8 @@ impl InstructionNode for ExposeInstruction {
         // how many of *this* burst's frames were rejected so the budget
         // credit can skip them.
         let frames_rejected_before = context
+            .run
+            .grading
             .frames_rejected
             .load(std::sync::atomic::Ordering::Relaxed);
 
@@ -175,7 +177,7 @@ impl InstructionNode for ExposeInstruction {
                 Ok(renderer) => renderer,
                 Err(message) => {
                     tracing::error!("{}", message);
-                    if let Some(event_tx) = &context.event_tx {
+                    if let Some(event_tx) = &context.run.event_tx {
                         let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                             message: message.clone(),
                         });
@@ -190,6 +192,8 @@ impl InstructionNode for ExposeInstruction {
         // pixels gone. The lock is per-device, so separate cameras still run
         // concurrently.
         let camera_lock = ctx
+            .run
+            .rig
             .camera_id
             .as_deref()
             .map(|id| context.device_locks.handle(id));
@@ -291,6 +295,8 @@ impl InstructionNode for ExposeInstruction {
             // measures "integration that contributes to the goal", which
             // is the passed-frames-only quantity.
             let frames_rejected_after = context
+                .run
+                .grading
                 .frames_rejected
                 .load(std::sync::atomic::Ordering::Relaxed);
             let rejected_in_burst = frames_rejected_after
@@ -331,7 +337,7 @@ impl InstructionNode for ExposeInstruction {
                 );
             }
 
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 if let Some(median_hfr) = compute_hfr_median(&result.hfr_values) {
                     trigger_state.update_hfr(median_hfr);
@@ -429,7 +435,7 @@ pub(crate) fn build_save_path_renderer(
     config: &ExposureConfig,
     duration_secs: f64,
 ) -> Result<FrameSavePathRenderer, String> {
-    let base_path = context.save_path.clone();
+    let base_path = context.run.rig.save_path.clone();
     let template = config.save_to.clone();
 
     let effective_template = template
@@ -454,7 +460,7 @@ pub(crate) fn build_save_path_renderer(
     let exposure_offset = config.offset;
     let exposure_binning = config.binning.as_str().to_string();
     let filter_index = config.filter_index;
-    let reject_folder_override = context.reject_folder_path.clone();
+    let reject_folder_override = context.run.grading.reject_folder_path.clone();
     // ExecutionContext is cheaply Clone-able (every field is `Arc`/`Copy`).
     let mut ctx_snapshot = context.clone();
     // A calibration frame has no target BY NATURE — the shutter is closed or the
@@ -749,7 +755,7 @@ async fn emit_budget_progress(
     // to dedupe; the loud-fail policy is satisfied because every
     // milestone is recorded, not just the first.
     if budget_met {
-        context.emit_decision(
+        context.run.emit_decision(
             crate::decision::DecisionEvent::new(
                 crate::decision::DecisionCategory::BudgetMet,
                 format!(
@@ -843,7 +849,7 @@ fn notify_exposure_trigger(
         measured.map(|m| format!(": {m}")).unwrap_or_default(),
     );
     tracing::warn!("{}", message);
-    if let Some(event_tx) = &context.event_tx {
+    if let Some(event_tx) = &context.run.event_tx {
         let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
             trigger_id: trigger_id.to_string(),
             trigger_name: trigger_name.clone(),
@@ -853,7 +859,7 @@ fn notify_exposure_trigger(
             message: message.clone(),
         });
     }
-    context.emit_decision(
+    context.run.emit_decision(
         crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::TriggerFired,
             EXPOSURE_TRIGGER_NOTIFY_SUMMARY.to_string(),
@@ -882,7 +888,7 @@ pub(crate) async fn check_exposure_triggers(
 
     let current_hfr = result.hfr_values.last().copied();
 
-    let trigger_state_lock = match &context.trigger_state {
+    let trigger_state_lock = match &context.run.trigger_state {
         Some(lock) => lock.clone(),
         None => return,
     };
@@ -1357,7 +1363,7 @@ mod tests {
 
     fn renderer_context(root: &std::path::Path) -> ExecutionContext {
         let mut ctx = ExecutionContext::new_for_test("expose-names".to_string());
-        ctx.save_path = Some(root.to_path_buf());
+        ctx.run.rig.save_path = Some(root.to_path_buf());
         ctx.target_name = Some("NGC0891".to_string());
         ctx.current_filter = Some("L".to_string());
         ctx
@@ -1475,8 +1481,8 @@ mod tests {
     #[tokio::test]
     async fn exposure_with_no_save_location_fails_instead_of_discarding_frames() {
         let mut ctx = ExecutionContext::new_for_test("expose-nosave".to_string());
-        ctx.camera_id = Some("sim_camera_1".to_string());
-        ctx.save_path = None;
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.run.rig.save_path = None;
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
@@ -1503,8 +1509,8 @@ mod tests {
     async fn exposure_with_an_absolute_save_to_runs_without_a_base_path() {
         let dir = std::env::temp_dir().join(format!("sk-expose-abs-{}", uuid::Uuid::new_v4()));
         let mut ctx = ExecutionContext::new_for_test("expose-abs".to_string());
-        ctx.camera_id = Some("sim_camera_1".to_string());
-        ctx.save_path = None;
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.run.rig.save_path = None;
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
@@ -1536,12 +1542,12 @@ mod tests {
     async fn calibration_frames_do_not_advance_the_frame_cadence() {
         let dir = std::env::temp_dir().join(format!("sk-expose-cadence-{}", uuid::Uuid::new_v4()));
         let mut ctx = ExecutionContext::new_for_test("expose-cadence".to_string());
-        ctx.camera_id = Some("sim_camera_1".to_string());
-        ctx.save_path = Some(dir.clone());
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.run.rig.save_path = Some(dir.clone());
         let trigger_state = std::sync::Arc::new(tokio::sync::RwLock::new(
             crate::triggers::TriggerState::default(),
         ));
-        ctx.trigger_state = Some(trigger_state.clone());
+        ctx.run.trigger_state = Some(trigger_state.clone());
 
         let burst = |frame_type: &str, count: u32| {
             NodeType::TakeExposure(crate::ExposureConfig {
@@ -1587,8 +1593,8 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("temp dir");
 
         let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
-        ctx_a.camera_id = Some("sim_camera_1".to_string());
-        ctx_a.save_path = Some(dir.clone());
+        ctx_a.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx_a.run.rig.save_path = Some(dir.clone());
         let mut ctx_b = ctx_a.clone();
         ctx_b.node_id = "expose-b".to_string();
 
@@ -1633,11 +1639,11 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("temp dir");
 
         let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
-        ctx_a.camera_id = Some("sim_camera_1".to_string());
-        ctx_a.save_path = Some(dir.clone());
+        ctx_a.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx_a.run.rig.save_path = Some(dir.clone());
         let mut ctx_b = ctx_a.clone();
         ctx_b.node_id = "expose-b".to_string();
-        ctx_b.camera_id = Some("sim_camera_2".to_string());
+        ctx_b.run.rig.camera_id = Some("sim_camera_2".to_string());
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,

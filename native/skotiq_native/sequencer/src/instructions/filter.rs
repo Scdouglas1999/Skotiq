@@ -137,7 +137,7 @@ pub(crate) async fn apply_filter_focus_offset(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Result<(), String> {
-    let focuser_id = match ctx.focuser_id.as_deref() {
+    let focuser_id = match ctx.run.rig.focuser_id.as_deref() {
         Some(id) if !id.is_empty() => id,
         _ => return Ok(()),
     };
@@ -146,6 +146,8 @@ pub(crate) async fn apply_filter_focus_offset(
     // (offset = optimal_focus[filter] - optimal_focus[reference]); the
     // reference filter and any unconfigured filter have offset 0.
     let offset_new = ctx
+        .run
+        .rig
         .filter_focus_offsets
         .get(filter_name)
         .copied()
@@ -158,7 +160,7 @@ pub(crate) async fn apply_filter_focus_offset(
     // reference+10, and re-selecting a filter would re-add its offset every
     // time). Move by the DELTA between the new offset and the one currently
     // embodied so the focuser always lands at reference_focus + offset_new.
-    let last_applied = match &ctx.trigger_state {
+    let last_applied = match &ctx.run.trigger_state {
         Some(ts) => ts.read().await.latches.last_applied_filter_offset,
         None => 0,
     };
@@ -187,7 +189,7 @@ pub(crate) async fn apply_filter_focus_offset(
         cb(60.0, format!("Applying focus offset: {:+} steps", delta));
     }
 
-    let current_pos = match ctx.device_ops.focuser_get_position(focuser_id).await {
+    let current_pos = match ctx.run.device_ops.focuser_get_position(focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
             return Err(format!("failed to read focuser position: {}", e));
@@ -203,7 +205,12 @@ pub(crate) async fn apply_filter_focus_offset(
         offset_new
     );
 
-    if let Err(e) = ctx.device_ops.focuser_move_to(focuser_id, target_pos).await {
+    if let Err(e) = ctx
+        .run
+        .device_ops
+        .focuser_move_to(focuser_id, target_pos)
+        .await
+    {
         return Err(format!("failed to move focuser: {}", e));
     }
 
@@ -215,7 +222,7 @@ pub(crate) async fn apply_filter_focus_offset(
     let mut reached_target = false;
     for _ in 0..60 {
         sleep(Duration::from_millis(500)).await;
-        match ctx.device_ops.focuser_is_moving(focuser_id).await {
+        match ctx.run.device_ops.focuser_is_moving(focuser_id).await {
             Ok(false) => {
                 reached_target = true;
                 break;
@@ -231,7 +238,7 @@ pub(crate) async fn apply_filter_focus_offset(
         return Err("focuser did not report completion before the timeout window".to_string());
     }
 
-    let final_pos = match ctx.device_ops.focuser_get_position(focuser_id).await {
+    let final_pos = match ctx.run.device_ops.focuser_get_position(focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
             return Err(format!("failed to verify final focuser position: {}", e));
@@ -248,7 +255,7 @@ pub(crate) async fn apply_filter_focus_offset(
     // Record the offset now embodied in the focuser position so the NEXT
     // filter change moves only by the delta (and re-selecting this filter is a
     // no-op). Without this the offsets accumulate across the night.
-    if let Some(ts) = &ctx.trigger_state {
+    if let Some(ts) = &ctx.run.trigger_state {
         ts.write().await.set_last_applied_filter_offset(offset_new);
     }
 

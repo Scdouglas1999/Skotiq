@@ -27,6 +27,7 @@ pub async fn execute_notification(
     );
 
     if let Err(e) = ctx
+        .run
         .device_ops
         .send_notification(
             level,

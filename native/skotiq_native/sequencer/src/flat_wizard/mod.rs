@@ -236,7 +236,7 @@ impl<'a> FlatWizardRun<'a> {
         if self.config.filter.is_none() && self.config.filter_index.is_none() {
             return Ok(());
         }
-        let fw_id = match &ctx.filterwheel_id {
+        let fw_id = match &ctx.run.rig.filterwheel_id {
             Some(id) => id,
             None => return Ok(()),
         };
@@ -246,13 +246,15 @@ impl<'a> FlatWizardRun<'a> {
                 index,
                 self.config.filter
             );
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .filterwheel_set_position(fw_id, index)
                 .await
                 .map_err(|e| format!("Failed to change filter: {}", e))
         } else if let Some(filter_name) = &self.config.filter {
             tracing::info!("Changing to filter by name: {}", filter_name);
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .filterwheel_set_filter_by_name(fw_id, filter_name)
                 .await
                 .map(|_| ())
@@ -268,7 +270,7 @@ impl<'a> FlatWizardRun<'a> {
         iteration: u32,
         progress: &dyn WizardProgressReporter,
     ) -> WizardStepOutcome<FlatStep> {
-        let camera_id = match ctx.camera_id.as_deref() {
+        let camera_id = match ctx.run.rig.camera_id.as_deref() {
             Some(id) => id,
             None => return WizardStepOutcome::Failed("No camera connected".to_string()),
         };
@@ -311,6 +313,7 @@ impl<'a> FlatWizardRun<'a> {
 
         let (bin_x, bin_y) = binning_dimensions(ctx.current_binning);
         let image_data = match ctx
+            .run
             .device_ops
             .camera_start_exposure(
                 crate::device_ops::ExposureRequest::new(camera_id, test_exposure)
@@ -499,7 +502,7 @@ pub(crate) async fn capture_converged_flats(
         Ok(renderer) => renderer,
         Err(message) => {
             tracing::error!("{}", message);
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                     message: message.clone(),
                 });
@@ -547,7 +550,7 @@ pub async fn execute_flat_wizard(
     );
 
     // A missing camera is surfaced before any other work.
-    if ctx.camera_id.as_deref().is_none() {
+    if ctx.run.rig.camera_id.as_deref().is_none() {
         return InstructionResult::failure("No camera connected");
     }
 

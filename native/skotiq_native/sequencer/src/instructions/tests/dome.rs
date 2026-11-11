@@ -187,7 +187,7 @@ async fn open_dome_uses_connected_dome_when_context_has_no_role() {
     );
     let mut ctx = ctx_with_ops(ops.clone()).await;
     // Exactly what the executor hands every real run today.
-    ctx.dome_id = None;
+    ctx.run.rig.dome_id = None;
 
     let result = execute_open_dome(&DomeConfig { shutter_only: true }, &ctx, None).await;
 
@@ -208,7 +208,7 @@ async fn open_dome_uses_connected_dome_when_context_has_no_role() {
 async fn open_dome_still_fails_when_no_dome_is_connected() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.dome_id = None;
+    ctx.run.rig.dome_id = None;
 
     let result = execute_open_dome(&DomeConfig { shutter_only: true }, &ctx, None).await;
 
@@ -239,9 +239,9 @@ async fn a_retried_node_reports_its_failure_once_not_once_per_attempt() {
 
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("dup-error".to_string());
-    ec.device_ops = ops.clone();
+    ec.run.device_ops = ops.clone();
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
 
     // Stand in for a recovery driver that engages and completes a cycle:
     // the wrapper watches `recovery_generation` to decide the device came
@@ -289,7 +289,7 @@ async fn a_retried_node_reports_its_failure_once_not_once_per_attempt() {
 async fn open_cover_uses_connected_panel_when_context_has_no_role() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_active_cover_calibrator_id("sim_cc"));
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.cover_calibrator_id = None;
+    ctx.run.rig.cover_calibrator_id = None;
 
     let result = execute_open_cover(
         &crate::CoverCalibratorConfig { timeout_secs: 5 },

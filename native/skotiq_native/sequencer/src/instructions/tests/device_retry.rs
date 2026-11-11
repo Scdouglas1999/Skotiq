@@ -24,10 +24,10 @@ async fn retrying_ctx(
     let mut ctx = ctx_with_ops(ops).await;
     let dir = std::env::temp_dir().join(format!("sk-device-retry-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
-    ctx.save_path = Some(dir.clone());
-    ctx.device_retry = DeviceRetryHandle::new(policy);
+    ctx.run.rig.save_path = Some(dir.clone());
+    ctx.run.device_retry = DeviceRetryHandle::new(policy);
     let (tx, rx) = tokio::sync::broadcast::channel(64);
-    ctx.event_tx = Some(tx);
+    ctx.run.event_tx = Some(tx);
     (ctx, rx, dir)
 }
 
@@ -145,7 +145,10 @@ async fn zero_camera_retries_is_a_single_attempt() {
 async fn a_context_outside_a_run_does_not_retry() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[DOWNLOAD_ERROR]));
     let ctx = ctx_with_ops(ops.clone()).await;
-    assert_eq!(ctx.device_retry.get(), DeviceRetryPolicy::SINGLE_ATTEMPT);
+    assert_eq!(
+        ctx.run.device_retry.get(),
+        DeviceRetryPolicy::SINGLE_ATTEMPT
+    );
 
     let result = execute_exposure(&darks(1), &ctx, |_, _, _| {}).await;
 
@@ -369,7 +372,7 @@ async fn the_burst_filter_set_is_retried() {
 async fn the_centering_frame_retries_a_failed_download() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[DOWNLOAD_ERROR]));
     let (mut ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     let config = CenterConfig {
         use_target_coords: false,
         custom_ra: Some(12.0),

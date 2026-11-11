@@ -22,15 +22,15 @@ fn ctx_with_target() -> ExecutionContext {
     ctx.target_rotation = Some(45.0);
     ctx.current_filter = Some("Ha".to_string());
     ctx.current_filter_index = Some(3);
-    ctx.latitude = Some(40.7);
-    ctx.longitude = Some(-74.0);
-    ctx.observer_name = Some("Alice".to_string());
-    ctx.site_elevation_m = Some(150.0);
-    ctx.camera_make = Some("ZWO".to_string());
-    ctx.camera_model = Some("ASI2600MM".to_string());
-    ctx.telescope_name = Some("TS APO".to_string());
-    ctx.telescope_focal_length_mm = Some(910.0);
-    ctx.telescope_aperture_mm = Some(130.0);
+    ctx.run.rig.latitude = Some(40.7);
+    ctx.run.rig.longitude = Some(-74.0);
+    ctx.run.identity.observer_name = Some("Alice".to_string());
+    ctx.run.identity.site_elevation_m = Some(150.0);
+    ctx.run.identity.camera_make = Some("ZWO".to_string());
+    ctx.run.identity.camera_model = Some("ASI2600MM".to_string());
+    ctx.run.identity.telescope_name = Some("TS APO".to_string());
+    ctx.run.identity.telescope_focal_length_mm = Some(910.0);
+    ctx.run.identity.telescope_aperture_mm = Some(130.0);
     ctx.set_temp_c = Some(-10.0);
     ctx
 }
@@ -93,7 +93,7 @@ fn notification_template_renders_message() {
 #[test]
 fn run_script_argument_renders_session_id() {
     let mut ctx = ctx_with_target();
-    ctx.session_id = "test-session-123".to_string();
+    ctx.run.identity.session_id = "test-session-123".to_string();
     let frame = frame_with_burst();
     let rendered = interpolate("--input=${session.id}", &ctx, &frame).expect("must render");
     assert_eq!(rendered, "--input=test-session-123");

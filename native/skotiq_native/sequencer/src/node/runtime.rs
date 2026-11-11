@@ -162,6 +162,7 @@ async fn execute_instruction_with_disconnect_retry(
         // Clear any stale pending flag from a prior instruction before running,
         // so we only react to a disconnect raised by THIS execution.
         context
+            .run
             .device_disconnect_recovery_pending
             .store(false, Ordering::Relaxed);
         // Snapshot BEFORE executing: any recovery cycle that completes from here
@@ -180,6 +181,7 @@ async fn execute_instruction_with_disconnect_retry(
         // Skipped, Cancelled, or a non-disconnect Failure) returns as-is.
         if result != NodeStatus::Failure
             || !context
+                .run
                 .device_disconnect_recovery_pending
                 .swap(false, Ordering::Relaxed)
         {
@@ -633,17 +635,19 @@ mod disconnect_recovery_tests {
         let inst = ctx.to_instruction_context("test-node").await;
         // Writing through the InstructionContext side is visible on the
         // ExecutionContext side (same Arc allocation).
-        inst.device_disconnect_recovery_pending
+        inst.run
+            .device_disconnect_recovery_pending
             .store(true, Ordering::Relaxed);
         assert!(
-            ctx.device_disconnect_recovery_pending
+            ctx.run
+                .device_disconnect_recovery_pending
                 .load(Ordering::Relaxed),
             "pending flag must be shared across the context boundary"
         );
         assert!(
             Arc::ptr_eq(
-                &ctx.device_disconnect_recovery_pending,
-                &inst.device_disconnect_recovery_pending
+                &ctx.run.device_disconnect_recovery_pending,
+                &inst.run.device_disconnect_recovery_pending
             ),
             "both contexts must reference the same flag allocation"
         );

@@ -72,9 +72,9 @@ pub async fn execute_wait_time(
         tracing::info!("Waiting for {:?} twilight", twilight);
 
         // Calculate twilight time based on observer location
-        let observer_location = match (ctx.latitude, ctx.longitude) {
+        let observer_location = match (ctx.run.rig.latitude, ctx.run.rig.longitude) {
             (Some(lat), Some(lon)) => Some((lat, lon)),
-            _ => ctx.device_ops.get_observer_location(),
+            _ => ctx.run.device_ops.get_observer_location(),
         };
         let (lat, lon) = match observer_location {
             Some(loc) => loc,

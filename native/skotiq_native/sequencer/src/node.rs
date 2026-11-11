@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(ctx.node_id, "test_node");
         assert!(ctx.target_ra.is_none());
         assert!(ctx.target_dec.is_none());
-        assert!(ctx.camera_id.is_none());
+        assert!(ctx.run.rig.camera_id.is_none());
     }
 
     /// ExecutionContext exposes SkipToNode plumbing via

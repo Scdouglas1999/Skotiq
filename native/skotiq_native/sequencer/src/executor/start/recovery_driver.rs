@@ -797,7 +797,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         );
         let mut claim =
             TriggerCameraClaim::acquire(&state, exit.is_cancelled, &RecoveryAction::Recenter).await;
-        let ctx = build_trigger_autofocus_context(
+        let ctx = trigger_instruction_context(
             exit.trigger_context,
             target_name,
             target_ra_hours,

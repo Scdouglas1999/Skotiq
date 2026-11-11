@@ -393,14 +393,14 @@ mod guiding_through_a_move {
 
     async fn slew_ctx(ops: Arc<ScriptedDomeRotatorOps>, run_guiding: bool) -> InstructionContext {
         let ctx = pointing_ctx(ops, "M1", TARGET).await;
-        if let Some(state) = &ctx.trigger_state {
+        if let Some(state) = &ctx.run.trigger_state {
             state.write().await.set_guiding_enabled(run_guiding);
         }
         ctx
     }
 
     async fn state_of(ctx: &InstructionContext) -> (bool, bool, u32) {
-        let state = ctx.trigger_state.as_ref().unwrap().read().await;
+        let state = ctx.run.trigger_state.as_ref().unwrap().read().await;
         (
             state.guiding.is_enabled(),
             state.guiding.resume_pending(),
@@ -539,7 +539,7 @@ mod guiding_through_a_move {
     async fn a_center_outside_a_run_stops_the_guider() {
         let ops = guided_rig();
         let mut ctx = slew_ctx(ops.clone(), false).await;
-        ctx.trigger_state = None;
+        ctx.run.trigger_state = None;
 
         let _ = execute_center(&center_cfg(), &ctx, None).await;
 
@@ -571,16 +571,16 @@ async fn slew_node_off_target(stop_on_quality_problems: bool) -> (NodeStatus, Ve
             .with_scripted_readback_frame(Ok((22.8070, 58.2738))),
     );
     let mut context = crate::node::context::ExecutionContext::new_for_test("slew".to_string());
-    context.device_ops = ops;
-    context.mount_id = Some("mount-1".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.mount_id = Some("mount-1".to_string());
     context.target_name = Some("Heart Nebula core".to_string());
     context.target_ra = Some(22.7892);
     context.target_dec = Some(58.1324);
     let mut state = crate::triggers::TriggerState::new();
     state.settings.stop_on_quality_problems = stop_on_quality_problems;
-    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    context.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let config = SlewConfig {
         use_target_coords: true,
         ..SlewConfig::default()

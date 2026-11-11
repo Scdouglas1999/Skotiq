@@ -29,6 +29,7 @@ async fn wait_for_cover_state(
             return Err("Operation cancelled".to_string());
         }
         let state = ctx
+            .run
             .device_ops
             .cover_calibrator_get_cover_state(device_id)
             .await
@@ -64,6 +65,7 @@ async fn wait_for_calibrator_state(
             return Err("Operation cancelled".to_string());
         }
         let state = ctx
+            .run
             .device_ops
             .cover_calibrator_get_calibrator_state(device_id)
             .await
@@ -91,7 +93,7 @@ pub(super) async fn setup_flat_panel(
     progress: &dyn WizardProgressReporter,
     cleanup_required: &AtomicBool,
 ) -> Result<(), String> {
-    let device_id = match ctx.cover_calibrator_id.as_deref() {
+    let device_id = match ctx.run.rig.cover_calibrator_id.as_deref() {
         Some(id) => id,
         None => {
             tracing::warn!("No cover calibrator connected - proceeding without panel control");
@@ -106,7 +108,12 @@ pub(super) async fn setup_flat_panel(
 
     progress.report(0.22, "Opening cover".to_string());
     tracing::info!("Opening cover...");
-    if let Err(e) = ctx.device_ops.cover_calibrator_open_cover(device_id).await {
+    if let Err(e) = ctx
+        .run
+        .device_ops
+        .cover_calibrator_open_cover(device_id)
+        .await
+    {
         return Err(format!("Failed to open cover: {}", e));
     }
     // The open command was accepted, so teardown must run even if
@@ -126,6 +133,7 @@ pub(super) async fn setup_flat_panel(
     progress.report(0.25, "Turning on calibrator".to_string());
     tracing::info!("Turning on calibrator at brightness {}...", brightness);
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_calibrator_on(device_id, brightness)
         .await
@@ -148,7 +156,7 @@ pub(super) async fn setup_flat_panel(
 
 /// Clean up flat panel after taking flats (turn off light, close cover).
 pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), String> {
-    let cc_id = match ctx.cover_calibrator_id.as_deref() {
+    let cc_id = match ctx.run.rig.cover_calibrator_id.as_deref() {
         Some(id) => id,
         None => return Ok(()),
     };
@@ -157,11 +165,16 @@ pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), S
 
     let mut errors = Vec::new();
 
-    if let Err(e) = ctx.device_ops.cover_calibrator_calibrator_off(cc_id).await {
+    if let Err(e) = ctx
+        .run
+        .device_ops
+        .cover_calibrator_calibrator_off(cc_id)
+        .await
+    {
         errors.push(format!("failed to turn off calibrator: {}", e));
     }
 
-    if let Err(e) = ctx.device_ops.cover_calibrator_close_cover(cc_id).await {
+    if let Err(e) = ctx.run.device_ops.cover_calibrator_close_cover(cc_id).await {
         errors.push(format!("failed to close cover: {}", e));
     }
 
@@ -208,14 +221,15 @@ pub(super) async fn set_panel_brightness(
     ctx: &InstructionContext,
     brightness: i32,
 ) -> Result<(), String> {
-    let cc_id = match ctx.cover_calibrator_id.as_deref() {
+    let cc_id = match ctx.run.rig.cover_calibrator_id.as_deref() {
         Some(id) => id,
         None => return Ok(()),
     };
 
     tracing::info!("Adjusting flat panel brightness to {}", brightness);
 
-    ctx.device_ops
+    ctx.run
+        .device_ops
         .cover_calibrator_calibrator_on(cc_id, brightness)
         .await?;
 
@@ -245,10 +259,10 @@ pub(super) async fn position_for_flats(
         PanelLocation::FlatPanel => {
             tracing::info!("Positioning for flat panel");
 
-            if let Some(mount_id) = &ctx.mount_id {
+            if let Some(mount_id) = &ctx.run.rig.mount_id {
                 progress.report(0.12, "Slewing to zenith".to_string());
 
-                let (lat, lon) = ctx.device_ops.get_observer_location().ok_or_else(|| {
+                let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
                     "Observer location is required for flat-panel positioning".to_string()
                 })?;
 
@@ -266,7 +280,8 @@ pub(super) async fn position_for_flats(
                     zenith_dec
                 );
 
-                ctx.device_ops
+                ctx.run
+                    .device_ops
                     .mount_slew_to_coordinates(mount_id, zenith_ra, zenith_dec)
                     .await
                     .map_err(|e| format!("Failed to slew to zenith: {}", e))?;
@@ -280,8 +295,8 @@ pub(super) async fn position_for_flats(
         PanelLocation::DawnSky | PanelLocation::DuskSky => {
             tracing::info!("Positioning for {:?} sky flats", config.panel_location);
 
-            if let Some(mount_id) = &ctx.mount_id {
-                let (lat, lon) = ctx.device_ops.get_observer_location().ok_or_else(|| {
+            if let Some(mount_id) = &ctx.run.rig.mount_id {
+                let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
                     "Observer location is required for sky-flat positioning".to_string()
                 })?;
 
@@ -311,7 +326,8 @@ pub(super) async fn position_for_flats(
                     dec
                 );
 
-                ctx.device_ops
+                ctx.run
+                    .device_ops
                     .mount_slew_to_coordinates(mount_id, ra, dec)
                     .await
                     .map_err(|e| format!("Failed to slew for sky flats: {}", e))?;

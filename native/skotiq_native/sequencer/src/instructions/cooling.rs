@@ -26,7 +26,7 @@ pub async fn execute_cool_camera(
     // Initial temperature anchors the progress percentage: the user sees
     // "30% cooled" as halfway between start and target rather than a raw
     // °C count that means nothing without context.
-    let start_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
+    let start_temp = match ctx.run.device_ops.camera_get_temperature(&camera_id).await {
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
@@ -42,6 +42,7 @@ pub async fn execute_cool_camera(
     let already_at_target = (start_temp - target_temp).abs() < 0.5;
 
     if let Err(e) = ctx
+        .run
         .device_ops
         .camera_set_cooler(&camera_id, true, target_temp)
         .await
@@ -50,7 +51,7 @@ pub async fn execute_cool_camera(
     }
 
     if already_at_target {
-        let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+        let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
             Ok(value) => value,
             Err(e) => {
                 return InstructionResult::failure(format!(
@@ -99,7 +100,7 @@ pub async fn execute_cool_camera(
             return result;
         }
 
-        let current_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
+        let current_temp = match ctx.run.device_ops.camera_get_temperature(&camera_id).await {
             Ok(value) => value,
             Err(e) => {
                 return InstructionResult::failure(format!(
@@ -108,7 +109,7 @@ pub async fn execute_cool_camera(
                 ))
             }
         };
-        let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+        let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
             Ok(value) => value,
             Err(e) => {
                 return InstructionResult::failure(format!(
@@ -246,6 +247,7 @@ pub async fn execute_warm_camera(
                        end-of-night darks, and calibration warms it once they are taken";
         tracing::info!("{}", message);
         if let Err(e) = ctx
+            .run
             .device_ops
             .send_notification("info", "Ending the night", message, None)
             .await
@@ -263,7 +265,7 @@ pub async fn execute_warm_camera(
         Err(e) => return e,
     };
 
-    let start_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
+    let start_temp = match ctx.run.device_ops.camera_get_temperature(&camera_id).await {
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
@@ -276,7 +278,7 @@ pub async fn execute_warm_camera(
     // warm set-point.
     // An unreadable cooler state is treated as unknown: the power reading
     // below still decides whether there is anything to warm.
-    let cooler_on = match ctx.device_ops.camera_get_cooler_on(&camera_id).await {
+    let cooler_on = match ctx.run.device_ops.camera_get_cooler_on(&camera_id).await {
         Ok(state) => state,
         Err(e) => {
             tracing::warn!(
@@ -296,7 +298,7 @@ pub async fn execute_warm_camera(
         }
         return InstructionResult::success_with_message("Cooler already off, nothing to warm");
     }
-    let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+    let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
         Ok(power) => Some(power),
         Err(e) => {
             tracing::warn!("Warm camera: could not read the cooler power: {}", e);
@@ -311,6 +313,7 @@ pub async fn execute_warm_camera(
             start_temp
         );
         if let Err(e) = ctx
+            .run
             .device_ops
             .camera_set_cooler(&camera_id, false, 20.0)
             .await
@@ -354,6 +357,7 @@ pub async fn execute_warm_camera(
         if let Some(result) = ctx.check_cancelled() {
             // Turn off cooler on cancel
             if let Err(error) = ctx
+                .run
                 .device_ops
                 .camera_set_cooler(&camera_id, false, 20.0)
                 .await
@@ -374,6 +378,7 @@ pub async fn execute_warm_camera(
 
         // Gradually increase target temperature
         if let Err(e) = ctx
+            .run
             .device_ops
             .camera_set_cooler(&camera_id, true, progress_temp)
             .await
@@ -402,6 +407,7 @@ pub async fn execute_warm_camera(
     // while the TEC stayed powered. A warm-up that could not switch the cooler
     // off has not warmed anything up.
     if let Err(e) = ctx
+        .run
         .device_ops
         .camera_set_cooler(&camera_id, false, 20.0)
         .await

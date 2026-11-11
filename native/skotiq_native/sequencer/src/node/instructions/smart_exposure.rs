@@ -91,6 +91,7 @@ impl InstructionNode for SmartExposureInstruction {
             .iter()
             .any(|plan| plan.dither_every.is_some_and(|every| every > 0));
         let cadence_state = context
+            .run
             .trigger_state
             .clone()
             .filter(|_| owns_dither_cadence);
@@ -646,7 +647,7 @@ fn refresh_depth_completions(
                 state
                     .depth_completed
                     .insert(binding.goal_id.clone(), binding.revision);
-                if let Some(event_tx) = &context.event_tx {
+                if let Some(event_tx) = &context.run.event_tx {
                     // A closed receiver only means no subscriber; the log line
                     // above is the durable record.
                     let _ = event_tx.send(ExecutorEvent::DepthGoalCompleted {
@@ -706,7 +707,7 @@ fn warn_depth_unavailable(
         reason
     );
     tracing::warn!("SmartExposure '{}': {}", node_id, message);
-    if let Some(event_tx) = &context.event_tx {
+    if let Some(event_tx) = &context.run.event_tx {
         let _ = event_tx.send(ExecutorEvent::Warning { message });
     }
 }

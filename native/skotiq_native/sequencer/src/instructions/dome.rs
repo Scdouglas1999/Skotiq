@@ -62,7 +62,7 @@ pub(crate) async fn wait_for_dome_shutter_state(
             return Err(result);
         }
 
-        match ctx.device_ops.dome_get_shutter_status(dome_id).await {
+        match ctx.run.device_ops.dome_get_shutter_status(dome_id).await {
             Ok(status) => {
                 if status == target {
                     return Ok(DomeShutterWaitOutcome::Confirmed);
@@ -110,7 +110,7 @@ pub(crate) async fn wait_for_dome_shutter_state(
                  (proceeding after issuing the command)"
             );
             tracing::warn!("{msg}");
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Error { message: msg });
             }
             return Ok(DomeShutterWaitOutcome::Unconfirmed);
@@ -148,7 +148,7 @@ pub async fn execute_open_dome(
         cb(50.0, "Waiting for shutter to open".to_string());
     }
 
-    if let Err(e) = ctx.device_ops.dome_open(&dome_id).await {
+    if let Err(e) = ctx.run.device_ops.dome_open(&dome_id).await {
         return InstructionResult::failure(format!("Failed to open dome: {}", e));
     }
 
@@ -207,7 +207,7 @@ pub async fn execute_close_dome(
         cb(50.0, "Waiting for shutter to close".to_string());
     }
 
-    if let Err(e) = ctx.device_ops.dome_close(&dome_id).await {
+    if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
         return InstructionResult::failure(format!("Failed to close dome: {}", e));
     }
 
@@ -262,7 +262,7 @@ pub async fn execute_park_dome(
         }
 
         tracing::info!("Parking dome...");
-        if let Err(e) = ctx.device_ops.dome_park(&dome_id).await {
+        if let Err(e) = ctx.run.device_ops.dome_park(&dome_id).await {
             return InstructionResult::failure(format!("Failed to park dome: {}", e));
         }
     }
@@ -276,7 +276,7 @@ pub async fn execute_park_dome(
     // exposed under an open shutter all night. Propagate it (mirrors
     // `execute_close_dome`) rather than discarding the Result.
     tracing::info!("Closing shutter (park sequence)...");
-    if let Err(e) = ctx.device_ops.dome_close(&dome_id).await {
+    if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
         return InstructionResult::failure(format!(
             "Dome parked but failed to close shutter: {}",
             e

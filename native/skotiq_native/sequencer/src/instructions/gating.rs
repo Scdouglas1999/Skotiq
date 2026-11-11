@@ -179,9 +179,16 @@ pub(crate) async fn wait_for_darkness(
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Option<InstructionResult> {
     let max_sun_alt = resolve_max_sun_altitude(ctx).await;
-    let reason = daylight_gate_block_reason(ctx.latitude, ctx.longitude, max_sun_alt, what)?;
-    let (latitude, longitude) =
-        crate::node::context::normalized_observer_location(ctx.latitude, ctx.longitude);
+    let reason = daylight_gate_block_reason(
+        ctx.run.rig.latitude,
+        ctx.run.rig.longitude,
+        max_sun_alt,
+        what,
+    )?;
+    let (latitude, longitude) = crate::node::context::normalized_observer_location(
+        ctx.run.rig.latitude,
+        ctx.run.rig.longitude,
+    );
     let (Some(lat), Some(lon)) = (latitude, longitude) else {
         return None;
     };
@@ -208,6 +215,7 @@ pub(crate) async fn wait_for_darkness(
     let message = waiting(sun_alt, minutes);
     tracing::info!("{message}");
     if let Err(e) = ctx
+        .run
         .device_ops
         .send_notification("info", "Waiting for dark", &message, None)
         .await
@@ -248,7 +256,7 @@ pub(crate) async fn wait_for_darkness(
 /// [`DEFAULT_MAX_SUN_ALTITUDE_DEGREES`] when no trigger state is wired (one-shot
 /// instruction sites / tests) or the value has not been seeded.
 pub(crate) async fn resolve_max_sun_altitude(ctx: &InstructionContext) -> f64 {
-    if let Some(lock) = &ctx.trigger_state {
+    if let Some(lock) = &ctx.run.trigger_state {
         if let Some(v) = lock.read().await.settings.max_sun_altitude_degrees {
             return v;
         }
@@ -297,8 +305,8 @@ pub(crate) fn validate_exposure_filter_request(
 /// configured name. An unknown filter must stay unknown; inventing "L" would
 /// mis-label narrowband frames as luminance.
 pub(crate) async fn observed_wheel_filter(ctx: &InstructionContext) -> Option<(String, i32)> {
-    let fw_id = ctx.filterwheel_id.as_deref()?;
-    let position = match ctx.device_ops.filterwheel_get_position(fw_id).await {
+    let fw_id = ctx.run.rig.filterwheel_id.as_deref()?;
+    let position = match ctx.run.device_ops.filterwheel_get_position(fw_id).await {
         Ok(position) if position >= 0 => position,
         Ok(position) => {
             tracing::debug!(
@@ -327,11 +335,11 @@ pub(crate) async fn wheel_filter_name_at(
     ctx: &InstructionContext,
     position: i32,
 ) -> Option<String> {
-    let fw_id = ctx.filterwheel_id.as_deref()?;
+    let fw_id = ctx.run.rig.filterwheel_id.as_deref()?;
     if position < 0 {
         return None;
     }
-    let names = match ctx.device_ops.filterwheel_get_names(fw_id).await {
+    let names = match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
         Ok(names) => names,
         Err(e) => {
             tracing::debug!(
@@ -361,12 +369,12 @@ pub(crate) async fn wheel_filter_name_at(
 /// left behind — one frame described by two filters, which is the same
 /// disagreement the name resolution was added to end.
 pub(crate) async fn wheel_filter_index_of(ctx: &InstructionContext, name: &str) -> Option<i32> {
-    let fw_id = ctx.filterwheel_id.as_deref()?;
+    let fw_id = ctx.run.rig.filterwheel_id.as_deref()?;
     let wanted = name.trim();
     if wanted.is_empty() {
         return None;
     }
-    let names = match ctx.device_ops.filterwheel_get_names(fw_id).await {
+    let names = match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
         Ok(names) => names,
         Err(e) => {
             tracing::debug!(

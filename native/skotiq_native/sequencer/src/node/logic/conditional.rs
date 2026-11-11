@@ -18,7 +18,7 @@ fn safety_poll_error_condition_result(
 }
 
 async fn previous_weather_safe(context: &ExecutionContext) -> Option<bool> {
-    let trigger_state = context.trigger_state.as_ref()?;
+    let trigger_state = context.run.trigger_state.as_ref()?;
     Some(trigger_state.read().await.telemetry.weather_safe)
 }
 
@@ -27,7 +27,7 @@ async fn evaluate_safety_condition(
     context: &ExecutionContext,
     safety_id: Option<&str>,
 ) -> bool {
-    match context.device_ops.safety_is_safe(safety_id).await {
+    match context.run.device_ops.safety_is_safe(safety_id).await {
         Ok(is_safe) => {
             if !is_safe {
                 tracing::warn!(
@@ -67,7 +67,7 @@ async fn evaluate_safety_condition(
                         e,
                         previous_safe
                     );
-                    if let Some(tx) = &context.event_tx {
+                    if let Some(tx) = &context.run.event_tx {
                         let _ = tx.send(ExecutorEvent::Error {
                             message: format!(
                                 "{} check failed (target safety_id={:?}): {}. WarnOnly mode preserves the previous safety state ({:?}).",
@@ -100,7 +100,7 @@ pub async fn execute_conditional(
         }
         ConditionalCheck::TimeAfter(after) => chrono::Utc::now().timestamp() > *after,
         ConditionalCheck::GuidingRmsBelow(threshold) => {
-            match context.device_ops.guider_get_status().await {
+            match context.run.device_ops.guider_get_status().await {
                 Ok(status) => status.rms_total < *threshold,
                 Err(e) => {
                     tracing::warn!(
@@ -113,7 +113,7 @@ pub async fn execute_conditional(
             }
         }
         ConditionalCheck::HfrBelow(threshold) => {
-            let current_hfr = if let Some(trigger_state_lock) = &context.trigger_state {
+            let current_hfr = if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let trigger_state = trigger_state_lock.read().await;
                 trigger_state.latches.current_hfr
             } else {

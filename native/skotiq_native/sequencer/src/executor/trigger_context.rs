@@ -5,40 +5,6 @@
 
 use super::*;
 
-/// The devices, save path and site a run was started with.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct RunRig {
-    pub(super) camera_id: Option<String>,
-    pub(super) mount_id: Option<String>,
-    pub(super) focuser_id: Option<String>,
-    pub(super) filterwheel_id: Option<String>,
-    pub(super) rotator_id: Option<String>,
-    pub(super) dome_id: Option<String>,
-    pub(super) cover_calibrator_id: Option<String>,
-    pub(super) save_path: Option<PathBuf>,
-    pub(super) latitude: Option<f64>,
-    pub(super) longitude: Option<f64>,
-    pub(super) filter_focus_offsets: HashMap<String, i32>,
-}
-
-impl RunRig {
-    pub(super) fn connected_device_ids(&self) -> Vec<String> {
-        [
-            self.camera_id.as_ref(),
-            self.mount_id.as_ref(),
-            self.focuser_id.as_ref(),
-            self.filterwheel_id.as_ref(),
-            self.rotator_id.as_ref(),
-            self.dome_id.as_ref(),
-            self.cover_calibrator_id.as_ref(),
-        ]
-        .into_iter()
-        .flatten()
-        .cloned()
-        .collect()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(super) struct SequenceRecoveryTriggerSpec {
     pub(super) node_id: NodeId,
@@ -113,7 +79,7 @@ pub(super) fn build_runtime_node_from_map(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn build_trigger_autofocus_context(
+pub(super) fn trigger_instruction_context(
     trigger_context: &RunRig,
     target_name: Option<String>,
     target_ra: Option<f64>,
@@ -139,107 +105,27 @@ pub(super) fn build_trigger_autofocus_context(
     } else {
         live_offsets
     };
-    let latitude = rc_lat.or(trigger_context.latitude);
-    let longitude = rc_lon.or(trigger_context.longitude);
-
+    let mut run = crate::instructions::RunShared::new(device_ops);
+    run.rig = RunRig {
+        latitude: rc_lat.or(trigger_context.latitude),
+        longitude: rc_lon.or(trigger_context.longitude),
+        filter_focus_offsets,
+        ..trigger_context.clone()
+    };
+    run.trigger_state = Some(trigger_state);
+    run.event_tx = event_tx;
+    // The run's retry policy, so a trigger-fired action's filter change
+    // retries like the sequence's own.
+    run.device_retry = runtime_config.slots().device_retry.clone();
+    // A trigger action is not a sequence node, saves no frames of the run
+    // and does not move the rotator: no node id, frame identity, grading
+    // state or rotation.
     crate::instructions::InstructionContext {
-        // Trigger-driven recenter is not a sequence node.
-        node_id: String::new(),
         target_ra,
         target_dec,
-        // Trigger-initiated recenter does not move the rotator; rotation is a
-        // CenterTarget concern driven from the TargetHeader. None here keeps
-        // the trigger recenter path rotation-agnostic.
-        target_rotation: None,
         target_name,
         current_filter,
-        current_binning: crate::Binning::One,
-        cancellation_token,
-        camera_id: trigger_context.camera_id.clone(),
-        mount_id: trigger_context.mount_id.clone(),
-        focuser_id: trigger_context.focuser_id.clone(),
-        filterwheel_id: trigger_context.filterwheel_id.clone(),
-        rotator_id: trigger_context.rotator_id.clone(),
-        dome_id: trigger_context.dome_id.clone(),
-        cover_calibrator_id: trigger_context.cover_calibrator_id.clone(),
-        save_path: trigger_context.save_path.clone(),
-        latitude,
-        longitude,
-        device_ops,
-        trigger_state: Some(trigger_state),
-        filter_focus_offsets,
-        // callers pass `Some(event_tx_clone2.clone())` so
-        // FITS-save failures and other instruction-level errors fired from
-        // trigger-initiated work (autofocus / dither / recenter) reach the
-        // executor's event subscribers (UI, logging). Unit tests still pass
-        // `None` because they exercise the build helper in isolation.
-        event_tx,
-        recovery_request_tx: None,
-        // Trigger-initiated work is not wrapped by the node-runtime retry path,
-        // so this flag is a standalone fresh Arc here.
-        device_disconnect_recovery_pending: std::sync::Arc::new(
-            std::sync::atomic::AtomicBool::new(false),
-        ),
-        // Image Grading: trigger-initiated autofocus does not save
-        // FITS frames itself, so empty defaults are honest here. If trigger
-        // code ever calls save_fits in the future these would need to be
-        // wired through the trigger_context snapshot.
-        session_id: String::new(),
-        target_id: None,
-        mosaic_panel: None,
-        current_filter_index: None,
-        set_temp_c: None,
-        bayer_pattern: None,
-        observer_name: None,
-        site_elevation_m: None,
-        camera_make: None,
-        camera_model: None,
-        telescope_name: None,
-        telescope_focal_length_mm: None,
-        telescope_aperture_mm: None,
-        last_plate_solve: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline_samples: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        star_count_baselines: Default::default(),
-        consecutive_rejects: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_accepted: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_rejected: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        default_quality_check: None,
-        reject_folder_path: None,
-        // trigger-initiated autofocus does not save
-        // FITS frames itself; the defect-map slot starts empty so a
-        // future trigger code path that does save_fits will need to
-        // wire this through the trigger_context.
-        defect_map_apply: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        // Forensics: trigger-initiated work doesn't have the
-        // shared forensics history available; start empty Arcs so any
-        // grading reached by a future trigger path falls back gracefully.
-        forensics_history: std::sync::Arc::new(tokio::sync::RwLock::new(
-            std::collections::VecDeque::new(),
-        )),
-        current_sky_brightness_mag: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        cloud_motion_snapshot: std::sync::Arc::new(tokio::sync::RwLock::new(
-            crate::node::context::CloudMotionSnapshot::default(),
-        )),
-        current_wind_kph: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        current_sensor_temp_c: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        // Replay Debug — trigger-initiated work (autofocus,
-        // dither) does not currently emit DecisionEvents (we wire
-        // recoveries + scheduler + lifecycle separately), so the
-        // sender starts None and emissions from this context are no-
-        // ops. A future caller that wants trigger-initiated work to
-        // appear in the replay feed can clone the executor's
-        // decision_tx into this helper.
-        decision_tx: None,
-        active_sequence_run_id: std::sync::Arc::new(parking_lot::RwLock::new(None)),
-        // Dual-rig — trigger-initiated dither/recenter is not coordinated with
-        // the secondary loop in v1 (the secondary only gates on the main-burst
-        // dither path); start None.
-        dither_barrier: None,
-        // The run's retry policy, so a trigger-fired action's filter change
-        // retries like the sequence's own.
-        device_retry: runtime_config.slots().device_retry.clone(),
-        target_light_filters: Vec::new(),
+        ..crate::instructions::InstructionContext::new(run, cancellation_token)
     }
 }
 

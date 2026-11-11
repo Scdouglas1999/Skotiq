@@ -22,8 +22,8 @@ use crate::{LoopCondition, LoopConfig, NodeStatus};
 fn current_alt_az(context: &ExecutionContext) -> Option<(f64, f64)> {
     let ra_hours = context.target_ra?;
     let dec_deg = context.target_dec?;
-    let lat = context.latitude?;
-    let lon = context.longitude?;
+    let lat = context.run.rig.latitude?;
+    let lon = context.run.rig.longitude?;
     let now = chrono::Utc::now();
     Some(object_alt_az(ra_hours * 15.0, dec_deg, &now, lat, lon))
 }
@@ -273,8 +273,8 @@ mod tests {
         let mut ctx = ExecutionContext::new_for_test("root".to_string());
         ctx.target_ra = Some(ra_hours);
         ctx.target_dec = Some(dec_deg);
-        ctx.latitude = Some(lat);
-        ctx.longitude = Some(lon);
+        ctx.run.rig.latitude = Some(lat);
+        ctx.run.rig.longitude = Some(lon);
         ctx
     }
 

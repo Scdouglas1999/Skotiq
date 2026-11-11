@@ -43,7 +43,10 @@ pub(crate) async fn hold_before_meridian(
     control: &BurstControl<'_>,
     hour_angle: &(dyn Fn() -> Option<f64> + Send + Sync),
 ) -> Result<Option<MountMotion>, InstructionResult> {
-    let (Some(lock), Some(mount_id)) = (ctx.trigger_state.as_ref(), ctx.mount_id.as_deref()) else {
+    let (Some(lock), Some(mount_id)) = (
+        ctx.run.trigger_state.as_ref(),
+        ctx.run.rig.mount_id.as_deref(),
+    ) else {
         return Ok(None);
     };
     let (pause_before, threshold_min) = {
@@ -92,7 +95,7 @@ pub(crate) async fn hold_before_meridian(
         state.run.begin_hold(crate::triggers::RunHold::PreMeridian);
         state.set_mount_tracking_expected(false);
     }
-    if let Err(error) = ctx.device_ops.mount_set_tracking(mount_id, false).await {
+    if let Err(error) = ctx.run.device_ops.mount_set_tracking(mount_id, false).await {
         lock.write().await.run.end_hold();
         motion.end().await;
         let message = format!(
@@ -133,7 +136,7 @@ pub(crate) async fn hold_before_meridian(
             break;
         }
         if started.elapsed() > bound {
-            let restored = ctx.device_ops.mount_set_tracking(mount_id, true).await;
+            let restored = ctx.run.device_ops.mount_set_tracking(mount_id, true).await;
             {
                 let mut state = lock.write().await;
                 state.run.end_hold();
@@ -178,7 +181,7 @@ pub(crate) async fn hold_before_meridian(
         return Err(end_hold_on_cancel(ctx, lock, motion, control).await);
     }
 
-    if let Err(error) = ctx.device_ops.mount_set_tracking(mount_id, true).await {
+    if let Err(error) = ctx.run.device_ops.mount_set_tracking(mount_id, true).await {
         lock.write().await.run.end_hold();
         motion.end().await;
         let message = format!("Could not restart tracking for the meridian flip: {error}");
@@ -213,11 +216,12 @@ pub(crate) async fn hold_before_meridian(
 pub(crate) async fn pick_up_guiding_after_hold(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {
-    let trigger_state = ctx.trigger_state.as_ref()?;
+    let trigger_state = ctx.run.trigger_state.as_ref()?;
     if !trigger_state.read().await.guiding.resume_pending() {
         return None;
     }
     let guiding_now = ctx
+        .run
         .device_ops
         .guider_get_status()
         .await

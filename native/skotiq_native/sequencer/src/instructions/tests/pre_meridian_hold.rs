@@ -58,12 +58,12 @@ async fn rig(pause_before: f64, start_ha_min: f64) -> Rig {
     }
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("hold-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(-80.0);
-    ec.latitude = Some(40.0);
-    ec.trigger_state = Some(manager.state());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(-80.0);
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.trigger_state = Some(manager.state());
     Rig { ec, ops, manager }
 }
 

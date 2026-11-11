@@ -365,7 +365,7 @@ async fn burst_without_a_wheel_leaves_the_filter_unknown() {
     let scratch = scratch_dir("no-wheel");
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = expose_node_execution_ctx(ops.clone(), scratch.0.clone()).await;
-    ec.filterwheel_id = None;
+    ec.run.rig.filterwheel_id = None;
 
     let status = run_expose_node(one_dark_no_filter(), &mut ec).await;
     assert_eq!(status, NodeStatus::Success, "burst should complete");

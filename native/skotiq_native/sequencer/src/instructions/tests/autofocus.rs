@@ -135,7 +135,7 @@ async fn autofocus_restores_the_filter_but_leaves_guiding_stopped_when_the_run_s
         ],
         "the guider status says why guiding stays stopped"
     );
-    if let Some(state) = &ctx.trigger_state {
+    if let Some(state) = &ctx.run.trigger_state {
         assert!(!state.read().await.guiding.is_enabled());
     }
 }
@@ -491,7 +491,8 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
     // The latch the monitor's guide-poll block arms `guide_star_lost` from.
     // Autofocus stopped guiding for its sweep, so this is what the run still
     // believes.
-    ctx.trigger_state
+    ctx.run
+        .trigger_state
         .as_ref()
         .expect("pointing_ctx wires a trigger state")
         .write()
@@ -521,7 +522,8 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
     // is_guiding = true while it chases a lost star, so the latch is the only
     // honest signal left.
     assert!(
-        !ctx.trigger_state
+        !ctx.run
+            .trigger_state
             .as_ref()
             .expect("pointing_ctx wires a trigger state")
             .read()
@@ -630,7 +632,8 @@ async fn a_stop_ends_the_wait_for_the_guider_to_settle() {
         started.elapsed()
     );
     assert!(
-        !ctx.trigger_state
+        !ctx.run
+            .trigger_state
             .as_ref()
             .expect("pointing_ctx wires a trigger state")
             .read()
@@ -656,7 +659,8 @@ async fn a_successful_guider_resume_leaves_the_result_alone() {
         "no marker on a clean resume"
     );
     assert!(
-        ctx.trigger_state
+        ctx.run
+            .trigger_state
             .as_ref()
             .expect("pointing_ctx wires a trigger state")
             .read()
@@ -677,7 +681,8 @@ async fn the_guider_restart_after_autofocus_refuses_a_star_below_the_runs_guide_
         snr: 40.0,
         star_mass: 20_000.0,
     };
-    ctx.trigger_state
+    ctx.run
+        .trigger_state
         .as_ref()
         .expect("pointing_ctx wires a trigger state")
         .write()
@@ -799,7 +804,7 @@ async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
     for attempts in [1_u32, 3] {
         let ops = Arc::new(ScriptedDomeRotatorOps::new());
         let mut ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
-        ctx.focuser_id = Some("foc-1".to_string());
+        ctx.run.rig.focuser_id = Some("foc-1".to_string());
         let config = AutofocusConfig {
             number_of_attempts: attempts,
             exposure_duration: 0.01,
@@ -837,8 +842,8 @@ async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
     // Stopped before the first point.
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.focuser_id = Some("foc-1".to_string());
-    ctx.event_tx = Some(tx.clone());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.event_tx = Some(tx.clone());
     ctx.cancellation_token.store(true, Ordering::SeqCst);
     let guard = try_admit_autofocus_run().expect("test autofocus must admit");
     let result = execute_autofocus_admitted(&AutofocusConfig::default(), &ctx, None, guard).await;
@@ -847,8 +852,8 @@ async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
     // A sweep on starless frames fails.
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
-    ctx.focuser_id = Some("foc-1".to_string());
-    ctx.event_tx = Some(tx.clone());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.event_tx = Some(tx.clone());
     let config = AutofocusConfig {
         exposure_duration: 0.01,
         steps_out: 1,
@@ -897,8 +902,8 @@ fn defocusing_rig(start: i32, focus: i32) -> ScriptedDomeRotatorOps {
 
 async fn sweep(ops: Arc<ScriptedDomeRotatorOps>, attempts: u32) -> (InstructionResult, i32) {
     let mut ctx = pointing_ctx(ops.clone(), "NGC0925", (2.45, 33.58)).await;
-    ctx.focuser_id = Some("foc-1".to_string());
-    ctx.device_retry = crate::instructions::DeviceRetryHandle::default();
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.device_retry = crate::instructions::DeviceRetryHandle::default();
     let config = AutofocusConfig {
         number_of_attempts: attempts,
         exposure_duration: 0.01,

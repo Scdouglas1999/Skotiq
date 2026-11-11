@@ -148,15 +148,15 @@ async fn start_guiding_with(
 ) -> GuidingQualityRun {
     let ops = Arc::new(ops);
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
-    ec.device_ops = ops.clone();
+    ec.run.device_ops = ops.clone();
     let mut state = crate::triggers::TriggerState::new();
     state.settings.stop_on_quality_problems = stop_on_quality_problems;
     let trigger_state = Arc::new(tokio::sync::RwLock::new(state));
-    ec.trigger_state = Some(trigger_state.clone());
+    ec.run.trigger_state = Some(trigger_state.clone());
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    ec.decision_tx = Some(decision_tx);
+    ec.run.decision_tx = Some(decision_tx);
     let ctx = ec.to_instruction_context("guide").await;
     let config = StartGuidingConfig {
         settle_time: 0.0,
@@ -393,14 +393,14 @@ mod while_imaging_unguided {
         tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
     ) {
         let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
-        ec.device_ops = ops;
+        ec.run.device_ops = ops;
         let mut state = crate::triggers::TriggerState::new();
         state.guiding.set_unguided(true);
-        ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+        ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
         let (event_tx, events) = tokio::sync::broadcast::channel(64);
-        ec.event_tx = Some(event_tx);
+        ec.run.event_tx = Some(event_tx);
         let (decision_tx, decisions) = tokio::sync::broadcast::channel(64);
-        ec.decision_tx = Some(decision_tx);
+        ec.run.decision_tx = Some(decision_tx);
         (ec.to_instruction_context("guide").await, events, decisions)
     }
 
@@ -423,6 +423,7 @@ mod while_imaging_unguided {
         UnguidedRun {
             result,
             imaging_unguided: ctx
+                .run
                 .trigger_state
                 .as_ref()
                 .unwrap()
@@ -519,14 +520,14 @@ async fn restart_ctx(
     tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
 ) {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("light".to_string());
-    ec.device_ops = ops;
-    ec.mount_id = Some("mount-1".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.mount_id = Some("mount-1".to_string());
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
-    ec.trigger_state = Some(trigger_state.clone());
+    ec.run.trigger_state = Some(trigger_state.clone());
     let (event_tx, events) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
     (
         ec.to_instruction_context("light").await,
         trigger_state,

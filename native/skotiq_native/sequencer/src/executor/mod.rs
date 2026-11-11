@@ -47,7 +47,6 @@ use parking_lot::RwLock as StdRwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
@@ -99,6 +98,7 @@ mod start;
 mod trigger_context;
 mod types;
 
+use crate::instructions::RunRig;
 use checkpoint_writer::{CheckpointSources, CheckpointWriter};
 pub use lifecycle::StopOrigin;
 pub use monitoring::*;

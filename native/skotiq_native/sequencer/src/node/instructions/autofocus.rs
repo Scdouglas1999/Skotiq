@@ -71,7 +71,7 @@ impl InstructionNode for AutofocusInstruction {
         }
 
         if result.status == NodeStatus::Success {
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 if let Some(best_hfr) = result.hfr_values.first() {
                     trigger_state.update_hfr(*best_hfr);

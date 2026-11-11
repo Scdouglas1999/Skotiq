@@ -27,7 +27,7 @@ pub(crate) async fn execute_custom_branch_children(
             node.name()
         );
         tracing::error!("{}", message);
-        if let Some(tx) = &context.event_tx {
+        if let Some(tx) = &context.run.event_tx {
             let _ = tx.send(ExecutorEvent::Error { message });
         }
         return NodeStatus::Failure;
@@ -90,8 +90,8 @@ pub async fn execute_recovery(
                         serde_json::json!({ "node_id": node.id() }),
                     );
                     tracing::warn!("{}", continuation.operator_message);
-                    context.emit_decision(continuation.decision);
-                    if let Some(tx) = &context.event_tx {
+                    context.run.emit_decision(continuation.decision);
+                    if let Some(tx) = &context.run.event_tx {
                         let _ = tx.send(ExecutorEvent::Warning {
                             message: continuation.operator_message,
                         });
@@ -105,13 +105,13 @@ pub async fn execute_recovery(
                     // (here and in executor.rs) route through
                     // `device_ops::try_park_with_retry` so park behaviour is
                     // consistent.
-                    if let Some(mount_id) = &context.mount_id {
+                    if let Some(mount_id) = &context.run.rig.mount_id {
                         tracing::warn!(
                             "Recovery::ParkAndAbort: parking mount '{}' (max_retries=1, retry_delay=2s)",
                             mount_id
                         );
                         let park_outcome = crate::device_ops::try_park_with_retry(
-                            &*context.device_ops,
+                            &*context.run.device_ops,
                             mount_id,
                             1,
                             2.0,
@@ -129,7 +129,7 @@ pub async fn execute_recovery(
                                     .unwrap_or_else(|| "unknown error".to_string()),
                             );
                             tracing::error!("{}", park_error);
-                            if let Some(tx) = &context.event_tx {
+                            if let Some(tx) = &context.run.event_tx {
                                 let _ = tx.send(ExecutorEvent::Error {
                                     message: park_error,
                                 });
@@ -139,7 +139,7 @@ pub async fn execute_recovery(
                         tracing::error!(
                             "Recovery::ParkAndAbort fired but no mount is configured; the rig cannot be parked automatically."
                         );
-                        if let Some(tx) = &context.event_tx {
+                        if let Some(tx) = &context.run.event_tx {
                             let _ = tx.send(ExecutorEvent::Error {
                                 message: "Recovery::ParkAndAbort fired but no mount is configured; the rig cannot be parked automatically.".to_string(),
                             });

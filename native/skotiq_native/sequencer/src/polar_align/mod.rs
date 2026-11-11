@@ -250,6 +250,7 @@ where
         };
 
         if let Err(e) = ctx
+            .run
             .device_ops
             .mount_slew_to_coordinates(&self.mount_id, start_ra, start_dec)
             .await
@@ -285,6 +286,7 @@ where
 
         let taken_at = polar_mid_exposure(chrono::Utc::now(), self.config.exposure_time);
         let image_data = match ctx
+            .run
             .device_ops
             .camera_start_exposure(
                 crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
@@ -303,6 +305,7 @@ where
         // The mount's declination for this frame, in its own frame; the fit
         // takes any move between points out (see `math::fit_mount_axis`).
         let mount_dec_degrees = ctx
+            .run
             .device_ops
             .mount_get_coordinates(&self.mount_id)
             .await
@@ -319,6 +322,7 @@ where
         );
 
         let solve_result = match ctx
+            .run
             .device_ops
             .plate_solve(
                 &image_data,
@@ -367,16 +371,20 @@ where
                 // takes J2000 and precesses it, so the mount-frame target is
                 // expressed in J2000 first; passing it through unconverted
                 // precessed it twice (2026-11-07).
-                let (mount_ra_hours, mount_dec) =
-                    match ctx.device_ops.mount_get_coordinates(&self.mount_id).await {
-                        Ok(position) => position,
-                        Err(e) => {
-                            return WizardStepOutcome::Failed(format!(
-                                "Could not read the mount's position before rotating: {}",
-                                e
-                            ));
-                        }
-                    };
+                let (mount_ra_hours, mount_dec) = match ctx
+                    .run
+                    .device_ops
+                    .mount_get_coordinates(&self.mount_id)
+                    .await
+                {
+                    Ok(position) => position,
+                    Err(e) => {
+                        return WizardStepOutcome::Failed(format!(
+                            "Could not read the mount's position before rotating: {}",
+                            e
+                        ));
+                    }
+                };
                 let step_hours = self.config.step_size / 15.0;
                 let target_ra_hours = if self.config.rotate_east {
                     mount_ra_hours + step_hours
@@ -385,6 +393,7 @@ where
                 }
                 .rem_euclid(24.0);
                 let (slew_ra_hours, slew_dec) = match ctx
+                    .run
                     .device_ops
                     .mount_readback_to_j2000(&self.mount_id, target_ra_hours, mount_dec)
                     .await
@@ -399,6 +408,7 @@ where
                 };
 
                 if let Err(e) = ctx
+                    .run
                     .device_ops
                     .mount_slew_to_coordinates(&self.mount_id, slew_ra_hours, slew_dec)
                     .await
@@ -425,9 +435,12 @@ where
         &mut self,
         ctx: &InstructionContext,
     ) -> WizardStepOutcome<PolarStep> {
-        let (observer_latitude, observer_longitude) = match (ctx.latitude, ctx.longitude) {
+        let (observer_latitude, observer_longitude) = match (
+            ctx.run.rig.latitude,
+            ctx.run.rig.longitude,
+        ) {
             (Some(lat), Some(lon)) => (lat, lon),
-            _ => match ctx.device_ops.get_observer_location() {
+            _ => match ctx.run.device_ops.get_observer_location() {
                 Some(loc) => loc,
                 None => {
                     return WizardStepOutcome::Failed(
@@ -482,6 +495,7 @@ where
 
             let frame_time = polar_mid_exposure(chrono::Utc::now(), self.config.exposure_time);
             let image_data = match ctx
+                .run
                 .device_ops
                 .camera_start_exposure(
                     crate::device_ops::ExposureRequest::new(
@@ -504,6 +518,7 @@ where
             preview::emit_preview(&image_data, self.image_callback, None, None, 0, "adjusting");
 
             let solve_result = match ctx
+                .run
                 .device_ops
                 .plate_solve(
                     &image_data,
@@ -573,7 +588,7 @@ where
                 target_dec: pole_dec,
             };
 
-            if let Err(e) = ctx.device_ops.polar_align_update(&result).await {
+            if let Err(e) = ctx.run.device_ops.polar_align_update(&result).await {
                 tracing::warn!("Failed to send polar align update: {}", e);
             }
 

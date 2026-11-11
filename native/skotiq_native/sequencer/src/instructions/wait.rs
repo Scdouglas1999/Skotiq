@@ -24,7 +24,7 @@ pub(crate) async fn wait_for_mount_arrival(
     let result = wait_for_slew_arrival(
         target,
         &SlewArrivalTimings::goto(timeout),
-        || ctx.device_ops.mount_slew_state(mount_id),
+        || ctx.run.device_ops.mount_slew_state(mount_id),
         || ctx.cancellation_token.load(Ordering::Relaxed),
         |progress| {
             polls += 1;
@@ -48,7 +48,7 @@ pub(crate) async fn wait_for_mount_arrival(
         result,
         Err(SlewWaitError::Cancelled) | Err(SlewWaitError::TimedOut(_))
     ) {
-        if let Err(error) = ctx.device_ops.mount_abort_slew(mount_id).await {
+        if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
             tracing::warn!(
                 "Wait-for-slew: abort-slew failed ({}); the mount may still be moving",
                 error
@@ -71,15 +71,19 @@ pub(crate) async fn wait_for_focuser_idle(
             // the original target; halt + wait-for-stop guarantees the user's
             // next instruction (e.g. autofocus restart) sees a stationary motor.
             tracing::info!("Cancellation detected during focuser move, halting focuser");
-            if let Err(e) = ctx.device_ops.focuser_halt(focuser_id).await {
+            if let Err(e) = ctx.run.device_ops.focuser_halt(focuser_id).await {
                 tracing::warn!("Failed to halt focuser during cancellation: {}", e);
             }
-            wait_for_focuser_stop_after_halt(focuser_id, &ctx.device_ops, Duration::from_secs(10))
-                .await;
+            wait_for_focuser_stop_after_halt(
+                focuser_id,
+                &ctx.run.device_ops,
+                Duration::from_secs(10),
+            )
+            .await;
             return Err("Operation cancelled".to_string());
         }
 
-        match ctx.device_ops.focuser_is_moving(focuser_id).await {
+        match ctx.run.device_ops.focuser_is_moving(focuser_id).await {
             Ok(is_moving) => {
                 if !is_moving {
                     // 100 ms settle absorbs motor backlash on stepper focusers
@@ -163,7 +167,7 @@ pub(crate) async fn wait_for_filterwheel_idle(
             return Err("Operation cancelled".to_string());
         }
 
-        match ctx.device_ops.filterwheel_get_position(fw_id).await {
+        match ctx.run.device_ops.filterwheel_get_position(fw_id).await {
             Ok(current_pos) => {
                 if current_pos == target_position {
                     tracing::debug!("Filter wheel reached target position {}", target_position);

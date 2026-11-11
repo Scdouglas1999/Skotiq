@@ -497,7 +497,10 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// A guider whose every stop fails with `message`.
-    fn with_guider_stop_failing(mut self, error: impl Into<crate::device_ops::DeviceError>) -> Self {
+    fn with_guider_stop_failing(
+        mut self,
+        error: impl Into<crate::device_ops::DeviceError>,
+    ) -> Self {
         self.guider_stop_error = Some(error.into());
         self
     }
@@ -1173,12 +1176,12 @@ crate::forward_device_ops!(ScriptedDomeRotatorOps => inner: SafetyOps, Connectio
 /// dome + rotator attached.
 async fn ctx_with_ops(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.focuser_id = Some("focuser-1".to_string());
-    ec.filterwheel_id = Some("filterwheel-1".to_string());
-    ec.dome_id = Some("dome-1".to_string());
-    ec.rotator_id = Some("rotator-1".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.focuser_id = Some("focuser-1".to_string());
+    ec.run.rig.filterwheel_id = Some("filterwheel-1".to_string());
+    ec.run.rig.dome_id = Some("dome-1".to_string());
+    ec.run.rig.rotator_id = Some("rotator-1".to_string());
     ec.to_instruction_context("test-node").await
 }
 
@@ -1219,10 +1222,10 @@ fn is_daylight_block(result: &InstructionResult) -> bool {
 
 async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = Arc::new(NullDeviceOps);
-    ec.mount_id = Some("mount-1".to_string());
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = Arc::new(NullDeviceOps);
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec.target_ra = Some(5.5);
     ec.target_dec = Some(22.0);
     ec.max_sun_altitude_degrees = max_sun_alt;
@@ -1231,7 +1234,7 @@ async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
     // a trigger state so the test exercises that same resolution path.
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
-    ec.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
     ec.to_instruction_context("test-node").await
 }
 
@@ -1265,18 +1268,18 @@ async fn pointing_ctx(
 ) -> InstructionContext {
     let max_sun_alt = live_sun_alt() + 5.0;
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = ops;
-    ec.mount_id = Some("mount-1".to_string());
-    ec.camera_id = Some("cam-1".to_string());
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec.target_name = Some(target_name.to_string());
     ec.target_ra = Some(target.0);
     ec.target_dec = Some(target.1);
     ec.max_sun_altitude_degrees = max_sun_alt;
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
-    ec.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
     ec.to_instruction_context("test-node").await
 }
 
@@ -1288,11 +1291,11 @@ async fn expose_ctx(
     max_sun_alt: f64,
 ) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     if let Some((ra, dec)) = target {
         ec.target_ra = Some(ra);
         ec.target_dec = Some(dec);
@@ -1300,7 +1303,7 @@ async fn expose_ctx(
     ec.max_sun_altitude_degrees = max_sun_alt;
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
-    ec.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
     ec.to_instruction_context("test-node").await
 }
 
@@ -1336,15 +1339,15 @@ async fn saving_expose_ctx(
     event_tx: tokio::sync::broadcast::Sender<crate::executor::ExecutorEvent>,
 ) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("expose-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.focuser_id = Some("foc-1".to_string());
-    ec.rotator_id = Some("rot-1".to_string());
-    ec.save_path = Some(save_path);
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
-    ec.event_tx = Some(event_tx);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.focuser_id = Some("foc-1".to_string());
+    ec.run.rig.rotator_id = Some("rot-1".to_string());
+    ec.run.rig.save_path = Some(save_path);
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
+    ec.run.event_tx = Some(event_tx);
     ec.to_instruction_context("expose-node").await
 }
 
@@ -1359,14 +1362,14 @@ async fn expose_node_execution_ctx(
     save_path: std::path::PathBuf,
 ) -> crate::node::context::ExecutionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("expose-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.focuser_id = Some("foc-1".to_string());
-    ec.rotator_id = Some("rot-1".to_string());
-    ec.filterwheel_id = Some("fw-1".to_string());
-    ec.save_path = Some(save_path);
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.focuser_id = Some("foc-1".to_string());
+    ec.run.rig.rotator_id = Some("rot-1".to_string());
+    ec.run.rig.filterwheel_id = Some("fw-1".to_string());
+    ec.run.rig.save_path = Some(save_path);
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec
 }
 
@@ -1403,14 +1406,14 @@ async fn direct_capture_ctx(
     save_path: std::path::PathBuf,
 ) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("direct".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.focuser_id = Some("foc-1".to_string());
-    ec.rotator_id = Some("rot-1".to_string());
-    ec.filterwheel_id = Some("fw-1".to_string());
-    ec.save_path = Some(save_path);
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.focuser_id = Some("foc-1".to_string());
+    ec.run.rig.rotator_id = Some("rot-1".to_string());
+    ec.run.rig.filterwheel_id = Some("fw-1".to_string());
+    ec.run.rig.save_path = Some(save_path);
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec.to_instruction_context("direct").await
 }
 

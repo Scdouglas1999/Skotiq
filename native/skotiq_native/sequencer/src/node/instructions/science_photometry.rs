@@ -423,9 +423,9 @@ async fn read_frame_metrics(context: &ExecutionContext) -> (Option<f64>, Option<
     // Gaussian PSF: FWHM ≈ 2.0 × HFR for a well-sampled stellar
     // profile). The pixel scale is honoured via the most recent
     // plate-solve result.
-    let baseline_hfr = *context.hfr_baseline.read().await;
+    let baseline_hfr = *context.run.grading.hfr_baseline.read().await;
     let pixel_scale = {
-        let solve = context.last_plate_solve.read().await;
+        let solve = context.run.last_plate_solve.read().await;
         solve.as_ref().map(|s| s.pixel_scale)
     };
     let fwhm_arcsec = match (baseline_hfr, pixel_scale) {
@@ -660,8 +660,8 @@ mod tests {
         let mut ctx = ExecutionContext::new_for_test("photometry-gate-test".to_string());
         ctx.target_ra = Some(3.0);
         ctx.target_dec = Some(90.0);
-        ctx.latitude = Some(altitude_deg);
-        ctx.longitude = Some(0.0);
+        ctx.run.rig.latitude = Some(altitude_deg);
+        ctx.run.rig.longitude = Some(0.0);
         ctx
     }
 

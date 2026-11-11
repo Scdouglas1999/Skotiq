@@ -67,7 +67,7 @@ impl InstructionNode for FlatWizardInstruction {
                 .unwrap_or("flats did not converge");
             let message = format!("Flats skipped, the run continues: {reason}");
             tracing::warn!("{}", message);
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
             }
             return NodeStatus::Skipped;

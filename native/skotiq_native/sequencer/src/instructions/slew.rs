@@ -154,8 +154,8 @@ pub async fn execute_slew(
             m.contains(&crate::slew_arrival::SlewWaitError::DidNotMove.to_string())
         })
     {
-        let freed = crate::limit_backoff::back_off_limit(&*ctx.device_ops, mount_id).await;
-        crate::limit_backoff::notify(&*ctx.device_ops, "slew", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(&*ctx.run.device_ops, mount_id).await;
+        crate::limit_backoff::notify(&*ctx.run.device_ops, "slew", &freed).await;
         if freed.is_ok() {
             result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
         }
@@ -181,7 +181,7 @@ const UNPARK_TIMEOUT: Duration = Duration::from_secs(30);
 /// A park-state read that fails is treated as not parked: old INDI drivers and
 /// some serial mounts cannot report it, and the slew itself is the better test.
 async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<InstructionResult> {
-    match ctx.device_ops.mount_is_parked(mount_id).await {
+    match ctx.run.device_ops.mount_is_parked(mount_id).await {
         Ok(true) => {}
         Ok(false) => return None,
         Err(e) => {
@@ -191,7 +191,7 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
     }
 
     tracing::info!("Mount is parked; unparking it to slew");
-    if let Err(e) = ctx.device_ops.mount_unpark(mount_id).await {
+    if let Err(e) = ctx.run.device_ops.mount_unpark(mount_id).await {
         return Some(InstructionResult::failure_with_recovery(
             format!("The mount is parked and could not be unparked: {e}"),
             "MOUNT_PARKED",
@@ -202,7 +202,7 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
         }
-        match ctx.device_ops.mount_is_parked(mount_id).await {
+        match ctx.run.device_ops.mount_is_parked(mount_id).await {
             Ok(true) => {}
             Ok(false) | Err(_) => break,
         }
@@ -225,6 +225,7 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
     };
     tracing::info!("{message}");
     if let Err(e) = ctx
+        .run
         .device_ops
         .send_notification("info", "Mount unparked", &message, None)
         .await
@@ -241,10 +242,13 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
 /// drivers stop tracking at the end of a slew. A mount that cannot report
 /// tracking is left alone.
 async fn restore_tracking_after_slew(ctx: &InstructionContext, mount_id: &str) {
-    if !matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+    if !matches!(
+        ctx.run.device_ops.mount_is_tracking(mount_id).await,
+        Ok(false)
+    ) {
         return;
     }
-    let (title, message) = match ctx.device_ops.mount_set_tracking(mount_id, true).await {
+    let (title, message) = match ctx.run.device_ops.mount_set_tracking(mount_id, true).await {
         Ok(()) => (
             "Tracking turned back on",
             "The mount was not tracking when the slew ended, so Skotiq turned tracking back on."
@@ -259,6 +263,7 @@ async fn restore_tracking_after_slew(ctx: &InstructionContext, mount_id: &str) {
     };
     tracing::warn!("{message}");
     if let Err(e) = ctx
+        .run
         .device_ops
         .send_notification("warning", title, &message, None)
         .await
@@ -284,8 +289,11 @@ async fn slew_mount(
     // a flip that could not happen. Enabled before the slew, as N.I.N.A. does.
     // A mount that cannot report or set tracking is left as it is, with a
     // warning: that is no reason to refuse the slew.
-    if !matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(true)) {
-        match ctx.device_ops.mount_set_tracking(mount_id, true).await {
+    if !matches!(
+        ctx.run.device_ops.mount_is_tracking(mount_id).await,
+        Ok(true)
+    ) {
+        match ctx.run.device_ops.mount_set_tracking(mount_id, true).await {
             Ok(()) => tracing::info!("Mount was not tracking; tracking enabled for the slew"),
             Err(e) => tracing::warn!(
                 "Mount is not reported as tracking and tracking could not be enabled: {}",
@@ -296,10 +304,14 @@ async fn slew_mount(
 
     // The target in the frame the mount reports, for watching the slew and
     // validating where it stopped. See `mount_readback_frame` below.
-    let readback_frame = ctx.device_ops.mount_readback_frame(mount_id, ra, dec).await;
+    let readback_frame = ctx
+        .run
+        .device_ops
+        .mount_readback_frame(mount_id, ra, dec)
+        .await;
 
     tokio::select! {
-        result = ctx.device_ops.mount_slew_to_coordinates(mount_id, ra, dec) => {
+        result = ctx.run.device_ops.mount_slew_to_coordinates(mount_id, ra, dec) => {
             match result {
                 Ok(_) => {
                     // 1800 s = 30 min handles the longest realistic slew on
@@ -321,7 +333,7 @@ async fn slew_mount(
                             // re-read coordinates and validate against the
                             // target before declaring success — silent
                             // mis-pointing would feed bad data downstream.
-                            match ctx.device_ops.mount_get_coordinates(mount_id).await {
+                            match ctx.run.device_ops.mount_get_coordinates(mount_id).await {
                                 Ok((actual_ra, actual_dec)) => {
                                     tracing::debug!(
                                         "Slew completed. Target: RA={:.4}h, Dec={:.4}°, Actual: RA={:.4}h, Dec={:.4}°",
@@ -414,7 +426,7 @@ async fn slew_mount(
         }
         _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
             tracing::info!("Slew cancelled, aborting...");
-            if let Err(error) = ctx.device_ops.mount_abort_slew(mount_id).await {
+            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
                 tracing::warn!(
                     "Slew: abort-slew failed on cancel ({}); the mount may still be moving",
                     error
