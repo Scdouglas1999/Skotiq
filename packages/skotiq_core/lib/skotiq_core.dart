@@ -258,7 +258,6 @@ export 'src/services/linked_rig/rig_link_service.dart';
 export 'src/providers/remote_sync_handler.dart';
 export 'src/providers/host_mutation_event_provider.dart';
 export 'src/providers/host_local_sync_provider.dart';
-export 'src/providers/host_state_announcer_provider.dart';
 // Runtime state the imaging host shares with linked clients.
 export 'src/providers/runtime_mirror/runtime_mirror_channel.dart';
 export 'src/providers/runtime_mirror/runtime_mirror_channels.dart';
@@ -274,6 +273,7 @@ export 'src/providers/runtime_mirror/channels/current_frame_channel.dart';
 export 'src/providers/runtime_mirror/channels/environment_channel.dart';
 export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
 export 'src/providers/runtime_mirror/channels/framing_geometry_channel.dart';
+export 'src/providers/runtime_mirror/channels/framing_target_channel.dart';
 export 'src/providers/runtime_mirror/channels/live_broadcast_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
 export 'src/providers/runtime_mirror/channels/notice_acks_channel.dart';

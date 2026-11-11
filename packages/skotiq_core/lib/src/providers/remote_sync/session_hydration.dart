@@ -120,13 +120,6 @@ Future<void> hydrateRemoteSessionState(
   // one cycle. Providers re-read only when a value actually changed.
   _read(reader, hostSettingsStoreProvider)?.refresh();
 
-  // Framing target is NOT seeded from framing/current-position here: that GET
-  // returns the mount's current pointing (already mirrored via getMountStatus),
-  // not a chosen framing target, and FramingNotifier.setTargetCoordinates would
-  // clobber the real target + trigger a survey-image load + push back to the
-  // host. Framing target parity flows through the framingTargetChanged event +
-  // HostMutationEntity.framing path instead.
-
   _invalidateEquipmentSyncProviders(reader);
   host.runtimeMirror.invalidateDeviceCache();
   _invalidate(reader, savedSequencesProvider);

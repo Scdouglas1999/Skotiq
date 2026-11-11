@@ -39,55 +39,12 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
-class _NoSurveyFramingNotifier extends FramingNotifier {
-  _NoSurveyFramingNotifier(super.ref);
-
-  @override
-  Future<void> loadSurveyImage({double? canvasWidthLogicalPx}) async {}
-}
-
 void main() {
   setUpAll(() {
     registerFallbackValue(const Stream<SkotiqEvent>.empty());
   });
 
   group('applyRemoteSyncEvent', () {
-    test(
-      'host framing events do not echo the target back to the host',
-      () async {
-        final backend = _connectedBackend();
-        final container = ProviderContainer(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            backendProvider.overrideWith(
-              (ref) => _FixedBackendNotifier(ref, backend),
-            ),
-            framingProvider.overrideWith(_NoSurveyFramingNotifier.new),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        await applyRemoteSyncEvent(
-          container,
-          buildHostMutationEvent(
-            entityType: HostMutationEntity.framing,
-            action: HostMutationAction.updated,
-            extra: const {'ra': 2.0, 'dec': 30.0, 'name': 'M31'},
-          ),
-        );
-        await Future<void>.delayed(Duration.zero);
-
-        expect(container.read(framingProvider).target?.name, 'M31');
-        verifyNever(
-          () => backend.framingSetTarget(
-            ra: any(named: 'ra'),
-            dec: any(named: 'dec'),
-            name: any(named: 'name'),
-          ),
-        );
-      },
-    );
-
     test('equipment Connected updates mount chip without hydration', () async {
       final backend = _connectedBackend();
       when(

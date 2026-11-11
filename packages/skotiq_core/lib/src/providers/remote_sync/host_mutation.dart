@@ -12,8 +12,6 @@ void _applyHostMutation(Object reader, Map<String, dynamic> data) {
       _applyEquipmentMutationFromHost(reader, action, data);
     case HostMutationEntity.guider:
       _applyGuiderMutationFromHost(reader, action, data);
-    case HostMutationEntity.framing:
-      _applyFramingMutationFromHost(reader, action, data);
     case HostMutationEntity.sequencer:
       _applySequencerMutationFromHost(reader, action, data);
     case HostMutationEntity.sequenceEditor:
@@ -105,31 +103,6 @@ void _applyGuiderMutationFromHost(
         notifier.setConnected();
       }
   }
-}
-
-void _applyFramingMutationFromHost(
-  Object reader,
-  String action,
-  Map<String, dynamic> data,
-) {
-  if (action != HostMutationAction.updated &&
-      action != HostMutationAction.created) {
-    return;
-  }
-
-  final ra = data['ra'];
-  final dec = data['dec'];
-  final name = data['name'] as String?;
-  if (ra is! num || dec is! num) {
-    return;
-  }
-
-  _read(reader, framingProvider.notifier).setTargetCoordinates(
-    ra.toDouble(),
-    dec.toDouble(),
-    name: name,
-    fromRemoteSync: true,
-  );
 }
 
 void _invalidateHostProfiles(Object reader) {

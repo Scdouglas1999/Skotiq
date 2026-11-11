@@ -21,7 +21,6 @@ abstract final class HostMutationEntity {
   /// [sequencer] (run-state control): this mirrors the master's live editor so
   /// a slave's sequencer screen reflects the open canvas in real time.
   static const sequenceEditor = 'sequenceEditor';
-  static const framing = 'framing';
   static const settings = 'settings';
   static const session = 'session';
   static const capturedImage = 'capturedImage';

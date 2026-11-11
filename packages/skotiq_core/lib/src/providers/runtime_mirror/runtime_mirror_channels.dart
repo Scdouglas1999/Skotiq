@@ -11,6 +11,7 @@ import 'channels/environment_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
 import 'channels/framing_geometry_channel.dart';
+import 'channels/framing_target_channel.dart';
 import 'channels/manual_action_channel.dart';
 import 'channels/manual_loop_channel.dart';
 import 'channels/meridian_flip_channel.dart';
@@ -44,6 +45,7 @@ final runtimeMirrorChannelsProvider =
         ManualActionChannel(),
         ManualLoopChannel(),
         FramingGeometryChannel(),
+        FramingTargetChannel(),
         PendingStartChannel(),
         CoverCalibratorChannel(),
         SwitchChannelsChannel(),
