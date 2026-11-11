@@ -117,7 +117,6 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
       return widget.child;
     }
 
-    // Ensure colors are cached
     _cachedColors ??= () {
       _updateCachedColors();
       return _cachedColors!;
@@ -156,7 +155,6 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
   }
 }
 
-/// A skeleton loading state for loading states
 class SkeletonBox extends StatelessWidget {
   final double? width;
   final double height;

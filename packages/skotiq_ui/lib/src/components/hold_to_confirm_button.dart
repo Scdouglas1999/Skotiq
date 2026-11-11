@@ -48,7 +48,6 @@ class HoldToConfirmButton extends StatefulWidget {
   /// theme's error color (since this is intended for destructive actions).
   final Color? holdColor;
 
-  /// Width of the progress-ring stroke.
   final double ringStrokeWidth;
 
   /// Semantics label override for screen readers. Defaults to

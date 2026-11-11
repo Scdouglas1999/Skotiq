@@ -61,13 +61,11 @@ class SkotiqChip extends StatelessWidget {
     this.enabled = true,
   });
 
-  /// The chip's text.
   final String label;
 
   /// An optional leading icon, drawn at 12px in the tone colour.
   final IconData? icon;
 
-  /// The chip's semantic tone.
   final ChipTone tone;
 
   /// Draws a leading 7px dot in the tone colour — for a chip that reports a
@@ -94,7 +92,6 @@ class SkotiqChip extends StatelessWidget {
   /// The chip's fixed height in logical pixels.
   static const double height = 22;
 
-  /// Horizontal padding.
   static const double horizontalPadding = SkotiqTokens.spaceSm;
 
   /// Gap between the dot/icon and the label.
@@ -243,7 +240,6 @@ class SkotiqFilterChip extends StatefulWidget {
   /// The chip's fixed height in logical pixels.
   static const double height = 28;
 
-  /// Horizontal padding.
   static const double horizontalPadding = 10;
 
   @override

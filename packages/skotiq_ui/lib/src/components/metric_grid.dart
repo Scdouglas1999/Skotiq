@@ -67,10 +67,8 @@ class MetricGrid extends StatelessWidget {
   /// still reads as its own value and label.
   final String? semanticLabel;
 
-  /// Gap between columns.
   static const double columnGap = 6;
 
-  /// Gap between rows.
   static const double rowGap = 5;
 
   /// The color [tone] gives a value: `textPrimary` when neutral.

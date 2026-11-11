@@ -4,13 +4,11 @@ import '../theme/skotiq_tokens.dart';
 
 /// A wrapper that adds a crisp focus ring for keyboard navigation.
 class FocusRing extends StatefulWidget {
-  /// The child widget to wrap
   final Widget child;
 
   /// Focus node to track (optional, creates one if not provided)
   final FocusNode? focusNode;
 
-  /// Border radius for the focus ring
   final BorderRadius? borderRadius;
 
   /// Color for the focus ring (defaults to primary)
@@ -19,7 +17,6 @@ class FocusRing extends StatefulWidget {
   /// Whether to show the ring only on keyboard focus
   final bool keyboardOnly;
 
-  /// Padding between the child and the focus ring
   final double ringPadding;
 
   /// Blur radius reserved for API compatibility (ring uses border only).

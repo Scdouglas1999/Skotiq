@@ -15,7 +15,6 @@ export 'src/layout/adaptive_panel_layout.dart';
 export 'src/layout/adaptive_modal.dart';
 export 'src/layout/two_pane.dart';
 export 'src/layout/adaptive_columns.dart';
-// Utils
 export 'src/utils/responsive_utils.dart';
 export 'src/utils/shell_back_dispatcher.dart';
 export 'src/utils/adaptive_dialog_constraints.dart';
@@ -26,7 +25,6 @@ export 'src/utils/on_screen_animation_gate.dart';
 export 'src/utils/platform_shortcuts.dart';
 export 'src/utils/text_measure.dart';
 
-// Components
 export 'src/components/brand/brand.dart';
 export 'src/components/skotiq_button.dart';
 export 'src/components/skotiq_card.dart';
@@ -54,10 +52,8 @@ export 'src/components/hold_to_confirm_button.dart';
 export 'src/components/skotiq_stepper.dart';
 export 'src/components/science_info_button.dart';
 
-// Dialogs
 export 'src/dialogs/skotiq_dialog.dart';
 
-// Widgets
 export 'src/widgets/resizable_panel.dart';
 export 'src/widgets/error_dialog.dart';
 export 'src/widgets/accessible_icon_button.dart';
@@ -67,7 +63,6 @@ export 'src/widgets/empty_state.dart';
 // The one V-curve chart (autofocus overlay + focuser backlash calibration)
 export 'src/widgets/focus/v_curve_chart.dart';
 
-// Observatory wave 2
 export 'src/components/skotiq_panel.dart';
 export 'src/components/readout.dart';
 export 'src/components/skotiq_icon_button.dart';
@@ -82,10 +77,8 @@ export 'src/components/candidate_row.dart';
 export 'src/components/checklist.dart';
 export 'src/components/night_band.dart';
 export 'src/layout/side_panel.dart';
-// Observatory wave 1
 export 'src/components/instrument_pill.dart';
 export 'src/components/page_header.dart';
-// Night control
 export 'src/components/night_timeline_strip.dart';
 export 'src/components/series_chart.dart';
 export 'src/charts/chart_scale.dart';

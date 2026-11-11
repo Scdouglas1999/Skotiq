@@ -28,7 +28,6 @@ class Candidate extends StatelessWidget {
   /// The score, already formatted (0–100, no decimals).
   final String score;
 
-  /// The target's name.
   final String name;
 
   /// One muted line: catalogue, type, size.

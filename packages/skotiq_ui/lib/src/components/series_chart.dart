@@ -154,10 +154,8 @@ class SeriesChart extends StatelessWidget {
   /// The most lines one chart draws.
   static const int maxLines = 3;
 
-  /// A line's stroke width.
   static const double strokeWidth = 1.5;
 
-  /// A marker's stroke width.
   static const double markerWidth = 1;
 
   /// Dash and gap for markers and dashed lines.

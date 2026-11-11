@@ -33,7 +33,6 @@ class ChecklistStep {
   /// One line of detail.
   final String? detail;
 
-  /// Where this step stands.
   final ChecklistStepState state;
 
   /// A `secondary sm` button. The page's single primary lives in the hero, not

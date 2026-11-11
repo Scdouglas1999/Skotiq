@@ -26,7 +26,6 @@ class SegmentedControl extends StatelessWidget {
   /// The segment labels, in display order.
   final List<String> segments;
 
-  /// Index of the selected segment.
   final int selectedIndex;
 
   /// Called with the tapped segment's index.
@@ -43,10 +42,8 @@ class SegmentedControl extends StatelessWidget {
   /// A segment's height in logical pixels.
   static const double segmentHeight = 30;
 
-  /// A segment's horizontal padding.
   static const double segmentPadding = 10;
 
-  /// Gap between segments.
   static const double gap = 2;
 
   /// A dense segment's height and horizontal padding.
