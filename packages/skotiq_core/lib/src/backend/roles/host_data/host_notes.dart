@@ -5,12 +5,12 @@ import 'package:skotiq_core/skotiq_core.dart';
 /// The remote half of a feature whose local half is a service or DAO in this
 /// process; reached through `backend.remoteHost`, which is null locally.
 abstract interface class HostNotes {
-  Future<RemotePage<RemoteJournalNote>> fetchJournalNotes({
+  Future<RemotePage<JournalNote>> fetchJournalNotes({
     String? targetId,
     int? runId,
   });
 
-  Future<RemoteJournalNote> createJournalNote({
+  Future<JournalNote> createJournalNote({
     required String targetId,
     int? sequenceRunId,
     required String body,
@@ -20,7 +20,7 @@ abstract interface class HostNotes {
     String? sentiment,
   });
 
-  Future<RemoteJournalNote> updateJournalNote(
+  Future<JournalNote> updateJournalNote(
     String id, {
     String? body,
     String? title,

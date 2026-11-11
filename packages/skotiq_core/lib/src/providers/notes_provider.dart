@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../models/notes/journal_note.dart';
 import '../services/notes_service.dart';
 import '../services/sequence_diff_service.dart';
@@ -87,7 +86,7 @@ class NotesRepository {
       sentiment: sentiment,
     );
     _afterRemoteMutation!();
-    return _noteFromRemote(note);
+    return note;
   }
 
   Future<JournalNote> updateNote(
@@ -124,7 +123,7 @@ class NotesRepository {
       clearSentiment: clearSentiment,
     );
     _afterRemoteMutation!();
-    return _noteFromRemote(note);
+    return note;
   }
 
   Future<int> deleteNote(String id) async {
@@ -157,9 +156,8 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 ///
 /// On a linked client the journal lives only on the
 /// master; the slave's local `notes_journal` table is never populated. We
-/// poll the host's `GET /api/db/notes?targetId=` and map each
-/// [RemoteJournalNote] onto [JournalNote]. The local `NotesService` path is
-/// unchanged for the host backend.
+/// poll the host's `GET /api/db/notes?targetId=`. The local `NotesService`
+/// path is unchanged for the host backend.
 final notesForTargetProvider = StreamProvider.family<List<JournalNote>, String>(
   (ref, targetId) {
     final backend = ref.watch(backendProvider);
@@ -217,25 +215,10 @@ Future<List<JournalNote>> _fetchRemoteNotes(
   int? runId,
 }) async {
   final page = await remote.fetchJournalNotes(targetId: targetId, runId: runId);
-  final mapped = page.items.map(_noteFromRemote).toList()
+  final mapped = [...page.items]
     // Host serves created_at desc; keep newest-first.
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   return mapped;
-}
-
-JournalNote _noteFromRemote(RemoteJournalNote row) {
-  return JournalNote(
-    id: row.id,
-    targetId: row.targetId,
-    sequenceRunId: row.sequenceRunId,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    title: row.title,
-    body: row.body,
-    tags: row.tags,
-    attachments: row.attachments,
-    sentiment: row.sentiment,
-  );
 }
 
 /// Singleton diff engine. Stateless, no setup cost.
