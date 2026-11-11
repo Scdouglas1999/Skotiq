@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/observation_log.dart';
 import '../database.dart';
 import '../tables/observation_logs.dart';
 
@@ -7,10 +8,12 @@ part 'observation_logs_dao.g.dart';
 
 @DriftAccessor(tables: [ObservationLogs])
 class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$ObservationLogsDaoMixin {
+    with _$ObservationLogsDaoMixin
+    implements ObservationLog {
   ObservationLogsDao(super.db);
 
   /// Insert a new observation log entry. Returns the generated row ID.
+  @override
   Future<int> insertLog({
     required DateTime timestamp,
     required String objectName,
@@ -57,6 +60,7 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Delete a single observation log entry by ID.
+  @override
   Future<int> deleteLog(int id) {
     return (delete(observationLogs)..where((t) => t.id.equals(id))).go();
   }
@@ -79,6 +83,7 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch all observation logs as a reactive stream (most recent first).
+  @override
   Stream<List<ObservationLogEntry>> watchAllLogs({int? limit}) {
     final query = select(observationLogs)
       ..orderBy([(t) => OrderingTerm.desc(t.timestamp)]);
@@ -155,6 +160,7 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Watch the set of observed catalog IDs as a reactive stream.
+  @override
   Stream<Set<String>> watchObservedCatalogIds() {
     final query = selectOnly(observationLogs, distinct: true)
       ..addColumns([observationLogs.catalogId])
@@ -193,6 +199,7 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Generate CSV string of all observation logs.
+  @override
   Future<String> exportToCsv() async {
     return observationLogsToCsv(await getAllLogs());
   }
@@ -236,6 +243,7 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Get observation statistics.
+  @override
   Future<ObservationLogStats> getStats() async {
     final logs = await getAllLogs();
     if (logs.isEmpty) {
@@ -277,6 +285,7 @@ class ObservationLogsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Delete all observation logs.
+  @override
   Future<int> deleteAllLogs() {
     return delete(observationLogs).go();
   }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+import '../backend/roles/host_data/calibration_library.dart';
 import '../database/database.dart';
 import '../database/daos/flat_library_dao.dart';
 import '../database/daos/integrated_masters_dao.dart';
@@ -266,7 +267,7 @@ class DarkroomBuildService {
        _buildFlat = buildFlat ?? _nativeBuildFlat;
 
   final DarkroomBuildOperation operation;
-  final CalibrationLibraryService library;
+  final CalibrationLibrary library;
   final IntegratedMastersDao masters;
   final Future<DarkroomProcessingOptions> Function()? processingSettings;
   final DarkLibraryService? darkLibrary;
@@ -1588,7 +1589,7 @@ final darkroomBuildServiceProvider = Provider(
     ),
     processingSettings: () =>
         DarkroomProcessingOptions.load(ref.read(settingsDaoProvider)),
-    library: ref.watch(calibrationLibraryServiceProvider),
+    library: ref.watch(calibrationLibraryProvider),
     masters: ref.watch(integratedMastersDaoProvider),
     buildMaster: ref.watch(calibrationMasterBuildProvider),
     darkLibrary: ref.watch(darkLibraryServiceProvider),

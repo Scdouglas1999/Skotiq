@@ -66,9 +66,11 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
       _error = null;
     });
     try {
+      final scope = ref.backendScope();
       final result =
-          await ref.read(calibrationLibraryServiceProvider).match(lightContext);
+          await ref.read(calibrationLibraryProvider).match(lightContext);
       if (!mounted) return;
+      scope.ensureCurrent('the calibration library was matching');
       setState(() => _result = result);
     } catch (e) {
       if (!mounted) return;

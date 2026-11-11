@@ -9,37 +9,60 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double ra,
     double dec,
   ) async {
-    await bridge.NativeBridge.mountSlewToCoordinates(deviceId, ra, dec);
+    await _native(
+      'mountSlewToCoordinates',
+      () => bridge.apiMountSlewToCoordinates(
+        deviceId: deviceId,
+        ra: ra,
+        dec: dec,
+      ),
+    );
   }
 
   @override
   Future<void> mountSync(String deviceId, double ra, double dec) async {
-    await bridge.NativeBridge.mountSync(deviceId, ra, dec);
+    await _native(
+      'mountSync',
+      () => bridge.apiMountSyncToCoordinates(
+        deviceId: deviceId,
+        ra: ra,
+        dec: dec,
+      ),
+    );
   }
 
   @override
   Future<void> mountPark(String deviceId) async {
-    await bridge.NativeBridge.mountPark(deviceId);
+    await _native('mountPark', () => bridge.apiMountPark(deviceId: deviceId));
   }
 
   @override
   Future<void> mountUnpark(String deviceId) async {
-    await bridge.NativeBridge.mountUnpark(deviceId);
+    await _native(
+      'mountUnpark',
+      () => bridge.apiMountUnpark(deviceId: deviceId),
+    );
   }
 
   @override
   Future<void> mountSetTracking(String deviceId, bool enabled) async {
-    await bridge.NativeBridge.mountSetTracking(deviceId, enabled);
+    await _native(
+      'mountSetTracking',
+      () => bridge.apiMountSetTracking(
+        deviceId: deviceId,
+        enabled: enabled ? 1 : 0,
+      ),
+    );
   }
 
   @override
   Future<void> mountSetTrackingRate(String deviceId, int rate) async {
-    await bridge_api.mountSetTrackingRate(deviceId: deviceId, rate: rate);
+    await bridge.mountSetTrackingRate(deviceId: deviceId, rate: rate);
   }
 
   @override
   Future<void> mountMoveAxis(String deviceId, int axis, double rate) async {
-    await bridge_api.mountMoveAxis(deviceId: deviceId, axis: axis, rate: rate);
+    await bridge.mountMoveAxis(deviceId: deviceId, axis: axis, rate: rate);
   }
 
   @override
@@ -48,7 +71,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double altitude,
     double azimuth,
   ) async {
-    await bridge_api.mountSlewAltAz(
+    await bridge.mountSlewAltAz(
       deviceId: deviceId,
       altitude: altitude,
       azimuth: azimuth,
@@ -57,24 +80,24 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> mountFindHome(String deviceId) async {
-    await bridge_api.mountFindHome(deviceId: deviceId);
+    await bridge.mountFindHome(deviceId: deviceId);
   }
 
   @override
   Future<void> mountSetPark(String deviceId) async {
-    await bridge_api.mountSetPark(deviceId: deviceId);
+    await bridge.mountSetPark(deviceId: deviceId);
   }
 
   @override
   Future<bridge.MountSiteCapabilities> mountSiteCapabilities(
     String deviceId,
   ) async {
-    return bridge_api.mountSiteCapabilities(deviceId: deviceId);
+    return bridge.mountSiteCapabilities(deviceId: deviceId);
   }
 
   @override
   Future<bridge.MountSite> mountGetSite(String deviceId) async {
-    return bridge_api.mountGetSite(deviceId: deviceId);
+    return bridge.mountGetSite(deviceId: deviceId);
   }
 
   @override
@@ -84,7 +107,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double longitudeDeg,
     double? elevationM,
   ) async {
-    await bridge_api.mountSetSite(
+    await bridge.mountSetSite(
       deviceId: deviceId,
       latitudeDeg: latitudeDeg,
       longitudeDeg: longitudeDeg,
@@ -94,7 +117,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<bridge.MountTimeInfo> mountGetTime(String deviceId) async {
-    return bridge_api.mountGetTime(deviceId: deviceId);
+    return bridge.mountGetTime(deviceId: deviceId);
   }
 
   @override
@@ -103,7 +126,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     int utcUnixSeconds,
     double utcOffsetHours,
   ) async {
-    await bridge_api.mountSetTime(
+    await bridge.mountSetTime(
       deviceId: deviceId,
       utcUnixSeconds: utcUnixSeconds,
       utcOffsetHours: utcOffsetHours,
@@ -116,34 +139,50 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required String direction,
     required int durationMs,
   }) async {
-    await bridge.NativeBridge.mountPulseGuide(deviceId, direction, durationMs);
+    await _native(
+      'mountPulseGuide',
+      () => bridge.apiMountPulseGuide(
+        deviceId: deviceId,
+        direction: direction,
+        durationMs: durationMs,
+      ),
+    );
   }
 
   @override
   Future<void> mountAbort(String deviceId) async {
-    await bridge_api.mountAbort(deviceId: deviceId);
+    await bridge.mountAbort(deviceId: deviceId);
   }
 
   @override
   Future<dynamic> mountGetStatus(String deviceId) async {
-    return await bridge_api.apiGetMountStatus(deviceId: deviceId);
+    return await bridge.apiGetMountStatus(deviceId: deviceId);
   }
 
   // Focuser control
 
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
-    await bridge.NativeBridge.focuserMoveTo(deviceId, position);
+    await _native(
+      'focuserMoveTo',
+      () => bridge.apiFocuserMoveTo(deviceId: deviceId, position: position),
+    );
   }
 
   @override
   Future<void> focuserMoveRelative(String deviceId, int delta) async {
-    await bridge.NativeBridge.focuserMoveRelative(deviceId, delta);
+    await _native(
+      'focuserMoveRelative',
+      () => bridge.apiFocuserMoveRelative(deviceId: deviceId, delta: delta),
+    );
   }
 
   @override
   Future<void> focuserHalt(String deviceId) async {
-    await bridge.NativeBridge.apiFocuserHalt(deviceId: deviceId);
+    await _native(
+      'apiFocuserHalt',
+      () => bridge.apiFocuserHalt(deviceId: deviceId),
+    );
   }
 
   @override
@@ -170,7 +209,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     int backlashOut = 0,
     int? measuredBacklashIn,
   }) async {
-    final config = bridge_api.AutofocusConfigApi(
+    final config = bridge.AutofocusConfigApi(
       exposureTime: exposureTime,
       stepSize: stepSize,
       stepsOut: stepsOut,
@@ -194,7 +233,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
       measuredBacklashIn: measuredBacklashIn,
     );
     try {
-      final bridgeResult = await bridge_api.apiRunAutofocus(
+      final bridgeResult = await bridge.apiRunAutofocus(
         deviceId: deviceId,
         cameraId: cameraId,
         config: config,
@@ -207,7 +246,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> autofocusCancel() async {
-    await bridge_api.apiCancelAutofocus();
+    await bridge.apiCancelAutofocus();
   }
 
   @override
@@ -217,7 +256,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required String configJson,
   }) async {
     try {
-      return await bridge_api.apiRunFocuserBacklashCalibration(
+      return await bridge.apiRunFocuserBacklashCalibration(
         deviceId: deviceId,
         cameraId: cameraId,
         configJson: configJson,
@@ -229,7 +268,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> focuserBacklashCalibrationCancel() async {
-    await bridge_api.apiCancelFocuserBacklashCalibration();
+    await bridge.apiCancelFocuserBacklashCalibration();
   }
 
   @override
@@ -238,7 +277,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required int centerPosition,
   }) async {
     try {
-      return await bridge_api.apiPlanFocuserBacklashCalibration(
+      return await bridge.apiPlanFocuserBacklashCalibration(
         configJson: configJson,
         centerPosition: centerPosition,
       );
@@ -254,48 +293,54 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> filterWheelSetPosition(String deviceId, int position) async {
-    await bridge.NativeBridge.apiFilterwheelSetPosition(
-      deviceId: deviceId,
-      position: position,
+    await _native(
+      'apiFilterwheelSetPosition',
+      () => bridge.apiFilterwheelSetPosition(
+        deviceId: deviceId,
+        position: position,
+      ),
     );
   }
 
   @override
   Future<List<String>> filterWheelGetNames(String deviceId) async {
-    return await bridge.NativeBridge.apiFilterwheelGetNames(deviceId: deviceId);
+    final status = await _native(
+      'getFilterWheelStatus',
+      () => bridge.apiGetFilterwheelStatus(deviceId: deviceId),
+    );
+    return status.filterNames;
   }
 
   @override
   Future<void> filterWheelSetNames(String deviceId, List<String> names) async {
-    await bridge_api.apiFilterwheelSetFilterNames(
-      deviceId: deviceId,
-      names: names,
-    );
+    await bridge.apiFilterwheelSetFilterNames(deviceId: deviceId, names: names);
   }
 
   @override
   Future<void> filterWheelSetByName(String deviceId, String name) async {
-    await bridge.NativeBridge.apiFilterwheelSetByName(
-      deviceId: deviceId,
-      name: name,
-    );
+    final names = await filterWheelGetNames(deviceId);
+    final index = names.indexOf(name);
+    if (index < 0) {
+      throw ArgumentError('Filter "$name" not found on device $deviceId');
+    }
+    await filterWheelSetPosition(deviceId, index);
   }
 
   // Rotator control
 
   @override
   Future<void> rotatorMoveTo(String deviceId, double angle) async {
-    await bridge.NativeBridge.apiRotatorMoveTo(
-      deviceId: deviceId,
-      angle: angle,
+    await _native(
+      'apiRotatorMoveTo',
+      () => bridge.apiRotatorMoveTo(deviceId: deviceId, angle: angle),
     );
   }
 
   @override
   Future<void> rotatorMoveRelative(String deviceId, double delta) async {
-    await bridge.NativeBridge.apiRotatorMoveRelative(
-      deviceId: deviceId,
-      delta: delta,
+    await _native(
+      'apiRotatorMoveRelative',
+      () => bridge.apiRotatorMoveRelative(deviceId: deviceId, delta: delta),
     );
   }
 
@@ -307,82 +352,89 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     // But I implemented api_rotator_get_angle in real_device_ops.rs.
     // In api.rs, I implemented api_get_rotator_status which calls real_device_ops.rotator_get_angle.
     // I should probably use apiGetRotatorStatus and extract position.
-    final status = await bridge.NativeBridge.apiGetRotatorStatus(
-      deviceId: deviceId,
+    final status = await _native(
+      'apiGetRotatorStatus',
+      () => bridge.apiGetRotatorStatus(deviceId: deviceId),
     );
     return status.position;
   }
 
   @override
   Future<void> rotatorHalt(String deviceId) async {
-    await bridge.NativeBridge.apiRotatorHalt(deviceId: deviceId);
+    await _native(
+      'apiRotatorHalt',
+      () => bridge.apiRotatorHalt(deviceId: deviceId),
+    );
   }
 
   @override
   Future<void> rotatorSetReverse(String deviceId, bool reverse) async {
-    await bridge.NativeBridge.apiRotatorSetReverse(
-      deviceId: deviceId,
-      reverse: reverse,
+    await _native(
+      'apiRotatorSetReverse',
+      () => bridge.apiRotatorSetReverse(deviceId: deviceId, reverse: reverse),
     );
   }
 
   @override
   Future<void> rotatorSyncToPa(String deviceId, double pa) async {
-    await bridge.NativeBridge.apiRotatorSyncToPa(deviceId: deviceId, pa: pa);
+    await _native(
+      'apiRotatorSyncToPa',
+      () => bridge.apiRotatorSyncToPa(deviceId: deviceId, pa: pa),
+    );
   }
 
   // Dome control
 
   @override
   Future<void> domeOpenShutter(String deviceId) async {
-    await bridge_api.apiDomeOpenShutter(deviceId: deviceId);
+    await bridge.apiDomeOpenShutter(deviceId: deviceId);
   }
 
   @override
   Future<void> domeCloseShutter(String deviceId) async {
-    await bridge_api.apiDomeCloseShutter(deviceId: deviceId);
+    await bridge.apiDomeCloseShutter(deviceId: deviceId);
   }
 
   @override
   Future<void> domeSlewToAzimuth(String deviceId, double azimuth) async {
-    await bridge_api.apiDomeSlewToAzimuth(deviceId: deviceId, azimuth: azimuth);
+    await bridge.apiDomeSlewToAzimuth(deviceId: deviceId, azimuth: azimuth);
   }
 
   @override
   Future<void> domeSetSlaved(String deviceId, bool slaved) async {
-    await bridge_api.apiDomeSetSlaved(deviceId: deviceId, slaved: slaved);
+    await bridge.apiDomeSetSlaved(deviceId: deviceId, slaved: slaved);
   }
 
   @override
   Future<void> domePark(String deviceId) async {
-    await bridge_api.apiDomePark(deviceId: deviceId);
+    await bridge.apiDomePark(deviceId: deviceId);
   }
 
   @override
   Future<void> domeFindHome(String deviceId) async {
-    await bridge_api.apiDomeFindHome(deviceId: deviceId);
+    await bridge.apiDomeFindHome(deviceId: deviceId);
   }
 
   @override
   Future<void> domeAbortSlew(String deviceId) async {
-    await bridge_api.apiDomeAbortSlew(deviceId: deviceId);
+    await bridge.apiDomeAbortSlew(deviceId: deviceId);
   }
 
   // Cover calibrator control
 
   @override
   Future<void> coverOpen(String deviceId) async {
-    await bridge_api.apiCoverCalibratorOpenCover(deviceId: deviceId);
+    await bridge.apiCoverCalibratorOpenCover(deviceId: deviceId);
   }
 
   @override
   Future<void> coverClose(String deviceId) async {
-    await bridge_api.apiCoverCalibratorCloseCover(deviceId: deviceId);
+    await bridge.apiCoverCalibratorCloseCover(deviceId: deviceId);
   }
 
   @override
   Future<void> calibratorOn(String deviceId, int brightness) async {
-    await bridge_api.apiCoverCalibratorCalibratorOn(
+    await bridge.apiCoverCalibratorCalibratorOn(
       deviceId: deviceId,
       brightness: brightness,
     );
@@ -390,7 +442,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> calibratorOff(String deviceId) async {
-    await bridge_api.apiCoverCalibratorCalibratorOff(deviceId: deviceId);
+    await bridge.apiCoverCalibratorCalibratorOff(deviceId: deviceId);
   }
 
   // PHD2 Guiding
@@ -400,7 +452,20 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     String host = 'localhost',
     int port = 4400,
   }) async {
-    return bridge.NativeBridge.isPhd2Running(host: host, port: port);
+    // A plain TCP reachability probe, not a device operation: it tells the
+    // operator whether the host/port they typed is live before any connect,
+    // so it works with or without the native library.
+    try {
+      final socket = await Socket.connect(
+        resolvePhd2ConnectHost(host),
+        port,
+        timeout: const Duration(seconds: 1),
+      );
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -415,12 +480,15 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> phd2Connect({String host = 'localhost', int port = 4400}) async {
-    await bridge.NativeBridge.phd2Connect(host: host, port: port);
+    await _native(
+      'phd2Connect',
+      () => bridge.apiPhd2Connect(host: host, port: port),
+    );
   }
 
   @override
   Future<void> phd2Disconnect() async {
-    await bridge.NativeBridge.phd2Disconnect();
+    await _native('phd2Disconnect', () => bridge.apiPhd2Disconnect());
   }
 
   @override
@@ -429,16 +497,19 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
-    await bridge.NativeBridge.phd2StartGuiding(
-      settlePixels: settlePixels,
-      settleTime: settleTime,
-      settleTimeout: settleTimeout,
+    await _native(
+      'phd2StartGuiding',
+      () => bridge.apiPhd2StartGuiding(
+        settlePixels: settlePixels,
+        settleTime: settleTime,
+        settleTimeout: settleTimeout,
+      ),
     );
   }
 
   @override
   Future<void> phd2StopGuiding() async {
-    await bridge.NativeBridge.phd2StopGuiding();
+    await _native('phd2StopGuiding', () => bridge.apiPhd2StopGuiding());
   }
 
   @override
@@ -449,18 +520,33 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
-    await bridge.NativeBridge.phd2Dither(
-      amount: amount,
-      raOnly: raOnly,
-      settlePixels: settlePixels,
-      settleTime: settleTime,
-      settleTimeout: settleTimeout,
+    await _native(
+      'phd2Dither',
+      () => bridge.apiPhd2Dither(
+        amount: amount,
+        raOnly: raOnly ? 1 : 0,
+        settlePixels: settlePixels,
+        settleTime: settleTime,
+        settleTimeout: settleTimeout,
+      ),
     );
   }
 
   @override
   Future<Phd2Status> phd2GetStatus() async {
-    final status = await bridge.NativeBridge.phd2GetStatus();
+    // A status the UI polls, not a command: without the native library
+    // "disconnected" is the truthful answer, so this does not refuse.
+    final status = bridge.NativeBridge.isNativeAvailable
+        ? await bridge.apiPhd2GetStatus()
+        : const bridge.Phd2Status(
+            connected: false,
+            state: 'Disconnected',
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+          );
     // Pull the built-in multi-star guider's per-star list off the native export
     // and decode it into `trackedStars`. Without this the host FFI backend
     // always returned `trackedStars: const []`, so the headless API serialized
@@ -472,8 +558,9 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     // poll, so fall back to an empty list.
     List<GuideStar> trackedStars = const [];
     try {
-      final trackedStarsJson =
-          await bridge.NativeBridge.builtinGuiderGetTrackedStarsJson();
+      final trackedStarsJson = bridge.NativeBridge.isNativeAvailable
+          ? await bridge.apiBuiltinGuiderGetTrackedStarsJson()
+          : '{"count":0,"stars":[]}';
       trackedStars = decodeTrackedStars(trackedStarsJson);
     } catch (_) {
       trackedStars = const [];
@@ -496,7 +583,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<Phd2StarImage> phd2GetStarImage({int size = 50}) async {
-    final image = await bridge_api.apiPhd2GetStarImage(size: size);
+    final image = await bridge.apiPhd2GetStarImage(size: size);
     return Phd2StarImage(
       frame: image.frame,
       width: image.width,
@@ -509,7 +596,10 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<List<String>> phd2GetAlgoParamNames({required String axis}) async {
-    return await bridge.NativeBridge.phd2GetAlgoParamNames(axis: axis);
+    return await _native(
+      'phd2GetAlgoParamNames',
+      () => bridge.apiPhd2GetAlgoParamNames(axis: axis),
+    );
   }
 
   @override
@@ -517,7 +607,10 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required String axis,
     required String name,
   }) async {
-    return await bridge.NativeBridge.phd2GetAlgoParam(axis: axis, name: name);
+    return await _native(
+      'phd2GetAlgoParam',
+      () => bridge.apiPhd2GetAlgoParam(axis: axis, name: name),
+    );
   }
 
   @override
@@ -526,31 +619,39 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required String name,
     required double value,
   }) async {
-    await bridge.NativeBridge.phd2SetAlgoParam(
-      axis: axis,
-      name: name,
-      value: value,
+    await _native(
+      'phd2SetAlgoParam',
+      () => bridge.apiPhd2SetAlgoParam(axis: axis, name: name, value: value),
     );
   }
 
   @override
   Future<void> phd2SetPaused(bool paused) async {
-    await bridge.NativeBridge.phd2SetPaused(paused: paused);
+    await _native(
+      'phd2SetPaused',
+      () => bridge.apiPhd2SetPaused(paused: paused),
+    );
   }
 
   @override
   Future<void> phd2ClearCalibration({String which = 'both'}) async {
-    await bridge.NativeBridge.phd2ClearCalibration(which: which);
+    await _native(
+      'phd2ClearCalibration',
+      () => bridge.apiPhd2ClearCalibration(which: which),
+    );
   }
 
   @override
   Future<void> phd2FlipCalibration() async {
-    await bridge.NativeBridge.phd2FlipCalibration();
+    await _native('phd2FlipCalibration', () => bridge.apiPhd2FlipCalibration());
   }
 
   @override
   Future<Phd2CalibrationData> phd2GetCalibrationData() async {
-    final data = await bridge.NativeBridge.phd2GetCalibrationData();
+    final data = await _native(
+      'phd2GetCalibrationData',
+      () => bridge.apiPhd2GetCalibrationData(),
+    );
     return Phd2CalibrationData(
       isCalibrated: data.isCalibrated,
       rotationAngle: data.raAngle,
@@ -562,7 +663,10 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<(double, double)> phd2FindStar() async {
-    final result = await bridge.NativeBridge.phd2FindStar();
+    final result = await _native(
+      'phd2FindStar',
+      () => bridge.apiPhd2FindStar(),
+    );
     return (result.$1, result.$2);
   }
 
@@ -572,23 +676,29 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required double y,
     bool exact = false,
   }) async {
-    await bridge.NativeBridge.phd2SetLockPosition(x: x, y: y, exact: exact);
+    await _native(
+      'phd2SetLockPosition',
+      () => bridge.apiPhd2SetLockPosition(x: x, y: y, exact: exact),
+    );
   }
 
   @override
   Future<(double, double)> phd2GetLockPosition() async {
-    final result = await bridge.NativeBridge.phd2GetLockPosition();
+    final result = await _native(
+      'phd2GetLockPosition',
+      () => bridge.apiPhd2GetLockPosition(),
+    );
     return (result.$1, result.$2);
   }
 
   @override
   Future<void> phd2Loop() async {
-    await bridge.NativeBridge.phd2Loop();
+    await _native('phd2Loop', () => bridge.apiPhd2Loop());
   }
 
   @override
   Future<void> phd2DeselectStar() async {
-    await bridge.NativeBridge.phd2DeselectStar();
+    await _native('phd2DeselectStar', () => bridge.apiPhd2DeselectStar());
   }
 
   // Generic Guiding (driver-agnostic abstraction)
@@ -600,17 +710,23 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
-    await bridge.NativeBridge.guiderStartGuiding(
-      deviceId: deviceId,
-      settlePixels: settlePixels,
-      settleTime: settleTime,
-      settleTimeout: settleTimeout,
+    await _native(
+      'guiderStartGuiding',
+      () => bridge.apiGuiderStartGuiding(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+        settlePixels: settlePixels,
+        settleTime: settleTime,
+        settleTimeout: settleTimeout,
+      ),
     );
   }
 
   @override
   Future<void> guiderStopGuiding({required String deviceId}) async {
-    await bridge.NativeBridge.guiderStop(deviceId: deviceId);
+    await _native(
+      'guiderStop',
+      () => bridge.apiGuiderStop(deviceId: _canonicalGuiderDeviceId(deviceId)),
+    );
   }
 
   @override
@@ -622,24 +738,35 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
-    await bridge.NativeBridge.guiderDither(
-      deviceId: deviceId,
-      amount: amount,
-      raOnly: raOnly,
-      settlePixels: settlePixels,
-      settleTime: settleTime,
-      settleTimeout: settleTimeout,
+    await _native(
+      'guiderDither',
+      () => bridge.apiGuiderDither(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+        amount: amount,
+        raOnly: raOnly ? 1 : 0,
+        settlePixels: settlePixels,
+        settleTime: settleTime,
+        settleTimeout: settleTimeout,
+      ),
     );
   }
 
   @override
   Future<void> guiderLoop({required String deviceId}) async {
-    await bridge.NativeBridge.guiderLoop(deviceId: deviceId);
+    await _native(
+      'guiderLoop',
+      () => bridge.apiGuiderLoop(deviceId: _canonicalGuiderDeviceId(deviceId)),
+    );
   }
 
   @override
   Future<(double, double)> guiderFindStar({required String deviceId}) async {
-    final result = await bridge.NativeBridge.guiderFindStar(deviceId: deviceId);
+    final result = await _native(
+      'guiderFindStar',
+      () => bridge.apiGuiderFindStar(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+      ),
+    );
     return (result.$1, result.$2);
   }
 
@@ -650,11 +777,14 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required double y,
     bool exact = false,
   }) async {
-    await bridge.NativeBridge.guiderSetLockPosition(
-      deviceId: deviceId,
-      x: x,
-      y: y,
-      exact: exact,
+    await _native(
+      'guiderSetLockPosition',
+      () => bridge.apiGuiderSetLockPosition(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+        x: x,
+        y: y,
+        exact: exact,
+      ),
     );
   }
 
@@ -662,15 +792,23 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   Future<(double, double)> guiderGetLockPosition({
     required String deviceId,
   }) async {
-    final result = await bridge.NativeBridge.guiderGetLockPosition(
-      deviceId: deviceId,
+    final result = await _native(
+      'guiderGetLockPosition',
+      () => bridge.apiGuiderGetLockPosition(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+      ),
     );
     return (result.$1, result.$2);
   }
 
   @override
   Future<void> guiderDeselectStar({required String deviceId}) async {
-    await bridge.NativeBridge.guiderDeselectStar(deviceId: deviceId);
+    await _native(
+      'guiderDeselectStar',
+      () => bridge.apiGuiderDeselectStar(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+      ),
+    );
   }
 
   @override
@@ -678,9 +816,12 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     required String deviceId,
     int size = 50,
   }) async {
-    final image = await bridge.NativeBridge.guiderGetStarImage(
-      deviceId: deviceId,
-      size: size,
+    final image = await _native(
+      'guiderGetStarImage',
+      () => bridge.apiGuiderGetStarImage(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+        size: size,
+      ),
     );
     return Phd2StarImage(
       frame: image.frame,
@@ -694,21 +835,36 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<BuiltinGuiderConfig> builtinGuiderGetConfig() async {
-    final raw = await bridge.NativeBridge.builtinGuiderGetConfigRaw();
-    return BuiltinGuiderConfig.fromJson(raw);
+    final config = await _native(
+      'builtinGuiderGetConfig',
+      () => bridge.apiBuiltinGuiderGetConfig(),
+    );
+    return BuiltinGuiderConfig.fromJson({
+      'exposureSecs': config.exposureSecs,
+      'gain': config.gain,
+      'offset': config.offset,
+      'binning': config.binning,
+      'calibrationMs': config.calibrationMs,
+      'settleSleepMs': config.settleSleepMs.toInt(),
+      'minPulseMs': config.minPulseMs,
+      'maxPulseMs': config.maxPulseMs,
+    });
   }
 
   @override
   Future<void> builtinGuiderSetConfig(BuiltinGuiderConfig config) async {
-    await bridge.NativeBridge.builtinGuiderSetConfigRaw(
-      exposureSecs: config.exposureSecs,
-      gain: config.gain,
-      offset: config.offset,
-      binning: config.binning,
-      calibrationMs: config.calibrationMs,
-      settleSleepMs: config.settleSleepMs,
-      minPulseMs: config.minPulseMs,
-      maxPulseMs: config.maxPulseMs,
+    await _native(
+      'builtinGuiderSetConfig',
+      () => bridge.apiBuiltinGuiderSetConfig(
+        exposureSecs: config.exposureSecs,
+        gain: config.gain,
+        offset: config.offset,
+        binning: config.binning,
+        calibrationMs: config.calibrationMs,
+        settleSleepMs: BigInt.from(config.settleSleepMs),
+        minPulseMs: config.minPulseMs,
+        maxPulseMs: config.maxPulseMs,
+      ),
     );
   }
 
@@ -722,25 +878,28 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double? fovDegrees,
     int? timeoutSeconds,
   }) async {
-    // `bridge.NativeBridge.plateSolve*` already returns the FRB-canonical
-    // `PlateSolveResult` (see `bridge_stub.dart` typedef), so no conversion
-    // is needed since the model-layer copy was removed.
-    return ra != null && dec != null
-        ? bridge.NativeBridge.plateSolveNear(
-            imagePath,
-            ra,
-            dec,
-            fovDegrees ?? 30.0,
-            timeoutSeconds,
-          )
-        : bridge.NativeBridge.plateSolveBlind(imagePath, timeoutSeconds);
+    if (ra != null && dec != null) {
+      bridge.NativeBridge.requireNative('plateSolveNear');
+      return bridge.apiPlateSolveNear(
+        filePath: imagePath,
+        hintRa: ra,
+        hintDec: dec,
+        searchRadius: fovDegrees ?? 30.0,
+        timeoutSecs: timeoutSeconds,
+      );
+    }
+    bridge.NativeBridge.requireNative('plateSolveBlind');
+    return bridge.apiPlateSolveBlind(
+      filePath: imagePath,
+      timeoutSecs: timeoutSeconds,
+    );
   }
 
   // Plate Solver Setup (local — runs against this machine's filesystem)
 
   @override
   Future<PlateSolverDetection> detectPlateSolvers() async {
-    final native = bridge_api.apiPlatesolveDetect();
+    final native = bridge.apiPlatesolveDetect();
     return PlateSolverDetection(
       astapPath: native.astapPath,
       astrometryPath: native.astrometryPath,
@@ -752,7 +911,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<PlateSolverInfo> verifyPlateSolver(String executablePath) async {
-    final info = await bridge_api.apiPlatesolveVerify(
+    final info = await bridge.apiPlatesolveVerify(
       executablePath: executablePath,
     );
     return PlateSolverInfo(
@@ -764,7 +923,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<PlateSolverPreference> getPlateSolverConfig() async {
-    final payload = bridge_api.apiPlatesolveGetConfig();
+    final payload = bridge.apiPlatesolveGetConfig();
     return PlateSolverPreference(
       astapPath: payload.astapPath,
       astrometryPath: payload.astrometryPath,
@@ -775,8 +934,8 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
   @override
   Future<void> setPlateSolverConfig(PlateSolverPreference pref) async {
-    bridge_api.apiPlatesolveSetConfig(
-      config: bridge_api.PlateSolverConfigPayload(
+    bridge.apiPlatesolveSetConfig(
+      config: bridge.PlateSolverConfigPayload(
         astapPath: pref.astapPath,
         astrometryPath: pref.astrometryPath,
         catalogPath: pref.catalogPath,

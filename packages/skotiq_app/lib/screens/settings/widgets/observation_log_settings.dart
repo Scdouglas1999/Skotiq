@@ -419,7 +419,7 @@ class _ObservationLogSettingsState
 
     if (confirmed != true || _deletingLogIds.contains(log.id)) return;
 
-    final backendAtStart = ref.read(backendProvider);
+    final host = ref.backendScope();
     setState(() => _deletingLogIds.add(log.id));
     try {
       final deleted = await ref
@@ -427,7 +427,7 @@ class _ObservationLogSettingsState
           .deleteLog(log.id);
       if (!mounted || deleted) return;
 
-      final message = !identical(ref.read(backendProvider), backendAtStart)
+      final message = host.isStale
           ? 'Delete canceled because the imaging host changed.'
           : ref.read(observationLogNotifierProvider).errorMessage ??
               'Could not delete the observation.';
@@ -442,7 +442,7 @@ class _ObservationLogSettingsState
   Future<void> _exportCsv(BuildContext context) async {
     if (_isExporting) return;
 
-    final backendAtStart = ref.read(backendProvider);
+    final host = ref.backendScope();
     setState(() => _isExporting = true);
     try {
       final csv =
@@ -451,7 +451,7 @@ class _ObservationLogSettingsState
         if (!context.mounted) return;
 
         final error = ref.read(observationLogNotifierProvider).errorMessage;
-        if (!identical(ref.read(backendProvider), backendAtStart)) {
+        if (host.isStale) {
           context.showErrorSnackBar(
             'Export canceled because the imaging host changed.',
           );

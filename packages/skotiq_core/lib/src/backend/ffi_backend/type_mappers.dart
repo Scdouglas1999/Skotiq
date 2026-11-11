@@ -33,7 +33,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   }
 
   /// Convert bridge AutofocusResultApi to pure Dart AutofocusResult
-  AutofocusResult _fromBridgeAutofocusResult(bridge_api.AutofocusResultApi r) {
+  AutofocusResult _fromBridgeAutofocusResult(bridge.AutofocusResultApi r) {
     return AutofocusResult(
       bestPosition: r.bestPosition,
       bestHfr: r.bestHfr,
@@ -57,7 +57,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
 
   /// Convert bridge CameraCapabilities to pure Dart CameraCapabilities
   CameraCapabilities _fromBridgeCameraCapabilities(
-    bridge_caps.CameraCapabilities c,
+    bridge.CameraCapabilities c,
   ) {
     return CameraCapabilities(
       maxWidth: c.maxWidth,
@@ -99,9 +99,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   }
 
   /// Convert bridge MountCapabilities to pure Dart MountCapabilities
-  MountCapabilities _fromBridgeMountCapabilities(
-    bridge_caps.MountCapabilities m,
-  ) {
+  MountCapabilities _fromBridgeMountCapabilities(bridge.MountCapabilities m) {
     return MountCapabilities(
       canSlew: m.canSlew,
       canSlewAsync: m.canSlewAsync,
@@ -136,7 +134,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
 
   /// Convert bridge FocuserCapabilities to pure Dart FocuserCapabilities
   FocuserCapabilities _fromBridgeFocuserCapabilities(
-    bridge_caps.FocuserCapabilities f,
+    bridge.FocuserCapabilities f,
   ) {
     return FocuserCapabilities(
       maxPosition: f.maxPosition,
@@ -156,7 +154,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
 
   /// Convert bridge FilterWheelCapabilities to pure Dart FilterWheelCapabilities
   FilterWheelCapabilities _fromBridgeFilterWheelCapabilities(
-    bridge_caps.FilterWheelCapabilities fw,
+    bridge.FilterWheelCapabilities fw,
   ) {
     return FilterWheelCapabilities(
       positionCount: fw.positionCount,
@@ -171,7 +169,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
 
   /// Convert bridge RotatorCapabilities to pure Dart RotatorCapabilities
   RotatorCapabilities _fromBridgeRotatorCapabilities(
-    bridge_caps.RotatorCapabilities r,
+    bridge.RotatorCapabilities r,
   ) {
     return RotatorCapabilities(
       canReverse: r.canReverse,
@@ -198,7 +196,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   /// - Generic Dart exceptions
   dart_error.SkotiqError _toSkotiqError(Object exception, [String? context]) {
     // Handle FRB-generated SkotiqError from Rust
-    if (exception is bridge_error.SkotiqError) {
+    if (exception is bridge.SkotiqError) {
       return _fromBridgeSkotiqError(exception);
     }
 
@@ -213,7 +211,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   /// Convert FRB-generated SkotiqError to pure Dart SkotiqError.
   ///
   /// This preserves all the structured error information from Rust.
-  dart_error.SkotiqError _fromBridgeSkotiqError(bridge_error.SkotiqError e) {
+  dart_error.SkotiqError _fromBridgeSkotiqError(bridge.SkotiqError e) {
     return e.when(
       // Connection errors
       deviceNotFound: (deviceId) =>

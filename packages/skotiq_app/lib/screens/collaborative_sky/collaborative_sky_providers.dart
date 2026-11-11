@@ -120,7 +120,7 @@ class SharedLibrarySummary {
 final sharedLibrarySummaryProvider =
     FutureProvider<SharedLibrarySummary>((ref) async {
   final records = await ref
-      .watch(calibrationLibraryServiceProvider)
+      .watch(calibrationLibraryProvider)
       .listMasters(enrichFromHeaders: false);
   var published = 0;
   var pulled = 0;

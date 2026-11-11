@@ -8,7 +8,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
     String deviceId, {
     int maxCrops = 5,
   }) async {
-    final bridgeCrops = await bridge_api.apiGetStarCropsFromLastImage(
+    final bridgeCrops = await bridge.apiGetStarCropsFromLastImage(
       deviceId: deviceId,
       maxCrops: maxCrops,
     );
@@ -33,7 +33,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
     String? biasPath,
     required String outputPath,
   }) async {
-    await bridge_api.apiCalibrateImageFile(
+    await bridge.apiCalibrateImageFile(
       lightPath: lightPath,
       darkPath: darkPath,
       flatPath: flatPath,
@@ -44,7 +44,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
 
   @override
   Future<bridge.FitsReadResult> readFitsFile({required String filePath}) {
-    return bridge_api.apiReadFitsFile(filePath: filePath);
+    return bridge.apiReadFitsFile(filePath: filePath);
   }
 
   @override
@@ -53,11 +53,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
     required int height,
     required List<int> data,
   }) {
-    return bridge_api.apiAutoStretchImage(
-      width: width,
-      height: height,
-      data: data,
-    );
+    return bridge.apiAutoStretchImage(width: width, height: height, data: data);
   }
 
   @override
@@ -89,7 +85,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
     bool? startFromCurrent,
     double? autoCompleteThreshold,
   }) async {
-    await bridge_api.apiStartPolarAlignment(
+    await bridge.apiStartPolarAlignment(
       exposureTime: exposureTime,
       stepSize: stepSize,
       binning: binning,
@@ -106,7 +102,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
 
   @override
   Future<void> stopPolarAlignment() async {
-    await bridge_api.apiStopPolarAlignment();
+    await bridge.apiStopPolarAlignment();
   }
 
   @override
@@ -126,7 +122,7 @@ mixin _FfiImagePolarOperations on _FfiBackendBase {
     // re-exported via `api_barrel.dart` — wire them directly. Errors from
     // Rust (missing solver / no devices / no observer location) surface as
     // a `SkotiqError` and propagate up; we do not swallow them.
-    await bridge_api.apiStartAllSkyPolarAlignment(
+    await bridge.apiStartAllSkyPolarAlignment(
       exposureTime: exposureTime,
       solveTimeout: solveTimeout,
       binning: binning,

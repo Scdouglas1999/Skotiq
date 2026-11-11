@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 
+import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/integrated_masters_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/integrated_master.dart';
@@ -50,7 +51,7 @@ part 'post_session_integration_service/integration_helpers.dart';
 class PostSessionIntegrationService {
   PostSessionIntegrationService({
     required IntegratedMastersDao mastersDao,
-    required CalibrationLibraryService calibrationLibrary,
+    required CalibrationLibrary calibrationLibrary,
     required PostSessionSeam seam,
     MasterPlateSolver? plateSolver,
     MasterColorCalibrator? colorCalibrator,
@@ -72,7 +73,7 @@ class PostSessionIntegrationService {
   /// The single matcher for un-pinned masters: its transparent scoring drives
   /// the auto-pick and its warnings are propagated into the outcome, so what
   /// the operator reads about a calibration decision is what actually happened.
-  final CalibrationLibraryService _calibrationLibrary;
+  final CalibrationLibrary _calibrationLibrary;
 
   /// Optional fail-soft plate-solver for the finished master FITS, injected at
   /// the provider boundary (where the `PlateSolveService` Riverpod `_ref`
@@ -414,7 +415,7 @@ final postSessionIntegrationServiceProvider = Provider<PostSessionIntegrationSer
     // Calibration Library Manager: routes un-pinned master selection through
     // the transparent scored matcher so its warnings reach the outcome /
     // morning report.
-    calibrationLibrary: ref.watch(calibrationLibraryServiceProvider),
+    calibrationLibrary: ref.watch(calibrationLibraryProvider),
     // Catalog colour calibration of the finished master, wired at the provider
     // boundary (where the `ColorCalibrationService` + its on-disk HYG catalog
     // live). The closure delegates to `ColorCalibrationService.calibrate`, which

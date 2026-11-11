@@ -6,7 +6,7 @@ part of '../ffi_backend.dart';
 mixin _FfiMountGuardOperations on _FfiBackendBase implements MountGuardBackend {
   @override
   Future<List<MountGuardEntry>> mountGuardState() async {
-    final entries = await bridge_api.apiMountGuardGetState();
+    final entries = await bridge.apiMountGuardGetState();
     return [
       for (final e in entries)
         MountGuardEntry(
@@ -49,11 +49,11 @@ mixin _FfiMountGuardOperations on _FfiBackendBase implements MountGuardBackend {
 
   @override
   Future<void> mountGuardAcknowledgeFault(String deviceId) =>
-      bridge_api.apiMountGuardAcknowledgeFault(deviceId: deviceId);
+      bridge.apiMountGuardAcknowledgeFault(deviceId: deviceId);
 
   @override
   Future<void> mountGuardConfirmRehomed(String deviceId) =>
-      bridge_api.apiMountGuardConfirmRehomed(deviceId: deviceId);
+      bridge.apiMountGuardConfirmRehomed(deviceId: deviceId);
 
   @override
   Future<MountGuardSolveResult> mountGuardSolve(
@@ -61,7 +61,7 @@ mixin _FfiMountGuardOperations on _FfiBackendBase implements MountGuardBackend {
     String? cameraId,
     double exposureSecs = 5,
   }) async {
-    final s = await bridge_api.apiMountGuardSolve(
+    final s = await bridge.apiMountGuardSolve(
       deviceId: deviceId,
       cameraId: cameraId,
       exposureSecs: exposureSecs,
@@ -80,7 +80,7 @@ mixin _FfiMountGuardOperations on _FfiBackendBase implements MountGuardBackend {
     String deviceId,
     double raHours,
     double decDegrees,
-  ) => bridge_api.apiMountGuardRecoverySync(
+  ) => bridge.apiMountGuardRecoverySync(
     deviceId: deviceId,
     raHours: raHours,
     decDegrees: decDegrees,
@@ -88,9 +88,9 @@ mixin _FfiMountGuardOperations on _FfiBackendBase implements MountGuardBackend {
 
   @override
   Future<void> mountGuardSetAutoSyncResume(bool enabled) async {
-    final current = await bridge_api.apiMountGuardGetSettings();
-    await bridge_api.apiMountGuardSetSettings(
-      settings: bridge_api.MountGuardSettings(
+    final current = await bridge.apiMountGuardGetSettings();
+    await bridge.apiMountGuardSetSettings(
+      settings: bridge.MountGuardSettings(
         enabled: current.enabled,
         minAltitudeDegrees: current.minAltitudeDegrees,
         autoSyncResume: enabled,

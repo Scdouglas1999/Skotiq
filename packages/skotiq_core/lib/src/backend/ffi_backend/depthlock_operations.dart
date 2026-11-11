@@ -13,19 +13,28 @@ part of '../ffi_backend.dart';
 mixin _FfiDepthLockOperations on _FfiBackendBase {
   @override
   Future<DepthLockStatus> depthLockStatus() async {
-    final status = await bridge.NativeBridge.apiDepthlockStatus();
+    final status = await _native(
+      'apiDepthlockStatus',
+      () => bridge.apiDepthlockStatus(),
+    );
     return _fromBridgeDepthLockStatus(status);
   }
 
   @override
   Future<List<DepthLockGoal>> listDepthLockGoals() async {
-    final goals = await bridge.NativeBridge.apiDepthlockListGoals();
+    final goals = await _native(
+      'apiDepthlockListGoals',
+      () => bridge.apiDepthlockListGoals(),
+    );
     return goals.map(_fromBridgeDepthGoal).toList(growable: false);
   }
 
   @override
   Future<DepthLockGoal> getDepthLockGoal(String goalId) async {
-    final goal = await bridge.NativeBridge.apiDepthlockGetGoal(goalId: goalId);
+    final goal = await _native(
+      'apiDepthlockGetGoal',
+      () => bridge.apiDepthlockGetGoal(goalId: goalId),
+    );
     return _fromBridgeDepthGoal(goal);
   }
 
@@ -36,9 +45,12 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
   }) async {
     // The native contract reads an empty id as "generate one" rather than
     // taking an option, so a null id becomes the empty string here.
-    final goal = await bridge.NativeBridge.apiDepthlockCreateGoal(
-      goalId: goalId ?? '',
-      definition: _toBridgeDepthGoalDefinition(definition),
+    final goal = await _native(
+      'apiDepthlockCreateGoal',
+      () => bridge.apiDepthlockCreateGoal(
+        goalId: goalId ?? '',
+        definition: _toBridgeDepthGoalDefinition(definition),
+      ),
     );
     return _fromBridgeDepthGoal(goal);
   }
@@ -49,10 +61,13 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     required int expectedRevision,
     required DepthLockGoalDefinition definition,
   }) async {
-    final goal = await bridge.NativeBridge.apiDepthlockReviseGoal(
-      goalId: goalId,
-      expectedRevision: BigInt.from(expectedRevision),
-      definition: _toBridgeDepthGoalDefinition(definition),
+    final goal = await _native(
+      'apiDepthlockReviseGoal',
+      () => bridge.apiDepthlockReviseGoal(
+        goalId: goalId,
+        expectedRevision: BigInt.from(expectedRevision),
+        definition: _toBridgeDepthGoalDefinition(definition),
+      ),
     );
     return _fromBridgeDepthGoal(goal);
   }
@@ -64,11 +79,14 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     required bool enabled,
     required bool automaticCompletion,
   }) async {
-    final goal = await bridge.NativeBridge.apiDepthlockSetGoalPreferences(
-      goalId: goalId,
-      expectedRevision: BigInt.from(expectedRevision),
-      enabled: enabled,
-      automaticCompletion: automaticCompletion,
+    final goal = await _native(
+      'apiDepthlockSetGoalPreferences',
+      () => bridge.apiDepthlockSetGoalPreferences(
+        goalId: goalId,
+        expectedRevision: BigInt.from(expectedRevision),
+        enabled: enabled,
+        automaticCompletion: automaticCompletion,
+      ),
     );
     return _fromBridgeDepthGoal(goal);
   }
@@ -78,16 +96,20 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     required String goalId,
     required int expectedRevision,
   }) async {
-    await bridge.NativeBridge.apiDepthlockRemoveGoal(
-      goalId: goalId,
-      expectedRevision: BigInt.from(expectedRevision),
+    await _native(
+      'apiDepthlockRemoveGoal',
+      () => bridge.apiDepthlockRemoveGoal(
+        goalId: goalId,
+        expectedRevision: BigInt.from(expectedRevision),
+      ),
     );
   }
 
   @override
   Future<DepthLockReferenceInfo> inspectDepthLockReference(String path) async {
-    final info = await bridge.NativeBridge.apiDepthlockInspectReference(
-      path: path,
+    final info = await _native(
+      'apiDepthlockInspectReference',
+      () => bridge.apiDepthlockInspectReference(path: path),
     );
     return _fromBridgeDepthReferenceInfo(info);
   }
@@ -97,9 +119,9 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     String goalId, {
     int maxPoints = 60,
   }) async {
-    final points = await bridge.NativeBridge.apiDepthlockGoalCurve(
-      goalId: goalId,
-      maxPoints: maxPoints,
+    final points = await _native(
+      'apiDepthlockGoalCurve',
+      () => bridge.apiDepthlockGoalCurve(goalId: goalId, maxPoints: maxPoints),
     );
     return points.map(_fromBridgeDepthCurvePoint).toList(growable: false);
   }
@@ -112,12 +134,15 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     required double scaleArcsec,
     double? pixelScaleArcsec,
   }) async {
-    final suggestion = await bridge.NativeBridge.apiDepthlockSuggestFloor(
-      referencePath: referencePath,
-      darkPath: darkPath,
-      flatPath: flatPath,
-      scaleArcsec: scaleArcsec,
-      pixelScaleArcsec: pixelScaleArcsec,
+    final suggestion = await _native(
+      'apiDepthlockSuggestFloor',
+      () => bridge.apiDepthlockSuggestFloor(
+        referencePath: referencePath,
+        darkPath: darkPath,
+        flatPath: flatPath,
+        scaleArcsec: scaleArcsec,
+        pixelScaleArcsec: pixelScaleArcsec,
+      ),
     );
     return _fromBridgeDepthFloorSuggestion(suggestion);
   }
@@ -130,12 +155,15 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     required double x1,
     required double y1,
   }) async {
-    final rectangle = await bridge.NativeBridge.apiDepthlockSkyRectangle(
-      reference: _toBridgeReferenceGeometry(reference),
-      x0: x0,
-      y0: y0,
-      x1: x1,
-      y1: y1,
+    final rectangle = await _native(
+      'apiDepthlockSkyRectangle',
+      () => bridge.apiDepthlockSkyRectangle(
+        reference: _toBridgeReferenceGeometry(reference),
+        x0: x0,
+        y0: y0,
+        x1: x1,
+        y1: y1,
+      ),
     );
     return _fromBridgeSkyRectangle(rectangle);
   }
@@ -144,8 +172,11 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
   Future<int> checkDepthLockMeasurement(
     DepthLockMeasurement measurement,
   ) async {
-    return bridge.NativeBridge.apiDepthlockCheckMeasurement(
-      measurement: _toBridgeDepthMeasurement(measurement),
+    return _native(
+      'apiDepthlockCheckMeasurement',
+      () => bridge.apiDepthlockCheckMeasurement(
+        measurement: _toBridgeDepthMeasurement(measurement),
+      ),
     );
   }
 
@@ -154,9 +185,9 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
     required String goalId,
     required String path,
   }) async {
-    final outcome = await bridge.NativeBridge.apiDepthlockIngestFrame(
-      goalId: goalId,
-      path: path,
+    final outcome = await _native(
+      'apiDepthlockIngestFrame',
+      () => bridge.apiDepthlockIngestFrame(goalId: goalId, path: path),
     );
     return DepthLockIngestOutcome(
       outcome: outcome.outcome,
@@ -169,8 +200,9 @@ mixin _FfiDepthLockOperations on _FfiBackendBase {
 
   @override
   Future<DepthLockGoal> replayDepthLockGoal(String goalId) async {
-    final goal = await bridge.NativeBridge.apiDepthlockReplayGoal(
-      goalId: goalId,
+    final goal = await _native(
+      'apiDepthlockReplayGoal',
+      () => bridge.apiDepthlockReplayGoal(goalId: goalId),
     );
     return _fromBridgeDepthGoal(goal);
   }

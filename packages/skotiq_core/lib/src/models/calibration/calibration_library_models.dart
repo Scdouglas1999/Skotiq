@@ -342,6 +342,46 @@ class CalibrationLibraryFilter {
     this.binY,
     this.mastersOnly = true,
   });
+
+  /// [records] narrowed by every criterion except [cameraId].
+  ///
+  /// The camera id is applied separately ([whereCameraMatches]) because a
+  /// record may only learn its camera from the FITS header, which is read
+  /// after this cheap pass.
+  List<CalibrationMasterRecord> whereStoredFieldsMatch(
+    List<CalibrationMasterRecord> records,
+  ) {
+    final filterName = filter?.trim().toLowerCase();
+    return [
+      for (final r in records)
+        if ((!mastersOnly || r.isMaster) &&
+            (type == null || r.type == type) &&
+            (gain == null || r.gain == gain) &&
+            (binX == null || r.binX == binX) &&
+            (binY == null || r.binY == binY) &&
+            (exposureSeconds == null ||
+                (r.exposureSeconds != null &&
+                    (r.exposureSeconds! - exposureSeconds!).abs() <=
+                        exposureToleranceSecs)) &&
+            (temperatureMin == null ||
+                (r.temperature != null && r.temperature! >= temperatureMin!)) &&
+            (temperatureMax == null ||
+                (r.temperature != null && r.temperature! <= temperatureMax!)) &&
+            (filterName == null ||
+                filterName.isEmpty ||
+                (r.filter != null &&
+                    r.filter!.trim().toLowerCase() == filterName)))
+          r,
+    ];
+  }
+
+  List<CalibrationMasterRecord> whereCameraMatches(
+    List<CalibrationMasterRecord> records,
+  ) {
+    final camera = cameraId?.trim();
+    if (camera == null || camera.isEmpty) return records;
+    return records.where((r) => r.cameraId == camera).toList();
+  }
 }
 
 /// Capture parameters of the light frames a calibration set is matched for.

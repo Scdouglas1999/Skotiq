@@ -166,7 +166,7 @@ Future<AppVersionInfo> loadDesktopAppVersion() async {
 /// [resolveSkotiqDataDirectory].
 ///
 /// This step must run before any provider that touches the Rust runtime
-/// (every backend method goes through `bridge.NativeBridge`), so it lives
+/// (every local backend method calls into it), so it lives
 /// outside the Riverpod container.
 Future<DesktopBootPaths> initialiseDesktopLogging() async {
   final (dataRoot: dataRoot, logDirectory: logDir) =
@@ -207,8 +207,8 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
 
   final profileDir = await resolveDesktopProfileDirectory();
   await Directory(profileDir).create(recursive: true);
-  await bridge.NativeBridge.apiInitProfileStorage(storagePath: profileDir);
-  await bridge.NativeBridge.apiInitSettingsStorage(storagePath: profileDir);
+  bridge.apiInitProfileStorage(storagePath: profileDir);
+  bridge.apiInitSettingsStorage(storagePath: profileDir);
 
   return DesktopBootPaths(
     logDirectory: logDir,

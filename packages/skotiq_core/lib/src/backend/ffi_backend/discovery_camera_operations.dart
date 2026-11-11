@@ -16,7 +16,9 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   @override
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) async {
     final bridgeType = _toBridgeDeviceType(deviceType);
-    final bridgeDevices = await bridge.NativeBridge.discoverDevices(bridgeType);
+    final bridgeDevices = await _NativeProcessState.discovery.devices(
+      bridgeType,
+    );
 
     return bridgeDevices
         .map(
@@ -38,8 +40,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
       label: 'INDI',
       host: host,
       port: port,
-      discover: () =>
-          bridge_api.apiDiscoverIndiAtAddress(host: host, port: port),
+      discover: () => bridge.apiDiscoverIndiAtAddress(host: host, port: port),
     );
     return bridgeDevices
         .map(
@@ -64,8 +65,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
       label: 'Alpaca',
       host: host,
       port: port,
-      discover: () =>
-          bridge_api.apiDiscoverAlpacaAtAddress(host: host, port: port),
+      discover: () => bridge.apiDiscoverAlpacaAtAddress(host: host, port: port),
     );
     return bridgeDevices
         .map(
@@ -104,18 +104,64 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     String deviceId, {
     String? expectedModel,
   }) async {
+    // PHD2 is reached through its own client, not the device registry.
+    if (isPhd2WireToken(deviceId)) {
+      String? host;
+      int? port;
+      if (deviceId.startsWith('phd2://')) {
+        final uri = Uri.tryParse(deviceId);
+        host = uri?.host;
+        port = uri?.port == 0 ? null : uri?.port;
+      } else if (deviceId.startsWith('phd2:')) {
+        final parts = deviceId.split(':');
+        if (parts.length >= 3) {
+          host = parts[1];
+          port = int.tryParse(parts[2]) ?? 4400;
+        }
+      }
+      await phd2Connect(host: host ?? 'localhost', port: port ?? 4400);
+      return;
+    }
+
+    if (!bridge.NativeBridge.isNativeAvailable) {
+      throw Exception(
+        'Cannot connect to $deviceId: Native bridge required but not available',
+      );
+    }
+
     final bridgeType = _toBridgeDeviceType(deviceType);
-    await bridge.NativeBridge.connectDevice(
-      bridgeType,
-      deviceId,
-      expectedModel: expectedModel,
-    );
+    try {
+      if (expectedModel == null) {
+        await bridge.apiConnectDevice(
+          deviceType: bridgeType,
+          deviceId: deviceId,
+        );
+      } else {
+        await bridge.apiConnectDeviceExpecting(
+          deviceType: bridgeType,
+          deviceId: deviceId,
+          expectedModel: expectedModel,
+        );
+      }
+    } catch (e, stackTrace) {
+      _logger.severe('Native connection failed for $deviceId', e, stackTrace);
+      throw Exception('Failed to connect to $deviceId via native bridge: $e');
+    }
   }
 
   @override
   Future<void> disconnectDevice(DeviceType deviceType, String deviceId) async {
-    final bridgeType = _toBridgeDeviceType(deviceType);
-    await bridge.NativeBridge.disconnectDevice(bridgeType, deviceId);
+    if (isPhd2WireToken(deviceId)) {
+      await phd2Disconnect();
+      return;
+    }
+    if (!bridge.NativeBridge.isNativeAvailable) return;
+    // A connect is authoritative in Rust, so its disconnect must cross the
+    // same boundary and a failure must surface rather than claim success.
+    await bridge.apiDisconnectDevice(
+      deviceType: _toBridgeDeviceType(deviceType),
+      deviceId: deviceId,
+    );
   }
 
   @override
@@ -123,12 +169,27 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     // Local host: drive the Rust hot-plug diff pass directly. This invalidates
     // the native discovery cache and emits device_discovered/device_lost events
     // for any deltas (see bridge/src/api/hotplug.rs::api_rescan_devices).
-    await bridge_api.apiRescanDevices();
+    await bridge.apiRescanDevices();
+  }
+
+  /// The native registry's connected devices. If the read fails, the last
+  /// list it returned stands in so one failed poll does not report every
+  /// device as gone.
+  Future<List<bridge.DeviceInfo>> _connectedNativeDevices() async {
+    if (bridge.NativeBridge.isNativeAvailable) {
+      try {
+        return _NativeProcessState.lastConnectedDevices = await bridge
+            .apiGetConnectedDevices();
+      } catch (e) {
+        _logger.warning('Failed to read connected devices from native: $e');
+      }
+    }
+    return _NativeProcessState.lastConnectedDevices;
   }
 
   @override
   Future<List<DeviceInfo>> getConnectedDevices() async {
-    final bridgeDevices = await bridge.NativeBridge.getConnectedDevices();
+    final bridgeDevices = await _connectedNativeDevices();
 
     return bridgeDevices
         .map(
@@ -160,7 +221,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     int? width,
     int? height,
   }) async {
-    await bridge_api.apiCameraStartExposureConfigured(
+    await bridge.apiCameraStartExposureConfigured(
       deviceId: deviceId,
       durationSecs: exposureTime,
       gain: gain,
@@ -177,17 +238,20 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
 
   @override
   Future<void> cameraAbortExposure(String deviceId) async {
-    await bridge.NativeBridge.cancelExposure(deviceId);
+    await _native(
+      'cancelExposure',
+      () => bridge.apiCameraCancelExposure(deviceId: deviceId),
+    );
   }
 
   @override
   Future<Uint8List> cameraLiveViewFrame(String deviceId) async {
-    return bridge_api.apiCameraCapturePreview(deviceId: deviceId);
+    return bridge.apiCameraCapturePreview(deviceId: deviceId);
   }
 
   @override
   Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async {
-    final bridgeImage = await bridge_api.apiGetLastImage(deviceId: deviceId);
+    final bridgeImage = await bridge.apiGetLastImage(deviceId: deviceId);
 
     return CapturedImageResult(
       width: bridgeImage.width,
@@ -213,7 +277,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
 
   @override
   Future<List<int>> getLastRawImageData(String deviceId) async {
-    return await bridge_api.apiGetLastRawImageData(deviceId: deviceId);
+    return await bridge.apiGetLastRawImageData(deviceId: deviceId);
   }
 
   @override
@@ -222,7 +286,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     required String filePath,
     required FitsWriteHeader headerData,
   }) async {
-    await bridge_api.apiSaveFitsFromLastCapture(
+    await bridge.apiSaveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,
       headerData: _toBridgeFitsHeader(headerData),
@@ -231,7 +295,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
 
   @override
   Future<void> clearDeviceImage(String deviceId) async {
-    await bridge_api.apiClearDeviceImage(deviceId: deviceId);
+    await bridge.apiClearDeviceImage(deviceId: deviceId);
   }
 
   @override
@@ -240,35 +304,51 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     required bool enabled,
     double? targetTemp,
   }) async {
-    await bridge.NativeBridge.setCameraCooler(deviceId, enabled, targetTemp);
+    await _native(
+      'setCameraCooler',
+      () => bridge.setCameraCooler(
+        deviceId: deviceId,
+        enabled: enabled ? 1 : 0,
+        targetTemp: targetTemp,
+      ),
+    );
   }
 
   @override
   Future<void> cameraSetReadoutMode(String deviceId, int modeIndex) async {
-    await bridge.NativeBridge.setReadoutMode(
-      deviceId: deviceId,
-      modeIndex: modeIndex,
+    await _native(
+      'setReadoutMode',
+      () => bridge.apiCameraSetReadoutMode(
+        deviceId: deviceId,
+        modeIndex: modeIndex,
+      ),
     );
   }
 
   @override
   Future<void> cameraSetGain(String deviceId, int gain) async {
-    await bridge.NativeBridge.setCameraGain(deviceId, gain);
+    await _native(
+      'setCameraGain',
+      () => bridge.setCameraGain(deviceId: deviceId, gain: gain),
+    );
   }
 
   @override
   Future<void> cameraSetOffset(String deviceId, int offset) async {
-    await bridge.NativeBridge.setCameraOffset(deviceId, offset);
+    await _native(
+      'setCameraOffset',
+      () => bridge.setCameraOffset(deviceId: deviceId, offset: offset),
+    );
   }
 
   @override
-  Future<bridge_caps.CameraRecommendedSettings> cameraGetRecommendedSettings(
+  Future<bridge.CameraRecommendedSettings> cameraGetRecommendedSettings(
     String deviceId,
   ) async {
     // Direct passthrough: the Rust bridge returns an empty struct when the
     // vendor SDK doesn't expose a recommendation, so we never need to invent
     // values here. Errors propagate to the caller — silent fallbacks would
     // hide SDK failures.
-    return await bridge_api.apiCameraGetRecommendedSettings(deviceId: deviceId);
+    return await bridge.apiCameraGetRecommendedSettings(deviceId: deviceId);
   }
 }
