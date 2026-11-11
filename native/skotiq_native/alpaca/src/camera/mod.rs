@@ -7,10 +7,7 @@ mod image_bytes;
 use image_array::*;
 use image_bytes::*;
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 use std::time::Duration;
 
 /// Camera state enum matching ASCOM CameraState
@@ -234,27 +231,10 @@ impl AlpacaCamera {
         }
     }
 
-    /// Create a camera client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::Camera);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device = AlpacaDevice::from_server(AlpacaDeviceType::Camera, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -613,56 +593,6 @@ impl AlpacaCamera {
     // - Rank: 2 for mono, 3 for color
     pub async fn image_array(&self) -> Result<String, String> {
         self.client.get("imagearray").await
-    }
-
-    /// Wait for image to be ready with configurable timeout
-    /// Polls image_ready until true or timeout expires
-    pub async fn wait_for_image_ready(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.image_ready().await {
-                Ok(true) => return Ok(true),
-                Ok(false) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Wait for camera to become idle with configurable timeout
-    pub async fn wait_for_idle(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.camera_state().await {
-                Ok(CameraState::Idle) => return Ok(true),
-                Ok(CameraState::Error) => {
-                    return Err(AlpacaError::OperationFailed(
-                        "Camera in error state".to_string(),
-                    ))
-                }
-                Ok(_) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
     }
 
     /// Pulse guide in a direction

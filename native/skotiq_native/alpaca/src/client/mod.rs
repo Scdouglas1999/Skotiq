@@ -1,13 +1,11 @@
 //! Alpaca HTTP Client
 
-mod builder;
 mod config;
 mod error;
 #[cfg(test)]
 mod tests;
 mod version;
 
-pub use builder::*;
 pub use config::*;
 pub use error::*;
 pub use version::*;
@@ -20,7 +18,7 @@ use std::any::TypeId;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Allocate unique Alpaca ClientID values per `AlpacaClient` instance.
 static NEXT_CLIENT_ID: AtomicU32 = AtomicU32::new(1);
@@ -780,48 +778,5 @@ impl AlpacaClient {
         // saturating fallback covers any pathological never-completing case
         // (which the timeout layer would have already cancelled).
         Ok(u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX))
-    }
-
-    /// Detect supported API versions from the server
-    pub async fn detect_api_versions(&self) -> Result<Vec<u32>, AlpacaError> {
-        let client = self.create_quick_timeout_client()?;
-        let url = format!("{}/management/apiversions", self.base_url);
-
-        match client.get(&url).send().await {
-            Ok(response) => {
-                if !response.status().is_success() {
-                    let retry_after = parse_retry_after_header(response.headers());
-                    return Err(AlpacaError::HttpError {
-                        status: response.status().as_u16(),
-                        message: "Failed to get API versions".to_string(),
-                        retry_after,
-                    });
-                }
-
-                let api_response: ApiVersionsResponse = response.json().await?;
-                Ok(api_response.value)
-            }
-            Err(e) => {
-                warn!("Failed to detect API versions: {}", e);
-                // Default to v1 if detection fails
-                Ok(vec![1])
-            }
-        }
-    }
-
-    /// Negotiate the best API version to use with the server
-    pub async fn negotiate_api_version(&mut self) -> Result<ApiVersion, AlpacaError> {
-        let versions = self.detect_api_versions().await?;
-
-        // Currently we only support v1, but this framework allows future versions
-        if let Some(version) = ApiVersion::negotiate(&versions) {
-            self.api_version = version;
-            Ok(version)
-        } else {
-            Err(AlpacaError::UnsupportedApiVersion(format!(
-                "Server supports versions {:?}, but client only supports v1",
-                versions
-            )))
-        }
     }
 }

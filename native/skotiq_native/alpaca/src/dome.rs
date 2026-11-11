@@ -1,10 +1,6 @@
 //! Alpaca Dome API implementation
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
-use std::time::Duration;
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Shutter state enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,27 +50,10 @@ impl AlpacaDome {
         }
     }
 
-    /// Create a dome client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::Dome);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device = AlpacaDevice::from_server(AlpacaDeviceType::Dome, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -292,84 +271,6 @@ impl AlpacaDome {
     pub async fn sync_to_azimuth(&self, azimuth: f64) -> Result<(), String> {
         self.client
             .put("synctoazimuth", &[("Azimuth", &azimuth.to_string())])
-            .await
-    }
-
-    /// Wait for dome to stop slewing with configurable timeout
-    pub async fn wait_for_slew_complete(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.slewing().await {
-                Ok(false) => return Ok(true),
-                Ok(true) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Wait for shutter to reach a target state
-    pub async fn wait_for_shutter_state(
-        &self,
-        target_state: ShutterStatus,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.shutter_status().await {
-                Ok(state) => {
-                    if state == target_state {
-                        return Ok(true);
-                    }
-                    if state == ShutterStatus::Error {
-                        return Err(AlpacaError::OperationFailed(
-                            "Shutter in error state".to_string(),
-                        ));
-                    }
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Open shutter and wait for completion
-    pub async fn open_shutter_and_wait(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        // Start opening
-        self.open_shutter_typed().await?;
-        // Wait for open state
-        self.wait_for_shutter_state(ShutterStatus::Open, poll_interval, timeout)
-            .await
-    }
-
-    /// Close shutter and wait for completion
-    pub async fn close_shutter_and_wait(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        // Start closing
-        self.close_shutter_typed().await?;
-        // Wait for closed state
-        self.wait_for_shutter_state(ShutterStatus::Closed, poll_interval, timeout)
             .await
     }
 

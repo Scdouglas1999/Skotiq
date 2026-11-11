@@ -1,11 +1,7 @@
 //! Alpaca Telescope (Mount) API implementation
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 use serde::Deserialize;
-use std::time::Duration;
 
 /// Capability endpoints are optional in practice even when a server exposes
 /// the rest of the Telescope API. Treat an explicit not-implemented response
@@ -222,28 +218,11 @@ impl AlpacaTelescope {
         }
     }
 
-    /// Create a telescope client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::Telescope);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device =
             AlpacaDevice::from_server(AlpacaDeviceType::Telescope, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -766,57 +745,6 @@ impl AlpacaTelescope {
                 &[("Axis", &axis.to_string()), ("Rate", &rate.to_string())],
             )
             .await
-    }
-
-    /// Wait for telescope to stop slewing with configurable timeout
-    pub async fn wait_for_slew_complete(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.slewing().await {
-                Ok(false) => return Ok(true),
-                Ok(true) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Slew to coordinates async and wait for completion
-    /// Uses polling to check for slew completion with configurable timeout
-    pub async fn slew_to_coordinates_and_wait(
-        &self,
-        ra: f64,
-        dec: f64,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        self.slew_to_coordinates_async(ra, dec)
-            .await
-            .map_err(AlpacaError::OperationFailed)?;
-        self.wait_for_slew_complete(poll_interval, timeout).await
-    }
-
-    /// Slew to alt-az async and wait for completion
-    pub async fn slew_to_alt_az_and_wait(
-        &self,
-        alt: f64,
-        az: f64,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        self.slew_to_alt_az_async(alt, az)
-            .await
-            .map_err(AlpacaError::OperationFailed)?;
-        self.wait_for_slew_complete(poll_interval, timeout).await
     }
 
     /// Destination side of pier for slew to coordinates

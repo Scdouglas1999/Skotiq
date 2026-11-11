@@ -1,9 +1,6 @@
 //! Alpaca Rotator API implementation
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Rotator status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -35,27 +32,10 @@ impl AlpacaRotator {
         }
     }
 
-    /// Create a rotator client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::Rotator);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device = AlpacaDevice::from_server(AlpacaDeviceType::Rotator, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -240,40 +220,5 @@ impl AlpacaRotator {
             can_reverse: can_reverse?,
             step_size: step_size?,
         })
-    }
-
-    /// Wait for rotator to stop moving
-    pub async fn wait_for_idle(
-        &self,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.is_moving().await {
-                Ok(false) => return Ok(true),
-                Ok(true) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Rotate to a position and wait for completion
-    pub async fn rotate_to_and_wait(
-        &self,
-        position: f64,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        self.move_absolute(position)
-            .await
-            .map_err(AlpacaError::OperationFailed)?;
-        self.wait_for_idle(poll_interval, timeout).await
     }
 }

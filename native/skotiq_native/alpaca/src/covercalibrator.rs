@@ -1,10 +1,6 @@
 //! Alpaca Cover Calibrator API implementation
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
-use std::time::Duration;
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Cover state enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,28 +90,11 @@ impl AlpacaCoverCalibrator {
         }
     }
 
-    /// Create a cover calibrator client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::CoverCalibrator);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device =
             AlpacaDevice::from_server(AlpacaDeviceType::CoverCalibrator, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -228,85 +207,6 @@ impl AlpacaCoverCalibrator {
     }
 
     // Wait methods
-
-    /// Wait for cover to reach a target state
-    pub async fn wait_for_cover_state(
-        &self,
-        target_state: CoverStatus,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.cover_state().await {
-                Ok(state) => {
-                    if state == target_state {
-                        return Ok(true);
-                    }
-                    if state == CoverStatus::Error {
-                        return Err(AlpacaError::OperationFailed(
-                            "Cover in error state".to_string(),
-                        ));
-                    }
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Wait for calibrator to reach ready state
-    pub async fn wait_for_calibrator_ready(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.calibrator_state().await {
-                Ok(CalibratorStatus::Ready) => return Ok(true),
-                Ok(CalibratorStatus::Error) => {
-                    return Err(AlpacaError::OperationFailed(
-                        "Calibrator in error state".to_string(),
-                    ));
-                }
-                Ok(_) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Open cover and wait for completion
-    pub async fn open_cover_and_wait(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        self.open_cover_typed().await?;
-        self.wait_for_cover_state(CoverStatus::Open, poll_interval, timeout)
-            .await
-    }
-
-    /// Close cover and wait for completion
-    pub async fn close_cover_and_wait(
-        &self,
-        poll_interval: Duration,
-        timeout: Duration,
-    ) -> Result<bool, AlpacaError> {
-        self.close_cover_typed().await?;
-        self.wait_for_cover_state(CoverStatus::Closed, poll_interval, timeout)
-            .await
-    }
 
     /// Get comprehensive cover calibrator status
     pub async fn get_status(&self) -> Result<CoverCalibratorStatus, String> {

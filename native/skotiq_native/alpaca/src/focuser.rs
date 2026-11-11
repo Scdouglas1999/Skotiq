@@ -1,9 +1,6 @@
 //! Alpaca Focuser API implementation
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Focuser status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -39,27 +36,10 @@ impl AlpacaFocuser {
         }
     }
 
-    /// Create a focuser client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::Focuser);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device = AlpacaDevice::from_server(AlpacaDeviceType::Focuser, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -213,44 +193,6 @@ impl AlpacaFocuser {
         self.client.put("halt", &[]).await
     }
 
-    /// Wait for the focuser to complete its current move operation
-    /// Returns Ok(true) if move completed, Ok(false) if timeout reached
-    pub async fn wait_for_move_complete(
-        &self,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.is_moving().await {
-                Ok(false) => return Ok(true),
-                Ok(true) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
-    }
-
-    /// Move focuser to position and wait for completion
-    /// Initiates the move and polls until complete or timeout
-    /// Returns Ok(true) if move completed successfully, Ok(false) if timeout reached
-    pub async fn move_to_and_wait(
-        &self,
-        position: i32,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        // Initiate the move with long timeout
-        self.move_to_typed(position).await?;
-        // Wait for completion
-        self.wait_for_move_complete(poll_interval, timeout).await
-    }
-
     // Parallel status methods
 
     /// Get comprehensive focuser status in a single parallel query
@@ -289,27 +231,5 @@ impl AlpacaFocuser {
             step_size: step_size.ok(),
             temp_comp_available: temp_comp_available?,
         })
-    }
-
-    /// Wait for focuser to stop moving
-    pub async fn wait_for_idle(
-        &self,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.is_moving().await {
-                Ok(false) => return Ok(true),
-                Ok(true) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
     }
 }

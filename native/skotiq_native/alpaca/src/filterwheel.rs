@@ -1,9 +1,6 @@
 //! Alpaca Filter Wheel API implementation
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Filter wheel status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -34,28 +31,11 @@ impl AlpacaFilterWheel {
         }
     }
 
-    /// Create a filter wheel client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::FilterWheel);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device =
             AlpacaDevice::from_server(AlpacaDeviceType::FilterWheel, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -183,29 +163,6 @@ impl AlpacaFilterWheel {
             names: names?,
             focus_offsets: focus_offsets?,
         })
-    }
-
-    /// Wait for filter wheel to stop moving
-    pub async fn wait_for_idle(
-        &self,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.position().await {
-                Ok(pos) if pos >= 0 => return Ok(true),
-                Ok(_) => {
-                    // Position is -1 (moving)
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(AlpacaError::OperationFailed(e)),
-            }
-        }
     }
 
     /// Set filter by name (convenience method)
