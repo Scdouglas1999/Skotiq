@@ -15,6 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../../utils/confirm_dialog.dart';
+import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
@@ -293,12 +294,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     min: -90,
                     max: 90,
                     decimals: 6,
-                    parse: (text) => parseSiteAngle(
-                      text,
-                      maxDegrees: 90,
-                      positiveHemisphere: 'N',
-                      negativeHemisphere: 'S',
-                    ),
+                    parse: parseSiteLatitude,
                     onChanged: (value) async {
                       await ref
                           .read(appSettingsProvider.notifier)
@@ -321,12 +317,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     min: -180,
                     max: 180,
                     decimals: 6,
-                    parse: (text) => parseSiteAngle(
-                      text,
-                      maxDegrees: 180,
-                      positiveHemisphere: 'E',
-                      negativeHemisphere: 'W',
-                    ),
+                    parse: parseSiteLongitude,
                     onChanged: (value) async {
                       await ref
                           .read(appSettingsProvider.notifier)

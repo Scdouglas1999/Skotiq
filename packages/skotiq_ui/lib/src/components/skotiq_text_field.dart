@@ -22,7 +22,7 @@ const double fieldIconSize = SkotiqTokens.iconXs;
 ///
 /// 32px tall, 28 with [dense]. The [SkotiqDecorations.field] face is a
 /// `well` fill with a near-invisible resting ring that becomes a real 1px
-/// `primary` line on focus and `error` on error — the one place in this
+/// neutral line on focus and `error` on error — the one place in this
 /// language where a border carries state.
 ///
 /// The [label] parameter still renders a caption ABOVE the field for the call
@@ -158,7 +158,11 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
       hintStyle: hintStyle,
       counterText: '',
       contentPadding: EdgeInsets.zero,
-      floatingLabelBehavior: FloatingLabelBehavior.never,
+      // There is no floating label; `always` is what keeps the unit suffix
+      // visible on an empty, unfocused field. The decorator hides affixes
+      // until the field holds text or focus, so "Focal length" read as a bare
+      // number box with no mm until the user started typing.
+      floatingLabelBehavior: FloatingLabelBehavior.always,
       // The decorator lays the unit out on the input's baseline, so it reads
       // as a suffix of the value rather than a caption floating at the row's
       // centre line. height 1.0 keeps its line inside the 14px slot.
@@ -284,7 +288,7 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
                     widget.prefixIcon,
                     size: fieldIconSize,
                     color: _isFocused && widget.enabled
-                        ? colors.primary
+                        ? colors.textSecondary
                         : colors.textMuted,
                   ),
                 ),
@@ -354,7 +358,7 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
           Text(
             widget.label!,
             style: SkotiqTypography.caption.copyWith(
-              color: _isFocused ? colors.primary : colors.textSecondary,
+              color: _isFocused ? colors.textPrimary : colors.textSecondary,
             ),
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),

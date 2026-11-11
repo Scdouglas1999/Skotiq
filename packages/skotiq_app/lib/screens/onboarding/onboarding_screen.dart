@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../shell/shell_chrome.dart';
 import '../shell/widgets/window_chrome.dart';
 
+import 'steps/blocked_next.dart';
 import 'steps/camera_defaults_step.dart';
 import 'steps/camera_step.dart';
 import 'steps/capture_dir_step.dart';
@@ -180,6 +181,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         BannerTone.warning,
         fromValidation: true,
       );
+      ref.read(onboardingBlockedNextProvider.notifier).state++;
       return;
     }
 

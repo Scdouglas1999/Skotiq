@@ -168,6 +168,10 @@ abstract final class SkotiqDecorations {
   /// something. Focus and error replace the near-invisible resting ring with a
   /// real 1px line, which is the one place in the language where a border
   /// carries state.
+  ///
+  /// The focus line is neutral ink, not [SkotiqColors.primary]: the default
+  /// accent is the same red as [SkotiqColors.error], so a focused field read as
+  /// a rejected one. Red on a field means only "this value is wrong".
   static BoxDecoration field(
     SkotiqColors colors, {
     bool focused = false,
@@ -177,7 +181,7 @@ abstract final class SkotiqDecorations {
     if (hasError) {
       ring = colors.error;
     } else if (focused) {
-      ring = colors.primary;
+      ring = colors.textSecondary;
     } else {
       ring = _isLight(colors)
           ? colors.border
