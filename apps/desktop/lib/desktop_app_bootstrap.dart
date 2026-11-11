@@ -4,8 +4,6 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_app/services/app_update.dart'
-    show defaultUpdateApplySafetyCheckWithReader;
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 // Why still imported: UpdatePushDiscovery (LAN update-push responder) lives in

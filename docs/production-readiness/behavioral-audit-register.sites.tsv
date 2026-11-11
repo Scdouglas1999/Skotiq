@@ -162,8 +162,9 @@ apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIf
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final nodeId = event.data['node_id'] as String? ?? '';
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final nodeTypeId = event.data['node_type_id'] as String? ?? '';
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final pluginId = event.data['plugin_id'] as String? ?? '';
+apps/desktop/lib/host/host_server.dart	startHostServer	empty_catch	1	U2-03	} catch (_) {
+apps/desktop/lib/host/host_steps.dart	_startUpdateReceiver	literal_null_coalesce	1	U2-03	if (host.daemonConfig?.bindLocalOnly ?? false) {
 apps/desktop/lib/main.dart	_parseRemoteTarget	literal_null_coalesce	1	V0177	port: int.tryParse(portRaw ?? '') ?? kDefaultHeadlessPort,
-apps/desktop/lib/main_headless.dart	main	comment_best_effort	1	V0039	// Best-effort start the LAN-push receiver. It requires a trusted
 apps/mobile/lib/main.dart	loadMobileAppVersion	literal_null_coalesce	1	V0069	buildNumber: int.tryParse(packageInfo.buildNumber) ?? 0,
 apps/mobile/lib/main_parts/mobile_connection_state.dart	_MobileConnectionState	comment_best_effort	1	V0147	/// Best-effort: the service swallows and logs all network/host errors, so a
 apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_connectViaTailscale	comment_best_effort	1	V0148	// Best-effort prefill — fall through to an empty field on any failure.

@@ -5,7 +5,6 @@ import 'package:skotiq_app/services/app_update.dart'
     show defaultUpdateApplySafetyCheckWithReader;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
-import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../headless/headless_discovery_bootstrap.dart';
 import '../headless/headless_relay_bootstrap.dart';
