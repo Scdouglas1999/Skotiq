@@ -17,6 +17,7 @@ import 'widgets/brain_settings_panel.dart';
 import 'widgets/guide_graph_advanced.dart';
 import 'widgets/guide_star_view.dart';
 import '../../utils/guide_distance.dart';
+import '../../router/app_routes.dart';
 
 part 'guiding_screen_parts/state_fields.dart';
 part 'guiding_screen_parts/desktop_sections.dart';
@@ -207,8 +208,9 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
       SkotiqIconButton(
         icon: SkotiqIcons.settings,
         tooltip: isPhd2Guider ? 'PHD2 connection settings' : 'Guider settings',
-        onPressed: () =>
-            isPhd2Guider ? _showConnectionDialog() : context.go('/equipment'),
+        onPressed: () => isPhd2Guider
+            ? _showConnectionDialog()
+            : context.go(AppRoute.equipment.path),
       ),
     ];
   }
@@ -249,7 +251,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
     return (
       SkotiqIcons.guider,
       'Equipment',
-      () => context.go('/equipment'),
+      () => context.go(AppRoute.equipment.path),
     );
   }
 }

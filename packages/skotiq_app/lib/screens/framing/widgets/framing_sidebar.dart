@@ -18,6 +18,7 @@ import '../altitude_chart.dart';
 import '../framing_search_provider.dart';
 import 'framing_controls.dart';
 import 'framing_panel_parts.dart';
+import '../../../router/app_routes.dart';
 
 part 'framing_sidebar/target_and_equipment.dart';
 part 'framing_sidebar/controls_and_status.dart';

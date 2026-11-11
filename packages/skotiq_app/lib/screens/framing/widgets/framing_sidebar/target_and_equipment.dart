@@ -498,7 +498,7 @@ class FramingEquipmentSection extends StatelessWidget {
           label: 'Open settings',
           size: ButtonSize.small,
           variant: ButtonVariant.secondary,
-          onPressed: () => context.go('/equipment'),
+          onPressed: () => context.go(AppRoute.equipment.path),
         );
 
     final Widget body;

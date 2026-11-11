@@ -308,7 +308,7 @@ mixin _GuidingDesktopSections
       size: ButtonSize.small,
       onPressed: isPhd2Guider
           ? () => setState(() => _showBrainPanel = !_showBrainPanel)
-          : () => context.go('/equipment'),
+          : () => context.go(AppRoute.equipment.path),
     );
 
     // The controls, calibration and the Brain toggle are one column that
@@ -533,7 +533,7 @@ mixin _GuidingDesktopSections
           icon: SkotiqIcons.settings,
           size: ButtonSize.small,
           variant: ButtonVariant.secondary,
-          onPressed: () => context.go('/equipment'),
+          onPressed: () => context.go(AppRoute.equipment.path),
         ),
       ),
     );

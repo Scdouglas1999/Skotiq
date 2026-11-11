@@ -101,7 +101,7 @@ class _FramingExportMosaicButtonState
 
       context.showSuccessSnackBar(
           'Created mosaic project with ${widget.panels.length} panels');
-      unawaited(context.push('/mosaic/$projectId'));
+      unawaited(context.push(AppRoutes.mosaicProject(projectId)));
     } catch (e) {
       if (!mounted) return;
       context.showErrorSnackBar('Could not create mosaic project: ${userFacingError(e)}');
