@@ -2,10 +2,9 @@
 /// record, the durable dawn-job queue entry, and the delivery destination +
 /// journal records.
 ///
-/// The tables behind these are raw DDL (`recipes`, `darkroom_jobs`,
-/// `delivery_targets`, `delivery_journal`) documented in
-/// `database/tables/darkroom_tables.dart` and reached through the plain
-/// `RecipesDao` / `DarkroomJobsDao` / `DeliveryTargetsDao` /
+/// The tables behind these (`recipes`, `darkroom_jobs`, `delivery_targets`,
+/// `delivery_journal`) are declared in `database/schema/darkroom.drift` and
+/// reached through `RecipesDao` / `DarkroomJobsDao` / `DeliveryTargetsDao` /
 /// `DeliveryJournalDao`.
 library;
 

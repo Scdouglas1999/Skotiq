@@ -121,12 +121,8 @@ class RecipeDraftNote {
 /// Data-access object for the v58 `recipes` table — the non-destructive
 /// operation stack replayed over a linear master, and the branch graph over it.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// BRANCHING. A branch is a row carrying both `parent_recipe_id` and the
 /// `divergence_index` into that parent's step list; a root recipe carries

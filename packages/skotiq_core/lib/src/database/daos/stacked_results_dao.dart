@@ -10,12 +10,8 @@ import '../database.dart';
 /// provenance record for every stacked master the **Stack-and-Share Loop**
 /// produces.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createStackedResultsTable]) rather than a Drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customStatement` APIs — mirroring how [ImagesDao] accesses
-/// the raw-DDL `thumbnail_path` column. It is deliberately *not* a Drift
-/// `@DriftAccessor`, which would require the table to be Drift-declared.
+/// The table is declared in `database/schema/post_session.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// SQLite errors propagate to the caller; reads map nullable columns to the
 /// [StackAndShareResult] model's defaults.

@@ -49,10 +49,8 @@ class CalibrationTagEntry {
 
 /// Data-access object for the v46 `calibration_tags` table.
 ///
-/// Like [FlatLibraryDao] / [MosaicProjectsDao], the table is managed with raw
-/// DDL (see `SkotiqDatabase._createCalibrationTagsTable`) and this DAO is
-/// a plain class reading/writing via `customSelect`/`customStatement` — the
-/// dominant v27+ convention, requiring no Drift codegen pass.
+/// The table is declared in `database/schema/post_session.drift`; this DAO
+/// queries with SQL through `customSelect` / `customStatement`.
 ///
 /// Identity is `UNIQUE(master_type, master_id)` where `master_id` is the row
 /// id in the artifact's source table (`dark_library` / `flat_library` /

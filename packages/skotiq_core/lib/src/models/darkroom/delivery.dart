@@ -1,9 +1,9 @@
 /// Where the night's artifacts are delivered, and what happened to each file.
 ///
-/// [ArtifactDestination] maps 1:1 to a row of the raw-DDL `delivery_targets`
-/// table and [DeliveryJournalEntry] to a row of `delivery_journal` (see
-/// `SkotiqDatabase._createDarkroomTables`); both are read/written through
-/// the plain [DeliveryTargetsDao] / [DeliveryJournalDao].
+/// [ArtifactDestination] maps 1:1 to a row of the `delivery_targets` table and
+/// [DeliveryJournalEntry] to a row of `delivery_journal` (see
+/// `database/schema/darkroom.drift`); both are read/written through
+/// [DeliveryTargetsDao] / [DeliveryJournalDao].
 ///
 /// Naming: `PushDeliveryTargets` in `skotiq_remote_protocol` is a
 /// phone-reachability struct for FCM/APNs NOTIFICATIONS. This type is about

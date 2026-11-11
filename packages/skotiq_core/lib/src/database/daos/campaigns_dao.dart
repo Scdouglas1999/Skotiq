@@ -9,12 +9,8 @@ import '../database.dart';
 /// multi-night `(target, filter, accepted, desired, last_date)` campaign
 /// counter.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createCampaignsTable]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [NightReportsDao] and `IntegrationGoalService`. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/planning.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// This DAO is ADDITIVE bookkeeping: it never feeds the live `SchedulerEngine`
 /// goals-complete reject (which stays a read-only derivation over

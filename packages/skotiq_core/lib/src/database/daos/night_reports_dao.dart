@@ -9,11 +9,8 @@ import '../database.dart';
 /// Doctor verdict for each session (and/or target) the Smart Morning Report
 /// pipeline produces.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createNightReportsTable]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customUpdate` APIs — mirroring
-/// [IntegratedMastersDao]. It is deliberately NOT a `@DriftAccessor`.
+/// The table is declared in `database/schema/post_session.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// SQLite errors propagate; reads map nullable columns to the model's nullable
 /// fields. The `findings_json` column round-trips through

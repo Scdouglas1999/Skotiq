@@ -27,12 +27,8 @@ class DeliveryJournalMissingException implements Exception {
 /// Data-access object for the v58 `delivery_journal` table — what was sent
 /// where, how big it was, and how it ended.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// UPSERT ON RETRY. `(target_id, job_id, file_path)` is the row identity, so a
 /// file retried overnight keeps ONE row carrying its running `attempts` count

@@ -15,9 +15,8 @@ extension _SkotiqDatabaseMigrationV52 on SkotiqDatabase {
   /// because the v2–v17 migration chain recreates tables from the CURRENT Drift
   /// schema (which already declares these), so a blind `createTable` would throw
   /// "table already exists" on upgrade paths that pass through such a step.
-  /// `_createCustomIndexes` is re-run by the migration strategy after this hook,
-  /// and the table-level `@TableIndex` declarations are materialized by
-  /// `createTable`, so no extra index DDL is needed here.
+  /// `createTable` does not create a table's `@TableIndex` indexes; the pass
+  /// that closes every upgrade (`_createMissing` over the whole schema) does.
   Future<void> _upgradeSchemaV52(Migrator m, int from) async {
     if (from < 52) {
       // skyAtlasRegions is referenced by skyTiles.regionId, so it must exist

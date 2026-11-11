@@ -8,12 +8,8 @@ import '../database.dart';
 /// Data-access object for the v44 `narrowband_composites` table — one row per
 /// applied SHO/HOO/etc. palette combine.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createNarrowbandCompositesTable]) rather than a drift
-/// `Table` class, so this DAO is a plain class that reads/writes through the
-/// database's `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [CampaignsDao] and [NightReportsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/post_session.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// SQLite errors propagate; reads map nullable columns to the model's nullable
 /// fields.

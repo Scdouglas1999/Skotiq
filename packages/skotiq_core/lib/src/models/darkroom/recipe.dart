@@ -1,9 +1,8 @@
 /// The durable non-destructive recipe record — an ordered, parameterized
 /// operation stack replayed over a linear master light.
 ///
-/// A [DarkroomRecipe] maps 1:1 to a row of the raw-DDL `recipes` table (see
-/// `SkotiqDatabase._createDarkroomTables`) and is read/written through the
-/// plain [RecipesDao], mirroring `MosaicProjectsDao` / `CampaignsDao`.
+/// A [DarkroomRecipe] maps 1:1 to a row of the `recipes` table (see
+/// `database/schema/darkroom.drift`) and is read/written through [RecipesDao].
 ///
 /// Naming: `IntegrationSettings` is already called a "recipe" by the A/B
 /// compare panel and the preview-integrate path. That is a DATA-half settings

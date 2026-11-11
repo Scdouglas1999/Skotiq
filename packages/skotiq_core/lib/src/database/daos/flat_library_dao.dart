@@ -8,9 +8,8 @@ import '../database.dart';
 /// Data-access object for the v41 `flat_library` table — the master-flat
 /// artifact library, the missing counterpart to `dark_library`.
 ///
-/// Like [StackedResultsDao] / [IntegratedMastersDao], the table is managed with
-/// raw DDL (see [SkotiqDatabase._createPostSessionTables]) and this DAO is a
-/// plain class reading/writing via `customSelect`/`customStatement`. Its match
+/// The table is declared in `database/schema/post_session.drift`; this DAO
+/// queries with SQL through `customSelect` / `customStatement`. Its match
 /// API ([findBestMatch]) deliberately mirrors `DarkLibraryDao.findBestMatch`:
 /// exact gain/offset/binning + filter, temperature within tolerance, preferring
 /// the closest temperature then the newest.

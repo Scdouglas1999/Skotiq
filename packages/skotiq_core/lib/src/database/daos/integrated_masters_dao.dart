@@ -9,11 +9,8 @@ import '../database.dart';
 /// tables — the persisted provenance for every archival integrated master the
 /// post-session pipeline produces.
 ///
-/// The tables are managed with raw DDL (see
-/// [SkotiqDatabase._createPostSessionTables]) rather than drift `Table`
-/// classes, so this DAO is a plain class that reads/writes through the
-/// database's `customSelect`/`customStatement`/`customInsert` APIs — mirroring
-/// [StackedResultsDao]. It is deliberately NOT a `@DriftAccessor`.
+/// The tables are declared in `database/schema/post_session.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// SQLite errors propagate, the `(master_id, image_id)` UNIQUE constraint
 /// guards against double-folding a sub, and reads map nullable columns to the

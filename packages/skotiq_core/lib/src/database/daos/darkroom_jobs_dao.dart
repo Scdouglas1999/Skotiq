@@ -9,12 +9,8 @@ import '../sqlite_busy.dart';
 /// Data-access object for the v58 `darkroom_jobs` table — the durable dawn-job
 /// queue.
 ///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// The table is declared in `database/schema/darkroom.drift`; this DAO queries
+/// with SQL through the database's `customSelect` / `customStatement` APIs.
 ///
 /// TYPED TRANSITIONS. Every state-changing method reads the row's current state
 /// first and refuses a move [DarkroomJobState.canTransitionTo] rejects, with a
@@ -23,11 +19,11 @@ import '../sqlite_busy.dart';
 /// that thinks it holds a job it does not must find out.
 ///
 /// CRASH RECOVERY is NOT here. Re-queueing rows left `running` by a dead
-/// process happens once, in `beforeOpen`
-/// (`SkotiqDatabase._recoverInterruptedDarkroomJobs`), because the rule
-/// that makes it sound — nothing can still be running at the moment the
-/// database opens — only holds at open. A second implementation reachable at
-/// other times would re-queue a job a live executor is holding.
+/// process happens once, at start-up (`recoverFromPreviousProcessExit`),
+/// because the rule that makes it sound — nothing can still be running when
+/// the process has only just opened the database — only holds then. A second
+/// implementation reachable at other times would re-queue a job a live
+/// executor is holding.
 ///
 /// LOCK CONTENTION. Every state-changing write runs under
 /// [retryWhileSqliteBusy], on top of the connection-wide

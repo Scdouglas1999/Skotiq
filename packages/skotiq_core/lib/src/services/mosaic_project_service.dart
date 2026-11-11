@@ -37,7 +37,7 @@ part 'mosaic_project_service/path_helpers.dart';
 ///    [MosaicService.generatePanels] (the canonical spherical grid math with
 ///    cos(dec) RA compression + position-angle rotation). The panel dimensions
 ///    are derived once from the rig FOV (arcmin) and handed to that generator.
-///  * **Persistence** — [MosaicProjectsDao] / [MosaicPanelsDao] (raw-DDL v45).
+///  * **Persistence** — [MosaicProjectsDao] / [MosaicPanelsDao].
 ///  * **Per-panel targets** — [TargetsDao]: each panel is a DISTINCT capture
 ///    target row centered on the panel's RA/Dec, so the subs a panel captures
 ///    attribute to *that* panel (and [integratePanels] folds exactly that
