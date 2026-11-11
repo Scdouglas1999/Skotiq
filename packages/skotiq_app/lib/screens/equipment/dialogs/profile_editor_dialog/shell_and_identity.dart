@@ -108,6 +108,14 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
           _EditorRow(
+            label: 'Description',
+            child: SkotiqTextField(
+              controller: _descriptionController,
+              hint: 'Optional, e.g. wide-field rig for the backyard',
+            ),
+          ),
+          const SizedBox(height: _rowGap),
+          _EditorRow(
             label: 'Icon',
             child: Wrap(
               spacing: SkotiqTokens.spaceSm,
