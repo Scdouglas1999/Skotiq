@@ -195,7 +195,6 @@ impl DeviceDriver for FujifilmCamera {
             }
         }
 
-        // Close camera connection
         // SAFETY: `self.camera_handle.0` is the connected XSDK handle (verified by `connected == true` early-return above). XSDK_Close is the contractual release for XSDK_OpenEx per XAPI.h.
         unsafe { (sdk.close)(self.camera_handle.0) };
 
@@ -339,7 +338,6 @@ impl CameraDriver for FujifilmCamera {
 
         let mut sdk = FujifilmSdk::lock().await?;
 
-        // End bulb if active
         if self.is_bulb_mode {
             // Need to drop the lock temporarily
             drop(sdk);
@@ -411,7 +409,6 @@ impl CameraDriver for FujifilmCamera {
             return Err(DriverError::SdkError("Image download failed".into()));
         }
 
-        // Clear camera buffer
         // SAFETY: `self.camera_handle.0` valid; XSDK_DeleteImage takes only the handle and clears the SDK-side image queue entry per XAPI.h.
         unsafe { (sdk.delete_image)(self.camera_handle.0) };
 
@@ -547,7 +544,6 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        // Return ISO range based on supported ISOs
         if self.supported_isos.is_empty() {
             // Default Fujifilm ISO range if not queried
             Ok((100, 12800))

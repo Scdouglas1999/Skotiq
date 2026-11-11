@@ -5,8 +5,6 @@ use crate::load_vendor_sdk;
 use crate::vendor::sdk_loader::vendor_library_candidates;
 use std::path::PathBuf;
 
-// EAF focuser SDK
-
 /// EAF Info structure from SDK
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -153,9 +151,6 @@ pub(crate) fn check_eaf_error(code: c_int) -> Result<(), DriverError> {
     }
 }
 
-// Focuser implementation
-
-/// ZWO EAF Focuser implementation
 #[derive(Debug)]
 pub struct ZwoFocuser {
     pub(crate) focuser_id: i32,
@@ -171,7 +166,6 @@ pub struct ZwoFocuser {
 }
 
 impl ZwoFocuser {
-    /// Create a new ZWO focuser instance
     pub fn new(focuser_id: i32) -> Self {
         Self {
             focuser_id,
@@ -212,12 +206,10 @@ impl DeviceDriver for ZwoFocuser {
         // Hold the EAF SDK lock for the connect sequence
         let sdk = sdk.lock().await;
 
-        // Open focuser
         // SAFETY: focuser_id comes from discover_focusers() via EAFGetID() so it's a valid SDK-issued identifier.
         let result = unsafe { (sdk.open)(self.focuser_id) };
         check_eaf_error(result)?;
 
-        // Create cleanup guard to close the focuser if subsequent operations fail
         let focuser_id = self.focuser_id;
         let locked_sdk: &EafSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
@@ -229,7 +221,6 @@ impl DeviceDriver for ZwoFocuser {
             let _ = unsafe { (locked_sdk.close)(focuser_id) };
         });
 
-        // Get properties
         // SAFETY: EAFInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut info: EAFInfo = unsafe { std::mem::zeroed() };
         // SAFETY: `info` is a valid stack pointer; focuser_id was successfully opened above.
@@ -275,7 +266,6 @@ impl DeviceDriver for ZwoFocuser {
             None
         };
 
-        // All operations succeeded - defuse the cleanup guard
         cleanup_guard.defuse();
 
         self.connected = true;
@@ -454,9 +444,6 @@ impl FocuserDriver for ZwoFocuser {
     }
 }
 
-// Focuser discovery
-
-/// ZWO focuser discovery info
 pub struct ZwoFocuserDiscoveryInfo {
     pub focuser_id: i32,
     pub name: String,
@@ -465,12 +452,10 @@ pub struct ZwoFocuserDiscoveryInfo {
     pub discovery_index: usize,
 }
 
-/// Check if EAF SDK is available
 pub fn is_eaf_sdk_available() -> bool {
     EafSdk::is_available()
 }
 
-/// Get EAF SDK status
 pub fn get_eaf_sdk_status() -> (bool, String) {
     match EafSdk::installed() {
         Ok(sdk) => (
@@ -509,7 +494,6 @@ pub(crate) fn eaf_sdk_version_from_sdk(sdk: &EafSdk) -> Option<String> {
         .map(|version| format!("ZWO EAF SDK v{version}"))
 }
 
-/// Discover ZWO EAF focusers
 pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, DriverError> {
     let sdk = match EafSdk::installed() {
         Ok(sdk) => sdk,

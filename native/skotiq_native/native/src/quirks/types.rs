@@ -3,22 +3,16 @@
 //! Every variant here has at least one entry in the database and one reader in
 //! a driver. Add a variant together with both.
 
-/// Main quirk enum that wraps all quirk categories
 #[derive(Debug, Clone, PartialEq)]
 pub enum Quirk {
-    /// Temperature-related quirks
     Temperature(TemperatureQuirk),
     /// Position-related quirks (for focusers, filter wheels, rotators)
     Position(PositionQuirk),
-    /// Timing-related quirks
     Timing(TimingQuirk),
-    /// Discovery-related quirks
     Discovery(DiscoveryQuirk),
-    /// Camera-specific quirks
     Camera(CameraQuirk),
 }
 
-/// Quirks related to temperature reporting
 #[derive(Debug, Clone, PartialEq)]
 pub enum TemperatureQuirk {
     /// First temperature read after connect is unreliable
@@ -52,21 +46,18 @@ pub enum PositionQuirk {
     FocuserStepSizeMicrons(f64),
 }
 
-/// Quirks related to operation timing
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimingQuirk {
     /// Delay required after connecting before other operations
     DelayAfterConnect(u64),
 }
 
-/// Quirks related to device discovery
 #[derive(Debug, Clone, PartialEq)]
 pub enum DiscoveryQuirk {
     /// Discovery can hang - use this timeout in milliseconds
     DiscoveryTimeoutMs(u64),
 }
 
-/// Quirks specific to cameras
 #[derive(Debug, Clone, PartialEq)]
 pub enum CameraQuirk {
     /// Cooler has limited range
@@ -74,7 +65,6 @@ pub enum CameraQuirk {
 }
 
 impl Quirk {
-    /// Get a human-readable description of this quirk
     pub fn description(&self) -> String {
         match self {
             Quirk::Temperature(t) => match t {
@@ -105,7 +95,6 @@ impl Quirk {
         }
     }
 
-    /// Get the category of this quirk
     pub fn category(&self) -> &'static str {
         match self {
             Quirk::Temperature(_) => "Temperature",

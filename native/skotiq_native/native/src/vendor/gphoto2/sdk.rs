@@ -118,7 +118,6 @@ impl Default for GPCameraText {
     }
 }
 
-/// Check gphoto2 error and convert to DriverError
 pub(crate) fn check_gp_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     if code >= GP_OK {
         return Ok(());

@@ -11,8 +11,6 @@
 use skotiq_device::DriverError;
 use std::ffi::c_char;
 
-// Safe string conversion
-
 /// Convert a NUL-terminated C string to a Rust `String`, reading at most
 /// `max_len` bytes. A null pointer yields an empty string; invalid UTF-8 is
 /// replaced rather than rejected.
@@ -29,14 +27,10 @@ pub fn safe_cstr_to_string(ptr: *const c_char, max_len: usize) -> String {
     // The caller guarantees the pointer points to valid memory of at least max_len bytes.
     unsafe {
         let slice = std::slice::from_raw_parts(ptr as *const u8, max_len);
-        // Find the null terminator, or use max_len if not found
         let null_pos = slice.iter().position(|&c| c == 0).unwrap_or(max_len);
-        // Convert only up to the null terminator
         String::from_utf8_lossy(&slice[..null_pos]).to_string()
     }
 }
-
-// Overflow-safe buffer calculations
 
 /// Buffer size for image data, computed with checked arithmetic.
 ///
@@ -71,7 +65,6 @@ pub fn calculate_buffer_size_i32(
     height: i32,
     bytes_per_pixel: i32,
 ) -> Result<usize, DriverError> {
-    // Validate inputs are positive
     if width <= 0 || height <= 0 || bytes_per_pixel <= 0 {
         return Err(DriverError::InvalidParameter(format!(
             "Invalid image dimensions: width={}, height={}, bytes_per_pixel={}",
@@ -84,8 +77,6 @@ pub fn calculate_buffer_size_i32(
     // a no-op bit-pattern reinterpretation under that precondition.
     calculate_buffer_size(width as u32, height as u32, bytes_per_pixel as u32)
 }
-
-// Connect with cleanup guard
 
 /// A guard that ensures cleanup is called if the guarded block fails.
 ///
@@ -114,7 +105,6 @@ pub struct CleanupGuard<F: FnOnce()> {
 }
 
 impl<F: FnOnce()> CleanupGuard<F> {
-    /// Create a new cleanup guard with the given cleanup function.
     pub fn new(cleanup: F) -> Self {
         Self {
             cleanup: Some(cleanup),

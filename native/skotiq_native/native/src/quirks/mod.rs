@@ -151,7 +151,6 @@ mod tests {
         let quirks = get_quirks_for_vendor(&Vendor::Qhy);
         assert!(!quirks.is_empty(), "QHY should have vendor quirks");
 
-        // Check for discovery protection
         let has_discovery_protection = quirks.iter().any(|q| matches!(q, Quirk::Discovery(_)));
         assert!(
             has_discovery_protection,

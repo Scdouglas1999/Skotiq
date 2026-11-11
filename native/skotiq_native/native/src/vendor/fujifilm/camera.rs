@@ -16,20 +16,16 @@ impl std::fmt::Debug for HandleWrapper {
     }
 }
 
-/// Fujifilm camera driver
 #[derive(Debug)]
 pub struct FujifilmCamera {
-    // Device identification
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) serial_number: String,
     pub(crate) model: FujifilmModel,
 
-    // Connection state
     pub(crate) connected: bool,
     pub(crate) camera_handle: HandleWrapper,
 
-    // Camera properties
     pub(crate) firmware_version: String,
     pub(crate) sensor_info: SensorInfo,
 
@@ -47,21 +43,17 @@ pub struct FujifilmCamera {
     /// i.e. LibRaw's `color.maximum` saturation level.
     pub(crate) measured_white_level: Option<u32>,
 
-    // Exposure state
     pub(crate) is_exposing: bool,
     pub(crate) is_bulb_mode: bool,
     pub(crate) exposure_start: Option<Instant>,
     pub(crate) exposure_duration: Duration,
 
-    // Live view state
     pub(crate) live_view_active: bool,
 
-    // Focus control state
     pub(crate) has_focus_control: bool,
     pub(crate) focus_min: i32,
     pub(crate) focus_max: i32,
 
-    // Current settings
     pub(crate) current_iso: i32,
     pub(crate) current_offset: i32,
     pub(crate) supported_isos: Vec<c_long>,
@@ -69,7 +61,6 @@ pub struct FujifilmCamera {
 }
 
 impl FujifilmCamera {
-    /// Create a new Fujifilm camera instance
     pub fn new(device_info: &FujifilmDeviceInfo) -> Self {
         let serial = device_info
             .serial_number
@@ -144,7 +135,6 @@ impl FujifilmCamera {
         self.sensor_info.max_adu = resolve_max_adu(self.measured_white_level, bit_depth);
     }
 
-    /// Start a bulb exposure
     pub(crate) async fn start_bulb_exposure(
         &mut self,
         duration_secs: f64,
@@ -157,7 +147,6 @@ impl FujifilmCamera {
         let mut shot_opt: c_long = 0;
         let mut af_status: c_long = 0;
 
-        // Set shutter to BULB mode
         // SAFETY: `self.camera_handle.0` was opened via XSDK_OpenEx in connect() and is still valid (connected==true); XSDK_SetShutterSpeed takes (handle, c_long, c_long) all POD arguments per XAPI.h.
         unsafe { (sdk.set_shutter_speed)(self.camera_handle.0, XSDK_SHUTTER_BULB, 0) };
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -199,7 +188,6 @@ impl FujifilmCamera {
         Ok(())
     }
 
-    /// Stop a bulb exposure
     pub(crate) async fn stop_bulb_exposure(&mut self) -> Result<(), DriverError> {
         // Unlocked on purpose: the bulb helpers sleep while the shutter is held, so
         // their callers release the SDK lock first (download_image, abort_exposure,
@@ -228,8 +216,6 @@ impl FujifilmCamera {
 
         Ok(())
     }
-
-    // Focus control
 
     /// Query focus capabilities from the lens
     ///
@@ -313,7 +299,6 @@ impl FujifilmCamera {
 
         if result != XSDK_COMPLETE {
             check_xapi_error(self.camera_handle.0, &sdk)?;
-            // If check_xapi_error didn't return an error, return a generic one
             return Err(DriverError::SdkError("Failed to get focus position".into()));
         }
 
@@ -334,7 +319,6 @@ impl FujifilmCamera {
             return Err(DriverError::NotSupported);
         }
 
-        // Validate position is within range
         if position < self.focus_min || position > self.focus_max {
             return Err(DriverError::InvalidParameter(format!(
                 "Focus position {} out of range [{}, {}]",
@@ -382,8 +366,6 @@ impl FujifilmCamera {
         (self.focus_min, self.focus_max)
     }
 
-    // Live view
-
     /// Start live view streaming at `quality`; frames are then read as JPEG data
     /// through `read_live_view_frame()`.
     ///
@@ -395,7 +377,6 @@ impl FujifilmCamera {
         }
 
         if self.live_view_active {
-            // Already active, just return success
             return Ok(());
         }
 
@@ -440,7 +421,6 @@ impl FujifilmCamera {
 
         std::thread::sleep(Duration::from_millis(50));
 
-        // Start live view
         // SAFETY: `handle` valid; XSDK_SetProp's 3-argument start-action form takes (handle, api_code, api_param) with no value — this is the variadic action invocation per XAPI.h for API_CODE_START_LIVE_VIEW.
         let result = unsafe { (sdk.set_prop)(handle, API_CODE_START_LIVE_VIEW, 0) };
         if result != XSDK_COMPLETE {
@@ -519,18 +499,12 @@ impl FujifilmCamera {
         Ok(buffer) // Returns JPEG data
     }
 
-    /// Stop live view streaming
-    ///
-    /// # Returns
-    ///
-    /// `Ok(())` if live view stopped successfully, or an error if it failed.
     pub async fn stop_live_view(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
 
         if !self.live_view_active {
-            // Not active, just return success
             return Ok(());
         }
 
@@ -553,7 +527,6 @@ impl FujifilmCamera {
         Ok(())
     }
 
-    /// Check if live view is currently active
     pub fn is_live_view_active(&self) -> bool {
         self.live_view_active
     }

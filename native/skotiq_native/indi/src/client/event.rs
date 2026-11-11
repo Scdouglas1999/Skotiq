@@ -2,16 +2,11 @@
 
 use super::*;
 
-/// INDI client event
 #[derive(Debug, Clone)]
 pub enum IndiEvent {
-    /// Device defined
     DeviceDefined(String),
-    /// Property defined
     PropertyDefined(String, String, IndiPropertyType),
-    /// Property updated
     PropertyUpdated(String, String),
-    /// Property deleted
     PropertyDeleted(String, String),
     /// BLOB received with format information
     BlobReceived {
@@ -22,9 +17,7 @@ pub enum IndiEvent {
         format: String,
         size: usize,
     },
-    /// Connection state changed
     ConnectionStateChanged(bool),
-    /// Error occurred
     Error(String),
     /// Reader task died (for supervision) - includes error message
     ReaderDied(String),
@@ -38,13 +31,11 @@ pub enum IndiEvent {
     ReaderRestarted { attempts_used: u32 },
     /// Reader task restart failed after max attempts
     ReaderRestartFailed { attempts: u32, last_error: String },
-    /// Reader task health changed
     ReaderHealthChanged {
         healthy: bool,
         status: ReaderStatus,
         consecutive_failures: u32,
     },
-    /// Protocol version detected
     ProtocolVersionDetected(String),
 }
 

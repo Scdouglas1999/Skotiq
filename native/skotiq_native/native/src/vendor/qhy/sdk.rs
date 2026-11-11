@@ -77,8 +77,6 @@ pub(crate) static SDK_INITIALIZED: OnceLock<c_uint> = OnceLock::new();
 
 pub(crate) const QHY_VENDOR_NAME: &str = "QHY Camera";
 
-// Discovery configuration
-
 /// Global flag to enable/disable QHY discovery.
 ///
 /// QHY discovery can be disabled if it causes crashes or hangs on a particular system.
@@ -92,7 +90,6 @@ pub(crate) const DEFAULT_DISCOVERY_TIMEOUT_MS: u64 = 10000;
 /// Configuration for QHY discovery safety measures
 #[derive(Debug, Clone)]
 pub struct QhyDiscoveryConfig {
-    /// Whether discovery is enabled
     pub enabled: bool,
     /// Timeout for discovery operations in milliseconds
     pub timeout_ms: u64,
@@ -110,7 +107,6 @@ impl Default for QhyDiscoveryConfig {
     }
 }
 
-/// Check if QHY discovery is enabled.
 pub fn is_qhy_discovery_enabled() -> bool {
     QHY_DISCOVERY_ENABLED.load(Ordering::SeqCst)
 }

@@ -11,7 +11,6 @@ pub struct RotatorStatus {
     pub is_moving: bool,
 }
 
-/// Rotator capabilities
 #[derive(Debug, Clone)]
 pub struct RotatorCapabilities {
     pub can_reverse: bool,
@@ -19,15 +18,12 @@ pub struct RotatorCapabilities {
 }
 
 alpaca_device!(
-    /// Alpaca Rotator client
     AlpacaRotator,
     Rotator
 );
 
 impl AlpacaRotator {
     skotiq_device::ascom_rotator_members!(alpaca_member);
-
-    // Parallel status methods
 
     /// Get comprehensive rotator status in a single parallel query
     pub async fn get_status(&self) -> Result<RotatorStatus, AlpacaError> {

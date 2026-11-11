@@ -91,7 +91,6 @@ pub enum PutWait {
     VeryLong,
 }
 
-/// Alpaca client for communicating with a device
 pub struct AlpacaClient {
     http_client: Option<Client>,
     http_client_error: Option<String>,
@@ -151,27 +150,22 @@ impl AlpacaClient {
         )
     }
 
-    /// Get the base URL for this client
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
 
-    /// Get the device number for this client
     pub fn device_number(&self) -> u32 {
         self.device_number
     }
 
-    /// Get the timeout configuration
     pub fn timeout_config(&self) -> &TimeoutConfig {
         &self.timeout_config
     }
 
-    /// Get the retry configuration
     pub fn retry_config(&self) -> &RetryConfig {
         &self.retry_config
     }
 
-    /// Get the current API version being used
     pub fn api_version(&self) -> ApiVersion {
         self.api_version
     }
@@ -223,7 +217,6 @@ impl AlpacaClient {
         )
     }
 
-    /// Create a client with a specific timeout for quick queries
     fn create_quick_timeout_client(&self) -> Result<Client, AlpacaError> {
         Client::builder()
             .timeout(Duration::from_millis(self.timeout_config.quick_query_ms))
@@ -232,7 +225,6 @@ impl AlpacaClient {
             .map_err(|e| AlpacaError::RequestFailed(e.to_string()))
     }
 
-    /// Execute a request with retry logic
     async fn execute_with_retry<F, Fut, T>(&self, operation: F) -> Result<T, AlpacaError>
     where
         F: Fn() -> Fut,
@@ -246,12 +238,10 @@ impl AlpacaClient {
                 Err(e) => {
                     last_error = e;
 
-                    // Check if the error is retryable using the is_retryable method
                     if !last_error.is_retryable() {
                         return Err(last_error);
                     }
 
-                    // If not the last attempt, wait before retrying
                     if attempt + 1 < self.retry_config.max_attempts {
                         let delay = self
                             .retry_config
@@ -529,14 +519,10 @@ impl AlpacaClient {
         decode_put_response::<T>(response.json().await?)
     }
 
-    // Common device properties
-
-    /// Check if the device is connected
     pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
         self.get("connected").await
     }
 
-    /// Connect to the device
     pub async fn connect(&self) -> Result<(), AlpacaError> {
         // A successful setter response is not enough for a bridge-backed
         // device. The previous transport may still be finishing an async
@@ -560,37 +546,30 @@ impl AlpacaClient {
         ))
     }
 
-    /// Disconnect from the device
     pub async fn disconnect(&self) -> Result<(), AlpacaError> {
         self.put::<()>("connected", &[("Connected", "false")]).await
     }
 
-    /// Get the device name
     pub async fn get_name(&self) -> Result<String, AlpacaError> {
         self.get("name").await
     }
 
-    /// Get the device description
     pub async fn get_description(&self) -> Result<String, AlpacaError> {
         self.get("description").await
     }
 
-    /// Get the driver version
     pub async fn get_driver_version(&self) -> Result<String, AlpacaError> {
         self.get("driverversion").await
     }
 
-    /// Get the driver info
     pub async fn get_driver_info(&self) -> Result<String, AlpacaError> {
         self.get("driverinfo").await
     }
 
-    /// Get the interface version
     pub async fn get_interface_version(&self) -> Result<i32, AlpacaError> {
         self.get("interfaceversion").await
     }
 
-    /// Get supported actions
     pub async fn get_supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
         self.get("supportedactions").await
     }
@@ -598,7 +577,6 @@ impl AlpacaClient {
     /// Validate that the connection is still alive and responding
     /// Performs a lightweight check that the device can process requests
     pub async fn validate_connection(&self) -> Result<bool, AlpacaError> {
-        // Use a quick timeout for validation
         let client = self.create_quick_timeout_client()?;
         let (client_id, transaction_id) = self.client_transaction();
         let url = format!(

@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// FLI camera native driver
 pub struct FliCamera {
     pub(crate) device_path: String,
     pub(crate) device_id: String,
@@ -17,13 +16,11 @@ pub struct FliCamera {
     pub(crate) visible_ul_y: i32,
     pub(crate) visible_lr_x: i32,
     pub(crate) visible_lr_y: i32,
-    // Current settings
     pub(crate) current_bin_x: i32,
     pub(crate) current_bin_y: i32,
     pub(crate) subframe: Option<SubFrame>,
     pub(crate) cooler_on: bool,
     pub(crate) target_temp: f64,
-    // Exposure tracking
     pub(crate) exposure_duration: f64,
 }
 
@@ -38,7 +35,6 @@ impl std::fmt::Debug for FliCamera {
 }
 
 impl FliCamera {
-    /// Create a new FLI camera instance
     pub fn new(device_path: String) -> Self {
         let device_id = device_path.replace("/", "_").replace("\\", "_");
         Self {
@@ -87,10 +83,8 @@ impl DeviceDriver for FliCamera {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
-        // Open device
         let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
             tracing::error!(
                 "FLI camera device path contains null bytes: '{}'",
@@ -116,7 +110,6 @@ impl DeviceDriver for FliCamera {
             )));
         }
 
-        // Get model name
         let mut model_buf = [0 as c_char; 128];
         // SAFETY: self.handle was just successfully opened above; model_buf is a 128-byte stack array with truthful length passed to SDK.
         if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
@@ -303,14 +296,11 @@ impl DeviceDriver for FliCamera {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = FliSdk::lock().await?;
 
-        // Cancel any exposure
         // SAFETY: self.handle is valid because self.connected was true (only set after successful connect()).
         let _ = unsafe { (sdk.cancel_exposure)(self.handle) };
 
-        // Close device
         // SAFETY: self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
         let result = unsafe { (sdk.close)(self.handle) };
         check_fli_error(result, "close camera")?;

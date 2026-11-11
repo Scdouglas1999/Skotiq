@@ -2,8 +2,6 @@
 
 use super::*;
 
-// Shutter speed mapping
-
 /// Shutter speed code to seconds mapping
 pub(crate) struct ShutterSpeedEntry {
     pub(crate) code: c_long,
@@ -101,7 +99,6 @@ pub(crate) fn find_shutter_code(seconds: f64) -> c_long {
         return XSDK_SHUTTER_BULB;
     }
 
-    // Find the closest matching shutter speed
     let mut best_code = XSDK_SHUTTER_BULB;
     let mut best_diff = f64::MAX;
 
@@ -116,9 +113,6 @@ pub(crate) fn find_shutter_code(seconds: f64) -> c_long {
     best_code
 }
 
-// Live view quality
-
-/// Live view quality setting
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum LiveViewQuality {
     /// Fine quality (highest, more bandwidth)
@@ -131,7 +125,6 @@ pub enum LiveViewQuality {
 }
 
 impl LiveViewQuality {
-    /// Convert to SDK constant
     pub(crate) fn to_sdk_code(self) -> c_long {
         match self {
             LiveViewQuality::Fine => SDK_LIVEVIEW_QUALITY_FINE,
@@ -141,9 +134,6 @@ impl LiveViewQuality {
     }
 }
 
-// Camera model database
-
-/// Fujifilm camera model information
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FujifilmModel {
     // GFX Medium Format (Bayer sensors)
@@ -176,7 +166,6 @@ pub enum FujifilmModel {
 }
 
 impl FujifilmModel {
-    /// Parse model from product name string
     pub(crate) fn from_product_name(name: &str) -> Self {
         let name_upper = name.to_uppercase();
 

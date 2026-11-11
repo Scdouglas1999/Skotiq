@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Discovered Atik camera info
 #[derive(Debug, Clone)]
 pub struct AtikDiscoveryInfo {
     pub device_index: i32,
@@ -21,7 +20,6 @@ pub struct AtikFilterWheelDiscoveryInfo {
     pub efw_type: i32,
 }
 
-/// Discover connected Atik cameras
 pub async fn discover_devices() -> Result<Vec<AtikDiscoveryInfo>, DriverError> {
     let sdk = match AtikSdk::installed() {
         Ok(sdk) => sdk,
@@ -200,7 +198,6 @@ pub async fn discover_filter_wheels() -> Result<Vec<AtikFilterWheelDiscoveryInfo
     Ok(devices)
 }
 
-/// Check if SDK is available
 pub fn is_sdk_available() -> bool {
     AtikSdk::is_available()
 }

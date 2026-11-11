@@ -2,8 +2,6 @@
 
 use super::*;
 
-// DSLR / mirrorless camera detection
-
 /// Detected DSLR/mirrorless camera info from autodetect
 #[derive(Debug, Clone)]
 pub struct DetectedGPhoto2Camera {
@@ -131,7 +129,6 @@ pub(crate) fn detect_cameras_with(sdk: &GPhoto2Sdk) -> Vec<DetectedGPhoto2Camera
     }
 }
 
-/// Check if the gPhoto2 library is available
 pub fn is_sdk_available() -> bool {
     GPhoto2Sdk::is_available()
 }

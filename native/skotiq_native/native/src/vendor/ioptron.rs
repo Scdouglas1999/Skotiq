@@ -15,8 +15,6 @@ use skotiq_device::*;
 use std::sync::Mutex;
 use std::time::Duration;
 
-// Constants
-
 const IOPTRON_BAUD_RATE: u32 = 9600;
 const IOPTRON_BAUD_RATE_FAST: u32 = 115200;
 
@@ -42,8 +40,6 @@ const PROBE_REPLY_CAPACITY: usize = 32;
 
 /// Positions are printed to a hundredth of a second (of time or of arc).
 const HUNDREDTHS_PER_WHOLE: i64 = 360_000;
-
-// iOptron commands
 
 mod commands {
     pub const GET_MOUNT_VERSION: &str = ":MountInfo#";
@@ -87,8 +83,6 @@ mod commands {
 const MIN_GUIDE_RATE: f64 = 0.10;
 const MAX_GUIDE_RATE: f64 = 1.00;
 const MAX_PULSE_GUIDE_DURATION_MS: u32 = 32_767;
-
-// Mount status parsing
 
 #[derive(Debug, Clone, Default)]
 pub struct IOptronStatus {
@@ -240,8 +234,6 @@ fn query_hash_command(port: &mut ProbedPort<'_>, command: &str) -> Option<String
     }
 }
 
-// Coordinate conversion
-
 fn parse_ra(response: &str) -> Result<f64, DriverError> {
     if response.len() < 8 {
         return Err(DriverError::SdkError(format!(
@@ -305,8 +297,6 @@ fn format_dec(dec_degrees: f64) -> String {
         centiarcsec
     )
 }
-
-// iOptron mount implementation
 
 pub struct IOptronMount {
     device_id: String,
@@ -812,8 +802,6 @@ impl MountDriver for IOptronMount {
         true
     }
 }
-
-// Discovery
 
 pub struct IOptronMountInfo {
     pub port: String,

@@ -4,12 +4,10 @@
 //! `sDD*MM:SS`, iOptron `HHMMSSss` and `sDDMMSSss` in hundredths) but not in
 //! the arithmetic underneath, which is what lives here.
 
-/// Right ascension in hours to degrees.
 pub(crate) fn hours_to_degrees(hours: f64) -> f64 {
     hours * 15.0
 }
 
-/// Degrees to right ascension in hours.
 pub(crate) fn degrees_to_hours(degrees: f64) -> f64 {
     degrees / 15.0
 }

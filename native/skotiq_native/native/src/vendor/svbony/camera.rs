@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// SVBony camera native driver
 #[derive(Debug)]
 pub struct SvbonyCamera {
     pub(crate) camera_id: i32,
@@ -12,7 +11,6 @@ pub struct SvbonyCamera {
 }
 
 impl SvbonyCamera {
-    /// Create a new SVBony camera instance
     pub fn new(camera_id: i32) -> Self {
         Self {
             camera_id,
@@ -135,7 +133,6 @@ impl SvbonyCamera {
         self.core.require_connected()?;
         let sdk = SvbonySdk::lock().await?;
 
-        // Get number of controls
         let mut num_controls: c_int = 0;
         // SAFETY: `self.camera_id` validated by SVBOpenCamera; `&mut num_controls` is a valid stack out-pointer to a c_int.
         let result = unsafe { (sdk.get_num_of_controls)(self.camera_id, &mut num_controls) };
@@ -143,7 +140,6 @@ impl SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("get num of controls"));
         }
 
-        // Search for the specific control
         for i in 0..num_controls {
             // SAFETY: SvbControlCaps is `#[repr(C)]` POD (c_char arrays, c_int, c_long) — all valid bit-patterns. Zero-init is the well-defined empty state before SVBGetControlCaps overwrites it.
             let mut caps: SvbControlCaps = unsafe { std::mem::zeroed() };
@@ -190,18 +186,15 @@ impl DeviceDriver for SvbonyCamera {
             return Ok(());
         }
 
-        // Acquire the SDK lock for all SDK operations in connect
         let svb = SvbonySdk::installed()?;
         let sdk = svb.lock().await;
 
-        // Open camera
         // SAFETY: `self.camera_id` was supplied by SvbonyCamera::new (originating from SvbCameraInfo populated by SVBGetCameraInfo during discover_devices); SVBOpenCamera is the contractual handle-acquisition entry point.
         let result = unsafe { (sdk.open_camera)(self.camera_id) };
         if SvbError::from_i32(result) != SvbError::Success {
             return Err(SvbError::from_i32(result).to_native_error("open camera"));
         }
 
-        // Get camera properties
         // SAFETY: SvbCameraProperty is `#[repr(C)]` POD (c_long/c_int arrays, f64, f32) — all valid bit-patterns. Zero-init is the well-defined empty state before the SDK overwrites it.
         let mut prop: SvbCameraProperty = unsafe { std::mem::zeroed() };
         // SAFETY: `self.camera_id` valid (just opened above); `&mut prop` is a valid stack out-pointer to a `#[repr(C)]` SvbCameraProperty.
@@ -212,7 +205,6 @@ impl DeviceDriver for SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("get camera property"));
         }
 
-        // Get extended properties
         // SAFETY: SvbCameraPropertyEx is `#[repr(C)]` POD (c_int and c_int arrays) — all valid bit-patterns. Zero-init is the well-defined empty state.
         let mut prop_ex: SvbCameraPropertyEx = unsafe { std::mem::zeroed() };
         // SAFETY: `self.camera_id` valid; `&mut prop_ex` is a valid stack out-pointer to a `#[repr(C)]` SvbCameraPropertyEx. Failure is tolerated (older firmware may not support EX) — caller logs nothing and falls through with zeroed defaults.
@@ -230,7 +222,6 @@ impl DeviceDriver for SvbonyCamera {
             );
         }
 
-        // Determine max binning
         let mut max_bin = 1;
         for bin in prop.supported_bins.iter() {
             if *bin > 0 {
@@ -238,7 +229,6 @@ impl DeviceDriver for SvbonyCamera {
             }
         }
 
-        // Set capabilities
         self.core.capabilities = CameraCapabilities {
             // Cooling is reported by SVB_CAMERA_PROPERTY_EX.bSupportControlTemp —
             // there is no IsCoolerCam field in SVB_CAMERA_PROPERTY; reading a
@@ -259,7 +249,6 @@ impl DeviceDriver for SvbonyCamera {
             supports_readout_modes: false,
         };
 
-        // Determine bayer pattern
         let is_color = prop.is_color_cam != 0;
         let bayer_pattern = if is_color {
             Some(bayer_from_asi_index(prop.bayer_pattern))
@@ -267,7 +256,6 @@ impl DeviceDriver for SvbonyCamera {
             None
         };
 
-        // Set sensor info.
         // Why: max_width/max_height are c_long (positive sensor dimensions, <= ~16k on
         // SVBony hardware). Use try_into to fail closed on negative or absurd values.
         let width_u32 = u32::try_from(prop.max_width).map_err(|_| {
@@ -325,12 +313,10 @@ impl DeviceDriver for SvbonyCamera {
             bayer_pattern,
         };
 
-        // Get camera name from info
         // SAFETY: SvbCameraInfo is `#[repr(C)]` POD; zero-init is the well-defined empty state.
         let mut info: SvbCameraInfo = unsafe { std::mem::zeroed() };
         // SAFETY: `&mut info` is a valid stack out-pointer; index 0 is a probe to verify the SDK is responsive before iterating.
         if unsafe { (sdk.get_camera_info)(&mut info, 0) } == 0 {
-            // Find our camera by ID
             // SAFETY: SVBGetNumOfConnectedCameras takes no arguments and returns a plain c_int count.
             let count = unsafe { (sdk.get_num_of_connected_cameras)() };
             for i in 0..count {
@@ -423,14 +409,11 @@ impl DeviceDriver for SvbonyCamera {
             return Ok(());
         }
 
-        // Acquire the SDK lock for SDK operations
         let sdk = SvbonySdk::lock().await?;
 
-        // Stop any ongoing capture
         // SAFETY: `self.camera_id` valid until we close below; SVBStopVideoCapture takes a single c_int and is idempotent per SDK docs.
         let _ = unsafe { (sdk.stop_video_capture)(self.camera_id) };
 
-        // Close camera
         // SAFETY: `self.camera_id` valid (handle was opened in connect()). SVBCloseCamera is the contractual release for SVBOpenCamera.
         let result = unsafe { (sdk.close_camera)(self.camera_id) };
         if SvbError::from_i32(result) != SvbError::Success {

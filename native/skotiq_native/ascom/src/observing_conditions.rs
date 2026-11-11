@@ -3,14 +3,11 @@
 use crate::com::ComDispatch;
 
 com_device!(
-    /// ASCOM Observing Conditions
     ObservingConditions
 );
 
 impl<D: ComDispatch> ObservingConditions<D> {
     skotiq_device::ascom_observing_conditions_members!(com_member);
-
-    // Batch property queries
 
     /// Get weather conditions in a single batch operation
     pub fn get_weather_status(&self) -> WeatherStatus {
@@ -58,7 +55,6 @@ impl<D: ComDispatch> ObservingConditions<D> {
     }
 }
 
-/// Weather status
 #[derive(Debug, Clone, Default)]
 pub struct WeatherStatus {
     pub temperature: Option<f64>,
@@ -67,7 +63,6 @@ pub struct WeatherStatus {
     pub pressure: Option<f64>,
 }
 
-/// Wind status
 #[derive(Debug, Clone, Default)]
 pub struct WindStatus {
     pub wind_speed: Option<f64>,
@@ -75,7 +70,6 @@ pub struct WindStatus {
     pub wind_direction: Option<f64>,
 }
 
-/// Sky status
 #[derive(Debug, Clone, Default)]
 pub struct SkyStatus {
     pub cloud_cover: Option<f64>,
@@ -86,7 +80,6 @@ pub struct SkyStatus {
     pub rain_rate: Option<f64>,
 }
 
-/// Full observing conditions status
 #[derive(Debug, Clone, Default)]
 pub struct ObservingConditionsFullStatus {
     pub weather: WeatherStatus,

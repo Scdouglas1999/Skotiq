@@ -1375,7 +1375,6 @@ fn from_posix(s: &str) -> PathBuf {
     PathBuf::from(s.replace('/', std::path::MAIN_SEPARATOR_STR))
 }
 
-/// Clean up the staging directory.
 fn cleanup_staging(staging_dir: &Path) -> Result<()> {
     // Why: only remove the staging dir itself. Its parent (`…/updates/`) holds
     // sibling artifacts the running update still needs — the `backup/`
@@ -1438,8 +1437,6 @@ fn launch_app(install_dir: &Path, args: &[String]) -> Result<std::process::Child
         .spawn()
         .context("Failed to launch application")
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -1582,7 +1579,6 @@ mod tests {
         let mut log = RollbackLog::default();
         apply_update(&staging, &install, &mut log).unwrap();
 
-        // Verification must fail.
         let err = verify_against_manifest(&install, &expected).unwrap_err();
         assert!(format!("{:?}", err).contains("mismatched"));
 

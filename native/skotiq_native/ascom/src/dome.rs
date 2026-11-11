@@ -4,7 +4,6 @@ use crate::com::ComDispatch;
 use crate::error::{AscomError, AscomResult};
 
 com_device!(
-    /// ASCOM Dome
     Dome
 );
 
@@ -19,8 +18,6 @@ impl<D: ComDispatch> Dome<D> {
         })
     }
 
-    // Batch property queries
-
     /// Get complete dome status in a single batch operation
     pub fn get_full_status(&self) -> DomeFullStatus {
         DomeFullStatus {
@@ -32,7 +29,6 @@ impl<D: ComDispatch> Dome<D> {
     }
 }
 
-/// Full dome status
 #[derive(Debug, Clone, Default)]
 pub struct DomeFullStatus {
     /// Shutter status (0=Open, 1=Closed, 2=Opening, 3=Closing, 4=Error)

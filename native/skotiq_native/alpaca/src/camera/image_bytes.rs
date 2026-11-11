@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ImageBytes binary parser
-
 /// Fixed-size of the Alpaca v3 ImageBytes metadata header in bytes.
 ///
 /// Layout (all little-endian; see ASCOM Alpaca v3 spec):
@@ -68,7 +66,6 @@ fn read_i32_le(buf: &[u8], offset: usize) -> Result<i32, AlpacaError> {
     Ok(i32::from_le_bytes(arr))
 }
 
-/// Read a little-endian `u32` from `buf` at `offset`.
 fn read_u32_le(buf: &[u8], offset: usize) -> Result<u32, AlpacaError> {
     let end = offset
         .checked_add(4)
@@ -441,7 +438,6 @@ pub(crate) fn parse_image_bytes(
         element_type: image_element_type,
     })
 }
-// ImageBytes binary protocol tests
 
 #[cfg(test)]
 mod image_bytes_tests {

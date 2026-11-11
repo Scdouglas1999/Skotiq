@@ -12,8 +12,6 @@ alpaca_device!(
 impl AlpacaCoverCalibrator {
     skotiq_device::ascom_cover_calibrator_members!(alpaca_member);
 
-    // Wait methods
-
     /// Get comprehensive cover calibrator status
     pub async fn get_status(&self) -> Result<CoverCalibratorStatus, AlpacaError> {
         let (cover_state, calibrator_state, brightness) = tokio::join!(
@@ -30,7 +28,6 @@ impl AlpacaCoverCalibrator {
     }
 }
 
-/// Cover calibrator status aggregate
 #[derive(Debug, Clone)]
 pub struct CoverCalibratorStatus {
     pub cover_state: CoverStatus,

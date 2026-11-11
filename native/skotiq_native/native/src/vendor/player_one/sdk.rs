@@ -291,7 +291,6 @@ pub(crate) fn pw_sdk_version_from_sdk(sdk: &PoaPwSdk) -> Option<String> {
         .map(|version| format!("Player One PW SDK v{version}"))
 }
 
-/// Check if the Player One filter-wheel SDK is available
 pub fn is_pw_sdk_available() -> bool {
     PoaPwSdk::is_available()
 }

@@ -1,7 +1,5 @@
 use super::*;
 
-// Raw-frame diagnostic statistics
-
 #[test]
 fn frame_buffer_stats_match_the_four_pass_definition() {
     // Parity guard for the single-pass rewrite: min/max/mean/non-zero must
@@ -144,7 +142,6 @@ fn eaf_registry_insert_lookup_remove() {
     // Use an id unlikely to collide with any real hardware in CI.
     let id: i32 = 0xDEAD;
 
-    // Insert
     {
         let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
         reg.insert(
@@ -167,14 +164,12 @@ fn eaf_registry_insert_lookup_remove() {
         assert_eq!(entry.serial_number.as_deref(), Some("AABBCCDD"));
     }
 
-    // Remove
     {
         let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
         let removed = reg.remove(&id);
         assert!(removed.is_some(), "remove must return the entry");
     }
 
-    // Verify gone
     {
         let reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
         assert!(

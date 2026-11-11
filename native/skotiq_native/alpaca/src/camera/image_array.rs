@@ -2,8 +2,6 @@
 
 use super::*;
 
-// Image-array JSON parser
-
 /// Parse an Alpaca `imagearray` JSON response into `ImageArrayResult`.
 ///
 /// Why this is a free function (not a method): isolating the pure parser
@@ -368,7 +366,6 @@ fn shorten_json(v: &serde_json::Value) -> String {
     }
     s
 }
-// Tests
 
 #[cfg(test)]
 mod image_array_tests {

@@ -10,7 +10,6 @@ unsafe impl Send for HandleWrapper {}
 // SAFETY: Same justification as `impl Send`. The pointer is opaque and access to it is gated by both the wrapping `Mutex<HandleWrapper>` (held inside MoravianCamera) and the `MoravianSdk` lock guard.
 unsafe impl Sync for HandleWrapper {}
 
-/// Moravian camera instance
 pub struct MoravianCamera {
     pub(crate) camera_id: c_int,
     pub(crate) device_id: String,
@@ -44,7 +43,6 @@ impl std::fmt::Debug for MoravianCamera {
 }
 
 impl MoravianCamera {
-    /// Create a new Moravian camera instance
     pub fn new(camera_id: c_int) -> Self {
         Self {
             camera_id,
@@ -92,7 +90,6 @@ impl DeviceDriver for MoravianCamera {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         // Initialize camera (gxccd_initialize_usb returns NULL on failure).
@@ -117,7 +114,6 @@ impl DeviceDriver for MoravianCamera {
 
         // Probe camera info before publishing the handle as connected.
         {
-            // Name
             let mut name_buf = [0 as c_char; 256];
             // SAFETY: `handle` is the
             // just-successfully-initialized camera handle; name_buf is 256 bytes and
@@ -311,7 +307,6 @@ impl DeviceDriver for MoravianCamera {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;

@@ -4,7 +4,6 @@ use crate::com::ComDispatch;
 use crate::error::{AscomError, AscomResult};
 
 com_device!(
-    /// ASCOM Camera
     /// ASCOM Camera (ICameraV*).
     ///
     /// Thread-affinity invariant: `AscomCamera` must not cross threads after
@@ -37,8 +36,6 @@ impl<D: ComDispatch> Camera<D> {
             other => other,
         })
     }
-
-    // Batch property queries
 
     /// Get thermal status in a single batch operation
     /// Returns (temperature, cooler_on, cooler_power, can_set_temperature)
@@ -100,7 +97,6 @@ impl<D: ComDispatch> Camera<D> {
     }
 }
 
-/// Thermal status for camera
 #[derive(Debug, Clone, Default)]
 pub struct CameraThermalStatus {
     pub temperature: Option<f64>,
@@ -109,7 +105,6 @@ pub struct CameraThermalStatus {
     pub can_set_temperature: Option<bool>,
 }
 
-/// Sensor configuration for camera
 #[derive(Debug, Clone, Default)]
 pub struct CameraSensorConfig {
     pub width: Option<i32>,
@@ -123,7 +118,6 @@ pub struct CameraSensorConfig {
     pub bayer_offset_y: Option<i32>,
 }
 
-/// Current exposure settings for camera
 #[derive(Debug, Clone, Default)]
 pub struct CameraExposureSettings {
     pub bin_x: Option<i32>,
@@ -136,7 +130,6 @@ pub struct CameraExposureSettings {
     pub offset: Option<i32>,
 }
 
-/// Full camera status
 #[derive(Debug, Clone, Default)]
 pub struct CameraFullStatus {
     pub state: Option<i32>,

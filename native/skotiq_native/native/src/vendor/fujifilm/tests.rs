@@ -1,7 +1,5 @@
 use super::*;
 
-// Model detection
-
 #[test]
 fn test_model_from_product_name_x_series() {
     // X-T series
@@ -144,8 +142,6 @@ fn test_model_from_product_name_case_insensitive() {
     );
 }
 
-// Sensor specs
-
 #[test]
 fn test_sensor_specs_40mp_xtrans() {
     // X-H2 and X-T5 share the same 40MP X-Trans sensor
@@ -235,8 +231,6 @@ fn test_sensor_specs_default_26mp() {
     assert_eq!(w, 6240);
     assert_eq!(h, 4160);
 }
-
-// Raw sample depth
 
 fn camera_for(model: FujifilmModel) -> FujifilmCamera {
     FujifilmCamera::new(&FujifilmDeviceInfo {
@@ -386,8 +380,6 @@ fn test_resolve_max_adu_ignores_an_unmeasured_white_level() {
     assert_eq!(resolve_max_adu(None, 0), 255);
 }
 
-// X-Trans detection
-
 #[test]
 fn test_is_xtrans_x_series() {
     // All X-series cameras use X-Trans sensors
@@ -446,11 +438,8 @@ fn test_is_xtrans_unknown() {
     );
 }
 
-// Shutter speed code mapping
-
 #[test]
 fn test_find_shutter_code_exact_matches() {
-    // Test exact shutter speed matches
     assert_eq!(
         find_shutter_code(1.0),
         1000000,
@@ -592,8 +581,6 @@ fn test_shutter_bulb_constant() {
     assert_eq!(XSDK_SHUTTER_BULB, -1, "XSDK_SHUTTER_BULB should be -1");
 }
 
-// Error code constants
-
 #[test]
 fn test_error_codes_defined() {
     // Verify key error codes are defined correctly per XAPI.h
@@ -643,12 +630,9 @@ fn test_error_codes_defined() {
 
 #[test]
 fn test_sdk_return_values() {
-    // Verify SDK return value constants
     assert_eq!(XSDK_COMPLETE, 0, "XSDK_COMPLETE should be 0");
     assert_eq!(XSDK_ERROR, -1, "XSDK_ERROR should be -1");
 }
-
-// SDK constants
 
 #[test]
 fn test_connection_interface_constants() {

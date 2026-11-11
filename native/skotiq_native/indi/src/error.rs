@@ -5,7 +5,6 @@
 use std::fmt;
 use std::time::Duration;
 
-/// INDI client errors
 #[derive(Debug, Clone)]
 pub enum IndiError {
     /// Connection to INDI server failed
@@ -49,21 +48,17 @@ pub enum IndiError {
     Timeout,
     /// XML parse error
     ParseError(String),
-    /// Property not found
     PropertyNotFound { device: String, property: String },
     /// Permission denied (attempted to write to read-only property)
     PermissionDenied(String),
     /// Device alert state
     DeviceAlert(String),
-    /// Protocol error
     ProtocolError(String),
     /// Reader task died unexpectedly
     ReaderDied(String),
     /// Send channel closed
     ChannelClosed(String),
-    /// Not connected to server
     NotConnected,
-    /// BLOB format error
     BlobFormatError { format: String, message: String },
     /// Property value out of range
     ValueOutOfRange {
@@ -221,7 +216,6 @@ impl From<IndiError> for String {
     }
 }
 
-/// Result type for INDI operations
 pub type IndiResult<T> = Result<T, IndiError>;
 
 #[cfg(test)]

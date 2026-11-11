@@ -11,7 +11,6 @@ pub struct TimeoutConfig {
     pub long_operation_ms: u64,
     /// Timeout for very long operations (e.g., large image downloads, dome rotation)
     pub very_long_operation_ms: u64,
-    /// Connection timeout
     pub connect_ms: u64,
 }
 
@@ -98,18 +97,13 @@ impl TimeoutConfig {
     }
 }
 
-/// Retry configuration for failed requests
 #[derive(Debug, Clone)]
 pub struct RetryConfig {
-    /// Maximum number of retry attempts
     pub max_attempts: u32,
-    /// Initial delay between retries in milliseconds
     pub initial_delay_ms: u64,
-    /// Maximum delay between retries in milliseconds
     pub max_delay_ms: u64,
     /// Multiplier for exponential backoff (e.g., 2.0 doubles the delay each time)
     pub backoff_multiplier: f64,
-    /// Whether to add jitter to retry delays
     pub use_jitter: bool,
 }
 
@@ -166,7 +160,6 @@ impl RetryConfig {
             .unwrap_or_else(|| self.delay_for_attempt(attempt))
     }
 
-    /// Create a config with no retries
     pub fn no_retry() -> Self {
         Self {
             max_attempts: 1,

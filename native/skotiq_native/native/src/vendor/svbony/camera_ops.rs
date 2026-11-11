@@ -69,18 +69,14 @@ impl CameraDriver for SvbonyCamera {
             self.set_gain(gain).await?;
         }
 
-        // Set offset if provided
         if let Some(offset) = params.offset {
             self.set_offset(offset).await?;
         }
 
-        // Set binning
         self.set_binning(params.bin_x, params.bin_y).await?;
 
-        // Set subframe/ROI
         self.set_subframe(params.subframe.clone()).await?;
 
-        // Acquire the SDK lock for exposure start operations
         let sdk = sdk.lock().await;
 
         // Set exposure time (in microseconds).
@@ -107,7 +103,6 @@ impl CameraDriver for SvbonyCamera {
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        // Acquire the SDK lock for SDK operations
         let sdk = SvbonySdk::lock().await?;
 
         // SAFETY: `self.camera_id` validated by SVBOpenCamera in connect(); SVBStopVideoCapture takes a single c_int and is idempotent.
@@ -141,10 +136,8 @@ impl CameraDriver for SvbonyCamera {
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         self.core.require_connected()?;
 
-        // Acquire the SDK lock for all SDK operations in this method
         let sdk = SvbonySdk::lock().await?;
 
-        // Get current ROI
         let mut start_x: c_int = 0;
         let mut start_y: c_int = 0;
         let mut width: c_int = 0;
@@ -197,7 +190,6 @@ impl CameraDriver for SvbonyCamera {
         };
         let buffer_size = calculate_buffer_size_i32(width, height, bytes_per_pixel)?;
 
-        // Resize buffer if needed
         if self.image_buffer.len() < buffer_size {
             self.image_buffer.resize(buffer_size, 0);
         }
@@ -219,7 +211,6 @@ impl CameraDriver for SvbonyCamera {
             return Err(SvbError::from_i32(result).to_native_error("download image"));
         }
 
-        // Stop video capture
         // SAFETY: `self.camera_id` valid; SVBStopVideoCapture is idempotent and takes a single c_int.
         let _ = unsafe { (sdk.stop_video_capture)(self.camera_id) };
 
@@ -395,7 +386,6 @@ impl CameraDriver for SvbonyCamera {
         let width = width_i32 / bin;
         let height = height_i32 / bin;
 
-        // Acquire the SDK lock for SDK operations
         let sdk = sdk.lock().await;
 
         // SAFETY: `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `width`/`height` were computed from sensor_info divided by `bin` which is ≥ 1 (bin_x.min(bin_y)) and clamped by capabilities.max_bin_x, so dimensions stay within the sensor.
@@ -488,7 +478,6 @@ impl CameraDriver for SvbonyCamera {
             }
         };
 
-        // Acquire the SDK lock for SDK operations
         let sdk = sdk.lock().await;
 
         // SAFETY: `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `start_x/start_y/width/height` come from either the caller-supplied SubFrame (validated by upstream subframe logic) or default to full-sensor dimensions scaled by current binning, so the SDK clamps to sensor bounds.

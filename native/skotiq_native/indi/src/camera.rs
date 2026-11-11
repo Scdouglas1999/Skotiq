@@ -37,14 +37,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Camera device wrapper
 pub struct IndiCamera {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiCamera {
-    /// Create a new INDI camera wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -52,30 +50,25 @@ impl IndiCamera {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    /// Connect to the camera
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the camera
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
     }
 
-    /// Start an exposure
     pub async fn start_exposure(&self, duration_secs: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -88,7 +81,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Abort the current exposure
     pub async fn abort_exposure(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -96,7 +88,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Set binning
     pub async fn set_binning(&self, bin_x: i32, bin_y: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -247,7 +238,6 @@ impl IndiCamera {
         }
     }
 
-    /// Set cooler target temperature
     pub async fn set_temperature(&self, temp_celsius: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -260,7 +250,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Get current temperature
     pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
@@ -269,7 +258,6 @@ impl IndiCamera {
             .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
-    /// Enable/disable cooler
     pub async fn set_cooler(&self, enabled: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         if enabled {
@@ -283,7 +271,6 @@ impl IndiCamera {
         }
     }
 
-    /// Check if cooler is on
     pub async fn is_cooler_on(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -293,7 +280,6 @@ impl IndiCamera {
             .unwrap_or(false)
     }
 
-    /// Set gain
     pub async fn set_gain(&self, gain: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -302,7 +288,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Get gain
     pub async fn get_gain(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
@@ -314,7 +299,6 @@ impl IndiCamera {
             .ok_or_else(|| IndiError::Unavailable("Gain not available".to_string()))
     }
 
-    /// Set offset
     pub async fn set_offset(&self, offset: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -323,7 +307,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Get offset
     pub async fn get_offset(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
@@ -379,7 +362,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Get bits per pixel
     pub async fn get_bits_per_pixel(&self) -> Option<i32> {
         let client = self.client.read().await;
         client
@@ -389,8 +371,6 @@ impl IndiCamera {
             // f64 -> i32 saturates per Rust 1.45 spec.
             .map(|v| v as i32)
     }
-
-    // Binning limits
 
     /// Default maximum-bin used when the driver does not advertise one.
     ///
@@ -465,8 +445,6 @@ impl IndiCamera {
         );
         Ok(Self::DEFAULT_MAX_BIN)
     }
-
-    // Frame type
 
     /// Set frame type (Light, Bias, Dark, Flat).
     ///
@@ -635,7 +613,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Get current frame type
     pub async fn get_frame_type(&self) -> CcdFrameType {
         let client = self.client.read().await;
         if client
@@ -664,9 +641,6 @@ impl IndiCamera {
         }
     }
 
-    // Exposure state
-
-    /// Check if camera is currently exposing
     pub async fn is_exposing(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -682,8 +656,6 @@ impl IndiCamera {
             .await
     }
 
-    // Reset to full frame
-
     /// Reset frame to full sensor size
     pub async fn reset_frame(&self) -> IndiResult<()> {
         let width = self
@@ -697,8 +669,6 @@ impl IndiCamera {
         self.set_frame(0, 0, width, height).await
     }
 
-    // Cooler power
-
     /// Get cooler power percentage (if available)
     pub async fn get_cooler_power(&self) -> Option<f64> {
         let client = self.client.read().await;
@@ -707,7 +677,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Capture an image with configurable timeout
     pub async fn capture_image_with_timeout(
         &self,
         duration_secs: f64,
@@ -730,10 +699,8 @@ impl IndiCamera {
             client.subscribe()
         };
 
-        // Start exposure
         self.start_exposure(duration_secs).await?;
 
-        // Calculate total timeout: exposure time + buffer
         let timeout = Duration::from_secs_f64(duration_secs) + buffer_secs;
         let start_time = std::time::Instant::now();
 

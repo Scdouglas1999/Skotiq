@@ -9,14 +9,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Rotator device wrapper
 pub struct IndiRotator {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiRotator {
-    /// Create a new INDI rotator wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -24,30 +22,25 @@ impl IndiRotator {
         }
     }
 
-    /// Get the device name
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
 
-    /// Connect to the rotator
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
     }
 
-    /// Disconnect from the rotator
     pub async fn disconnect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.disconnect_device(&self.device_name).await
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         let client = self.client.read().await;
         client.is_device_connected(&self.device_name).await
     }
 
-    /// Move to angle
     pub async fn move_to(&self, angle: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -55,7 +48,6 @@ impl IndiRotator {
             .await
     }
 
-    /// Move to angle with timeout
     pub async fn move_to_with_timeout(
         &self,
         angle: f64,
@@ -69,7 +61,6 @@ impl IndiRotator {
             Duration::from_secs(client.timeout_config().rotator_move_timeout_secs)
         };
 
-        // Start the move
         {
             let mut client = self.client.write().await;
             client
@@ -77,7 +68,6 @@ impl IndiRotator {
                 .await?;
         }
 
-        // Wait for move to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, "ABS_ROTATOR_ANGLE", timeout_duration)
@@ -88,7 +78,6 @@ impl IndiRotator {
             })
     }
 
-    /// Get current angle
     pub async fn get_angle(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
@@ -97,7 +86,6 @@ impl IndiRotator {
             .ok_or_else(|| IndiError::Unavailable("Angle not available".to_string()))
     }
 
-    /// Abort motion
     pub async fn abort_motion(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
@@ -105,7 +93,6 @@ impl IndiRotator {
             .await
     }
 
-    /// Check if rotator is currently moving
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -141,7 +128,6 @@ impl IndiRotator {
         ))
     }
 
-    /// Reverse direction
     pub async fn set_reverse(&self, reverse: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         if reverse {
@@ -202,7 +188,6 @@ mod tests {
         )));
         let _rotator = IndiRotator::new(client.clone(), "TestRotator");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().rotator_move_timeout_secs

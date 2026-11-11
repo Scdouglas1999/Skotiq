@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// QHY Camera implementation
 #[derive(Debug)]
 pub struct QhyCamera {
     pub(crate) camera_id: String,
@@ -10,7 +9,6 @@ pub struct QhyCamera {
     pub(crate) handle: Option<QhyCamHandle>,
     pub(crate) connected: bool,
 
-    // Camera info
     pub(crate) chip_width: f64,
     pub(crate) chip_height: f64,
     pub(crate) image_width: u32,
@@ -35,7 +33,6 @@ pub struct QhyCamera {
     /// every camera (see [`container_max_adu`]).
     pub(crate) output_high_aligned: bool,
 
-    // Current settings
     pub(crate) current_bin: i32,
     pub(crate) current_gain: i32,
     pub(crate) current_offset: i32,
@@ -43,7 +40,6 @@ pub struct QhyCamera {
     // Exposure tracking for timeout handling
     pub(crate) current_exposure_time: f64,
 
-    // Capabilities
     pub(crate) has_cooler: bool,
     pub(crate) has_st4_port: bool,
     pub(crate) is_color: bool,
@@ -175,7 +171,6 @@ impl QhyCamera {
         true
     }
 
-    /// Load camera chip info from SDK
     pub(crate) fn load_camera_info(&mut self, sdk: &QhySdk) -> Result<(), DriverError> {
         let handle = self.handle.ok_or(DriverError::NotConnected)?;
 
@@ -212,7 +207,6 @@ impl QhyCamera {
         self.pixel_height = pixel_h;
         self.bits_per_pixel = bpp;
 
-        // Check capabilities
         // SAFETY: `handle` validated above; IsQHYCCDControlAvailable
         // takes the handle and a control-id integer with no out-pointers.
         self.has_cooler = unsafe {
@@ -227,7 +221,6 @@ impl QhyCamera {
             unsafe { (sdk.is_qhyccd_control_available)(handle, QhyControl::CAM_IS_COLOR as c_int) }
                 == 0;
 
-        // Detect bayer pattern for color cameras
         if self.is_color {
             // SAFETY: handle validated above; GetQHYCCDParam returns a
             // c_double by value with no out-pointers.

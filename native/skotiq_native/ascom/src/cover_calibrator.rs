@@ -3,14 +3,11 @@
 use crate::com::ComDispatch;
 
 com_device!(
-    /// ASCOM Cover Calibrator
     CoverCalibrator
 );
 
 impl<D: ComDispatch> CoverCalibrator<D> {
     skotiq_device::ascom_cover_calibrator_members!(com_member);
-
-    // Batch property queries
 
     /// Get complete cover calibrator status in a single batch operation
     pub fn get_full_status(&self) -> CoverCalibratorFullStatus {
@@ -23,7 +20,6 @@ impl<D: ComDispatch> CoverCalibrator<D> {
     }
 }
 
-/// Full cover calibrator status
 #[derive(Debug, Clone, Default)]
 pub struct CoverCalibratorFullStatus {
     /// Cover state (0=NotPresent, 1=Closed, 2=Moving, 3=Open, 4=Unknown, 5=Error)

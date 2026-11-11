@@ -11,12 +11,10 @@ impl CameraDriver for AtikCamera {
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // Get temperature
         let sensor_temp = {
             let mut temp: c_int = 0;
             // Sensor 1 is the CCD temperature
@@ -29,7 +27,6 @@ impl CameraDriver for AtikCamera {
             }
         };
 
-        // Get cooler info
         let (cooler_power, target_temp) = if self.core.capabilities.can_cool {
             let mut flags: c_int = 0;
             let mut level: c_int = 0;
@@ -63,7 +60,6 @@ impl CameraDriver for AtikCamera {
             (None, None)
         };
 
-        // Get exposure remaining
         let exposure_remaining = if self.core.state == CameraState::Exposing {
             // SAFETY: handle is valid (connected=true); ArtemisExposureTimeRemaining
             // takes only the handle and returns a c_float by value.
@@ -90,24 +86,19 @@ impl CameraDriver for AtikCamera {
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        // Set gain if provided
         if let Some(gain) = params.gain {
             self.set_gain(gain).await?;
         }
 
-        // Set offset if provided
         if let Some(offset) = params.offset {
             self.set_offset(offset).await?;
         }
 
-        // Set binning
         self.set_binning(params.bin_x, params.bin_y).await?;
 
-        // Set subframe
         self.set_subframe(params.subframe.clone()).await?;
 
         // Now get SDK and handle after all awaits are complete
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -123,7 +114,6 @@ impl CameraDriver for AtikCamera {
         let result = unsafe { (sdk.set_dark_mode)(handle, dark_mode) };
         check_artemis_error(result, "set dark mode")?;
 
-        // Start exposure
         // SAFETY: handle is valid (connected=true); duration is pass-by-value
         // c_float — the SDK validates the duration internally and returns an ArtemisError on
         // out-of-range values.
@@ -141,7 +131,6 @@ impl CameraDriver for AtikCamera {
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -159,7 +148,6 @@ impl CameraDriver for AtikCamera {
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -172,14 +160,12 @@ impl CameraDriver for AtikCamera {
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
         self.core.state = CameraState::Downloading;
 
-        // Get image info
         let mut x: c_int = 0;
         let mut y: c_int = 0;
         let mut w: c_int = 0;
@@ -197,7 +183,6 @@ impl CameraDriver for AtikCamera {
             return Err(ArtemisError::from_i32(result).to_native_error("get image data"));
         }
 
-        // Get image buffer
         // SAFETY: handle is valid (connected=true); ArtemisImageBuffer returns
         // a pointer to the SDK-owned image buffer (we null-check immediately below).
         let buffer_ptr = unsafe { (sdk.image_buffer)(handle) };
@@ -247,7 +232,6 @@ impl CameraDriver for AtikCamera {
         let byte_slice = unsafe { std::slice::from_raw_parts(buffer_ptr as *const u8, byte_count) };
         let data = unpack_samples(byte_slice, SampleLayout::U16Little);
 
-        // Get temperature for metadata
         let temperature = {
             let mut temp: c_int = 0;
             // SAFETY: handle is valid (connected=true); `temp` is a valid stack
@@ -312,7 +296,6 @@ impl CameraDriver for AtikCamera {
             }
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -345,7 +328,6 @@ impl CameraDriver for AtikCamera {
     async fn get_temperature(&self) -> Result<f64, DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -367,7 +349,6 @@ impl CameraDriver for AtikCamera {
             return Err(DriverError::NotSupported);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -403,7 +384,6 @@ impl CameraDriver for AtikCamera {
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -425,7 +405,6 @@ impl CameraDriver for AtikCamera {
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -455,7 +434,6 @@ impl CameraDriver for AtikCamera {
             )));
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -478,7 +456,6 @@ impl CameraDriver for AtikCamera {
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;

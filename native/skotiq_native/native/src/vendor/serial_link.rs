@@ -35,8 +35,6 @@ pub fn sanitize_port_name(port: &str) -> String {
     port.replace("/", "_").replace("\\", "_")
 }
 
-// Port access guard
-
 /// Coordinates short-lived attempts to claim a serial mount port.
 ///
 /// Discovery probes and live connections otherwise race at the OS handle: a
@@ -73,8 +71,6 @@ where
         )))
     })
 }
-
-// Opening
 
 /// Why a port could not be opened, as the OS worded it.
 #[derive(Debug)]
@@ -116,8 +112,6 @@ pub(crate) fn open_port(port_name: &str, baud_rate: u32) -> Result<Port, PortOpe
 fn port_settings(port_name: &str, baud_rate: u32) -> serialport::SerialPortBuilder {
     serialport::new(port_name, baud_rate).timeout(PORT_READ_TIMEOUT)
 }
-
-// Exchanging commands
 
 /// How one protocol frames a reply.
 pub(crate) struct ReplyRule {
@@ -289,8 +283,6 @@ impl Exchange<'_> {
     }
 }
 
-// Port scan
-
 /// What a scan does with the remaining baud rates of a port it could not
 /// open.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -451,8 +443,6 @@ fn describe_port_type(port_type: &serialport::SerialPortType) -> String {
         serialport::SerialPortType::Unknown => "Unknown".to_string(),
     }
 }
-
-// Pulse guide
 
 /// Waits out a pulse-guide `duration`, or until `cancel` is notified.
 /// Returns `true` when cancelled.

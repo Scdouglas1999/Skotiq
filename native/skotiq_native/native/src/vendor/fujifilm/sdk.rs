@@ -10,7 +10,6 @@ pub(crate) fn fujifilm_candidate_paths() -> Vec<PathBuf> {
     vec![find_sdk_path().unwrap_or_else(|| PathBuf::from("XAPI.dll"))]
 }
 
-/// Find the SDK DLL path
 pub(crate) fn find_sdk_path() -> Option<PathBuf> {
     // Try executable directory first
     if let Ok(exe_path) = std::env::current_exe() {
@@ -145,8 +144,6 @@ crate::load_vendor_sdk! {
     }
 }
 
-// Error handling
-
 /// Map XSDK error codes to DriverError
 pub(crate) fn check_xapi_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> Result<(), DriverError> {
     let mut api_code: c_long = 0;
@@ -212,9 +209,6 @@ pub(crate) fn check_xapi_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> Resul
     }
 }
 
-// Helper functions
-
-/// Safely convert C string array to Rust String
 pub(crate) fn cstr_to_string(arr: &[c_char; 256]) -> String {
     let bytes: Vec<u8> = arr
         .iter()

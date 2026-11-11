@@ -48,7 +48,6 @@ impl DeviceDriver for ZwoCamera {
         // Hold the SDK lock for all SDK operations during connect
         let sdk = sdk.lock().await;
 
-        // Load camera info
         tracing::debug!("Loading camera info for ID {}", self.camera_id);
         self.load_camera_info(&sdk).map_err(|e| {
             tracing::error!(
@@ -60,7 +59,6 @@ impl DeviceDriver for ZwoCamera {
         })?;
         tracing::debug!("Camera info loaded successfully");
 
-        // Open camera
         tracing::debug!("Opening camera ID {}", self.camera_id);
         // SAFETY: camera_id is the stable ASICameraInfo::CameraID resolved by load_camera_info().
         let result = unsafe { (sdk.open_camera)(self.camera_id) };
@@ -74,7 +72,6 @@ impl DeviceDriver for ZwoCamera {
         }
         tracing::debug!("Camera opened successfully");
 
-        // Create cleanup guard to close the camera if subsequent operations fail
         let camera_id = self.camera_id;
         let locked_sdk: &AsiSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
@@ -83,7 +80,6 @@ impl DeviceDriver for ZwoCamera {
             let _ = unsafe { (locked_sdk.close_camera)(camera_id) };
         });
 
-        // Initialize camera
         tracing::debug!("Initializing camera ID {}", self.camera_id);
         // SAFETY: camera_id was successfully opened by ASIOpenCamera above.
         let result = unsafe { (sdk.init_camera)(self.camera_id) };
@@ -135,7 +131,6 @@ impl DeviceDriver for ZwoCamera {
             tracing::debug!("Current offset: {}", self.current_offset);
         }
 
-        // All operations succeeded - defuse the cleanup guard
         cleanup_guard.defuse();
 
         self.connected = true;
@@ -216,7 +211,6 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire mutex for SDK operations
         let sdk = AsiSdk::lock().await?;
 
         let mut exp_status: c_int = 0;
@@ -319,7 +313,6 @@ impl CameraDriver for ZwoCamera {
         // Also resets a previous subframe when this frame requests full sensor.
         self.set_subframe(params.subframe.clone()).await?;
 
-        // Acquire mutex for SDK operations
         let sdk = AsiSdk::lock().await?;
 
         // Set exposure time (in microseconds) - use sync version since we hold mutex
@@ -333,7 +326,6 @@ impl CameraDriver for ZwoCamera {
             self.current_gain = self.read_back_control_sync(&sdk, ASIControlType::ASI_GAIN, gain);
         }
 
-        // Set offset if provided
         if let Some(offset) = params.offset {
             self.set_control(&sdk, ASIControlType::ASI_OFFSET, offset as c_long, false)?;
             self.current_offset =
@@ -417,10 +409,8 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire mutex for SDK operations
         let sdk = AsiSdk::lock().await?;
 
-        // Get current ROI
         let mut width: c_int = 0;
         let mut height: c_int = 0;
         let mut bin: c_int = 0;
@@ -446,7 +436,6 @@ impl CameraDriver for ZwoCamera {
         };
         let buffer_size = calculate_buffer_size_i32(width, height, bytes_per_pixel)?;
 
-        // Use pooled buffer for efficient memory reuse during high-throughput capture
         let mut pooled_buffer = global_u8_pool().get_buffer(buffer_size);
         pooled_buffer.resize(buffer_size);
 
@@ -460,7 +449,6 @@ impl CameraDriver for ZwoCamera {
         };
         check_asi_error(result)?;
 
-        // Convert to u16 if needed.
         // Why: 8-bit pixel `x: u8` widened to u16 then multiplied by 256 is the standard
         // 8-bit to 16-bit promotion; u8 -> u16 is always lossless.
         let layout = if bytes_per_pixel == 2 {
@@ -709,7 +697,6 @@ impl CameraDriver for ZwoCamera {
         let new_width = (info.max_width as i32 / bin) & !7; // multiple of 8
         let new_height = (info.max_height as i32 / bin) & !1; // multiple of 2
 
-        // Acquire mutex for SDK operation
         let sdk = sdk.lock().await;
 
         // SAFETY: new_width/new_height derive from SDK-reported max_width/max_height divided by `bin` (clamped 1..=4); camera_id is valid (connected=true checked).
@@ -766,7 +753,6 @@ impl CameraDriver for ZwoCamera {
         let width = width & !7;
         let height = height & !1;
 
-        // Acquire mutex for SDK operations
         let sdk = sdk.lock().await;
 
         // SAFETY: width/height derive from SubFrame supplied by caller (validated by upper layer) or SDK-reported max dimensions; camera_id is valid (connected=true checked).

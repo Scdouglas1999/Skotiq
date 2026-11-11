@@ -22,13 +22,11 @@ impl DeviceDriver for PlayerOneCamera {
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
-        // Acquire the SDK lock for SDK operations
         let sdk = PoaSdk::lock().await?;
 
         // Load camera info first
         self.load_camera_info(&sdk)?;
 
-        // Open camera
         // SAFETY: `self.camera_id` was populated at construction and verified by load_camera_info (which succeeded above); POAOpenCamera takes the camera ID by value with no pointer arguments.
         let result = unsafe { (sdk.open_camera)(self.camera_id) };
         check_poa_error(result, "OpenCamera")?;
@@ -41,7 +39,6 @@ impl DeviceDriver for PlayerOneCamera {
             let _ = unsafe { (locked_sdk.close_camera)(camera_id) };
         });
 
-        // Initialize camera
         // SAFETY: camera was just successfully opened above so POAInitCamera is the required next call per PlayerOneCamera.h; takes the camera ID by value.
         let result = unsafe { (sdk.init_camera)(self.camera_id) };
         check_poa_error(result, "InitCamera")?;
@@ -145,7 +142,6 @@ impl CameraDriver for PlayerOneCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire the SDK lock for all SDK operations in this method
         let sdk = PoaSdk::lock().await?;
 
         let mut camera_state: c_int = 0;
@@ -259,20 +255,17 @@ impl CameraDriver for PlayerOneCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire the SDK lock for all SDK operations in this method
         let sdk = PoaSdk::lock().await?;
 
         // Set exposure time (in microseconds)
         let exposure_us = (params.duration_secs * 1_000_000.0) as c_long;
         self.set_control_int(&sdk, POAConfig::POA_EXPOSURE, exposure_us, false)?;
 
-        // Set gain
         if let Some(gain) = params.gain {
             self.set_control_int(&sdk, POAConfig::POA_GAIN, gain as c_long, false)?;
             self.current_gain = gain;
         }
 
-        // Set offset if provided
         if let Some(offset) = params.offset {
             self.set_control_int(&sdk, POAConfig::POA_OFFSET, offset as c_long, false)?;
             self.current_offset = offset;
@@ -295,7 +288,6 @@ impl CameraDriver for PlayerOneCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire the SDK lock for SDK operations
         let sdk = PoaSdk::lock().await?;
 
         // SAFETY: self.connected was checked at entry; POAStopExposure takes the camera ID by value.
@@ -311,10 +303,8 @@ impl CameraDriver for PlayerOneCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire the SDK lock for SDK operations
         let sdk = PoaSdk::lock().await?;
 
-        // Use POAImageReady to check if image data is available
         let mut is_ready: POABool = POA_FALSE;
         // SAFETY: self.connected was checked at entry; `&mut is_ready` is a valid stack out-pointer to a POD c_int.
         let result = unsafe { (sdk.image_ready)(self.camera_id, &mut is_ready) };
@@ -328,10 +318,8 @@ impl CameraDriver for PlayerOneCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire the SDK lock for all SDK operations in this method
         let sdk = PoaSdk::lock().await?;
 
-        // Get current image dimensions
         let mut width: c_int = 0;
         let mut height: c_int = 0;
         // SAFETY: self.connected was checked at entry; both `&mut width` and `&mut height` are valid stack out-pointers to POD c_int values.
@@ -360,7 +348,6 @@ impl CameraDriver for PlayerOneCamera {
         };
         check_poa_error(result, "GetImageData")?;
 
-        // Convert to u16
         // Why: 8-bit -> 16-bit promotion (u8 -> u16 is always lossless; * 256 stays
         // within u16 because the max product is 255 * 256 = 65280 < u16::MAX).
         let layout = if bytes_per_pixel == 2 {
@@ -426,7 +413,6 @@ impl CameraDriver for PlayerOneCamera {
             .ok()
             .map(|v| v as f64);
 
-        // Build vendor features
         let mut vendor_features = VendorFeatures::default();
         vendor_features.usb_bandwidth = usb_bandwidth;
         if let Some(hp) = heater_power {
@@ -499,7 +485,6 @@ impl CameraDriver for PlayerOneCamera {
             return Err(DriverError::NotSupported);
         }
 
-        // Acquire the SDK lock for SDK operations
         let sdk = PoaSdk::lock().await?;
 
         // Set target temperature (POA_TARGET_TEMP is in C, int value) only
@@ -599,14 +584,12 @@ impl CameraDriver for PlayerOneCamera {
         // Player One only supports symmetric binning
         let bin = bin_x.max(bin_y);
 
-        // Acquire the SDK lock for SDK operations
         let sdk = sdk.lock().await;
 
         // SAFETY: self.connected was checked at entry; POASetImageBin takes the camera ID and bin factor by value.
         let result = unsafe { (sdk.set_image_bin)(self.camera_id, bin as c_int) };
         check_poa_error(result, "SetImageBin")?;
 
-        // Update dimensions
         let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
         let new_width = info.max_width / bin;
         let new_height = info.max_height / bin;
@@ -650,7 +633,6 @@ impl CameraDriver for PlayerOneCamera {
             )
         };
 
-        // Acquire the SDK lock for SDK operations
         let sdk = sdk.lock().await;
 
         // SAFETY: self.connected was checked at entry; x/y are caller-provided subframe origin or (0,0) — POA SDK validates against current image format/binning.

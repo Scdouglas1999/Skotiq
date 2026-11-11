@@ -4,7 +4,6 @@ use crate::AlpacaError;
 use skotiq_device::ascom::ShutterStatus;
 
 alpaca_device!(
-    /// Alpaca Dome client
     AlpacaDome,
     Dome
 );
@@ -12,11 +11,8 @@ alpaca_device!(
 impl AlpacaDome {
     skotiq_device::ascom_dome_members!(alpaca_member);
 
-    // Status aggregation
-
     /// Get comprehensive dome status
     pub async fn get_status(&self) -> Result<DomeStatus, AlpacaError> {
-        // Query all status properties in parallel for efficiency
         let (shutter_status, azimuth, altitude, slewing, at_home, at_park, slaved) = tokio::join!(
             self.shutter_status(),
             self.azimuth(),
@@ -39,7 +35,6 @@ impl AlpacaDome {
     }
 }
 
-/// Dome status aggregate
 #[derive(Debug, Clone)]
 pub struct DomeStatus {
     pub shutter_status: ShutterStatus,

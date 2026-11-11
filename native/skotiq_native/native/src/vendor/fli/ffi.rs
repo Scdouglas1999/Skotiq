@@ -2,9 +2,6 @@
 
 use super::*;
 
-// Types and constants from libfli.h.
-
-/// FLI device handle
 pub(crate) type FliDev = c_long;
 
 pub(crate) const FLI_INVALID_DEVICE: FliDev = -1;

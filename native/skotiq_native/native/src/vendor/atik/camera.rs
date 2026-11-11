@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Atik camera native driver
 pub struct AtikCamera {
     pub(crate) device_index: i32,
     pub(crate) serial_number: Option<String>,
@@ -22,7 +21,6 @@ impl std::fmt::Debug for AtikCamera {
 }
 
 impl AtikCamera {
-    /// Create a new Atik camera instance
     pub fn new(device_index: i32) -> Self {
         let serial_number = discovered_camera_serials()
             .lock()
@@ -65,7 +63,6 @@ impl DeviceDriver for AtikCamera {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let serial_number = self.serial_number.as_deref().ok_or_else(|| {
@@ -76,7 +73,6 @@ impl DeviceDriver for AtikCamera {
         })?;
         let device_index = camera_index_for_serial(&sdk, serial_number)?;
 
-        // Connect to camera
         // SAFETY: device_index was
         // resolved from the discovery-time serial against the current SDK enumeration.
         // ArtemisConnect returns a handle that we null-check immediately below.
@@ -93,7 +89,6 @@ impl DeviceDriver for AtikCamera {
             )));
         }
 
-        // Check connection
         // SAFETY: `handle` is the non-null pointer returned by ArtemisConnect
         // above (null check passed); ArtemisIsConnected only reads the handle's internal flag.
         if unsafe { (sdk.is_connected)(handle) } == 0 {
@@ -109,7 +104,6 @@ impl DeviceDriver for AtikCamera {
             )));
         }
 
-        // Get camera properties
         // SAFETY: ArtemisProperties is `#[repr(C)]` POD (only c_int / c_float / fixed-size char
         // arrays); a zero-filled instance is a valid initial state that the SDK will overwrite.
         let mut props: ArtemisProperties = unsafe { std::mem::zeroed() };
@@ -124,7 +118,6 @@ impl DeviceDriver for AtikCamera {
             return Err(ArtemisError::from_i32(result).to_native_error("get properties"));
         }
 
-        // Get max binning
         let mut max_bin_x: c_int = 1;
         let mut max_bin_y: c_int = 1;
         // SAFETY: handle is valid (IsConnected verified); both out-pointers
@@ -140,7 +133,6 @@ impl DeviceDriver for AtikCamera {
             );
         }
 
-        // Check for cooling support
         let mut cooling_flags: c_int = 0;
         let mut _level: c_int = 0;
         let mut _minlvl: c_int = 0;
@@ -160,7 +152,6 @@ impl DeviceDriver for AtikCamera {
                 && (cooling_flags & 1) != 0 // ARTEMIS_COOLING_INFO_HASCOOLING
         };
 
-        // Set capabilities
         self.core.capabilities = CameraCapabilities {
             can_cool,
             can_set_gain: true,
@@ -174,7 +165,6 @@ impl DeviceDriver for AtikCamera {
             supports_readout_modes: false,
         };
 
-        // Get colour properties for Bayer pattern
         let mut colour_type: c_int = 0;
         let mut _normal_offset_x: c_int = 0;
         let mut _normal_offset_y: c_int = 0;
@@ -235,7 +225,6 @@ impl DeviceDriver for AtikCamera {
         let is_color = colour.is_some_and(|c| c.is_color());
         let bayer_pattern = colour.and_then(|c| c.bayer_pattern());
 
-        // Set sensor info
         // Why: `props.pixels_x` / `props.pixels_y` are `c_int` (i32) populated by ArtemisProperties.
         // A negative value would be a malformed SDK response, not a real sensor; we surface
         // it as an SdkError rather than silently re-interpreting the bit pattern via `as u32`.
@@ -274,7 +263,6 @@ impl DeviceDriver for AtikCamera {
             bayer_pattern,
         };
 
-        // Get camera name from description
         // SAFETY: `props.description` is a 40-byte fixed array of c_char inside the SDK-filled
         // ARTEMISPROPERTIES struct; ArtemisProperties guarantees NUL-termination within the
         // array (vendor header documents description as a NUL-terminated C string).
@@ -317,7 +305,6 @@ impl DeviceDriver for AtikCamera {
             }
         }
 
-        // Get initial gain/offset
         let mut gain: c_int = 0;
         let mut offset: c_int = 0;
         // SAFETY: handle is valid; preview=0 is a valid mode constant; both
@@ -350,12 +337,10 @@ impl DeviceDriver for AtikCamera {
             return Ok(());
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = AtikSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // Abort any exposure
         // SAFETY: `handle` is valid because `self.core.connected` was true (only set
         // after successful connect() above) and disconnect hasn't run yet.
         let _ = unsafe { (sdk.abort_exposure)(handle) };
@@ -376,7 +361,6 @@ impl DeviceDriver for AtikCamera {
             }
         }
 
-        // Disconnect
         // SAFETY: handle was successfully opened during connect(). ArtemisDisconnect
         // pairs with ArtemisConnect to release the SDK-owned handle.
         let result = unsafe { (sdk.disconnect)(handle) };

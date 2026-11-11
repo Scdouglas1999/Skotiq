@@ -186,16 +186,13 @@ async fn test_zwo_camera_connect_disconnect() {
 
     let mut camera = zwo::ZwoCamera::new(first_device.camera_id);
 
-    // Connect
     camera.connect().await.expect("Should connect successfully");
     assert!(camera.is_connected(), "Should be connected");
 
-    // Get device info
     let name = camera.name();
     let vendor = camera.vendor();
     println!("Connected to: {} ({})", name, vendor.as_str());
 
-    // Disconnect
     camera
         .disconnect()
         .await
@@ -222,18 +219,15 @@ async fn test_zwo_focuser_operations() {
 
     let mut focuser = zwo::ZwoFocuser::new(first_device.focuser_id);
 
-    // Connect
     focuser
         .connect()
         .await
         .expect("Should connect successfully");
     assert!(focuser.is_connected(), "Should be connected");
 
-    // Get position
     let position = focuser.get_position().await.expect("Should get position");
     println!("Current position: {}", position);
 
-    // Get temperature
     let temp = focuser
         .get_temperature()
         .await
@@ -247,7 +241,6 @@ async fn test_zwo_focuser_operations() {
         println!("Moving to position {}...", target);
         focuser.move_to(target).await.expect("Should move");
 
-        // Wait for movement to complete
         while focuser.is_moving().await.unwrap_or(false) {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
@@ -259,7 +252,6 @@ async fn test_zwo_focuser_operations() {
             "Should be at target position (within tolerance)"
         );
 
-        // Move back
         println!("Moving back to position {}...", position);
         focuser.move_to(position).await.expect("Should move back");
         while focuser.is_moving().await.unwrap_or(false) {
@@ -272,7 +264,6 @@ async fn test_zwo_focuser_operations() {
         );
     }
 
-    // Disconnect
     focuser
         .disconnect()
         .await
@@ -298,22 +289,18 @@ async fn test_zwo_filter_wheel_operations() {
 
     let mut fw = zwo::ZwoFilterWheel::new(first_device.filterwheel_id);
 
-    // Connect
     fw.connect().await.expect("Should connect successfully");
     assert!(fw.is_connected(), "Should be connected");
 
-    // Get current position
     let position = fw.get_position().await.expect("Should get position");
     println!("Current position: {}", position);
 
-    // Get filter names
     let names = fw
         .get_filter_names()
         .await
         .expect("Should get filter names");
     println!("Filter names: {:?}", names);
 
-    // Get filter count
     let count = fw.get_filter_count();
     println!("Filter count: {}", count);
     assert!(count > 0, "Should have at least one filter slot");
@@ -323,7 +310,6 @@ async fn test_zwo_filter_wheel_operations() {
     println!("Moving to position {}...", target);
     fw.move_to_position(target).await.expect("Should move");
 
-    // Wait for movement to complete
     while fw.is_moving().await.unwrap_or(false) {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
@@ -332,7 +318,6 @@ async fn test_zwo_filter_wheel_operations() {
     println!("New position: {}", new_position);
     assert_eq!(new_position, target, "Should be at target position");
 
-    // Move back to original position
     println!("Moving back to position {}...", position);
     fw.move_to_position(position)
         .await
@@ -341,7 +326,6 @@ async fn test_zwo_filter_wheel_operations() {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
-    // Disconnect
     fw.disconnect()
         .await
         .expect("Should disconnect successfully");
@@ -370,30 +354,25 @@ async fn test_svbony_camera_connect_disconnect() {
 
     let mut camera = svbony::SvbonyCamera::new(first_device.camera_id);
 
-    // Connect
     camera.connect().await.expect("Should connect successfully");
     assert!(camera.is_connected(), "Should be connected");
 
-    // Get device info
     let name = camera.name();
     let vendor = camera.vendor();
     println!("Connected to: {} ({})", name, vendor.as_str());
 
-    // Get capabilities
     let caps = camera.capabilities();
     println!(
         "Capabilities: can_cool={}, can_set_gain={}, max_bin={}x{}",
         caps.can_cool, caps.can_set_gain, caps.max_bin_x, caps.max_bin_y
     );
 
-    // Get sensor info
     let sensor = camera.get_sensor_info();
     println!(
         "Sensor: {}x{}, {}-bit, color={}, pixel size={:.2}um",
         sensor.width, sensor.height, sensor.bit_depth, sensor.color, sensor.pixel_size_x
     );
 
-    // Disconnect
     camera
         .disconnect()
         .await
@@ -417,10 +396,8 @@ async fn test_svbony_camera_exposure() {
     let first_device = &devices[0];
     let mut camera = svbony::SvbonyCamera::new(first_device.camera_id);
 
-    // Connect
     camera.connect().await.expect("Should connect successfully");
 
-    // Take a short exposure
     let params = ExposureParams {
         duration_secs: 0.1, // 100ms exposure
         gain: Some(100),
@@ -438,7 +415,6 @@ async fn test_svbony_camera_exposure() {
         .await
         .expect("Should start exposure");
 
-    // Wait for exposure to complete
     while !camera.is_exposure_complete().await.unwrap_or(true) {
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
@@ -456,7 +432,6 @@ async fn test_svbony_camera_exposure() {
         image.data.len()
     );
 
-    // Verify metadata
     assert!(
         image.metadata.exposure_time > 0.0,
         "Should have exposure time"
@@ -466,7 +441,6 @@ async fn test_svbony_camera_exposure() {
         image.metadata.exposure_time, image.metadata.gain, image.metadata.offset
     );
 
-    // Disconnect
     camera
         .disconnect()
         .await
@@ -519,20 +493,16 @@ async fn test_qhy_cfw_operations() {
 
     let mut fw = qhy::QhyFilterWheel::new(first_device.camera_id.clone());
 
-    // Connect
     fw.connect().await.expect("Should connect successfully");
     assert!(fw.is_connected(), "Should be connected");
 
-    // Get current position
     let position = fw.get_position().await.expect("Should get position");
     println!("Current position: {}", position);
 
-    // Get filter count
     let count = fw.get_filter_count();
     println!("Filter count: {}", count);
     assert!(count > 0, "Should have at least one filter slot");
 
-    // Get filter names
     let names = fw
         .get_filter_names()
         .await
@@ -548,13 +518,11 @@ async fn test_qhy_cfw_operations() {
     println!("New position: {}", new_position);
     assert_eq!(new_position, target, "Should be at target position");
 
-    // Move back to original position
     println!("Moving back to position {}...", position);
     fw.move_to_position(position)
         .await
         .expect("Should move back");
 
-    // Disconnect
     fw.disconnect()
         .await
         .expect("Should disconnect successfully");
@@ -694,22 +662,18 @@ async fn test_skywatcher_mount_connect_disconnect() {
 
     let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
 
-    // Connect
     mount.connect().await.expect("Should connect successfully");
     assert!(mount.is_connected(), "Should be connected");
 
-    // Get device info
     let name = mount.name();
     let vendor = mount.vendor();
     println!("Connected to: {} ({})", name, vendor.as_str());
 
-    // Get coordinates
     match mount.get_coordinates().await {
         Ok((ra, dec)) => println!("Current position: RA={:.4}h, Dec={:.4}°", ra, dec),
         Err(e) => println!("Could not get coordinates: {}", e),
     }
 
-    // Get mount status using individual methods
     match mount.get_tracking().await {
         Ok(tracking) => println!("Tracking: {}", tracking),
         Err(e) => println!("Could not get tracking: {}", e),
@@ -723,7 +687,6 @@ async fn test_skywatcher_mount_connect_disconnect() {
         Err(e) => println!("Could not get parked: {}", e),
     }
 
-    // Disconnect
     mount
         .disconnect()
         .await
@@ -753,28 +716,23 @@ async fn test_ioptron_mount_connect_disconnect() {
         None, // Use default baud rate
     );
 
-    // Connect
     mount.connect().await.expect("Should connect successfully");
     assert!(mount.is_connected(), "Should be connected");
 
-    // Get device info
     let name = mount.name();
     let vendor = mount.vendor();
     println!("Connected to: {} ({})", name, vendor.as_str());
 
-    // Get coordinates
     match mount.get_coordinates().await {
         Ok((ra, dec)) => println!("Current position: RA={:.4}h, Dec={:.4}°", ra, dec),
         Err(e) => println!("Could not get coordinates: {}", e),
     }
 
-    // Check tracking status
     match mount.get_tracking().await {
         Ok(tracking) => println!("Tracking: {}", tracking),
         Err(e) => println!("Could not get tracking status: {}", e),
     }
 
-    // Disconnect
     mount
         .disconnect()
         .await
@@ -805,28 +763,23 @@ async fn test_lx200_mount_connect_disconnect() {
         None, // Use default baud rate
     );
 
-    // Connect
     mount.connect().await.expect("Should connect successfully");
     assert!(mount.is_connected(), "Should be connected");
 
-    // Get device info
     let name = mount.name();
     let vendor = mount.vendor();
     println!("Connected to: {} ({})", name, vendor.as_str());
 
-    // Get coordinates
     match mount.get_coordinates().await {
         Ok((ra, dec)) => println!("Current position: RA={:.4}h, Dec={:.4}°", ra, dec),
         Err(e) => println!("Could not get coordinates: {}", e),
     }
 
-    // Check tracking status
     match mount.get_tracking().await {
         Ok(tracking) => println!("Tracking: {}", tracking),
         Err(e) => println!("Could not get tracking status: {}", e),
     }
 
-    // Disconnect
     mount
         .disconnect()
         .await
@@ -850,7 +803,6 @@ async fn test_skywatcher_mount_slew() {
 
     mount.connect().await.expect("Should connect successfully");
 
-    // Get current position
     let (start_ra, start_dec) = mount
         .get_coordinates()
         .await
@@ -883,7 +835,6 @@ async fn test_skywatcher_mount_slew() {
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     }
 
-    // Get final position
     let (end_ra, end_dec) = mount
         .get_coordinates()
         .await
@@ -2366,11 +2317,9 @@ async fn test_skywatcher_mount_tracking() {
 
     mount.connect().await.expect("Should connect successfully");
 
-    // Get initial tracking state
     let tracking = mount.get_tracking().await.expect("Should get tracking");
     println!("Initial tracking state: {}", tracking);
 
-    // Toggle tracking off
     mount
         .set_tracking(false)
         .await

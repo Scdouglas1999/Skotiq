@@ -7,7 +7,6 @@
 
 use crate::com::{ComKind, Dispatch};
 
-/// A failed ASCOM operation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AscomError {
     /// COM could not be initialized on the calling thread.
@@ -153,7 +152,6 @@ impl From<AscomError> for String {
     }
 }
 
-/// Result type for ASCOM operations
 pub type AscomResult<T> = Result<T, AscomError>;
 
 #[cfg(test)]

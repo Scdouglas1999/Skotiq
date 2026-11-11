@@ -4,14 +4,11 @@ use crate::com::ComDispatch;
 use crate::error::AscomResult;
 
 com_device!(
-    /// ASCOM Safety Monitor
     SafetyMonitor
 );
 
 impl<D: ComDispatch> SafetyMonitor<D> {
     skotiq_device::ascom_safety_monitor_members!(com_member);
-
-    // Batch property queries
 
     /// Get complete safety monitor status in a single batch operation
     pub fn get_full_status(&self) -> AscomResult<SafetyMonitorFullStatus> {
@@ -19,7 +16,6 @@ impl<D: ComDispatch> SafetyMonitor<D> {
     }
 }
 
-/// Full safety monitor status
 #[derive(Debug, Clone, Default)]
 pub struct SafetyMonitorFullStatus {
     pub is_safe: Option<bool>,

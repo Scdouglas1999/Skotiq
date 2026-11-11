@@ -3,14 +3,11 @@
 use crate::com::ComDispatch;
 
 com_device!(
-    /// ASCOM Rotator
     Rotator
 );
 
 impl<D: ComDispatch> Rotator<D> {
     skotiq_device::ascom_rotator_members!(com_member);
-
-    // Batch property queries
 
     /// Get complete rotator status in a single batch operation
     pub fn get_full_status(&self) -> RotatorFullStatus {
@@ -27,7 +24,6 @@ impl<D: ComDispatch> Rotator<D> {
     }
 }
 
-/// Full rotator status
 #[derive(Debug, Clone, Default)]
 pub struct RotatorFullStatus {
     pub name: Option<String>,

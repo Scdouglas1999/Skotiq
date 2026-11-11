@@ -180,7 +180,6 @@ async fn test_reconnect_attempts_tracking() {
 async fn test_send_command_error_messages() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Try to send without connecting
     let result = client.send_command("<getProperties/>").await;
     assert!(result.is_err());
     if let Err(e) = result {
@@ -296,15 +295,12 @@ async fn test_any_of_many_switch_command_preserves_single_element_write() {
 async fn test_timeout_config_modification() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Check default
     assert_eq!(client.timeout_config().mount_slew_timeout_secs, 300);
 
-    // Modify
     let mut new_config = client.timeout_config().clone();
     new_config.mount_slew_timeout_secs = 600;
     client.set_timeout_config(new_config);
 
-    // Verify change
     assert_eq!(client.timeout_config().mount_slew_timeout_secs, 600);
 }
 
@@ -407,8 +403,6 @@ async fn test_reader_status() {
     assert_eq!(status, ReaderStatus::Stopped);
 }
 
-// Reader supervision tests
-
 #[tokio::test]
 async fn test_reader_task_config_default() {
     let config = ReaderTaskConfig::default();
@@ -507,7 +501,6 @@ async fn test_is_reader_healthy_initial_state() {
 async fn test_reader_consecutive_failures_tracking() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Initially zero
     assert_eq!(client.reader_consecutive_failures(), 0);
 
     // Simulate failures (normally done by supervised_reader_task)
@@ -516,7 +509,6 @@ async fn test_reader_consecutive_failures_tracking() {
         .store(3, Ordering::SeqCst);
     assert_eq!(client.reader_consecutive_failures(), 3);
 
-    // Reset
     client.reset_reader_failures();
     assert_eq!(client.reader_consecutive_failures(), 0);
 }
@@ -560,7 +552,6 @@ async fn test_can_reconnect_initial_state() {
 async fn test_can_reconnect_when_restarting() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Set status to Restarting
     *client.reader_status.write().await = ReaderStatus::Restarting;
 
     // Should not be able to reconnect while restarting
@@ -598,16 +589,13 @@ async fn test_reader_status_enum_values() {
 async fn test_reader_task_config_getter_setter() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Check default
     assert_eq!(client.reader_task_config().max_consecutive_failures, 5);
 
-    // Modify
     let mut new_config = client.reader_task_config().clone();
     new_config.max_consecutive_failures = 10;
     new_config.auto_restart = false;
     client.set_reader_task_config(new_config);
 
-    // Verify change
     assert_eq!(client.reader_task_config().max_consecutive_failures, 10);
     assert!(!client.reader_task_config().auto_restart);
 }
@@ -681,13 +669,10 @@ async fn test_disconnect_resets_failure_counter() {
     assert_eq!(client.reader_consecutive_failures(), 0);
 }
 
-// Keepalive race condition prevention tests
-
 #[tokio::test]
 async fn test_keepalive_in_progress_flag_initial_state() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Should not be in progress initially
     assert!(!client.is_keepalive_in_progress());
 }
 
@@ -713,7 +698,6 @@ async fn test_keepalive_in_progress_prevents_concurrent_checks() {
 async fn test_reconnecting_flag_initial_state() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Should not be reconnecting initially
     assert!(!client.is_reconnecting());
 }
 
@@ -721,7 +705,6 @@ async fn test_reconnecting_flag_initial_state() {
 async fn test_check_keepalive_skips_during_reconnection() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Set reconnecting flag
     client.reconnecting.store(true, Ordering::SeqCst);
     assert!(client.is_reconnecting());
 
@@ -815,14 +798,12 @@ async fn test_disconnect_resets_keepalive_state() {
     client.reconnecting.store(true, Ordering::SeqCst);
     client.reconnect_attempts.store(3, Ordering::SeqCst);
 
-    // Verify states are set
     assert!(client.is_keepalive_in_progress());
     assert!(client.is_reconnecting());
 
     // Disconnect should reset
     let _ = client.disconnect().await;
 
-    // Verify reset
     assert!(!client.is_keepalive_in_progress());
     assert!(!client.is_reconnecting());
     assert_eq!(client.reconnect_attempts.load(Ordering::SeqCst), 0);
@@ -835,7 +816,6 @@ async fn test_can_reconnect_when_reconnecting() {
     // Initially can reconnect
     assert!(client.can_reconnect().await);
 
-    // Set reconnecting flag
     client.reconnecting.store(true, Ordering::SeqCst);
 
     // Should not be able to reconnect
@@ -884,7 +864,6 @@ async fn test_connect_resets_keepalive_state() {
         "last_keepalive_response_ms should be recent"
     );
 
-    // Keepalive in progress should be false
     assert!(!client.is_keepalive_in_progress());
 }
 
@@ -918,8 +897,6 @@ async fn test_keepalive_atomic_guard_acquire_release() {
         .is_ok();
     assert!(acquired_after_release);
 }
-
-// XML depth-stack parser tests
 
 #[test]
 fn test_classify_indi_tag_dispatches_each_kind() {

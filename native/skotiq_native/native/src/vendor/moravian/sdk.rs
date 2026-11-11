@@ -56,8 +56,6 @@ pub(crate) type ReadImage =
 pub(crate) type GetLastError =
     unsafe extern "C" fn(camera: PCCamera, buf: *mut c_char, size: usize);
 
-// SDK singleton
-
 /// Candidate paths for the Moravian gxccd library, in search order.
 pub(crate) fn moravian_candidate_paths() -> Vec<std::path::PathBuf> {
     crate::vendor::sdk_loader::vendor_library_candidates(LIB_CANDIDATES, &[])

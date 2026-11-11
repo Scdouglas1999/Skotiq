@@ -101,8 +101,6 @@ pub(super) fn synscan(answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder 
     })
 }
 
-// iOptron
-
 pub(super) fn ioptron(answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder {
     let mut tracking = true;
     let mut slew_polls_left = 0u32;
@@ -176,8 +174,6 @@ pub(super) fn ioptron(answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder 
         reply.into_bytes()
     })
 }
-
-// LX200 family
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Lx200Flavor {

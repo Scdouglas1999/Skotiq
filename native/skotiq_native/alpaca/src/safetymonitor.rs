@@ -13,7 +13,6 @@ pub struct SafetyMonitorStatus {
     pub is_safe: bool,
 }
 
-/// Safety monitor device information
 #[derive(Debug, Clone)]
 pub struct SafetyMonitorInfo {
     pub name: String,
@@ -24,7 +23,6 @@ pub struct SafetyMonitorInfo {
 }
 
 alpaca_device!(
-    /// Alpaca Safety Monitor client
     AlpacaSafetyMonitor,
     SafetyMonitor
 );
@@ -93,8 +91,6 @@ impl AlpacaSafetyMonitor {
             )
             .await
     }
-
-    // Parallel status methods
 
     /// Get comprehensive safety monitor status in a single parallel query
     pub async fn get_status(&self) -> Result<SafetyMonitorStatus, AlpacaError> {

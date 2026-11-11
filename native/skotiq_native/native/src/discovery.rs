@@ -96,10 +96,8 @@ pub async fn discover_native_devices(
     // process with `undefined symbol: libusb_init` on first use. Idempotent.
     crate::vendor::sdk_loader::ensure_libusb_global();
 
-    // Acquire the discovery mutex to ensure only one discovery runs at a time
     let _guard = get_discovery_mutex().lock().await;
 
-    // Check if we have a valid cached result
     {
         let cache = get_discovery_cache().lock().await;
         if let Some(ref cached) = *cache {
@@ -191,7 +189,6 @@ pub async fn invalidate_discovery_cache() {
     tracing::debug!("Discovery cache invalidated");
 }
 
-/// Discover devices of a specific type
 pub async fn discover_devices(
     device_type: DeviceKind,
 ) -> Result<Vec<NativeDeviceInfo>, DriverError> {

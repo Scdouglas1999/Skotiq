@@ -201,7 +201,6 @@ pub(super) unsafe fn variant_to_value(var: &VARIANT, kind: ComKind) -> Result<Co
     }
 }
 
-/// Create a VARIANT with a boolean value
 pub(super) fn variant_bool(value: bool) -> VARIANT {
     // SAFETY: VARIANT::default() zero-initializes the union; the `Anonymous.Anonymous`
     // tagged-union path is the documented access pattern in the `windows` crate VARIANT
@@ -219,7 +218,6 @@ pub(super) fn variant_bool(value: bool) -> VARIANT {
     }
 }
 
-/// Create a VARIANT with a double value
 pub(super) fn variant_f64(value: f64) -> VARIANT {
     // SAFETY: same VARIANT-union initialization pattern as `variant_bool`; VARIANT::default()
     // produces a zeroed union, and we set `vt` (VT_R8) consistently with the corresponding
@@ -258,7 +256,6 @@ pub(super) fn variant_bstr(value: &str) -> VARIANT {
     }
 }
 
-/// Create a VARIANT with an i32 value
 pub(super) fn variant_i32(value: i32) -> VARIANT {
     // SAFETY: same VARIANT-union initialization pattern as `variant_bool`/`variant_f64`;
     // VARIANT::default() zero-initializes the union, then we set `vt = VT_I4` and `lVal`
@@ -271,7 +268,6 @@ pub(super) fn variant_i32(value: i32) -> VARIANT {
     }
 }
 
-/// Extract boolean from VARIANT
 pub(super) fn variant_to_bool(var: &VARIANT) -> Option<bool> {
     // SAFETY: `var` is a `&VARIANT` (borrowed, well-aligned). We gate the union field
     // access on `vt == VT_BOOL`, which is the canonical COM rule for reading the
@@ -285,7 +281,6 @@ pub(super) fn variant_to_bool(var: &VARIANT) -> Option<bool> {
     }
 }
 
-/// Extract f64 from VARIANT
 pub(super) fn variant_to_f64(var: &VARIANT) -> Option<f64> {
     // SAFETY: `var` is a borrowed VARIANT (well-aligned). Each union-field access is gated
     // on the matching `vt` discriminant (VT_R8 / VT_R4 / VT_I4 / VT_I2 / VT_UI2) before
@@ -364,7 +359,6 @@ pub(super) fn variant_to_i32(var: &VARIANT) -> Option<i32> {
     }
 }
 
-/// Extract string from VARIANT
 pub(super) fn variant_to_string(var: &VARIANT) -> Option<String> {
     // SAFETY: `var` is borrowed (well-aligned). The `bstrVal` union arm is only read after
     // confirming `vt == VT_BSTR`. `BSTR::to_string()` from the `windows` crate handles
@@ -487,7 +481,6 @@ pub(super) unsafe fn extract_safearray_i32(
 ) -> Result<(Vec<i32>, usize, usize), String> {
     let vt = (*var.Anonymous.Anonymous).vt;
 
-    // Check if this is an array variant
     if (vt.0 & VT_ARRAY.0) == 0 {
         return Err(format!("VARIANT is not an array type, got vt={}", vt.0));
     }
@@ -497,7 +490,6 @@ pub(super) unsafe fn extract_safearray_i32(
         return Err("SAFEARRAY pointer is null".to_string());
     }
 
-    // Get array dimensions
     let dims = SafeArrayGetDim(psa);
     if dims == 0 {
         return Err("SAFEARRAY has 0 dimensions".to_string());
@@ -510,7 +502,6 @@ pub(super) unsafe fn extract_safearray_i32(
         ));
     }
 
-    // Get bounds for each dimension
     let mut lower1: i32 = 0;
     let mut upper1: i32 = 0;
     if SafeArrayGetLBound(psa, 1, &mut lower1).is_err() {
@@ -544,7 +535,6 @@ pub(super) unsafe fn extract_safearray_i32(
 
     let (dim1_size, dim2_size, size) = safearray_i32_element_count(lower1, upper1, lower2, upper2)?;
 
-    // Access the raw data
     let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
     if SafeArrayAccessData(psa, &mut data_ptr).is_err() {
         return Err("Failed to access SAFEARRAY data".to_string());
@@ -555,24 +545,19 @@ pub(super) unsafe fn extract_safearray_i32(
         return Err("SAFEARRAY data pointer is null".to_string());
     }
 
-    // Determine the element type and copy data
     let base_vt = vt.0 & !VT_ARRAY.0;
     let result = if base_vt == VT_I4.0 {
-        // Data is i32 array
         let slice = std::slice::from_raw_parts(data_ptr as *const i32, size);
         Ok(slice.to_vec())
     } else if base_vt == VT_I2.0 {
-        // Data is i16 array (convert to i32)
         let slice = std::slice::from_raw_parts(data_ptr as *const i16, size);
         // Why: i16 → i32 widening, exact.
         Ok(slice.iter().map(|&x| i32::from(x)).collect())
     } else if base_vt == VT_UI2.0 {
-        // Data is u16 array (convert to i32)
         let slice = std::slice::from_raw_parts(data_ptr as *const u16, size);
         // Why: u16 → i32 widening, exact.
         Ok(slice.iter().map(|&x| i32::from(x)).collect())
     } else if base_vt == VT_VARIANT.0 {
-        // Array of variants - need to extract each one
         let slice = std::slice::from_raw_parts(data_ptr as *const VARIANT, size);
         let mut result = Vec::with_capacity(size);
         for (index, variant) in slice.iter().enumerate() {
@@ -604,7 +589,6 @@ pub(super) unsafe fn extract_safearray_i32(
         ))
     };
 
-    // Unaccess the data
     let _ = SafeArrayUnaccessData(psa);
 
     result.map(|data| (data, dim1_size, dim2_size))
@@ -614,7 +598,6 @@ pub(super) unsafe fn extract_safearray_i32(
 pub(super) unsafe fn extract_safearray_string(var: &VARIANT) -> Result<Vec<String>, String> {
     let vt = (*var.Anonymous.Anonymous).vt;
 
-    // Check if this is an array variant
     if (vt.0 & VT_ARRAY.0) == 0 {
         return Err(format!("VARIANT is not an array type, got vt={}", vt.0));
     }
@@ -634,7 +617,6 @@ pub(super) unsafe fn extract_safearray_string(var: &VARIANT) -> Result<Vec<Strin
         return Err("SAFEARRAY pointer is null".to_string());
     }
 
-    // Get array dimensions
     let dims = SafeArrayGetDim(psa);
     if dims == 0 {
         return Err("SAFEARRAY has 0 dimensions".to_string());
@@ -646,7 +628,6 @@ pub(super) unsafe fn extract_safearray_string(var: &VARIANT) -> Result<Vec<Strin
         ));
     }
 
-    // Get bounds
     let mut lower: i32 = 0;
     let mut upper: i32 = 0;
     if SafeArrayGetLBound(psa, 1, &mut lower).is_err() {
@@ -725,7 +706,6 @@ pub(super) unsafe fn extract_safearray_string(var: &VARIANT) -> Result<Vec<Strin
         ));
     }
 
-    // Access the raw data
     let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
     if SafeArrayAccessData(psa, &mut data_ptr).is_err() {
         return Err("Failed to access SAFEARRAY data".to_string());
@@ -733,7 +713,6 @@ pub(super) unsafe fn extract_safearray_string(var: &VARIANT) -> Result<Vec<Strin
 
     let base_vt = vt.0 & !(VT_ARRAY.0 | VT_BYREF.0);
     let result = if base_vt == VT_BSTR.0 {
-        // Array of BSTRs
         let slice = std::slice::from_raw_parts(data_ptr as *const windows::core::BSTR, size);
         let mut strings = Vec::with_capacity(size);
         for bstr in slice {

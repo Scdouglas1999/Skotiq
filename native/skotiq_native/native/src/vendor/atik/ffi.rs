@@ -2,12 +2,8 @@
 
 use super::*;
 
-// Types and constants from AtikDefs.h and AtikCameras.h.
-
-/// Atik SDK handle type
 pub(crate) type ArtemisHandle = *mut c_void;
 
-/// Atik error codes
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ArtemisError {

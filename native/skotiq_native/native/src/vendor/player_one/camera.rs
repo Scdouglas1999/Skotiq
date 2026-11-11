@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Player One Camera implementation
 #[derive(Debug)]
 pub struct PlayerOneCamera {
     pub(crate) camera_id: i32,
@@ -13,7 +12,6 @@ pub struct PlayerOneCamera {
     pub(crate) current_width: i32,
     pub(crate) current_height: i32,
     pub(crate) image_format: POAImgFormat,
-    // Exposure metadata tracking
     pub(crate) exposure_time: f64,
     pub(crate) current_subframe: Option<SubFrame>,
     /// Last gain/offset this driver applied or read back successfully. They are
@@ -30,7 +28,6 @@ pub struct PlayerOneCamera {
 }
 
 impl PlayerOneCamera {
-    /// Create a new Player One camera instance
     pub fn new(camera_id: i32) -> Self {
         Self {
             camera_id,
@@ -49,7 +46,6 @@ impl PlayerOneCamera {
         }
     }
 
-    /// Load camera info from SDK
     pub(crate) fn load_camera_info(&mut self, sdk: &PoaSdk) -> Result<(), DriverError> {
         // SAFETY: POACameraProperties is `#[repr(C)]` and contains only POD fields (c_char arrays, c_int, f64) — all valid bit-patterns. Zero-initialization is the well-defined empty state before the SDK overwrites it.
         let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
@@ -63,7 +59,6 @@ impl PlayerOneCamera {
         Ok(())
     }
 
-    /// Get camera name using safe string conversion
     pub(crate) fn camera_name(&self) -> String {
         if let Some(info) = &self.camera_info {
             safe_cstr_to_string(info.camera_model_name.as_ptr(), 256)
