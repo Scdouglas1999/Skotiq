@@ -584,9 +584,17 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
               FormRow(
                 label: 'Search place',
                 help: 'Town or observatory by name',
-                child: PlaceSearchInput(search: _placeSearch),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    PlaceSearchInput(search: _placeSearch),
+                    PlaceSearchResults(
+                      search: _placeSearch,
+                      onPicked: _applyPlace,
+                    ),
+                  ],
+                ),
               ),
-              PlaceSearchResults(search: _placeSearch, onPicked: _applyPlace),
               const SizedBox(height: FormRow.rowGap),
               // One form, one label column: side by side, latitude and
               // longitude left a 42 px field on a phone.

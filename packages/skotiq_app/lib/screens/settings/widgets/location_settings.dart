@@ -94,6 +94,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   @override
   void initState() {
     super.initState();
+    _placeSearch.addListener(_onPlaceSearchChanged);
     for (final dir in horizonDirections) {
       _horizonControllers[dir] = TextEditingController();
     }
@@ -210,15 +211,18 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   controlFlex: 2,
                   isMobile: widget.isMobile,
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: SkotiqTokens.spaceLg,
+                // Only while there is something to show: the section draws a
+                // hairline between children, so an empty one doubled it.
+                if (_placeSearch.hasOutcome)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SkotiqTokens.spaceLg,
+                    ),
+                    child: PlaceSearchResults(
+                      search: _placeSearch,
+                      onPicked: _applyPlace,
+                    ),
                   ),
-                  child: PlaceSearchResults(
-                    search: _placeSearch,
-                    onPicked: _applyPlace,
-                  ),
-                ),
                 SettingRow(
                   // Keyed, with Longitude and Elevation below.
                   //
@@ -676,6 +680,10 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
             math.cos(toRad(lat2)) *
             math.pow(math.sin(dLon / 2), 2);
     return earthRadiusKm * 2 * math.asin(math.min(1.0, math.sqrt(a)));
+  }
+
+  void _onPlaceSearchChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _applyPlace(PlaceSearchHit hit) async {

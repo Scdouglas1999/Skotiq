@@ -78,4 +78,37 @@ void main() {
 
     expect(find.text('No places matched "Nowhere Flats".'), findsOneWidget);
   });
+
+  testWidgets('a search that cannot reach the service says so', (tester) async {
+    await pumpAppScreen(
+      tester,
+      const OnboardingSiteStep(),
+      size: const Size(1000, 1000),
+      extraOverrides: [
+        placeSearchProvider.overrideWithValue(
+          (query) async => throw const PlaceSearchUnavailable(
+            'Could not reach geocoding-api.open-meteo.com. Check the internet '
+            'connection, or enter the coordinates.',
+          ),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(PlaceSearchInput),
+        matching: find.byType(TextField),
+      ),
+      'Cherry Springs',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No places matched'), findsNothing);
+    expect(
+      find.textContaining('Could not reach geocoding-api.open-meteo.com'),
+      findsOneWidget,
+    );
+  });
 }

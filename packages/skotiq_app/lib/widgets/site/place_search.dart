@@ -23,6 +23,9 @@ class PlaceSearch extends ChangeNotifier {
   /// Why there are no [hits] to pick from, once a search has run.
   String? message;
 
+  /// True when the last search left something to show: places or a reason.
+  bool get hasOutcome => hits.isNotEmpty || message != null;
+
   Future<void> run(PlaceSearcher searcher) async {
     final text = query.text.trim();
     if (text.isEmpty || searching) return;
@@ -32,6 +35,9 @@ class PlaceSearch extends ChangeNotifier {
     try {
       hits = await searcher(text);
       message = hits.isEmpty ? 'No places matched "$text".' : null;
+    } on PlaceSearchUnavailable catch (error) {
+      hits = const [];
+      message = error.message;
     } catch (error) {
       hits = const [];
       message = 'Could not search for a place: ${userFacingError(error)}';
