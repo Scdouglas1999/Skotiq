@@ -4,7 +4,7 @@
 //! are safe for operation. This is typically used to check weather conditions,
 //! power status, or other safety-critical parameters.
 
-use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
+use crate::AlpacaError;
 
 /// Safety monitor status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -23,89 +23,16 @@ pub struct SafetyMonitorInfo {
     pub interface_version: i32,
 }
 
-/// Alpaca Safety Monitor client
-pub struct AlpacaSafetyMonitor {
-    client: AlpacaClient,
-}
+alpaca_device!(
+    /// Alpaca Safety Monitor client
+    AlpacaSafetyMonitor,
+    SafetyMonitor
+);
 
 impl AlpacaSafetyMonitor {
-    /// Create a new Alpaca safety monitor client
-    pub fn new(device: &AlpacaDevice) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::SafetyMonitor);
-        Self {
-            client: AlpacaClient::new(device),
-        }
-    }
-
-    /// Create from server details
-    pub fn from_server(base_url: &str, device_number: u32) -> Self {
-        let device =
-            AlpacaDevice::from_server(AlpacaDeviceType::SafetyMonitor, base_url, device_number);
-        Self::new(&device)
-    }
-
-    /// Get access to the underlying client
-    pub fn client(&self) -> &AlpacaClient {
-        &self.client
-    }
+    skotiq_device::ascom_safety_monitor_members!(alpaca_member);
 
     // ASCOM common methods, implemented by every device
-
-    /// Connect to the device
-    pub async fn connect(&self) -> Result<(), AlpacaError> {
-        self.client.connect().await
-    }
-
-    /// Disconnect from the device
-    pub async fn disconnect(&self) -> Result<(), AlpacaError> {
-        self.client.disconnect().await
-    }
-
-    /// Check if the device is connected
-    pub async fn is_connected(&self) -> Result<bool, AlpacaError> {
-        self.client.is_connected().await
-    }
-
-    /// Validate connection is alive (quick check with short timeout)
-    pub async fn validate_connection(&self) -> Result<bool, AlpacaError> {
-        self.client.validate_connection().await
-    }
-
-    /// Send heartbeat and get round-trip time in milliseconds
-    pub async fn heartbeat(&self) -> Result<u64, AlpacaError> {
-        self.client.heartbeat().await
-    }
-
-    /// Get the device name
-    pub async fn name(&self) -> Result<String, AlpacaError> {
-        self.client.get_name().await
-    }
-
-    /// Get the device description
-    pub async fn description(&self) -> Result<String, AlpacaError> {
-        self.client.get_description().await
-    }
-
-    /// Get the driver version
-    pub async fn driver_version(&self) -> Result<String, AlpacaError> {
-        self.client.get_driver_version().await
-    }
-
-    /// Get the driver info string
-    pub async fn driver_info(&self) -> Result<String, AlpacaError> {
-        self.client.get_driver_info().await
-    }
-
-    /// Get the interface version (typically 1, 2, or 3 for ISafetyMonitorV1, V2, V3)
-    pub async fn interface_version(&self) -> Result<i32, AlpacaError> {
-        self.client.get_interface_version().await
-    }
-
-    /// Get supported actions
-    /// Returns a list of action names supported by the Action method
-    pub async fn supported_actions(&self) -> Result<Vec<String>, AlpacaError> {
-        self.client.get_supported_actions().await
-    }
 
     /// Invoke a device-specific action
     ///
@@ -167,16 +94,6 @@ impl AlpacaSafetyMonitor {
             .await
     }
 
-    // Safety monitor specific methods
-
-    /// Indicates whether the monitored state is safe for use
-    ///
-    /// Returns true if conditions are safe, false otherwise.
-    /// This is the primary property for determining if observing can proceed.
-    pub async fn is_safe(&self) -> Result<bool, AlpacaError> {
-        self.client.get("issafe").await
-    }
-
     // Parallel status methods
 
     /// Get comprehensive safety monitor status in a single parallel query
@@ -216,8 +133,6 @@ impl AlpacaSafetyMonitor {
             interface_version: interface_version?,
         })
     }
-
-    // Utility methods
 }
 
 #[cfg(test)]

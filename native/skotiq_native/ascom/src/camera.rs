@@ -2,187 +2,23 @@
 
 use crate::com::ComDispatch;
 use crate::error::{AscomError, AscomResult};
-use crate::health::ConnectionHealth;
 
-/// ASCOM Camera
-/// ASCOM Camera (ICameraV*).
-///
-/// Thread-affinity invariant: `AscomCamera` must not cross threads after
-/// construction. Every method here ultimately calls a COM property/method on
-/// `IDispatch`, and COM apartment threading requires those calls to execute on
-/// the same STA thread that called `CoInitialize`. The bridge layer enforces
-/// this by parking the `AscomCamera` inside a dedicated STA worker thread (see
-/// `bridge/src/ascom_wrapper.rs`) and routing every operation through an mpsc
-/// channel. Use `AscomCameraWrapper` for any cross-thread access.
-pub struct Camera<D> {
-    pub(crate) device: D,
-}
-
-#[cfg(windows)]
-impl Camera<crate::windows::AscomDeviceConnection> {
-    pub fn new(prog_id: &str) -> AscomResult<Self> {
-        Ok(Self {
-            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
-        })
-    }
-}
+com_device!(
+    /// ASCOM Camera
+    /// ASCOM Camera (ICameraV*).
+    ///
+    /// Thread-affinity invariant: `AscomCamera` must not cross threads after
+    /// construction. Every method here ultimately calls a COM property/method on
+    /// `IDispatch`, and COM apartment threading requires those calls to execute on
+    /// the same STA thread that called `CoInitialize`. The bridge layer enforces
+    /// this by parking the `AscomCamera` inside a dedicated STA worker thread (see
+    /// `bridge/src/ascom_wrapper.rs`) and routing every operation through an mpsc
+    /// channel. Use `AscomCameraWrapper` for any cross-thread access.
+    Camera
+);
 
 impl<D: ComDispatch> Camera<D> {
-    /// Wrap a connection that already exists.
-    pub fn over(device: D) -> Self {
-        Self { device }
-    }
-
-    pub fn connect(&mut self) -> AscomResult<()> {
-        self.device.connect()
-    }
-
-    pub fn disconnect(&mut self) -> AscomResult<()> {
-        self.device.disconnect()
-    }
-
-    /// Show the ASCOM driver setup dialog to let the user choose the device/config
-    pub fn setup_dialog(&mut self) -> AscomResult<()> {
-        self.device.call("SetupDialog", &[])
-    }
-
-    pub fn name(&self) -> AscomResult<String> {
-        self.device.get("Name")
-    }
-
-    pub fn description(&self) -> AscomResult<String> {
-        self.device.get("Description")
-    }
-
-    /// Get the interface version number
-    pub fn interface_version(&self) -> AscomResult<i32> {
-        self.device.get("InterfaceVersion")
-    }
-
-    /// Get the driver version string
-    pub fn driver_version(&self) -> AscomResult<String> {
-        self.device.get("DriverVersion")
-    }
-
-    /// Get the driver info/description
-    pub fn driver_info(&self) -> AscomResult<String> {
-        self.device.get("DriverInfo")
-    }
-
-    /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
-        self.device.get("SupportedActions")
-    }
-
-    pub fn camera_x_size(&self) -> AscomResult<i32> {
-        self.device.get("CameraXSize")
-    }
-
-    pub fn camera_y_size(&self) -> AscomResult<i32> {
-        self.device.get("CameraYSize")
-    }
-
-    pub fn pixel_size_x(&self) -> AscomResult<f64> {
-        self.device.get("PixelSizeX")
-    }
-
-    pub fn pixel_size_y(&self) -> AscomResult<f64> {
-        self.device.get("PixelSizeY")
-    }
-
-    pub fn max_bin_x(&self) -> AscomResult<i32> {
-        self.device.get("MaxBinX")
-    }
-
-    pub fn max_bin_y(&self) -> AscomResult<i32> {
-        self.device.get("MaxBinY")
-    }
-
-    pub fn bin_x(&self) -> AscomResult<i32> {
-        self.device.get("BinX")
-    }
-
-    pub fn bin_y(&self) -> AscomResult<i32> {
-        self.device.get("BinY")
-    }
-
-    pub fn set_bin_x(&mut self, value: i32) -> AscomResult<()> {
-        self.device.put("BinX", value)
-    }
-
-    pub fn set_bin_y(&mut self, value: i32) -> AscomResult<()> {
-        self.device.put("BinY", value)
-    }
-
-    pub fn can_set_ccd_temperature(&self) -> AscomResult<bool> {
-        self.device.get("CanSetCCDTemperature")
-    }
-
-    pub fn ccd_temperature(&self) -> AscomResult<f64> {
-        self.device.get("CCDTemperature")
-    }
-
-    pub fn set_ccd_temperature(&mut self, temp: f64) -> AscomResult<()> {
-        self.device.put("SetCCDTemperature", temp)
-    }
-
-    pub fn cooler_on(&self) -> AscomResult<bool> {
-        self.device.get("CoolerOn")
-    }
-
-    pub fn set_cooler_on(&mut self, on: bool) -> AscomResult<()> {
-        self.device.put("CoolerOn", on)
-    }
-
-    pub fn cooler_power(&self) -> AscomResult<f64> {
-        self.device.get("CoolerPower")
-    }
-
-    pub fn gain(&self) -> AscomResult<i32> {
-        self.device.get("Gain")
-    }
-
-    pub fn set_gain(&mut self, gain: i32) -> AscomResult<()> {
-        self.device.put("Gain", gain)
-    }
-
-    pub fn offset(&self) -> AscomResult<i32> {
-        self.device.get("Offset")
-    }
-
-    pub fn set_offset(&mut self, offset: i32) -> AscomResult<()> {
-        self.device.put("Offset", offset)
-    }
-
-    pub fn camera_state(&self) -> AscomResult<i32> {
-        self.device.get("CameraState")
-    }
-
-    pub fn image_ready(&self) -> AscomResult<bool> {
-        self.device.get("ImageReady")
-    }
-
-    /// ASCOM `PercentCompleted` (0..100). Per the ICameraV3 spec the property
-    /// is only valid while CameraState is in {Exposing, Reading, Downloading};
-    /// drivers may raise `InvalidOperationException` outside that window.
-    /// Callers should treat any error as "not currently reporting" rather than
-    /// a hard failure.
-    pub fn percent_completed(&self) -> AscomResult<i32> {
-        self.device.get("PercentCompleted")
-    }
-
-    pub fn start_exposure(&mut self, duration: f64, light: bool) -> AscomResult<()> {
-        self.device
-            .call("StartExposure", &[duration.into(), light.into()])
-    }
-
-    pub fn abort_exposure(&mut self) -> AscomResult<()> {
-        self.device.call("AbortExposure", &[])
-    }
-
-    pub fn stop_exposure(&mut self) -> AscomResult<()> {
-        self.device.call("StopExposure", &[])
-    }
+    skotiq_device::ascom_camera_members!(com_member);
 
     /// Get the image array from the camera
     /// Returns (pixel_data, dim1_size, dim2_size)
@@ -200,81 +36,6 @@ impl<D: ComDispatch> Camera<D> {
             } => AscomError::ImageArray(detail),
             other => other,
         })
-    }
-
-    pub fn readout_modes(&self) -> AscomResult<Vec<String>> {
-        self.device.get("ReadoutModes")
-    }
-
-    pub fn set_readout_mode(&mut self, mode: i32) -> AscomResult<()> {
-        self.device.put("ReadoutMode", mode)
-    }
-
-    pub fn sensor_type(&self) -> AscomResult<i32> {
-        self.device.get("SensorType")
-    }
-
-    pub fn bayer_offset_x(&self) -> AscomResult<i32> {
-        self.device.get("BayerOffsetX")
-    }
-
-    pub fn bayer_offset_y(&self) -> AscomResult<i32> {
-        self.device.get("BayerOffsetY")
-    }
-
-    pub fn start_x(&self) -> AscomResult<i32> {
-        self.device.get("StartX")
-    }
-
-    pub fn start_y(&self) -> AscomResult<i32> {
-        self.device.get("StartY")
-    }
-
-    pub fn num_x(&self) -> AscomResult<i32> {
-        self.device.get("NumX")
-    }
-
-    pub fn num_y(&self) -> AscomResult<i32> {
-        self.device.get("NumY")
-    }
-
-    pub fn set_start_x(&mut self, value: i32) -> AscomResult<()> {
-        self.device.put("StartX", value)
-    }
-
-    pub fn set_start_y(&mut self, value: i32) -> AscomResult<()> {
-        self.device.put("StartY", value)
-    }
-
-    pub fn set_num_x(&mut self, value: i32) -> AscomResult<()> {
-        self.device.put("NumX", value)
-    }
-
-    pub fn set_num_y(&mut self, value: i32) -> AscomResult<()> {
-        self.device.put("NumY", value)
-    }
-
-    pub fn can_abort_exposure(&self) -> AscomResult<bool> {
-        self.device.get("CanAbortExposure")
-    }
-
-    pub fn can_stop_exposure(&self) -> AscomResult<bool> {
-        self.device.get("CanStopExposure")
-    }
-
-    /// Check if camera has a mechanical shutter
-    pub fn has_shutter(&self) -> AscomResult<bool> {
-        self.device.get("HasShutter")
-    }
-
-    /// Get the sensor name
-    pub fn sensor_name(&self) -> AscomResult<String> {
-        self.device.get("SensorName")
-    }
-
-    /// Get the maximum ADU value (determines bit depth)
-    pub fn max_adu(&self) -> AscomResult<i32> {
-        self.device.get("MaxADU")
     }
 
     // Batch property queries
@@ -336,16 +97,6 @@ impl<D: ComDispatch> Camera<D> {
             thermal: self.get_thermal_status(),
             exposure_settings: self.get_exposure_settings(),
         }
-    }
-
-    /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> AscomResult<()> {
-        self.device.heartbeat()
-    }
-
-    /// Get connection health status
-    pub fn get_health(&self) -> ConnectionHealth {
-        self.device.health()
     }
 }
 

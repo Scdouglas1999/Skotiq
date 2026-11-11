@@ -231,7 +231,7 @@ AscomRotator::reverse() | get Reverse() -> BOOL | Failed to get property Reverse
 AscomRotator::set_reverse(true) | put Reverse(BOOL true) -> void | Failed to set property Reverse: {cause} | -
 AscomRotator::target_position() | get TargetPosition() -> R8 | Failed to get property TargetPosition: {cause} | Property TargetPosition is not a double
 AscomRotator::step_size() | get StepSize() -> R8 | Failed to get property StepSize: {cause} | Property StepSize is not a double
-AscomRotator::move_to(1.5) | method Move(R8 1.5) -> void | Failed to call method Move: {cause} | -
+AscomRotator::move_relative(1.5) | method Move(R8 1.5) -> void | Failed to call method Move: {cause} | -
 AscomRotator::move_absolute(1.5) | method MoveAbsolute(R8 1.5) -> void | Failed to call method MoveAbsolute: {cause} | -
 AscomRotator::halt() | method Halt() -> void | Failed to call method Halt: {cause} | -
 AscomRotator::sync(1.5) | method Sync(R8 1.5) -> void | Failed to call method Sync: {cause} | -

@@ -440,7 +440,7 @@ fn member_lines() -> Vec<String> {
         row!("set_reverse(true)", d.set_reverse(true));
         row!("target_position()", d.target_position());
         row!("step_size()", d.step_size());
-        row!("move_to(1.5)", d.move_to(1.5));
+        row!("move_relative(1.5)", d.move_relative(1.5));
         row!("move_absolute(1.5)", d.move_absolute(1.5));
         row!("halt()", d.halt());
         row!("sync(1.5)", d.sync(1.5));

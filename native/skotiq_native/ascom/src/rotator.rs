@@ -4,124 +4,13 @@ use crate::com::ComDispatch;
 use crate::error::AscomResult;
 use crate::health::ConnectionHealth;
 
-/// ASCOM Rotator
-pub struct Rotator<D> {
-    pub(crate) device: D,
-}
-
-#[cfg(windows)]
-impl Rotator<crate::windows::AscomDeviceConnection> {
-    pub fn new(prog_id: &str) -> AscomResult<Self> {
-        Ok(Self {
-            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
-        })
-    }
-}
+com_device!(
+    /// ASCOM Rotator
+    Rotator
+);
 
 impl<D: ComDispatch> Rotator<D> {
-    /// Wrap a connection that already exists.
-    pub fn over(device: D) -> Self {
-        Self { device }
-    }
-
-    pub fn connect(&mut self) -> AscomResult<()> {
-        self.device.connect()
-    }
-
-    pub fn disconnect(&mut self) -> AscomResult<()> {
-        self.device.disconnect()
-    }
-
-    /// Query the underlying ASCOM driver for its current `Connected` state.
-    ///
-    /// Used by capability probes that must NOT kick an active UI connection:
-    /// if the driver reports `Ok(true)`, the probe reuses the connection
-    /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> AscomResult<bool> {
-        self.device.get("Connected")
-    }
-
-    pub fn name(&self) -> AscomResult<String> {
-        self.device.get("Name")
-    }
-
-    /// Get the interface version number
-    pub fn interface_version(&self) -> AscomResult<i32> {
-        self.device.get("InterfaceVersion")
-    }
-
-    /// Get the driver version string
-    pub fn driver_version(&self) -> AscomResult<String> {
-        self.device.get("DriverVersion")
-    }
-
-    /// Get the driver info/description
-    pub fn driver_info(&self) -> AscomResult<String> {
-        self.device.get("DriverInfo")
-    }
-
-    /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
-        self.device.get("SupportedActions")
-    }
-
-    pub fn position(&self) -> AscomResult<f64> {
-        self.device.get("Position")
-    }
-
-    pub fn mechanical_position(&self) -> AscomResult<f64> {
-        self.device.get("MechanicalPosition")
-    }
-
-    pub fn is_moving(&self) -> AscomResult<bool> {
-        self.device.get("IsMoving")
-    }
-
-    /// Whether the rotator can reverse direction (IRotatorV3 `CanReverse`).
-    pub fn can_reverse(&self) -> AscomResult<bool> {
-        self.device.get("CanReverse")
-    }
-
-    /// Current reverse setting (IRotatorV3 `Reverse`).
-    pub fn reverse(&self) -> AscomResult<bool> {
-        self.device.get("Reverse")
-    }
-
-    /// Set reverse direction (IRotatorV3 `Reverse` write).
-    pub fn set_reverse(&mut self, reverse: bool) -> AscomResult<()> {
-        self.device.put("Reverse", reverse)
-    }
-
-    /// Target position in degrees (IRotatorV3 `TargetPosition`).
-    pub fn target_position(&self) -> AscomResult<f64> {
-        self.device.get("TargetPosition")
-    }
-
-    /// Minimum step size in degrees (IRotatorV3 `StepSize`).
-    pub fn step_size(&self) -> AscomResult<f64> {
-        self.device.get("StepSize")
-    }
-
-    pub fn move_to(&mut self, position: f64) -> AscomResult<()> {
-        self.device.call("Move", &[position.into()])
-    }
-
-    pub fn move_absolute(&mut self, position: f64) -> AscomResult<()> {
-        self.device.call("MoveAbsolute", &[position.into()])
-    }
-
-    pub fn halt(&mut self) -> AscomResult<()> {
-        self.device.call("Halt", &[])
-    }
-
-    /// Sync the reported position to the supplied angle without rotating the
-    /// hardware. Why a thin wrapper: ASCOM IRotatorV3 exposes `Sync(Position)`
-    /// which adjusts the offset between the mechanical encoder and the
-    /// reported sky angle — the same primitive plate-solve "sync to image PA"
-    /// needs.
-    pub fn sync(&mut self, position: f64) -> AscomResult<()> {
-        self.device.call("Sync", &[position.into()])
-    }
+    skotiq_device::ascom_rotator_members!(com_member);
 
     // Batch property queries
 
@@ -137,16 +26,6 @@ impl<D: ComDispatch> Rotator<D> {
             can_reverse: self.can_reverse().ok(),
             reverse: self.reverse().ok(),
         }
-    }
-
-    /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> AscomResult<()> {
-        self.device.heartbeat()
-    }
-
-    /// Get connection health status
-    pub fn get_health(&self) -> ConnectionHealth {
-        self.device.health()
     }
 }
 

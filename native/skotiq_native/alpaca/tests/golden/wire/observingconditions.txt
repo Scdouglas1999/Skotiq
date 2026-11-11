@@ -808,89 +808,89 @@
 = Ok(())
 
 ## observingconditions.time_since_last_update [ok]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Ok(1.5)
 
 ## observingconditions.time_since_last_update [ascom 0x400]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1024: Property or method is not implemented)
 
 ## observingconditions.time_since_last_update [ascom 0x4FF without Value]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
 
 ## observingconditions.time_since_last_update [http 400]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(HTTP error 400: Method not implemented)
 
 ## observingconditions.time_since_last_update [http 500]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
 
 ## observingconditions.time_since_last_update [malformed json]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## observingconditions.time_since_last_update [ascom 0x401]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1025: Invalid value)
 
 ## observingconditions.time_since_last_update [ascom 0x402]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1026: Value not set)
 
 ## observingconditions.time_since_last_update [ascom 0x407]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1031: Not connected)
 
 ## observingconditions.time_since_last_update [ascom 0x408]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1032: Invalid while parked)
 
 ## observingconditions.time_since_last_update [ascom 0x409]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1033: Invalid while slaved)
 
 ## observingconditions.time_since_last_update [ascom 0x40B]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1035: Invalid operation)
 
 ## observingconditions.time_since_last_update [ascom 0x40C without Value]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
 
 ## observingconditions.time_since_last_update [ascom 0x500]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(Device error 1280: Driver specific error)
 
 ## observingconditions.time_since_last_update [http 404]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
 = Err(HTTP error 404: Not Found)
 
 ## observingconditions.time_since_last_update [http 429 retry-after 0]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
 
 ## observingconditions.time_since_last_update [http 503]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
 
 ## observingconditions.time_since_last_update [wrong value type]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=0&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=1&SensorName=Temperature?ClientID=<id>]
-> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientTransactionID=2&SensorName=Temperature?ClientID=<id>]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=0&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
+> GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
 
 ## observingconditions.refresh [ok]

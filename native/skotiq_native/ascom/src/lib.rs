@@ -10,6 +10,9 @@ mod windows;
 // The device wrappers and what a COM call consists of are not gated: they
 // reach the driver only through `com::ComDispatch`, so the tests drive them
 // with a recording stand-in on any host. Only `windows` talks to COM.
+#[macro_use]
+mod members;
+
 mod camera;
 pub mod com;
 mod cover_calibrator;

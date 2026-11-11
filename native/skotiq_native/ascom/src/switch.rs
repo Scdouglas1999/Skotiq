@@ -4,111 +4,13 @@ use crate::com::ComDispatch;
 use crate::error::AscomResult;
 use crate::health::ConnectionHealth;
 
-/// ASCOM Switch
-pub struct Switch<D> {
-    pub(crate) device: D,
-}
-
-#[cfg(windows)]
-impl Switch<crate::windows::AscomDeviceConnection> {
-    pub fn new(prog_id: &str) -> AscomResult<Self> {
-        Ok(Self {
-            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
-        })
-    }
-}
+com_device!(
+    /// ASCOM Switch
+    Switch
+);
 
 impl<D: ComDispatch> Switch<D> {
-    /// Wrap a connection that already exists.
-    pub fn over(device: D) -> Self {
-        Self { device }
-    }
-
-    pub fn connect(&mut self) -> AscomResult<()> {
-        self.device.connect()
-    }
-
-    pub fn disconnect(&mut self) -> AscomResult<()> {
-        self.device.disconnect()
-    }
-
-    /// Query the underlying ASCOM driver for its current `Connected` state.
-    ///
-    /// Used by capability probes that must NOT kick an active UI connection:
-    /// if the driver reports `Ok(true)`, the probe reuses the connection
-    /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> AscomResult<bool> {
-        self.device.get("Connected")
-    }
-
-    pub fn name(&self) -> AscomResult<String> {
-        self.device.get("Name")
-    }
-
-    /// Get the interface version number
-    pub fn interface_version(&self) -> AscomResult<i32> {
-        self.device.get("InterfaceVersion")
-    }
-
-    /// Get the driver version string
-    pub fn driver_version(&self) -> AscomResult<String> {
-        self.device.get("DriverVersion")
-    }
-
-    /// Get the driver info/description
-    pub fn driver_info(&self) -> AscomResult<String> {
-        self.device.get("DriverInfo")
-    }
-
-    /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
-        self.device.get("SupportedActions")
-    }
-
-    pub fn max_switch(&self) -> AscomResult<i32> {
-        self.device.get("MaxSwitch")
-    }
-
-    pub fn get_switch(&self, id: i32) -> AscomResult<bool> {
-        self.device.call("GetSwitch", &[id.into()])
-    }
-
-    pub fn set_switch(&mut self, id: i32, state: bool) -> AscomResult<()> {
-        self.device.call("SetSwitch", &[id.into(), state.into()])
-    }
-
-    pub fn get_switch_name(&self, id: i32) -> AscomResult<String> {
-        self.device.call("GetSwitchName", &[id.into()])
-    }
-
-    pub fn get_switch_description(&self, id: i32) -> AscomResult<String> {
-        self.device.call("GetSwitchDescription", &[id.into()])
-    }
-
-    pub fn get_switch_value(&self, id: i32) -> AscomResult<f64> {
-        self.device.call("GetSwitchValue", &[id.into()])
-    }
-
-    pub fn set_switch_value(&mut self, id: i32, value: f64) -> AscomResult<()> {
-        self.device
-            .call("SetSwitchValue", &[id.into(), value.into()])
-    }
-
-    pub fn min_switch_value(&self, id: i32) -> AscomResult<f64> {
-        self.device.call("MinSwitchValue", &[id.into()])
-    }
-
-    pub fn max_switch_value(&self, id: i32) -> AscomResult<f64> {
-        self.device.call("MaxSwitchValue", &[id.into()])
-    }
-
-    pub fn switch_step(&self, id: i32) -> AscomResult<f64> {
-        self.device.call("SwitchStep", &[id.into()])
-    }
-
-    pub fn can_write(&self, id: i32) -> AscomResult<bool> {
-        self.device.call("CanWrite", &[id.into()])
-    }
+    skotiq_device::ascom_switch_members!(com_member);
 
     // Batch property queries
 
@@ -135,16 +37,6 @@ impl<D: ComDispatch> Switch<D> {
             max_switch,
             channels,
         }
-    }
-
-    /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> AscomResult<()> {
-        self.device.heartbeat()
-    }
-
-    /// Get connection health status
-    pub fn get_health(&self) -> ConnectionHealth {
-        self.device.health()
     }
 }
 

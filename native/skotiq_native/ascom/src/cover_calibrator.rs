@@ -1,109 +1,14 @@
 //! ASCOM Cover Calibrator wrapper and batch status types.
 
 use crate::com::ComDispatch;
-use crate::error::AscomResult;
-use crate::health::ConnectionHealth;
 
-/// ASCOM Cover Calibrator
-pub struct CoverCalibrator<D> {
-    pub(crate) device: D,
-}
-
-#[cfg(windows)]
-impl CoverCalibrator<crate::windows::AscomDeviceConnection> {
-    pub fn new(prog_id: &str) -> AscomResult<Self> {
-        Ok(Self {
-            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
-        })
-    }
-}
+com_device!(
+    /// ASCOM Cover Calibrator
+    CoverCalibrator
+);
 
 impl<D: ComDispatch> CoverCalibrator<D> {
-    /// Wrap a connection that already exists.
-    pub fn over(device: D) -> Self {
-        Self { device }
-    }
-
-    pub fn connect(&mut self) -> AscomResult<()> {
-        self.device.connect()
-    }
-
-    pub fn disconnect(&mut self) -> AscomResult<()> {
-        self.device.disconnect()
-    }
-
-    /// Query the underlying ASCOM driver for its current `Connected` state.
-    ///
-    /// Used by capability probes that must NOT kick an active UI connection:
-    /// if the driver reports `Ok(true)`, the probe reuses the connection
-    /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> AscomResult<bool> {
-        self.device.get("Connected")
-    }
-
-    pub fn name(&self) -> AscomResult<String> {
-        self.device.get("Name")
-    }
-
-    /// Get the interface version number
-    pub fn interface_version(&self) -> AscomResult<i32> {
-        self.device.get("InterfaceVersion")
-    }
-
-    /// Get the driver version string
-    pub fn driver_version(&self) -> AscomResult<String> {
-        self.device.get("DriverVersion")
-    }
-
-    /// Get the driver info/description
-    pub fn driver_info(&self) -> AscomResult<String> {
-        self.device.get("DriverInfo")
-    }
-
-    /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
-        self.device.get("SupportedActions")
-    }
-
-    pub fn cover_state(&self) -> AscomResult<i32> {
-        self.device.get("CoverState")
-    }
-
-    pub fn calibrator_state(&self) -> AscomResult<i32> {
-        self.device.get("CalibratorState")
-    }
-
-    pub fn brightness(&self) -> AscomResult<i32> {
-        self.device.get("Brightness")
-    }
-
-    pub fn set_brightness(&mut self, brightness: i32) -> AscomResult<()> {
-        self.device.put("Brightness", brightness)
-    }
-
-    pub fn max_brightness(&self) -> AscomResult<i32> {
-        self.device.get("MaxBrightness")
-    }
-
-    pub fn open_cover(&mut self) -> AscomResult<()> {
-        self.device.call("OpenCover", &[])
-    }
-
-    pub fn close_cover(&mut self) -> AscomResult<()> {
-        self.device.call("CloseCover", &[])
-    }
-
-    pub fn halt_cover(&mut self) -> AscomResult<()> {
-        self.device.call("HaltCover", &[])
-    }
-
-    pub fn calibrator_on(&mut self, brightness: i32) -> AscomResult<()> {
-        self.device.call("CalibratorOn", &[brightness.into()])
-    }
-
-    pub fn calibrator_off(&mut self) -> AscomResult<()> {
-        self.device.call("CalibratorOff", &[])
-    }
+    skotiq_device::ascom_cover_calibrator_members!(com_member);
 
     // Batch property queries
 
@@ -115,16 +20,6 @@ impl<D: ComDispatch> CoverCalibrator<D> {
             brightness: self.brightness().ok(),
             max_brightness: self.max_brightness().ok(),
         }
-    }
-
-    /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> AscomResult<()> {
-        self.device.heartbeat()
-    }
-
-    /// Get connection health status
-    pub fn get_health(&self) -> ConnectionHealth {
-        self.device.health()
     }
 }
 

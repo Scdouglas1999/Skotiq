@@ -80,6 +80,17 @@ pub struct ApiVersionsResponse {
     pub value: Vec<u32>,
 }
 
+/// How long a PUT may take before the client gives up.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PutWait {
+    /// `TimeoutConfig::standard_operation_ms`, retried on transient failures.
+    Standard,
+    /// `TimeoutConfig::long_operation_ms`, sent once.
+    Long,
+    /// `TimeoutConfig::very_long_operation_ms`, sent once.
+    VeryLong,
+}
+
 /// Alpaca client for communicating with a device
 pub struct AlpacaClient {
     http_client: Option<Client>,
@@ -198,41 +209,24 @@ impl AlpacaClient {
     /// Why: exposed `pub(crate)` so the camera image-download path can build
     /// the same canonical URL when issuing a request directly against the
     /// pooled HTTP client.
-    pub(crate) fn build_url(&self, endpoint: &str) -> String {
+    ///
+    /// `member` is the ASCOM member name in any case: Alpaca paths are the
+    /// member name in lower case.
+    pub(crate) fn build_url(&self, member: &str) -> String {
         format!(
             "{}/api/{}/{}/{}/{}",
             self.base_url,
             self.api_version.as_str(),
             self.device_type.as_str(),
             self.device_number,
-            endpoint
+            member.to_ascii_lowercase()
         )
-    }
-
-    /// Create a client with a specific timeout for long operations
-    fn create_long_timeout_client(&self) -> Result<Client, AlpacaError> {
-        Client::builder()
-            .timeout(Duration::from_millis(self.timeout_config.long_operation_ms))
-            .connect_timeout(Duration::from_millis(self.timeout_config.connect_ms))
-            .build()
-            .map_err(|e| AlpacaError::RequestFailed(e.to_string()))
     }
 
     /// Create a client with a specific timeout for quick queries
     fn create_quick_timeout_client(&self) -> Result<Client, AlpacaError> {
         Client::builder()
             .timeout(Duration::from_millis(self.timeout_config.quick_query_ms))
-            .connect_timeout(Duration::from_millis(self.timeout_config.connect_ms))
-            .build()
-            .map_err(|e| AlpacaError::RequestFailed(e.to_string()))
-    }
-
-    /// Create a client with a specific timeout for very long operations
-    fn create_very_long_timeout_client(&self) -> Result<Client, AlpacaError> {
-        Client::builder()
-            .timeout(Duration::from_millis(
-                self.timeout_config.very_long_operation_ms,
-            ))
             .connect_timeout(Duration::from_millis(self.timeout_config.connect_ms))
             .build()
             .map_err(|e| AlpacaError::RequestFailed(e.to_string()))
@@ -475,14 +469,27 @@ impl AlpacaClient {
         Ok(alpaca_response.value)
     }
 
-    /// Make a long-running PUT request with extended timeout
-    /// Use for operations like slewing, parking, and shutter control
-    pub async fn put_long<T: DeserializeOwned + 'static>(
+    /// Make a PUT request, waiting as long as `wait` allows.
+    ///
+    /// A standard request is retried on transient failures. A long or very
+    /// long one (slewing, parking, shutter and dome moves) is sent once: the
+    /// device may already be moving when a reply is lost.
+    pub async fn put_with<T: DeserializeOwned + 'static>(
         &self,
         endpoint: &str,
         params: &[(&str, &str)],
+        wait: PutWait,
     ) -> Result<T, AlpacaError> {
-        let client = self.create_long_timeout_client()?;
+        let timeout_ms = match wait {
+            PutWait::Standard => return self.put(endpoint, params).await,
+            PutWait::Long => self.timeout_config.long_operation_ms,
+            PutWait::VeryLong => self.timeout_config.very_long_operation_ms,
+        };
+        let client = Client::builder()
+            .timeout(Duration::from_millis(timeout_ms))
+            .connect_timeout(Duration::from_millis(self.timeout_config.connect_ms))
+            .build()
+            .map_err(|e| AlpacaError::RequestFailed(e.to_string()))?;
         let (client_id, transaction_id) = self.client_transaction();
         let url = self.build_url(endpoint);
 
@@ -502,54 +509,7 @@ impl AlpacaClient {
             .await
             .map_err(|e| {
                 if e.is_timeout() {
-                    AlpacaError::timeout(endpoint, self.timeout_config.long_operation_ms)
-                } else {
-                    e.into()
-                }
-            })?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let retry_after = parse_retry_after_header(response.headers());
-            let body = response.text().await?;
-            return Err(AlpacaError::HttpError {
-                status: status.as_u16(),
-                message: body,
-                retry_after,
-            });
-        }
-
-        decode_put_response::<T>(response.json().await?)
-    }
-
-    /// Make a very long-running PUT request with extended timeout
-    /// Use for operations like full dome rotation, image downloads, etc.
-    pub async fn put_very_long<T: DeserializeOwned + 'static>(
-        &self,
-        endpoint: &str,
-        params: &[(&str, &str)],
-    ) -> Result<T, AlpacaError> {
-        let client = self.create_very_long_timeout_client()?;
-        let (client_id, transaction_id) = self.client_transaction();
-        let url = self.build_url(endpoint);
-
-        let mut form_params: Vec<(&str, String)> = vec![
-            ("ClientID", client_id.to_string()),
-            ("ClientTransactionID", transaction_id.to_string()),
-        ];
-
-        for (key, value) in params {
-            form_params.push((key, value.to_string()));
-        }
-
-        let response = client
-            .put(&url)
-            .form(&form_params)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    AlpacaError::timeout(endpoint, self.timeout_config.very_long_operation_ms)
+                    AlpacaError::timeout(endpoint.to_ascii_lowercase(), timeout_ms)
                 } else {
                     e.into()
                 }

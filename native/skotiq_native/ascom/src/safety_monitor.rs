@@ -4,86 +4,19 @@ use crate::com::ComDispatch;
 use crate::error::AscomResult;
 use crate::health::ConnectionHealth;
 
-/// ASCOM Safety Monitor
-pub struct SafetyMonitor<D> {
-    pub(crate) device: D,
-}
-
-#[cfg(windows)]
-impl SafetyMonitor<crate::windows::AscomDeviceConnection> {
-    pub fn new(prog_id: &str) -> AscomResult<Self> {
-        Ok(Self {
-            device: crate::windows::AscomDeviceConnection::new(prog_id)?,
-        })
-    }
-}
+com_device!(
+    /// ASCOM Safety Monitor
+    SafetyMonitor
+);
 
 impl<D: ComDispatch> SafetyMonitor<D> {
-    /// Wrap a connection that already exists.
-    pub fn over(device: D) -> Self {
-        Self { device }
-    }
-
-    pub fn connect(&mut self) -> AscomResult<()> {
-        self.device.connect()
-    }
-
-    pub fn disconnect(&mut self) -> AscomResult<()> {
-        self.device.disconnect()
-    }
-
-    /// Query the underlying ASCOM driver for its current `Connected` state.
-    ///
-    /// Used by capability probes that must NOT kick an active UI connection:
-    /// if the driver reports `Ok(true)`, the probe reuses the connection
-    /// instead of opening/closing its own session.
-    pub fn is_connected(&self) -> AscomResult<bool> {
-        self.device.get("Connected")
-    }
-
-    pub fn name(&self) -> AscomResult<String> {
-        self.device.get("Name")
-    }
-
-    /// Get the interface version number
-    pub fn interface_version(&self) -> AscomResult<i32> {
-        self.device.get("InterfaceVersion")
-    }
-
-    /// Get the driver version string
-    pub fn driver_version(&self) -> AscomResult<String> {
-        self.device.get("DriverVersion")
-    }
-
-    /// Get the driver info/description
-    pub fn driver_info(&self) -> AscomResult<String> {
-        self.device.get("DriverInfo")
-    }
-
-    /// Get the list of supported custom actions
-    pub fn supported_actions(&self) -> AscomResult<Vec<String>> {
-        self.device.get("SupportedActions")
-    }
-
-    pub fn is_safe(&self) -> AscomResult<bool> {
-        self.device.get("IsSafe")
-    }
+    skotiq_device::ascom_safety_monitor_members!(com_member);
 
     // Batch property queries
 
     /// Get complete safety monitor status in a single batch operation
     pub fn get_full_status(&self) -> AscomResult<SafetyMonitorFullStatus> {
         SafetyMonitorFullStatus::from_is_safe_result(self.is_safe())
-    }
-
-    /// Perform a heartbeat check to verify device is still responding
-    pub fn heartbeat(&self) -> AscomResult<()> {
-        self.device.heartbeat()
-    }
-
-    /// Get connection health status
-    pub fn get_health(&self) -> ConnectionHealth {
-        self.device.health()
     }
 }
 
