@@ -1,4 +1,3 @@
-import 'widgets/linked_pending_start_listener.dart';
 import 'widgets/mount/mount_site_reconciliation_card.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
@@ -200,7 +199,6 @@ class StartupPrompts extends StatelessWidget {
     (child) => EquipmentOnboardingLauncher(child: child),
     (child) => YourSkyOffNoticeChecker(child: child),
     (child) => MountSiteReconciliationListener(child: child),
-    (child) => LinkedPendingStartListener(child: child),
     (child) => AutoIntegrationLauncher(child: child),
   ];
 

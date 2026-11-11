@@ -12,7 +12,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/preflight_validation_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/mount_command_service.dart';
+import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import '../../harness/pump_app_screen.dart' show TestBackendNotifier;
+import '../night_control/panel/scope_panel_test_support.dart'
+    show PanelMountNotifier, RecordingMountCommands, kTrackingMount;
+
+class _FailingUnpark extends RecordingMountCommands {
+  _FailingUnpark(super.ref);
+
+  @override
+  Future<CommandActionResult> unpark() async {
+    calls.add('unpark');
+    return const CommandActionResult.failure('The mount reported a fault');
+  }
+}
 
 class _FakeValidator implements SequenceValidatorService {
   _FakeValidator(this._result);
@@ -487,5 +503,106 @@ void main() {
       reason: 'a blocked primary that still offers a tap action reads as live',
     );
     handle.dispose();
+  });
+
+  group('a parked mount', () {
+    const parked = MountState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'mount-1',
+      isParked: true,
+    );
+
+    Future<({ProviderContainer container, List<String> started})> pumpParked(
+      WidgetTester tester, {
+      bool failUnpark = false,
+      MountState mount = parked,
+    }) async {
+      final started = <String>[];
+      final container = ProviderContainer(overrides: [
+        inMemoryDatabaseOverride(),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, mockBackend()),
+        ),
+        currentSequenceProvider.overrideWith(
+          (ref) => _SeedingNotifier(ref, _sequence()),
+        ),
+        sequenceValidatorProvider.overrideWith(
+          (ref) => _FakeValidator(_result(const [])),
+        ),
+        appSettingsProvider.overrideWith(
+          () => _FakeAppSettingsNotifier(
+            const AppSettingsState(
+              latitude: 40,
+              longitude: -75,
+              sessionHandoffAutoPrompt: false,
+            ),
+          ),
+        ),
+        mountStateProvider.overrideWith(
+          (ref) => PanelMountNotifier(ref, mount),
+        ),
+        mountCommandServiceProvider.overrideWith(
+          (ref) =>
+              failUnpark ? _FailingUnpark(ref) : RecordingMountCommands(ref),
+        ),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          PreFlightValidationDialog(
+            onStartSequence: () => started.add('start'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return (container: container, started: started);
+    }
+
+    List<String> mountCalls(ProviderContainer container) =>
+        (container.read(mountCommandServiceProvider) as RecordingMountCommands)
+            .calls;
+
+    testWidgets('is listed in the check, and Start unparks it, then starts',
+        (tester) async {
+      final h = await pumpParked(tester);
+      expect(find.textContaining('The mount is parked'), findsOneWidget);
+
+      await tester.tap(
+        find.textContaining(RegExp(r'^Start (sequence|anyway)$')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(mountCalls(h.container), <String>['unpark']);
+      expect(h.started, <String>['start']);
+      // No second gate: the countdown dialog is gone.
+      expect(find.text('Unpark now'), findsNothing);
+    });
+
+    testWidgets('a failed unpark starts nothing and says why in the check',
+        (tester) async {
+      final h = await pumpParked(tester, failUnpark: true);
+      await tester.tap(
+        find.textContaining(RegExp(r'^Start (sequence|anyway)$')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(mountCalls(h.container), <String>['unpark']);
+      expect(h.started, isEmpty);
+      expect(find.textContaining('The run did not start'), findsOneWidget);
+      expect(find.textContaining('The mount reported a fault'), findsOneWidget);
+    });
+
+    testWidgets('an unparked mount is not mentioned and not commanded',
+        (tester) async {
+      final h = await pumpParked(tester, mount: kTrackingMount);
+      expect(find.textContaining('The mount is parked'), findsNothing);
+      await tester.tap(
+        find.textContaining(RegExp(r'^Start (sequence|anyway)$')),
+      );
+      await tester.pumpAndSettle();
+      expect(mountCalls(h.container), isEmpty);
+      expect(h.started, <String>['start']);
+    });
   });
 }
