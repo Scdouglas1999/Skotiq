@@ -628,6 +628,12 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActSubTracking': 'tracking',
     'nightActHint': 'Each button opens its tab · actions pause the run',
     'nightActOpensTab': 'Opens the {tab} tab',
+    'nightKeysTitle': 'Keys: {keys}',
+    'nightKeySnapshot': 'snapshot',
+    'nightKeyLoop': 'loop',
+    'nightKeyAutofocus': 'autofocus',
+    'nightKeyPause': 'pause or resume the run',
+    'nightKeyTabs': 'panel tabs',
     'nightActWhyNoHost': 'Not connected to the host that runs the rig',
     'nightActWhyBusy': 'Another action is running',
     'nightActWhyRunSettling':
@@ -2228,6 +2234,12 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActHint':
         'Cada botón abre su pestaña · las acciones pausan la sesión',
     'nightActOpensTab': 'Abre la pestaña {tab}',
+    'nightKeysTitle': 'Teclas: {keys}',
+    'nightKeySnapshot': 'instantánea',
+    'nightKeyLoop': 'bucle',
+    'nightKeyAutofocus': 'autoenfoque',
+    'nightKeyPause': 'pausar o reanudar la sesión',
+    'nightKeyTabs': 'pestañas del panel',
     'nightActWhyNoHost': 'Sin conexión con el equipo que controla el montaje',
     'nightActWhyBusy': 'Hay otra acción en curso',
     'nightActWhyRunSettling':

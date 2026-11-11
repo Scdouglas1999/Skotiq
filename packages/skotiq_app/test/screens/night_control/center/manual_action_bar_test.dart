@@ -157,7 +157,9 @@ void main() {
       find.byWidgetPredicate(
         (w) =>
             w is Tooltip &&
-            w.message == 'Each button opens its tab · actions pause the run',
+            (w.message ?? '').startsWith(
+              'Each button opens its tab · actions pause the run',
+            ),
       ),
       findsOneWidget,
     );

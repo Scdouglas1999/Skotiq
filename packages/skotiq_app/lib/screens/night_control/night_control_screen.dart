@@ -17,6 +17,7 @@ import 'end_of_night_cap_banner.dart';
 import 'header/night_header_bar.dart';
 import 'left/night_left_column.dart';
 import 'night_control_layout.dart';
+import 'night_control_shortcuts.dart';
 import 'panel/guide/night_guide_tab.dart';
 import 'panel/mount/night_mount_tab.dart';
 import 'panel/night_right_panel.dart';
@@ -54,14 +55,16 @@ class NightControlScreen extends ConsumerWidget {
         RunDashboardCriticalBanner(),
         NightRunWarningsBanner(),
         Expanded(
-          child: NightControlLayout(
-            header: NightHeaderBar(),
-            left: NightLeftColumn(),
-            center: NightCenter(),
-            panel: NightRightPanel(
-              mountTab: NightMountTab(),
-              guideTab: NightGuideTab(),
-              solveTab: NightSolveTab(),
+          child: NightControlShortcuts(
+            child: NightControlLayout(
+              header: NightHeaderBar(),
+              left: NightLeftColumn(),
+              center: NightCenter(),
+              panel: NightRightPanel(
+                mountTab: NightMountTab(),
+                guideTab: NightGuideTab(),
+                solveTab: NightSolveTab(),
+              ),
             ),
           ),
         ),

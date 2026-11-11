@@ -20,6 +20,7 @@ import '../actions/night_action_controller.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
+import '../night_control_shortcuts.dart' show kNightShortcutKeys;
 
 /// The action the window at the other end of the link is running, while it
 /// is current; null when there is none.
@@ -72,6 +73,9 @@ class ManualActionBar extends ConsumerWidget {
                     _runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle',
                   );
     final error = state.error?.resolve(l10n);
+    final keys = <String>[
+      for (final (key, what) in kNightShortcutKeys) '$key ${l10n.text(what)}',
+    ].join(' · ');
 
     return Semantics(
       container: true,
@@ -116,6 +120,7 @@ class ManualActionBar extends ConsumerWidget {
             else
               _HintIcon(
                 message: hint,
+                detail: l10n.text('nightKeysTitle', params: {'keys': keys}),
                 icon: LucideIcons.info,
                 color: linked != null || polar != null
                     ? colors.warning
@@ -280,19 +285,23 @@ class _HintIcon extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.collapsed,
+    this.detail,
   });
 
   final String message;
 
+  /// A second line for the tooltip only (the keyboard keys).
+  final String? detail;
   final IconData icon;
   final Color color;
   final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
+    final tip = detail == null ? message : '$message\n$detail';
     if (collapsed) {
       return Tooltip(
-        message: message,
+        message: tip,
         child: Semantics(
           label: message,
           excludeSemantics: true,
@@ -307,11 +316,15 @@ class _HintIcon extends StatelessWidget {
       padding: const EdgeInsets.only(left: SkotiqTokens.spaceSm),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 280),
-        child: Text(
-          message,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: SkotiqTypography.captionSm.copyWith(color: color),
+        child: Tooltip(
+          message: tip,
+          excludeFromSemantics: true,
+          child: Text(
+            message,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.captionSm.copyWith(color: color),
+          ),
         ),
       ),
     );
