@@ -1,7 +1,6 @@
 part of '../backup_service.dart';
 
 extension _BackupTableRegistry on BackupService {
-  // Private export methods
 
   Future<Map<String, dynamic>> _exportSettings() async {
     final settingsDao = SettingsDao(database);
@@ -67,18 +66,14 @@ extension _BackupTableRegistry on BackupService {
   Future<Map<String, List<Map<String, dynamic>>>>
   _exportExtendedTables() async {
     return {
-      // Calibration library
       'darkLibrary': await _dumpTable(database.darkLibrary),
       'flatHistory': await _dumpTable(database.flatHistory),
       'defectMaps': await _dumpTable(database.defectMaps),
-      // Run history
       'sequenceRuns': await _dumpTable(database.sequenceRuns),
       // Notes journal (observation_logs)
       'notesJournal': await _dumpTable(database.observationLogs),
-      // Polar alignment / guide history
       'polarAlignmentHistory': await _dumpTable(database.polarAlignmentHistory),
       'guideRmsHistory': await _dumpTable(database.guideRmsHistory),
-      // Science tables.
       'scienceSessionConfig': await _dumpTable(database.scienceSessionConfig),
       'photometryMeasurements': await _dumpTable(
         database.photometryMeasurements,
@@ -100,7 +95,6 @@ extension _BackupTableRegistry on BackupService {
       ),
       'photometricTransforms': await _dumpTable(database.photometricTransforms),
       'lineRatioProducts': await _dumpTable(database.lineRatioProducts),
-      // Focus models
       'focusModels': await _dumpTable(database.focusModels),
       // Weather-safety configuration. NOT a key/value setting — it lives in
       // its own single-row table, so it has to be enumerated here or a restore

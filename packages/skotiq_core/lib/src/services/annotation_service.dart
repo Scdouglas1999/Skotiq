@@ -27,7 +27,6 @@ final currentAnnotationProvider = StateProvider<ImageAnnotation?>(
   (ref) => null,
 );
 
-/// Status of the annotation processing pipeline
 enum AnnotationStatus {
   idle,
   checkingCatalogs,
@@ -39,7 +38,6 @@ enum AnnotationStatus {
   plateSolveFailed,
 }
 
-/// Current annotation processing state with status and message
 class AnnotationState {
   final AnnotationStatus status;
   final String? message;
@@ -103,14 +101,12 @@ class AnnotationState {
       status == AnnotationStatus.searchingCatalogs;
 }
 
-/// Provider for current annotation processing state
 final annotationStateProvider = StateProvider<AnnotationState>(
   (ref) => const AnnotationState.idle(),
 );
 
 /// State for the SNR-based re-annotate suggestion banner
 class ReAnnotateSuggestion {
-  /// Whether to show the re-annotate banner
   final bool shouldShow;
 
   /// Percentage improvement in SNR since last annotation
@@ -171,7 +167,6 @@ class AnnotationService {
   @visibleForTesting
   AnnotationCatalog? debugAnnotationCatalogOverride;
 
-  // External providers
   final _simbadProvider = SimbadProvider();
   final _exoplanetProvider = ExoplanetProvider();
   final _gaiaProvider = GaiaProvider();
@@ -180,7 +175,6 @@ class AnnotationService {
   String? _lastProcessedImagePath;
   int _annotationRunGeneration = 0;
 
-  // SNR-based progressive annotation state
   double? _lastAnnotationSnr;
   double? _peakAnnotationSnr;
   DateTime? _lastAnnotationTime;
@@ -229,14 +223,12 @@ class AnnotationService {
       _ref.read(annotationStateProvider.notifier).state =
           const AnnotationState.plateSolving();
 
-      // Delegate to pipeline extension (annotation_pipeline.dart)
       processNewImage(next);
     }
   }
 
   void handleImageStatsChanged(ImageStats? previous, ImageStats? next) {
     if (next?.snr != null && _lastPlateSolve != null) {
-      // Delegate to SNR tracker extension (annotation_snr_tracker.dart)
       checkSnrForReAnnotation(next!.snr!);
     }
   }
@@ -347,7 +339,6 @@ class AnnotationService {
       morphology: base.morphology ?? new_.morphology,
       simbadId: base.simbadId ?? new_.simbadId,
       wikipediaUrl: base.wikipediaUrl ?? new_.wikipediaUrl,
-      // Merge maps
       catalogIds: {...?base.catalogIds, ...?new_.catalogIds},
       dataSource: '${base.dataSource}, ${new_.dataSource}',
     );
@@ -466,17 +457,14 @@ class AnnotationService {
       return 'Solver did not produce a solution file \u2014 check ASTAP logs for details';
     }
 
-    // Failed to run the executable
     if (lower.contains('failed to run')) {
       return 'Could not launch plate solver \u2014 verify the solver path in Settings';
     }
 
-    // Backend/connection errors
     if (lower.contains('backend') && lower.contains('failed')) {
       return 'Backend plate solve failed \u2014 check connection and try again';
     }
 
-    // Fall back to the raw error, trimmed
     final trimmed = raw.length > 120 ? '${raw.substring(0, 120)}...' : raw;
     return trimmed;
   }
@@ -525,7 +513,6 @@ class AnnotationService {
       }
     }
 
-    // Fall back to the name itself (normalized)
     return name.replaceAll(RegExp(r'\s+'), '_');
   }
 
@@ -583,7 +570,6 @@ class AnnotationService {
       source: 'Annotation',
     );
 
-    // Reset progressive annotation state so we start fresh
     _lastProcessedImagePath = null;
     _lastAnnotationSnr = null;
     _peakAnnotationSnr = null;
@@ -592,19 +578,15 @@ class AnnotationService {
     _currentSnrMagnitudeLimit = _SnrAnnotationConstants.baseMagnitude;
     _revealedObjectIds.clear();
 
-    // Dismiss the re-annotate suggestion banner
     _ref.read(reAnnotateSuggestionProvider.notifier).state =
         const ReAnnotateSuggestion.none();
 
     // Clear current annotation while processing
     _ref.read(currentAnnotationProvider.notifier).state = null;
 
-    // Re-run the full pipeline (delegated to annotation_pipeline.dart)
     await processNewImage(image);
   }
 
-  /// Export current annotation objects as CSV.
-  /// Returns the CSV string content.
   String exportAnnotationsCsv() {
     final annotation = _ref.read(currentAnnotationProvider);
     if (annotation == null || annotation.objects.isEmpty) {

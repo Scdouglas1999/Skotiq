@@ -16,7 +16,6 @@ import 'replay_debug_service.dart';
 import 'remote_sequence_editor_sync_lifecycle.dart';
 import 'sync/sync_service.dart';
 
-/// Configuration for auto-save behavior
 class AutoSaveConfig {
   final Duration sequenceInterval;
   final Duration backupInterval;
@@ -51,7 +50,6 @@ class AutoSaveConfig {
   }
 }
 
-/// Status of auto-save operations
 class AutoSaveStatus {
   final DateTime? lastSequenceSave;
   final DateTime? lastBackup;
@@ -122,11 +120,9 @@ class AutoSaveService {
   Future<BackupResult>? _backupInFlight;
   Future<bool>? _sequenceSaveInFlight;
 
-  // Track sequences that need saving
   final Map<String, Sequence> _pendingSequences = {};
   bool _hasUnsavedChanges = false;
 
-  // Status tracking
   final _statusController = StreamController<AutoSaveStatus>.broadcast();
   AutoSaveStatus _status = const AutoSaveStatus();
 
@@ -143,22 +139,17 @@ class AutoSaveService {
     DateTime Function()? clock,
   }) : clock = clock ?? DateTime.now;
 
-  /// Stream of auto-save status updates
   Stream<AutoSaveStatus> get statusStream async* {
     yield _status;
     yield* _statusController.stream;
   }
 
-  /// Current auto-save status
   AutoSaveStatus get status => _status;
 
-  /// Current configuration
   AutoSaveConfig get config => _config;
 
-  /// Whether there are unsaved changes
   bool get hasUnsavedChanges => _hasUnsavedChanges;
 
-  /// Start the auto-save service
   void start([AutoSaveConfig? config, DateTime? lastBackup]) {
     if (_started) return;
     if (config != null) {
@@ -200,7 +191,6 @@ class AutoSaveService {
       level: 800,
     );
 
-    // Start sequence auto-save timer
     if (_config.sequenceEnabled) {
       _sequenceTimer?.cancel();
       _sequenceTimer = Timer.periodic(_config.sequenceInterval, (_) {
@@ -208,7 +198,6 @@ class AutoSaveService {
       });
     }
 
-    // Start backup timer
     if (_config.backupEnabled) {
       _backupTimer?.cancel();
       _backupTimer = Timer.periodic(_config.backupInterval, (_) {
@@ -311,13 +300,11 @@ class AutoSaveService {
     );
   }
 
-  /// Mark a sequence as having unsaved changes
   void markSequenceChanged(Sequence sequence) {
     _pendingSequences[sequence.id] = sequence;
     _hasUnsavedChanges = true;
   }
 
-  /// Manually trigger sequence save
   Future<void> saveNow() async {
     final flushed = await _flushPendingSequences();
     if (!flushed) {
@@ -327,12 +314,10 @@ class AutoSaveService {
     }
   }
 
-  /// Manually trigger backup
   Future<BackupResult> backupNow() async {
     return await _autoBackup();
   }
 
-  /// Auto-save sequences that have pending changes
   Future<bool> _autoSaveSequences() {
     final active = _sequenceSaveInFlight;
     if (active != null) return active;
@@ -436,7 +421,6 @@ class AutoSaveService {
     await _autoBackup();
   }
 
-  /// Perform automatic backup
   Future<BackupResult> _autoBackup() async {
     final active = _backupInFlight;
     if (active != null) return active;
@@ -490,7 +474,6 @@ class AutoSaveService {
           );
         }
 
-        // Clean up old backups
         await _cleanupOldBackups();
 
         // Cloud sync auto-push (opt-in; no-op unless enabled in settings).
@@ -727,7 +710,6 @@ class AutoSaveService {
   }
 }
 
-/// Provider for AutoSaveService
 final autoSaveServiceProvider = Provider<AutoSaveService>((ref) {
   final backend = ref.watch(backendProvider);
   final sequenceRepo = ref.watch(sequenceRepositoryProvider);

@@ -18,7 +18,6 @@ extension ClickIdentifyService on AnnotationService {
       source: 'Annotation',
     );
 
-    // Search for object at these coordinates
     final configuredRadius =
         searchRadiusArcsec ??
         (await _ref.read(
@@ -60,7 +59,6 @@ extension ClickIdentifyService on AnnotationService {
 
     if (details == null) return null;
 
-    // Convert to annotation format
     final objectType = _inferObjectType(details.objectClass);
     final name =
         details.catalogIds?['Name'] ??
@@ -86,7 +84,6 @@ extension ClickIdentifyService on AnnotationService {
     );
   }
 
-  /// Get detailed information about an object at given coordinates
   Future<ObjectData?> getObjectDetails({
     required double ra,
     required double dec,
@@ -104,7 +101,6 @@ extension ClickIdentifyService on AnnotationService {
       );
 
       if (dsos.isNotEmpty) {
-        // Find the closest object
         final closest = dsos.reduce((a, b) {
           final distA = AstronomyCalculations.angularSeparation(
             ra1Deg: ra,
@@ -149,7 +145,6 @@ extension ClickIdentifyService on AnnotationService {
       );
     }
 
-    // Also check local star catalog
     if (result == null) {
       try {
         final stars = await _catalogManager.searchStarsNearby(
@@ -159,7 +154,6 @@ extension ClickIdentifyService on AnnotationService {
         );
 
         if (stars.isNotEmpty) {
-          // Find the closest star
           final closest = stars.reduce((a, b) {
             final distA = AstronomyCalculations.angularSeparation(
               ra1Deg: ra,
@@ -233,7 +227,6 @@ extension ClickIdentifyService on AnnotationService {
 
     // 4. Check for Exoplanets (if it's a star)
     if (result != null && result.catalogIds != null) {
-      // Try to find a name to query
       final name =
           result.catalogIds?['Name'] ??
           (result.catalogIds?['HD'] != null

@@ -1,6 +1,5 @@
 part of '../backup_service.dart';
 
-/// Result of a backup operation
 class BackupResult {
   final bool success;
   final String? filePath;
@@ -17,7 +16,6 @@ class BackupResult {
   });
 }
 
-/// Result of a restore operation
 class RestoreResult {
   final bool success;
   final String? errorMessage;
@@ -34,7 +32,6 @@ class RestoreResult {
   });
 }
 
-/// Metadata about a backup file
 class BackupMetadata {
   final String version;
   final DateTime createdAt;

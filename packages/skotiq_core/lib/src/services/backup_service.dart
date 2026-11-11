@@ -20,7 +20,6 @@ part 'backup_service/backup_value_codecs.dart';
 part 'backup_service/table_registry.dart';
 part 'backup_service/restore_validation.dart';
 
-/// Comprehensive backup and restore service for Skotiq data
 class BackupService {
   final SkotiqDatabase database;
   final SequenceRepository sequenceRepository;
@@ -107,7 +106,6 @@ class BackupService {
       // rows. Restore round-trips through `_genericTableImport`.
       final extendedTables = snapshot.extendedTables;
 
-      // Build backup data structure
       final backup = <String, dynamic>{
         'version': backupVersion,
         'createdAt': DateTime.now().toIso8601String(),
@@ -133,7 +131,6 @@ class BackupService {
         for (final entry in extendedTables.entries) entry.key: entry.value,
       };
 
-      // Determine save location
       final filePath = customPath ?? await _getBackupFilePath();
       if (filePath == null) {
         return BackupResult(
@@ -238,7 +235,6 @@ class BackupService {
     try {
       _logger.debug('Starting restore from: $filePath');
 
-      // Read and parse backup file
       final file = File(filePath);
       if (!await file.exists()) {
         return RestoreResult(
@@ -321,7 +317,6 @@ class BackupService {
           _logger.debug('Restored $count sequences');
         }
 
-        // Restore targets
         if (staged.targets != null) {
           final count = await _importTargets(
             staged.targets!,
@@ -604,8 +599,6 @@ class BackupService {
     'weatherSettings': _importWeatherSettings,
   };
 
-  // Private utility methods
-
   Future<String?> _getBackupFilePath() async {
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final backupDir = await _getBackupDirectory();
@@ -658,7 +651,6 @@ class BackupService {
   }
 }
 
-/// Provider for BackupService
 final backupServiceProvider = Provider<BackupService>((ref) {
   final database = ref.watch(databaseProvider);
   final sequenceRepo = ref.watch(sequenceRepositoryProvider);

@@ -21,7 +21,6 @@ import '../backend/remote_host.dart';
 /// "parameter not passed" from an explicit `null`.
 const Object _sentinel = Object();
 
-/// Settings for how calibration is applied.
 class CalibrationSettings {
   /// Whether to auto-calibrate captured light frames.
   final bool autoCalibrate;
@@ -116,18 +115,13 @@ class CalibrationSettings {
   }
 }
 
-/// Result of a calibration operation.
 class CalibrationResult {
-  /// Path to the calibrated output file.
   final String outputPath;
 
-  /// Whether a dark frame was applied.
   final bool darkApplied;
 
-  /// Whether a flat frame was applied.
   final bool flatApplied;
 
-  /// Whether a bias frame was applied.
   final bool biasApplied;
 
   /// Path of the dark used, if any.
@@ -277,11 +271,9 @@ class CalibrationService {
       }
     }
 
-    // Determine flat and bias paths
     final flatPath = settings.masterFlatPath;
     final biasPath = settings.masterBiasPath;
 
-    // Validate that at least one calibration frame is provided
     if (darkPath == null && flatPath == null && biasPath == null) {
       throw StateError(
         'No calibration frames available. '
@@ -315,7 +307,6 @@ class CalibrationService {
         );
 
     if (!isRemote) {
-      // Ensure output directory exists
       final outDir = Directory(path.dirname(effectiveOutputPath));
       if (!outDir.existsSync()) {
         outDir.createSync(recursive: true);
@@ -401,7 +392,6 @@ class CalibrationService {
   }
 }
 
-/// Provider for the CalibrationService.
 final calibrationServiceProvider = Provider<CalibrationService>((ref) {
   final backend = ref.watch(backendProvider);
   final service = CalibrationService(ref, backend: backend);

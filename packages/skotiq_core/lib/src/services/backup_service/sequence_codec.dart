@@ -5,8 +5,6 @@ extension _BackupSequenceCodec on BackupService {
     return SequenceFileService().sequenceToMap(sequence);
   }
 
-  // Private import methods
-
   Future<int> _importSettings(
     Map<String, dynamic> settingsMap, {
     bool replace = false,

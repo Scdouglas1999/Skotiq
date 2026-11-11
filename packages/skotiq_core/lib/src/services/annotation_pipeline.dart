@@ -19,7 +19,6 @@ class AnnotationCatalogQueryException implements Exception {
   /// Used to compose log lines and the user-visible error message.
   final String catalog;
 
-  /// The original error that the catalog query threw.
   final Object cause;
 
   const AnnotationCatalogQueryException(this.catalog, this.cause);
@@ -306,7 +305,6 @@ extension AnnotationPipeline on AnnotationService {
       _ref.read(annotationStateProvider.notifier).state =
           const AnnotationState.searching();
 
-      // Get annotation settings for filtering
       final includeStars = settings.visibleTypes.contains(
         AnnotationObjectFilter.stars,
       );
@@ -552,7 +550,6 @@ extension AnnotationPipeline on AnnotationService {
       throw AnnotationCatalogQueryException('DSO', e);
     }
 
-    // Optionally include bright stars
     if (includeStars) {
       try {
         // For stars, apply the SNR-based cutoff more aggressively

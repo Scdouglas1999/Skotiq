@@ -7,7 +7,6 @@ part of '../calibration_library_service.dart';
 const double _unverifiedDimensionPenalty = 10.0;
 
 extension _CalibrationLibraryMatchers on CalibrationLibraryService {
-  // Per-type matchers
 
   CalibrationMatch? _matchDark(
     Iterable<CalibrationMasterRecord> darks,
@@ -321,8 +320,6 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     );
   }
 
-  // Capture-tuple gating
-
   /// Whether [r] agrees with [ctx] on every capture dimension the lights
   /// actually recorded.
   ///
@@ -386,8 +383,6 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     }
     return out;
   }
-
-  // Scoring helpers
 
   double _applyTempScore({
     required double score,
