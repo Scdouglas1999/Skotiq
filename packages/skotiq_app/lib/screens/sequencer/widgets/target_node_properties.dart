@@ -383,7 +383,6 @@ class TargetGroupProperties extends ConsumerWidget {
               ],
             ),
           ),
-          // start_when / end_when crossings editor.
           const SizedBox(height: 16),
           _TriggerSection(
             colors: colors,
@@ -421,7 +420,6 @@ class TargetGroupProperties extends ConsumerWidget {
               ),
             ),
           ],
-          // Per-target integration budget editor.
           const SizedBox(height: 16),
           _IntegrationBudgetSection(colors: colors, node: node),
         ],

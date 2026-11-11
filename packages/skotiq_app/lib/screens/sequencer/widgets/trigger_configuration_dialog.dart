@@ -44,7 +44,6 @@ double _defaultThresholdFor(TriggerConditionType c) {
   }
 }
 
-/// The operator-facing name of a trigger action.
 String triggerActionName(TriggerActionType action) {
   switch (action) {
     case TriggerActionType.notify:

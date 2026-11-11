@@ -55,7 +55,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
   @override
   void initState() {
     super.initState();
-    // Hide altitude chart by default on mobile to save space
     _showAltitudeChart = !widget.isMobile;
   }
 
@@ -131,16 +130,12 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header row
                 _buildHeader(node, statusColor, isRunning),
 
-                // Coordinates row
                 _buildCoordinatesRow(node),
 
-                // Altitude chart (collapsible)
                 if (_showAltitudeChart) _buildAltitudeChart(node),
 
-                // Constraints row (if any)
                 if (node.hasTimeConstraints || node.hasAltitudeConstraints)
                   _buildConstraintsRow(node),
 
@@ -183,7 +178,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       ),
       child: Row(
         children: [
-          // Status indicator
           if (widget.nodeStatus != null &&
               widget.nodeStatus != NodeStatus.pending)
             Container(
@@ -218,7 +212,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           ),
           const SizedBox(width: SkotiqTokens.spaceSm + 2),
 
-          // Target name
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,7 +236,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
             ),
           ),
 
-          // Mosaic panel badge
           if (node.mosaicPanel != null)
             SkotiqChip(label: node.mosaicPanel!.displayLabel),
 
@@ -268,7 +260,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
                 : 'Show altitude chart',
           ),
 
-          // Menu button
           PopupMenuButton<String>(
             icon: Icon(
               LucideIcons.moreVertical,
@@ -351,7 +342,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               spacing: 16,
               runSpacing: 4,
               children: [
-                // RA
                 _CoordinateChip(
                   label: 'RA',
                   value: unset ? 'Not set' : _formatRA(node.raHours),
@@ -359,7 +349,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
                   isPlaceholder: unset,
                 ),
 
-                // Dec
                 _CoordinateChip(
                   label: 'Dec',
                   value: unset ? 'Not set' : _formatDec(node.decDegrees),
@@ -367,7 +356,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
                   isPlaceholder: unset,
                 ),
 
-                // Rotation (if set)
                 if (node.rotation != null)
                   _CoordinateChip(
                     label: '↻',
@@ -378,7 +366,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
             ),
           ),
 
-          // Priority badge
           if (node.priority > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -456,7 +443,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       ),
       child: Row(
         children: [
-          // Time constraints
           if (node.startAfter != null)
             _ConstraintChip(
               icon: LucideIcons.clock,
@@ -472,7 +458,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               colors: widget.colors,
             ),
 
-          // Altitude constraints
           if (node.hasTimeConstraints && node.hasAltitudeConstraints)
             const SizedBox(width: 12),
           if (node.minAltitude != null)
@@ -782,7 +767,6 @@ class _ConstraintChip extends StatelessWidget {
   }
 }
 
-/// Spinning icon for running state
 class _SpinningIcon extends StatefulWidget {
   final IconData icon;
   final Color color;
