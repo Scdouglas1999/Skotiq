@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/centering_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -210,6 +211,23 @@ void main() {
         iterations: 1,
         iterationHistory: const []));
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'a centering result the old host returns in the turn of the switch is '
+      'not kept as the last result', (tester) async {
+    final (service, backend) = await launch(tester);
+
+    backend.replace(mockBackend());
+    service.result.complete(CenteringResult.success(
+        finalOffsetArcsec: 3, iterations: 2, iterationHistory: const []));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CenteringDialog), findsNothing);
+    final container =
+        ProviderScope.containerOf(tester.element(find.text('Original page')));
+    expect(container.read(lastCenteringResultProvider), isNull);
     expect(tester.takeException(), isNull);
   });
 }
