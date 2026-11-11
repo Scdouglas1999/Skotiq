@@ -494,6 +494,20 @@ extension _DeviceServiceEventHandling on DeviceService {
     // per-device-type teardown below.
     _heartbeat.clearDevice(deviceId);
 
+    // The app let go of a device whose connect did not come up. The connect
+    // already left the slot showing why; nothing was lost.
+    if (_reconnectCoordinator.takeCleanupDisconnect(deviceId)) {
+      _safeLog(
+        (logger) => logger.info(
+          'Released $deviceType ($deviceId) after a connect that did not '
+          'come up',
+          source: 'DeviceService',
+        ),
+        'device-cleanup-disconnect-$deviceType',
+      );
+      return;
+    }
+
     // The disconnect is the forensic record of a lost device, so it goes
     // through _safeLog: a logger that cannot be reached demotes the line to
     // stderr instead of dropping it.

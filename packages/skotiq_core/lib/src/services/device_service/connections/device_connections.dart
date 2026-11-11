@@ -46,10 +46,12 @@ extension _DeviceServiceConnections on DeviceService {
         // The driver opened the device but it never became usable: let go of
         // it. On a linked client the host owns it and decides.
         if (opened && !_hostOwnsDevices) {
+          _reconnectCoordinator.expectCleanupDisconnect(deviceId);
           try {
             await _backend.disconnectDevice(type, deviceId);
           } catch (_) {
             // The bring-up failure is the one to report.
+            _reconnectCoordinator.takeCleanupDisconnect(deviceId);
           }
         }
         notifier.connectFailed(e);
