@@ -305,6 +305,7 @@ class NightSessionVm {
     required this.metrics,
     this.frameCount,
     this.elapsed,
+    this.rejectStreak,
   });
 
   final int? frameCount;
@@ -314,15 +315,21 @@ class NightSessionVm {
   /// Dropouts; a metric with no source is left out.
   final List<MetricVm> metrics;
 
+  /// The frames the run's grader is rejecting one after another, and why;
+  /// null while it is not.
+  final NightText? rejectStreak;
+
   @override
   bool operator ==(Object other) =>
       other is NightSessionVm &&
       other.frameCount == frameCount &&
       other.elapsed == elapsed &&
+      other.rejectStreak == rejectStreak &&
       listEquals(other.metrics, metrics);
 
   @override
-  int get hashCode => Object.hash(frameCount, elapsed, Object.hashAll(metrics));
+  int get hashCode =>
+      Object.hash(frameCount, elapsed, rejectStreak, Object.hashAll(metrics));
 }
 
 enum EquipmentKind { camera, filterWheel, focuser, mount, guider, rotator }

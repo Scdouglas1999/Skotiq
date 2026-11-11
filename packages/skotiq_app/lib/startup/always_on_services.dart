@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
+import '../screens/night_control/data/plan/scheduler_provider.dart';
 import '../screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../screens/session_review/auto_integration_service.dart';
 import '../services/location_sync_service.dart';
@@ -244,6 +245,13 @@ final List<AlwaysOnService> alwaysOnServices = [
     schedulerAutoReevalProvider,
     _windows,
     'the target queue re-scoring when targets, goals or constraints change',
+  ),
+  AlwaysOnService(
+    'scheduler picks',
+    schedulerPicksProvider,
+    _windows,
+    "Tonight naming the Target Scheduler's pick after the event history "
+        'has moved past it',
   ),
   AlwaysOnService(
     'co-imaging baton',

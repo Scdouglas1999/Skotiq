@@ -174,7 +174,6 @@ class RunDashboardFilterTotals {
 
   /// Returns true if no exposures are configured for any filter.
   bool get isEmpty => integrationSecs.isEmpty && goalSecs.isEmpty;
-
 }
 
 class RunDashboardSessionIntegration {
@@ -1203,8 +1202,7 @@ class RunCriticalAlert {
 ///
 /// An always-on service (`startup/always_on_services.dart`), so an alert
 /// reaches the operator whichever screen is open.
-final runCriticalAlertsProvider =
-    Provider<Stream<RunCriticalAlert>>((ref) {
+final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
   final alerts = StreamController<RunCriticalAlert>.broadcast(sync: true);
   ref.onDispose(alerts.close);
   // Use ref.listen on the history so we react to new entries without
@@ -1302,7 +1300,7 @@ final runCriticalAlertsProvider =
 /// at most once per [_audibleAlertCooldown].
 final runCriticalAlertSoundProvider = Provider<void>((ref) {
   DateTime? lastAlertAt;
-  final subscription = ref.watch(runCriticalAlertsProvider).listen((_) {
+  final subscription = ref.watch(runCriticalAlertsProvider).listen((alert) {
     final settings = ref.read(appSettingsProvider).valueOrNull;
     if (!(settings?.audibleAlertsOnCritical ?? false)) return;
     final sound = settings?.criticalAlertSound ?? 'systemBell';
@@ -1311,6 +1309,11 @@ final runCriticalAlertSoundProvider = Provider<void>((ref) {
     final last = lastAlertAt;
     if (last != null && now.difference(last) < _audibleAlertCooldown) return;
     lastAlertAt = now;
+    ref.read(loggingServiceProvider).info(
+      'Critical alert sounded',
+      source: 'RunCriticalAlerts',
+      fields: {'sound': sound, 'alert': alert.row.title},
+    );
     unawaited(
       ref.read(criticalAlertPlayerProvider).play(sound: sound).catchError(
             (Object error) => developer.log(
@@ -1337,6 +1340,11 @@ final runCriticalAlertPushProvider = Provider<void>((ref) {
           eventType: sk_events.skotiqEventDisplayTitle(alert.event),
           eventCategory: _bridgeCategoryToCore(alert.event.category),
         );
+    ref.read(loggingServiceProvider).info(
+      'Critical alert sent to the phone push',
+      source: 'RunCriticalAlerts',
+      fields: {'title': alert.title, 'body': alert.detail},
+    );
   });
   ref.onDispose(subscription.cancel);
 });

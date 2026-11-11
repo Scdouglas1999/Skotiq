@@ -15,6 +15,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
+import 'run_grading_provider.dart';
 import 'session_frames_provider.dart';
 
 /// Free space on the capture volume, in bytes; null until a sample lands.
@@ -123,5 +124,21 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
           valueTone: dropouts > 0 ? MetricTone.warning : MetricTone.neutral,
         ),
     ],
+    rejectStreak:
+        session.isActive ? _rejectStreak(ref.watch(runGradingProvider)) : null,
   );
 });
+
+/// "3 frames rejected in a row: HFR 4.10 above 3.00" while the run's grader
+/// is rejecting frames one after another; null once it accepts one.
+NightText? _rejectStreak(FrameGradeRunSummary grading) {
+  final count = grading.consecutiveRejects;
+  if (count == 0) return null;
+  final reason = grading.lastReject?.reason.trim() ?? '';
+  final key =
+      count == 1 ? 'nightSessionRejectedLast' : 'nightSessionRejectedInARow';
+  return NightText(
+    reason.isEmpty ? key : '${key}Reason',
+    params: <String, String>{'count': '$count', 'reason': reason},
+  );
+}

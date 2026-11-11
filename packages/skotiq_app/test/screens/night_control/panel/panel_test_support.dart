@@ -10,11 +10,13 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/scheduler_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/last_frame_metrics_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/run_grading_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
@@ -306,6 +308,10 @@ List<Override> panelOverrides({
       nightPanelOpsProvider.overrideWithValue(ops ?? FakePanelOps()),
       nightFocusActiveProvider.overrideWithValue(focusActive),
       nightGuideAlertProvider.overrideWithValue(guideAlert),
+      // The plan's optional parts, off unless a test turns one on.
+      nightAdaptiveExposureProvider.overrideWithValue(null),
+      nightPlanSchedulerProvider.overrideWithValue(null),
+      liveBroadcastProvider.overrideWithValue(null),
     ];
 
 /// Pumps [child] at the panel's size (300 × 758 by default) inside a router,
