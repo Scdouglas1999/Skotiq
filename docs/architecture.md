@@ -43,8 +43,10 @@ under `native/skotiq_native/`.
   shared between the headless server and the remote clients.
 - `skotiq_updater` — update checks and manifest handling.
 
-**Dependency direction.** The layering is strict and enforced by convention (see
-`.github/CONTRIBUTING.md` → "Where to put new code"):
+**Dependency direction.** The layering is strict. `melos run audit:architecture`
+(`tools/production/architecture_rules_audit.dart`, whose `_dartPackages` and
+`_rustCrates` tables are the full list) fails on a dependency or import that
+reaches upward (see also `.github/CONTRIBUTING.md` → "Where to put new code"):
 
 - `apps` depend on `packages`, never the reverse.
 - `skotiq_app` depends on `skotiq_core`.

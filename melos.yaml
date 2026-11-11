@@ -160,6 +160,14 @@ scripts:
     run: dart run tools/production/bridge_boundary_audit_self_test.dart
     description: Self-test bridge boundary audit exemptions, violation detection, whitelist handling, and symbol extraction against temporary fixtures
 
+  audit:architecture:
+    run: dart run tools/production/architecture_rules_audit.dart
+    description: Enforce package/crate dependency direction, no backend class checks outside the backend files, no cross-package src/ imports, and no new per-node-type dispatch outside the node table; each failure names where the change goes instead
+
+  audit:architecture:self-test:
+    run: dart run tools/production/architecture_rules_audit_self_test.dart
+    description: Self-test the architecture rules audit against a temporary workspace that breaks each rule once
+
   audit:hardware-availability:
     run: dart run tools/production/hardware_availability_probe.dart
     description: Launch the packaged desktop headless app and record discovered hardware classes for release smoke planning
