@@ -22,17 +22,16 @@ import '../services/home_assistant/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_discovery_service.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'notification_router_provider.dart';
-
-const String _kHomeAssistantSettingKey = 'home_assistant_discovery';
 
 class HomeAssistantConfigNotifier
     extends AsyncNotifier<HomeAssistantDiscoveryConfig> {
   @override
   Future<HomeAssistantDiscoveryConfig> build() async {
     final dao = ref.read(settingsDaoProvider);
-    final raw = await dao.getSetting(_kHomeAssistantSettingKey);
+    final raw = await dao.read(StoreSettings.homeAssistantDiscovery);
     if (raw == null) return const HomeAssistantDiscoveryConfig();
     try {
       return HomeAssistantDiscoveryConfig.fromJson(
@@ -50,8 +49,8 @@ class HomeAssistantConfigNotifier
 
   Future<void> save(HomeAssistantDiscoveryConfig config) async {
     final dao = ref.read(settingsDaoProvider);
-    await dao.setSetting(
-      _kHomeAssistantSettingKey,
+    await dao.write(
+      StoreSettings.homeAssistantDiscovery,
       jsonEncode(config.toJson()),
     );
     state = AsyncData(config);

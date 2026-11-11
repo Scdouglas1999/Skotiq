@@ -6,6 +6,7 @@ import '../models/equipment/equipment_models.dart'
     show CameraStateSnapshot, DeviceConnectionState;
 import '../models/imaging/camera_preset.dart';
 import 'backend_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/device_capability_provider.dart';
@@ -128,7 +129,6 @@ Future<void> _seedFromConnectedCamera(Ref ref, String deviceId) async {
 class CameraPresetsNotifier
     extends StateNotifier<AsyncValue<List<CameraPreset>>> {
   final Ref _ref;
-  static const String _storageKey = 'camera_presets';
   late final Future<void> _loadFuture;
   Future<void> _mutationTail = Future<void>.value();
 
@@ -139,9 +139,9 @@ class CameraPresetsNotifier
   Future<void> _loadPresets() async {
     try {
       final dao = _ref.read(settingsDaoProvider);
-      final jsonString = await dao.getSetting(_storageKey);
+      final jsonString = await dao.read(StoreSettings.cameraPresets);
 
-      if (jsonString == null || jsonString.isEmpty) {
+      if (jsonString == null) {
         final defaults = _createDefaultPresets();
         await _savePresets(defaults);
         state = AsyncValue.data(defaults);
@@ -188,7 +188,7 @@ class CameraPresetsNotifier
     final dao = _ref.read(settingsDaoProvider);
     final jsonList = presets.map((p) => p.toJson()).toList();
     final jsonString = jsonEncode(jsonList);
-    await dao.setSetting(_storageKey, jsonString);
+    await dao.write(StoreSettings.cameraPresets, jsonString);
   }
 
   Future<void> _mutate(

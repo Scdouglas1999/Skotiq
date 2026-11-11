@@ -24,11 +24,10 @@ class SchedulerConfigStore {
   SchedulerConfigStore(this._dao);
 
   final SettingsDao _dao;
-  static const String _key = 'scheduler_config';
 
   Future<SchedulerConfig> load() async {
-    final raw = await _dao.getSetting(_key);
-    if (raw == null || raw.isEmpty) return SchedulerConfig.defaults;
+    final raw = await _dao.read(StoreSettings.schedulerConfig);
+    if (raw == null) return SchedulerConfig.defaults;
     try {
       return SchedulerConfig.fromStorageJson(
         jsonDecode(raw) as Map<String, dynamic>,
@@ -42,7 +41,10 @@ class SchedulerConfigStore {
   }
 
   Future<void> save(SchedulerConfig config) {
-    return _dao.setSetting(_key, jsonEncode(config.toStorageJson()));
+    return _dao.write(
+      StoreSettings.schedulerConfig,
+      jsonEncode(config.toStorageJson()),
+    );
   }
 }
 

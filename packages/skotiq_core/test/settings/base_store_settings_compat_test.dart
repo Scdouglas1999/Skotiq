@@ -886,6 +886,21 @@ const Map<String, Object?> _changedOnPurpose = {
       'empty': {'recenterEnabled': false, 'obstructionDetection': false},
     },
   },
+  'push notifications': {
+    'reads': {
+      'empty': _Replace({
+        'enabled': true,
+        'notifySequenceCompleted': true,
+        'notifySequenceFailed': true,
+        'notifyMeridianFlip': true,
+        'notifyWeatherUnsafe': true,
+        'notifyGuidingLost': true,
+        'notifyExposureFailed': true,
+        'notifyAutofocusFailed': true,
+        'notifyEquipmentDisconnected': false,
+      }),
+    },
+  },
 };
 
 /// A change that replaces the base value whole instead of being laid over it.

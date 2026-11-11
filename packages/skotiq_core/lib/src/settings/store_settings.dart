@@ -418,6 +418,60 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  static const homeAssistantDiscovery = OptionalTextSetting(
+    'homeAssistantDiscovery',
+    'home_assistant_discovery',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  static const pushNotifications = OptionalTextSetting(
+    'pushNotifications',
+    'push_notification_config',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The scheduler's scoring weights and limits.
+  static const schedulerConfig = OptionalTextSetting(
+    'schedulerConfig',
+    'scheduler_config',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Each plugin's on/off choice, by plugin id.
+  static const pluginEnablement = OptionalTextSetting(
+    'pluginEnablement',
+    'plugin_enablement',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The camera's gain and offset presets.
+  static const cameraPresets = OptionalTextSetting(
+    'cameraPresets',
+    'camera_presets',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The operator's own telescope presets, and edited copies of built-in ones.
+  static const telescopePresetOverrides = OptionalTextSetting(
+    'telescopePresetOverrides',
+    'hardware_presets.telescopes.v1',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The operator's own camera presets, and edited copies of built-in ones.
+  static const cameraPresetOverrides = OptionalTextSetting(
+    'cameraPresetOverrides',
+    'hardware_presets.cameras.v1',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
   static const List<Setting<Object?>> all = [
     glanceMode,
     tutorialsEnabled,
@@ -467,6 +521,13 @@ abstract final class StoreSettings {
     frameWatchDriftLimit,
     frameWatchObstructionDetection,
     learnedHorizonPoints,
+    homeAssistantDiscovery,
+    pushNotifications,
+    schedulerConfig,
+    pluginEnablement,
+    cameraPresets,
+    telescopePresetOverrides,
+    cameraPresetOverrides,
   ];
 
   static const List<SettingFamily> families = [

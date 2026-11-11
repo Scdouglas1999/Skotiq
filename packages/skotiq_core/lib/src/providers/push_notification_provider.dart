@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../services/push_notification_service.dart';
 
@@ -15,7 +16,7 @@ class PushNotificationConfigNotifier
   @override
   Future<PushNotificationConfig> build() async {
     final dao = ref.read(settingsDaoProvider);
-    final json = await dao.getSetting('push_notification_config');
+    final json = await dao.read(StoreSettings.pushNotifications);
     if (json != null) {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
@@ -62,7 +63,7 @@ class PushNotificationConfigNotifier
       'notifyAutofocusFailed': config.notifyAutofocusFailed,
       'notifyEquipmentDisconnected': config.notifyEquipmentDisconnected,
     });
-    await dao.setSetting('push_notification_config', json);
+    await dao.write(StoreSettings.pushNotifications, json);
     if (!identical(ref.read(settingsDaoProvider), dao)) {
       throw StateError(
         'The settings database changed while saving push notifications.',
