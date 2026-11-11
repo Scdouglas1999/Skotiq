@@ -91,7 +91,6 @@ class _CenteringImageWidgetState extends State<_CenteringImageWidget> {
   }
 }
 
-/// Crosshair overlay painter for centering image
 class _CrosshairPainter extends CustomPainter {
   final Color color;
 
@@ -107,12 +106,9 @@ class _CrosshairPainter extends CustomPainter {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // Horizontal line
     canvas.drawLine(Offset(0, cy), Offset(size.width, cy), paint);
-    // Vertical line
     canvas.drawLine(Offset(cx, 0), Offset(cx, size.height), paint);
 
-    // Center circle
     canvas.drawCircle(Offset(cx, cy), 20, paint);
   }
 

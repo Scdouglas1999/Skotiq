@@ -59,8 +59,6 @@ mixin _GuidingDesktopSections
     );
   }
 
-  // ---------------------------------------------------------------- left ---
-
   Widget _buildLeftColumn(
     SkotiqColors colors,
     bool isConnected,
@@ -215,8 +213,6 @@ mixin _GuidingDesktopSections
     );
   }
 
-  // -------------------------------------------------------------- centre ---
-
   /// The guide graph panel. [GuideGraphAdvanced] carries the options row
   /// (RA / Dec / Tot and the Time and Scale selectors) and its own inset plot
   /// surface, so the panel adds the label and the frame and nothing else — a
@@ -297,8 +293,6 @@ mixin _GuidingDesktopSections
       child: showHead ? Expanded(child: graph) : graph,
     );
   }
-
-  // --------------------------------------------------------- side panel ---
 
   Widget _buildSidePanelContent(
     SkotiqColors colors,

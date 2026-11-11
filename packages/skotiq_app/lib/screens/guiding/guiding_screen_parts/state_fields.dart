@@ -33,7 +33,6 @@ mixin _GuidingStateFields on ConsumerState<GuidingScreen> {
   /// position of the same drag.
   final Map<String, int> _guidingWritesPending = {};
 
-  // Tab controller for the narrow layout's header tabs.
   late TabController _tabController;
 
   /// True when the viewport cannot hold the three columns.

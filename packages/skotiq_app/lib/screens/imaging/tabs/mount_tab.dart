@@ -42,14 +42,12 @@ class MountTab extends ConsumerStatefulWidget {
 }
 
 class _MountTabState extends ConsumerState<MountTab> {
-  // Slew target inputs - initialized from provider in initState
   late final TextEditingController _raController;
   late final TextEditingController _decController;
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers from provider state synchronously
     final coords = ref.read(slewCoordinatesProvider);
     _raController = TextEditingController(text: coords.raText);
     _decController = TextEditingController(text: coords.decText);
@@ -86,7 +84,6 @@ class _MountTabState extends ConsumerState<MountTab> {
     super.dispose();
   }
 
-  /// Sync mount to coordinates from text fields with validation
   Future<void> _handleSync() async {
     final ra = CoordinateParser.parseRa(_raController.text);
     final dec = CoordinateParser.parseDec(_decController.text);
@@ -249,7 +246,6 @@ class _MountTabState extends ConsumerState<MountTab> {
                     variant: mountState.isTracking
                         ? ButtonVariant.secondary
                         : ButtonVariant.primary,
-                    // Gate on canSetTracking capability.
                     onPressed: isConnected &&
                             canSetTracking &&
                             !mountState.isParked &&
@@ -406,7 +402,6 @@ class _MountTabState extends ConsumerState<MountTab> {
                               ra: targetRa,
                               dec: targetDec,
                               targetName: 'Manual Coordinates',
-                              // No rotation from manual coordinate entry
                               targetRotation: null,
                               isEnabled: isConnected &&
                                   canSlew &&

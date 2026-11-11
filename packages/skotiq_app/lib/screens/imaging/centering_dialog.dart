@@ -18,7 +18,6 @@ part 'centering_dialog/presentation.dart';
 
 part 'centering_dialog/section_builders.dart';
 
-/// Dialog for automated target centering with live image preview
 class CenteringDialog extends ConsumerStatefulWidget {
   final double? targetRa;
   final double? targetDec;
@@ -212,7 +211,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header
                 _buildHeader(theme, colors),
                 const SizedBox(height: 16),
 
@@ -230,7 +228,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                   const SizedBox(height: 16),
                 ],
 
-                // Main content area
                 if (_isCentering ||
                     _result != null ||
                     centeringStatus.iterationHistory.isNotEmpty)
@@ -238,7 +235,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Left: Image preview
                         if (sideBySide &&
                             currentImage != null &&
                             (_isCentering || _result != null))
@@ -252,7 +248,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                             (_isCentering || _result != null))
                           const SizedBox(width: 16),
 
-                        // Right: Status and info
                         Expanded(
                           flex: 1,
                           child: SingleChildScrollView(
@@ -264,7 +259,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                                       currentImage, colors, theme),
                                   const SizedBox(height: 12),
                                 ],
-                                // Coordinates
                                 if (widget.targetRa != null &&
                                     widget.targetDec != null)
                                   _buildCoordinatesCompact(
@@ -274,19 +268,15 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                                     widget.targetDec != null)
                                   const SizedBox(height: 12),
 
-                                // Exposure settings
                                 _buildExposureSettings(colors, theme),
                                 const SizedBox(height: 12),
 
-                                // Status section
                                 if (_isCentering)
                                   _buildStatusSection(centeringStatus, colors),
 
-                                // Result section
                                 if (_result != null && !_isCentering)
                                   _buildResultSection(_result!, colors),
 
-                                // Iteration history
                                 if (centeringStatus
                                     .iterationHistory.isNotEmpty) ...[
                                   const SizedBox(height: 12),
@@ -301,7 +291,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                     ),
                   )
                 else ...[
-                  // Pre-centering: simple vertical layout
                   if (widget.targetRa != null && widget.targetDec != null) ...[
                     _buildCoordinatesCompact(centeringStatus, colors, theme),
                     const SizedBox(height: 16),
@@ -311,7 +300,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
 
                 const SizedBox(height: 16),
 
-                // Action buttons
                 Wrap(
                   alignment: WrapAlignment.end,
                   spacing: 12,
@@ -439,7 +427,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
           ),
           if (status.currentOffsetArcmin != null) ...[
             const SizedBox(height: 8),
-            // Offset bar
             Row(
               children: [
                 Expanded(
