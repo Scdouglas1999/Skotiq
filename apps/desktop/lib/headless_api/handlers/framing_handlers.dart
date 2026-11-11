@@ -7,9 +7,25 @@ import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'device_handlers.dart' show requestPrefersLegacyBlocking;
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for framing assistant and centering operations
-class FramingHandlers {
+class FramingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FramingApi.slewToTarget: handleSlewToTarget,
+    FramingApi.centerOnTarget: handleCenterOnTarget,
+    FramingApi.syncMount: handleSyncMount,
+    FramingApi.getCurrentPosition: handleGetCurrentPosition,
+    FramingApi.rotateTo: handleRotateTo,
+    FramingApi.abortSlew: handleAbortSlew,
+    FramingApi.parkMount: handleParkMount,
+    FramingApi.unparkMount: handleUnparkMount,
+    FramingApi.setTarget: handleSetTarget,
+    FramingApi.saveFraming: handleSaveFraming,
+  };
+
   final ProviderContainer container;
 
   /// optional job manager. When wired, center-on-target

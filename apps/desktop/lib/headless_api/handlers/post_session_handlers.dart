@@ -9,6 +9,8 @@ import 'package:shelf/shelf.dart';
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Headless control surface for the **post-session integration / finishing**
 /// core — the "review and integrate last night's data" workflow.
@@ -34,7 +36,22 @@ import '../validation.dart';
 ///
 /// Mosaic stitching (`api_stitch_mosaic`) is intentionally NOT exposed here; it
 /// is owned by the separate mosaic surface.
-class PostSessionHandlers {
+class PostSessionHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PostSessionApi.getSettings: handleGetSettings,
+    PostSessionApi.updateSettings: handleUpdateSettings,
+    PostSessionApi.integrateSession: handleIntegrateSession,
+    PostSessionApi.drizzleIntegrate: handleDrizzleIntegrate,
+    PostSessionApi.analyzeNight: handleAnalyzeNight,
+    PostSessionApi.buildMasterFlat: handleBuildMasterFlat,
+    PostSessionApi.colorCalibrate: handleColorCalibrate,
+    PostSessionApi.detectStars: handleDetectStars,
+    PostSessionApi.extractBackground: handleExtractBackground,
+    PostSessionApi.combineChannels: handleCombineChannels,
+    PostSessionApi.masterAccumulate: handleMasterAccumulate,
+  };
+
   static const _autoIntegrateSettingKey = 'post_session.auto_integrate';
 
   final ProviderContainer container;

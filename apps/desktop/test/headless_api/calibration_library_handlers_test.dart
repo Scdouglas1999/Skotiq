@@ -18,10 +18,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/calibration_library_handlers.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 /// A [CalibrationLibraryService] whose share/match methods are replaced with
 /// scriptable stubs, so the handler seam can be asserted without a hub or a

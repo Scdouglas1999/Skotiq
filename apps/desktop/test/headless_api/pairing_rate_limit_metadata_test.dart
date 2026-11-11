@@ -4,8 +4,10 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/rate_limiting.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
+
+import '../support/route_policy.dart';
 
 void main() {
   group('pairing endpoint rate limits', () {
@@ -31,7 +33,7 @@ void main() {
       final limiter = EndpointRateLimiter(now: () => now);
 
       for (var i = 0; i < defaultControlRateLimitMaxRequests; i++) {
-        final decision = limiter.check(
+        final decision = limiter.checkRequest(
           clientKey: '203.0.113.7',
           method: 'POST',
           path: '/api/pairing/start',
@@ -39,7 +41,7 @@ void main() {
         expect(decision.allowed, isTrue, reason: 'request $i should pass');
       }
 
-      final blocked = limiter.check(
+      final blocked = limiter.checkRequest(
         clientKey: '203.0.113.7',
         method: 'POST',
         path: '/api/pairing/start',
@@ -48,7 +50,7 @@ void main() {
       expect(blocked.retryAfterSeconds, greaterThan(0));
 
       // A different socket peer is unaffected (per-client keying preserved).
-      final otherClient = limiter.check(
+      final otherClient = limiter.checkRequest(
         clientKey: '198.51.100.4',
         method: 'POST',
         path: '/api/pairing/start',

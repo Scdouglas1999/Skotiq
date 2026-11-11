@@ -13,9 +13,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
-import 'package:skotiq_desktop/headless_api/routes/device_routes.dart';
-import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
-import 'package:skotiq_desktop/headless_api/routes/sequencer_routes.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 import 'handler_test_helpers.dart';
 
@@ -87,9 +85,10 @@ void main() {
     });
 
     test('is routed', () {
-      final routes = buildDeviceRoutes(
-        handlers,
-      ).where((r) => r.method == HttpMethod.post).map((r) => r.path);
+      final routes = handlers.routes.keys
+          .map((endpoint) => endpoint.route)
+          .where((r) => r.method == ApiMethod.post)
+          .map((r) => r.path);
       expect(routes, contains('/api/mount/set-park'));
     });
   });
@@ -149,9 +148,10 @@ void main() {
     });
 
     test('is routed', () {
-      final routes = buildSequencerRoutes(
-        handlers,
-      ).where((r) => r.method == HttpMethod.post).map((r) => r.path);
+      final routes = handlers.routes.keys
+          .map((endpoint) => endpoint.route)
+          .where((r) => r.method == ApiMethod.post)
+          .map((r) => r.path);
       expect(routes, contains('/api/sequencer/request-meridian-flip'));
     });
   });

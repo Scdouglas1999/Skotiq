@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 const jsonContentType = 'application/json';
 const jsonResponseHeaders = {'content-type': jsonContentType};
@@ -90,12 +91,7 @@ Response jsonError({
   Map<String, String>? headers,
 }) {
   return jsonResponse(
-    {
-      if (details != null) ...details,
-      'error': message,
-      'code': code,
-      'message': message,
-    },
+    ApiErrorBody(code: code, message: message, details: details).toJson(),
     statusCode: statusCode,
     headers: headers,
   );

@@ -12,9 +12,34 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for remote science/analytics parity.
-class ScienceHandlers {
+class ScienceHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ScienceApi.getSessionBundle: handleGetSessionBundle,
+    ScienceApi.postSessionBundle: handleGetSessionBundle,
+    ScienceApi.startSessionReprocess: handleStartSessionReprocess,
+    ScienceApi.getSessionReprocess: handleGetSessionReprocess,
+    ScienceApi.getSessionlessBundle: handleGetSessionlessBundle,
+    ScienceApi.getScienceSettings: handleGetScienceSettings,
+    ScienceApi.updateScienceSettings: handleUpdateScienceSettings,
+    ScienceApi.getSmartNightSettings: handleGetSmartNightSettings,
+    ScienceApi.updateSmartNightSettings: handleUpdateSmartNightSettings,
+    ScienceApi.getSessionConfig: handleGetSessionConfig,
+    ScienceApi.updateSessionConfig: handleUpdateSessionConfig,
+    ScienceApi.getPhotometricTransforms: handleGetPhotometricTransforms,
+    ScienceApi.matchPhotometricCalibrationStars:
+        handleMatchPhotometricCalibrationStars,
+    ScienceApi.computePhotometricTransform: handleComputePhotometricTransform,
+    ScienceApi.savePhotometricTransform: handleSavePhotometricTransform,
+    ScienceApi.generateLineRatios: handleGenerateLineRatios,
+    ScienceApi.exportAavso: handleExportAavso,
+    ScienceApi.generateObservationReport: handleGenerateObservationReport,
+  };
+
   final ProviderContainer container;
 
   ScienceHandlers(this.container);

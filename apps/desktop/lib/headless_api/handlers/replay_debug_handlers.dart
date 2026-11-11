@@ -25,10 +25,22 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Replay Debug handlers. Reaches the host decision log + settings through the
 /// shared [ProviderContainer].
-class ReplayDebugHandlers {
+class ReplayDebugHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ReplayDebugApi.countDecisions: handleCountDecisions,
+    ReplayDebugApi.listDecisions: handleListDecisions,
+    ReplayDebugApi.setEnabled: handleSetEnabled,
+    ReplayDebugApi.setRetention: handleSetRetention,
+    ReplayDebugApi.getSettings: handleGetSettings,
+    ReplayDebugApi.clear: handleClear,
+  };
+
   final ProviderContainer container;
 
   ReplayDebugHandlers(this.container);

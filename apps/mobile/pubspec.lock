@@ -1398,7 +1398,7 @@ packages:
     source: path
     version: "1.0.0"
   skotiq_relay:
-    dependency: transitive
+    dependency: "direct main"
     description:
       path: "../../tools/skotiq_relay"
       relative: true

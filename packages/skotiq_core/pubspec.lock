@@ -972,13 +972,6 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
-  skotiq_relay:
-    dependency: transitive
-    description:
-      path: "../../tools/skotiq_relay"
-      relative: true
-    source: path
-    version: "0.1.0"
   skotiq_remote_protocol:
     dependency: "direct main"
     description:

@@ -11,6 +11,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Runtime state the host shares with linked clients.
 ///
@@ -21,7 +23,17 @@ import '../validation.dart';
 /// computed itself for a channel that accepts reports, applies it to the
 /// host's own providers so the host GUI shows it, and lets the host's
 /// broadcast carry it to the other clients.
-class RuntimeStateHandlers {
+class RuntimeStateHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    RuntimeStateApi.getState: handleGetState,
+    RuntimeStateApi.report: handleReport,
+    RuntimeStateApi.recentEvents: handleRecentEvents,
+    RuntimeStateApi.nightHistory: handleNightHistory,
+    RuntimeStateApi.startManualLoop: handleStartManualLoop,
+    RuntimeStateApi.stopManualLoop: handleStopManualLoop,
+  };
+
   RuntimeStateHandlers(this.container, {List<SkotiqEvent> Function()? retained})
     : _retained = retained ?? (() => const <SkotiqEvent>[]);
 

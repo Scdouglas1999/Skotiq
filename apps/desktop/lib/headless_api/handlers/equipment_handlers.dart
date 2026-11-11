@@ -5,9 +5,28 @@ import 'package:shelf/shelf.dart';
 import '../response_helpers.dart';
 import '../utils/device_type_parser.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for equipment status and capabilities endpoints
-class EquipmentHandlers {
+class EquipmentHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    EquipmentApi.cameraStatus: handleCameraStatus,
+    EquipmentApi.mountStatus: handleMountStatus,
+    EquipmentApi.focuserStatus: handleFocuserStatus,
+    EquipmentApi.filterWheelStatus: handleFilterWheelStatus,
+    EquipmentApi.rotatorStatus: handleRotatorStatus,
+    EquipmentApi.cameraCapabilities: handleCameraCapabilities,
+    EquipmentApi.mountCapabilities: handleMountCapabilities,
+    EquipmentApi.focuserCapabilities: handleFocuserCapabilities,
+    EquipmentApi.filterWheelCapabilities: handleFilterWheelCapabilities,
+    EquipmentApi.rotatorCapabilities: handleRotatorCapabilities,
+    EquipmentApi.startDeviceHeartbeat: handleStartDeviceHeartbeat,
+    EquipmentApi.stopDeviceHeartbeat: handleStopDeviceHeartbeat,
+    EquipmentApi.getDeviceHealth: handleGetDeviceHealth,
+  };
+
   final ProviderContainer container;
   EquipmentHandlers(this.container, {DateTime Function()? now})
     : _now = now ?? DateTime.now;

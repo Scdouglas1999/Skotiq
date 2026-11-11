@@ -11,25 +11,29 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:skotiq_desktop/headless_api/handler_timeout.dart';
 
+import '../support/route_policy.dart';
+
 void main() {
   group('HandlerTimeoutPolicy', () {
     const policy = HandlerTimeoutPolicy();
 
     test('reads, file-building reads and commands get their budgets', () {
       expect(
-        policy.budgetFor('GET', '/api/atlas/region/2/timeline'),
+        policy.budgetFor(
+          routeFor('GET', '/api/atlas/region/2/timeline').timeout,
+        ),
         const Duration(seconds: 60),
       );
       expect(
-        policy.budgetFor('GET', '/api/backup/create'),
+        policy.budgetFor(routeFor('GET', '/api/backup/list').timeout),
         const Duration(minutes: 10),
       );
       expect(
-        policy.budgetFor('GET', '/api/sessions/4/export/csv'),
+        policy.budgetFor(routeFor('GET', '/api/sessions/4/export/csv').timeout),
         const Duration(minutes: 10),
       );
       expect(
-        policy.budgetFor('POST', '/api/camera/expose'),
+        policy.budgetFor(routeFor('POST', '/api/camera/expose').timeout),
         const Duration(minutes: 65),
       );
     });
@@ -44,7 +48,11 @@ void main() {
         '/api/broadcast/sse',
         '/api/webrtc/live-view/ice/abc/events',
       ]) {
-        expect(policy.budgetFor('GET', path), isNull, reason: path);
+        expect(
+          policy.budgetFor(routeFor('GET', path).timeout),
+          isNull,
+          reason: path,
+        );
       }
     });
   });
@@ -57,6 +65,7 @@ void main() {
     setUp(() async {
       timedOut.clear();
       final handler = const Pipeline()
+          .addMiddleware(unroutedContext)
           .addMiddleware(
             handlerTimeoutMiddleware(
               policy: const HandlerTimeoutPolicy(

@@ -43,8 +43,9 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
-import '../route_metadata.dart' show backupUploadMaxRequestBodyBytes;
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 part 'calibration_handlers/dark_library_handlers.dart';
 part 'calibration_handlers/flat_history_handlers.dart';
@@ -52,11 +53,55 @@ part 'calibration_handlers/defect_map_handlers.dart';
 part 'calibration_handlers/end_of_night_handlers.dart';
 
 /// calibration library handlers.
-class CalibrationHandlers {
+class CalibrationHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CalibrationApi.getCalibrationSettings: handleGetCalibrationSettings,
+    CalibrationApi.updateCalibrationSettings: handleUpdateCalibrationSettings,
+    CalibrationApi.getEndOfNight: handleGetEndOfNight,
+    CalibrationApi.updateEndOfNightSettings: handleUpdateEndOfNightSettings,
+    CalibrationApi.startEndOfNight: handleStartEndOfNight,
+    CalibrationApi.endOfNightImagingEnded: handleEndOfNightImagingEnded,
+    CalibrationApi.confirmEndOfNightCapped: handleConfirmEndOfNightCapped,
+    CalibrationApi.cancelEndOfNight: handleCancelEndOfNight,
+    CalibrationApi.matchDark: handleMatchDark,
+    CalibrationApi.listDarks: handleListDarks,
+    CalibrationApi.registerDark: handleRegisterDark,
+    CalibrationApi.uploadDark: handleUploadDark,
+    CalibrationApi.findMatchingDark: handleFindMatchingDark,
+    CalibrationApi.verifyDarkSizes: handleVerifyDarkSizes,
+    CalibrationApi.getDarkSettings: handleGetDarkSettings,
+    CalibrationApi.updateDarkSettings: handleUpdateDarkSettings,
+    CalibrationApi.createMasterDark: handleCreateMasterDark,
+    CalibrationApi.cleanDarkOrphans: handleCleanDarkOrphans,
+    CalibrationApi.clearDarkLibrary: handleClearDarkLibrary,
+    CalibrationApi.deleteDarkGroup: handleDeleteDarkGroup,
+    CalibrationApi.getDark: handleGetDark,
+    CalibrationApi.downloadDark: handleDownloadDark,
+    CalibrationApi.deleteDark: handleDeleteDark,
+    CalibrationApi.listFlats: handleListFlats,
+    CalibrationApi.recordFlat: handleRecordFlat,
+    CalibrationApi.flatRecommendation: handleFlatRecommendation,
+    CalibrationApi.getFlat: handleGetFlat,
+    CalibrationApi.deleteFlat: handleDeleteFlat,
+    CalibrationApi.listDefectMaps: handleListDefectMaps,
+    CalibrationApi.registerDefectMap: handleRegisterDefectMap,
+    CalibrationApi.buildDefectMap: handleBuildDefectMap,
+    CalibrationApi.applyDefectMap: handleApplyDefectMap,
+    CalibrationApi.getDefectMapStatus: handleGetDefectMapStatus,
+    CalibrationApi.getDefectMapSettings: handleGetDefectMapSettings,
+    CalibrationApi.updateDefectMapSettings: handleUpdateDefectMapSettings,
+    CalibrationApi.clearDefectMap: handleClearDefectMap,
+    CalibrationApi.applyDefectMapToSequencer: handleApplyDefectMapToSequencer,
+    CalibrationApi.getDefectMap: handleGetDefectMap,
+    CalibrationApi.deleteDefectMap: handleDeleteDefectMap,
+    CalibrationApi.regenerateDefectMap: handleRegenerateDefectMap,
+  };
+
   /// Same 256 MB cap as the backup-upload path. A dark master frame from a
   /// modern full-frame camera is typically 100–200 MB so this is a snug
   /// upper bound that still rejects accidental large-blob uploads.
-  static const int _maxDarkUploadBytes = backupUploadMaxRequestBodyBytes;
+  static const int _maxDarkUploadBytes = ApiBodyLimit.archive;
 
   /// Default limit on listing endpoints. Picked to fit comfortably in a
   /// single response payload — 100 rows is roughly 20 KB of JSON, well

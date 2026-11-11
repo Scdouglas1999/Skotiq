@@ -25,10 +25,21 @@ import '../request_context.dart';
 import '../response_helpers.dart';
 import '../utils/device_type_parser.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for read-only device-discovery endpoints. Stateless beyond the
 /// [SkotiqBackend] it reads off the [ProviderContainer].
-class DeviceDiscoveryHandlers {
+class DeviceDiscoveryHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DeviceDiscoveryApi.getDevices: handleGetDevices,
+    DeviceDiscoveryApi.discoverIndiAtAddress: handleDiscoverIndiAtAddress,
+    DeviceDiscoveryApi.discoverAlpacaAtAddress: handleDiscoverAlpacaAtAddress,
+    DeviceDiscoveryApi.getConnectedDevices: handleGetConnectedDevices,
+    DeviceDiscoveryApi.rescanDevices: handleRescanDevices,
+  };
+
   final ProviderContainer container;
 
   DeviceDiscoveryHandlers(this.container);

@@ -8,9 +8,47 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for PHD2 guiding endpoints
-class GuidingHandlers {
+class GuidingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    GuidingApi.phd2IsRunning: handlePhd2IsRunning,
+    GuidingApi.phd2Probe: handlePhd2Probe,
+    GuidingApi.phd2Connect: handlePhd2Connect,
+    GuidingApi.phd2Disconnect: handlePhd2Disconnect,
+    GuidingApi.phd2StartGuiding: handlePhd2StartGuiding,
+    GuidingApi.phd2StopGuiding: handlePhd2StopGuiding,
+    GuidingApi.phd2Dither: handlePhd2Dither,
+    GuidingApi.phd2GetStatus: handlePhd2GetStatus,
+    GuidingApi.phd2SetPaused: handlePhd2SetPaused,
+    GuidingApi.phd2ClearCalibration: handlePhd2ClearCalibration,
+    GuidingApi.phd2FlipCalibration: handlePhd2FlipCalibration,
+    GuidingApi.phd2GetCalibrationData: handlePhd2GetCalibrationData,
+    GuidingApi.phd2FindStar: handlePhd2FindStar,
+    GuidingApi.phd2SetLockPosition: handlePhd2SetLockPosition,
+    GuidingApi.phd2GetLockPosition: handlePhd2GetLockPosition,
+    GuidingApi.phd2Loop: handlePhd2Loop,
+    GuidingApi.phd2DeselectStar: handlePhd2DeselectStar,
+    GuidingApi.phd2GetStarImage: handlePhd2GetStarImage,
+    GuidingApi.phd2GetAlgoParamNames: handlePhd2GetAlgoParamNames,
+    GuidingApi.phd2GetAlgoParam: handlePhd2GetAlgoParam,
+    GuidingApi.phd2SetAlgoParam: handlePhd2SetAlgoParam,
+    GuidingApi.guiderStartGuiding: handleGuiderStartGuiding,
+    GuidingApi.guiderStopGuiding: handleGuiderStopGuiding,
+    GuidingApi.guiderDither: handleGuiderDither,
+    GuidingApi.guiderLoop: handleGuiderLoop,
+    GuidingApi.guiderFindStar: handleGuiderFindStar,
+    GuidingApi.guiderSetLockPosition: handleGuiderSetLockPosition,
+    GuidingApi.guiderGetLockPosition: handleGuiderGetLockPosition,
+    GuidingApi.guiderDeselectStar: handleGuiderDeselectStar,
+    GuidingApi.guiderGetStarImage: handleGuiderGetStarImage,
+    GuidingApi.builtinGuiderGetConfig: handleBuiltinGuiderGetConfig,
+    GuidingApi.builtinGuiderSetConfig: handleBuiltinGuiderSetConfig,
+  };
+
   final ProviderContainer container;
   Future<void>? _phd2StartDrain;
   bool _phd2StopInFlight = false;

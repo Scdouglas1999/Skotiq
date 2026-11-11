@@ -432,7 +432,10 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     }
     final grant = _grantForIdentity(authIdentity);
     if (grant != null &&
-        HeadlessAuthPolicy.permits(grant: grant, method: method, path: path)) {
+        HeadlessAuthPolicy.permits(
+          grant: grant,
+          route: _routeTable.index.policyFor(method, path),
+        )) {
       return true;
     }
     _logWarning(

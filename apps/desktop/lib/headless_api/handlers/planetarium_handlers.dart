@@ -6,13 +6,41 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for planetarium endpoints supporting remote client rendering.
 ///
 /// The planetarium renders locally on mobile/tablet clients but needs data from
 /// the server for mount position, FOV configuration, catalog searches, and
 /// target interactions (slew, sync, center).
-class PlanetariumHandlers {
+class PlanetariumHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PlanetariumApi.getMountPosition: handleGetMountPosition,
+    PlanetariumApi.getFovConfig: handleGetFovConfig,
+    PlanetariumApi.slewTo: handleSlewTo,
+    PlanetariumApi.centerOn: handleCenterOn,
+    PlanetariumApi.syncTo: handleSyncTo,
+    PlanetariumApi.catalogSearch: handleCatalogSearch,
+    PlanetariumApi.catalogRegion: handleCatalogRegion,
+    PlanetariumApi.getCatalogObject: handleGetCatalogObject,
+    PlanetariumApi.getSubscribeInfo: handleGetSubscribeInfo,
+    PlanetariumApi.getLocation: handleGetLocation,
+    PlanetariumApi.getObservingLists: handleGetObservingLists,
+    PlanetariumApi.getObservingListItems: handleGetObservingListItems,
+    PlanetariumApi.getListedCatalogIds: handleGetListedCatalogIds,
+    PlanetariumApi.getListsContaining: handleGetListsContaining,
+    PlanetariumApi.createObservingList: handleCreateObservingList,
+    PlanetariumApi.updateObservingList: handleUpdateObservingList,
+    PlanetariumApi.deleteObservingList: handleDeleteObservingList,
+    PlanetariumApi.duplicateObservingList: handleDuplicateObservingList,
+    PlanetariumApi.addObservingListItem: handleAddObservingListItem,
+    PlanetariumApi.removeObservingListItem: handleRemoveObservingListItem,
+    PlanetariumApi.updateObservingListItemNotes:
+        handleUpdateObservingListItemNotes,
+  };
+
   final ProviderContainer container;
 
   PlanetariumHandlers(this.container);

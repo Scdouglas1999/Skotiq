@@ -33,8 +33,18 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-class BroadcastHandlers {
+class BroadcastHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    BroadcastApi.info: handleInfo,
+    BroadcastApi.liveStack: handleLiveStack,
+    BroadcastApi.sse: handleSse,
+    BroadcastApi.page: handleBroadcastPage,
+  };
+
   final ProviderContainer container;
 
   BroadcastHandlers({required this.container});

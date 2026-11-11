@@ -5,6 +5,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:shelf/shelf.dart';
 
 import 'response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 /// Operator-readable sentence for an arbitrary thrown object, for handlers
 /// that build their own error body instead of letting
@@ -259,12 +260,13 @@ class HandlerFailure implements Exception {
   @override
   String toString() => 'HandlerFailure(code=$code, status=$statusCode)';
 
-  Map<String, Object?> toJsonBody({String? requestId}) => {
-    'error': code,
-    'message': message,
-    if (requestId != null) 'requestId': requestId,
-    if (details != null) ...details!,
-  };
+  Map<String, Object?> toJsonBody({String? requestId}) => ApiErrorBody(
+    code: code,
+    message: message,
+    layout: ApiErrorLayout.codeAsError,
+    requestId: requestId,
+    details: details,
+  ).toJson();
 }
 
 /// Reads the request body as a JSON object.

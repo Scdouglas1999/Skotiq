@@ -6,6 +6,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for focus model endpoints
 ///
@@ -21,7 +23,25 @@ import '../validation.dart';
 /// slave queries cannot disagree with the refocus decision the host makes.
 /// The other endpoints (data/model/filter-offsets/export/import) read
 /// [FocusModelService], which powers the equipment scatter-plot UI.
-class FocusModelHandlers {
+class FocusModelHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FocusModelApi.getFocusData: handleGetFocusData,
+    FocusModelApi.addFocusPoint: handleAddFocusPoint,
+    FocusModelApi.clearFocusData: handleClearFocusData,
+    FocusModelApi.getFocusModel: handleGetFocusModel,
+    FocusModelApi.predictFocus: handlePredictFocus,
+    FocusModelApi.getFilterOffsets: handleGetFilterOffsets,
+    FocusModelApi.setFilterOffsets: handleSetFilterOffsets,
+    FocusModelApi.shouldRefocus: handleShouldRefocus,
+    FocusModelApi.exportFocusData: handleExportFocusData,
+    FocusModelApi.importFocusData: handleImportFocusData,
+    FocusModelApi.getPredictiveSettings: handleGetPredictiveSettings,
+    FocusModelApi.updatePredictiveConfig: handleUpdatePredictiveConfig,
+    FocusModelApi.clearPredictiveSamples: handleClearPredictiveSamples,
+    FocusModelApi.exportPredictiveModel: handleExportPredictiveModel,
+  };
+
   final ProviderContainer container;
   bool _initialized = false;
 

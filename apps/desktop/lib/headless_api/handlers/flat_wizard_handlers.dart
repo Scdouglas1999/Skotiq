@@ -4,9 +4,19 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for flat frame calibration and sequence generation
-class FlatWizardHandlers {
+class FlatWizardHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FlatWizardApi.calibrateFilter: handleCalibrateFilter,
+    FlatWizardApi.calibrateMultipleFilters: handleCalibrateMultipleFilters,
+    FlatWizardApi.generateSequence: handleGenerateSequence,
+    FlatWizardApi.quickCalibrate: handleQuickCalibrate,
+  };
+
   final ProviderContainer container;
 
   FlatWizardHandlers(this.container);

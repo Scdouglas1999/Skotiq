@@ -4,6 +4,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the Night Narrator feed.
 ///
@@ -11,9 +13,14 @@ import '../validation.dart';
 /// accepted events to the local DB. A remote tablet/desktop cannot watch that
 /// DB, so these read-only endpoints expose the appliance's narrator feed over
 /// REST. The mobile client fetches a snapshot here and refreshes when backend
-/// events arrive (new captures → new narrator events). Both GETs default to
-/// `view` scope (read-only monitoring) per route_metadata.
-class NarratorHandlers {
+/// events arrive (new captures → new narrator events).
+class NarratorHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    NarratorApi.feed: handleFeed,
+    NarratorApi.recent: handleRecent,
+  };
+
   final ProviderContainer container;
 
   NarratorHandlers(this.container);

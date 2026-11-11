@@ -10,11 +10,35 @@ import 'package:shelf/shelf.dart';
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 part 'session_handlers/thumbnail_handlers.dart';
 
 /// Handlers for polar alignment and session/image endpoints
-class SessionHandlers {
+class SessionHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SessionApi.startPolarAlignment: handleStartPolarAlignment,
+    SessionApi.startAllSkyPolarAlignment: handleStartAllSkyPolarAlignment,
+    SessionApi.stopPolarAlignment: handleStopPolarAlignment,
+    SessionApi.getSessionImages: handleGetSessionImages,
+    SessionApi.getAllImages: handleGetAllImages,
+    SessionApi.getRecentImages: handleGetRecentImages,
+    SessionApi.getStandaloneImages: handleGetStandaloneImages,
+    SessionApi.backfillThumbnails: handleBackfillThumbnails,
+    SessionApi.createImage: handleCreateImage,
+    SessionApi.getImageById: handleGetImageById,
+    SessionApi.updateImage: handleUpdateImage,
+    SessionApi.getImageThumbnail: handleGetImageThumbnail,
+    SessionApi.regenerateImageThumbnail: handleRegenerateImageThumbnail,
+    SessionApi.downloadImage: handleDownloadImage,
+    SessionApi.exportSessionJson: handleExportSessionJson,
+    SessionApi.exportSessionCsv: handleExportSessionCsv,
+    SessionApi.exportSessionHtml: handleExportSessionHtml,
+    SessionApi.exportSession: handleExportSession,
+  };
+
   final ProviderContainer container;
 
   /// Optional job manager used by the thumbnail-backfill endpoint in the

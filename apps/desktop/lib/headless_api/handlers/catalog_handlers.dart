@@ -44,9 +44,22 @@ import 'package:shelf/shelf.dart';
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// REST surface for [CatalogManager].
-class CatalogHandlers {
+class CatalogHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CatalogApi.status: handleStatus,
+    CatalogApi.available: handleAvailable,
+    CatalogApi.download: handleDownload,
+    CatalogApi.upload: handleUpload,
+    CatalogApi.verify: handleVerify,
+    CatalogApi.reload: handleReload,
+    CatalogApi.delete: handleDelete,
+  };
+
   /// Job manager that owns long-running downloads. Catalog downloads
   /// can be 35+ MB over a slow link, so we expose them as Jobs
   /// — `POST /api/catalog/download` returns `{jobId}` immediately and

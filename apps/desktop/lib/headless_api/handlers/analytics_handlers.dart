@@ -5,6 +5,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// The grading verdict over one session's LIGHT frames.
 ///
@@ -35,7 +37,28 @@ class SessionGrading {
 const String _kAvgHfrBasis = 'accepted-frames';
 
 /// Handlers for session management and analytics
-class AnalyticsHandlers {
+class AnalyticsHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    AnalyticsApi.getAllSessions: handleGetAllSessions,
+    AnalyticsApi.getActiveSession: handleGetActiveSession,
+    AnalyticsApi.getRecentSessions: handleGetRecentSessions,
+    AnalyticsApi.getSessionById: handleGetSessionById,
+    AnalyticsApi.getSessionStats: handleGetSessionStats,
+    AnalyticsApi.getSessionPsfTiles: handleGetSessionPsfTiles,
+    AnalyticsApi.getSessionResiduals: handleGetSessionResiduals,
+    AnalyticsApi.getSessionsForTarget: handleGetSessionsForTarget,
+    AnalyticsApi.createSession: handleCreateSession,
+    AnalyticsApi.updateSession: handleUpdateSession,
+    AnalyticsApi.endSession: handleEndSession,
+    AnalyticsApi.deleteSession: handleDeleteSession,
+    AnalyticsApi.getAnalyticsSummary: handleGetAnalyticsSummary,
+    AnalyticsApi.getTotalIntegrationTime: handleGetTotalIntegrationTime,
+    AnalyticsApi.getUntrackedTargetsCount: handleGetUntrackedTargetsCount,
+    AnalyticsApi.removeUntrackedTargets: handleRemoveUntrackedTargets,
+    AnalyticsApi.getTargetStatistics: handleGetTargetStatistics,
+  };
+
   final ProviderContainer container;
 
   /// Upper bound for the `/api/sessions/recent` `limit`. Imaging sessions

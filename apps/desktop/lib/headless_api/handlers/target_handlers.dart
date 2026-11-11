@@ -7,9 +7,26 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for target CRUD operations
-class TargetHandlers {
+class TargetHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    TargetApi.getAllTargets: handleGetAllTargets,
+    TargetApi.getFavoriteTargets: handleGetFavoriteTargets,
+    TargetApi.searchTargets: handleSearchTargets,
+    TargetApi.getTargetsByType: handleGetTargetsByType,
+    TargetApi.getTargetsByPriority: handleGetTargetsByPriority,
+    TargetApi.getTargetById: handleGetTargetById,
+    TargetApi.createTarget: handleCreateTarget,
+    TargetApi.updateTarget: handleUpdateTarget,
+    TargetApi.deleteTarget: handleDeleteTarget,
+    TargetApi.toggleFavorite: handleToggleFavorite,
+    TargetApi.updateProgress: handleUpdateProgress,
+  };
+
   final ProviderContainer container;
 
   TargetHandlers(this.container);

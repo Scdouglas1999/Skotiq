@@ -4,12 +4,13 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_desktop/headless_api/auth/public_paths.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 void main() {
   group('HeadlessApiServer scoped auth middleware', () {
@@ -108,7 +109,7 @@ void main() {
 
       expect(info.statusCode, HttpStatus.ok);
       final published = (info.body['publicEndpoints'] as List).cast<String>();
-      expect(published, equals(publishedPublicEndpoints()));
+      expect(published, equals(publicApiPaths));
       expect(
         published,
         containsAll(<String>[

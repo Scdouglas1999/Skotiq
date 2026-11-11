@@ -16,6 +16,8 @@ import '../command_correlator.dart';
 import '../response_helpers.dart';
 import '../sequence_wire_validation.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 part 'sequencer/sequencer_lifecycle_handlers.dart';
 part 'sequencer/sequencer_start_preflight.dart';
@@ -28,7 +30,80 @@ part 'sequencer/wire_sequence_summary.dart';
 part 'sequencer/sequencer_scheduled_start_handlers.dart';
 
 /// Handlers for sequencer control endpoints
-class SequencerHandlers {
+class SequencerHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SequencerApi.status: handleSequencerStatus,
+    SequencerApi.editorSequence: handleSequencerEditorSequence,
+    SequencerApi.putEditorSequence: handleSequencerPutEditorSequence,
+    SequencerApi.start: handleSequencerStart,
+    SequencerApi.stop: handleSequencerStop,
+    SequencerApi.getScheduledStart: handleGetScheduledStart,
+    SequencerApi.armScheduledStart: handleArmScheduledStart,
+    SequencerApi.cancelScheduledStart: handleCancelScheduledStart,
+    SequencerApi.pause: handleSequencerPause,
+    SequencerApi.resume: handleSequencerResume,
+    SequencerApi.skip: handleSequencerSkip,
+    SequencerApi.skipToNode: handleSequencerSkipToNode,
+    SequencerApi.pluginNodeFinished: handleSequencerPluginNodeFinished,
+    SequencerApi.reset: handleSequencerReset,
+    SequencerApi.load: handleSequencerLoad,
+    SequencerApi.loadAndStart: handleSequencerLoadAndStart,
+    SequencerApi.setSimulationMode: handleSequencerSetSimulationMode,
+    SequencerApi.setDevices: handleSequencerSetDevices,
+    SequencerApi.setSafetyFailMode: handleSequencerSetSafetyFailMode,
+    SequencerApi.setParkPolicy: handleSequencerSetParkPolicy,
+    SequencerApi.setDeviceRetries: handleSequencerSetDeviceRetries,
+    SequencerApi.setQualityPolicy: handleSequencerSetQualityPolicy,
+    SequencerApi.setSafetyCheckInterval: handleSequencerSetSafetyCheckInterval,
+    SequencerApi.setSavePath: handleSequencerSetSavePath,
+    SequencerApi.setActiveSequenceRunId: handleSequencerSetActiveSequenceRunId,
+    SequencerApi.setDecisionLoggingEnabled:
+        handleSequencerSetDecisionLoggingEnabled,
+    SequencerApi.updateDitherConfig: handleSequencerUpdateDitherConfig,
+    SequencerApi.updateMeridianFlipConfig:
+        handleSequencerUpdateMeridianFlipConfig,
+    SequencerApi.updateLocation: handleSequencerUpdateLocation,
+    SequencerApi.updateFilterOffsets: handleSequencerUpdateFilterOffsets,
+    SequencerApi.updatePendingIntegrationCarryOver:
+        handleSequencerUpdatePendingIntegrationCarryOver,
+    SequencerApi.updateAutofocusInterval:
+        handleSequencerUpdateAutofocusInterval,
+    SequencerApi.updateAutofocusConfig: handleSequencerUpdateAutofocusConfig,
+    SequencerApi.updateDefaultQualityCheck:
+        handleSequencerUpdateDefaultQualityCheck,
+    SequencerApi.updateRejectFolderPath: handleSequencerUpdateRejectFolderPath,
+    SequencerApi.updateObserverProfile: handleSequencerUpdateObserverProfile,
+    SequencerApi.updateSkyBrightness: handleSequencerUpdateSkyBrightness,
+    SequencerApi.updateDefaultAdaptiveExposure:
+        handleSequencerUpdateDefaultAdaptiveExposure,
+    SequencerApi.clearDefaultAdaptiveExposure:
+        handleSequencerClearDefaultAdaptiveExposure,
+    SequencerApi.setCheckpointDir: handleSequencerSetCheckpointDir,
+    SequencerApi.hasCheckpoint: handleSequencerHasCheckpoint,
+    SequencerApi.getCheckpointInfo: handleSequencerGetCheckpointInfo,
+    SequencerApi.resumeFromCheckpoint: handleSequencerResumeFromCheckpoint,
+    SequencerApi.discardCheckpoint: handleSequencerDiscardCheckpoint,
+    SequencerApi.saveCheckpoint: handleSequencerSaveCheckpoint,
+    SequencerApi.performMeridianFlip: handlePerformMeridianFlip,
+    SequencerApi.requestMeridianFlip: handleSequencerRequestMeridianFlip,
+    SequencerApi.recoveryTryNow: handleSequencerRecoveryTryNow,
+    SequencerApi.recoveryAbort: handleSequencerRecoveryAbort,
+    SequencerApi.updateRecoveryConfig: handleSequencerUpdateRecoveryConfig,
+    SequencerApi.getCurrentRecovery: handleSequencerGetCurrentRecovery,
+    SequencerApi.getRecoveryHistory: handleSequencerGetRecoveryHistory,
+    SequencerApi.updateCloudMotion: handleSequencerUpdateCloudMotion,
+    SequencerApi.getCloudMotion: handleSequencerGetCloudMotion,
+    SequencerApi.updateWeatherVerdict: handleSequencerUpdateWeatherVerdict,
+    SequencerApi.weatherOperatorClear: handleSequencerWeatherOperatorClear,
+    SequencerApi.weatherResumeAfter: handleSequencerWeatherResumeAfter,
+    SequencerApi.updateConditionsScore: handleSequencerUpdateConditionsScore,
+    SequencerApi.getAdaptiveSwap: handleSequencerGetAdaptiveSwap,
+    SequencerApi.secondaryRigStatus: handleSecondaryRigStatus,
+    SequencerApi.secondaryRigStart: handleSecondaryRigStart,
+    SequencerApi.secondaryRigStop: handleSecondaryRigStop,
+  };
+
   final ProviderContainer container;
 
   /// optional command correlator. When set, every action POST
@@ -79,8 +154,8 @@ class SequencerHandlers {
 
   // Routed entry points. Each forwards to the implementation in the part
   // file named above; the public method must live on the class itself
-  // because `routes/sequencer_routes.dart` tears these off from another
-  // library, where a library-private extension is invisible.
+  // because the handlers are also called from other libraries, where a
+  // library-private extension is invisible.
   Future<Response> handleSequencerStatus(Request request) =>
       _handleSequencerStatus(request);
   Future<Response> handleSequencerEditorSequence(Request request) =>

@@ -7,8 +7,16 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-class FileSystemHandlers {
+class FileSystemHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FileSystemApi.browseDirectories: handleBrowseDirectories,
+    FileSystemApi.validateDirectory: handleValidateDirectory,
+  };
+
   final ProviderContainer container;
   final Map<String, String> _environment;
 

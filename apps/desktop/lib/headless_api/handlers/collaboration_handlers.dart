@@ -24,12 +24,27 @@ import 'package:shelf/shelf.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// HTTP handlers for the `/api/collaboration/*` and `/api/session-handoff`
 /// endpoints. Constructed once per server with the shared
 /// [LiveCollaborationSessionManager] so HTTP, the WS upgrade path, and
 /// the desktop GUI all observe the same in-memory state.
-class CollaborationHandlers {
+class CollaborationHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CollaborationApi.state: handleCollaborationState,
+    CollaborationApi.join: handleCollaborationJoin,
+    CollaborationApi.leave: handleCollaborationLeave,
+    CollaborationApi.preview: handleCollaborationPreview,
+    CollaborationApi.chat: handleCollaborationChat,
+    CollaborationApi.annotation: handleCollaborationAnnotation,
+    CollaborationApi.getSessionHandoff: handleGetSessionHandoff,
+    CollaborationApi.setSessionHandoff: handleSetSessionHandoff,
+    CollaborationApi.clearSessionHandoff: handleClearSessionHandoff,
+  };
+
   final LiveCollaborationSessionManager manager;
   final LoggingService logger;
 

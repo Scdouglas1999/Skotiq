@@ -10,10 +10,40 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for sequence management (CRUD operations)
 /// This is SEPARATE from sequencer_handlers.dart which controls sequencer execution.
-class SequenceManagementHandlers {
+class SequenceManagementHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SequenceManagementApi.getAllSequences: handleGetAllSequences,
+    SequenceManagementApi.listFullSequences: handleListFullSequences,
+    SequenceManagementApi.listFullTemplates: handleListFullTemplates,
+    SequenceManagementApi.saveFullSequence: handleSaveFullSequence,
+    SequenceManagementApi.listSequenceSummaries: handleListSequenceSummaries,
+    SequenceManagementApi.getVersion: handleGetVersion,
+    SequenceManagementApi.getFullSequence: handleGetFullSequence,
+    SequenceManagementApi.getAllTemplates: handleGetAllTemplates,
+    SequenceManagementApi.getSequenceById: handleGetSequenceById,
+    SequenceManagementApi.getNodesForSequence: handleGetNodesForSequence,
+    SequenceManagementApi.getChildNodes: handleGetChildNodes,
+    SequenceManagementApi.listVersions: handleListVersions,
+    SequenceManagementApi.createSequence: handleCreateSequence,
+    SequenceManagementApi.updateSequence: handleUpdateSequence,
+    SequenceManagementApi.deleteSequence: handleDeleteSequence,
+    SequenceManagementApi.duplicateSequence: handleDuplicateSequence,
+    SequenceManagementApi.setTags: handleSetTags,
+    SequenceManagementApi.toggleFavorite: handleToggleFavorite,
+    SequenceManagementApi.snapshotVersion: handleSnapshotVersion,
+    SequenceManagementApi.createNode: handleCreateNode,
+    SequenceManagementApi.updateNode: handleUpdateNode,
+    SequenceManagementApi.deleteNode: handleDeleteNode,
+    SequenceManagementApi.reorderNodes: handleReorderNodes,
+    SequenceManagementApi.setNodeEnabled: handleSetNodeEnabled,
+  };
+
   final ProviderContainer container;
 
   static const Set<String> _logicNodeTypes = {
@@ -766,36 +796,39 @@ class SequenceManagementHandlers {
     };
   }
 
-  Map<String, dynamic> _summaryToJson(SequenceSummary summary) => {
-    'id': summary.id,
-    'name': summary.name,
-    'nodeCount': summary.nodeCount,
-    'targetCount': summary.targetCount,
-    'exposureCount': summary.exposureCount,
-    'totalIntegrationSecs': summary.totalIntegrationSecs,
-    'primaryTargetName': summary.primaryTargetName,
-    'lastRunAt': summary.lastRunAt?.toIso8601String(),
-    'runCount': summary.runCount,
-    'tags': summary.tags,
-    'isFavorite': summary.isFavorite,
-    'createdAt': summary.createdAt.toIso8601String(),
-    'modifiedAt': summary.modifiedAt.toIso8601String(),
-  };
+  Map<String, dynamic> _summaryToJson(SequenceSummary summary) =>
+      SequenceSummaryDto(
+        id: summary.id,
+        name: summary.name,
+        nodeCount: summary.nodeCount,
+        targetCount: summary.targetCount,
+        exposureCount: summary.exposureCount,
+        totalIntegrationSecs: summary.totalIntegrationSecs,
+        primaryTargetName: summary.primaryTargetName,
+        lastRunAt: summary.lastRunAt,
+        runCount: summary.runCount,
+        tags: summary.tags,
+        isFavorite: summary.isFavorite,
+        createdAt: summary.createdAt,
+        modifiedAt: summary.modifiedAt,
+      ).toJson();
 
-  Map<String, dynamic> _versionToJson(SequenceVersion version) => {
-    'id': version.id,
-    'sequenceId': version.sequenceId,
-    'snapshotJson': version.snapshotJson,
-    'label': version.label,
-    'createdAt': version.createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> _versionToJson(SequenceVersion version) =>
+      SequenceVersionDto(
+        id: version.id,
+        sequenceId: version.sequenceId,
+        snapshotJson: version.snapshotJson,
+        label: version.label,
+        createdAt: version.createdAt,
+      ).toJson();
 
-  Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) => {
-    'id': version.id,
-    'sequenceId': version.sequenceId,
-    'label': version.label,
-    'createdAt': version.createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) =>
+      SequenceVersionSummaryDto(
+        id: version.id,
+        sequenceId: version.sequenceId,
+        label: version.label,
+        createdAt: version.createdAt,
+      ).toJson();
 
   // Helper: Convert SequenceNode to JSON
 

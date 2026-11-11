@@ -24,9 +24,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
 
   /// Middleware that validates Bearer token authentication.
   ///
-  /// The authentication-exempt surface is declared once in
-  /// `headless_api/auth/public_paths.dart` and enforced here; `GET /api/info`
-  /// publishes that same declaration as `publicEndpoints`.
+  /// A route is served without a token when it is declared
+  /// `ApiScope.public`; `GET /api/info` lists those same routes as
+  /// `publicEndpoints`.
   ///
   /// WebSocket endpoints (/api/ws, /events) require authentication when enabled.
   /// They accept the token via Authorization header or `token` query parameter
@@ -39,7 +39,6 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     // because browser/WS clients can't always set custom headers on the
     // upgrade request — the phone passes the bearer token via ?token= and
     // we honour it here.
-    const webSocketPaths = {'/api/ws', '/events', '/ws/live-view'};
 
     return (innerHandler) {
       return (request) {
@@ -75,14 +74,15 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // SPA bundle roots) — the same declaration /api/info publishes.
         final requestId = _requestIdFrom(request);
         final path = '/${request.url.path}';
-        if (isPublicApiPath(path)) {
+        final route = RouteTable.of(request).policy;
+        if (route.scope == ApiScope.public) {
           return innerHandler(request);
         }
 
         // For WebSocket paths, accept either the legacy ?token=<bearer> (with
         // a deprecation warning) or the one-shot ?ticket=, which is consumed
         // and invalidated here so it cannot be reused.
-        if (webSocketPaths.contains(path)) {
+        if (route.method == ApiMethod.ws) {
           final queryTicket = request.url.queryParameters['ticket'];
           if (queryTicket != null && queryTicket.isNotEmpty) {
             // ws_ticket_manager.consume returns the digest of the token
@@ -96,10 +96,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
                 _attachAuthIdentity(
                   request,
                   identity: ticketIdentity,
-                  routeClass: route_metadata.tokenRouteClassFor(
-                    method: request.method,
-                    path: path,
-                  ),
+                  routeClass: route.bucket,
                 ),
               );
             }
@@ -146,11 +143,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             }
             final queryGrant = _grantForToken(queryToken);
             if (queryGrant != null &&
-                HeadlessAuthPolicy.permits(
-                  grant: queryGrant,
-                  method: 'WS',
-                  path: path,
-                )) {
+                HeadlessAuthPolicy.permits(grant: queryGrant, route: route)) {
               _tokenResolver.clearFailures(wsClientKey);
               // The event stream is how a phone stays live all night; a client
               // that only ever holds this socket open must still register as
@@ -164,10 +157,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
                 _attachAuthIdentity(
                   request,
                   identity: computeServerFingerprint(queryToken),
-                  routeClass: route_metadata.tokenRouteClassFor(
-                    method: request.method,
-                    path: path,
-                  ),
+                  routeClass: route.bucket,
                 ),
               );
             }
@@ -210,7 +200,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // for the phone client. Both endpoints are GET-only and
         // read-only so a leaked URL token (e.g. via a screenshot) has
         // bounded blast radius.
-        if (path == '/api/run-watch/events' || path == '/api/logs/tail') {
+        if (route.queryToken) {
           final qToken = request.url.queryParameters['access_token'];
           if (qToken != null && qToken.isNotEmpty) {
             token = qToken;
@@ -316,7 +306,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           return jsonForbidden(
             {
               'error': 'Access denied',
-              'message': 'Invalid authentication token',
+              'message': ApiErrorBody.invalidTokenMessage,
             },
             headers: {HeadlessApiServer._requestIdHeader: requestId},
           );
@@ -326,19 +316,11 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         _tokenResolver.clearFailures(clientKey);
         _touchPairedDeviceSeen(token);
 
-        if (!HeadlessAuthPolicy.permits(
-          grant: tokenGrant,
-          method: request.method,
-          path: path,
-        )) {
+        if (!HeadlessAuthPolicy.permits(grant: tokenGrant, route: route)) {
           final requiredCapability = HeadlessAuthPolicy.requiredCapabilityFor(
-            method: request.method,
-            path: path,
+            route,
           );
-          final requiredScope = HeadlessAuthPolicy.requiredScopeFor(
-            method: request.method,
-            path: path,
-          );
+          final requiredScope = HeadlessAuthPolicy.requiredScopeFor(route);
           _logWarning(
             '[AUTH][$requestId] Rejected request to $path - '
             'scope=${headlessTokenScopeName(tokenGrant.coarseScope)} '
@@ -351,11 +333,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           // decision — see [HeadlessAuthPolicy.scopeDenialBody] for why the
           // coarse pair is conditional.
           return jsonForbidden(
-            HeadlessAuthPolicy.scopeDenialBody(
-              grant: tokenGrant,
-              method: request.method,
-              path: path,
-            ),
+            HeadlessAuthPolicy.scopeDenialBody(grant: tokenGrant, route: route),
             headers: {HeadlessApiServer._requestIdHeader: requestId},
           );
         }
@@ -369,10 +347,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           _attachAuthIdentity(
             request,
             identity: computeServerFingerprint(token),
-            routeClass: route_metadata.tokenRouteClassFor(
-              method: request.method,
-              path: path,
-            ),
+            routeClass: route.bucket,
           ),
         );
       };
@@ -390,7 +365,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
   Request _attachAuthIdentity(
     Request request, {
     required String identity,
-    required route_metadata.TokenRouteClass routeClass,
+    required ApiBucket routeClass,
   }) {
     return request.change(
       context: {
@@ -409,9 +384,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     return value is String ? value : null;
   }
 
-  route_metadata.TokenRouteClass? _authRouteClassFrom(Request request) {
+  ApiBucket? _authRouteClassFrom(Request request) {
     final value = request.context[HeadlessApiServer._authRouteClassContextKey];
-    return value is route_metadata.TokenRouteClass ? value : null;
+    return value is ApiBucket ? value : null;
   }
 
   /// extract the raw bearer token (or cookie-backed session token)
@@ -446,8 +421,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
   Middleware _sessionOwnershipMiddleware() {
     return createMiddleware(
       requestHandler: (request) {
-        final path = '/${request.url.path}';
-        if (!isOwnershipRequired(method: request.method, path: path)) {
+        if (!RouteTable.of(request).policy.sessionOwner) {
           return null;
         }
         // Reaching this branch means: (a) an authenticated request, (b)

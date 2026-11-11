@@ -6,9 +6,33 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for mosaic generation
-class MosaicHandlers {
+class MosaicHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    MosaicApi.generatePanels: handleGeneratePanels,
+    MosaicApi.generateSequence: handleGenerateSequence,
+    MosaicApi.calculateArea: handleCalculateArea,
+    MosaicApi.validateMosaic: handleValidateMosaic,
+    MosaicApi.estimateTime: handleEstimateTime,
+    MosaicApi.recommendExposure: handleRecommendExposure,
+    MosaicApi.listCollaborative: handleListCollaborative,
+    MosaicApi.joinCollaborativeMosaic: handleJoinCollaborativeMosaic,
+    MosaicApi.getCollaborative: handleGetCollaborative,
+    MosaicApi.publishCollaborative: handlePublishCollaborative,
+    MosaicApi.joinCollaborative: handleJoinCollaborative,
+    MosaicApi.collaborativeStatus: handleCollaborativeStatus,
+    MosaicApi.claimPanel: handleClaimPanel,
+    MosaicApi.releasePanel: handleReleasePanel,
+    MosaicApi.forceReleasePanel: handleForceReleasePanel,
+    MosaicApi.uploadPanel: handleUploadPanel,
+    MosaicApi.assembleMosaic: handleAssembleMosaic,
+    MosaicApi.downloadCollaborativeOutput: handleDownloadCollaborativeOutput,
+  };
+
   final ProviderContainer container;
 
   MosaicHandlers(this.container);

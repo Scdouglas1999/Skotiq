@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
-import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
-import 'package:skotiq_desktop/headless_api/routes/static_file_routes.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:shelf/shelf.dart';
-import 'package:shelf_router/shelf_router.dart';
 
 /// D4W-4 — the run-watch SPA must have exactly one address.
 ///
@@ -21,7 +19,7 @@ void main() {
 
   late Directory tempDir;
   late LoggingService logger;
-  late Router router;
+  late Handler router;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('sk_static_routes_test_');
@@ -32,11 +30,7 @@ void main() {
       currentLogFileProvider: () => null,
     );
     await logger.ensureInitialized();
-    router = Router();
-    registerRoutes(
-      router,
-      buildStaticFileRoutes(StaticFileHandlers(logger: logger)),
-    );
+    router = RouteTable.only(StaticFileHandlers(logger: logger)).handler;
   });
 
   tearDown(() async {

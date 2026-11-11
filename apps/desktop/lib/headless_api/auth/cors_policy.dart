@@ -1,5 +1,3 @@
-import '../route_metadata.dart' as route_metadata;
-
 /// CORS allow-list policy for the headless API.
 ///
 /// Explicit allow-list, never origin reflection: echoing the request `Origin`
@@ -38,12 +36,7 @@ class CorsAllowList {
   ///
   /// [requestOrigin] is the value of the request's `Origin` header.
   /// [requestUri] is the URL the request hit (so we can detect same-origin).
-  /// [path] is the URL path; high-risk paths use a stricter rule.
-  String? resolve({
-    required String? requestOrigin,
-    required Uri requestUri,
-    required String path,
-  }) {
+  String? resolve({required String? requestOrigin, required Uri requestUri}) {
     if (requestOrigin == null || requestOrigin.isEmpty) {
       return null;
     }
@@ -59,24 +52,11 @@ class CorsAllowList {
         originUri.host.toLowerCase() == requestUri.host.toLowerCase() &&
         originUri.port == requestUri.port;
 
-    final isHighRisk = route_metadata.isHighRiskControlPath(path);
     final inAllowList = _allowedOrigins.contains(canonical);
 
-    if (isHighRisk) {
-      // High-risk POSTs must come from an explicitly allow-listed origin OR
-      // be same-origin (the dashboard served by this server). Loopback
-      // same-origin is still considered "trusted" because the user binds
-      // there intentionally; the alternative would break the bundled UI.
-      if (inAllowList || (_allowSameOrigin && isSameOrigin)) {
-        return requestOrigin;
-      }
-      return null;
-    }
-
-    // Non-high-risk: also restrict to allow-list / same-origin. Drop the
-    // legacy "reflect any origin that matches host:port" behaviour that let
-    // a different scheme or hijacked host bypass via spoofed Host headers
-    // upstream.
+    // Only an allow-listed origin or the server's own (the bundled
+    // dashboard). Reflecting any origin that matches host:port would let a
+    // different scheme or a spoofed Host header through.
     if (inAllowList || (_allowSameOrigin && isSameOrigin)) {
       return requestOrigin;
     }
