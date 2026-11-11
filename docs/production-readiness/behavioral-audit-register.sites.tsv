@@ -2138,25 +2138,7 @@ packages/skotiq_app/lib/screens/settings/widgets/adaptive_conditions_settings.da
 packages/skotiq_app/lib/screens/settings/widgets/adaptive_conditions_settings.dart	build	literal_null_coalesce	1	V0086	settings.conditionsScoreWeights['transparency'] ?? 0,
 packages/skotiq_app/lib/screens/settings/widgets/adaptive_conditions_settings.dart	build	literal_null_coalesce	1	V0086	settings.conditionsScoreWeights['wind'] ?? 0,
 packages/skotiq_app/lib/screens/settings/widgets/adaptive_exposure_settings.dart	_filterRow	literal_null_coalesce	1	V0086	enabledMap[filter] = v ?? false;
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	didUpdateWidget	literal_null_coalesce	1	V0121	oldWidget.config.afExposureTime?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	didUpdateWidget	literal_null_coalesce	1	V0121	oldWidget.config.gain?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	didUpdateWidget	literal_null_coalesce	1	V0121	oldWidget.config.offset?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	didUpdateWidget	literal_null_coalesce	1	V0121	widget.config.afExposureTime?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	didUpdateWidget	literal_null_coalesce	1	V0121	widget.config.gain?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	didUpdateWidget	literal_null_coalesce	1	V0121	widget.config.offset?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	initState	literal_null_coalesce	1	V0121	text: widget.config.afExposureTime?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	initState	literal_null_coalesce	1	V0121	text: widget.config.gain?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_mobile_card.dart	initState	literal_null_coalesce	1	V0121	text: widget.config.offset?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	_commit	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	didUpdateWidget	literal_null_coalesce	1	V0121	oldWidget.config.afExposureTime?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	didUpdateWidget	literal_null_coalesce	1	V0121	oldWidget.config.gain?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	didUpdateWidget	literal_null_coalesce	1	V0121	oldWidget.config.offset?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	didUpdateWidget	literal_null_coalesce	1	V0121	widget.config.afExposureTime?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	didUpdateWidget	literal_null_coalesce	1	V0121	widget.config.gain?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	didUpdateWidget	literal_null_coalesce	1	V0121	widget.config.offset?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	initState	literal_null_coalesce	1	V0121	text: widget.config.afExposureTime?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	initState	literal_null_coalesce	1	V0121	text: widget.config.gain?.toString() ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	initState	literal_null_coalesce	1	V0121	text: widget.config.offset?.toString() ?? '',
+packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings/filter_settings_row.dart	_FilterAfFields	comment_best_effort	1	U2-05	/// Placeholder for a value left to the camera default.
 packages/skotiq_app/lib/screens/settings/widgets/captured_images_settings.dart	_showFull	empty_catch	1	V0141	} catch (_) {
 packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart	build	literal_null_coalesce	1	V0121	final hasCatalogData = status?.hasCatalogData ?? false;
 packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart	build	literal_null_coalesce	1	V0121	final isInstalled = status?.isInstalled ?? false;
@@ -2164,12 +2146,7 @@ packages/skotiq_app/lib/screens/settings/widgets/file_path_settings.dart	build	l
 packages/skotiq_app/lib/screens/settings/widgets/focus_model_settings.dart	build	literal_null_coalesce	1	V0142	'Data points: ${model?['dataPointCount'] ?? 0}.'),
 packages/skotiq_app/lib/screens/settings/widgets/help_tutorials_settings.dart	_run	empty_catch	1	V0211	} catch (_) {
 packages/skotiq_app/lib/screens/settings/widgets/help_tutorials_settings.dart	_runAction	empty_catch	1	V0211	} catch (_) {
-packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	_commit	empty_catch	1	V0086	} catch (_) {
-packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	_syncControllers	literal_null_coalesce	1	V0086	settings.imageGradingEccentricityThreshold?.toStringAsFixed(2) ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	_syncControllers	literal_null_coalesce	1	V0086	settings.imageGradingHfrBaselinePercent?.toStringAsFixed(0) ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	_syncControllers	literal_null_coalesce	1	V0086	settings.imageGradingHfrThresholdPx?.toStringAsFixed(2) ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	_syncControllers	literal_null_coalesce	1	V0086	settings.imageGradingRejectFolderPath ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	_syncControllers	literal_null_coalesce	1	V0086	settings.imageGradingStarCountMin?.toString() ?? '',
+packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart	build	literal_null_coalesce	1	V0086	settings.imageGradingRejectFolderPath ?? '',
 packages/skotiq_app/lib/screens/settings/widgets/imaging_naming_pattern.dart	namingPatternExampleSubstitutions	guessed_now_timestamp	1	V0264	final utcTs = (now ?? DateTime.now()).toUtc();
 packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart	_applyPlace	literal_null_coalesce	1	V0002	elevation: hit.elevation ?? 0.0,
 packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart	_detectLocation	literal_null_coalesce	1	V0002	final googleKey = ref.read(googleGeolocationKeyProvider).value ?? '';
@@ -2183,7 +2160,6 @@ packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/c
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/category_editor_dialog.dart	initState	literal_null_coalesce	1	V0121	TextEditingController(text: widget.rule.bodyTemplate ?? '');
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/category_editor_dialog.dart	initState	literal_null_coalesce	1	V0121	TextEditingController(text: widget.rule.titleTemplate ?? '');
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/discord_transport_section.dart	build	literal_null_coalesce	1	V0121	_user.text = cfg.username ?? '';
-packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/discord_transport_section.dart	build	literal_null_coalesce	1	V0121	ref.watch(appSettingsProvider).valueOrNull?.discordWebhook.trim() ?? '';
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/email_transport_section.dart	_textRow	literal_null_coalesce	1	V0121	hint: hint ?? '',
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/home_assistant_section.dart	_save	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/home_assistant_section.dart	_applySnapshot	literal_null_coalesce	1	V0121	_username.text = broker.username ?? '';
@@ -2192,8 +2168,6 @@ packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/m
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/mqtt_transport_section.dart	build	literal_null_coalesce	1	V0121	hasStoredValue: (cfg.password ?? '').isNotEmpty,
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/mqtt_transport_section.dart	saveConfig	literal_null_coalesce	1	V0121	if ((password ?? '').isNotEmpty && username == null) {
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/pushover_transport_section.dart	build	literal_null_coalesce	1	V0121	_device.text = cfg.device ?? '';
-packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/pushover_transport_section.dart	build	literal_null_coalesce	1	V0121	final legacyToken = legacySettings?.pushoverKey.trim() ?? '';
-packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/pushover_transport_section.dart	build	literal_null_coalesce	1	V0121	final legacyUser = legacySettings?.pushoverUser.trim() ?? '';
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/transport_controls.dart	_run	empty_catch	2	V0121	} catch (_) {
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/transport_controls.dart	_validateWebhookBodyTemplate	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/transport_controls.dart	build	literal_null_coalesce	1	V0121	hint: widget.hint ?? '',
@@ -2206,10 +2180,10 @@ packages/skotiq_app/lib/screens/settings/widgets/predictive_af_settings.dart	_up
 packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings.dart	_commitPort	empty_catch	1	V0213	} catch (_) {
 packages/skotiq_app/lib/screens/settings/widgets/science_settings.dart	build	literal_null_coalesce	3	V0180	int.tryParse(v) ?? 0,
 packages/skotiq_app/lib/screens/settings/widgets/sequencer_settings.dart	_buildBroadcastSection	literal_null_coalesce	1	V0007	authoritativeValue: defaults.livestackingDefaultWatermark ?? '',
-packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart	_commit	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart	_onChanged	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart	didUpdateWidget	literal_null_coalesce	1	V0121	(!(_debounceTimer?.isActive ?? false) && _activeWrites == 0)) {
-packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart	dispose	literal_null_coalesce	1	V0121	if (_debounceTimer?.isActive ?? false) {
+packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_field_binding.dart	derive	literal_null_coalesce	1	U2-05	embedded: embedded ?? current?.embedded ?? false,
+packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_field_binding.dart	derive	literal_null_coalesce	1	U2-05	isMobile: current?.isMobile ?? false,
+packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_field_binding.dart	embeddedOf	literal_null_coalesce	1	U2-05	maybeOf(context)?.embedded ?? false;
+packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_field_binding.dart	isMobileOf	literal_null_coalesce	1	U2-05	maybeOf(context)?.isMobile ?? false;
 packages/skotiq_app/lib/screens/settings/widgets/solver_detection_card.dart	_buildReady	literal_null_coalesce	1	V0002	final catalogName = detection.catalogName ?? '';
 packages/skotiq_app/lib/screens/settings/widgets/update_settings.dart	_buildActions	literal_null_coalesce	1	V0143	(status?.hasAvailableUpdate ?? false) || legacyAvailable;
 packages/skotiq_app/lib/screens/settings/widgets/update_settings.dart	_buildActions	literal_null_coalesce	1	V0143	(status?.message?.toLowerCase().contains('available') ?? false);
@@ -2553,30 +2527,30 @@ packages/skotiq_core/lib/src/backend/skotiq_exception.dart	ImagingException.from
 packages/skotiq_core/lib/src/backend/skotiq_exception.dart	SkotiqException.fromJson	literal_null_coalesce	1	V0011	isRecoverable: json['is_recoverable'] as bool? ?? false,
 packages/skotiq_core/lib/src/backend/skotiq_exception.dart	SkotiqException.fromJson	literal_null_coalesce	1	V0011	isTimeout: json['is_timeout'] as bool? ?? false,
 packages/skotiq_core/lib/src/backend/skotiq_exception.dart	SkotiqException.fromJson	literal_null_coalesce	1	V0011	shouldReconnect: json['should_reconnect'] as bool? ?? false,
-packages/skotiq_core/lib/src/database/daos/campaigns_dao.dart	recordAccepted	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(capturedAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/campaigns_dao.dart	upsertDesired	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/campaigns_dao.dart	recordAccepted	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(capturedAt ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/campaigns_dao.dart	upsertDesired	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/constellation_contributions_dao.dart	upsertPulledHighWater	guessed_now_timestamp	1	V0205	lastPulledAt: Value(lastPulledAt ?? DateTime.now()),
 packages/skotiq_core/lib/src/database/daos/dark_library_dao.dart	countFilteredForRemote	literal_null_coalesce	1	V0012	return row.read(countExpr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/dark_library_dao.dart	getStats	literal_null_coalesce	1	V0012	final biasCount = biasResult.read(totalExp) ?? 0;
 packages/skotiq_core/lib/src/database/daos/dark_library_dao.dart	getStats	literal_null_coalesce	1	V0012	final darkCount = darkResult.read(totalExp) ?? 0;
 packages/skotiq_core/lib/src/database/daos/dark_library_dao.dart	getStats	literal_null_coalesce	1	V0012	final masterCount = masterResult.read(totalExp) ?? 0;
 packages/skotiq_core/lib/src/database/daos/dark_library_dao.dart	getStats	literal_null_coalesce	1	V0012	final totalEntries = totalResult.read(totalExp) ?? 0;
-packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	enqueue	guessed_now_timestamp	1	V0276	final at = _toEpochSeconds(createdAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markCancelled	guessed_now_timestamp	1	V0276	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markDone	guessed_now_timestamp	1	V0276	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markFailed	guessed_now_timestamp	1	V0276	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markRunning	guessed_now_timestamp	1	V0276	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	_recordOutcome	guessed_now_timestamp	1	V0278	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	markDelivered	guessed_now_timestamp	1	V0278	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordAttempt	guessed_now_timestamp	1	V0278	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordStillOwed	guessed_now_timestamp	1	V0278	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	requeueForRetry	guessed_now_timestamp	1	V0278	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	clearSecretRef	guessed_now_timestamp	1	V0277	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	create	guessed_now_timestamp	1	V0277	final created = _toEpochSeconds(createdAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	update	guessed_now_timestamp	1	V0277	final at = _toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	enqueue	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(createdAt ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markCancelled	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markDone	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markFailed	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/darkroom_jobs_dao.dart	markRunning	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	_recordOutcome	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	markDelivered	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordAttempt	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	recordStillOwed	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_journal_dao.dart	requeueForRetry	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	clearSecretRef	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	create	guessed_now_timestamp	1	U2-05	final created = toEpochSeconds(createdAt ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/delivery_targets_dao.dart	update	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/equipment_profiles_dao.dart	createProfile	literal_null_coalesce	1	V0012	.map((row) => row.read(countExpression) ?? 0)
 packages/skotiq_core/lib/src/database/daos/flat_history_dao.dart	countFiltered	literal_null_coalesce	1	V0121	return row.read(countExpr) ?? 0;
-packages/skotiq_core/lib/src/database/daos/flat_library_dao.dart	addEntry	guessed_now_timestamp	1	V0121	final createdSecs = _toEpochSeconds((createdAt ?? DateTime.now()).toUtc());
+packages/skotiq_core/lib/src/database/daos/flat_library_dao.dart	addEntry	guessed_now_timestamp	1	U2-05	final createdSecs = toEpochSeconds((createdAt ?? DateTime.now()).toUtc());
 packages/skotiq_core/lib/src/database/daos/guide_rms_history_dao.dart	countFiltered	literal_null_coalesce	1	V0121	return row.read(countExpr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	markPlateSolveFailed	guessed_now_timestamp	1	V0012	final stamp = (at ?? DateTime.now()).millisecondsSinceEpoch;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	stampAtlasFolded	guessed_now_timestamp	1	V0012	CapturedImagesCompanion(atlasFoldedAt: Value(at ?? DateTime.now())),
@@ -2584,13 +2558,13 @@ packages/skotiq_core/lib/src/database/daos/images_dao.dart	countImagesByProducin
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	countImagesByProducingRun	literal_null_coalesce	1	V0012	return (row?.data['c'] as int?) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	getImageCount	literal_null_coalesce	1	V0012	return result.read(countExp) ?? 0;
 packages/skotiq_core/lib/src/database/daos/images_dao.dart	getImageCountForSession	literal_null_coalesce	1	V0012	return result.read(countExp) ?? 0;
-packages/skotiq_core/lib/src/database/daos/integrated_masters_dao.dart	recordFoldedFrame	guessed_now_timestamp	1	V0121	Variable<int>(_toEpochSeconds((foldedAt ?? DateTime.now()).toUtc())),
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	create	guessed_now_timestamp	1	V0121	final created = _toEpochSeconds(createdAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setCollabStatus	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setHubMosaic	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setOutputMaster	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	updateStatus	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/narrowband_composites_dao.dart	insertComposite	guessed_now_timestamp	1	V0121	final at = _toEpochSeconds(createdAt ?? DateTime.now().toUtc());
+packages/skotiq_core/lib/src/database/daos/integrated_masters_dao.dart	recordFoldedFrame	guessed_now_timestamp	1	U2-05	Variable<int>(toEpochSeconds((foldedAt ?? DateTime.now()).toUtc())),
+packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	create	guessed_now_timestamp	1	U2-05	final created = toEpochSeconds(createdAt ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setCollabStatus	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setHubMosaic	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	setOutputMaster	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/mosaic_projects_dao.dart	updateStatus	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/narrowband_composites_dao.dart	insertComposite	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(createdAt ?? DateTime.now().toUtc());
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	countFiltered	literal_null_coalesce	1	V0012	return row.read(countExpr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	exportAllLogs	literal_null_coalesce	1	V0012	'altitude': log.altitude ?? '',
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	exportAllLogs	literal_null_coalesce	1	V0012	'azimuth': log.azimuth ?? '',
@@ -2616,11 +2590,12 @@ packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	observation
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	observationLogsToCsv	literal_null_coalesce	1	V0012	'seeing_conditions': log.seeingConditions ?? '',
 packages/skotiq_core/lib/src/database/daos/observation_logs_dao.dart	observationLogsToCsv	literal_null_coalesce	1	V0012	'transparency': log.transparency ?? '',
 packages/skotiq_core/lib/src/database/daos/observing_lists_dao.dart	getItemCount	literal_null_coalesce	1	V0012	return result ?? 0;
+packages/skotiq_core/lib/src/database/daos/planning_dao.dart	acceptedLightFrameCount	literal_null_coalesce	1	U2-05	return (await query.getSingle()).read(count) ?? 0;
 packages/skotiq_core/lib/src/database/daos/polar_alignment_history_dao.dart	countFiltered	literal_null_coalesce	1	V0121	return row.read(countExpr) ?? 0;
-packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	create	guessed_now_timestamp	1	V0275	final created = _toEpochSeconds(createdAt ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	rename	guessed_now_timestamp	1	V0275	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	setDraftNotes	guessed_now_timestamp	1	V0275	final at = _toEpochSeconds(now ?? DateTime.now());
-packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	updateSteps	guessed_now_timestamp	1	V0275	final at = _toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	create	guessed_now_timestamp	1	U2-05	final created = toEpochSeconds(createdAt ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	rename	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	setDraftNotes	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
+packages/skotiq_core/lib/src/database/daos/recipes_dao.dart	updateSteps	guessed_now_timestamp	1	U2-05	final at = toEpochSeconds(now ?? DateTime.now());
 packages/skotiq_core/lib/src/database/daos/science_dao.dart	countCalibrations	literal_null_coalesce	1	V0012	return row.read(expr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/science_dao.dart	countFrameQuality	literal_null_coalesce	1	V0012	return row.read(expr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/science_dao.dart	countLineRatios	literal_null_coalesce	1	V0012	return row.read(expr) ?? 0;
@@ -2631,6 +2606,7 @@ packages/skotiq_core/lib/src/database/daos/science_dao.dart	countResiduals	liter
 packages/skotiq_core/lib/src/database/daos/science_dao.dart	countTileMetrics	literal_null_coalesce	1	V0012	return row.read(expr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/science_dao.dart	countTransparency	literal_null_coalesce	1	V0012	return row.read(expr) ?? 0;
 packages/skotiq_core/lib/src/database/daos/science_dao.dart	hasSessionlessScienceData	literal_null_coalesce	1	V0012	return (result.read(countExp) ?? 0) > 0;
+packages/skotiq_core/lib/src/database/daos/sequence_decisions_dao.dart	_count	literal_null_coalesce	1	U2-05	return (await query.getSingle()).read(count) ?? 0;
 packages/skotiq_core/lib/src/database/daos/sequence_runs_dao.dart	SequenceRunsDao	literal_null_coalesce	1	V0121	return (runCount: row.read(countExpr) ?? 0, lastRunAt: row.read(maxExpr));
 packages/skotiq_core/lib/src/database/daos/sequence_runs_dao.dart	SequenceRunsDao	literal_null_coalesce	1	V0121	runCount: row.read(countExpr) ?? 0,
 packages/skotiq_core/lib/src/database/daos/sequence_runs_dao.dart	countFiltered	literal_null_coalesce	1	V0121	return row.read(countExpr) ?? 0;
@@ -3341,32 +3317,7 @@ packages/skotiq_core/lib/src/providers/settings_provider.dart	altitudeAt	literal
 packages/skotiq_core/lib/src/providers/settings_provider.dart	toJson	literal_null_coalesce	1	V0023	final val = _altitudes[dir] ?? 0.0;
 packages/skotiq_core/lib/src/providers/settings_sections/app_settings_notifier.dart	_writeRemoteSettings	empty_catch	1	V0222	} catch (_) {
 packages/skotiq_core/lib/src/providers/settings_sections/app_settings_notifier.dart	_trackPendingRemoteWrite	literal_null_coalesce	1	V0222	_pendingRemoteKeys[key] = (_pendingRemoteKeys[key] ?? 0) + 1;
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart	_toRemoteSettings	literal_null_coalesce	1	V0121	instrument: previous?.instrument ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart	_toRemoteSettings	literal_null_coalesce	1	V0121	observer: previous?.observer ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart	_toRemoteSettings	literal_null_coalesce	1	V0121	skippedUpdateVersion: previous?.skippedUpdateVersion ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart	_toRemoteSettings	literal_null_coalesce	1	V0121	telescope: previous?.telescope ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart	_toRemoteSettings	literal_null_coalesce	1	V0121	updateServerUrl: previous?.updateServerUrl ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_parseConditionsScoreWeights	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_parseFilterBoolMap	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_parseFilterDoubleMap	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	(allSettings['image_output_path']?.trim().isNotEmpty ?? false)
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	: allSettings['default_image_directory'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	afAutofocusFilterName: allSettings['af_autofocus_filter_name'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	allSettings['focuser_backlash_calibration_settings'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	allSettings['smart_night.prompt_dismissed_day_key'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	astapPath: allSettings['astap_path'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	astrometryPath: allSettings['astrometry_path'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	databasePath: allSettings['database_path'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	discordWebhook: allSettings['discord_webhook'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	logsPath: allSettings['logs_path'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	observerName: allSettings['observer_name'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	phd2Path: allSettings['phd2_path'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	pushoverKey: allSettings['pushover_key'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	pushoverUser: allSettings['pushover_user'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_settingsFromStoredMap	literal_null_coalesce	1	V0121	sequencesPath: allSettings['sequences_path'] ?? '',
-packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart	_storedMapFromState	literal_null_coalesce	1	V0121	'image_grading_reject_folder_path': s.imageGradingRejectFolderPath ?? '',
 packages/skotiq_core/lib/src/providers/settings_sections/autofocus.dart	updateFocuserBacklashCalibrationSettings	literal_null_coalesce	1	V0814	final stored = _currentValueOrNull?.focuserBacklashCalibrationJson ?? '';
-packages/skotiq_core/lib/src/providers/settings_sections/image_grading.dart	setImageGradingRejectFolderPath	literal_null_coalesce	1	V0121	await _saveSetting('image_grading_reject_folder_path', normalised ?? '');
 packages/skotiq_core/lib/src/providers/sky_atlas_provider.dart	skyAtlasFoldRowFromWireJson	literal_null_coalesce	1	V0190	(json['integrationSecondsAdded'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/providers/sky_atlas_provider.dart	skyAtlasFoldRowFromWireJson	literal_null_coalesce	1	V0190	DateTime.tryParse(json['foldedAt'] as String? ?? '') ??
 packages/skotiq_core/lib/src/providers/sky_atlas_provider.dart	skyAtlasFoldRowFromWireJson	literal_null_coalesce	1	V0190	contributor: json['contributor'] as String? ?? '',
@@ -3785,7 +3736,7 @@ packages/skotiq_core/lib/src/services/notification/transports/email_transport.da
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	_runSession	empty_catch	1	V0107	} catch (_) {
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	-	unimplemented_behavior	1	V0107	// QoS 2 is intentionally not implemented; a user choice of 2 downgrades to 1
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	_runSession	unimplemented_behavior	1	V0107	'[Notifications/MQTT] QoS 2 downgraded to QoS 1 (PUBREC/PUBREL not implemented).',
-packages/skotiq_core/lib/src/services/notification_service.dart	anyDelivered	literal_null_coalesce	1	V0717	bool get anyDelivered => webhookAccepted || (routed?.anyDispatched ?? false);
+packages/skotiq_core/lib/src/services/notification_service.dart	anyDelivered	literal_null_coalesce	1	U2-05	bool get anyDelivered => routed?.anyDispatched ?? false;
 packages/skotiq_core/lib/src/services/phd2_launcher.dart	_isPortOpen	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/phd2_launcher.dart	ensureRunning	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/phd2_status_poll.dart	-	comment_best_effort	1	V0108	/// Best-effort status read; returns disconnected when the host has no client.
@@ -3847,9 +3798,6 @@ packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	P
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	focalLengthMm: data.telescopeFocalLength ?? 0,
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	V0025	final aLast = a.lastSessionAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	V0025	final bLast = b.lastSessionAt?.millisecondsSinceEpoch ?? 0;
-packages/skotiq_core/lib/src/services/replay_debug_service.dart	countAll	literal_null_coalesce	1	V0102	return (rows.first.data['n'] as int?) ?? 0;
-packages/skotiq_core/lib/src/services/replay_debug_service.dart	countByRun	literal_null_coalesce	1	V0102	return (rows.first.data['n'] as int?) ?? 0;
-packages/skotiq_core/lib/src/services/replay_debug_service.dart	persist	literal_null_coalesce	1	V0102	final newId = (newIdRow.data['id'] as int?) ?? 0;
 packages/skotiq_core/lib/src/services/scheduler/horizon_profile.dart	fromJson	literal_null_coalesce	1	V0191	id: json['id'] as int? ?? 0,
 packages/skotiq_core/lib/src/services/scheduler/horizon_profile.dart	fromJson	literal_null_coalesce	1	V0191	name: json['name'] as String? ?? '',
 packages/skotiq_core/lib/src/services/scheduler/scheduler_engine.dart	_awaitEvaluationQuiescence	empty_catch	1	V0480	} catch (_) {
@@ -4192,6 +4140,7 @@ packages/skotiq_core/lib/src/services/weather/providers/noaa_radar_provider.dart
 packages/skotiq_core/lib/src/services/weather/providers/rainviewer_radar_provider.dart	fetchRadarFrames	literal_null_coalesce	1	V0035	final String host = data['host'] as String? ?? '';
 packages/skotiq_core/lib/src/services/weather/radar_tile_decoder.dart	decodePng	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/weather/weather_alert_service.dart	generateAlertMessage	literal_null_coalesce	2	V0035	final etaMinutes = eta?.inMinutes ?? 0;
+packages/skotiq_core/lib/src/settings/setting.dart	decode	empty_catch	3	U2-05	} catch (_) {
 packages/skotiq_core/lib/src/utils/aligned_ticker.dart	delayToNextBoundary	guessed_now_timestamp	1	V0721	final nowUs = (now ?? DateTime.now()).toUtc().microsecondsSinceEpoch;
 packages/skotiq_core/lib/src/utils/export_target.dart	exportInitialDirectory	empty_catch	1	V0904	} catch (_) {
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	final relocated = (env[skotiqDataDirEnv] ?? '').trim().isNotEmpty;
