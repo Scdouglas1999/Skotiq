@@ -383,6 +383,16 @@ const List<Setting<Object?>> kAppSettingsTable = [
     true,
     sync: SettingSync.hostStore,
   ),
+  // Catalogs
+
+  /// A self-hoster's mirror of the catalog release, asked before each
+  /// catalog's own site. Empty: the Skotiq release.
+  TextSetting(
+    'catalogBaseUrl',
+    'catalog_base_url',
+    '',
+    sync: SettingSync.hostStore,
+  ),
   // Remote Access / Web Server Settings
   BoolSetting('webServerEnabled', 'web_server_enabled', false, seeded: true),
   IntSetting(

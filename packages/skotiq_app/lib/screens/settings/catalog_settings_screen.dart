@@ -11,6 +11,7 @@ import 'package:file_selector/file_selector.dart';
 
 import '../../utils/confirm_dialog.dart';
 import '../../utils/snackbar_helper.dart';
+import 'widgets/catalog_download_source_card.dart';
 import 'widgets/deep_star_catalog_card.dart';
 import 'widgets/element_refresh_card.dart';
 import 'widgets/settings_widgets.dart' show settingsPagePadding;

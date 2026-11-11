@@ -187,6 +187,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'catalogs': [
     'Actions',
+    'Advanced',
     'Catalogs',
     'Deep-Star Tier (Tycho-2 / Gaia)',
     'Delete annotation catalog',
@@ -195,6 +196,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'GLADE+ galaxy catalog',
     'HYG Star Database',
     'Minor Planets & Comets (MPC)',
+    'Mirror address',
     'OpenNGC',
   ],
   'connection': [

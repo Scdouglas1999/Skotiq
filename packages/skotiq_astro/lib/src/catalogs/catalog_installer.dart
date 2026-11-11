@@ -205,34 +205,24 @@ class CatalogInstaller {
     }
   }
 
-  String get _sourceConfigPath =>
-      path.join(catalogDirectory, 'catalog_source_config.json');
+  String? _baseUrlOverride;
 
-  /// Base URL of the release that hosts the catalog assets: a persisted
-  /// override when set, otherwise [kCatalogReleaseBaseUrl].
-  Future<String> getCatalogBaseUrl() async {
-    try {
-      final file = File(_sourceConfigPath);
-      if (await file.exists()) {
-        final decoded = jsonDecode(await file.readAsString());
-        if (decoded is Map) {
-          final url = decoded['baseUrl'];
-          if (url is String && url.trim().isNotEmpty) return url.trim();
-        }
-      }
-    } catch (e) {
-      _log('catalog base URL config read failed: $e', level: 900);
+  /// Base URL of the release that hosts the catalog assets: a self-hoster's
+  /// mirror when one is set, otherwise [kCatalogReleaseBaseUrl].
+  String get catalogBaseUrl => _baseUrlOverride ?? kCatalogReleaseBaseUrl;
+
+  /// Point downloads at a mirror of the catalog release. An empty [url] goes
+  /// back to [kCatalogReleaseBaseUrl]. Throws [ArgumentError] with the reason
+  /// when [url] is not one ([catalogBaseUrlProblem]).
+  void setCatalogBaseUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      _baseUrlOverride = null;
+      return;
     }
-    return kCatalogReleaseBaseUrl;
-  }
-
-  /// Persist an override for the catalog release base URL so a self-hoster
-  /// can repoint downloads without a rebuild. An empty string clears it.
-  Future<void> setCatalogBaseUrl(String url) async {
-    await Directory(catalogDirectory).create(recursive: true);
-    await File(
-      _sourceConfigPath,
-    ).writeAsString(jsonEncode({'baseUrl': url.trim()}));
+    final problem = catalogBaseUrlProblem(trimmed);
+    if (problem != null) throw ArgumentError.value(url, 'url', problem);
+    _baseUrlOverride = trimmed;
   }
 
   /// Download and install [catalog].
@@ -275,7 +265,7 @@ class CatalogInstaller {
     }
 
     final candidates = catalog.downloadCandidates(
-      baseUrl: await getCatalogBaseUrl(),
+      baseUrl: catalogBaseUrl,
       tier: tier,
     );
     final tempFile = File(
