@@ -3,52 +3,40 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-const _headlessLogSource = 'HeadlessAutoConnect';
+import 'host_startup.dart';
 
-/// Attempt startup equipment auto-connect for the headless daemon.
+const _logSource = 'HostAutoConnect';
+
+/// Connects the start-up profile's equipment, when "Auto-connect equipment"
+/// is on. Runs once per launch on the process that owns the hardware; a
+/// linked client never runs it, so opening a client cannot move the host's
+/// devices.
 ///
-/// The headless twin of the desktop `StartupAutoConnectLauncher`, invoked once
-/// from `main_headless.dart` after the local FFI backend is installed and the
-/// API server has started, BEFORE the daemon prints its "running" banner.
-///
-/// Contract:
-///   * Uses the daemon's existing [ProviderContainer] and the same
-///     [ProfileService.autoConnectOnStartup] core as the GUI, so selection /
-///     activation / connect semantics are identical across surfaces.
-///   * Gates on [FfiBackend] so a misconfiguration can never make the daemon
-///     drive a remote host.
-///   * Failure MUST NOT crash-loop the daemon: a single offline device, or a
-///     total activation failure, is logged and printed to stderr while the
-///     server keeps running so the operator can recover remotely.
-///   * [backendReady] is the `useLocalBackend()` FfiBackend-swap future,
-///     awaited INSIDE this fail-soft seam so a readiness failure is logged and
-///     swallowed here rather than escaping to `main_headless`'s outer catch,
-///     which would tear the already-started server down and exit. When null
-///     (a caller that pre-installs a backend) the readiness step is skipped.
-Future<void> headlessAutoConnectBootstrap({
+/// Nothing here can stop the host: equipment that is offline, or a local
+/// backend that never became ready, is reported and start-up goes on, so the
+/// rig stays reachable for someone to fix it. The daemon reports on stderr
+/// for an operator tailing the console; the GUI raises a toast.
+Future<void> hostAutoConnect({
   required ProviderContainer container,
   required LoggingService logger,
+  HostKind kind = HostKind.daemon,
   Future<void>? backendReady,
 }) async {
-  // (0) Await local-backend readiness INSIDE the fail-soft boundary. A rejected
-  //     readiness future must NOT propagate: the HTTP server is already running
-  //     (this seam is invoked only after `startHeadlessServices`), so a throw
-  //     here would reach main_headless's outer catch and shut the server down,
-  //     contradicting server-survival. Log loudly, echo to stderr, and return
-  //     without connecting.
   if (backendReady != null) {
     try {
       await backendReady;
     } catch (error, stack) {
       logger.error(
-        'Local backend readiness failed; server continues so you can recover '
-        'remotely — startup auto-connect skipped: $error',
-        source: _headlessLogSource,
+        'Local backend readiness failed; Skotiq keeps running so you can '
+        'recover — startup auto-connect skipped: $error',
+        source: _logSource,
         fields: {'error': error.toString(), 'stack': stack.toString()},
       );
-      stderr.writeln(
-        'Skotiq: local backend readiness failed; auto-connect skipped, '
-        'server still running: $error',
+      _report(
+        container,
+        kind,
+        'Equipment was not connected at startup: the local backend did not '
+        'start ($error).',
       );
       return;
     }
@@ -57,28 +45,43 @@ Future<void> headlessAutoConnectBootstrap({
   try {
     final backend = container.read(backendProvider);
     if (backend is! FfiBackend) {
-      // A headless daemon should always own local hardware; if it somehow does
-      // not, skip rather than drive someone else's rig.
+      // A host always owns local hardware; if it somehow does not, skip
+      // rather than drive someone else's rig.
       logger.warning(
         'Startup auto-connect skipped: backend is not a local FfiBackend '
         '(${backend.runtimeType})',
-        source: _headlessLogSource,
+        source: _logSource,
       );
       return;
     }
 
     await container.read(profileServiceProvider).autoConnectOnStartup();
-    logger.info('Startup auto-connect completed', source: _headlessLogSource);
+    logger.info('Startup auto-connect completed', source: _logSource);
   } catch (error, stack) {
-    // Never take the daemon down because equipment is offline — log loudly,
-    // echo to stderr for operators tailing the console, and continue so the
-    // rig stays reachable for remote recovery.
     logger.error(
-      'Startup auto-connect failed; server continues so you can recover '
-      'remotely: $error',
-      source: _headlessLogSource,
+      'Startup auto-connect failed; Skotiq keeps running so you can '
+      'recover: $error',
+      source: _logSource,
       fields: {'error': error.toString(), 'stack': stack.toString()},
     );
-    stderr.writeln('Skotiq: startup auto-connect failed: $error');
+    _report(
+      container,
+      kind,
+      error is ProfileAutoConnectException
+          ? 'Some equipment did not connect on startup: '
+                '${error.failures.join('; ')}'
+          : 'Equipment auto-connect failed on startup: $error',
+    );
+  }
+}
+
+void _report(ProviderContainer container, HostKind kind, String message) {
+  switch (kind) {
+    case HostKind.daemon:
+      stderr.writeln('Skotiq: $message');
+    case HostKind.gui:
+      container
+          .read(uiNotificationProvider.notifier)
+          .showError(message, title: 'Equipment auto-connect');
   }
 }

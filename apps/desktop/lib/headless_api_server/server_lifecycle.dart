@@ -325,10 +325,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     _subscribeToBackendEvents();
     _subscribeToSequenceCatalogUpdates();
     _subscribeToHostMutationEvents();
-    // Start publishing runtime channels; a headless host has no GUI to do it.
-    container.read(hostRuntimeMirrorProvider);
-    container.read(coverCalibratorStatusPollerProvider);
-    container.read(switchChannelPollerProvider);
     _subscribeToCatalogManagerEvents();
     _collaborationSubscription = _collaborationManager.stream.listen(
       _broadcastCollaborationState,

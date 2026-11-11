@@ -77,7 +77,7 @@ as `!hasAuthentication && !allowUnauthenticatedLan` in
 to the LAN interface, and `--allow-unauthenticated-lan` /
 `SKOTIQ_ALLOW_UNAUTHENTICATED_LAN=true` forces LAN exposure without auth.
 
-`startHeadlessServices` (`apps/desktop/lib/headless/headless_services_bootstrap.dart`)
+`startHostServer` (`apps/desktop/lib/host/host_server.dart`)
 gates the LAN-facing surfaces on `bindLocalOnly`: UDP discovery (port `45679`)
 and the LAN push broadcaster only start when the server is LAN-bound. Loopback
 deployments print `http://127.0.0.1:<port>` and skip discovery entirely.
@@ -213,7 +213,7 @@ could be bypassed with a spoofed `Host` header.
 Be honest about what reaches logs:
 
 - **Tokens are redacted.** `redactBearer` (`headless_api/request_context.dart`)
-  and `_redactToken` (`headless_services_bootstrap.dart`) show only the first
+  and `_redactToken` (`apps/desktop/lib/host/host_steps.dart`) show only the first
   and last 4 characters of a token; the raw token is never put into the request
   context or structured logs. The auth-identity recorded per request is the
   SHA-256 digest of the token, not the token itself. Auto-generated first-run
@@ -222,7 +222,7 @@ Be honest about what reaches logs:
 - **Error details are sanitized** before being returned to clients
   (`validation.dart` `_sanitizeErrorDetail`, `response_helpers.dart`).
 - **Local IP addresses are printed** to stdout in the operator connect-banner
-  (`startHeadlessServices` enumerates `NetworkInterface.list` and prints
+  (the daemon's connect banner enumerates `NetworkInterface.list` and prints
   `<scheme>://<localIp>:<port>`). The TLS SPKI fingerprint is also printed.
 - **Filesystem paths and site coordinates** are not specially redacted. Capture
   paths, browse-root paths, the TLS cert path, and the relay-credentials path

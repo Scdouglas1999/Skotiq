@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_desktop/headless/headless_auto_connect_bootstrap.dart';
+import 'package:skotiq_desktop/host/host_auto_connect.dart';
 
 /// Contract coverage for the headless startup auto-connect seam.
 ///
@@ -97,7 +97,7 @@ void main() {
       final container = containerFor(readyFfi());
       final logger = _RecordingLogger();
 
-      await headlessAutoConnectBootstrap(container: container, logger: logger);
+      await hostAutoConnect(container: container, logger: logger);
 
       expect(serviceOf(container).calls, 1);
       expect(logger.infos.any((m) => m.contains('completed')), isTrue);
@@ -114,7 +114,7 @@ void main() {
 
     // Must complete normally — a throw here would crash the daemon boot.
     await expectLater(
-      headlessAutoConnectBootstrap(container: container, logger: logger),
+      hostAutoConnect(container: container, logger: logger),
       completes,
     );
 
@@ -129,7 +129,7 @@ void main() {
       final container = containerFor(DisconnectedBackend());
       final logger = _RecordingLogger();
 
-      await headlessAutoConnectBootstrap(container: container, logger: logger);
+      await hostAutoConnect(container: container, logger: logger);
 
       expect(serviceOf(container).calls, 0);
       expect(logger.warnings.any((m) => m.contains('skipped')), isTrue);
@@ -144,14 +144,14 @@ void main() {
     final container = containerFor(backend);
     final logger = _RecordingLogger();
 
-    await headlessAutoConnectBootstrap(container: container, logger: logger);
+    await hostAutoConnect(container: container, logger: logger);
 
     expect(serviceOf(container).calls, 0);
     expect(logger.warnings.any((m) => m.contains('skipped')), isTrue);
   });
 
   // Backend-readiness orchestration seam. main_headless invokes this ONLY after
-  // startHeadlessServices has started the API server, then hands in the
+  // the remote access server step has started the API server, then hands in the
   // `useLocalBackend()` readiness future. A readiness FAILURE must be logged and
   // swallowed HERE so the already-running server survives — it must never
   // propagate to main_headless's outer catch (which would shut the server down).
@@ -166,7 +166,7 @@ void main() {
       // A throw here would reach main_headless's outer catch and exit — so the
       // seam MUST complete normally instead.
       await expectLater(
-        headlessAutoConnectBootstrap(
+        hostAutoConnect(
           container: container,
           logger: logger,
           backendReady: Future<void>.error(Exception('backend never came up')),
@@ -186,7 +186,7 @@ void main() {
       final container = containerFor(readyFfi());
       final logger = _RecordingLogger();
 
-      await headlessAutoConnectBootstrap(
+      await hostAutoConnect(
         container: container,
         logger: logger,
         backendReady: Future<void>.value(),
@@ -204,7 +204,7 @@ void main() {
       final logger = _RecordingLogger();
       final ready = Completer<void>();
 
-      final future = headlessAutoConnectBootstrap(
+      final future = hostAutoConnect(
         container: container,
         logger: logger,
         backendReady: ready.future,
