@@ -59,7 +59,11 @@ class CalibrationLibraryPanelState
   @override
   void initState() {
     super.initState();
-    ref.listenManual<SkotiqBackend>(backendProvider, (previous, next) {
+    // Listen to the library, not the backend: inside a backend listener the
+    // library provider has not been recomputed yet and still reads as the
+    // old host's.
+    ref.listenManual<CalibrationLibrary>(calibrationLibraryProvider,
+        (previous, next) {
       if (identical(previous, next) || !mounted) return;
       setState(() {
         _records = const [];
