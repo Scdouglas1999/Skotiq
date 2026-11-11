@@ -19,6 +19,7 @@ import '../../equipment/focuser_state_provider.dart';
 import '../../equipment_health_provider.dart';
 import '../../preflight_providers.dart';
 import '../../database_provider.dart';
+import '../../../errors/error_text.dart';
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
 
@@ -771,7 +772,8 @@ class TimeSyncRule implements AsyncSequenceValidator {
           category: ValidationCategory.equipmentHealth,
           title: 'Time Sync Check Unavailable',
           description:
-              'Could not contact NTP server to verify the system clock: $e',
+              'Could not reach a time server to check the system clock: '
+              '${userFacingError(e)}.',
           resolutionHint:
               'This is normal on observatory networks without internet. '
               'Verify your system clock manually before unattended runs.',

@@ -281,6 +281,7 @@ final List<SequenceValidator> defaultSequenceValidators =
       TargetCoordinatesRule(),
       TargetCoordinatesUnsetRule(),
       EmptyTargetRule(),
+      CaptureBeforeAimRule(),
       LowAltitudeLimitRule(),
       IntegrationBudgetEmptyRule(),
       IntegrationBudgetRatioZeroSumRule(),
@@ -535,6 +536,9 @@ class SequenceValidationException implements Exception {
   };
 }
 
+/// [ValidationIssue.code] of a target still at the 0h / +0° placeholder.
+const String kTargetCoordinatesUnsetCode = 'target_coordinates_unset';
+
 /// Rejects a target whose sky position was never chosen.
 ///
 /// [TargetHeaderNode] has no nullable coordinate meaning "no pointing picked
@@ -592,7 +596,7 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
                     'the run is not affected — but the target does not know '
                     'where it is.',
           affectedNodeId: target.id,
-          code: 'target_coordinates_unset',
+          code: kTargetCoordinatesUnsetCode,
           resolutionHint:
               'Look "${target.targetName}" up in the target editor, or enter '
               'its RA/Dec by hand.',

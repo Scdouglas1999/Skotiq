@@ -32,7 +32,14 @@ final class NodeKind<N extends SequenceNode> {
     this.legacyNames = const [],
     this.isContainer = false,
     this.requiredDevices = const {},
-  }) : _create = create,
+    this.stage = NodeStage.free,
+    String Function(N node)? autoName,
+    List<String?> Function(N node)? filters,
+    N Function(N node, String Function(String filter) rename)? renameFilter,
+  }) : _autoName = autoName,
+       _filters = filters,
+       _renameFilter = renameFilter,
+       _create = create,
        _build = build,
        _describe = describe,
        _captures = captures;
@@ -55,6 +62,9 @@ final class NodeKind<N extends SequenceNode> {
 
   final Set<DeviceType> requiredDevices;
 
+  /// Where a step of this type belongs among a target's steps.
+  final NodeStage stage;
+
   /// Every value-carrying field of the type, in stored order.
   final List<NodeField<N, Object?>> fields;
 
@@ -65,6 +75,10 @@ final class NodeKind<N extends SequenceNode> {
   final N Function(FieldValues<N> values) _build;
   final String Function(N node) _describe;
   final List<CaptureRun> Function(N node)? _captures;
+  final String Function(N node)? _autoName;
+  final List<String?> Function(N node)? _filters;
+  final N Function(N node, String Function(String filter) rename)?
+  _renameFilter;
 
   /// A node of this type with every field at its default.
   N create() => _create();
@@ -80,6 +94,36 @@ final class NodeKind<N extends SequenceNode> {
 
   /// The name a new node of this type gets.
   String get displayName => _defaults.name;
+
+  /// [next]'s name after an edit from [before]. A name that only said what
+  /// the step is set to (the type's default name, or the name its settings
+  /// give it) follows the new settings; a name the operator chose stays.
+  String nameAfterEdit(N before, N next) {
+    final autoName = _autoName;
+    if (autoName == null || next.name != before.name) return next.name;
+    if (before.name != displayName && before.name != autoName(before)) {
+      return next.name;
+    }
+    final followed = autoName(next).trim();
+    return followed.isEmpty ? displayName : followed;
+  }
+
+  /// The wheel filters [node] names, by name.
+  List<String> filtersOf(N node) => [
+    for (final filter in _filters?.call(node) ?? const <String?>[])
+      if (filter != null && filter.trim().isNotEmpty) filter,
+  ];
+
+  /// [node] with every filter it names replaced as [renames] says. Its name
+  /// follows when it only said its filter (see [nameAfterEdit]).
+  N renameFilters(N node, Map<String, String> renames) {
+    final rename = _renameFilter;
+    if (rename == null || !filtersOf(node).any(renames.containsKey)) {
+      return node;
+    }
+    final renamed = rename(node, (filter) => renames[filter] ?? filter);
+    return renamed.copyWith(name: nameAfterEdit(node, renamed)) as N;
+  }
 
   /// What changed between two nodes of this type, as the version diff shows
   /// it: label, text before, text after.
@@ -119,6 +163,26 @@ final class NodeKind<N extends SequenceNode> {
       _byLooseName[normalizeNodeTypeName(name)];
 
   static List<NodeKind> get all => nodeKinds;
+}
+
+/// Where a step belongs in a target's run: what a newly added step is placed
+/// before, and what the order check holds the plan to.
+enum NodeStage {
+  /// Puts the telescope on the target. Frames taken before it are of
+  /// whatever sky the mount was left on.
+  aim,
+
+  /// Readies the camera, focus or guider for the frames.
+  prepare,
+
+  /// Takes the frames.
+  capture,
+
+  /// Goes wherever the operator puts it.
+  free;
+
+  /// Whether a new step of this stage goes ahead of the frames it serves.
+  bool get precedesCapture => this == aim || this == prepare;
 }
 
 /// Frames one capture step takes per run through a filter.

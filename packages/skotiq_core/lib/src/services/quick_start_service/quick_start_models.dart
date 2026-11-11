@@ -17,6 +17,9 @@ class EquipmentSnapshot {
   /// Filter wheel position (0-indexed)
   final int? filterPosition;
 
+  /// The name of the filter at [filterPosition] when it was recorded.
+  final String? filterName;
+
   /// Focuser position in steps
   final int? focuserPosition;
 
@@ -32,6 +35,7 @@ class EquipmentSnapshot {
     this.cameraBinX,
     this.cameraBinY,
     this.filterPosition,
+    this.filterName,
     this.focuserPosition,
     this.exposureTime,
     required this.capturedAt,
@@ -44,6 +48,7 @@ class EquipmentSnapshot {
     int? cameraBinX,
     int? cameraBinY,
     int? filterPosition,
+    String? filterName,
     int? focuserPosition,
     double? exposureTime,
     DateTime? capturedAt,
@@ -55,6 +60,7 @@ class EquipmentSnapshot {
       cameraBinX: cameraBinX ?? this.cameraBinX,
       cameraBinY: cameraBinY ?? this.cameraBinY,
       filterPosition: filterPosition ?? this.filterPosition,
+      filterName: filterName ?? this.filterName,
       focuserPosition: focuserPosition ?? this.focuserPosition,
       exposureTime: exposureTime ?? this.exposureTime,
       capturedAt: capturedAt ?? this.capturedAt,
@@ -69,6 +75,7 @@ class EquipmentSnapshot {
       'cameraBinX': cameraBinX,
       'cameraBinY': cameraBinY,
       'filterPosition': filterPosition,
+      'filterName': filterName,
       'focuserPosition': focuserPosition,
       'exposureTime': exposureTime,
       'capturedAt': capturedAt.toIso8601String(),
@@ -100,6 +107,10 @@ class EquipmentSnapshot {
       filterPosition: jsonInt(
         json['filterPosition'],
         context: 'equipment_snapshot.filterPosition',
+      ),
+      filterName: jsonString(
+        json['filterName'],
+        context: 'equipment_snapshot.filterName',
       ),
       focuserPosition: jsonInt(
         json['focuserPosition'],
@@ -228,6 +239,10 @@ class QuickStartContext {
   /// sequence. Historical session progress alone is not a checkpoint.
   final bool canResumeFromCheckpoint;
 
+  /// True when the operator stopped the run (keeping its resume point);
+  /// false when it was interrupted, by a crash or a closed app.
+  final bool stoppedByOperator;
+
   const QuickStartContext({
     required this.sessionId,
     this.sessionName,
@@ -245,6 +260,7 @@ class QuickStartContext {
     this.equipmentSnapshot,
     this.totalIntegrationHours = 0.0,
     this.canResumeFromCheckpoint = false,
+    this.stoppedByOperator = false,
   });
 
   /// Decorate this historical context with the backend's current checkpoint.
@@ -283,6 +299,7 @@ class QuickStartContext {
             )
           : totalIntegrationHours,
       canResumeFromCheckpoint: matches,
+      stoppedByOperator: stoppedByOperator,
     );
   }
 

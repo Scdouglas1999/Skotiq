@@ -113,6 +113,55 @@ class EmptyTargetRule implements SequenceValidator {
   }
 }
 
+/// Warns when a target takes frames before the step that points the telescope
+/// at it: those frames are of whatever sky the mount was left on, and they are
+/// filed under the target's name.
+///
+/// Only a target that does aim, but too late, is flagged. One that never aims
+/// is [MountOffTargetRule]'s; a re-center after the first frames (a recovery,
+/// a loop that re-centers) is fine once an aim step came first.
+class CaptureBeforeAimRule implements SequenceValidator {
+  @override
+  String get name => 'CaptureBeforeAim';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence) {
+    final issues = <ValidationIssue>[];
+    for (final target in sequence.targetHeaders) {
+      if (!target.isEnabled) continue;
+      SequenceNode? firstCapture;
+      for (final id in sequence.descendantsOf(target.id)) {
+        final node = sequence.nodes[id];
+        if (node == null || !node.isEnabled) continue;
+        final stage = node.kind.stage;
+        if (stage == NodeStage.capture) {
+          firstCapture ??= node;
+        } else if (stage == NodeStage.aim) {
+          if (firstCapture != null) {
+            issues.add(
+              ValidationIssue(
+                severity: ValidationSeverity.warning,
+                category: ValidationCategory.targets,
+                title: 'Frames Taken Before the Telescope Is on Target',
+                description:
+                    '"${node.name}" runs after "${firstCapture.name}" in '
+                    '${target.displayName}, so those frames are taken wherever '
+                    'the mount happens to point.',
+                affectedNodeId: node.id,
+                resolutionHint:
+                    'Move "${node.name}" above "${firstCapture.name}": select '
+                    'it and press Alt+Up, or drag it.',
+              ),
+            );
+          }
+          break;
+        }
+      }
+    }
+    return issues;
+  }
+}
+
 /// Warns when a target's minimum altitude is unusually low (<10°). Imaging
 /// that close to the horizon almost always yields bad data.
 class LowAltitudeLimitRule implements SequenceValidator {

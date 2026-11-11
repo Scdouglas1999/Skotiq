@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -119,6 +120,14 @@ class _PreFlightValidationDialogState
         _isValidating = false;
       });
     }
+  }
+
+  /// Rename the plan's filters to the names the wheel (or the profile) uses
+  /// for the same filters, then check again.
+  void _matchFilterNames(Map<String, String> renames) {
+    ref.read(currentSequenceProvider.notifier).renameFilterNames(renames);
+    setState(() => _isValidating = true);
+    _runValidation();
   }
 
   void _retryValidation() {

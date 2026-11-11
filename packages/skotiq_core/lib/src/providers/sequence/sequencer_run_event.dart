@@ -181,11 +181,14 @@ final class NodeCompleted extends SequencerRunEvent {
   final String? status;
 
   /// [status] as a [NodeStatus]; null when there is no status. Any status other
-  /// than success / skipped / cancelled reads as a failure.
+  /// than success / skipped / cancelled reads as a failure. A step the operator
+  /// stopped part way is cancelled, not skipped: it ran, and may have taken
+  /// frames.
   NodeStatus? get nodeStatus => switch (status) {
     null => null,
     'success' => NodeStatus.success,
-    'skipped' || 'cancelled' => NodeStatus.skipped,
+    'skipped' => NodeStatus.skipped,
+    'cancelled' => NodeStatus.cancelled,
     _ => NodeStatus.failure,
   };
 }

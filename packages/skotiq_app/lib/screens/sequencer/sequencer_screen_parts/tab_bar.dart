@@ -74,6 +74,8 @@ class _SequencerPageHeader extends ConsumerWidget {
     ];
 
     final blocking = validation.errorCount + validation.warningCount;
+    final showsFix =
+        !isPhone && !executionState.canStop && validation.hasErrors;
 
     return PageHeader(
       icon: SkotiqIcons.listOrdered,
@@ -112,7 +114,9 @@ class _SequencerPageHeader extends ConsumerWidget {
         // The count rides beside the button rather than inside it: a chip is
         // not one of SkotiqButton's slots, and inventing a local
         // button-with-badge would be a second button style on the page.
-        if (blocking > 0)
+        // While the transport button reads "Fix 2 errors" the chip would
+        // say it twice.
+        if (blocking > 0 && !showsFix)
           Semantics(
             button: true,
             enabled: true,
@@ -128,6 +132,8 @@ class _SequencerPageHeader extends ConsumerWidget {
         if (!isPhone)
           ..._transportActions(
             executionState: executionState,
+            errorCount: validation.errorCount,
+            onFix: openPreflight,
             onStart: () => openPreflight(armed: true),
             onPause: () => run(actionService.pause),
             onResume: () => run(actionService.resume),
@@ -145,11 +151,25 @@ class _SequencerPageHeader extends ConsumerWidget {
   /// capability is lost.
   static List<Widget> _transportActions({
     required SequenceExecutionState executionState,
+    required int errorCount,
+    required VoidCallback onFix,
     required VoidCallback onStart,
     required VoidCallback onPause,
     required VoidCallback onResume,
     required VoidCallback onStop,
   }) {
+    if (!executionState.canStop && errorCount > 0) {
+      // The plan cannot start as it stands, so the header does not offer a
+      // green Start next to the error count: it offers the way to the fix.
+      return <Widget>[
+        SkotiqButton(
+          label: 'Fix ${countLabel(errorCount, 'error')}',
+          icon: LucideIcons.alertCircle,
+          variant: ButtonVariant.secondary,
+          onPressed: onFix,
+        ),
+      ];
+    }
     if (!executionState.canStop) {
       return <Widget>[
         SkotiqButton(

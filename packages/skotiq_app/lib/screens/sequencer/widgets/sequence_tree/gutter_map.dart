@@ -128,83 +128,89 @@ class _SequenceGutterMapState extends ConsumerState<_SequenceGutterMap> {
         ),
         child: entries.isEmpty
             ? const SizedBox.expand()
-            : LayoutBuilder(
-                builder: (context, constraints) => GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  // On UP, not on DOWN: a press that turns into a drag of the
-                  // viewport rectangle would otherwise jump the tree to
-                  // wherever the finger landed before the drag it was actually
-                  // starting had moved a pixel.
-                  onTapUp: (details) {
-                    if (_dragAnchorY != null) return;
-                    navigateToSequenceMapRow(
-                      context,
-                      ref,
-                      entries,
-                      _rowAtGutterY(
-                        details.localPosition.dy,
-                        constraints.maxHeight,
-                        entries.length,
-                      ),
-                      widget.scrollController,
-                    );
-                  },
-                  onVerticalDragStart: (details) {
-                    final metrics = sequenceMapMetrics(widget.scrollController);
-                    if (metrics == null) return;
-                    _dragAnchorY = details.localPosition.dy;
-                    _dragAnchorOffset = metrics.offset;
-                  },
-                  onVerticalDragUpdate: (details) => _dragTo(
-                    details.localPosition.dy,
-                    constraints.maxHeight,
-                  ),
-                  onVerticalDragEnd: (_) => _dragAnchorY = null,
-                  onVerticalDragCancel: () => _dragAnchorY = null,
-                  child: AnimatedBuilder(
-                    animation: widget.scrollController,
-                    // The picture does not depend on this animation:
-                    // [SequenceMapPainter] already repaints from the same
-                    // controller. Handing it through as `child` — behind its
-                    // own boundary, so a scroll repaints the gutter without
-                    // touching the tree's layer — leaves the rebuild the
-                    // Semantics value needs and nothing else.
-                    child: RepaintBoundary(
-                      child: CustomPaint(
-                        size: Size(
-                          constraints.maxWidth,
+            // The blocks carry no words of their own; the walk-through read
+            // them as an unexplained red and brown strip.
+            : SkotiqTooltip(
+                message: 'The whole plan, one block per step, tinted by kind. '
+                    'Click or drag to scroll.',
+                child: LayoutBuilder(
+                  builder: (context, constraints) => GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    // On UP, not on DOWN: a press that turns into a drag of the
+                    // viewport rectangle would otherwise jump the tree to
+                    // wherever the finger landed before the drag it was actually
+                    // starting had moved a pixel.
+                    onTapUp: (details) {
+                      if (_dragAnchorY != null) return;
+                      navigateToSequenceMapRow(
+                        context,
+                        ref,
+                        entries,
+                        _rowAtGutterY(
+                          details.localPosition.dy,
                           constraints.maxHeight,
+                          entries.length,
                         ),
-                        painter: SequenceMapPainter(
-                          colors: widget.colors,
-                          entries: entries,
-                          progress: progress,
-                          selectedId: selectedId,
-                          scrollController: widget.scrollController,
+                        widget.scrollController,
+                      );
+                    },
+                    onVerticalDragStart: (details) {
+                      final metrics = sequenceMapMetrics(widget.scrollController);
+                      if (metrics == null) return;
+                      _dragAnchorY = details.localPosition.dy;
+                      _dragAnchorOffset = metrics.offset;
+                    },
+                    onVerticalDragUpdate: (details) => _dragTo(
+                      details.localPosition.dy,
+                      constraints.maxHeight,
+                    ),
+                    onVerticalDragEnd: (_) => _dragAnchorY = null,
+                    onVerticalDragCancel: () => _dragAnchorY = null,
+                    child: AnimatedBuilder(
+                      animation: widget.scrollController,
+                      // The picture does not depend on this animation:
+                      // [SequenceMapPainter] already repaints from the same
+                      // controller. Handing it through as `child` — behind its
+                      // own boundary, so a scroll repaints the gutter without
+                      // touching the tree's layer — leaves the rebuild the
+                      // Semantics value needs and nothing else.
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          size: Size(
+                            constraints.maxWidth,
+                            constraints.maxHeight,
+                          ),
+                          painter: SequenceMapPainter(
+                            colors: widget.colors,
+                            entries: entries,
+                            progress: progress,
+                            selectedId: selectedId,
+                            scrollController: widget.scrollController,
+                          ),
                         ),
                       ),
-                    ),
-                    builder: (context, child) => Semantics(
-                      slider: true,
-                      label: 'Sequence overview',
-                      value: _positionLabel(entries.length),
-                      // Both required alongside the actions: a reader
-                      // announces where the increase/decrease will land, and
-                      // the framework asserts on a valued slider that names
-                      // neither.
-                      increasedValue: _positionLabel(entries.length, pages: 1),
-                      decreasedValue: _positionLabel(entries.length, pages: -1),
-                      // A slider a reader cannot move is a label wearing a
-                      // control's clothes: the two actions page the tree by a
-                      // screen, which is what dragging the rectangle by its
-                      // own height does.
-                      onIncrease: () => _pageBy(1),
-                      onDecrease: () => _pageBy(-1),
-                      // The blocks are a picture of the tree, not a second
-                      // copy of it: every row they stand for is already
-                      // reachable in the tree's own traversal order.
-                      excludeSemantics: true,
-                      child: child,
+                      builder: (context, child) => Semantics(
+                        slider: true,
+                        label: 'Sequence overview',
+                        value: _positionLabel(entries.length),
+                        // Both required alongside the actions: a reader
+                        // announces where the increase/decrease will land, and
+                        // the framework asserts on a valued slider that names
+                        // neither.
+                        increasedValue: _positionLabel(entries.length, pages: 1),
+                        decreasedValue: _positionLabel(entries.length, pages: -1),
+                        // A slider a reader cannot move is a label wearing a
+                        // control's clothes: the two actions page the tree by a
+                        // screen, which is what dragging the rectangle by its
+                        // own height does.
+                        onIncrease: () => _pageBy(1),
+                        onDecrease: () => _pageBy(-1),
+                        // The blocks are a picture of the tree, not a second
+                        // copy of it: every row they stand for is already
+                        // reachable in the tree's own traversal order.
+                        excludeSemantics: true,
+                        child: child,
+                      ),
                     ),
                   ),
                 ),

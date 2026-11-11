@@ -105,6 +105,7 @@ class _StartGuidingProperties extends ConsumerWidget {
           colors: colors,
           label: 'Auto-select star',
           child: NodeToggleSwitch(
+            label: 'Auto-select star',
             colors: colors,
             value: node.autoSelectStar,
             onChanged: (value) {

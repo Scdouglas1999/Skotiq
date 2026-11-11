@@ -132,7 +132,7 @@ void main() {
         e,
         isA<NodeCompleted>()
             .having((e) => e.status, 'status', 'cancelled')
-            .having((e) => e.nodeStatus, 'nodeStatus', NodeStatus.skipped),
+            .having((e) => e.nodeStatus, 'nodeStatus', NodeStatus.cancelled),
       );
     }
   });

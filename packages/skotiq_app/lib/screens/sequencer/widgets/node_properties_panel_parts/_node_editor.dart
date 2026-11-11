@@ -83,6 +83,7 @@ class _NodeEditor extends ConsumerWidget {
                   colors: colors,
                   label: 'Enabled',
                   child: NodeToggleSwitch(
+                    label: 'Enabled',
                     colors: colors,
                     value: node.isEnabled,
                     onChanged: (value) {

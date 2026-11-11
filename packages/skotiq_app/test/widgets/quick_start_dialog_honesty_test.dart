@@ -65,7 +65,7 @@ void main() {
     await tester.pumpWidget(_host(_context(lastSessionDate: lastNight)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Yesterday at 23:59'), findsOneWidget);
+    expect(find.textContaining('Yesterday at 23:59'), findsOneWidget);
     expect(
       find.textContaining('Today at'),
       findsNothing,

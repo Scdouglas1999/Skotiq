@@ -18,6 +18,7 @@ import 'run_dashboard/run_dashboard_providers.dart';
 import 'flat_wizard_dialog.dart';
 import 'mosaic_wizard_dialog.dart';
 import 'quick_start_wizard_dialog.dart';
+import 'save_sequence.dart';
 import 'sequence_issues_dialog.dart';
 import 'sequence_overview_prefs.dart';
 import 'sequencer_density.dart';
@@ -277,19 +278,15 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             for (final node in current.nodes.values.whereType<ExposureNode>()) {
               notifier.updateNode(node.copyWith(triggers: nativeTriggers));
             }
-            // The trigger update is in-memory only — `updateNode` mutates
-            // the editor state but doesn't write to disk. The toolbar's own
-            // file action EXPORTS a .skeq through a picker; it does not
-            // persist into the library, so pointing the user at it would be
-            // a lie. Auto-save (when on) picks this up on its next tick;
-            // otherwise "Save Current" in the Sequences tab is what persists.
+            // `updateNode` changes the open plan only; the library row is
+            // written by Save (or auto-save, when on).
             if (context.mounted) {
               // Name the count so "applied" is checkable against what the
               // user expected, not a bare claim of success.
               context.showInfoSnackBar(
                 'Exposure triggers applied to '
-                '${countLabel(exposureNodes.length, 'exposure node')} — '
-                'use "Save Current" in the Sequences tab to persist.',
+                '${countLabel(exposureNodes.length, 'exposure node')}. '
+                'Save (Ctrl+S) to keep them.',
               );
             }
           }
@@ -454,7 +451,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
           }
 
-          Future<void> saveSequenceFile() async {
+          Future<void> exportSequenceFile() async {
             final current = ref.read(currentSequenceProvider);
             if (current == null) {
               if (context.mounted) {
@@ -635,6 +632,15 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                       )
                   : null,
             ),
+            _ToolbarAction(
+              icon: LucideIcons.fileOutput,
+              label: sequence == null
+                  ? 'Export sequence file (create or open a sequence first)'
+                  : 'Export sequence file…',
+              onPressed: sequence != null && !_fileActionRunning
+                  ? () => _runFileAction(exportSequenceFile)
+                  : null,
+            ),
             const _ToolbarAction.divider(),
             _ToolbarAction(
               icon: LucideIcons.compass,
@@ -793,6 +799,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               _labelledToggleGroupWidth +
               (showDensity ? _densityControlWidth : 0);
 
+          final saveLabel = sequence == null
+              ? 'Save (create or open a sequence first)'
+              : 'Save to the library (Ctrl+S)';
+          final save = sequence == null
+              ? null
+              : () => saveOpenSequence(context, ref);
+
           final isNarrowRow = constraints.maxWidth <
               math.max(_narrowBarWidth, _barWidthFor(barToolbarWidth));
 
@@ -926,6 +939,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           }
 
           if (isNarrowRow) {
+            actions.insert(
+              0,
+              _ToolbarAction(
+                icon: LucideIcons.save,
+                label: saveLabel,
+                onPressed: save,
+              ),
+            );
             return Row(
               children: [
                 Expanded(
@@ -1005,18 +1026,9 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   <Widget>[
                     SkotiqIconButton(
                       icon: LucideIcons.save,
-                      // This writes a .skeq FILE through the OS chooser;
-                      // saving into the app's library is the Saved tab's
-                      // "Save current". Two actions both called "Save" was a
-                      // real ambiguity — the name says which one this is.
-                      tooltip: sequence == null
-                          ? 'Export sequence file (create or open a sequence '
-                              'first)'
-                          : 'Export sequence file…',
+                      tooltip: saveLabel,
                       size: IconButtonSize.sm,
-                      onPressed: sequence != null && !_fileActionRunning
-                          ? () => _runFileAction(saveSequenceFile)
-                          : null,
+                      onPressed: save,
                     ),
                     _ToolbarOverflowMenu(colors: colors, actions: actions),
                   ],
@@ -1069,12 +1081,18 @@ class _CanvasBarName extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // The mockup's muted "· unsaved changes" is NOT rendered: the
-          // editor's dirty flag lives on the notifier
-          // (`SequenceEditor.isDirty`) and nothing publishes it as a provider,
-          // so the label could only be read at build time and would keep
-          // claiming unsaved work after a save. A label that lies is worse
-          // than no label. See reports/observatory/w3-sequencer/notes.md.
+          if (ref.watch(sequenceHasUnsavedChangesProvider))
+            Padding(
+              padding: const EdgeInsets.only(left: SkotiqTokens.spaceSm),
+              child: Text(
+                '· unsaved changes',
+                style: SkotiqTypography.caption.copyWith(
+                  color: colors.textMuted,
+                ),
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ),
         ],
       ),
     );

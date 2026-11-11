@@ -42,7 +42,9 @@ class _StartSequenceButton extends StatelessWidget {
     final Widget button = SkotiqButton(
       label: label,
       icon: canStart ? SkotiqIcons.play : SkotiqIcons.warning,
-      variant: ButtonVariant.start,
+      // Green is the run starting; a refused start is a plain button.
+      variant:
+          onPressed != null ? ButtonVariant.start : ButtonVariant.secondary,
       onPressed: onPressed,
       semanticsHint: reason,
     );

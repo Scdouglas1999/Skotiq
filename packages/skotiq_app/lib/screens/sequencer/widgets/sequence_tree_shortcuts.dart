@@ -45,6 +45,13 @@ class TreeExpandFocusedIntent extends Intent {
   const TreeExpandFocusedIntent();
 }
 
+/// Move the selected step [delta] places among its siblings (Alt+Up /
+/// Alt+Down).
+class TreeShiftNodeIntent extends Intent {
+  const TreeShiftNodeIntent(this.delta);
+  final int delta;
+}
+
 /// Move keyboard focus from the tree to the right-hand properties panel.
 /// The panel listens for [propertiesPanelFocusRequestProvider] tick to
 /// pull focus onto its first interactive element.
@@ -65,6 +72,10 @@ const Map<ShortcutActivator, Intent> kSequenceTreeShortcuts =
       TreeMoveSelectionUpIntent(extend: true),
   SingleActivator(LogicalKeyboardKey.arrowDown, shift: true):
       TreeMoveSelectionDownIntent(extend: true),
+  SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
+      TreeShiftNodeIntent(-1),
+  SingleActivator(LogicalKeyboardKey.arrowDown, alt: true):
+      TreeShiftNodeIntent(1),
   SingleActivator(LogicalKeyboardKey.arrowLeft): TreeCollapseFocusedIntent(),
   SingleActivator(LogicalKeyboardKey.arrowRight): TreeExpandFocusedIntent(),
   SingleActivator(LogicalKeyboardKey.enter): TreeFocusPropertiesIntent(),
@@ -236,6 +247,14 @@ Map<Type, Action<Intent>> buildSequenceTreeActions(WidgetRef ref) {
           return null;
         }
         ref.read(collapsedNodeIdsProvider.notifier).expand(id);
+        return null;
+      },
+    ),
+    TreeShiftNodeIntent: CallbackAction<TreeShiftNodeIntent>(
+      onInvoke: (intent) {
+        final id = ref.read(selectedNodeIdProvider);
+        if (id == null || !ref.read(canEditSequenceProvider)) return null;
+        ref.read(currentSequenceProvider.notifier).shiftNode(id, intent.delta);
         return null;
       },
     ),

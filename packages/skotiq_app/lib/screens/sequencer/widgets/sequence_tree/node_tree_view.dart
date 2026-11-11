@@ -180,22 +180,14 @@ class _NodeTreeView extends ConsumerWidget {
               ref.read(currentSequenceProvider.notifier).duplicateNode(nodeId);
             },
             onMoveUp: canMoveUp
-                ? () {
-                    ref.read(currentSequenceProvider.notifier).moveNode(
-                          nodeId,
-                          node.parentId!,
-                          node.orderIndex - 1,
-                        );
-                  }
+                ? () => ref
+                        .read(currentSequenceProvider.notifier)
+                        .shiftNode(nodeId, -1)
                 : null,
             onMoveDown: canMoveDown
-                ? () {
-                    ref.read(currentSequenceProvider.notifier).moveNode(
-                          nodeId,
-                          node.parentId!,
-                          node.orderIndex + 1,
-                        );
-                  }
+                ? () => ref
+                        .read(currentSequenceProvider.notifier)
+                        .shiftNode(nodeId, 1)
                 : null,
           )
         : targetHeaderNode != null
@@ -267,22 +259,14 @@ class _NodeTreeView extends ConsumerWidget {
                       .duplicateNode(nodeId);
                 },
                 onMoveUp: canMoveUp
-                    ? () {
-                        ref.read(currentSequenceProvider.notifier).moveNode(
-                              nodeId,
-                              node.parentId!,
-                              node.orderIndex - 1,
-                            );
-                      }
+                    ? () => ref
+                            .read(currentSequenceProvider.notifier)
+                            .shiftNode(nodeId, -1)
                     : null,
                 onMoveDown: canMoveDown
-                    ? () {
-                        ref.read(currentSequenceProvider.notifier).moveNode(
-                              nodeId,
-                              node.parentId!,
-                              node.orderIndex + 1,
-                            );
-                      }
+                    ? () => ref
+                            .read(currentSequenceProvider.notifier)
+                            .shiftNode(nodeId, 1)
                     : null,
               );
 

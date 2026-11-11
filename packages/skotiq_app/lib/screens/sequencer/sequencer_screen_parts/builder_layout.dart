@@ -65,6 +65,12 @@ class _DesktopBuilderLayout extends ConsumerWidget {
   /// mid-string.
   static const double comfortableCenterWidth = 380.0;
 
+  /// The canvas width at which the ledger reads whole: step names like
+  /// "Luminance Loop (40 x 120s)" and the target's RA/Dec chips untruncated
+  /// at four levels of nesting. Measured on the M51 starter at 1280 x 800,
+  /// where the 652 px canvas cut them to "Luminance Lo…" and "13h…".
+  static const double readableCanvasWidth = 800.0;
+
   /// The palette column's width (06 §Sequencer: 264 / 1fr / 300).
   static const double paletteWidth = 264.0;
 
@@ -113,7 +119,10 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     // An EMPTY properties column is 300 px of "Select a node"; below the
     // desktop breakpoint that width belongs to the document. See
     // autoCollapseEmptyProperties below.
-    final hasSelection = ref.watch(selectedNodeIdProvider) != null;
+    // A step of the open plan, not just an id: loading another plan leaves
+    // the old id behind, and the column stayed open on "Select a node".
+    final hasSelection =
+        ref.watch(selectedNodeProvider.select((node) => node != null));
 
     // Derive panel sizes from a bucketed width so a continuous resize
     // drag only steps the dimensions every ~64px instead of every frame.
@@ -169,6 +178,25 @@ class _DesktopBuilderLayout extends ConsumerWidget {
               // window restores the saved expanded preference.
               final spaceTight = availableWidth < bothExpandedWidth;
 
+              // Derived widths. The columns are the spec's 264 / 300 whenever
+              // there is room for them; only a genuinely tight window packs
+              // them down to their floor. (They used to sit at the floor
+              // WHENEVER both were open and grow only when the other one
+              // collapsed, so the shipped default was a 220 px palette that
+              // clipped its own tab labels and its node descriptions.) A
+              // user-dragged width still overrides.
+              final leftDerived = spaceTight ? dims.leftMin : dims.leftExpanded;
+              final rightDerived =
+                  spaceTight ? dims.rightMin : dims.rightExpanded;
+              final leftWidth = (persistedLeftWidth ?? leftDerived).clamp(
+                dims.leftMin,
+                dims.leftMax,
+              );
+              final rightWidth = (persistedRightWidth ?? rightDerived).clamp(
+                dims.rightMin,
+                dims.rightMax,
+              );
+
               // Honor the explicit user collapse prefs; tight space packs both
               // panels to *Min instead of collapsing one — until even that
               // leaves the document pane below [comfortableCenterWidth], at
@@ -192,9 +220,18 @@ class _DesktopBuilderLayout extends ConsumerWidget {
               // node is. Derived only — the user-pref providers are never
               // written, so widening restores the saved state, and an explicit
               // force-open still wins.
-              final autoCollapseEmptyProperties =
-                  availableWidth < SkotiqTokens.breakpointDesktop &&
-                      !hasSelection;
+              //
+              // The same holds at any width where the open column would cut
+              // the step names: an empty inspector is not worth a truncated
+              // plan.
+              final canvasWithPropertiesOpen = availableWidth -
+                  (toolboxCollapsed || autoCollapseToolbox
+                      ? collapsedPanelWidth
+                      : leftWidth) -
+                  rightWidth;
+              final autoCollapseEmptyProperties = !hasSelection &&
+                  (availableWidth < SkotiqTokens.breakpointDesktop ||
+                      canvasWithPropertiesOpen < readableCanvasWidth);
               final autoCollapseProperties =
                   centerWithToolboxCollapsed < comfortableCenterWidth ||
                       autoCollapseEmptyProperties;
@@ -210,25 +247,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                   (autoCollapseToolbox && !toolboxForceOpen);
               final effectivePropertiesCollapsed = propertiesCollapsed ||
                   (autoCollapseProperties && !propertiesForceOpen);
-
-              // Derived widths. The columns are the spec's 264 / 300 whenever
-              // there is room for them; only a genuinely tight window packs
-              // them down to their floor. (They used to sit at the floor
-              // WHENEVER both were open and grow only when the other one
-              // collapsed, so the shipped default was a 220 px palette that
-              // clipped its own tab labels and its node descriptions.) A
-              // user-dragged width still overrides.
-              final leftDerived = spaceTight ? dims.leftMin : dims.leftExpanded;
-              final rightDerived =
-                  spaceTight ? dims.rightMin : dims.rightExpanded;
-              final leftWidth = (persistedLeftWidth ?? leftDerived).clamp(
-                dims.leftMin,
-                dims.leftMax,
-              );
-              final rightWidth = (persistedRightWidth ?? rightDerived).clamp(
-                dims.rightMin,
-                dims.rightMax,
-              );
 
               return Row(
                 children: [

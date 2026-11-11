@@ -18,6 +18,17 @@ const EdgeInsets _bodyPadding = EdgeInsets.symmetric(
   vertical: SkotiqTokens.spaceXl,
 );
 
+/// [issues] with errors first, then warnings, then notes, otherwise in the
+/// order the checks reported them.
+List<ValidationIssue> _bySeverity(Iterable<ValidationIssue> issues) {
+  final sorted = issues.toList();
+  mergeSort<ValidationIssue>(
+    sorted,
+    compare: (a, b) => a.severity.index.compareTo(b.severity.index),
+  );
+  return sorted;
+}
+
 extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
   Widget _buildLoadingState(SkotiqColors colors) => _buildBusyState(
         colors,
@@ -96,25 +107,75 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
     final result = _result!;
     final hasSimulationIssues = _simulation?.issues.isNotEmpty ?? false;
 
-    // Partition issues into the Dark Library, Equipment Health, and
-    // Optical Train groups so each gets its own collapsible section,
-    // then a "General" bucket for the remaining categories
-    // (structure / equipment / settings / etc).
-    final darkLibrary = result.issues
-        .where((i) => i.category == ValidationCategory.darkLibrary)
-        .toList(growable: false);
-    final equipmentHealth = result.issues
-        .where((i) => i.category == ValidationCategory.equipmentHealth)
-        .toList(growable: false);
-    final opticalTrain = result.issues
-        .where((i) => i.category == ValidationCategory.opticalTrain)
-        .toList(growable: false);
-    final general = result.issues
-        .where((i) =>
-            i.category != ValidationCategory.darkLibrary &&
-            i.category != ValidationCategory.equipmentHealth &&
-            i.category != ValidationCategory.opticalTrain)
-        .toList(growable: false);
+    // The Dark Library, Equipment Health and Optical Train issues get their
+    // own sections; everything else (structure, equipment, settings, ...) is
+    // "General". Within a section and across sections, what blocks the run
+    // comes first and the notes come last.
+    List<ValidationIssue> inCategory(bool Function(ValidationCategory) test) =>
+        _bySeverity(result.issues.where((i) => test(i.category)));
+    const ownSections = {
+      ValidationCategory.darkLibrary,
+      ValidationCategory.equipmentHealth,
+      ValidationCategory.opticalTrain,
+    };
+    // "Lum" on an "L" wheel is the same filter spelled differently: one
+    // button renames every such step instead of one edit per step.
+    final sequence = ref.read(currentSequenceProvider);
+    final filterRenames = sequence != null &&
+            result.issues.any((i) => i.code == kFilterNameMismatchCode)
+        ? filterRenamesFor(sequence, ref.read(filterNamesToMatchProvider))
+        : const <String, String>{};
+    final sections = <_PreflightSection>[
+      _PreflightSection(
+        colors: colors,
+        icon: SkotiqIcons.checklist,
+        title: 'General',
+        issues: inCategory((c) => !ownSections.contains(c)),
+        showCategory: true,
+        trailing: filterRenames.isEmpty
+            ? null
+            : SkotiqButton(
+                label: 'Match filter names (${[
+                  for (final MapEntry(:key, :value) in filterRenames.entries)
+                    '$key → $value',
+                ].join(', ')})',
+                icon: SkotiqIcons.refresh,
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.small,
+                onPressed: () => _matchFilterNames(filterRenames),
+              ),
+      ),
+      _PreflightSection(
+        colors: colors,
+        icon: SkotiqIcons.moon,
+        title: 'Dark library',
+        issues: inCategory((c) => c == ValidationCategory.darkLibrary),
+        trailing: SkotiqButton(
+          label: 'Capture missing darks',
+          icon: SkotiqIcons.cameraOff,
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.small,
+          onPressed: _openCalibrationCenter,
+        ),
+      ),
+      _PreflightSection(
+        colors: colors,
+        icon: SkotiqIcons.activity,
+        title: 'Equipment health',
+        issues: inCategory((c) => c == ValidationCategory.equipmentHealth),
+      ),
+      _PreflightSection(
+        colors: colors,
+        icon: SkotiqIcons.crosshair,
+        title: 'Optical train',
+        issues: inCategory((c) => c == ValidationCategory.opticalTrain),
+      ),
+    ].where((section) => section.issues.isNotEmpty).toList();
+    mergeSort<_PreflightSection>(
+      sections,
+      compare: (a, b) => a.issues.first.severity.index
+          .compareTo(b.issues.first.severity.index),
+    );
 
     return Padding(
       padding: _bodyPadding,
@@ -139,42 +200,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
               body: 'The sequence is ready to run.',
             )
           else ...[
-            if (general.isNotEmpty)
-              _PreflightSection(
-                colors: colors,
-                icon: SkotiqIcons.checklist,
-                title: 'General',
-                issues: general,
-                showCategory: true,
-              ),
-            if (darkLibrary.isNotEmpty)
-              _PreflightSection(
-                colors: colors,
-                icon: SkotiqIcons.moon,
-                title: 'Dark library',
-                issues: darkLibrary,
-                trailing: SkotiqButton(
-                  label: 'Capture missing darks',
-                  icon: SkotiqIcons.cameraOff,
-                  variant: ButtonVariant.secondary,
-                  size: ButtonSize.small,
-                  onPressed: _openCalibrationCenter,
-                ),
-              ),
-            if (equipmentHealth.isNotEmpty)
-              _PreflightSection(
-                colors: colors,
-                icon: SkotiqIcons.activity,
-                title: 'Equipment health',
-                issues: equipmentHealth,
-              ),
-            if (opticalTrain.isNotEmpty)
-              _PreflightSection(
-                colors: colors,
-                icon: SkotiqIcons.crosshair,
-                title: 'Optical train',
-                issues: opticalTrain,
-              ),
+            ...sections,
           ],
         ],
       ),

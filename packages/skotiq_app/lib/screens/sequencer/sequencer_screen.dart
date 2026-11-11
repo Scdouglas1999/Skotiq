@@ -21,6 +21,7 @@ import 'widgets/palette_copy.dart';
 import 'widgets/node_appearance.dart';
 import 'widgets/palette_category_color.dart';
 import 'widgets/preflight_validation_dialog.dart';
+import 'widgets/save_sequence.dart';
 import 'widgets/sequence_toolbar.dart';
 import 'widgets/node_palette.dart';
 import 'widgets/node_palette_empty_state.dart';
@@ -397,6 +398,11 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                 .read(currentSequenceProvider.notifier)
                 .duplicateNode(selectedId);
           }
+        },
+        // Saving writes the library, not the tree, so it stays available
+        // during a run and on every tab.
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
+          saveOpenSequence(context, ref);
         },
         const SingleActivator(LogicalKeyboardKey.escape): () {
           if (currentTab == 0) {

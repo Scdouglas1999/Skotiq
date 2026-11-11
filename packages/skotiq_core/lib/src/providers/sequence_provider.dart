@@ -6,6 +6,7 @@ export 'sequence/last_ended_run.dart';
 export 'sequence/sequence_editor.dart';
 export 'sequence/sequence_executor.dart';
 export 'sequence/sequence_validation.dart';
+export 'sequence/filter_name_matching.dart';
 export 'sequence/sequencer_defaults.dart';
 export 'sequence/node_palette.dart';
 export 'sequence/node_duration_provider.dart';

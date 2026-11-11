@@ -44,13 +44,16 @@ void main() {
       );
     });
 
-    test('status=skipped records skipped, status=canceled too', () {
+    // A step stopped after 3 of its 4 frames read "Skipped" on the target
+    // card although it had run.
+    test('status=skipped records skipped, status=cancelled records cancelled',
+        () {
       apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'skipped'}));
       apply(_event('NodeCompleted', {'node_id': 'n2', 'status': 'cancelled'}));
 
       final statuses = container.read(sequenceProgressProvider).nodeStatuses;
       expect(statuses['n1'], NodeStatus.skipped);
-      expect(statuses['n2'], NodeStatus.skipped);
+      expect(statuses['n2'], NodeStatus.cancelled);
     });
 
     test('status=failed records failure', () {

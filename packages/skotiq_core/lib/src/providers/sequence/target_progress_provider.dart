@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sequence/sequence_models.dart';
+import 'node_exposure_tally.dart';
 import '../sequence_provider.dart'
     show currentSequenceProvider, sequenceProgressProvider;
 
@@ -94,6 +95,7 @@ final targetExecutionProgressProvider =
     Provider.family<TargetExecutionProgress, String>((ref, targetNodeId) {
       final sequence = ref.watch(currentSequenceProvider);
       final progress = ref.watch(sequenceProgressProvider);
+      final tally = ref.watch(nodeExposureTallyProvider);
 
       if (sequence == null) return TargetExecutionProgress.empty;
       final root = sequence.nodes[targetNodeId];
@@ -133,6 +135,13 @@ final targetExecutionProgressProvider =
               // Fully completed: every frame counts.
               completedFrames += node.count;
               completedIntegrationSecs += node.totalDurationSecs;
+            } else if (status == NodeStatus.cancelled) {
+              // Stopped part way: the frames it took are on disk. Its progress
+              // percent is not a count (the budget report after each burst
+              // resets it to 0), the per-node tally is.
+              final taken = (tally[node.id]?.captured ?? 0).clamp(0, node.count);
+              completedFrames += taken;
+              completedIntegrationSecs += node.durationSecs * taken;
             } else if (status == NodeStatus.running) {
               // Partial: derive how many frames have finished within this node
               // from the per-node progress percent. The executor publishes
@@ -146,7 +155,7 @@ final targetExecutionProgressProvider =
               completedFrames += partial;
               completedIntegrationSecs += node.durationSecs * partial;
             }
-            // pending / failure / skipped / cancelled contribute 0.
+            // pending / failure / skipped contribute 0.
           }
         }
 

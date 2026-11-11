@@ -122,6 +122,7 @@ class SmartExposureProperties extends ConsumerWidget {
             colors: colors,
             label: 'Rotate filters',
             child: NodeToggleSwitch(
+              label: 'Rotate filters',
               colors: colors,
               value: node.rotateFilters,
               onChanged: (v) {
@@ -156,6 +157,7 @@ class SmartExposureProperties extends ConsumerWidget {
             colors: colors,
             label: 'Dither on Filter Change',
             child: NodeToggleSwitch(
+              label: 'Dither on Filter Change',
               colors: colors,
               value: node.ditherOnFilterChange,
               onChanged: (v) {
@@ -171,6 +173,7 @@ class SmartExposureProperties extends ConsumerWidget {
               colors: colors,
               label: 'Switch Filter Every Frame',
               child: NodeToggleSwitch(
+                label: 'Switch Filter Every Frame',
                 colors: colors,
                 // Drives "loop until stopped" mode: 1 sub per filter,
                 // round-robin, looping until the target's window ends (or the

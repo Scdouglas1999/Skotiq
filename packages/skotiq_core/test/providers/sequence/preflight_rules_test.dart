@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show QueryExecutor, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,7 +82,12 @@ class _FakeTimeProbe implements TimeSyncProbe {
   final bool shouldThrow;
   @override
   Future<TimeSyncResult> queryOffset() async {
-    if (shouldThrow) throw Exception('network unavailable');
+    if (shouldThrow) {
+      throw TimeoutException(
+        'pool.ntp.org did not answer within 3 s',
+        const Duration(seconds: 3),
+      );
+    }
     return TimeSyncResult(
       offsetSeconds: _offsetSecs,
       server: 'test.pool.ntp',
@@ -981,6 +988,11 @@ void main() {
       );
       expect(issues.first.severity, ValidationSeverity.info);
       expect(issues.first.title, 'Time Sync Check Unavailable');
+      expect(
+        issues.first.description,
+        'Could not reach a time server to check the system clock: '
+        'pool.ntp.org did not answer within 3 s.',
+      );
     });
   });
 

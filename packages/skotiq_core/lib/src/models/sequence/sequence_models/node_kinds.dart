@@ -1037,6 +1037,7 @@ abstract final class NodeKinds {
     legacyNames: const ['targetGroup'],
     icon: 'target',
     category: NodeCategory.target,
+    autoName: (node) => node.displayName,
     isContainer: true,
     requiredDevices: const {DeviceType.mount},
     create: () => TargetHeaderNode(targetName: '', raHours: 0, decDegrees: 0),
@@ -1316,6 +1317,7 @@ abstract final class NodeKinds {
     icon: 'compass',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
+    stage: NodeStage.aim,
     create: SlewNode.new,
     fields: [_slewUseTarget, _slewRa, _slewDec],
     build: (v) => SlewNode(
@@ -1338,7 +1340,12 @@ abstract final class NodeKinds {
     legacyNames: const ['center'],
     icon: 'crosshair',
     category: NodeCategory.instruction,
+    filters: (node) => [node.filter],
+    renameFilter: (node, rename) => node.filter == null
+        ? node
+        : node.copyWith(filter: rename(node.filter!)),
     requiredDevices: const {DeviceType.mount, DeviceType.camera},
+    stage: NodeStage.aim,
     create: CenterNode.new,
     fields: [
       _centerUseTarget,
@@ -1370,7 +1377,12 @@ abstract final class NodeKinds {
     legacyNames: const ['exposure'],
     icon: 'camera',
     category: NodeCategory.instruction,
+    filters: (node) => [node.filter],
+    renameFilter: (node, rename) => node.filter == null
+        ? node
+        : node.copyWith(filter: rename(node.filter!)),
     requiredDevices: const {DeviceType.camera},
+    stage: NodeStage.capture,
     create: ExposureNode.new,
     fields: [
       _exposureDuration,
@@ -1435,7 +1447,15 @@ abstract final class NodeKinds {
     legacyNames: const ['smartExposure', 'smart_exposure'],
     icon: 'layers',
     category: NodeCategory.instruction,
+    filters: (node) => [for (final plan in node.plans) plan.filterName],
+    renameFilter: (node, rename) => node.copyWith(
+      plans: [
+        for (final plan in node.plans)
+          plan.copyWith(filterName: rename(plan.filterName)),
+      ],
+    ),
     requiredDevices: const {DeviceType.camera, DeviceType.filterWheel},
+    stage: NodeStage.capture,
     create: SmartExposureNode.new,
     fields: [
       _smartPlans,
@@ -1479,6 +1499,7 @@ abstract final class NodeKinds {
     icon: 'focus',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera, DeviceType.focuser},
+    stage: NodeStage.prepare,
     create: AutofocusNode.new,
     fields: [
       _focusMethod,
@@ -1547,6 +1568,7 @@ abstract final class NodeKinds {
     icon: 'crosshair',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.guider},
+    stage: NodeStage.prepare,
     create: StartGuidingNode.new,
     fields: [
       _guideSettlePixels,
@@ -1585,6 +1607,10 @@ abstract final class NodeKinds {
     legacyNames: const ['filterChange'],
     icon: 'circle',
     category: NodeCategory.instruction,
+    filters: (node) => [node.filterName],
+    renameFilter: (node, rename) =>
+        node.copyWith(filterName: rename(node.filterName)),
+    autoName: (node) => 'Filter: ${node.filterName}',
     requiredDevices: const {DeviceType.filterWheel},
     create: () => FilterChangeNode(filterName: ''),
     fields: [_filterName, _filterPosition],
@@ -1609,6 +1635,7 @@ abstract final class NodeKinds {
     icon: 'snowflake',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera},
+    stage: NodeStage.prepare,
     create: CoolCameraNode.new,
     fields: [_coolTarget, _coolMinutes],
     build: (v) => CoolCameraNode(
@@ -1645,6 +1672,7 @@ abstract final class NodeKinds {
     icon: 'rotate-cw',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.rotator},
+    stage: NodeStage.prepare,
     create: RotatorNode.new,
     fields: [_rotatorAngle, _rotatorRelative],
     build: (v) => RotatorNode(
@@ -1676,6 +1704,7 @@ abstract final class NodeKinds {
     icon: 'unlock',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
+    stage: NodeStage.aim,
     create: UnparkNode.new,
     fields: const [],
     build: (v) => UnparkNode(),
