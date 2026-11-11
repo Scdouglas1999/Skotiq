@@ -111,6 +111,8 @@ pub(crate) use exposure_wait::*;
 pub(crate) mod pointing;
 pub(crate) use pointing::*;
 #[cfg(test)]
+mod capture_pins_tests;
+#[cfg(test)]
 mod frame_tests;
 #[cfg(test)]
 mod pointing_tests;

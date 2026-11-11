@@ -4482,3 +4482,6 @@ mod fits_thumbnail_tests;
 
 #[cfg(test)]
 mod detect_stars_in_file_tests;
+
+#[cfg(test)]
+mod fits_header_golden_tests;
