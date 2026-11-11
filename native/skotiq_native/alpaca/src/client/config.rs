@@ -96,17 +96,6 @@ impl TimeoutConfig {
             connect_ms: 10000,
         }
     }
-
-    /// Create timeout config for discovery operations
-    pub fn for_discovery() -> Self {
-        Self {
-            quick_query_ms: 2000,
-            standard_operation_ms: 5000,
-            long_operation_ms: 10000,
-            very_long_operation_ms: 15000,
-            connect_ms: 5000,
-        }
-    }
 }
 
 /// Retry configuration for failed requests

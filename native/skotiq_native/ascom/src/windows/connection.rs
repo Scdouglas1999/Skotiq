@@ -1024,56 +1024,6 @@ impl AscomDeviceConnection {
     }
 }
 
-// AscomConnectionBackend trait — mockall seam for unit-testing per-device
-// wrappers without a live Windows COM driver.
-
-// Why: per-device modules (camera.rs, switch.rs, cover_calibrator.rs, …) call
-// into `AscomDeviceConnection` for every COM operation. To unit-test those
-// modules we need a fake implementation. This trait names the operations
-// callers actually use; mockall generates a `MockAscomConnectionBackend`
-// from it on demand.
-//
-// Scope (MVP): only the two methods sibling modules call directly today —
-// `get_dispid` (DISPID lookup) and `call_method` (parameterless dispatch).
-// Adding the remaining typed helpers is a follow-on task tracked under
-// we deliberately do NOT widen the trait surface here so
-// that the per-device modules can keep using `&AscomDeviceConnection`
-// unchanged until the next pass.
-//
-// Why `cfg_attr(any(test, feature = "mock"), …)` instead of just
-// `cfg_attr(test, …)`: integration tests live in `tests/` and compile as a
-// separate crate that does NOT see this crate's `cfg(test)` build, so the
-// generated `MockAscomConnectionBackend` would be invisible to them. The
-// `mock` cargo feature is enabled by the test crate via dev-dependencies
-// in `Cargo.toml`, which surfaces the mock to integration tests without
-// pulling mockall into production builds.
-#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
-pub trait AscomConnectionBackend: Send + Sync {
-    /// Resolve a property/method name to its IDispatch DISPID.
-    /// Mirrors `AscomDeviceConnection::get_dispid`.
-    fn get_dispid(&self, name: &str) -> Result<i32, String>;
-
-    /// Invoke a parameterless ASCOM method by name.
-    /// Mirrors `AscomDeviceConnection::call_method` — the most common
-    /// dispatch shape used by per-device wrappers.
-    fn call_method(&self, name: &str) -> Result<(), String>;
-}
-
-// Why: the impl is a pure pass-through to the inherent methods so production
-// behaviour is unchanged. Sibling per-device modules continue using
-// `&AscomDeviceConnection` directly today; this impl lets them be migrated
-// to `&dyn AscomConnectionBackend` in a future pass without further changes
-// to this file.
-impl AscomConnectionBackend for AscomDeviceConnection {
-    fn get_dispid(&self, name: &str) -> Result<i32, String> {
-        AscomDeviceConnection::get_dispid(self, name)
-    }
-
-    fn call_method(&self, name: &str) -> Result<(), String> {
-        AscomDeviceConnection::call_method(self, name)
-    }
-}
-
 impl Drop for AscomDeviceConnection {
     fn drop(&mut self) {
         // Why: COM apartment threading requires that property writes (including

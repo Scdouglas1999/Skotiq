@@ -51,17 +51,6 @@ impl Default for StretchParams {
     }
 }
 
-/// Auto stretch method
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AutoStretchMethod {
-    /// Screen Transfer Function (similar to PixInsight STF)
-    Stf,
-    /// Histogram based stretch
-    Histogram,
-    /// Asinh stretch (preserves star colors)
-    Asinh,
-}
-
 /// Per-channel mode for RGB auto-stretch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RgbStretchMode {

@@ -4,10 +4,7 @@
 //! are safe for operation. This is typically used to check weather conditions,
 //! power status, or other safety-critical parameters.
 
-use crate::{
-    AlpacaClient, AlpacaClientBuilder, AlpacaDevice, AlpacaDeviceType, AlpacaError, RetryConfig,
-    TimeoutConfig,
-};
+use crate::{AlpacaClient, AlpacaDevice, AlpacaDeviceType, AlpacaError};
 
 /// Safety monitor status aggregate for parallel status query
 #[derive(Debug, Clone)]
@@ -40,28 +37,11 @@ impl AlpacaSafetyMonitor {
         }
     }
 
-    /// Create a safety monitor client with custom configuration
-    pub fn with_config(
-        device: &AlpacaDevice,
-        timeout_config: TimeoutConfig,
-        retry_config: RetryConfig,
-    ) -> Self {
-        assert_eq!(device.device_type, AlpacaDeviceType::SafetyMonitor);
-        Self {
-            client: AlpacaClient::with_config(device, timeout_config, retry_config),
-        }
-    }
-
     /// Create from server details
     pub fn from_server(base_url: &str, device_number: u32) -> Self {
         let device =
             AlpacaDevice::from_server(AlpacaDeviceType::SafetyMonitor, base_url, device_number);
         Self::new(&device)
-    }
-
-    /// Create a builder for custom configuration
-    pub fn builder(device: AlpacaDevice) -> AlpacaClientBuilder {
-        AlpacaClientBuilder::new(device)
     }
 
     /// Get access to the underlying client
@@ -283,57 +263,6 @@ impl AlpacaSafetyMonitor {
     }
 
     // Utility methods
-
-    /// Poll the monitor every `poll_interval` until it reports safe.
-    ///
-    /// `Ok(false)` means the `timeout` elapsed while conditions were still
-    /// unsafe; a communication failure propagates instead of reading as unsafe.
-    pub async fn wait_for_safe(
-        &self,
-        poll_interval: std::time::Duration,
-        timeout: std::time::Duration,
-    ) -> Result<bool, AlpacaError> {
-        let deadline = std::time::Instant::now() + timeout;
-
-        loop {
-            match self.is_safe_typed().await {
-                Ok(true) => return Ok(true),
-                Ok(false) => {
-                    if std::time::Instant::now() >= deadline {
-                        return Ok(false);
-                    }
-                    tokio::time::sleep(poll_interval).await;
-                }
-                Err(e) => return Err(e),
-            }
-        }
-    }
-
-    /// Poll the monitor every `poll_interval` and call `on_change` only when
-    /// the safety state flips. Runs until an error occurs.
-    pub async fn monitor_safety<F>(
-        &self,
-        poll_interval: std::time::Duration,
-        mut on_change: F,
-    ) -> Result<(), AlpacaError>
-    where
-        F: FnMut(bool),
-    {
-        let mut last_state: Option<bool> = None;
-
-        loop {
-            match self.is_safe_typed().await {
-                Ok(current_state) => {
-                    if last_state != Some(current_state) {
-                        on_change(current_state);
-                        last_state = Some(current_state);
-                    }
-                }
-                Err(e) => return Err(e),
-            }
-            tokio::time::sleep(poll_interval).await;
-        }
-    }
 }
 
 #[cfg(test)]

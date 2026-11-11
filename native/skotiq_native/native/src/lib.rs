@@ -124,9 +124,3 @@ pub const NATIVE_VENDOR_SUBTYPES: &[(&str, &[&str])] = &[
     ("atik", &["efw"]),
     ("fli", &["focuser", "fw"]),
 ];
-
-/// Check if native drivers are available on this platform
-pub fn is_available() -> bool {
-    // Native drivers are available on all platforms that have vendor SDKs
-    true
-}

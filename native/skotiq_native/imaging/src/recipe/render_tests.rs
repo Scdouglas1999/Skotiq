@@ -734,8 +734,3 @@ fn the_step_outcome_wire_tokens_are_stable() {
         "skipped"
     );
 }
-
-#[test]
-fn the_cancel_poll_budget_is_re_exported_for_operation_authors() {
-    assert_eq!(OP_CANCEL_POLL_PIXELS, crate::recipe::CANCEL_POLL_PIXELS);
-}

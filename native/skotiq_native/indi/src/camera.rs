@@ -709,11 +709,6 @@ impl IndiCamera {
             .await
     }
 
-    /// Capture an image
-    pub async fn capture_image(&self, duration_secs: f64) -> Result<Vec<u8>, String> {
-        self.capture_image_with_timeout(duration_secs, None).await
-    }
-
     /// Capture an image with configurable timeout
     pub async fn capture_image_with_timeout(
         &self,
@@ -799,42 +794,6 @@ impl IndiCamera {
                 return Ok(data);
             }
         }
-    }
-
-    /// Start exposure and wait for it to complete with timeout
-    pub async fn start_exposure_with_timeout(
-        &self,
-        duration_secs: f64,
-        timeout_buffer: Option<Duration>,
-    ) -> Result<(), String> {
-        let buffer_secs = match timeout_buffer {
-            Some(buffer) => buffer,
-            None => {
-                let client = self.client.read().await;
-                Duration::from_secs(client.timeout_config().camera_exposure_buffer_secs)
-            }
-        };
-
-        // Start the exposure
-        {
-            let mut client = self.client.write().await;
-            client
-                .set_number(
-                    &self.device_name,
-                    CCD_EXPOSURE,
-                    "CCD_EXPOSURE_VALUE",
-                    duration_secs,
-                )
-                .await?;
-        }
-
-        // Wait for exposure to complete
-        let timeout_duration = Duration::from_secs_f64(duration_secs) + buffer_secs;
-        let client = self.client.read().await;
-        client
-            .wait_for_property_not_busy(&self.device_name, CCD_EXPOSURE, timeout_duration)
-            .await
-            .map_err(|e| format!("Camera exposure of {:.1}s failed: {}", duration_secs, e))
     }
 }
 

@@ -251,30 +251,6 @@ impl PlayerOneCamera {
         check_poa_error(result, "POASetConfig")
     }
 
-    /// Set a control value (boolean, mutex protected)
-    pub(crate) async fn set_control_bool_async(
-        &mut self,
-        control: POAConfig,
-        value: bool,
-        auto: bool,
-    ) -> Result<(), NativeError> {
-        let sdk = PoaSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
-        let config_value = POAConfigValue {
-            bool_value: if value { POA_TRUE } else { POA_FALSE },
-        };
-        // SAFETY: player_one_mutex held above (single-threaded SDK access); config_value is a `#[repr(C)]` union initialized via bool_value variant — POASetConfig reads the appropriate variant for VAL_BOOL controls (POA_COOLER/POA_HEATER/etc.) per PlayerOneCamera.h.
-        let result = unsafe {
-            (sdk.set_config)(
-                self.camera_id,
-                control as c_int,
-                config_value,
-                if auto { POA_TRUE } else { POA_FALSE },
-            )
-        };
-        check_poa_error(result, "POASetConfig")
-    }
-
     /// Set a control value (boolean, synchronous - caller must hold mutex)
     pub(crate) fn set_control_bool(
         &mut self,
@@ -296,46 +272,5 @@ impl PlayerOneCamera {
             )
         };
         check_poa_error(result, "POASetConfig")
-    }
-
-    /// Poll `is_exposure_complete()` until the exposure finishes or the deadline
-    /// — the exposure duration plus the config's margin — passes.
-    pub async fn wait_for_exposure_complete(
-        &self,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        wait_for_exposure(
-            || async { self.is_exposure_complete().await },
-            config,
-            self.exposure_time,
-        )
-        .await
-    }
-
-    /// Download the frame under a hard `config.image_download_timeout`; a
-    /// download that overruns it is cancelled rather than left to hang.
-    pub async fn download_image_with_timeout(
-        &mut self,
-        config: &NativeTimeoutConfig,
-    ) -> Result<ImageData, NativeError> {
-        let timeout_duration = config.image_download_timeout;
-
-        match tokio::time::timeout(timeout_duration, self.download_image()).await {
-            Ok(result) => result,
-            Err(_elapsed) => {
-                tracing::error!(
-                    "Player One image download timed out after {:?}",
-                    timeout_duration
-                );
-                // Why: current_width/height are i32 dimensions set from validated SDK ROI;
-                // they are always non-negative for a connected camera. Use try_into with a
-                // 0 fallback for the diagnostic message (we already failed; don't compound).
-                Err(NativeError::download_timeout(
-                    timeout_duration,
-                    u32::try_from(self.current_width).unwrap_or(0),
-                    u32::try_from(self.current_height).unwrap_or(0),
-                ))
-            }
-        }
     }
 }

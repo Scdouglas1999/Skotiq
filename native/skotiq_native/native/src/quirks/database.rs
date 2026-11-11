@@ -327,35 +327,6 @@ fn lx200_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     ]
 }
 
-// ASCOM quirks, applied to ASCOM drivers in general
-
-/// Get quirks for ASCOM devices
-fn ascom_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
-    vec![
-        // REMOVED: protocol-wide NotThreadSafe/DelayAfterDisconnect entries. ASCOM
-        // apartment/threading policy lives in the COM worker layer, not this native
-        // quirks database.
-    ]
-}
-
-// Alpaca quirks, applied to Alpaca devices in general
-
-/// Get quirks for Alpaca devices
-fn alpaca_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
-    vec![
-        // REMOVED: protocol-wide delay/poll metadata with no runtime consumer.
-    ]
-}
-
-// INDI quirks
-
-/// Get quirks for INDI devices
-fn indi_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
-    vec![
-        // REMOVED: protocol-wide delay/poll metadata with no runtime consumer.
-    ]
-}
-
 // Quirk matcher
 
 /// How to match quirks to devices
@@ -469,9 +440,6 @@ pub fn get_device_quirks(device_id: &str) -> Vec<Quirk> {
             "lx200" | "meade" => lx200_quirks(),
             _ => Vec::new(),
         },
-        "ascom" => ascom_quirks(),
-        "alpaca" => alpaca_quirks(),
-        "indi" => indi_quirks(),
         _ => Vec::new(),
     };
 
@@ -511,12 +479,14 @@ pub fn get_vendor_quirks(vendor: &NativeVendor) -> Vec<Quirk> {
         NativeVendor::Touptek => touptek_quirks(),
         NativeVendor::Moravian => moravian_quirks(),
         NativeVendor::Fli => fli_quirks(),
-        NativeVendor::Ascom => ascom_quirks(),
         NativeVendor::SkyWatcher => skywatcher_quirks(),
         NativeVendor::IOptron => ioptron_quirks(),
         NativeVendor::Meade => lx200_quirks(), // Meade uses LX200 protocol
         // Vendors without specific quirks
-        NativeVendor::Fujifilm | NativeVendor::GPhoto2 | NativeVendor::Other(_) => Vec::new(),
+        NativeVendor::Ascom
+        | NativeVendor::Fujifilm
+        | NativeVendor::GPhoto2
+        | NativeVendor::Other(_) => Vec::new(),
     };
 
     // Return only the vendor-wide quirks
@@ -525,47 +495,6 @@ pub fn get_vendor_quirks(vendor: &NativeVendor) -> Vec<Quirk> {
         .filter(|(matcher, _)| matches!(matcher, QuirkMatcher::VendorWide))
         .flat_map(|(_, quirks)| quirks)
         .collect()
-}
-
-/// List all known quirks for documentation purposes.
-///
-/// Returns a list of (vendor, model_pattern, quirk_descriptions)
-pub fn list_all_quirks() -> Vec<(String, String, Vec<String>)> {
-    let mut results = Vec::new();
-
-    let vendors = [
-        ("ZWO", zwo_quirks()),
-        ("QHY", qhy_quirks()),
-        ("Player One", player_one_quirks()),
-        ("SVBony", svbony_quirks()),
-        ("Atik", atik_quirks()),
-        ("Touptek", touptek_quirks()),
-        ("Moravian", moravian_quirks()),
-        ("FLI", fli_quirks()),
-        ("Sky-Watcher", skywatcher_quirks()),
-        ("iOptron", ioptron_quirks()),
-        ("LX200", lx200_quirks()),
-        ("ASCOM", ascom_quirks()),
-        ("Alpaca", alpaca_quirks()),
-        ("INDI", indi_quirks()),
-    ];
-
-    for (vendor_name, quirk_list) in vendors {
-        for (matcher, quirks) in quirk_list {
-            let pattern = match matcher {
-                QuirkMatcher::VendorWide => "All devices".to_string(),
-                QuirkMatcher::ModelContains(s) => format!("Models containing '{}'", s),
-                QuirkMatcher::ModelExact(s) => format!("Model '{}'", s),
-                QuirkMatcher::IdContains(s) => format!("IDs containing '{}'", s),
-            };
-
-            let descriptions: Vec<String> = quirks.iter().map(|q| q.description()).collect();
-
-            results.push((vendor_name.to_string(), pattern, descriptions));
-        }
-    }
-
-    results
 }
 
 #[cfg(test)]
@@ -577,23 +506,10 @@ mod tests {
         let quirks = get_device_quirks("native:zwo:ASI294MC Pro");
         assert!(!quirks.is_empty());
 
-        // NOTE: ZWO's `ASI_TEMPERATURE` is divided by 10 inline inside the
-        // ASI camera driver, so the database deliberately omits a
-        // Temperature::ScaleFactor quirk for ZWO cameras (it would double-
-        // scale). Only the ASI294-specific SkipFirstRead quirk should be
-        // present.
         let has_skip_first = quirks
             .iter()
             .any(|q| matches!(q, Quirk::Temperature(TemperatureQuirk::SkipFirstRead)));
         assert!(has_skip_first, "ASI294 must carry SkipFirstRead");
-
-        let has_temp_scale = quirks
-            .iter()
-            .any(|q| matches!(q, Quirk::Temperature(TemperatureQuirk::ScaleFactor(_))));
-        assert!(
-            !has_temp_scale,
-            "ZWO cameras must NOT carry a ScaleFactor quirk (driver divides inline)"
-        );
     }
 
     #[test]
@@ -618,31 +534,13 @@ mod tests {
     fn test_get_zwo_asi533_connect_quirk() {
         // ASI533 cameras have a DelayAfterConnect(200) quirk wired into
         // `ZwoCamera::connect` after open + init. Guard the database side here;
-        // the wiring side is verified in `quirks::tests::test_get_timing_delay_zwo_asi533_connect`.
+        // the wiring side is verified in `quirks::tests::test_get_connect_delay_zwo_asi533`.
         let quirks = get_device_quirks("native:zwo:ZWO ASI533MC Pro");
         let delay = quirks.iter().find_map(|q| match q {
             Quirk::Timing(TimingQuirk::DelayAfterConnect(ms)) => Some(*ms),
             _ => None,
         });
         assert_eq!(delay, Some(200));
-    }
-
-    #[test]
-    fn test_skywatcher_baud_rate_quirk_removed() {
-        // Sanity check that the RequiredBaudRate quirk for Sky-Watcher was
-        // removed (duplicate of `SYNSCAN_BAUD_RATE` hardcoded in driver). If
-        // this test fails, somebody re-added a duplicate.
-        let quirks = get_vendor_quirks(&NativeVendor::SkyWatcher);
-        let has_baud = quirks.iter().any(|q| {
-            matches!(
-                q,
-                Quirk::Communication(CommunicationQuirk::RequiredBaudRate(_))
-            )
-        });
-        assert!(
-            !has_baud,
-            "SkyWatcher baud-rate quirk is a duplicate and must stay removed"
-        );
     }
 
     #[test]
@@ -671,62 +569,6 @@ mod tests {
             quirks.is_empty(),
             "ASCOM quirks must stay empty until a runtime consumer is added"
         );
-    }
-
-    #[test]
-    fn test_list_all_quirks() {
-        let all = list_all_quirks();
-        assert!(!all.is_empty());
-
-        // Should have quirks for the vendors whose entries are actually consumed.
-        let vendors: std::collections::HashSet<_> =
-            all.iter().map(|(v, _, _)| v.as_str()).collect();
-        assert!(vendors.contains("ZWO"));
-        assert!(vendors.contains("QHY"));
-        assert!(vendors.contains("Player One"));
-        assert!(vendors.contains("SVBony"));
-        assert!(vendors.contains("Atik"));
-        assert!(vendors.contains("Touptek"));
-    }
-
-    #[test]
-    fn builtin_quirks_do_not_advertise_unwired_policies() {
-        let native_vendors = [
-            ("ZWO", zwo_quirks()),
-            ("QHY", qhy_quirks()),
-            ("Player One", player_one_quirks()),
-            ("SVBony", svbony_quirks()),
-            ("Atik", atik_quirks()),
-            ("Touptek", touptek_quirks()),
-            ("Moravian", moravian_quirks()),
-            ("FLI", fli_quirks()),
-            ("Sky-Watcher", skywatcher_quirks()),
-            ("iOptron", ioptron_quirks()),
-            ("LX200", lx200_quirks()),
-        ];
-
-        for (vendor, entries) in native_vendors {
-            for (_matcher, quirks) in entries {
-                for quirk in quirks {
-                    let unwired = matches!(
-                        quirk,
-                        Quirk::Camera(CameraQuirk::ActualBitDepth(_))
-                            | Quirk::Camera(CameraQuirk::RoiMultiple(_))
-                            | Quirk::Camera(CameraQuirk::UsbBandwidthLimit(_))
-                            | Quirk::Exposure(ExposureQuirk::ExtendedDownloadTimeoutSecs(_))
-                            | Quirk::Exposure(ExposureQuirk::MinExposureMs(_))
-                            | Quirk::Exposure(ExposureQuirk::DarkFrameRequiresShutter)
-                            | Quirk::Position(PositionQuirk::BacklashSteps(_))
-                            | Quirk::Timing(TimingQuirk::DelayBetweenCommands(_))
-                    );
-                    assert!(
-                        !unwired,
-                        "{vendor} advertises an unwired built-in quirk: {:?}",
-                        quirk
-                    );
-                }
-            }
-        }
     }
 
     // ToupTek brand-aware quirks lookup
@@ -847,12 +689,8 @@ mod tests {
         // Guard for the data shape: every Touptek brand must receive
         // VendorWide quirks when `touptek_quirks()` adds them. There are no
         // VendorWide Touptek quirks today (see the comments in
-        // `touptek_quirks()`), so we synthesize one via a runtime override
-        // on a brand-tagged ID to prove the path works.
-        //
-        // (Using runtime overrides side-steps having to mutate the
-        // built-in database from tests — the contract we care about is
-        // "the lookup reaches the touptek branch for every brand".)
+        // `touptek_quirks()`); the contract checked here is that the lookup
+        // reaches the touptek branch for every brand.
         let quirks_ogma = get_device_quirks("native:touptek:ogma:0");
         let quirks_altair = get_device_quirks("native:touptek:altair:0");
         let quirks_bresser = get_device_quirks("native:touptek:bresser:0");

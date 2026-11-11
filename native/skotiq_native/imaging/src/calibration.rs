@@ -183,7 +183,7 @@ fn validate_frames(
 ///
 /// Underflow is clamped to 0 (no negative pixel values).
 /// Both frames must have matching dimensions, channels, and pixel type.
-pub fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, CalibrationError> {
+fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, CalibrationError> {
     validate_frames(light, dark, "dark frame")?;
 
     let result_data = match light.pixel_type {
@@ -207,7 +207,7 @@ pub fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, C
 /// since a bias is a zero-length dark exposure.
 ///
 /// For each pixel: result = max(0, frame - bias)
-pub fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, CalibrationError> {
+fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, CalibrationError> {
     validate_frames(frame, bias, "bias frame")?;
 
     let result_data = match frame.pixel_type {

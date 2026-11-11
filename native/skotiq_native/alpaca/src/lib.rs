@@ -11,7 +11,6 @@ mod discovery;
 mod dome;
 mod filterwheel;
 mod focuser;
-mod guard;
 mod observingconditions;
 mod rotator;
 mod safetymonitor;
@@ -25,21 +24,14 @@ pub use discovery::*;
 pub use dome::*;
 pub use filterwheel::*;
 pub use focuser::*;
-pub use guard::*;
 pub use observingconditions::*;
 pub use rotator::*;
 pub use safetymonitor::*;
 pub use switch::*;
 pub use telescope::*;
 
-/// Alpaca API version
-pub const ALPACA_API_VERSION: u32 = 1;
-
 /// Default Alpaca discovery port
 pub const ALPACA_DISCOVERY_PORT: u16 = 32227;
-
-/// Default Alpaca API port
-pub const ALPACA_DEFAULT_PORT: u16 = 11111;
 
 /// Alpaca device types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

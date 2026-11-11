@@ -29,7 +29,7 @@ pub fn normalize_phd2_tcp_host(host: &str) -> String {
 }
 
 /// Returns true when PHD2's event server accepts TCP connections on [host]:[port].
-pub fn is_phd2_server_listening(host: &str, port: u16) -> bool {
+fn is_phd2_server_listening(host: &str, port: u16) -> bool {
     let host = normalize_phd2_tcp_host(host);
     let Ok(addr) = format!("{host}:{port}").parse() else {
         return false;

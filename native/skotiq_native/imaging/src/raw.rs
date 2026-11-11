@@ -804,86 +804,6 @@ pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
     }
 }
 
-/// Process multiple RAW files in parallel
-pub fn process_raw_batch(
-    paths: &[std::path::PathBuf],
-    params: Option<&RawProcessingParams>,
-) -> Vec<Result<(ImageData, RawMetadata), RawError>> {
-    use rayon::prelude::*;
-
-    paths
-        .par_iter()
-        .map(|path| read_raw(path, params))
-        .collect()
-}
-
-/// Detect if a file is a supported RAW format
-pub fn is_raw_file(path: &Path) -> bool {
-    if let Some(ext) = path.extension() {
-        if let Some(ext_str) = ext.to_str() {
-            return matches!(
-                ext_str.to_lowercase().as_str(),
-                "cr2" | "cr3" | "crw"  // Canon
-                | "nef" | "nrw"        // Nikon
-                | "arw" | "srf" | "sr2" // Sony
-                | "raf"                 // Fujifilm (X-Trans!)
-                | "pef" | "dng"         // Pentax
-                | "orf"                 // Olympus
-                | "rw2"                 // Panasonic
-                | "raw" | "rwl"         // Leica
-                | "mrw"                 // Minolta
-                | "erf"                 // Epson
-                | "3fr"                 // Hasselblad
-                | "ari"                 // ARRI
-                | "bay"                 // Casio
-                | "cap" | "iiq"         // Phase One
-                | "dcs" | "dcr" | "drf" | "k25" | "kdc" // Kodak
-                | "mef"                 // Mamiya
-                | "mos"                 // Leaf
-                | "ptx" | "pxn"         // Pentax
-                | "r3d"                 // RED
-                | "srw"                 // Samsung
-                | "x3f" // Sigma
-            );
-        }
-    }
-    false
-}
-
-/// Read a RAW file from in-memory bytes
-///
-/// Since LibRaw requires file access, this writes to a temp file.
-/// Used for processing DSLR images received via INDI BLOBs.
-pub fn read_raw_from_bytes(
-    data: &[u8],
-    extension: &str,
-    params: Option<&RawProcessingParams>,
-) -> Result<(ImageData, RawMetadata), RawError> {
-    use std::io::Write;
-
-    // Create temp file with appropriate extension (LibRaw uses extension for format hints)
-    let temp_dir = std::env::temp_dir();
-    let temp_path = temp_dir.join(format!(
-        "skotiq_raw_{}.{}",
-        std::process::id(),
-        extension.trim_start_matches('.')
-    ));
-
-    // Write data to temp file
-    let mut file = std::fs::File::create(&temp_path).map_err(RawError::Io)?;
-    file.write_all(data).map_err(RawError::Io)?;
-    file.flush().map_err(RawError::Io)?;
-    drop(file); // Close file before LibRaw opens it
-
-    // Process with LibRaw
-    let result = read_raw(&temp_path, params);
-
-    // Clean up temp file (ignore errors)
-    let _ = std::fs::remove_file(&temp_path);
-
-    result
-}
-
 /// A 2×2 colour-filter-array (Bayer) pattern in sensor row-major order
 /// (top-left, top-right, bottom-left, bottom-right).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -961,48 +881,6 @@ fn cfa_pattern_from_bytes(cfa: &[u8; 4], is_xtrans: bool, filters: c_int) -> Opt
         b"GBRG" => Some(CfaPattern::Gbrg),
         b"BGGR" => Some(CfaPattern::Bggr),
         _ => None,
-    }
-}
-
-/// Read a RAW file into its native single-channel linear CFA mosaic.
-///
-/// See [`CfaImage`] for the contract. Use this (not [`read_raw`]) for any
-/// astro capture path: DSLR/mirrorless light/dark/flat/bias frames.
-pub fn read_cfa_mosaic(path: &Path) -> Result<(CfaImage, RawMetadata), RawError> {
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| RawError::InvalidPath("Path contains invalid UTF-8".to_string()))?;
-
-    if !path.exists() {
-        return Err(RawError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "File not found",
-        )));
-    }
-
-    // SAFETY: FFI into LibRaw. `processor` is checked non-null; `open_file`
-    // return code is checked; `decode_cfa_common` takes ownership of the
-    // processor and closes it on every path (success and error).
-    unsafe {
-        let processor = libraw_init(0);
-        if processor.is_null() {
-            return Err(RawError::NullPointer);
-        }
-
-        let c_path = CString::new(path_str)
-            .map_err(|_| RawError::InvalidPath("Path contains null bytes".to_string()))?;
-
-        let ret = libraw_open_file(processor, c_path.as_ptr());
-        if ret != LIBRAW_SUCCESS {
-            let err_msg = get_error_string(ret);
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "libraw_open_file failed: {}",
-                err_msg
-            )));
-        }
-
-        decode_cfa_common(processor)
     }
 }
 
@@ -1289,15 +1167,6 @@ mod tests {
         assert_eq!(cfa_pattern_from_bytes(b"RGGB", false, 0), None);
         // Unknown descriptor => decline to guess rather than mislabel.
         assert_eq!(cfa_pattern_from_bytes(b"XYZW", false, 0x1949_4949), None);
-    }
-
-    #[test]
-    fn test_is_raw_file() {
-        assert!(is_raw_file(Path::new("test.cr2")));
-        assert!(is_raw_file(Path::new("test.NEF")));
-        assert!(is_raw_file(Path::new("test.raf"))); // Fujifilm X-Trans!
-        assert!(!is_raw_file(Path::new("test.fits")));
-        assert!(!is_raw_file(Path::new("test.jpg")));
     }
 
     /// A `None` input must round-trip to `Ok(None)` (no error, no surprise

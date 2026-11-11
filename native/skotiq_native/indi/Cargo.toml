@@ -8,10 +8,7 @@ publish.workspace = true
 
 [dependencies]
 tokio.workspace = true
-async-trait.workspace = true
-serde.workspace = true
 thiserror.workspace = true
-anyhow.workspace = true
 tracing.workspace = true
 
 # XML parsing for INDI protocol

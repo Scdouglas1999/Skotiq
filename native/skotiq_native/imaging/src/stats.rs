@@ -720,7 +720,7 @@ pub struct StarCropData {
 ///
 /// Returns an 80x80 (or smaller near edges) crop centered on the star,
 /// with pixel values auto-stretched to 0-255 range for display.
-pub fn extract_star_crop(image: &ImageData, star: &DetectedStar, crop_size: u32) -> StarCropData {
+fn extract_star_crop(image: &ImageData, star: &DetectedStar, crop_size: u32) -> StarCropData {
     let width = image.width as i32;
     let height = image.height as i32;
     let half_size = crop_size as i32 / 2;

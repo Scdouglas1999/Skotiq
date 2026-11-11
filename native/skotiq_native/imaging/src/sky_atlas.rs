@@ -741,11 +741,6 @@ impl SkyTileAccumulator {
         }
     }
 
-    /// Whether this tile's photometric reference has been frozen yet.
-    pub fn is_norm_frozen(&self) -> bool {
-        self.norm_frozen
-    }
-
     /// The frozen photometric reference (identity until the first fold or an
     /// [`adopt_reference`](Self::adopt_reference) call).
     pub fn norm_reference(&self) -> &NormalizationReference {
@@ -1566,7 +1561,7 @@ impl SkyAtlas {
     }
 
     /// Load this handle's own layer of a tile, or create a fresh zeroed one.
-    pub fn load_or_create(
+    fn load_or_create(
         &self,
         tile_id: TileId,
         channels: u32,

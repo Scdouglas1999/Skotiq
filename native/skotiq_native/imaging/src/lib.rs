@@ -26,7 +26,6 @@ pub mod depthlock;
 pub mod difference_image; // NEW: Difference imaging (Pillar B — First Light) transient detection
 pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integration
 
-mod camera;
 mod debayer;
 mod fits;
 pub mod fits_layout;
@@ -40,9 +39,7 @@ pub mod normalization; // NEW: Light-frame normalization to a reference (batch i
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
 mod phd2;
 mod platesolve;
-mod processing; // NEW: Tiled image processing
 mod raw; // NEW: RAW file support
-mod reader; // NEW: Memory-mapped readers
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
 mod robust_stats; // The crate's one set of order statistics (median / percentile conventions)
@@ -61,7 +58,6 @@ pub use background_extraction::*; // NEW: Export background-extraction types
 pub use buffer_pool::*;
 pub use calibration::*;
 pub use calibration_masters::*; // NEW: Export master-flat / cosmetic-correction types
-pub use camera::*;
 pub use channel_combine::*; // NEW: Export channel-combination types
 pub use color_calibration::*; // NEW: Export color-calibration types
 pub use debayer::*;
@@ -79,9 +75,7 @@ pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
 pub use phd2::*;
 pub use platesolve::*;
-pub use processing::*; // NEW: Export processing types
 pub use raw::*; // NEW: Export RAW types
-pub use reader::*; // NEW: Export reader types
 pub use registration::*; // NEW: Export registration types
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types
@@ -256,11 +250,6 @@ impl ImageFormat {
                 | ImageFormat::GenericRAW
         )
     }
-
-    /// Check if this format can be processed by LibRaw
-    pub fn is_libraw_supported(&self) -> bool {
-        self.is_raw()
-    }
 }
 
 /// Pixel data types
@@ -347,11 +336,6 @@ impl ImageData {
     /// Get the number of bytes per pixel
     pub fn bytes_per_pixel(&self) -> usize {
         self.pixel_type.byte_size()
-    }
-
-    /// Get the total size in bytes
-    pub fn size_bytes(&self) -> usize {
-        self.data.len()
     }
 
     /// Get total pixel count

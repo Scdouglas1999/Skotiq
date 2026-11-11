@@ -98,12 +98,6 @@ impl TouptekCamera {
         }
     }
 
-    /// Create a new Touptek camera instance with the default OGMA brand
-    /// (backward-compatible constructor)
-    pub fn new_default(device_index: usize) -> Self {
-        Self::new(device_index, "OGMA")
-    }
-
     pub(crate) fn read_gain_locked(&self, handle: HOgmacam) -> Result<i32, NativeError> {
         with_sdk(&self.brand, |sdk| {
             let mut gain: u16 = 0;

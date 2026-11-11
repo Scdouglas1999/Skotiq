@@ -9,11 +9,6 @@
 //! from `crate::sync` to prevent concurrent access. Note that QHY filter wheels (CFW)
 //! are controlled through the camera SDK, so they share the same mutex.
 //!
-//! ## Timeout Handling
-//!
-//! All SDK operations that can potentially hang (exposure polling, image download)
-//! have configurable timeouts via `NativeTimeoutConfig`.
-//!
 //! ## Safety Measures for Discovery
 //!
 //! The QHY SDK has been known to crash or hang during device enumeration on certain
@@ -30,7 +25,6 @@
 use crate::camera::*;
 use crate::sync::qhy_mutex;
 use crate::traits::*;
-use crate::utils::wait_for_exposure;
 use crate::NativeVendor;
 use async_trait::async_trait;
 use skotiq_imaging::buffer_pool::global_u8_pool;

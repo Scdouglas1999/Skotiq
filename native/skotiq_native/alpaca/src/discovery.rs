@@ -211,24 +211,6 @@ impl DiscoveryConfig {
     }
 }
 
-/// Discover Alpaca servers on the local network using async UDP
-pub async fn discover_servers(timeout_duration: Duration) -> Vec<(String, u16)> {
-    discover_servers_with_config(DiscoveryConfig {
-        discovery_timeout: timeout_duration,
-        ..Default::default()
-    })
-    .await
-}
-
-/// Discover Alpaca servers with custom configuration (host, port tuples).
-pub async fn discover_servers_with_config(config: DiscoveryConfig) -> Vec<(String, u16)> {
-    discover_servers_detailed_with_config(config)
-        .await
-        .into_iter()
-        .map(|s| (s.host, s.alpaca_port))
-        .collect()
-}
-
 /// Discover Alpaca servers including supported management API versions.
 pub async fn discover_servers_detailed_with_config(
     config: DiscoveryConfig,
@@ -475,106 +457,6 @@ pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<Al
     }
 
     all_devices
-}
-
-/// Discover a specific type of device on the network
-pub async fn discover_devices_of_type(
-    device_type: AlpacaDeviceType,
-    timeout_duration: Duration,
-) -> Vec<AlpacaDevice> {
-    discover_all_devices(timeout_duration)
-        .await
-        .into_iter()
-        .filter(|d| d.device_type == device_type)
-        .collect()
-}
-
-/// Check if a specific server is reachable
-pub async fn ping_server(server_ip: &str, port: u16) -> Result<Duration, AlpacaError> {
-    let url = format!("http://{}:{}/management/v1/description", server_ip, port);
-    let start = std::time::Instant::now();
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| AlpacaError::RequestFailed(e.to_string()))?;
-
-    match client.get(&url).send().await {
-        Ok(response) => {
-            if response.status().is_success() {
-                Ok(start.elapsed())
-            } else {
-                Err(AlpacaError::HttpError {
-                    status: response.status().as_u16(),
-                    message: "Server not responding correctly".to_string(),
-                    retry_after: None,
-                })
-            }
-        }
-        Err(e) => {
-            if e.is_timeout() {
-                Err(AlpacaError::timeout("server configuration query", 5000))
-            } else if e.is_connect() {
-                Err(AlpacaError::connection_refused(url, e.to_string()))
-            } else {
-                Err(AlpacaError::RequestFailed(e.to_string()))
-            }
-        }
-    }
-}
-
-/// Get server description
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct ServerDescription {
-    pub server_name: String,
-    pub manufacturer: String,
-    pub manufacturer_version: String,
-    pub location: String,
-}
-
-/// Get the description of an Alpaca server
-pub async fn get_server_description(
-    server_ip: &str,
-    port: u16,
-) -> Result<ServerDescription, AlpacaError> {
-    let url = format!("http://{}:{}/management/v1/description", server_ip, port);
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|e| AlpacaError::RequestFailed(e.to_string()))?;
-
-    let response = client.get(&url).send().await.map_err(|e| {
-        if e.is_timeout() {
-            AlpacaError::timeout("server description query", 10000)
-        } else if e.is_connect() {
-            AlpacaError::connection_refused(&url, e.to_string())
-        } else {
-            AlpacaError::RequestFailed(e.to_string())
-        }
-    })?;
-
-    if !response.status().is_success() {
-        return Err(AlpacaError::HttpError {
-            status: response.status().as_u16(),
-            message: "Failed to get server description".to_string(),
-            retry_after: None,
-        });
-    }
-
-    #[derive(Deserialize)]
-    #[serde(rename_all = "PascalCase")]
-    struct ApiResponse {
-        value: ServerDescription,
-    }
-
-    let api_response: ApiResponse = response
-        .json()
-        .await
-        .map_err(|e| AlpacaError::ParseError(e.to_string()))?;
-
-    Ok(api_response.value)
 }
 
 /// Get supported API versions from a server
