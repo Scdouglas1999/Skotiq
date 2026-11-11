@@ -21,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/widgets/skotiq_bottom_navigation.dart';
 import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
+import 'package:skotiq_app/widgets/remote_connection_indicator.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -113,6 +114,20 @@ void main() {
       find.byType(WindowDragArea),
       findsWidgets,
       reason: 'a frameless window with no draggable title bar cannot be moved',
+    );
+    await _drain(tester);
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  testWidgets('a phone-width window still shows the imaging-host link',
+      (tester) async {
+    await _pumpShell(tester, const Size(420, 900));
+
+    expect(find.byType(SkotiqBottomNavigation), findsOneWidget);
+    expect(
+      find.byType(RemoteConnectionIndicator),
+      findsOneWidget,
+      reason: 'a linked client must show whether its host is reachable at '
+          'every width, not only once the link drops',
     );
     await _drain(tester);
   }, timeout: const Timeout(Duration(seconds: 60)));

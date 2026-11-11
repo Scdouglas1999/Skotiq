@@ -25,6 +25,7 @@ import '../../widgets/autofocus_progress_overlay.dart';
 import '../../widgets/polar_alignment_run_overlay.dart';
 import '../../widgets/connection_stale_banner.dart';
 import '../../widgets/disconnected_backend_banner.dart';
+import '../../widgets/remote_connection_indicator.dart';
 import '../../widgets/ios_background_banner.dart';
 import '../../widgets/android_notifications_banner.dart';
 import '../../widgets/weather/weather_alert_banner.dart';
