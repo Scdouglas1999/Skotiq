@@ -5,8 +5,9 @@
 //!
 //! ## Thread Safety
 //!
-//! The Fujifilm SDK is NOT thread-safe. All SDK operations are protected by
-//! `fujifilm_mutex()` from `crate::sync`.
+//! The Fujifilm SDK is NOT thread-safe. Its function table is reached through
+//! the guard from `FujifilmSdk::lock()`, which holds the SDK's lock. The bulb
+//! start/stop helpers are the one exception; their comment says why.
 //!
 //! ## Important SDK Behaviors
 //!
@@ -26,13 +27,11 @@
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
 use crate::camera::*;
-use crate::sync::fujifilm_mutex;
 use crate::traits::*;
 use crate::NativeVendor;
 use async_trait::async_trait;
 use std::ffi::{c_char, c_long, c_ulong, c_void, CString};
 use std::path::PathBuf;
-use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 mod camera;
