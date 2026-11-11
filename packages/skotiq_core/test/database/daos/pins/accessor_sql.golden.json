@@ -1,0 +1,345 @@
+{
+  "removed ids empty": {
+    "set": []
+  },
+  "remove one": 2,
+  "remove unknown target": 2,
+  "remove one again replaces": 2,
+  "after remove one :: scheduler_removed_targets": [
+    {
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "removed_at": {
+        "v": 1740900002,
+        "t": "integer"
+      }
+    }
+  ],
+  "remove all": 3,
+  "after remove all :: scheduler_removed_targets": [
+    {
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "removed_at": {
+        "v": 1740900003,
+        "t": "integer"
+      }
+    },
+    {
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "removed_at": {
+        "v": 1740900003,
+        "t": "integer"
+      }
+    },
+    {
+      "target_id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "removed_at": {
+        "v": 1740900003,
+        "t": "integer"
+      }
+    }
+  ],
+  "removed ids": {
+    "set": [
+      1,
+      2,
+      3
+    ]
+  },
+  "toggle on": null,
+  "toggle second": null,
+  "toggle off": null,
+  "toggle missing": null,
+  "targets after toggles": [
+    {
+      "id": 1,
+      "is_favorite": 1,
+      "updated_at": "<now s>"
+    },
+    {
+      "id": 2,
+      "is_favorite": 0,
+      "updated_at": "<now s>"
+    },
+    {
+      "id": 3,
+      "is_favorite": 0,
+      "updated_at": 1740866400
+    }
+  ],
+  "reopen with notes": null,
+  "reopen null notes": null,
+  "reopen empty notes": null,
+  "reopen again appends": null,
+  "reopen missing": null,
+  "after reopen :: imaging_sessions": [
+    {
+      "id": 1,
+      "start_time": 1740866400,
+      "end_time": null,
+      "status": "active",
+      "notes": "first night\nResumed at 2026-11-11T17:45:29.428654Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again.\nResumed at 2026-11-11T17:45:29.429803Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+    },
+    {
+      "id": 2,
+      "start_time": 1740870000,
+      "end_time": null,
+      "status": "active",
+      "notes": "Resumed at 2026-11-11T17:45:29.429525Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+    },
+    {
+      "id": 3,
+      "start_time": 1740870000,
+      "end_time": null,
+      "status": "active",
+      "notes": "Resumed at 2026-11-11T17:45:29.429671Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+    },
+    {
+      "id": 4,
+      "start_time": 1740870000,
+      "end_time": null,
+      "status": "completed",
+      "notes": null
+    }
+  ],
+  "abort with frames": null,
+  "abort without frames": null,
+  "abort future frame clamps": null,
+  "abort missing": null,
+  "after abort :: imaging_sessions": [
+    {
+      "id": 1,
+      "start_time": 1740866400,
+      "end_time": 1740866640,
+      "status": "aborted",
+      "notes": "first night\nResumed at 2026-11-11T17:45:29.428654Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again.\nResumed at 2026-11-11T17:45:29.429803Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+    },
+    {
+      "id": 2,
+      "start_time": 1740870000,
+      "end_time": null,
+      "status": "active",
+      "notes": "Resumed at 2026-11-11T17:45:29.429525Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+    },
+    {
+      "id": 3,
+      "start_time": 1740870000,
+      "end_time": 1740870000,
+      "status": "aborted",
+      "notes": "Resumed at 2026-11-11T17:45:29.429671Z UTC from Continue Session. The interruption above stands for the gap; frames captured from here belong to this session again."
+    },
+    {
+      "id": 4,
+      "start_time": 1740870000,
+      "end_time": "<now s>",
+      "status": "aborted",
+      "notes": null
+    }
+  ],
+  "feed empty": [],
+  "feed newest session": [
+    {
+      "id": 3,
+      "sessionId": 2,
+      "capturedImageId": null,
+      "timestamp": "2025-03-01T22:03:00.000Z (local)",
+      "eventType": "note",
+      "category": "session",
+      "severity": "info",
+      "headline": "event 3",
+      "body": null,
+      "evidenceJson": null,
+      "dedupeKey": "k3",
+      "pinned": false
+    },
+    {
+      "id": 4,
+      "sessionId": 2,
+      "capturedImageId": null,
+      "timestamp": "2025-03-01T22:03:00.000Z (local)",
+      "eventType": "note",
+      "category": "session",
+      "severity": "info",
+      "headline": "event 3",
+      "body": null,
+      "evidenceJson": null,
+      "dedupeKey": "k3",
+      "pinned": false
+    }
+  ],
+  "feed limit 1": [
+    {
+      "id": 3,
+      "sessionId": 2,
+      "capturedImageId": null,
+      "timestamp": "2025-03-01T22:03:00.000Z (local)",
+      "eventType": "note",
+      "category": "session",
+      "severity": "info",
+      "headline": "event 3",
+      "body": null,
+      "evidenceJson": null,
+      "dedupeKey": "k3",
+      "pinned": false
+    }
+  ],
+  "feed sessionless": [
+    {
+      "id": 6,
+      "sessionId": null,
+      "capturedImageId": null,
+      "timestamp": "2025-03-01T22:00:00.000Z (local)",
+      "eventType": "note",
+      "category": "session",
+      "severity": "info",
+      "headline": "event 0",
+      "body": null,
+      "evidenceJson": null,
+      "dedupeKey": "k0",
+      "pinned": true
+    },
+    {
+      "id": 5,
+      "sessionId": null,
+      "capturedImageId": null,
+      "timestamp": "2025-03-01T22:04:00.000Z (local)",
+      "eventType": "note",
+      "category": "session",
+      "severity": "info",
+      "headline": "event 4",
+      "body": null,
+      "evidenceJson": null,
+      "dedupeKey": "k4",
+      "pinned": false
+    }
+  ],
+  "atlas totals empty": "(frames: 0, seconds: 0.0)",
+  "atlas totals": "(frames: 4, seconds: 630.0)",
+  "tile 100 order 6": "(frames: 3, seconds: 600.0)",
+  "tile 101 order 6": "(frames: 1, seconds: 300.0)",
+  "tile 100 order 7": "(frames: 1, seconds: 30.0)",
+  "tile unknown": "(frames: 0, seconds: 0.0)",
+  "region totals": "(frames: 3, seconds: 600.0)",
+  "region unknown": "(frames: 0, seconds: 0.0)",
+  "delete all tiles and folds": null,
+  "atlas marks after reset": [
+    {
+      "id": 1,
+      "atlas_folded_at": null
+    },
+    {
+      "id": 2,
+      "atlas_folded_at": null
+    },
+    {
+      "id": 3,
+      "atlas_folded_at": null
+    },
+    {
+      "id": 4,
+      "atlas_folded_at": null
+    },
+    {
+      "id": 5,
+      "atlas_folded_at": null
+    },
+    {
+      "id": 6,
+      "atlas_folded_at": null
+    },
+    {
+      "id": 7,
+      "atlas_folded_at": null
+    }
+  ],
+  "after reset :: sky_atlas_regions": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "Cassiopeia",
+        "t": "text"
+      },
+      "kind": {
+        "v": "constellation",
+        "t": "text"
+      },
+      "center_ra_deg": {
+        "v": 10.0,
+        "t": "real"
+      },
+      "center_dec_deg": {
+        "v": 60.0,
+        "t": "real"
+      },
+      "radius_deg": {
+        "v": 8.0,
+        "t": "real"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "tile_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "created_at": {
+        "v": 1740866400,
+        "t": "integer"
+      }
+    }
+  ],
+  "atlas totals after reset": "(frames: 0, seconds: 0.0)",
+  "science ids empty": {
+    "set": []
+  },
+  "science ids s0": {
+    "set": [
+      1,
+      3,
+      5
+    ]
+  },
+  "science ids s1": {
+    "set": [
+      2,
+      4
+    ]
+  },
+  "spatial psfTiles session 1": {
+    "none": "1:3",
+    "3": "2:2",
+    "5": "1:4"
+  },
+  "spatial psfTiles session 2": {},
+  "spatial tileMetrics session 1": {},
+  "spatial tileMetrics session 2": {
+    "2": "1:1"
+  },
+  "spatial residuals session 1": {
+    "none": "1:1"
+  },
+  "spatial residuals session 2": {},
+  "spatial unknown product": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (product): \"x\""
+  }
+}
