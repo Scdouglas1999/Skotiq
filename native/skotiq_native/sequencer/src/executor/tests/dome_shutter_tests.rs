@@ -200,4 +200,14 @@ async fn a_recovery_step_for_a_closed_shutter_does_the_action_the_operator_chose
         "{fired:?} {warnings:?}"
     );
     assert_eq!(run.executor.get_state().await, ExecutorState::Paused);
+    // The standard trigger still says what it read, without claiming the run
+    // goes on: the plan's own step decided.
+    assert!(
+        warnings.contains(
+            &"Dome Shutter Not Open: the dome reports its shutter closed while the run expects \
+              it open."
+                .to_string()
+        ),
+        "{warnings:?}"
+    );
 }

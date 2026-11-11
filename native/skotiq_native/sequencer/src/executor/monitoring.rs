@@ -490,7 +490,7 @@ pub(crate) fn quality_trigger_notice(
 ) -> String {
     let trigger_type = manager.get_trigger(trigger_id).map(|t| &t.trigger_type);
     if matches!(trigger_type, Some(TriggerType::DomeShutterNotOpen)) {
-        return dome_shutter_notice(trigger_name, trigger_id, state);
+        return dome_shutter_notice(trigger_name, trigger_id, manager, state);
     }
     let detail = match trigger_type {
         Some(TriggerType::GuidingFailed {
@@ -549,18 +549,33 @@ pub(crate) fn quality_trigger_notice(
 
 /// The Warning a notify-only Dome Shutter Not Open firing puts in the run's
 /// feed. A closed shutter is not a quality problem, so the quality setting is
-/// not what changes it: the standard trigger points at a Recovery step, and a
-/// Recovery step set to Notify says only what happened.
-fn dome_shutter_notice(trigger_name: &str, trigger_id: &str, state: &TriggerState) -> String {
+/// not what changes it. The standard trigger points at a Recovery step; when
+/// the plan has one, that step's action decides what the run does (it may
+/// have paused it), so the standard notice says only what was read.
+fn dome_shutter_notice(
+    trigger_name: &str,
+    trigger_id: &str,
+    manager: &crate::triggers::TriggerManager,
+    state: &TriggerState,
+) -> String {
     let reading = match state.telemetry.dome_shutter_status.as_deref() {
         Some(status) => format!("the dome reports its shutter {}", status.to_lowercase()),
         None => "the dome has not reported its shutter".to_string(),
     };
+    let what = format!("{trigger_name}: {reading} while the run expects it open.");
+    let standard = StandardTrigger::from_id(trigger_id).is_some();
+    let plan_guards_the_shutter = manager.triggers().iter().any(|trigger| {
+        trigger.enabled
+            && trigger.origin().is_recovery_node()
+            && matches!(trigger.trigger_type, TriggerType::DomeShutterNotOpen)
+    });
+    if standard && plan_guards_the_shutter {
+        return what;
+    }
     let mut notice = format!(
-        "{trigger_name}: {reading} while the run expects it open. Imaging continues; frames \
-         taken behind a closed shutter will not show the sky."
+        "{what} Imaging continues; frames taken behind a closed shutter will not show the sky."
     );
-    if StandardTrigger::from_id(trigger_id).is_some() {
+    if standard {
         notice.push_str(
             " To have the run pause or park instead, add a Recovery step for Dome Shutter Not \
              Open with that action.",
