@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:intl/intl.dart';
 
 /// Shared DSO type name formatter used by Tonight and Catalog tabs.

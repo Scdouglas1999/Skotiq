@@ -5,7 +5,7 @@ import 'package:skotiq_core/src/models/planning/target_suggestion.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/services/smart_night/smart_night_draft_service.dart';
 import 'package:skotiq_core/src/services/smart_night_service.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show TargetVisibilityInfo;
 
 void main() {

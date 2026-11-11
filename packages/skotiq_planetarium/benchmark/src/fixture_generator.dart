@@ -12,11 +12,7 @@
 
 import 'dart:math' as math;
 
-import 'package:skotiq_planetarium/src/astronomy/milky_way_data.dart';
-import 'package:skotiq_planetarium/src/astronomy/planetary_positions.dart';
-import 'package:skotiq_planetarium/src/catalogs/constellation_data.dart';
-import 'package:skotiq_planetarium/src/celestial_object.dart';
-import 'package:skotiq_planetarium/src/coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'stress_fixture.dart';
 

@@ -4,7 +4,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations, airmassForTrueAltitude;
 
 import '../tonight_night.dart';

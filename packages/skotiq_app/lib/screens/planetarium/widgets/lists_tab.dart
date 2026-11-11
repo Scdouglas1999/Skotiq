@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../utils/authority_bound_dialog.dart';

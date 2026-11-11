@@ -17,6 +17,7 @@ import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart' as ndb;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _FakeActiveProjectNotifier extends ActiveProjectNotifier {

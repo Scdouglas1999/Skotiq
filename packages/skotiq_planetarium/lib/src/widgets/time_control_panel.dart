@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
-import '../astronomy/astronomy_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../providers/planetarium_providers.dart';
 
 /// Time control panel for the planetarium

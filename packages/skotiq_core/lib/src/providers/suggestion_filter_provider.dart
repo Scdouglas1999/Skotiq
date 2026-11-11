@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/planning/target_suggestion.dart';
 import '../services/sesame_name_resolver.dart';

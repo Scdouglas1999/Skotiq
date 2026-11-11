@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 
 import '../database/daos/images_dao.dart';

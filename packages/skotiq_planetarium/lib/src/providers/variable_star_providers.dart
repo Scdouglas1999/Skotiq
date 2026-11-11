@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../catalogs/variable_star_catalog.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 // Variable star toggle provider
 

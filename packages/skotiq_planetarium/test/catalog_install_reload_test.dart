@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +33,7 @@ void main() {
 
     // The download lands the OpenNGC file and reports completion.
     await File(
-      'test/fixtures/target_search_ngc.csv',
+      '../skotiq_astro/test/fixtures/target_search_ngc.csv',
     ).copy(CatalogManager.instance.dsoCatalogPath);
     await container.read(catalogStateProvider.notifier).refreshStatus();
 

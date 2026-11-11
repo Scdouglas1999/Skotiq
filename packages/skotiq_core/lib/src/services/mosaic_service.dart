@@ -1,7 +1,7 @@
 import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart' show FrameType;
 import 'package:uuid/uuid.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show mosaicPanelCenters;
 
 /// Result of mosaic panel generation

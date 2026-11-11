@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planetarium/providers/finder_chart_catalog_provider.dart';
 import 'package:skotiq_app/services/finder_chart_service.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// HIP42327: RA 8h37m46.7s, Dec +19d16'02".
 const _subject = CelestialCoordinate(

@@ -80,6 +80,8 @@ dependencies:
   skotiq_bridge:
     path: ../skotiq_bridge
   
+  skotiq_astro:
+    path: ../skotiq_astro
   # Planetarium (for catalog access)
   skotiq_planetarium:
     path: ../skotiq_planetarium

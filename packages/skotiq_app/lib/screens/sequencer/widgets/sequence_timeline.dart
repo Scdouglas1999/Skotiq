@@ -7,7 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 // exports its own; this widget consumes the planetarium's TwilightTimes via
 // AstronomyCalculations.calculateTwilightTimes(...).
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 part 'sequence_timeline/segment_and_mini.dart';

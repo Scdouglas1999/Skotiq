@@ -20,6 +20,7 @@ import 'package:skotiq_app/screens/analytics/widgets/photometric_calibration_wiz
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A local (non-network) backend, so the wizard takes its own matching path
 /// instead of delegating to a remote host.

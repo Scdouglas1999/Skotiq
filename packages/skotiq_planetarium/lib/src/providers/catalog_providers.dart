@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../catalogs/catalog_manager.dart';
-import '../catalogs/star_catalog.dart';
-import '../celestial_object.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// State for catalog installation status
 class CatalogState {

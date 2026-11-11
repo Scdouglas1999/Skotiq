@@ -1,4 +1,4 @@
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 (double alt, double az) calculateCurrentAltAz({
   required double raHours,

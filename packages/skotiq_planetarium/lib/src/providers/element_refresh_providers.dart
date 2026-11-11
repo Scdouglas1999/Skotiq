@@ -3,8 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../catalogs/minor_planet_catalog.dart';
-import '../services/element_refresh_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 // Live MPC orbital-element refresh
 

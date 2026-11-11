@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/imaging/annotation.dart';
 import 'package:skotiq_core/src/services/master_annotation_service.dart';
 import 'package:skotiq_core/src/services/wcs_overlay.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 OpenNgcData _dso({
   required String name,

@@ -15,7 +15,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';

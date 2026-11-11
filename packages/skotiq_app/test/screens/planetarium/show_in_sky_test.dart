@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/screens/planetarium/show_in_sky.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// Unmount before disposing: `ObservationTimeNotifier` (read via

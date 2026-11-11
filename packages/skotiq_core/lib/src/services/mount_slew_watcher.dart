@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 
 import '../backend/skotiq_backend.dart' show MountStatus;

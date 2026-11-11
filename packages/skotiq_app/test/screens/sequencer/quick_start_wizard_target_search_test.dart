@@ -13,8 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/quick_start_wizard_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CelestialCoordinate, DeepSkyObject, DsoType, loadedDsosProvider;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' show loadedDsosProvider;
+import 'package:skotiq_astro/skotiq_astro.dart' show CelestialCoordinate, DeepSkyObject, DsoType;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;

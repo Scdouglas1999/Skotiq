@@ -12,7 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:shelf/shelf.dart';

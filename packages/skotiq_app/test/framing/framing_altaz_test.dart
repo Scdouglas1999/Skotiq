@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/framing_altaz.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
   test('calculateCurrentAltAz matches AstronomyCalculations', () {

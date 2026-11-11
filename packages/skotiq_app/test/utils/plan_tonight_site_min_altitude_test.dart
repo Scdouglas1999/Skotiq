@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/utils/plan_tonight_sequencer_helper.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show TargetVisibilityInfo;
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

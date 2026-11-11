@@ -6,8 +6,8 @@ import 'package:skotiq_app/services/observation_report_service.dart';
 // bridge-boundary: science_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CatalogManager, HygStarData;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show CatalogManager, HygStarData, airmassForTrueAltitude;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';

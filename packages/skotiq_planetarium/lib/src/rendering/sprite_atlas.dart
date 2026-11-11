@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../celestial_object.dart' show DsoType;
+import 'package:skotiq_astro/skotiq_astro.dart' show DsoType;
 
 /// GPU sprite textures for the batched (`Canvas.drawRawAtlas`) star and DSO
 /// passes.

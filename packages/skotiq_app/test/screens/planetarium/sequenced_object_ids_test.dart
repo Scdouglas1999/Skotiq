@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planetarium/providers/sequenced_object_ids_provider.dart';
 import 'package:skotiq_app/screens/planetarium/widgets/info_tab.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

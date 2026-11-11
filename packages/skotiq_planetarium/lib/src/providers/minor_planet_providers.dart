@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../catalogs/minor_planet_catalog.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'element_refresh_providers.dart';
 import 'planetarium_providers.dart';
 

@@ -13,7 +13,7 @@ import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
 import '../services/logging_service.dart';
 import '../services/notification_service.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 import '../services/scheduler/sky_calculations.dart';
 import 'backend_provider.dart';

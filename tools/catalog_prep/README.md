@@ -23,7 +23,7 @@ deterministic tileset with no external dependency; that synthetic data is
 ## Tile format (SKDT v1)
 
 Little-endian; this layout is byte-identical to the Dart decoder in
-`packages/skotiq_planetarium/lib/src/catalogs/deep_star_tile.dart`. If you
+`packages/skotiq_astro/lib/src/catalogs/deep_star_tile.dart`. If you
 change one, change both.
 
 ```

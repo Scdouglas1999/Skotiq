@@ -1269,7 +1269,7 @@ mod tests {
         // Parity contract: pinning a fixed observer, fixed time, fixed
         // moon, fixed targets must produce the same scores in Rust as the
         // Dart reference implementation. The Dart side has a matching test
-        // (`packages/skotiq_planetarium/test/planning/target_scoring_parity_test.dart`)
+        // (`packages/skotiq_astro/test/planning/target_scoring_parity_test.dart`)
         // that captures the SAME inputs and asserts the SAME outputs.
         //
         // Numbers come from executing the same fixture against the Dart

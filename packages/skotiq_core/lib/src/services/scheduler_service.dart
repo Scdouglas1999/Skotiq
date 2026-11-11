@@ -2,7 +2,7 @@
 
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 import 'scheduler/sky_calculations.dart';
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // core symbol to keep the name unambiguous in this file.
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Site-derived astronomy with "no observing site on record" as a first-class
 /// absent value.

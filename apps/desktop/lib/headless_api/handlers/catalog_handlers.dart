@@ -37,7 +37,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 

@@ -4,8 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../coordinate_system.dart';
-import '../services/survey_image_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A persistent, equipment-derived field-of-view framing preset.
 ///
