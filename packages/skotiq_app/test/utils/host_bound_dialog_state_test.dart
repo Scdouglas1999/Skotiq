@@ -229,7 +229,9 @@ void main() {
         ),
       ),
     );
-    Navigator.of(tester.element(find.text('home'))).pushNamed('/equipment');
+    unawaited(
+      Navigator.of(tester.element(find.text('home'))).pushNamed('/equipment'),
+    );
     await tester.pumpAndSettle();
     final pageContext = tester.element(find.text('equipment'));
 

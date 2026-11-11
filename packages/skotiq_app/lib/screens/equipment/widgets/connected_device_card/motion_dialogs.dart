@@ -30,13 +30,13 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
             });
             try {
               await ref.read(deviceServiceProvider).haltFocuser();
-              if (host.isStale) return;
+              if (!dialogContext.mounted || host.isStale) return;
               Navigator.pop(dialogContext);
               if (pageContext.mounted) {
                 pageContext.showInfoSnackBar('Focuser halted');
               }
             } catch (e) {
-              if (host.isStale) return;
+              if (!dialogContext.mounted || host.isStale) return;
               setState(() {
                 isHalting = false;
                 errorText = 'Failed to halt focuser: ${userFacingError(e)}';
@@ -101,7 +101,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             await ref
                                 .read(deviceServiceProvider)
                                 .moveFocuserTo(position);
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             Navigator.pop(dialogContext);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -109,7 +109,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             setState(() {
                               isMoving = false;
                               errorText = 'Failed to move focuser: ${userFacingError(e)}';
@@ -222,13 +222,13 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
             });
             try {
               await ref.read(deviceServiceProvider).haltRotator();
-              if (host.isStale) return;
+              if (!dialogContext.mounted || host.isStale) return;
               Navigator.pop(dialogContext);
               if (pageContext.mounted) {
                 pageContext.showInfoSnackBar('Rotator halted');
               }
             } catch (e) {
-              if (host.isStale) return;
+              if (!dialogContext.mounted || host.isStale) return;
               setState(() {
                 isHalting = false;
                 errorText = 'Failed to halt rotator: ${userFacingError(e)}';
@@ -289,7 +289,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             await ref
                                 .read(deviceServiceProvider)
                                 .moveRotatorTo(angle);
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             Navigator.pop(dialogContext);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -297,7 +297,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             setState(() {
                               isRotating = false;
                               errorText = 'Failed to rotate: ${userFacingError(e)}';
@@ -420,7 +420,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                             await ref
                                 .read(deviceCommandsProvider)
                                 .domeSlewToAzimuth(deviceId, azimuth);
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             Navigator.pop(dialogContext);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -429,7 +429,7 @@ extension _ConnectedDeviceMotionDialogs on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             setState(() {
                               isSending = false;
                               errorText = 'Dome slew failed: ${userFacingError(e)}';

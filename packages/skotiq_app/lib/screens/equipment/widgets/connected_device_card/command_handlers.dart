@@ -117,7 +117,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                               restorePriorSetting: false);
                           await deviceService.setCameraCooling(
                               enabled: true, targetTemp: temp);
-                          if (host.isStale) return;
+                          if (!context.mounted || host.isStale) return;
                           ref
                               .read(cameraStateProvider.notifier)
                               .setTargetTemp(temp);
@@ -127,7 +127,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                                 'Cooling to ${formatCelsius(temp, decimals: 0)}');
                           }
                         } catch (e) {
-                          if (host.isStale) return;
+                          if (!context.mounted || host.isStale) return;
                           setState(() {
                             isSaving = false;
                             errorText = 'Failed to start cooling: ${userFacingError(e)}';

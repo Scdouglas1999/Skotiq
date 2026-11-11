@@ -757,9 +757,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       : () async {
                           setDialogState(() => isDeleting = true);
                           try {
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             await repository.deleteSequence(dbId);
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
 
                             notifySequenceCatalogChanged(
                               ref,
@@ -770,12 +770,12 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                             );
                             ref.invalidate(sequenceTemplatesProvider);
 
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             dialogContext.showSuccessSnackBar(
                                 'Deleted "${widget.template.name}"');
                             Navigator.of(dialogContext).pop();
                           } catch (e) {
-                            if (host.isStale) return;
+                            if (!dialogContext.mounted || host.isStale) return;
                             setDialogState(() => isDeleting = false);
                             dialogContext.showErrorSnackBar(
                                 'Failed to delete template: $e');

@@ -38,7 +38,7 @@ void closeAuthorityBoundDialog(BuildContext context) {
 ///
 /// [builder] is handed the dialog's host. Its route is removed when the host
 /// changes, but the dialog's context stays mounted until the next frame, so
-/// work the dialog awaited tests `host.isStale` (not `context.mounted`)
+/// work the dialog awaited tests `host.isStale`, not only `context.mounted`,
 /// before it pops anything or shows its outcome: an answer from the old host
 /// in that window would otherwise pop the page under the dialog and report
 /// its success on the new host.
