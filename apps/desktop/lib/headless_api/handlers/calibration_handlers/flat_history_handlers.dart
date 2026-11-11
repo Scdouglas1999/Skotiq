@@ -1,7 +1,6 @@
 part of '../calibration_handlers.dart';
 
 extension CalibrationFlatHistoryHandlers on CalibrationHandlers {
-  // Flat history
 
   /// GET /api/calibration/flats
   Future<Response> handleListFlats(Request request) async {

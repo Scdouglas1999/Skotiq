@@ -233,8 +233,6 @@ class BroadcastHandlers implements RouteSource {
     );
   }
 
-  // Internal helpers
-
   Map<String, String> _jsonHeaders() => {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',

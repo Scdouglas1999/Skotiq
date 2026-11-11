@@ -1,7 +1,6 @@
 part of '../device_handlers.dart';
 
 extension FilterWheelDeviceHandlers on DeviceHandlers {
-  // Filter wheel control
 
   Future<Response> handleFilterWheelSetPosition(Request request) async {
     _logInfo('[API] POST /api/filter-wheel/position');

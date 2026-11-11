@@ -1,7 +1,6 @@
 part of '../calibration_handlers.dart';
 
 extension CalibrationDefectMapHandlers on CalibrationHandlers {
-  // Defect maps
 
   Map<String, dynamic> _defectMapStatusJson(DefectMapStatus status) => {
     'cameraId': status.cameraId,

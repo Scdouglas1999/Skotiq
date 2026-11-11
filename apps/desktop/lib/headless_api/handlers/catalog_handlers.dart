@@ -124,8 +124,6 @@ class CatalogHandlers implements RouteSource {
     );
   }
 
-  // GET /api/catalog/status
-
   /// `GET /api/catalog/status` — view-scope. Returns the per-catalog
   /// install state currently on disk.
   ///
@@ -174,8 +172,6 @@ class CatalogHandlers implements RouteSource {
     });
   }
 
-  // GET /api/catalog/available
-
   /// `GET /api/catalog/available` — view-scope. Lists catalogs the
   /// server knows how to download. Cached for 1 hour to keep the
   /// upstream manifest sources unbothered when a client polls.
@@ -203,8 +199,6 @@ class CatalogHandlers implements RouteSource {
       'fetchedAt': (_availableFetchedAt ?? now).toUtc().toIso8601String(),
     });
   }
-
-  // POST /api/catalog/download
 
   /// `POST /api/catalog/download` — admin scope, high-risk,
   /// audit-action `catalog_download`. Body: `{name: 'stars'}`.
@@ -271,8 +265,6 @@ class CatalogHandlers implements RouteSource {
       'operation': job.operation,
     });
   }
-
-  // POST /api/catalog/upload
 
   /// `POST /api/catalog/upload?name=stars&sha256=...` — admin scope,
   /// audit-action `catalog_upload`. The body is the raw catalog
@@ -418,8 +410,6 @@ class CatalogHandlers implements RouteSource {
     }
   }
 
-  // POST /api/catalog/verify
-
   /// `POST /api/catalog/verify` — admin scope, high-risk,
   /// audit-action `catalog_verify`. Body: `{name?: 'stars'}`. Omit
   /// `name` to verify every installed catalog. Returns the per-catalog
@@ -459,8 +449,6 @@ class CatalogHandlers implements RouteSource {
     });
   }
 
-  // DELETE /api/catalog/<name>
-
   /// `DELETE /api/catalog/<name>` — admin scope, high-risk,
   /// audit-action `catalog_delete`. Removes the catalog data file +
   /// metadata sidecar from disk. 404 when the catalog is not installed.
@@ -480,8 +468,6 @@ class CatalogHandlers implements RouteSource {
     }
     return jsonOk({'status': 'uninstalled', 'name': name});
   }
-
-  // POST /api/catalog/reload
 
   /// `POST /api/catalog/reload` — admin scope. Drops cached loaders so
   /// subsequent searches re-parse from disk. Useful after an operator

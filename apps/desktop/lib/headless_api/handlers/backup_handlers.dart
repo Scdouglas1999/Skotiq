@@ -11,7 +11,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for backup and restore operations
 class BackupHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -53,8 +52,6 @@ class BackupHandlers implements RouteSource {
   void _logError(String message) =>
       _logger.error(message, source: 'BackupHandlers');
 
-  // List backups
-
   Future<Response> handleListBackups(Request request) async {
     final service = container.read(backupServiceProvider);
     final backupFiles = await _listContainedBackups(service);
@@ -88,8 +85,6 @@ class BackupHandlers implements RouteSource {
 
     return jsonOk({'backups': backups});
   }
-
-  // Create backup
 
   Future<Response> handleCreateBackup(Request request) async {
     _logInfo('[API] POST /api/backup/create');
@@ -146,8 +141,6 @@ class BackupHandlers implements RouteSource {
       message: result.errorMessage ?? 'Backup creation failed',
     );
   }
-
-  // Restore backup
 
   Future<Response> handleRestoreBackup(Request request) async {
     _logInfo('[API] POST /api/backup/restore');
@@ -215,8 +208,6 @@ class BackupHandlers implements RouteSource {
     );
   }
 
-  // Delete backup
-
   Future<Response> handleDeleteBackup(Request request, String id) async {
     _logInfo('[API] DELETE /api/backup/$id');
     final service = container.read(backupServiceProvider);
@@ -235,8 +226,6 @@ class BackupHandlers implements RouteSource {
     return jsonOk({'status': 'deleted'});
   }
 
-  // Download backup
-
   Future<Response> handleDownloadBackup(Request request, String id) async {
     final service = container.read(backupServiceProvider);
     final backupFiles = await _listContainedBackups(service);
@@ -249,7 +238,6 @@ class BackupHandlers implements RouteSource {
       return jsonNotFound({'error': 'Backup not found: $id'});
     }
 
-    // Stream the file
     final fileLength = await file.length();
     return attachmentResponse(
       file.openRead(),
@@ -258,8 +246,6 @@ class BackupHandlers implements RouteSource {
       contentLength: fileLength,
     );
   }
-
-  // Get backup metadata
 
   Future<Response> handleGetBackupMetadata(Request request, String id) async {
     final service = container.read(backupServiceProvider);
@@ -280,8 +266,6 @@ class BackupHandlers implements RouteSource {
 
     return jsonOk({'metadata': metadata.toJson()});
   }
-
-  // Auto save backup
 
   Future<Response> handleAutoSaveBackup(Request request) async {
     _logInfo('[API] POST /api/backup/auto-save');

@@ -312,7 +312,6 @@ class DarkroomDeliveryHandlers implements RouteSource {
     return id;
   }
 
-  /// Read the required `peer` query parameter.
   String _requirePeerId(Request request) {
     final peerId = request.url.queryParameters['peer']?.trim();
     if (peerId == null || peerId.isEmpty) {

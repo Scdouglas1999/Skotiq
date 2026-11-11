@@ -52,7 +52,6 @@ part 'calibration_handlers/flat_history_handlers.dart';
 part 'calibration_handlers/defect_map_handlers.dart';
 part 'calibration_handlers/end_of_night_handlers.dart';
 
-/// calibration library handlers.
 class CalibrationHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -156,8 +155,6 @@ class CalibrationHandlers implements RouteSource {
     return resolveSkotiqDataDirectory();
   }
 
-  // Helpers — JSON shape
-
   Future<Map<String, dynamic>> _darkEntryToWire(DarkLibraryEntry entry) async {
     final file = File(entry.filePath);
     bool exists = false;
@@ -238,8 +235,6 @@ class CalibrationHandlers implements RouteSource {
       'fileExists': fileExists,
     };
   }
-
-  // Helpers — query-param parsing
 
   int? _parseIntParam(Map<String, String> params, String name) {
     final raw = params[name];
