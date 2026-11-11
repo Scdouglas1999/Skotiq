@@ -32,6 +32,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 final locationSyncProvider = Provider<void>((ref) {
   ref.listen(appSettingsProvider, (previous, next) {
     next.whenData((settings) {
+      // Deferred to a microtask: Riverpod throws if a provider is modified during build.
       Future.microtask(() async {
         // This is a temporary update (doesn't persist) - only settings persists
         ref.read(observerLocationProvider.notifier).setLocation(
