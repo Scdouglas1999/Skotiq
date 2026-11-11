@@ -487,6 +487,14 @@ class SkotiqDiscovery {
             level: 1000,
           );
         }
+      }, onError: (Object e) {
+        // A probe that cannot be sent (no route on this interface) is reported
+        // here, not thrown by send().
+        developer.log(
+          'Discovery socket error: $e',
+          name: 'SkotiqDiscovery',
+          level: 900,
+        );
       });
 
       // Structured probe — the server validates the prefix; the JSON body is

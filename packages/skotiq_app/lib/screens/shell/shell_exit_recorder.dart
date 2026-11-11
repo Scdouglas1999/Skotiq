@@ -7,12 +7,12 @@ import 'dart:async';
 /// only trustworthy if a normal quit says so on the way out; otherwise every
 /// ordinary close looks like a crash.
 ///
-/// The entry point registers a recorder; the shell calls it immediately before
-/// destroying the window.
+/// The entry point registers a recorder; the shell calls it as soon as a close
+/// is accepted, before anything that ends the process.
 ///
-/// The callback MUST be synchronous — `windowManager.destroy()` follows it, and
-/// a write that needs another turn of the event loop is a write that never
-/// happens.
+/// The callback MUST be synchronous — where no [ShellExit.registerEnd] step is
+/// installed, `windowManager.destroy()` follows it, and a write that needs
+/// another turn of the event loop is a write that never happens.
 typedef ShellExitRecorder = void Function(String reason);
 
 /// Process-wide registry for [ShellExitRecorder]. Single-slot on purpose:
@@ -56,8 +56,19 @@ abstract final class ShellExit {
     if (pending != null && !pending.isCompleted) pending.complete(false);
   }
 
+  static Future<void> Function()? _endProcess;
+
+  /// Install how this process ends once a close is accepted, in place of the
+  /// window teardown. The desktop entry point registers it where that teardown
+  /// is not safe to rely on.
+  /// Null puts the window teardown back.
+  static void registerEnd(Future<void> Function()? end) => _endProcess = end;
+
+  /// The end step [registerEnd] installed, or null to destroy the window.
+  static Future<void> Function()? get endProcess => _endProcess;
+
   /// The close was accepted: start the next process, if one was requested.
-  /// Runs before the window is destroyed.
+  /// Runs before the process ends.
   static Future<void> runPendingRelaunch() async {
     final pending = _pendingRelaunch;
     _pendingRelaunch = null;
