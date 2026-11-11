@@ -1,10 +1,19 @@
-/// The remote API as data: the route table shared by the host and its
-/// clients. Pure Dart; safe to import from any side.
+/// What the host and its clients must agree on: the route table, the API
+/// version policy, the server identity and the wire models. Pure Dart, with
+/// nothing that only one side runs.
 library;
 
+export 'src/network_uri.dart';
+export 'src/ports.dart';
+export 'src/push/push_delivery_targets.dart';
+export 'src/server_compatibility.dart';
+export 'src/server_identity.dart';
+
+export 'src/wire/api_error.dart';
 export 'src/wire/api_route.dart';
 export 'src/wire/api_route_index.dart';
 export 'src/wire/api_routes.dart';
+export 'src/wire/models/sequence_library.dart';
 export 'src/wire/routes/analytics_api.dart';
 export 'src/wire/routes/atlas_api.dart';
 export 'src/wire/routes/auth_api.dart';

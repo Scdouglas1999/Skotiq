@@ -796,36 +796,39 @@ class SequenceManagementHandlers implements RouteSource {
     };
   }
 
-  Map<String, dynamic> _summaryToJson(SequenceSummary summary) => {
-    'id': summary.id,
-    'name': summary.name,
-    'nodeCount': summary.nodeCount,
-    'targetCount': summary.targetCount,
-    'exposureCount': summary.exposureCount,
-    'totalIntegrationSecs': summary.totalIntegrationSecs,
-    'primaryTargetName': summary.primaryTargetName,
-    'lastRunAt': summary.lastRunAt?.toIso8601String(),
-    'runCount': summary.runCount,
-    'tags': summary.tags,
-    'isFavorite': summary.isFavorite,
-    'createdAt': summary.createdAt.toIso8601String(),
-    'modifiedAt': summary.modifiedAt.toIso8601String(),
-  };
+  Map<String, dynamic> _summaryToJson(SequenceSummary summary) =>
+      SequenceSummaryDto(
+        id: summary.id,
+        name: summary.name,
+        nodeCount: summary.nodeCount,
+        targetCount: summary.targetCount,
+        exposureCount: summary.exposureCount,
+        totalIntegrationSecs: summary.totalIntegrationSecs,
+        primaryTargetName: summary.primaryTargetName,
+        lastRunAt: summary.lastRunAt,
+        runCount: summary.runCount,
+        tags: summary.tags,
+        isFavorite: summary.isFavorite,
+        createdAt: summary.createdAt,
+        modifiedAt: summary.modifiedAt,
+      ).toJson();
 
-  Map<String, dynamic> _versionToJson(SequenceVersion version) => {
-    'id': version.id,
-    'sequenceId': version.sequenceId,
-    'snapshotJson': version.snapshotJson,
-    'label': version.label,
-    'createdAt': version.createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> _versionToJson(SequenceVersion version) =>
+      SequenceVersionDto(
+        id: version.id,
+        sequenceId: version.sequenceId,
+        snapshotJson: version.snapshotJson,
+        label: version.label,
+        createdAt: version.createdAt,
+      ).toJson();
 
-  Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) => {
-    'id': version.id,
-    'sequenceId': version.sequenceId,
-    'label': version.label,
-    'createdAt': version.createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) =>
+      SequenceVersionSummaryDto(
+        id: version.id,
+        sequenceId: version.sequenceId,
+        label: version.label,
+        createdAt: version.createdAt,
+      ).toJson();
 
   // Helper: Convert SequenceNode to JSON
 

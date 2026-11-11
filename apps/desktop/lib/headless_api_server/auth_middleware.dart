@@ -306,7 +306,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           return jsonForbidden(
             {
               'error': 'Access denied',
-              'message': 'Invalid authentication token',
+              'message': ApiErrorBody.invalidTokenMessage,
             },
             headers: {HeadlessApiServer._requestIdHeader: requestId},
           );
