@@ -23,7 +23,7 @@ extension _SkotiqDatabaseMigrationV43 on SkotiqDatabase {
   /// (fresh installs) so a fresh DB gets the table too.
   Future<void> _upgradeSchemaV43(Migrator m, int from) async {
     if (from < 43) {
-      await _createCampaignsTable();
+      await _createCampaignsTable(m);
     }
   }
 }

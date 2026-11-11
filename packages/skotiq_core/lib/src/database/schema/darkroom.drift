@@ -1,0 +1,142 @@
+-- Darkroom: recipes, the durable job queue, delivery destinations and the
+-- delivery journal, plus the key/value store for state that outlives the
+-- process.
+-- Timestamps are INTEGER unix seconds (UTC) unless a column says otherwise.
+--
+-- Every enum-valued column carries a CHECK listing its legal wire strings, so
+-- a value outside the set is storage corruption, not an older format. The
+-- DAOs validate before writing; a CHECK firing means a caller went around
+-- them.
+
+import '../tables/imaging_sessions.dart';
+import '../tables/targets.dart';
+import 'post_session.drift';
+
+-- One non-destructive operation stack over a linear master. A branch is a row
+-- pointing at its parent, and is defined by BOTH the parent and the
+-- divergence_index into the parent's step list.
+--
+-- Parent delete policy: restrict, never re-parent. Re-parenting to the
+-- grandparent would leave divergence_index pointing into a step list the row
+-- never diverged from. RecipesDao.deleteRecipe refuses a parent with children;
+-- RecipesDao.deleteRecipeSubtree is the explicit destructive alternative.
+--
+-- draft_notes_json is the composing pass's own account: a JSON array of
+-- {opId, outcome, reason}, one per operation the registry decided about. It
+-- records what the step list cannot (an operation left OUT has no card). A
+-- recipe written by hand carries '[]'.
+CREATE TABLE recipes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER REFERENCES targets(id) ON DELETE SET NULL,
+  session_id INTEGER REFERENCES imaging_sessions(id) ON DELETE SET NULL,
+  master_id INTEGER REFERENCES integrated_masters(id) ON DELETE SET NULL,
+  base_master_path TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  steps_json TEXT NOT NULL DEFAULT '[]',
+  created_by TEXT NOT NULL DEFAULT 'autopilot',
+  draft_notes_json TEXT NOT NULL DEFAULT '[]',
+  parent_recipe_id INTEGER REFERENCES recipes(id) ON DELETE RESTRICT,
+  divergence_index INTEGER,
+  schema_version INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  CHECK (created_by IN ('autopilot', 'user')),
+  CHECK (schema_version >= 1),
+  CHECK (divergence_index IS NULL OR divergence_index >= 0),
+  CHECK ((parent_recipe_id IS NULL) = (divergence_index IS NULL))
+) AS RecipeRow;
+
+CREATE INDEX IF NOT EXISTS idx_recipes_target ON recipes (target_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_session ON recipes (session_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_master ON recipes (master_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_parent ON recipes (parent_recipe_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_base_master ON recipes (base_master_path);
+CREATE INDEX IF NOT EXISTS idx_recipes_created ON recipes (created_at);
+
+-- The durable dawn-job queue; it is what survives safing, a force quit and a
+-- power cut.
+--
+-- A row is 'running' only while a live executor in this process holds it, so a
+-- 'running' row found at start-up belongs to a process that died. Start-up
+-- recovery re-queues it (note stamped, started_at cleared, progress kept), or
+-- fails it once attempts has reached kDarkroomJobMaxAttempts.
+CREATE TABLE darkroom_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER REFERENCES imaging_sessions(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL DEFAULT 'dawn',
+  state TEXT NOT NULL DEFAULT 'queued',
+  progress REAL NOT NULL DEFAULT 0.0,
+  note TEXT,
+  error_text TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  started_at INTEGER,
+  finished_at INTEGER,
+  CHECK (kind IN ('dawn', 'manual')),
+  CHECK (state IN ('queued', 'running', 'cancelled', 'done', 'failed')),
+  CHECK (progress >= 0.0 AND progress <= 1.0),
+  CHECK (attempts >= 0)
+) AS DarkroomJobRow;
+
+CREATE INDEX IF NOT EXISTS idx_darkroom_jobs_state ON darkroom_jobs (state, created_at);
+CREATE INDEX IF NOT EXISTS idx_darkroom_jobs_session ON darkroom_jobs (session_id);
+CREATE INDEX IF NOT EXISTS idx_darkroom_jobs_created ON darkroom_jobs (created_at);
+
+-- Where the night's artifacts go, one row per destination.
+--
+-- No secrets in config_json: it is plaintext in the profile database, which
+-- rides export and backup. Key material lives in SecretsStore; secret_ref
+-- names the entry. DeliveryTargetsDao enforces this on every write.
+-- content_json is a JSON array of ArtifactContent wire strings in enum
+-- declaration order.
+CREATE TABLE delivery_targets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  config_json TEXT NOT NULL DEFAULT '{}',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  content_json TEXT NOT NULL DEFAULT '[]',
+  secret_ref TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  CHECK (kind IN ('watched_folder', 'sftp', 'peer')),
+  CHECK (enabled IN (0, 1))
+) AS DeliveryTargetRow;
+
+CREATE INDEX IF NOT EXISTS idx_delivery_targets_enabled ON delivery_targets (enabled, kind);
+CREATE INDEX IF NOT EXISTS idx_delivery_targets_name ON delivery_targets (name);
+
+-- One row per (destination, job, file): what was sent, its size and checksum,
+-- and how it ended. Retry is an upsert on the UNIQUE identity, so one row
+-- carries the running attempts count and the latest last_error (kept after a
+-- later success). job_id is NOT NULL so the identity stays a plain UNIQUE.
+CREATE TABLE delivery_journal (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_id INTEGER NOT NULL REFERENCES delivery_targets(id) ON DELETE CASCADE,
+  job_id INTEGER NOT NULL REFERENCES darkroom_jobs(id) ON DELETE CASCADE,
+  file_path TEXT NOT NULL,
+  bytes INTEGER NOT NULL DEFAULT 0,
+  checksum TEXT,
+  state TEXT NOT NULL DEFAULT 'retrying',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  delivered_at INTEGER,
+  CHECK (state IN ('delivered', 'failed', 'retrying')),
+  CHECK (attempts >= 0),
+  CHECK (bytes >= 0),
+  UNIQUE(target_id, job_id, file_path)
+) AS DeliveryJournalRow;
+
+CREATE INDEX IF NOT EXISTS idx_delivery_journal_target ON delivery_journal (target_id, state);
+CREATE INDEX IF NOT EXISTS idx_delivery_journal_job ON delivery_journal (job_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_journal_state ON delivery_journal (state, updated_at);
+
+-- One JSON document per key (master builds, night-end runs). Not app_settings
+-- rows because those are watched as a whole. updated_at is ISO-8601 text.
+CREATE TABLE darkroom_state (
+  "key" TEXT NOT NULL PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+) AS DarkroomStateRow;

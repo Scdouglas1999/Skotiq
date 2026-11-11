@@ -11,6 +11,7 @@ import 'targets.dart';
 @TableIndex(name: 'idx_sessions_profile', columns: {#profileId})
 @TableIndex(name: 'idx_sessions_start', columns: {#startTime})
 @TableIndex(name: 'idx_sessions_status', columns: {#status})
+@TableIndex(name: 'idx_sessions_sequence', columns: {#sequenceId})
 class ImagingSessions extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().nullable()();

@@ -21,7 +21,7 @@ extension _SkotiqDatabaseMigrationV58 on SkotiqDatabase {
   /// from the current schema.
   Future<void> _upgradeSchemaV58(Migrator m, int from) async {
     if (from < 58) {
-      await _createDarkroomTables();
+      await _createDarkroomTables(m);
     }
   }
 }
