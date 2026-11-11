@@ -76,23 +76,10 @@ const DEFAULT_WEATHER_VERDICT_STALENESS_SECS: u64 = 360;
 /// app's "required safe duration" until it pushes its own.
 pub const DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS: u64 = 300;
 
-/// How often a weather hold checks the sky.
-pub const WEATHER_HOLD_CHECK_SECS: f64 = 15.0;
-
-/// How often a guide-star hold looks for the star again, at most: soon enough
-/// that the run resumes shortly after a cloud passes.
-pub const GUIDE_STAR_RECHECK_SECS: f64 = 60.0;
-
-/// First wait between attempts to get a stopped mount tracking again. Each
-/// failed attempt doubles it, up to [`TRACKING_RECHECK_MAX_SECS`]; the attempts
-/// never run out, because nothing else gets the mount tracking.
-pub const TRACKING_RECHECK_SECS: f64 = 30.0;
-pub const TRACKING_RECHECK_MAX_SECS: f64 = 300.0;
-
-/// The span a weather hold reports as its budget. A hold has no budget and
-/// never runs out; this only keeps the attempt counters the recovery events
-/// carry finite.
-pub const WEATHER_HOLD_NOMINAL_SPAN_SECS: f64 = 12.0 * 3600.0;
+pub use crate::recovery::{
+    GUIDE_STAR_RECHECK_SECS, TRACKING_RECHECK_MAX_SECS, TRACKING_RECHECK_SECS,
+    WEATHER_HOLD_CHECK_SECS, WEATHER_HOLD_NOMINAL_SPAN_SECS,
+};
 
 /// A weather hold at least this long recenters on the target before imaging
 /// again: guided or not, an unguided mount drifts over that time.

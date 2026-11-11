@@ -43,6 +43,9 @@
 //! - `recoveryAbortOnMeridian`          (default true) — bail if flip due.
 //! - `recoveryAudibleAlertWhenEntered`  (default true) — bell on entry.
 
+mod policy;
+pub use policy::*;
+
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -77,41 +80,6 @@ pub enum RecoveryCause {
     DeviceDisconnected,
     /// Anything plugin / script / user-defined surfaces.
     Custom(String),
-}
-
-impl RecoveryCause {
-    /// Human-readable label for the Run Dashboard banner. Kept stable so
-    /// the Dart side can rely on the strings for analytics / history.
-    pub fn display_label(&self) -> String {
-        match self {
-            RecoveryCause::GuideStarLost => "Guide star lost".to_string(),
-            RecoveryCause::SlewFailed => "Slew failed".to_string(),
-            RecoveryCause::PlateSolveFailed => "Plate-solve failed".to_string(),
-            RecoveryCause::WeatherUnsafe => "Weather unsafe".to_string(),
-            RecoveryCause::MountTrackingLost => "Mount tracking lost".to_string(),
-            RecoveryCause::FocusDriftCritical => "Critical focus drift".to_string(),
-            RecoveryCause::ConsecutiveRejectsExceeded => "Consecutive rejects".to_string(),
-            RecoveryCause::DeviceDisconnected => "Device disconnected".to_string(),
-            RecoveryCause::Custom(msg) => msg.clone(),
-        }
-    }
-
-    /// Stable wire-key for analytics / persisted session history. Lower-case
-    /// snake_case so Dart code can use this directly as a Map key without
-    /// caring about display formatting.
-    pub fn wire_key(&self) -> String {
-        match self {
-            RecoveryCause::GuideStarLost => "guide_star_lost".to_string(),
-            RecoveryCause::SlewFailed => "slew_failed".to_string(),
-            RecoveryCause::PlateSolveFailed => "plate_solve_failed".to_string(),
-            RecoveryCause::WeatherUnsafe => "weather_unsafe".to_string(),
-            RecoveryCause::MountTrackingLost => "mount_tracking_lost".to_string(),
-            RecoveryCause::FocusDriftCritical => "focus_drift_critical".to_string(),
-            RecoveryCause::ConsecutiveRejectsExceeded => "consecutive_rejects_exceeded".to_string(),
-            RecoveryCause::DeviceDisconnected => "device_disconnected".to_string(),
-            RecoveryCause::Custom(_) => "custom".to_string(),
-        }
-    }
 }
 
 /// Phase within the recovery state machine. Distinct from `ExecutorState`

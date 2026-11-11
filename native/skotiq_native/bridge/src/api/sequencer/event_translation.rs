@@ -283,18 +283,11 @@ pub(crate) fn structured_progress_payload_from_progress_detail(
 pub(crate) fn recovery_cause_fields(
     cause: &skotiq_sequencer::recovery::RecoveryCause,
 ) -> (String, Option<String>) {
-    use skotiq_sequencer::recovery::RecoveryCause as RC;
-    match cause {
-        RC::GuideStarLost => ("GuideStarLost".to_string(), None),
-        RC::SlewFailed => ("SlewFailed".to_string(), None),
-        RC::PlateSolveFailed => ("PlateSolveFailed".to_string(), None),
-        RC::WeatherUnsafe => ("WeatherUnsafe".to_string(), None),
-        RC::MountTrackingLost => ("MountTrackingLost".to_string(), None),
-        RC::FocusDriftCritical => ("FocusDriftCritical".to_string(), None),
-        RC::ConsecutiveRejectsExceeded => ("ConsecutiveRejectsExceeded".to_string(), None),
-        RC::DeviceDisconnected => ("DeviceDisconnected".to_string(), None),
-        RC::Custom(label) => ("Custom".to_string(), Some(label.clone())),
-    }
+    let custom_label = match cause {
+        skotiq_sequencer::recovery::RecoveryCause::Custom(label) => Some(label.clone()),
+        _ => None,
+    };
+    (cause.policy().kind.to_string(), custom_label)
 }
 
 /// Phase enum → stable Debug-format string. Matches the JSON wire shape

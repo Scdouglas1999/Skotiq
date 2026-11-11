@@ -3,6 +3,7 @@
 //! sweep when the budget is exhausted.
 
 use super::*;
+use crate::recovery::{HoldKind, OnGiveUp};
 
 pub(super) struct RecoveryDriverArgs {
     pub recovery_driver_active_run_id: Arc<StdRwLock<Option<i64>>>,
@@ -62,11 +63,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
 
         // Requests already queued before the tracking-limit hold was adopted
         // must not steal the mount back from its flip controller.
-        if matches!(
-            cause,
-            crate::recovery::RecoveryCause::GuideStarLost
-                | crate::recovery::RecoveryCause::MountTrackingLost
-        ) && recovery_driver_trigger_mgr
+        if cause.policy().yields_to_tracking_limit_flip()
+            && recovery_driver_trigger_mgr
             .read()
             .await
             .state()
@@ -94,40 +92,12 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         };
         let configured_cadence = (interval_secs, max_duration_secs);
 
-        // A weather hold is not a repair with a budget: it checks the sky
-        // often, never runs out, and never stops tracking. Weather alone must
-        // not end the run, and a held mount that keeps tracking can image
-        // again the moment the sky clears.
-        let weather_hold = cause == crate::recovery::RecoveryCause::WeatherUnsafe;
-        // A lost guide star is most often cloud too: the mount keeps tracking
-        // so it is still on the target when the stars return, and the star is
-        // looked for often enough that the run resumes soon after they do.
-        let mut guide_star_hold = cause == crate::recovery::RecoveryCause::GuideStarLost;
-        // A stopped mount is retried with a growing wait and never given up
-        // on: ending the run leaves it stopped just the same, and every
-        // failed attempt is announced. Tracking is never switched off for it.
-        let mut tracking_hold = cause == crate::recovery::RecoveryCause::MountTrackingLost;
-        let (interval_secs, max_duration_secs, stop_tracking) = if weather_hold {
-            (
-                WEATHER_HOLD_CHECK_SECS,
-                WEATHER_HOLD_NOMINAL_SPAN_SECS,
-                false,
-            )
-        } else if guide_star_hold {
-            (
-                interval_secs.min(GUIDE_STAR_RECHECK_SECS),
-                max_duration_secs,
-                false,
-            )
-        } else if tracking_hold {
-            (
-                interval_secs.min(TRACKING_RECHECK_SECS),
-                WEATHER_HOLD_NOMINAL_SPAN_SECS,
-                false,
-            )
-        } else {
-            (interval_secs, max_duration_secs, stop_tracking)
-        };
+        // Latched for the loop, and replaced when an attempt hands the
+        // recovery to another cause.
+        let mut policy = cause.policy();
+        let (interval_secs, max_duration_secs) =
+            policy.cadence.resolve(interval_secs, max_duration_secs);
+        let stop_tracking = stop_tracking && policy.may_stop_tracking;
         let mut weather_safe_since: Option<std::time::Instant> = None;
         let mut ctx =
             crate::recovery::RecoveryContext::new(cause.clone(), interval_secs, max_duration_secs);
@@ -156,17 +126,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 crate::decision::DecisionCategory::RecoveryEntered,
                 format!("Recovery entered: {}", ctx.cause.display_label()),
                 serde_json::json!({
-                    "cause_kind": match &ctx.cause {
-                        crate::recovery::RecoveryCause::GuideStarLost => "GuideStarLost",
-                        crate::recovery::RecoveryCause::SlewFailed => "SlewFailed",
-                        crate::recovery::RecoveryCause::PlateSolveFailed => "PlateSolveFailed",
-                        crate::recovery::RecoveryCause::WeatherUnsafe => "WeatherUnsafe",
-                        crate::recovery::RecoveryCause::MountTrackingLost => "MountTrackingLost",
-                        crate::recovery::RecoveryCause::FocusDriftCritical => "FocusDriftCritical",
-                        crate::recovery::RecoveryCause::ConsecutiveRejectsExceeded => "ConsecutiveRejectsExceeded",
-                        crate::recovery::RecoveryCause::DeviceDisconnected => "DeviceDisconnected",
-                        crate::recovery::RecoveryCause::Custom(_) => "Custom",
-                    },
+                    "cause_kind": policy.kind,
                     "cause_label": ctx.cause.display_label(),
                     "max_attempts": ctx.max_attempts,
                     "retry_interval_secs": ctx.retry_interval_secs,
@@ -277,7 +237,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
                 break;
             }
-            if (guide_star_hold || tracking_hold)
+            if policy.yields_to_tracking_limit_flip()
                 && hand_off_tracking_limit(
                     &recovery_driver_device_ops,
                     recovery_driver_mount_id.as_deref(),
@@ -292,7 +252,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.last_error = Some("Recovery handed to the tracking-limit flip".into());
                 break;
             }
-            if !weather_hold && !tracking_hold && ctx.is_exhausted(chrono::Utc::now()) {
+            if policy.can_give_up && ctx.is_exhausted(chrono::Utc::now()) {
                 tracing::warn!(
                     "[RECOVERY] Exhausted (attempts={}/{}, elapsed={:.0}s/{:.0}s)",
                     ctx.attempt_count,
@@ -366,7 +326,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 context: Box::new(ctx.clone()),
             });
 
-            let outcome = if weather_hold {
+            let outcome = if policy.hold == Some(HoldKind::Weather) {
                 let resume_after = recovery_driver_runtime
                     .read()
                     .weather_resume_after_safe_secs
@@ -402,9 +362,9 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                         ctx.attempt_count,
                         message
                     );
-                    if tracking_hold {
+                    if policy.hold == Some(HoldKind::Tracking) {
                         ctx.retry_interval_secs =
-                            (ctx.retry_interval_secs * 2.0).min(TRACKING_RECHECK_MAX_SECS);
+                            policy.cadence.after_failure(ctx.retry_interval_secs);
                         let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
                             message: format!(
                                 "{message}. Trying again in {:.0} s; the run stays held until \
@@ -463,19 +423,11 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     });
                     // The new cause takes its own recovery: a stopped mount
                     // gets the tracking hold's growing, never-exhausted wait.
+                    policy = cause.policy();
                     let (interval, max_duration) = configured_cadence;
-                    tracking_hold = cause == crate::recovery::RecoveryCause::MountTrackingLost;
-                    let (interval, max_duration) = if tracking_hold {
-                        (
-                            interval.min(TRACKING_RECHECK_SECS),
-                            WEATHER_HOLD_NOMINAL_SPAN_SECS,
-                        )
-                    } else {
-                        (interval, max_duration)
-                    };
+                    let (interval, max_duration) = policy.cadence.resolve(interval, max_duration);
                     ctx = crate::recovery::RecoveryContext::new(cause, interval, max_duration);
                     ctx.last_error = Some(message);
-                    guide_star_hold = false;
                     *recovery_driver_current.write() = Some(ctx.clone());
                     let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryProgress {
                         context: Box::new(ctx.clone()),
@@ -588,7 +540,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     "resuming sequence"
                 }
             );
-            if weather_hold && !operator_paused {
+            if policy.hold == Some(HoldKind::Weather) && !operator_paused {
                 prepare_imaging_after_weather_hold(WeatherHoldExit {
                     held_secs: ctx.elapsed_secs(chrono::Utc::now()),
                     device_ops: &recovery_driver_device_ops,
@@ -600,7 +552,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 })
                 .await;
             }
-            if tracking_hold {
+            if policy.hold == Some(HoldKind::Tracking) {
                 // The attempt confirmed the axes track. Record that, so the
                 // poll's unresolved loss cannot fire the trigger again.
                 let lock = recovery_driver_trigger_mgr.read().await.state();
@@ -663,7 +615,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 context: Box::new(ctx.clone()),
             });
         } else if !aborted_by_user
-            && ctx.cause == crate::recovery::RecoveryCause::GuideStarLost
+            && policy.on_give_up == OnGiveUp::ContinueUnguided
             && !stops_on_quality_problems(&recovery_driver_trigger_mgr).await
         {
             // The guide star did not come back within the budget. That costs

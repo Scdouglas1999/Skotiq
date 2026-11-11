@@ -2282,9 +2282,9 @@ fn default_validate_calibration() -> bool {
 impl Default for StartGuidingConfig {
     fn default() -> Self {
         Self {
-            settle_pixels: 1.5,
-            settle_time: 10.0,
-            settle_timeout: 60.0,
+            settle_pixels: GuiderSettle::START_GUIDING.pixels,
+            settle_time: GuiderSettle::START_GUIDING.time_secs,
+            settle_timeout: GuiderSettle::START_GUIDING.timeout_secs,
             auto_select_star: true,
             max_calibration_axis_error_deg: default_max_cal_axis_error_deg(),
             max_post_settle_rms_pixels: default_max_post_settle_rms_pixels(),
@@ -2359,15 +2359,34 @@ pub struct GuiderSettle {
 
 impl Default for GuiderSettle {
     fn default() -> Self {
-        Self {
-            pixels: default_dither_settle_pixels(),
-            time_secs: default_dither_settle_time(),
-            timeout_secs: default_dither_settle_timeout(),
-        }
+        Self::DITHER
     }
 }
 
 impl GuiderSettle {
+    /// After a dither.
+    pub const DITHER: Self = Self {
+        pixels: 1.5,
+        time_secs: 30.0,
+        timeout_secs: 120.0,
+    };
+
+    /// A Start Guiding step.
+    pub const START_GUIDING: Self = Self {
+        pixels: 1.5,
+        time_secs: 10.0,
+        timeout_secs: 60.0,
+    };
+
+    /// Getting a lost guide star back. A reacquire that cannot settle inside
+    /// the timeout is a failure for the retry policy, not something to wait
+    /// on while the target drifts.
+    pub const REACQUIRE: Self = Self {
+        pixels: 2.0,
+        time_secs: 10.0,
+        timeout_secs: 120.0,
+    };
+
     /// The bar a planned restart of guiding (after autofocus or a flip)
     /// settles at: the looser of the guider and dither settle thresholds,
     /// so a restart never waits on a bar the rig cannot meet. Settle time
@@ -2405,15 +2424,15 @@ impl From<&DitherConfig> for GuiderSettle {
 }
 
 const fn default_dither_settle_pixels() -> f64 {
-    1.5
+    GuiderSettle::DITHER.pixels
 }
 
 const fn default_dither_settle_time() -> f64 {
-    30.0
+    GuiderSettle::DITHER.time_secs
 }
 
 const fn default_dither_settle_timeout() -> f64 {
-    120.0
+    GuiderSettle::DITHER.timeout_secs
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2622,19 +2641,18 @@ pub(crate) fn default_safety_action_retry_delay_secs() -> f64 {
     5.0
 }
 
-// Post-flip guider re-lock settle defaults. Numeric values match the executor
-// constants and StartGuidingConfig's defaults, so a user who does not override
-// their guiding settle gets the same behaviour on both paths.
+// The post-flip guider settle is the Start Guiding one, so an operator who
+// does not override it gets the same behavior on both paths.
 pub(crate) fn default_guider_settle_pixels() -> f64 {
-    1.5
+    GuiderSettle::START_GUIDING.pixels
 }
 
 pub(crate) fn default_guider_settle_time() -> f64 {
-    10.0
+    GuiderSettle::START_GUIDING.time_secs
 }
 
 pub(crate) fn default_guider_settle_timeout() -> f64 {
-    60.0
+    GuiderSettle::START_GUIDING.timeout_secs
 }
 
 pub(crate) fn default_meridian_max_post_settle_rms_pixels() -> f64 {
