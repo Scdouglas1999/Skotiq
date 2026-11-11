@@ -201,7 +201,9 @@ void main() {
         when(
           () => backend.eventStream,
         ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(() => backend.guiderGetStatus(deviceId: any(named: 'deviceId'))).thenAnswer(
+        when(
+          () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+        ).thenAnswer(
           (_) async => const Phd2Status(
             state: 'Guiding',
             connected: true,
@@ -241,12 +243,48 @@ void main() {
       },
     );
 
+    // Imaging's panel is often opened after guiding started; the list stayed
+    // empty because only a later state change started the poll.
+    test(
+      'populates when the built-in guider was guiding before anyone asked',
+      () async {
+        final backend = _MockNetworkBackend();
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(
+          () => backend.guiderGetStatus(deviceId: _builtinGuiderId),
+        ).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Guiding',
+            connected: true,
+            trackedStars: [
+              GuideStar(id: 0, x: 10, y: 12, snr: 18, isLock: true),
+            ],
+          ),
+        );
+
+        final container = _container(backend);
+        container.read(guiderStateProvider.notifier)
+          ..setConnecting(_builtinGuiderId)
+          ..setConnected();
+        container.read(phd2StateProvider.notifier).state = Phd2State.guiding;
+
+        container.read(guideStarsProvider);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        expect(container.read(guideStarsProvider), hasLength(1));
+      },
+    );
+
     test('stays empty for PHD2 (no per-star list) and never polls', () async {
       final backend = _MockNetworkBackend();
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(() => backend.guiderGetStatus(deviceId: any(named: 'deviceId'))).thenAnswer(
+      when(
+        () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+      ).thenAnswer(
         (_) async => const Phd2Status(state: 'Guiding', connected: true),
       );
 
@@ -263,7 +301,9 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(container.read(guideStarsProvider), isEmpty);
-      verifyNever(() => backend.guiderGetStatus(deviceId: any(named: 'deviceId')));
+      verifyNever(
+        () => backend.guiderGetStatus(deviceId: any(named: 'deviceId')),
+      );
     });
 
     test('setStars seeds the list (UI/test hook)', () async {

@@ -244,7 +244,8 @@ final guideStarsProvider =
 
 class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
   GuideStarsNotifier(this.ref) : super(const []) {
-    // Poll only while the built-in guider is active and producing frames.
+    // Poll only while the built-in guider is active and producing frames,
+    // including when it already was before anything asked for the list.
     ref.listen<Phd2State>(phd2StateProvider, (previous, next) {
       if (!_isBuiltin) {
         _stopPolling();
@@ -259,7 +260,7 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
       } else {
         _stopPolling();
       }
-    });
+    }, fireImmediately: true);
 
     // Clear on disconnect so a stale list never lingers across sessions.
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
