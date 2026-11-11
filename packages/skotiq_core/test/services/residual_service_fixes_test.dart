@@ -12,7 +12,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart' show SkotiqBackend;
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/equipment_profiles_dao.dart';
-import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/sequence_checkpoints_dao.dart';
 import 'package:skotiq_core/src/database/daos/sequences_dao.dart';
 import 'package:skotiq_core/src/database/daos/sessions_dao.dart';
@@ -30,12 +29,10 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
-import 'package:skotiq_core/src/services/catalog_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/services/logging_service.dart';
 import 'package:skotiq_core/src/services/notification_service.dart';
-import 'package:skotiq_core/src/services/paginated_image_loader.dart';
 import 'package:skotiq_core/src/services/plate_solve_service.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/profile_service.dart';
@@ -44,7 +41,6 @@ import 'package:skotiq_core/src/services/sequence_repository.dart';
 import 'package:skotiq_core/src/services/sky_brightness_tracker.dart';
 
 import '../mocks/mock_backend.dart';
-import '../mocks/mock_database.dart';
 
 class _MockSessionsDao extends Mock implements SessionsDao {}
 
@@ -160,39 +156,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Residual service fixes', () {
-    test(
-      'searchCatalog applies offset exactly once across streamed pages',
-      () async {
-        final tempDir = await Directory.systemTemp.createTemp(
-          'catalog_service_',
-        );
-        addTearDown(() async {
-          if (await tempDir.exists()) {
-            await tempDir.delete(recursive: true);
-          }
-        });
-
-        final catalogFile = File(
-          '${tempDir.path}${Platform.pathSeparator}catalog.csv',
-        );
-        final rows = <String>[
-          'id,name,ra,dec',
-          for (int i = 1; i <= 10; i++)
-            'M$i,Object $i,${i.toDouble()},${i.toDouble()}',
-        ];
-        await catalogFile.writeAsString(rows.join('\n'));
-
-        final service = CatalogService(catalogFile.path);
-        final results = await service.searchCatalog(
-          query: '',
-          offset: 5,
-          limit: 3,
-        );
-
-        expect(results.map((entry) => entry.id).toList(), ['M6', 'M7', 'M8']);
-      },
-    );
-
     test('loadDarkPixels rejects truncated FITS pixel payloads', () async {
       final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
@@ -334,33 +297,6 @@ void main() {
         );
 
         expect(service.getQuickStartContext(), throwsA(isA<StateError>()));
-      },
-    );
-
-    test(
-      'paginated image loader updates paging state for explicit page loads',
-      () async {
-        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
-        addTearDown(database.close);
-
-        final imagesDao = ImagesDao(database);
-        for (int i = 0; i < 3; i++) {
-          await imagesDao.createImage(
-            DatabaseTestFixtures.sampleImageCompanion(
-              filePath: '/tmp/image_$i.fit',
-              fileName: 'image_$i.fit',
-              capturedAt: DateTime.utc(2026, 1, 1, 0, i),
-            ),
-          );
-        }
-
-        final loader = PaginatedImageLoader(imagesDao: imagesDao, pageSize: 2);
-        final page = await loader.loadPage(2);
-
-        expect(page, hasLength(1));
-        expect(loader.currentPage, 2);
-        expect(loader.hasMore, isFalse);
-        expect(loader.loadedCount, 1);
       },
     );
 

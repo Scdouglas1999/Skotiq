@@ -411,24 +411,6 @@ final myContributionsProvider = FutureProvider<List<ContributionRecord>>((ref) {
   return ref.watch(constellationServiceProvider).myContributions();
 });
 
-/// Community tiles pulled and blended into "Your Sky" for one target.
-///
-/// Pulling is a side-effecting fetch (it writes the cached blobs to disk), so
-/// this provider performs the pull and returns the resulting [SwarmTile] index.
-///
-/// Pull with `finalized: false` — the additive `.skt` accumulator — the only
-/// form [ConstellationService.pullTarget] folds into the local atlas (via
-/// `mergeSwarmDelta`). A `finalized: true` FITS pull is a display-only blob
-/// with no consumer, so nothing would reach Your Sky.
-final swarmTilesProvider = FutureProvider.family<List<SwarmTile>, int>((
-  ref,
-  targetId,
-) {
-  return ref
-      .watch(constellationServiceProvider)
-      .pullTarget(targetId, finalized: false);
-});
-
 /// Follow-the-night suggestions: which shared targets are dark and available for
 /// this user right now, ranked deepen-the-thinnest-first. Consumed by the
 /// Constellation screen's follow-the-night card (not the planner/scheduler tabs).

@@ -63,19 +63,6 @@ final darkLibraryStatsProvider = FutureProvider<DarkLibraryStats>((ref) async {
   return ref.read(darkLibraryDaoProvider).getStats();
 });
 
-/// Distinct parameter groups in the library.
-final darkLibraryGroupsProvider = FutureProvider<List<DarkGroupKey>>((
-  ref,
-) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final entries = await ref.watch(darkLibraryEntriesProvider.future);
-    return _groupsFromEntries(entries);
-  }
-  ref.watch(darkLibraryEntriesProvider);
-  return ref.read(darkLibraryDaoProvider).getDistinctGroups();
-});
-
 /// Polls the host's dark library and emits only on change, mirroring the
 /// `_pollRemote` change-guard used by the canonical remote list providers in
 /// `database_provider.dart`.
@@ -147,25 +134,6 @@ DarkLibraryStats _statsFromEntries(List<DarkLibraryEntry> entries) {
     biasCount: biasCount,
     masterCount: masterCount,
   );
-}
-
-/// Reconstructs the distinct parameter groups from a flat entry list.
-List<DarkGroupKey> _groupsFromEntries(List<DarkLibraryEntry> entries) {
-  final seen = <String, DarkGroupKey>{};
-  for (final e in entries) {
-    final key = DarkGroupKey(
-      exposureTime: e.exposureTime,
-      gain: e.gain,
-      offset: e.offset,
-      binX: e.binX,
-      binY: e.binY,
-      frameType: e.frameType,
-    );
-    seen['${e.exposureTime}|${e.gain}|${e.offset}|${e.binX}|${e.binY}|'
-            '${e.frameType}'] =
-        key;
-  }
-  return seen.values.toList();
 }
 
 /// Whether auto-dark-subtraction is enabled.
@@ -345,21 +313,6 @@ class DarkLibrarySettingsActions {
     }
     _ref.invalidate(darkLibrarySettingsProvider);
   }
-}
-
-/// Migrate the legacy `dark_library.auto_subtract` setting into
-/// `calibrationSettingsProvider` on first launch after the unification.
-///
-/// Why: existing users who toggled the dark-library UI before the v2.5
-/// reconciliation had their preference written to a key the calibration
-/// pipeline never read. This helper is invoked from the calibration
-/// notifier's load path so the user's intent is preserved across the
-/// upgrade. The legacy key is cleared after migration so we don't keep
-/// reading the stale value.
-Future<bool?> readLegacyAutoSubtractFlag(SettingsDao dao) async {
-  final value = await dao.getSetting('dark_library.auto_subtract');
-  if (value == null) return null;
-  return value == 'true';
 }
 
 /// StateNotifier for managing the dark library UI state.

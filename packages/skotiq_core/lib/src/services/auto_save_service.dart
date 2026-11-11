@@ -861,12 +861,6 @@ final autoSaveLifecycleProvider = FutureProvider<AutoSaveService>((ref) async {
   return service;
 });
 
-/// Provider for checking if there are unsaved changes
-final hasUnsavedChangesProvider = Provider<bool>((ref) {
-  final service = ref.watch(autoSaveServiceProvider);
-  return service.hasUnsavedChanges;
-});
-
 const _sequenceEnabledKey = 'autosave.sequence_enabled';
 const _sequenceMinutesKey = 'autosave.sequence_interval_minutes';
 const _backupEnabledKey = 'autosave.backup_enabled';

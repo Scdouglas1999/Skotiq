@@ -560,8 +560,3 @@ final liveStackingKillSwitchBridgeProvider = Provider<void>((ref) {
   // is a no-op when the value hasn't changed.
 });
 
-/// Convenience provider for whether the broadcast is currently armed.
-/// The dashboard's "Broadcasting" indicator watches this.
-final broadcastActiveProvider = Provider<bool>((ref) {
-  return ref.watch(liveStackingBroadcastServiceProvider).state.active;
-});

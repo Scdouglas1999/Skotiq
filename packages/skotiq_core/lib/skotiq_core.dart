@@ -1,17 +1,7 @@
 /// Skotiq Core - Shared business logic.
 ///
 /// This is the aggregate barrel: it re-exports every public symbol in the
-/// package and is retained for backward compatibility. It stays exhaustive so
-/// existing `package:skotiq_core/skotiq_core.dart` imports keep
-/// resolving everything.
-///
-/// NEW imports should prefer the narrower, layer-scoped barrels to keep their
-/// dependency surface small:
-///   * skotiq_core_models.dart    - pure domain/value types
-///   * skotiq_core_backend.dart   - backend interface + wire models
-///   * skotiq_core_database.dart  - drift database + DAOs
-///   * skotiq_core_services.dart  - business-logic services + utilities
-///   * skotiq_core_providers.dart - Riverpod providers / DI wiring
+/// package.
 library;
 
 // Database - hide entity names that collide with domain-model classes of the
@@ -333,7 +323,6 @@ export 'src/providers/recovery_provider.dart';
 export 'src/providers/session_replay_provider.dart';
 export 'src/providers/auto_stretch_provider.dart';
 export 'src/providers/glance_mode_provider.dart';
-export 'src/providers/connection_quality_provider.dart';
 export 'src/providers/science_provider.dart';
 export 'src/providers/science_status_provider.dart';
 export 'src/providers/autofocus_progress_provider.dart';
@@ -448,7 +437,6 @@ export 'src/providers/thumbnail_sidecar_provider.dart';
 export 'src/services/plate_solve_service.dart';
 export 'src/services/first_light/first_light_orchestrator.dart';
 export 'src/providers/first_light_provider.dart';
-export 'src/services/polar_alignment_service.dart';
 export 'src/services/centering_service.dart';
 export 'src/services/profile_service.dart';
 export 'src/services/sequence_repository.dart';

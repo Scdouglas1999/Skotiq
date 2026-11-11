@@ -614,28 +614,6 @@ final weatherStatusProvider = Provider<WeatherStatus>((ref) {
 
 // Action providers
 
-/// Provider that triggers radar data fetch for user's location
-///
-/// Call ref.read(fetchWeatherProvider) to trigger a radar data fetch.
-/// Automatically uses location from app settings. Auto-disposes after use.
-final fetchWeatherProvider = FutureProvider.autoDispose<void>((ref) async {
-  final observerLocation = ref.watch(appObserverLocationProvider);
-  if (observerLocation == null) {
-    return;
-  }
-
-  final latitude = observerLocation.latitude;
-  final longitude = observerLocation.longitude;
-
-  // Skip fetch if location not set
-  if (latitude == 0.0 && longitude == 0.0) {
-    return;
-  }
-
-  final radarService = ref.read(weatherRadarServiceProvider);
-  await radarService.fetchRadarFrames(latitude: latitude, longitude: longitude);
-});
-
 /// Provider that performs cloud motion analysis on current radar frames,
 /// surfacing *why* a prediction is unavailable.
 ///

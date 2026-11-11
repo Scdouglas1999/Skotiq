@@ -35,10 +35,6 @@ final sessionOptimizerServiceProvider = Provider<SessionOptimizerService>((
   return SessionOptimizerService(suggestionService: suggestionService);
 });
 
-final hardwareSpecsServiceProvider = Provider<HardwareSpecsService>(
-  (_) => const HardwareSpecsService(),
-);
-
 /// Builds the Smart Night exposure context used by Plan Tonight and dashboard
 /// recommendations.
 ///

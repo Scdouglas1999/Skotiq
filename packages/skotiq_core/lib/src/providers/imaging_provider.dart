@@ -556,11 +556,6 @@ final namingPatternProvider = Provider<NamingPattern>((ref) {
   );
 });
 
-/// Last star detection result
-final starDetectionResultProvider = StateProvider<StarDetectionResult?>(
-  (ref) => null,
-);
-
 /// Session captured images
 final sessionImagesProvider =
     StateNotifierProvider<SessionImagesNotifier, List<CapturedImage>>((ref) {
