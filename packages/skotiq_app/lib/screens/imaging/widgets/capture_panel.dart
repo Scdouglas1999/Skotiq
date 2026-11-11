@@ -14,7 +14,6 @@ import '../../../widgets/remote_directory_picker_dialog.dart';
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
 import 'panel_widgets.dart';
 
-// Provider for park mount on end setting
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
 
 typedef CaptureSavePathPicker = Future<String?> Function(
@@ -111,12 +110,10 @@ class CapturePanel extends ConsumerWidget {
       _ => null,
     };
 
-    // Get binning options based on connected camera's capabilities
     final binningOptions = ref.watch(
       cameraBinningOptionsProvider(cameraState.deviceId ?? ''),
     );
 
-    // Ensure current binning value is valid for available options
     final currentBinning = binningOptions.contains(exposureSettings.binning)
         ? exposureSettings.binning
         : binningOptions.first;
@@ -538,7 +535,6 @@ class CapturePanel extends ConsumerWidget {
     try {
       final parkOnEnd = ref.read(parkMountOnEndProvider);
 
-      // End the session
       await ref.read(sessionStateProvider.notifier).endSession();
 
       // Park mount if requested (service handles connection check)

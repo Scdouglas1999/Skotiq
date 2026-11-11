@@ -411,20 +411,16 @@ class _AnnotationObjectsPanelState
       ),
       child: Column(
         children: [
-          // Header
           _buildHeader(annotation, filteredObjects, displayableObjects),
 
-          // Search bar
           AnnotationSearchBar(
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
 
-          // Filters section
           _buildFiltersSection(settings, typeCounts),
 
           Divider(height: 1, color: widget.colors.border),
 
-          // Objects list
           Expanded(
             child: filteredObjects.isEmpty
                 ? AnnotationEmptyState(
@@ -478,7 +474,6 @@ class _AnnotationObjectsPanelState
                 .copyWith(color: widget.colors.textPrimary),
           ),
           const Spacer(),
-          // Object count badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: SkotiqDecorations.tintedBadge(
@@ -537,7 +532,6 @@ class _AnnotationObjectsPanelState
             ),
           ),
           const SizedBox(width: 4),
-          // Re-annotate button
           _isReAnnotating
               ? Padding(
                   padding: EdgeInsets.all(4),
@@ -565,7 +559,6 @@ class _AnnotationObjectsPanelState
                   ),
                 ),
           const SizedBox(width: 4),
-          // Save annotated image button
           _isSaving
               ? Padding(
                   padding: EdgeInsets.all(4),
@@ -595,7 +588,6 @@ class _AnnotationObjectsPanelState
                   ),
                 ),
           const SizedBox(width: 4),
-          // Export menu
           PopupMenuButton<String>(
             tooltip: 'Export annotations',
             color: widget.colors.surfaceElevated,
@@ -659,7 +651,6 @@ class _AnnotationObjectsPanelState
             ),
           ),
           const SizedBox(width: 4),
-          // Close button
           InkWell(
             onTap: () =>
                 ref.read(annotationPanelVisibleProvider.notifier).state = false,

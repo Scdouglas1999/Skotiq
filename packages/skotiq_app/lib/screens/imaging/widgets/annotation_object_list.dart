@@ -3,7 +3,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-/// List item for a celestial object in the annotation panel.
 class AnnotationObjectListItem extends StatelessWidget {
   final CelestialObjectAnnotation object;
   final SkotiqColors colors;
@@ -34,7 +33,6 @@ class AnnotationObjectListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Object type icon
             Container(
               width: 28,
               height: 28,
@@ -52,7 +50,6 @@ class AnnotationObjectListItem extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // Object info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +86,6 @@ class AnnotationObjectListItem extends StatelessWidget {
               ),
             ),
 
-            // Magnitude
             if (object.magnitude != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
