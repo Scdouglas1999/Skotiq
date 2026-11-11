@@ -125,7 +125,6 @@ class DarkroomBranch {
 /// wired to "whatever was last refused" is how the wrong subtree gets deleted.
 @immutable
 class DarkroomBranchDeleteRefusal {
-  /// The recipe that could not be deleted.
   final int recipeId;
 
   /// Its label, so the sentence names it the way the bar does.
@@ -211,7 +210,6 @@ class DarkroomBranchState {
   /// case where an A/B compare has two sides.
   bool get hasVariants => branches.length > 1;
 
-  /// The entry for [id], or null when the family holds no such recipe.
   DarkroomBranch? branchFor(int id) {
     for (final branch in branches) {
       if (branch.id == id) return branch;
@@ -253,7 +251,6 @@ class DarkroomBranchState {
   }
 }
 
-/// Drives the branch bar over one master.
 class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
   DarkroomBranchController(Ref ref, this._scope)
       : _recipes = ref.read(recipesDaoProvider),
@@ -264,7 +261,6 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
   final DarkroomBranchScope _scope;
   final RecipesDao _recipes;
 
-  /// Re-read the family and the open recipe's lineage.
   Future<void> refresh() async {
     if (_scope.masterPath.isEmpty) {
       state = state.copyWith(
@@ -537,7 +533,6 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
     }
   }
 
-  /// Put the refusal away without acting on it.
   void dismissRefusal() {
     state = state.copyWith(clearDeleteRefusal: true);
   }

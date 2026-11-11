@@ -22,7 +22,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../darkroom_controller.dart';
 import 'darkroom_image_library.dart';
 
-/// A palette the plan offered.
 class DarkroomCombinePalette {
   /// The wire token the registry takes back (`lrgb`, `sho`, ...).
   final String id;

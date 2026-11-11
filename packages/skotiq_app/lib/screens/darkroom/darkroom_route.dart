@@ -34,7 +34,6 @@ enum DarkroomTab {
 /// The view a target opens on inside the Targets tab.
 enum DarkroomTargetView { detail, framing }
 
-/// A parsed `/darkroom` location.
 @immutable
 class DarkroomRoute {
   const DarkroomRoute({

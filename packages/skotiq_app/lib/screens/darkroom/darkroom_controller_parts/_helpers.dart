@@ -496,7 +496,6 @@ DarkroomImportedRecipe decodeDarkroomSidecar(String text) {
   );
 }
 
-/// Decode a `validate` reply.
 DarkroomValidation decodeDarkroomValidation(Map<String, dynamic> reply) {
   final ok = reply['ok'];
   final error = reply['error'];

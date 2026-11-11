@@ -25,7 +25,6 @@ import 'targets/targets_tab.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 
-/// The Darkroom screen.
 class DarkroomScreen extends ConsumerStatefulWidget {
   /// What the Edit tab or the pass view is scoped to; empty when no master,
   /// recipe or pass is named.

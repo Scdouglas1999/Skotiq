@@ -50,7 +50,6 @@ part 'editor_parts/_compare.dart';
 part 'editor_parts/_export_sheet.dart';
 part 'editor_parts/_histogram.dart';
 
-/// The recipe editor over one registered image.
 class DarkroomEditor extends ConsumerStatefulWidget {
   /// What the route asked to open. Never empty: the Edit tab shows its image
   /// list instead of an editor when nothing is named.
@@ -659,7 +658,6 @@ class _DarkroomStartOfferView extends StatelessWidget {
   /// more than the one master this route resolved to.
   final List<DarkroomSiblingDraft> siblings;
 
-  /// Why the night's other masters could not be listed.
   final String? siblingsError;
 
   final VoidCallback onStartFromLinear;

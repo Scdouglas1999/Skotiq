@@ -1,6 +1,5 @@
 part of '../darkroom_editor.dart';
 
-/// Bins across the display range.
 const int _kHistogramBins = 64;
 
 /// One line per channel of the preview: the share of pixels at each display
@@ -45,7 +44,6 @@ class DarkroomHistogram {
     );
   }
 
-  /// The largest bin share across every channel.
   double get peak =>
       channels.expand((c) => c).fold<double>(0, (a, b) => a > b ? a : b);
 }

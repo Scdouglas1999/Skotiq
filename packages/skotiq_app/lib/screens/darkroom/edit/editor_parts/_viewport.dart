@@ -20,7 +20,6 @@ final darkroomDisplayScaleProvider = StateProvider<double>((ref) => 1.0);
 /// screen pixel is a master pixel.
 const double kDarkroomMaxViewerScale = 32.0;
 
-/// Narrowest zoom the Darkroom viewport allows.
 const double kDarkroomMinViewerScale = 0.05;
 
 /// Step one press of the zoom buttons takes.
@@ -753,9 +752,6 @@ class _DarkroomTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A chip is a chip (05 §10): 22 px, solid `surfaceHover`, `radiusXs`, no
-    // border. It was a hand-rolled bordered box with its own padding and text
-    // size, which is the "second style of something" 02's fourth rule forbids.
     return Tooltip(message: tooltip, child: SkotiqChip(label: label));
   }
 }

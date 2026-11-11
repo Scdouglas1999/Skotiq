@@ -182,7 +182,6 @@ class DarkroomState {
   /// The engine's verdict on the recipe as a whole, null when it validates.
   final String? recipeError;
 
-  /// True while a render is in flight.
   final bool rendering;
 
   /// True once cancellation has been asked for and before the render answers.
@@ -266,13 +265,10 @@ class DarkroomState {
   /// Number of catalogue stars lent to `color_calibrate`.
   final int photometryStarCount;
 
-  /// True when an earlier step list can be restored.
   final bool canUndo;
 
-  /// True when an undone step list can be re-applied.
   final bool canRedo;
 
-  /// True while an edit is waiting to be written to the recipe row.
   final bool savePending;
 
   /// Why the last write to the recipe row failed. Null when the row is current.

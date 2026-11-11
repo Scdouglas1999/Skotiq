@@ -57,16 +57,12 @@ class _DarkroomCompareView extends ConsumerStatefulWidget {
   /// row yet, which is what makes "compare with the draft" meaningful.
   final DarkroomState aState;
 
-  /// The label the A side carries.
   final String aLabel;
 
-  /// The recipe rendered on the B side.
   final int bRecipeId;
 
-  /// The label the B side carries.
   final String bLabel;
 
-  /// Whether the B side is the dawn autopilot's own draft.
   final bool bIsAutopilotDraft;
 
   final _DarkroomCompareMode mode;
@@ -95,7 +91,6 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
 
   Timer? _blink;
 
-  /// Which side a blink is currently showing.
   bool _showingA = true;
 
   /// True while the operator holds the compare control down, which pins the B
@@ -493,7 +488,6 @@ class _DarkroomHoldToCompare extends StatefulWidget {
 }
 
 class _DarkroomHoldToCompareState extends State<_DarkroomHoldToCompare> {
-  /// True while the keyboard focus ring is on this control.
   bool _focused = false;
 
   void _toggle() => widget.onHeldChanged(!widget.held);

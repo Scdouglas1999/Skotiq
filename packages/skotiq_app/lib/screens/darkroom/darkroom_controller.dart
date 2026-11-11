@@ -61,7 +61,6 @@ const String kDarkroomImportNextStep =
     'Export the recipe again from the Darkroom that wrote it, or choose a '
     'different .skrecipe file.';
 
-/// Drives one Darkroom scope.
 class DarkroomController extends StateNotifier<DarkroomState> {
   /// Collaborators are resolved once, here, rather than read from [ref] on each
   /// use: [dispose] issues the last write and the stop request for a render
@@ -115,7 +114,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   /// Bumped once per requested validation, for the same reason.
   int _validateGeneration = 0;
 
-  /// True while a render is inside the engine.
   bool _renderInFlight = false;
 
   /// The id the in-flight render is cancellable under, null when none is
@@ -170,11 +168,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   List<Map<String, dynamic>> get catalogStars =>
       List.unmodifiable(_catalogStars);
 
-  // ---------------------------------------------------------------------
-  // Loading
-  // ---------------------------------------------------------------------
-
-  /// Reload everything this scope names.
   Future<void> refresh() => _load();
 
   Future<void> _load() async {
@@ -566,10 +559,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // Creating a recipe for a master that has none
-  // ---------------------------------------------------------------------
-
   /// Create an empty user recipe over the offered master: the master's own
   /// linear pixels, with nothing interpreted yet.
   Future<void> startFromLinear() async {
@@ -794,10 +783,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // Importing a recipe written outside the database
-  // ---------------------------------------------------------------------
-
   /// Clear the standing import refusal.
   ///
   /// The refusal is durable rather than a toast — it names a file the operator
@@ -1015,10 +1000,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
     return lines.join('\n');
   }
-
-  // ---------------------------------------------------------------------
-  // Editing
-  // ---------------------------------------------------------------------
 
   /// Toggle whether the step at [index] renders. Nothing is destroyed: the step
   /// and its parameters survive the disable.
@@ -1519,10 +1500,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // Validation
-  // ---------------------------------------------------------------------
-
   /// Re-check the committed step list and adopt its per-step verdicts.
   ///
   /// The whole list is validated, disabled steps included: the per-step
@@ -1566,10 +1543,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       return null;
     }
   }
-
-  // ---------------------------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------------------------
 
   /// Re-check and re-render the committed stack after the edit debounce.
   ///
@@ -1850,10 +1823,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       );
     }
   }
-
-  // ---------------------------------------------------------------------
-  // Persistence
-  // ---------------------------------------------------------------------
 
   void _scheduleSave() {
     _savePending = true;
