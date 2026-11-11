@@ -54,9 +54,7 @@ use serde_json::Value;
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params, CANCEL_POLL_PIXELS};
 use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
 
-/// Registry id.
 const OP_ID: &str = "denoise";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// The B3-spline à trous kernel, `[1, 4, 6, 4, 1] / 16`.
@@ -72,14 +70,12 @@ const SCALE_COUNT_DEFAULT: u32 = 4;
 
 /// Lowest detail threshold; `0` shrinks nothing and leaves the luminance exact.
 const THRESHOLD_SIGMA_MIN: f64 = 0.0;
-/// Highest detail threshold.
 const THRESHOLD_SIGMA_MAX: f64 = 10.0;
 /// Detail threshold when the parameter is absent, in per-scale noise sigmas.
 const THRESHOLD_SIGMA_DEFAULT: f64 = 3.0;
 
 /// Lowest correction weight; `0` is the identity.
 const STRENGTH_MIN: f64 = 0.0;
-/// Highest correction weight.
 const STRENGTH_MAX: f64 = 1.0;
 /// Correction weight when the parameter is absent.
 const STRENGTH_DEFAULT: f64 = 1.0;
