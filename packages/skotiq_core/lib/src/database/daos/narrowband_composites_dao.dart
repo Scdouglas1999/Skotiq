@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/imaging/narrowband_composite.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v44 `narrowband_composites` table — one row per
 /// applied SHO/HOO/etc. palette combine.
@@ -34,7 +35,7 @@ class NarrowbandCompositesDao {
     int height = 0,
     DateTime? createdAt,
   }) {
-    final at = _toEpochSeconds(createdAt ?? DateTime.now().toUtc());
+    final at = toEpochSeconds(createdAt ?? DateTime.now().toUtc());
     return _db.customInsert(
       'INSERT INTO narrowband_composites('
       'target_id, palette, component_master_ids, output_path, '
@@ -114,15 +115,9 @@ class NarrowbandCompositesDao {
       outputPath: row.read<String>('output_path'),
       width: row.read<int>('width'),
       height: row.read<int>('height'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [NarrowbandCompositesDao].

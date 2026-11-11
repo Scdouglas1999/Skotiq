@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/imaging/integrated_master.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v41 `flat_library` table — the master-flat
 /// artifact library, the missing counterpart to `dark_library`.
@@ -47,7 +48,7 @@ class FlatLibraryDao {
           variables: [Variable<String>(filePath)],
         )
         .get();
-    final createdSecs = _toEpochSeconds((createdAt ?? DateTime.now()).toUtc());
+    final createdSecs = toEpochSeconds((createdAt ?? DateTime.now()).toUtc());
 
     if (existing.isNotEmpty) {
       final id = existing.first.read<int>('id');
@@ -228,15 +229,9 @@ class FlatLibraryDao {
       height: row.readNullable<int>('height'),
       flatKind: row.read<String>('flat_kind'),
       masterFrameCount: row.read<int>('master_frame_count'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [FlatLibraryDao].

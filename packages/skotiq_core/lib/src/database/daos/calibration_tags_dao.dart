@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/calibration/calibration_library_models.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// One row of the v46 `calibration_tags` table: user tags / notes plus the
 /// FITS-enriched camera-id cache for a `(master_type, master_id)` artifact.
@@ -86,7 +87,7 @@ class CalibrationTagsDao {
   }) async {
     final wireType = calibrationMasterTypeWireName(type);
     final existing = await getForMaster(type, masterId);
-    final nowSecs = _toEpochSeconds(DateTime.now());
+    final nowSecs = toEpochSeconds(DateTime.now());
 
     final mergedTags = tags ?? existing?.tags ?? const <String>[];
     final mergedNotes = clearNotes ? null : (notes ?? existing?.notes);
@@ -114,7 +115,7 @@ class CalibrationTagsDao {
           Variable<int>(nowSecs),
           Variable<String>(mergedSharedBy),
           Variable<int>(
-            mergedSharedAt == null ? null : _toEpochSeconds(mergedSharedAt),
+            mergedSharedAt == null ? null : toEpochSeconds(mergedSharedAt),
           ),
           Variable<String>(mergedLicense),
           Variable<String>(mergedProvenance),
@@ -136,7 +137,7 @@ class CalibrationTagsDao {
         Variable<int>(nowSecs),
         Variable<String>(mergedSharedBy),
         Variable<int>(
-          mergedSharedAt == null ? null : _toEpochSeconds(mergedSharedAt),
+          mergedSharedAt == null ? null : toEpochSeconds(mergedSharedAt),
         ),
         Variable<String>(mergedLicense),
         Variable<String>(mergedProvenance),
@@ -207,9 +208,9 @@ class CalibrationTagsDao {
       tags: _decodeTags(row.read<String>('tags_json')),
       notes: row.readNullable<String>('notes'),
       cameraId: row.readNullable<String>('camera_id'),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
       sharedBy: row.readNullable<String>('shared_by'),
-      sharedAt: sharedAtSecs == null ? null : _fromEpochSeconds(sharedAtSecs),
+      sharedAt: sharedAtSecs == null ? null : fromEpochSeconds(sharedAtSecs),
       license: row.readNullable<String>('license'),
       provenanceJson: row.readNullable<String>('provenance_json'),
       publishedRemoteId: row.readNullable<String>('published_remote_id'),
@@ -228,12 +229,6 @@ class CalibrationTagsDao {
     }
     return const [];
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [CalibrationTagsDao].

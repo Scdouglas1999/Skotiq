@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/imaging/mosaic_project.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v45 `mosaic_projects` table (Mosaic M2) — the
 /// durable record that makes a mosaic a first-class entity linking grid config →
@@ -39,8 +40,8 @@ class MosaicProjectsDao {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
-    final created = _toEpochSeconds(createdAt ?? DateTime.now());
-    final updated = updatedAt == null ? created : _toEpochSeconds(updatedAt);
+    final created = toEpochSeconds(createdAt ?? DateTime.now());
+    final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
     return _db.customInsert(
       'INSERT INTO mosaic_projects('
       'target_id, name, rows, cols, overlap_pct, position_angle_deg, '
@@ -135,7 +136,7 @@ class MosaicProjectsDao {
     MosaicProjectStatus status, {
     DateTime? now,
   }) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE mosaic_projects SET status = ?, updated_at = ? WHERE id = ?',
       variables: [
@@ -151,7 +152,7 @@ class MosaicProjectsDao {
   /// mark it [MosaicProjectStatus.complete] (and bump `updated_at`). Returns the
   /// number of rows changed.
   Future<int> setOutputMaster(int id, int outputMasterId, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE mosaic_projects SET output_master_id = ?, status = ?, '
       'updated_at = ? WHERE id = ?',
@@ -175,7 +176,7 @@ class MosaicProjectsDao {
     String role, {
     DateTime? now,
   }) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE mosaic_projects SET hub_mosaic_id = ?, collab_role = ?, '
       "collab_status = 'published', updated_at = ? WHERE id = ?",
@@ -192,7 +193,7 @@ class MosaicProjectsDao {
   /// Update a published project's hub-side collaborative lifecycle
   /// (`published`|`assembling`|`complete`). Returns the number of rows changed.
   Future<int> setCollabStatus(int id, String collabStatus, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return _db.customUpdate(
       'UPDATE mosaic_projects SET collab_status = ?, updated_at = ? WHERE id = ?',
       variables: [
@@ -225,19 +226,13 @@ class MosaicProjectsDao {
       positionAngleDeg: row.read<double>('position_angle_deg'),
       status: MosaicProjectStatus.fromWire(row.read<String>('status')),
       outputMasterId: row.readNullable<int>('output_master_id'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
       hubMosaicId: row.readNullable<String>('hub_mosaic_id'),
       collabRole: row.readNullable<String>('collab_role'),
       collabStatus: row.readNullable<String>('collab_status'),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [MosaicProjectsDao].

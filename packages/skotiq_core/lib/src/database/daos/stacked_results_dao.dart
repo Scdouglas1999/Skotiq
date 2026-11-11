@@ -5,6 +5,7 @@ import '../../models/imaging/stack_and_share_models.dart';
 import '../../providers/database_provider.dart';
 import '../../services/live_stacking_service.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// Data-access object for the v38 `stacked_results` table — the persisted
 /// provenance record for every stacked master the **Stack-and-Share Loop**
@@ -57,7 +58,7 @@ class StackedResultsDao {
         Variable<int>(result.isColor ? 1 : 0),
         Variable<int>(result.channels),
         Variable<String>(result.exportedImagePath),
-        Variable<int>(_toEpochSeconds(result.createdAt)),
+        Variable<int>(toEpochSeconds(result.createdAt)),
       ],
     );
   }
@@ -160,7 +161,7 @@ class StackedResultsDao {
       filter: row.readNullable<String>('filter'),
       isColor: row.read<int>('is_color') != 0,
       channels: row.read<int>('channels'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
       exportedImagePath: row.readNullable<String>('exported_image_path'),
       stats: LiveStackingStats(
         stackedFrameCount: framesStacked,
@@ -169,12 +170,6 @@ class StackedResultsDao {
       ),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [StackedResultsDao].

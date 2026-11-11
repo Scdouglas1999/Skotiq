@@ -5,6 +5,7 @@ import '../../models/darkroom/delivery.dart';
 import '../../models/darkroom/recipe.dart' show DarkroomWireFormatException;
 import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 
 /// A destination row was addressed by an id that has no row.
 class ArtifactDestinationMissingException implements Exception {
@@ -119,8 +120,8 @@ class DeliveryTargetsDao {
     }
     assertNoSecretsInConfig(configJson);
 
-    final created = _toEpochSeconds(createdAt ?? DateTime.now());
-    final updated = updatedAt == null ? created : _toEpochSeconds(updatedAt);
+    final created = toEpochSeconds(createdAt ?? DateTime.now());
+    final updated = updatedAt == null ? created : toEpochSeconds(updatedAt);
     return _db.customInsert(
       'INSERT INTO delivery_targets('
       'name, kind, config_json, enabled, content_json, secret_ref, '
@@ -193,7 +194,7 @@ class DeliveryTargetsDao {
     if (configJson != null) assertNoSecretsInConfig(configJson);
     await _require(id);
 
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_targets SET '
       'name = COALESCE(?, name), '
@@ -223,7 +224,7 @@ class DeliveryTargetsDao {
   /// cannot express a null, so clearing has its own call.
   Future<ArtifactDestination> clearSecretRef(int id, {DateTime? now}) async {
     await _require(id);
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     await _db.customUpdate(
       'UPDATE delivery_targets SET secret_ref = NULL, updated_at = ? '
       'WHERE id = ?',
@@ -348,16 +349,10 @@ class DeliveryTargetsDao {
         row.read<String>('content_json'),
       ),
       secretRef: row.readNullable<String>('secret_ref'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
+      createdAt: fromEpochSeconds(row.read<int>('created_at')),
+      updatedAt: fromEpochSeconds(row.read<int>('updated_at')),
     );
   }
-
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
-
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 }
 
 /// Riverpod provider for [DeliveryTargetsDao].
