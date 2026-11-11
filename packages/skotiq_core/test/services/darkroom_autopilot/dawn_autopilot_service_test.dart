@@ -1652,8 +1652,8 @@ void main() {
     },
   );
 
-  test('a job left running by a dead process is re-queued at open and drained '
-      'on the next start', () async {
+  test('a job left running by a dead process is re-queued and drained on the '
+      'next start', () async {
     final crashDir = await Directory.systemTemp.createTemp('dawn-crash');
     addTearDown(() => crashDir.delete(recursive: true));
     final file = File('${crashDir.path}/skotiq.sqlite');
@@ -1699,8 +1699,10 @@ void main() {
     await DarkroomJobsDao(first).markRunning(jobId);
     await first.close();
 
+    // The next start: the host runs its crash recovery on the database.
     final second = SkotiqDatabase.forTesting(NativeDatabase(file));
     addTearDown(second.close);
+    await recoverFromPreviousProcessExit(second);
     final recovered = await DarkroomJobsDao(second).getById(jobId);
     expect(recovered!.state, DarkroomJobState.queued);
     expect(recovered.note, contains('Re-queued'));
@@ -1769,6 +1771,7 @@ void main() {
 
       final second = SkotiqDatabase.forTesting(NativeDatabase(file));
       addTearDown(second.close);
+      await recoverFromPreviousProcessExit(second);
       final recovered = await DarkroomJobsDao(second).getById(jobId);
 
       expect(recovered!.state, DarkroomJobState.failed);
