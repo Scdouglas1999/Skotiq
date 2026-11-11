@@ -52,7 +52,6 @@ class NightReportsDao {
     );
   }
 
-  /// Fetch a report by id, or null when absent.
   Future<NightReport?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -101,7 +100,6 @@ class NightReportsDao {
     return _mapReport(rows.first);
   }
 
-  /// Delete a report by id.
   Future<int> deleteReport(int id) {
     return _db.customUpdate(
       'DELETE FROM night_reports WHERE id = ?',
@@ -124,7 +122,6 @@ class NightReportsDao {
   }
 }
 
-/// Riverpod provider for [NightReportsDao].
 final nightReportsDaoProvider = Provider<NightReportsDao>((ref) {
   return NightReportsDao(ref.watch(databaseProvider));
 });

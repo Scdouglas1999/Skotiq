@@ -920,8 +920,6 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     return (result.read(countExp) ?? 0) > 0;
   }
 
-  // Photometric transform coefficients
-
   Future<int> insertPhotometricTransform(
     PhotometricTransformsCompanion transform,
   ) {

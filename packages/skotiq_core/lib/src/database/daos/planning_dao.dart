@@ -29,8 +29,6 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
     with _$PlanningDaoMixin {
   PlanningDao(super.db);
 
-  // Integration goals
-
   Future<int?> integrationGoalId({
     required int targetId,
     required String filter,
@@ -104,8 +102,6 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
     return (await query.getSingle()).read(count) ?? 0;
   }
 
-  // Target constraints
-
   Future<int> insertTargetConstraint(TargetConstraintsCompanion constraint) =>
       into(targetConstraints).insert(constraint);
 
@@ -147,12 +143,8 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
         targetConstraints,
       )..where((c) => c.targetId.equals(targetId))).get();
 
-  // Horizon profiles
-
   Future<List<HorizonProfileRow>> allHorizonProfiles() =>
       select(horizonProfiles).get();
-
-  // Scheduler queue
 
   /// Records [targetId] as removed from the scheduler queue. Selected from
   /// `targets` so an id that is no longer in the catalog is a no-op rather
@@ -185,8 +177,6 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
     final rows = await select(schedulerRemovedTargets).get();
     return {for (final row in rows) row.targetId};
   }
-
-  // Projects
 
   Future<int> insertProject(ProjectsCompanion project) =>
       into(projects).insert(project);
@@ -242,8 +232,6 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
               (m) => OrderingTerm.asc(m.id),
             ]))
           .get();
-
-  // Scheduler candidates
 
   /// The targets the scheduler considers, highest priority first then by
   /// name: the whole catalog, or with [projectId] that project's members

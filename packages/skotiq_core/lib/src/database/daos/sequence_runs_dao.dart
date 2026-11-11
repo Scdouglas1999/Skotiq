@@ -103,7 +103,6 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Finish a run with final status and statistics.
   Future<void> finishRun(int runId, String status, String statsJson) async {
     await (update(sequenceRuns)..where((r) => r.id.equals(runId))).write(
       SequenceRunsCompanion(
@@ -128,7 +127,6 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
     )..orderBy([(r) => OrderingTerm.desc(r.startedAt)])).get();
   }
 
-  /// Watch all runs for reactive UI.
   @override
   Stream<List<SequenceRun>> watchAllRuns() {
     return (select(
@@ -136,7 +134,6 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
     )..orderBy([(r) => OrderingTerm.desc(r.startedAt)])).watch();
   }
 
-  /// Get runs for a specific sequence.
   Future<List<SequenceRun>> getRunsForSequence(int sequenceId) {
     return (select(sequenceRuns)
           ..where((r) => r.sequenceId.equals(sequenceId))
@@ -144,7 +141,6 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch runs for a specific sequence.
   @override
   Stream<List<SequenceRun>> watchRunsForSequence(int sequenceId) {
     return (select(sequenceRuns)
@@ -153,19 +149,16 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Get a single run by ID.
   Future<SequenceRun?> getRunById(int id) {
     return (select(
       sequenceRuns,
     )..where((r) => r.id.equals(id))).getSingleOrNull();
   }
 
-  /// Delete a run.
   Future<int> deleteRun(int id) {
     return (delete(sequenceRuns)..where((r) => r.id.equals(id))).go();
   }
 
-  /// Delete all runs older than a given date.
   Future<int> deleteRunsOlderThan(DateTime cutoff) {
     return (delete(
       sequenceRuns,

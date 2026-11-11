@@ -22,7 +22,6 @@ class TransientDetectionsDao extends DatabaseAccessor<SkotiqDatabase>
     with _$TransientDetectionsDaoMixin {
   TransientDetectionsDao(super.db);
 
-  /// Insert one detection row, returning its assigned id.
   Future<int> insertDetection(TransientDetectionsCompanion detection) {
     return into(transientDetections).insert(detection);
   }
@@ -247,7 +246,6 @@ class TransientDetectionsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Riverpod provider for [TransientDetectionsDao].
 final transientDetectionsDaoProvider = Provider<TransientDetectionsDao>((ref) {
   return TransientDetectionsDao(ref.watch(databaseProvider));
 });

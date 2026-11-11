@@ -53,25 +53,20 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     return (delete(targets)..where(_untrackedPredicate)).go();
   }
 
-  /// Get all targets
   Future<List<Target>> getAllTargets() => select(targets).get();
 
-  /// Watch all targets
   @override
   Stream<List<Target>> watchAllTargets() => select(targets).watch();
 
-  /// Get favorite targets
   Future<List<Target>> getFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).get();
   }
 
-  /// Watch favorite targets
   @override
   Stream<List<Target>> watchFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).watch();
   }
 
-  /// Get target by ID
   Future<Target?> getTargetById(int id) {
     return (select(targets)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
@@ -91,14 +86,12 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Get targets by object type
   Future<List<Target>> getTargetsByType(String objectType) {
     return (select(
       targets,
     )..where((t) => t.objectType.equals(objectType))).get();
   }
 
-  /// Create a new target
   Future<int> createTarget(TargetsCompanion target) {
     return into(targets).insert(target);
   }
@@ -135,17 +128,14 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update a target
   Future<bool> updateTarget(Target target) {
     return update(targets).replace(target);
   }
 
-  /// Delete a target
   Future<int> deleteTarget(int id) {
     return (delete(targets)..where((t) => t.id.equals(id))).go();
   }
 
-  /// Toggle favorite status
   Future<void> toggleFavorite(int id) async {
     await customStatement(
       '''
@@ -159,7 +149,6 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update imaging progress
   Future<void> updateProgress(
     int id, {
     int? capturedSubs,
@@ -199,7 +188,6 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Get targets ordered by priority
   Future<List<Target>> getTargetsByPriority() {
     return (select(
       targets,

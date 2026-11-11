@@ -26,12 +26,10 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
     final existing = await getProgress(category);
 
     if (existing != null) {
-      // Update existing entry
       await (update(tutorialProgress)
             ..where((t) => t.category.equals(category)))
           .write(TutorialProgressCompanion(lastStepIndex: Value(stepIndex)));
     } else {
-      // Create new entry
       await into(tutorialProgress).insert(
         TutorialProgressCompanion.insert(
           category: category,
@@ -80,7 +78,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
             ..where((t) => t.category.equals(category)))
           .write(const TutorialProgressCompanion(dismissed: Value(true)));
     } else {
-      // Create entry if it doesn't exist
       await into(tutorialProgress).insert(
         TutorialProgressCompanion.insert(
           category: category,
@@ -126,24 +123,20 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
     return select(tutorialProgress).get();
   }
 
-  /// Watch all tutorial progress entries for reactive updates.
   Stream<List<TutorialProgressEntry>> watchAllProgress() {
     return select(tutorialProgress).watch();
   }
 
-  /// Check if a tutorial category has been completed.
   Future<bool> isCategoryCompleted(String category) async {
     final progress = await getProgress(category);
     return progress?.completed ?? false;
   }
 
-  /// Check if a tutorial category has been dismissed.
   Future<bool> isCategoryDismissed(String category) async {
     final progress = await getProgress(category);
     return progress?.dismissed ?? false;
   }
 
-  /// Get all completed tutorial categories.
   Future<List<String>> getCompletedCategories() async {
     final entries = await (select(
       tutorialProgress,
@@ -176,7 +169,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
             ..where((t) => t.category.equals(screenId)))
           .write(const TutorialProgressCompanion(dismissed: Value(true)));
     } else {
-      // Create entry for the screen prompt dismissal
       await into(tutorialProgress).insert(
         TutorialProgressCompanion.insert(
           category: screenId,

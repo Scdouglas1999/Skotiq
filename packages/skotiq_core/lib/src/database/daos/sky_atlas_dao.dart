@@ -42,8 +42,6 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  // Regions
-
   /// All regions, newest first.
   Future<List<SkyAtlasRegionRow>> getAllRegions() {
     return (select(
@@ -64,7 +62,6 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
     )..where((r) => r.id.equals(id))).getSingleOrNull();
   }
 
-  /// Insert a region, returning its row id.
   Future<int> insertRegion(SkyAtlasRegionsCompanion region) {
     return into(skyAtlasRegions).insert(region);
   }
@@ -232,8 +229,6 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
         'AND t.healpix_order = f.healpix_order AND t.region_id = ?)',
         [Variable.withInt(regionId)],
       );
-
-  // Tiles
 
   /// All tiles, ordered by depth (most integration first) for coverage views.
   Future<List<SkyTileRow>> getAllTiles() {
@@ -488,7 +483,6 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Riverpod provider for [SkyAtlasDao].
 final skyAtlasDaoProvider = Provider<SkyAtlasDao>((ref) {
   return SkyAtlasDao(ref.watch(databaseProvider));
 });

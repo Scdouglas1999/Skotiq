@@ -60,7 +60,6 @@ class NarrowbandCompositesDao {
     );
   }
 
-  /// Fetch a composite by id, or null when absent.
   Future<NarrowbandComposite?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -95,7 +94,6 @@ class NarrowbandCompositesDao {
     return rows.map(_map).toList();
   }
 
-  /// Delete a composite by id.
   Future<int> deleteComposite(int id) {
     return _db.customUpdate(
       'DELETE FROM narrowband_composites WHERE id = ?',
@@ -120,7 +118,6 @@ class NarrowbandCompositesDao {
   }
 }
 
-/// Riverpod provider for [NarrowbandCompositesDao].
 final narrowbandCompositesDaoProvider = Provider<NarrowbandCompositesDao>((
   ref,
 ) {

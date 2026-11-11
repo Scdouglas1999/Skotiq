@@ -16,14 +16,12 @@ class SequenceCheckpointsDao extends DatabaseAccessor<SkotiqDatabase>
     await into(sequenceCheckpoints).insertOnConflictUpdate(checkpoint);
   }
 
-  /// Get the latest checkpoint for a sequence
   Future<SequenceCheckpoint?> getCheckpoint(int sequenceId) {
     return (select(
       sequenceCheckpoints,
     )..where((c) => c.sequenceId.equals(sequenceId))).getSingleOrNull();
   }
 
-  /// Watch checkpoint for a sequence
   Stream<SequenceCheckpoint?> watchCheckpoint(int sequenceId) {
     return (select(
       sequenceCheckpoints,
@@ -37,7 +35,6 @@ class SequenceCheckpointsDao extends DatabaseAccessor<SkotiqDatabase>
     )..where((c) => c.sequenceId.equals(sequenceId))).go();
   }
 
-  /// Update checkpoint progress
   Future<void> updateProgress({
     required int sequenceId,
     required int completedFrames,
@@ -56,7 +53,6 @@ class SequenceCheckpointsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update current node in execution
   Future<void> updateCurrentNode({
     required int sequenceId,
     required String currentNodeId,
@@ -80,12 +76,10 @@ class SequenceCheckpointsDao extends DatabaseAccessor<SkotiqDatabase>
     )..orderBy([(c) => OrderingTerm.desc(c.checkpointedAt)])).get();
   }
 
-  /// Delete all checkpoints (cleanup/reset operation)
   Future<int> deleteAllCheckpoints() {
     return delete(sequenceCheckpoints).go();
   }
 
-  /// Check if a sequence has an active checkpoint
   Future<bool> hasCheckpoint(int sequenceId) async {
     final checkpoint = await getCheckpoint(sequenceId);
     return checkpoint != null;

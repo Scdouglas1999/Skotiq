@@ -62,7 +62,6 @@ class MosaicProjectsDao {
     );
   }
 
-  /// Fetch a project by id, or null when absent.
   Future<MosaicProject?> getById(int id) async {
     final rows = await _db
         .customSelect(
@@ -235,7 +234,6 @@ class MosaicProjectsDao {
   }
 }
 
-/// Riverpod provider for [MosaicProjectsDao].
 final mosaicProjectsDaoProvider = Provider<MosaicProjectsDao>((ref) {
   return MosaicProjectsDao(ref.watch(databaseProvider));
 });
