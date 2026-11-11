@@ -20,10 +20,7 @@
 /// fingerprint, the event replay cursor, the static-file availability
 /// flag, etc.) as a typed lookup interface.
 ///
-/// The hand-maintained endpoint catalog ([availableHeadlessEndpoints])
-/// lives in `system_endpoint_catalog.dart` and the `/pair` browser
-/// pairing page in `system_pair_page_handler.dart`; both are re-exported
-/// here so existing imports of this file see the same surface.
+/// The `/pair` browser pairing page is in `system_pair_page_handler.dart`.
 library;
 
 import 'dart:io';
@@ -35,16 +32,16 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
-import '../auth/public_paths.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
-import '../route_metadata.dart' as route_metadata;
+import '../openapi.dart';
+import 'system_pair_page_handler.dart';
 import 'static_file_handlers.dart';
-import 'system_endpoint_catalog.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 // Re-export the endpoint catalog and the browser pairing-page handler so
 // callers that import `system_handlers.dart` keep their existing surface.
-export 'system_endpoint_catalog.dart' show availableHeadlessEndpoints;
 export 'system_pair_page_handler.dart';
 
 /// Read-only snapshot the system handlers pull off the live
@@ -129,7 +126,18 @@ class SystemServerView {
 /// HTTP handlers for the four system-info endpoints. Constructed once
 /// per server with the [SystemServerView] snapshot and the
 /// [StaticFileHandlers] reference (for the dashboard-available flag).
-class SystemHandlers {
+class SystemHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SystemApi.info: handleInfo,
+    SystemApi.status: handleStatus,
+    SystemApi.selfTest: handleSelfTest,
+    SystemApi.version: handleVersion,
+    SystemApi.diskSpace: handleDiskSpace,
+    SystemApi.openApiSpec: handleOpenApiSpec,
+    SystemApi.pairPage: handlePairPage,
+  };
+
   final ProviderContainer container;
   final SystemServerView view;
   final StaticFileHandlers staticFileHandlers;
@@ -256,8 +264,8 @@ class SystemHandlers {
       // a token. A subtree root (`/dashboard`, `/run-watch`) stands for the
       // whole SPA bundle; the `/api/run-watch/*` data endpoints behind it
       // still require a bearer token.
-      'publicEndpoints': publishedPublicEndpoints(),
-      'endpoints': availableHeadlessEndpoints(),
+      'publicEndpoints': publicApiPaths,
+      'endpoints': advertisedApiEndpoints,
     }, headers: _apiCompatibilityHeaders());
   }
 
@@ -305,7 +313,7 @@ class SystemHandlers {
       final storageChecks = await _runStorageSelfTests();
       final databaseCheck = _runDatabaseSelfTest();
       final connectedDeviceProbe = await _probeConnectedDevices(backend);
-      final endpointCount = availableHeadlessEndpoints().length;
+      final endpointCount = advertisedApiEndpoints.length;
 
       final checks = [
         ...storageChecks.map((check) => check['status']),
@@ -357,8 +365,11 @@ class SystemHandlers {
     _logInfo('[API][$requestId] GET /api/openapi.json');
     try {
       return jsonOk(
-        route_metadata.buildOpenApiSpec(
-          routes: availableHeadlessEndpoints(),
+        buildOpenApiSpec(
+          routes: [
+            for (final endpoint in apiEndpoints)
+              if (endpoint.route.path.startsWith('/api/')) endpoint.route,
+          ],
           port: view.port(),
         ),
       );

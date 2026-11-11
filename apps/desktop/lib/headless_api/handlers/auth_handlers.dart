@@ -29,6 +29,8 @@ import '../auth/ws_ticket_manager.dart';
 import '../auth_policy.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Resolves a bearer token to its [HeadlessTokenScope], or null if the
 /// token is unknown. The auth middleware uses a constant-time
@@ -39,7 +41,15 @@ typedef TokenScopeResolver = HeadlessTokenScope? Function(String? token);
 /// HTTP handlers for the headless API's WebSocket-ticket and
 /// dashboard-cookie endpoints. Stateless beyond the two injected
 /// managers; constructed once per server.
-class AuthHandlers {
+class AuthHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    AuthApi.wsTicketIssue: handleWsTicketIssue,
+    AuthApi.cookieIssue: handleAuthCookieIssue,
+    AuthApi.csrfFetch: handleAuthCsrfFetch,
+    AuthApi.logout: handleAuthLogout,
+  };
+
   final WsTicketManager wsTicketManager;
   final AuthCookieManager authCookieManager;
   final TokenScopeResolver scopeForToken;

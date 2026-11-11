@@ -4,6 +4,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the unified Calibration Library Manager.
 ///
@@ -18,7 +20,19 @@ import '../validation.dart';
 ///   POST   /api/calibration-library/match      — best master per type + why
 ///   PUT    `/api/calibration-library/<type>/<id>/tags` — set tags/notes
 ///   DELETE `/api/calibration-library/<type>/<id>`      — delete row (+ file?)
-class CalibrationLibraryHandlers {
+class CalibrationLibraryHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CalibrationLibraryApi.list: handleList,
+    CalibrationLibraryApi.backlog: handleBacklog,
+    CalibrationLibraryApi.match: handleMatch,
+    CalibrationLibraryApi.accept: handleAccept,
+    CalibrationLibraryApi.publish: handlePublish,
+    CalibrationLibraryApi.retract: handleRetract,
+    CalibrationLibraryApi.setTags: handleSetTags,
+    CalibrationLibraryApi.delete: handleDelete,
+  };
+
   final ProviderContainer container;
   CalibrationLibraryHandlers(this.container);
 

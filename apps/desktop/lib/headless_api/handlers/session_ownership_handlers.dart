@@ -12,9 +12,20 @@ import 'package:shelf/shelf.dart';
 import '../response_helpers.dart';
 import '../session_ownership.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the operator-slot endpoints.
-class SessionOwnershipHandlers {
+class SessionOwnershipHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SessionOwnershipApi.getOwner: handleGetOwner,
+    SessionOwnershipApi.getStatus: handleGetStatus,
+    SessionOwnershipApi.claim: handleClaim,
+    SessionOwnershipApi.takeOver: handleTakeOver,
+    SessionOwnershipApi.release: handleRelease,
+  };
+
   final SessionOwnershipManager manager;
 
   /// Resolver the handler uses to read the caller's bearer token off the

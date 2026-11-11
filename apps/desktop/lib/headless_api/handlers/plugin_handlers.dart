@@ -19,8 +19,19 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-class PluginHandlers {
+class PluginHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PluginApi.listPlugins: handleListPlugins,
+    PluginApi.uploadPlugin: handleUploadPlugin,
+    PluginApi.enablePlugin: handleEnablePlugin,
+    PluginApi.disablePlugin: handleDisablePlugin,
+    PluginApi.uninstallPlugin: handleUninstallPlugin,
+  };
+
   final ProviderContainer container;
 
   PluginHandlers(this.container);

@@ -1,7 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/body_limits.dart';
+import 'package:skotiq_desktop/headless_api/openapi.dart';
+import 'package:skotiq_desktop/headless_api/rate_limiting.dart';
+
+import '../support/route_policy.dart';
+
+const int oneMiB = ApiRoute.defaultMaxBodyBytes;
 
 void main() {
   group('resource-key tagging (fine-grained auth)', () {
@@ -15,7 +21,7 @@ void main() {
         'mount',
       );
       expect(
-        resourceKeyForEndpoint(method: 'POST', path: '/api/filter-wheel/set'),
+        resourceKeyForEndpoint(method: 'POST', path: '/api/filter-wheel/position'),
         'filter-wheel',
       );
       expect(
@@ -43,20 +49,13 @@ void main() {
       expect(
         resourceKeyForEndpoint(
           method: 'POST',
-          path: '/api/mosaic/collaborative/publish',
+          path: '/api/mosaic/projects/7/publish',
         ),
         'mosaic',
       );
       expect(
         resourceKeyForEndpoint(method: 'POST', path: '/api/coimaging/sessions'),
         'coimaging',
-      );
-      expect(
-        resourceKeyForEndpoint(
-          method: 'GET',
-          path: '/api/constellation/targets',
-        ),
-        'constellation',
       );
       // The live collaboration surface (shared-viewer join, broadcast preview,
       // chat, annotations) is the last collaborative route that still fell
@@ -162,13 +161,13 @@ void main() {
     test('builds HTTP route spec and excludes WebSocket routes', () {
       final spec = buildOpenApiSpec(
         port: 8081,
-        routes: const [
-          'GET /api/info',
-          'GET /api/files/browse',
-          'POST /api/mount/slew',
-          'POST /api/devices/connect',
-          'POST /api/targets/<id>/favorite',
-          'WS /events',
+        routes: [
+          routeFor('GET', '/api/info'),
+          routeFor('GET', '/api/files/browse'),
+          routeFor('POST', '/api/mount/slew'),
+          routeFor('POST', '/api/devices/connect'),
+          routeFor('POST', '/api/targets/<id>/favorite'),
+          routeFor('WS', '/events'),
         ],
       );
 
@@ -295,7 +294,7 @@ void main() {
       expect(
         validateContentLength(
           method: 'GET',
-          path: '/api/mount/slew',
+          limit: oneMiB,
           contentLengthHeader: '${oneMiB + 1}',
         ),
         isNull,
@@ -303,7 +302,7 @@ void main() {
       expect(
         validateContentLength(
           method: 'POST',
-          path: '/api/mount/slew',
+          limit: oneMiB,
           contentLengthHeader: null,
         ),
         isNull,
@@ -313,7 +312,7 @@ void main() {
     test('rejects invalid Content-Length headers', () {
       final result = validateContentLength(
         method: 'POST',
-        path: '/api/mount/slew',
+        limit: oneMiB,
         contentLengthHeader: 'invalid',
       );
 
@@ -325,7 +324,7 @@ void main() {
     test('rejects oversized default control requests', () {
       final result = validateContentLength(
         method: 'POST',
-        path: '/api/mount/slew',
+        limit: oneMiB,
         contentLengthHeader: '${oneMiB + 1}',
       );
 
@@ -485,7 +484,6 @@ void main() {
         '/api/coimaging/sessions/s1/join',
         '/api/coimaging/sessions/s1/close',
         '/api/coimaging/sessions/s1/baton/auto',
-        '/api/constellation/contribute',
       ]) {
         expect(
           endpointRateLimitFor(method: 'POST', path: path)!.maxRequests,
@@ -547,7 +545,7 @@ void main() {
       final limiter = EndpointRateLimiter(now: () => now);
 
       for (var i = 0; i < highRiskControlRateLimitMaxRequests; i++) {
-        final decision = limiter.check(
+        final decision = limiter.checkRequest(
           clientKey: 'client-a',
           method: 'POST',
           path: '/api/mount/slew',
@@ -555,7 +553,7 @@ void main() {
         expect(decision.allowed, isTrue);
       }
 
-      final blocked = limiter.check(
+      final blocked = limiter.checkRequest(
         clientKey: 'client-a',
         method: 'POST',
         path: '/api/mount/slew',
@@ -564,7 +562,7 @@ void main() {
       expect(blocked.retryAfterSeconds, greaterThan(0));
 
       now = now.add(defaultControlRateLimitWindow);
-      final afterWindow = limiter.check(
+      final afterWindow = limiter.checkRequest(
         clientKey: 'client-a',
         method: 'POST',
         path: '/api/mount/slew',
@@ -718,49 +716,43 @@ void main() {
     test('classifies live-view, image downloads, reads and writes', () {
       expect(
         tokenRouteClassFor(method: 'GET', path: '/api/camera/live-view/frame'),
-        TokenRouteClass.liveView,
+        ApiBucket.liveView,
       );
       expect(
         tokenRouteClassFor(method: 'GET', path: '/api/images/42/download'),
-        TokenRouteClass.imageDownload,
+        ApiBucket.imageDownload,
       );
       expect(
-        tokenRouteClassFor(method: 'POST', path: '/api/imaging/raw-data'),
-        TokenRouteClass.imageDownload,
+        tokenRouteClassFor(method: 'GET', path: '/api/imaging/raw-data'),
+        ApiBucket.imageDownload,
       );
       expect(
         tokenRouteClassFor(
           method: 'GET',
           path: '/api/calibration/darks/3/download',
         ),
-        TokenRouteClass.imageDownload,
+        ApiBucket.imageDownload,
       );
       expect(
         tokenRouteClassFor(method: 'GET', path: '/api/devices/connected'),
-        TokenRouteClass.read,
+        ApiBucket.read,
       );
       expect(
         tokenRouteClassFor(method: 'POST', path: '/api/mount/slew'),
-        TokenRouteClass.write,
+        ApiBucket.write,
       );
       // Bucket class names match the task spec wording.
-      expect(tokenRouteClassName(TokenRouteClass.read), 'read');
-      expect(tokenRouteClassName(TokenRouteClass.write), 'write');
-      expect(tokenRouteClassName(TokenRouteClass.liveView), 'live-view');
-      expect(
-        tokenRouteClassName(TokenRouteClass.imageDownload),
-        'image-download',
-      );
+      expect(ApiBucket.read.wireName, 'read');
+      expect(ApiBucket.write.wireName, 'write');
+      expect(ApiBucket.liveView.wireName, 'live-view');
+      expect(ApiBucket.imageDownload.wireName, 'image-download');
     });
 
     test('default bucket capacities match the task spec', () {
-      expect(defaultTokenBucketConfigs[TokenRouteClass.read]!.capacity, 60);
-      expect(defaultTokenBucketConfigs[TokenRouteClass.write]!.capacity, 20);
-      expect(defaultTokenBucketConfigs[TokenRouteClass.liveView]!.capacity, 30);
-      expect(
-        defaultTokenBucketConfigs[TokenRouteClass.imageDownload]!.capacity,
-        5,
-      );
+      expect(defaultTokenBucketConfigs[ApiBucket.read]!.capacity, 60);
+      expect(defaultTokenBucketConfigs[ApiBucket.write]!.capacity, 20);
+      expect(defaultTokenBucketConfigs[ApiBucket.liveView]!.capacity, 30);
+      expect(defaultTokenBucketConfigs[ApiBucket.imageDownload]!.capacity, 5);
     });
 
     test('exhausting a bucket returns 429 with refill-based retryAfter', () {
@@ -771,7 +763,7 @@ void main() {
       var now = DateTime.utc(2026, 1, 1, 0, 0, 0);
       final limiter = TokenBucketRateLimiter(
         configByClass: const {
-          TokenRouteClass.write: TokenBucketConfig(
+          ApiBucket.write: TokenBucketConfig(
             capacity: 3,
             refillTokens: 3,
             refillPeriod: Duration(seconds: 1),
@@ -784,7 +776,7 @@ void main() {
       for (var i = 0; i < 3; i++) {
         final decision = limiter.tryConsume(
           tokenId: 'tokA',
-          routeClass: TokenRouteClass.write,
+          routeClass: ApiBucket.write,
         );
         expect(decision.allowed, isTrue, reason: 'request $i should pass');
         expect(decision.bucket, 'token-write');
@@ -794,7 +786,7 @@ void main() {
       // Fourth must fail.
       final denied = limiter.tryConsume(
         tokenId: 'tokA',
-        routeClass: TokenRouteClass.write,
+        routeClass: ApiBucket.write,
       );
       expect(denied.allowed, isFalse);
       expect(denied.bucket, 'token-write');
@@ -805,7 +797,7 @@ void main() {
       now = now.add(const Duration(seconds: 2));
       final after = limiter.tryConsume(
         tokenId: 'tokA',
-        routeClass: TokenRouteClass.write,
+        routeClass: ApiBucket.write,
       );
       expect(
         after.allowed,
@@ -821,7 +813,7 @@ void main() {
       // token still has a fresh budget.
       final limiter = TokenBucketRateLimiter(
         configByClass: const {
-          TokenRouteClass.read: TokenBucketConfig(
+          ApiBucket.read: TokenBucketConfig(
             capacity: 2,
             refillTokens: 2,
             refillPeriod: Duration(seconds: 1),
@@ -830,28 +822,20 @@ void main() {
       );
       // Drain tokA's read bucket.
       expect(
-        limiter
-            .tryConsume(tokenId: 'tokA', routeClass: TokenRouteClass.read)
-            .allowed,
+        limiter.tryConsume(tokenId: 'tokA', routeClass: ApiBucket.read).allowed,
         isTrue,
       );
       expect(
-        limiter
-            .tryConsume(tokenId: 'tokA', routeClass: TokenRouteClass.read)
-            .allowed,
+        limiter.tryConsume(tokenId: 'tokA', routeClass: ApiBucket.read).allowed,
         isTrue,
       );
       expect(
-        limiter
-            .tryConsume(tokenId: 'tokA', routeClass: TokenRouteClass.read)
-            .allowed,
+        limiter.tryConsume(tokenId: 'tokA', routeClass: ApiBucket.read).allowed,
         isFalse,
       );
       // tokB starts fresh.
       expect(
-        limiter
-            .tryConsume(tokenId: 'tokB', routeClass: TokenRouteClass.read)
-            .allowed,
+        limiter.tryConsume(tokenId: 'tokB', routeClass: ApiBucket.read).allowed,
         isTrue,
       );
     });

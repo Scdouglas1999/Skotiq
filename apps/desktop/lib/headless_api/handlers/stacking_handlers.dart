@@ -7,6 +7,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Headless control surface for live stacking (real-time EAA integration).
 ///
@@ -21,7 +23,23 @@ import '../validation.dart';
 /// stacker itself ([onImageSaved], wired to the `ImageSaved` event stream in
 /// the server lifecycle). This also means stacking keeps accumulating even if
 /// the tablet disconnects.
-class StackingHandlers {
+class StackingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    StackingApi.start: handleStart,
+    StackingApi.addFrame: handleAddFrame,
+    StackingApi.updateConfig: handleUpdateConfig,
+    StackingApi.reset: handleReset,
+    StackingApi.stop: handleStop,
+    StackingApi.status: handleStatus,
+    StackingApi.stats: handleStats,
+    StackingApi.result: handleResult,
+    StackingApi.preview: handlePreview,
+    StackingApi.savedResults: handleSavedResults,
+    StackingApi.savedResultPreview: handleSavedResultPreview,
+    StackingApi.savedResult: handleSavedResult,
+  };
+
   final ProviderContainer container;
   final Future<String> Function(int resultId) _savedPreviewPathResolver;
 

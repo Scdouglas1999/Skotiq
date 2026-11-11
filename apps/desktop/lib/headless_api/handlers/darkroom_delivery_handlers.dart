@@ -7,6 +7,8 @@ import 'package:shelf/shelf.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// The rig side of **peer delivery** — the surface a paired desktop pulls the
 /// night's artifacts through.
@@ -46,14 +48,22 @@ import '../validation.dart';
 /// acknowledge on its behalf.
 ///
 /// What bounds that today is the scope, not the id: the whole
-/// `/api/darkroom/delivery/` prefix is `darkroom:control` (see
-/// `route_metadata/path_classification.dart`), so a read-only credential
+/// `/api/darkroom/delivery/` surface is declared `darkroom:control`, so a
+/// read-only credential
 /// cannot reach any of it and only a credential already trusted to run the rig
 /// can. Binding a peer to the credential that pairs as it needs a recorded
 /// association on the destination row and a pairing flow that sets it; until
 /// that exists this surface separates peers by NAME, not by AUTHORITY, and the
 /// journal's "delivered to &lt;peer&gt;" is only as strong as that.
-class DarkroomDeliveryHandlers {
+class DarkroomDeliveryHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DarkroomDeliveryApi.getDeliveryManifest: handleGetDeliveryManifest,
+    DarkroomDeliveryApi.downloadDeliveryArtifact:
+        handleDownloadDeliveryArtifact,
+    DarkroomDeliveryApi.acknowledgeDelivery: handleAcknowledgeDelivery,
+  };
+
   final ProviderContainer container;
 
   DarkroomDeliveryHandlers(this.container);

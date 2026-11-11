@@ -1,64 +1,36 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/openapi.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 void main() {
   group('headless API route contracts', () {
-    // A-5b's route-table refactor relocated route
-    // registrations from inline `router.<verb>(...)` calls in
-    // `headless_api_server.dart` into per-domain `routes/*.dart` files,
-    // and moved the advertised-endpoint catalog from
-    // `_getAvailableEndpoints()` in the server class to
-    // `availableHeadlessEndpoints()` in `handlers/system_handlers.dart`.
-    // These scanners follow the new locations.
-
-    test('advertised endpoints match registered API routes', () {
-      final registered = _registeredApiRoutes();
-      final advertised = _advertisedApiRoutes();
+    // The client still writes its paths as string literals, so this reads its
+    // source. Once it calls through the shared route declarations the check
+    // is the compiler's.
+    test('NetworkBackend call sites map to declared server routes', () {
+      final clientRoutes = _networkBackendRoutes(_networkBackendSource());
 
       expect(
-        advertised.difference(registered),
-        isEmpty,
-        reason: 'Advertised endpoints must be registered by HeadlessApiServer.',
-      );
-      expect(
-        registered.difference(advertised),
-        isEmpty,
-        reason:
-            'Every registered API endpoint must be advertised in /api/info and OpenAPI.',
-      );
-    });
-
-    test('NetworkBackend call sites map to registered server routes', () {
-      final clientSource = _networkBackendSource();
-
-      final registered = _registeredApiRoutes()
-          .where((route) => !route.startsWith('WS '))
-          .toSet();
-      final clientRoutes = _networkBackendRoutes(clientSource);
-
-      expect(
-        clientRoutes.difference(registered),
+        clientRoutes.difference(_declaredHttpRoutes()),
         isEmpty,
         reason: 'NetworkBackend must not call endpoints missing on the server.',
       );
     });
 
-    test('OpenAPI spec advertises every HTTP route from the route table', () {
-      final advertised = _advertisedApiRoutes();
-      final spec = buildOpenApiSpec(routes: advertised.toList(), port: 8080);
+    test('OpenAPI spec lists every advertised HTTP route', () {
+      final routes = [
+        for (final endpoint in apiEndpoints)
+          if (endpoint.route.path.startsWith('/api/')) endpoint.route,
+      ];
+      final spec = buildOpenApiSpec(routes: routes, port: 8080);
       final paths = spec['paths'] as Map<String, dynamic>;
 
-      for (final route in advertised.where(
-        (route) => !route.startsWith('WS '),
-      )) {
-        final parts = route.split(' ');
-        final method = parts.first.toLowerCase();
-        final path = openApiPath(parts.last);
+      for (final route in routes.where((r) => r.method != ApiMethod.ws)) {
         expect(
-          paths[path],
-          contains(method),
+          paths[openApiPath(route.path)],
+          contains(route.method.wireName.toLowerCase()),
           reason: 'OpenAPI must include advertised route $route.',
         );
       }
@@ -106,11 +78,10 @@ void main() {
       'POST /api/firstlight/{param}/export/mpc',
     };
 
-    test('every Living Sky NetworkBackend call is registered + advertised', () {
+    test('every Living Sky NetworkBackend call has a host route', () {
       final clientSource = _networkBackendSource();
       final clientRoutes = _networkBackendRoutes(clientSource);
-      final registered = _registeredApiRoutes();
-      final advertised = _advertisedApiRoutes();
+      final declared = _declaredHttpRoutes();
 
       for (final route in livingSkyClientRoutes) {
         expect(
@@ -121,16 +92,9 @@ void main() {
               'surfaces host Living Sky data instead of empty local state.',
         );
         expect(
-          registered,
+          declared,
           contains(route),
-          reason: 'Living Sky route $route must be registered on the host.',
-        );
-        expect(
-          advertised,
-          contains(route),
-          reason:
-              'Living Sky route $route must be advertised in /api/info so the '
-              'slave can discover it.',
+          reason: 'Living Sky route $route must be served by the host.',
         );
       }
     });
@@ -146,10 +110,7 @@ void main() {
     test('Constellation NetworkBackend calls (if any) map to host routes', () {
       final clientSource = _networkBackendSource();
       final clientRoutes = _networkBackendRoutes(clientSource);
-      final registered = _registeredApiRoutes()
-          .where((route) => !route.startsWith('WS '))
-          .toSet();
-      final advertised = _advertisedApiRoutes();
+      final declared = _declaredHttpRoutes();
 
       final constellationCalls = clientRoutes
           .where(
@@ -163,111 +124,27 @@ void main() {
 
       for (final route in constellationCalls) {
         expect(
-          registered,
+          declared,
           contains(route),
           reason:
-              'A new Constellation slave method ($route) must register a host '
-              'route — a slave Constellation call with no route is the '
-              'slave-blind bug class.',
-        );
-        expect(
-          advertised,
-          contains(route),
-          reason: 'Constellation route $route must be advertised in /api/info.',
+              'A new Constellation slave method ($route) needs a host route — '
+              'a slave Constellation call with no route is the slave-blind '
+              'bug class.',
         );
       }
     });
   });
 }
 
-/// Scan all per-domain route files under `lib/headless_api/routes/` for
-/// `HeadlessRoute(HttpMethod.<verb>, '<path>', ...)` entries, plus the
-/// remaining inline `router.<verb>(...)` calls in `headless_api_server.dart`
-/// (WebSocket upgrade routes still live there because they take a built
-/// `Handler` closure).
-Set<String> _registeredApiRoutes() {
-  final routeFiles = Directory('lib/headless_api/routes')
-      .listSync()
-      .whereType<File>()
-      .where(
-        (f) =>
-            f.path.endsWith('.dart') && !f.path.endsWith('headless_route.dart'),
-      );
-  final allSource = StringBuffer();
-  for (final f in routeFiles) {
-    allSource.writeln(f.readAsStringSync());
-  }
-  allSource.writeln(File('lib/headless_api_server.dart').readAsStringSync());
-  return _scanRegisteredRoutes(allSource.toString());
-}
-
-Set<String> _scanRegisteredRoutes(String source) {
-  final headlessRoutes =
-      RegExp(
-        r"HeadlessRoute\(\s*HttpMethod\.(get|post|put|delete)\s*,\s*'([^']+)'",
-      ).allMatches(source).map((match) {
-        final path = match.group(2)!;
-        // Same WS-route classification rule as the legacy inline-route scanner:
-        // `/api/ws`, `/events`, and `/ws/*` upgrade routes are advertised as
-        // `WS <path>` in `availableHeadlessEndpoints()`, even though shelf_router
-        // registers them as HTTP GET handlers. websocket_routes.dart does this.
-        final isWsRoute =
-            path == '/api/ws' || path == '/events' || path.startsWith('/ws/');
-        // Static-file routes (`/dashboard`, `/broadcast`, `/run-watch`) are
-        // registered but deliberately NOT advertised in the API catalog —
-        // they're operator-facing pages, not endpoints clients call.
-        if (!path.startsWith('/api/') && !isWsRoute) {
-          return null;
-        }
-        final method = isWsRoute ? 'WS' : match.group(1)!.toUpperCase();
-        return '$method ${_normalizeRoute(path)}';
-      }).whereType<String>();
-  final inlineRoutes = RegExp(r"router\.(get|post|put|delete)\(\s*'([^']+)'")
-      .allMatches(source)
-      .map((match) {
-        final path = match.group(2)!;
-        // also surface `/ws/*` upgrade routes (e.g. /ws/live-view)
-        // so the advertised-vs-registered diff catches typos in either
-        // place.
-        final isWsRoute =
-            path == '/api/ws' || path == '/events' || path.startsWith('/ws/');
-        if (!path.startsWith('/api/') && !isWsRoute) {
-          return null;
-        }
-
-        final method = isWsRoute ? 'WS' : match.group(1)!.toUpperCase();
-        return '$method ${_normalizeRoute(path)}';
-      })
-      .whereType<String>();
-  return {...headlessRoutes, ...inlineRoutes};
-}
-
-Set<String> _advertisedApiRoutes() {
-  // A-5b moved this catalog from `_getAvailableEndpoints()` in
-  // `headless_api_server.dart` to `availableHeadlessEndpoints()`; it now lives
-  // in its own `handlers/system_endpoint_catalog.dart` (re-exported from
-  // `handlers/system_handlers.dart`).
-  final source = File(
-    'lib/headless_api/handlers/system_endpoint_catalog.dart',
-  ).readAsStringSync();
-  final match = RegExp(
-    r'List<String> availableHeadlessEndpoints\(\) \{\s*return (?:const )?\[(.*?)\];\s*\}',
-    dotAll: true,
-  ).firstMatch(source);
-
-  expect(
-    match,
-    isNotNull,
-    reason:
-        'availableHeadlessEndpoints() not found in system_endpoint_catalog.dart.',
-  );
-
-  return RegExp(r"'([^']+)'").allMatches(match!.group(1)!).map((match) {
-    final parts = match.group(1)!.split(' ');
-    expect(parts, hasLength(2));
-    return '${parts[0]} ${_normalizeRoute(parts[1])}';
-  }).toSet();
-}
+/// The declared HTTP routes with every path parameter written `{param}`, the
+/// form [_networkBackendRoutes] reduces the client's interpolations to.
+Set<String> _declaredHttpRoutes() => {
+  for (final endpoint in apiEndpoints)
+    if (endpoint.route.method != ApiMethod.ws &&
+        endpoint.route.path.startsWith('/api/'))
+      '${endpoint.route.method.wireName} '
+          '${_normalizeRoute(endpoint.route.path)}',
+};
 
 Set<String> _networkBackendRoutes(String source) {
   return RegExp(

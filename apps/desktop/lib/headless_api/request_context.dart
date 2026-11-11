@@ -9,7 +9,7 @@
 ///     ([requestIdContextKey] / [requestIdFrom]),
 ///   * the SHA-256 digest of the bearer token that authenticated the
 ///     request, if any ([authIdentityContextKey] / [authIdentityFrom]),
-///   * the [route_metadata.TokenRouteClass] the request mapped to
+///   * the [ApiBucket] the request mapped to
 ///     ([authRouteClassContextKey]).
 ///
 /// The constants and accessor functions live in this module rather than
@@ -21,7 +21,7 @@ library;
 
 import 'package:shelf/shelf.dart';
 
-import 'route_metadata.dart' as route_metadata;
+import 'package:skotiq_remote_protocol/wire.dart';
 
 /// HTTP header name carrying the per-request id. Echoed back on every
 /// non-WebSocket response by `_requestTrackingMiddleware`.
@@ -42,7 +42,7 @@ const String requestIdContextKey = 'requestId';
 const String authIdentityContextKey = 'skotiq.authIdentity';
 
 /// Shelf request-context key holding the bound
-/// [route_metadata.TokenRouteClass] for the current request. Memoised by
+/// [ApiBucket] for the current request. Memoised by
 /// the auth middleware so the rate-limit middleware doesn't have to
 /// re-classify the path.
 const String authRouteClassContextKey = 'skotiq.authRouteClass';

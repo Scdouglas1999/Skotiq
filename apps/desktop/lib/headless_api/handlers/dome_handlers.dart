@@ -7,9 +7,24 @@ import 'package:shelf/shelf.dart';
 import '../device_commands_route.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for dome control endpoints
-class DomeHandlers {
+class DomeHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DomeApi.open: handleDomeOpen,
+    DomeApi.close: handleDomeClose,
+    DomeApi.slew: handleDomeSlew,
+    DomeApi.domeSync: handleDomeSync,
+    DomeApi.park: handleDomePark,
+    DomeApi.home: handleDomeHome,
+    DomeApi.halt: handleDomeHalt,
+    DomeApi.status: handleDomeStatus,
+    DomeApi.capabilities: handleDomeCapabilities,
+  };
+
   final ProviderContainer container;
 
   DomeHandlers(this.container);

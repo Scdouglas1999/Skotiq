@@ -4,6 +4,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for cloud backup/sync (bundle-based push to a WebDAV target).
 ///
@@ -12,7 +14,13 @@ import '../validation.dart';
 /// the headless surface only exposes what a remote couch client needs —
 /// sync status and "push now". Pull/restore over the API already exists
 /// via `/api/backup/upload-restore`.
-class SyncHandlers {
+class SyncHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SyncApi.getStatus: handleGetStatus,
+    SyncApi.pushNow: handlePushNow,
+  };
+
   final ProviderContainer container;
   SyncHandlers(this.container);
 

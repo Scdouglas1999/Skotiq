@@ -43,6 +43,8 @@ import '../auth_policy.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// How a brand-new device is allowed to pair.
 ///
@@ -202,7 +204,15 @@ typedef ClearAuthFailures = void Function(String clientKey);
 /// code on a headless appliance.
 const String kPairingCodeFileName = 'pairing-code.txt';
 
-class PairingHandlers {
+class PairingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PairingApi.start: handlePairingStart,
+    PairingApi.verify: handlePairingVerify,
+    PairingApi.lanClaim: handleLanClaim,
+    PairingApi.activeList: handlePairingActiveList,
+  };
+
   final PairingAttemptTracker pairingAttempts;
   final EnsurePairingService ensurePairingService;
   final RecordPairedSession recordPairedSession;
@@ -555,10 +565,8 @@ class PairingHandlers {
   }
 
   /// `GET /api/pairing/active` — admin-only diagnostic listing of
-  /// currently-valid pairing sessions. Behind the auth middleware (the
-  /// path is NOT in `publicPaths`) and gated to admin scope via
-  /// `_adminOnlyPaths`; the handler itself does not need a secondary
-  /// scope check.
+  /// currently-valid pairing sessions. The route is declared admin-only, so
+  /// the handler needs no scope check of its own.
   ///
   /// Returns `{ sessions: [{code, expiresAt, expiresInSeconds}, ...] }`.
   Future<Response> handlePairingActiveList(Request request) async {

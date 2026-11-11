@@ -55,9 +55,31 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Read handlers for the DB tables the phone reads directly.
-class DbReadHandlers {
+class DbReadHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DbReadApi.listSequenceRuns: handleListSequenceRuns,
+    DbReadApi.getSequenceRunEvents: handleGetSequenceRunEvents,
+    DbReadApi.getSequenceRunFrames: handleGetSequenceRunFrames,
+    DbReadApi.getSequenceRunById: handleGetSequenceRunById,
+    DbReadApi.listNotesJournal: handleListNotesJournal,
+    DbReadApi.createObservationLog: handleCreateObservationLog,
+    DbReadApi.deleteObservationLog: handleDeleteObservationLog,
+    DbReadApi.deleteAllObservationLogs: handleDeleteAllObservationLogs,
+    DbReadApi.listJournalNotes: handleListJournalNotes,
+    DbReadApi.createJournalNote: handleCreateJournalNote,
+    DbReadApi.updateJournalNote: handleUpdateJournalNote,
+    DbReadApi.deleteJournalNote: handleDeleteJournalNote,
+    DbReadApi.listGuideRmsHistory: handleListGuideRmsHistory,
+    DbReadApi.listPolarAlignmentHistory: handleListPolarAlignmentHistory,
+    DbReadApi.listDarkLibrary: handleListDarkLibrary,
+    DbReadApi.listFlatHistory: handleListFlatHistory,
+  };
+
   /// Default page size. Same value as the science / calibration read
   /// surfaces use, so phone callers can apply one batching policy.
   static const int defaultLimit = 200;

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/rate_limiting.dart';
+
+import '../support/route_policy.dart';
 
 /// `EndpointRateLimiter` keys on `(clientKey, method, concrete path)`, and
 /// several rate-limited prefixes are parametric — every distinct
@@ -20,7 +22,7 @@ void main() {
       final limiter = EndpointRateLimiter(now: () => now, maxEntries: 2);
 
       bool post(String path) => limiter
-          .check(clientKey: 'client-a', method: 'POST', path: path)
+          .checkRequest(clientKey: 'client-a', method: 'POST', path: path)
           .allowed;
 
       final seed = contributePath('seed');
@@ -44,7 +46,7 @@ void main() {
       final limiter = EndpointRateLimiter(now: () => now);
 
       bool post(String path) => limiter
-          .check(clientKey: 'client-a', method: 'POST', path: path)
+          .checkRequest(clientKey: 'client-a', method: 'POST', path: path)
           .allowed;
 
       final seed = contributePath('seed');
@@ -69,7 +71,7 @@ void main() {
       final limiter = EndpointRateLimiter(now: () => now, maxEntries: 4);
 
       bool post(String path) => limiter
-          .check(clientKey: 'client-a', method: 'POST', path: path)
+          .checkRequest(clientKey: 'client-a', method: 'POST', path: path)
           .allowed;
 
       final hot = contributePath('hot');

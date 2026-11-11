@@ -8,9 +8,23 @@ import 'package:uuid/uuid.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for backup and restore operations
-class BackupHandlers {
+class BackupHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    BackupApi.listBackups: handleListBackups,
+    BackupApi.createBackup: handleCreateBackup,
+    BackupApi.restoreBackup: handleRestoreBackup,
+    BackupApi.autoSaveBackup: handleAutoSaveBackup,
+    BackupApi.uploadRestoreBackup: handleUploadRestoreBackup,
+    BackupApi.getBackupMetadata: handleGetBackupMetadata,
+    BackupApi.downloadBackup: handleDownloadBackup,
+    BackupApi.deleteBackup: handleDeleteBackup,
+  };
+
   static const int _maxBackupUploadBytes = 256 * 1024 * 1024;
 
   /// Filename pattern: skotiq-backup-{timestamp}-{uuid}.skbackup.

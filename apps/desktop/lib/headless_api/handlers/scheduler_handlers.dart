@@ -5,6 +5,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for intelligent scheduler endpoints
 ///
@@ -16,7 +18,22 @@ import '../validation.dart';
 /// - Target optimization for tonight
 /// - Twilight times
 /// - Moon information
-class SchedulerHandlers {
+class SchedulerHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SchedulerApi.previewDecision: handlePreviewDecision,
+    SchedulerApi.getState: handleGetState,
+    SchedulerApi.control: handleControl,
+    SchedulerApi.updateConfig: handleUpdateConfig,
+    SchedulerApi.calculateAltitude: handleCalculateAltitude,
+    SchedulerApi.calculateTransitTime: handleCalculateTransitTime,
+    SchedulerApi.calculateRiseSet: handleCalculateRiseSet,
+    SchedulerApi.calculateHoursAbove: handleCalculateHoursAbove,
+    SchedulerApi.optimizeTargets: handleOptimizeTargets,
+    SchedulerApi.getTwilightTimes: handleGetTwilightTimes,
+    SchedulerApi.getMoonInfo: handleGetMoonInfo,
+  };
+
   final ProviderContainer container;
 
   SchedulerHandlers(this.container);

@@ -4,9 +4,25 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for transient astronomical event alerts
-class TransientHandlers {
+class TransientHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    TransientApi.getActiveTransients: handleGetActiveTransients,
+    TransientApi.getSettings: handleGetSettings,
+    TransientApi.updateSettings: handleUpdateSettings,
+    TransientApi.getQueued: handleGetQueued,
+    TransientApi.getStates: handleGetStates,
+    TransientApi.clearStates: handleClearStates,
+    TransientApi.queueTransient: handleQueueTransient,
+    TransientApi.dismissTransient: handleDismissTransient,
+    TransientApi.updateState: handleUpdateState,
+    TransientApi.refreshAlerts: handleRefreshAlerts,
+  };
+
   final ProviderContainer container;
 
   TransientHandlers(this.container);

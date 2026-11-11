@@ -6,6 +6,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for safety monitor endpoints
 ///
@@ -13,7 +15,16 @@ import '../validation.dart';
 /// various conditions like weather, power status, or custom sensor inputs.
 /// Multiple safety monitors can be connected, and all must report "safe"
 /// for the system to consider conditions safe for imaging.
-class SafetyMonitorHandlers {
+class SafetyMonitorHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SafetyMonitorApi.safetyStatus: handleSafetyStatus,
+    SafetyMonitorApi.getSafetySettings: handleGetSafetySettings,
+    SafetyMonitorApi.updateSafetySettings: handleUpdateSafetySettings,
+    SafetyMonitorApi.acknowledgeUnsafe: handleAcknowledgeUnsafe,
+    SafetyMonitorApi.cancelAcknowledgement: handleCancelAcknowledgement,
+  };
+
   final ProviderContainer container;
 
   SafetyMonitorHandlers(this.container);

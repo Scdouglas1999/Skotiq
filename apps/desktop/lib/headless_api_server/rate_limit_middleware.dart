@@ -46,7 +46,7 @@ extension _HeadlessApiServerRateLimitMiddleware on HeadlessApiServer {
               request: request,
               path: path,
               decision: tokenDecision,
-              bucketLabel: route_metadata.tokenRouteClassName(routeClass),
+              bucketLabel: routeClass.wireName,
               identity: identity,
             );
           }
@@ -61,6 +61,7 @@ extension _HeadlessApiServerRateLimitMiddleware on HeadlessApiServer {
           clientKey: _rateLimitClientKey(request),
           method: request.method,
           path: path,
+          tier: RouteTable.of(request).policy.rate,
         );
         if (decision.allowed) {
           return null;
@@ -85,7 +86,7 @@ extension _HeadlessApiServerRateLimitMiddleware on HeadlessApiServer {
   Response _denyRateLimited({
     required Request request,
     required String path,
-    required route_metadata.RateLimitDecision decision,
+    required RateLimitDecision decision,
     required String bucketLabel,
     String? identity,
   }) {
@@ -135,10 +136,7 @@ extension _HeadlessApiServerRateLimitMiddleware on HeadlessApiServer {
     return (innerHandler) {
       return (request) async {
         final path = '/${request.url.path}';
-        final auditAction = route_metadata.highRiskAuditActionFor(
-          method: request.method,
-          path: path,
-        );
+        final auditAction = RouteTable.of(request).policy.audit;
         if (auditAction == null) {
           return innerHandler(request);
         }

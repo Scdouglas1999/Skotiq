@@ -4,9 +4,19 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for target suggestion service
-class SuggestionHandlers {
+class SuggestionHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SuggestionApi.getSuggestionsForTonight: handleGetSuggestionsForTonight,
+    SuggestionApi.getRankedSuggestions: handleGetRankedSuggestions,
+    SuggestionApi.getConfig: handleGetConfig,
+    SuggestionApi.getTargetScore: handleGetTargetScore,
+  };
+
   final ProviderContainer container;
 
   SuggestionHandlers(this.container);

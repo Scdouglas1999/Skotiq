@@ -16,10 +16,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/calibration_handlers.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 class _MockDefectMapService extends Mock implements DefectMapService {}
 
@@ -276,16 +277,13 @@ void main() {
             Uri.parse(
               'http://localhost/api/calibration/darks/upload?meta=${Uri.encodeQueryComponent(meta)}',
             ),
-            headers: {
-              'content-length': (backupUploadMaxRequestBodyBytes + 1)
-                  .toString(),
-            },
+            headers: {'content-length': (ApiBodyLimit.archive + 1).toString()},
           ),
         ),
       );
       expect(response.statusCode, HttpStatus.requestEntityTooLarge);
       final responseBody = jsonDecode(await response.readAsString()) as Map;
-      expect(responseBody['maxBytes'], backupUploadMaxRequestBodyBytes);
+      expect(responseBody['maxBytes'], ApiBodyLimit.archive);
     });
 
     // DELETE /api/calibration/darks/{id}
@@ -1239,7 +1237,7 @@ void main() {
     test('Upload body limit matches backup upload', () {
       expect(
         requestBodyLimitForPath('/api/calibration/darks/upload'),
-        backupUploadMaxRequestBodyBytes,
+        ApiBodyLimit.archive,
       );
     });
   });

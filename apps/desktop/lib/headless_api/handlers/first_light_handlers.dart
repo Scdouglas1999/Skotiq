@@ -6,6 +6,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for Pillar B ("First Light") — the difference-imaging transient
 /// discovery surface.
@@ -13,9 +15,20 @@ import '../validation.dart';
 /// The difference pipeline and its persistence run on the appliance/desktop
 /// (where solved frames land); a remote tablet/desktop cannot watch that DB, so
 /// these endpoints expose the persisted [TransientDetectionRow] feed over REST
-/// and let a remote client triage (review / dismiss) a candidate. Reads default
-/// to `view` scope, the triage mutations to `control`, per `route_metadata`.
-class FirstLightHandlers {
+/// and let a remote client triage (review / dismiss) a candidate.
+class FirstLightHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FirstLightApi.getCandidates: handleGetCandidates,
+    FirstLightApi.getNear: handleGetNear,
+    FirstLightApi.getCrop: handleGetCrop,
+    FirstLightApi.review: handleReview,
+    FirstLightApi.dismiss: handleDismiss,
+    FirstLightApi.submitTns: handleSubmitTns,
+    FirstLightApi.exportAavso: handleExportAavso,
+    FirstLightApi.exportMpc: handleExportMpc,
+  };
+
   final ProviderContainer container;
 
   FirstLightHandlers(this.container);

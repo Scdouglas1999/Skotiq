@@ -4,6 +4,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Host endpoints serving the planner/scheduler DATA tables to remote slaves.
 ///
@@ -15,7 +17,29 @@ import '../validation.dart';
 /// Planner's Projects tab is empty. These handlers read the same host-side
 /// services the desktop app uses (so the host path is unchanged) and serialize
 /// the rows over REST.
-class PlanningDataHandlers {
+class PlanningDataHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PlanningDataApi.getIntegrationGoals: handleGetIntegrationGoals,
+    PlanningDataApi.getCapturedFrameCount: handleGetCapturedFrameCount,
+    PlanningDataApi.upsertIntegrationGoal: handleUpsertIntegrationGoal,
+    PlanningDataApi.deleteIntegrationGoal: handleDeleteIntegrationGoal,
+    PlanningDataApi.getTargetConstraints: handleGetTargetConstraints,
+    PlanningDataApi.insertTargetConstraint: handleInsertTargetConstraint,
+    PlanningDataApi.updateTargetConstraint: handleUpdateTargetConstraint,
+    PlanningDataApi.setTargetConstraintEnabled:
+        handleSetTargetConstraintEnabled,
+    PlanningDataApi.deleteTargetConstraint: handleDeleteTargetConstraint,
+    PlanningDataApi.getSchedulerRemovedTargets:
+        handleGetSchedulerRemovedTargets,
+    PlanningDataApi.removeSchedulerTarget: handleRemoveSchedulerTarget,
+    PlanningDataApi.readmitSchedulerTarget: handleReadmitSchedulerTarget,
+    PlanningDataApi.getHorizonProfiles: handleGetHorizonProfiles,
+    PlanningDataApi.getProjects: handleGetProjects,
+    PlanningDataApi.getProjectTargets: handleGetProjectTargets,
+    PlanningDataApi.getProjectProgress: handleGetProjectProgress,
+  };
+
   final ProviderContainer container;
 
   PlanningDataHandlers(this.container);

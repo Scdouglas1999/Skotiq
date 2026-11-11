@@ -15,6 +15,8 @@ import '../response_helpers.dart';
 import '../utils/device_type_parser.dart';
 import '../validation.dart';
 import 'frame_measurement_headers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 part 'device_handlers/connection_lifecycle.dart';
 part 'device_handlers/camera_handlers.dart';
@@ -43,7 +45,74 @@ bool requestPrefersLegacyBlocking(Request request) {
 }
 
 /// Handlers for device control endpoints (camera, mount, focuser, filter wheel, rotator)
-class DeviceHandlers {
+class DeviceHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DeviceApi.connectDevice: handleConnectDevice,
+    DeviceApi.disconnectDevice: handleDisconnectDevice,
+    DeviceApi.cameraExpose: handleCameraExpose,
+    DeviceApi.cameraAbort: handleCameraAbort,
+    DeviceApi.cameraGetLastImage: handleCameraGetLastImage,
+    DeviceApi.cameraGetLastImageJpeg: handleCameraGetLastImageJpeg,
+    DeviceApi.cameraLiveViewFrame: handleCameraLiveViewFrame,
+    DeviceApi.cameraSetCooling: handleCameraSetCooling,
+    DeviceApi.cameraGetCooling: handleCameraGetCooling,
+    DeviceApi.cameraStartWarmUp: handleCameraStartWarmUp,
+    DeviceApi.cameraCancelWarmUp: handleCameraCancelWarmUp,
+    DeviceApi.cameraGetWarmUp: handleCameraGetWarmUp,
+    DeviceApi.cameraGetReadoutModes: handleCameraGetReadoutModes,
+    DeviceApi.cameraSetReadoutMode: handleCameraSetReadoutMode,
+    DeviceApi.cameraSetGain: handleCameraSetGain,
+    DeviceApi.cameraSetOffset: handleCameraSetOffset,
+    DeviceApi.cameraGetRecommendedSettings: handleCameraGetRecommendedSettings,
+    DeviceApi.mountSlew: handleMountSlew,
+    DeviceApi.mountSync: handleMountSync,
+    DeviceApi.mountPark: handleMountPark,
+    DeviceApi.mountSiteCapabilities: handleMountSiteCapabilities,
+    DeviceApi.mountGetSite: handleMountGetSite,
+    DeviceApi.mountSetSite: handleMountSetSite,
+    DeviceApi.mountGetTime: handleMountGetTime,
+    DeviceApi.mountSetTime: handleMountSetTime,
+    DeviceApi.mountUnpark: handleMountUnpark,
+    DeviceApi.mountSetTracking: handleMountSetTracking,
+    DeviceApi.mountPulseGuide: handleMountPulseGuide,
+    DeviceApi.mountAbort: handleMountAbort,
+    DeviceApi.mountGetStatus: handleMountGetStatus,
+    DeviceApi.mountSetTrackingRate: handleMountSetTrackingRate,
+    DeviceApi.mountMoveAxis: handleMountMoveAxis,
+    DeviceApi.mountSlewAltAz: handleMountSlewAltAz,
+    DeviceApi.mountHomeHome: handleMountHome,
+    DeviceApi.mountHomeFindHome: handleMountHome,
+    DeviceApi.mountSetPark: handleMountSetPark,
+    DeviceApi.mountGuardState: handleMountGuardState,
+    DeviceApi.mountGuardAcknowledge: handleMountGuardAcknowledge,
+    DeviceApi.mountGuardConfirmHome: handleMountGuardConfirmHome,
+    DeviceApi.mountGuardSolve: handleMountGuardSolve,
+    DeviceApi.mountGuardRecoverySync: handleMountGuardRecoverySync,
+    DeviceApi.focuserMoveTo: handleFocuserMoveTo,
+    DeviceApi.focuserMoveRelative: handleFocuserMoveRelative,
+    DeviceApi.focuserHalt: handleFocuserHalt,
+    DeviceApi.autofocusStart: handleAutofocusStart,
+    DeviceApi.autofocusCancel: handleAutofocusCancel,
+    DeviceApi.focuserBacklashCalibrationStart:
+        handleFocuserBacklashCalibrationStart,
+    DeviceApi.focuserBacklashCalibrationCancel:
+        handleFocuserBacklashCalibrationCancel,
+    DeviceApi.focuserBacklashCalibrationPlan:
+        handleFocuserBacklashCalibrationPlan,
+    DeviceApi.filterWheelSetPosition: handleFilterWheelSetPosition,
+    DeviceApi.filterWheelGetPosition: handleFilterWheelGetPosition,
+    DeviceApi.filterWheelGetNames: handleFilterWheelGetNames,
+    DeviceApi.filterWheelSetNames: handleFilterWheelSetNames,
+    DeviceApi.filterWheelSetByName: handleFilterWheelSetByName,
+    DeviceApi.rotatorMoveTo: handleRotatorMoveTo,
+    DeviceApi.rotatorMoveRelative: handleRotatorMoveRelative,
+    DeviceApi.rotatorGetStatus: handleRotatorGetStatus,
+    DeviceApi.rotatorHalt: handleRotatorHalt,
+    DeviceApi.rotatorSync: handleRotatorSync,
+    DeviceApi.rotatorSetReverse: handleRotatorSetReverse,
+  };
+
   final ProviderContainer container;
 
   /// optional command correlator. When set, every action POST

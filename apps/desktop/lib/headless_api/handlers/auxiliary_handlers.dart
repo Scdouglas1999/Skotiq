@@ -7,9 +7,23 @@ import 'package:shelf/shelf.dart';
 import '../device_commands_route.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for auxiliary device endpoints (Switch and Cover Calibrator)
-class AuxiliaryHandlers {
+class AuxiliaryHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    AuxiliaryApi.switchStatus: handleSwitchStatus,
+    AuxiliaryApi.switchSet: handleSwitchSet,
+    AuxiliaryApi.coverStatus: handleCoverStatus,
+    AuxiliaryApi.coverOpen: handleCoverOpen,
+    AuxiliaryApi.coverClose: handleCoverClose,
+    AuxiliaryApi.coverBrightness: handleCoverBrightness,
+    AuxiliaryApi.calibratorOn: handleCalibratorOn,
+    AuxiliaryApi.calibratorOff: handleCalibratorOff,
+  };
+
   final ProviderContainer container;
 
   AuxiliaryHandlers(this.container);

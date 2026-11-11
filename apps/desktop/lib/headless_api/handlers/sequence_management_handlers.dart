@@ -10,10 +10,40 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for sequence management (CRUD operations)
 /// This is SEPARATE from sequencer_handlers.dart which controls sequencer execution.
-class SequenceManagementHandlers {
+class SequenceManagementHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SequenceManagementApi.getAllSequences: handleGetAllSequences,
+    SequenceManagementApi.listFullSequences: handleListFullSequences,
+    SequenceManagementApi.listFullTemplates: handleListFullTemplates,
+    SequenceManagementApi.saveFullSequence: handleSaveFullSequence,
+    SequenceManagementApi.listSequenceSummaries: handleListSequenceSummaries,
+    SequenceManagementApi.getVersion: handleGetVersion,
+    SequenceManagementApi.getFullSequence: handleGetFullSequence,
+    SequenceManagementApi.getAllTemplates: handleGetAllTemplates,
+    SequenceManagementApi.getSequenceById: handleGetSequenceById,
+    SequenceManagementApi.getNodesForSequence: handleGetNodesForSequence,
+    SequenceManagementApi.getChildNodes: handleGetChildNodes,
+    SequenceManagementApi.listVersions: handleListVersions,
+    SequenceManagementApi.createSequence: handleCreateSequence,
+    SequenceManagementApi.updateSequence: handleUpdateSequence,
+    SequenceManagementApi.deleteSequence: handleDeleteSequence,
+    SequenceManagementApi.duplicateSequence: handleDuplicateSequence,
+    SequenceManagementApi.setTags: handleSetTags,
+    SequenceManagementApi.toggleFavorite: handleToggleFavorite,
+    SequenceManagementApi.snapshotVersion: handleSnapshotVersion,
+    SequenceManagementApi.createNode: handleCreateNode,
+    SequenceManagementApi.updateNode: handleUpdateNode,
+    SequenceManagementApi.deleteNode: handleDeleteNode,
+    SequenceManagementApi.reorderNodes: handleReorderNodes,
+    SequenceManagementApi.setNodeEnabled: handleSetNodeEnabled,
+  };
+
   final ProviderContainer container;
 
   static const Set<String> _logicNodeTypes = {

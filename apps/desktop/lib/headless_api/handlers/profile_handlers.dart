@@ -11,9 +11,34 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for profile and settings endpoints
-class ProfileHandlers {
+class ProfileHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ProfileApi.getProfiles: handleGetProfiles,
+    ProfileApi.saveProfile: handleSaveProfile,
+    ProfileApi.reorderProfiles: handleReorderProfiles,
+    ProfileApi.clearDefaultProfile: handleClearDefaultProfile,
+    ProfileApi.deleteProfile: handleDeleteProfile,
+    ProfileApi.loadProfile: handleLoadProfile,
+    ProfileApi.setDefaultProfile: handleSetDefaultProfile,
+    ProfileApi.getActiveProfile: handleGetActiveProfile,
+    ProfileApi.getSettings: handleGetSettings,
+    ProfileApi.updateSettings: handleUpdateSettings,
+    ProfileApi.getSettingsStore: handleGetSettingsStore,
+    ProfileApi.updateSettingsStore: handleUpdateSettingsStore,
+    ProfileApi.getMeridianFlipSettings: handleGetMeridianFlipSettings,
+    ProfileApi.updateMeridianFlipSettings: handleUpdateMeridianFlipSettings,
+    ProfileApi.getHomeAssistantSettings: handleGetHomeAssistantSettings,
+    ProfileApi.updateHomeAssistantSettings: handleUpdateHomeAssistantSettings,
+    ProfileApi.getLocation: handleGetLocation,
+    ProfileApi.setLocation: handleSetLocation,
+    ProfileApi.getLocationFromInternet: handleGetLocationFromInternet,
+  };
+
   final ProviderContainer container;
 
   /// Emit `settings.changed` events for each individual

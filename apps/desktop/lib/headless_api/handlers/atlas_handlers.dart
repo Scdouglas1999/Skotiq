@@ -6,6 +6,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the Pillar A ("Your Sky") personal sky-atlas surface.
 ///
@@ -14,7 +16,17 @@ import '../validation.dart';
 /// browse the host's atlas over REST. Reads go through [SkyAtlasService] (region
 /// rows from the Drift DAO; coverage / cutout from the native bridge) — the same
 /// service the desktop UI uses, so the host stays the single source of truth.
-class AtlasHandlers {
+class AtlasHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    AtlasApi.getRegions: handleGetRegions,
+    AtlasApi.createRegion: handleCreateRegion,
+    AtlasApi.getCoverage: handleGetCoverage,
+    AtlasApi.getRegion: handleGetRegion,
+    AtlasApi.getRegionCutout: handleGetRegionCutout,
+    AtlasApi.getRegionTimeline: handleGetRegionTimeline,
+  };
+
   final ProviderContainer container;
 
   /// Upper bound for the cutout `outPixels` (square edge). The native co-adder

@@ -7,17 +7,17 @@ import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 
 void main() {
   String wire(Map<String, Object?> flat) => jsonEncode({
-        'name': 'Flats',
-        'root': {
-          'id': 'root',
-          'children': [
-            {
-              'id': 'flat-1',
-              'node_type': {'FlatWizard': flat},
-            },
-          ],
+    'name': 'Flats',
+    'root': {
+      'id': 'root',
+      'children': [
+        {
+          'id': 'flat-1',
+          'node_type': {'FlatWizard': flat},
         },
-      });
+      ],
+    },
+  });
 
   Map<String, dynamic> flatOf(String json) {
     final root = (jsonDecode(json) as Map)['root'] as Map;

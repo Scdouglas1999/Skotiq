@@ -84,6 +84,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import 'live_view_stream_handlers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Default ICE servers used when the client does not supply any.
 /// Google's public STUN is fine for LAN + symmetric-NAT-free links;
@@ -118,7 +120,15 @@ typedef PeerConnectionFactory =
 /// Handlers for the `/api/webrtc/live-view/*` signalling surface plus
 /// the per-session [_WebRtcLiveViewSession] registry. One instance per
 /// server; sessions are short-lived (one peer connection each).
-class WebRtcLiveViewHandlers {
+class WebRtcLiveViewHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    WebRtcLiveViewApi.rsOffer: handleOffer,
+    WebRtcLiveViewApi.rsSessionid: handleIce,
+    WebRtcLiveViewApi.rs: handleIceEvents,
+    WebRtcLiveViewApi.rsDelete: handleDelete,
+  };
+
   final ProviderContainer container;
   final LiveViewStreamHub hub;
   final LoggingService _logger;

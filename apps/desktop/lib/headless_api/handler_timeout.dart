@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:shelf/shelf.dart';
 
+import 'package:skotiq_remote_protocol/wire.dart';
+
 import 'response_helpers.dart';
+import 'route_table.dart';
 
 /// How long a request's handler may take before the server answers for it.
 ///
@@ -34,40 +37,14 @@ class HandlerTimeoutPolicy {
   /// Budget for every other method.
   final Duration command;
 
-  /// The budget for `method path`, or null when the request has none.
-  Duration? budgetFor(String method, String path) {
-    if (isOpenEnded(path)) return null;
-    final upper = method.toUpperCase();
-    if (upper == 'GET' || upper == 'HEAD') {
-      return _buildsAFile(path) ? slowRead : read;
-    }
-    return command;
-  }
-
-  /// WebSocket upgrades, server-sent event streams and long polls.
-  static bool isOpenEnded(String path) {
-    if (_openEndedExact.contains(path)) return true;
-    return path.startsWith('/api/webrtc/live-view/ice/') &&
-        path.endsWith('/events');
-  }
-
-  static const Set<String> _openEndedExact = {
-    '/api/ws',
-    '/events',
-    '/ws/live-view',
-    '/api/run-watch/events',
-    '/api/logs/tail',
-    '/api/broadcast/sse',
+  /// The time a route of this class may take, or null for one that stays
+  /// open by design.
+  Duration? budgetFor(ApiTimeout timeout) => switch (timeout) {
+    ApiTimeout.read => read,
+    ApiTimeout.slowRead => slowRead,
+    ApiTimeout.command => command,
+    ApiTimeout.openEnded => null,
   };
-
-  static bool _buildsAFile(String path) =>
-      path == '/api/backup/create' ||
-      path == '/api/catalog/download' ||
-      path.startsWith('/api/backup/') ||
-      path.contains('/export') ||
-      path.endsWith('/report/pdf') ||
-      path.endsWith('/bundle') ||
-      path.endsWith('/download');
 }
 
 /// Answers 503 for any request whose handler outlives its budget (see
@@ -80,7 +57,7 @@ Middleware handlerTimeoutMiddleware({
   return (innerHandler) {
     return (request) {
       final path = '/${request.url.path}';
-      final budget = policy.budgetFor(request.method, path);
+      final budget = policy.budgetFor(RouteTable.of(request).policy.timeout);
       if (budget == null) return innerHandler(request);
       final answer = Future<Response>.sync(() => innerHandler(request));
       return answer.timeout(

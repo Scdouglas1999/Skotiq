@@ -2,18 +2,9 @@
 /// and the per-token bucket.
 library;
 
-import 'path_classification.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
-const Duration defaultControlRateLimitWindow = Duration(minutes: 1);
-const int defaultControlRateLimitMaxRequests = 60;
-const int highRiskControlRateLimitMaxRequests = 12;
-
-class EndpointRateLimit {
-  final int maxRequests;
-  final Duration window;
-
-  const EndpointRateLimit({required this.maxRequests, required this.window});
-}
+const Duration endpointRateLimitWindow = Duration(minutes: 1);
 
 class RateLimitDecision {
   final bool allowed;
@@ -37,120 +28,32 @@ class RateLimitDecision {
   });
 }
 
-/// per-token route class. NAT collapses many phones onto a single
-/// public IP, so an IP-keyed rate limit either treats every device behind
-/// the NAT as one client (DoS by neighbour) or wastes the gate entirely.
-/// Keying the bucket on the authenticated token + a coarse route class
-/// gives every token its own budget while still throttling pathological
-/// callers within that token's session.
-enum TokenRouteClass {
-  /// Read-only state pulls (GET). 60 req/s allows a phone dashboard to
-  /// poll status, devices, sequencer state, etc. at ~1 Hz across a dozen
-  /// endpoints without bumping the limit.
-  read,
-
-  /// State-changing operations (POST/PUT/PATCH/DELETE). 20 req/s
-  /// accommodates batched device-connect-on-startup and rapid sequence
-  /// edits while still rate-limiting destructive bursts.
-  write,
-
-  /// JPEG live-view frames (`/api/camera/live-view/frame`). 30 req/s
-  /// covers the design upper bound of ~10 fps with retry headroom.
-  liveView,
-
-  /// Full image downloads (`/api/images/.../download`, raw FITS pulls).
-  /// 5 req/s — these are multi-MB transfers and the bottleneck is the
-  /// disk + network, not the CPU, so we keep a tight ceiling.
-  imageDownload,
-}
-
 /// Default per-second budgets for each token route class. Held in a
 /// separate const so tests can override them via [TokenBucketRateLimiter]'s
 /// `configForClass` injection point without having to monkey-patch the
 /// router.
-const Map<TokenRouteClass, TokenBucketConfig> defaultTokenBucketConfigs = {
-  TokenRouteClass.read: TokenBucketConfig(
+const Map<ApiBucket, TokenBucketConfig> defaultTokenBucketConfigs = {
+  ApiBucket.read: TokenBucketConfig(
     capacity: 60,
     refillTokens: 60,
     refillPeriod: Duration(seconds: 1),
   ),
-  TokenRouteClass.write: TokenBucketConfig(
+  ApiBucket.write: TokenBucketConfig(
     capacity: 20,
     refillTokens: 20,
     refillPeriod: Duration(seconds: 1),
   ),
-  TokenRouteClass.liveView: TokenBucketConfig(
+  ApiBucket.liveView: TokenBucketConfig(
     capacity: 30,
     refillTokens: 30,
     refillPeriod: Duration(seconds: 1),
   ),
-  TokenRouteClass.imageDownload: TokenBucketConfig(
+  ApiBucket.imageDownload: TokenBucketConfig(
     capacity: 5,
     refillTokens: 5,
     refillPeriod: Duration(seconds: 1),
   ),
 };
-
-/// Classify a request to its [TokenRouteClass]. Live-view frames and
-/// image downloads take precedence over the read/write split because they
-/// have their own (tighter) budgets.
-TokenRouteClass tokenRouteClassFor({
-  required String method,
-  required String path,
-}) {
-  final normalizedPath = path.startsWith('/') ? path : '/$path';
-  final normalizedMethod = method.toUpperCase();
-  // Live-view frames are the highest-throughput endpoint and must not
-  // share a bucket with cheap state polls.
-  if (normalizedPath == '/api/camera/live-view/frame') {
-    return TokenRouteClass.liveView;
-  }
-  // WebRTC live-view signalling endpoints share the
-  // live-view bucket because the SSE candidate stream + ICE POSTs
-  // burst during session setup (potentially many candidates per
-  // second on a complex network) and we don't want a paired phone
-  // bringing up a fresh peer connection to exhaust its `read`
-  // budget mid-handshake. The actual JPEG datachannel traffic
-  // doesn't pass through this gate (it's WebRTC, not HTTP), so the
-  // bucket only governs the signalling overhead.
-  if (normalizedPath.startsWith('/api/webrtc/live-view/')) {
-    return TokenRouteClass.liveView;
-  }
-  // Multi-MB transfers: image download + raw image bytes + binary FITS
-  // pull. They live in their own (tightest) bucket.
-  if (normalizedPath.startsWith('/api/images/') &&
-      normalizedPath.endsWith('/download')) {
-    return TokenRouteClass.imageDownload;
-  }
-  if (normalizedPath == '/api/imaging/raw-data' ||
-      (normalizedPath.startsWith('/api/calibration/') &&
-          normalizedPath.endsWith('/download')) ||
-      (normalizedPath.startsWith('/api/backup/') &&
-          normalizedPath.endsWith('/download')) ||
-      (normalizedPath.startsWith('/api/logs/files/') &&
-          normalizedPath.endsWith('/download'))) {
-    return TokenRouteClass.imageDownload;
-  }
-  if (normalizedMethod == 'GET' || normalizedMethod == 'HEAD') {
-    return TokenRouteClass.read;
-  }
-  return TokenRouteClass.write;
-}
-
-/// Human-readable name used in 429 bodies + log lines. Aligns with the
-/// task spec wording (`read`, `write`, `live-view`, `image-download`).
-String tokenRouteClassName(TokenRouteClass cls) {
-  switch (cls) {
-    case TokenRouteClass.read:
-      return 'read';
-    case TokenRouteClass.write:
-      return 'write';
-    case TokenRouteClass.liveView:
-      return 'live-view';
-    case TokenRouteClass.imageDownload:
-      return 'image-download';
-  }
-}
 
 /// Configuration for a single token-bucket. The bucket holds at most
 /// [capacity] tokens and refills [refillTokens] every [refillPeriod].
@@ -177,7 +80,7 @@ class TokenBucketConfig {
 /// [maxBuckets]. Default [maxBuckets] (8192) holds 2048 tokens at four
 /// classes each, well past any realistic paired-device count.
 class TokenBucketRateLimiter {
-  final Map<TokenRouteClass, TokenBucketConfig> _configByClass;
+  final Map<ApiBucket, TokenBucketConfig> _configByClass;
   final DateTime Function() _now;
   final int maxBuckets;
 
@@ -187,7 +90,7 @@ class TokenBucketRateLimiter {
   final _buckets = <String, _TokenBucketState>{};
 
   TokenBucketRateLimiter({
-    Map<TokenRouteClass, TokenBucketConfig>? configByClass,
+    Map<ApiBucket, TokenBucketConfig>? configByClass,
     DateTime Function()? now,
     this.maxBuckets = 8192,
   }) : _configByClass = configByClass ?? defaultTokenBucketConfigs,
@@ -197,7 +100,7 @@ class TokenBucketRateLimiter {
   /// the caller-supplied map omitted it (defensive — every class should
   /// have an entry but a partial override should still produce a valid
   /// decision rather than a null deref).
-  TokenBucketConfig configFor(TokenRouteClass cls) {
+  TokenBucketConfig configFor(ApiBucket cls) {
     return _configByClass[cls] ?? defaultTokenBucketConfigs[cls]!;
   }
 
@@ -206,10 +109,10 @@ class TokenBucketRateLimiter {
   /// the [Duration] until the next token becomes available on a denial.
   RateLimitDecision tryConsume({
     required String tokenId,
-    required TokenRouteClass routeClass,
+    required ApiBucket routeClass,
   }) {
     final config = configFor(routeClass);
-    final key = '$tokenId|${tokenRouteClassName(routeClass)}';
+    final key = '$tokenId|${routeClass.wireName}';
     final now = _now();
     var state = _buckets.remove(key);
     state ??= _TokenBucketState(
@@ -231,7 +134,7 @@ class TokenBucketRateLimiter {
       state.lastRefillMicros = now.microsecondsSinceEpoch;
     }
 
-    final bucketName = 'token-${tokenRouteClassName(routeClass)}';
+    final bucketName = 'token-${routeClass.wireName}';
 
     if (state.tokens < 1.0) {
       // How long until tokens >= 1? deficit / refill-rate.
@@ -276,11 +179,8 @@ class TokenBucketRateLimiter {
 
   /// Test helper: current token level for a key (useful for asserting
   /// refill behaviour without driving the public path).
-  double? tokensFor({
-    required String tokenId,
-    required TokenRouteClass routeClass,
-  }) {
-    final key = '$tokenId|${tokenRouteClassName(routeClass)}';
+  double? tokensFor({required String tokenId, required ApiBucket routeClass}) {
+    final key = '$tokenId|${routeClass.wireName}';
     return _buckets[key]?.tokens;
   }
 }
@@ -323,9 +223,10 @@ class EndpointRateLimiter {
     required String clientKey,
     required String method,
     required String path,
+    required ApiRateTier tier,
   }) {
-    final limit = endpointRateLimitFor(method: method, path: path);
-    if (limit == null) {
+    final maxRequests = tier.maxRequestsPerMinute;
+    if (maxRequests == null) {
       return const RateLimitDecision(
         allowed: true,
         maxRequests: 0,
@@ -335,17 +236,17 @@ class EndpointRateLimiter {
 
     final now = _now();
     final key = '$clientKey ${method.toUpperCase()} $path';
-    final cutoff = now.subtract(limit.window);
+    final cutoff = now.subtract(endpointRateLimitWindow);
     final requests = _requestsByKey.remove(key) ?? <DateTime>[];
     requests.removeWhere((timestamp) => !timestamp.isAfter(cutoff));
 
-    if (requests.length >= limit.maxRequests) {
+    if (requests.length >= maxRequests) {
       final oldest = requests.first;
-      final retryAfter = oldest.add(limit.window).difference(now);
+      final retryAfter = oldest.add(endpointRateLimitWindow).difference(now);
       _retain(key, requests);
       return RateLimitDecision(
         allowed: false,
-        maxRequests: limit.maxRequests,
+        maxRequests: maxRequests,
         retryAfterSeconds: retryAfter.inSeconds < 1 ? 1 : retryAfter.inSeconds,
       );
     }
@@ -354,7 +255,7 @@ class EndpointRateLimiter {
     _retain(key, requests);
     return RateLimitDecision(
       allowed: true,
-      maxRequests: limit.maxRequests,
+      maxRequests: maxRequests,
       retryAfterSeconds: 0,
     );
   }

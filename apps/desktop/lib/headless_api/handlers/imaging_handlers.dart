@@ -14,9 +14,30 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'filesystem_handlers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for imaging and plate solve endpoints
-class ImagingHandlers {
+class ImagingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ImagingApi.plateSolve: handlePlateSolve,
+    ImagingApi.getFitsDimensions: handleGetFitsDimensions,
+    ImagingApi.detectPlateSolvers: handleDetectPlateSolvers,
+    ImagingApi.verifyPlateSolver: handleVerifyPlateSolver,
+    ImagingApi.getPlateSolverConfig: handleGetPlateSolverConfig,
+    ImagingApi.setPlateSolverConfig: handleSetPlateSolverConfig,
+    ImagingApi.getImageStats: handleGetImageStats,
+    ImagingApi.autoStretchImage: handleAutoStretchImage,
+    ImagingApi.getStarCrops: handleGetStarCrops,
+    ImagingApi.debayerImage: handleDebayerImage,
+    ImagingApi.getLastRawImageData: handleGetLastRawImageData,
+    ImagingApi.saveFitsFile: handleSaveFitsFile,
+    ImagingApi.saveFitsFromLastCapture: handleSaveFitsFromLastCapture,
+    ImagingApi.calibrateImageFile: handleCalibrateImageFile,
+    ImagingApi.clearDeviceImage: handleClearDeviceImage,
+  };
+
   final ProviderContainer container;
 
   /// optional job manager. When wired, plate-solve returns

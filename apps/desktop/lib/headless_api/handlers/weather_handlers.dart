@@ -4,9 +4,24 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for weather data and alerts
-class WeatherHandlers {
+class WeatherHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    WeatherApi.getRadarData: handleGetRadarData,
+    WeatherApi.getForecast: handleGetForecast,
+    WeatherApi.getAlerts: handleGetAlerts,
+    WeatherApi.getCloudCover: handleGetCloudCover,
+    WeatherApi.getSettings: handleGetSettings,
+    WeatherApi.updateSettings: handleUpdateSettings,
+    WeatherApi.checkSafeImaging: handleCheckSafeImaging,
+    WeatherApi.getCurrent: handleGetCurrent,
+    WeatherApi.clearCache: handleClearCache,
+  };
+
   final ProviderContainer container;
 
   WeatherHandlers(this.container);

@@ -1,8 +1,12 @@
 /// OpenAPI 3.0 spec generation for the headless route table.
 library;
 
-import 'body_limits.dart';
-import 'path_classification.dart';
+import 'package:skotiq_core/skotiq_core.dart' show DeviceType;
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show SkotiqServerCompatibility;
+import 'package:skotiq_remote_protocol/wire.dart';
+
+import 'rate_limiting.dart';
 
 Map<String, dynamic> openApiRequestBodyFor({required String path}) {
   final schema = <String, dynamic>{
@@ -11,7 +15,8 @@ Map<String, dynamic> openApiRequestBodyFor({required String path}) {
   };
   var required = false;
 
-  if (path == '/api/devices/connect' || path == '/api/devices/disconnect') {
+  if (path == DeviceApi.connectDevice.route.path ||
+      path == DeviceApi.disconnectDevice.route.path) {
     required = true;
     schema
       ..['additionalProperties'] = false
@@ -20,19 +25,7 @@ Map<String, dynamic> openApiRequestBodyFor({required String path}) {
         'deviceId': {'type': 'string', 'minLength': 1},
         'deviceType': {
           'type': 'string',
-          'enum': const <String>[
-            'camera',
-            'mount',
-            'focuser',
-            'filterWheel',
-            'guider',
-            'rotator',
-            'dome',
-            'weather',
-            'safetyMonitor',
-            'switch_',
-            'coverCalibrator',
-          ],
+          'enum': [for (final type in DeviceType.values) type.name],
         },
       };
   }
@@ -45,28 +38,20 @@ Map<String, dynamic> openApiRequestBodyFor({required String path}) {
   };
 }
 
+/// The OpenAPI document for the advertised routes, read off their
+/// declarations.
 Map<String, dynamic> buildOpenApiSpec({
-  required List<String> routes,
+  required Iterable<ApiRoute> routes,
   required int port,
 }) {
   final paths = <String, Map<String, dynamic>>{};
 
   for (final route in routes) {
-    final parts = route.split(' ');
-    if (parts.length != 2) continue;
+    if (route.method == ApiMethod.ws) continue;
 
-    final method = parts.first.toUpperCase();
-    if (method == 'WS') continue;
-
-    final routePath = parts.last;
-    final path = openApiPath(routePath);
-    final rateLimit = endpointRateLimitFor(method: method, path: routePath);
-    final auditAction = highRiskAuditActionFor(method: method, path: routePath);
-    final authScope = requiredAuthScopeNameForEndpoint(
-      method: method,
-      path: routePath,
-    );
-    final publicEndpoint = isPublicEndpoint(method: method, path: routePath);
+    final method = route.method.wireName;
+    final path = openApiPath(route.path);
+    final public = route.scope == ApiScope.public;
     final responses = <String, Map<String, String>>{
       '200': {'description': 'Success'},
       '400': {'description': 'Bad request'},
@@ -74,14 +59,14 @@ Map<String, dynamic> buildOpenApiSpec({
       '426': {'description': 'Upgrade required for API version mismatch'},
     };
     final operation = <String, dynamic>{
-      'summary': route,
+      'summary': route.signature,
       'tags': [openApiTag(path)],
       'responses': responses,
-      'x-auth-required': !publicEndpoint,
-      'x-required-scope': authScope,
+      'x-auth-required': !public,
+      'x-required-scope': route.scope.name,
     };
 
-    if (!publicEndpoint) {
+    if (!public) {
       responses['401'] = {'description': 'Unauthorized'};
       responses['403'] = {'description': 'Forbidden'};
       operation['security'] = [
@@ -89,24 +74,23 @@ Map<String, dynamic> buildOpenApiSpec({
       ];
     }
 
-    if (methodCanHaveBody(method)) {
+    if (route.method.mayCarryBody) {
       responses['413'] = {'description': 'Request body too large'};
-      operation['x-max-request-body-bytes'] = requestBodyLimitForPath(
-        routePath,
-      );
-      operation['requestBody'] = openApiRequestBodyFor(path: routePath);
+      operation['x-max-request-body-bytes'] = route.maxBodyBytes;
+      operation['requestBody'] = openApiRequestBodyFor(path: route.path);
     }
 
-    if (rateLimit != null) {
+    final maxRequests = route.rate.maxRequestsPerMinute;
+    if (maxRequests != null) {
       responses['429'] = {'description': 'Rate limit exceeded'};
       operation['x-rate-limit'] = {
-        'maxRequests': rateLimit.maxRequests,
-        'windowSeconds': rateLimit.window.inSeconds,
+        'maxRequests': maxRequests,
+        'windowSeconds': endpointRateLimitWindow.inSeconds,
       };
     }
 
-    if (auditAction != null) {
-      operation['x-audit-action'] = auditAction;
+    if (route.audit != null) {
+      operation['x-audit-action'] = route.audit;
     }
 
     final operations = paths.putIfAbsent(path, () => <String, dynamic>{});
@@ -117,11 +101,7 @@ Map<String, dynamic> buildOpenApiSpec({
     'openapi': '3.0.3',
     'info': {
       'title': 'Skotiq Headless API',
-      // minor bump for the additive event sequencing
-      // (`seq`, `serverInstanceId`, `replay`, `resync_required`) and
-      // command/event correlation (`commandId`, `correlatingCommandId`).
-      // Existing clients ignore the new fields; no breaking change.
-      'version': '2.6.0',
+      'version': SkotiqServerCompatibility.serverApiVersion.format(),
       'description':
           'Event envelope now carries `seq`, `serverInstanceId`, and '
           '`correlatingCommandId`. Action POSTs return a `commandId`. '

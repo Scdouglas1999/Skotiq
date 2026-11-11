@@ -53,6 +53,8 @@ import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// P1-14 — Headless API handlers for log retrieval and tail.
 ///
@@ -61,7 +63,17 @@ import '../validation.dart';
 /// automatically. The SSE handler is the only handler that opens a
 /// long-lived subscription; that subscription is bound to the request
 /// stream lifecycle (cancelled on client disconnect).
-class LogHandlers {
+class LogHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    LogApi.listFiles: handleListFiles,
+    LogApi.recent: handleRecent,
+    LogApi.downloadFile: handleDownloadFile,
+    LogApi.tail: handleTail,
+    LogApi.clear: handleClear,
+    LogApi.testEntry: handleTestEntry,
+  };
+
   final ProviderContainer container;
 
   /// Default page size for `GET /api/logs/recent` when the client does

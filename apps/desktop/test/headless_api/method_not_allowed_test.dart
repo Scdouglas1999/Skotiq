@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:shelf/shelf.dart';
-import 'package:shelf_router/shelf_router.dart';
+
+import '../support/route_policy.dart';
 
 /// Stand-in for a real literal-path handler.
 Future<Response> _ok(Request request) async => Response.ok('real handler');
@@ -25,32 +26,39 @@ Future<Response> _byId(Request request, String id) async {
   return Response.ok('dark $parsed');
 }
 
-/// The shape of the real table: literal siblings first, the `<id>` route after.
-List<HeadlessRoute> _darkRoutes() => <HeadlessRoute>[
-  HeadlessRoute(HttpMethod.get, '/api/calibration/darks', _ok),
-  HeadlessRoute(HttpMethod.post, '/api/calibration/darks', _ok),
-  HeadlessRoute(HttpMethod.post, '/api/calibration/darks/find-match', _ok),
-  HeadlessRoute(HttpMethod.get, '/api/calibration/darks/settings', _ok),
-  HeadlessRoute(HttpMethod.post, '/api/calibration/darks/settings', _ok),
-  HeadlessRoute(HttpMethod.post, '/api/calibration/darks/clear', _ok),
-  HeadlessRoute(HttpMethod.get, '/api/calibration/darks/<id>', _byId),
-  HeadlessRoute(HttpMethod.delete, '/api/calibration/darks/<id>', _byId),
-];
+const _darks = '/api/calibration/darks';
+const _calibration = ApiResource.calibration;
 
-Router _router(List<HeadlessRoute> routes) {
-  final router = Router();
-  registerRoutes(router, routes);
-  return router;
+class _Routes implements RouteSource {
+  const _Routes(this.routes);
+
+  @override
+  final Map<ApiEndpoint, Function> routes;
 }
 
-Future<Response> _call(Router router, String method, String path) =>
+/// The shape of the real table: literal siblings first, the `<id>` route after.
+_Routes _darkRoutes() => const _Routes({
+  TestEndpoint(ApiRoute.get(_darks, resource: _calibration)): _ok,
+  TestEndpoint(ApiRoute.post(_darks, resource: _calibration)): _ok,
+  TestEndpoint(ApiRoute.post('$_darks/find-match', resource: _calibration)):
+      _ok,
+  TestEndpoint(ApiRoute.get('$_darks/settings', resource: _calibration)): _ok,
+  TestEndpoint(ApiRoute.post('$_darks/settings', resource: _calibration)): _ok,
+  TestEndpoint(ApiRoute.post('$_darks/clear', resource: _calibration)): _ok,
+  TestEndpoint(ApiRoute.get('$_darks/<id>', resource: _calibration)): _byId,
+  TestEndpoint(ApiRoute.delete('$_darks/<id>', resource: _calibration)): _byId,
+});
+
+RouteTable _router(_Routes routes) => RouteTable.only(routes);
+
+Future<Response> _call(RouteTable router, String method, String path) =>
     Future.value(
-      router.call(Request(method, Uri.parse('http://localhost$path'))),
+      router.handler(Request(method, Uri.parse('http://localhost$path'))),
     );
 
 void main() {
   group('a wrong verb on a literal path answers 405, not the <id> route', () {
-    late Router router;
+    late RouteTable router;
 
     setUp(() => router = _router(_darkRoutes()));
 
@@ -134,54 +142,36 @@ void main() {
     });
   });
 
-  group('withMethodNotAllowedFallbacks', () {
-    test('leaves parameterised paths alone', () {
-      final expanded = withMethodNotAllowedFallbacks(<HeadlessRoute>[
-        HeadlessRoute(HttpMethod.get, '/api/things/<id>', _byId),
+  group('route resolution', () {
+    test('a parameterised path is never refused for its verb', () {
+      final index = ApiRouteIndex(const [
+        ApiRoute.get('/api/things/<id>', resource: ApiResource.system),
       ]);
 
-      expect(expanded, hasLength(1));
+      expect(index.resolve('POST', '/api/things/5'), isA<ApiRouteNotFound>());
     });
 
-    test('stubs land after the last real registration of their path', () {
-      final expanded = withMethodNotAllowedFallbacks(_darkRoutes());
-      final paths = expanded.map((r) => r.path).toList();
+    test('a parameterised route declared before a literal one keeps it', () {
+      final index = ApiRouteIndex(const [
+        ApiRoute.get('/api/things/<id>', resource: ApiResource.system),
+        ApiRoute.post('/api/things/find', resource: ApiResource.system),
+      ]);
 
-      // The `<id>` route must still come after every literal sibling AND after
-      // the synthesized stubs for those siblings, or a stub would be shadowed
-      // by the parameterised route it exists to pre-empt.
-      final lastLiteral = paths.lastIndexWhere((p) => !p.contains('<'));
-      final firstParam = paths.indexWhere((p) => p.contains('<'));
-      expect(lastLiteral, lessThan(firstParam));
-
-      // Both real POST /settings and real GET /settings precede their stubs.
-      final settings = <int>[
-        for (var i = 0; i < expanded.length; i++)
-          if (expanded[i].path == '/api/calibration/darks/settings') i,
-      ];
-      final realCount = expanded
-          .where(
-            (r) =>
-                r.path == '/api/calibration/darks/settings' &&
-                (r.method == HttpMethod.get || r.method == HttpMethod.post),
-          )
-          .length;
-      expect(realCount, 2);
-      expect(settings.length, 5, reason: 'GET, POST + PUT/DELETE/PATCH stubs');
+      final resolution = index.resolve('GET', '/api/things/find');
+      expect(resolution, isA<ApiRouteMatched>());
+      expect((resolution as ApiRouteMatched).params, {'id': 'find'});
     });
 
-    test('does not synthesize HEAD or OPTIONS', () {
+    test('HEAD resolves as GET and OPTIONS is not refused as a wrong verb', () {
       // HEAD is a legitimate probe of a GET route and OPTIONS is CORS
       // preflight; answering either with 405 would break working clients.
-      final expanded = withMethodNotAllowedFallbacks(<HeadlessRoute>[
-        HeadlessRoute(HttpMethod.get, '/api/thing', _ok),
+      final index = ApiRouteIndex(const [
+        ApiRoute.get('/api/thing', resource: ApiResource.system),
       ]);
 
-      expect(expanded.map((r) => r.method), isNot(contains(HttpMethod.head)));
-      expect(
-        expanded.map((r) => r.method),
-        isNot(contains(HttpMethod.options)),
-      );
+      expect(index.resolve('HEAD', '/api/thing'), isA<ApiRouteMatched>());
+      expect(index.resolve('OPTIONS', '/api/thing'), isA<ApiRouteNotFound>());
+      expect(index.resolve('PUT', '/api/thing'), isA<ApiMethodNotAllowed>());
     });
   });
 }

@@ -45,6 +45,8 @@ import '../display_buffer_jpeg.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'frame_measurement_headers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the Run-Watch web monitoring surface.
 ///
@@ -52,7 +54,14 @@ import 'frame_measurement_headers.dart';
 /// /api/sequencer/* mutators. The handlers here exist so a phone client
 /// can fetch a coherent monitoring snapshot in a single round-trip
 /// instead of stitching ten endpoints together.
-class RunWatchHandlers {
+class RunWatchHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    RunWatchApi.snapshot: handleSnapshot,
+    RunWatchApi.frameThumbnail: handleFrameThumbnail,
+    RunWatchApi.eventStream: handleEventStream,
+  };
+
   /// The provider container that backs the headless server. We pull the
   /// backend, services, and providers via this container exactly like the
   /// other handler files do.
