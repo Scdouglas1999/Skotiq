@@ -15,7 +15,9 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'screens/qr_scanner_screen.dart';
+import 'screens/setup/first_run_setup_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';
 import 'services/saved_servers_service.dart';
 import 'services/android_system_ui.dart';
@@ -358,9 +360,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       // build-time setState cycle flagged
       ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
         if (!mounted) return;
-        if (_connectedServer != null &&
-            next.hasNoHost &&
-            !_skippedConnection) {
+        if (_connectedServer != null && next.hasNoHost && !_skippedConnection) {
           // Audit drop the checkpoint-once latch alongside the
           // backend swap. Otherwise a Settings-driven disconnect then
           // reconnect in the same app lifecycle would silently skip the
@@ -384,36 +384,23 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       });
 
       if (_connectedServer == null && !_skippedConnection) {
-        final settings = ref.watch(appSettingsProvider).valueOrNull;
-        final theme = resolveSkotiqThemeData(
-          themeSetting: settings?.theme ?? 'dark',
-          accentColorHex: settings?.accentColor,
-        );
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: systemUiOverlayStyleFor(theme),
-          child: MaterialApp(
-            navigatorKey: _connectionNavigatorKey,
-            title: 'Skotiq',
-            debugShowCheckedModeBanner: false,
-            theme: theme,
-            localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
-            supportedLocales: SkotiqLocalizations.supportedLocales,
-            // The connection screen IS the app's ready state while it is
-            // disconnected — pairing, discovery and manual connect all have
-            // to stay reachable, so the splash plays its draw over it once
-            // and lifts instead of holding a loading mark in front of
-            // interactive prompts.
-            home: SkotiqSplashGate(
-              ready: true,
-              child: Builder(builder: (context) => _buildConnectionScreen()),
-            ),
+        // The connection screen IS the app's ready state while it is
+        // disconnected — pairing, discovery and manual connect all have
+        // to stay reachable, so the splash plays its draw over it once
+        // and lifts instead of holding a loading mark in front of
+        // interactive prompts.
+        return _standaloneApp(
+          SkotiqSplashGate(
+            ready: true,
+            child: Builder(builder: (context) => _buildConnectionScreen()),
           ),
+          navigatorKey: _connectionNavigatorKey,
         );
       }
 
       // Full UI parity: phones and tablets both route through the shared
       // GoRouter shell (`SkotiqApp`).
-      return Consumer(
+      final shell = Consumer(
         builder: (context, ref, _) {
           // Wire notification taps into go_router. The router
           // is created lazily by `appRouterProvider`; reading it here also
@@ -434,6 +421,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           return SkotiqApp(platformServices: mobilePlatformServices);
         },
       );
+      if (_connectedServer == null) return shell;
+      return FirstRunSetupGate(frame: _standaloneApp, child: shell);
     } catch (e, stackTrace) {
       developer.log(
         'Error building app: $e',
@@ -498,6 +487,33 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         ),
       );
     }
+  }
+
+  /// The themed app frame for what the phone shows outside the shell: the
+  /// connection screen and first-run setup.
+  Widget _standaloneApp(
+    Widget home, {
+    GlobalKey<NavigatorState>? navigatorKey,
+  }) {
+    final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final theme = resolveSkotiqThemeData(
+      themeSetting: settings?.theme ?? 'dark',
+      accentColorHex: settings?.accentColor,
+    );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemUiOverlayStyleFor(theme),
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'Skotiq',
+        debugShowCheckedModeBanner: false,
+        theme: theme,
+        localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
+        supportedLocales: SkotiqLocalizations.supportedLocales,
+        builder: (context, child) =>
+            RedNightScreen(child: child ?? const SizedBox.shrink()),
+        home: home,
+      ),
+    );
   }
 
   Widget _buildConnectionScreen() {

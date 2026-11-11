@@ -1,34 +1,21 @@
-// Mobile first-run setup wizard.
+// First-run setup for a phone that has just paired with a host.
 //
-// When the operator pairs their phone to a freshly-installed Skotiq
-// server, three things are usually missing and must be addressed before
-// the dashboard becomes useful:
+// A freshly installed host is usually missing three things a first night
+// needs: a capture folder (every frame would fail to save), a star catalog
+// (plate solving and target search fail) and an equipment profile (nothing can
+// be connected). This wizard covers the first two in a step each and points at
+// the host for the third, so a phone user can get a new rig ready in a minute.
 //
-//   1. `imageOutputPath` is empty — every capture would fail to save.
-//   2. No catalogs are installed — plate-solving and target search are
-//      broken until the user pulls down at least one starlist.
-//   3. No equipment profile exists — connecting devices is impossible.
-//
-// The full equipment-onboarding wizard in skotiq_app handles (3) in
-// depth (auto-discovery, optical train, etc.); this companion wizard
-// is intentionally minimal — three steps tied to the three missing
-// bootstrap conditions — so a phone operator can get the server running
-// in under a minute without the deep flow. Step 3 surfaces a button
-// that *opens* the full equipment-onboarding flow rather than reimplementing
-// device pickers inside the wizard.
-//
-// The wizard is reached from `mobile_dashboard_screen.dart` and any
-// `SkotiqApp` shell when `shouldRunFirstRunSetup`
-// resolves true. It writes the `firstRunCompleted` flag through
-// `MobilePreferences` so it never auto-appears again, even if a future
-// connection lands on a server with the same empty state.
+// [FirstRunSetupGate] shows it between pairing and the app shell, at most once
+// per install: finishing or skipping it, or linking a host that needs nothing,
+// sets `MobilePreferences.firstRunCompleted`.
 
 import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_app/skotiq_app.dart' show SkotiqSplashGate;
 import 'package:skotiq_app/widgets/remote_directory_picker_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -36,11 +23,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../services/mobile_preferences.dart';
 import '../../utils/error_snackbar.dart';
 
-/// Detection record returned by [shouldRunFirstRunSetupProvider].
-///
-/// A getter-only struct so widgets can drill into the missing pieces and
-/// show step-specific intro copy ("You also have no catalogs yet — let's
-/// fix that next") without re-running the detection.
+/// What the linked host is missing for a first night.
 class FirstRunSetupNeeds {
   final bool missingImageOutputPath;
   final bool missingProfiles;
@@ -52,12 +35,9 @@ class FirstRunSetupNeeds {
     required this.missingCatalogs,
   });
 
-  /// True if at least one bootstrap condition is unmet AND the user has
-  /// not previously dismissed the wizard.
   bool get hasAnyMissing =>
       missingImageOutputPath || missingProfiles || missingCatalogs;
 
-  /// Nothing to do — every bootstrap condition is satisfied.
   static const FirstRunSetupNeeds none = FirstRunSetupNeeds(
     missingImageOutputPath: false,
     missingProfiles: false,
@@ -65,84 +45,53 @@ class FirstRunSetupNeeds {
   );
 }
 
-/// Async detection provider. Returns [FirstRunSetupNeeds] describing what
-/// the server is missing; if the user has already completed (or skipped)
-/// the wizard once, returns [FirstRunSetupNeeds.none] regardless of
-/// server state.
+/// What the linked host is missing, or [FirstRunSetupNeeds.none] when this
+/// phone has already been through setup or is not linked to a host.
+///
+/// A check that fails counts as missing: the wizard then shows the step, where
+/// the failure can be retried in view, instead of the first capture failing
+/// later with a less useful error.
 final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   ref,
 ) async {
-  // Honor the persistent latch first. If the user has completed setup on
-  // this device, we never auto-route to the wizard again even if a
-  // future server reset would otherwise trigger the conditions.
-  // Await the latch instead of treating its loading state as "setup done".
-  // The dashboard holds an explicit loading gate while this resolves; a
-  // transient fail-open result would briefly expose controls and then replace
-  // them with the wizard once SharedPreferences finished loading.
   final prefs = await ref.watch(mobilePreferencesProvider.future);
   if (prefs.firstRunCompleted) return FirstRunSetupNeeds.none;
 
   final backend = ref.watch(backendProvider);
   final linkedHost = backend.remoteHost;
-  if (linkedHost == null) {
-    // The wizard is companion-mode-only: a local FfiBackend always has
-    // its profiles/catalogs/path managed through the desktop UI.
-    return FirstRunSetupNeeds.none;
+  if (linkedHost == null) return FirstRunSetupNeeds.none;
+
+  Future<bool> missing(String what, Future<bool> Function() check) async {
+    try {
+      return await check();
+    } catch (e, st) {
+      developer.log(
+        'first-run: could not check $what: $e',
+        name: 'FirstRunSetup',
+        level: 1000,
+        error: e,
+        stackTrace: st,
+      );
+      return true;
+    }
   }
 
-  // Resolve each condition independently so a single failed call doesn't
-  // suppress the wizard. We do not bail-early on the first match — the
-  // wizard wants to know all three so its intro/Stepper can render the
-  // right summary.
-  var missingPath = false;
-  var missingProfiles = false;
-  var missingCatalogs = false;
-
-  try {
-    final settings = await backend.getSettings();
-    missingPath = settings.imageOutputPath.trim().isEmpty;
-  } catch (e, st) {
-    // Fail closed: if the server cannot prove an output path exists, route
-    // through the wizard where the retry/error is visible. Treating this as
-    // configured would suppress the wizard for the rest of the connection and
-    // let the first capture fail much later with a less actionable error.
-    missingPath = true;
-    developer.log(
-      'first-run: getSettings failed: $e',
-      name: 'FirstRunSetup',
-      level: 1000,
-      error: e,
-      stackTrace: st,
-    );
-  }
-
-  try {
-    final profiles = await backend.getProfiles();
-    missingProfiles = profiles.isEmpty;
-  } catch (e, st) {
-    missingProfiles = true;
-    developer.log(
-      'first-run: getProfiles failed: $e',
-      name: 'FirstRunSetup',
-      level: 1000,
-      error: e,
-      stackTrace: st,
-    );
-  }
-
-  try {
-    final status = await linkedHost.catalogs.getCatalogStatus();
-    missingCatalogs = !status.catalogs.any((c) => c.isInstalled);
-  } catch (e, st) {
-    missingCatalogs = true;
-    developer.log(
-      'first-run: getCatalogStatus failed: $e',
-      name: 'FirstRunSetup',
-      level: 1000,
-      error: e,
-      stackTrace: st,
-    );
-  }
+  final (missingPath, missingProfiles, missingCatalogs) = await (
+    missing(
+      'the capture folder',
+      () async => (await backend.getSettings()).imageOutputPath.trim().isEmpty,
+    ),
+    missing(
+      'equipment profiles',
+      () async => (await backend.getProfiles()).isEmpty,
+    ),
+    missing(
+      'catalogs',
+      () async => !(await linkedHost.catalogs.getCatalogStatus()).catalogs.any(
+        (c) => c.isInstalled,
+      ),
+    ),
+  ).wait;
 
   return FirstRunSetupNeeds(
     missingImageOutputPath: missingPath,
@@ -151,20 +100,93 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   );
 });
 
-/// Three-step setup wizard. Step list:
+/// Stands between pairing and the app shell until first-run setup is done.
 ///
-///   * Step 0 — Image output path. Operator browses the host filesystem or
-///     types an absolute host path. The host validates containment, existence,
-///     and writability before `NetworkBackend.updateSettings` persists it.
-///   * Step 1 — Catalogs. Lists available catalogs from
-///     `/api/catalog/available` with a `requiredForPlateSolve` badge.
-///     Operator selects what to install; the wizard fires
-///     `downloadCatalog(name)` per pick and surfaces job handles in a
-///     "downloading" list so the operator can move on while the server
-///     fetches in the background.
-///   * Step 2 — Profile. Surfaces the existing profile list (if the
-///     operator already created one out of band) or routes them to the
-///     full equipment onboarding flow.
+/// Checks the linked host once when mounted. A host that needs nothing passes
+/// straight to [child] and marks setup done, so later launches skip the check.
+/// Once passed, the gate stays out of the way for as long as it is mounted, so
+/// a later reconnect or rig switch never swaps the shell for the wizard.
+class FirstRunSetupGate extends ConsumerStatefulWidget {
+  const FirstRunSetupGate({
+    super.key,
+    required this.frame,
+    required this.child,
+  });
+
+  /// Puts the wizard (and the brief check before it) in the app's themed
+  /// [MaterialApp]; [child] brings its own.
+  final Widget Function(Widget home) frame;
+
+  /// The app shell.
+  final Widget child;
+
+  @override
+  ConsumerState<FirstRunSetupGate> createState() => _FirstRunSetupGateState();
+}
+
+class _FirstRunSetupGateState extends ConsumerState<FirstRunSetupGate> {
+  FirstRunSetupNeeds? _needs;
+  bool _passed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_check());
+  }
+
+  Future<void> _check() async {
+    final linked = ref.read(backendProvider).remoteHost != null;
+    FirstRunSetupNeeds needs;
+    try {
+      needs = await ref.read(shouldRunFirstRunSetupProvider.future);
+      if (linked && !needs.hasAnyMissing) {
+        final prefs = await ref.read(mobilePreferencesProvider.future);
+        await prefs.setFirstRunCompleted(true);
+      }
+    } catch (e, st) {
+      // Setup is help, not a requirement: if this phone's own preferences
+      // cannot be read, open the app rather than strand the user here.
+      developer.log(
+        'first-run: setup check failed, opening the app: $e',
+        name: 'FirstRunSetup',
+        level: 1000,
+        error: e,
+        stackTrace: st,
+      );
+      needs = FirstRunSetupNeeds.none;
+    }
+    if (!mounted) return;
+    setState(() {
+      _needs = needs;
+      _passed = !needs.hasAnyMissing;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_passed) return widget.child;
+    final needs = _needs;
+    if (needs == null) {
+      return widget.frame(
+        const SkotiqSplashGate(
+          ready: false,
+          statusText: 'Checking your rig',
+          child: SizedBox.shrink(),
+        ),
+      );
+    }
+    return widget.frame(
+      FirstRunSetupScreen(
+        needs: needs,
+        onCompleted: () => setState(() => _passed = true),
+      ),
+    );
+  }
+}
+
+/// Three steps: the capture folder on the host, the catalogs to install, and
+/// the equipment profile (made on the host; this step shows what exists).
+/// The wizard opens on the first step the host still needs.
 class FirstRunSetupScreen extends ConsumerStatefulWidget {
   final FirstRunSetupNeeds needs;
   final VoidCallback onCompleted;
@@ -184,40 +206,38 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
   int _activeStep = 0;
   bool _busy = false;
 
-  // Step 0 state.
   final TextEditingController _customPathController = TextEditingController();
   String? _lastBrowsedHostPath;
 
-  /// True once the host has accepted and persisted an output path in this
-  /// session. The Stepper tick is drawn from this, never from navigation: a
-  /// green check against "Image output path" that only means the operator
-  /// tapped ahead sends the first capture of the night somewhere that does not
-  /// exist.
+  /// True once the host has accepted and saved a capture folder in this
+  /// session. The step's tick comes from this, never from navigation: a tick
+  /// for a step the user only tapped past would send the first capture of the
+  /// night to a folder that does not exist.
   bool _outputPathCommitted = false;
 
-  // Step 1 state.
   List<RemoteAvailableCatalog>? _availableCatalogs;
   final Set<String> _catalogsToInstall = {};
   final Set<String> _catalogsInFlight = {};
   String? _catalogLoadError;
 
-  // Step 2 state.
   List<EquipmentProfile>? _profiles;
   String? _profileLoadError;
   bool _loadingBootstrapData = false;
 
+  /// False when the host refused this phone's folder access: phones pair
+  /// without filesystem rights unless the user grants full admin access, so
+  /// the capture folder has to be set on the imaging computer.
+  bool _canChooseFolders = true;
+
+  /// False once the host refused to start a catalog download for the same
+  /// reason.
+  bool _canInstallCatalogs = true;
+
   @override
   void initState() {
     super.initState();
-    // Skip past steps that aren't needed. If the server already has a
-    // valid imageOutputPath, start on the catalogs step (etc.). We still
-    // *show* the previous steps in the Stepper sidebar so the operator
-    // can revisit, but the wizard opens on the first unfinished step.
     if (!widget.needs.missingImageOutputPath) {
-      _activeStep = 1;
-    }
-    if (!widget.needs.missingImageOutputPath && !widget.needs.missingCatalogs) {
-      _activeStep = 2;
+      _activeStep = widget.needs.missingCatalogs ? 1 : 2;
     }
     unawaited(_loadCatalogsAndProfiles());
   }
@@ -237,8 +257,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       if (mounted) {
         setState(() {
           _loadingBootstrapData = false;
-          _catalogLoadError = 'The phone is not connected to a server.';
-          _profileLoadError = 'The phone is not connected to a server.';
+          _catalogLoadError = 'This phone is not connected to a rig.';
+          _profileLoadError = 'This phone is not connected to a rig.';
         });
       }
       return;
@@ -248,13 +268,32 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     List<EquipmentProfile>? profiles;
     String? catalogError;
     String? profileError;
+    var canChooseFolders = _canChooseFolders;
 
     await Future.wait<void>([
+      if (widget.needs.missingImageOutputPath && !_outputPathCommitted)
+        () async {
+          try {
+            await linkedHost.files.browseRemoteDirectories();
+          } catch (e) {
+            // Only a refusal changes the step; any other failure is reported
+            // by the field when the folder is saved.
+            if (_isAccessDenied(e)) {
+              canChooseFolders = false;
+            } else {
+              developer.log(
+                'first-run: folder access check failed: $e',
+                name: 'FirstRunSetup',
+                level: 900,
+              );
+            }
+          }
+        }(),
       () async {
         try {
           catalogs = await linkedHost.catalogs.listAvailableCatalogs();
         } catch (e, st) {
-          catalogError = e is ServerError ? e.message : userFacingError(e);
+          catalogError = userFacingError(e);
           developer.log(
             'first-run: failed to load catalogs: $e',
             name: 'FirstRunSetup',
@@ -268,7 +307,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         try {
           profiles = await backend.getProfiles();
         } catch (e, st) {
-          profileError = e is ServerError ? e.message : userFacingError(e);
+          profileError = userFacingError(e);
           developer.log(
             'first-run: failed to load profiles: $e',
             name: 'FirstRunSetup',
@@ -285,33 +324,21 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       _loadingBootstrapData = false;
       _catalogLoadError = catalogError;
       _profileLoadError = profileError;
-      if (catalogs != null) {
-        _availableCatalogs = catalogs;
-        // Pre-select catalogs that the server flagged as required for
-        // plate-solving. Operators almost always want these and the
-        // checkbox stays editable so power users can opt out.
-        for (final c in catalogs!) {
-          if (c.requiredForPlateSolve) {
-            _catalogsToInstall.add(c.name);
-          }
-        }
-      } else {
-        _availableCatalogs = null;
+      _availableCatalogs = catalogs;
+      _canChooseFolders = canChooseFolders;
+      // The catalogs plate solving needs start ticked; the rest are opt-in.
+      for (final c in catalogs ?? const <RemoteAvailableCatalog>[]) {
+        if (c.requiredForPlateSolve) _catalogsToInstall.add(c.name);
       }
       _profiles = profiles;
     });
-  }
-
-  String? _resolveSelectedPath() {
-    final trimmed = _customPathController.text.trim();
-    return trimmed.isEmpty ? null : trimmed;
   }
 
   Future<void> _browseImageOutputPath() async {
     if (_busy) return;
     final selected = await RemoteDirectoryPickerDialog.show(
       context,
-      title: 'Choose capture folder on host',
+      title: 'Choose the capture folder on the rig',
       initialPath: _lastBrowsedHostPath,
     );
     if (selected == null || !mounted) return;
@@ -326,17 +353,15 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     final backend = ref.read(backendProvider);
     final linkedHost = backend.remoteHost;
     if (linkedHost == null) return;
-    final path = _resolveSelectedPath();
-    if (path == null) {
-      if (mounted) {
-        showApiError(
-          context,
-          ServerError(
-            code: 'invalid_input',
-            message: 'Please select or enter an image output path',
-          ),
-        );
-      }
+    final path = _customPathController.text.trim();
+    if (path.isEmpty) {
+      showApiError(
+        context,
+        ServerError(
+          code: 'invalid_input',
+          message: 'Choose a folder on the rig, or type its path.',
+        ),
+      );
       return;
     }
     setState(() => _busy = true);
@@ -352,7 +377,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           code: 'invalid_output_path',
           message: reason is String && reason.trim().isNotEmpty
               ? reason.trim()
-              : 'Choose an existing, writable capture folder on the host',
+              : 'Choose a folder on the rig that exists and can be written '
+                    'to.',
         );
       }
       final normalized = validation['normalizedPath'];
@@ -373,46 +399,60 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (_isAccessDenied(e)) {
+        setState(() {
+          _busy = false;
+          _canChooseFolders = false;
+        });
+        return;
+      }
       setState(() => _busy = false);
-      showApiErrorWithPrefix(context, 'Failed to set output path', e);
+      showApiErrorWithPrefix(context, 'Could not save the capture folder', e);
     }
   }
 
+  static bool _isAccessDenied(Object e) =>
+      e is ServerError && e.httpStatus == 403;
+
   Future<void> _commitCatalogs() async {
     if (_busy) return;
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
+    final linkedHost = ref.read(backendProvider).remoteHost;
     if (linkedHost == null) return;
     if (_catalogsToInstall.isEmpty) {
-      // Operator deliberately picked none — that's allowed (they may
-      // have a custom catalog they upload via the desktop). Advance to
-      // step 2 without firing any downloads.
       setState(() => _activeStep = 2);
       return;
     }
     setState(() => _busy = true);
-    final pending = _catalogsToInstall.toList(growable: false);
-    var firedAny = false;
-    for (final name in pending) {
+    var startedAny = false;
+    final names = {
+      for (final c in _availableCatalogs ?? const <RemoteAvailableCatalog>[])
+        c.name: c.displayName,
+    };
+    for (final name in _catalogsToInstall.toList(growable: false)) {
       try {
         await linkedHost.catalogs.downloadCatalog(name);
-        firedAny = true;
+        startedAny = true;
         if (!mounted) return;
-        setState(() {
-          _catalogsInFlight.add(name);
-        });
+        setState(() => _catalogsInFlight.add(name));
       } catch (e) {
         if (!mounted) return;
-        showApiErrorWithPrefix(context, 'Catalog download failed ($name)', e);
-        // Continue with remaining catalogs — one failure shouldn't
-        // block the rest. The operator can revisit failures in the
-        // Settings → Catalogs screen.
+        if (_isAccessDenied(e)) {
+          setState(() => _canInstallCatalogs = false);
+          break;
+        }
+        // One failed download does not stop the others; the rest can be
+        // retried from Settings > Catalogs.
+        showApiErrorWithPrefix(
+          context,
+          'Could not start ${names[name] ?? name}',
+          e,
+        );
       }
     }
     if (!mounted) return;
     setState(() {
       _busy = false;
-      if (firedAny || _catalogsToInstall.isEmpty) _activeStep = 2;
+      if (startedAny) _activeStep = 2;
     });
   }
 
@@ -422,7 +462,6 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     try {
       final prefs = await ref.read(mobilePreferencesProvider.future);
       await prefs.setFirstRunCompleted(true);
-      // Refresh the gate so the next build skips this screen.
       ref.invalidate(shouldRunFirstRunSetupProvider);
       if (!mounted) return;
       widget.onCompleted();
@@ -433,82 +472,80 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     }
   }
 
-  Future<void> _skip() async {
-    // Skipping still records the flag — the wizard is a one-time interrupt;
-    // the operator can always reach the same settings from the Settings
-    // tab without the wizard re-asserting itself.
-    await _finish();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<SkotiqColors>()!;
+    final colors = SkotiqColors.of(context);
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        title: const Text('First-run setup'),
-        actions: [
-          TextButton(
-            onPressed: _busy ? null : _skip,
-            child: Text('Skip', style: TextStyle(color: colors.textSecondary)),
-          ),
-        ],
-      ),
-      body: Stepper(
-        currentStep: _activeStep,
-        controlsBuilder: (context, details) => const SizedBox.shrink(),
-        onStepTapped: _busy
-            ? null
-            : (step) {
-                setState(() => _activeStep = step);
-              },
-        steps: [
-          Step(
-            title: const Text('Image output path'),
-            isActive: _activeStep == 0,
-            state: _outputPathState,
-            content: _buildImagePathStep(colors),
-          ),
-          Step(
-            title: const Text('Catalogs'),
-            isActive: _activeStep == 1,
-            state: _catalogsState,
-            content: _buildCatalogsStep(colors),
-          ),
-          Step(
-            title: const Text('Equipment profile'),
-            isActive: _activeStep == 2,
-            state: _profileState,
-            content: _buildProfileStep(colors),
-          ),
-        ],
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PageHeader(
+              icon: SkotiqIcons.checklist,
+              title: 'Set up your rig',
+              actions: [
+                // Skipping counts as done: the wizard interrupts once, and
+                // every step is also in Settings.
+                SkotiqButton(
+                  label: 'Skip',
+                  variant: ButtonVariant.ghost,
+                  onPressed: _busy ? null : _finish,
+                ),
+              ],
+            ),
+            Expanded(
+              child: Stepper(
+                currentStep: _activeStep,
+                controlsBuilder: (context, details) => const SizedBox.shrink(),
+                onStepTapped: _busy
+                    ? null
+                    : (step) => setState(() => _activeStep = step),
+                steps: [
+                  Step(
+                    title: const Text('Capture folder'),
+                    isActive: _activeStep == 0,
+                    state: _outputPathState,
+                    content: _buildImagePathStep(colors),
+                  ),
+                  Step(
+                    title: const Text('Star catalogs'),
+                    isActive: _activeStep == 1,
+                    state: _catalogsState,
+                    content: _buildCatalogsStep(colors),
+                  ),
+                  Step(
+                    title: const Text('Equipment profile'),
+                    isActive: _activeStep == 2,
+                    state: _profileState,
+                    content: _buildProfileStep(colors),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  /// Step ticks describe what the *host* has, not where the operator has
-  /// browsed to. A `StepState.complete` here is a claim that the bootstrap
-  /// condition is satisfied, so each getter is answered from a fact — the
-  /// condition was already met when the wizard opened, or this session did
-  /// something about it — and stays [StepState.indexed] otherwise.
+  /// A step's tick is a claim about the host, so each one is answered from a
+  /// fact: the host already had it when the wizard opened, or this session
+  /// did something about it.
   StepState get _outputPathState =>
       !widget.needs.missingImageOutputPath || _outputPathCommitted
       ? StepState.complete
       : StepState.indexed;
 
-  /// Catalogs count as handled once at least one download has actually been
-  /// accepted by the host. Skipping the step leaves it unticked: plate solving
-  /// really is unavailable, and pretending otherwise is how an operator gets to
-  /// their first failed solve believing setup was finished.
+  /// Ticked once the host has accepted at least one download. A skipped step
+  /// stays unticked, because plate solving really is unavailable.
   StepState get _catalogsState =>
       !widget.needs.missingCatalogs || _catalogsInFlight.isNotEmpty
       ? StepState.complete
       : StepState.indexed;
 
-  /// Prefer the profile list actually read back from the host over the
-  /// launch-time snapshot — the operator may have created one on the desktop
-  /// while this wizard was open.
+  /// From the profile list read back from the host when there is one: a
+  /// profile may have been made on the host while the wizard was open.
   StepState get _profileState {
     final profiles = _profiles;
     if (profiles != null) {
@@ -519,61 +556,89 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         : StepState.complete;
   }
 
+  Widget _stepText(SkotiqColors colors, String text) => Text(
+    text,
+    style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+  );
+
   Widget _buildImagePathStep(SkotiqColors colors) {
+    if (!_canChooseFolders) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SkotiqBanner(
+            title: 'Set the capture folder on the imaging computer',
+            message:
+                'This phone was paired without full admin access, so the rig '
+                'does not let it choose folders. Set the folder in Settings '
+                'on the imaging computer, or pair this phone again with full '
+                'admin access.',
+            tone: BannerTone.warning,
+          ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          SkotiqButton(
+            onPressed: _busy
+                ? null
+                : () => setState(
+                    () => _activeStep = widget.needs.missingCatalogs ? 1 : 2,
+                  ),
+            label: 'Continue',
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Choose where Skotiq should save captured images on the imaging '
-          'host. The folder must already exist and be writable.',
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: SkotiqTypography.fontSize13,
-          ),
+        _stepText(
+          colors,
+          'Where should the rig save its frames? The folder is on the imaging '
+          'computer, not this phone, and must already exist.',
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        SkotiqTextField(
           controller: _customPathController,
           enabled: !_busy,
-          decoration: const InputDecoration(
-            labelText: 'Host capture directory',
-            hintText: r'e.g. D:\Astro\Captures or /mnt/captures',
-            helperText:
-                'This path belongs to the imaging host, not this phone.',
-            border: OutlineInputBorder(),
-          ),
+          label: 'Capture folder on the rig',
+          hint: r'e.g. D:\Astro\Captures or /mnt/captures',
+          prefixIcon: SkotiqIcons.folder,
+          mono: true,
+          autocorrect: false,
+          enableSuggestions: false,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: SkotiqTokens.spaceSm),
         Align(
           alignment: Alignment.centerLeft,
           child: SkotiqButton(
             onPressed: _busy ? null : _browseImageOutputPath,
-            label: 'Browse host folders',
-            icon: LucideIcons.folderOpen,
-            variant: ButtonVariant.outline,
+            label: 'Browse the rig',
+            icon: SkotiqIcons.folderOpen,
+            variant: ButtonVariant.secondary,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: SkotiqTokens.spaceLg),
         SkotiqButton(
           onPressed: _busy ? null : _commitImageOutputPath,
-          label: _busy ? 'Saving...' : 'Save and continue',
+          label: _busy ? 'Saving…' : 'Save and continue',
         ),
       ],
     );
   }
 
   Widget _buildCatalogsStep(SkotiqColors colors) {
-    if (_catalogLoadError != null) {
+    final loadError = _catalogLoadError;
+    if (loadError != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Could not list catalogs: $_catalogLoadError',
-            style: TextStyle(color: colors.error),
+          SkotiqBanner(
+            title: 'Could not list the catalogs',
+            message: loadError,
+            tone: BannerTone.error,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: SkotiqTokens.spaceMd),
           SkotiqButton(
-            onPressed: _busy
+            onPressed: _busy || _loadingBootstrapData
                 ? null
                 : () {
                     setState(() {
@@ -582,112 +647,73 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
                     });
                     unawaited(_loadCatalogsAndProfiles());
                   },
-            label: 'Retry',
+            label: 'Try again',
           ),
-          const SizedBox(height: 8),
-          TextButton(
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          SkotiqButton(
             onPressed: _busy ? null : () => setState(() => _activeStep = 2),
-            child: const Text('Skip catalogs'),
+            label: 'Skip catalogs',
+            variant: ButtonVariant.ghost,
           ),
         ],
       );
     }
     final catalogs = _availableCatalogs;
-    if (catalogs == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-        ),
+    if (catalogs == null) return const _StepLoading();
+    if (!_canInstallCatalogs) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SkotiqBanner(
+            title: 'Install catalogs on the imaging computer',
+            message:
+                'This phone was paired without full admin access, so the rig '
+                'does not let it install catalogs. Install them in Settings '
+                'on the imaging computer, or pair this phone again with full '
+                'admin access.',
+            tone: BannerTone.warning,
+          ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          SkotiqButton(
+            onPressed: _busy ? null : () => setState(() => _activeStep = 2),
+            label: 'Continue',
+          ),
+        ],
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Pick catalogs to install. Plate-solving will not work until at '
-          'least one star catalog is installed. Downloads run in the '
-          'background; you can finish setup before they complete.',
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: SkotiqTypography.fontSize13,
-          ),
+        _stepText(
+          colors,
+          'Plate solving needs at least one star catalog. Downloads run on '
+          'the rig, so you can finish setup before they are done.',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: SkotiqTokens.spaceSm),
         for (final c in catalogs)
-          CheckboxListTile(
-            value: _catalogsToInstall.contains(c.name),
+          _CatalogRow(
+            catalog: c,
+            selected: _catalogsToInstall.contains(c.name),
+            downloading: _catalogsInFlight.contains(c.name),
             onChanged: _busy
                 ? null
-                : (v) {
-                    setState(() {
-                      if (v == true) {
-                        _catalogsToInstall.add(c.name);
-                      } else {
-                        _catalogsToInstall.remove(c.name);
-                      }
-                    });
-                  },
-            contentPadding: EdgeInsets.zero,
-            title: Row(
-              children: [
-                Expanded(child: Text(c.displayName)),
-                if (c.requiredForPlateSolve)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colors.primary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(
-                        SkotiqTokens.radiusXs,
-                      ),
-                    ),
-                    child: Text(
-                      'plate-solve',
-                      style: TextStyle(
-                        color: colors.primary,
-                        fontSize: SkotiqTypography.fontSize10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            subtitle: Text(
-              '${c.description} (${ByteFormat.size(c.sizeBytes)})',
-              style: TextStyle(
-                color: colors.textMuted,
-                fontSize: SkotiqTypography.fontSize11,
-              ),
-            ),
+                : (selected) => setState(() {
+                    if (selected) {
+                      _catalogsToInstall.add(c.name);
+                    } else {
+                      _catalogsToInstall.remove(c.name);
+                    }
+                  }),
           ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: SkotiqButton(
-                onPressed: _busy ? null : _commitCatalogs,
-                label: _busy
-                    ? 'Starting downloads...'
-                    : _catalogsToInstall.isEmpty
-                    ? 'Skip and continue'
-                    : 'Install and continue',
-              ),
-            ),
-          ],
+        const SizedBox(height: SkotiqTokens.spaceLg),
+        SkotiqButton(
+          onPressed: _busy ? null : _commitCatalogs,
+          label: _busy
+              ? 'Starting downloads…'
+              : _catalogsToInstall.isEmpty
+              ? 'Continue without catalogs'
+              : 'Install and continue',
         ),
-        if (_catalogsInFlight.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            'Downloading: ${_catalogsInFlight.join(", ")}',
-            style: TextStyle(
-              color: colors.textMuted,
-              fontSize: SkotiqTypography.fontSize11,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -698,11 +724,12 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Could not list equipment profiles: $loadError',
-            style: TextStyle(color: colors.error),
+          SkotiqBanner(
+            title: 'Could not list the equipment profiles',
+            message: loadError,
+            tone: BannerTone.error,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: SkotiqTokens.spaceMd),
           SkotiqButton(
             onPressed: _busy || _loadingBootstrapData
                 ? null
@@ -713,52 +740,33 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
                     });
                     unawaited(_loadCatalogsAndProfiles());
                   },
-            label: _loadingBootstrapData ? 'Retrying…' : 'Retry',
+            label: _loadingBootstrapData ? 'Trying again…' : 'Try again',
           ),
-          const SizedBox(height: 8),
-          TextButton(
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          SkotiqButton(
             onPressed: _busy ? null : _finish,
-            child: const Text('Finish without a profile'),
+            label: 'Finish without a profile',
+            variant: ButtonVariant.ghost,
           ),
         ],
       );
     }
     final profiles = _profiles;
-    if (profiles == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-        ),
-      );
-    }
+    if (profiles == null) return const _StepLoading();
     if (profiles.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'You already have ${profiles.length} equipment profile'
-            '${profiles.length == 1 ? "" : "s"}. The wizard is done.',
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: SkotiqTypography.fontSize13,
-            ),
+          _stepText(
+            colors,
+            profiles.length == 1
+                ? 'The rig has an equipment profile.'
+                : 'The rig has ${profiles.length} equipment profiles.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: SkotiqTokens.spaceSm),
           for (final p in profiles)
-            ListTile(
-              leading: const Icon(LucideIcons.workflow),
-              title: Text(p.name),
-              subtitle: Text(
-                p.description ?? 'No description',
-                style: TextStyle(
-                  color: colors.textMuted,
-                  fontSize: SkotiqTypography.fontSize11,
-                ),
-              ),
-              contentPadding: EdgeInsets.zero,
-            ),
-          const SizedBox(height: 16),
+            ListRow(icon: SkotiqIcons.layers, title: p.name),
+          const SizedBox(height: SkotiqTokens.spaceLg),
           SkotiqButton(
             onPressed: _busy ? null : _finish,
             label: 'Finish setup',
@@ -769,17 +777,13 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'No equipment profile yet. Equipment profiles are created on the '
-          'paired desktop or host — once you set one up there it appears '
-          'here automatically. You can finish setup now and pick a profile '
-          'later.',
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: SkotiqTypography.fontSize13,
-          ),
+        _stepText(
+          colors,
+          'The rig has no equipment profile yet. Make one on the imaging '
+          'computer, under Equipment; this phone uses it as soon as it '
+          'exists. You can finish now.',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: SkotiqTokens.spaceLg),
         SkotiqButton(
           onPressed: _busy ? null : _finish,
           label: 'Finish without a profile',
@@ -787,5 +791,102 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       ],
     );
   }
+}
 
+class _StepLoading extends StatelessWidget {
+  const _StepLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: SkotiqTokens.space2xl),
+      child: Center(
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+      ),
+    );
+  }
+}
+
+class _CatalogRow extends StatelessWidget {
+  const _CatalogRow({
+    required this.catalog,
+    required this.selected,
+    required this.downloading,
+    required this.onChanged,
+  });
+
+  final RemoteAvailableCatalog catalog;
+  final bool selected;
+  final bool downloading;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final change = onChanged;
+    return Semantics(
+      checked: selected,
+      enabled: change != null,
+      child: InkWell(
+        onTap: change == null ? null : () => change(!selected),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: SkotiqTokens.minTouchTarget,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
+            child: Row(
+              children: [
+                ExcludeSemantics(
+                  child: SkotiqCheckbox(
+                    value: selected,
+                    onChanged: change == null
+                        ? null
+                        : (v) => change(v ?? false),
+                  ),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: SkotiqTokens.spaceSm,
+                        runSpacing: SkotiqTokens.spaceXs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            catalog.displayName,
+                            style: SkotiqTypography.bodyStrong.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                          if (downloading || catalog.requiredForPlateSolve)
+                            SkotiqChip(
+                              label: downloading
+                                  ? 'Downloading'
+                                  : 'Plate solving',
+                              tone: downloading
+                                  ? ChipTone.success
+                                  : ChipTone.primary,
+                            ),
+                        ],
+                      ),
+                      Text(
+                        '${catalog.description} · '
+                        '${ByteFormat.size(catalog.sizeBytes)}',
+                        style: SkotiqTypography.caption.copyWith(
+                          color: colors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
