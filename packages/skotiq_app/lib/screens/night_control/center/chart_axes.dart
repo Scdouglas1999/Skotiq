@@ -139,15 +139,12 @@ class NightChartAxes extends StatelessWidget {
       final leftWidth = widest(left);
       final rightWidth = widest(right);
       final plotWidth = constraints.maxWidth - leftWidth - rightWidth;
-      final range = painter.timeRange;
       final clockWidth = widest(const <(double, String)>[(0, '00:00')]) + 6;
-      final timeTicks = range == null || plotWidth <= 0
-          ? const <DateTime>[]
-          : ChartScale.clockTicks(
-              DateTime.fromMillisecondsSinceEpoch(range.$1),
-              DateTime.fromMillisecondsSinceEpoch(range.$2),
-              (plotWidth / clockWidth).floor(),
-            );
+      final timeTicks = nightClockTicks(
+        painter: painter,
+        width: plotWidth,
+        labelWidth: clockWidth,
+      );
 
       // Labels closer than a line apart: keep the outer ones.
       // Each label with the y it sits at, in chart order.
@@ -258,6 +255,54 @@ class NightChartAxes extends StatelessWidget {
   }
 }
 
+/// Clock ticks on a round step whose labels, [labelWidth] wide and centered
+/// on their ticks (the outer ones held inside [width]), all fit side by side.
+///
+/// Counting labels by width alone let the first label, pushed right to stay
+/// inside the scale, cover the second, and the scale read 02:00, 06:00, 08:00.
+@visibleForTesting
+List<DateTime> nightClockTicks({
+  required SeriesChartPainter painter,
+  required double width,
+  required double labelWidth,
+}) {
+  final range = painter.timeRange;
+  if (range == null || width <= 0) return const <DateTime>[];
+  for (var most = (width / labelWidth).floor(); most > 0; most--) {
+    final ticks = ChartScale.clockTicks(
+      DateTime.fromMillisecondsSinceEpoch(range.$1),
+      DateTime.fromMillisecondsSinceEpoch(range.$2),
+      most,
+    );
+    if (_labelLefts(painter, ticks, width, labelWidth).length ==
+        ticks.length) {
+      return ticks;
+    }
+  }
+  return const <DateTime>[];
+}
+
+/// Where each label of [ticks] starts, leaving out a label that would cover
+/// the one before it.
+List<(DateTime, double)> _labelLefts(
+  SeriesChartPainter painter,
+  List<DateTime> ticks,
+  double width,
+  double labelWidth,
+) {
+  final out = <(DateTime, double)>[];
+  var lastRight = double.negativeInfinity;
+  for (final t in ticks) {
+    final x = painter.xOf(t, width);
+    if (x == null) continue;
+    final left = (x - labelWidth / 2).clamp(0.0, width - labelWidth);
+    if (left < lastRight) continue;
+    lastRight = left + labelWidth;
+    out.add((t, left));
+  }
+  return out;
+}
+
 class _TimeScale extends StatelessWidget {
   const _TimeScale({
     required this.painter,
@@ -276,13 +321,7 @@ class _TimeScale extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labels = <Widget>[];
-    var lastRight = double.negativeInfinity;
-    for (final t in ticks) {
-      final x = painter.xOf(t, width);
-      if (x == null) continue;
-      final left = (x - labelWidth / 2).clamp(0.0, width - labelWidth);
-      if (left < lastRight) continue;
-      lastRight = left + labelWidth;
+    for (final (t, left) in _labelLefts(painter, ticks, width, labelWidth)) {
       labels.add(
         Positioned(
           left: left,
@@ -479,15 +518,12 @@ class NightChartStrips extends StatelessWidget {
         rightWidth = rightWidth == 0 ? 0 : rightWidth.ceilToDouble() + 4;
       }
       final plotWidth = constraints.maxWidth - leftWidth - rightWidth;
-      final range = painters.last.timeRange;
       final clockWidth = textWidth('00:00', style).ceilToDouble() + 9;
-      final timeTicks = range == null || plotWidth <= 0
-          ? const <DateTime>[]
-          : ChartScale.clockTicks(
-              DateTime.fromMillisecondsSinceEpoch(range.$1),
-              DateTime.fromMillisecondsSinceEpoch(range.$2),
-              (plotWidth / clockWidth).floor(),
-            );
+      final timeTicks = nightClockTicks(
+        painter: painters.last,
+        width: plotWidth,
+        labelWidth: clockWidth,
+      );
 
       Widget band(int i) {
         final strip = strips[i];

@@ -439,5 +439,15 @@ void main() {
       );
       handle.dispose();
     });
+
+    testWidgets('a target window on the strip says until when', (tester) async {
+      await _pumpHeader(tester, NightRunPhase.running);
+      final labels = tester
+          .widget<NightTimelineStrip>(find.byType(NightTimelineStrip))
+          .labels
+          .map((label) => label.text);
+      expect(labels, contains('M74 until ≈03:40'));
+      expect(labels.where((text) => text.contains('→')), isEmpty);
+    });
   });
 }

@@ -43,7 +43,7 @@ enum NextUseActionId {
 class NextUseStep {
   final NextUseActionId id;
 
-  /// Short, action-oriented heading (e.g. `Plan tonight automatically`).
+  /// Short, action-oriented heading (e.g. `Plan a full night of targets`).
   final String title;
 
   /// One-line explanation of what the action does, written in the second
@@ -86,9 +86,9 @@ class NextUseStep {
 const List<NextUseStep> kNextUseSteps = <NextUseStep>[
   NextUseStep(
     id: NextUseActionId.buildSmartNight,
-    title: 'Plan tonight automatically',
+    title: 'Plan a full night of targets',
     body:
-        'Smart Night builds a full imaging plan for tonight from your rig and the targets that are well placed.',
+        'Smart Night fills the dark hours with several well-placed targets and shows you the plan before anything moves. For one target right now, use Image tonight\'s best target.',
     actionLabel: 'Build Smart Night',
     iconKey: 'sparkles',
     deepLinkRoute: '/planner?tab=scheduler',

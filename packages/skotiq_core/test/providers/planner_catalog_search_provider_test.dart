@@ -79,6 +79,45 @@ void main() {
   );
 
   test(
+    'a target already in tonight\'s list does not bring up the object its number extends',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'planner_catalog_search_prefix_',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      await CatalogManager.instance.initialize(tempDir.path);
+      await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
+        [
+          openNgcHeader,
+          'NGC5272;GCl;13:42:11.62;+28:22:38.2;CVn;16.20;16.20;;7.19;6.39;;;;;;;;;;;;;;003;;;;;;;;test',
+          'NGC0224;G;00:42:44.35;+41:16:08.6;And;177.83;69.66;35;4.29;3.44;;;;;;;;;;;;;;031;;;;;Andromeda Galaxy;;;test',
+        ].join('\n'),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          tonightSuggestionsProvider.overrideWith(
+            (ref) async => [_suggestion(id: 1, name: 'M31', catalogId: 'NGC224')],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final provider = plannerInstalledCatalogSearchProvider('M31');
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+
+      expect(await container.read(provider.future), isEmpty);
+    },
+  );
+
+  test(
     'planner installed-catalog search normalizes Messier NGC IC HIP and HD identifiers',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(

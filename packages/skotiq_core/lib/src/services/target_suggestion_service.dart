@@ -135,9 +135,6 @@ class _TonightSuggestionScorer {
   }) {
     final now = observationTime;
 
-    // Determine the night window (astronomical dusk to dawn).
-    // If we're currently in a night (after midnight, before dawn), use that
-    // night's window. Otherwise use the upcoming night.
     final nightWindow = _calculateNightWindow(now, latitude, longitude);
 
     // Get moon position at the midpoint of the night (moon moves slowly)
@@ -378,10 +375,9 @@ class _TonightSuggestionScorer {
     return progress.clamp(0.0, 1.0);
   }
 
-  /// Determine the night window (astronomical dusk to dawn) for the given time.
-  ///
-  /// If the observer is currently in a night (after midnight, before dawn), returns
-  /// that night's window. Otherwise returns the upcoming night's window.
+  /// The night window (astronomical dusk to dawn) at [now]: the night in
+  /// progress, or once its dark has ended, the coming one
+  /// ([AstronomyCalculations.nightAt]).
   /// Falls back to nautical or civil twilight at high latitudes where
   /// astronomical darkness may not occur.
   _NightWindow _calculateNightWindow(
@@ -389,43 +385,14 @@ class _TonightSuggestionScorer {
     double latitude,
     double longitude,
   ) {
-    // Check if we're currently in "last night" (past midnight, before dawn).
-    // calculateTwilightTimes starts from noon, so passing yesterday's date
-    // gives us yesterday's evening dusk → this morning's dawn.
-    final prevDate = DateTime(now.year, now.month, now.day - 1);
-    final prevTwilight = AstronomyCalculations.calculateTwilightTimes(
-      date: prevDate,
+    final night = AstronomyCalculations.nightAt(
+      now: now,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
-
-    final prevNight = _extractNightBounds(prevTwilight);
-    if (prevNight != null &&
-        now.isAfter(prevNight.start) &&
-        now.isBefore(prevNight.end)) {
-      // We're in last night's darkness
-      return _NightWindow(
-        start: prevNight.start,
-        end: prevNight.end,
-        twilight: prevTwilight,
-      );
-    }
-
-    // Not in last night → use today's date for the upcoming/current evening
-    final todayDate = DateTime(now.year, now.month, now.day);
-    final todayTwilight = AstronomyCalculations.calculateTwilightTimes(
-      date: todayDate,
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-    );
-
-    final todayNight = _extractNightBounds(todayTwilight);
-    if (todayNight != null) {
-      return _NightWindow(
-        start: todayNight.start,
-        end: todayNight.end,
-        twilight: todayTwilight,
-      );
+    final bounds = _extractNightBounds(night);
+    if (bounds != null) {
+      return _NightWindow(start: bounds.start, end: bounds.end, twilight: night);
     }
 
     // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
@@ -442,7 +409,7 @@ class _TonightSuggestionScorer {
     return _NightWindow(
       start: defaultStart,
       end: defaultEnd,
-      twilight: todayTwilight,
+      twilight: night,
     );
   }
 

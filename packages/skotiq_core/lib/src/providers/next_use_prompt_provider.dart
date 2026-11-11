@@ -31,6 +31,8 @@ import '../models/onboarding/next_use_steps.dart';
 import '../models/readiness/readiness_models.dart';
 import 'database_provider.dart';
 import 'readiness_provider.dart';
+import 'sequence/sequence_catalog_sync.dart';
+import 'sequence/sequence_selection.dart';
 import 'session_provider.dart';
 import 'smart_night_draft_provider.dart';
 import 'tutorial_provider.dart' show tutorialProgressDaoProvider;
@@ -149,19 +151,30 @@ final nextUseDismissedActionsProvider = StreamProvider<Set<NextUseActionId>>((
 final nextUseCompletedActionsProvider = Provider<Set<NextUseActionId>>((ref) {
   final completed = <NextUseActionId>{};
 
-  // Smart Night: any saved draft (built or skip-tracked) marks the step done.
+  // Planning the night: a loaded plan a run can start, a saved sequence, or a
+  // Smart Night draft, however it was made. Suggesting Smart Night over a
+  // plan the operator already has would offer to replace it.
   // Loading/error -> valueOrNull null/empty -> not complete (fail-closed).
+  final planLoaded = ref.watch(
+    currentSequenceProvider.select((s) => s?.launchable ?? false),
+  );
   final draftCount = ref.watch(_smartNightDraftCountProvider).valueOrNull ?? 0;
-  if (draftCount > 0) {
+  final savedCount =
+      ref.watch(savedSequenceSummariesProvider).valueOrNull?.length ?? 0;
+  if (planLoaded || draftCount > 0 || savedCount > 0) {
     completed.add(NextUseActionId.buildSmartNight);
   }
 
   // Framing: a non-empty session target name means the user has framed/chosen a
-  // target. Watched via `select` so this only recomputes when the boolean flips.
+  // target, and a loaded plan with a target header has one. Watched via
+  // `select` so this only recomputes when the boolean flips.
   final hasTarget = ref.watch(
     sessionStateProvider.select((s) => (s.targetName ?? '').trim().isNotEmpty),
   );
-  if (hasTarget) {
+  final planHasTarget = ref.watch(
+    currentSequenceProvider.select((s) => s?.targetHeaders.isNotEmpty ?? false),
+  );
+  if (hasTarget || planHasTarget) {
     completed.add(NextUseActionId.frameTarget);
   }
 

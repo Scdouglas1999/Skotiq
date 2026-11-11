@@ -310,6 +310,40 @@ class AstronomyCalculations {
     longitudeDeg: longitudeDeg,
   );
 
+  /// The site's night that is not over at [now]: the one in progress, or,
+  /// once its dark has ended, the coming one. This is what every screen
+  /// means by "tonight".
+  ///
+  /// A night is over at its astronomical dawn, or at the darkest dawn it has
+  /// when it never gets fully dark. The night is cut on the site's solar day,
+  /// so a remote site in another time zone gets its own night, not the one
+  /// matching the host's calendar date. Events are in the zone of [now].
+  static TwilightTimes nightAt({
+    required DateTime now,
+    required double latitudeDeg,
+    required double longitudeDeg,
+  }) {
+    for (final days in const [-1, 0, 1]) {
+      final night = twilightTimesNear(
+        instant: now.add(Duration(days: days)),
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+      );
+      final over =
+          night.astronomicalDawn ??
+          night.nauticalDawn ??
+          night.civilDawn ??
+          night.sunrise;
+      if (over != null && over.isAfter(now)) return night;
+    }
+    // No dawn at all: polar night, or polar day with no night to speak of.
+    return twilightTimesNear(
+      instant: now,
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+    );
+  }
+
   /// The next [kind] dawn at the site that is not already behind [now]: last
   /// night's while it is still ahead (after midnight), otherwise tonight's.
   /// Null when neither night has one (a night that never gets that dark).

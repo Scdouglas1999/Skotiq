@@ -503,6 +503,9 @@ abstract class Sequence with _$Sequence {
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
   }
 
+  /// Something a run can do: a target or an exposure.
+  bool get launchable => targetHeaders.isNotEmpty || totalExposures > 0;
+
   SequenceNode? getNode(String id) => nodes[id];
 
   SequenceNode? get rootNode => rootNodeId != null ? nodes[rootNodeId] : null;

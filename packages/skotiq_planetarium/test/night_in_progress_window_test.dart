@@ -103,4 +103,26 @@ void main() {
     expect(active.astronomicalDusk!.isBefore(now), isTrue);
     expect(active.astronomicalDawn!.isAfter(now), isTrue);
   });
+
+  test('a remote site far ahead of the host turns to its coming night', () {
+    // 40 N 155.66 E is about 15 hours ahead of US Eastern time: its dark ends
+    // in the host's afternoon, before the host's calendar day is over.
+    final container = ProviderContainer(
+      overrides: [
+        observationTimeProvider.overrideWith(
+          (ref) => _FixedClock(DateTime.utc(2026, 11, 11, 21, 15)),
+        ),
+        observerLocationProvider.overrideWith(
+          (ref) => _FixedSite(40.0, 155.66),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final now = DateTime.utc(2026, 11, 11, 21, 15);
+
+    final night = container.read(twilightTimesProvider);
+
+    expect(night.sunset!.isAfter(now), isTrue);
+    expect(night.astronomicalDawn!.isAfter(now), isTrue);
+  });
 }

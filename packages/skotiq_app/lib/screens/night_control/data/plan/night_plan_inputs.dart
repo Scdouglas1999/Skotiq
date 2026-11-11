@@ -116,10 +116,8 @@ class NightPlanTree {
   /// Target headers in the order the run reaches them.
   final List<TargetHeaderNode> targets;
 
-  /// Something a run can do: a target or an exposure. The same test the old
-  /// Tonight hero used before it offered Start.
-  bool get launchable =>
-      sequence.targetHeaders.isNotEmpty || sequence.totalExposures > 0;
+  /// Something a run can do ([Sequence.launchable]).
+  bool get launchable => sequence.launchable;
 
   /// Some loop runs until a time or a condition, so the plan has no fixed
   /// length.

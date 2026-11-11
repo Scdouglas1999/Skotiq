@@ -199,62 +199,32 @@ final objectVisibilityProvider = Provider.autoDispose
       );
     });
 
-/// The two night windows the current instant can belong to: the one that
-/// started on the PREVIOUS calendar evening and the one starting tonight.
-///
-/// Recomputed only when the calendar date (or the site) changes; the choice
-/// between them is made per-minute by [twilightTimesProvider].
+/// Twilight times for the site's night that is not over: the one in
+/// progress, or, once its dark has ended, the coming one
+/// ([AstronomyCalculations.nightAt]).
 ///
 /// With no site on record every field is null: twilight is a fact about a
 /// place, so there is nothing to state until the observer names one.
-final _nightWindowCandidatesProvider =
-    Provider<({TwilightTimes previous, TwilightTimes today})>((ref) {
-      final site = ref.watch(observerLocationProvider).site;
-      final currentDate = ref.watch(_currentDateProvider);
-
-      if (site == null) {
-        return (previous: const TwilightTimes(), today: const TwilightTimes());
-      }
-
-      TwilightTimes forDate(DateTime date) =>
-          AstronomyCalculations.calculateTwilightTimes(
-            date: date,
-            latitudeDeg: site.latitude,
-            longitudeDeg: site.longitude,
-          );
-
-      return (
-        previous: forDate(currentDate.subtract(const Duration(days: 1))),
-        today: forDate(currentDate),
-      );
-    });
-
-/// Twilight times for the observing night that is in progress, or — once it
-/// has ended — the one starting tonight.
-///
-/// `calculateTwilightTimes(date:)` returns a dusk-tonight → dawn-tomorrow
-/// window. Between local midnight and astronomical dawn the night actually in
-/// progress is the PREVIOUS date's window; anchoring on the calendar date
-/// describes the next night instead, while the current one is still running.
 final twilightTimesProvider = Provider<TwilightTimes>((ref) {
-  final candidates = ref.watch(_nightWindowCandidatesProvider);
-  final now = ref.watch(_currentMinuteProvider);
-
-  final previousDawn = candidates.previous.astronomicalDawn;
-  if (previousDawn != null && previousDawn.isAfter(now)) {
-    return candidates.previous;
-  }
-  return candidates.today;
+  final site = ref.watch(observerLocationProvider).site;
+  if (site == null) return const TwilightTimes();
+  return AstronomyCalculations.nightAt(
+    now: ref.watch(_currentMinuteProvider),
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
+  );
 });
 
-/// Moon information for current time and location
-/// Uses date precision for rise/set, minute precision for illumination.
+/// Moon information for current time and location.
+///
+/// Rise and set are searched from the start of the calendar day the
+/// [twilightTimesProvider] night's sunset falls on, so they belong to the
+/// same night as the twilight beside them; illumination is to the minute.
 ///
 /// Phase and illumination are the same everywhere on Earth, so they are stated
 /// whether or not a site is on record; rise and set are null without one.
 final moonInfoProvider = Provider<MoonTimes>((ref) {
   final site = ref.watch(observerLocationProvider).site;
-  final currentDate = ref.watch(_currentDateProvider);
   final currentMinute = ref.watch(_currentMinuteProvider);
 
   // Calculate phase and illumination - minute precision is sufficient
@@ -266,7 +236,9 @@ final moonInfoProvider = Provider<MoonTimes>((ref) {
   }
 
   final moonTimes = AstronomyCalculations.calculateMoonTimes(
-    date: currentDate,
+    date:
+        ref.watch(twilightTimesProvider.select((night) => night.sunset)) ??
+        ref.watch(_currentDateProvider),
     latitudeDeg: site.latitude,
     longitudeDeg: site.longitude,
   );

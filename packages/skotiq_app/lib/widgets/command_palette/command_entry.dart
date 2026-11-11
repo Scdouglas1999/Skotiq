@@ -8,8 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// scanned. Within a group the order is the app's own (rail order, catalog
 /// order), for the same reason.
 enum CommandGroup {
-  /// Sky objects from the installed catalogs; choosing one opens it in
-  /// Framing. Only matched objects appear.
+  /// Sky objects from the installed catalogs; choosing one centers the sky on
+  /// it in the planetarium and opens it in Framing anywhere else. Only
+  /// matched objects appear.
   targets,
 
   /// Every rail destination, every Settings section, and the screens that have
@@ -61,6 +62,10 @@ class CommandEntry {
   /// dismissal.
   final void Function(BuildContext context, WidgetRef ref) invoke;
 
+  /// What Shift+Enter does instead of [invoke], when the row has a second
+  /// way to go; its hint names it.
+  final void Function(BuildContext context, WidgetRef ref)? invokeAlternate;
+
   const CommandEntry({
     required this.id,
     required this.group,
@@ -71,6 +76,7 @@ class CommandEntry {
     this.keywords = const [],
     this.enabled = true,
     this.disabledReason,
+    this.invokeAlternate,
   });
 
   /// True when [query] (already lower-cased and trimmed) matches.

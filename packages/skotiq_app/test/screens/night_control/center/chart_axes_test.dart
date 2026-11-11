@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/center/chart_axes.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -105,6 +106,57 @@ void main() {
       );
       expect(ten.map((t) => t.minute), [44, 46, 48, 50, 52]);
     });
+  });
+
+  testWidgets('clock labels are evenly spaced at every width', (tester) async {
+    // The planner's altitude well: an hour either side of a 02:57-13:45 dark.
+    final from = DateTime(2026, 11, 11, 1, 57);
+    final to = DateTime(2026, 11, 11, 14, 45);
+    final points = <(DateTime, double?)>[
+      for (var m = 0; m <= to.difference(from).inMinutes; m += 30)
+        (from.add(Duration(minutes: m)), 45),
+    ];
+    for (var width = 200.0; width <= 480; width += 10) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              height: 110,
+              child: NightChartAxes(
+                from: from,
+                to: to,
+                leftTicks: const <double>[0, 30, 60, 90],
+                leftUnit: '°',
+                lines: <SeriesChartLine>[
+                  SeriesChartLine(
+                    points: points,
+                    tone: SeriesChartTone.primary,
+                    minY: 0,
+                    maxY: 90,
+                  ),
+                ],
+                semanticLabel: 'altitude',
+              ),
+            ),
+          ),
+        ),
+      );
+      final hours = <int>[
+        for (final text in find
+            .textContaining(RegExp(r'^\d\d:00$'))
+            .evaluate()
+            .map((e) => (e.widget as Text).data!))
+          int.parse(text.substring(0, 2)),
+      ];
+      expect(hours.length, greaterThanOrEqualTo(2), reason: 'at $width px');
+      final steps = <int>{
+        for (var i = 1; i < hours.length; i++) hours[i] - hours[i - 1],
+      };
+      expect(steps, hasLength(1), reason: 'at $width px: $hours');
+    }
   });
 
   for (final (bodyHeight, row) in const <(double, String)>[

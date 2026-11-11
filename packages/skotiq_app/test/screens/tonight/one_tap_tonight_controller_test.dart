@@ -312,4 +312,29 @@ void main() {
     expect(controller.state.phase, OneTapPhase.running);
     expect(plans, 2);
   });
+
+  test('a rig that cannot run the plan says so before picking or planning',
+      () async {
+    final calls = <String>[];
+    final controller = OneTapTonightController(
+      preflight: () async => 'No plate solver is set up on home.',
+      pick: () async {
+        calls.add('pick');
+        return suggestion();
+      },
+      frame: (_) => calls.add('frame'),
+      plan: (t) async {
+        calls.add('plan');
+        return result(t);
+      },
+      run: (_) async => calls.add('run'),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.go();
+
+    expect(controller.state.phase, OneTapPhase.failed);
+    expect(controller.state.error, 'No plate solver is set up on home.');
+    expect(calls, isEmpty);
+  });
 }

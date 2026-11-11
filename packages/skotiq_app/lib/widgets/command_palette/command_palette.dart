@@ -7,6 +7,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart'
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../screens/planetarium/show_in_sky.dart';
 import 'command_entry.dart';
 import 'command_sources.dart';
 
@@ -129,7 +130,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
 
   List<CommandEntry> _entries() {
     final all = <CommandEntry>[
-      ...buildTargetEntries(ref, _query),
+      ...buildTargetEntries(ref, _query, inSky: skyIsOnScreen(context, ref)),
       ...buildScreenEntries(context),
       ...buildSettingEntries(context, _query),
       ...buildActionEntries(context, ref),
@@ -168,7 +169,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       case LogicalKeyboardKey.enter:
       case LogicalKeyboardKey.numpadEnter:
         if (entries.isEmpty) return KeyEventResult.handled;
-        _invoke(entries[_selected.clamp(0, entries.length - 1)]);
+        _invoke(
+          entries[_selected.clamp(0, entries.length - 1)],
+          alternate: HardwareKeyboard.instance.isShiftPressed,
+        );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
         Navigator.of(context).maybePop();
@@ -203,12 +207,13 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     );
   }
 
-  void _invoke(CommandEntry entry) {
+  void _invoke(CommandEntry entry, {bool alternate = false}) {
     if (!entry.enabled) return;
     // Close first: a handler that pushes a route or opens a dialog must not
     // be doing it underneath a palette that is still dismissing.
     Navigator.of(context).pop();
-    entry.invoke(context, ref);
+    final run = alternate ? entry.invokeAlternate ?? entry.invoke : entry.invoke;
+    run(context, ref);
   }
 
   @override
