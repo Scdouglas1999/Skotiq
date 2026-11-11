@@ -51,7 +51,6 @@ class _PsfFieldMapCard extends StatelessWidget {
             ),
           if (psfTiles.isNotEmpty) ...[
             const SizedBox(height: 8),
-            // Color legend
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -110,5 +109,3 @@ class _LegendDot extends StatelessWidget {
     );
   }
 }
-
-// Residual vector card

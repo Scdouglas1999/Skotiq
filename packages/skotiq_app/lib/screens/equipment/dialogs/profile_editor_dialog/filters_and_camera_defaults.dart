@@ -5,14 +5,11 @@ part of '../profile_editor_dialog.dart';
 /// The binning factors this editor offers. Square only (binX == binY).
 const List<int> _binningFactors = [1, 2, 3, 4];
 
-/// Width of the label column in the SDK recommendation well.
 const double _recommendationLabelWidth = 104;
 
-/// Widest the "connect a camera" note beside the auto-detect buttons gets.
 const double _autoDetectNoteMaxWidth = 240;
 
 extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
-  // Section 4: filters
 
   Widget _buildFiltersSection(SkotiqColors colors, ThemeData theme) {
     final filterWheelState = ref.watch(filterWheelStateProvider);
@@ -40,7 +37,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Column headings
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     SkotiqTokens.spaceSm,
@@ -76,7 +72,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
                   ),
                 ),
 
-                // Filter rows
                 if (_filterControllers.isEmpty)
                   Padding(
                     padding: SkotiqTokens.paddingLg,
@@ -104,7 +99,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Action buttons
           Row(
             children: [
               SkotiqButton(
@@ -132,8 +126,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
       ),
     );
   }
-
-  // Section 5: camera defaults
 
   Widget _buildCameraDefaultsSection(SkotiqColors colors, ThemeData theme) {
     return _SectionBlock(
@@ -243,8 +235,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
       ),
     );
   }
-
-  // Auto-detect recommended camera gain/offset
 
   /// Build the auto-detect button row.
   ///

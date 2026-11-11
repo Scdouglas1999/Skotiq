@@ -3,7 +3,6 @@
 part of '../profile_editor_dialog.dart';
 
 extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
-  // Section 2: optical train
 
   Widget _buildOpticalTrainSection(SkotiqColors colors, ThemeData theme) {
     return _SectionBlock(
@@ -200,8 +199,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
         : value.toString();
   }
 
-  // Section 3: devices
-
   /// Whether the profile guides with the built-in guider, which needs a
   /// guide camera of its own.
   bool get _usesBuiltinGuider =>
@@ -255,7 +252,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Camera
           _DeviceRow(
             type: 'Camera',
             nameController: _cameraNameController,
@@ -276,7 +272,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Mount
           _DeviceRow(
             type: 'Mount',
             nameController: _mountNameController,
@@ -297,7 +292,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Focuser
           _DeviceRow(
             type: 'Focuser',
             nameController: _focuserNameController,
@@ -318,7 +312,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Filter wheel
           _DeviceRow(
             type: 'Filter wheel',
             nameController: _filterWheelNameController,
@@ -339,7 +332,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Guider
           _DeviceRow(
             type: 'Guider',
             nameController: _guiderNameController,
@@ -406,7 +398,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             const SizedBox(height: _rowGap),
           ],
 
-          // Rotator
           _DeviceRow(
             type: 'Rotator',
             nameController: _rotatorNameController,
@@ -515,7 +506,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Add from connected button
           Align(
             alignment: Alignment.centerLeft,
             child: SkotiqButton(

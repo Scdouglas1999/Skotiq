@@ -150,10 +150,8 @@ class DarkroomNight {
   List<String> get filters =>
       {for (final s in subs) s.filter}.toList()..sort(compareDarkroomFilters);
 
-  /// A night with kept subs and none of them in the current masters.
   bool get isNew => kept > 0 && use == DarkroomNightUse.none;
 
-  /// Kept subs the current masters do not hold.
   int get notInMasters => kept - inMasters;
 
   /// The one thing worth knowing about how the night went.

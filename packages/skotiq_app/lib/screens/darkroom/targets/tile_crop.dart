@@ -21,7 +21,6 @@ const double _tileMargin = 1.4;
 class DarkroomTileCrop {
   const DarkroomTileCrop({required this.center, required this.span});
 
-  /// The whole image, centered.
   static const full = DarkroomTileCrop(center: Offset(.5, .5), span: 1);
 
   final Offset center;

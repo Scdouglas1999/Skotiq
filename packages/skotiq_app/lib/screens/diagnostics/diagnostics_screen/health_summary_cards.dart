@@ -52,10 +52,6 @@ class _HealthGradeCard extends StatelessWidget {
           // in Skotiq reads better as it rises. It names the SCORES — the
           // figures at the end of each bar — because the bar is the decoration
           // and the figure is the reading.
-          //
-          // The sentence that used to follow it ("Use this grade as a quick
-          // summary before diving into the field map and findings") was a hint
-          // sentence explaining the screen, which 07 "What NOT to do" forbids.
           Text(
             'Lower scores are better.',
             textAlign: TextAlign.center,
@@ -64,7 +60,6 @@ class _HealthGradeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // Score breakdown
           _ScoreBar(
             label: context.l10n.text('diagnosticsTilt'),
             value: diagnostics.tiltScore,
@@ -171,8 +166,6 @@ class _ScoreBar extends StatelessWidget {
   }
 }
 
-// Tilt assessment card
-
 class _TiltAssessmentCard extends StatelessWidget {
   final OpticalTrainDiagnostics diagnostics;
   final SkotiqColors colors;
@@ -243,7 +236,6 @@ class _TiltAssessmentCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          // Tilt direction visualizer
           Center(
             child: SizedBox(
               width: 120,

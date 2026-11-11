@@ -1,7 +1,5 @@
 part of '../profile_editor_dialog.dart';
 
-// Helper widgets
-
 /// Width of the label column shared by every [FormRow] in this editor.
 ///
 /// 05 §8 puts the column at 84–104. This form runs wider because two of its
@@ -17,13 +15,10 @@ const double _iconOptionSize = SkotiqTokens.inputHeight;
 /// Diameter of an accent swatch (03 §1.4).
 const double _swatchSize = 22;
 
-/// Ring drawn around the chosen accent swatch.
 const double _swatchSelectedRing = 2;
 
-/// Width of a filter row's focus-offset field.
 const double _filterOffsetWidth = 104;
 
-/// Width of the ordinal column in the filter table.
 const double _filterIndexWidth = 28;
 
 /// A section of the editor: a [SectionTitle] with a collapse control, then
@@ -95,7 +90,6 @@ class _EditorRow extends StatelessWidget {
   /// The label, in sentence case.
   final String label;
 
-  /// The control.
   final Widget child;
 
   /// One short line under the control.
@@ -125,10 +119,8 @@ class _EditorRow extends StatelessWidget {
   }
 }
 
-/// Vertical gap between two [_EditorRow]s.
 const double _rowGap = FormRow.rowGap;
 
-/// Icon selection option
 class _IconOption extends StatelessWidget {
   final String icon;
   final bool isSelected;
@@ -180,7 +172,6 @@ class _IconOption extends StatelessWidget {
   }
 }
 
-/// Accent-colour swatch.
 class _ColorOption extends StatelessWidget {
   final Color? color;
   final bool isSelected;
@@ -328,7 +319,6 @@ class _DeviceRow extends StatelessWidget {
   }
 }
 
-/// Dropdown for selecting a device.
 class _DeviceDropdown extends StatelessWidget {
   final String? deviceId;
   final List<UnifiedDevice> discoveredDevices;
@@ -359,7 +349,6 @@ class _DeviceDropdown extends StatelessWidget {
           );
           onScan();
         } else {
-          // Find the device name
           final device = discoveredDevices
               .where((d) => d.activeDeviceId == value)
               .firstOrNull;
@@ -369,7 +358,6 @@ class _DeviceDropdown extends StatelessWidget {
       itemBuilder: (context) {
         final items = <PopupMenuEntry<String>>[];
 
-        // Current selection
         if (deviceId != null) {
           items.add(PopupMenuItem(
             value: deviceId,
@@ -394,7 +382,6 @@ class _DeviceDropdown extends StatelessWidget {
           items.add(const PopupMenuDivider());
         }
 
-        // Discovered devices
         if (discoveredDevices.isNotEmpty) {
           for (final device in discoveredDevices) {
             if (device.activeDeviceId == deviceId) continue;
@@ -421,7 +408,6 @@ class _DeviceDropdown extends StatelessWidget {
           items.add(const PopupMenuDivider());
         }
 
-        // Actions
         items.add(PopupMenuItem(
           value: '_scan_',
           child: Row(
@@ -612,7 +598,6 @@ class _FilterRow extends StatelessWidget {
   }
 }
 
-/// Helper class for filter name and offset controllers
 class _FilterControllerPair {
   final TextEditingController nameController;
   final TextEditingController offsetController;
@@ -628,7 +613,6 @@ class _FilterControllerPair {
   }
 }
 
-/// Extension to get trimmed string or null
 extension _StringTrimOrNull on String {
   String? get trimOrNull {
     final trimmed = trim();

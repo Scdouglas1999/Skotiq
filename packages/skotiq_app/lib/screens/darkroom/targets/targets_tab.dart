@@ -13,14 +13,12 @@ import 'darkroom_targets_providers.dart';
 import 'framing_check.dart';
 import 'target_detail.dart';
 
-/// Width of the target list beside the detail.
 const double _listWidth = 300;
 const double _listWidthNarrow = 248;
 
 /// Below this width the list narrows.
 const double _narrowWidth = 1100;
 
-/// Thumbnail edge in the target list.
 const double _thumbSize = 56;
 
 /// The Targets tab: every imaged target, and the selected one's detail or its

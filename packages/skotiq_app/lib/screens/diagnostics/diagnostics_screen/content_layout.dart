@@ -159,7 +159,6 @@ class _DesktopLayout extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left column: health grade + issues
         SizedBox(
           width: panelWidth,
           child: SingleChildScrollView(
@@ -177,7 +176,6 @@ class _DesktopLayout extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        // Right column: field map + residual overlay
         Expanded(
           child: SingleChildScrollView(
             child: Column(
@@ -234,5 +232,3 @@ class _MobileLayout extends StatelessWidget {
     );
   }
 }
-
-// Health grade card
