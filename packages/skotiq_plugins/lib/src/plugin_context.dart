@@ -10,7 +10,6 @@ import 'plugin_api.dart';
 class ConsolePluginLogger implements PluginLogger {
   final String _pluginId;
 
-  /// Creates a console logger for a plugin
   ConsolePluginLogger(this._pluginId);
 
   @override
@@ -363,10 +362,8 @@ class StreamPluginEventBus implements PluginEventBus {
     }
     final event = PluginEvent(name: eventName, data: data ?? {});
 
-    // Emit to general stream
     _controller.add(event);
 
-    // Emit to named stream if it exists
     final namedController = _namedControllers[eventName];
     if (namedController != null && !namedController.isClosed) {
       namedController.add(event.data);
@@ -392,7 +389,6 @@ class StreamPluginEventBus implements PluginEventBus {
     return _controller.stream;
   }
 
-  /// Dispose of all stream controllers
   void dispose() {
     _disposed = true;
     _controller.close();
@@ -480,7 +476,6 @@ class SandboxedPluginEventBus implements PluginEventBus {
   }
 }
 
-/// Factory for creating plugin contexts
 class PluginContextFactory {
   final StreamPluginEventBus _eventBus = StreamPluginEventBus();
   final PluginSandboxPolicy _policy;
@@ -501,7 +496,6 @@ class PluginContextFactory {
        _storageFactory =
            storageFactory ?? ((pluginId) => FilePluginStorage(pluginId));
 
-  /// Create a context for a specific plugin
   PluginContext createContext(String pluginId) {
     return PluginContext(
       logger: ConsolePluginLogger(pluginId),
@@ -510,7 +504,6 @@ class PluginContextFactory {
     );
   }
 
-  /// Dispose of shared resources
   void dispose() {
     _eventBus.dispose();
   }

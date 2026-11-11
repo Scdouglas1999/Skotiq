@@ -6,19 +6,15 @@ import '../src/plugin_api.dart';
 ///
 /// Used by [CustomNotificationPlugin] to define notification rules.
 class NotificationRule {
-  /// Human-readable name for this rule
   final String name;
 
-  /// Event name to monitor
   final String eventName;
 
-  /// Field in the event data to evaluate
   final String dataField;
 
   /// Comparison operator: 'gt', 'lt', 'gte', 'lte', 'eq', 'neq'
   final String operator;
 
-  /// Threshold value to compare against
   final double threshold;
 
   /// Notification message template. Use {value} for the actual value
@@ -28,7 +24,6 @@ class NotificationRule {
   /// Minimum seconds between notifications for this rule to avoid spam
   final int cooldownSeconds;
 
-  /// Last time this rule triggered a notification
   DateTime? _lastTriggered;
 
   NotificationRule({
@@ -72,7 +67,6 @@ class NotificationRule {
 
     if (!conditionMet) return null;
 
-    // Check cooldown
     final now = DateTime.now();
     if (_lastTriggered != null) {
       final elapsed = now.difference(_lastTriggered!).inSeconds;
@@ -87,7 +81,6 @@ class NotificationRule {
         .replaceAll('{threshold}', threshold.toStringAsFixed(2));
   }
 
-  /// Reset the cooldown timer for this rule
   void resetCooldown() {
     _lastTriggered = null;
   }
@@ -163,12 +156,10 @@ class CustomNotificationPlugin extends SkotiqPlugin {
 
     _notificationCount = 0;
 
-    // Reset all cooldowns on enable
     for (final rule in _rules) {
       rule.resetCooldown();
     }
 
-    // Subscribe to all unique event names in rules
     _rebuildSubscriptions();
 
     context.logger.info(
@@ -202,7 +193,6 @@ class CustomNotificationPlugin extends SkotiqPlugin {
     _rules.add(rule);
     _context?.logger.info('Added notification rule: ${rule.name}');
 
-    // If we're already enabled, rebuild subscriptions to pick up the new event
     if (_context != null && _subscriptions.isNotEmpty) {
       _rebuildSubscriptions();
     }
@@ -222,21 +212,16 @@ class CustomNotificationPlugin extends SkotiqPlugin {
     return false;
   }
 
-  /// Get all configured rules (read-only view).
   List<NotificationRule> get rules => List.unmodifiable(_rules);
 
-  /// Get the notification count for the current enabled session.
   int get notificationCount => _notificationCount;
 
-  /// Rebuild event bus subscriptions based on current rules.
   void _rebuildSubscriptions() {
     final context = _context;
     if (context == null) return;
 
-    // Cancel existing subscriptions
     _cancelAllSubscriptions();
 
-    // Get unique event names from all rules
     final eventNames = _rules.map((r) => r.eventName).toSet();
 
     for (final eventName in eventNames) {
@@ -246,7 +231,6 @@ class CustomNotificationPlugin extends SkotiqPlugin {
     }
   }
 
-  /// Evaluate all rules that match the given event name.
   void _evaluateRules(String eventName, Map<String, dynamic> data) {
     final context = _context;
     if (context == null) return;
@@ -284,7 +268,6 @@ class CustomNotificationPlugin extends SkotiqPlugin {
     });
   }
 
-  /// Cancel all active event subscriptions.
   Future<void> _cancelAllSubscriptions() async {
     for (final sub in _subscriptions.values) {
       await sub.cancel();

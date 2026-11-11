@@ -232,7 +232,6 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
       });
 
       if (confirmStateAfterSecs == 0 || expectedState == null) {
-        // Fire and forget — done.
         return true;
       }
 
