@@ -41,7 +41,6 @@ class CoImagingSessionCard extends StatelessWidget {
   /// null; the card keeps session discovery visible while surfacing the error.
   final String? membershipErrorMessage;
 
-  /// Retries the authoritative membership lookup after an error.
   final VoidCallback? onRetryMembership;
 
   /// Whether this rig's completed subs would actually co-add into the combined
@@ -57,10 +56,8 @@ class CoImagingSessionCard extends StatelessWidget {
   /// so the card offers a way out of it instead of only reporting it.
   final VoidCallback? onEnableSharing;
 
-  /// Whether a join is in-flight (drives the button spinner).
   final bool joining;
 
-  /// Whether a leave is in-flight (drives the Leave button spinner).
   final bool leaving;
 
   /// Join this session as a rig. Null when already joined, the session is
@@ -76,7 +73,6 @@ class CoImagingSessionCard extends StatelessWidget {
   /// shut the live pool for everyone.
   final VoidCallback? onEndSession;
 
-  /// Whether an end-session call is in-flight (drives the button spinner).
   final bool endingSession;
 
   const CoImagingSessionCard({

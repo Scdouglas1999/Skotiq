@@ -15,7 +15,6 @@ import 'package:skotiq_core/skotiq_core.dart' as core show ConstellationPrivacy;
 /// depth that backs the "your contribution" bar, and the persisted display
 /// name / privacy choice the contribute consent flow reads and writes.
 
-/// Settings key the chosen Constellation display name persists under.
 const String constellationDisplayNameSettingKey = 'constellation.display_name';
 
 /// Settings key the per-install stable public key persists under (random hex,

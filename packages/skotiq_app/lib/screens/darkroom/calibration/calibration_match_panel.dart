@@ -166,7 +166,6 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
   Future<void> _accept(CalibrationMasterRecord remote) async {
     await widget.onAccept(remote);
     if (!mounted) return;
-    // Re-run the preview so the now-local master (or refusal) is reflected.
     await _run();
   }
 

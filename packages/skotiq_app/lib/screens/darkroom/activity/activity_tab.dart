@@ -110,7 +110,6 @@ class _DarkroomActivityTabState extends ConsumerState<DarkroomActivityTab> {
   }
 }
 
-/// A panel below the history, spaced from it.
 class _Spaced extends StatelessWidget {
   const _Spaced(this.child);
 
