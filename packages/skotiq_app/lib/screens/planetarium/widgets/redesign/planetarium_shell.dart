@@ -62,7 +62,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
               child: Stack(
                 key: _skyViewKey,
                 children: [
-                  // Sky canvas (fills)
                   Positioned.fill(
                     child: GestureDetector(
                       onSecondaryTapUp: (details) =>
@@ -124,7 +123,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     ),
                   ),
 
-                  // FOV reference rings
                   Positioned.fill(
                     child: Consumer(
                       builder: (context, ref, _) {
@@ -143,7 +141,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     ),
                   ),
 
-                  // Multi-rig FOV framing presets (interactive)
                   if (_showFOV)
                     Positioned.fill(
                       child: Consumer(
@@ -195,7 +192,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     ),
                   ),
 
-                  // Performance HUD (debug / opt-in)
                   if (kDebugMode || ref.watch(showPerfHudProvider))
                     Positioned(
                       top: 12,
@@ -203,7 +199,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                       child: _PerfHud(colors: colors),
                     ),
 
-                  // Compass HUD
                   Positioned(
                     left: AdaptiveSizing.of(context).edgePadding,
                     bottom: 56,
@@ -227,7 +222,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     ),
                   ),
 
-                  // Mini-map
                   Positioned(
                     right: AdaptiveSizing.of(context).edgePadding + dockedWidth,
                     bottom: 56,
@@ -273,7 +267,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     ),
                   ),
 
-                  // Time-travel panel (bottom-center)
                   PlanetariumTransportSlot(
                     colors: colors,
                     compact: isPhone,
@@ -281,7 +274,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     stackWidth: constraints.maxWidth,
                   ),
 
-                  // Info bar (slim, bottom)
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -289,7 +281,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                     child: BottomInfoBar(colors: colors),
                   ),
 
-                  // Right-docked panels (desktop only)
                   if (!isPhone && _layersPanelOpen)
                     Positioned(
                       top: 0,
@@ -323,7 +314,6 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                       ),
                     ),
 
-                  // Object info popup (on selection)
                   if (_showPopup && _popupObject != null)
                     ObjectInfoPopup(
                       colors: colors,

@@ -5,7 +5,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import '../../../widgets/tutorial_keys/planetarium_keys.dart';
 
-/// Slew control buttons
 class SlewControls extends ConsumerWidget {
   final SkotiqColors colors;
   final bool slewMode;
@@ -38,7 +37,6 @@ class SlewControls extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Slew mode toggle
           Tooltip(
             message: slewMode ? 'Disable slew mode' : 'Enable slew mode',
             child: SlewControlButton(
@@ -50,7 +48,6 @@ class SlewControls extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // Stop slew button
           Tooltip(
             message: 'Stop slew',
             child: SlewControlButton(

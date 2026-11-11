@@ -324,7 +324,6 @@ class _Group extends StatelessWidget {
   }
 }
 
-/// One consistent switch row idiom for every layer toggle.
 class _LayerSwitch extends StatelessWidget {
   const _LayerSwitch({
     required this.label,

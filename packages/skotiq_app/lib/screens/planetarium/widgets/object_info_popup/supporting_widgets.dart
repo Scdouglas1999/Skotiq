@@ -1,6 +1,5 @@
 part of '../object_info_popup.dart';
 
-/// Slew popup menu button for planetarium object popup
 class SlewPopupMenuButton extends StatefulWidget {
   final SkotiqColors colors;
   final VoidCallback onSlew;
@@ -294,7 +293,6 @@ class _PopupActionButtonState extends State<PopupActionButton> {
   }
 }
 
-/// Dialog for adding a celestial object to an observing list.
 class _AddToListDialog extends ConsumerStatefulWidget {
   final CelestialObject object;
   final CelestialCoordinate coordinates;
@@ -329,7 +327,6 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
   String? get _catalogId {
     final obj = widget.object;
     if (obj is DeepSkyObject) {
-      // Prefer Messier, then NGC/IC, then id
       if (obj.isMessier && obj.messierNumber != null) return obj.messierNumber;
       if (obj.ngcIcDesignation != null) return obj.ngcIcDesignation;
       return obj.id;

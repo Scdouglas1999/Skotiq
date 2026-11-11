@@ -68,10 +68,8 @@ class PlanetariumCommandBar extends ConsumerWidget {
       child: Row(
         children: [
           const SizedBox(width: 8),
-          // Search
           _SearchEntry(onTap: onOpenSearch, compact: compact),
           const _BarDivider(),
-          // View
           CommandBarIconButton(
             icon: SkotiqIcons.home,
             // Home is the observer's zenith, not RA 0h / Dec 0 — see
@@ -105,7 +103,6 @@ class PlanetariumCommandBar extends ConsumerWidget {
             _BarHostedButton(child: ProjectionSelectorButton(colors: colors)),
           ],
           const _BarDivider(),
-          // Layers
           CommandBarIconButton(
             icon: SkotiqIcons.list,
             tooltip: 'Layers',
@@ -113,7 +110,6 @@ class PlanetariumCommandBar extends ConsumerWidget {
             onTap: onToggleLayers,
           ),
           const _BarDivider(),
-          // Tools (overflow)
           _ToolsMenu(
             colors: colors,
             compact: compact,
@@ -123,12 +119,10 @@ class PlanetariumCommandBar extends ConsumerWidget {
             onExportChart: onExportChart,
           ),
           const Spacer(),
-          // Mount (only when connected)
           if (mountConnected) ...[
             _MountControls(mountState: mountState),
             const _BarDivider(),
           ],
-          // Panels
           CommandBarIconButton(
             key: PlanetariumTutorialKeys.search,
             icon: LucideIcons.panelRight,
@@ -582,7 +576,6 @@ class _CommandBarIconButtonState extends State<CommandBarIconButton> {
   }
 }
 
-/// Thin vertical separator between command-bar segments.
 class _BarDivider extends StatelessWidget {
   const _BarDivider();
 
