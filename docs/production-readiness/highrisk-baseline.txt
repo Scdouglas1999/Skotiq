@@ -10,7 +10,6 @@ apps/desktop/lib/headless_api/handlers/sequencer/sequencer_start_preflight.dart	
 apps/desktop/lib/headless_api_server.dart	HeadlessApiServer	highrisk	1	baseline	/// implementations throw [UnimplementedError] until an operator wires
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_HeadlessApiServerEventForwarding	highrisk	1	baseline	/// scaffolds throw [UnimplementedError]; the headless server logs
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_deliverRemotePush	highrisk	1	baseline	} on UnimplementedError catch (e) {
-apps/mobile/lib/screens/replay/session_replay_screen.dart	_resolveDataSource	highrisk	1	baseline	// genuinely not implemented, and an empty timeline would read as a
 apps/mobile/lib/services/battery_service.dart	_saverOn	highrisk	1	baseline	} on UnimplementedError {
 apps/mobile/lib/services/voice_control_service.dart	-	highrisk	1	baseline	/// failure rather than a silent no-op.
 native/skotiq_native/alpaca/src/client/config.rs	rand_simple	highrisk	1	baseline	.unwrap_or_default()
