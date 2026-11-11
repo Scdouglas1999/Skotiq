@@ -90,6 +90,25 @@ void main() {
     });
   });
 
+  test('a pairing start answer says where the host put the code', () {
+    final result = RemotePairingStartResult.fromJson({
+      'expiresAt': '2026-11-11T21:05:00Z',
+      'expiresInSeconds': 300,
+      'codeDelivery': {
+        'operatorFile': true,
+        'operatorFileName': 'pairing-code.txt',
+        'console': false,
+      },
+    });
+    expect(result.delivery!.operatorFile, isTrue);
+    expect(result.delivery!.operatorFileName, 'pairing-code.txt');
+    expect(result.delivery!.console, isFalse);
+    expect(
+      RemotePairingStartResult.fromJson({'expiresInSeconds': 300}).delivery,
+      isNull,
+    );
+  });
+
   group('RemotePairingClient scheme', () {
     test('asserts an invalid scheme at construction', () {
       expect(

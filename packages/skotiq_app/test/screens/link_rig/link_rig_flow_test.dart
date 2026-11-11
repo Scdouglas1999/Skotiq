@@ -49,6 +49,20 @@ class _FakeLinkService extends RigLinkService {
     calls.add('code:$code:$fullAccess');
     return RigPairing(token: 'tok', scope: fullAccess ? 'admin' : 'control');
   }
+
+  @override
+  Future<RemotePairingStartResult> requestCode(DiscoveredServer host) async {
+    calls.add('requestCode:${host.host}');
+    return RemotePairingStartResult(
+      expiresAt: DateTime(2026, 11, 11, 21, 5),
+      expiresInSeconds: 300,
+      delivery: const PairingCodeDelivery(
+        operatorFile: true,
+        operatorFileName: 'pairing-code.txt',
+        console: false,
+      ),
+    );
+  }
 }
 
 class _DisconnectedNotifier extends BackendNotifier {
@@ -73,6 +87,18 @@ final _host = DiscoveredServer(
   platform: 'windows',
   version: '8.2.1',
   fingerprint: 'dc2f261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
+  lanPairing: true,
+);
+
+final _headless = DiscoveredServer(
+  host: '192.168.1.40',
+  webPort: 8080,
+  name: 'observatory-pi',
+  hostName: 'observatory-pi',
+  platform: 'linux',
+  hostMode: 'headless',
+  version: '8.2.1',
+  fingerprint: 'ab12261109b13423267823392fce64406b21767a95928a2e13eebef17fa85016',
   lanPairing: true,
 );
 
@@ -190,6 +216,100 @@ void main() {
     expect(service.calls.last, 'code:orbit nebula 4821:true');
     final saved = await tester.runAsync(store.load);
     expect(saved!.tokenScope, 'admin');
+  });
+
+  testWidgets(
+      'a headless host that wants a code makes one on the tap and the dialog '
+      'says where to read it', (tester) async {
+    await setSize(tester);
+    service.oneTapFailure = const RigPairingFailure(
+      RigPairingFailureKind.oneTapUnavailable,
+      'code',
+    );
+    await tester.pumpWidget(
+      app(LinkRigDialog(request: LinkRigRequest.pair(_headless))),
+    );
+    await tester.pump();
+    // A headless host has no Settings screen to send anyone to.
+    expect(find.textContaining('Settings > Remote access'), findsNothing);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('link.oneTap')));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pump();
+    await tester.pump();
+
+    expect(service.calls, [
+      startsWith('oneTap:192.168.1.40'),
+      'requestCode:192.168.1.40',
+    ]);
+    expect(find.byKey(const ValueKey('link.error')), findsNothing);
+    final where = tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byKey(const ValueKey('link.codeWhereabouts')),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+    expect(where, contains('observatory-pi asks for a code'));
+    expect(where, contains('valid until 21:05'));
+    expect(where, contains('pairing-code.txt'));
+    expect(find.text('Get a new code'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('link.code')),
+      'ORBIT-NEBULA-4821',
+    );
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('link.pairCode')));
+      for (var i = 0; i < 20 && relauncher.reasons.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await tester.pump();
+      }
+    });
+    expect(service.calls.last, startsWith('code:ORBIT-NEBULA-4821:'));
+    expect(relauncher.reasons, ['Linked to observatory-pi']);
+  });
+
+  test('where a headless host put its code', () {
+    RemotePairingStartResult made(PairingCodeDelivery? delivery) =>
+        RemotePairingStartResult(
+          expiresAt: DateTime(2026, 11, 11, 21, 5),
+          expiresInSeconds: 300,
+          delivery: delivery,
+        );
+    expect(
+      describeCodeWhereabouts(
+        'pi',
+        made(
+          const PairingCodeDelivery(
+            operatorFile: true,
+            operatorFileName: 'pairing-code.txt',
+            console: true,
+          ),
+        ),
+        askedForCode: false,
+      ),
+      'pi made a code, valid until 21:05. Read it on pi from the file '
+      'pairing-code.txt in its Skotiq data folder (its console names that '
+      'folder when Skotiq starts), or from its console.',
+    );
+    expect(
+      describeCodeWhereabouts(
+        'pi',
+        made(
+          const PairingCodeDelivery(
+            operatorFile: false,
+            operatorFileName: 'pairing-code.txt',
+            console: false,
+          ),
+        ),
+        askedForCode: false,
+      ),
+      contains('--pairing-print-codes'),
+    );
   });
 
   testWidgets('asking for full access offers only the code', (tester) async {

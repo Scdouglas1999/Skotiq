@@ -10,9 +10,15 @@ class RemotePairingStartResult {
   final DateTime expiresAt;
   final int expiresInSeconds;
 
+  /// Where the host put the code: an owner-only file in its data folder
+  /// (named [operatorFileName]) and/or its console. Null when the host did not
+  /// say.
+  final PairingCodeDelivery? delivery;
+
   const RemotePairingStartResult({
     required this.expiresAt,
     required this.expiresInSeconds,
+    this.delivery,
   });
 
   factory RemotePairingStartResult.fromJson(Map<String, dynamic> json) {
@@ -20,13 +26,45 @@ class RemotePairingStartResult {
     final expiresAt = expiresAtRaw != null
         ? DateTime.parse(expiresAtRaw).toUtc()
         : DateTime.now().toUtc().add(const Duration(minutes: 5));
+    final delivery = json['codeDelivery'];
     return RemotePairingStartResult(
       expiresAt: expiresAt,
       expiresInSeconds:
           json['expiresInSeconds'] as int? ??
           expiresAt.difference(DateTime.now().toUtc()).inSeconds,
+      delivery: delivery is Map<String, dynamic>
+          ? PairingCodeDelivery.fromJson(delivery)
+          : null,
     );
   }
+}
+
+/// The places on the host a pairing code went. The code itself never travels
+/// over the network.
+class PairingCodeDelivery {
+  const PairingCodeDelivery({
+    required this.operatorFile,
+    required this.operatorFileName,
+    required this.console,
+  });
+
+  factory PairingCodeDelivery.fromJson(Map<String, dynamic> json) {
+    final name = json['operatorFileName'];
+    return PairingCodeDelivery(
+      operatorFile: json['operatorFile'] == true,
+      operatorFileName: name is String && name.isNotEmpty
+          ? name
+          : 'pairing-code.txt',
+      console: json['console'] == true,
+    );
+  }
+
+  /// The code was written to [operatorFileName] in the host's data folder.
+  final bool operatorFile;
+  final String operatorFileName;
+
+  /// The host prints codes to its console (`--pairing-print-codes`).
+  final bool console;
 }
 
 /// Result of `POST /api/pairing/verify`.
@@ -138,9 +176,9 @@ class RemotePairingClient {
         .format(),
   };
 
-  /// Opens a pairing session on the desktop host. The pairing code itself is
-  /// shown on the desktop UI / QR — it is intentionally omitted from the HTTP
-  /// body so passive network observers cannot harvest it.
+  /// Asks the host to make a pairing code. The code stays on the host (its
+  /// screen, its data folder, its console); the answer says only where it went
+  /// and when it expires, so a passive network observer cannot harvest it.
   Future<RemotePairingStartResult> start() async {
     final response = await http
         .post(_uri('/api/pairing/start'), headers: _headers)
@@ -149,6 +187,7 @@ class RemotePairingClient {
     if (response.statusCode != 200) {
       throw RemotePairingException(
         'Pairing start failed (${response.statusCode}): ${response.body}',
+        statusCode: response.statusCode,
       );
     }
 
@@ -316,7 +355,11 @@ class RemotePairingClient {
 
 class RemotePairingException implements Exception {
   final String message;
-  const RemotePairingException(this.message);
+
+  /// The HTTP status the host answered with, when it answered.
+  final int? statusCode;
+
+  const RemotePairingException(this.message, {this.statusCode});
 
   @override
   String toString() => 'RemotePairingException: $message';

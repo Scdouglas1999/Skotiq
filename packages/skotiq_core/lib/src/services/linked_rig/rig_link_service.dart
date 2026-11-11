@@ -109,6 +109,25 @@ class RigLinkService {
     return _accept(result);
   }
 
+  /// Asks [host] to make a pairing code. A host with no screen (a headless
+  /// one) keeps it in a file in its data folder and, when started with
+  /// `--pairing-print-codes`, prints it to its console; the answer says where,
+  /// never what.
+  Future<RemotePairingStartResult> requestCode(DiscoveredServer host) async {
+    try {
+      return await _clientFactory(host).start();
+    } on RemotePairingException catch (e) {
+      throw RigPairingFailure(
+        e.statusCode == 429
+            ? RigPairingFailureKind.rateLimited
+            : RigPairingFailureKind.refused,
+        e.message,
+      );
+    } on Object catch (e) {
+      throw RigPairingFailure(RigPairingFailureKind.unreachable, '$e');
+    }
+  }
+
   /// Pairing with the short code the host shows (`WORD-WORD-NNNN`).
   /// [fullAccess] asks for admin scope, which lets this desktop change the
   /// host's settings too.
