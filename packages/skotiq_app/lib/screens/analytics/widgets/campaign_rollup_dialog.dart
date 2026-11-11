@@ -100,12 +100,9 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalPct = rollup.totalPercentComplete;
-    // The card describes three different populations.
     // `totalCapturedIntegrationSecs` and the per-filter table count ACCEPTED
-    // light frames; the session rows print each session's own
-    // `total_integration_secs`, which counts everything it captured. Both
-    // numbers are computed here so the card can name them rather than
-    // contradict itself.
+    // light frames; the session rows count every light of this target the
+    // session took. Both are named so the card does not contradict itself.
     final capturedSecs = rollup.sessions
         .fold<double>(0, (sum, s) => sum + s.sessionIntegrationSecs);
     final acceptedSecs = rollup.totalCapturedIntegrationSecs;
@@ -392,7 +389,6 @@ class _OverallProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = goal - captured;
-    final remainingHours = remaining > 0 ? remaining / 3600.0 : 0.0;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -439,7 +435,7 @@ class _OverallProgress extends StatelessWidget {
             // the session rows below now use that same word for every frame the
             // session took, so one card would read "Captured 0.0h" over
             // "0.17h captured".
-            'Accepted ${(captured / 3600.0).toStringAsFixed(1)}h of ${(goal / 3600.0).toStringAsFixed(1)}h goal | Remaining: ${remainingHours.toStringAsFixed(1)}h',
+            'Accepted ${DurationFormat.decimalHours(captured)} of ${DurationFormat.decimalHours(goal)} goal | Remaining: ${DurationFormat.decimalHours(remaining)}',
             style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
@@ -502,7 +498,7 @@ class _FilterRow extends StatelessWidget {
                 ),
               const Spacer(),
               Text(
-                '${(filter.capturedIntegrationSecs / 3600.0).toStringAsFixed(1)}h',
+                DurationFormat.decimalHours(filter.capturedIntegrationSecs),
                 style: SkotiqTypography.bodyStrong.copyWith(
                   color: colors.textPrimary,
                 ),
@@ -568,7 +564,7 @@ class _SessionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final durationSecs = session.wallClockDuration.inSeconds;
     final durationLabel = durationSecs > 0
-        ? '${(durationSecs / 3600.0).toStringAsFixed(2)}h wall'
+        ? '${DurationFormat.decimalHours(durationSecs)} wall'
         : kReadoutUnknown;
     return Material(
       type: MaterialType.transparency,
@@ -615,7 +611,7 @@ class _SessionRow extends StatelessWidget {
                           // own total across every frame it took, while the header
                           // tile and the per-filter table above count only frames
                           // that survived grading.
-                          '${formatDateTime(session.startTime)} | $durationLabel | ${(session.sessionIntegrationSecs / 3600.0).toStringAsFixed(2)}h captured',
+                          '${formatDateTime(session.startTime)} | $durationLabel | ${DurationFormat.decimalHours(session.sessionIntegrationSecs)} captured',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: SkotiqTypography.caption

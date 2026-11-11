@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../../scheduler/widgets/integration_goals_editor.dart';
 import 'analytics_empty_state.dart';
 import 'campaign_rollup_dialog.dart';
 
@@ -20,41 +20,6 @@ enum ProjectSortMode {
   lastImaged,
   name,
 }
-
-/// Computes per-target, per-filter integration time from captured images.
-///
-/// Returns a map of target ID to (filter name -> total seconds).
-final perFilterIntegrationProvider =
-    Provider<AsyncValue<Map<int, Map<String, double>>>>((ref) {
-  final imagesAsync = ref.watch(allDbImagesProvider);
-
-  if (imagesAsync.hasError) {
-    return AsyncValue.error(
-      imagesAsync.error!,
-      imagesAsync.stackTrace ?? StackTrace.current,
-    );
-  }
-  if (imagesAsync.isLoading) {
-    return const AsyncValue.loading();
-  }
-
-  final images = imagesAsync.value ?? const <DbCapturedImage>[];
-  final result = <int, Map<String, double>>{};
-
-  for (final image in images) {
-    final targetId = image.targetId;
-    if (targetId == null) continue;
-    if (image.frameType != 'light') continue;
-    if (!image.isAccepted) continue;
-
-    final filterName = image.filter ?? 'Unfiltered';
-    final targetMap = result.putIfAbsent(targetId, () => <String, double>{});
-    targetMap[filterName] =
-        (targetMap[filterName] ?? 0.0) + image.exposureDuration;
-  }
-
-  return AsyncValue.data(result);
-});
 
 /// Number of "untracked" library targets eligible for the opt-in cleanup.
 /// Re-evaluates whenever the targets or sessions data changes so the button
@@ -109,8 +74,8 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
         sorted.sort((a, b) => b.integratedSecs.compareTo(a.integratedSecs));
       case ProjectSortMode.lastImaged:
         sorted.sort((a, b) {
-          final aTime = a.lastSessionAt?.millisecondsSinceEpoch ?? 0;
-          final bTime = b.lastSessionAt?.millisecondsSinceEpoch ?? 0;
+          final aTime = a.lastImagedAt?.millisecondsSinceEpoch ?? 0;
+          final bTime = b.lastImagedAt?.millisecondsSinceEpoch ?? 0;
           return bTime.compareTo(aTime);
         });
       case ProjectSortMode.name:
@@ -124,7 +89,6 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final progressAsync = ref.watch(projectProgressListProvider);
-    final filterDataAsync = ref.watch(perFilterIntegrationProvider);
 
     return progressAsync.when(
       data: (projects) {
@@ -144,8 +108,6 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
         }
 
         final sorted = _sortProjects(projects);
-        final filterData =
-            filterDataAsync.valueOrNull ?? <int, Map<String, double>>{};
 
         return Column(
           children: [
@@ -164,13 +126,7 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
                 itemCount: sorted.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  final progress = sorted[index];
-                  final targetFilterData =
-                      filterData[progress.target.id] ?? <String, double>{};
-                  return _EnhancedProjectCard(
-                    progress: progress,
-                    filterBreakdown: targetFilterData,
-                  );
+                  return _EnhancedProjectCard(progress: sorted[index]);
                 },
               ),
             ),

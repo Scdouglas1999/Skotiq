@@ -467,24 +467,13 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     }
   }
 
-  Future<void> _openGoalsDialog(int targetId, String targetName) async {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final availableFilters =
-        profile != null ? List<String>.from(profile.filterNames) : <String>[];
-    await showDialog<void>(
-      context: context,
-      builder: (_) => SkotiqDialog(
-        title: 'Integration goals — $targetName',
-        icon: LucideIcons.target,
-        width: 720,
-        child: IntegrationGoalsEditor(
-          targetId: targetId,
-          targetName: targetName,
-          availableFilters: availableFilters,
-        ),
-      ),
-    );
-  }
+  Future<void> _openGoalsDialog(int targetId, String targetName) =>
+      showIntegrationGoalsDialog(
+        context,
+        ref,
+        targetId: targetId,
+        targetName: targetName,
+      );
 
   /// One-click handoff of the active project's still-incomplete targets into
   /// the Smart Night planner. Reads the active project's roll-up, pulls out the

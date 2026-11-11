@@ -3,18 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/analytics/widgets/project_tracking_panel.dart';
+import 'package:skotiq_app/screens/scheduler/widgets/integration_goals_editor.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
-class _MockNetworkBackend extends Mock implements NetworkBackend {
-  int updateTargetCalls = 0;
-
-  @override
-  Future<void> updateTarget(int id, Map<String, dynamic> target) async {
-    updateTargetCalls++;
-  }
-}
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 class _SwappableBackendNotifier extends BackendNotifier {
   _SwappableBackendNotifier(super.ref, SkotiqBackend backend) : super() {
@@ -43,9 +37,11 @@ ProjectProgress _project() {
       isFavorite: false,
     ),
     sessionCount: 0,
-    successfulExposures: 0,
+    acceptedFrames: 0,
     integratedSecs: 0,
-    lastSessionAt: null,
+    filters: const [],
+    goalIntegrationSecs: 3600,
+    lastImagedAt: null,
   );
 }
 
@@ -68,9 +64,6 @@ void main() {
           }),
           projectProgressListProvider.overrideWith(
             (ref) => AsyncValue.data([_project()]),
-          ),
-          perFilterIntegrationProvider.overrideWith(
-            (ref) => const AsyncValue.data(<int, Map<String, double>>{}),
           ),
           untrackedTargetsCountProvider.overrideWith((ref) async => 3),
         ],
@@ -105,25 +98,16 @@ void main() {
     );
   });
 
-  testWidgets('integration-goal edit is canceled after a host switch',
+  // The goal a card shows is the one Plan > Projects sets, so the card edits
+  // it in the same per-filter editor rather than in a second, scalar goal.
+  testWidgets('Edit goal opens the integration-goals editor for the target',
       (tester) async {
-    final hostA = _MockNetworkBackend();
-    final hostB = _MockNetworkBackend();
-    late _SwappableBackendNotifier notifier;
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           inMemoryDatabaseOverride(),
-          backendProvider.overrideWith((ref) {
-            notifier = _SwappableBackendNotifier(ref, hostA);
-            return notifier;
-          }),
           projectProgressListProvider.overrideWith(
             (ref) => AsyncValue.data([_project()]),
-          ),
-          perFilterIntegrationProvider.overrideWith(
-            (ref) => const AsyncValue.data(<int, Map<String, double>>{}),
           ),
           untrackedTargetsCountProvider.overrideWith((ref) async => 0),
         ],
@@ -143,18 +127,12 @@ void main() {
 
     await tester.tap(find.text('Edit Goal'));
     await tester.pumpAndSettle();
-    expect(find.text('Set integration goal for M31'), findsOneWidget);
+    expect(find.text('Integration goals — M31'), findsOneWidget);
+    expect(find.byType(IntegrationGoalsEditor), findsOneWidget);
 
-    notifier.switchTo(hostB);
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await tester.pumpAndSettle();
-
-    expect(hostA.updateTargetCalls, 0);
-    expect(hostB.updateTargetCalls, 0);
-    expect(
-      find.text('Imaging host changed. Goal update was canceled.'),
-      findsOneWidget,
-    );
+    // Drift closes a stream query on a zero-length timer after its last
+    // listener goes; let it run before the test ends.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

@@ -90,8 +90,9 @@ class CampaignSessionRef {
   final DateTime? endTime;
   final String status;
 
-  /// Integration time recorded on the session row, in seconds. Sourced from
-  /// `imaging_sessions.totalIntegrationSecs` — may be 0 for active sessions.
+  /// Exposure of this target's light frames taken in the session, accepted or
+  /// not, in seconds. A run can image several targets, so this is not the
+  /// session row's own total.
   final double sessionIntegrationSecs;
 
   /// Mean HFR recorded on the session row. Null when not tracked.

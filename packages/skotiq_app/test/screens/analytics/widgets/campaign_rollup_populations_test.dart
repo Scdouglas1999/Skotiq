@@ -195,6 +195,6 @@ void main() {
     // session row below it reports as captured.
     expect(find.textContaining('Accepted 2.3h of'), findsOneWidget);
     expect(find.textContaining('Captured 2.3h of'), findsNothing);
-    expect(find.textContaining('3.33h captured'), findsOneWidget);
+    expect(find.textContaining('3.3h captured'), findsOneWidget);
   });
 }

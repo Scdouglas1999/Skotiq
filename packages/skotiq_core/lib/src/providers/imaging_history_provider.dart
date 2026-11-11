@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as db;
 import 'database_provider.dart';
+import 'project_tracking_provider.dart';
+import 'scheduler_provider.dart' show integrationGoalsStreamProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Lookup key for imaging history: object name + J2000 coordinates.
@@ -34,7 +36,7 @@ class ImagingHistory {
   /// The matched target from the database (null if no match).
   final db.Target? target;
 
-  /// Total integration time across all sessions, in seconds.
+  /// Exposure of the target's accepted light frames, in seconds.
   final double totalIntegrationSecs;
 
   /// Per-filter frame counts: filter name -> accepted frame count.
@@ -46,10 +48,10 @@ class ImagingHistory {
   /// Number of imaging sessions for this target.
   final int sessionCount;
 
-  /// When this target was last imaged (end of most recent session).
+  /// When the target's newest light frame was taken.
   final DateTime? lastImaged;
 
-  /// Goal integration time from the target, in seconds (0 if unset).
+  /// The target's integration goals in seconds (0 if none).
   final double goalIntegrationSecs;
 
   const ImagingHistory({
@@ -94,6 +96,7 @@ final imagingHistoryProvider =
       final allTargets = await ref.watch(allDbTargetsProvider.future);
       final allSessions = await ref.watch(allSessionsProvider.future);
       final allImages = await ref.watch(allDbImagesProvider.future);
+      final allGoals = await ref.watch(integrationGoalsStreamProvider.future);
 
       db.Target? matched;
 
@@ -142,45 +145,25 @@ final imagingHistoryProvider =
         return ImagingHistory.empty;
       }
 
-      final target = matched;
-
-      final sessions = allSessions
-          .where((session) => session.targetId == target.id)
-          .toList(growable: false);
-
-      double totalIntegration = 0;
-      int sessionCount = sessions.length;
-      DateTime? lastImaged;
-
-      for (final s in sessions) {
-        totalIntegration += s.totalIntegrationSecs;
-        final candidate = s.endTime ?? s.startTime;
-        if (lastImaged == null || candidate.isAfter(lastImaged)) {
-          lastImaged = candidate;
-        }
-      }
-
-      final targetImages = allImages
-          .where((image) => image.targetId == target.id)
-          .toList(growable: false);
-      final filterCounts = <String, int>{};
-      final filterIntegrationSecs = <String, double>{};
-      for (final img in targetImages) {
-        if (img.filter != null && img.isAccepted && img.frameType == 'light') {
-          filterCounts[img.filter!] = (filterCounts[img.filter!] ?? 0) + 1;
-          filterIntegrationSecs[img.filter!] =
-              (filterIntegrationSecs[img.filter!] ?? 0.0) +
-              img.exposureDuration;
-        }
-      }
+      final progress = ref
+          .read(projectTrackingServiceProvider)
+          .summarize(
+            targets: [matched],
+            sessions: allSessions,
+            frames: allImages,
+            goals: allGoals,
+          )
+          .single;
 
       return ImagingHistory(
-        target: target,
-        totalIntegrationSecs: totalIntegration,
-        filterCounts: filterCounts,
-        filterIntegrationSecs: filterIntegrationSecs,
-        sessionCount: sessionCount,
-        lastImaged: lastImaged,
-        goalIntegrationSecs: target.goalIntegrationSecs,
+        target: matched,
+        totalIntegrationSecs: progress.integratedSecs,
+        filterCounts: {for (final f in progress.filters) f.filter: f.frames},
+        filterIntegrationSecs: {
+          for (final f in progress.filters) f.filter: f.seconds,
+        },
+        sessionCount: progress.sessionCount,
+        lastImaged: progress.lastImagedAt,
+        goalIntegrationSecs: progress.goalIntegrationSecs,
       );
     });

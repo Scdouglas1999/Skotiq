@@ -6,6 +6,33 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../accessible_dropdown.dart';
 
+/// The integration-goals editor for one target in a dialog, offering the
+/// active profile's filters. Plan > Projects and Analytics > Projects open it,
+/// so a goal set in one is the goal the other shows.
+Future<void> showIntegrationGoalsDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  required int targetId,
+  required String targetName,
+}) {
+  final profile = ref.read(activeEquipmentProfileProvider);
+  return showDialog<void>(
+    context: context,
+    builder: (_) => SkotiqDialog(
+      title: 'Integration goals — $targetName',
+      icon: LucideIcons.target,
+      width: 720,
+      child: IntegrationGoalsEditor(
+        targetId: targetId,
+        targetName: targetName,
+        availableFilters: profile != null
+            ? List<String>.from(profile.filterNames)
+            : const <String>[],
+      ),
+    ),
+  );
+}
+
 /// Per-target integration-goals editor.
 ///
 /// One row per existing goal (filter, exposure seconds, frame count,

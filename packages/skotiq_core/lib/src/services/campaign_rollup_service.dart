@@ -2,6 +2,7 @@ import '../database/daos/targets_dao.dart';
 import 'imaging_records_repository.dart';
 import '../database/database.dart';
 import '../models/campaign_rollup.dart';
+import 'project_tracking_service.dart';
 import 'scheduler/integration_goal_service.dart';
 
 /// Builds a multi-night [CampaignRollup] for one target (Feature B).
@@ -70,17 +71,48 @@ class CampaignRollupService {
   }
 
   Future<CampaignRollup> _build(Target target) async {
-    final allSessions = await _records.getSessionsForTarget(target.id);
     final imagesForTarget = await _records.getImagesForTarget(target.id);
+    final namingSessions = await _records.getSessionsForTarget(target.id);
+    final sessionIds = targetSessionIds(
+      target.id,
+      frames: imagesForTarget,
+      sessions: namingSessions,
+    );
+    final allSessions = [
+      for (final session in namingSessions)
+        if (sessionIds.contains(session.id)) session,
+    ];
+    for (final id in sessionIds) {
+      if (allSessions.any((s) => s.id == id)) continue;
+      final session = await _records.getSessionById(id);
+      if (session != null) allSessions.add(session);
+    }
     final lightFrames = imagesForTarget
-        .where((i) => i.frameType == 'light' && i.isAccepted)
+        .where((i) => i.frameType.toLowerCase() == 'light')
         .toList(growable: false);
 
-    final filters = _buildFilters(lightFrames, target.id);
+    final filters = [
+      for (final f in acceptedLightsByFilter(lightFrames))
+        CampaignFilterRollup(
+          filter: f.filter,
+          capturedFrames: f.frames,
+          capturedIntegrationSecs: f.seconds,
+          goalExposureSecs: null,
+          goalFrames: null,
+          meanCapturedExposureSecs: f.frames > 0 ? f.seconds / f.frames : null,
+        ),
+    ];
     // Honor goals even when no light frames have been captured yet so the
     // UI can show a 0% progress bar for the new campaign.
     await _attachGoalsToFilters(filters, target.id);
 
+    final targetSecsBySession = <int, double>{};
+    for (final frame in lightFrames) {
+      final id = frame.sessionId;
+      if (id == null) continue;
+      targetSecsBySession[id] =
+          (targetSecsBySession[id] ?? 0) + frame.exposureDuration;
+    }
     final sessionRefs = allSessions
         .map(
           (s) => CampaignSessionRef(
@@ -89,7 +121,7 @@ class CampaignRollupService {
             startTime: s.startTime,
             endTime: s.endTime,
             status: s.status,
-            sessionIntegrationSecs: s.totalIntegrationSecs,
+            sessionIntegrationSecs: targetSecsBySession[s.id] ?? 0.0,
             avgHfr: s.avgHfr,
             avgGuidingRms: s.avgGuidingRms,
             avgSeeing: s.avgSeeing,
@@ -107,9 +139,9 @@ class CampaignRollupService {
       if (lastAt == null || s.startTime.isAfter(lastAt)) lastAt = s.startTime;
     }
 
-    final totalCapturedSecs = lightFrames.fold<double>(
+    final totalCapturedSecs = filters.fold<double>(
       0.0,
-      (sum, f) => sum + f.exposureDuration,
+      (sum, f) => sum + f.capturedIntegrationSecs,
     );
 
     final hfrInputs = <_WeightedSample>[];
@@ -165,49 +197,6 @@ class CampaignRollupService {
       meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,
       generatedAt: DateTime.now(),
     );
-  }
-
-  /// Build the per-filter rollup from accepted light frames; we lowercase
-  /// for grouping but pick the most-frequently-occurring original-case
-  /// label so the UI doesn't show 'L' / 'l' / 'Lum' as separate rows for
-  /// the same filter.
-  List<CampaignFilterRollup> _buildFilters(
-    List<CapturedImage> lightFrames,
-    int targetId,
-  ) {
-    final byLowerFilter = <String, _FilterBucket>{};
-    for (final f in lightFrames) {
-      final raw = (f.filter == null || f.filter!.isEmpty)
-          ? 'Unfiltered'
-          : f.filter!;
-      final key = raw.toLowerCase();
-      final bucket = byLowerFilter.putIfAbsent(key, () => _FilterBucket());
-      bucket.totalFrames++;
-      bucket.totalSecs += f.exposureDuration;
-      bucket.labelCounts[raw] = (bucket.labelCounts[raw] ?? 0) + 1;
-    }
-
-    final out = <CampaignFilterRollup>[];
-    for (final entry in byLowerFilter.entries) {
-      final bucket = entry.value;
-      final label = bucket.pickLabel();
-      out.add(
-        CampaignFilterRollup(
-          filter: label,
-          capturedFrames: bucket.totalFrames,
-          capturedIntegrationSecs: bucket.totalSecs,
-          goalExposureSecs: null,
-          goalFrames: null,
-          meanCapturedExposureSecs: bucket.totalFrames > 0
-              ? bucket.totalSecs / bucket.totalFrames
-              : null,
-        ),
-      );
-    }
-    out.sort(
-      (a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()),
-    );
-    return out;
   }
 
   /// Merge integration-goal rows into the per-filter list. Goals that have
@@ -272,26 +261,4 @@ class _WeightedSample {
   final double weight;
 
   const _WeightedSample({required this.value, required this.weight});
-}
-
-class _FilterBucket {
-  int totalFrames = 0;
-  double totalSecs = 0.0;
-  final Map<String, int> labelCounts = <String, int>{};
-
-  /// Pick the most common original-case label as the display name; ties
-  /// fall back to alphabetical order for determinism.
-  String pickLabel() {
-    String? best;
-    int bestCount = -1;
-    final keys = labelCounts.keys.toList()..sort();
-    for (final key in keys) {
-      final c = labelCounts[key]!;
-      if (c > bestCount) {
-        bestCount = c;
-        best = key;
-      }
-    }
-    return best ?? 'Unfiltered';
-  }
 }
