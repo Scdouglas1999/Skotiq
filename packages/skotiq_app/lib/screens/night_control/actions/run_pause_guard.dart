@@ -64,7 +64,6 @@ class RunHoldAborted implements Exception {
 }
 
 enum RunHoldAbortReason {
-  /// The pause command failed.
   pauseFailed,
 
   /// The run left the paused state (resumed, stopped or failed elsewhere)

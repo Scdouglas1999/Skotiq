@@ -39,10 +39,6 @@ import 'center_format.dart';
 
 part 'frame_stage_overlays.dart';
 
-// ---------------------------------------------------------------------------
-// Inputs
-// ---------------------------------------------------------------------------
-
 /// The strip frame the operator tapped; null follows the newest frame.
 final nightStageSelectionProvider = StateProvider<int?>((ref) => null);
 
@@ -366,10 +362,6 @@ bool nightIsBeforeRun(NightRunPhase phase) =>
     phase == NightRunPhase.notSetUp ||
     phase == NightRunPhase.ready ||
     phase == NightRunPhase.armed;
-
-// ---------------------------------------------------------------------------
-// The stage
-// ---------------------------------------------------------------------------
 
 /// The latest frame with its pills, view buttons and exposure bar.
 class FrameStage extends ConsumerWidget {

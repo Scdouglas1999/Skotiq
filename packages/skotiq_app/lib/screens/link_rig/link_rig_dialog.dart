@@ -339,8 +339,6 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     }
   }
 
-  // ---------------------------------------------------------------- build
-
   @override
   Widget build(BuildContext context) {
     final canGoBack = _phase == _Phase.pair && widget.request.host == null;

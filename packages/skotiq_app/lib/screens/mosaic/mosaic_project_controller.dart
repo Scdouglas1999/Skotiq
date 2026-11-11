@@ -774,7 +774,6 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
     }
   }
 
-  /// Dismiss the current error banner.
   void clearError() {
     if (state.error != null) state = state.copyWith(clearError: true);
   }

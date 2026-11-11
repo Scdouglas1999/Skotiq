@@ -41,10 +41,8 @@ class MosaicProjectState {
   /// True while [MosaicProjectController.publishToHub] is running.
   final bool isPublishing;
 
-  /// True while a claim action is running.
   final bool isClaiming;
 
-  /// True while a panel-master upload is running.
   final bool isUploading;
 
   /// True while [MosaicProjectController.assembleFromHub] is running.
@@ -142,7 +140,6 @@ class MosaicProjectState {
       .where((p) => p.integratedMasterId != null && !p.isUploaded)
       .toList(growable: false);
 
-  /// Count of panels whose master has been uploaded to the hub.
   int get panelsUploaded => panels.where((p) => p.isUploaded).length;
 
   /// Number of panels that carry an integrated per-panel master — the
@@ -151,7 +148,6 @@ class MosaicProjectState {
   int get panelsWithMasters =>
       panels.where((p) => p.integratedMasterId != null).length;
 
-  /// True once at least two panels have masters, so a mosaic can be stitched.
   bool get canStitch => panelsWithMasters >= 2;
 
   /// True when the stitched output master has been produced and is on hand.

@@ -167,10 +167,6 @@ class NightActionController extends Notifier<ManualActionState>
     return ManualActionState.idle;
   }
 
-  // -------------------------------------------------------------------------
-  // NightActionApi
-  // -------------------------------------------------------------------------
-
   @override
   Future<void> run(ManualActionId id) => switch (id) {
         ManualActionId.snapshot => snapshot(),
@@ -546,10 +542,6 @@ class NightActionController extends Notifier<ManualActionState>
           duration: const Duration(minutes: 10),
         );
   }
-
-  // -------------------------------------------------------------------------
-  // Orchestration
-  // -------------------------------------------------------------------------
 
   /// Single flight: the action in flight is joined, a different one while
   /// busy is ignored, a disabled one is refused. [holdRun] false skips the

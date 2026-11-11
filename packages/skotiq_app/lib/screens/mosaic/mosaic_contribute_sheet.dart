@@ -98,7 +98,6 @@ class _MosaicContributeSheetState
 
   CollaborativeContributeContext get _purpose => widget.purpose;
 
-  /// Dialog title for the contribution being consented to.
   String get _title => switch (_purpose) {
         CollaborativeContributeContext.mosaicPanel => 'Share this panel master',
         CollaborativeContributeContext.coImagingSubs =>
@@ -356,7 +355,6 @@ const List<ContributionLicense> _shareableLicenses = <ContributionLicense>[
   ContributionLicense.cc0,
 ];
 
-/// Human-readable label for a license choice in the dropdown.
 String _licenseLabel(ContributionLicense license) {
   switch (license) {
     case ContributionLicense.cc0:
