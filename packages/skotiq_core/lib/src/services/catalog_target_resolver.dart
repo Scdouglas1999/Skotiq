@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 
 import '../database/database.dart' as db;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Maximum angular separation when linking a planetarium/catalog object to
 /// an existing row in the targets library.
@@ -49,12 +49,14 @@ db.Target? resolveDbTargetForCatalog({
   var bestSep = double.infinity;
 
   for (final target in candidates) {
-    final sep = _angularSeparationArcmin(
-      ra1Hours: raHours,
-      dec1Deg: decDegrees,
-      ra2Hours: target.ra,
-      dec2Deg: target.dec,
-    );
+    final sep =
+        AstronomyCalculations.angularSeparation(
+          ra1Deg: raHours * 15.0,
+          dec1Deg: decDegrees,
+          ra2Deg: target.ra * 15.0,
+          dec2Deg: target.dec,
+        ) *
+        60.0;
     if (sep <= maxSepArcmin && sep < bestSep) {
       bestSep = sep;
       best = target;
@@ -66,28 +68,3 @@ db.Target? resolveDbTargetForCatalog({
 
 String _normalizeCatalogName(String value) =>
     value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
-
-double _angularSeparationArcmin({
-  required double ra1Hours,
-  required double dec1Deg,
-  required double ra2Hours,
-  required double dec2Deg,
-}) {
-  final ra1Rad = ra1Hours * 15.0 * math.pi / 180.0;
-  final dec1Rad = dec1Deg * math.pi / 180.0;
-  final ra2Rad = ra2Hours * 15.0 * math.pi / 180.0;
-  final dec2Rad = dec2Deg * math.pi / 180.0;
-
-  final dRa = ra1Rad - ra2Rad;
-  final sinDec1 = math.sin(dec1Rad);
-  final cosDec1 = math.cos(dec1Rad);
-  final sinDec2 = math.sin(dec2Rad);
-  final cosDec2 = math.cos(dec2Rad);
-
-  final a = cosDec2 * math.sin(dRa);
-  final b = cosDec1 * sinDec2 - sinDec1 * cosDec2 * math.cos(dRa);
-  final c = sinDec1 * sinDec2 + cosDec1 * cosDec2 * math.cos(dRa);
-
-  final sepRad = math.atan2(math.sqrt(a * a + b * b), c);
-  return sepRad * 180.0 / math.pi * 60.0;
-}

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Named dither-settle scenarios. Each maps a real-world observing condition to
 /// a target guide-error tolerance (in arcseconds) and a settle dwell time (in
@@ -71,22 +72,6 @@ class DitherSettleValues {
       'DitherSettleValues(settlePixels: $settlePixels, settleTime: $settleTime)';
 }
 
-/// Standard small-angle pixel scale in arcsec/pixel: `206.265 * pixelSizeUm /
-/// focalLengthMm`. Returns `null` when either input is missing/non-positive —
-/// we never invent a scale from a single dimension.
-double? ditherPixelScaleArcsecPerPixel({
-  double? pixelSizeUm,
-  double? focalLengthMm,
-}) {
-  if (pixelSizeUm == null ||
-      pixelSizeUm <= 0 ||
-      focalLengthMm == null ||
-      focalLengthMm <= 0) {
-    return null;
-  }
-  return 206.265 * pixelSizeUm / focalLengthMm;
-}
-
 /// Lower/upper clamps on the derived pixel threshold. Below ~0.3px the guider
 /// chases noise and never settles; above ~6px the "settled" frame can still
 /// carry visible trailing, so we never derive an out-of-band threshold even on
@@ -133,8 +118,8 @@ DitherSettleValues deriveDitherSettleValuesFromRig({
 }) {
   return deriveDitherSettleValues(
     preset: preset,
-    pixelScaleArcsecPerPixel: ditherPixelScaleArcsecPerPixel(
-      pixelSizeUm: pixelSizeUm,
+    pixelScaleArcsecPerPixel: FOVCalculator.imageScaleOrNull(
+      pixelSizeMicrons: pixelSizeUm,
       focalLengthMm: focalLengthMm,
     ),
   );

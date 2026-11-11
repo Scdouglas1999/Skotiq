@@ -417,23 +417,23 @@ class FramingEquipment {
 
   double get effectiveFocalLength => focalLengthMm * focalReducer;
 
+  (double, double) get _fovDegrees => FOVCalculator.calculateFOV(
+    sensorWidthMm: sensorWidthMm,
+    sensorHeightMm: sensorHeightMm,
+    focalLengthMm: effectiveFocalLength,
+  );
+
   /// FOV width in degrees
-  double get fovWidthDeg {
-    final fovRad = 2 * math.atan(sensorWidthMm / (2 * effectiveFocalLength));
-    return fovRad * 180 / math.pi;
-  }
+  double get fovWidthDeg => _fovDegrees.$1;
 
   /// FOV height in degrees
-  double get fovHeightDeg {
-    final fovRad = 2 * math.atan(sensorHeightMm / (2 * effectiveFocalLength));
-    return fovRad * 180 / math.pi;
-  }
+  double get fovHeightDeg => _fovDegrees.$2;
 
   /// Image scale in arcsec/pixel
-  double get imageScale {
-    final pixelSizeMm = pixelSizeMicrons / 1000;
-    return (pixelSizeMm / effectiveFocalLength) * 206265;
-  }
+  double get imageScale => FOVCalculator.calculateImageScale(
+    pixelSizeMicrons: pixelSizeMicrons,
+    focalLengthMm: effectiveFocalLength,
+  );
 
   double get focalRatio => effectiveFocalLength / apertureMm;
 }

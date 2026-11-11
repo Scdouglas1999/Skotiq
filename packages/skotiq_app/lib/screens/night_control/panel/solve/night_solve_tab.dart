@@ -6,7 +6,6 @@
 // sync and Center pause a running run first and resume it after; Solve
 // alone touches no device and solves the frame already on screen.
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +22,7 @@ import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../mount/night_panel_parts.dart';
 import 'recent_solves_provider.dart';
 import 'solve_sections.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 class NightSolveTab extends ConsumerWidget {
   const NightSolveTab({super.key});
@@ -38,22 +38,6 @@ class NightSolveTab extends ConsumerWidget {
       ],
     );
   }
-}
-
-/// Angular distance in arcseconds between two J2000 positions.
-double separationArcsec(
-  double raDeg1,
-  double decDeg1,
-  double raDeg2,
-  double decDeg2,
-) {
-  const rad = math.pi / 180;
-  final d1 = decDeg1 * rad, d2 = decDeg2 * rad;
-  final dRa = (raDeg1 - raDeg2) * rad;
-  final sinDDec = math.sin((d2 - d1) / 2);
-  final sinDRa = math.sin(dRa / 2);
-  final h = sinDDec * sinDDec + math.cos(d1) * math.cos(d2) * sinDRa * sinDRa;
-  return 2 * math.asin(math.sqrt(h.clamp(0.0, 1.0))) / rad * 3600;
 }
 
 /// An offset in arcseconds, formatted as every off-target reading on Tonight
@@ -130,7 +114,13 @@ class _LastSolveSection extends ConsumerWidget {
     final rotation = solved ? _known(result.rotation) : null;
     final offTarget = ra == null || dec == null || target == null
         ? null
-        : separationArcsec(ra, dec, target.raHours * 15, target.decDegrees);
+        : AstronomyCalculations.angularSeparation(
+              ra1Deg: ra,
+              dec1Deg: dec,
+              ra2Deg: target.raHours * 15,
+              dec2Deg: target.decDegrees,
+            ) *
+            3600;
 
     // The controller's gating, so the action bar and this tab never
     // disagree. A solve started elsewhere (the Imaging screen) holds the solver too.

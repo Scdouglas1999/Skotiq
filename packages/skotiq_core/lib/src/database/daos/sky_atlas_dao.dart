@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../tables/sky_atlas_tables.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'sky_atlas_dao.g.dart';
 
@@ -155,11 +155,11 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
     final regions = await select(skyAtlasRegions).get();
     SkyAtlasRegionRow? best;
     for (final region in regions) {
-      final sep = _angularSeparationDeg(
-        raDeg,
-        decDeg,
-        region.centerRaDeg,
-        region.centerDecDeg,
+      final sep = AstronomyCalculations.angularSeparation(
+        ra1Deg: raDeg,
+        dec1Deg: decDeg,
+        ra2Deg: region.centerRaDeg,
+        dec2Deg: region.centerDecDeg,
       );
       if (sep <= region.radiusDeg) {
         if (best == null || region.radiusDeg < best.radiusDeg) {
@@ -485,28 +485,6 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
             (f) => OrderingTerm.asc(f.id),
           ]))
         .get();
-  }
-
-  /// Great-circle (angular) separation in degrees between two sky points.
-  /// Uses the haversine form so it stays well-conditioned for the small
-  /// separations region cones are typically queried at.
-  static double _angularSeparationDeg(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const deg2rad = math.pi / 180.0;
-    final dec1 = dec1Deg * deg2rad;
-    final dec2 = dec2Deg * deg2rad;
-    final dDec = (dec2Deg - dec1Deg) * deg2rad;
-    final dRa = (ra2Deg - ra1Deg) * deg2rad;
-    final sinDDec = math.sin(dDec / 2.0);
-    final sinDRa = math.sin(dRa / 2.0);
-    final a =
-        sinDDec * sinDDec + math.cos(dec1) * math.cos(dec2) * sinDRa * sinDRa;
-    final c = 2.0 * math.asin(math.min(1.0, math.sqrt(a)));
-    return c / deg2rad;
   }
 }
 

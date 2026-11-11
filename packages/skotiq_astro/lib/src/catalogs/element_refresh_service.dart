@@ -5,9 +5,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 
-import '../catalogs/catalog_manager.dart';
-import '../catalogs/minor_planet_catalog.dart';
-import '../catalogs/mpcorb.dart';
+import 'catalog_manager.dart';
+import 'minor_planet_catalog.dart';
+import 'mpcorb.dart';
 
 /// Refresh cadence for live orbital-element data.
 enum ElementRefreshSchedule {

@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A sub further than this from the target's catalog position, by the
 /// mount's reported pointing, is drawn as off target. Guided tracking lets the
@@ -276,21 +277,6 @@ String hhmm(DateTime t) {
   return '${two(l.hour)}:${two(l.minute)}';
 }
 
-/// Degrees between two equatorial positions, RA in hours.
-double darkroomSeparationDeg(
-  double ra1Hours,
-  double dec1Deg,
-  double ra2Hours,
-  double dec2Deg,
-) {
-  const rad = math.pi / 180;
-  final a1 = ra1Hours * 15 * rad, d1 = dec1Deg * rad;
-  final a2 = ra2Hours * 15 * rad, d2 = dec2Deg * rad;
-  final cosSep = math.sin(d1) * math.sin(d2) +
-      math.cos(d1) * math.cos(d2) * math.cos(a1 - a2);
-  return math.acos(cosSep.clamp(-1.0, 1.0)) / rad;
-}
-
 /// The nights of [frames], newest first. [folded] holds the image ids a
 /// build of the current masters was given, [used] those it integrated.
 List<DarkroomNight> buildDarkroomNights(
@@ -358,7 +344,13 @@ String? _side(String? raw) {
 bool _offTarget(DbCapturedImage f, DbTarget? target) {
   final ra = f.mountRa, dec = f.mountDec;
   if (target == null || ra == null || dec == null) return false;
-  return darkroomSeparationDeg(ra, dec, target.ra, target.dec) * 60 >
+  return AstronomyCalculations.angularSeparation(
+            ra1Deg: ra * 15.0,
+            dec1Deg: dec,
+            ra2Deg: target.ra * 15.0,
+            dec2Deg: target.dec,
+          ) *
+          60 >
       darkroomOffTargetArcmin;
 }
 

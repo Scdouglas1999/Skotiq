@@ -1,159 +1,43 @@
-/// Survey image sources
-enum SurveySource {
-  dss2Red('DSS2 Red', 'POSS2/UKSTU Red'),
-  dss2Blue('DSS2 Blue', 'POSS2/UKSTU Blue'),
-  dss2Ir('DSS2 IR', 'POSS2/UKSTU IR'),
-  twomassJ('2MASS J', '2MASS J'),
-  twomassH('2MASS H', '2MASS H'),
-  twomassK('2MASS K', '2MASS K'),
-  sdss('SDSS', 'SDSS DR12'),
-  wise('WISE', 'WISE 12'),
-  galex('GALEX', 'GALEX Near UV');
+import 'dart:math' as math;
 
-  final String displayName;
-  final String surveyId;
-
-  const SurveySource(this.displayName, this.surveyId);
-}
-
-/// Survey image request configuration
-class SurveyImageRequest {
-  /// Right Ascension in degrees
-  final double raDeg;
-
-  /// Declination in degrees
-  final double decDeg;
-
-  /// Field of view width in degrees
-  final double fovWidth;
-
-  /// Field of view height in degrees
-  final double fovHeight;
-
-  /// Image pixel width
-  final int pixelWidth;
-
-  /// Image pixel height
-  final int pixelHeight;
-
-  /// Survey source
-  final SurveySource source;
-
-  const SurveyImageRequest({
-    required this.raDeg,
-    required this.decDeg,
-    required this.fovWidth,
-    required this.fovHeight,
-    this.pixelWidth = 1000,
-    this.pixelHeight = 1000,
-    this.source = SurveySource.dss2Red,
-  });
-
-  /// Generate SkyView API URL
-  String get skyViewUrl {
-    // STScI SkyView API
-    const baseUrl = 'https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl';
-    final params = {
-      'Position': '$raDeg,$decDeg',
-      'Survey': source.surveyId,
-      'Pixels': '$pixelWidth,$pixelHeight',
-      'Size': '${fovWidth.toStringAsFixed(4)},${fovHeight.toStringAsFixed(4)}',
-      'Return': 'FITS,JPEG',
-      'Projection': 'Tan',
-      'Coordinates': 'J2000',
-      'Sampler': 'LI',
-    };
-
-    final queryString = params.entries
-        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-        .join('&');
-    return '$baseUrl?$queryString';
-  }
-
-  /// Generate Aladin Lite HiPS URL (alternative)
-  String get aladinUrl {
-    // CDS Aladin HiPS
-    const baseUrl =
-        'https://alasky.cds.unistra.fr/hips-image-services/hips2fits';
-    final params = {
-      'ra': raDeg.toStringAsFixed(6),
-      'dec': decDeg.toStringAsFixed(6),
-      'fov': fovWidth.toStringAsFixed(6),
-      'width': pixelWidth.toString(),
-      'height': pixelHeight.toString(),
-      'format': 'jpg',
-      'hips': _getHipsId(source),
-    };
-
-    final queryString = params.entries
-        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-        .join('&');
-    return '$baseUrl?$queryString';
-  }
-
-  static String _getHipsId(SurveySource source) {
-    switch (source) {
-      case SurveySource.dss2Red:
-        return 'CDS/P/DSS2/red';
-      case SurveySource.dss2Blue:
-        return 'CDS/P/DSS2/blue';
-      case SurveySource.dss2Ir:
-        return 'CDS/P/DSS2/NIR';
-      case SurveySource.twomassJ:
-        return 'CDS/P/2MASS/J';
-      case SurveySource.twomassH:
-        return 'CDS/P/2MASS/H';
-      case SurveySource.twomassK:
-        return 'CDS/P/2MASS/K';
-      case SurveySource.sdss:
-        return 'CDS/P/SDSS9/color';
-      case SurveySource.wise:
-        return 'CDS/P/WISE/W3';
-      case SurveySource.galex:
-        return 'CDS/P/GALEX/FUV';
-    }
-  }
-}
-
-/// FOV Calculator for equipment
+/// Field of view and image scale of a sensor behind an optic.
 class FOVCalculator {
-  /// Calculate field of view for a given camera and telescope
-  ///
-  /// [sensorWidthMm] - Camera sensor width in mm
-  /// [sensorHeightMm] - Camera sensor height in mm
-  /// [focalLengthMm] - Telescope focal length in mm
-  ///
-  /// Returns (fovWidthDeg, fovHeightDeg)
+  /// Field of view in degrees, (width, height), from sensor dimensions and
+  /// focal length in millimeters: `2 * atan(sensor / (2 * focalLength))`.
   static (double, double) calculateFOV({
     required double sensorWidthMm,
     required double sensorHeightMm,
     required double focalLengthMm,
   }) {
-    // FOV = 2 * atan(sensor_size / (2 * focal_length))
-    final fovWidthRad = 2 * _atan(sensorWidthMm / (2 * focalLengthMm));
-    final fovHeightRad = 2 * _atan(sensorHeightMm / (2 * focalLengthMm));
-
-    // Convert to degrees
-    final fovWidthDeg = fovWidthRad * 180 / 3.14159265359;
-    final fovHeightDeg = fovHeightRad * 180 / 3.14159265359;
-
-    return (fovWidthDeg, fovHeightDeg);
+    double degrees(double sensorMm) =>
+        2 * math.atan(sensorMm / (2 * focalLengthMm)) * 180 / math.pi;
+    return (degrees(sensorWidthMm), degrees(sensorHeightMm));
   }
 
-  /// Calculate image scale (arcseconds per pixel)
-  ///
-  /// [pixelSizeMicrons] - Camera pixel size in microns
-  /// [focalLengthMm] - Telescope focal length in mm
-  ///
-  /// Returns arcseconds per pixel
+  /// Image scale in arcseconds per pixel, from a pixel size in microns and a
+  /// focal length in millimeters (small-angle: 206.265 arcseconds per
+  /// micron-per-millimeter).
   static double calculateImageScale({
     required double pixelSizeMicrons,
     required double focalLengthMm,
+  }) => 206.265 * pixelSizeMicrons / focalLengthMm;
+
+  /// [calculateImageScale], or null when either input is missing or not
+  /// positive: a scale is never invented from one known dimension.
+  static double? imageScaleOrNull({
+    double? pixelSizeMicrons,
+    double? focalLengthMm,
   }) {
-    // Scale = (pixel_size_mm / focal_length_mm) * 206265
-    // 206265 arcseconds per radian
-    final pixelSizeMm = pixelSizeMicrons / 1000;
-    return (pixelSizeMm / focalLengthMm) * 206265;
+    if (pixelSizeMicrons == null ||
+        pixelSizeMicrons <= 0 ||
+        focalLengthMm == null ||
+        focalLengthMm <= 0) {
+      return null;
+    }
+    return calculateImageScale(
+      pixelSizeMicrons: pixelSizeMicrons,
+      focalLengthMm: focalLengthMm,
+    );
   }
 
   /// Calculate effective focal length with reducer/barlow
@@ -203,26 +87,6 @@ class FOVCalculator {
     } else {
       return 'Well-sampled for typical conditions';
     }
-  }
-
-  static double _atan(double x) {
-    // Simple atan implementation
-    if (x.abs() < 1) {
-      return _atanSmall(x);
-    } else {
-      // atan(x) = pi/2 - atan(1/x) for |x| > 1
-      final sign = x.sign;
-      return sign * (3.14159265359 / 2 - _atanSmall(1 / x.abs()));
-    }
-  }
-
-  static double _atanSmall(double x) {
-    // Taylor series for |x| < 1
-    final x2 = x * x;
-    return x *
-        (1 -
-            x2 *
-                (1 / 3 - x2 * (1 / 5 - x2 * (1 / 7 - x2 * (1 / 9 - x2 / 11)))));
   }
 }
 

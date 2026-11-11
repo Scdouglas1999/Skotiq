@@ -1,9 +1,9 @@
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as db;
 import 'database_provider.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Lookup key for imaging history: object name + J2000 coordinates.
 class ImagingHistoryQuery {
@@ -126,12 +126,14 @@ final imagingHistoryProvider =
         double bestSep = double.infinity;
 
         for (final t in allTargets) {
-          final sep = _angularSeparationArcmin(
-            ra1Hours: query.raHours,
-            dec1Deg: query.decDegrees,
-            ra2Hours: t.ra,
-            dec2Deg: t.dec,
-          );
+          final sep =
+              AstronomyCalculations.angularSeparation(
+                ra1Deg: query.raHours * 15.0,
+                dec1Deg: query.decDegrees,
+                ra2Deg: t.ra * 15.0,
+                dec2Deg: t.dec,
+              ) *
+              60.0;
           if (sep < maxSepArcmin && sep < bestSep) {
             bestSep = sep;
             matched = t;
@@ -185,30 +187,3 @@ final imagingHistoryProvider =
         goalIntegrationSecs: target.goalIntegrationSecs,
       );
     });
-
-/// Angular separation between two sky positions in arcminutes.
-double _angularSeparationArcmin({
-  required double ra1Hours,
-  required double dec1Deg,
-  required double ra2Hours,
-  required double dec2Deg,
-}) {
-  final ra1Rad = ra1Hours * 15.0 * math.pi / 180.0;
-  final dec1Rad = dec1Deg * math.pi / 180.0;
-  final ra2Rad = ra2Hours * 15.0 * math.pi / 180.0;
-  final dec2Rad = dec2Deg * math.pi / 180.0;
-
-  // Vincenty formula for angular distance (numerically stable).
-  final dRa = ra1Rad - ra2Rad;
-  final sinDec1 = math.sin(dec1Rad);
-  final cosDec1 = math.cos(dec1Rad);
-  final sinDec2 = math.sin(dec2Rad);
-  final cosDec2 = math.cos(dec2Rad);
-
-  final a = cosDec2 * math.sin(dRa);
-  final b = cosDec1 * sinDec2 - sinDec1 * cosDec2 * math.cos(dRa);
-  final c = sinDec1 * sinDec2 + cosDec1 * cosDec2 * math.cos(dRa);
-
-  final sepRad = math.atan2(math.sqrt(a * a + b * b), c);
-  return sepRad * 180.0 / math.pi * 60.0; // Convert radians -> arcminutes.
-}

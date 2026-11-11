@@ -35,12 +35,12 @@ export 'src/catalogs/deep_star_store.dart';
 export 'src/catalogs/deep_star_catalog.dart';
 export 'src/catalogs/mpcorb.dart';
 export 'src/catalogs/spatial_index.dart';
+export 'src/catalogs/element_refresh_service.dart';
 
-// Field of view, mosaics, orbital-element refresh
-export 'src/services/survey_image_service.dart';
-export 'src/services/mosaic_geometry.dart';
-export 'src/services/mosaic_planner.dart';
-export 'src/services/element_refresh_service.dart';
+// Field of view and mosaics
+export 'src/fov/equipment_fov.dart';
+export 'src/fov/mosaic_geometry.dart';
+export 'src/fov/mosaic_planner.dart';
 
 // Planning
 export 'src/planning/target_scoring.dart';

@@ -106,8 +106,18 @@ extension ClickIdentifyService on AnnotationService {
       if (dsos.isNotEmpty) {
         // Find the closest object
         final closest = dsos.reduce((a, b) {
-          final distA = _angularDistance(ra, dec, a.ra, a.dec);
-          final distB = _angularDistance(ra, dec, b.ra, b.dec);
+          final distA = AstronomyCalculations.angularSeparation(
+            ra1Deg: ra,
+            dec1Deg: dec,
+            ra2Deg: a.ra,
+            dec2Deg: a.dec,
+          );
+          final distB = AstronomyCalculations.angularSeparation(
+            ra1Deg: ra,
+            dec1Deg: dec,
+            ra2Deg: b.ra,
+            dec2Deg: b.dec,
+          );
           return distA < distB ? a : b;
         });
 
@@ -151,8 +161,18 @@ extension ClickIdentifyService on AnnotationService {
         if (stars.isNotEmpty) {
           // Find the closest star
           final closest = stars.reduce((a, b) {
-            final distA = _angularDistance(ra, dec, a.ra, a.dec);
-            final distB = _angularDistance(ra, dec, b.ra, b.dec);
+            final distA = AstronomyCalculations.angularSeparation(
+              ra1Deg: ra,
+              dec1Deg: dec,
+              ra2Deg: a.ra,
+              dec2Deg: a.dec,
+            );
+            final distB = AstronomyCalculations.angularSeparation(
+              ra1Deg: ra,
+              dec1Deg: dec,
+              ra2Deg: b.ra,
+              dec2Deg: b.dec,
+            );
             return distA < distB ? a : b;
           });
 

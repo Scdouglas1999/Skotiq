@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Image size and timing from a FITS primary header, read without decoding
 /// the pixels.
@@ -329,7 +330,14 @@ String continuedCandidateId(
     final dec = row.decDegrees + dist * math.cos(pa);
     final cosDec = math.cos(row.decDegrees * math.pi / 180.0);
     final ra = row.raDegrees + dist * math.sin(pa) / math.max(cosDec, 1e-6);
-    final sep = _separationArcsec(ra, dec, match.raDegrees, match.decDegrees);
+    final sep =
+        AstronomyCalculations.angularSeparation(
+          ra1Deg: ra,
+          dec1Deg: dec,
+          ra2Deg: match.raDegrees,
+          dec2Deg: match.decDegrees,
+        ) *
+        3600.0;
     if (sep <= toleranceArcsec && sep < bestSep) {
       bestSep = sep;
       best = row.candidateId;
@@ -423,18 +431,6 @@ _LineFit? _fitLine(List<_Point> hits, List<double> times) {
       cosc;
   const r2as = 180.0 / math.pi * 3600.0;
   return (xi * r2as, eta * r2as);
-}
-
-double _separationArcsec(double ra1, double dec1, double ra2, double dec2) {
-  const d2r = math.pi / 180.0;
-  final dLat = (dec2 - dec1) * d2r;
-  final dLon = (ra2 - ra1) * d2r;
-  final h =
-      math.pow(math.sin(dLat / 2), 2) +
-      math.cos(dec1 * d2r) *
-          math.cos(dec2 * d2r) *
-          math.pow(math.sin(dLon / 2), 2);
-  return 2 * math.asin(math.sqrt(h).clamp(0.0, 1.0)) / d2r * 3600.0;
 }
 
 /// Uniform spatial hash over one frame's tangent-plane points.

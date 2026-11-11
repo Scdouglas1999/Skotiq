@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import '../backend/skotiq_backend.dart' show MountStatus;
 
@@ -165,38 +164,20 @@ class MountSlewWatcher {
   final Stopwatch Function() _stopwatch;
   late final (double, double) _targetOfDate;
 
-  /// Great-circle separation between two RA (hours) / Dec (degrees) points.
-  static double separationDegrees(
-    double ra1,
-    double dec1,
-    double ra2,
-    double dec2,
-  ) {
-    const toRad = math.pi / 180.0;
-    final a1 = ra1 * 15.0 * toRad;
-    final d1 = dec1 * toRad;
-    final a2 = ra2 * 15.0 * toRad;
-    final d2 = dec2 * toRad;
-    final cosSep =
-        math.sin(d1) * math.sin(d2) +
-        math.cos(d1) * math.cos(d2) * math.cos(a2 - a1);
-    return math.acos(cosSep.clamp(-1.0, 1.0)) / toRad;
-  }
-
   /// Distance from [status]'s pointing to the target, in whichever frame the
   /// mount is nearer.
   double remainingDegrees(MountStatus status) {
-    final j2000 = separationDegrees(
-      status.rightAscension,
-      status.declination,
-      targetRa,
-      targetDec,
+    final j2000 = AstronomyCalculations.angularSeparation(
+      ra1Deg: status.rightAscension * 15.0,
+      dec1Deg: status.declination,
+      ra2Deg: targetRa * 15.0,
+      dec2Deg: targetDec,
     );
-    final ofDate = separationDegrees(
-      status.rightAscension,
-      status.declination,
-      _targetOfDate.$1,
-      _targetOfDate.$2,
+    final ofDate = AstronomyCalculations.angularSeparation(
+      ra1Deg: status.rightAscension * 15.0,
+      dec1Deg: status.declination,
+      ra2Deg: _targetOfDate.$1 * 15.0,
+      dec2Deg: _targetOfDate.$2,
     );
     return math.min(j2000, ofDate);
   }

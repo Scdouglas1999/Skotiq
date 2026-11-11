@@ -458,7 +458,14 @@ extension _CenteringLoop on CenteringService {
       // that `targetRa`, the mount and `CenteringStatus.solvedRa` all use.
       final solvedRa = _solvedRaHours(solveResult.ra);
       final solvedDec = solveResult.dec;
-      final offset = _calculateOffset(targetRa, targetDec, solvedRa, solvedDec);
+      final offset =
+          AstronomyCalculations.angularSeparation(
+            ra1Deg: targetRa * 15.0,
+            dec1Deg: targetDec,
+            ra2Deg: solvedRa * 15.0,
+            dec2Deg: solvedDec,
+          ) *
+          3600.0;
 
       final iter = CenteringIteration(
         iterationNumber: iteration,

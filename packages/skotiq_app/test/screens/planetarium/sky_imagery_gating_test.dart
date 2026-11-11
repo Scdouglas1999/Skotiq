@@ -25,7 +25,7 @@ import 'package:skotiq_core/skotiq_core.dart'
         HipsTileFormat,
         framingHipsPropertiesProvider;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' hide SurveySource;
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

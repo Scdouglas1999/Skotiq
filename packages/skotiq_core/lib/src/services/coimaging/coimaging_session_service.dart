@@ -424,7 +424,12 @@ class CoImagingSessionService {
           final tRa = r.targetRaDeg;
           final tDec = r.targetDecDeg;
           if (tRa == null || tDec == null) return false;
-          return angularSeparationDegrees(raDeg, decDeg, tRa, tDec) <=
+          return AstronomyCalculations.angularSeparation(
+                ra1Deg: raDeg,
+                dec1Deg: decDeg,
+                ra2Deg: tRa,
+                dec2Deg: tDec,
+              ) <=
               toleranceDeg;
         })
         .toList(growable: false);
@@ -458,24 +463,6 @@ class CoImagingSessionService {
       if (framed != null) return framed;
     }
     return null;
-  }
-
-  /// Great-circle angular separation (degrees) between two sky points. Pure +
-  /// static so the membership matcher and unit tests share one implementation.
-  static double angularSeparationDegrees(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const d2r = math.pi / 180.0;
-    final dec1 = dec1Deg * d2r;
-    final dec2 = dec2Deg * d2r;
-    final dRa = (ra1Deg - ra2Deg) * d2r;
-    final cosSep =
-        math.sin(dec1) * math.sin(dec2) +
-        math.cos(dec1) * math.cos(dec2) * math.cos(dRa);
-    return math.acos(cosSep.clamp(-1.0, 1.0)) / d2r;
   }
 
   // Capture-loop auto-contribute

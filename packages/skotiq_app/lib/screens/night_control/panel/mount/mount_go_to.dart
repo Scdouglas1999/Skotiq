@@ -6,7 +6,8 @@
 // run, stops guiding, centers, restarts guiding and resumes. Slew and Sync
 // wait until the run is unloaded.
 import 'dart:async';
-import 'dart:math' as math;
+
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,14 +60,14 @@ final nightGoToResolverProvider = Provider<NightGoToResolver>(
 /// Two pointings closer than this are the same target (1 arcminute).
 const double _sameTargetDeg = 1 / 60;
 
-bool _sameTarget(double ra1, double dec1, double ra2, double dec2) {
-  const rad = math.pi / 180;
-  final a1 = ra1 * 15 * rad, a2 = ra2 * 15 * rad;
-  final d1 = dec1 * rad, d2 = dec2 * rad;
-  final cosSep = math.sin(d1) * math.sin(d2) +
-      math.cos(d1) * math.cos(d2) * math.cos(a1 - a2);
-  return math.acos(cosSep.clamp(-1.0, 1.0)) / rad <= _sameTargetDeg;
-}
+bool _sameTarget(double ra1, double dec1, double ra2, double dec2) =>
+    AstronomyCalculations.angularSeparation(
+      ra1Deg: ra1 * 15.0,
+      dec1Deg: dec1,
+      ra2Deg: ra2 * 15.0,
+      dec2Deg: dec2,
+    ) <=
+    _sameTargetDeg;
 
 class NightMountGoToSection extends ConsumerStatefulWidget {
   const NightMountGoToSection({super.key});

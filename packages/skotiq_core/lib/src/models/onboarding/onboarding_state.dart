@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../backend/device_types.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Steps of the equipment-onboarding wizard in display order.
 ///
@@ -348,14 +349,13 @@ class OnboardingDraft {
   }
 
   /// Image scale in arcsec/pixel from pixel size + effective focal length.
-  /// Formula: 206.265 * pixel_microns / focal_length_mm.
   /// Returns null when inputs are missing or focal length is zero so the
   /// UI can render "--" instead of a misleading "0.00".
   double? get imageScaleArcsecPerPixel {
-    final fl = effectiveFocalLengthMm;
-    if (fl == null || fl <= 0) return null;
-    if (pixelSizeMicrons == null || pixelSizeMicrons! <= 0) return null;
-    return 206.265 * pixelSizeMicrons! / fl;
+    return FOVCalculator.imageScaleOrNull(
+      pixelSizeMicrons: pixelSizeMicrons,
+      focalLengthMm: effectiveFocalLengthMm,
+    );
   }
 
   Map<String, dynamic> toJson() => {

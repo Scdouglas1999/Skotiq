@@ -248,12 +248,14 @@ class ColorCalibrationService {
     for (final d in detections) {
       for (var c = 0; c < colored.length; c++) {
         final cat = colored[c];
-        final sep = _angularSeparationArcsec(
-          d.ra,
-          d.dec,
-          cat.coordinates.raDegrees,
-          cat.coordinates.dec,
-        );
+        final sep =
+            AstronomyCalculations.angularSeparation(
+              ra1Deg: d.ra,
+              dec1Deg: d.dec,
+              ra2Deg: cat.coordinates.raDegrees,
+              dec2Deg: cat.coordinates.dec,
+            ) *
+            3600.0;
         if (sep <= matchToleranceArcsec) {
           candidates.add((detIdx: d.idx, catIdx: c, sep: sep));
           detPartnerCount[d.idx]++;
@@ -339,26 +341,6 @@ class ColorCalibrationService {
       }
     }
     return false;
-  }
-
-  /// Great-circle separation between two (RA, Dec) points in degrees, returned
-  /// in arcseconds. Uses the haversine formula for stability at small angles.
-  static double _angularSeparationArcsec(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const deg2rad = math.pi / 180.0;
-    final dRa = (ra2Deg - ra1Deg) * deg2rad;
-    final dDec = (dec2Deg - dec1Deg) * deg2rad;
-    final lat1 = dec1Deg * deg2rad;
-    final lat2 = dec2Deg * deg2rad;
-    final a =
-        math.sin(dDec / 2) * math.sin(dDec / 2) +
-        math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return c / deg2rad * 3600.0;
   }
 }
 

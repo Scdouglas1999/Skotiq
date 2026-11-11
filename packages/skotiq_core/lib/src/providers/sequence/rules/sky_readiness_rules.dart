@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
@@ -236,11 +235,11 @@ class MountOffTargetRule implements RefAwareSequenceValidator {
       });
       if (!capturesLight) continue;
 
-      final separation = _angularSeparationDegrees(
-        ra1Hours: node.raHours,
-        dec1Degrees: node.decDegrees,
-        ra2Hours: mountRa,
-        dec2Degrees: mountDec,
+      final separation = AstronomyCalculations.angularSeparation(
+        ra1Deg: node.raHours * 15.0,
+        dec1Deg: node.decDegrees,
+        ra2Deg: mountRa * 15.0,
+        dec2Deg: mountDec,
       );
       if (separation <= toleranceDegrees) continue;
 
@@ -263,22 +262,4 @@ class MountOffTargetRule implements RefAwareSequenceValidator {
     }
     return issues;
   }
-}
-
-/// Great-circle separation between two equatorial positions, in degrees.
-double _angularSeparationDegrees({
-  required double ra1Hours,
-  required double dec1Degrees,
-  required double ra2Hours,
-  required double dec2Degrees,
-}) {
-  const degreesPerHour = 15.0;
-  final ra1 = ra1Hours * degreesPerHour * math.pi / 180.0;
-  final ra2 = ra2Hours * degreesPerHour * math.pi / 180.0;
-  final dec1 = dec1Degrees * math.pi / 180.0;
-  final dec2 = dec2Degrees * math.pi / 180.0;
-  final cosSeparation =
-      math.sin(dec1) * math.sin(dec2) +
-      math.cos(dec1) * math.cos(dec2) * math.cos(ra1 - ra2);
-  return math.acos(cosSeparation.clamp(-1.0, 1.0)) * 180.0 / math.pi;
 }

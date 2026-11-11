@@ -919,17 +919,6 @@ void main() {
     expect(none, isNull);
   });
 
-  test('angularSeparationDegrees is symmetric and zero on identity', () {
-    expect(
-      CoImagingSessionService.angularSeparationDegrees(10, 20, 10, 20),
-      closeTo(0.0, 1e-9),
-    );
-    expect(
-      CoImagingSessionService.angularSeparationDegrees(0, 0, 0, 90),
-      closeTo(90.0, 1e-6),
-    );
-  });
-
   // The longitude-baton scheduler tick
 
   test('CoImagingBatonScheduler claims an up target and reconciles it as HELD, '
