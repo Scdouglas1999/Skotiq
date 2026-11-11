@@ -306,7 +306,6 @@ class _AitoffPainter extends CustomPainter {
       outlinePaint,
     );
 
-    // Graticule: meridians every 60° of RA, parallels every 30° of Dec.
     final gridPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5
@@ -366,7 +365,6 @@ class _AitoffPainter extends CustomPainter {
       old.deep != deep;
 }
 
-/// The per-tile breakdown sheet opened by tapping a point on the all-sky map.
 class _TileDetailSheet extends StatelessWidget {
   final AtlasTileCoverage tile;
   final double maxSeconds;

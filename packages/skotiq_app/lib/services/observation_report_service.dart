@@ -10,7 +10,6 @@ import 'package:pdf/widgets.dart' as pw;
 
 part 'observation_report_service/statistics.dart';
 
-/// Generates comprehensive PDF observation reports from session and science data.
 class ObservationReportService {
   final SessionsDao _sessionsDao;
   final ImagesDao _imagesDao;
@@ -28,9 +27,6 @@ class ObservationReportService {
         _documentsDirectoryProvider =
             documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory;
 
-  /// Generate a full observation report PDF for a session.
-  ///
-  /// Returns the file path of the saved PDF.
   Future<String> generateReport({
     required int sessionId,
     String? observerName,
@@ -65,7 +61,6 @@ class ObservationReportService {
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
     final acceptedImages = images.where((i) => i.isAccepted).toList();
 
-    // Page 1: Header and session overview
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -131,7 +126,6 @@ class ObservationReportService {
       ),
     );
 
-    // Save PDF
     final directory = await _getExportDirectory();
     final sessionName = session.name ?? 'session_$sessionId';
     final timestamp =
@@ -899,8 +893,6 @@ class ObservationReportService {
       ],
     );
   }
-
-  // Helpers
 
   pw.Widget _sectionTitle(String title) {
     return pw.Padding(

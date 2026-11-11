@@ -116,7 +116,6 @@ class _YourSkyAtlas extends ConsumerWidget {
         final padding = isMobile
             ? SkotiqTokens.screenPaddingCompact
             : SkotiqTokens.screenPadding;
-        // Two-up region grid on wide layouts, single column on phones.
         final columns = constraints.maxWidth >= 1100
             ? 3
             : constraints.maxWidth >= SkotiqTokens.breakpointTablet

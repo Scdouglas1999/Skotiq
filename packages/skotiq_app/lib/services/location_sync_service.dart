@@ -30,13 +30,9 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 /// a site — while the planetarium provider below keeps receiving the raw
 /// geometry, for the reason given at the initial-value push.
 final locationSyncProvider = Provider<void>((ref) {
-  // Use ref.listen to sync settings to planetarium provider and Rust backend whenever settings change
-  // This defers the update until after the build phase, avoiding the Riverpod error
   ref.listen(appSettingsProvider, (previous, next) {
     next.whenData((settings) {
-      // Schedule the update for after the current build phase
       Future.microtask(() async {
-        // Update planetarium provider with settings location
         // This is a temporary update (doesn't persist) - only settings persists
         ref.read(observerLocationProvider.notifier).setLocation(
               latitude: settings.latitude,

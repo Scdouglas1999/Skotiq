@@ -10,7 +10,6 @@ import 'package:pdf/pdf.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-/// Configuration for finder chart rendering
 class FinderChartConfig {
   /// Whether to use inverted colors (white background, black stars) for printing
   final bool printMode;
@@ -18,19 +17,15 @@ class FinderChartConfig {
   /// Resolution of the rendered sky chart in pixels (width = height)
   final int chartResolution;
 
-  /// Optional object name to display in the header
   final String? objectName;
 
-  /// Optional object type description
   final String? objectType;
 
-  /// Optional object magnitude
   final double? objectMagnitude;
 
   /// Optional object size string (e.g., "10' x 6'")
   final String? objectSize;
 
-  /// Whether to include an object details page
   final bool includeDetailsPage;
 
   const FinderChartConfig({
@@ -72,7 +67,6 @@ class FinderChartService {
     List<PlanetData> planets = const [],
     List<MilkyWayPoint>? milkyWayPoints,
   }) async {
-    // Render the sky chart to a bitmap image
     final chartImage = await _renderSkyChart(
       viewState: viewState,
       renderConfig: renderConfig,
@@ -90,7 +84,6 @@ class FinderChartService {
       milkyWayPoints: milkyWayPoints,
     );
 
-    // Build the PDF document
     final pdf = _buildPdf(
       chartImage: chartImage,
       viewState: viewState,
@@ -101,7 +94,6 @@ class FinderChartService {
       faintestPlotted: faintestPlottedMagnitude(stars: stars, dsos: dsos),
     );
 
-    // Write to file
     final file = File(outputPath);
     await file.writeAsBytes(await pdf.save());
   }
@@ -127,7 +119,6 @@ class FinderChartService {
     return faintest;
   }
 
-  /// Render the sky to a PNG byte buffer using SkyCanvasPainter.
   static Future<Uint8List> _renderSkyChart({
     required SkyViewState viewState,
     required SkyRenderConfig renderConfig,
@@ -147,12 +138,10 @@ class FinderChartService {
     final resolution = chartConfig.chartResolution.toDouble();
     final size = Size(resolution, resolution);
 
-    // Build a render config appropriate for the chart mode
     final chartRenderConfig = chartConfig.printMode
         ? _buildPrintModeConfig(renderConfig)
         : renderConfig;
 
-    // Use a PictureRecorder to capture the SkyCanvasPainter output.
     final recorder = ui.PictureRecorder();
     ui.Picture? picture;
     ui.Image? image;
@@ -175,7 +164,6 @@ class FinderChartService {
         );
       }
 
-      // Create the painter with high-quality config (no animations)
       final painter = SkyCanvasPainter(
         viewState: viewState,
         config: chartRenderConfig,
@@ -191,7 +179,6 @@ class FinderChartService {
         moonPosition: moonPosition,
         planets: planets,
         milkyWayPoints: chartConfig.printMode ? null : milkyWayPoints,
-        // No animations for static chart
         animationPhase: null,
         selectionAnimationPhase: null,
         popinAnimationPhase: null,
@@ -255,7 +242,6 @@ class FinderChartService {
     );
   }
 
-  /// Build the PDF document with chart image, header, and footer.
   static pw.Document _buildPdf({
     required Uint8List chartImage,
     required SkyViewState viewState,
@@ -286,7 +272,6 @@ class FinderChartService {
 
     final image = pw.MemoryImage(chartImage);
 
-    // Chart page
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -295,7 +280,6 @@ class FinderChartService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              // Header
               _buildHeader(
                 chartConfig: chartConfig,
                 dateStr: dateStr,
@@ -306,14 +290,12 @@ class FinderChartService {
               pw.Divider(thickness: 0.5),
               pw.SizedBox(height: 8),
 
-              // Chart image - expand to fill available space
               pw.Expanded(
                 child: pw.Center(
                   child: pw.Image(image, fit: pw.BoxFit.contain),
                 ),
               ),
 
-              // Footer
               pw.SizedBox(height: 8),
               pw.Divider(thickness: 0.5),
               pw.SizedBox(height: 4),
@@ -331,7 +313,6 @@ class FinderChartService {
       ),
     );
 
-    // Optional details page
     if (chartConfig.includeDetailsPage && chartConfig.objectName != null) {
       pdf.addPage(
         pw.Page(
@@ -499,7 +480,6 @@ class FinderChartService {
     required DateTime observationTime,
     required SkyViewState viewState,
   }) {
-    // Compute altitude for the chart center at observation time
     final lst = AstronomyCalculations.localSiderealTime(
       observationTime,
       longitude,
@@ -573,7 +553,6 @@ class FinderChartService {
           ),
         ),
         pw.SizedBox(height: 8),
-        // Empty box for user notes
         pw.Container(
           height: 200,
           decoration: pw.BoxDecoration(
@@ -625,8 +604,6 @@ class FinderChartService {
     );
   }
 
-  // Formatting helpers
-
   static String _formatLatitude(double lat) {
     final sign = lat >= 0 ? 'N' : 'S';
     return '${lat.abs().toStringAsFixed(4)}\u00b0$sign';
@@ -665,7 +642,6 @@ class FinderChartService {
     }
   }
 
-  /// Generate a suggested filename for the chart.
   static String suggestedFilename({String? objectName}) {
     final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (objectName != null) {

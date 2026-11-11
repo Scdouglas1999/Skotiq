@@ -302,7 +302,6 @@ class _RadarSliderRow extends StatelessWidget {
   }
 }
 
-/// The single loading pattern for this screen.
 class _WeatherLoadingBody extends StatelessWidget {
   const _WeatherLoadingBody();
 

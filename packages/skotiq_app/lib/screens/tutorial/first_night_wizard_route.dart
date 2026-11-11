@@ -45,16 +45,11 @@ class _FirstNightWizardRouteState extends ConsumerState<FirstNightWizardRoute> {
     _hasOpened = true;
     await FirstNightWizard.show(context);
     if (!mounted) return;
-    // After the dialog closes, return to Tonight so the user lands
-    // on a normal screen instead of this empty backdrop route.
     context.go('/dashboard');
   }
 
   @override
   Widget build(BuildContext context) {
-    // Show Tonight underneath the dialog so the user has visual context.
-    // The dialog is barrier-dismissible: false so they can't click through
-    // to the screen accidentally.
     return const NightControlScreen();
   }
 }

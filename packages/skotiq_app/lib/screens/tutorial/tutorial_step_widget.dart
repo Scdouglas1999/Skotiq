@@ -13,18 +13,12 @@ import '../../localization/skotiq_localizations.dart';
 /// drop a `TutorialStepWidget(step: ...)` into any dialog and get the
 /// same look: a circled lucide icon, a description block, an optional
 /// "Show me" deep-link button, and a progress dot row.
-///
-/// Why factored out: the spec lists this as a reusable step UI so future
-/// tutorials can be added without re-implementing the WHY-style layout.
 class TutorialStepWidget extends StatelessWidget {
-  /// The wizard step being rendered. Contains title, description, icon
-  /// name, and deep-link route.
   final FirstNightWizardStep step;
 
   /// Current step index (0-based) — used by the progress dots.
   final int currentIndex;
 
-  /// Total number of steps in the wizard. Drives the progress dot count.
   final int totalSteps;
 
   /// Invoked when the user clicks the "Show me" deep-link button. Caller
@@ -78,9 +72,6 @@ class TutorialStepWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon + step number row. The lucide icon goes in a tinted square
-        // matching the rest of the design system; the "Step N of M" label
-        // sits next to it to anchor the user in the wizard.
         Row(
           children: [
             Container(
@@ -154,8 +145,6 @@ class TutorialStepWidget extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        // Progress dots — a compact visual of where the user is in the
-        // 7-step flow without taking vertical space from the description.
         Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: List.generate(totalSteps, (i) {

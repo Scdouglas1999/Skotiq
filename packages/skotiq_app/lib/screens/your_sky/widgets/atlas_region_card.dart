@@ -140,7 +140,6 @@ class AtlasRegionCard extends ConsumerWidget {
   String? _growthPhrase(List<SkyAtlasFoldRow> folds) {
     if (folds.isEmpty) return null;
 
-    // Bucket the per-fold integration by UTC calendar day.
     final byDay = <int, double>{};
     for (final fold in folds) {
       final utc = fold.foldedAt.toUtc();
