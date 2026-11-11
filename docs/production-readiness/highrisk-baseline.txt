@@ -172,9 +172,11 @@ native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	report	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	with_measurer	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	highrisk	1	baseline	let focuser_id = ctx.focuser_id.clone().unwrap_or_default();
+native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	highrisk	1	baseline	let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	run_autofocus_admitted	highrisk	1	baseline	config.filter.as_deref().unwrap_or_default().trim()
 native/skotiq_native/sequencer/src/instructions/device_retry.rs	-	highrisk	1	baseline	"not implemented",
 native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	highrisk	1	baseline	.unwrap_or_default(),
+native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	highrisk	1	baseline	.ok();
 native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	highrisk	1	baseline	let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	resolve_post_flip_autofocus	highrisk	1	baseline	ctx.autofocus_config.clone().unwrap_or_default()
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	exposure_with_an_absolute_save_to_runs_without_a_base_path	highrisk	1	baseline	.unwrap_or_default();

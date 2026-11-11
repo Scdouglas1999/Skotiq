@@ -1208,7 +1208,7 @@ native/skotiq_native/native/src/vendor/zwo/filter_wheel.rs	discover_filter_wheel
 native/skotiq_native/native/src/vendor/zwo/focuser.rs	connect	rust_let_underscore	1	V0614	let _ = unsafe { (locked_sdk.close)(focuser_id) };
 native/skotiq_native/native/src/vendor/zwo/focuser.rs	discover_focusers	rust_let_underscore	1	V0615	let _ = unsafe { (sdk.close)(id) };
 native/skotiq_native/native/src/vendor/zwo/focuser.rs	discover_focusers	rust_let_underscore	1	V0616	let _ = unsafe { (sdk.close)(id) };
-native/skotiq_native/sequencer/src/all_sky_polar/mod.rs	do_adjustment	rust_let_underscore	1	V0073	let _ = ctx.device_ops.polar_align_update(&result).await;
+native/skotiq_native/sequencer/src/all_sky_polar/mod.rs	do_adjustment	rust_let_underscore	1	V0073	let _ = ctx.run.device_ops.polar_align_update(&result).await;
 native/skotiq_native/sequencer/src/all_sky_polar/mod.rs	-	unwrap_or_literal	1	V0073	let binning = config.binning.unwrap_or(2);
 native/skotiq_native/sequencer/src/checkpoint.rs	clear	rust_let_underscore	1	V0063	let _ = std::fs::remove_file(&backup);
 native/skotiq_native/sequencer/src/checkpoint.rs	legacy_v2_checkpoint_without_wizard_states_loads_with_empty_map	rust_let_underscore	1	V0063	let _ = fs::remove_dir_all(&dir);
@@ -1336,6 +1336,7 @@ native/skotiq_native/sequencer/src/executor/scenario_sim_tests.rs	guide_star_los
 native/skotiq_native/sequencer/src/executor/scenario_sim_tests.rs	pointing	unwrap_or_literal	1	V0121	let rate = self.settle_creep_arcsec_per_sec.unwrap_or(10.0);
 native/skotiq_native/sequencer/src/executor/scenario_sim_tests.rs	recovery_leaves_tracking_on_while_the_mount_slews	unwrap_or_literal	1	V0121	.unwrap_or(false);
 native/skotiq_native/sequencer/src/executor/start.rs	start	rust_let_underscore	1	V0793	let _ = run_completion_tx.send(());
+native/skotiq_native/sequencer/src/executor/start.rs	start	unwrap_or_default	1	U2-13	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start/command_handler.rs	running_handler	simulated_runtime_path	1	U2-07	Arc::new(crate::device_ops::NullDeviceOps),
 native/skotiq_native/sequencer/src/executor/start/preflight.rs	preflight_start	unwrap_or_literal	1	V0718	.unwrap_or(false)
 native/skotiq_native/sequencer/src/executor/start/progress_callback.rs	build_progress_callback	rust_let_underscore	1	V0297	let _ = event_tx_clone.send(ExecutorEvent::NodeCompleted {
@@ -1396,12 +1397,13 @@ native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_a
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	notify_autofocus_failed_continuing	rust_let_underscore	1	V0330	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	resume_guiding_after_autofocus	rust_let_underscore	1	V0867	let _ = event_tx
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	resume_guiding_after_autofocus	rust_let_underscore	1	V0866	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message: note });
-native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	unwrap_or_default	1	V0798	let focuser_id = ctx.focuser_id.clone().unwrap_or_default();
+native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	unwrap_or_default	1	V0798	let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	run_autofocus_admitted	unwrap_or_default	1	V0799	config.filter.as_deref().unwrap_or_default().trim()
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_sweep_around	unwrap_or_literal	1	V0331	.unwrap_or(0);
 native/skotiq_native/sequencer/src/instructions/context.rs	emit_decision	rust_let_underscore	1	V0333	let _ = tx.send(event);
 native/skotiq_native/sequencer/src/instructions/context.rs	log_and_get_status_with_context	rust_let_underscore	1	V0332	let _ = event_tx.send(crate::executor::ExecutorEvent::InstructionFailed {
 native/skotiq_native/sequencer/src/instructions/context.rs	notify_quality_problem_continuing	rust_let_underscore	1	V0334	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
+native/skotiq_native/sequencer/src/instructions/context.rs	settle	rust_let_underscore	1	V0327	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
 native/skotiq_native/sequencer/src/instructions/cooling.rs	execute_warm_camera	unwrap_or_literal	1	V0335	let target_temp = config.target_temp.unwrap_or(20.0);
 native/skotiq_native/sequencer/src/instructions/device_retry.rs	after_failed_attempt	rust_let_underscore	1	V0340	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
 native/skotiq_native/sequencer/src/instructions/device_retry.rs	-	unimplemented_behavior	1	V0339	"not implemented",
@@ -1424,7 +1426,7 @@ native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	r
 native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	rust_let_underscore	1	V0350	let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
 native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	rust_let_underscore	1	V0352	let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
 native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	unwrap_or_default	1	V0351	.unwrap_or_default(),
-native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	rust_drop_result	1	V0831	let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();
+native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	rust_drop_result	1	V0831	.ok();
 native/skotiq_native/sequencer/src/instructions/wait_time.rs	-	unwrap_or_literal	1	V0355	let total_wait_secs = u64::try_from(twilight_time - now).unwrap_or(0);
 native/skotiq_native/sequencer/src/instructions/wait_time.rs	execute_wait_time	unwrap_or_literal	1	V0354	let total_wait_secs = u64::try_from(until - now).unwrap_or(0);
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	MeridianFlipExecutor	rust_let_underscore	1	V0062	/// Replaces the previous `let _ = mount_park(...)` pattern: on error, log
@@ -1450,7 +1452,9 @@ native/skotiq_native/sequencer/src/node/context.rs	ExecutionContext	simulated_ru
 native/skotiq_native/sequencer/src/node/context.rs	ExecutionContext	simulated_runtime_path	1	V0076	/// through it: a context that fell back to [`NullDeviceOps`] would answer
 native/skotiq_native/sequencer/src/node/context.rs	new_for_test	simulated_runtime_path	1	V0076	Self::new(node_id, Arc::new(NullDeviceOps))
 native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	V0076	latitude_deg: self.latitude.unwrap_or(0.0),
+native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	U2-13	latitude_deg: self.run.rig.latitude.unwrap_or(0.0),
 native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	V0076	longitude_deg: self.longitude.unwrap_or(0.0),
+native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	U2-13	longitude_deg: self.run.rig.longitude.unwrap_or(0.0),
 native/skotiq_native/sequencer/src/node/instructions/autofocus.rs	execute	unwrap_or_literal	1	V0077	step: step.unwrap_or(0),
 native/skotiq_native/sequencer/src/node/instructions/center.rs	-	comment_best_effort	1	V0078	/// Best-effort parse of "attempt N/M" from the instruction's legacy detail.
 native/skotiq_native/sequencer/src/node/instructions/center.rs	-	comment_best_effort	1	V0078	/// Best-effort parse of an arcsecond separation if surfaced.
@@ -1473,7 +1477,6 @@ native/skotiq_native/sequencer/src/node/instructions/expose.rs	budget_registry_s
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	budget_registry_skips_rejected_frame_credit	unwrap_or_literal	1	V0079	(state2.completed_by_filter.get("L").copied().unwrap_or(0.0) - 420.0).abs()
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	check_exposure_triggers	unwrap_or_literal	1	V0079	step: step.unwrap_or(0),
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	emit_budget_progress	unwrap_or_literal	1	V0079	.unwrap_or(0.0);
-native/skotiq_native/sequencer/src/node/instructions/flat_wizard.rs	execute	rust_let_underscore	1	V0327	let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
 native/skotiq_native/sequencer/src/node/instructions/live_stacking.rs	live_stacking_replaces_previous_active_session	rust_let_underscore	2	V0075	let _ = LiveStackingInstruction
 native/skotiq_native/sequencer/src/node/instructions/plugin_node.rs	-	rust_let_underscore	1	V0075	let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
 native/skotiq_native/sequencer/src/node/instructions/plugin_node.rs	execute	rust_let_underscore	1	V0075	let _ = context.plugin_node_pending.write().await.remove(node_id);
@@ -1524,6 +1527,7 @@ native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs	drive_rotation
 native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs	remaining	unwrap_or_literal	1	V0082	.unwrap_or(0);
 native/skotiq_native/sequencer/src/node/progress.rs	detail_text	unwrap_or_default	2	V0083	.unwrap_or_default();
 native/skotiq_native/sequencer/src/node/progress.rs	legacy_message	unwrap_or_default	1	V0083	.unwrap_or_default();
+native/skotiq_native/sequencer/src/node/resume.rs	frames_taken	unwrap_or_literal	1	U2-13	self.0.read().frames_taken.get(id).copied().unwrap_or(0)
 native/skotiq_native/sequencer/src/polar_align/mod.rs	-	unwrap_or_literal	1	V0077	//! * `config.binning.unwrap_or(1)` — 1×1 binning is the
 native/skotiq_native/sequencer/src/polar_align/mod.rs	do_adjustment_loop	unwrap_or_literal	2	V0077	self.config.binning.unwrap_or(1),
 native/skotiq_native/sequencer/src/polar_align/mod.rs	do_measure_point	unwrap_or_literal	2	V0077	self.config.binning.unwrap_or(1),
@@ -1537,9 +1541,10 @@ native/skotiq_native/sequencer/src/scheduling/integration_budget.rs	accepted_fra
 native/skotiq_native/sequencer/src/scheduling/integration_budget.rs	evaluate	unwrap_or_literal	1	V0077	let done = self.completed_by_filter.get(filter).copied().unwrap_or(0.0);
 native/skotiq_native/sequencer/src/slew_arrival.rs	-	unwrap_or_literal	1	V0329	slewing: sample.slewing.unwrap_or(false),
 native/skotiq_native/sequencer/src/temperature_compensation.rs	execute_temperature_compensation	rust_let_underscore	2	V0062	let _ = ctx.device_ops.focuser_halt(&focuser_id).await;
+native/skotiq_native/sequencer/src/temperature_compensation.rs	execute_temperature_compensation	rust_let_underscore	2	U2-13	let _ = ctx.run.device_ops.focuser_halt(&focuser_id).await;
 native/skotiq_native/sequencer/src/triggers/trigger.rs	new	unwrap_or_default	1	V0796	.unwrap_or_default();
 native/skotiq_native/sequencer/src/wizard/mod.rs	cancellation_between_steps_is_respected	rust_let_underscore	1	V0081	let _ = &mut ctx;
-native/skotiq_native/sequencer/src/wizard/mod.rs	dummy_ctx	simulated_runtime_path	1	V0081	device_ops: Arc::new(crate::device_ops::NullDeviceOps),
+native/skotiq_native/sequencer/src/wizard/mod.rs	dummy_ctx	simulated_runtime_path	1	V0081	crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps)),
 native/skotiq_native/sequencer/src/wizard/mod.rs	run	unwrap_or_literal	1	V0081	.unwrap_or(0);
 native/skotiq_native/sequencer/src/wizard/mod.rs	wait_for_slew_complete	unwrap_or_literal	1	V0081	.unwrap_or(false),
 native/skotiq_native/updater/src/main.rs	-	comment_best_effort	1	V0066	/// Best-effort and aggregating, like `rollback_in_place`, but pulls the
@@ -3222,6 +3227,10 @@ packages/skotiq_core/lib/src/providers/web_server_provider.dart	setRunning	liter
 packages/skotiq_core/lib/src/providers/web_server_provider.dart	setStopped	literal_null_coalesce	1	V0020	lastError: lastError ?? '',
 packages/skotiq_core/lib/src/services/adaptive_swap_service.dart	decodeSnapshotJson	empty_catch	1	V0101	} catch (_) {
 packages/skotiq_core/lib/src/services/adaptive_swap_service.dart	compose	guessed_now_timestamp	1	V0101	generatedAt: (now ?? DateTime.now().toUtc()).toUtc(),
+packages/skotiq_core/lib/src/services/annotation_export.dart	_csv	literal_null_coalesce	1	U2-13	object.catalogId ?? '',
+packages/skotiq_core/lib/src/services/annotation_export.dart	_csv	literal_null_coalesce	1	U2-13	object.commonName ?? '',
+packages/skotiq_core/lib/src/services/annotation_export.dart	_csv	literal_null_coalesce	1	U2-13	object.magnitude?.toStringAsFixed(2) ?? '',
+packages/skotiq_core/lib/src/services/annotation_export.dart	_csv	literal_null_coalesce	1	U2-13	object.size?.toStringAsFixed(2) ?? '',
 packages/skotiq_core/lib/src/services/annotation_pipeline.dart	findObjectsInFov	comment_best_effort	1	V0024	// Temporary map for deduplication: keyed by normalized name or position.
 packages/skotiq_core/lib/src/services/annotation_service.dart	_deduplicationKey	literal_null_coalesce	1	V0025	final catalogId = annotation.catalogId?.trim().toUpperCase() ?? '';
 packages/skotiq_core/lib/src/services/annotation_service.dart	_describePlateSolveFailure	literal_null_coalesce	1	V0025	final count = int.tryParse(starMatch.group(1)!) ?? 0;
