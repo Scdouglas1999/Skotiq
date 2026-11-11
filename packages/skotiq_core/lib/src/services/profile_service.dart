@@ -11,7 +11,6 @@ import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
-import '../providers/device_connection_progress_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/profile_activation_writethrough.dart';
@@ -19,7 +18,6 @@ import 'logging_service.dart';
 import '../providers/settings_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../utils/json_validation.dart';
-import 'device_exceptions.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
 import '../backend/remote_host.dart';
@@ -68,29 +66,16 @@ class ProfileService {
     final availableDevices = <String>[];
     final missingDeviceIds = <String, String>{};
 
-    // Check each device type
-    void checkDevice(String? deviceId, String deviceType) {
-      if (deviceId != null && deviceId.isNotEmpty) {
-        if (discoveredIds.contains(deviceId)) {
-          availableDevices.add(deviceType);
-        } else {
-          missingDevices.add(deviceType);
-          missingDeviceIds[deviceType] = deviceId;
-        }
+    for (final slot in deviceSlots) {
+      final deviceId = profile.deviceIdFor(slot.type);
+      if (deviceId == null || deviceId.isEmpty) continue;
+      if (discoveredIds.contains(deviceId)) {
+        availableDevices.add(slot.label);
+      } else {
+        missingDevices.add(slot.label);
+        missingDeviceIds[slot.label] = deviceId;
       }
     }
-
-    checkDevice(profile.cameraId, 'Camera');
-    checkDevice(profile.mountId, 'Mount');
-    checkDevice(profile.focuserId, 'Focuser');
-    checkDevice(profile.filterWheelId, 'Filter Wheel');
-    checkDevice(profile.guiderId, 'Guider');
-    checkDevice(profile.rotatorId, 'Rotator');
-    checkDevice(profile.domeId, 'Dome');
-    checkDevice(profile.weatherId, 'Weather');
-    checkDevice(profile.safetyMonitorId, 'Safety Monitor');
-    checkDevice(profile.switchId, 'Switch');
-    checkDevice(profile.coverCalibratorId, 'Cover Calibrator');
 
     return ProfileValidationResult(
       isValid: missingDevices.isEmpty,
@@ -384,81 +369,24 @@ class ProfileService {
     _ref.invalidate(equipmentProfilesProvider);
   }
 
-  /// Clear specific device assignments from a profile
-  ///
-  /// [deviceTypes] is a set of device type names (e.g., 'Camera', 'Mount')
-  /// that should be cleared (set to null) in the profile.
-  Future<void> clearDevicesFromProfile(
-    int profileId,
-    Set<String> deviceTypes,
-  ) async {
-    final authority = _authority;
-    final profile = await _getProfileModelById(profileId, authority: authority);
-    if (profile == null) {
-      throw Exception('Profile not found');
-    }
-
-    await _persistProfileModel(
-      profile.copyWith(
-        cameraId: deviceTypes.contains('Camera') ? null : profile.cameraId,
-        mountId: deviceTypes.contains('Mount') ? null : profile.mountId,
-        focuserId: deviceTypes.contains('Focuser') ? null : profile.focuserId,
-        filterWheelId: deviceTypes.contains('Filter Wheel')
-            ? null
-            : profile.filterWheelId,
-        guiderId: deviceTypes.contains('Guider') ? null : profile.guiderId,
-        rotatorId: deviceTypes.contains('Rotator') ? null : profile.rotatorId,
-        domeId: deviceTypes.contains('Dome') ? null : profile.domeId,
-        weatherId: deviceTypes.contains('Weather') ? null : profile.weatherId,
-        safetyMonitorId: deviceTypes.contains('Safety Monitor')
-            ? null
-            : profile.safetyMonitorId,
-        switchId: deviceTypes.contains('Switch') ? null : profile.switchId,
-        coverCalibratorId: deviceTypes.contains('Cover Calibrator')
-            ? null
-            : profile.coverCalibratorId,
-      ),
-      authority: authority,
-    );
-  }
-
-  /// Update profile device assignments
+  /// Assign [devices] (slot type to device id) in a profile, leaving every
+  /// other slot as it is. [guideCameraId] is the built-in guider's camera,
+  /// which is a profile field without a slot of its own.
   Future<void> updateProfileDevices(
-    int profileId, {
-    String? cameraId,
+    int profileId,
+    Map<DeviceType, String> devices, {
     String? guideCameraId,
-    String? mountId,
-    String? focuserId,
-    String? filterWheelId,
-    String? guiderId,
-    String? rotatorId,
-    String? domeId,
-    String? weatherId,
-    String? safetyMonitorId,
-    String? switchId,
-    String? coverCalibratorId,
   }) async {
     final authority = _authority;
-    final profile = await _getProfileModelById(profileId, authority: authority);
+    var profile = await _getProfileModelById(profileId, authority: authority);
     if (profile == null) {
       throw Exception('Profile not found');
     }
-
+    for (final MapEntry(key: type, value: deviceId) in devices.entries) {
+      profile = profile!.withDeviceId(type, deviceId);
+    }
     await _persistProfileModel(
-      profile.copyWith(
-        cameraId: cameraId ?? profile.cameraId,
-        guideCameraId: guideCameraId ?? profile.guideCameraId,
-        mountId: mountId ?? profile.mountId,
-        focuserId: focuserId ?? profile.focuserId,
-        filterWheelId: filterWheelId ?? profile.filterWheelId,
-        guiderId: guiderId ?? profile.guiderId,
-        rotatorId: rotatorId ?? profile.rotatorId,
-        domeId: domeId ?? profile.domeId,
-        weatherId: weatherId ?? profile.weatherId,
-        safetyMonitorId: safetyMonitorId ?? profile.safetyMonitorId,
-        switchId: switchId ?? profile.switchId,
-        coverCalibratorId: coverCalibratorId ?? profile.coverCalibratorId,
-      ),
+      profile!.copyWith(guideCameraId: guideCameraId),
       authority: authority,
     );
   }
@@ -511,132 +439,6 @@ class ProfileService {
       ),
       authority: authority,
     );
-  }
-
-  /// Save all currently connected devices to the active profile
-  ///
-  /// Reads current device states and updates the active profile with
-  /// all connected device IDs. Returns true if saved successfully.
-  Future<bool> saveConnectedDevicesToProfile() async {
-    final authority = _authority;
-    final activeModel = await _getActiveProfileModel(authority: authority);
-
-    if (activeModel == null) {
-      developer.log(
-        'ProfileService: No active profile to save devices to',
-        name: 'ProfileService',
-        level: 900,
-      );
-      return false;
-    }
-
-    // Read all device states
-    final cameraState = _ref.read(cameraStateProvider);
-    final mountState = _ref.read(mountStateProvider);
-    final focuserState = _ref.read(focuserStateProvider);
-    final filterWheelState = _ref.read(filterWheelStateProvider);
-    final guiderState = _ref.read(guiderStateProvider);
-    final rotatorState = _ref.read(rotatorStateProvider);
-    final domeState = _ref.read(domeStateProvider);
-    final weatherState = _ref.read(weatherStateProvider);
-    final safetyMonitorState = _ref.read(safetyMonitorStateProvider);
-    final switchState = _ref.read(switchStateProvider);
-    final coverCalibratorState = _ref.read(coverCalibratorStateProvider);
-
-    // Collect connected device IDs
-    String? cameraId;
-    String? mountId;
-    String? focuserId;
-    String? filterWheelId;
-    String? guiderId;
-    String? rotatorId;
-    String? domeId;
-    String? weatherId;
-    String? safetyMonitorId;
-    String? switchId;
-    String? coverCalibratorId;
-
-    if (cameraState.connectionState == DeviceConnectionState.connected) {
-      cameraId = cameraState.deviceId;
-    }
-    if (mountState.connectionState == DeviceConnectionState.connected) {
-      mountId = mountState.deviceId;
-    }
-    if (focuserState.connectionState == DeviceConnectionState.connected) {
-      focuserId = focuserState.deviceId;
-    }
-    if (filterWheelState.connectionState == DeviceConnectionState.connected) {
-      filterWheelId = filterWheelState.deviceId;
-    }
-    if (guiderState.connectionState == DeviceConnectionState.connected) {
-      guiderId = guiderState.deviceId;
-    }
-    if (rotatorState.connectionState == DeviceConnectionState.connected) {
-      rotatorId = rotatorState.deviceId;
-    }
-    if (domeState.connectionState == DeviceConnectionState.connected) {
-      domeId = domeState.deviceId;
-    }
-    if (weatherState.connectionState == DeviceConnectionState.connected) {
-      weatherId = weatherState.deviceId;
-    }
-    if (safetyMonitorState.connectionState == DeviceConnectionState.connected) {
-      safetyMonitorId = safetyMonitorState.deviceId;
-    }
-    if (switchState.connectionState == DeviceConnectionState.connected) {
-      switchId = switchState.deviceId;
-    }
-    if (coverCalibratorState.connectionState ==
-        DeviceConnectionState.connected) {
-      coverCalibratorId = coverCalibratorState.deviceId;
-    }
-
-    // Check if any devices are connected
-    final hasConnectedDevices =
-        cameraId != null ||
-        mountId != null ||
-        focuserId != null ||
-        filterWheelId != null ||
-        guiderId != null ||
-        rotatorId != null ||
-        domeId != null ||
-        weatherId != null ||
-        safetyMonitorId != null ||
-        switchId != null ||
-        coverCalibratorId != null;
-
-    if (!hasConnectedDevices) {
-      developer.log(
-        'ProfileService: No connected devices to save',
-        name: 'ProfileService',
-        level: 800,
-      );
-      return false;
-    }
-
-    await _persistProfileModel(
-      activeModel.copyWith(
-        cameraId: cameraId ?? activeModel.cameraId,
-        mountId: mountId ?? activeModel.mountId,
-        focuserId: focuserId ?? activeModel.focuserId,
-        filterWheelId: filterWheelId ?? activeModel.filterWheelId,
-        guiderId: guiderId ?? activeModel.guiderId,
-        rotatorId: rotatorId ?? activeModel.rotatorId,
-        domeId: domeId ?? activeModel.domeId,
-        weatherId: weatherId ?? activeModel.weatherId,
-        safetyMonitorId: safetyMonitorId ?? activeModel.safetyMonitorId,
-        switchId: switchId ?? activeModel.switchId,
-        coverCalibratorId: coverCalibratorId ?? activeModel.coverCalibratorId,
-      ),
-      authority: authority,
-    );
-
-    developer.log(
-      'ProfileService: Saved connected devices to profile "${activeModel.name}"',
-      name: 'ProfileService',
-      level: 800,
-    );
-    return true;
   }
 
   /// Update profile filter configuration

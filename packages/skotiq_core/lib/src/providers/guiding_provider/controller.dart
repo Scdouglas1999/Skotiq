@@ -160,7 +160,7 @@ class Phd2Controller {
 
   /// Crash recovery: the Rust socket layer retries the TCP link, but a
   /// DEAD PHD2 process never re-opens its port — only a relaunch does.
-  /// Each attempt routes through [DeviceService.connectGuider], which
+  /// Each attempt routes through [DeviceService.connect], which
   /// re-runs `Phd2Launcher.ensureRunning` (spawn if local + port closed)
   /// before connecting. Skipped entirely for deliberate disconnects and
   /// when auto-reconnect is disabled for the guider.
@@ -192,7 +192,7 @@ class Phd2Controller {
           source: 'Phd2Controller',
         );
         try {
-          await deviceService.connectGuider(kPhd2CanonicalId);
+          await deviceService.connect(DeviceType.guider, kPhd2CanonicalId);
           _logger.info(
             'PHD2 automatic relaunch/reconnect succeeded',
             source: 'Phd2Controller',
@@ -577,7 +577,7 @@ class Phd2Controller {
       // auto-launches; for a remote host it connects over TCP without spawning.
       await ref
           .read(deviceServiceProvider)
-          .connectGuider(kPhd2CanonicalId, host: host, port: port);
+          .connect(DeviceType.guider, kPhd2CanonicalId, host: host, port: port);
       return;
     }
 
@@ -647,7 +647,7 @@ class Phd2Controller {
     }
 
     try {
-      await deviceService.disconnectGuider();
+      await deviceService.disconnect(DeviceType.guider);
     } on DeviceNotConnectedException {
       // No live guider record (a prior connect never completed): fall back to a
       // direct backend teardown so the socket + UI still end up disconnected.

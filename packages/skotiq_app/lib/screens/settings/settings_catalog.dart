@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../localization/skotiq_localizations.dart';
 import 'catalog_settings_screen.dart';
 import 'delivery_settings.dart';
-import 'equipment_profiles_screen.dart';
+import '../equipment/widgets/profiles_manager.dart';
 import 'settings_search_index.g.dart';
 import 'settings_sections.dart';
 import 'integrations_settings.dart';
@@ -282,8 +282,7 @@ SettingsSectionDef _sectionDef(
           'gear',
           'rig',
         ],
-        build: (context) => EquipmentProfilesScreen(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const ProfilesManager(),
       ),
     SettingsSectionId.phd2Guiding => SettingsSectionDef(
         id: id,

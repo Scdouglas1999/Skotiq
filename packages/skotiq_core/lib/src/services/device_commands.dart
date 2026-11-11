@@ -4,13 +4,7 @@ import '../backend/roles/device_backend.dart';
 import '../models/backend/device_types.dart';
 import '../models/equipment/equipment_models.dart';
 import '../providers/backend_provider.dart';
-import '../providers/equipment/camera_state_provider.dart';
-import '../providers/equipment/cover_calibrator_state_provider.dart';
-import '../providers/equipment/device_type_registry.dart';
-import '../providers/equipment/dome_state_provider.dart';
-import '../providers/equipment/filter_wheel_state_provider.dart';
-import '../providers/equipment/focuser_state_provider.dart';
-import '../providers/equipment/rotator_state_provider.dart';
+import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/switch_state_provider.dart';
 import 'device_service.dart';
 
@@ -49,17 +43,7 @@ class DeviceCommands {
   /// A slot nobody has used is not created here: creating it would only
   /// start its profile listener, and no device can be in it.
   bool isSlotDevice(DeviceType type, String deviceId) {
-    final ProviderBase<Object?>? slotProvider = switch (type) {
-      DeviceType.camera => cameraStateProvider,
-      DeviceType.focuser => focuserStateProvider,
-      DeviceType.filterWheel => filterWheelStateProvider,
-      DeviceType.rotator => rotatorStateProvider,
-      DeviceType.dome => domeStateProvider,
-      DeviceType.switch_ => switchStateProvider,
-      DeviceType.coverCalibrator => coverCalibratorStateProvider,
-      _ => null,
-    };
-    if (slotProvider == null || !_ref.exists(slotProvider)) return false;
+    if (!_ref.exists(type.slot.state)) return false;
     final slot = readDeviceSlot(_ref, type);
     return slot.connectionState == DeviceConnectionState.connected &&
         slot.deviceId == deviceId;

@@ -54,7 +54,7 @@ class DeviceHeartbeatRouter {
       );
       _log(
         (l) => l.info(
-          'Started heartbeat monitoring for ${_label(deviceType)} '
+          'Started heartbeat monitoring for ${deviceType.displayName} '
           '($deviceId) with ${(intervalMs / 1000).toStringAsFixed(0)}s '
           'interval',
         ),
@@ -62,7 +62,7 @@ class DeviceHeartbeatRouter {
     } catch (e) {
       _log(
         (l) => l.warning(
-          'Failed to start heartbeat monitoring for ${_label(deviceType)} '
+          'Failed to start heartbeat monitoring for ${deviceType.displayName} '
           '($deviceId): $e. Device will remain connected but automatic '
           'reconnection may not work if connection is lost.',
         ),
@@ -82,14 +82,14 @@ class DeviceHeartbeatRouter {
       await _backend.stopDeviceHeartbeat(deviceId);
       _log(
         (l) => l.info(
-          'Stopped heartbeat monitoring for ${_label(deviceType)} '
+          'Stopped heartbeat monitoring for ${deviceType.displayName} '
           '($deviceId)',
         ),
       );
     } catch (e) {
       _log(
         (l) => l.warning(
-          'Error stopping heartbeat monitoring for ${_label(deviceType)} '
+          'Error stopping heartbeat monitoring for ${deviceType.displayName} '
           '($deviceId): $e',
         ),
       );
@@ -231,33 +231,6 @@ class DeviceHeartbeatRouter {
     } on Object {
       // Diagnostic-only failure during logger lookup; swallow so the
       // heartbeat path stays fail-soft.
-    }
-  }
-
-  String _label(DeviceType type) {
-    switch (type) {
-      case DeviceType.camera:
-        return 'Camera';
-      case DeviceType.mount:
-        return 'Mount';
-      case DeviceType.focuser:
-        return 'Focuser';
-      case DeviceType.filterWheel:
-        return 'Filter Wheel';
-      case DeviceType.guider:
-        return 'Guider';
-      case DeviceType.rotator:
-        return 'Rotator';
-      case DeviceType.dome:
-        return 'Dome';
-      case DeviceType.weather:
-        return 'Weather';
-      case DeviceType.safetyMonitor:
-        return 'Safety Monitor';
-      case DeviceType.switch_:
-        return 'Switch';
-      case DeviceType.coverCalibrator:
-        return 'Cover Calibrator';
     }
   }
 }

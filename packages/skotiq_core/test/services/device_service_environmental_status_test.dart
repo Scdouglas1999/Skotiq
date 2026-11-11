@@ -67,7 +67,7 @@ void main() {
         ),
       );
 
-      await container.read(deviceServiceProvider).connectWeather(deviceId);
+      await container.read(deviceServiceProvider).connect(DeviceType.weather, deviceId);
 
       final state = container.read(weatherStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -94,7 +94,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       await expectLater(
-        container.read(deviceServiceProvider).connectSafetyMonitor(deviceId),
+        container.read(deviceServiceProvider).connect(DeviceType.safetyMonitor, deviceId),
         throwsA(isA<StateError>()),
       );
 
@@ -126,7 +126,7 @@ void main() {
 
     fakeAsync((async) {
       unawaited(
-        container.read(deviceServiceProvider).connectSafetyMonitor(deviceId),
+        container.read(deviceServiceProvider).connect(DeviceType.safetyMonitor, deviceId),
       );
       async.elapse(const Duration(seconds: 1));
       expect(
@@ -172,7 +172,7 @@ void main() {
 
     fakeAsync((async) {
       unawaited(
-        container.read(deviceServiceProvider).connectSafetyMonitor(deviceId),
+        container.read(deviceServiceProvider).connect(DeviceType.safetyMonitor, deviceId),
       );
       async.elapse(const Duration(seconds: 1));
       expect(
@@ -211,7 +211,7 @@ void main() {
         ),
       );
 
-      await container.read(deviceServiceProvider).connectDome(deviceId);
+      await container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId);
 
       final state = container.read(domeStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -231,7 +231,7 @@ void main() {
       );
 
       fakeAsync((async) {
-        unawaited(container.read(deviceServiceProvider).connectDome(deviceId));
+        unawaited(container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId));
         async.elapse(const Duration(seconds: 1));
         expect(
           container.read(domeStateProvider).shutterStatus,
@@ -260,7 +260,7 @@ void main() {
       ).thenAnswer((_) async => const HardwareDomeStatus(azimuth: 12.0));
 
       fakeAsync((async) {
-        unawaited(container.read(deviceServiceProvider).connectDome(deviceId));
+        unawaited(container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId));
         async.elapse(const Duration(seconds: 1));
 
         final state = container.read(domeStateProvider);
@@ -274,7 +274,7 @@ void main() {
         () => backend.getHardwareDomeStatus(deviceId),
       ).thenThrow(StateError('dome status unsupported'));
 
-      await container.read(deviceServiceProvider).connectDome(deviceId);
+      await container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId);
 
       final state = container.read(domeStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);

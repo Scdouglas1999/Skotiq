@@ -106,7 +106,7 @@ void main() {
 
       await container
           .read(deviceServiceProvider)
-          .connectFilterWheel('simulator:filterwheel:0');
+          .connect(DeviceType.filterWheel, 'simulator:filterwheel:0');
 
       expect(backend.writtenNames, ['Lum', 'Ha', 'OIII']);
       expect(container.read(filterWheelStateProvider).filterNames, [
@@ -176,7 +176,7 @@ void main() {
 
     await container
         .read(deviceServiceProvider)
-        .connectRotator('simulator:rotator:0');
+        .connect(DeviceType.rotator, 'simulator:rotator:0');
 
     final state = container.read(rotatorStateProvider);
     expect(state.connectionState, DeviceConnectionState.connected);

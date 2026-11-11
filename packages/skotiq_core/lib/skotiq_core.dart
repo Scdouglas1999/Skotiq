@@ -305,7 +305,6 @@ export 'src/providers/weather_providers.dart';
 export 'src/providers/camera_sensor_specs_provider.dart';
 export 'src/providers/capability_provider.dart';
 export 'src/providers/equipment/device_capability_provider.dart';
-export 'src/providers/equipment/device_type_registry.dart';
 export 'src/providers/meridian_countdown_provider.dart';
 export 'src/providers/meridian_flip_provider.dart';
 export 'src/providers/flat_wizard_provider.dart';
@@ -397,6 +396,7 @@ export 'src/backend/frame_capture_metadata.dart';
 // Authored sentence inside a typed bridge error, for UI packages that render a
 // caught error as copy without importing package:skotiq_bridge.
 export 'src/backend/bridge_error_message.dart';
+export 'src/backend/device_connect_exception.dart';
 export 'src/models/backend/fits_header.dart';
 export 'src/models/backend/image_result.dart';
 export 'src/models/backend/platform_capabilities.dart';

@@ -142,6 +142,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   };
 
   final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
   String _selectedIcon = '';
   Color? _selectedColor;
   bool _isDefault = false;
@@ -251,6 +252,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   /// on its own against the stored profile.
   String _formSignature() => <Object?>[
         _nameController.text,
+        _descriptionController.text,
         _selectedIcon,
         _selectedColor?.toARGB32(),
         _telescopeNameController.text,
@@ -300,6 +302,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   /// The text fields whose edits change [_hasUnsavedChanges].
   Listenable get _formListenable => Listenable.merge(<Listenable>[
         _nameController,
+        _descriptionController,
         _telescopeNameController,
         _focalLengthController,
         _reducerController,
@@ -332,6 +335,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     final profile = widget.profile;
     if (profile != null) {
       _nameController.text = profile.name;
+      _descriptionController.text = profile.description ?? '';
       _selectedIcon = profile.profileIcon ?? '';
       _selectedColor =
           profile.profileColor != null ? Color(profile.profileColor!) : null;
@@ -424,6 +428,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _descriptionController.dispose();
     _telescopeNameController.dispose();
     _focalLengthController.dispose();
     _reducerController.dispose();

@@ -87,7 +87,7 @@ Future<HarnessHandle> _pumpCard(
 
   final handle = await pumpAppScreen(
     tester,
-    const ConnectedDeviceCard(type: ConnectedDeviceType.rotator),
+    const ConnectedDeviceCard(type: DeviceType.rotator),
     backend: backend,
     extraOverrides: _overrides(caps),
     settle: false,

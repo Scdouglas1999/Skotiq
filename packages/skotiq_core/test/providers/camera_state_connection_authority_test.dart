@@ -16,10 +16,10 @@ void main() {
       final cameraAGate = Completer<void>();
       final cameraBGate = Completer<void>();
       when(
-        () => service.connectCamera('camera-a'),
+        () => service.connect(DeviceType.camera, 'camera-a'),
       ).thenAnswer((_) => cameraAGate.future);
       when(
-        () => service.connectCamera('camera-b'),
+        () => service.connect(DeviceType.camera, 'camera-b'),
       ).thenAnswer((_) => cameraBGate.future);
       final container = ProviderContainer(
         overrides: [
@@ -53,9 +53,9 @@ void main() {
       final service = _MockDeviceService();
       final disconnectGate = Completer<void>();
       final cameraBGate = Completer<void>();
-      when(service.disconnectCamera).thenAnswer((_) => disconnectGate.future);
+      when(() => service.disconnect(DeviceType.camera)).thenAnswer((_) => disconnectGate.future);
       when(
-        () => service.connectCamera('camera-b'),
+        () => service.connect(DeviceType.camera, 'camera-b'),
       ).thenAnswer((_) => cameraBGate.future);
       final container = ProviderContainer(
         overrides: [

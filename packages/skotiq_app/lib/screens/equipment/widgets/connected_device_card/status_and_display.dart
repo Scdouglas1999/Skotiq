@@ -1,30 +1,9 @@
 part of '../connected_device_card.dart';
 
 extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
-  DeviceConnectionState _getConnectionState() {
-    switch (widget.type) {
-      case ConnectedDeviceType.camera:
-        return ref.watch(cameraStateProvider).connectionState;
-      case ConnectedDeviceType.mount:
-        return ref.watch(mountStateProvider).connectionState;
-      case ConnectedDeviceType.focuser:
-        return ref.watch(focuserStateProvider).connectionState;
-      case ConnectedDeviceType.filterWheel:
-        return ref.watch(filterWheelStateProvider).connectionState;
-      case ConnectedDeviceType.guider:
-        return ref.watch(guiderStateProvider).connectionState;
-      case ConnectedDeviceType.rotator:
-        return ref.watch(rotatorStateProvider).connectionState;
-      case ConnectedDeviceType.dome:
-        return ref.watch(domeStateProvider).connectionState;
-      case ConnectedDeviceType.weather:
-        return ref.watch(weatherStateProvider).connectionState;
-      case ConnectedDeviceType.safetyMonitor:
-        return ref.watch(safetyMonitorStateProvider).connectionState;
-      case ConnectedDeviceType.coverCalibrator:
-        return ref.watch(coverCalibratorStateProvider).connectionState;
-    }
-  }
+  DeviceSlotState<Object?> get _slot => ref.watch(widget.type.slot.state);
+
+  DeviceConnectionState _getConnectionState() => _slot.connectionState;
 
   Widget _buildHeader(
       SkotiqColors colors, Color accentColor, DeviceConnectionState state) {
@@ -133,7 +112,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
         descriptiveSubtitle: '',
         isError: true,
         errorMessage: errorMessage,
-        deviceType: widget.type.coreDeviceType,
+        deviceType: widget.type,
         driverType: driverTypeFromDeviceId(deviceId) ?? DriverType.native,
         colors: colors,
         onDiagnose: () => _openTroubleshooter(
@@ -156,7 +135,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
   }) async {
     final retry = await ConnectionTroubleshooterDialog.show(
       context,
-      deviceType: widget.type.coreDeviceType,
+      deviceType: widget.type,
       driverType: driverTypeFromDeviceId(deviceId) ?? DriverType.native,
       rawError: rawError,
     );
@@ -174,85 +153,12 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
     }
   }
 
-  /// Re-attempts the connection for this card's device type via the device
-  /// service. Mirrors the connect dispatch used by the discovery panel.
-  Future<void> _reconnect(DeviceService deviceService, String deviceId) {
-    switch (widget.type) {
-      case ConnectedDeviceType.camera:
-        return deviceService.connectCamera(deviceId);
-      case ConnectedDeviceType.mount:
-        return deviceService.connectMount(deviceId);
-      case ConnectedDeviceType.focuser:
-        return deviceService.connectFocuser(deviceId);
-      case ConnectedDeviceType.filterWheel:
-        return deviceService.connectFilterWheel(deviceId);
-      case ConnectedDeviceType.guider:
-        return deviceService.connectGuider(deviceId);
-      case ConnectedDeviceType.rotator:
-        return deviceService.connectRotator(deviceId);
-      case ConnectedDeviceType.dome:
-        return deviceService.connectDome(deviceId);
-      case ConnectedDeviceType.weather:
-        return deviceService.connectWeather(deviceId);
-      case ConnectedDeviceType.safetyMonitor:
-        return deviceService.connectSafetyMonitor(deviceId);
-      case ConnectedDeviceType.coverCalibrator:
-        return deviceService.connectCoverCalibrator(deviceId);
-    }
-  }
+  Future<void> _reconnect(DeviceService deviceService, String deviceId) =>
+      deviceService.connect(widget.type, deviceId);
 
-  DeviceError? _getDeviceError() {
-    switch (widget.type) {
-      case ConnectedDeviceType.camera:
-        return ref.watch(cameraStateProvider).lastError;
-      case ConnectedDeviceType.mount:
-        return ref.watch(mountStateProvider).lastError;
-      case ConnectedDeviceType.focuser:
-        return ref.watch(focuserStateProvider).lastError;
-      case ConnectedDeviceType.filterWheel:
-        return ref.watch(filterWheelStateProvider).lastError;
-      case ConnectedDeviceType.guider:
-        return ref.watch(guiderStateProvider).lastError;
-      case ConnectedDeviceType.rotator:
-        return ref.watch(rotatorStateProvider).lastError;
-      case ConnectedDeviceType.dome:
-        return ref.watch(domeStateProvider).lastError;
-      case ConnectedDeviceType.weather:
-        return ref.watch(weatherStateProvider).lastError;
-      case ConnectedDeviceType.safetyMonitor:
-        return ref.watch(safetyMonitorStateProvider).lastError;
-      case ConnectedDeviceType.coverCalibrator:
-        return ref.watch(coverCalibratorStateProvider).lastError;
-    }
-  }
+  DeviceError? _getDeviceError() => _slot.lastError;
 
-  /// The device's namespaced device id for the current device type. Used to
-  /// resolve the [DriverType] for the troubleshooter and to drive the bounded
-  /// reconnect retry.
-  String? _getDeviceId() {
-    switch (widget.type) {
-      case ConnectedDeviceType.camera:
-        return ref.watch(cameraStateProvider).deviceId;
-      case ConnectedDeviceType.mount:
-        return ref.watch(mountStateProvider).deviceId;
-      case ConnectedDeviceType.focuser:
-        return ref.watch(focuserStateProvider).deviceId;
-      case ConnectedDeviceType.filterWheel:
-        return ref.watch(filterWheelStateProvider).deviceId;
-      case ConnectedDeviceType.guider:
-        return ref.watch(guiderStateProvider).deviceId;
-      case ConnectedDeviceType.rotator:
-        return ref.watch(rotatorStateProvider).deviceId;
-      case ConnectedDeviceType.dome:
-        return ref.watch(domeStateProvider).deviceId;
-      case ConnectedDeviceType.weather:
-        return ref.watch(weatherStateProvider).deviceId;
-      case ConnectedDeviceType.safetyMonitor:
-        return ref.watch(safetyMonitorStateProvider).deviceId;
-      case ConnectedDeviceType.coverCalibrator:
-        return ref.watch(coverCalibratorStateProvider).deviceId;
-    }
-  }
+  String? _getDeviceId() => _slot.deviceId;
 
   /// Resolve the device's display name, preferring the live discovery model
   /// name (e.g. "ZWO ASI1600MM-Cool"). Watching discovery here means the card
@@ -276,42 +182,12 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
   }
 
   String _getDeviceName() {
-    switch (widget.type) {
-      case ConnectedDeviceType.camera:
-        final state = ref.watch(cameraStateProvider);
-        return _resolveDisplayName(state.deviceName, state.deviceId, 'Camera');
-      case ConnectedDeviceType.mount:
-        final state = ref.watch(mountStateProvider);
-        return _resolveDisplayName(state.deviceName, state.deviceId, 'Mount');
-      case ConnectedDeviceType.focuser:
-        final state = ref.watch(focuserStateProvider);
-        return _resolveDisplayName(state.deviceName, state.deviceId, 'Focuser');
-      case ConnectedDeviceType.filterWheel:
-        final state = ref.watch(filterWheelStateProvider);
-        return _resolveDisplayName(
-            state.deviceName, state.deviceId, 'Filter wheel');
-      case ConnectedDeviceType.guider:
-        final state = ref.watch(guiderStateProvider);
-        return _resolveDisplayName(state.deviceName, state.deviceId, 'Guider');
-      case ConnectedDeviceType.rotator:
-        final state = ref.watch(rotatorStateProvider);
-        return _resolveDisplayName(state.deviceName, state.deviceId, 'Rotator');
-      case ConnectedDeviceType.dome:
-        final state = ref.watch(domeStateProvider);
-        return _resolveDisplayName(state.deviceName, state.deviceId, 'Dome');
-      case ConnectedDeviceType.weather:
-        final state = ref.watch(weatherStateProvider);
-        return _resolveDisplayName(
-            state.deviceName, state.deviceId, 'Weather Station');
-      case ConnectedDeviceType.safetyMonitor:
-        final state = ref.watch(safetyMonitorStateProvider);
-        return _resolveDisplayName(
-            state.deviceName, state.deviceId, 'Safety Monitor');
-      case ConnectedDeviceType.coverCalibrator:
-        final state = ref.watch(coverCalibratorStateProvider);
-        return _resolveDisplayName(
-            state.deviceName, state.deviceId, 'Cover Calibrator');
-    }
+    final slot = _slot;
+    return _resolveDisplayName(
+      slot.deviceName,
+      slot.deviceId,
+      widget.type.displayName,
+    );
   }
 
   Widget _buildConnectionBadge(
@@ -405,7 +281,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
 
   List<_DeviceMetric> _getMetrics() {
     switch (widget.type) {
-      case ConnectedDeviceType.camera:
+      case DeviceType.camera:
         final state = ref.watch(cameraStateProvider);
         return [
           _DeviceMetric(
@@ -424,7 +300,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.mount:
+      case DeviceType.mount:
         final state = ref.watch(mountStateProvider);
         return [
           // Hours + minutes, degrees + arcminutes. A padded-colon sexagesimal
@@ -460,7 +336,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.focuser:
+      case DeviceType.focuser:
         final state = ref.watch(focuserStateProvider);
         return [
           _DeviceMetric(
@@ -478,7 +354,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.filterWheel:
+      case DeviceType.filterWheel:
         final state = ref.watch(filterWheelStateProvider);
         final slots = state.filterNames.length;
         return [
@@ -495,7 +371,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.guider:
+      case DeviceType.guider:
         final state = ref.watch(guiderStateProvider);
         return [
           _DeviceMetric(
@@ -514,7 +390,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.rotator:
+      case DeviceType.rotator:
         final state = ref.watch(rotatorStateProvider);
         return [
           _DeviceMetric(
@@ -528,7 +404,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.dome:
+      case DeviceType.dome:
         final state = ref.watch(domeStateProvider);
         return [
           _DeviceMetric(
@@ -552,7 +428,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.weather:
+      case DeviceType.weather:
         final state = ref.watch(weatherStateProvider);
         final weatherColors = SkotiqColors.of(context);
         final hasRain = state.rainRate != null && state.rainRate! > 0;
@@ -581,7 +457,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
             ),
         ];
 
-      case ConnectedDeviceType.safetyMonitor:
+      case DeviceType.safetyMonitor:
         final state = ref.watch(safetyMonitorStateProvider);
         final colors = SkotiqColors.of(context);
         // The age must be driven by a CLOCK, not by the provider that sets
@@ -619,7 +495,9 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.coverCalibrator:
+      case DeviceType.switch_:
+        return const [];
+      case DeviceType.coverCalibrator:
         final state = ref.watch(coverCalibratorStateProvider);
         final capabilities = ref.watch(
           equipmentCoverCalibratorCapabilitiesProvider(state.deviceId ?? ''),

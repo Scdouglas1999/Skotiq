@@ -190,7 +190,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     final backend = ref.read(backendProvider);
     final guiderId = ref.read(guiderStateProvider).deviceId;
     try {
-      await ref.read(deviceServiceProvider).disconnectGuider();
+      await ref.read(deviceServiceProvider).disconnect(DeviceType.guider);
       if (!mounted) return;
       if (!identical(backend, ref.read(backendProvider))) {
         _showActionError(

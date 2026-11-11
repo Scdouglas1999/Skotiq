@@ -202,33 +202,14 @@ extension _ProfileServiceBackends on ProfileService {
     EquipmentProfileModel profile, {
     String progressSource = 'Profile connect',
   }) async {
-    final deviceService = _ref.read(deviceServiceProvider);
-    final progressNotifier = _ref.read(
-      deviceConnectionProgressProvider.notifier,
-    );
-    final failures = <String>[];
-
-    // Publish per-device outcomes to the same provider the equipment screen's
-    // progress strip renders. Before this, only the "Connect All" BUTTON
-    // recorded events, so a device that failed during startup auto-connect had
-    // no persistent surface anywhere: the card was simply absent and the only
-    // explanation in the product was a tooltip on a ~6 px status dot.
-    progressNotifier.startSweep(source: progressSource);
-    try {
-      await for (final progress in deviceService.connectAllFromProfile(
-        profile,
-      )) {
-        progressNotifier.record(progress);
-        if (progress.status == DeviceConnectProgressStatus.failed) {
-          failures.add(
-            '${progress.deviceType} (${progress.deviceId}): '
-            '${progress.errorMessage ?? progress.error ?? 'unknown error'}',
-          );
-        }
-      }
-    } finally {
-      progressNotifier.endSweep();
-    }
+    final sweep = await _ref
+        .read(deviceServiceProvider)
+        .connectProfile(profile, source: progressSource);
+    final failures = [
+      for (final failure in sweep.failures)
+        '${failure.deviceType} (${failure.deviceId}): '
+            '${failure.errorMessage ?? failure.error ?? 'unknown error'}',
+    ];
 
     if (failures.isNotEmpty) {
       throw ProfileAutoConnectException(

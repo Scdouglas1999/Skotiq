@@ -130,14 +130,14 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   final phd2 = ref.watch(phd2StateProvider);
   final guideStats = ref.watch(guideStatsProvider);
   final guideStopReason = ref.watch(guidingStopReasonProvider);
-  final assigned = ref.watch(assignedProfileDeviceSlotsProvider).toSet();
+  final assigned = ref.watch(assignedProfileDeviceTypesProvider).toSet();
   final reads = ref.watch(deviceReadHealthProvider);
   final heartbeats = ref.watch(deviceHeartbeatHealthProvider);
   final now = DateTime.now();
 
   EquipmentRowVm row(
     EquipmentKind kind,
-    ProfileDeviceSlot slot,
+    DeviceType slot,
     DeviceConnectionState state,
     String? name,
     List<NightText> Function() details, {
@@ -180,7 +180,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   return <EquipmentRowVm>[
     row(
       EquipmentKind.camera,
-      ProfileDeviceSlot.camera,
+      DeviceType.camera,
       camera.connectionState,
       camera.deviceName,
       () {
@@ -223,7 +223,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     ),
     row(
       EquipmentKind.filterWheel,
-      ProfileDeviceSlot.filterWheel,
+      DeviceType.filterWheel,
       wheel.connectionState,
       wheel.deviceName,
       () {
@@ -251,7 +251,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     ),
     row(
       EquipmentKind.focuser,
-      ProfileDeviceSlot.focuser,
+      DeviceType.focuser,
       focuser.connectionState,
       focuser.deviceName,
       () => <NightText>[
@@ -267,7 +267,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     ),
     row(
       EquipmentKind.mount,
-      ProfileDeviceSlot.mount,
+      DeviceType.mount,
       mount.connectionState,
       mount.deviceName,
       () {
@@ -298,7 +298,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     ),
     row(
       EquipmentKind.guider,
-      ProfileDeviceSlot.guider,
+      DeviceType.guider,
       guider.connectionState,
       guider.deviceName,
       () {
@@ -337,7 +337,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     ),
     row(
       EquipmentKind.rotator,
-      ProfileDeviceSlot.rotator,
+      DeviceType.rotator,
       rotator.connectionState,
       rotator.deviceName,
       () => <NightText>[

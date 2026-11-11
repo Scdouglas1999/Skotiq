@@ -163,7 +163,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectSwitch(deviceId);
+      await service.connect(DeviceType.switch_, deviceId);
 
       final state = container.read(switchStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -185,7 +185,7 @@ void main() {
       bridge.states = [true, false, true];
 
       final service = container.read(deviceServiceProvider);
-      await service.connectSwitch(deviceId);
+      await service.connect(DeviceType.switch_, deviceId);
 
       final state = container.read(switchStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -217,7 +217,7 @@ void main() {
         SwitchChannelService.switchBridgeGetMax = (_) async =>
             throw StateError('channel snapshot unavailable');
 
-        await container.read(deviceServiceProvider).connectSwitch(deviceId);
+        await container.read(deviceServiceProvider).connect(DeviceType.switch_, deviceId);
 
         final state = container.read(switchStateProvider);
         expect(state.connectionState, DeviceConnectionState.connected);
@@ -235,7 +235,7 @@ void main() {
 
         final service = container.read(deviceServiceProvider);
         await expectLater(
-          service.connectSwitch(deviceId),
+          service.connect(DeviceType.switch_, deviceId),
           throwsA(
             isA<InvalidDeviceIdException>()
                 .having((e) => e.deviceType, 'deviceType', 'switch')
@@ -259,7 +259,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectSwitch(deviceId),
+        service.connect(DeviceType.switch_, deviceId),
         throwsA(isA<Exception>()),
       );
 
@@ -279,7 +279,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.disconnectSwitch();
+      await service.disconnect(DeviceType.switch_);
 
       expect(
         container.read(switchStateProvider).connectionState,
@@ -294,7 +294,7 @@ void main() {
         'was connected', () async {
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.disconnectSwitch(),
+        service.disconnect(DeviceType.switch_),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,

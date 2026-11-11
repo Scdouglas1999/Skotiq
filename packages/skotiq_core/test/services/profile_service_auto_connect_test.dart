@@ -132,7 +132,9 @@ void main() {
 
     // Never activates and never connects when disabled.
     verifyNever(() => backend.saveProfile(any()));
-    verifyNever(() => ds.connectAllFromProfile(any()));
+    verifyNever(
+      () => ds.connectProfile(any(), source: any(named: 'source')),
+    );
   });
 
   test(
@@ -150,7 +152,9 @@ void main() {
       await container.read(profileServiceProvider).autoConnectOnStartup();
 
       verifyNever(() => backend.saveProfile(any()));
-      verifyNever(() => ds.connectAllFromProfile(any()));
+      verifyNever(
+      () => ds.connectProfile(any(), source: any(named: 'source')),
+    );
     },
   );
 
@@ -187,7 +191,9 @@ void main() {
     );
 
     // ...and NOT a single device was connected.
-    verifyNever(() => ds.connectAllFromProfile(any()));
+    verifyNever(
+      () => ds.connectProfile(any(), source: any(named: 'source')),
+    );
   });
 
   test('attempts every slot (incl. switch + safety monitor) and aggregates '
@@ -196,31 +202,26 @@ void main() {
     final ds = _MockDeviceService();
     // Camera + mount connect; switch + safety monitor fail. The stream never
     // errors — a single bad device must not abort the sweep.
-    when(() => ds.connectAllFromProfile(any())).thenAnswer(
-      (_) => Stream<DeviceConnectProgress>.fromIterable(const [
-        DeviceConnectProgress(
-          deviceType: 'camera',
-          deviceId: 'ascom:camera:1',
-          status: DeviceConnectProgressStatus.connected,
-        ),
-        DeviceConnectProgress(
-          deviceType: 'mount',
-          deviceId: 'ascom:mount:1',
-          status: DeviceConnectProgressStatus.connected,
-        ),
-        DeviceConnectProgress(
-          deviceType: 'switch',
-          deviceId: 'ascom:switch:1',
-          status: DeviceConnectProgressStatus.failed,
-          errorMessage: 'switch offline',
-        ),
-        DeviceConnectProgress(
-          deviceType: 'safety monitor',
-          deviceId: 'ascom:safety:1',
-          status: DeviceConnectProgressStatus.failed,
-          errorMessage: 'safety monitor offline',
-        ),
-      ]),
+    when(
+      () => ds.connectProfile(any(), source: any(named: 'source')),
+    ).thenAnswer(
+      (_) async => (
+        connected: 2,
+        failures: const [
+          DeviceConnectProgress(
+            deviceType: 'switch',
+            deviceId: 'ascom:switch:1',
+            status: DeviceConnectProgressStatus.failed,
+            errorMessage: 'switch offline',
+          ),
+          DeviceConnectProgress(
+            deviceType: 'safety monitor',
+            deviceId: 'ascom:safety:1',
+            status: DeviceConnectProgressStatus.failed,
+            errorMessage: 'safety monitor offline',
+          ),
+        ],
+      ),
     );
 
     final container = buildContainer(
@@ -261,7 +262,10 @@ void main() {
     // The full profile (including the switch + safety-monitor slots) was
     // handed to the connector.
     final captured = verify(
-      () => ds.connectAllFromProfile(captureAny()),
+      () => ds.connectProfile(
+        captureAny(),
+        source: 'Startup auto-connect',
+      ),
     ).captured;
     final passed = captured.single as EquipmentProfileModel;
     expect(passed.switchId, 'ascom:switch:1');

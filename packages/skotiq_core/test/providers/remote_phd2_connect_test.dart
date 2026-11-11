@@ -180,7 +180,7 @@ void main() {
 
         await container
             .read(deviceServiceProvider)
-            .connectGuider('phd2_guider');
+            .connect(DeviceType.guider, 'phd2_guider');
 
         verify(
           () => backend.phd2Connect(host: '127.0.0.1', port: 4400),

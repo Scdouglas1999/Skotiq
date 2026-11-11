@@ -69,11 +69,16 @@ class _FakeDeviceService extends DeviceService {
   final _FakeCameraNotifier camera;
 
   @override
-  Future<void> connectCamera(String deviceId) async =>
-      camera._apply(connected: true);
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) async => camera._apply(connected: true);
 
   @override
-  Future<void> disconnectCamera() async => camera._apply(connected: false);
+  Future<void> disconnect(DeviceType type) async =>
+      camera._apply(connected: false);
 }
 
 /// `SkotiqIconButton` carries its tooltip through `Semantics` and

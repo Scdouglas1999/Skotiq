@@ -158,7 +158,7 @@ class _FilterWheelRow extends StatelessWidget {
                 width: _tile,
                 child: DeviceTileWidth(
                   width: _tile,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.camera),
+                  child: ConnectedDeviceCard(type: DeviceType.camera),
                 ),
               ),
               SizedBox(width: 16),
@@ -167,7 +167,7 @@ class _FilterWheelRow extends StatelessWidget {
                 child: DeviceTileWidth(
                   width: _tile,
                   child: ConnectedDeviceCard(
-                    type: ConnectedDeviceType.filterWheel,
+                    type: DeviceType.filterWheel,
                   ),
                 ),
               ),
@@ -198,7 +198,7 @@ class _CardRow extends StatelessWidget {
                 width: 320,
                 child: DeviceTileWidth(
                   width: 320,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.camera),
+                  child: ConnectedDeviceCard(type: DeviceType.camera),
                 ),
               ),
               SizedBox(width: 16),
@@ -206,7 +206,7 @@ class _CardRow extends StatelessWidget {
                 width: 320,
                 child: DeviceTileWidth(
                   width: 320,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.mount),
+                  child: ConnectedDeviceCard(type: DeviceType.mount),
                 ),
               ),
               SizedBox(width: 16),
@@ -214,7 +214,7 @@ class _CardRow extends StatelessWidget {
                 width: 320,
                 child: DeviceTileWidth(
                   width: 320,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+                  child: ConnectedDeviceCard(type: DeviceType.dome),
                 ),
               ),
             ],

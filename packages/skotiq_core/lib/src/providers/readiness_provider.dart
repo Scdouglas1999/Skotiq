@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/backend/device_types.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/readiness/readiness_models.dart';
 import 'dark_library_provider.dart';
@@ -87,18 +88,18 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
       .watch(offlineProfileDeviceNamesProvider)
       .where(
         (name) =>
-            name != ProfileDeviceSlot.camera.displayName &&
-            name != ProfileDeviceSlot.mount.displayName,
+            name != DeviceType.camera.displayName &&
+            name != DeviceType.mount.displayName,
       )
       .toList(growable: false);
 
   // The assignment SET, not just the offline subset: an empty offline list
   // means "nothing assigned is down", which over an empty profile is vacuous.
   // The profile-devices rule needs the counts to tell those apart.
-  final assignedProfileSlots = ref.watch(assignedProfileDeviceSlotsProvider);
+  final assignedProfileSlots = ref.watch(assignedProfileDeviceTypesProvider);
   final otherAssignedProfileSlots = assignedProfileSlots.where(
     (slot) =>
-        slot != ProfileDeviceSlot.camera && slot != ProfileDeviceSlot.mount,
+        slot != DeviceType.camera && slot != DeviceType.mount,
   );
 
   return buildReadinessReport(

@@ -1,17 +1,22 @@
 part of '../equipment_models.dart';
 
 /// Rotator state
-class RotatorState extends Equatable {
+class RotatorState extends Equatable implements DeviceSlotState<RotatorState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final double? position;
   final double? mechanicalPosition;
   final bool isMoving;
   final bool isReversed;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const RotatorState({
@@ -29,6 +34,7 @@ class RotatorState extends Equatable {
   bool get hasError => lastError != null;
   RotatorState clearError() => copyWith(clearError: true);
 
+  @override
   RotatorState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,
@@ -72,9 +78,12 @@ class RotatorState extends Equatable {
 enum ShutterStatus { open, closed, opening, closing, error, unknown }
 
 /// Dome state
-class DomeState extends Equatable {
+class DomeState extends Equatable implements DeviceSlotState<DomeState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final double? azimuth;
   final ShutterStatus shutterStatus;
@@ -82,9 +91,11 @@ class DomeState extends Equatable {
   final bool isParked;
   final bool isAtHome;
   final bool isSlaved;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const DomeState({
@@ -104,6 +115,7 @@ class DomeState extends Equatable {
   bool get hasError => lastError != null;
   DomeState clearError() => copyWith(clearError: true);
 
+  @override
   DomeState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,

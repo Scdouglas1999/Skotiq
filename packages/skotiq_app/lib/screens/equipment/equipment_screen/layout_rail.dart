@@ -216,7 +216,7 @@ class _ProfileBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final model = profile;
-    final assigned = ref.watch(assignedProfileDeviceSlotsProvider).length;
+    final assigned = ref.watch(assignedProfileDeviceTypesProvider).length;
     final unsaved = ref.watch(sessionOnlyConnectedSlotsProvider).length;
 
     final meta = <String>[
@@ -371,7 +371,7 @@ class _SaveSessionDevicesButtonState
     extends ConsumerState<_SaveSessionDevicesButton> {
   bool _saving = false;
 
-  Future<void> _save(int profileId, Set<ProfileDeviceSlot> slots) async {
+  Future<void> _save(int profileId, Set<DeviceType> slots) async {
     if (_saving) return;
     setState(() => _saving = true);
     try {

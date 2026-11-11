@@ -133,7 +133,7 @@ void main() {
         ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(deviceId);
+        await service.connect(DeviceType.camera, deviceId);
 
         final state = container.read(cameraStateProvider);
         expect(state.connectionState, DeviceConnectionState.connected);
@@ -161,7 +161,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectCamera(deviceId),
+        service.connect(DeviceType.camera, deviceId),
         throwsA(isA<Exception>()),
       );
 
@@ -185,7 +185,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.disconnectCamera();
+      await service.disconnect(DeviceType.camera);
 
       final state = container.read(cameraStateProvider);
       expect(state.connectionState, DeviceConnectionState.disconnected);
@@ -239,7 +239,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectMount(deviceId);
+      await service.connect(DeviceType.mount, deviceId);
 
       final state = container.read(mountStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -260,7 +260,7 @@ void main() {
 
         final service = container.read(deviceServiceProvider);
         await expectLater(
-          service.connectMount(deviceId),
+          service.connect(DeviceType.mount, deviceId),
           throwsA(
             isA<InvalidDeviceIdException>()
                 .having((e) => e.deviceType, 'deviceType', 'mount')
@@ -302,7 +302,7 @@ void main() {
       );
 
       final service = container.read(deviceServiceProvider);
-      await service.connectFocuser(deviceId);
+      await service.connect(DeviceType.focuser, deviceId);
 
       final state = container.read(focuserStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -344,7 +344,7 @@ void main() {
         ),
       ).thenAnswer((_) async {});
 
-      await container.read(deviceServiceProvider).connectRotator(deviceId);
+      await container.read(deviceServiceProvider).connect(DeviceType.rotator, deviceId);
 
       verify(
         () => mockBackend.startDeviceHeartbeat(
@@ -367,7 +367,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.disconnectFocuser();
+      await service.disconnect(DeviceType.focuser);
 
       final state = container.read(focuserStateProvider);
       expect(state.connectionState, DeviceConnectionState.disconnected);
@@ -742,7 +742,7 @@ void main() {
         );
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(deviceId);
+        await service.connect(DeviceType.camera, deviceId);
 
         // The immediate poll after connect should have updated temp
         await Future.delayed(const Duration(milliseconds: 100));
@@ -800,8 +800,8 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectCamera(deviceId);
-      await service.disconnectCamera();
+      await service.connect(DeviceType.camera, deviceId);
+      await service.disconnect(DeviceType.camera);
 
       // Reset the call count, then wait; no new calls should come in
       clearInteractions(mockBackend);
@@ -868,9 +868,9 @@ void main() {
         );
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(firstDeviceId);
-        await service.disconnectCamera();
-        await service.connectCamera(secondDeviceId);
+        await service.connect(DeviceType.camera, firstDeviceId);
+        await service.disconnect(DeviceType.camera);
+        await service.connect(DeviceType.camera, secondDeviceId);
 
         firstPoll.complete(
           const CameraStatus(
@@ -1461,7 +1461,7 @@ void main() {
       });
 
       final service = container.read(deviceServiceProvider);
-      await service.connectCamera(deviceId);
+      await service.connect(DeviceType.camera, deviceId);
 
       // Wait long enough for second poll (polling is every 5s, but first poll is immediate)
       // The initial poll will throw; subsequent polls should succeed.
@@ -1489,7 +1489,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectCamera(),
+        service.disconnect(DeviceType.camera),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1512,7 +1512,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectMount(),
+        service.disconnect(DeviceType.mount),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1529,7 +1529,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectFocuser(),
+        service.disconnect(DeviceType.focuser),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1548,7 +1548,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectFilterWheel(),
+        service.disconnect(DeviceType.filterWheel),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1570,31 +1570,31 @@ void main() {
         final service = container.read(deviceServiceProvider);
 
         await expectLater(
-          service.disconnectGuider(),
+          service.disconnect(DeviceType.guider),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectRotator(),
+          service.disconnect(DeviceType.rotator),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectDome(),
+          service.disconnect(DeviceType.dome),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectWeather(),
+          service.disconnect(DeviceType.weather),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectSafetyMonitor(),
+          service.disconnect(DeviceType.safetyMonitor),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectSwitch(),
+          service.disconnect(DeviceType.switch_),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectCoverCalibrator(),
+          service.disconnect(DeviceType.coverCalibrator),
           throwsA(isA<DeviceNotConnectedException>()),
         );
       },
@@ -1618,7 +1618,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       // Should complete without throwing.
-      await service.disconnectCamera();
+      await service.disconnect(DeviceType.camera);
 
       // Backend was contacted, state was cleared.
       verify(
@@ -1657,18 +1657,14 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
 
-      // The real failure should still propagate. The other 8 device types
-      // are all not-connected and should be silently skipped (NOT counted
-      // as errors).
-      await expectLater(
-        service.disconnectAll(),
-        throwsA(
-          predicate<Exception>(
-            (e) =>
-                e.toString().contains('Mount driver refused to disconnect') &&
-                !e.toString().contains('DeviceNotConnectedException'),
-          ),
-        ),
+      // The real failure is reported. The other device types are not
+      // connected and are skipped, not counted as failures.
+      final result = await service.disconnectAll();
+      expect(result.disconnected, 1);
+      expect(result.failures, hasLength(1));
+      expect(
+        result.failures.single,
+        contains('Mount driver refused to disconnect'),
       );
     });
 
@@ -1689,17 +1685,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       final disconnects = <Future<void> Function()>[
-        service.disconnectCamera,
-        service.disconnectMount,
-        service.disconnectFocuser,
-        service.disconnectFilterWheel,
-        service.disconnectGuider,
-        service.disconnectRotator,
-        service.disconnectDome,
-        service.disconnectWeather,
-        service.disconnectSafetyMonitor,
-        service.disconnectSwitch,
-        service.disconnectCoverCalibrator,
+        for (final type in DeviceType.values) () => service.disconnect(type),
       ];
 
       var successCount = 0;

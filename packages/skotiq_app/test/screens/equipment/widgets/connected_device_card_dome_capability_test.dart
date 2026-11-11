@@ -31,7 +31,7 @@ Future<void> pumpDome(
 }) async {
   await pumpAppScreen(
     tester,
-    const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+    const ConnectedDeviceCard(type: DeviceType.dome),
     extraOverrides: [
       domeStateProvider.overrideWith((ref) => _DomeNotifier(ref, state)),
       domeCapabilityFetcherProvider.overrideWithValue(
@@ -125,7 +125,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+      const ConnectedDeviceCard(type: DeviceType.dome),
       extraOverrides: [
         backendProvider.overrideWith((ref) {
           backendNotifier = _SwappableBackendNotifier(ref, hostA);
@@ -164,7 +164,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+      const ConnectedDeviceCard(type: DeviceType.dome),
       extraOverrides: [
         backendProvider.overrideWith((ref) {
           backendNotifier = _SwappableBackendNotifier(ref, hostA);

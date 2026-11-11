@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     hide
         BuiltinGuiderConfig,
+        DeviceType,
         EventCategory,
         Phd2StarImage,
         Phd2CalibrationData,

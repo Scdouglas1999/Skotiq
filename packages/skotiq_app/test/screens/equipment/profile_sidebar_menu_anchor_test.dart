@@ -40,9 +40,9 @@ ProfileConnectionStatus _emptyStatus(EquipmentProfileModel profile) {
   return ProfileConnectionStatus(
     profileId: profile.id,
     connections: [
-      for (final slot in ProfileDeviceSlot.values)
+      for (final slot in DeviceType.values)
         ProfileDeviceConnection(
-          slot: slot,
+          type: slot,
           profileId: null,
           connectedId: null,
           connectedState: DeviceConnectionState.disconnected,

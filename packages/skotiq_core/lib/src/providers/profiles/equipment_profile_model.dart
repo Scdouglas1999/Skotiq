@@ -129,26 +129,63 @@ class EquipmentProfileModel {
     }
     if (cameraName != null) return cameraName!;
     if (mountName != null) return mountName!;
-    return '$deviceCount devices';
+    return deviceCount == 1 ? '1 device' : '$deviceCount devices';
   }
 
-  /// Count of assigned devices (non-null device IDs)
-  int get deviceCount {
-    int count = 0;
-    if (cameraId != null) count++;
-    if (mountId != null) count++;
-    if (focuserId != null) count++;
-    if (filterWheelId != null) count++;
-    if (guiderId != null) count++;
-    if (guideCameraId != null) count++;
-    if (rotatorId != null) count++;
-    if (domeId != null) count++;
-    if (weatherId != null) count++;
-    if (safetyMonitorId != null) count++;
-    if (switchId != null) count++;
-    if (coverCalibratorId != null) count++;
-    return count;
-  }
+  /// The device this profile assigns to [type]'s slot. The guide camera is
+  /// not a slot of its own; it is [guideCameraId].
+  String? deviceIdFor(DeviceType type) => switch (type) {
+    DeviceType.camera => cameraId,
+    DeviceType.mount => mountId,
+    DeviceType.focuser => focuserId,
+    DeviceType.filterWheel => filterWheelId,
+    DeviceType.guider => guiderId,
+    DeviceType.rotator => rotatorId,
+    DeviceType.dome => domeId,
+    DeviceType.weather => weatherId,
+    DeviceType.safetyMonitor => safetyMonitorId,
+    DeviceType.switch_ => switchId,
+    DeviceType.coverCalibrator => coverCalibratorId,
+  };
+
+  /// The saved model name of [type]'s device, for the types that keep one.
+  String? deviceNameFor(DeviceType type) => switch (type) {
+    DeviceType.camera => cameraName,
+    DeviceType.mount => mountName,
+    DeviceType.focuser => focuserName,
+    DeviceType.filterWheel => filterWheelName,
+    DeviceType.guider => guiderName,
+    DeviceType.rotator => rotatorName,
+    DeviceType.safetyMonitor => safetyMonitorName,
+    DeviceType.switch_ => switchName,
+    DeviceType.dome || DeviceType.weather || DeviceType.coverCalibrator => null,
+  };
+
+  /// A copy with [type]'s slot assigned to [deviceId].
+  EquipmentProfileModel withDeviceId(DeviceType type, String deviceId) =>
+      switch (type) {
+        DeviceType.camera => copyWith(cameraId: deviceId),
+        DeviceType.mount => copyWith(mountId: deviceId),
+        DeviceType.focuser => copyWith(focuserId: deviceId),
+        DeviceType.filterWheel => copyWith(filterWheelId: deviceId),
+        DeviceType.guider => copyWith(guiderId: deviceId),
+        DeviceType.rotator => copyWith(rotatorId: deviceId),
+        DeviceType.dome => copyWith(domeId: deviceId),
+        DeviceType.weather => copyWith(weatherId: deviceId),
+        DeviceType.safetyMonitor => copyWith(safetyMonitorId: deviceId),
+        DeviceType.switch_ => copyWith(switchId: deviceId),
+        DeviceType.coverCalibrator => copyWith(coverCalibratorId: deviceId),
+      };
+
+  /// Whether any slot, or the guide camera, names a device.
+  bool get hasAssignedDevices =>
+      (guideCameraId ?? '').isNotEmpty ||
+      DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
+
+  /// Count of assigned devices, the guide camera included.
+  int get deviceCount =>
+      DeviceType.values.where((type) => deviceIdFor(type) != null).length +
+      (guideCameraId != null ? 1 : 0);
 
   /// Create from database entity
   factory EquipmentProfileModel.fromDatabase(EquipmentProfile db) {

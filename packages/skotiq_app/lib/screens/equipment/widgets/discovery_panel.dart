@@ -7,13 +7,19 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../mixins/device_connection_mixin.dart';
+import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/troubleshooter/connection_troubleshooter_dialog.dart';
 import '../dialogs/fujifilm_disclaimer_dialog.dart';
+import '../profile_actions.dart';
+import '../utils/profile_mutation_epoch.dart';
 
 part 'discovery_panel/device_row_item.dart';
 
 class AssignAction {
+  /// [profileId] of the menu entry that makes a new profile for the device.
+  static const int newProfile = -1;
+
   final int profileId;
   final DeviceType deviceType;
 
@@ -565,7 +571,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       deviceName: device.displayName,
       deviceType: device.type,
       driverType: DiscoveryPanel.resolveDriverType(device),
-      connectFn: (id) => _dispatchConnect(deviceService, device.type, id),
+      connectFn: (id) => deviceService.connect(device.type, id),
       onConnected: () async {
         if (mounted) {
           _announce('Connected to ${device.displayName}');
@@ -586,80 +592,12 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     context.showSuccessSnackBar(message);
   }
 
-  /// Per-device-type connect dispatch shared by the discovery connect path.
-  /// Throws for unsupported types so the mixin surfaces the failure through the
-  /// troubleshooter rather than silently no-op'ing (errors-are-a-feature).
-  Future<void> _dispatchConnect(
-    DeviceService deviceService,
-    DeviceType type,
-    String deviceId,
-  ) {
-    switch (type) {
-      case DeviceType.camera:
-        return deviceService.connectCamera(deviceId);
-      case DeviceType.mount:
-        return deviceService.connectMount(deviceId);
-      case DeviceType.focuser:
-        return deviceService.connectFocuser(deviceId);
-      case DeviceType.filterWheel:
-        return deviceService.connectFilterWheel(deviceId);
-      case DeviceType.guider:
-        return deviceService.connectGuider(deviceId);
-      case DeviceType.rotator:
-        return deviceService.connectRotator(deviceId);
-      case DeviceType.dome:
-        return deviceService.connectDome(deviceId);
-      case DeviceType.weather:
-        return deviceService.connectWeather(deviceId);
-      case DeviceType.safetyMonitor:
-        return deviceService.connectSafetyMonitor(deviceId);
-      case DeviceType.coverCalibrator:
-        return deviceService.connectCoverCalibrator(deviceId);
-      case DeviceType.switch_:
-        return deviceService.connectSwitch(deviceId);
-    }
-  }
-
   Future<void> _disconnectDevice(UnifiedDevice device) async {
     final deviceService = ref.read(deviceServiceProvider);
     final deviceType = device.type;
 
     try {
-      switch (deviceType) {
-        case DeviceType.camera:
-          await deviceService.disconnectCamera();
-          break;
-        case DeviceType.mount:
-          await deviceService.disconnectMount();
-          break;
-        case DeviceType.focuser:
-          await deviceService.disconnectFocuser();
-          break;
-        case DeviceType.filterWheel:
-          await deviceService.disconnectFilterWheel();
-          break;
-        case DeviceType.guider:
-          await deviceService.disconnectGuider();
-          break;
-        case DeviceType.rotator:
-          await deviceService.disconnectRotator();
-          break;
-        case DeviceType.dome:
-          await deviceService.disconnectDome();
-          break;
-        case DeviceType.weather:
-          await deviceService.disconnectWeather();
-          break;
-        case DeviceType.safetyMonitor:
-          await deviceService.disconnectSafetyMonitor();
-          break;
-        case DeviceType.coverCalibrator:
-          await deviceService.disconnectCoverCalibrator();
-          break;
-        case DeviceType.switch_:
-          await deviceService.disconnectSwitch();
-          break;
-      }
+      await deviceService.disconnect(deviceType);
       if (mounted) {
         _announce('Disconnected ${device.displayName}');
       }

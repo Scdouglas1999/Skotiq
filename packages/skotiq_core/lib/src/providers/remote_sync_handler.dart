@@ -31,7 +31,7 @@ import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;
 import 'device_heartbeat_health_provider.dart';
-import 'equipment/device_type_registry.dart';
+import 'equipment/device_slots.dart';
 import 'equipment/device_property_events.dart';
 import 'framing_provider.dart';
 import 'guiding_provider.dart' show guidingStopReasonProvider;

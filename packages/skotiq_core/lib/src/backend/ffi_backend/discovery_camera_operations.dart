@@ -145,7 +145,11 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
       }
     } catch (e, stackTrace) {
       _logger.severe('Native connection failed for $deviceId', e, stackTrace);
-      throw Exception('Failed to connect to $deviceId via native bridge: $e');
+      throw DeviceConnectException(
+        deviceId,
+        e,
+        reason: bridgeErrorMessage(e),
+      );
     }
   }
 

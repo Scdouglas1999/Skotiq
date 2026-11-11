@@ -104,13 +104,13 @@ void main() {
       () async {
         final service = container.read(deviceServiceProvider);
 
-        await service.connectMount(realMount);
+        await service.connect(DeviceType.mount, realMount);
         expect(
           container.read(mountStateProvider).connectionState,
           DeviceConnectionState.connected,
         );
 
-        await service.connectMount(simMount);
+        await service.connect(DeviceType.mount, simMount);
 
         // The displaced mount's driver handle is released, and that happens
         // BEFORE the incoming mount is connected so the two never hold the
@@ -129,8 +129,8 @@ void main() {
     test('reconnecting the SAME mount does not disconnect it', () async {
       final service = container.read(deviceServiceProvider);
 
-      await service.connectMount(realMount);
-      await service.connectMount(realMount);
+      await service.connect(DeviceType.mount, realMount);
+      await service.connect(DeviceType.mount, realMount);
 
       verifyNever(() => mockBackend.disconnectDevice(DeviceType.mount, any()));
       expect(container.read(mountStateProvider).deviceId, realMount);
@@ -139,14 +139,14 @@ void main() {
     test('a displaced device that fails to disconnect does not block the '
         'incoming connect', () async {
       final service = container.read(deviceServiceProvider);
-      await service.connectMount(realMount);
+      await service.connect(DeviceType.mount, realMount);
 
       // Cable already yanked: the teardown throws.
       when(
         () => mockBackend.disconnectDevice(DeviceType.mount, realMount),
       ).thenThrow(Exception('driver already gone'));
 
-      await service.connectMount(simMount);
+      await service.connect(DeviceType.mount, simMount);
 
       expect(container.read(mountStateProvider).deviceId, simMount);
       expect(
@@ -169,8 +169,8 @@ void main() {
         ),
       );
 
-      await service.connectFocuser('ascom:ASCOM.EAF.Focuser');
-      await service.connectFocuser('simulator:sim_focuser_1');
+      await service.connect(DeviceType.focuser, 'ascom:ASCOM.EAF.Focuser');
+      await service.connect(DeviceType.focuser, 'simulator:sim_focuser_1');
 
       verify(
         () => mockBackend.disconnectDevice(

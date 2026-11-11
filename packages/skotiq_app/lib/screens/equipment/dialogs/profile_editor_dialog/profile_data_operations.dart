@@ -515,6 +515,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
     return EquipmentProfileModel(
       id: widget.profile?.id,
       name: parsed.name,
+      description: _descriptionController.text.trimOrNull,
       profileIcon: _selectedIcon.isEmpty ? null : _selectedIcon,
       profileColor: _selectedColor?.toARGB32(),
       isDefault: _defaultToSave(widget.profile?.isDefault ?? _isDefault),
@@ -656,6 +657,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         makesDefault = _defaultToSave(existingProfile.isDefault);
         final updated = existingProfile.copyWith(
           name: parsed.name,
+          description: Value(_descriptionController.text.trimOrNull),
           profileIcon: Value(_selectedIcon.isEmpty ? null : _selectedIcon),
           profileColor: Value(_selectedColor?.toARGB32()),
           isDefault: makesDefault,
@@ -715,6 +717,7 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       } else {
         final companion = EquipmentProfilesCompanion(
           name: Value(parsed.name),
+          description: Value(_descriptionController.text.trimOrNull),
           profileIcon: Value(_selectedIcon.isEmpty ? null : _selectedIcon),
           profileColor: Value(_selectedColor?.toARGB32()),
           isDefault: Value(_isDefault),

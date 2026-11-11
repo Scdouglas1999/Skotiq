@@ -25,7 +25,7 @@ Future<HarnessHandle> pumpCover(
 }) {
   return pumpAppScreen(
     tester,
-    const ConnectedDeviceCard(type: ConnectedDeviceType.coverCalibrator),
+    const ConnectedDeviceCard(type: DeviceType.coverCalibrator),
     backend: backend,
     extraOverrides: [
       coverCalibratorStateProvider.overrideWith(_CoverNotifier.new),

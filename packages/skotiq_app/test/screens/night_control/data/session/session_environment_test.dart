@@ -71,11 +71,11 @@ List<Override> _readyRig({
         ),
       ),
       phd2StateProvider.overrideWith((ref) => phd2),
-      assignedProfileDeviceSlotsProvider.overrideWithValue(
-        const <ProfileDeviceSlot>[
-          ProfileDeviceSlot.camera,
-          ProfileDeviceSlot.mount,
-          ProfileDeviceSlot.guider,
+      assignedProfileDeviceTypesProvider.overrideWithValue(
+        const <DeviceType>[
+          DeviceType.camera,
+          DeviceType.mount,
+          DeviceType.guider,
         ],
       ),
       appSettingsProvider.overrideWith(() => FixedSettings(settings)),

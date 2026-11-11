@@ -9,7 +9,6 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
-import 'device_service.dart' show DeviceTypeDisplayExtension;
 import 'logging_service.dart';
 import 'notification_service.dart';
 import '../backend/remote_host.dart';
@@ -109,61 +108,12 @@ class DeviceReconnectCoordinator {
   /// reconnect against a backend that is mid-tear-down.
   bool _suppressAutoReconnect = false;
 
-  /// Whether the NATIVE Rust reconnection engine owns reconnect for
-  /// [type], i.e. its per-device-type heartbeat config has
-  /// `auto_reconnect = true`.
-  ///
-  /// This mirrors the native source of truth exactly: the path Dart
-  /// triggers when it starts a heartbeat is
-  /// `DeviceManager::start_heartbeat` →
-  /// `Self::get_heartbeat_config(device_type)` (see
-  /// `native/.../device_manager/heartbeat.rs`), which returns the
-  /// per-type `HeartbeatConfig::for_*()` policy from
-  /// `device_manager/mod.rs`. That config's `auto_reconnect` flag is
-  /// later read by the native `reconnection_loop` (it reconnects any
-  /// device left in `ConnectionState::Error` with `auto_reconnect`
-  /// set), so for those types the native loop performs the real
-  /// reconnect on its own — emitting `Connecting` then `Connected`.
-  ///
-  /// Why the policy is mirrored here instead of queried over FFI: the
-  /// plain `startDeviceHeartbeat` FFI surface the Dart side actually
-  /// uses does not let the caller tune the escalation policy — it always
-  /// inherits these compiled per-type defaults — so the mapping is
-  /// stable and authoritative. Encoding it here keeps the de-duplication
-  /// decision inside the one file that owns reconnect ownership, with no
-  /// new FFI round-trip on the hot disconnect path.
-  ///
-  /// DE-DUPLICATION (DEV-P1 dual-reconnect race): when this returns true
-  /// the Dart coordinator must NOT schedule its own reconnect — doing so
-  /// raced the native loop and double-connected / thrashed the same
-  /// physical device after a heartbeat-driven loss. The two engines now
-  /// have exactly one owner per device type. Sequence-resume after a
-  /// native-driven reconnect is still handled, off the authoritative
-  /// `Connected` event, by [onAuthoritativeDeviceConnected].
-  static bool nativeOwnsReconnect(DeviceType type) {
-    switch (type) {
-      // HeartbeatConfig::for_mount / for_dome / for_weather /
-      // for_safety_monitor / for_guider / for_cover_calibrator all set
-      // auto_reconnect = true.
-      case DeviceType.mount:
-      case DeviceType.dome:
-      case DeviceType.weather:
-      case DeviceType.safetyMonitor:
-      case DeviceType.guider:
-      case DeviceType.coverCalibrator:
-        return true;
-      // HeartbeatConfig::for_camera / for_focuser / for_filter_wheel /
-      // for_rotator / for_switch all set auto_reconnect = false, so the
-      // native loop ignores them and the Dart coordinator is the sole
-      // reconnect engine.
-      case DeviceType.camera:
-      case DeviceType.focuser:
-      case DeviceType.filterWheel:
-      case DeviceType.rotator:
-      case DeviceType.switch_:
-        return false;
-    }
-  }
+  /// Whether the native heartbeat reconnects [type] itself. When it does,
+  /// this coordinator must not schedule a reconnect of its own: the two raced
+  /// and double-connected the same device. Resuming the sequence after a
+  /// native reconnect is handled by [onAuthoritativeDeviceConnected].
+  static bool nativeOwnsReconnect(DeviceType type) =>
+      type.slot.nativeOwnsReconnect;
 
   String _reconnectKey(DeviceType type, String deviceId) =>
       '${type.name}:$deviceId';
@@ -529,137 +479,19 @@ class DeviceReconnectCoordinator {
     }
   }
 
-  bool _getAutoReconnectFor(DeviceType type) {
-    return switch (type) {
-      DeviceType.camera => _ref.read(cameraStateProvider).autoReconnectEnabled,
-      DeviceType.mount => _ref.read(mountStateProvider).autoReconnectEnabled,
-      DeviceType.focuser =>
-        _ref.read(focuserStateProvider).autoReconnectEnabled,
-      DeviceType.filterWheel =>
-        _ref.read(filterWheelStateProvider).autoReconnectEnabled,
-      DeviceType.guider => _ref.read(guiderStateProvider).autoReconnectEnabled,
-      DeviceType.rotator =>
-        _ref.read(rotatorStateProvider).autoReconnectEnabled,
-      DeviceType.dome => _ref.read(domeStateProvider).autoReconnectEnabled,
-      DeviceType.weather =>
-        _ref.read(weatherStateProvider).autoReconnectEnabled,
-      DeviceType.safetyMonitor =>
-        _ref.read(safetyMonitorStateProvider).autoReconnectEnabled,
-      DeviceType.coverCalibrator =>
-        _ref.read(coverCalibratorStateProvider).autoReconnectEnabled,
-      DeviceType.switch_ => _ref.read(switchStateProvider).autoReconnectEnabled,
-    };
-  }
+  bool _getAutoReconnectFor(DeviceType type) =>
+      readDeviceSlot(_ref, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
-    switch (type) {
-      case DeviceType.camera:
-        await _ref
-            .read(cameraStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.mount:
-        await _ref
-            .read(mountStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.focuser:
-        await _ref
-            .read(focuserStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.filterWheel:
-        await _ref
-            .read(filterWheelStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.guider:
-        await _ref
-            .read(guiderStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.rotator:
-        await _ref
-            .read(rotatorStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.dome:
-        await _ref
-            .read(domeStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.weather:
-        await _ref
-            .read(weatherStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.safetyMonitor:
-        await _ref
-            .read(safetyMonitorStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.switch_:
-        await _ref
-            .read(switchStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.coverCalibrator:
-        await _ref
-            .read(coverCalibratorStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-    }
-
-    final outcome = switch (type) {
-      DeviceType.camera => (
-        _ref.read(cameraStateProvider).connectionState,
-        _ref.read(cameraStateProvider).lastError,
-      ),
-      DeviceType.mount => (
-        _ref.read(mountStateProvider).connectionState,
-        _ref.read(mountStateProvider).lastError,
-      ),
-      DeviceType.focuser => (
-        _ref.read(focuserStateProvider).connectionState,
-        _ref.read(focuserStateProvider).lastError,
-      ),
-      DeviceType.filterWheel => (
-        _ref.read(filterWheelStateProvider).connectionState,
-        _ref.read(filterWheelStateProvider).lastError,
-      ),
-      DeviceType.guider => (
-        _ref.read(guiderStateProvider).connectionState,
-        _ref.read(guiderStateProvider).lastError,
-      ),
-      DeviceType.rotator => (
-        _ref.read(rotatorStateProvider).connectionState,
-        _ref.read(rotatorStateProvider).lastError,
-      ),
-      DeviceType.dome => (
-        _ref.read(domeStateProvider).connectionState,
-        _ref.read(domeStateProvider).lastError,
-      ),
-      DeviceType.weather => (
-        _ref.read(weatherStateProvider).connectionState,
-        _ref.read(weatherStateProvider).lastError,
-      ),
-      DeviceType.safetyMonitor => (
-        _ref.read(safetyMonitorStateProvider).connectionState,
-        _ref.read(safetyMonitorStateProvider).lastError,
-      ),
-      DeviceType.switch_ => (
-        _ref.read(switchStateProvider).connectionState,
-        _ref.read(switchStateProvider).lastError,
-      ),
-      DeviceType.coverCalibrator => (
-        _ref.read(coverCalibratorStateProvider).connectionState,
-        _ref.read(coverCalibratorStateProvider).lastError,
-      ),
-    };
+    await readDeviceConnectionNotifier(
+      _ref,
+      type,
+    ).connect(deviceId, maxRetries: 1);
+    final slot = readDeviceSlot(_ref, type);
     validateReconnectOutcome(
       type: type,
-      connectionState: outcome.$1,
-      lastError: outcome.$2,
+      connectionState: slot.connectionState,
+      lastError: slot.lastError,
     );
   }
 

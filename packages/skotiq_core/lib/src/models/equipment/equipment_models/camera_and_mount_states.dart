@@ -1,9 +1,13 @@
 part of '../equipment_models.dart';
 
 /// Camera state snapshot
-class CameraStateSnapshot extends Equatable {
+class CameraStateSnapshot extends Equatable
+    implements DeviceSlotState<CameraStateSnapshot> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final double? temperature;
   final double? coolerPower;
@@ -17,12 +21,14 @@ class CameraStateSnapshot extends Equatable {
   final bool isWarming;
   final bool isExposing;
   final double? exposureProgress;
+  @override
   final DeviceError? lastError;
 
   /// Last successful communication timestamp
   final DateTime? lastSuccessfulCommunication;
 
   /// Whether auto-reconnection is enabled for this device
+  @override
   final bool autoReconnectEnabled;
 
   const CameraStateSnapshot({
@@ -60,6 +66,7 @@ class CameraStateSnapshot extends Equatable {
   /// Clear error and return a new state
   CameraStateSnapshot clearError() => copyWith(clearError: true);
 
+  @override
   CameraStateSnapshot copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,
@@ -123,9 +130,12 @@ class CameraStateSnapshot extends Equatable {
 }
 
 /// Mount state
-class MountState extends Equatable {
+class MountState extends Equatable implements DeviceSlotState<MountState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final double? ra;
   final double? dec;
@@ -152,10 +162,12 @@ class MountState extends Equatable {
   final TrackingRate trackingRate;
   final bool canSetTrackingRate;
   final bool canPark;
+  @override
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device. Defaults to `true`
   /// so an unattended rig recovers a dropped link without an operator.
+  @override
   final bool autoReconnectEnabled;
 
   const MountState({
@@ -183,6 +195,7 @@ class MountState extends Equatable {
   bool get hasError => lastError != null;
   MountState clearError() => copyWith(clearError: true);
 
+  @override
   MountState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,

@@ -63,7 +63,7 @@ UnifiedDevice _ascomCamera({String id = 'ascom:ASCOM.Simulator.Camera'}) {
 /// A [DeviceService] whose `connectCamera` always throws a fixed error and
 /// records how many times it was invoked. Everything else is inherited from
 /// the real service (constructed against a stubbed [MockBackend]); the connect
-/// flow under test only ever reaches `connectCamera`.
+/// flow under test only ever connects the camera.
 class _ThrowingDeviceService extends DeviceService {
   _ThrowingDeviceService(super.ref, super.backend, this.error);
 
@@ -71,8 +71,13 @@ class _ThrowingDeviceService extends DeviceService {
   int connectCameraCalls = 0;
 
   @override
-  Future<void> connectCamera(String deviceId) async {
-    connectCameraCalls++;
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) async {
+    if (type == DeviceType.camera) connectCameraCalls++;
     throw error;
   }
 }

@@ -26,7 +26,7 @@ void main() {
     var cancelCalls = 0;
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.safetyMonitor),
+      const ConnectedDeviceCard(type: DeviceType.safetyMonitor),
       extraOverrides: [
         safetyMonitorStateProvider.overrideWith(
           _UnsafeSafetyMonitorNotifier.new,
