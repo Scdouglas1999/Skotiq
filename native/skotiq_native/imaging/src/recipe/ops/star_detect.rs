@@ -16,9 +16,9 @@
 //! bright only in blue would fall under the detector's gate on a red plane and
 //! be missed everywhere, which is the failure both callers exist to avoid.
 
+use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::recipe::{OpContext, OpError, OpImage};
 use crate::robust_stats::percentile_nearest_rank;
-use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::{detect_stars_in_plane, DetectedStar, StarDetectionConfig};
 
 /// Quantile of the luminance plane mapped to level 0.

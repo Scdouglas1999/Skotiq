@@ -269,7 +269,7 @@ live_stack/rgb.stack 86a8e7ebf1677edb
 live_stack/rgb.stats e02d7fc81e08448b
 mosaic/coverage 0f144f30ff5036f5
 mosaic/master 05632cea313a938d
-mosaic/wcs_stats 943abdac3c11ad29
+mosaic/wcs_stats 62042729d272320d
 no_stars_L.fits/detect_stars 09612b07b5ecb5a5
 no_stars_L.fits/detect_stars_for_selection 09612b07b5ecb5a5
 no_stars_L.fits/detect_stars_with_stats ba2ebcdc2f1dba92
@@ -409,4 +409,4 @@ wcs/header.sip_wcs 9f2bb167e8264163
 wcs/info.from_plate_solve cae8185c755d5360
 wcs/info.header 79b24bca4986f678
 wcs/pixel_scale e3a0a953adc9412e
-wcs/projection.samples fa54f71444e43aef
+wcs/projection.samples b2fd85f963e84d0b

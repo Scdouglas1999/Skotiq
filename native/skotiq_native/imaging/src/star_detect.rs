@@ -30,9 +30,9 @@
 //! frame's typical star (galaxies, nebula knots, foreground objects) are not
 //! reported as stars.
 
-use crate::stats::compute_snr;
 use crate::detection_plane::DetectionPlane;
 use crate::robust_stats::{median_upper_in_place_f32, MAD_TO_SIGMA};
+use crate::stats::compute_snr;
 use crate::{DetectedStar, StarDetectionConfig};
 use rayon::prelude::*;
 

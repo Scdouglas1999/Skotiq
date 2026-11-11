@@ -241,7 +241,10 @@ pub fn detect_stars_in_plane(
 
 /// Detect on the image's own plane ([`DetectionPlane::from_image`]). An image
 /// with no such plane (two channels, a truncated buffer) has no stars.
-fn detect_in_image(image: &ImageData, config: &StarDetectionConfig) -> crate::star_detect::Detection {
+fn detect_in_image(
+    image: &ImageData,
+    config: &StarDetectionConfig,
+) -> crate::star_detect::Detection {
     match DetectionPlane::from_image(image) {
         Some(plane) => crate::star_detect::detect(plane, config),
         None => crate::star_detect::Detection::empty(),

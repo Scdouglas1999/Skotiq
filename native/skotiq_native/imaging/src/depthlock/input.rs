@@ -155,34 +155,21 @@ pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
     {
         return Err("Reference must explicitly use ICRS or FK5/J2000 coordinates".into());
     }
-    let cd = if header.get_float("CD1_1").is_some() {
-        [
-            numeric(header, "CD1_1")?,
-            numeric(header, "CD1_2")?,
-            numeric(header, "CD2_1")?,
-            numeric(header, "CD2_2")?,
-        ]
+    // Every card of the form the header uses must be present and finite;
+    // nothing is defaulted.
+    let required: &[&str] = if header.get_float("CD1_1").is_some() {
+        &["CD1_1", "CD1_2", "CD2_1", "CD2_2"]
     } else {
-        let x = numeric(header, "CDELT1")?;
-        let y = numeric(header, "CDELT2")?;
-        let angle = numeric(header, "CROTA2")?.to_radians();
-        [
-            x * angle.cos(),
-            -y * angle.sin(),
-            x * angle.sin(),
-            y * angle.cos(),
-        ]
+        &["CDELT1", "CDELT2", "CROTA2"]
     };
-    let wcs = SipWcs::tan_only(
-        numeric(header, "CRVAL1")?,
-        numeric(header, "CRVAL2")?,
-        numeric(header, "CRPIX1")?,
-        numeric(header, "CRPIX2")?,
-        cd[0],
-        cd[1],
-        cd[2],
-        cd[3],
-    );
+    for key in required
+        .iter()
+        .chain(&["CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2"])
+    {
+        numeric(header, key)?;
+    }
+    let wcs = SipWcs::from_header(header)
+        .ok_or("Reference astrometry is singular or outside the supported sky field")?;
     if !wcs.is_invertible() || !(0.0..360.0).contains(&wcs.crval1) || wcs.crval2.abs() > 85.0 {
         return Err("Reference astrometry is singular or outside the supported sky field".into());
     }

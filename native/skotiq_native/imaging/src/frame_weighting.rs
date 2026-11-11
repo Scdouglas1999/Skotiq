@@ -948,6 +948,9 @@ mod tests {
         assert_eq!(percentile_u16(&levels, 1.0), 10.0);
         // Nearest-rank p=0.5 over 10 elements → idx round(4.5)=5 → value 6.
         assert_eq!(percentile_u16(&levels, 0.5), 6.0);
-        assert_eq!(percentile_u16(&LevelCounts::of_channel(&[], 0, 1), 0.5), 0.0);
+        assert_eq!(
+            percentile_u16(&LevelCounts::of_channel(&[], 0, 1), 0.5),
+            0.0
+        );
     }
 }

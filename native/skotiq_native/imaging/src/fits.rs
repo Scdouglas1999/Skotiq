@@ -1674,31 +1674,7 @@ impl WcsInfo {
 /// Add the standard WCS (World Coordinate System) keywords to `header`, which
 /// is what lets other astronomical software map pixel coordinates to RA/Dec.
 pub fn add_wcs_headers(header: &mut FitsHeader, wcs: &WcsInfo) {
-    // Reference coordinates
-    header.set_float("CRVAL1", wcs.crval1);
-    header.set_float("CRVAL2", wcs.crval2);
-
-    // Reference pixels
-    header.set_float("CRPIX1", wcs.crpix1);
-    header.set_float("CRPIX2", wcs.crpix2);
-
-    // CD matrix (scale and rotation)
-    header.set_float("CD1_1", wcs.cd1_1);
-    header.set_float("CD1_2", wcs.cd1_2);
-    header.set_float("CD2_1", wcs.cd2_1);
-    header.set_float("CD2_2", wcs.cd2_2);
-
-    // Coordinate type (tangent plane projection)
-    header.set_string("CTYPE1", "RA---TAN");
-    header.set_string("CTYPE2", "DEC--TAN");
-
-    // Coordinate units
-    header.set_string("CUNIT1", "deg");
-    header.set_string("CUNIT2", "deg");
-
-    // Reference frame
-    header.set_float("EQUINOX", 2000.0);
-    header.set_string("RADESYS", "ICRS");
+    crate::wcs_sip::SipWcs::from(wcs).write_to_header(header);
 }
 
 /// Write a plate solve's WCS into the FITS file at `path`, keeping its pixels

@@ -54,9 +54,9 @@ use serde_json::{json, Value};
 use crate::background_extraction::{
     eval_poly, iterative_residual_fit, normalise_xy, poly_terms, solve_poly_fit, Sample,
 };
+use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage, Params};
 use crate::robust_stats::{median_and_sigma, median_in_place, percentile_nearest_rank};
-use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::{detect_stars_in_plane, StarDetectionConfig};
 
 /// Tightest sample spacing the fit accepts, in pixels.

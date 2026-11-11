@@ -595,7 +595,8 @@ fn forecast(summary: &Summary, threshold: f64, confirmation_frames: usize) -> De
         }
     };
     let window = 8usize.min(summary.frame_noise.len().max(1));
-    let recent = median_of(&summary.frame_noise[summary.frame_noise.len().saturating_sub(window)..]);
+    let recent =
+        median_of(&summary.frame_noise[summary.frame_noise.len().saturating_sub(window)..]);
     let best = summary
         .frame_noise
         .windows(window)

@@ -1,21 +1,20 @@
 //! SIP-aware gnomonic (TAN) astrometry for one frame.
 //!
-//! # Why this module exists
+//! [`SipWcs`] is the crate's one astrometry type: a CD matrix plus full forward
+//! and inverse SIP (`A`/`B`, `AP`/`BP`), ported from the Dart reference
+//! (`gnomonic_projection.dart`). The mosaic stitcher, the sky atlas, DepthLock
+//! and the Darkroom all project through it. A CD-only solution leaves the SIP
+//! orders at zero ([`SipWcs::tan_only`]).
 //!
-//! [`crate::mosaic_stitch::WcsProjection`] gives an exact gnomonic forward /
-//! inverse projection from a bare CD matrix, but it is **CD-only**: it cannot
-//! represent the polynomial focal-plane distortion the plate solver measures and
-//! records as SIP (`A`/`B` forward, `AP`/`BP` inverse). At the >1° fields most
-//! amateur astrographs work at, that distortion is several pixels at the corners
-//! — far more than the sub-pixel accuracy the sky atlas needs to fold many
-//! nights of frames onto one shared grid without smearing stars.
+//! SIP matters because at the >1° fields most amateur astrographs work at,
+//! focal-plane distortion is several pixels at the corners, far more than the
+//! sub-pixel accuracy needed to fold many nights of frames onto one grid
+//! without smearing stars.
 //!
-//! [`SipWcs`] is the generalisation: CD **plus** full forward and inverse SIP,
-//! ported from the Dart reference (`gnomonic_projection.dart`). It is the single
-//! projection both the mosaic stitcher and the [`crate::sky_atlas`] reproject the
-//! sky through. The CD-only path is recovered exactly by leaving the SIP orders
-//! at zero (or via [`SipWcs::tan_only`]), so existing CD-only callers behave
-//! identically.
+//! This module also owns how a WCS is carried in a FITS header: reading
+//! ([`SipWcs::from_header`]), writing ([`SipWcs::write_to_header`]) and
+//! keeping the cards right when the pixel grid is cropped
+//! ([`crop_header_wcs`]) or resampled ([`rescale_header_wcs`]).
 //!
 //! # The FITS SIP pipeline (Shupe et al. 2005)
 //!
@@ -44,6 +43,7 @@
 //! degrees in / degrees out and **0-based** pixels (matching the resampler and
 //! [`crate::ImageData`] indexing).
 
+use crate::fits::{FitsHeader, WcsInfo};
 use serde::{Deserialize, Serialize};
 
 /// Number of Newton iterations used to invert the forward SIP polynomials when
@@ -167,6 +167,132 @@ impl SipWcs {
         }
     }
 
+    /// The astrometry a FITS header carries, or `None` when it carries none.
+    ///
+    /// * `CRVAL1/2` are required.
+    /// * `CRPIX1/2` default to the image centre, `(NAXIS + 1) / 2`.
+    /// * The linear part is the `CD` matrix when `CD1_1` and `CD2_2` are
+    ///   present (a missing off-diagonal term is zero), otherwise
+    ///   `CDELT1/2` rotated by `CROTA2` (zero when absent).
+    /// * SIP polynomials are read when their `*_ORDER` cards are present.
+    ///
+    /// The result is what the header says, not a judgment of it: a caller that
+    /// will invert the projection checks [`Self::is_invertible`].
+    pub fn from_header(header: &FitsHeader) -> Option<Self> {
+        let crval1 = header.get_float("CRVAL1")?;
+        let crval2 = header.get_float("CRVAL2")?;
+        let centre = |axis: &str| header.get_int(axis).unwrap_or(0) as f64 / 2.0 + 0.5;
+        let crpix1 = header
+            .get_float("CRPIX1")
+            .unwrap_or_else(|| centre("NAXIS1"));
+        let crpix2 = header
+            .get_float("CRPIX2")
+            .unwrap_or_else(|| centre("NAXIS2"));
+
+        let [cd1_1, cd1_2, cd2_1, cd2_2] =
+            match (header.get_float("CD1_1"), header.get_float("CD2_2")) {
+                (Some(cd1_1), Some(cd2_2)) => [
+                    cd1_1,
+                    header.get_float("CD1_2").unwrap_or(0.0),
+                    header.get_float("CD2_1").unwrap_or(0.0),
+                    cd2_2,
+                ],
+                _ => cd_from_cdelt(
+                    header.get_float("CDELT1")?,
+                    header.get_float("CDELT2")?,
+                    header.get_float("CROTA2").unwrap_or(0.0),
+                ),
+            };
+
+        let order = |key: &str| header.get_int(key).unwrap_or(0).max(0) as u32;
+        let (a_order, b_order) = (order("A_ORDER"), order("B_ORDER"));
+        let (ap_order, bp_order) = (order("AP_ORDER"), order("BP_ORDER"));
+        Some(Self {
+            crval1,
+            crval2,
+            crpix1,
+            crpix2,
+            cd1_1,
+            cd1_2,
+            cd2_1,
+            cd2_2,
+            a_order,
+            b_order,
+            a_coeffs: read_sip_coeffs(header, "A", a_order),
+            b_coeffs: read_sip_coeffs(header, "B", b_order),
+            ap_order,
+            bp_order,
+            ap_coeffs: read_sip_coeffs(header, "AP", ap_order),
+            bp_coeffs: read_sip_coeffs(header, "BP", bp_order),
+        })
+    }
+
+    /// Write this astrometry into `header` as a celestial TAN solution in
+    /// ICRS: `CRVAL`, `CRPIX`, the `CD` matrix, `CTYPE`/`CUNIT`, and the SIP
+    /// cards when it carries distortion.
+    pub fn write_to_header(&self, header: &mut FitsHeader) {
+        header.set_float("CRVAL1", self.crval1);
+        header.set_float("CRVAL2", self.crval2);
+        header.set_float("CRPIX1", self.crpix1);
+        header.set_float("CRPIX2", self.crpix2);
+        header.set_float("CD1_1", self.cd1_1);
+        header.set_float("CD1_2", self.cd1_2);
+        header.set_float("CD2_1", self.cd2_1);
+        header.set_float("CD2_2", self.cd2_2);
+
+        let polynomials = [
+            ("A", self.a_order, &self.a_coeffs),
+            ("B", self.b_order, &self.b_coeffs),
+            ("AP", self.ap_order, &self.ap_coeffs),
+            ("BP", self.bp_order, &self.bp_coeffs),
+        ];
+        let distorted = polynomials
+            .iter()
+            .any(|(_, order, coeffs)| *order > 0 && !coeffs.is_empty());
+        let (ctype1, ctype2) = if distorted {
+            ("RA---TAN-SIP", "DEC--TAN-SIP")
+        } else {
+            ("RA---TAN", "DEC--TAN")
+        };
+        header.set_string("CTYPE1", ctype1);
+        header.set_string("CTYPE2", ctype2);
+        header.set_string("CUNIT1", "deg");
+        header.set_string("CUNIT2", "deg");
+        header.set_float("EQUINOX", 2000.0);
+        header.set_string("RADESYS", "ICRS");
+
+        for (prefix, order, coeffs) in polynomials {
+            let n = (order + 1) as usize;
+            if order == 0 || coeffs.len() < n * n {
+                continue;
+            }
+            header.set_int(&format!("{prefix}_ORDER"), i64::from(order));
+            for i in 0..n {
+                for j in 0..n {
+                    let coeff = coeffs[i * n + j];
+                    if coeff != 0.0 {
+                        header.set_float(&format!("{prefix}_{i}_{j}"), coeff);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The linear (CD-only) part, the form the capture path stamps on a
+    /// freshly solved frame.
+    pub fn cd_only(&self) -> WcsInfo {
+        WcsInfo {
+            crval1: self.crval1,
+            crval2: self.crval2,
+            crpix1: self.crpix1,
+            crpix2: self.crpix2,
+            cd1_1: self.cd1_1,
+            cd1_2: self.cd1_2,
+            cd2_1: self.cd2_1,
+            cd2_2: self.cd2_2,
+        }
+    }
+
     /// CD-only (no distortion) astrometry — the canonical grid for atlas tiles.
     #[allow(clippy::too_many_arguments)]
     pub fn tan_only(
@@ -206,8 +332,7 @@ impl SipWcs {
     }
 
     /// False if the CD matrix is singular (`|det| < 1e-18`) or non-finite, so
-    /// `world_to_pixel` would have no inverse. The threshold matches
-    /// [`crate::mosaic_stitch::WcsProjection`]: `1e-18 deg² ≈ (3.6e-6 arcsec)²`,
+    /// `world_to_pixel` would have no inverse. `1e-18 deg² ≈ (3.6e-6 arcsec)²`,
     /// far below any real plate scale.
     pub fn is_invertible(&self) -> bool {
         let det = self.cd_det();
@@ -239,8 +364,7 @@ impl SipWcs {
     }
 
     /// Approximate isotropic plate scale (arcsec/px) — the geometric mean of the
-    /// CD column norms, identical to
-    /// [`crate::mosaic_stitch::WcsProjection::pixel_scale_arcsec`].
+    /// CD column norms.
     pub fn pixel_scale_arcsec(&self) -> f64 {
         let s1 = (self.cd1_1 * self.cd1_1 + self.cd2_1 * self.cd2_1).sqrt();
         let s2 = (self.cd1_2 * self.cd1_2 + self.cd2_2 * self.cd2_2).sqrt();
@@ -414,6 +538,112 @@ fn tan_deproject(crval1: f64, crval2: f64, xi_deg: f64, eta_deg: f64) -> (f64, f
     (normalize_deg(ra.to_degrees()), dec.to_degrees())
 }
 
+impl From<&WcsInfo> for SipWcs {
+    fn from(wcs: &WcsInfo) -> Self {
+        Self::tan_only(
+            wcs.crval1, wcs.crval2, wcs.crpix1, wcs.crpix2, wcs.cd1_1, wcs.cd1_2, wcs.cd2_1,
+            wcs.cd2_2,
+        )
+    }
+}
+
+/// The CD matrix `[cd1_1, cd1_2, cd2_1, cd2_2]` of the older
+/// `CDELT1/2` + `CROTA2` (degrees) convention.
+pub fn cd_from_cdelt(cdelt1: f64, cdelt2: f64, crota2_deg: f64) -> [f64; 4] {
+    let (sin, cos) = crota2_deg.to_radians().sin_cos();
+    [cdelt1 * cos, -cdelt2 * sin, cdelt1 * sin, cdelt2 * cos]
+}
+
+/// SIP coefficients for one polynomial, packed row-major as `i*(order+1)+j`.
+/// Absent terms are zero, which is the FITS convention for an omitted card.
+fn read_sip_coeffs(header: &FitsHeader, prefix: &str, order: u32) -> Vec<f64> {
+    if order == 0 {
+        return Vec::new();
+    }
+    let n = (order + 1) as usize;
+    let mut coeffs = vec![0.0_f64; n * n];
+    for i in 0..n {
+        for j in 0..n {
+            if let Some(v) = header.get_float(&format!("{prefix}_{i}_{j}")) {
+                coeffs[i * n + j] = v;
+            }
+        }
+    }
+    coeffs
+}
+
+/// Move the reference pixel of the WCS in `header` for a crop whose origin is
+/// `(x0, y0)` pixels into the image, so the cropped image keeps pointing at
+/// the same sky. A header without `CRPIX` is left alone.
+pub fn crop_header_wcs(header: &mut FitsHeader, x0: f64, y0: f64) {
+    for (key, origin) in [("CRPIX1", x0), ("CRPIX2", y0)] {
+        if let Some(crpix) = header.get_float(key) {
+            header.set_float(key, crpix - origin);
+        }
+    }
+}
+
+/// A change of pixel grid by a whole factor about the image corner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridScale {
+    /// Each output pixel covers `n × n` input pixels (binning, a pyramid
+    /// level).
+    Coarser(u32),
+    /// Each input pixel becomes `n × n` output pixels (drizzle).
+    Finer(u32),
+}
+
+/// Rewrite the WCS cards in `header` for a resampled pixel grid: the
+/// reference pixel, the `CD` matrix or `CDELT` pair, and every SIP
+/// polynomial. Cards that are absent stay absent.
+///
+/// A SIP polynomial maps pixel offsets to pixel offsets, so term `(i, j)`
+/// scales by the pixel-size ratio to the power `i + j − 1`.
+pub fn rescale_header_wcs(header: &mut FitsHeader, scale: GridScale) {
+    // Pixel centres are at whole 1-based coordinates, so the corner the grid
+    // scales about is at 0.5.
+    for key in ["CRPIX1", "CRPIX2"] {
+        if let Some(crpix) = header.get_float(key) {
+            let moved = match scale {
+                GridScale::Coarser(n) => (crpix + 0.5 * (f64::from(n) - 1.0)) / f64::from(n),
+                GridScale::Finer(n) => (crpix - 0.5) * f64::from(n) + 0.5,
+            };
+            header.set_float(key, moved);
+        }
+    }
+    for key in ["CD1_1", "CD1_2", "CD2_1", "CD2_2", "CDELT1", "CDELT2"] {
+        if let Some(value) = header.get_float(key) {
+            let scaled = match scale {
+                GridScale::Coarser(n) => value * f64::from(n),
+                GridScale::Finer(n) => value / f64::from(n),
+            };
+            header.set_float(key, scaled);
+        }
+    }
+    for prefix in ["A", "B", "AP", "BP"] {
+        let order = header
+            .get_int(&format!("{prefix}_ORDER"))
+            .unwrap_or(0)
+            .max(0) as usize;
+        if order == 0 {
+            continue;
+        }
+        for i in 0..=order {
+            for j in 0..=order {
+                let key = format!("{prefix}_{i}_{j}");
+                if let Some(coeff) = header.get_float(&key) {
+                    let exponent = (i + j) as i32 - 1;
+                    let factor = match scale {
+                        GridScale::Coarser(n) => f64::from(n).powi(exponent),
+                        GridScale::Finer(n) => f64::from(n).powi(-exponent),
+                    };
+                    header.set_float(&key, coeff * factor);
+                }
+            }
+        }
+    }
+}
+
 /// Normalise an angle in degrees to `[0, 360)`.
 fn normalize_deg(d: f64) -> f64 {
     let mut v = d % 360.0;
@@ -488,33 +718,113 @@ mod tests {
     }
 
     #[test]
-    fn cd_only_matches_mosaic_wcs_projection() {
-        // The SIP-free projection must agree with the established CD-only
-        // WcsProjection (the stitcher) to round-off, proving the generalisation
-        // does not break existing CD-only callers.
-        let wcs = sample_wcs();
-        let info = crate::WcsInfo {
-            crval1: wcs.crval1,
-            crval2: wcs.crval2,
-            crpix1: wcs.crpix1,
-            crpix2: wcs.crpix2,
-            cd1_1: wcs.cd1_1,
-            cd1_2: wcs.cd1_2,
-            cd2_1: wcs.cd2_1,
-            cd2_2: wcs.cd2_2,
-        };
-        let proj = crate::mosaic_stitch::WcsProjection::new(&info).expect("invertible");
-        for &(x, y) in &[(0.0, 0.0), (2047.0, 2047.0), (731.0, 1290.0)] {
-            let (a_ra, a_dec) = wcs.pixel_to_world(x, y);
-            let (b_ra, b_dec) = proj.pixel_to_world(x, y);
-            assert!((a_ra - b_ra).abs() < 1e-9, "ra {a_ra} != {b_ra}");
-            assert!((a_dec - b_dec).abs() < 1e-9, "dec {a_dec} != {b_dec}");
+    fn a_wcs_written_to_a_header_reads_back_the_same() {
+        let order = 3u32;
+        let mut wcs = sample_wcs();
+        wcs.a_order = order;
+        wcs.b_order = order;
+        wcs.a_coeffs = sip_coeffs(order as usize);
+        wcs.b_coeffs = sip_coeffs(order as usize);
+        wcs.ap_order = order;
+        wcs.bp_order = order;
+        wcs.ap_coeffs = sip_coeffs(order as usize).iter().map(|c| -c).collect();
+        wcs.bp_coeffs = sip_coeffs(order as usize).iter().map(|c| -c).collect();
 
-            let (a_x, a_y) = wcs.world_to_pixel(a_ra, a_dec).unwrap();
-            let (b_x, b_y) = proj.world_to_pixel(b_ra, b_dec).unwrap();
-            assert!((a_x - b_x).abs() < 1e-7, "x {a_x} != {b_x}");
-            assert!((a_y - b_y).abs() < 1e-7, "y {a_y} != {b_y}");
+        let mut header = FitsHeader::new();
+        wcs.write_to_header(&mut header);
+        assert_eq!(header.get_string("CTYPE1"), Some("RA---TAN-SIP"));
+        assert_eq!(header.get_int("A_ORDER"), Some(3));
+        assert!(
+            header.get_float("A_0_0").is_none(),
+            "zero terms are omitted"
+        );
+        assert_eq!(SipWcs::from_header(&header), Some(wcs));
+
+        let plain = sample_wcs();
+        let mut header = FitsHeader::new();
+        plain.write_to_header(&mut header);
+        assert_eq!(header.get_string("CTYPE2"), Some("DEC--TAN"));
+        assert!(header.get("A_ORDER").is_none());
+        assert_eq!(SipWcs::from_header(&header), Some(plain.clone()));
+        assert_eq!(SipWcs::from(&plain.cd_only()), plain);
+    }
+
+    #[test]
+    fn a_header_without_a_cd_matrix_is_read_from_cdelt_and_crota() {
+        let mut header = FitsHeader::new();
+        header.set_int("NAXIS1", 100);
+        header.set_int("NAXIS2", 60);
+        header.set_float("CRVAL1", 10.0);
+        header.set_float("CRVAL2", 20.0);
+        header.set_float("CDELT1", -0.001);
+        header.set_float("CDELT2", 0.002);
+        let wcs = SipWcs::from_header(&header).expect("CDELT pair is enough");
+        assert_eq!((wcs.crpix1, wcs.crpix2), (50.5, 30.5), "centre by default");
+        assert_eq!(
+            [wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2],
+            [-0.001, 0.0, 0.0, 0.002]
+        );
+
+        header.set_float("CROTA2", 90.0);
+        let rotated = SipWcs::from_header(&header).expect("rotated");
+        assert!(rotated.cd1_1.abs() < 1e-15 && (rotated.cd1_2 + 0.002).abs() < 1e-15);
+        assert!((rotated.cd2_1 + 0.001).abs() < 1e-15 && rotated.cd2_2.abs() < 1e-15);
+
+        // A CD matrix wins over CDELT, and a missing off-diagonal term is zero.
+        header.set_float("CD1_1", -0.003);
+        header.set_float("CD2_2", 0.003);
+        let cd = SipWcs::from_header(&header).expect("cd");
+        assert_eq!(
+            [cd.cd1_1, cd.cd1_2, cd.cd2_1, cd.cd2_2],
+            [-0.003, 0.0, 0.0, 0.003]
+        );
+
+        let mut bare = FitsHeader::new();
+        bare.set_float("CRVAL1", 10.0);
+        bare.set_float("CRVAL2", 20.0);
+        assert!(SipWcs::from_header(&bare).is_none(), "no linear terms");
+        assert!(SipWcs::from_header(&FitsHeader::new()).is_none());
+    }
+
+    #[test]
+    fn cropping_and_rescaling_a_header_keeps_it_on_the_same_sky() {
+        let order = 2u32;
+        let mut wcs = sample_wcs();
+        wcs.a_order = order;
+        wcs.b_order = order;
+        wcs.a_coeffs = sip_coeffs(order as usize);
+        wcs.b_coeffs = sip_coeffs(order as usize);
+        let mut header = FitsHeader::new();
+        wcs.write_to_header(&mut header);
+        let sky = wcs.pixel_to_world(700.0, 300.0);
+
+        let mut cropped = header.clone();
+        crop_header_wcs(&mut cropped, 100.0, 40.0);
+        let cropped = SipWcs::from_header(&cropped).unwrap();
+        let moved = cropped.pixel_to_world(600.0, 260.0);
+        assert!((moved.0 - sky.0).abs() < 1e-12 && (moved.1 - sky.1).abs() < 1e-12);
+
+        // Pixel (700, 300) lies in the 2x2 block whose centre is the coarse
+        // pixel (349.75, 149.75), and at (1400.5, 600.5) on a 2x finer grid.
+        for (scale, x, y) in [
+            (GridScale::Coarser(2), 349.75, 149.75),
+            (GridScale::Finer(2), 1400.5, 600.5),
+        ] {
+            let mut scaled = header.clone();
+            rescale_header_wcs(&mut scaled, scale);
+            let scaled = SipWcs::from_header(&scaled).unwrap();
+            let at = scaled.pixel_to_world(x, y);
+            assert!(
+                (at.0 - sky.0).abs() < 1e-9 && (at.1 - sky.1).abs() < 1e-9,
+                "{scale:?}: {at:?} vs {sky:?}"
+            );
         }
+
+        let mut cdelt = FitsHeader::new();
+        cdelt.set_float("CDELT1", -0.001);
+        rescale_header_wcs(&mut cdelt, GridScale::Coarser(2));
+        assert_eq!(cdelt.get_float("CDELT1"), Some(-0.002));
+        assert!(cdelt.get("CRPIX1").is_none(), "absent cards stay absent");
     }
 
     #[test]

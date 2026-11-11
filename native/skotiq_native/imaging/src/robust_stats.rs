@@ -452,10 +452,7 @@ mod tests {
             mapped.percentile_floor(0.9),
             percentile_floor(&deviations, 0.9)
         );
-        assert_eq!(
-            counts.mapped(f64::from).median(),
-            median
-        );
+        assert_eq!(counts.mapped(f64::from).median(), median);
     }
 
     #[test]
@@ -465,7 +462,10 @@ mod tests {
         assert_eq!(green.total(), 3);
         assert_eq!(green.range(), Some((10, 30)));
         assert_eq!(green.level_at(1), 20);
-        assert_eq!(WeightedSorted::from_runs(vec![(2.0, 1), (1.0, 3), (5.0, 0)]).at(3), 2.0);
+        assert_eq!(
+            WeightedSorted::from_runs(vec![(2.0, 1), (1.0, 3), (5.0, 0)]).at(3),
+            2.0
+        );
         assert_eq!(WeightedSorted::from_runs(Vec::new()).median(), 0.0);
     }
 
@@ -493,7 +493,10 @@ mod tests {
         // Deviations about 3: 2, 1, 1, 5 -> sorted 1, 1, 2, 5.
         assert_eq!(mad_sigma(&values, 3.0), 1.5 * MAD_TO_SIGMA);
         assert_eq!(mad_sigma_upper(&values, 3.0), 2.0 * MAD_TO_SIGMA);
-        assert_eq!(median_and_sigma(&mut values.clone()), (3.0, 1.5 * MAD_TO_SIGMA));
+        assert_eq!(
+            median_and_sigma(&mut values.clone()),
+            (3.0, 1.5 * MAD_TO_SIGMA)
+        );
         assert_eq!(
             median_and_sigma_upper(&mut values.clone()),
             (4.0, 3.0 * MAD_TO_SIGMA)

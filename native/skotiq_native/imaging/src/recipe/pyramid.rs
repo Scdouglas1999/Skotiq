@@ -153,8 +153,8 @@ pub fn downsample_2x(image: &OpImage) -> Result<OpImage, OpError> {
     )
 }
 
-/// Rewrite a header for a factor-of-two downsample: geometry keywords, the
-/// reference pixel, the `CD` matrix, and any SIP coefficients.
+/// Rewrite a header for a factor-of-two downsample: the image size and the
+/// WCS.
 fn scale_header_for_downsample(header: &mut FitsHeader, out_width: u32, out_height: u32) {
     if header.get("NAXIS1").is_some() {
         header.set_int("NAXIS1", out_width as i64);
@@ -162,43 +162,7 @@ fn scale_header_for_downsample(header: &mut FitsHeader, out_width: u32, out_heig
     if header.get("NAXIS2").is_some() {
         header.set_int("NAXIS2", out_height as i64);
     }
-    for key in ["CRPIX1", "CRPIX2"] {
-        if let Some(crpix) = header.get_float(key) {
-            header.set_float(key, (crpix + 0.5) / 2.0);
-        }
-    }
-    for key in ["CD1_1", "CD1_2", "CD2_1", "CD2_2"] {
-        if let Some(cd) = header.get_float(key) {
-            header.set_float(key, cd * 2.0);
-        }
-    }
-    for prefix in ["A", "B", "AP", "BP"] {
-        scale_sip_polynomial(header, prefix);
-    }
-}
-
-/// Scale one SIP polynomial for a factor-of-two downsample.
-///
-/// The polynomial maps pixel offsets to pixel offsets, so halving the grid
-/// scales term `(i, j)` by `2^(i+j) / 2`.
-fn scale_sip_polynomial(header: &mut FitsHeader, prefix: &str) {
-    let order = header
-        .get_int(&format!("{prefix}_ORDER"))
-        .unwrap_or(0)
-        .max(0) as u32;
-    if order == 0 {
-        return;
-    }
-    let n = (order + 1) as usize;
-    for i in 0..n {
-        for j in 0..n {
-            let key = format!("{prefix}_{i}_{j}");
-            if let Some(coeff) = header.get_float(&key) {
-                let exponent = (i + j) as i32 - 1;
-                header.set_float(&key, coeff * 2.0_f64.powi(exponent));
-            }
-        }
-    }
+    crate::wcs_sip::rescale_header_wcs(header, crate::wcs_sip::GridScale::Coarser(2));
 }
 
 #[cfg(test)]

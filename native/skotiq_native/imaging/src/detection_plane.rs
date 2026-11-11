@@ -122,7 +122,12 @@ impl DetectionPlane {
 
     /// A plane from levels already in ADU, quantized and kept within the
     /// 16-bit range. Non-finite levels become 0.
-    pub fn from_adu(width: usize, height: usize, levels: &[f64], quantize: Quantize) -> Option<Self> {
+    pub fn from_adu(
+        width: usize,
+        height: usize,
+        levels: &[f64],
+        quantize: Quantize,
+    ) -> Option<Self> {
         let samples = levels
             .par_iter()
             .map(|&v| {
@@ -159,9 +164,7 @@ impl DetectionPlane {
             .par_iter()
             .map(|&v| {
                 if v.is_finite() {
-                    quantize.apply(
-                        (((v - low) / span) * RESCALED_FULL_SCALE).clamp(0.0, 65535.0),
-                    )
+                    quantize.apply((((v - low) / span) * RESCALED_FULL_SCALE).clamp(0.0, 65535.0))
                 } else {
                     0.0
                 }
@@ -186,10 +189,15 @@ where
             ChannelCollapse::Rec601 if channels == 3 => {
                 0.299 * pixel[0].into() + 0.587 * pixel[1].into() + 0.114 * pixel[2].into()
             }
-            ChannelCollapse::Max => pixel
-                .iter()
-                .map(|&v| v.into())
-                .fold(f64::NEG_INFINITY, |peak: f64, v: f64| if v > peak { v } else { peak }),
+            ChannelCollapse::Max => {
+                pixel
+                    .iter()
+                    .map(|&v| v.into())
+                    .fold(
+                        f64::NEG_INFINITY,
+                        |peak: f64, v: f64| if v > peak { v } else { peak },
+                    )
+            }
             ChannelCollapse::Rec601 | ChannelCollapse::Mean => {
                 pixel.iter().map(|&v| v.into()).sum::<f64>() * (1.0 / channels as f64)
             }
@@ -223,7 +231,10 @@ mod tests {
     fn integer_rgb_becomes_rounded_luma_and_float_rgb_keeps_its_fraction() {
         let rgb = ImageData::from_u16(1, 1, 3, &[1000, 2001, 3000]);
         let plane = DetectionPlane::from_image(&rgb).unwrap();
-        assert_eq!(plane.samples(), [(299.0f64 + 1174.587 + 342.0).round() as f32]);
+        assert_eq!(
+            plane.samples(),
+            [(299.0f64 + 1174.587 + 342.0).round() as f32]
+        );
 
         let rgb = ImageData::from_u16(3, 1, 3, &[10000, 20000, 30000, 255, 255, 255, 0, 100, 0]);
         let plane = DetectionPlane::from_image(&rgb).unwrap();
@@ -263,7 +274,10 @@ mod tests {
     fn channels_collapse_by_the_named_rule() {
         let rgb = [1.0f32, 5.0, 3.0, 2.0, 2.0, 8.0];
         assert_eq!(collapse_channels(&rgb, 3, ChannelCollapse::Max), [5.0, 8.0]);
-        assert_eq!(collapse_channels(&rgb, 3, ChannelCollapse::Mean), [3.0, 4.0]);
+        assert_eq!(
+            collapse_channels(&rgb, 3, ChannelCollapse::Mean),
+            [3.0, 4.0]
+        );
         let luma = collapse_channels(&rgb, 3, ChannelCollapse::Rec601);
         assert!((luma[0] - (0.299 + 2.935 + 0.342)).abs() < 1e-12);
         assert_eq!(finite_range(&[f64::NAN, 2.0, -1.0]), Some((-1.0, 2.0)));

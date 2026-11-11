@@ -39,11 +39,15 @@ fn star_field(seed: u64, dx: f64, dy: f64) -> ImageData {
         for y in (cy as i64 - 9).max(0)..(cy as i64 + 10).min(h as i64) {
             for x in (cx as i64 - 9).max(0)..(cx as i64 + 10).min(w as i64) {
                 let r2 = (x as f64 - cx).powi(2) + (y as f64 - cy).powi(2);
-                px[y as usize * w + x as usize] += (amp * (-r2 / (2.0 * sigma * sigma)).exp()) as f32;
+                px[y as usize * w + x as usize] +=
+                    (amp * (-r2 / (2.0 * sigma * sigma)).exp()) as f32;
             }
         }
     }
-    let px: Vec<u16> = px.iter().map(|&v| v.round().clamp(0.0, 65535.0) as u16).collect();
+    let px: Vec<u16> = px
+        .iter()
+        .map(|&v| v.round().clamp(0.0, 65535.0) as u16)
+        .collect();
     ImageData::from_u16(W, H, 1, &px)
 }
 
@@ -90,24 +94,46 @@ fn main() {
     let cfg = StarDetectionConfig::default();
 
     line("read_fits", best_of(5, || read_fits(&path).unwrap()));
-    line("write_fits", best_of(5, || write_fits(&path, &frame, &FitsHeader::new()).unwrap()));
+    line(
+        "write_fits",
+        best_of(5, || write_fits(&path, &frame, &FitsHeader::new()).unwrap()),
+    );
     line("detect_stars", best_of(5, || detect_stars(&frame, &cfg)));
-    line("detect_stars_with_stats", best_of(5, || detect_stars_with_stats(&frame, &cfg)));
-    line("calculate_stats_u16", best_of(5, || calculate_stats_u16(&frame)));
-    line("calculate_histogram(256)", best_of(5, || calculate_histogram(&frame, 256)));
+    line(
+        "detect_stars_with_stats",
+        best_of(5, || detect_stars_with_stats(&frame, &cfg)),
+    );
+    line(
+        "calculate_stats_u16",
+        best_of(5, || calculate_stats_u16(&frame)),
+    );
+    line(
+        "calculate_histogram(256)",
+        best_of(5, || calculate_histogram(&frame, 256)),
+    );
     line("auto_stretch_stf", best_of(5, || auto_stretch_stf(&frame)));
     line("to_display_u8 mono", best_of(5, || frame.to_display_u8()));
     line("to_rgba mono", best_of(5, || frame.to_rgba().unwrap()));
     line("to_rgba rgb", best_of(5, || rgb.to_rgba().unwrap()));
-    line("measure_frame_shape", best_of(5, || measure_frame_shape(&frame)));
-    line("measure_frame_trail", best_of(5, || measure_frame_trail(&frame)));
+    line(
+        "measure_frame_shape",
+        best_of(5, || measure_frame_shape(&frame)),
+    );
+    line(
+        "measure_frame_trail",
+        best_of(5, || measure_frame_trail(&frame)),
+    );
     line(
         "analyze_frame_quality",
-        best_of(5, || analyze_frame_quality(&frame, &FrameQualityConfig::default())),
+        best_of(5, || {
+            analyze_frame_quality(&frame, &FrameQualityConfig::default())
+        }),
     );
     line(
         "calibrate_frame (dark+flat, u16)",
-        best_of(5, || calibrate_frame(&frame, Some(&dark), Some(&flat), None).unwrap()),
+        best_of(5, || {
+            calibrate_frame(&frame, Some(&dark), Some(&flat), None).unwrap()
+        }),
     );
     line(
         "calibrate_frame_f32 (dark+flat)",
@@ -126,19 +152,31 @@ fn main() {
     line("samples_f64", best_of(5, || frame.samples_f64()));
     line(
         "register_frame (similarity, lanczos3)",
-        best_of(3, || register_frame(&frame, &shifted, &RegistrationConfig::default()).unwrap()),
+        best_of(3, || {
+            register_frame(&frame, &shifted, &RegistrationConfig::default()).unwrap()
+        }),
     );
     line(
         "register_frame rgb",
-        best_of(3, || register_frame(&rgb, &rgb, &RegistrationConfig::default()).unwrap()),
+        best_of(3, || {
+            register_frame(&rgb, &rgb, &RegistrationConfig::default()).unwrap()
+        }),
     );
     let mut stacker = LiveStacker::new(&frame, LiveStackConfig::default()).unwrap();
-    line("LiveStacker::add_frame mono", best_of(3, || stacker.add_frame(&shifted).unwrap()));
+    line(
+        "LiveStacker::add_frame mono",
+        best_of(3, || stacker.add_frame(&shifted).unwrap()),
+    );
     let mut rgb_stacker = LiveStacker::new(&rgb, LiveStackConfig::default()).unwrap();
-    line("LiveStacker::add_frame rgb", best_of(3, || rgb_stacker.add_frame(&rgb).unwrap()));
+    line(
+        "LiveStacker::add_frame rgb",
+        best_of(3, || rgb_stacker.add_frame(&rgb).unwrap()),
+    );
     line(
         "extract_and_subtract (background)",
-        best_of(3, || extract_and_subtract(&frame, &BackgroundConfig::default()).unwrap()),
+        best_of(3, || {
+            extract_and_subtract(&frame, &BackgroundConfig::default()).unwrap()
+        }),
     );
     let a = frame.samples_f64();
     let b = shifted.samples_f64();
@@ -146,7 +184,14 @@ fn main() {
     line(
         "estimate_normalization",
         best_of(3, || {
-            estimate_normalization(&b, &a, &mask, W as usize, H as usize, &NormalizationConfig::default())
+            estimate_normalization(
+                &b,
+                &a,
+                &mask,
+                W as usize,
+                H as usize,
+                &NormalizationConfig::default(),
+            )
         }),
     );
     let _ = std::fs::remove_dir_all(&dir);

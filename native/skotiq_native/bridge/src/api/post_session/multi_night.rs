@@ -1335,29 +1335,10 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     // A copied reference WCS describes the original grid; a fresh ASTAP solve
     // already describes the output dimensions.
     if scale != 1 && wcs_source.as_ref().is_some_and(|s| s.inherited) {
-        for key in ["CRPIX1", "CRPIX2"] {
-            if let Some(v) = header.get_float(key) {
-                header.set_float(key, (v - 0.5) * scale as f64 + 0.5);
-            }
-        }
-        for key in ["CD1_1", "CD1_2", "CD2_1", "CD2_2", "CDELT1", "CDELT2"] {
-            if let Some(v) = header.get_float(key) {
-                header.set_float(key, v / scale as f64);
-            }
-        }
-        let keys: Vec<String> = header.keywords.keys().cloned().collect();
-        for key in keys {
-            let parts: Vec<&str> = key.split('_').collect();
-            if parts.len() == 3 && matches!(parts[0], "A" | "B" | "AP" | "BP") {
-                if let (Ok(i), Ok(j), Some(v)) = (
-                    parts[1].parse::<i32>(),
-                    parts[2].parse::<i32>(),
-                    header.get_float(&key),
-                ) {
-                    header.set_float(&key, v * (scale as f64).powi(1 - i - j));
-                }
-            }
-        }
+        skotiq_imaging::wcs_sip::rescale_header_wcs(
+            &mut header,
+            skotiq_imaging::wcs_sip::GridScale::Finer(scale as u32),
+        );
     }
     let wcs_source = wcs_source.map(|s| s.description);
     if let Some(source) = &wcs_source {

@@ -647,47 +647,7 @@ pub(crate) fn reference_wcs_from_fits(path: &str) -> Option<WcsInfo> {
     }
     let (_image, header) = read_fits(Path::new(path)).ok()?;
 
-    let crval1 = header.get_float("CRVAL1")?;
-    let crval2 = header.get_float("CRVAL2")?;
-    let naxis1 = header.get_int("NAXIS1").unwrap_or(0) as f64;
-    let naxis2 = header.get_int("NAXIS2").unwrap_or(0) as f64;
-    let crpix1 = header
-        .get_float("CRPIX1")
-        .unwrap_or_else(|| naxis1 / 2.0 + 0.5);
-    let crpix2 = header
-        .get_float("CRPIX2")
-        .unwrap_or_else(|| naxis2 / 2.0 + 0.5);
-
-    // Prefer an explicit CD matrix.
-    if let (Some(cd1_1), Some(cd2_2)) = (header.get_float("CD1_1"), header.get_float("CD2_2")) {
-        return Some(WcsInfo {
-            crval1,
-            crval2,
-            crpix1,
-            crpix2,
-            cd1_1,
-            cd1_2: header.get_float("CD1_2").unwrap_or(0.0),
-            cd2_1: header.get_float("CD2_1").unwrap_or(0.0),
-            cd2_2,
-        });
-    }
-
-    // Fall back to CDELT + CROTA2 (older WCS convention).
-    let cdelt1 = header.get_float("CDELT1")?;
-    let cdelt2 = header.get_float("CDELT2")?;
-    let crota2 = header.get_float("CROTA2").unwrap_or(0.0).to_radians();
-    let cos_r = crota2.cos();
-    let sin_r = crota2.sin();
-    Some(WcsInfo {
-        crval1,
-        crval2,
-        crpix1,
-        crpix2,
-        cd1_1: cdelt1 * cos_r,
-        cd1_2: -cdelt2 * sin_r,
-        cd2_1: cdelt1 * sin_r,
-        cd2_2: cdelt2 * cos_r,
-    })
+    skotiq_imaging::SipWcs::from_header(&header).map(|wcs| wcs.cd_only())
 }
 
 /// Write a stretched 8-bit preview PNG of a (U16 or F32) master.

@@ -63,10 +63,8 @@
 //! on the normal-equation matrix — fine for the ≤28-term systems a degree-≤6 2-D
 //! polynomial produces, and deterministic so the tests are reproducible.
 
-use crate::robust_stats::{
-    mad_sigma, median_and_sigma, median_in_place, percentile_nearest_rank,
-};
 use crate::detection_plane::{finite_range, DetectionPlane, Quantize};
+use crate::robust_stats::{mad_sigma, median_and_sigma, median_in_place, percentile_nearest_rank};
 use crate::samples::{sample_from_le, sample_to_le};
 use crate::{detect_stars_in_plane, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;

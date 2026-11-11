@@ -185,11 +185,7 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         if samples.iter().any(|v| !v.is_finite()) {
             return Err(format!("{} contains non-finite pixels", input.filter));
         }
-        for (key, origin) in [("CRPIX1", x0), ("CRPIX2", y0)] {
-            if let Some(value) = header.get_float(key) {
-                header.set_float(key, value - origin as f64);
-            }
-        }
+        skotiq_imaging::wcs_sip::crop_header_wcs(&mut header, x0 as f64, y0 as f64);
         header.add_history(&format!(
             "Common full-coverage crop x={x0}..{x1}, y={y0}..{y1}"
         ));

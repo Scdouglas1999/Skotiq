@@ -219,9 +219,10 @@ impl FieldStars {
     pub fn detect(reference: &OpImage, ctx: &OpContext) -> Result<Self, OpError> {
         let disks = star_disks(reference, ctx)?;
         let photometry = match crate::recipe::ops::star_detect::detection_plane(reference, ctx)? {
-            Some(plane) => {
-                select_photometry(detect_stars_in_plane(plane, &StarDetectionConfig::default()))
-            }
+            Some(plane) => select_photometry(detect_stars_in_plane(
+                plane,
+                &StarDetectionConfig::default(),
+            )),
             None => Vec::new(),
         };
         Ok(Self { photometry, disks })

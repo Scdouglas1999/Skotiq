@@ -16,12 +16,8 @@ pub fn sample_from_le(bytes: &[u8], pixel_type: PixelType) -> f64 {
     match pixel_type {
         PixelType::U8 => f64::from(bytes[0]),
         PixelType::U16 => f64::from(u16::from_le_bytes([bytes[0], bytes[1]])),
-        PixelType::U32 => f64::from(u32::from_le_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3],
-        ])),
-        PixelType::F32 => f64::from(f32::from_le_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3],
-        ])),
+        PixelType::U32 => f64::from(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
+        PixelType::F32 => f64::from(f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
         PixelType::F64 => f64::from_le_bytes([
             bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
         ]),

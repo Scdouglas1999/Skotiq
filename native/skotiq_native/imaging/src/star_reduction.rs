@@ -230,8 +230,7 @@ pub fn reduce_stars(
         return Ok(image.clone());
     }
 
-    if !matches!(image.pixel_type, PixelType::U16 | PixelType::F32) || !image.holds_all_samples()
-    {
+    if !matches!(image.pixel_type, PixelType::U16 | PixelType::F32) || !image.holds_all_samples() {
         return Err(StarReduceError::EmptyImage);
     }
     let stars = detect_mask_stars(image);

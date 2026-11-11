@@ -172,7 +172,9 @@ fn synthetic_dark(width: u32, height: u32, seed: u64, level: f64) -> ImageData {
     let px: Vec<u16> = (0..(width * height) as usize)
         .map(|i| {
             let hot = if i % 4099 == 17 { 9000.0 } else { 0.0 };
-            (level + hot + rng.gauss() * 6.0).round().clamp(0.0, 65535.0) as u16
+            (level + hot + rng.gauss() * 6.0)
+                .round()
+                .clamp(0.0, 65535.0) as u16
         })
         .collect();
     ImageData::from_u16(width, height, 1, &px)
@@ -181,6 +183,18 @@ fn synthetic_dark(width: u32, height: u32, seed: u64, level: f64) -> ImageData {
 struct Pins(BTreeMap<String, u64>);
 
 impl Pins {
+    /// Pin a value by its `Debug` text. With `SKOTIQ_PIN_DUMP=<dir>` the text is
+    /// also written there, so a digest that moved can be compared value by
+    /// value against a dump from another build.
+    fn add_debug<T: Debug>(&mut self, name: &str, value: &T) {
+        if let Some(dir) = std::env::var_os("SKOTIQ_PIN_DUMP") {
+            let file = name.replace(['/', ' ', '{', '}', ':', ','], "_");
+            std::fs::create_dir_all(&dir).expect("dump dir");
+            std::fs::write(Path::new(&dir).join(file), format!("{value:#?}\n")).expect("dump");
+        }
+        self.add(name, debug_digest(value));
+    }
+
     fn add(&mut self, name: &str, digest: u64) {
         assert!(
             self.0.insert(name.to_string(), digest).is_none(),
@@ -214,49 +228,43 @@ fn pin_fixture_measurements(pins: &mut Pins) {
         let p = |what: &str| format!("{file}/{what}");
         pins.add(&p("read_fits.pixels"), image_digest(&image));
         pins.add(&p("read_fits.header"), header_digest(&header));
-        pins.add(
+        pins.add_debug(
             &p("detect_stars"),
-            debug_digest(&detect_stars(&image, &StarDetectionConfig::default())),
+            &detect_stars(&image, &StarDetectionConfig::default()),
         );
-        pins.add(
+        pins.add_debug(
             &p("detect_stars_for_selection"),
-            debug_digest(&detect_stars_for_selection(
-                &image,
-                &StarDetectionConfig::default(),
-            )),
+            &detect_stars_for_selection(&image, &StarDetectionConfig::default()),
         );
-        pins.add(
+        pins.add_debug(
             &p("detect_stars_with_stats"),
-            debug_digest(&detect_stars_with_stats(
-                &image,
-                &StarDetectionConfig::default(),
-            )),
+            &detect_stars_with_stats(&image, &StarDetectionConfig::default()),
         );
         let stats = calculate_stats_u16(&image);
-        pins.add(
+        pins.add_debug(
             &p("stats"),
-            debug_digest(&(
+            &(
                 stats.min,
                 stats.max,
                 rounded(stats.mean),
                 stats.median,
                 rounded(stats.std_dev),
                 stats.mad,
-            )),
+            ),
         );
-        pins.add(&p("median_hfr"), debug_digest(&calculate_median_hfr(&image)));
-        pins.add(&p("histogram"), debug_digest(&calculate_histogram(&image, 256)));
-        pins.add(
+        pins.add_debug(&p("median_hfr"), &calculate_median_hfr(&image));
+        pins.add_debug(&p("histogram"), &calculate_histogram(&image, 256));
+        pins.add_debug(
             &p("display_histogram"),
-            debug_digest(&calculate_display_histogram(&image, true)),
+            &calculate_display_histogram(&image, true),
         );
-        pins.add(&p("frame_shape"), debug_digest(&measure_frame_shape(&image)));
-        pins.add(&p("frame_trail"), debug_digest(&measure_frame_trail(&image)));
-        pins.add(
+        pins.add_debug(&p("frame_shape"), &measure_frame_shape(&image));
+        pins.add_debug(&p("frame_trail"), &measure_frame_trail(&image));
+        pins.add_debug(
             &p("frame_quality"),
-            debug_digest(&analyze_frame_quality(&image, &FrameQualityConfig::default())),
+            &analyze_frame_quality(&image, &FrameQualityConfig::default()),
         );
-        pins.add(&p("stf"), debug_digest(&auto_stretch_stf(&image)));
+        pins.add_debug(&p("stf"), &auto_stretch_stf(&image));
         pins.add(&p("display_u8"), fnv(&image.to_display_u8()));
         pins.add(
             &p("rgba"),
@@ -266,14 +274,14 @@ fn pin_fixture_measurements(pins: &mut Pins) {
             &p("registrable_star_count"),
             registrable_star_count(&image, &RegistrationConfig::default()) as u64,
         );
-        pins.add(
+        pins.add_debug(
             &p("star_crops"),
-            debug_digest(&extract_top_star_crops(
+            &extract_top_star_crops(
                 &image,
                 &detect_stars(&image, &StarDetectionConfig::default()),
                 5,
                 32,
-            )),
+            ),
         );
     }
 }
@@ -282,29 +290,44 @@ fn pin_display(pins: &mut Pins) {
     let mono = crop(&load(RIG, "focused_L_0005.fits"), 512);
     let rgb = as_rgb(&mono, [0.8, 1.0, 0.65]);
     pins.add("display/rgb.display_u8", fnv(&rgb.to_display_u8()));
-    pins.add("display/rgb.rgba", fnv(&rgb.to_rgba().expect("rgb displays")));
+    pins.add(
+        "display/rgb.rgba",
+        fnv(&rgb.to_rgba().expect("rgb displays")),
+    );
     let rgb16 = rgb.as_u16().expect("u16");
     for (name, mode) in [
         ("linked", RgbStretchMode::Linked),
         ("unlinked", RgbStretchMode::Unlinked),
     ] {
-        pins.add(
+        pins.add_debug(
             &format!("display/rgb.auto_stretch.{name}"),
-            debug_digest(&auto_stretch_rgb_with_mode(&rgb16, 512, 512, mode)),
+            &auto_stretch_rgb_with_mode(&rgb16, 512, 512, mode),
         );
     }
     let f32_image = to_f32_unit(&mono);
     pins.add("display/f32.display_u8", fnv(&f32_image.to_display_u8()));
-    pins.add("display/f32.stf", debug_digest(&auto_stretch_stf(&f32_image)));
+    pins.add_debug("display/f32.stf", &auto_stretch_stf(&f32_image));
 }
 
 fn pin_registration(pins: &mut Pins) {
     let reference = load(RIG, "focused_L_0005.fits");
     let frame = load(RIG, "focused_L_0006.fits");
     for (name, kind, interp) in [
-        ("similarity.lanczos", TransformKind::Similarity, Interpolator::Lanczos3),
-        ("affine.catmull", TransformKind::Affine, Interpolator::CatmullRom),
-        ("homography.bilinear", TransformKind::Homography, Interpolator::Bilinear),
+        (
+            "similarity.lanczos",
+            TransformKind::Similarity,
+            Interpolator::Lanczos3,
+        ),
+        (
+            "affine.catmull",
+            TransformKind::Affine,
+            Interpolator::CatmullRom,
+        ),
+        (
+            "homography.bilinear",
+            TransformKind::Homography,
+            Interpolator::Bilinear,
+        ),
     ] {
         let cfg = RegistrationConfig {
             transform_kind: kind,
@@ -313,9 +336,9 @@ fn pin_registration(pins: &mut Pins) {
         };
         match register_frame(&reference, &frame, &cfg) {
             Ok(r) => {
-                pins.add(
+                pins.add_debug(
                     &format!("registration/{name}.transform"),
-                    debug_digest(&(r.transform, &r.stats)),
+                    &(r.transform, &r.stats),
                 );
                 pins.add(
                     &format!("registration/{name}.aligned"),
@@ -335,10 +358,7 @@ fn pin_registration(pins: &mut Pins) {
     let rgb_frame = as_rgb(&frame, [0.8, 1.0, 0.65]);
     match register_frame(&rgb_ref, &rgb_frame, &RegistrationConfig::default()) {
         Ok(r) => {
-            pins.add(
-                "registration/rgb.transform",
-                debug_digest(&(r.transform, &r.stats)),
-            );
+            pins.add_debug("registration/rgb.transform", &(r.transform, &r.stats));
             pins.add("registration/rgb.aligned", image_digest(&r.aligned));
         }
         Err(e) => pins.add("registration/rgb.error", debug_digest(&e)),
@@ -364,7 +384,7 @@ fn pin_live_stack(pins: &mut Pins) {
             },
         );
     }
-    pins.add("live_stack/mono.stats", debug_digest(&stacker.get_stats()));
+    pins.add_debug("live_stack/mono.stats", &stacker.get_stats());
     pins.add(
         "live_stack/mono.stack",
         image_digest(&stacker.get_current_stack()),
@@ -383,8 +403,11 @@ fn pin_live_stack(pins: &mut Pins) {
             },
         );
     }
-    pins.add("live_stack/rgb.stats", debug_digest(&rgb.get_stats()));
-    pins.add("live_stack/rgb.stack", image_digest(&rgb.get_current_stack()));
+    pins.add_debug("live_stack/rgb.stats", &rgb.get_stats());
+    pins.add(
+        "live_stack/rgb.stack",
+        image_digest(&rgb.get_current_stack()),
+    );
 }
 
 fn pin_calibration(pins: &mut Pins) {
@@ -458,8 +481,18 @@ fn pin_calibration(pins: &mut Pins) {
         .map(|i| synthetic_dark(256, 256, 200 + i, 510.0))
         .collect();
     for (name, kind, method, out) in [
-        ("dark.mean.u16", MasterFrameKind::Dark, CombineMethod::Mean, MasterOutputType::U16),
-        ("dark.median.f32", MasterFrameKind::Dark, CombineMethod::Median, MasterOutputType::F32),
+        (
+            "dark.mean.u16",
+            MasterFrameKind::Dark,
+            CombineMethod::Mean,
+            MasterOutputType::U16,
+        ),
+        (
+            "dark.median.f32",
+            MasterFrameKind::Dark,
+            CombineMethod::Median,
+            MasterOutputType::F32,
+        ),
         (
             "bias.sigma.f32",
             MasterFrameKind::Bias,
@@ -479,7 +512,11 @@ fn pin_calibration(pins: &mut Pins) {
             MasterOutputType::U16,
         ),
     ] {
-        let source = if kind == MasterFrameKind::Flat { &flats } else { &darks };
+        let source = if kind == MasterFrameKind::Flat {
+            &flats
+        } else {
+            &darks
+        };
         let master = combine_master_frames(source, kind, method, out).expect("combines");
         pins.add(
             &format!("calibration/combine.{name}"),
@@ -495,9 +532,9 @@ fn pin_calibration(pins: &mut Pins) {
         "calibration/cosmetic.u16",
         image_digest(&cosmetic) ^ debug_digest(&report),
     );
-    pins.add(
+    pins.add_debug(
         "calibration/defect_map_from_dark",
-        debug_digest(&build_defect_map_from_master_dark(&dark, -100).map(|m| m.defective_count())),
+        &build_defect_map_from_master_dark(&dark, -100).map(|m| m.defective_count()),
     );
 }
 
@@ -530,25 +567,29 @@ fn pin_streamed_master(pins: &mut Pins) {
     .expect("streamed master");
     let (image, header) = read_fits(&output).expect("master reads");
     pins.add("streamed_master/pixels", image_digest(&image));
-    pins.add(
+    pins.add_debug(
         "streamed_master/result",
-        debug_digest(&(
+        &(
             result.frame_count,
-            result.frame_levels.iter().map(|l| (l.level, l.noise)).collect::<Vec<_>>(),
+            result
+                .frame_levels
+                .iter()
+                .map(|l| (l.level, l.noise))
+                .collect::<Vec<_>>(),
             &result.leak,
             result.master_mean,
             result.rejection_fraction,
             result.ccd_temp_mean,
-        )),
+        ),
     );
-    pins.add(
+    pins.add_debug(
         "streamed_master/header.cards",
-        debug_digest(&(
+        &(
             header.get_float("EXPTIME"),
             header.get_int("GAIN"),
             header.get_int("NCOMBINE"),
             header.get_string("IMAGETYP").map(str::to_owned),
-        )),
+        ),
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -594,7 +635,7 @@ fn pin_normalization_and_integration(pins: &mut Pins) {
             };
             let name = format!("normalization/{mode:?}.{estimator:?}");
             let coeffs = estimate_normalization(&subs[5], &subs[0], &mask, w, h, &cfg);
-            pins.add(&format!("{name}.coeffs"), debug_digest(&coeffs));
+            pins.add_debug(&format!("{name}.coeffs"), &coeffs);
             if let Ok(coeffs) = coeffs {
                 let mut frame = subs[5].clone();
                 apply_normalization(&mut frame, &coeffs, w, h);
@@ -614,11 +655,41 @@ fn pin_normalization_and_integration(pins: &mut Pins) {
         .collect();
     let rejections: Vec<(&str, Reject)> = vec![
         ("none", Reject::None),
-        ("sigma", Reject::SigmaClip { low: 3.0, high: 3.0 }),
-        ("winsor", Reject::WinsorizedSigmaClip { low: 3.0, high: 3.0 }),
-        ("linear_fit", Reject::LinearFitClip { low: 5.0, high: 2.5 }),
-        ("percentile", Reject::PercentileClip { low: 0.2, high: 0.1 }),
-        ("minmax", Reject::MinMax { n_low: 1, n_high: 1 }),
+        (
+            "sigma",
+            Reject::SigmaClip {
+                low: 3.0,
+                high: 3.0,
+            },
+        ),
+        (
+            "winsor",
+            Reject::WinsorizedSigmaClip {
+                low: 3.0,
+                high: 3.0,
+            },
+        ),
+        (
+            "linear_fit",
+            Reject::LinearFitClip {
+                low: 5.0,
+                high: 2.5,
+            },
+        ),
+        (
+            "percentile",
+            Reject::PercentileClip {
+                low: 0.2,
+                high: 0.1,
+            },
+        ),
+        (
+            "minmax",
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 1,
+            },
+        ),
         (
             "esd",
             Reject::GeneralizedEsd {
@@ -640,7 +711,7 @@ fn pin_normalization_and_integration(pins: &mut Pins) {
             match integrate_frames(&frames, w as u32, h as u32, 1, &cfg) {
                 Ok(out) => {
                     pins.add(&format!("{name}.master"), image_digest(&out.master));
-                    pins.add(&format!("{name}.stats"), debug_digest(&out.stats));
+                    pins.add_debug(&format!("{name}.stats"), &out.stats);
                     pins.add(
                         &format!("{name}.maps"),
                         out.rejection_map.as_ref().map(image_digest).unwrap_or(0)
@@ -655,7 +726,10 @@ fn pin_normalization_and_integration(pins: &mut Pins) {
     let reference = perturbed(&base, 900, 1.0, 0.0, 14.0);
     for (name, mode) in [
         ("clip", AccumulationMode::default()),
-        ("noclip", AccumulationMode::RunningWeightedMean { clip: None }),
+        (
+            "noclip",
+            AccumulationMode::RunningWeightedMean { clip: None },
+        ),
     ] {
         let mut master = IntegratedMaster::create(
             &reference,
@@ -671,9 +745,9 @@ fn pin_normalization_and_integration(pins: &mut Pins) {
             let report = master
                 .add_frames(&frames, &exposures, &format!("night{night}"))
                 .expect("adds");
-            pins.add(
+            pins.add_debug(
                 &format!("accumulating_master/{name}.report{night}"),
-                debug_digest(&report),
+                &report,
             );
         }
         pins.add(
@@ -703,7 +777,12 @@ fn pin_normalization_and_integration(pins: &mut Pins) {
             weight: 1.0,
         })
         .collect();
-    match drizzle_integrate(&drizzle_frames, w as u32, h as u32, &DrizzleConfig::default()) {
+    match drizzle_integrate(
+        &drizzle_frames,
+        w as u32,
+        h as u32,
+        &DrizzleConfig::default(),
+    ) {
         Ok(out) => pins.add(
             "drizzle/default",
             image_digest(&out.master) ^ image_digest(&out.coverage),
@@ -729,9 +808,9 @@ fn pin_atlas_and_difference(pins: &mut Pins) {
     let order = ATLAS_HEALPIX_ORDER;
     let tile_id = radec_to_tile(ra, dec, order);
     pins.add("atlas/tile_id", tile_id);
-    pins.add(
+    pins.add_debug(
         "atlas/tiles_for_frame",
-        debug_digest(&tile_ids_for_frame(&wcs, frame.width, frame.height, order)),
+        &tile_ids_for_frame(&wcs, frame.width, frame.height, order),
     );
     let mut tile = SkyTileAccumulator::create(tile_id, order, 1, AccumulationMode::default());
     for i in 0..6u64 {
@@ -745,7 +824,7 @@ fn pin_atlas_and_difference(pins: &mut Pins) {
             &format!("sub{i}"),
             "pin",
         );
-        pins.add(&format!("atlas/fold{i}"), debug_digest(&record));
+        pins.add_debug(&format!("atlas/fold{i}"), &record);
     }
     pins.add("atlas/final", image_digest(&tile.finalize()));
     pins.add(
@@ -780,14 +859,14 @@ fn pin_atlas_and_difference(pins: &mut Pins) {
         &DifferenceOptions::default(),
     ) {
         Ok(result) => {
-            pins.add("difference/candidates", debug_digest(&result.candidates));
-            pins.add(
+            pins.add_debug("difference/candidates", &result.candidates);
+            pins.add_debug(
                 "difference/match",
-                debug_digest(&(
+                &(
                     result.matched_scale,
                     result.matched_offset,
                     result.normalization_stars,
-                )),
+                ),
             );
             pins.add("difference/residual", image_digest(&result.residual));
             pins.add(
@@ -801,7 +880,13 @@ fn pin_atlas_and_difference(pins: &mut Pins) {
 
 fn pin_mosaic(pins: &mut Pins) {
     let left = crop(&load(RIG, "focused_L_0005.fits"), 400);
-    let right = perturbed(&crop(&load(RIG, "focused_L_0006.fits"), 400), 3, 1.1, 40.0, 5.0);
+    let right = perturbed(
+        &crop(&load(RIG, "focused_L_0006.fits"), 400),
+        3,
+        1.1,
+        40.0,
+        5.0,
+    );
     let scale = 1.9;
     let panels = vec![
         MosaicPanel {
@@ -817,7 +902,7 @@ fn pin_mosaic(pins: &mut Pins) {
         Ok(out) => {
             pins.add("mosaic/master", image_digest(&out.master));
             pins.add("mosaic/coverage", image_digest(&out.coverage));
-            pins.add("mosaic/wcs_stats", debug_digest(&(&out.wcs, &out.stats)));
+            pins.add_debug("mosaic/wcs_stats", &(&out.wcs, &out.stats));
         }
         Err(e) => pins.add("mosaic/error", debug_digest(&e)),
     }
@@ -838,12 +923,12 @@ fn pin_finishing(pins: &mut Pins) {
         match extract_and_subtract(image, &BackgroundConfig::default()) {
             Ok((out, model)) => {
                 pins.add(&format!("finishing/background.{name}"), image_digest(&out));
-                pins.add(
-                    &format!("finishing/background.{name}.model"),
-                    debug_digest(&model),
-                );
+                pins.add_debug(&format!("finishing/background.{name}.model"), &model);
             }
-            Err(e) => pins.add(&format!("finishing/background.{name}.error"), debug_digest(&e)),
+            Err(e) => pins.add(
+                &format!("finishing/background.{name}.error"),
+                debug_digest(&e),
+            ),
         }
         pins.add(
             &format!("finishing/star_reduction.{name}"),
@@ -868,7 +953,7 @@ fn pin_finishing(pins: &mut Pins) {
             let name = format!("{name}.{kind:?}");
             match estimate_psf(&image, &cfg) {
                 Ok(psf) => {
-                    pins.add(&format!("finishing/psf.{name}"), debug_digest(&psf));
+                    pins.add_debug(&format!("finishing/psf.{name}"), &psf);
                     if kind == PsfKind::Moffat {
                         pins.add(
                             &format!("finishing/deconvolution.{name}"),
@@ -920,13 +1005,19 @@ fn pin_finishing(pins: &mut Pins) {
         .collect();
     match solve_color_calibration(&stars, 3, 0.65) {
         Ok(cal) => {
-            pins.add("finishing/color_calibration.solve", debug_digest(&cal));
+            pins.add_debug("finishing/color_calibration.solve", &cal);
             let mut image = rgb.clone();
             apply_color_calibration(&mut image, &cal);
-            pins.add("finishing/color_calibration.apply_u16", image_digest(&image));
+            pins.add(
+                "finishing/color_calibration.apply_u16",
+                image_digest(&image),
+            );
             let mut image = rgb_f32.clone();
             apply_color_calibration(&mut image, &cal);
-            pins.add("finishing/color_calibration.apply_f32", image_digest(&image));
+            pins.add(
+                "finishing/color_calibration.apply_f32",
+                image_digest(&image),
+            );
         }
         Err(e) => pins.add("finishing/color_calibration.error", debug_digest(&e)),
     }
@@ -940,10 +1031,12 @@ fn pin_recipe(pins: &mut Pins) {
         [0.8, 1.0, 0.65],
     ));
     let registry = OpRegistry::builtin().expect("builtin ops");
-    pins.add("recipe/op_keys", debug_digest(&registry.keys()));
+    pins.add_debug("recipe/op_keys", &registry.keys());
 
     let step = |id: &str, params: serde_json::Value| {
-        let version = registry.latest_version(id).unwrap_or_else(|| panic!("op {id}"));
+        let version = registry
+            .latest_version(id)
+            .unwrap_or_else(|| panic!("op {id}"));
         RecipeStep::new(id, version).with_params(params)
     };
     let cases: Vec<(&str, &ImageData, Vec<RecipeStep>)> = vec![
@@ -963,7 +1056,11 @@ fn pin_recipe(pins: &mut Pins) {
                 step("star_reduce", serde_json::json!({})),
             ],
         ),
-        ("mono.denoise", &mono, vec![step("denoise", serde_json::json!({}))]),
+        (
+            "mono.denoise",
+            &mono,
+            vec![step("denoise", serde_json::json!({}))],
+        ),
         (
             "mono.stretch",
             &mono,
@@ -991,15 +1088,17 @@ fn pin_recipe(pins: &mut Pins) {
         ),
     ];
     for (name, image, steps) in cases {
-        let base = Arc::new(
-            OpImage::from_image_data(image, FitsHeader::new()).expect("float base image"),
-        );
+        let base =
+            Arc::new(OpImage::from_image_data(image, FitsHeader::new()).expect("float base image"));
         let mut recipe = Recipe::new("pin", "master", RecipeAuthor::User);
         recipe.steps = steps;
         let mut cache = RenderCache::new(DEFAULT_CACHE_CAPACITY_BYTES);
         match render_full(&recipe, &base, &registry, &mut cache, &OpContext::new()) {
             Ok(out) => {
-                pins.add(&format!("recipe/{name}.pixels"), f32_digest(out.image.data()));
+                pins.add(
+                    &format!("recipe/{name}.pixels"),
+                    f32_digest(out.image.data()),
+                );
                 pins.add(
                     &format!("recipe/{name}.outcomes"),
                     debug_digest(
@@ -1021,15 +1120,12 @@ fn pin_recipe(pins: &mut Pins) {
 
 fn pin_wcs(pins: &mut Pins) {
     let info = WcsInfo::from_plate_solve(5.5, 22.0, 33.0, 1.9, 4656, 3520);
-    pins.add("wcs/info.from_plate_solve", debug_digest(&info));
+    pins.add_debug("wcs/info.from_plate_solve", &info);
     let mut header = FitsHeader::new();
     add_wcs_headers(&mut header, &info);
     pins.add("wcs/info.header", header_digest(&header));
-    pins.add(
-        "wcs/header.sip_wcs",
-        debug_digest(&recipe::wcs_from_header(&header)),
-    );
-    let projection = WcsProjection::new(&info).expect("projection");
+    pins.add_debug("wcs/header.sip_wcs", &recipe::wcs_from_header(&header));
+    let projection = SipWcs::from(&info);
     let sip = SipWcs::tan_only(
         info.crval1,
         info.crval2,
@@ -1041,15 +1137,25 @@ fn pin_wcs(pins: &mut Pins) {
         info.cd2_2,
     );
     let mut samples = Vec::new();
-    for &(x, y) in &[(0.0, 0.0), (2327.5, 1759.5), (4655.0, 3519.0), (100.25, 3300.75)] {
+    for &(x, y) in &[
+        (0.0, 0.0),
+        (2327.5, 1759.5),
+        (4655.0, 3519.0),
+        (100.25, 3300.75),
+    ] {
         let a = projection.pixel_to_world(x, y);
         let b = sip.pixel_to_world(x, y);
-        samples.push((a, b, projection.world_to_pixel(a.0, a.1), sip.world_to_pixel(b.0, b.1)));
+        samples.push((
+            a,
+            b,
+            projection.world_to_pixel(a.0, a.1),
+            sip.world_to_pixel(b.0, b.1),
+        ));
     }
-    pins.add("wcs/projection.samples", debug_digest(&samples));
-    pins.add(
+    pins.add_debug("wcs/projection.samples", &samples);
+    pins.add_debug(
         "wcs/pixel_scale",
-        debug_digest(&(projection.pixel_scale_arcsec(), sip.pixel_scale_arcsec())),
+        &(projection.pixel_scale_arcsec(), sip.pixel_scale_arcsec()),
     );
 }
 
