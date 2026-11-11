@@ -19,6 +19,8 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
+
+import 'recovered_database.dart';
 import 'package:skotiq_core/src/database/integration_stage_marker.dart';
 import 'package:skotiq_core/src/database/sqlite_busy.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -36,7 +38,7 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() => SkotiqDatabase.forTesting(
+  SkotiqDatabase open() => RecoveredDatabase(
     NativeDatabase(dbFile, setup: applySqliteBusyTimeout),
   );
 

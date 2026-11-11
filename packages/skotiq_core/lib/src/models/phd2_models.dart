@@ -246,12 +246,13 @@ abstract class GuideErrorPoint with _$GuideErrorPoint {
 /// residuals carried on `GuideStep` events (`RADistanceRaw`/`DECDistanceRaw`
 /// from PHD2, `ra_raw`/`dec_raw` from the built-in guider). Both report those
 /// in **guide-camera pixels**, so these fields are pixels, NOT arcseconds —
-/// they only become arcseconds after multiplying by [pixelScale], and
-/// [pixelScale] is 0 (unknown) unless something populates it.
+/// they only become arcseconds after multiplying by the guide camera's scale,
+/// which the guider reports separately (`GuiderState.pixelScaleArcsecPerPixel`)
+/// and which may be unknown.
 ///
 /// Do not relabel these as arcseconds to make a display read consistently: at
 /// a 0.78"/px guide scale a 0.53 px residual is 0.41", so the suffix change
-/// alone overstates the error by ~28%. Either convert with a real [pixelScale]
+/// alone overstates the error by ~28%. Either convert with a real scale
 /// or say px.
 @freezed
 abstract class Phd2GuideStats with _$Phd2GuideStats {
@@ -286,8 +287,6 @@ abstract class Phd2GuideStats with _$Phd2GuideStats {
     /// Guide star Y position
     @Default(0.0) double starY,
 
-    /// Pixel scale (arcsec/pixel)
-    @Default(0.0) double pixelScale,
 
     /// Number of guide STEPS measured — corrections, not exposures.
     ///

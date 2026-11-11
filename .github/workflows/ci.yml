@@ -402,24 +402,20 @@ jobs:
 
       - name: Build Rust library (Linux)
         if: matrix.os == 'ubuntu-latest'
-        working-directory: native/skotiq_native
-        run: cargo build --locked --release --manifest-path bridge/Cargo.toml
+        run: dart scripts/build.dart bridge
 
       - name: Build Rust library (Windows)
         if: matrix.os == 'windows-2022'
-        working-directory: native/skotiq_native
-        run: cargo build --locked --release --manifest-path bridge/Cargo.toml
+        run: dart scripts/build.dart bridge
 
       - name: Build Rust library (macOS)
         if: matrix.os == 'macos-15'
-        working-directory: native/skotiq_native
         run: |
           # Try to build for the current architecture
-          cargo build --locked --release --manifest-path bridge/Cargo.toml || true
+          dart scripts/build.dart bridge || true
 
       - name: Test build Flutter app
-        working-directory: apps/desktop
-        run: flutter build ${{ matrix.platform }} --debug
+        run: dart scripts/build.dart flutter ${{ matrix.platform }} --debug
 
   coverage:
     name: Code Coverage

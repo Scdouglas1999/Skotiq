@@ -19,6 +19,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
 
 import '../../harness/mock_database.dart';
+import '../../harness/temporary_data_directory.dart';
 
 /// A fake seam whose `combineChannels` echoes the requested `output` path (so
 /// the controller persists a real, deterministic composite path). Every other
@@ -104,6 +105,7 @@ class _CombineSeam implements PostSessionSeam {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  useTemporaryDataDirectory();
 
   late SkotiqDatabase db;
   late ProviderContainer container;

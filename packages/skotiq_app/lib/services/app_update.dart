@@ -19,13 +19,27 @@ import 'package:skotiq_updater/skotiq_updater.dart';
 
 typedef UpdateApplySafetyReader = T Function<T>(ProviderListenable<T> provider);
 
-/// Provider for the update state.
+/// The process's update state machine: one, whether updates are driven from a
+/// window, the REST API or a LAN push.
 ///
 /// Reads the running app's version from [appVersionProvider], and lets that
 /// provider's error bubble when it has not been overridden at startup: the
 /// update server decides whether to advertise a newer build from this string,
 /// so a substituted default breaks update polling with nothing on screen to
 /// say so.
+final updateControllerProvider = Provider<UpdateController>((ref) {
+  final versionInfo = ref.watch(appVersionProvider);
+  final controller = UpdateController.forApp(
+    currentVersion: versionInfo.version,
+    currentBuildNumber: versionInfo.buildNumber,
+    dataDirectory: resolveSkotiqDataDirectory,
+    applySafetyCheck: () => defaultUpdateApplySafetyCheckWithReader(ref.read),
+  );
+  ref.onDispose(controller.dispose);
+  return controller;
+});
+
+/// What the windows show of [updateControllerProvider].
 final updateProvider = StateNotifierProvider<UpdateNotifier, UpdateState>((
   ref,
 ) {
@@ -34,7 +48,7 @@ final updateProvider = StateNotifierProvider<UpdateNotifier, UpdateState>((
     currentVersion: versionInfo.version,
     currentBuildNumber: versionInfo.buildNumber,
     dataDirectory: resolveSkotiqDataDirectory,
-    applySafetyCheck: () => defaultUpdateApplySafetyCheck(ref),
+    controller: ref.watch(updateControllerProvider),
   );
 });
 
@@ -121,10 +135,6 @@ Future<void> defaultUpdateApplySafetyCheckWithReader(
       'could not be saved: $e',
     );
   }
-}
-
-Future<void> defaultUpdateApplySafetyCheck(Ref ref) {
-  return defaultUpdateApplySafetyCheckWithReader(ref.read);
 }
 
 /// Live view of [updatePromptHeldBackReason], so the UI can re-offer an

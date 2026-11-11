@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../../../utils/guide_distance.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart';
 import '../../data/session/guide_series_provider.dart';
@@ -97,7 +98,7 @@ double ditherScalePixels(String scale) => switch (scale) {
 /// A guide distance in arcseconds when [arcsecPerPixel] is known, else in
 /// pixels; null stays null.
 String? formatGuide(double? px, double? arcsecPerPixel) =>
-    px == null || !px.isFinite ? null : nightGuideDistance(px, arcsecPerPixel);
+    px == null || !px.isFinite ? null : guideDistanceText(px, arcsecPerPixel);
 
 /// `0.31 px`; null stays null.
 String? formatPx(double? px, {int decimals = 2}) =>

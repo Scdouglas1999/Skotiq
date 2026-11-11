@@ -129,27 +129,56 @@ extension _CrashRecovery on SkotiqDatabase {
     // what the Analytics history view counts; rebuilding only the total
     // leaves every historical night reading "0 frames / 0.0h" there.
     //
-    // Only sessions that under-report AND demonstrably have frames are
+    // A rejected frame is on record but is not integration: only accepted
+    // frames count toward `successful_exposures` and
+    // `total_integration_secs`, as they do while the session runs. A session
+    // whose every frame was rejected ended with 0 / 0 and stays there.
+    //
+    // Only sessions that under-report AND demonstrably have the frames are
     // touched, so a correctly-written richer count is never overwritten (a
     // clean session's total legitimately also counts FAILED exposures,
     // which leave no image row). `failed_exposures` is left alone — a
     // failure writes no frame, so the rows on disk cannot say how many
     // there were.
+    const frames =
+        'FROM captured_images c WHERE c.session_id = imaging_sessions.id';
     final rebuilt = await customUpdate(
       'UPDATE imaging_sessions SET '
-      'total_exposures = (SELECT COUNT(*) FROM captured_images c '
-      'WHERE c.session_id = imaging_sessions.id), '
-      'successful_exposures = (SELECT COUNT(*) FROM captured_images c '
-      'WHERE c.session_id = imaging_sessions.id), '
-      'total_integration_secs = (SELECT IFNULL(SUM(c.exposure_duration), 0) '
-      'FROM captured_images c WHERE c.session_id = imaging_sessions.id) '
-      'WHERE (total_exposures = 0 OR successful_exposures = 0) '
-      'AND EXISTS ('
-      'SELECT 1 FROM captured_images c WHERE c.session_id = '
-      'imaging_sessions.id)',
+      'total_exposures = MAX(total_exposures, (SELECT COUNT(*) $frames)), '
+      'successful_exposures = '
+      '(SELECT COUNT(*) $frames AND c.is_accepted = 1), '
+      'total_integration_secs = '
+      '(SELECT IFNULL(SUM(c.exposure_duration), 0) $frames '
+      'AND c.is_accepted = 1) '
+      'WHERE (total_exposures = 0 AND EXISTS (SELECT 1 $frames)) '
+      'OR (successful_exposures = 0 '
+      'AND EXISTS (SELECT 1 $frames AND c.is_accepted = 1))',
       updates: {imagingSessions},
       updateKind: UpdateKind.update,
     );
+    // Undo what this rebuild wrote before it looked at acceptance: a session
+    // with no accepted frame whose counters are exactly "every frame on
+    // record, and all of their seconds" got them from here, at some earlier
+    // start, not from the night.
+    final corrected = await customUpdate(
+      'UPDATE imaging_sessions SET successful_exposures = 0, '
+      'total_integration_secs = 0 '
+      'WHERE successful_exposures > 0 '
+      'AND NOT EXISTS (SELECT 1 $frames AND c.is_accepted = 1) '
+      'AND successful_exposures = (SELECT COUNT(*) $frames) '
+      'AND ABS(total_integration_secs - '
+      '(SELECT IFNULL(SUM(c.exposure_duration), 0) $frames)) < 0.001',
+      updates: {imagingSessions},
+      updateKind: UpdateKind.update,
+    );
+    if (corrected > 0) {
+      // ignore: avoid_print
+      print(
+        '[skotiq_db] Took the rejected frames of $corrected imaging '
+        "session${corrected == 1 ? '' : 's'} back out of the integration "
+        'an earlier start had counted them into.',
+      );
+    }
     if (rebuilt > 0) {
       // ignore: avoid_print
       print(
@@ -180,8 +209,8 @@ extension _CrashRecovery on SkotiqDatabase {
   /// drafts were produced, and `GET /api/sessions/active` kept serving the dead
   /// run's counters while the live run captured.
   ///
-  /// Runs on every boot path because `beforeOpen` does: the GUI and the
-  /// headless daemon open the same [SkotiqDatabase].
+  /// Runs on both hosts: the GUI and the headless daemon share one start-up
+  /// step list.
   ///
   /// The close itself — status, back-dated `end_time`, appended note — is
   /// [kCloseOrphanedSessionsSql], shared with the sequence-start close in
@@ -316,8 +345,7 @@ extension _CrashRecovery on SkotiqDatabase {
   /// Whether [sessionId] already carries a narrator event under [dedupeKey].
   ///
   /// The session-scoped half of [NarratorEventsDao.hasDedupeKey]'s rule, asked
-  /// in SQL because this runs inside `beforeOpen`, where the DAOs are not yet
-  /// usable. No time window is needed: every night gets a fresh session id, so
+  /// in SQL like the rest of this file. No time window is needed: every night gets a fresh session id, so
   /// a key can only collide with an earlier event of the SAME night — which is
   /// exactly the duplicate worth suppressing.
   Future<bool> _narratorEventExists(int sessionId, String dedupeKey) async {

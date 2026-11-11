@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/services/app_update.dart'
-    show defaultUpdateApplySafetyCheckWithReader;
+    show updateControllerProvider;
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../headless/headless_discovery_bootstrap.dart';
@@ -12,7 +13,6 @@ import '../headless/headless_security_advisories.dart';
 import '../headless_api/auth_policy.dart';
 import '../headless_api/handlers/pairing_handlers.dart' show PairingMode;
 import '../headless_api/tls_provisioner.dart';
-import '../headless_api/update_wiring.dart';
 import '../headless_api_server.dart';
 import 'host_startup.dart';
 
@@ -66,7 +66,6 @@ class HostServerConfig {
 class RunningHostServer {
   RunningHostServer._({
     required this.server,
-    required this.updateStack,
     required this.tls,
     required this.securityAdvisories,
     required this.stopSteps,
@@ -74,16 +73,12 @@ class RunningHostServer {
 
   final HeadlessApiServer server;
 
-  /// The update stack behind `/api/system/update/*`, or null when it could
-  /// not be provisioned.
-  final UpdateStack? updateStack;
-
   final TlsProvisionResult? tls;
   final List<String> securityAdvisories;
 
   /// How this stops, in order: peers stop being told about the server
   /// (discovery, mDNS, relay) before its socket closes, the update controller
-  /// is detached before the server stops, and the update stack goes last.
+  /// is detached before the server stops.
   final List<HostStop> stopSteps;
 
   /// Runs every stop step; one that throws does not skip the rest.
@@ -101,7 +96,8 @@ class RunningHostServer {
 /// Starts the remote access server and everything a client reaches through
 /// it, the same way for the GUI host and the daemon:
 ///
-/// 1. TLS context (when asked for) and the update stack, before the bind.
+/// 1. TLS context (when asked for) and the update controller's state, before
+///    the bind.
 /// 2. The server itself.
 /// 3. On a LAN bind: UDP discovery beacons, the mDNS advertisement and the
 ///    LAN push broadcaster. A loopback-only server has nobody on the LAN to
@@ -148,20 +144,16 @@ Future<RunningHostServer> startHostServer({
     }
   }
 
-  UpdateStack? updateStack;
+  // The process's one update controller; the server only exposes it.
+  UpdateController? updateController;
   try {
-    updateStack = await provisionUpdateStack(
-      currentVersion: appVersion.version,
-      currentBuildNumber: appVersion.buildNumber,
-      logger: logger,
-      logSource: logSource,
-      applySafetyCheck: () =>
-          defaultUpdateApplySafetyCheckWithReader(container.read),
-    );
+    final controller = container.read(updateControllerProvider);
+    await controller.bootstrap();
+    updateController = controller;
   } catch (e, st) {
     logger.warning(
-      'OTA update stack failed to provision; /api/system/update/* '
-      'will be unavailable for this session',
+      'The update controller could not read its state; '
+      '/api/system/update/* will be unavailable for this session',
       source: logSource,
       fields: {'error': '$e', 'stack': '$st'},
     );
@@ -189,7 +181,6 @@ Future<RunningHostServer> startHostServer({
     await server.start();
   } catch (_) {
     await server.stop();
-    await updateStack?.dispose();
     rethrow;
   }
   logger.info(
@@ -199,11 +190,7 @@ Future<RunningHostServer> startHostServer({
   );
 
   // Registered in start order; the stop order is assembled below.
-  final stack = updateStack;
-  final serverStops = <HostStop>[
-    (name: 'API server', action: server.stop),
-    if (stack != null) (name: 'OTA update stack', action: stack.dispose),
-  ];
+  final serverStops = <HostStop>[(name: 'API server', action: server.stop)];
 
   // No authentication, and credentials sent in cleartext, are the two ways an
   // operator exposes a rig by accident.
@@ -377,19 +364,37 @@ Future<RunningHostServer> startHostServer({
     );
   }
 
-  if (stack != null) {
-    server.setUpdateController(stack.controller);
+  if (updateController != null) {
+    server.setUpdateController(updateController);
     logger.info(
       'OTA update endpoints wired to the remote access server',
       source: logSource,
       fields: {
-        'channel': stack.controller.channel,
-        'updateSource': stack.controller.updateSourceLabel,
+        'channel': updateController.channel,
+        'updateSource': updateController.updateSourceLabel,
       },
     );
+    // A build with an update source but no compiled-in
+    // SKOTIQ_UPDATE_PUBLIC_KEY looks live (checks succeed) until a download
+    // is attempted, where it fails closed. Say so, so it is not mistaken for
+    // working OTA.
+    if (!updateController.canAuthenticateUpdates) {
+      logger.warning(
+        'An OTA update source is configured but this build has no trusted '
+        'update public key (SKOTIQ_UPDATE_PUBLIC_KEY) compiled in. Update '
+        'checks will run, but downloads will be refused (fail-closed). '
+        'Provision the vendor public key at build time to enable signed OTA '
+        'updates.',
+        source: logSource,
+        fields: {
+          'update_source': updateController.updateSourceLabel,
+          'channel': updateController.channel,
+        },
+      );
+    }
   } else {
     logger.info(
-      'OTA update stack not provisioned; /api/system/update/* will be '
+      'No update controller; /api/system/update/* will be '
       'unavailable.',
       source: logSource,
     );
@@ -414,7 +419,6 @@ Future<RunningHostServer> startHostServer({
 
   return RunningHostServer._(
     server: server,
-    updateStack: updateStack,
     tls: tls,
     securityAdvisories: securityAdvisories,
     stopSteps: [

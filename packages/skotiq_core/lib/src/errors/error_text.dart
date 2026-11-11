@@ -172,6 +172,8 @@ final RegExp _stackStart = RegExp(
 
 String _clean(String text) {
   var out = text;
+  final database = _databaseFailure.firstMatch(out);
+  if (database != null) return 'database error: ${database.group(1)!.trim()}';
   final stack = _stackStart.firstMatch(out);
   if (stack != null) out = out.substring(0, stack.start);
   out = out.trim();
@@ -195,6 +197,14 @@ String _clean(String text) {
   }
   return out;
 }
+
+/// A failed database statement renders as the engine's exception class, its
+/// result code, the reason, and then the statement and its parameters. Only
+/// the reason is for the person: `SqliteException(1544): while executing
+/// statement, attempt to write a readonly database, …`.
+final RegExp _databaseFailure = RegExp(
+  r'SqliteException\(\d+\): (?:while [^,\n]+, )?([^,\n]+)',
+);
 
 /// [text] with a capital first letter and a full stop.
 String _sentence(String text) {

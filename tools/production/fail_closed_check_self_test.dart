@@ -21,7 +21,7 @@ Future<void> main() async {
       'docs/production-readiness/fail-closed-audit.json',
     );
     _expect(passing['passed'] == true, 'passing fixture should pass');
-    _expect(passing['ruleCount'] == 5, 'passing fixture should run all rules');
+    _expect(passing['ruleCount'] == 3, 'passing fixture should run all rules');
     _expect(
       passing['violationCount'] == 0,
       'passing fixture should have no fail-closed violations',
@@ -196,21 +196,6 @@ Future<void> _writeRequiredFiles(
   );
   await _writeFile(
     root,
-    'packages/skotiq_core/lib/src/backend/disconnected_backend.dart',
-    '''
-class DisconnectedBackend {
-  Future<void> focuserHalt(String id) async {
-    throw StateError('No connected focuser');
-  }
-
-  Future<void> autofocusCancel(String id) async {
-    throw StateError('No connected focuser');
-  }
-}
-''',
-  );
-  await _writeFile(
-    root,
     'packages/skotiq_core/lib/src/database/daos/targets_dao.dart',
     'class TargetsDao {}\n',
   );
@@ -234,20 +219,6 @@ rules:
     description: Disallow UnimplementedError in production backend paths
     glob: packages/skotiq_core/lib/src/backend/network_backend.dart
     forbidden_pattern: 'UnimplementedError\('
-    require_present: true
-
-  - id: bridge_stub_noop_log
-    description: Disallow sequencer checkpoint no-op stub logging
-    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
-    forbidden_pattern: 'sequencer.*no-op in stub mode'
-    case_sensitive: false
-    require_present: true
-
-  - id: focuser_halt_noop
-    description: Disconnected backend focuserHalt must not be a no-op
-    declares: DisconnectedBackend
-    forbidden_pattern: 'Future<void>\s+focuserHalt\s*\([^)]*\)\s*async\s*\{\s*\}'
-    multi_line: true
     require_present: true
 ''';
 

@@ -14,7 +14,7 @@ class TestBackendNotifier extends BackendNotifier {
 }
 
 final updateSafetyProbeProvider = FutureProvider<void>((ref) {
-  return defaultUpdateApplySafetyCheck(ref);
+  return defaultUpdateApplySafetyCheckWithReader(ref.read);
 });
 
 void main() {

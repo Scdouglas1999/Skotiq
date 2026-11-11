@@ -455,7 +455,7 @@ export 'src/services/centering_service.dart';
 export 'src/services/profile_service.dart';
 export 'src/services/sequence_repository.dart';
 export 'src/services/sequence_file_service.dart';
-export 'src/services/editor_draft_service.dart';
+export 'src/services/open_plan_service.dart';
 export 'src/services/snippet_file_service.dart';
 export 'src/services/sample_sequence_service.dart';
 export 'src/services/import/sequence_importer.dart';

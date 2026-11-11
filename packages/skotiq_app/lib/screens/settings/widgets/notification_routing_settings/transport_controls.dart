@@ -467,7 +467,9 @@ class _TestSendButtonState extends ConsumerState<_TestSendButton> {
       content: Text(
         res.success
             ? 'Test sent via ${widget.kind.label}'
-            : 'Failed: ${res.error}',
+            : res.skipped
+                ? 'Not sent: ${res.error}'
+                : 'Failed: ${res.error}',
       ),
     ));
   }

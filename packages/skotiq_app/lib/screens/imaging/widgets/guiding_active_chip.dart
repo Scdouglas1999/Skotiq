@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../utils/guide_distance.dart';
+
 /// Compact, honest "guiding active" indicator for the live-preview overlay.
 ///
 /// A literal "registered guide box" overlay is not derivable from the data
@@ -22,13 +24,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// disconnected guider — collapses the chip to [SizedBox.shrink]. We never
 /// render a stale "Guiding" pill while the rig is idle.
 ///
-/// RMS units are reported honestly as **arcseconds**. [Phd2GuideStats.rmsTotal]
-/// as produced by [GuideStatsNotifier] is the rolling RMS of PHD2's
-/// `RADistanceRaw`/`DECDistanceRaw` (and its `AvgDist` fallback), which PHD2
-/// reports in arcseconds once the guider is calibrated — see the field docs on
-/// [Phd2GuideStats.rmsTotal] ("Total RMS error (arcseconds)"). The value is
-/// labeled `"`; there is no pixel domain to reconcile and no scale conversion
-/// to apply.
+/// The RMS is [Phd2GuideStats.rmsTotal], which is in guide-camera pixels. It
+/// is shown through [guideDistanceText]: in arcseconds when the guider has
+/// reported the guide camera's scale, in pixels and labeled `px` otherwise.
 ///
 /// The host widget positions this chip at the bottom-left of the preview.
 class GuidingActiveChip extends ConsumerWidget {
@@ -51,6 +49,7 @@ class GuidingActiveChip extends ConsumerWidget {
 
     final colors = SkotiqColors.of(context);
     final stats = ref.watch(guideStatsProvider);
+    final scale = ref.watch(guideScaleProvider);
 
     final lostLock = phd2State == Phd2State.lostLock;
     final settling = phd2State == Phd2State.settling;
@@ -77,7 +76,8 @@ class GuidingActiveChip extends ConsumerWidget {
     final tooltip = SkotiqTooltip(
       message: lostLock
           ? 'PHD2 lost the guide star — guiding paused'
-          : 'PHD2 guiding active — total RMS shown in arcseconds',
+          : 'PHD2 guiding active — total RMS shown in '
+              '${scale == null ? 'guide-camera pixels' : 'arcseconds'}',
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: colors.surface.withValues(alpha: SkotiqTokens.opacityStrong),
@@ -100,7 +100,7 @@ class GuidingActiveChip extends ConsumerWidget {
                     .copyWith(color: colors.textPrimary),
               ),
               // RMS / SNR only mean something while we hold the star.
-              if (!lostLock) ..._telemetry(stats, colors),
+              if (!lostLock) ..._telemetry(stats, scale, colors),
             ],
           ),
         ),
@@ -112,14 +112,21 @@ class GuidingActiveChip extends ConsumerWidget {
 
   /// Trailing RMS (and SNR when present) telemetry, in tabular mono so the
   /// digits don't jitter the pill width as values tick.
-  List<Widget> _telemetry(Phd2GuideStats stats, SkotiqColors colors) {
+  List<Widget> _telemetry(
+    Phd2GuideStats stats,
+    double? scale,
+    SkotiqColors colors,
+  ) {
     final monoStyle = SkotiqTypography.withTabular(
       SkotiqTypography.monoSm,
     ).copyWith(color: colors.textSecondary);
 
     final widgets = <Widget>[
       const SizedBox(width: SkotiqTokens.spaceSm),
-      Text('RMS ${stats.rmsTotal.toStringAsFixed(2)}"', style: monoStyle),
+      Text(
+        'RMS ${guideDistanceText(stats.rmsTotal, scale)}',
+        style: monoStyle,
+      ),
     ];
 
     // SNR is optional context; PHD2 reports 0.0 as its "no sample yet"

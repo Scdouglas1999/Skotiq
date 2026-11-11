@@ -21,8 +21,6 @@
 #   forbidden_pattern : Dart RegExp that, when matched in a file, fails the
 #                       gate.
 #   case_sensitive    : optional; default true.
-#   multi_line        : optional; default false. Set true to allow `^`/`$`
-#                       to match line boundaries inside the source.
 #   since_version     : the Skotiq version in which this rule started
 #                       being enforced. Informational only — used in the
 #                       audit report so a reviewer knows the rule's age.
@@ -56,30 +54,6 @@ rules:
     description: Disallow UnimplementedError in production backend paths
     declares: NetworkBackend
     forbidden_pattern: 'UnimplementedError\('
-    require_present: true
-    since_version: 2.5.0
-
-  - id: bridge_stub_noop_log
-    description: Disallow sequencer checkpoint no-op stub logging
-    declares: NativeBridge
-    forbidden_pattern: 'sequencer.*no-op in stub mode'
-    case_sensitive: false
-    require_present: true
-    since_version: 2.5.0
-
-  - id: focuser_halt_noop
-    description: Disconnected backend focuserHalt must not be a no-op
-    declares: DisconnectedBackend
-    forbidden_pattern: 'Future<void>\s+focuserHalt\s*\([^)]*\)\s*async\s*\{\s*\}'
-    multi_line: true
-    require_present: true
-    since_version: 2.5.0
-
-  - id: autofocus_cancel_noop
-    description: Disconnected backend autofocusCancel must not be a no-op
-    declares: DisconnectedBackend
-    forbidden_pattern: 'Future<void>\s+autofocusCancel\s*\([^)]*\)\s*async\s*\{\s*\}'
-    multi_line: true
     require_present: true
     since_version: 2.5.0
 

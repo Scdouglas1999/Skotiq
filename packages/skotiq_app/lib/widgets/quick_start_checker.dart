@@ -270,6 +270,14 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
       // The prompt waited its turn behind other startup prompts; a run that
       // started meanwhile means there is no past run to act on.
       if (!ref.read(sequenceExecutionStateProvider).canStart) return null;
+      if (_queue.alreadyAnswered(surface)) {
+        ref.read(loggingServiceProvider).info(
+              'Not raising ${surface.name}: an earlier startup prompt already '
+              'settled the interrupted run',
+              source: 'QuickStart',
+            );
+        return null;
+      }
 
       BuildContext? dialogContext;
       final subscription = ref.listenManual<SkotiqBackend>(

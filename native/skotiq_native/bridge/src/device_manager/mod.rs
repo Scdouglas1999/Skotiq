@@ -815,20 +815,24 @@ impl DeviceManager {
     // device_supports_version, device_supports_action) moved to
     // `crate::device_manager::api_version`.
 
-    /// Get all managed devices
+    /// Get all managed devices, in [`listing_order`].
     pub async fn get_all_devices(&self) -> Vec<ManagedDevice> {
         let devices = self.devices.read().await;
-        devices.values().cloned().collect()
+        let mut all: Vec<ManagedDevice> = devices.values().cloned().collect();
+        all.sort_by(|a, b| listing_order(&a.info, &b.info));
+        all
     }
 
-    /// Get devices by type
+    /// Get devices by type, in [`listing_order`].
     pub async fn get_devices_by_type(&self, device_type: DeviceType) -> Vec<ManagedDevice> {
         let devices = self.devices.read().await;
-        devices
+        let mut of_type: Vec<ManagedDevice> = devices
             .values()
             .filter(|d| d.info.device_type == device_type)
             .cloned()
-            .collect()
+            .collect();
+        of_type.sort_by(|a, b| listing_order(&a.info, &b.info));
+        of_type
     }
 
     /// Get a specific device
@@ -865,26 +869,31 @@ impl DeviceManager {
             .unwrap_or(false)
     }
 
-    /// First connected device id for a type (live `DeviceManager` registry).
+    /// The connected device of a type that comes first in [`listing_order`]
+    /// (live `DeviceManager` registry).
     pub async fn first_connected_device_id(&self, device_type: DeviceType) -> Option<String> {
         let devices = self.devices.read().await;
         devices
             .values()
-            .find(|d| {
+            .filter(|d| {
                 d.info.device_type == device_type
                     && d.connection_state == ConnectionState::Connected
             })
             .map(|d| d.info.id.clone())
+            .min()
     }
 
-    /// Connected devices for FFI / Dart (`api_get_connected_devices` source of truth).
+    /// Connected devices for FFI / Dart (`api_get_connected_devices` source of
+    /// truth), in [`listing_order`].
     pub async fn get_connected_device_infos(&self) -> Vec<DeviceInfo> {
         let devices = self.devices.read().await;
-        devices
+        let mut connected: Vec<DeviceInfo> = devices
             .values()
             .filter(|d| d.connection_state == ConnectionState::Connected)
             .map(|d| d.info.clone())
-            .collect()
+            .collect();
+        connected.sort_by(listing_order);
+        connected
     }
 
     /// Clone the shared Alpaca HTTP client for a connected device, if present.
@@ -952,6 +961,19 @@ impl DeviceManager {
         };
         Some(Arc::new(AlpacaClient::new(&device)))
     }
+}
+
+/// The order devices are listed in: by kind, in [`DeviceType`] declaration
+/// order, then by id.
+///
+/// The registry is a hash map, so its own iteration order differs from one
+/// process to the next. Without this the same rig lists its devices in a
+/// different order after every restart, and "the first connected camera" is
+/// whichever of two the hasher happened to put first.
+fn listing_order(a: &DeviceInfo, b: &DeviceInfo) -> std::cmp::Ordering {
+    (a.device_type as u8)
+        .cmp(&(b.device_type as u8))
+        .then_with(|| a.id.cmp(&b.id))
 }
 
 #[cfg(test)]

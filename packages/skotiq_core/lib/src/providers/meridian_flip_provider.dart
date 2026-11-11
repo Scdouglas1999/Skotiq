@@ -38,6 +38,34 @@ const _kMeridianFlipSettingsKey = 'meridian_flip_settings';
 final globalMeridianFlipSettingsLoadStateProvider =
     StateProvider<AsyncValue<void>>((ref) => const AsyncLoading());
 
+/// What to write for [settings], given the row as it is [stored].
+///
+/// A field goes in when the row already carries it or when its value is not
+/// the default. A field the operator never set therefore stays out, and keeps
+/// following the default: writing back what was read leaves the row as it
+/// was, and a row from before a field existed does not pick up that field's
+/// default of the day.
+Map<String, dynamic> _documentToStore(
+  MeridianFlipSettings settings, {
+  required String? stored,
+}) {
+  Map<String, dynamic> row = const {};
+  if (stored != null && stored.isNotEmpty) {
+    try {
+      row = jsonDecode(stored) as Map<String, dynamic>;
+    } on Object {
+      // An unreadable row is replaced by what differs from the defaults.
+    }
+  }
+  final defaults = const MeridianFlipSettings().toJson();
+  return {
+    for (final field in settings.toJson().entries)
+      if (row.containsKey(field.key) ||
+          jsonEncode(field.value) != jsonEncode(defaults[field.key]))
+        field.key: field.value,
+  };
+}
+
 /// Provider for global meridian flip settings
 final globalMeridianFlipSettingsProvider =
     StateNotifierProvider<
@@ -185,7 +213,14 @@ class GlobalMeridianFlipSettingsNotifier
           // existing key instead of failing with UNIQUE(app_settings.key).
           await db.settingsDao.setSetting(
             _kMeridianFlipSettingsKey,
-            jsonEncode(settings.toJson()),
+            jsonEncode(
+              _documentToStore(
+                settings,
+                stored: await db.settingsDao.getSetting(
+                  _kMeridianFlipSettingsKey,
+                ),
+              ),
+            ),
           );
         }
         if (!mounted) return;

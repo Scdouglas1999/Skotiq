@@ -225,29 +225,29 @@ class _AppShellState extends ConsumerState<AppShell> {
     return _checkpointCheck ??= _performCheckpointCheck().whenComplete(() {
       _startupQueue.pass(StartupSurface.checkpointRecovery);
     }).then((outcome) async {
-      if (outcome == AppStartupCheckpointOutcome.noRecovery) {
-        await _restoreEditorDraft();
-      }
+      // After the checkpoint prompt: a run it restored has loaded its own
+      // plan, and the open plan only fills an empty editor.
+      await _restoreOpenPlan();
       return outcome;
     });
   }
 
-  /// Put back the plan the Builder held, unsaved, when Skotiq last stopped
-  /// (a crash or a killed process), and say so.
-  Future<void> _restoreEditorDraft() async {
+  /// Put back the plan that was open in the editor when Skotiq last stopped,
+  /// and say so when it carries edits that were never saved.
+  Future<void> _restoreOpenPlan() async {
     if (!mounted) return;
     // The container outlives this shell; the restore can finish after it.
     final container = ProviderScope.containerOf(context, listen: false);
     try {
-      final restored = await restoreEditorDraft(container.read);
-      if (restored == null || !mounted) return;
+      final restored = await restoreOpenPlan(container.read);
+      if (restored == null || !restored.unsaved || !mounted) return;
       context.showInfoSnackBar(
-        'Restored "${restored.name}", the plan you were editing when Skotiq '
-        'last closed. It is not saved yet.',
+        'Restored "${restored.sequence.name}", the plan you were editing '
+        'when Skotiq last closed. It is not saved yet.',
       );
     } catch (e) {
       container.read(loggingServiceProvider).warning(
-            'Could not restore the unsaved plan: $e',
+            'Could not restore the open plan: $e',
             source: 'AppShell',
           );
     }
@@ -305,8 +305,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return AppStartupCheckpointOutcome.failed;
 
       return _startupQueue.turn(
-            StartupSurface.checkpointRecovery,
-            () => runAppCheckpointRecovery(
+        StartupSurface.checkpointRecovery,
+        () => _answeringCheckpointPrompt(() => runAppCheckpointRecovery(
               choose: (lastFailure) async {
                 if (!mounted) return null;
                 // A linked client asks again when the prompt's turn comes:
@@ -316,6 +316,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   return AppCheckpointRecoveryChoice.later;
                 }
                 if (!mounted) return null;
+                final remoteHost = backend.remoteHost?.link.serverHost;
                 BuildContext? dialogContext;
                 // The prompt describes the checkpoint at the moment it
                 // opened. Once a run starts (on a linked client: on the host)
@@ -343,8 +344,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         context: routeContext,
                         info: info,
                         failure: lastFailure,
-                        remoteHost:
-                            backend.remoteHost?.link.serverHost,
+                        remoteHost: remoteHost,
                       );
                     },
                   );
@@ -361,8 +361,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               resume: () =>
                   ref.read(sequenceExecutorProvider).restoreFromCheckpoint(),
               discard: backend.discardCheckpoint,
-            ),
-          );
+            )),
+      );
     } catch (e) {
       ref.read(loggingServiceProvider).error(
           '[AppShell] Error checking checkpoint: $e',
@@ -370,6 +370,20 @@ class _AppShellState extends ConsumerState<AppShell> {
           fields: {'error': e.toString()});
       return AppStartupCheckpointOutcome.failed;
     }
+  }
+
+  /// Runs the checkpoint prompt and tells the start-up queue when the
+  /// operator settled the interrupted run in it, so Quick Start does not ask
+  /// about the same run again.
+  Future<AppStartupCheckpointOutcome> _answeringCheckpointPrompt(
+    Future<AppStartupCheckpointOutcome> Function() prompt,
+  ) async {
+    final outcome = await prompt();
+    if (outcome == AppStartupCheckpointOutcome.resumed ||
+        outcome == AppStartupCheckpointOutcome.discarded) {
+      _startupQueue.answered(StartupSurface.checkpointRecovery);
+    }
+    return outcome;
   }
 
   String _getCurrentLocation(BuildContext context) {

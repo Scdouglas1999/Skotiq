@@ -15,6 +15,7 @@ import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
 import 'package:skotiq_astro/skotiq_astro.dart' show Star;
 
 import '../../harness/mock_database.dart';
+import '../../harness/temporary_data_directory.dart';
 
 /// A [ColorCalibrationService] whose [calibrate] is scriptable: it records the
 /// call and returns a configurable result, so the controller's
@@ -188,6 +189,8 @@ void main() {
   // rendered without touching the native bridge.
   late List<({String inputFits, String outputPng})> renderCalls;
 
+  final dataDir = useTemporaryDataDirectory();
+
   setUp(() async {
     db = mockDatabase();
     fakeSeam = _FakeSeam();
@@ -292,6 +295,32 @@ void main() {
     expect(masters.first.frameCount, 2);
     expect(state().lastOutcome, isNotNull);
     expect(state().masters, hasLength(1));
+  });
+
+  test('with no image folder chosen, the master goes where unattended '
+      "builds go, not to wherever the app was started from", () async {
+    final c = controller();
+    await waitUntilLoaded();
+    await c.integrate();
+
+    final master =
+        (await container.read(integratedMastersDaoProvider).getAll()).single;
+    final masters = '${dataDir().path}/documents/Skotiq/Masters';
+    expect(master.masterFitsPath, startsWith(masters));
+    expect(master.masterFitsPath, isNot(startsWith('.')));
+  });
+
+  test('with an image folder chosen, the master goes under it', () async {
+    await container
+        .read(settingsDaoProvider)
+        .setImageOutputDirectory('/data/astro');
+    final c = controller();
+    await waitUntilLoaded();
+    await c.integrate();
+
+    final master =
+        (await container.read(integratedMastersDaoProvider).getAll()).single;
+    expect(master.masterFitsPath, startsWith('/data/astro/masters'));
   });
 
   // Workbench finishing actions (post-steps on the current master)

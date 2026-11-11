@@ -243,11 +243,11 @@ final List<AlwaysOnService> alwaysOnServices = [
     'the observatory published as Home Assistant entities (off until enabled)',
   ),
   AlwaysOnService(
-    'unsaved plan draft',
-    editorDraftLifecycleProvider,
-    // The Builder is a window; a daemon edits nothing.
-    {AppRole.hostGui},
-    'the plan being edited surviving a crash',
+    'open plan kept',
+    openPlanLifecycleProvider,
+    // A daemon's plan is the one its clients opened on it.
+    _hosts,
+    'the plan open in the editor coming back after a restart',
   ),
 
   // Host and client kept in step.

@@ -74,6 +74,7 @@ class _GuidingGuider extends GuiderStateNotifier {
     setConnected();
     setGuiding(true);
     updateRms(0.31, 0.27, 0.42);
+    setPixelScale(1.34);
   }
 }
 
@@ -92,7 +93,6 @@ class _Stats extends GuideStatsNotifier {
       rmsDec: 0.27,
       rmsTotal: 0.42,
       snr: 42.6,
-      pixelScale: 1.34,
     );
   }
 }

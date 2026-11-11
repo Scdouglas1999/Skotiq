@@ -1,8 +1,9 @@
 // USB / device disconnect log.
 //
-// Captures every device disconnect (or transient device-error severity
-// event) emitted on the backend event stream with a wall-clock timestamp,
-// then prunes anything older than 24 hours. The pre-flight USB-stability
+// Captures every device the app lost (a device error of warning severity or
+// higher on the backend event stream; a disconnect the operator asked for is
+// not one) with a wall-clock timestamp, then prunes anything older than 24
+// hours. The pre-flight USB-stability
 // rule and the post-session diagnostics summary read from this log to
 // answer "did this device flake out recently?".
 //
@@ -31,9 +32,8 @@
 /// A single recorded disconnect / device-error event.
 ///
 /// `reason` is optional because not every backend event carries a
-/// human-readable explanation (e.g. an INDI driver crash surfaces as a
-/// bare `Disconnected` with no message). The post-session summary still
-/// counts these — the absence of a reason is itself useful information.
+/// human-readable explanation. The post-session summary still counts
+/// these — the absence of a reason is itself useful information.
 class UsbDisconnectEntry {
   final String deviceId;
   final String? deviceType;

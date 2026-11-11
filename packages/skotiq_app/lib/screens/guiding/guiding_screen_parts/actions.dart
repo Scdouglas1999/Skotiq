@@ -2,14 +2,6 @@
 part of '../guiding_screen.dart';
 
 mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
-  /// PHD2 reports guide residuals in pixels (RADistanceRaw/AvgDist). When a
-  /// pixel scale (arcsec/px) is known we present arcseconds; otherwise we show
-  /// the raw pixel value labelled "px" rather than mislabelling it as arcsec.
-  ({double value, String unit}) _rmsReadout(double raw, double pixelScale) {
-    if (pixelScale > 0) return (value: raw * pixelScale, unit: '"');
-    return (value: raw, unit: ' px');
-  }
-
   Color _getSnrColor(double snr, SkotiqColors colors) {
     // A real star measurement is strictly positive. Zero means "no star has
     // been measured", which is not an alarm — painting it error-red made an
@@ -19,16 +11,6 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     if (snr >= 5) return colors.warning;
     return colors.error;
   }
-
-  /// Per-frame guide error, converted for display the same way the RMS
-  /// readouts are. The guider reports residuals in guide-camera pixels while
-  /// the graph and bullseye axes are arcseconds, so at a typical 2-4"/px guide
-  /// scale the raw pixels understate the real error several-fold.
-  double _errorForDisplay(double px, double pixelScale) =>
-      pixelScale > 0 ? px * pixelScale : px;
-
-  /// Unit suffix matching [_errorForDisplay].
-  String _errorUnit(double pixelScale) => pixelScale > 0 ? '"' : ' px';
 
   /// Copy for the guide-star preview while [starImageProvider] holds no image.
   ///

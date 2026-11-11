@@ -45,6 +45,21 @@ class _MotionIndicatorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
+    // The disc goes down first: it is there to lift the arrow off the radar
+    // colors, and drawn after the arrow it veiled it instead.
+    final backgroundPaint = Paint()
+      ..color = colors.surface.withValues(alpha: 0.6)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, size.width * 0.35, backgroundPaint);
+
+    final ringPaint = Paint()
+      ..color = colors.info.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    canvas.drawCircle(center, size.width * 0.35, ringPaint);
+
     // Subtract 90 to align 0 degrees with North (up) instead of East (right)
     final angleRadians = (directionDegrees - 90) * math.pi / 180;
 
@@ -100,19 +115,6 @@ class _MotionIndicatorPainter extends CustomPainter {
 
     canvas.restore();
 
-    // Draw circular background for better visibility
-    final backgroundPaint = Paint()
-      ..color = colors.surface.withValues(alpha: 0.6)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(center, size.width * 0.35, backgroundPaint);
-
-    final ringPaint = Paint()
-      ..color = colors.info.withValues(alpha: 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    canvas.drawCircle(center, size.width * 0.35, ringPaint);
   }
 
   @override

@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+
+import 'recovered_database.dart';
 
 /// A `sequence_runs` row is only `running` while the owning process's executor
 /// is driving it, and that state lives in memory. So a row still marked
@@ -31,7 +32,7 @@ void main() {
     'a run left running by a dead process is reconciled on next open',
     () async {
       // First process: start a run and die without ever finishing it.
-      final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final first = RecoveredDatabase(NativeDatabase(dbFile));
       final runId = await first.sequenceRunsDao.startRun(
         sequenceId: null,
         sequenceName: 'interrupted by power cut',
@@ -45,7 +46,7 @@ void main() {
       await first.close();
 
       // Second process opens the same file.
-      final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final second = RecoveredDatabase(NativeDatabase(dbFile));
       addTearDown(second.close);
       final afterRestart = await (second.select(
         second.sequenceRuns,
@@ -65,7 +66,7 @@ void main() {
   test(
     'runs that already reached a terminal state are left untouched',
     () async {
-      final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final first = RecoveredDatabase(NativeDatabase(dbFile));
       final completedId = await first.sequenceRunsDao.startRun(
         sequenceId: null,
         sequenceName: 'finished cleanly',
@@ -78,7 +79,7 @@ void main() {
       await first.sequenceRunsDao.finishRun(failedId, 'failed', '{}');
       await first.close();
 
-      final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final second = RecoveredDatabase(NativeDatabase(dbFile));
       addTearDown(second.close);
       final rows = await second.select(second.sequenceRuns).get();
       final byId = {for (final r in rows) r.id: r};
@@ -89,7 +90,7 @@ void main() {
   );
 
   test('every stale running row is reconciled, not just the newest', () async {
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final ids = <int>[];
     for (var i = 0; i < 3; i++) {
       ids.add(
@@ -101,7 +102,7 @@ void main() {
     }
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final rows = await second.select(second.sequenceRuns).get();
 

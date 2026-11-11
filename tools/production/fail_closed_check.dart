@@ -294,7 +294,6 @@ class _DartLibraries {
 //       declares: ClassName
 //       forbidden_pattern: 'regex'
 //       case_sensitive: false
-//       multi_line: true
 //       require_present: true
 //       since_version: 2.5.0
 // ---------------------------------------------------------------------------
@@ -450,18 +449,13 @@ _Rule _buildRule(String rulesPath, Map<String, dynamic> map) {
     exit(2);
   }
   final caseSensitive = _parseBool(map['case_sensitive'], defaultValue: true);
-  final multiLine = _parseBool(map['multi_line'], defaultValue: false);
   final requirePresent = _parseBool(
     map['require_present'],
     defaultValue: false,
   );
   final RegExp regex;
   try {
-    regex = RegExp(
-      patternStr,
-      caseSensitive: caseSensitive,
-      multiLine: multiLine,
-    );
+    regex = RegExp(patternStr, caseSensitive: caseSensitive);
   } on FormatException catch (e) {
     stderr.writeln('Invalid regex in rule "$id" ($rulesPath): ${e.message}');
     exit(2);

@@ -16,6 +16,7 @@ import '../../widgets/tutorial_keys/guiding_keys.dart';
 import 'widgets/brain_settings_panel.dart';
 import 'widgets/guide_graph_advanced.dart';
 import 'widgets/guide_star_view.dart';
+import '../../utils/guide_distance.dart';
 
 part 'guiding_screen_parts/state_fields.dart';
 part 'guiding_screen_parts/desktop_sections.dart';

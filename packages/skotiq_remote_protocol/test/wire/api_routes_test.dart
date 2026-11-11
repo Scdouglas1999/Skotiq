@@ -52,6 +52,29 @@ void main() {
       expect(advertisedApiEndpoints, isNot(contains('GET /pair')));
     });
 
+    test('the endpoint list is in one fixed order: by path, then method', () {
+      final sorted = [...advertisedApiEndpoints]
+        ..sort((a, b) {
+          final pathA = a.substring(a.indexOf(' ') + 1);
+          final pathB = b.substring(b.indexOf(' ') + 1);
+          final byPath = pathA.compareTo(pathB);
+          return byPath != 0 ? byPath : a.compareTo(b);
+        });
+      expect(advertisedApiEndpoints, sorted);
+      expect(
+        advertisedApiEndpoints.toSet().length,
+        advertisedApiEndpoints.length,
+      );
+      // Not the order requests are matched in, which moves with the groups.
+      final matchOrder = [
+        for (final endpoint in apiEndpoints)
+          if (advertisedApiEndpoints.contains(endpoint.route.signature))
+            endpoint.route.signature,
+      ];
+      expect(matchOrder.toSet(), advertisedApiEndpoints.toSet());
+      expect(matchOrder, isNot(advertisedApiEndpoints));
+    });
+
     test('a public page root stands for the pages under it', () {
       expect(publicApiPaths, [
         '/',

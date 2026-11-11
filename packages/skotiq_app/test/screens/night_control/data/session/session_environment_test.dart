@@ -9,6 +9,7 @@ import 'package:skotiq_app/screens/night_control/data/session/session_events_pro
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     hide EquipmentStatus;
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
@@ -275,7 +276,7 @@ void main() {
     });
 
     test('a zero or missing scale is unknown: pixels', () {
-      expect(nightGuideDistance(0.5, null), '0.50 px');
+      expect(guideDistanceText(0.5, null), '0.50 px');
       final h = ProviderContainer(overrides: [
         guiderStateProvider.overrideWith(
           (ref) => FixedGuider(
@@ -285,7 +286,7 @@ void main() {
         ),
       ]);
       addTearDown(h.dispose);
-      expect(h.read(nightGuideScaleProvider), isNull);
+      expect(h.read(guideScaleProvider), isNull);
     });
 
     test('dither marks land on the guiding chart', () async {

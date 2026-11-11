@@ -138,6 +138,8 @@ mixin _GuidingDesktopSections
   ) {
     final errorHistory = ref.watch(targetDisplayHistoryProvider);
     final currentError = errorHistory.isNotEmpty ? errorHistory.last : null;
+    final scale = ref.watch(guideScaleProvider);
+    double shown(double px) => guideDistance(px, scale).value;
 
     return SkotiqPanel(
       head: const PanelHead(
@@ -153,8 +155,8 @@ mixin _GuidingDesktopSections
             errorHistory: errorHistory
                 .map(
                   (e) => GuideErrorPoint(
-                    raError: _errorForDisplay(e.raError, stats.pixelScale),
-                    decError: _errorForDisplay(e.decError, stats.pixelScale),
+                    raError: shown(e.raError),
+                    decError: shown(e.decError),
                     timestamp: e.timestamp,
                   ),
                 )
@@ -163,12 +165,10 @@ mixin _GuidingDesktopSections
             // bullseye while the guider was stopped with nothing measured,
             // which reads as perfect guiding rather than as no reading.
             showCurrentError: currentError != null,
-            currentRaError:
-                _errorForDisplay(currentError?.raError ?? 0, stats.pixelScale),
-            currentDecError:
-                _errorForDisplay(currentError?.decError ?? 0, stats.pixelScale),
+            currentRaError: shown(currentError?.raError ?? 0),
+            currentDecError: shown(currentError?.decError ?? 0),
             scaleArcsec: _yScale.arcsec / 2,
-            unitSuffix: _errorUnit(stats.pixelScale),
+            unitSuffix: guideDistance(0, scale).unit,
             numRings: 3,
           ),
         ),
@@ -247,6 +247,8 @@ mixin _GuidingDesktopSections
   }) {
     final graphData = ref.watch(guideGraphProvider);
     final hasRmsSamples = stats.frameCount > 0;
+    final scale = ref.watch(guideScaleProvider);
+    double shown(double px) => guideDistance(px, scale).value;
 
     final Widget graph = GuideGraphAdvanced(
       key: GuidingTutorialKeys.graph,
@@ -254,27 +256,21 @@ mixin _GuidingDesktopSections
           .map(
             (p) => GuideDataPoint(
               timestamp: p.time,
-              raError: _errorForDisplay(p.ra, stats.pixelScale),
-              decError: _errorForDisplay(p.dec, stats.pixelScale),
+              raError: shown(p.ra),
+              decError: shown(p.dec),
             ),
           )
           .toList(),
-      valueUnit: _errorUnit(stats.pixelScale),
+      valueUnit: guideDistance(0, scale).unit,
       timeScale: _timeScale,
       yScale: _yScale,
       // Values are converted here (and nulled out when nothing has been
       // measured) so the graph's own stats row cannot label raw pixels as
       // arcseconds or print a fabricated 0.00.
-      rmsRa: hasRmsSamples
-          ? _rmsReadout(stats.rmsRa, stats.pixelScale).value
-          : null,
-      rmsDec: hasRmsSamples
-          ? _rmsReadout(stats.rmsDec, stats.pixelScale).value
-          : null,
-      rmsTotal: hasRmsSamples
-          ? _rmsReadout(stats.rmsTotal, stats.pixelScale).value
-          : null,
-      rmsUnit: _rmsReadout(0, stats.pixelScale).unit,
+      rmsRa: hasRmsSamples ? shown(stats.rmsRa) : null,
+      rmsDec: hasRmsSamples ? shown(stats.rmsDec) : null,
+      rmsTotal: hasRmsSamples ? shown(stats.rmsTotal) : null,
+      rmsUnit: guideDistance(0, scale).unit,
       onTimeScaleChanged: (scale) => setState(() => _timeScale = scale),
       onYScaleChanged: (scale) => setState(() => _yScale = scale),
     );

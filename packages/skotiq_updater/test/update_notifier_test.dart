@@ -33,6 +33,10 @@ void main() {
       () => updateService.writeSkippedVersion(any()),
     ).thenAnswer((_) async {});
     when(() => updateService.dispose()).thenReturn(null);
+    when(() => updateService.hasUpdateSource).thenReturn(true);
+    when(
+      () => updateService.readStagedManifest(),
+    ).thenAnswer((_) async => null);
   });
 
   UpdateManifest manifest() => UpdateManifest(
@@ -47,9 +51,25 @@ void main() {
     downloadUrl: 'https://example.invalid/skotiq.zip',
   );
 
+  /// An update a LAN push or an earlier run left staged.
+  void stageAnUpdate() {
+    when(() => updateService.getStagedUpdate()).thenAnswer(
+      (_) async => StagedUpdate(
+        version: manifest().version,
+        buildNumber: manifest().buildNumber,
+        stagedAt: DateTime.utc(2026, 5, 25),
+        extractPath: r'C:\staged',
+      ),
+    );
+    when(
+      () => updateService.readStagedManifest(),
+    ).thenAnswer((_) async => manifest());
+  }
+
   Future<UpdateNotifier> stagedNotifier({
     required UpdateApplySafetyCheck safetyCheck,
   }) async {
+    stageAnUpdate();
     final notifier = UpdateNotifier(
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
@@ -58,8 +78,8 @@ void main() {
       applySafetyCheck: safetyCheck,
     );
 
-    await Future<void>.delayed(Duration.zero);
-    notifier.setStagedFromLanPush(manifest(), r'C:\staged');
+    await notifier.checkStagedUpdate();
+    expect(notifier.state.status, UpdateStatus.staged);
     return notifier;
   }
 
@@ -80,19 +100,19 @@ void main() {
   });
 
   test('applyUpdate refuses when no safety check is wired', () async {
+    stageAnUpdate();
     final notifier = UpdateNotifier(
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
       dataDirectory: () async => dataDir,
       updateService: updateService,
     );
-    await Future<void>.delayed(Duration.zero);
-    notifier.setStagedFromLanPush(manifest(), r'C:\staged');
+    await notifier.checkStagedUpdate();
 
     await notifier.applyUpdate();
 
     expect(notifier.state.status, UpdateStatus.error);
-    expect(notifier.state.errorMessage, contains('no safety check'));
+    expect(notifier.state.errorMessage, contains('no host safety check'));
     verifyNever(() => updateService.applyUpdate());
 
     notifier.dispose();
@@ -136,7 +156,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
     );
     addTearDown(() async {
       await controller.dispose();
@@ -169,7 +189,7 @@ void main() {
         service: updateService,
         currentVersion: '2.0.0',
         currentBuildNumber: 41,
-        stateDirectory: tempDir,
+        stateDirectory: () async => tempDir,
         applySafetyCheck: () async {
           throw UpdateException('camera is exposing');
         },
@@ -219,7 +239,7 @@ void main() {
         service: updateService,
         currentVersion: '2.0.0',
         currentBuildNumber: 41,
-        stateDirectory: tempDir,
+        stateDirectory: () async => tempDir,
         // This test is about the handoff, so the host gate is explicitly
         // permissive; without one the controller refuses every apply.
         applySafetyCheck: () async {},
@@ -262,7 +282,7 @@ void main() {
         service: updateService,
         currentVersion: '2.1.0',
         currentBuildNumber: 42,
-        stateDirectory: tempDir,
+        stateDirectory: () async => tempDir,
         now: () => verifiedAt,
       );
       addTearDown(() async {
@@ -301,7 +321,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
     );
     addTearDown(() async {
       await controller.dispose();
@@ -333,7 +353,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
       serverUrl: 'https://updates.example.invalid',
     );
     addTearDown(() async {
@@ -367,7 +387,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
       serverUrl: 'https://updates.example.invalid',
     );
     addTearDown(() async {
@@ -395,7 +415,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
       channel: 'stable',
       serverUrl: 'https://updates.example.invalid',
     );
@@ -432,7 +452,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
       serverUrl: 'https://updates.example.invalid',
     );
     addTearDown(() async {
@@ -476,7 +496,7 @@ void main() {
       service: updateService,
       currentVersion: '2.0.0',
       currentBuildNumber: 41,
-      stateDirectory: tempDir,
+      stateDirectory: () async => tempDir,
       serverUrl: 'https://updates.example.invalid',
     );
     addTearDown(() async {

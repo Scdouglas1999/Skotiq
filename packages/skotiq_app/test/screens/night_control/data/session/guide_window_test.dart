@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import 'session_test_support.dart';
@@ -108,7 +109,7 @@ void main() {
         nightGuideSamplesProvider.overrideWith(
           (ref) => _Samples(ref, <NightGuideSample>[...quiet, ...rough]),
         ),
-        nightGuideScaleProvider.overrideWithValue(null),
+        guideScaleProvider.overrideWithValue(null),
       ]);
       final container = h.container;
 

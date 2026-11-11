@@ -38,6 +38,7 @@ import 'widgets/target_queue_panel.dart';
 import 'tabs/history_tab.dart';
 import 'tabs/sequence_library_tab.dart';
 import 'tabs/templates_tab.dart';
+import '../../utils/guide_distance.dart';
 
 part 'sequencer_screen_parts/tab_bar.dart';
 part 'sequencer_screen_parts/builder_layout.dart';

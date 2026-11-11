@@ -49,8 +49,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   String _bannerVersion = '';
   String? _errorMessage;
   int _bannerGeneration = 0;
-  late final Stream<LanPushEvent> _lanPushStream;
-  StreamSubscription<LanPushEvent>? _lanPushSubscription;
+  StreamSubscription<String>? _lanPushFailures;
   static const _disabledUpdatesLog =
       '[UpdateManager] No update source configured, skipping update checks';
 
@@ -68,9 +67,18 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     // Check for updates on startup after a short delay
     Future.delayed(const Duration(seconds: 3), _checkForUpdates);
 
-    // Listen to LAN push events
-    _lanPushStream = LanPushNotifier.stream;
-    _lanPushSubscription = _lanPushStream.listen(_onLanPushEvent);
+    _lanPushFailures = ref
+        .read(updateProvider.notifier)
+        .lanPushFailures
+        .listen((error) {
+          if (!mounted) return;
+          developer.log(
+            'LAN push error: $error',
+            name: 'UpdateManager',
+            level: 1000,
+          );
+          _showErrorBanner('LAN push error: $error');
+        });
   }
 
   Future<void> _checkForStagedUpdate() async {
@@ -95,36 +103,6 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       _showLanPushBannerDirect(state.availableUpdate?.version ?? 'Unknown');
     } else {
       developer.log('No staged update found', name: 'UpdateManager');
-    }
-  }
-
-  void _onLanPushEvent(LanPushEvent event) {
-    if (!mounted) return;
-
-    switch (event) {
-      case LanPushReceivedEvent(:final manifest, :final stagingPath):
-        developer.log(
-          'LAN push received: ${manifest.version}',
-          name: 'UpdateManager',
-          level: 800,
-        );
-        // Update provider state so applyUpdate() works
-        ref
-            .read(updateProvider.notifier)
-            .setStagedFromLanPush(manifest, stagingPath);
-        _showLanPushBannerDirect(manifest.version);
-        break;
-      case LanPushProgressEvent(:final progress, :final message):
-        // Could show progress indicator if desired
-        break;
-      case LanPushErrorEvent(:final error):
-        developer.log(
-          'LAN push error: $error',
-          name: 'UpdateManager',
-          level: 1000,
-        );
-        _showErrorBanner('LAN push error: $error');
-        break;
     }
   }
 
@@ -360,7 +338,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
 
   @override
   void dispose() {
-    _lanPushSubscription?.cancel();
+    _lanPushFailures?.cancel();
     super.dispose();
   }
 
@@ -382,8 +360,13 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     });
 
     ref.listen<UpdateState>(updateProvider, (previous, next) {
-      // Handle state transitions
-      if (previous?.status != next.status) {
+      // An update pushed over the LAN while another was already staged does
+      // not change the status, only what is staged.
+      final restaged =
+          previous?.status == UpdateStatus.staged &&
+          next.status == UpdateStatus.staged &&
+          previous?.stagingPath != next.stagingPath;
+      if (previous?.status != next.status || restaged) {
         switch (next.status) {
           case UpdateStatus.available:
             _showUpdateAvailableDialog(next);
@@ -409,8 +392,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
               );
               break;
             }
-            // If came from downloading, dialog handles it
-            if (previous?.status == UpdateStatus.downloading) {
+            // A download, verification included, ends in the download
+            // dialog.
+            if (previous?.status == UpdateStatus.downloading ||
+                previous?.status == UpdateStatus.verifying) {
               // Will be handled by download dialog
             } else {
               // For non-LAN push staged updates, show banner instead of dialog

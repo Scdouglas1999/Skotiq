@@ -34,6 +34,7 @@ import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
+import '../../harness/temporary_data_directory.dart';
 
 /// A seam whose `combineChannels` blocks until the test releases it, so the
 /// in-flight window can actually be observed.
@@ -124,6 +125,7 @@ class _BlockingCombineSeam implements PostSessionSeam {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  useTemporaryDataDirectory();
 
   group('the mixer panel', () {
     Future<List<(String, List<List<double>>)>> pumpAndTapApply(

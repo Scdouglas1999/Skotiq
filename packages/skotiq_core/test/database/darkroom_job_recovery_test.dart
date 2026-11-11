@@ -14,6 +14,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/darkroom_jobs_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
+
+import 'recovered_database.dart';
 import 'package:skotiq_core/src/models/darkroom/darkroom_job.dart';
 
 void main() {
@@ -29,7 +31,7 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() => SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+  SkotiqDatabase open() => RecoveredDatabase(NativeDatabase(dbFile));
 
   test(
     'a job left running by a dead process is re-queued with a note',
