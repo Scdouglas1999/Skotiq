@@ -147,7 +147,6 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                       ),
                     )),
               ),
-              // Play / Pause / Resume
               _MiniControlButton(
                 colors: colors,
                 icon: isRunning ? LucideIcons.pause : LucideIcons.play,

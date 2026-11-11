@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Mobile-optimized sequence progress card
 class SequenceProgressCard extends ConsumerWidget {
   const SequenceProgressCard({super.key});
 
@@ -18,7 +17,6 @@ class SequenceProgressCard extends ConsumerWidget {
     final textSecondary = colors.textSecondary;
     final primaryColor = colors.primary;
 
-    // Don't show card if sequence is idle
     if (progress.state == SequenceExecutionState.idle) {
       return const SizedBox.shrink();
     }
@@ -38,10 +36,8 @@ class SequenceProgressCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header with status
           Row(
             children: [
-              // Status indicator
               Container(
                 width: 8,
                 height: 8,
@@ -65,7 +61,6 @@ class SequenceProgressCard extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              // Overall progress percentage
               Text(
                 '${(progressPercent * 100).toStringAsFixed(0)}%',
                 style: TextStyle(
@@ -79,7 +74,6 @@ class SequenceProgressCard extends ConsumerWidget {
 
           const SizedBox(height: 12),
 
-          // Target and node info
           if (progress.currentTarget != null) ...[
             Row(
               children: [
@@ -121,7 +115,6 @@ class SequenceProgressCard extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
-          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
             child: LinearProgressIndicator(
@@ -134,11 +127,9 @@ class SequenceProgressCard extends ConsumerWidget {
 
           const SizedBox(height: 12),
 
-          // Exposure info
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Completed exposures
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -161,7 +152,6 @@ class SequenceProgressCard extends ConsumerWidget {
                 ],
               ),
 
-              // Integration time
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -185,7 +175,6 @@ class SequenceProgressCard extends ConsumerWidget {
                 ],
               ),
 
-              // Time remaining
               if (estimatedRemaining != null)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -212,7 +201,6 @@ class SequenceProgressCard extends ConsumerWidget {
             ],
           ),
 
-          // Current filter
           if (progress.currentFilter != null) ...[
             const SizedBox(height: 8),
             Row(
@@ -231,7 +219,6 @@ class SequenceProgressCard extends ConsumerWidget {
             ),
           ],
 
-          // Status message
           if (progress.message != null && progress.message!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(

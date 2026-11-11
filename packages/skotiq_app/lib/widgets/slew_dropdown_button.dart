@@ -12,7 +12,6 @@ import '../utils/authority_bound_dialog.dart';
 import '../utils/confirm_dialog.dart';
 import '../utils/snackbar_helper.dart';
 
-/// The slew mode selection for the dropdown.
 enum SlewMode {
   /// Basic slew to coordinates.
   slew,
@@ -45,13 +44,10 @@ class SlewDropdownButton extends ConsumerStatefulWidget {
   /// If null, the "Slew, Center & Rotate" option is hidden.
   final double? targetRotation;
 
-  /// Whether the button is enabled.
   final bool isEnabled;
 
-  /// Button variant for styling.
   final ButtonVariant variant;
 
-  /// Optional icon to display.
   final IconData? icon;
 
   /// Mode executed by the main button.
@@ -114,7 +110,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         mountState.connectionState == DeviceConnectionState.connected;
     final enabled = widget.isEnabled && isMountConnected && !_operationInFlight;
 
-    // Determine if slew+center+rotate option should be shown
     final showRotateOption = hasRotator && widget.targetRotation != null;
 
     final slew = ref.watch(mountSlewProgressProvider);
@@ -272,7 +267,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
   Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) async {
     if (!await _preflightCentering(revision, backend)) return;
 
-    // First slew to approximate position
     final mountService = ref.read(mountCommandServiceProvider);
     final slewResult = await mountService.slewTo(
       widget.ra,
@@ -315,7 +309,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
   ) async {
     if (!await _preflightCentering(revision, backend)) return;
 
-    // First do slew and center
     final mountService = ref.read(mountCommandServiceProvider);
     final slewResult = await mountService.slewTo(
       widget.ra,
@@ -334,7 +327,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return;
     }
 
-    // Show centering dialog and wait for completion
     CenteringResult? centeringResult;
     if (!mounted) return;
     centeringResult = await showDialog<CenteringResult>(
@@ -349,7 +341,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
     if (!mounted || !_isCurrentOperation(revision, backend)) return;
 
-    // If centering failed or was cancelled, don't rotate
     if (centeringResult == null || !centeringResult.success) {
       if (centeringResult != null) {
         final reason =
@@ -361,7 +352,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return;
     }
 
-    // Now rotate to target angle
     if (widget.targetRotation != null) {
       try {
         final rotatorState = ref.read(rotatorStateProvider);
@@ -556,7 +546,6 @@ class _CenteringDialogWithResultState
       if (previous == null || identical(previous, next) || !mounted) return;
       closeAuthorityBoundDialog(context);
     });
-    // Auto-start centering
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startCentering();
     });
@@ -615,7 +604,6 @@ class _CenteringDialogWithResultState
           _isCentering = false;
         });
 
-        // Return result when done
         Navigator.of(context).pop(result);
       }
     } on SolverNotAvailableError catch (e) {

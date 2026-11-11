@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Dialog for recovering interrupted imaging sessions
 class SessionRecoveryDialog extends ConsumerStatefulWidget {
   final List<SessionRecoveryInfo> incompleteSessions;
 
@@ -233,7 +232,6 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
       final sessionNotifier = ref.read(sessionStateProvider.notifier);
       await sessionNotifier.recoverSession(session);
 
-      // Show success message
       if (mounted) {
         final colors = SkotiqColors.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -310,7 +308,6 @@ class _SessionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Session name and timestamp
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -339,7 +336,6 @@ class _SessionCard extends StatelessWidget {
             ],
             const SizedBox(height: 8),
 
-            // Statistics
             Wrap(
               spacing: 16,
               runSpacing: 4,
@@ -372,7 +368,6 @@ class _SessionCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
