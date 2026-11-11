@@ -544,6 +544,9 @@ class NightChecklistSection extends StatelessWidget {
     );
   }
 
+  static final double _captionLine = SkotiqTypography.caption.fontSize! *
+      (SkotiqTypography.caption.height ?? 1);
+
   Widget _row(
     ChecklistItemVm item,
     SkotiqLocalizations l10n,
@@ -574,7 +577,7 @@ class NightChecklistSection extends StatelessWidget {
         ? colors.textPrimary
         : nightToneColor(tone, colors);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Expanded(
           child: Semantics(
@@ -585,10 +588,12 @@ class NightChecklistSection extends StatelessWidget {
             ].join(', '),
             excludeSemantics: true,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                // Centered on the detail's first line.
                 SizedBox(
                   width: 14,
+                  height: _captionLine,
                   child: Icon(
                     mark,
                     size: 11,
@@ -609,26 +614,16 @@ class NightChecklistSection extends StatelessWidget {
                 ),
                 const SizedBox(width: SkotiqTokens.spaceXs),
                 Expanded(
-                  // The column is narrow; the full detail is one hover away.
-                  child: detail == null
-                      ? Text(
-                          kReadoutUnknown,
-                          style: SkotiqTypography.caption.copyWith(
-                            color: detailColor,
-                          ),
-                          maxLines: 1,
-                        )
-                      : Tooltip(
-                          message: detail,
-                          child: Text(
-                            detail,
-                            style: SkotiqTypography.caption.copyWith(
-                              color: detailColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                  // Two lines: the second half of a detail is why the row
+                  // matters ("solving and centering will fail").
+                  child: Text(
+                    detail ?? kReadoutUnknown,
+                    style: SkotiqTypography.caption.copyWith(
+                      color: detailColor,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

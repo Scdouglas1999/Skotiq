@@ -525,7 +525,7 @@ class ChecklistItemVm {
   final ChecklistItemState state;
   final NightText title;
 
-  /// "PHD2 connected, not looping". The dawn row states the configured
+  /// "connected · not looping". The dawn row states the configured
   /// safety policy exactly, including "off" and "no site".
   final NightText? detail;
 

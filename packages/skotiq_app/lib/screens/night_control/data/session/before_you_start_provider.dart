@@ -260,12 +260,8 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
               ChecklistItemId.guider,
               ChecklistItemState.attention,
               'nightSessionCheckGuider',
-              detail: guider.deviceName == null
-                  ? const NightText('nightSessionCheckGuiderIdleUnnamed')
-                  : NightText(
-                      'nightSessionCheckGuiderIdle',
-                      params: <String, String>{'name': guider.deviceName!},
-                    ),
+              // The guider's name is in Equipment; the row says its state.
+              detail: const NightText('nightSessionCheckGuiderIdle'),
               actionKey: 'nightSessionActionLoop',
             ),
     );

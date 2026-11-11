@@ -343,7 +343,6 @@ void main() {
       final guider = _item(items, ChecklistItemId.guider);
       expect(guider.state, ChecklistItemState.attention);
       expect(guider.detail!.key, 'nightSessionCheckGuiderIdle');
-      expect(guider.detail!.params['name'], 'PHD2');
       expect(guider.actionLabel!.key, 'nightSessionActionLoop');
       // Loop happens in place, not on another screen.
       expect(guider.route, isNull);
