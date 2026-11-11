@@ -13,6 +13,7 @@ export 'src/tailnet_detector.dart';
 export 'src/server_compatibility.dart';
 export 'src/server_identity.dart';
 export 'src/network_uri.dart';
+export 'src/ports.dart';
 export 'src/remote_pairing_client.dart';
 export 'src/collaboration/live_collaboration_session.dart';
 

@@ -10,7 +10,11 @@ import 'package:skotiq_core/skotiq_core.dart';
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the
 // scheme/timeout tuning matches the QR/pairing validator exactly.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show PushDeliveryTargets, TailnetDetector, buildSkotiqServerUri;
+    show
+        PushDeliveryTargets,
+        TailnetDetector,
+        buildSkotiqServerUri,
+        kDefaultHeadlessPort;
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -271,8 +275,9 @@ abstract class _NetworkBackendTransport {
 
   _NetworkBackendTransport({
     required this.serverHost,
-    this.serverPort = 8080,
-    this.webSocketPort = 8080, // WebSocket is on same port as HTTP
+    this.serverPort = kDefaultHeadlessPort,
+    // WebSocket is on same port as HTTP
+    this.webSocketPort = kDefaultHeadlessPort,
     String scheme = 'http',
     this.pinnedFingerprint,
     this.authToken,

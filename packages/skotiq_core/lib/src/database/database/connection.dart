@@ -3,7 +3,7 @@ part of '../database.dart';
 /// Environment variable used by headless/systemd deployments to pin the Drift
 /// database under a daemon-owned state directory instead of a user Documents
 /// folder.
-const skotiqDatabaseDirEnv = 'SKOTIQ_DATABASE_DIR';
+const skotiqDatabaseDirEnv = pairingDatabaseDirEnv;
 
 /// Resolve the on-disk path the desktop/mobile database lives at. Exposed
 /// separately so the UI bootstrap and CLI tools can find the file (e.g. for

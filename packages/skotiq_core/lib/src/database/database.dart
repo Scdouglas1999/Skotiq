@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show pairingDatabaseDirEnv;
 
 import '../utils/skotiq_data_directory.dart';
 

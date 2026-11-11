@@ -5,6 +5,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
 import '../backend/network_backend.dart';
 import '../models/backend/event_types.dart'
     show EventCategory, SkotiqEvent, settingsChangedEventType;

@@ -10,6 +10,9 @@
 // suddenly returns broadcast JPEGs" (worst case). Both are user-
 // visible bugs we want to fail loudly at edit time.
 
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
+
 import '../../../models/sequence/sequence_models.dart';
 import '../sequence_validation.dart';
 import '../sequencer_defaults.dart';
@@ -83,7 +86,7 @@ class LiveStackingPortClashRule implements SequenceValidator {
   /// `desktop_app_bootstrap.dart`'s default; the platform-specific
   /// override (when the user changes the port in Settings) is checked
   /// at runtime by the desktop bootstrap, not at edit time.
-  static const int defaultMainAppPort = 8080;
+  static const int defaultMainAppPort = kDefaultHeadlessPort;
 
   @override
   String get name => 'LiveStackingPortClash';

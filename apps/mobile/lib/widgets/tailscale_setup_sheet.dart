@@ -28,6 +28,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/saved_servers_service.dart';
@@ -124,7 +126,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
     super.initState();
     _hostController = TextEditingController(text: widget.initialHost ?? '');
     _portController = TextEditingController(
-      text: (widget.initialPort ?? 8080).toString(),
+      text: (widget.initialPort ?? kDefaultHeadlessPort).toString(),
     );
     _tokenController = TextEditingController();
     final initialScheme = widget.initialScheme?.toLowerCase();

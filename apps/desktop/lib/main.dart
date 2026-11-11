@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
 import 'package:skotiq_updater/skotiq_updater.dart'
     show setUpdateRelaunchArguments;
 import 'package:window_manager/window_manager.dart';
@@ -95,7 +97,7 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
       _flagValue(args, 'remote-scheme', 'SKOTIQ_REMOTE_SCHEME') ?? 'http';
   return _RemoteClientTarget(
     host: host,
-    port: int.tryParse(portRaw ?? '') ?? 8080,
+    port: int.tryParse(portRaw ?? '') ?? kDefaultHeadlessPort,
     token: (token == null || token.isEmpty) ? null : token,
     scheme: scheme,
   );

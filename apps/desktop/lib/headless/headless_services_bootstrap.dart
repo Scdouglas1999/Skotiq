@@ -31,7 +31,7 @@ Future<HeadlessApiServer> startHeadlessServices(
   bool requireAuth = false,
   bool allowUnauthenticated = false,
   bool bindLocalOnly = true,
-  int port = 8080,
+  int port = kDefaultHeadlessPort,
   List<String> corsAllowedOrigins = const [],
   bool pairingPrintCodes = false,
   PairingMode pairingMode = PairingMode.lanOpen,

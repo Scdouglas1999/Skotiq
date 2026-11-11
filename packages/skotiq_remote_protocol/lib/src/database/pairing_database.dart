@@ -428,10 +428,8 @@ class PairingDatabase extends _$PairingDatabase {
 
 /// Pins the pairing store beside the Drift application database.
 ///
-/// Repeated rather than imported: this package cannot depend on
-/// skotiq_core, which owns the identically-named `skotiqDatabaseDirEnv`
-/// that resolves `skotiq.db`. The two must stay in sync — they name the
-/// same operator-configured data directory.
+/// skotiq_core's `skotiqDatabaseDirEnv`, which resolves `skotiq.db`, is this
+/// constant: both name the same operator-configured data directory.
 const pairingDatabaseDirEnv = 'SKOTIQ_DATABASE_DIR';
 
 /// Resolve where `pairing.db` lives.

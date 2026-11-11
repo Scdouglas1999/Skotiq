@@ -170,7 +170,10 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
 
       // Remote Access / Web Server
       webServerEnabled: _parseBool(allSettings['web_server_enabled'], false),
-      webServerPort: _parseInt(allSettings['web_server_port'], 8080),
+      webServerPort: _parseInt(
+        allSettings['web_server_port'],
+        kDefaultHeadlessPort,
+      ),
 
       // Equipment Settings - Camera
       defaultGain: _parseInt(allSettings['default_gain'], 100),
