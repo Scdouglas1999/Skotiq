@@ -711,7 +711,7 @@ void main() {
       expect(log.last.message.params, <String, String>{
         'n': '1',
         'filter': ' Ha',
-        'hfr': ' · HFR 2.10',
+        'hfr': ' · HFR 2.10 px',
         'reason': '',
       });
     });

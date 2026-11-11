@@ -200,7 +200,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         'nightSessionCheckFocuser',
         detail: position == null
             ? const NightText('nightSessionCheckConnected')
-            : NightText.literal(nightGrouped(position)),
+            : nightFocuserSteps(position),
       ),
     );
   } else if (assigned.contains(DeviceType.focuser)) {

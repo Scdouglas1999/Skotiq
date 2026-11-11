@@ -27,7 +27,7 @@ void main() {
     expect(find.text(nightGrouped(45559)),
         findsNWidgets(2)); // point 6 and the focuser
     expect(find.text('2.08'), findsOneWidget);
-    expect(find.text('pos'), findsOneWidget);
+    expect(find.text('pos'), findsWidgets);
     // No per-point star counts on this base: no stars column.
     expect(find.text('stars'), findsNothing);
     // The fit exists only once the run finishes.

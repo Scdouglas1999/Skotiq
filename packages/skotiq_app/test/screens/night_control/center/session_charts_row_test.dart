@@ -206,7 +206,7 @@ void main() {
     expect(find.text('Focus'), findsOneWidget);
     expect(
       _allText(tester),
-      contains(RegExp(r'best 45\s484 · HFR 1\.98 · 13\.1 °C')),
+      contains(RegExp(r'best 45\s484 · HFR 1\.98 px · 13\.1 °C')),
     );
     expect(find.text('Guider idle'), findsOneWidget);
     expect(find.text('Start looping'), findsOneWidget);

@@ -29,7 +29,7 @@ void main() {
     // error tone.
     expect(
       find.bySemanticsLabel(
-          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05, Rejected')),
+          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05 px, Rejected')),
       findsOneWidget,
     );
     final hfr = tester.widget<Text>(find.text('3.05'));
@@ -71,7 +71,7 @@ void main() {
       size: const Size(1000, FrameStrip.height),
     );
     expect(
-      find.bySemanticsLabel(RegExp(r'^Frame #40, Ha 180 s, HFR [0-9.]+, '
+      find.bySemanticsLabel(RegExp(r'^Frame #40, Ha 180 s, HFR [0-9.]+ px, '
           r'Obstructed')),
       findsOneWidget,
     );
@@ -83,7 +83,7 @@ void main() {
     // The ordinary reject keeps its plain label and no badge.
     expect(
       find.bySemanticsLabel(
-          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05, Rejected')),
+          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05 px, Rejected')),
       findsOneWidget,
     );
     handle.dispose();
