@@ -654,12 +654,10 @@ async fn scan_one_direction(
             let exposure = ctx
                 .device_ops
                 .camera_start_exposure(
-                    camera_id,
-                    config.exposure_duration,
-                    config.gain,
-                    config.offset,
-                    bin_x,
-                    bin_y,
+                    crate::device_ops::ExposureRequest::new(camera_id, config.exposure_duration)
+                        .gain(config.gain)
+                        .offset(config.offset)
+                        .binning(bin_x, bin_y),
                 )
                 .await;
             abort_guard.disarm();

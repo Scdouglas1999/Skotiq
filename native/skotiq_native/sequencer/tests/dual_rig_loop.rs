@@ -16,7 +16,8 @@ use skotiq_sequencer::dual_rig::{
 };
 use skotiq_sequencer::scheduling::FrameContext;
 use skotiq_sequencer::{
-    DeviceResult, GuidingCalibration, GuidingStatus, ImageData, NullDeviceOps, PlateSolveResult,
+    DeviceResult, ExposureRequest, GuidingCalibration, GuidingStatus, ImageData, NullDeviceOps,
+    PlateSolveResult,
 };
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -57,15 +58,13 @@ impl RecordingOps {
 
 #[async_trait]
 impl skotiq_sequencer::DeviceOps for RecordingOps {
-    async fn camera_start_exposure(
-        &self,
-        _camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        _bin_x: i32,
-        _bin_y: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            duration_secs,
+            gain,
+            offset,
+            ..
+        } = request;
         self.exposures.fetch_add(1, Ordering::SeqCst);
         tokio::time::sleep(self.exposure_wait).await;
         Ok(ImageData {

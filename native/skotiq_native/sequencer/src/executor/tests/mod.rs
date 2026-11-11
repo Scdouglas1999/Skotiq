@@ -1316,7 +1316,7 @@ fn custom_branch_recovery_node_registers_trigger_spec() {
     assert_eq!(specs[0].custom_branch_node_id.as_deref(), Some("recovery"));
 }
 
-use crate::device_ops::{DeviceOps, DeviceResult, GuidingStatus};
+use crate::device_ops::{DeviceOps, DeviceResult, ExposureRequest, GuidingStatus};
 
 /// DeviceOps that simulates a guider which is NOT guiding until
 /// `guider_start` is called, after which `guider_get_status` reports
@@ -1450,14 +1450,25 @@ impl DeviceOps for ReacquireGuiderOps {
     }
     async fn camera_start_exposure(
         &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
+        request: ExposureRequest<'_>,
     ) -> DeviceResult<crate::device_ops::ImageData> {
-        self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            gain: g,
+            offset: o,
+            bin_x: bx,
+            bin_y: by,
+            ..
+        } = request;
+        self.inner
+            .camera_start_exposure(
+                ExposureRequest::new(id, d)
+                    .gain(g)
+                    .offset(o)
+                    .binning(bx, by),
+            )
+            .await
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(id).await

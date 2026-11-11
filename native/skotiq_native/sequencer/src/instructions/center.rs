@@ -225,11 +225,7 @@ async fn center(
                 // possible star count; binning would reduce SNR enough to fail on
                 // sparse fields.
                 result = ctx.device_ops.camera_start_exposure(
-                    &camera_id,
-                    config.exposure_duration,
-                    None,
-                    None,
-                    1, 1,
+                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration),
                 ) => result,
                 _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
                     tracing::info!("Center cancelled during exposure, aborting...");

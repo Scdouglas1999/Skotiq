@@ -1446,7 +1446,10 @@ impl MeridianFlipExecutor {
             // The retry ladder increases acquisition exposure after the first attempt.
             let image = self
                 .device_ops
-                .camera_start_exposure(camera_id, exposure_secs, None, None, 1, 1)
+                .camera_start_exposure(crate::device_ops::ExposureRequest::new(
+                    camera_id,
+                    exposure_secs,
+                ))
                 .await?;
 
             // Passing target hints (deg-converted RA) accelerates blind solves on
@@ -2373,7 +2376,9 @@ fn normalize_ra_diff_hours(diff: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::device_ops::{DeviceOps, DeviceResult, GuidingStatus, ImageData, PlateSolveResult};
+    use crate::device_ops::{
+        DeviceOps, DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
+    };
     use async_trait::async_trait;
     use std::sync::atomic::AtomicI32;
     use std::sync::Mutex;
@@ -2702,13 +2707,14 @@ mod tests {
 
         async fn camera_start_exposure(
             &self,
-            _camera_id: &str,
-            duration_secs: f64,
-            gain: Option<i32>,
-            offset: Option<i32>,
-            _bin_x: i32,
-            _bin_y: i32,
+            request: ExposureRequest<'_>,
         ) -> DeviceResult<ImageData> {
+            let ExposureRequest {
+                duration_secs,
+                gain,
+                offset,
+                ..
+            } = request;
             self.state.exposure_settings.lock().unwrap().push((
                 duration_secs,
                 self.state.wheel_position.load(Ordering::Relaxed),

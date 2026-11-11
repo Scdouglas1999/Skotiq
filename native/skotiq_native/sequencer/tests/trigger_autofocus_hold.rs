@@ -9,8 +9,8 @@
 use async_trait::async_trait;
 use skotiq_sequencer::{
     AutofocusConfig, DelayConfig, DeviceOps, DeviceResult, ExecutorEvent, ExecutorState,
-    GuidingStatus, ImageData, NodeDefinition, NodeType, NullDeviceOps, PlateSolveResult,
-    SequenceDefinition, SequenceExecutor, TriggerState,
+    ExposureRequest, GuidingStatus, ImageData, NodeDefinition, NodeType, NullDeviceOps,
+    PlateSolveResult, SequenceDefinition, SequenceExecutor, TriggerState,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -90,17 +90,25 @@ impl DeviceOps for DeadGuiderRig {
         self.record(format!("dome_close:{id}"));
         Ok(())
     }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            gain: g,
+            offset: o,
+            bin_x: bx,
+            bin_y: by,
+            ..
+        } = request;
         self.record(format!("camera_start_exposure:{id}:{d}"));
-        self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+        self.inner
+            .camera_start_exposure(
+                ExposureRequest::new(id, d)
+                    .gain(g)
+                    .offset(o)
+                    .binning(bx, by),
+            )
+            .await
     }
 
     // Everything below answers as `NullDeviceOps`.

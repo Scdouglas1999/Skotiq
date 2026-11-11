@@ -523,7 +523,8 @@ impl ScriptedDomeRotatorOps {
     /// The first `count` tracking commands are accepted and ignored; later
     /// ones change what `mount_is_tracking` answers.
     fn with_ignored_tracking_commands(mut self, count: u32) -> Self {
-        self.ignored_tracking_commands.store(count, Ordering::SeqCst);
+        self.ignored_tracking_commands
+            .store(count, Ordering::SeqCst);
         self.tracking_follows_commands = true;
         self
     }
@@ -762,15 +763,16 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         }
         self.inner.mount_set_tracking(id, enabled).await
     }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            gain: g,
+            offset: o,
+            bin_x: bx,
+            bin_y: by,
+            ..
+        } = request;
         let call = self.camera_exposure_calls.fetch_add(1, Ordering::SeqCst) + 1;
         if self.guider_active() {
             self.exposures_while_guider_active
@@ -802,7 +804,12 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         };
         let mut image = self
             .inner
-            .camera_start_exposure(id, simulated_integration, g, o, bx, by)
+            .camera_start_exposure(
+                ExposureRequest::new(id, simulated_integration)
+                    .gain(g)
+                    .offset(o)
+                    .binning(bx, by),
+            )
             .await?;
         // The camera's own report of the frame, which is a DIFFERENT source
         // from what was commanded. Overriding it here is what lets a test

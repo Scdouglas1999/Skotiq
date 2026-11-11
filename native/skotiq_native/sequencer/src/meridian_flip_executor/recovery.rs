@@ -108,7 +108,7 @@ impl MeridianFlipExecutor {
                 return Err("Nearby recovery changed pier side; refusing to sync".into());
             }
             let camera = ctx.camera_id.as_deref().ok_or("No camera configured")?;
-            let image = self.device_ops.camera_start_exposure(camera, 15.0, None, None, 1, 1).await?;
+            let image = self.device_ops.camera_start_exposure(crate::device_ops::ExposureRequest::new(camera, 15.0)).await?;
             let solved = self.recovery_solve(ctx, &image, ra * 15.0, dec).await?;
             if !solved.success || !solved.ra_degrees.is_finite() || !(-90.0..=90.0).contains(&solved.dec_degrees) {
                 return Err("Nearby recovery field did not solve".into());

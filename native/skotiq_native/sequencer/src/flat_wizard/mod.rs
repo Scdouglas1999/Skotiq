@@ -312,7 +312,10 @@ impl<'a> FlatWizardRun<'a> {
         let (bin_x, bin_y) = binning_dimensions(ctx.current_binning);
         let image_data = match ctx
             .device_ops
-            .camera_start_exposure(camera_id, test_exposure, None, None, bin_x, bin_y)
+            .camera_start_exposure(
+                crate::device_ops::ExposureRequest::new(camera_id, test_exposure)
+                    .binning(bin_x, bin_y),
+            )
             .await
         {
             Ok(data) => data,

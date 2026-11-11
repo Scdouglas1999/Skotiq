@@ -10,7 +10,9 @@
 
 use super::*;
 use crate::depth_goal::{DepthGoalBinding, DepthGoalCompletion, DepthGoalOps, DepthGoalVerdict};
-use crate::device_ops::{DeviceOps, DeviceResult, ImageData, NullDeviceOps, PlateSolveResult};
+use crate::device_ops::{
+    DeviceOps, DeviceResult, ExposureRequest, ImageData, NullDeviceOps, PlateSolveResult,
+};
 use crate::{FilterPlan, NodeType, SequenceDefinition, SmartExposureConfig};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -57,13 +59,17 @@ impl RecordingOps {
 impl DeviceOps for RecordingOps {
     async fn camera_start_exposure(
         &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
+        request: ExposureRequest<'_>,
     ) -> DeviceResult<crate::device_ops::ImageData> {
+        let ExposureRequest {
+            camera_id,
+            duration_secs,
+            gain,
+            offset,
+            bin_x,
+            bin_y,
+            ..
+        } = request;
         let filter = self
             .current_filter
             .lock()
@@ -79,7 +85,12 @@ impl DeviceOps for RecordingOps {
             .or_insert(0) += 1;
         self.total_exposures.fetch_add(1, Ordering::SeqCst);
         self.inner
-            .camera_start_exposure(camera_id, duration_secs, gain, offset, bin_x, bin_y)
+            .camera_start_exposure(
+                ExposureRequest::new(camera_id, duration_secs)
+                    .gain(gain)
+                    .offset(offset)
+                    .binning(bin_x, bin_y),
+            )
             .await
     }
 

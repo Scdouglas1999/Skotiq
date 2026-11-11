@@ -98,7 +98,7 @@ use async_trait::async_trait;
 // no copy of either.
 use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 use skotiq_sequencer::{
-    CameraSubframe, DeviceOps, DeviceResult, GuidingCalibration, GuidingStatus, ImageData,
+    DeviceOps, DeviceResult, ExposureRequest, GuidingCalibration, GuidingStatus, ImageData,
     PlateSolveResult, PolarAlignResult,
 };
 use std::collections::HashMap;

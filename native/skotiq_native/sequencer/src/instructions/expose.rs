@@ -448,14 +448,12 @@ pub async fn execute_exposure_with_renderer(
                 }
                 // Thread the frame type so shuttered cameras (Moravian, FLI, some
                 // CCDs) keep the shutter CLOSED for dark/bias frames.
-                result = ctx.device_ops.camera_start_exposure_with_frame_type(
-                    &camera_id,
-                    config.duration_secs,
-                    config.gain,
-                    config.offset,
-                    bin_x,
-                    bin_y,
-                    &config.frame_type,
+                result = ctx.device_ops.camera_start_exposure(
+                    crate::device_ops::ExposureRequest::new(&camera_id, config.duration_secs)
+                        .gain(config.gain)
+                        .offset(config.offset)
+                        .binning(bin_x, bin_y)
+                        .frame_type(&config.frame_type),
                 ) => {
                     abort_guard.disarm();
                     result

@@ -235,8 +235,11 @@ async fn exposure_polling_short_circuits_when_complete() {
     let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
     let device_id_for_exposure = device_id.clone();
     let timed_result = tokio::time::timeout(std::time::Duration::from_millis(100), async move {
-        ops.camera_start_exposure(&device_id_for_exposure, 0.5, None, None, 1, 1)
-            .await
+        ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(
+            &device_id_for_exposure,
+            0.5,
+        ))
+        .await
     })
     .await;
     cleanup_test_camera(mgr, &device_id).await;

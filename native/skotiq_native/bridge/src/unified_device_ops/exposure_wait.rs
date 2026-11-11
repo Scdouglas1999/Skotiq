@@ -155,16 +155,10 @@ mod ownership_tests {
         assert!(claim_camera_acquisition("ownership-camera").await.is_err());
         let ops = create_unified_device_ops();
         let competing_capture = ops
-            .camera_start_exposure_configured(
+            .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(
                 "ownership-camera",
                 5.0,
-                None,
-                None,
-                1,
-                1,
-                None,
-                "Light",
-            )
+            ))
             .await;
         assert!(competing_capture
             .unwrap_err()

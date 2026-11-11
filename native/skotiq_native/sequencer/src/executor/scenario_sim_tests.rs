@@ -33,8 +33,8 @@
 
 use super::*;
 use crate::device_ops::{
-    park_and_close_safe_state, DeviceOps, DeviceResult, GuidingCalibration, GuidingStatus,
-    ImageData, NullDeviceOps, PlateSolveResult, SharedDeviceOps,
+    park_and_close_safe_state, DeviceOps, DeviceResult, ExposureRequest, GuidingCalibration,
+    GuidingStatus, ImageData, NullDeviceOps, PlateSolveResult, SharedDeviceOps,
 };
 use crate::recovery::{AttemptOutcome, RecoveryCause};
 use crate::{Trigger, TriggerManager, TriggerState, TriggerType};
@@ -545,15 +545,16 @@ impl DeviceOps for ScriptedDeviceOps {
         }
         self.inner.mount_side_of_pier(id).await
     }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            gain: g,
+            offset: o,
+            bin_x: bx,
+            bin_y: by,
+            ..
+        } = request;
         self.exposure_calls.fetch_add(1, Ordering::SeqCst);
         if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
             mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
@@ -561,7 +562,14 @@ impl DeviceOps for ScriptedDeviceOps {
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
             return Err(error);
         }
-        self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+        self.inner
+            .camera_start_exposure(
+                ExposureRequest::new(id, d)
+                    .gain(g)
+                    .offset(o)
+                    .binning(bx, by),
+            )
+            .await
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(id).await

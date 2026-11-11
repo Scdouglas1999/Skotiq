@@ -283,64 +283,17 @@ impl DeviceOps for UnifiedDeviceOps {
 
     // Camera operations
 
-    async fn camera_start_exposure(
-        &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
-    ) -> DeviceResult<ImageData> {
-        // Frame-type-agnostic entry point → Light (shutter open). Dark/bias is
-        // carried by the frame-type-aware method below (shared body).
-        self.camera_start_exposure_configured(
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
             camera_id,
             duration_secs,
             gain,
             offset,
             bin_x,
             bin_y,
-            None,
-            "Light",
-        )
-        .await
-    }
-
-    async fn camera_start_exposure_with_frame_type(
-        &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
-        frame_type: &str,
-    ) -> DeviceResult<ImageData> {
-        self.camera_start_exposure_configured(
-            camera_id,
-            duration_secs,
-            gain,
-            offset,
-            bin_x,
-            bin_y,
-            None,
+            subframe,
             frame_type,
-        )
-        .await
-    }
-
-    async fn camera_start_exposure_configured(
-        &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
-        subframe: Option<CameraSubframe>,
-        frame_type: &str,
-    ) -> DeviceResult<ImageData> {
+        } = request;
         let _acquisition = claim_camera_acquisition(camera_id).await?;
         let acquisition_generation = exposure_abort_generation(camera_id).await;
         let native_frame_type = skotiq_native::camera::FrameType::from_str_lenient(frame_type);

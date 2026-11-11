@@ -1218,17 +1218,15 @@ pub(crate) async fn camera_start_exposure_configured_opt(
 
         // Start exposure and get raw data (blocks until complete, events published by UnifiedDeviceOps)
         let seq_image = device_ops
-            .camera_start_exposure_configured(
-                &device_id,
-                duration_secs,
-                // Already Option: None leaves the driver's current value
-                // untouched instead of forcing it to 0.
-                gain,
-                offset,
-                bin_x,
-                bin_y,
-                subframe,
-                frame_type.as_str(),
+            .camera_start_exposure(
+                skotiq_sequencer::ExposureRequest::new(&device_id, duration_secs)
+                    // Already Option: None leaves the driver's current value
+                    // untouched instead of forcing it to 0.
+                    .gain(gain)
+                    .offset(offset)
+                    .binning(bin_x, bin_y)
+                    .subframe(subframe)
+                    .frame_type(frame_type.as_str()),
             )
             .await
             .map_err(|e| classify_exposure_failure(&device_id, e))?;

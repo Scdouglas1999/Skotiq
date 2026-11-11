@@ -17,7 +17,9 @@
 //!       No exposure is available to download from the simulated camera.
 
 use super::*;
-use crate::device_ops::{DeviceResult, GuidingStatus, ImageData, PlateSolveResult};
+use crate::device_ops::{
+    DeviceResult, ExposureRequest, GuidingStatus, ImageData, PlateSolveResult,
+};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
@@ -50,15 +52,13 @@ impl CenterContentionOps {
 
 #[async_trait::async_trait]
 impl DeviceOps for CenterContentionOps {
-    async fn camera_start_exposure(
-        &self,
-        _id: &str,
-        duration: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        _bx: i32,
-        _by: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            duration_secs: duration,
+            gain,
+            offset,
+            ..
+        } = request;
         let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
         self.max_in_flight.fetch_max(now, Ordering::SeqCst);
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;

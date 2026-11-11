@@ -697,12 +697,10 @@ async fn capture_secondary_frame(
     // Start the exposure. `camera_start_exposure` blocks until the frame is
     // downloaded; for an abort we race it against an abort watcher.
     let exposure = device_ops.camera_start_exposure(
-        &config.camera_id,
-        config.exposure_secs,
-        config.gain,
-        config.offset,
-        config.bin_x,
-        config.bin_y,
+        crate::device_ops::ExposureRequest::new(&config.camera_id, config.exposure_secs)
+            .gain(config.gain)
+            .offset(config.offset)
+            .binning(config.bin_x, config.bin_y),
     );
     tokio::pin!(exposure);
 

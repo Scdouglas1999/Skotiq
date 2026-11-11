@@ -23,9 +23,9 @@
 use async_trait::async_trait;
 use skotiq_sequencer::quality::ImageQualityCheck;
 use skotiq_sequencer::{
-    AutofocusConfig, DeviceOps, DeviceResult, ExecutorEvent, ExecutorState, GuidingStatus,
-    ImageData, NodeDefinition, NodeType, NullDeviceOps, PlateSolveResult, SequenceDefinition,
-    SequenceExecutor,
+    AutofocusConfig, DeviceOps, DeviceResult, ExecutorEvent, ExecutorState, ExposureRequest,
+    GuidingStatus, ImageData, NodeDefinition, NodeType, NullDeviceOps, PlateSolveResult,
+    SequenceDefinition, SequenceExecutor,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -178,15 +178,12 @@ impl DeviceOps for ReplayRig {
         self.record(format!("dome_close:{id}"));
         Ok(())
     }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        _g: Option<i32>,
-        _o: Option<i32>,
-        _bx: i32,
-        _by: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            ..
+        } = request;
         self.record(format!("camera_start_exposure:{id}:{d}"));
         // Lights get the night's real 180 s frames in the order they were
         // taken; the autofocus sweep gets the in-focus 2 s frame.

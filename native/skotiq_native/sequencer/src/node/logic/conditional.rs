@@ -168,8 +168,8 @@ pub async fn execute_conditional(
 mod tests {
     use super::*;
     use crate::device_ops::{
-        DeviceOps, DeviceResult, GuidingStatus, ImageData, NullDeviceOps, PlateSolveResult,
-        SharedDeviceOps,
+        DeviceOps, DeviceResult, ExposureRequest, GuidingStatus, ImageData, NullDeviceOps,
+        PlateSolveResult, SharedDeviceOps,
     };
     use crate::node::context::ExecutionContext;
     use crate::NodeId;
@@ -261,14 +261,25 @@ mod tests {
         }
         async fn camera_start_exposure(
             &self,
-            id: &str,
-            d: f64,
-            g: Option<i32>,
-            o: Option<i32>,
-            bx: i32,
-            by: i32,
+            request: ExposureRequest<'_>,
         ) -> DeviceResult<ImageData> {
-            self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+            let ExposureRequest {
+                camera_id: id,
+                duration_secs: d,
+                gain: g,
+                offset: o,
+                bin_x: bx,
+                bin_y: by,
+                ..
+            } = request;
+            self.inner
+                .camera_start_exposure(
+                    ExposureRequest::new(id, d)
+                        .gain(g)
+                        .offset(o)
+                        .binning(bx, by),
+                )
+                .await
         }
         async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
             self.inner.camera_abort_exposure(id).await

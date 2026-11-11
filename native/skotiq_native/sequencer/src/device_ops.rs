@@ -66,6 +66,66 @@ pub struct CameraSubframe {
     pub height: u32,
 }
 
+/// Everything the camera needs to take one frame.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExposureRequest<'a> {
+    pub camera_id: &'a str,
+    pub duration_secs: f64,
+    pub gain: Option<i32>,
+    pub offset: Option<i32>,
+    pub bin_x: i32,
+    pub bin_y: i32,
+    /// `None` reads the full sensor.
+    pub subframe: Option<CameraSubframe>,
+    /// The sequencer's frame-type string ("Light"/"Dark"/"Flat"/"Bias"/
+    /// "DarkFlat", case-insensitive). A camera with a mechanical shutter
+    /// (Moravian, FLI, some CCDs) keeps it closed for dark and bias frames.
+    pub frame_type: &'a str,
+}
+
+impl<'a> ExposureRequest<'a> {
+    /// A full-sensor light frame, unbinned, at the camera's current gain and
+    /// offset.
+    pub fn new(camera_id: &'a str, duration_secs: f64) -> Self {
+        Self {
+            camera_id,
+            duration_secs,
+            gain: None,
+            offset: None,
+            bin_x: 1,
+            bin_y: 1,
+            subframe: None,
+            frame_type: "Light",
+        }
+    }
+
+    pub fn gain(mut self, gain: Option<i32>) -> Self {
+        self.gain = gain;
+        self
+    }
+
+    pub fn offset(mut self, offset: Option<i32>) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    pub fn binning(mut self, bin_x: i32, bin_y: i32) -> Self {
+        self.bin_x = bin_x;
+        self.bin_y = bin_y;
+        self
+    }
+
+    pub fn subframe(mut self, subframe: Option<CameraSubframe>) -> Self {
+        self.subframe = subframe;
+        self
+    }
+
+    pub fn frame_type(mut self, frame_type: &'a str) -> Self {
+        self.frame_type = frame_type;
+        self
+    }
+}
+
 /// Plate solve result
 #[derive(Debug, Clone)]
 pub struct PlateSolveResult {
@@ -334,82 +394,8 @@ pub trait DeviceOps: Send + Sync {
 
     // Camera operations
 
-    /// Start an exposure and return the image data
-    async fn camera_start_exposure(
-        &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
-    ) -> DeviceResult<ImageData>;
-
-    /// Start an exposure of a specific frame type and return the image data.
-    ///
-    /// `frame_type` is the sequencer's frame-type string ("Light"/"Dark"/"Flat"/
-    /// "Bias"/"DarkFlat", case-insensitive). It drives mechanical-shutter behavior
-    /// for dark/bias frames on cameras with a shutter (Moravian, FLI, some CCDs):
-    /// dark/bias must be exposed with the shutter CLOSED to exclude light.
-    ///
-    /// The default delegates to `camera_start_exposure`, treating every frame as
-    /// shutter-open — so implementations that don't drive shuttered hardware (test
-    /// doubles, simulators, the guider) need not override it.
-    // Wide by design: this is the compatibility rung above `camera_start_exposure`
-    // (itself 7 params), so it must mirror that signature plus `frame_type` for the
-    // default delegation to work. Bundling into a params struct here would force the
-    // whole three-method ladder and every implementor/caller to change with no
-    // clarity gained.
-    #[allow(clippy::too_many_arguments)]
-    async fn camera_start_exposure_with_frame_type(
-        &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
-        frame_type: &str,
-    ) -> DeviceResult<ImageData> {
-        let _ = frame_type;
-        self.camera_start_exposure(camera_id, duration_secs, gain, offset, bin_x, bin_y)
-            .await
-    }
-
-    /// Start an exposure with the complete per-frame acquisition contract.
-    ///
-    /// The default keeps existing implementations source-compatible while
-    /// failing closed if a caller asks an implementation that has not opted
-    /// into ROI support to crop a frame.
-    // Wide by design: top rung of the same compatibility ladder, so it carries the
-    // full per-frame acquisition contract and delegates down by forwarding each
-    // parameter unchanged. See the note on `camera_start_exposure_with_frame_type`.
-    #[allow(clippy::too_many_arguments)]
-    async fn camera_start_exposure_configured(
-        &self,
-        camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        bin_x: i32,
-        bin_y: i32,
-        subframe: Option<CameraSubframe>,
-        frame_type: &str,
-    ) -> DeviceResult<ImageData> {
-        if subframe.is_some() {
-            return Err("Camera subframes are not supported by this device backend".to_string());
-        }
-        self.camera_start_exposure_with_frame_type(
-            camera_id,
-            duration_secs,
-            gain,
-            offset,
-            bin_x,
-            bin_y,
-            frame_type,
-        )
-        .await
-    }
+    /// Take one exposure and return the image data.
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData>;
 
     /// Abort current exposure
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()>;
@@ -904,15 +890,17 @@ impl DeviceOps for NullDeviceOps {
         Ok(())
     }
 
-    async fn camera_start_exposure(
-        &self,
-        _camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        _bin_x: i32,
-        _bin_y: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            duration_secs,
+            gain,
+            offset,
+            subframe,
+            ..
+        } = request;
+        if subframe.is_some() {
+            return Err("Camera subframes are not supported by this device backend".to_string());
+        }
         tracing::info!("[NULL] Starting {:.1}s exposure", duration_secs);
         tokio::time::sleep(std::time::Duration::from_secs_f64(duration_secs)).await;
 
@@ -1681,14 +1669,25 @@ mod tests {
         }
         async fn camera_start_exposure(
             &self,
-            id: &str,
-            d: f64,
-            g: Option<i32>,
-            o: Option<i32>,
-            bx: i32,
-            by: i32,
+            request: ExposureRequest<'_>,
         ) -> DeviceResult<ImageData> {
-            self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+            let ExposureRequest {
+                camera_id: id,
+                duration_secs: d,
+                gain: g,
+                offset: o,
+                bin_x: bx,
+                bin_y: by,
+                ..
+            } = request;
+            self.inner
+                .camera_start_exposure(
+                    ExposureRequest::new(id, d)
+                        .gain(g)
+                        .offset(o)
+                        .binning(bx, by),
+                )
+                .await
         }
         async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
             self.inner.camera_abort_exposure(id).await
@@ -1935,14 +1934,25 @@ mod tests {
         }
         async fn camera_start_exposure(
             &self,
-            id: &str,
-            d: f64,
-            g: Option<i32>,
-            o: Option<i32>,
-            bx: i32,
-            by: i32,
+            request: ExposureRequest<'_>,
         ) -> DeviceResult<ImageData> {
-            self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+            let ExposureRequest {
+                camera_id: id,
+                duration_secs: d,
+                gain: g,
+                offset: o,
+                bin_x: bx,
+                bin_y: by,
+                ..
+            } = request;
+            self.inner
+                .camera_start_exposure(
+                    ExposureRequest::new(id, d)
+                        .gain(g)
+                        .offset(o)
+                        .binning(bx, by),
+                )
+                .await
         }
         async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
             self.inner.camera_abort_exposure(id).await

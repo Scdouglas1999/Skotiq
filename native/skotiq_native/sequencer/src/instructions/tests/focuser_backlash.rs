@@ -161,15 +161,13 @@ impl DeviceOps for BacklashFocuserOps {
         Ok(())
     }
 
-    async fn camera_start_exposure(
-        &self,
-        _camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        _bin_x: i32,
-        _bin_y: i32,
-    ) -> DeviceResult<ImageData> {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            duration_secs,
+            gain,
+            offset,
+            ..
+        } = request;
         let (optical_position, clouded) = {
             let mut state = self.state.lock().await;
             let sample = (state.commanded, state.takeup);
