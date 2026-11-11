@@ -1687,7 +1687,7 @@ impl MeridianFlipExecutor {
 
         let step_start_percent = (step_index as f64 / f64::from(total_steps)) * 100.0;
         let step_span_percent = 100.0 / f64::from(total_steps);
-        let progress_fn = |progress: f64, _detail: String| {
+        let progress_fn = |progress: f64, _: &crate::instructions::AutofocusProgress| {
             let percent = (step_start_percent
                 + (progress.clamp(0.0, 100.0) / 100.0) * step_span_percent)
                 .round()

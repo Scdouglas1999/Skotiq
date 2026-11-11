@@ -943,6 +943,97 @@ async fn a_zero_failure_tolerance_does_not_fail_a_correct_landing() {
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 }
 
+/// The focus panel draws a sweep from its measured points, and the run's
+/// progress line follows its steps; both come from the progress a sweep
+/// reports, in this order.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_autofocus_reports_each_step_of_its_sweep() {
+    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let ctx = calibration_context(ops.clone()).await;
+    let config = AutofocusConfig {
+        measured_backlash_in: Some(SIMULATED_BACKLASH),
+        failure_hfr_tolerance_ratio: 0.0,
+        ..autofocus_test_config()
+    };
+    let steps = std::sync::Mutex::new(Vec::new());
+    let record = |percent: f64, progress: &AutofocusProgress| {
+        steps.lock().unwrap().push((percent, progress.clone()));
+    };
+
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        Some(&record),
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+
+    let steps = steps.into_inner().unwrap();
+    let total_points = config.sweep_point_count() as usize;
+    assert_eq!(steps[0], (0.0, AutofocusProgress::Starting));
+    assert_eq!(steps[1].0, 5.0);
+    assert!(matches!(
+        steps[1].1,
+        AutofocusProgress::MovingToStart { .. }
+    ));
+    let sweep: Vec<_> = steps[2..2 + 2 * total_points].iter().collect();
+    for (index, pair) in sweep.chunks(2).enumerate() {
+        let point = index + 1;
+        assert!(
+            matches!(&pair[0].1, AutofocusProgress::MovingToPoint { point: p, total_points: n, .. }
+                if *p == point && *n == total_points),
+            "{:?}",
+            pair[0]
+        );
+        let measured = pair[1]
+            .1
+            .sweep()
+            .expect("a measured point carries the sweep");
+        assert_eq!(
+            (measured.point, measured.total_points),
+            (point, total_points)
+        );
+        assert_eq!(measured.vcurve_points.len(), point);
+        assert_eq!(
+            measured.vcurve_points.last().map(|p| p.hfr),
+            Some(measured.hfr)
+        );
+    }
+    let tail: Vec<_> = steps[2 + 2 * total_points..]
+        .iter()
+        .filter(|(_, progress)| !matches!(progress, AutofocusProgress::PointsScreened(_)))
+        .collect();
+    let percents: Vec<f64> = tail.iter().map(|(percent, _)| *percent).collect();
+    assert_eq!(percents, vec![92.0, 95.0, 100.0], "{tail:?}");
+    assert_eq!(tail[0].1, AutofocusProgress::Validating);
+    assert!(matches!(
+        tail[1].1,
+        AutofocusProgress::MovingToBestFocus { .. }
+    ));
+    assert!(
+        matches!(tail[2].1, AutofocusProgress::Complete { hfr, .. }
+            if Some(hfr) == result.hfr_values.first().copied()),
+        "{tail:?}"
+    );
+
+    let json: serde_json::Value =
+        serde_json::from_str(&steps[3].1.sweep().unwrap().to_json()).unwrap();
+    assert_eq!(json["type"], "autofocus_progress");
+    assert_eq!(json["point"], 1);
+    assert_eq!(json["total_points"], total_points);
+    assert_eq!(
+        json["focus_range"]["min"],
+        json["vcurve_points"][0]["position"]
+    );
+    assert!(json["vcurve_points"][0].get("rejected").is_none());
+    assert!(json["star_crops"][0]["pixels_base64"].is_string());
+}
+
 /// The final approach is checked with a real frame: 38bf2b25a made autofocus
 /// take one at the landing and fail when it measures materially worse than
 /// the curve promised. That check had no test, so dropping it, or inverting

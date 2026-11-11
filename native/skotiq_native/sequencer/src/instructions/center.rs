@@ -8,6 +8,52 @@ use crate::triggers::{FlipBlocked, FlipProgress};
 
 // Center instruction (Plate Solve + Sync + Slew Loop)
 
+/// Receives a centering run's progress: the percent done and the step.
+pub type CenterProgressSink<'a> = Option<&'a (dyn Fn(f64, &CenterProgress) + Send + Sync)>;
+
+/// One step of a centering run.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CenterProgress {
+    Starting {
+        accuracy_arcsec: f64,
+    },
+    Capturing {
+        attempt: u32,
+    },
+    /// The attempt's frame solved: where the mount points, and how far that
+    /// is from the target.
+    Solved {
+        attempt: u32,
+        ra_hours: f64,
+        dec_degrees: f64,
+        separation_arcsec: f64,
+    },
+    /// The mount was synced to the solve; the correction slew is under way.
+    Correcting {
+        attempt: u32,
+    },
+    Centered {
+        separation_arcsec: f64,
+    },
+    /// Turning the camera to the target's framing angle.
+    Rotating {
+        target_degrees: f64,
+    },
+}
+
+impl CenterProgress {
+    /// The attempt whose frame this step takes or works on; `None` before the
+    /// first attempt and once the target is centered.
+    pub fn attempt(&self) -> Option<u32> {
+        match self {
+            Self::Capturing { attempt }
+            | Self::Solved { attempt, .. }
+            | Self::Correcting { attempt } => Some(*attempt),
+            Self::Starting { .. } | Self::Centered { .. } | Self::Rotating { .. } => None,
+        }
+    }
+}
+
 pub(crate) const CENTER_CORRECTION_SLEW_START_TIMEOUT: Duration = Duration::from_secs(5);
 pub(crate) const CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT: Duration = Duration::from_secs(300);
 pub(crate) const CENTER_CORRECTION_SLEW_POLL_INTERVAL: Duration = Duration::from_millis(500);
@@ -100,7 +146,7 @@ pub(crate) async fn wait_for_centering_correction_slew(
 pub async fn execute_center(
     config: &CenterConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: CenterProgressSink<'_>,
 ) -> InstructionResult {
     // Capture, solve, sync and correction slews are one move of the mount.
     let motion = MountMotion::begin(ctx, "center").await;
@@ -112,7 +158,7 @@ pub async fn execute_center(
 async fn center(
     config: &CenterConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: CenterProgressSink<'_>,
 ) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
@@ -194,7 +240,9 @@ async fn center(
     if let Some(cb) = progress_callback {
         cb(
             0.0,
-            format!("Centering (target: {:.1}\")", config.accuracy_arcsec),
+            &CenterProgress::Starting {
+                accuracy_arcsec: config.accuracy_arcsec,
+            },
         );
     }
 
@@ -209,10 +257,7 @@ async fn center(
         tracing::info!("Center attempt {}/{}", attempt, config.max_attempts);
 
         if let Some(cb) = progress_callback {
-            cb(
-                attempt_progress,
-                format!("Attempt {}/{}: Capturing...", attempt, config.max_attempts),
-            );
+            cb(attempt_progress, &CenterProgress::Capturing { attempt });
         }
 
         // A transient camera fault retries the capture under the run's camera
@@ -351,16 +396,18 @@ async fn center(
             cb(
                 // Why: config.max_attempts is u32; lossless to f64.
                 attempt_progress + 50.0 / f64::from(config.max_attempts),
-                format!(
-                    "Attempt {}/{}: {:.1}\" off",
-                    attempt, config.max_attempts, separation_arcsec
-                ),
+                &CenterProgress::Solved {
+                    attempt,
+                    ra_hours: solve_result.ra_degrees / 15.0,
+                    dec_degrees: solve_result.dec_degrees,
+                    separation_arcsec,
+                },
             );
         }
 
         if separation_arcsec <= config.accuracy_arcsec {
             if let Some(cb) = progress_callback {
-                cb(95.0, format!("Centered: {:.1}\"", separation_arcsec));
+                cb(95.0, &CenterProgress::Centered { separation_arcsec });
             }
 
             // Apply the target's framing rotation as part of centering. On a
@@ -374,7 +421,7 @@ async fn center(
             }
 
             if let Some(cb) = progress_callback {
-                cb(100.0, format!("Centered: {:.1}\"", separation_arcsec));
+                cb(100.0, &CenterProgress::Centered { separation_arcsec });
             }
             return InstructionResult::success_with_message(format!(
                 "Centered within {:.1}\" after {} attempt{}",
@@ -408,7 +455,7 @@ async fn center(
             cb(
                 // Why: config.max_attempts is u32; lossless to f64.
                 attempt_progress + 75.0 / f64::from(config.max_attempts),
-                format!("Attempt {}/{}: Correcting...", attempt, config.max_attempts),
+                &CenterProgress::Correcting { attempt },
             );
         }
 
@@ -476,7 +523,7 @@ async fn center(
 pub(crate) async fn apply_center_rotation(
     ctx: &InstructionContext,
     attempt: u32,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: CenterProgressSink<'_>,
 ) -> Result<(), InstructionResult> {
     let Some(target_rotation) = ctx.target_rotation else {
         // No framing rotation requested for this target — leave the rotator
@@ -506,15 +553,18 @@ pub(crate) async fn apply_center_rotation(
         target_rotation,
         attempt
     );
+    let rotating = CenterProgress::Rotating {
+        target_degrees: target_rotation,
+    };
     if let Some(cb) = progress_callback {
-        cb(96.0, format!("Rotating to {:.1}°", target_rotation));
+        cb(96.0, &rotating);
     }
 
-    let achieved = rotator_move_to_verified(ctx, rotator_id, target_rotation, |pct, msg| {
+    let achieved = rotator_move_to_verified(ctx, rotator_id, target_rotation, |pct, _| {
         if let Some(cb) = progress_callback {
             // Map the rotator's 0-100 progress into the 96-99 tail of the
             // centering bar so the final "Centered" cb keeps 100.
-            cb(96.0 + (pct / 100.0) * 3.0, msg);
+            cb(96.0 + (pct / 100.0) * 3.0, &rotating);
         }
     })
     .await?;

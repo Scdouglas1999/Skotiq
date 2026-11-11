@@ -3,6 +3,7 @@
 //! guider dead pauses it.
 
 use super::*;
+use crate::instructions::AutofocusProgress;
 
 /// What a trigger-fired autofocus needs.
 pub(in super::super) struct AutofocusRequest<'a> {
@@ -95,18 +96,13 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         run.warning(message);
         return ActionFlow::Finished;
     };
-    let total_steps = af_config.steps_out.saturating_mul(2).saturating_add(1);
-    let progress_fn = move |progress: f64, detail_str: String| {
-        let (step, hfr) = parse_autofocus_detail(&detail_str);
+    let total_steps = af_config.sweep_point_count();
+    let progress_fn = move |percent: f64, progress: &AutofocusProgress| {
         progress_context.send_progress(ProgressUpdate::instruction_progress(
             progress_node_id.clone(),
             "Autofocus",
-            progress,
-            ProgressDetail::Autofocus {
-                step: step.unwrap_or(0),
-                total_steps,
-                current_hfr: hfr,
-            },
+            percent,
+            refocus_detail(progress, total_steps),
         ));
     };
     // Recorded so the decision row can name the focus the run kept.
