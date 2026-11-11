@@ -5,7 +5,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../run_status_presentation.dart';
 
-/// Dialog showing detailed post-session statistics for a sequence run.
 class PostSessionStatsDialog extends StatelessWidget {
   final SkotiqColors colors;
   final String sequenceName;
@@ -45,7 +44,6 @@ class PostSessionStatsDialog extends StatelessWidget {
               style: SkotiqTypography.bodyStrong
                   .copyWith(color: colors.textPrimary)),
           const SizedBox(height: SkotiqTokens.spaceLg),
-          // Time info
           _Section(
             colors: colors,
             title: 'Timing',
@@ -84,7 +82,6 @@ class PostSessionStatsDialog extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // Frames
           _Section(
             colors: colors,
             title: 'Frames',
@@ -108,7 +105,6 @@ class PostSessionStatsDialog extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // Operations
           _Section(
             colors: colors,
             title: 'Operations',
@@ -133,7 +129,6 @@ class PostSessionStatsDialog extends StatelessWidget {
             ],
           ),
 
-          // Target/Filter Breakdown
           if (stats.targetBreakdown.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Section(
@@ -163,7 +158,6 @@ class PostSessionStatsDialog extends StatelessWidget {
             ),
           ],
 
-          // Errors
           if (stats.errorMessages.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Section(

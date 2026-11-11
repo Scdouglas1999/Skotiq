@@ -80,8 +80,6 @@ Future<bool> confirmDeleteNote(
   return false;
 }
 
-// Section widgets (embedded in TargetHeaderCard / SessionReportDialog / HistoryTab)
-
 /// Notes section for a specific target. Shows the two newest notes
 /// inline, plus a "View all" link that opens [TargetNotesDialog] with
 /// the full chronological list and the "Add note" button.
@@ -454,8 +452,6 @@ class _NotesPanelLayout extends StatelessWidget {
     );
   }
 }
-
-// "View all" dialog
 
 /// Modal that lists every note for a target chronologically with
 /// search + tag filter and an "Add note" affordance.

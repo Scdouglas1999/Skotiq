@@ -40,7 +40,6 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
         height: dialogSize.height,
         child: notesAsync.when(
           data: (notes) {
-            // Collect all tags across notes for the chip filter row.
             final allTags = <String>{};
             for (final n in notes) {
               allTags.addAll(n.tags);
@@ -252,5 +251,3 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
     return confirmDeleteNote(context, ref, note);
   }
 }
-
-// Note tile (single-row preview)
