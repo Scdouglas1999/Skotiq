@@ -29,10 +29,6 @@ import 'database_provider.dart';
 import 'equipment/mount_state_provider.dart';
 import 'frame_record_updates.dart';
 
-// ---------------------------------------------------------------------------
-// Background plate solve
-// ---------------------------------------------------------------------------
-
 /// Where a frame's background solve stands.
 enum FrameSolveStatus {
   /// Queued behind another frame's solve.
@@ -514,10 +510,6 @@ final currentFrameSolveProvider = Provider<FrameSolveVm?>((ref) {
   if (key == null) return null;
   return ref.watch(frameAutoSolveProvider.select((solves) => solves[key]));
 });
-
-// ---------------------------------------------------------------------------
-// Star detection
-// ---------------------------------------------------------------------------
 
 /// Detects the stars in a FITS file, off the UI isolate.
 typedef FrameStarDetector =

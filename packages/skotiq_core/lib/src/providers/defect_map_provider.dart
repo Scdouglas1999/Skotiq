@@ -764,7 +764,6 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   }
 }
 
-/// Provider for the defect-map settings notifier.
 final defectMapSettingsProvider =
     StateNotifierProvider<DefectMapSettingsNotifier, DefectMapSettings>((ref) {
       final backend = ref.watch(backendProvider);

@@ -15,7 +15,6 @@
 //   * Pre-flight checks → see `preflight.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for Recovery Mode defaults.
 extension RecoverySettingsSection on AppSettingsNotifier {
   /// Minutes between auto-retry attempts during a recovery loop. Clamped
   /// to [1, 240] — a zero/negative interval would spin the executor at

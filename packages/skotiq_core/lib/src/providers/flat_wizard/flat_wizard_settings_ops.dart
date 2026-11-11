@@ -5,7 +5,6 @@ part of '../flat_wizard_provider.dart';
 /// Settings, filter-list and one-line state operations for
 /// [FlatWizardNotifier].
 extension FlatWizardSettingsOps on FlatWizardNotifier {
-  // Mode management
 
   void setMode(FlatWizardMode mode) {
     state = state.copyWith(mode: mode);
@@ -14,8 +13,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   void setTwilightMode(TwilightMode mode) {
     state = state.copyWith(twilightMode: mode);
   }
-
-  // Global settings
 
   void updateGlobalSettings(FlatWizardGlobalSettings settings) {
     _settingsRevision++;
@@ -142,8 +139,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
           }),
     );
   }
-
-  // Filter management
 
   /// Load filters from connected filter wheel.
   ///
@@ -429,8 +424,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     state = state.copyWith(filterSettings: sorted);
   }
 
-  // Visualization toggles
-
   void toggleAduGraph(bool show) {
     state = state.copyWith(showAduGraph: show);
   }
@@ -496,8 +489,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     );
   }
 
-  // ADU history
-
   void addAduMeasurement(double exposure, double adu) {
     final measurement = AduMeasurement(
       exposure: exposure,
@@ -511,8 +502,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     state = state.copyWith(aduHistory: []);
   }
 
-  // Image preview
-
   /// Publish the frame the preview panel should show.
   ///
   /// Typed on purpose. The panel needs the frame's dimensions to render it, so
@@ -523,8 +512,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   void setLastImage(String? path, CapturedImageResult? imageData) {
     state = state.copyWith(lastImagePath: path, lastImageData: imageData);
   }
-
-  // Filter progress
 
   /// Internal run-progress update: advances the "current filter" as the run
   /// loop walks its queue. Unguarded on purpose — the run OWNS this while it

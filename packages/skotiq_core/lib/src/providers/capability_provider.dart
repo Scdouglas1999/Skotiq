@@ -109,7 +109,6 @@ List<String> getBinningOptionsFromCapabilities(
   final options = <String>[];
 
   if (capabilities.canAsymmetricBin) {
-    // Generate all valid combinations
     for (var x = 1; x <= maxBinX; x++) {
       for (var y = 1; y <= maxBinY; y++) {
         options.add('${x}x$y');

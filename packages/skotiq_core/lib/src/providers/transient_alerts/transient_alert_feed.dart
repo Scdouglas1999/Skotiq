@@ -1,7 +1,5 @@
 part of '../transient_alert_provider.dart';
 
-// Active transient alerts provider
-
 /// Polling interval for fetching alerts (15 minutes)
 const Duration _alertPollingInterval = Duration(minutes: 15);
 
@@ -54,7 +52,6 @@ final activeTransientAlertsProvider =
       final scienceSettings = ref.watch(scienceSettingsProvider).valueOrNull;
       final networkBackend = remote;
 
-      // Create a controller for the stream
       final controller = StreamController<List<TransientAlert>>();
 
       // Pillar B ("First Light"): self-discovered transients flow through the
@@ -215,10 +212,8 @@ final activeTransientAlertsProvider =
         }
       }
 
-      // Fetch immediately
       fetchAlerts();
 
-      // Set up periodic polling
       final timer = Timer.periodic(_alertPollingInterval, (_) {
         fetchAlerts();
       });
@@ -230,7 +225,6 @@ final activeTransientAlertsProvider =
         fetchAlerts();
       });
 
-      // Clean up on dispose
       ref.onDispose(() {
         timer.cancel();
         controller.close();

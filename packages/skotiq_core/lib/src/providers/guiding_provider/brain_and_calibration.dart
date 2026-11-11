@@ -1,8 +1,5 @@
 part of '../guiding_provider.dart';
 
-// PHD2 brain params provider - fetches algorithm parameters
-
-/// Provider for PHD2 brain parameters
 final brainParamsProvider =
     StateNotifierProvider<BrainParamsNotifier, AsyncValue<Phd2BrainParams>>((
       ref,
@@ -26,7 +23,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       fetch();
     }
 
-    // Listen for connection changes to fetch when connected
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
       if (next.connectionState == DeviceConnectionState.connected &&
           next.deviceId == 'phd2_guider' &&
@@ -51,7 +47,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
     });
   }
 
-  /// Fetch all brain parameters from PHD2
   Future<void> fetch() async {
     if (!mounted) return;
     state = const AsyncValue.loading();
@@ -61,7 +56,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
     final fetchGeneration = ++_fetchGeneration;
 
     try {
-      // Fetch parameter names for both axes
       final raNames = await backend.phd2GetAlgoParamNames(axis: 'ra');
       if (!_isCurrentFetch(backend, backendGeneration, fetchGeneration)) return;
       final decNames = await backend.phd2GetAlgoParamNames(axis: 'dec');
@@ -79,7 +73,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
         );
       }
 
-      // Fetch all parameter values
       final raParams = <String, double>{};
       for (final name in raNames) {
         raParams[name] = await backend.phd2GetAlgoParam(axis: 'ra', name: name);
@@ -128,7 +121,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       fetchGeneration == _fetchGeneration &&
       identical(backend, ref.read(backendProvider));
 
-  /// Update a single parameter
   Future<void> setParam(String axis, String name, double value) async {
     final backend = ref.read(backendProvider);
     final backendGeneration = _backendGeneration;
@@ -143,7 +135,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
         );
       }
 
-      // Update local state
       state.whenData((params) {
         if (axis == 'ra' || axis == 'x') {
           final newRaParams = Map<String, double>.from(params.raParams);
@@ -162,15 +153,11 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
   }
 }
 
-// PHD2 calibration state provider
-
-/// Provider for calibration state
 final calibrationStateProvider =
     StateNotifierProvider<CalibrationStateNotifier, Phd2CalibrationData>((ref) {
       return CalibrationStateNotifier(ref);
     });
 
-/// Notifier that tracks calibration state
 class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
   final Ref ref;
   late final _BackendGuidingEventBinding _events;
@@ -264,7 +251,6 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     }
   }
 
-  /// Fetch calibration data from PHD2
   Future<void> refreshCalibrationData() async {
     final backend = ref.read(backendProvider);
     final backendGeneration = _backendGeneration;
@@ -298,7 +284,6 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
       fetchGeneration == _fetchGeneration &&
       identical(backend, ref.read(backendProvider));
 
-  /// Clear calibration data
   Future<void> clearCalibration({String which = 'both'}) async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;

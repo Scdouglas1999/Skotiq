@@ -352,8 +352,6 @@ DomeCapabilities _fromBridgeDomeCapabilities(bridge_caps.DomeCapabilities src) {
   );
 }
 
-// Fail-closed gate helper.
-
 /// Read a single capability flag from an `AsyncValue<T?>` with fail-CLOSED
 /// semantics. Returns the value of `extract(caps)` when capabilities are
 /// loaded and present; returns `false` when:
@@ -382,8 +380,6 @@ bool gateCapability<T>(
     error: (_, __) => false,
   );
 }
-
-// Connect-driven refresh.
 
 /// Eagerly subscribes to the per-device state providers and invalidates the
 /// matching capability provider whenever a device transitions into the

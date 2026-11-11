@@ -10,12 +10,10 @@ import '../services/device_matching_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
 
-/// Provider for the device matching service
 final deviceMatchingServiceProvider = Provider<DeviceMatchingService>((ref) {
   return DeviceMatchingService();
 });
 
-/// Provider for unified device discovery state
 final unifiedDiscoveryProvider =
     StateNotifierProvider<UnifiedDiscoveryNotifier, UnifiedDiscoveryState>((
       ref,
@@ -69,12 +67,10 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       futures.add(_discoverBackend(backend));
     }
 
-    // Process results as they complete
     final results = await Future.wait(futures);
 
     if (!_canPublish(generation)) return;
 
-    // Collect all devices
     final allDevices = <DeviceInfo>[];
     final updatedStates = <DriverType, BackendDiscoveryState>{};
 
@@ -116,12 +112,10 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     // Drop this backend's stale devices as soon as rescan starts.
     state = _discoveringStateForBackends([backend], mergeWithExisting: true);
 
-    // Discover
     final result = await _discoverBackend(backend, host: host, port: port);
 
     if (!_canPublish(generation)) return;
 
-    // Update state with results
     final updatedStates = Map<DriverType, BackendDiscoveryState>.from(
       state.backendStates,
     );
@@ -135,13 +129,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       completedAt: DateTime.now(),
     );
 
-    // Rebuild raw devices from all backends
     final allDevices = <DeviceInfo>[];
     for (final backendState in updatedStates.values) {
       allDevices.addAll(backendState.devices);
     }
 
-    // Re-group devices
     final matchingService = _ref.read(deviceMatchingServiceProvider);
     final groupedDevices = matchingService.groupDevices(allDevices);
 
@@ -217,13 +209,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       );
     }
 
-    // Rebuild raw devices from all backends
     final allDevices = <DeviceInfo>[];
     for (final backendState in updatedStates.values) {
       allDevices.addAll(backendState.devices);
     }
 
-    // Re-group devices
     final matchingService = _ref.read(deviceMatchingServiceProvider);
     final groupedDevices = matchingService.groupDevices(allDevices);
 
@@ -234,17 +224,14 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     );
   }
 
-  /// Refresh discovery for all backends
   Future<void> refresh() async {
     await discoverAll();
   }
 
-  /// Cancel ongoing discovery
   void cancel() {
     _invalidateInFlightDiscovery();
   }
 
-  /// Clear all discovery results
   void clear() {
     _invalidateInFlightDiscovery();
     state = const UnifiedDiscoveryState();
@@ -334,7 +321,6 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     return backends;
   }
 
-  /// Discover devices from a specific backend
   Future<_BackendResult> _discoverBackend(
     DriverType backend, {
     String? host,
@@ -449,7 +435,6 @@ List<DriverType> discoveryBackendsForPolicy(
       .toList(growable: false);
 }
 
-/// Internal result class for backend discovery
 class _BackendResult {
   final DriverType backend;
   final List<DeviceInfo> devices;
@@ -462,9 +447,6 @@ class _BackendResult {
   });
 }
 
-// Convenience providers for grouped devices by type
-
-/// Provider for unified safety monitors
 final unifiedSafetyMonitorsProvider = Provider<List<UnifiedDevice>>((ref) {
   final discovery = ref.watch(unifiedDiscoveryProvider);
   return discovery.getDevicesByType(DeviceType.safetyMonitor);

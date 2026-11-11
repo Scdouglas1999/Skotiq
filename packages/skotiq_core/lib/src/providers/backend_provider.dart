@@ -41,7 +41,6 @@ class BackendTransitionSupersededException implements Exception {
   String toString() => 'Backend transition was superseded by a newer request.';
 }
 
-/// Notifier for the backend implementation
 class BackendNotifier extends StateNotifier<SkotiqBackend> {
   final Ref _ref;
   final NetworkBackendFactory _networkBackendFactory;
@@ -380,7 +379,6 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 
   @override
   void dispose() {
-    // Dispose current backend when provider is disposed
     state.dispose();
     super.dispose();
   }

@@ -13,7 +13,6 @@ import 'database_provider.dart';
 
 const _notProvided = Object();
 
-/// DAO provider for ObservationLogsDao.
 final observationLogsDaoProvider = Provider<ObservationLogsDao>((ref) {
   return ObservationLogsDao(ref.watch(databaseProvider));
 });
@@ -134,7 +133,6 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     });
   }
 
-  /// Log a new observation.
   Future<int?> logObservation({
     required DateTime timestamp,
     required String objectName,
@@ -193,7 +191,6 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     }
   }
 
-  /// Delete an observation log entry.
   Future<bool> deleteLog(int id) async {
     if (_deletingLogs.containsKey(id)) return false;
     final token = Object();
@@ -254,7 +251,6 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     }
   }
 
-  /// Delete all observation logs.
   Future<void> deleteAllLogs() async {
     if (_deleteAllToken != null) return;
     final token = Object();
@@ -279,22 +275,18 @@ class ObservationLogNotifier extends StateNotifier<ObservationLogUiState> {
     }
   }
 
-  /// Set filter query text.
   void setFilterQuery(String? query) {
     state = state.copyWith(filterQuery: query);
   }
 
-  /// Set minimum rating filter.
   void setFilterMinRating(int? rating) {
     state = state.copyWith(filterMinRating: rating);
   }
 
-  /// Set date range filter.
   void setFilterDateRange(DateTime? start, DateTime? end) {
     state = state.copyWith(filterStartDate: start, filterEndDate: end);
   }
 
-  /// Clear status/error messages.
   void clearMessages() {
     state = state.copyWith(statusMessage: null, errorMessage: null);
   }

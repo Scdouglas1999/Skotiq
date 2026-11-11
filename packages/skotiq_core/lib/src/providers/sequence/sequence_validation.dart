@@ -2,11 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sequence/sequence_models.dart';
 import '../settings_provider.dart';
-// Sky-brightness adaptive exposure validation rules.
 import 'rules/adaptive_exposure_rules.dart';
 // "Who owns the rig" — unattended autopilot vs a hand-started run.
 import 'rules/autopilot_rules.dart';
-// Per-frame defect-map validation rules.
 import 'rules/defect_map_rules.dart';
 import 'rules/disk_space_rules.dart';
 import 'rules/equipment_rules.dart';
@@ -20,15 +18,11 @@ import 'rules/preflight_rules.dart';
 import 'rules/settings_rules.dart';
 // Daylight gate / observing site / mount-pointing pre-flight rules.
 import 'rules/sky_readiness_rules.dart';
-// LiveStacking node validation rules.
 import 'rules/live_stacking_rules.dart';
-// Science: SciencePhotometry node validation rules.
 import 'rules/science_photometry_rules.dart';
-// SmartExposure node validation rules.
 import 'rules/smart_exposure_rules.dart';
 import 'rules/structure_rules.dart';
 import 'rules/target_rules.dart';
-// TargetScheduler node validation rules.
 import 'rules/target_scheduler_rules.dart';
 import 'rules/timing_rules.dart';
 import 'rules/weather_safety_rules.dart';
@@ -288,7 +282,6 @@ final List<SequenceValidator> defaultSequenceValidators =
       TargetCoordinatesUnsetRule(),
       EmptyTargetRule(),
       LowAltitudeLimitRule(),
-      // Per-target integration budget validators.
       IntegrationBudgetEmptyRule(),
       IntegrationBudgetRatioZeroSumRule(),
       IntegrationBudgetRatioWithoutTotalRule(),
@@ -310,9 +303,7 @@ final List<SequenceValidator> defaultSequenceValidators =
       WaitTimeUnconfiguredRule(),
       LoopUntilTimeUnsetRule(),
       LoopEndTimePastRule(),
-      // Logic-node-specific rules (Recovery / Parallel / Conditional).
       RecoveryNodeConfigRule(),
-      // Cloud-motion-aware trigger config validation.
       CloudTriggerConfigRule(),
       ParallelNodeRequiredSuccessesRule(),
       ConditionalNodeEmptyBranchRule(),
@@ -321,22 +312,17 @@ final List<SequenceValidator> defaultSequenceValidators =
       // and must be flagged.
       NoOpLogicNodeRule(),
       PluginNodeConfigurationRule(),
-      // SmartExposure validation.
       SmartExposureEmptyPlansRule(),
       SmartExposureNegativeCountRule(),
       SmartExposureUnboundedLoopRule(),
-      // Science: SciencePhotometry validation.
       SciencePhotometryFilterRule(),
       SciencePhotometryReferenceStarsEmptyRule(),
       SciencePhotometryCadenceRule(),
-      // LiveStacking node validation.
       LiveStackingNoExposureRule(),
       LiveStackingPortClashRule(),
-      // TargetScheduler validation.
       TargetSchedulerNoChildrenRule(),
       TargetSchedulerNonTargetChildRule(),
       TargetSchedulerWeightsRule(),
-      // Sky-brightness adaptive exposure validation.
       AdaptiveExposureBoundsRule(),
       AdaptiveExposureNoFilterEnabledRule(),
       AdaptiveExposureNominalOutOfBoundsRule(),
@@ -369,7 +355,6 @@ final List<RefAwareSequenceValidator> defaultRefAwareSequenceValidators =
       DefaultSequenceNameRule(),
       LongEstimatedDurationRule(),
       MeridianFlipTriggerRule(),
-      // SmartExposure needs a filter wheel.
       SmartExposureFilterWheelMissingRule(),
       // Audit C6: every SmartExposure row's filterName must match a filter
       // configured in the active equipment profile.

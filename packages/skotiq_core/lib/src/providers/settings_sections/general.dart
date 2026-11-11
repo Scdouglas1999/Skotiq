@@ -12,7 +12,6 @@
 //   * Notification toggles → see `notifications.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for general application behaviour toggles.
 extension GeneralSettingsSection on AppSettingsNotifier {
   Future<void> setStartMinimized(bool value) =>
       _set(AppSettingDefs.startMinimized, value);

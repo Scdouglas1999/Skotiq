@@ -92,7 +92,6 @@ class StackAndShareState {
   bool get isComplete =>
       progress.phase == StackAndSharePhase.complete && result != null;
 
-  /// Whether the most recent run ended in failure.
   bool get hasError => progress.phase == StackAndSharePhase.error;
 
   StackAndShareState copyWith({

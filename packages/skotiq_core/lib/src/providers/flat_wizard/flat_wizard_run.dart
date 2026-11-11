@@ -4,7 +4,6 @@ part of '../flat_wizard_provider.dart';
 
 /// The capture lifecycle for [FlatWizardNotifier].
 extension FlatWizardRun on FlatWizardNotifier {
-  // Capture lifecycle
 
   /// Run the full flat-capture lifecycle for the current mode: per-filter
   /// calibration, frame capture, FITS save, and history recording.
@@ -341,7 +340,6 @@ extension FlatWizardRun on FlatWizardNotifier {
         updateFilterCalibration(idx, calibration.exposure, calibration.adu);
         updateFilterStatus(idx, FilterCalibrationStatus.capturing);
 
-        // Frame capture
         var filterSavePath = baseSavePath;
         if (runSettings.createFilterSubfolders) {
           filterSavePath = paths.join(

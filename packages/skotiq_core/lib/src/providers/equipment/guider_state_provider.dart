@@ -7,7 +7,6 @@ import '../../services/device_service.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Guider state provider
 final guiderStateProvider =
     StateNotifierProvider<GuiderStateNotifier, GuiderState>((ref) {
       return GuiderStateNotifier(ref);

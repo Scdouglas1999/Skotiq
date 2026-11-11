@@ -18,7 +18,6 @@
 //     and the remote wire model; see [setPlateSolver].
 part of '../settings_provider.dart';
 
-/// Setters for plate-solver defaults.
 extension PlateSolveSettingsSection on AppSettingsNotifier {
   /// Select the solver engine.
   ///

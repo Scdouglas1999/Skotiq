@@ -1,10 +1,6 @@
 part of '../framing_provider.dart';
 
-// Framing state
-
-/// State of the framing assistant
 class FramingState {
-  /// Selected target information
   final FramingTarget? target;
 
   /// Rich planning source for [target], when the target came from Plan Tonight
@@ -35,7 +31,6 @@ class FramingState {
   /// Survey source for background image
   final SurveySource surveySource;
 
-  /// Loaded survey image
   final Uint8List? surveyImageBytes;
 
   /// Decoded survey image for display
@@ -50,10 +45,8 @@ class FramingState {
   /// through (see [FramingPlateScale]). `null` whenever no image is loaded.
   final FramingPlateScale? plateScale;
 
-  /// Is the survey image loading?
   final bool isLoadingImage;
 
-  /// Error message if image failed to load
   final String? imageError;
 
   /// Frame rotation in degrees
@@ -78,7 +71,6 @@ class FramingState {
   /// Custom equipment (null = use active profile)
   final FramingEquipment? customEquipment;
 
-  /// Whether we're using custom equipment vs profile
   final bool useCustomEquipment;
 
   /// User-specified preview FOV for browsing without equipment (degrees)
@@ -90,10 +82,8 @@ class FramingState {
   /// Whether to show equipment FOV overlay when preview FOV is larger
   final bool showEquipmentFovOverlay;
 
-  /// Whether mosaic mode is enabled
   final bool mosaicEnabled;
 
-  /// Mosaic configuration
   final FramingMosaicConfig mosaicConfig;
 
   /// Generated mosaic panels (computed from config and target)
@@ -102,7 +92,6 @@ class FramingState {
   /// Currently selected panel index (-1 = none)
   final int selectedPanelIndex;
 
-  /// Whether to show panel numbers on the overlay
   final bool showPanelNumbers;
 
   /// Whether to highlight the capture sequence path
@@ -264,7 +253,6 @@ class FramingState {
   }
 }
 
-/// Target information for framing
 class FramingTarget {
   final String name;
   final String? catalogId;
@@ -290,7 +278,6 @@ class FramingTarget {
     this.constellation,
   });
 
-  /// RA in degrees
   double get raDegrees => raHours * 15;
 
   /// Format RA as HH:MM:SS
@@ -387,7 +374,6 @@ TargetType? _targetTypeFromSuggestion(String? objectType) {
   return TargetType.other;
 }
 
-/// Custom equipment configuration for framing
 class FramingEquipment {
   final String cameraName;
   final double sensorWidthMm;
@@ -438,7 +424,6 @@ class FramingEquipment {
   double get focalRatio => effectiveFocalLength / apertureMm;
 }
 
-/// Survey image sources
 enum SurveySource {
   dss2Red('DSS2 Red', 'DSS2R'),
   dss2Blue('DSS2 Blue', 'DSS2B'),
@@ -455,18 +440,14 @@ enum SurveySource {
   const SurveySource(this.displayName, this.surveyCode);
 }
 
-// Mosaic support
-
 /// Configuration for a mosaic pattern in the framing assistant.
 ///
 /// Distinct from `MosaicConfig` in `services/mosaic_service.dart`, which
 /// describes mosaic geometry in arcminutes/degrees for sequence generation.
 /// This UI-facing version is grid-based (columns/rows/overlapPercent).
 class FramingMosaicConfig {
-  /// Number of horizontal panels
   final int columns;
 
-  /// Number of vertical panels
   final int rows;
 
   /// Overlap percentage between panels (0-50%)
@@ -475,7 +456,6 @@ class FramingMosaicConfig {
   /// Whether to use a serpentine (snake) capture pattern
   final bool serpentine;
 
-  /// Starting corner for capture sequence
   final MosaicStartCorner startCorner;
 
   /// Custom panel rotation for each panel (null = use global rotation)
@@ -508,7 +488,6 @@ class FramingMosaicConfig {
     );
   }
 
-  /// Total number of panels
   int get totalPanels => columns * rows;
 
   /// Effective FOV multiplier accounting for overlap
@@ -518,7 +497,6 @@ class FramingMosaicConfig {
       rows - (rows - 1) * (overlapPercent / 100);
 }
 
-/// Starting corner for mosaic capture
 enum MosaicStartCorner { topLeft, topRight, bottomLeft, bottomRight }
 
 /// Individual panel in a framing-assistant mosaic.
@@ -544,7 +522,6 @@ class FramingMosaicPanel {
   /// Panel name (e.g., "Panel 1 (0,0)")
   final String name;
 
-  /// Whether this panel has been captured
   final bool isCaptured;
 
   const FramingMosaicPanel({

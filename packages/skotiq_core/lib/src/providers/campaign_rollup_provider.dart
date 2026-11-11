@@ -7,7 +7,6 @@ import '../services/scheduler/integration_goal_service.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
 
-/// Service provider for [CampaignRollupService].
 final campaignRollupServiceProvider = Provider<CampaignRollupService>((ref) {
   return CampaignRollupService(
     records: ref.watch(imagingRecordsRepositoryProvider),

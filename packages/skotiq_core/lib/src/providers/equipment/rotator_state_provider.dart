@@ -7,7 +7,6 @@ import '../../services/device_service.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Rotator state provider
 final rotatorStateProvider =
     StateNotifierProvider<RotatorStateNotifier, RotatorState>((ref) {
       return RotatorStateNotifier(ref);

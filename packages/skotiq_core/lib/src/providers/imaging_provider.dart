@@ -19,7 +19,6 @@ import 'runtime_mirror/channels/session_frames_channel.dart'
 import 'sequence/last_ended_run.dart' show lastEndedRunProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// Current exposure settings
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {
   return const ExposureSettings(
     // A snapshot is an operator probe, not a deep-sky integration. Keep the
@@ -292,7 +291,6 @@ ExposureSettings? _exposureSettingsFromJson(dynamic value) {
   );
 }
 
-/// Last captured image stats
 final lastImageStatsProvider = StateProvider<ImageStats?>((ref) => null);
 
 /// Auto-stretch settings with method selection and advanced parameters.
@@ -389,11 +387,9 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
     }
   }
 
-  /// Reset to default settings.
   Future<void> reset() => update(AutoStretchSettings.defaults());
 }
 
-/// Cooling settings
 final coolingSettingsProvider = StateProvider<CoolingSettings>((ref) {
   return const CoolingSettings();
 });
@@ -556,7 +552,6 @@ final namingPatternProvider = Provider<NamingPattern>((ref) {
   );
 });
 
-/// Session captured images
 final sessionImagesProvider =
     StateNotifierProvider<SessionImagesNotifier, List<CapturedImage>>((ref) {
       return SessionImagesNotifier();
@@ -785,9 +780,6 @@ ImageFileFormat _imageFormatFromDbString(String str) {
   }
 }
 
-// Temperature history tracking
-
-/// A point in the temperature history
 class TemperaturePoint {
   final double temperature;
   final double? targetTemp;
@@ -892,7 +884,6 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
     state = [];
   }
 
-  /// Get the minimum and maximum temperature in the history
   (double, double) get tempRange {
     if (state.isEmpty) return (-30.0, 30.0);
 

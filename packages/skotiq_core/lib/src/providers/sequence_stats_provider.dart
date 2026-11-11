@@ -15,8 +15,6 @@ import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
 
-// Post-session statistics model
-
 /// Statistics collected during a sequence execution run.
 class SequenceRunStats {
   final DateTime startTime;
@@ -57,7 +55,6 @@ class SequenceRunStats {
   /// Per-target, per-filter breakdown: targetName -> filterName -> stats
   final Map<String, Map<String, FilterStats>> targetBreakdown;
 
-  /// Error messages accumulated during the run
   final List<String> errorMessages;
 
   /// Non-fatal warnings accumulated during the run. Used by the executor to
@@ -370,8 +367,6 @@ class FilterStats {
   double integrationSecs = 0.0;
 }
 
-// Parsed stats for UI display
-
 /// Parsed stats from a SequenceRun for easy UI consumption.
 class ParsedRunStats {
   final double wallClockSecs;
@@ -454,21 +449,16 @@ class ParsedRunStats {
   String formatDuration(double secs) => DurationFormat.seconds(secs);
 }
 
-// Providers
-
-/// Provider for accessing the sequence runs DAO.
 final sequenceRunsDaoProvider = Provider<SequenceRunsDao>((ref) {
   final db = ref.watch(databaseProvider);
   return db.sequenceRunsDao;
 });
 
-/// Provider for accessing the sequence version-history DAO.
 final sequenceVersionsDaoProvider = Provider<SequenceVersionsDao>((ref) {
   final db = ref.watch(databaseProvider);
   return db.sequenceVersionsDao;
 });
 
-/// Provider for accessing the per-session diagnostics DAO.
 final sessionDiagnosticsDaoProvider = Provider<SessionDiagnosticsDao>((ref) {
   final db = ref.watch(databaseProvider);
   return db.sessionDiagnosticsDao;
@@ -622,7 +612,6 @@ int? resolveSessionIdForSequenceRun(
   return best?.id;
 }
 
-/// Watch runs for a specific sequence.
 final sequenceRunsForSequenceProvider =
     StreamProvider.family<List<SequenceRun>, int>((ref, sequenceId) {
       return ref.watch(runHistoryProvider).watchRunsForSequence(sequenceId);

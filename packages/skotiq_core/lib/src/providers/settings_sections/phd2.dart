@@ -11,7 +11,6 @@
 //     `autofocus.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for PHD2 guider connection configuration.
 extension Phd2SettingsSection on AppSettingsNotifier {
   Future<void> setPhd2Path(String value) => _set(AppSettingDefs.phd2Path, value);
 

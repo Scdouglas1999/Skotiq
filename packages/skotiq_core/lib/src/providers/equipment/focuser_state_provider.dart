@@ -8,7 +8,6 @@ import '../../services/device_service.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Focuser state provider
 final focuserStateProvider =
     StateNotifierProvider<FocuserStateNotifier, FocuserState>((ref) {
       return FocuserStateNotifier(ref);
@@ -48,8 +47,4 @@ class FocuserStateNotifier extends DeviceSlotNotifier<FocuserState> {
   }
 }
 
-// Autofocus result provider
-
-/// Provider for the last autofocus result
-/// This stores the most recent autofocus run result for display in the UI
 final autofocusResultProvider = StateProvider<AutofocusResult?>((ref) => null);

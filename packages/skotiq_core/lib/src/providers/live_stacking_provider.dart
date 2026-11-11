@@ -536,7 +536,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
   }
 
-  /// Add a frame to the stack from a file.
   Future<void> addFrameFromFile(String imagePath) async {
     if (state.status != LiveStackingStatus.running) return;
     final generation = _sessionGeneration;
@@ -664,7 +663,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     state = state.copyWith(stats: stats);
   }
 
-  /// Update the stacking configuration.
   void updateConfig(LiveStackingConfig config) {
     state = state.copyWith(config: config);
   }
@@ -774,7 +772,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 }
 
-/// Provider for the live stacking state.
 final liveStackingProvider =
     StateNotifierProvider<LiveStackingNotifier, LiveStackingState>((ref) {
       return LiveStackingNotifier(ref);

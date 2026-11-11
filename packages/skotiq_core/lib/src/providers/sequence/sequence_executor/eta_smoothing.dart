@@ -32,7 +32,6 @@ class EtaSmoother {
   /// sample has been recorded.
   double? get smoothedSecsPerFrame => _smoothedSecsPerFrame;
 
-  /// Number of samples currently in the window.
   int get sampleCount => _samples.length;
 
   /// Fold one completed frame's duration into the EMA.

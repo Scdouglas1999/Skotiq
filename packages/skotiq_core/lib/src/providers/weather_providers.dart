@@ -15,10 +15,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
 
-// Export weather safety provider
 export 'weather_safety_provider.dart';
-
-// Service providers
 
 /// Provider for the weather radar service
 ///
@@ -48,8 +45,6 @@ final weatherAlertServiceProvider = Provider<WeatherAlertService>((ref) {
   ref.onDispose(() => service.dispose());
   return service;
 });
-
-// Settings providers
 
 /// Synchronous provider for weather settings
 ///
@@ -312,8 +307,6 @@ RadarProviderType _parseProviderType(String providerString) {
   }
 }
 
-// Cloud cover provider
-
 /// Provider for current cloud cover percentage from Open-Meteo
 ///
 /// Fetches real-time cloud cover data independent of the visual satellite overlay.
@@ -429,8 +422,6 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
   }
 });
 
-// Data stream providers
-
 /// Provider for radar frames that triggers fetching automatically.
 ///
 /// Watches the user's location from app settings and fetches radar frames
@@ -545,8 +536,6 @@ final weatherAlertStreamProvider = StreamProvider<WeatherAlert>((ref) {
   return alertService.alertStream;
 });
 
-// Combined status provider
-
 /// Combined weather status provider for UI consumption
 ///
 /// Aggregates radar frames, evaluated alert conditions, and settings into a
@@ -565,10 +554,8 @@ final weatherStatusProvider = Provider<WeatherStatus>((ref) {
   // Also watch the stream for debounced alerts (used for notifications)
   final streamAlertAsync = ref.watch(weatherAlertStreamProvider);
 
-  // Determine loading state
   final isLoading = framesAsync.isLoading || evaluatedAsync.isLoading;
 
-  // Determine error message
   String? errorMessage;
   if (framesAsync.hasError) {
     errorMessage = framesAsync.error.toString();
@@ -593,7 +580,6 @@ final weatherStatusProvider = Provider<WeatherStatus>((ref) {
     currentLevel = AlertLevel.clear;
   }
 
-  // Get radar frames or empty list
   final radarFrames = framesAsync.valueOrNull ?? [];
 
   // Freshness comes from the actual radar fetch, not wall-clock now — an
@@ -601,7 +587,6 @@ final weatherStatusProvider = Provider<WeatherStatus>((ref) {
   final radarService = ref.watch(weatherRadarServiceProvider);
   final lastFetchedAt = radarService.lastResult?.fetchedAt;
 
-  // Build combined status
   return WeatherStatus(
     currentLevel: currentLevel,
     activeAlert: activeAlert,
@@ -615,8 +600,6 @@ final weatherStatusProvider = Provider<WeatherStatus>((ref) {
     errorMessage: errorMessage,
   );
 });
-
-// Action providers
 
 /// Provider that performs cloud motion analysis on current radar frames,
 /// surfacing *why* a prediction is unavailable.

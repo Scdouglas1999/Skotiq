@@ -18,12 +18,10 @@ import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
-/// DAO provider for DarkLibraryDao.
 final darkLibraryDaoProvider = Provider<DarkLibraryDao>((ref) {
   return DarkLibraryDao(ref.watch(databaseProvider));
 });
 
-/// Service provider for DarkLibraryService.
 final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
   return DarkLibraryService(
     ref.watch(darkLibraryDaoProvider),
@@ -510,7 +508,6 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
     }
   }
 
-  /// Delete a single entry.
   Future<void> deleteEntry(int id, {bool deleteFile = false}) async {
     if (!_startMutation(
       DarkLibraryMutation.deleteEntry,
@@ -532,7 +529,6 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
     }
   }
 
-  /// Clear the entire library.
   Future<void> clearLibrary({bool deleteFiles = false}) async {
     if (!_startMutation(
       DarkLibraryMutation.clearLibrary,

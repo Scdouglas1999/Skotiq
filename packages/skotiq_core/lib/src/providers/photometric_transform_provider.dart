@@ -25,7 +25,6 @@ final activeProfileTransformsProvider =
       return ref.watch(scienceDaoProvider).watchTransformsForProfile(profileId);
     });
 
-/// Reads the active equipment profile's ID (nullable).
 final activeEquipmentProfileIdProvider = Provider<int?>((ref) {
   final profile = ref.watch(activeProfileProvider).valueOrNull;
   return profile?.id;

@@ -34,13 +34,6 @@ part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';
 part 'framing_provider/survey_operations.dart';
 
-// Astronomy HTTP client
-
-/// Shared HTTP client for astronomy server requests.
-/// Uses standard certificate verification — no SSL bypass.
-
-// Framing state notifier
-
 class FramingNotifier extends StateNotifier<FramingState> {
   final Ref _ref;
   static const _surveyImageTimeout = Duration(seconds: 30);
@@ -156,7 +149,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage(canvasWidthLogicalPx: width);
   }
 
-  /// Set the target by coordinates
   void setTargetCoordinates(
     double raHours,
     double decDegrees, {
@@ -311,14 +303,12 @@ class FramingNotifier extends StateNotifier<FramingState> {
     );
   }
 
-  /// Clear the current target
   void clearTarget() {
     _cancelPendingTargetWork();
     _cutoutCanvasWidthPx = null;
     state = state.copyWith(clearTarget: true, clearImage: true);
   }
 
-  /// Set the survey source
   void setSurveySource(SurveySource source) {
     state = state.copyWith(surveySource: source, clearImage: true);
     if (state.target != null) {
@@ -347,17 +337,14 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Set zoom level
   void setZoom(double zoom) {
     state = state.copyWith(zoom: zoom.clamp(0.25, 4.0));
   }
 
-  /// Zoom in
   void zoomIn() {
     setZoom(state.zoom * 1.25);
   }
 
-  /// Zoom out
   void zoomOut() {
     setZoom(state.zoom / 1.25);
   }
@@ -368,7 +355,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     state = state.copyWith(zoom: 1.0, panX: 0, panY: 0, clearAim: true);
   }
 
-  /// Set pan offset
   void setPan(double x, double y) {
     state = state.copyWith(panX: x, panY: y);
   }
@@ -506,41 +492,34 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage();
   }
 
-  /// Toggle grid display
   void toggleGrid() {
     state = state.copyWith(showGrid: !state.showGrid);
   }
 
-  /// Toggle labels display
   void toggleLabels() {
     state = state.copyWith(showLabels: !state.showLabels);
   }
 
-  /// Toggle cardinal directions
   void toggleCardinalDirections() {
     state = state.copyWith(
       showCardinalDirections: !state.showCardinalDirections,
     );
   }
 
-  /// Toggle the candidate guide-star overlay.
   void toggleGuideStars() {
     state = state.copyWith(showGuideStars: !state.showGuideStars);
   }
 
-  /// Toggle optical config panel visibility
   void toggleOpticalConfigPanel() {
     state = state.copyWith(
       showOpticalConfigPanel: !state.showOpticalConfigPanel,
     );
   }
 
-  /// Set optical config panel visibility
   void setOpticalConfigPanelVisible(bool visible) {
     state = state.copyWith(showOpticalConfigPanel: visible);
   }
 
-  /// Set custom equipment
   void setCustomEquipment(FramingEquipment equipment) {
     state = state.copyWith(
       customEquipment: equipment,
@@ -548,7 +527,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     );
   }
 
-  /// Use equipment from active profile
   void useProfileEquipment() {
     state = state.copyWith(useCustomEquipment: false);
   }
@@ -564,21 +542,16 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Set equipment FOV overlay opacity
   void setEquipmentFovOverlayOpacity(double opacity) {
     state = state.copyWith(equipmentFovOverlayOpacity: opacity.clamp(0.0, 1.0));
   }
 
-  /// Toggle equipment FOV overlay visibility
   void toggleEquipmentFovOverlay() {
     state = state.copyWith(
       showEquipmentFovOverlay: !state.showEquipmentFovOverlay,
     );
   }
 
-  // Mosaic methods
-
-  /// Enable or disable mosaic mode
   void setMosaicEnabled(bool enabled) {
     state = state.copyWith(mosaicEnabled: enabled);
     if (enabled) {
@@ -588,7 +561,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Update mosaic configuration
   void setMosaicConfig(FramingMosaicConfig config) {
     state = state.copyWith(mosaicConfig: config);
     if (state.mosaicEnabled) {
@@ -596,46 +568,38 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Set number of mosaic columns
   void setMosaicColumns(int columns) {
     setMosaicConfig(state.mosaicConfig.copyWith(columns: columns.clamp(1, 10)));
   }
 
-  /// Set number of mosaic rows
   void setMosaicRows(int rows) {
     setMosaicConfig(state.mosaicConfig.copyWith(rows: rows.clamp(1, 10)));
   }
 
-  /// Set mosaic overlap percentage
   void setMosaicOverlap(double percent) {
     setMosaicConfig(
       state.mosaicConfig.copyWith(overlapPercent: percent.clamp(0, 50)),
     );
   }
 
-  /// Toggle serpentine capture pattern
   void toggleSerpentine() {
     setMosaicConfig(
       state.mosaicConfig.copyWith(serpentine: !state.mosaicConfig.serpentine),
     );
   }
 
-  /// Set mosaic start corner
   void setMosaicStartCorner(MosaicStartCorner corner) {
     setMosaicConfig(state.mosaicConfig.copyWith(startCorner: corner));
   }
 
-  /// Select a panel by index
   void selectPanel(int index) {
     state = state.copyWith(selectedPanelIndex: index);
   }
 
-  /// Toggle panel number visibility
   void togglePanelNumbers() {
     state = state.copyWith(showPanelNumbers: !state.showPanelNumbers);
   }
 
-  /// Toggle sequence path visibility
   void toggleSequencePath() {
     state = state.copyWith(showSequencePath: !state.showSequencePath);
   }
@@ -661,7 +625,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     final stepWidthDeg = fovWidth * overlapFactor;
     final stepHeightDeg = fovHeight * overlapFactor;
 
-    // Calculate the total extent of the mosaic
     final totalWidthDeg = fovWidth + (config.columns - 1) * stepWidthDeg;
     final totalHeightDeg = fovHeight + (config.rows - 1) * stepHeightDeg;
 
@@ -765,7 +728,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Get mosaic total coverage info
   (double widthDeg, double heightDeg) getMosaicCoverage() {
     final config = state.mosaicConfig;
     final baseWidthDeg =

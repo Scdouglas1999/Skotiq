@@ -45,7 +45,6 @@ final class RunLaunching extends RunPhase {
   String get name => nativeLaunchAttempted ? 'launching(native)' : 'launching';
 }
 
-/// The run is live.
 final class RunLive extends RunPhase {
   const RunLive({this.paused = false});
 

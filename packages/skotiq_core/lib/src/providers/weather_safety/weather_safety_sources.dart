@@ -1,6 +1,5 @@
 part of '../weather_safety_provider.dart';
 
-/// State for weather safety
 /// How old a hardware source's last successful read may be before it stops
 /// counting as live data.
 const Duration _sourceFreshnessBudget = Duration(minutes: 5);

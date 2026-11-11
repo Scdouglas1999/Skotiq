@@ -4,7 +4,6 @@ import '../models/annotation_settings.dart';
 import '../services/logging_service.dart';
 import 'database_provider.dart';
 
-/// Built-in annotation presets
 const builtInAnnotationPresets = <AnnotationPreset>[
   AnnotationPreset(
     name: 'Deep Field',
@@ -191,7 +190,6 @@ class AnnotationSettingsNotifier extends AsyncNotifier<AnnotationSettings> {
   Future<void> setShowSolveResiduals(bool show) =>
       _update((current) => current.copyWith(showSolveResiduals: show));
 
-  /// Apply an annotation preset to current settings
   Future<void> applyPreset(AnnotationPreset preset) => _update(
     (current) => current.copyWith(
       visibleTypes: Set<AnnotationObjectFilter>.from(preset.visibleTypes),
@@ -391,7 +389,6 @@ class AnnotationPresetsNotifier extends AsyncNotifier<List<AnnotationPreset>> {
     return operation;
   }
 
-  /// Save the current annotation settings as a named preset
   Future<void> saveCurrentAsPreset(String name) {
     final settingsNotifier = ref.read(annotationSettingsProvider.notifier);
     final settings = settingsNotifier.state.valueOrNull;

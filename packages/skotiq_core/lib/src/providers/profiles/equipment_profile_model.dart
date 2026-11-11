@@ -7,7 +7,6 @@ class EquipmentProfileModel {
   final String? description;
   final bool isActive;
 
-  // Device identifiers
   final String? cameraId;
   final String? mountId;
   final String? focuserId;
@@ -54,20 +53,17 @@ class EquipmentProfileModel {
   // Centering/plate-solve default exposure (seconds)
   final double? defaultCenteringExposure;
 
-  // Filter configuration
   final List<String> filterNames;
   final Map<String, int> filterFocusOffsets;
 
   // Meridian flip settings overrides (raw JSON; null = use global defaults)
   final String? meridianFlipOverrides;
 
-  // Profile customization
   final String? profileIcon;
   final int? profileColor;
   final int sortOrder;
   final bool isDefault;
 
-  // Timestamps
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -187,7 +183,6 @@ class EquipmentProfileModel {
       DeviceType.values.where((type) => deviceIdFor(type) != null).length +
       (guideCameraId != null ? 1 : 0);
 
-  /// Create from database entity
   factory EquipmentProfileModel.fromDatabase(EquipmentProfile db) {
     List<String> filters = [];
     Map<String, int> offsets = {};
@@ -379,7 +374,6 @@ class EquipmentProfileModel {
     );
   }
 
-  /// Convert to database companion for insert/update
   EquipmentProfilesCompanion toCompanion() {
     return EquipmentProfilesCompanion(
       id: id != null ? Value(id!) : const Value.absent(),
@@ -623,7 +617,6 @@ class EquipmentProfileModel {
     return ratio;
   }
 
-  /// Get field of view for given sensor dimensions
   (double width, double height) getFieldOfView({
     required double sensorWidthMm,
     required double sensorHeightMm,

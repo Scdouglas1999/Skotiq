@@ -12,7 +12,6 @@
 //     `environment.dart` (those are sky-quality, not location).
 part of '../settings_provider.dart';
 
-/// Setters for observer-location settings.
 extension LocationSettingsSection on AppSettingsNotifier {
   // The planetarium follows these through the settings screen, not here.
   Future<void> setLatitude(double value) => _set(AppSettingDefs.latitude, value);

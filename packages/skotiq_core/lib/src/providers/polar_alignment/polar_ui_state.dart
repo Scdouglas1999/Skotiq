@@ -146,8 +146,6 @@ class PolarAlignmentUiStateNotifier
   }
 }
 
-// Polar alignment error history provider (for trend visualization)
-
 /// Maximum number of error samples to keep for visualization
 const int _maxErrorHistorySamples = 60;
 

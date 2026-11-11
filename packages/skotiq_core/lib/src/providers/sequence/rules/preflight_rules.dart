@@ -636,7 +636,6 @@ class PolarAlignmentFreshnessRule implements RefAwareSequenceValidator {
     if (settings == null) return const [];
     if (settings.polarAlignmentMaxAgeDays <= 0) return const [];
 
-    // Only relevant if a mount is required for this run.
     final requiresMount = sequence.nodes.values.any((node) {
       if (!node.isEnabled) return false;
       return node.requiredDevices.contains(DeviceType.mount);
@@ -851,7 +850,6 @@ class FilterWheelHomingRule implements RefAwareSequenceValidator {
     final settings = ref.read(appSettingsProvider).valueOrNull;
     if (settings == null) return const [];
 
-    // Only relevant when the sequence will actually use a filter wheel.
     final requiresFw = sequence.nodes.values.any((node) {
       if (!node.isEnabled) return false;
       return node.requiredDevices.contains(DeviceType.filterWheel);

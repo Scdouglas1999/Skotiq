@@ -286,8 +286,6 @@ class ConditionalNodeEmptyBranchRule implements SequenceValidator {
   }
 }
 
-// Loop termination analysis.
-
 /// Warns about Loop nodes whose termination condition is provably
 /// unreachable inside any reasonable session window.
 ///
@@ -379,8 +377,6 @@ class LoopUnreachableTerminationRule implements SequenceValidator {
     return issues;
   }
 }
-
-// No-op logic nodes.
 
 /// Flags logic nodes dropped in but never configured, which do exactly
 /// nothing.

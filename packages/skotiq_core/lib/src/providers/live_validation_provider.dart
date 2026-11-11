@@ -64,7 +64,6 @@ class LiveValidationNotifier extends StateNotifier<LiveValidationState> {
   Timer? _debounceTimer;
 
   LiveValidationNotifier(this._ref) : super(LiveValidationState.empty()) {
-    // Watch sequence changes
     _ref.listen(currentSequenceProvider, (_, __) {
       _scheduleValidation();
     });
@@ -133,7 +132,6 @@ class LiveValidationNotifier extends StateNotifier<LiveValidationState> {
       _scheduleValidation();
     });
 
-    // Run initial validation
     _scheduleValidation();
   }
 

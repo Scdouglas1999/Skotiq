@@ -145,8 +145,6 @@ class SmartExposureFilterWheelMissingRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    // Bail early when no SmartExposure node uses a filter — the rule has
-    // nothing to check.
     final hasSmartExposureNode = sequence.nodes.values
         .whereType<SmartExposureNode>()
         .any((n) => n.isEnabled);
@@ -243,7 +241,6 @@ class SmartExposureFilterUnknownRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    // Bail early when no enabled SmartExposure node is in the sequence.
     final smartExposureNodes = sequence.nodes.values
         .whereType<SmartExposureNode>()
         .where((n) => n.isEnabled)

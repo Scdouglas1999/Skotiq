@@ -97,7 +97,6 @@ class TransientAlertSettingsNotifier
     };
   }
 
-  /// Load settings from persistent storage
   Future<void> _loadSettings() async {
     if (_initialized) return;
     final revisionAtStart = _requestRevision;
@@ -108,19 +107,16 @@ class TransientAlertSettingsNotifier
           ? await _settingsDao.getAllSettings()
           : _remoteSettingsAsStored(await remote.getTransientSettings());
 
-      // Parse enabled sources
       final sourcesJson = allSettings['${_settingsKeyPrefix}enabled_sources'];
       final enabledSources =
           _parseSources(sourcesJson) ??
           TransientAlertSettings.defaultSettings.enabledSources;
 
-      // Parse types to monitor
       final typesJson = allSettings['${_settingsKeyPrefix}types_to_monitor'];
       final typesToMonitor =
           _parseTypes(typesJson) ??
           TransientAlertSettings.defaultSettings.typesToMonitor;
 
-      // Parse numeric and boolean settings
       final magnitudeThreshold = _parseFiniteDouble(
         allSettings['${_settingsKeyPrefix}magnitude_threshold'],
         TransientAlertSettings.defaultSettings.magnitudeThreshold,
@@ -176,7 +172,6 @@ class TransientAlertSettingsNotifier
     }
   }
 
-  /// Save all current settings to persistent storage
   Future<void> _saveSettings(TransientAlertSettings settings) async {
     try {
       final remote = _remote;
@@ -272,13 +267,11 @@ class TransientAlertSettingsNotifier
     return operation;
   }
 
-  /// Update all settings at once
   Future<void> updateSettings(TransientAlertSettings settings) async {
     await loaded;
     await _queueSettingsUpdate(settings);
   }
 
-  /// Toggle a specific source on or off
   Future<void> toggleSource(TransientSource source) async {
     await loaded;
     final newSources = Set<TransientSource>.from(
@@ -294,7 +287,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Toggle a specific transient type on or off
   Future<void> toggleType(TransientType type) async {
     await loaded;
     final newTypes = Set<TransientType>.from(_requestedSettings.typesToMonitor);
@@ -308,7 +300,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set the magnitude threshold for alerts
   Future<void> setMagnitudeThreshold(double threshold) async {
     if (!threshold.isFinite) {
       throw ArgumentError.value(threshold, 'threshold', 'must be finite');
@@ -319,7 +310,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set whether to notify on new alerts
   Future<void> setNotifyOnNew(bool notify) async {
     await loaded;
     await _queueSettingsUpdate(
@@ -327,7 +317,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set whether to auto-queue bright transients
   Future<void> setAutoQueueBright(bool autoQueue) async {
     await loaded;
     await _queueSettingsUpdate(
@@ -335,7 +324,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set the magnitude threshold for auto-queuing
   Future<void> setAutoQueueMagnitude(double magnitude) async {
     if (!magnitude.isFinite) {
       throw ArgumentError.value(magnitude, 'magnitude', 'must be finite');

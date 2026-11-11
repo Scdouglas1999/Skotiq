@@ -133,7 +133,6 @@ class SecondaryRigConfig {
   }
 }
 
-/// Holds the editable secondary-rig config.
 class SecondaryRigConfigNotifier extends StateNotifier<SecondaryRigConfig> {
   SecondaryRigConfigNotifier() : super(const SecondaryRigConfig());
 

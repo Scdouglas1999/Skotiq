@@ -8,7 +8,6 @@ import '../profiles_provider.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Camera state provider
 final cameraStateProvider =
     StateNotifierProvider<CameraStateNotifier, CameraStateSnapshot>((ref) {
       return CameraStateNotifier(ref);
@@ -69,7 +68,6 @@ class CameraStateNotifier extends DeviceSlotNotifier<CameraStateSnapshot> {
     state = state.copyWith(targetTemp: temp);
   }
 
-  /// Update cooling state (on/off)
   void setCooling(bool isCooling) {
     state = state.copyWith(isCooling: isCooling);
   }

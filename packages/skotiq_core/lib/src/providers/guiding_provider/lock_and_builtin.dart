@@ -1,7 +1,5 @@
 part of '../guiding_provider.dart';
 
-// PHD2 lock position provider
-
 /// Provider for current guide star lock position
 final lockPositionProvider =
     StateNotifierProvider<LockPositionNotifier, ({double x, double y})?>((ref) {
@@ -35,7 +33,6 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     }
   }
 
-  /// Set a new lock position
   Future<void> setLockPosition(double x, double y, {bool exact = false}) async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
@@ -60,7 +57,6 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     state = (x: pos.$1, y: pos.$2);
   }
 
-  /// Deselect the current star
   Future<void> deselectStar() async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
@@ -89,8 +85,6 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     super.dispose();
   }
 }
-
-// Built-in guider config provider
 
 /// The device ID used by the built-in multi-star guider.
 const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
@@ -211,7 +205,6 @@ class BuiltinGuiderConfigNotifier
     }
   }
 
-  /// Reset config to defaults.
   Future<void> resetToDefaults() async {
     await updateConfig(BuiltinGuiderConfig.defaults);
   }

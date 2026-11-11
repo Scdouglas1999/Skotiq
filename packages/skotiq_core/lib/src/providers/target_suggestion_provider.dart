@@ -12,17 +12,12 @@ import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'settings_provider.dart';
 
-// Service provider
-
-/// Provider for the target suggestion service.
 final targetSuggestionServiceProvider = Provider<TargetSuggestionService>((
   ref,
 ) {
   final logging = ref.watch(loggingServiceProvider);
   return TargetSuggestionService(loggingService: logging);
 });
-
-// Configuration provider
 
 /// Provider for target suggestion configuration.
 ///
@@ -40,15 +35,11 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
   );
 });
 
-// Refresh trigger provider
-
 /// Simple counter provider to trigger suggestion refresh.
 ///
 /// UI can call `ref.read(refreshSuggestionsProvider.notifier).state++` to
 /// force a rebuild of the suggestions list.
 final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
-
-// Tonight's Suggestions Provider
 
 /// Catalog targets built from one OpenNGC reader. The catalog manager
 /// replaces the reader when the file changes, which retires this entry.
@@ -67,10 +58,8 @@ final Expando<Future<List<db.Target>>> _catalogTargets = Expando();
 /// so both machines list the same candidates.
 final tonightSuggestionsProvider =
     FutureProvider.autoDispose<List<TargetSuggestion>>((ref) async {
-      // Watch configuration for filter/sort changes
       final config = ref.watch(targetSuggestionConfigProvider);
 
-      // Watch refresh trigger for manual refresh
       ref.watch(refreshSuggestionsProvider);
 
       final backend = ref.watch(backendProvider);
@@ -128,14 +117,12 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final latitude = observerLocation.latitude;
       final longitude = observerLocation.longitude;
 
-      // Validate location is set
       if (latitude == 0.0 && longitude == 0.0) {
         // No location configured, return empty list
         // The UI should prompt user to set location in settings
         return [];
       }
 
-      // Get the suggestion service
       final service = ref.read(targetSuggestionServiceProvider);
       final logging = ref.read(loggingServiceProvider);
 
@@ -177,7 +164,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
         // Get custom horizon profile for obstruction filtering
         final horizonProfile = ref.read(horizonProfileProvider);
 
-        // Generate suggestions
         final suggestions = await service.getSuggestionsForTonight(
           config: config,
           latitude: latitude,
@@ -294,5 +280,3 @@ Future<List<db.Target>> _readCatalogTargets(
   );
   return List.unmodifiable(targets);
 }
-
-// Convenience providers

@@ -8,7 +8,6 @@ import '../database/daos/settings_dao.dart';
 import '../models/tutorial/tutorial_models.dart';
 import 'database_provider.dart';
 
-/// Provider for tutorial progress DAO
 final tutorialProgressDaoProvider = Provider<TutorialProgressDao>((ref) {
   return TutorialProgressDao(ref.watch(databaseProvider));
 });
@@ -453,7 +452,6 @@ final tutorialProvider =
     StateNotifierProvider<TutorialNotifier, TutorialProgress>((ref) {
       final dao = ref.watch(tutorialProgressDaoProvider);
       final notifier = TutorialNotifier(dao, ref.watch(settingsDaoProvider));
-      // Load persisted progress on creation
       notifier._loadPersistedProgress();
       return notifier;
     });
@@ -487,7 +485,6 @@ class DismissedTourPromptsNotifier extends StateNotifier<Set<String>> {
   /// because reading the provider is itself what starts the load.
   Future<void> get ready => _ready;
 
-  /// Load dismissed prompts from database
   Future<void> _loadDismissedPrompts() async {
     final dismissed = await _dao.getDismissedPromptScreenIds();
     if (mounted) state = dismissed;
@@ -499,7 +496,6 @@ class DismissedTourPromptsNotifier extends StateNotifier<Set<String>> {
     if (mounted) state = {...state, screenId};
   }
 
-  /// Check if a screen's prompt has been dismissed
   bool isPromptDismissed(String screenId) {
     return state.contains(screenId);
   }
@@ -525,7 +521,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
   TutorialNotifier(this._dao, [this._settingsDao])
     : super(const TutorialProgress());
 
-  /// Load persisted progress from database
   Future<void> _loadPersistedProgress() async {
     final settingsRevisionAtStart = _settingsRevision;
     final progressRevisionAtStart = _progressRevision;
@@ -543,7 +538,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
       if (category != null) {
         final steps = TutorialDefinitions.getStepsForCategory(category);
         if (entry.completed) {
-          // Add all steps from completed categories.
           completedSteps.addAll(steps.map((s) => s.id));
 
           // Check if firstLight (initial tour) was completed
@@ -590,7 +584,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     return completer.future;
   }
 
-  /// Convert category name string to enum
   TutorialCategory? _categoryFromName(String name) {
     for (final cat in TutorialCategory.values) {
       if (cat.name == name) return cat;
@@ -598,7 +591,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     return null;
   }
 
-  /// Start a tutorial category
   Future<void> startTutorial(TutorialCategory category) =>
       _restartTutorial(category);
 
@@ -619,7 +611,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
         );
       });
 
-  /// Restart a tutorial from the beginning
   Future<void> restartTutorial(TutorialCategory category) =>
       _restartTutorial(category);
 
@@ -642,7 +633,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
         );
       });
 
-  /// Go to the next step in the current tutorial
   Future<void> nextStep() => _serializeProgressMutation(() async {
     final category = state.activeCategory;
     if (category == null) return;
@@ -666,7 +656,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     await _completeTutorial(category, steps);
   });
 
-  /// Go to the previous step
   Future<void> previousStep() => _serializeProgressMutation(() async {
     final category = state.activeCategory;
     if (category == null || state.currentStepIndex <= 0) return;
@@ -676,7 +665,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     state = state.copyWith(currentStepIndex: newIndex);
   });
 
-  /// Skip to a specific step
   Future<void> goToStep(int index) => _serializeProgressMutation(() async {
     final category = state.activeCategory;
     if (category == null) return;
@@ -687,7 +675,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     state = state.copyWith(currentStepIndex: index);
   });
 
-  /// Complete the current tutorial
   Future<void> completeTutorial() => _serializeProgressMutation(() async {
     final category = state.activeCategory;
     if (category == null) return;
@@ -741,7 +728,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     return completer.future;
   }
 
-  /// Reset all tutorial progress
   Future<void> resetProgress() => _serializeProgressMutation(() async {
     await _dao.resetAllProgress();
     if (mounted) {
@@ -754,12 +740,10 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     state = state.copyWith(hasSeenInitialTour: true);
   }
 
-  /// Check if a category has been completed
   Future<bool> isCategoryCompleted(TutorialCategory category) async {
     return _dao.isCategoryCompleted(category.name);
   }
 
-  /// Check if a category was dismissed
   Future<bool> isCategoryDismissed(TutorialCategory category) async {
     return _dao.isCategoryDismissed(category.name);
   }
@@ -776,7 +760,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     return steps.where((s) => state.completedSteps.contains(s.id)).length;
   }
 
-  /// Get the total number of steps for a category
   int getTotalStepsCount(TutorialCategory category) {
     return TutorialDefinitions.getStepsForCategory(category).length;
   }
@@ -793,7 +776,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     return steps.any((s) => state.completedSteps.contains(s.id));
   }
 
-  /// Get the current step
   TutorialStep? get currentStep {
     if (state.activeCategory == null) return null;
     final steps = TutorialDefinitions.getStepsForCategory(
@@ -803,7 +785,6 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     return steps[state.currentStepIndex];
   }
 
-  /// Get total steps in current tutorial
   int get totalSteps {
     if (state.activeCategory == null) return 0;
     return TutorialDefinitions.getStepsForCategory(
@@ -811,12 +792,10 @@ class TutorialNotifier extends StateNotifier<TutorialProgress> {
     ).length;
   }
 
-  /// Check if this is the last step
   bool get isLastStep {
     return state.currentStepIndex >= totalSteps - 1;
   }
 
-  /// Check if this is the first step
   bool get isFirstStep {
     return state.currentStepIndex == 0;
   }

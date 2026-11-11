@@ -150,8 +150,6 @@ Future<void> _persistConfigWithSecrets({
   }
 }
 
-// Secrets store provider
-
 /// Overridable provider for the platform secrets store. Production
 /// (apps/desktop, apps/mobile) uses [SecretsStore.platformDefault]; tests
 /// override this with a fake backing store.
@@ -832,8 +830,6 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
     });
   }
 }
-
-// Public providers
 
 final emailTransportConfigProvider =
     AsyncNotifierProvider<EmailConfigNotifier, EmailTransportConfig>(

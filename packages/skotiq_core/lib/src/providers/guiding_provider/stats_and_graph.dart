@@ -80,7 +80,6 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
   late final _BackendGuidingEventBinding _events;
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
-  // Rolling RMS calculators for accurate statistics
   final _rmsRaCalculator = RollingRmsCalculator(windowSize: 100);
   final _rmsDecCalculator = RollingRmsCalculator(windowSize: 100);
   int _frameCount = 0;
@@ -146,7 +145,6 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
     final raDistance = _guideAxisPixels(json, isRa: true);
     final decDistance = _guideAxisPixels(json, isRa: false);
 
-    // Add values to rolling RMS calculators
     _rmsRaCalculator.add(raDistance);
     _rmsDecCalculator.add(decDistance);
     _frameCount++;
@@ -375,7 +373,6 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
   }
 }
 
-/// Data point for the guiding graph
 class GuideGraphPoint {
   final double ra;
   final double dec;

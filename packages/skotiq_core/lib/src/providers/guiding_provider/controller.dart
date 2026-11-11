@@ -270,7 +270,6 @@ class Phd2Controller {
     ) {
       if (next != null && next.trim().isNotEmpty) _lastGuiderId = next;
     }, fireImmediately: true);
-    // Listen to backend events
     _eventSub = backend.eventStream.listen(
       (event) {
         if (event.category != EventCategory.guiding) return;
@@ -281,7 +280,6 @@ class Phd2Controller {
           source: 'Phd2Controller',
         );
 
-        // Update the main GuiderState used by the UI
         final guiderNotifier = ref.read(guiderStateProvider.notifier);
 
         switch (event.eventType) {
@@ -429,7 +427,6 @@ class Phd2Controller {
 
     ref.read(phd2StateProvider.notifier).state = state;
 
-    // Update UI provider
     final guiderNotifier = ref.read(guiderStateProvider.notifier);
     guiderNotifier.setGuiding(state == Phd2State.guiding);
   }
@@ -463,11 +460,9 @@ class Phd2Controller {
   }
 
   void _handleGuideStats(Map<String, dynamic> json) {
-    // Update SNR and star mass from GuideStats event
     final snr = (json['SNR'] as num?)?.toDouble() ?? 0;
     final starMass = (json['StarMass'] as num?)?.toDouble() ?? 0;
 
-    // Update the guide stats provider with SNR and star mass
     ref.read(guideStatsProvider.notifier).updateStarData(snr, starMass);
   }
 
@@ -494,7 +489,6 @@ class Phd2Controller {
   }
 
   void _handleStarLost() {
-    // Record the event timestamp
     ref.read(starLostEventProvider.notifier).state = DateTime.now();
 
     // Update UI state: the star is gone, so we are no longer actively guiding.

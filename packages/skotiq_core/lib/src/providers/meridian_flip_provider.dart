@@ -66,7 +66,6 @@ Map<String, dynamic> _documentToStore(
   };
 }
 
-/// Provider for global meridian flip settings
 final globalMeridianFlipSettingsProvider =
     StateNotifierProvider<
       GlobalMeridianFlipSettingsNotifier,
@@ -253,7 +252,6 @@ class GlobalMeridianFlipSettingsNotifier
   // Individual setting updates
   // These allow updating individual settings without replacing the entire object
 
-  /// Update standalone monitoring enabled
   Future<void> setStandaloneMonitoringEnabled(bool enabled) async {
     if (enabled && !state.triggerMethod.supportsStandaloneMonitoring) {
       return Future<void>.error(
@@ -266,7 +264,6 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(standaloneMonitoringEnabled: enabled));
   }
 
-  /// Update trigger method
   Future<void> setTriggerMethod(MeridianTriggerMethod method) async {
     await updateSettings(
       state.copyWith(
@@ -278,17 +275,14 @@ class GlobalMeridianFlipSettingsNotifier
     );
   }
 
-  /// Update minutes past meridian threshold
   Future<void> setMinutesPastMeridian(double minutes) async {
     await updateSettings(state.copyWith(minutesPastMeridian: minutes));
   }
 
-  /// Update minutes before limit threshold
   Future<void> setMinutesBeforeLimit(double minutes) async {
     await updateSettings(state.copyWith(minutesBeforeLimit: minutes));
   }
 
-  /// Update hour angle threshold
   Future<void> setHourAngleThreshold(double hours) async {
     await updateSettings(state.copyWith(hourAngleThreshold: hours));
   }
@@ -298,7 +292,6 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(pauseBeforeMeridianMinutes: minutes));
   }
 
-  /// Update tracking limit wait minutes
   Future<void> setTrackingLimitWaitMinutes(double minutes) async {
     await updateSettings(state.copyWith(trackingLimitWaitMinutes: minutes));
   }
@@ -308,57 +301,46 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(trackingLimitPolicy: policy));
   }
 
-  /// Update pause guiding before flip
   Future<void> setPauseGuidingBeforeFlip(bool pause) async {
     await updateSettings(state.copyWith(pauseGuidingBeforeFlip: pause));
   }
 
-  /// Update recenter after flip
   Future<void> setRecenterAfterFlip(bool recenter) async {
     await updateSettings(state.copyWith(recenterAfterFlip: recenter));
   }
 
-  /// Update refocus after flip
   Future<void> setRefocusAfterFlip(bool refocus) async {
     await updateSettings(state.copyWith(refocusAfterFlip: refocus));
   }
 
-  /// Update settle time
   Future<void> setSettleTimeSeconds(double seconds) async {
     await updateSettings(state.copyWith(settleTimeSeconds: seconds));
   }
 
-  /// Update resume guiding after flip
   Future<void> setResumeGuidingAfterFlip(bool resume) async {
     await updateSettings(state.copyWith(resumeGuidingAfterFlip: resume));
   }
 
-  /// Update max retries
   Future<void> setMaxRetries(int retries) async {
     await updateSettings(state.copyWith(maxRetries: retries));
   }
 
-  /// Update retry delays
   Future<void> setRetryDelaysSeconds(List<double> delays) async {
     await updateSettings(state.copyWith(retryDelaysSeconds: delays));
   }
 
-  /// Update failure action
   Future<void> setFailureAction(FlipFailureAction action) async {
     await updateSettings(state.copyWith(failureAction: action));
   }
 
-  /// Update sound alert on flip
   Future<void> setSoundAlertOnFlip(bool enabled) async {
     await updateSettings(state.copyWith(soundAlertOnFlip: enabled));
   }
 
-  /// Update push notification on flip
   Future<void> setPushNotificationOnFlip(bool enabled) async {
     await updateSettings(state.copyWith(pushNotificationOnFlip: enabled));
   }
 
-  /// Reset settings to defaults
   Future<void> resetToDefaults() async {
     await updateSettings(const MeridianFlipSettings());
   }
@@ -380,7 +362,6 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
     return global;
   }
 
-  // Check if profile has overrides
   final overridesJson = activeProfile.meridianFlipOverrides;
   if (overridesJson == null || overridesJson.isEmpty) {
     return global;
@@ -448,10 +429,8 @@ final flipCurrentStepProvider = StateProvider<FlipStep?>((ref) => null);
 /// Provider for flip progress percentage (0-100)
 final flipProgressProvider = StateProvider<int>((ref) => 0);
 
-/// Provider for the last flip error message
 final flipLastErrorProvider = StateProvider<String?>((ref) => null);
 
-/// Provider indicating if a flip is currently in progress
 final isFlipInProgressProvider = Provider<bool>((ref) {
   final state = ref.watch(flipExecutionStateProvider);
   return state == FlipExecutionState.executing ||

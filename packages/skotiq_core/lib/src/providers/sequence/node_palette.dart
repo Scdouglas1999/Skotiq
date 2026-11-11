@@ -93,7 +93,6 @@ BinningMode _binningModeFromInt(int binning) {
   }
 }
 
-/// Available node types for the palette
 final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
   final defaults = ref.watch(sequencerDefaultsProvider);
   final profile = ref.watch(activeEquipmentProfileProvider);
@@ -112,7 +111,6 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
   // registers or unregisters at runtime.
   final pluginBlueprints = ref.watch(pluginNodeBlueprintsProvider);
 
-  // Use profile defaults as fallback when sequencer defaults are not set
   final effectiveGain = defaults.exposureGain ?? profile?.defaultGain;
   final effectiveOffset = defaults.exposureOffset ?? profile?.defaultOffset;
   final effectiveBinning = defaults.exposureBinning != BinningMode.one

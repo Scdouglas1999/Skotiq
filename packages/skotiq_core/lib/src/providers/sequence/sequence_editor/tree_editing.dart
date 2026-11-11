@@ -346,7 +346,6 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     );
   }
 
-  /// Update a node
   void updateNode(SequenceNode node) {
     if (_currentSequence == null) return;
     _ensureEditable('update node');
@@ -405,7 +404,6 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     }
   }
 
-  /// Toggle node enabled _currentSequence
   void toggleNodeEnabled(String nodeId) {
     if (_currentSequence == null) return;
     // No _ensureEditable here — updateNode below performs the guard.
@@ -513,7 +511,6 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     );
   }
 
-  /// Duplicate a node
   void duplicateNode(String nodeId) {
     if (_currentSequence == null) return;
     final node = _currentSequence!.nodes[nodeId];
@@ -565,7 +562,6 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     );
   }
 
-  /// Wrap all children of a node into a new container node
   void wrapChildren(String parentId, SequenceNode wrapper) {
     if (_currentSequence == null) return;
     final parent = _currentSequence!.nodes[parentId];
@@ -725,7 +721,6 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     );
   }
 
-  /// Wrap a specific node into a new container node
   void wrapNode(String nodeId, SequenceNode wrapper) {
     if (_currentSequence == null) return;
     final node = _currentSequence!.nodes[nodeId];

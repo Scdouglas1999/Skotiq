@@ -13,7 +13,6 @@
 //     imageOutputPath, etc.).
 part of '../settings_provider.dart';
 
-/// Setters for global file-path defaults.
 extension FilePathSettingsSection on AppSettingsNotifier {
   Future<void> setImageOutputPath(String value) =>
       _set(AppSettingDefs.imageOutputPath, value);

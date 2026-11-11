@@ -123,7 +123,6 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
       parentId = null;
       index = null;
     }
-    // Single undo entry for the whole multi-node insertion.
     withUndoBatch(() {
       _saveUndo();
       _insertSnippetImpl(
@@ -157,7 +156,6 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
 
     insertParentId ??= _currentSequence!.rootNodeId;
     if (insertParentId == null) {
-      // Create root if sequence is empty
       final rootNode = InstructionSetNode(name: 'Sequence Root');
       newNodes[rootNode.id] = rootNode;
       insertParentId = rootNode.id;

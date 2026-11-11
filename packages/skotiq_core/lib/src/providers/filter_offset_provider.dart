@@ -37,7 +37,6 @@ class FilterOffsetState {
   }
 }
 
-/// Notifier for managing filter offsets
 class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   final Ref _ref;
   String? _currentProfileId;
@@ -48,7 +47,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   FilterOffsetNotifier(this._ref)
     : super(const FilterOffsetState(isLoading: true)) {
     unawaited(_init());
-    // Reload offsets whenever the active equipment profile changes
     _ref.listen(activeEquipmentProfileProvider, (_, __) {
       if (!mounted) return;
       _mutationGeneration++;
@@ -71,12 +69,10 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     super.dispose();
   }
 
-  /// Initialize by loading offsets for active profile
   Future<void> _init() async {
     await _loadOffsetsForActiveProfile();
   }
 
-  /// Load offsets for the currently active profile
   Future<void> _loadOffsetsForActiveProfile() async {
     if (!mounted) return;
     final generation = ++_loadGeneration;
@@ -107,7 +103,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
         return;
       }
 
-      // Get focus data from service
       final focusService = _ref.read(focusModelServiceProvider);
       await focusService.initialize();
       if (!_isCurrentLoad(generation)) return;
@@ -181,7 +176,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     }
   }
 
-  /// Set offset for a specific filter
   Future<void> setFilterOffset(String filterName, int offsetSteps) async {
     if (!mounted) return;
     final profileId = _currentProfileId;
@@ -222,7 +216,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     }
   }
 
-  /// Adjust offset by a delta amount
   Future<void> adjustFilterOffset(String filterName, int delta) async {
     if (!mounted) return;
     final currentOffset = state.offsets[filterName] ?? 0;
@@ -253,7 +246,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       if (!_isCurrentMutation(mutation, authority, backend, profileId)) return;
       state = state.copyWith(referenceFilter: filterName);
 
-      // Reload offsets after changing reference
       await _loadOffsetsForActiveProfile();
     } catch (e) {
       if (_isCurrentMutation(mutation, authority, backend, profileId)) {
@@ -262,7 +254,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     }
   }
 
-  /// Clear all offsets
   Future<void> clearAllOffsets() async {
     if (!mounted) return;
     final profileId = _currentProfileId;
@@ -307,7 +298,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
         profileId == _currentProfileId;
   }
 
-  /// Get offset for a specific filter
   int getOffset(String filterName) {
     return state.offsets[filterName] ?? 0;
   }
@@ -320,7 +310,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   }) async {
     final focusService = _ref.read(focusModelServiceProvider);
 
-    // Build FilterOffset map from current state
     final updatedOffsets = <String, FilterOffset>{};
     for (final entry in offsets.entries) {
       updatedOffsets[entry.key] = FilterOffset(
@@ -346,7 +335,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   }
 }
 
-/// Provider for filter offsets
 final filterOffsetProvider =
     StateNotifierProvider<FilterOffsetNotifier, FilterOffsetState>((ref) {
       return FilterOffsetNotifier(ref);

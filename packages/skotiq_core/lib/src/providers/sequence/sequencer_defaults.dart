@@ -34,7 +34,6 @@ final sequencerOverheadConfigProvider = Provider<SequenceOverheadConfig>((ref) {
 });
 
 class SequencerDefaults {
-  // Autofocus defaults
   final int autofocusStepSize;
   final int autofocusStepsOut;
   final double autofocusExposureDuration;
@@ -47,14 +46,12 @@ class SequencerDefaults {
   /// cadence to their actual sub-exposure length.
   final int autofocusIntervalFrames;
 
-  // Dither defaults
   final double ditherPixels;
   final double ditherSettleTime;
   final double ditherSettlePixels;
   final double ditherSettleTimeout;
   final bool ditherRaOnly;
 
-  // Exposure defaults
   final double exposureDuration;
   final bool isExposureDurationConfigured;
   final int exposureCount;
@@ -280,7 +277,6 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
               '3.0',
         ) ??
         3.0;
-    // Persisted autofocus-interval cadence.
     final autofocusIntervalFrames =
         int.tryParse(
           await settingsDao.getSetting('sequencer_autofocus_interval_frames') ??
@@ -358,7 +354,6 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
         ) ??
         3;
 
-    // LiveStacking defaults.
     final livestackingPort =
         int.tryParse(
           await settingsDao.getSetting('livestacking_default_port') ?? '8081',

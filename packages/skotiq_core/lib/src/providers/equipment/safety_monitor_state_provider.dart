@@ -7,7 +7,6 @@ import '../../services/device_service.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Safety monitor state provider
 final safetyMonitorStateProvider =
     StateNotifierProvider<SafetyMonitorStateNotifier, SafetyMonitorState>((
       ref,

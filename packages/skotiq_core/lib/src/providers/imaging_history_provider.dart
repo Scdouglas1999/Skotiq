@@ -71,7 +71,6 @@ class ImagingHistory {
   /// Whether any imaging data exists.
   bool get hasData => totalIntegrationSecs > 0 || sessionCount > 0;
 
-  /// Whether a goal is set.
   bool get hasGoal => goalIntegrationSecs > 0;
 
   static const empty = ImagingHistory(
@@ -98,10 +97,8 @@ final imagingHistoryProvider =
 
       db.Target? matched;
 
-      // Normalize the query name for comparison.
       final queryLower = query.objectName.toLowerCase().trim();
 
-      // Try name match.
       for (final t in allTargets) {
         if (t.name.toLowerCase().trim() == queryLower) {
           matched = t;

@@ -16,7 +16,6 @@
 //     the bottom of the main settings_provider.dart (legacy compat).
 part of '../settings_provider.dart';
 
-/// Setters for INDI and Alpaca server connection settings.
 extension ProtocolSettingsSection on AppSettingsNotifier {
   Future<void> setIndiServerHost(String value) =>
       _set(AppSettingDefs.indiServerHost, value);
