@@ -17,12 +17,10 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // Get temperature
         let current_temp = {
             let mut value: c_float = 0.0;
             // SAFETY: self.connected was checked at entry so the handle is open; `&mut value` is a valid stack out-pointer to a c_float.
@@ -33,7 +31,6 @@ impl CameraDriver for MoravianCamera {
             }
         };
 
-        // Get cooler power
         let cooler_power = {
             let mut value: c_float = 0.0;
             // SAFETY: self.connected was checked at entry; `&mut value` is a valid stack out-pointer to a c_float.
@@ -121,7 +118,6 @@ impl CameraDriver for MoravianCamera {
         let use_shutter: GxBool = params.frame_type.opens_shutter() as GxBool;
 
         {
-            // Acquire global SDK mutex for thread safety
             let sdk = sdk.lock().await;
 
             let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -181,7 +177,6 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -297,7 +292,6 @@ impl CameraDriver for MoravianCamera {
         // Allocate the exact buffer (binned_w * binned_h pixels, 16-bit each).
         let mut data: Vec<u16> = vec![0u16; buffer_size];
 
-        // Download image.
         // SAFETY: handle is open (self.connected checked at entry); `data` is `vec![0u16; buffer_size]` where buffer_size = binned_width * binned_height, so `byte_count = buffer_size * 2` is the exact byte length passed as `size_t` — the SDK cannot overrun; `data.as_mut_ptr() as *mut c_void` provides a valid non-null buffer pointer.
         let ret = unsafe { (sdk.read_image)(handle, data.as_mut_ptr() as *mut c_void, byte_count) };
         if ret < 0 {
@@ -390,7 +384,6 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotSupported);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -400,7 +393,6 @@ impl CameraDriver for MoravianCamera {
             // setpoint; when the caller names none we reuse the one this
             // driver already holds rather than inventing a temperature.
             let target = target_temp.unwrap_or(self.target_temp);
-            // Set target temperature.
             // SAFETY: self.connected was checked at entry so handle is open; gxccd_set_temperature takes the handle plus a c_float by value.
             let ret = unsafe { (sdk.set_temperature)(handle, target as c_float) };
             if ret < 0 {
@@ -437,7 +429,6 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -461,7 +452,6 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -494,7 +484,6 @@ impl CameraDriver for MoravianCamera {
             DriverError::InvalidParameter(format!("Moravian gain {} out of range 0..=65535", gain))
         })?;
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -533,7 +522,6 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotSupported);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
@@ -631,12 +619,10 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
 
-        // Number of read modes.
         let num_modes = {
             let mut value: c_int = 0;
             // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_int.
@@ -697,7 +683,6 @@ impl CameraDriver for MoravianCamera {
             return Err(DriverError::NotConnected);
         }
 
-        // Acquire global SDK mutex for thread safety
         let sdk = MoravianSdk::lock().await?;
 
         let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;

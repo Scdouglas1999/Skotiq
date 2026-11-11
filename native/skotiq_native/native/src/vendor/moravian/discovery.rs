@@ -18,7 +18,6 @@ pub(crate) unsafe extern "C" fn enumerate_callback(id: c_int) {
     }
 }
 
-/// Discovered Moravian camera info
 #[derive(Debug, Clone)]
 pub struct MoravianCameraInfo {
     pub camera_id: c_int,
@@ -27,9 +26,7 @@ pub struct MoravianCameraInfo {
     pub discovery_index: usize,
 }
 
-/// Discover all connected Moravian cameras
 pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> {
-    // Acquire global SDK mutex for thread safety
     let sdk = MoravianSdk::lock().await?;
 
     let ids_sink = Arc::new(Mutex::new(Vec::new()));
@@ -37,14 +34,12 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> 
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = Some(ids_sink.clone());
 
-    // Enumerate cameras
     // SAFETY: ACTIVE_ENUMERATION_IDS has been set to `ids_sink` so the callback has a sink to push to; `enumerate_callback` is a properly declared `unsafe extern "C" fn(c_int)` matching the enum_callback_t typedef.
     unsafe { (sdk.enumerate_usb)(enumerate_callback) };
     *ACTIVE_ENUMERATION_IDS
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
 
-    // Collect results
     let ids: Vec<c_int> = ids_sink.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
     let mut devices = Vec::new();
@@ -57,7 +52,6 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> 
             continue;
         }
 
-        // Get camera description
         let mut name_buf = [0 as c_char; 256];
         // SAFETY: `handle` was just successfully initialized (non-null check above); name_buf is a 256-byte stack array and we pass its truthful length as `size_t` so the SDK cannot overrun.
         if unsafe {
@@ -75,7 +69,6 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> 
                 .trim()
                 .to_string();
 
-            // Get serial number
             let mut serial_buf = [0 as c_char; 64];
             // SAFETY: `handle` is still the successfully-initialized one from above; serial_buf is 64 bytes and its truthful length is passed as `size_t`.
             let serial_number = if unsafe {
@@ -109,7 +102,6 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> 
             });
         }
 
-        // Release temporary handle
         // SAFETY: `handle` was successfully initialized at the top of this iteration; gxccd_release pairs with gxccd_initialize_usb per gxccd.h:206-211.
         unsafe { (sdk.release)(handle) };
     }
@@ -117,7 +109,6 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, DriverError> 
     Ok(devices)
 }
 
-/// Check if the Moravian gxccd SDK is available
 pub fn is_sdk_available() -> bool {
     MoravianSdk::is_available()
 }
