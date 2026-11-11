@@ -45,7 +45,6 @@ part 'weather_safety/weather_star_evidence.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Notifier for weather safety state
 class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   final Ref _ref;
   final BackendNotifier _backendNotifier;
@@ -415,7 +414,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       unawaited(_refreshStarEvidence());
     }
 
-    // Determine data source
     final hasLiveHardwareSource =
         _isLiveReading(hardwareWeatherReading) ||
         _isLiveReading(safetyMonitorReading);
@@ -454,7 +452,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     if (state.status == WeatherSafetyStatus.snoozed &&
         state.snoozeUntil != null &&
         DateTime.now().isBefore(state.snoozeUntil!)) {
-      // Keep snoozed state
       finalStatus = WeatherSafetyStatus.snoozed;
       finalActions = WeatherSafetyActions.safe;
     } else if (!weatherSettings.weatherSafetyEnabled) {
@@ -735,7 +732,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
         ),
   ];
 
-  /// Determine if dome should be closed
   bool _shouldCloseDome(WeatherAlert? alert) {
     if (alert == null || alert.level != AlertLevel.critical) {
       return false;
@@ -763,10 +759,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     final snoozeUntil = DateTime.now().add(duration);
     final why = reason ?? 'Operator says the sky is clear';
 
-    // Cancel existing snooze timer if any
     _snoozeTimer?.cancel();
 
-    // Set snooze state
     state = state.copyWith(
       status: WeatherSafetyStatus.snoozed,
       snoozeUntil: snoozeUntil,
@@ -804,7 +798,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     unawaited(_pushWeatherVerdict(null));
     unawaited(_pushOperatorClear(duration.inSeconds, why));
 
-    // Start timer to end snooze
     _snoozeTimer = Timer(duration, () {
       if (!mounted) return;
       cancelSnooze();
@@ -923,7 +916,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   }
 }
 
-/// Provider for weather safety state
 final weatherSafetyProvider =
     StateNotifierProvider<WeatherSafetyNotifier, WeatherSafetyState>((ref) {
       ref.watch(backendProvider);

@@ -456,7 +456,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     return lists;
   }
 
-  /// Clear status/error messages.
   void clearMessages() {
     state = state.copyWith(statusMessage: null, errorMessage: null);
   }

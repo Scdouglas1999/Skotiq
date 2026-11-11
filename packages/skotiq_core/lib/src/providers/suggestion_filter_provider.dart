@@ -8,8 +8,6 @@ import '../services/sesame_name_resolver.dart';
 import 'simbad_provider.dart';
 import 'target_suggestion_provider.dart';
 
-// Planner-side sort options
-
 /// UI-only sort modes for the planner workspace. These re-sort the already-
 /// scored suggestion list without touching the scoring service.
 enum PlannerSortMode {
@@ -21,8 +19,6 @@ enum PlannerSortMode {
   objectType,
   catalogId,
 }
-
-// Filter state
 
 /// Client-side filter state for narrowing down the suggestions list.
 ///
@@ -123,8 +119,6 @@ class SuggestionFilterState {
     return count;
   }
 }
-
-// Providers
 
 /// Holds the current UI filter state. Defaults = no filtering.
 final suggestionFilterProvider = StateProvider<SuggestionFilterState>(
@@ -236,8 +230,6 @@ const Map<String, List<String>> _objectTypeAliases = {
   'asteroid': ['asteroid', 'minor planet'],
 };
 
-// Derived / convenience providers
-
 /// Extracts sorted unique constellation abbreviations from the full
 /// (unfiltered) suggestion list.
 final availableConstellationsProvider = Provider.autoDispose<List<String>>((
@@ -312,8 +304,6 @@ final availableSizeRangeProvider = Provider.autoDispose<(double, double)?>((
     error: (_, __) => null,
   );
 });
-
-// Planner workspace providers
 
 /// Per-filter breakdown of how many suggestions the planner UI excluded.
 /// Used by the empty-state hint to tell the user which constraint is hurting.

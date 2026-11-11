@@ -113,9 +113,6 @@ final appSettingsWriteFailureProvider = StateProvider<AppSettingsWriteFailure?>(
   (ref) => null,
 );
 
-// App settings
-
-/// Main app settings provider
 final appSettingsProvider =
     AsyncNotifierProvider<AppSettingsNotifier, AppSettingsState>(() {
       return AppSettingsNotifier();
@@ -163,8 +160,6 @@ final appObserverLocationProvider = Provider<LocationSettings?>((ref) {
     elevation: location.elevation,
   );
 });
-
-// Autofocus settings provider (convenience)
 
 /// Convenience provider that derives a typed [AutofocusSettings] from the
 /// persisted [AppSettingsState] autofocus fields.
@@ -231,10 +226,6 @@ class LocationSettings {
   }
 }
 
-// Theme settings
-
-// Auto-connect settings
-
 /// Auto connect equipment setting
 class AutoConnectSettingsNotifier extends AsyncNotifier<bool> {
   @override
@@ -254,8 +245,6 @@ final autoConnectSettingsProvider =
     AsyncNotifierProvider<AutoConnectSettingsNotifier, bool>(() {
       return AutoConnectSettingsNotifier();
     });
-
-// Horizon profile utilities
 
 /// 8 compass directions for horizon profile definition
 const List<String> horizonDirections = [
@@ -383,7 +372,6 @@ class HorizonProfile {
     return List.unmodifiable(normalized);
   }
 
-  /// Parse a horizon profile from JSON string.
   factory HorizonProfile.fromJson(String json) {
     try {
       final decoded = _decodeProfileJson(json);
@@ -445,7 +433,6 @@ class HorizonProfile {
   /// The profile's own altitude at [azimuthDeg], without learned
   /// obstructions.
   double _profileAltitudeAt(double azimuthDeg) {
-    // Normalize azimuth to 0-360
     var az = azimuthDeg % 360.0;
     if (az < 0) az += 360.0;
 
@@ -579,7 +566,6 @@ class HorizonProfile {
       if (colonIdx < 0) continue;
       var key = pair.substring(0, colonIdx).trim();
       final value = pair.substring(colonIdx + 1).trim();
-      // Strip quotes from key
       if (key.startsWith('"') && key.endsWith('"')) {
         key = key.substring(1, key.length - 1);
       }

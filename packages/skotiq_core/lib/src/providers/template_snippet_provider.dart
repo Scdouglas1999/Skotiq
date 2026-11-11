@@ -10,14 +10,9 @@ import '../models/sequence/sequence_models.dart';
 import '../services/sequence_file_service.dart';
 import '../utils/skotiq_data_directory.dart';
 
-// Built-in snippets provider
-
-/// Provider that returns all built-in template snippets
 final builtInSnippetsProvider = Provider<List<TemplateSnippet>>((ref) {
   return BuiltInSnippets.all;
 });
-
-// Custom snippets provider
 
 /// Provider for managing user-created custom snippets
 final customSnippetsProvider =
@@ -107,7 +102,6 @@ class CustomSnippetsNotifier extends StateNotifier<List<TemplateSnippet>> {
     try {
       final file = await _snippetsFile();
 
-      // Ensure directory exists
       final dir = file.parent;
       if (!await dir.exists()) {
         await dir.create(recursive: true);
@@ -122,7 +116,6 @@ class CustomSnippetsNotifier extends StateNotifier<List<TemplateSnippet>> {
     }
   }
 
-  /// Add a new custom snippet
   Future<void> addSnippet(TemplateSnippet snippet) async {
     // Ensure the snippet is not marked as built-in
     final snippetToAdd = snippet.isBuiltIn
@@ -131,12 +124,10 @@ class CustomSnippetsNotifier extends StateNotifier<List<TemplateSnippet>> {
     await _mutateAndSave(() => state = [...state, snippetToAdd]);
   }
 
-  /// Remove a custom snippet by ID
   Future<void> removeSnippet(String id) async {
     await _mutateAndSave(() => state = state.where((s) => s.id != id).toList());
   }
 
-  /// Update an existing custom snippet
   Future<void> updateSnippet(TemplateSnippet snippet) async {
     await _mutateAndSave(() {
       final index = state.indexWhere((s) => s.id == snippet.id);
@@ -176,8 +167,6 @@ Future<File> _defaultSnippetsFile() async {
   return File('$snippetsDir${Platform.pathSeparator}custom_snippets.json');
 }
 
-// Combined snippets providers
-
 /// Provider that combines built-in and custom snippets
 final allSnippetsProvider = Provider<List<TemplateSnippet>>((ref) {
   final builtIn = ref.watch(builtInSnippetsProvider);
@@ -200,15 +189,12 @@ final snippetsByCategoryProvider =
         grouped[category]!.add(snippet);
       }
 
-      // Sort snippets within each category by name
       for (final category in grouped.keys) {
         grouped[category]!.sort((a, b) => a.name.compareTo(b.name));
       }
 
       return grouped;
     });
-
-// Helper functions
 
 /// Create a template snippet from selected nodes in a sequence
 ///
@@ -229,7 +215,6 @@ TemplateSnippet createSnippetFromSelection({
   // Create a SequenceFileService instance to use its serialization methods
   final fileService = SequenceFileService();
 
-  // Extract and serialize each selected node
   final nodeData = <Map<String, dynamic>>[];
 
   for (final nodeId in nodeIds) {
