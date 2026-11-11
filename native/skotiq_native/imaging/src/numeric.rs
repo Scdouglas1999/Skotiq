@@ -1,5 +1,6 @@
 //! Small numeric building blocks shared across the crate: the dense linear
-//! solver and the separable Gaussian blur.
+//! solver, the least-squares line, the 3×3 determinant and the separable
+//! Gaussian blur.
 
 use rayon::prelude::*;
 
@@ -55,6 +56,48 @@ pub(crate) fn solve_dense(
         x[row] = sum / a[row * n + row];
     }
     Some(x)
+}
+
+/// Running sums of a weighted least-squares line `y = slope·x + intercept`.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct LineSums {
+    w: f64,
+    wx: f64,
+    wy: f64,
+    wxx: f64,
+    wxy: f64,
+}
+
+impl LineSums {
+    #[inline]
+    pub(crate) fn add(&mut self, x: f64, y: f64, weight: f64) {
+        self.w += weight;
+        self.wx += weight * x;
+        self.wy += weight * y;
+        self.wxx += weight * x * x;
+        self.wxy += weight * x * y;
+    }
+
+    /// `(slope, intercept)`, or `None` when the points have no spread in `x`
+    /// (the normal determinant is within `f64::EPSILON` of zero) or the line is
+    /// not finite.
+    pub(crate) fn solve(&self) -> Option<(f64, f64)> {
+        let det = self.w * self.wxx - self.wx * self.wx;
+        if det.is_nan() || det.abs() <= f64::EPSILON {
+            return None;
+        }
+        let slope = (self.w * self.wxy - self.wx * self.wy) / det;
+        let intercept = (self.wy - slope * self.wx) / self.w;
+        (slope.is_finite() && intercept.is_finite()).then_some((slope, intercept))
+    }
+}
+
+/// Determinant of a 3×3 matrix, expanded along the first row.
+#[inline]
+pub(crate) fn det3(m: &[[f64; 3]; 3]) -> f64 {
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+        - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
 }
 
 /// A plane sample type the blur reads and writes; every pass accumulates in
@@ -186,5 +229,33 @@ mod tests {
         assert_eq!(out[10 * 21 + 9], out[10 * 21 + 11]);
         assert_eq!(out[9 * 21 + 10], out[10 * 21 + 9]);
         assert!(convolve_separable::<f64>(&[], 0, 0, &taps).is_empty());
+    }
+
+    #[test]
+    fn a_weighted_line_is_fitted_and_a_vertical_one_refused() {
+        let mut sums = LineSums::default();
+        for x in 0..5 {
+            sums.add(x as f64, 2.0 * x as f64 + 1.0, 1.0);
+        }
+        sums.add(2.0, 100.0, 0.0);
+        let (slope, intercept) = sums.solve().unwrap();
+        assert!((slope - 2.0).abs() < 1e-12 && (intercept - 1.0).abs() < 1e-12);
+        let mut vertical = LineSums::default();
+        vertical.add(3.0, 1.0, 1.0);
+        vertical.add(3.0, 5.0, 2.0);
+        assert!(vertical.solve().is_none());
+        assert!(LineSums::default().solve().is_none());
+    }
+
+    #[test]
+    fn det3_expands_along_the_first_row() {
+        assert_eq!(
+            det3(&[[2.0, 0.0, 1.0], [1.0, 3.0, 2.0], [1.0, 1.0, 2.0]]),
+            6.0
+        );
+        assert_eq!(
+            det3(&[[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [0.0, 1.0, 5.0]]),
+            0.0
+        );
     }
 }

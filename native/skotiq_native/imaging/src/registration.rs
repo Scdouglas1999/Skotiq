@@ -36,7 +36,7 @@
 //!
 //! The public entry point is [`register_frame`].
 
-use crate::numeric::solve_dense;
+use crate::numeric::{det3, solve_dense};
 pub use crate::resample::{kernel_inside, Interpolator};
 use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
@@ -1159,10 +1159,7 @@ fn warp_frame(
 
 /// Invert a 3×3 matrix; `None` if singular.
 fn invert_3x3(m: &[[f64; 3]; 3]) -> Option<[[f64; 3]; 3]> {
-    let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-        - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-
+    let det = det3(m);
     if det.abs() < 1e-12 {
         return None;
     }
