@@ -194,7 +194,8 @@ String? nightUpcomingValue(
     case UpcomingKind.moon:
       parts.add(
         at != null
-            ? l10n.text('nightCtlUpMoonSets', params: {'time': ClockFormat.hm(at)})
+            ? l10n.text('nightCtlUpMoonSets',
+                params: {'time': ClockFormat.hm(at)})
             : item.moonRise != null
                 ? l10n.text(
                     'nightCtlUpMoonRises',
@@ -209,7 +210,9 @@ String? nightUpcomingValue(
           UpcomingKind.astroDawn:
       if (at != null) parts.add(ClockFormat.hm(at));
   }
-  if (item.passed) {
+  if (item.paused) {
+    parts.add(l10n.text('nightCtlUpPaused'));
+  } else if (item.passed) {
     parts.add(l10n.text('nightCtlUpPassed'));
   } else if (inFor != null) {
     parts.add(

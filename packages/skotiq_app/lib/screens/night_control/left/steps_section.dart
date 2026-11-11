@@ -18,6 +18,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../data/plan/night_flip_provider.dart';
+import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/plan_steps_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
@@ -90,6 +91,10 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
     final colors = context.skotiqColors;
     final steps = ref.watch(nightPlanStepsProvider);
     final flip = ref.watch(nightFlipStepProvider);
+    final paused = switch (ref.watch(nightRunPhaseProvider)) {
+      NightRunPhase.pausedByUser || NightRunPhase.pausedForAction => true,
+      _ => false,
+    };
     final scrollsItself =
         NightControlDensity.maybeOf(context)?.slotsScrollThemselves ?? true;
     final active =
@@ -117,6 +122,7 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
                   _StepRow(
                     key: identical(step, active) ? _activeKey : null,
                     step: step,
+                    paused: paused,
                     colors: colors,
                     onTap: () => _open(step.nodeId),
                   ),
@@ -235,11 +241,15 @@ class _StepRow extends StatelessWidget {
   const _StepRow({
     super.key,
     required this.step,
+    required this.paused,
     required this.colors,
     required this.onTap,
   });
 
   final PlanStepVm step;
+
+  /// The run is paused, so the active step is held, not running.
+  final bool paused;
   final SkotiqColors colors;
   final VoidCallback onTap;
 
@@ -257,7 +267,9 @@ class _StepRow extends StatelessWidget {
     };
     final (icon, iconColor) = switch (step.status) {
       PlanStepStatus.done => (LucideIcons.check, colors.textMuted),
-      PlanStepStatus.active => (LucideIcons.play, colors.primary),
+      PlanStepStatus.active => paused
+          ? (LucideIcons.pause, colors.warning)
+          : (LucideIcons.play, colors.primary),
       PlanStepStatus.pending => (LucideIcons.dot, colors.textSecondary),
       PlanStepStatus.failed => (LucideIcons.x, colors.error),
       PlanStepStatus.skipped => (LucideIcons.skipForward, colors.textMuted),
@@ -265,7 +277,8 @@ class _StepRow extends StatelessWidget {
     final when = _when(step.when);
     final statusText = l10n.text(switch (step.status) {
       PlanStepStatus.done => 'nightCtlStepDone',
-      PlanStepStatus.active => 'nightCtlStepActive',
+      PlanStepStatus.active =>
+        paused ? 'nightCtlStepPaused' : 'nightCtlStepActive',
       PlanStepStatus.pending => 'nightCtlStepPending',
       PlanStepStatus.failed => 'nightCtlStepFailed',
       PlanStepStatus.skipped => 'nightCtlStepSkipped',

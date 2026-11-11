@@ -697,8 +697,8 @@ class _RunPill extends StatelessWidget {
         ManualActionId.cooler => 'nightCtlPausedForCooler',
       };
 
-  // The finished tones follow the rig chip: a completed run in the primary
-  // tone, a failed one in the error tone.
+  // A completed run reads as a success and a failed one as an error, like
+  // the rig chip; any other ending is neutral.
   static ChipTone _tone(NightRunPhase phase, NightRunEnding? ending) =>
       switch (phase) {
         NightRunPhase.running => ChipTone.success,
@@ -708,7 +708,7 @@ class _RunPill extends StatelessWidget {
         NightRunPhase.stopping =>
           ChipTone.warning,
         NightRunPhase.finished => switch (ending) {
-            NightRunEnding.completed => ChipTone.primary,
+            NightRunEnding.completed => ChipTone.success,
             NightRunEnding.failed => ChipTone.error,
             NightRunEnding.ended || null => ChipTone.neutral,
           },

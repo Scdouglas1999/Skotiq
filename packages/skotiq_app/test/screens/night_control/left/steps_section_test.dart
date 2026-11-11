@@ -211,4 +211,24 @@ void main() {
     );
     handle.dispose();
   });
+
+  testWidgets('while the run is paused the running step reads as paused',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      header: headerFor(NightRunPhase.pausedByUser),
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightStepsSection()),
+      size: const Size(272, 758),
+    );
+    expect(
+      find.bySemanticsLabel('Ha 60 × 180 s, dither 3, paused, 44/60'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel(RegExp('running now')), findsNothing);
+    handle.dispose();
+  });
 }

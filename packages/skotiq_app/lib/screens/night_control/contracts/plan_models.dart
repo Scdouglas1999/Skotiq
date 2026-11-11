@@ -627,6 +627,7 @@ class UpcomingItemVm {
     this.moonRise,
     this.limitDeg,
     this.tone = MetricTone.neutral,
+    this.paused = false,
   });
 
   final UpcomingKind kind;
@@ -663,6 +664,9 @@ class UpcomingItemVm {
   /// The meridian flip row is [MetricTone.warning] on the boards.
   final MetricTone tone;
 
+  /// The run is paused, so the time cannot be known ("Plan ends · paused").
+  final bool paused;
+
   @override
   bool operator ==(Object other) =>
       other is UpcomingItemVm &&
@@ -677,7 +681,8 @@ class UpcomingItemVm {
       other.moonIlluminationPct == moonIlluminationPct &&
       other.moonRise == moonRise &&
       other.limitDeg == limitDeg &&
-      other.tone == tone;
+      other.tone == tone &&
+      other.paused == paused;
 
   @override
   int get hashCode => Object.hash(
@@ -693,5 +698,6 @@ class UpcomingItemVm {
         moonRise,
         limitDeg,
         tone,
+        paused,
       );
 }

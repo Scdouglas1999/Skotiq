@@ -219,7 +219,7 @@ void main() {
         expect(
           dot.color,
           switch (ending) {
-            NightRunEnding.completed => colors.primary,
+            NightRunEnding.completed => colors.success,
             NightRunEnding.failed => colors.error,
             NightRunEnding.ended => colors.textSecondary,
           },
