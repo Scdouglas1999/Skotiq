@@ -22,7 +22,18 @@ enum StartupSurface {
   equipmentOnboarding,
 
   /// The one-time "Your Sky is now off" notice.
-  yourSkyOffNotice,
+  yourSkyOffNotice;
+
+  /// Earlier surfaces that put the same question to the operator. Once one
+  /// of them has been answered, this one is not raised.
+  ///
+  /// Quick Start offers to continue the last session, which after a crash is
+  /// the run the checkpoint prompt has just asked about: restored or
+  /// discarded there, it is not asked about a second time.
+  Set<StartupSurface> get sameQuestionAs => switch (this) {
+        quickStart => const {checkpointRecovery},
+        _ => const {},
+      };
 }
 
 /// Orders the start-up prompts and shows one at a time.
@@ -32,6 +43,7 @@ enum StartupSurface {
 /// a surface waits for the earlier ones, and for the prompt on screen.
 class StartupSurfaceQueue {
   final Map<StartupSurface, Completer<void>> _undecided = {};
+  final Set<StartupSurface> _answered = {};
   Completer<void>? _showing;
 
   /// Announces that [surface] will take a turn or pass. Call it when the
@@ -58,6 +70,16 @@ class StartupSurfaceQueue {
       pass(surface);
     }
   }
+
+  /// Records that the operator answered [surface]'s prompt. Call it from the
+  /// prompt's own turn, before the turn ends.
+  void answered(StartupSurface surface) => _answered.add(surface);
+
+  /// Whether the operator has already answered [surface]'s question, in the
+  /// prompt of one of its [StartupSurface.sameQuestionAs]. Ask when the
+  /// surface's turn comes, not before: the earlier prompt may still be up.
+  bool alreadyAnswered(StartupSurface surface) =>
+      surface.sameQuestionAs.any(_answered.contains);
 
   /// Shows a prompt that is not part of the start-up order (one raised by an
   /// event, such as a mount connecting) after every start-up surface, one at

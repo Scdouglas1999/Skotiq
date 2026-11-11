@@ -305,8 +305,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return AppStartupCheckpointOutcome.failed;
 
       return _startupQueue.turn(
-            StartupSurface.checkpointRecovery,
-            () => runAppCheckpointRecovery(
+        StartupSurface.checkpointRecovery,
+        () => _answeringCheckpointPrompt(() => runAppCheckpointRecovery(
               choose: (lastFailure) async {
                 if (!mounted) return null;
                 // A linked client asks again when the prompt's turn comes:
@@ -343,8 +343,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                         context: routeContext,
                         info: info,
                         failure: lastFailure,
-                        remoteHost:
-                            backend is NetworkBackend ? backend.serverHost : null,
+                        remoteHost: backend is NetworkBackend
+                            ? backend.serverHost
+                            : null,
                       );
                     },
                   );
@@ -361,8 +362,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               resume: () =>
                   ref.read(sequenceExecutorProvider).restoreFromCheckpoint(),
               discard: backend.discardCheckpoint,
-            ),
-          );
+            )),
+      );
     } catch (e) {
       ref.read(loggingServiceProvider).error(
           '[AppShell] Error checking checkpoint: $e',
@@ -370,6 +371,20 @@ class _AppShellState extends ConsumerState<AppShell> {
           fields: {'error': e.toString()});
       return AppStartupCheckpointOutcome.failed;
     }
+  }
+
+  /// Runs the checkpoint prompt and tells the start-up queue when the
+  /// operator settled the interrupted run in it, so Quick Start does not ask
+  /// about the same run again.
+  Future<AppStartupCheckpointOutcome> _answeringCheckpointPrompt(
+    Future<AppStartupCheckpointOutcome> Function() prompt,
+  ) async {
+    final outcome = await prompt();
+    if (outcome == AppStartupCheckpointOutcome.resumed ||
+        outcome == AppStartupCheckpointOutcome.discarded) {
+      _startupQueue.answered(StartupSurface.checkpointRecovery);
+    }
+    return outcome;
   }
 
   String _getCurrentLocation(BuildContext context) {

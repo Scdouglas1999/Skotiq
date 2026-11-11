@@ -130,4 +130,46 @@ void main() {
     await next;
     expect(shown, isTrue);
   });
+
+  group('surfaces that ask the same question', () {
+    test('Quick Start is the checkpoint prompt asked again', () {
+      expect(StartupSurface.quickStart.sameQuestionAs, {
+        StartupSurface.checkpointRecovery,
+      });
+      for (final surface in StartupSurface.values) {
+        for (final earlier in surface.sameQuestionAs) {
+          expect(earlier.index, lessThan(surface.index), reason: surface.name);
+        }
+      }
+    });
+
+    test(
+        'an answered checkpoint prompt settles Quick Start; one that was '
+        'only shown, or passed, does not', () async {
+      final queue = StartupSurfaceQueue()
+        ..expect(StartupSurface.checkpointRecovery)
+        ..expect(StartupSurface.quickStart);
+      expect(queue.alreadyAnswered(StartupSurface.quickStart), isFalse);
+
+      // Shown, but left for later (a failed restore, a linked client).
+      await queue.turn<void>(StartupSurface.checkpointRecovery, () async {});
+      expect(queue.alreadyAnswered(StartupSurface.quickStart), isFalse);
+
+      final later = StartupSurfaceQueue()
+        ..expect(StartupSurface.checkpointRecovery)
+        ..expect(StartupSurface.quickStart);
+      var quickStartSawAnswer = false;
+      final quickStart = later.turn<void>(StartupSurface.quickStart, () async {
+        quickStartSawAnswer = later.alreadyAnswered(StartupSurface.quickStart);
+      });
+      await later.turn<void>(StartupSurface.checkpointRecovery, () async {
+        later.answered(StartupSurface.checkpointRecovery);
+      });
+      await quickStart;
+      expect(quickStartSawAnswer, isTrue);
+      // Nothing else is settled by it.
+      expect(
+          later.alreadyAnswered(StartupSurface.equipmentOnboarding), isFalse);
+    });
+  });
 }
