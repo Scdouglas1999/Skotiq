@@ -335,6 +335,7 @@ impl TriggerState {
         self.latches.autofocus_invalidated = false;
         self.latches.autofocus_invalidation_reason = None;
         self.reset_baseline_temperature();
+        self.forget_focus_compensation_reference();
     }
 
     /// Mark that autofocus was ATTEMPTED at this frame and did not converge.
@@ -357,6 +358,16 @@ impl TriggerState {
         self.latches.last_autofocus_frame = self.latches.completed_exposures;
         self.clear_autofocus_invalidation();
         self.reset_baseline_temperature();
+    }
+
+    /// Temperature compensation measures from the focus an autofocus found,
+    /// even one that landed where the focuser already was. A sweep that did
+    /// not converge returns to the focus it started from, which compensation
+    /// goes on holding.
+    fn forget_focus_compensation_reference(&mut self) {
+        if let Some(compensation) = self.latches.focus_compensation.as_mut() {
+            compensation.forget_reference();
+        }
     }
 
     /// Drop a pending "autofocus is stale" latch WITHOUT claiming an autofocus
@@ -408,6 +419,9 @@ impl TriggerState {
         self.tracking.set_expected(false);
         self.tracking.clear_lost();
         self.telemetry.mount_is_tracking = None;
+        // Only this run's Open Dome makes the run expect an open shutter; a
+        // shutter left open by the last run may have been closed since.
+        self.telemetry.dome_shutter_open_expected = false;
         self.clear_target_state();
     }
 
@@ -819,6 +833,7 @@ mod tests {
         state.telemetry.mount_is_tracking = Some(false);
         state.telemetry.pier_side = Some(PierSide::West);
         state.telemetry.weather_safe = true;
+        state.telemetry.dome_shutter_open_expected = true;
         state.update_weather_verdict(Some(true));
         state.settings.stop_on_quality_problems = true;
         state.settings.observer_latitude = Some(45.5);
@@ -860,6 +875,10 @@ mod tests {
         assert_eq!(state.target.current_hour_angle, None);
         assert_eq!(state.target.last_plate_solve_ra, None);
         assert_eq!(state.telemetry.mount_is_tracking, None);
+        assert!(
+            !state.telemetry.dome_shutter_open_expected,
+            "only this run's Open Dome makes it expect an open shutter"
+        );
         assert!(!state.tracking.is_expected());
         assert_eq!(state.tracking.limit_detected_at(), None);
         assert!(!state.guiding.is_enabled());
@@ -878,6 +897,10 @@ mod tests {
         assert_eq!(state.target.current_altitude, Some(58.0));
         assert_eq!(state.target.last_plate_solve_ra, Some(35.6));
         assert_eq!(state.telemetry.mount_is_tracking, Some(false));
+        assert!(
+            state.telemetry.dome_shutter_open_expected,
+            "a resumed run goes on behind the shutter it opened"
+        );
         assert!(state.tracking.expected_and_lost());
         assert_eq!(state.tracking.limit_detected_at(), Some(1_700_000_100));
         assert!(state.guiding.is_enabled());

@@ -347,6 +347,46 @@ void main() {
       expect(metadata['autofocus_on_filter_change'], 'true');
     });
 
+    // The executor compensates focus during a run with exactly the settings
+    // the idle compensator uses, and only when the operator turned it on.
+    Future<Map<String, String>> runMetadata(AppSettingsState settings) async {
+      final container = _container(
+        autoFocusOnFilterChange: false,
+        autoFocusEveryMinutes: 0,
+        ditherEnabled: false,
+        ditherEveryFrames: 1,
+        autofocusSettings: settings,
+      );
+      await container.read(appSettingsProvider.future);
+      final json = container
+          .read(sequenceExecutorProvider)
+          .sequenceToJsonForTest(_filterThenExposureSequence());
+      return ((jsonDecode(json) as Map<String, dynamic>)['metadata']
+              as Map<String, dynamic>)
+          .cast<String, String>();
+    }
+
+    test('metadata carries temperature compensation when it is on', () async {
+      final metadata = await runMetadata(
+        const AppSettingsState(
+          tempCompensation: true,
+          tempCoefficient: -12.5,
+          tempCompensationMinSteps: 5,
+        ),
+      );
+      expect(jsonDecode(metadata['temperature_compensation']!), {
+        'steps_per_degree': -12.5,
+        'min_steps': 5,
+      });
+    });
+
+    test('metadata has no temperature compensation when it is off', () async {
+      final metadata = await runMetadata(
+        const AppSettingsState(tempCoefficient: -12.5),
+      );
+      expect(metadata.containsKey('temperature_compensation'), isFalse);
+    });
+
     test('per-node dither_every wins over app-setting fallback', () async {
       // The user explicitly set ditherEvery=7 on this exposure; the
       // app-setting default of 3 must NOT override it.

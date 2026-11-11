@@ -12,7 +12,8 @@ pub(super) struct DevicePoller {
     events: broadcast::Sender<ExecutorEvent>,
     mount_id: Option<String>,
     focuser_id: Option<String>,
-    dome_id: Option<String>,
+    /// The dome assigned to the run, if any; see `run_dome_id`.
+    assigned_dome_id: Option<String>,
     /// The previous safety poll failed, so its warning is not repeated.
     safety_poll_last_was_error: bool,
     last_safety_poll_at: Option<std::time::Instant>,
@@ -45,7 +46,7 @@ impl DevicePoller {
             events,
             mount_id: rig.mount_id.clone(),
             focuser_id: rig.focuser_id.clone(),
-            dome_id: rig.dome_id.clone(),
+            assigned_dome_id: rig.dome_id.clone(),
             safety_poll_last_was_error: false,
             last_safety_poll_at: None,
             last_mount_poll_at: None,
@@ -452,12 +453,18 @@ impl DevicePoller {
 
     /// The dome shutter, on the safety cadence.
     async fn poll_dome(&self, poll_now: bool) {
-        let (Some(dome_id), true) = (self.dome_id.as_deref(), poll_now) else {
+        if !poll_now {
+            return;
+        }
+        let Some(dome_id) =
+            crate::instructions::run_dome_id(self.assigned_dome_id.as_deref(), &self.device_ops)
+                .await
+        else {
             return;
         };
         if let Ok(status) = bounded_poll(
             "dome_get_shutter_status",
-            self.device_ops.dome_get_shutter_status(dome_id),
+            self.device_ops.dome_get_shutter_status(&dome_id),
         )
         .await
         {

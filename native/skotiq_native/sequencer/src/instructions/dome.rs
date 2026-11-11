@@ -121,6 +121,22 @@ pub(crate) async fn wait_for_dome_shutter_state(
     }
 }
 
+/// Tell the run whether the shutter should be open from here on, which is
+/// what the Dome Shutter Not Open trigger watches. An instruction run outside
+/// a sequence has no run to tell.
+async fn expect_shutter_open(ctx: &InstructionContext, open: bool) {
+    if let Some(state) = &ctx.run.trigger_state {
+        let mut state = state.write().await;
+        if open {
+            // The shutter was just read open. A reading left from before (the
+            // last run's close) must not fire the trigger ahead of the next
+            // poll.
+            state.update_dome_status("Open".to_string());
+        }
+        state.set_dome_shutter_expected(open);
+    }
+}
+
 /// Execute open dome
 pub async fn execute_open_dome(
     config: &DomeConfig,
@@ -172,10 +188,14 @@ pub async fn execute_open_dome(
 
     match open_outcome {
         DomeShutterWaitOutcome::Confirmed => {
+            expect_shutter_open(ctx, true).await;
             InstructionResult::success_with_message("Dome shutter opened")
         }
+        // A dome that never reports its shutter would read as not open on
+        // every poll, so the run does not watch it.
         DomeShutterWaitOutcome::Unconfirmed => InstructionResult::success_with_message(
-            "Dome open command issued; shutter position could not be confirmed",
+            "Dome open command issued; shutter position could not be confirmed, so the run \
+             cannot watch it",
         ),
     }
 }
@@ -207,6 +227,7 @@ pub async fn execute_close_dome(
         cb(50.0, "Waiting for shutter to close".to_string());
     }
 
+    expect_shutter_open(ctx, false).await;
     if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
         return InstructionResult::failure(format!("Failed to close dome: {}", e));
     }
@@ -255,6 +276,7 @@ pub async fn execute_park_dome(
         return result;
     }
 
+    expect_shutter_open(ctx, false).await;
     if !config.shutter_only {
         // Report waiting progress BEFORE the async call
         if let Some(cb) = progress_callback {

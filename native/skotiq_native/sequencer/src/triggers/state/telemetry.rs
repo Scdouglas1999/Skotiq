@@ -7,9 +7,10 @@ use std::time::Instant;
 state_part! {
     /// What the rig and the sky read right now: mount status, weather, cloud
     /// motion, transparency. A property of the rig, not of a run, so starting
-    /// a run does not reset it. One exception: `mount_is_tracking` is
-    /// forgotten when a fresh (not resumed) run starts, so that run arms its
-    /// tracking baseline from its own readings.
+    /// a run does not reset it. Two exceptions, forgotten when a fresh (not
+    /// resumed) run starts: `mount_is_tracking`, so that run arms its tracking
+    /// baseline from its own readings, and `dome_shutter_open_expected`, which
+    /// only that run's Open Dome step sets.
     pub struct RigTelemetry, checkpointed as TelemetrySnapshot {
         persisted {
             /// Current pier side of the mount
@@ -31,6 +32,8 @@ state_part! {
             /// the executor's safety poll (`executor/mod.rs` `safety_is_safe`).
             pub weather_safe: bool,
             pub dome_shutter_status: Option<String>,
+            /// Set by the run's Open Dome step once the shutter reads open,
+            /// cleared by Close Dome and Park Dome before they close it.
             pub dome_shutter_open_expected: bool,
             pub dawn_time: Option<i64>,
         }

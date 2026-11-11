@@ -247,9 +247,11 @@ impl StandardTrigger {
             }
             Self::GuidingFailed => RecoveryAction::Retry { max_attempts: 3 },
             Self::AltitudeLimit => RecoveryAction::NextTarget,
-            Self::WeatherUnsafe | Self::DawnApproaching | Self::DomeShutterNotOpen => {
-                RecoveryAction::ParkAndAbort
-            }
+            Self::WeatherUnsafe | Self::DawnApproaching => RecoveryAction::ParkAndAbort,
+            // Every run arms it, so it only tells the operator: a run parks or
+            // stops on a closed shutter only through a Recovery step the
+            // operator gave that action.
+            Self::DomeShutterNotOpen => RecoveryAction::Notify,
             // The focus offset for the new filter is applied by the filter
             // change itself.
             Self::FilterChange => RecoveryAction::Continue,
