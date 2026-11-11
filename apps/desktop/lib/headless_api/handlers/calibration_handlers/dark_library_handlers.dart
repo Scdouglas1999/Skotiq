@@ -1,7 +1,6 @@
 part of '../calibration_handlers.dart';
 
 extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
-
   Future<Map<String, dynamic>> _calibrationSettingsJson() async {
     final stored = await container.read(settingsDaoProvider).getAllSettings();
 
