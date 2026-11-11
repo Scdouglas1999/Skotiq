@@ -412,7 +412,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
           const SizedBox(height: 12),
           if (hostRefusesAdminOnly(ref))
             const AdminOnlyBanner(
-              title: 'Updates of the imaging host are installed there',
+              title: 'Updates are installed on the imaging computer',
             )
           else
             _buildActions(colors),

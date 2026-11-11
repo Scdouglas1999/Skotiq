@@ -39,55 +39,78 @@ class AdminOnlyControl extends ConsumerWidget {
 }
 
 /// The line that stands in for an admin-only control in a settings row.
+///
+/// Where this app linked to the host itself, its closing "link with admin
+/// access" opens the code pairing that grants it.
 class AdminOnlyNotice extends ConsumerWidget {
   const AdminOnlyNotice({super.key, this.text = adminOnlyAdvice});
 
   /// The advice, or for an action rather than a value, a sentence naming it:
-  /// "Clear logs on the imaging computer, or link with admin access."
+  /// "Clear the logs on the imaging computer, or link with admin access."
   final String text;
+
+  static const String _linkPhrase = 'link with admin access';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final relink = _relinkWithAdminAccess(context, ref);
-    return Column(
-      key: const ValueKey('adminOnly.notice'),
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(
-                LucideIcons.lock,
-                size: SkotiqTokens.iconXs,
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceXs),
-            Flexible(
-              child: Text(
-                text,
-                textAlign: TextAlign.end,
-                style: SkotiqTypography.caption.copyWith(
-                  color: colors.textSecondary,
+    final style = SkotiqTypography.caption.copyWith(
+      color: colors.textSecondary,
+    );
+    final at = text.lastIndexOf(_linkPhrase);
+    final words = relink == null || at < 0
+        ? Text(text, textAlign: TextAlign.end, style: style)
+        : Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: text.substring(0, at)),
+                TextSpan(
+                  text: _linkPhrase,
+                  style: style.copyWith(
+                    color: colors.primary,
+                    decoration: TextDecoration.underline,
+                    decorationColor: colors.primary,
+                  ),
                 ),
-              ),
+                TextSpan(text: text.substring(at + _linkPhrase.length)),
+              ],
             ),
-          ],
-        ),
-        if (relink != null)
-          SkotiqButton(
-            key: const ValueKey('adminOnly.relink'),
-            label: 'Link with admin access',
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-            onPressed: relink,
+            textAlign: TextAlign.end,
+            style: style,
+          );
+    final line = Row(
+      key: const ValueKey('adminOnly.notice'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            LucideIcons.lock,
+            size: SkotiqTokens.iconXs,
+            color: colors.textMuted,
           ),
+        ),
+        const SizedBox(width: SkotiqTokens.spaceXs),
+        Flexible(child: words),
       ],
+    );
+    if (relink == null) return line;
+    return Semantics(
+      button: true,
+      label: text,
+      excludeSemantics: true,
+      onTap: relink,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: const ValueKey('adminOnly.relink'),
+          behavior: HitTestBehavior.opaque,
+          onTap: relink,
+          child: line,
+        ),
+      ),
     );
   }
 }
@@ -98,8 +121,10 @@ class AdminOnlyBanner extends ConsumerWidget {
   const AdminOnlyBanner({super.key, required this.title});
 
   /// What is kept on the imaging computer, as a sentence:
-  /// "Backups are made on the imaging computer".
+  /// "Backups and cloud sync are managed on the imaging computer".
   final String title;
+
+  static const String advice = 'Use Skotiq there, or link with admin access.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -107,7 +132,7 @@ class AdminOnlyBanner extends ConsumerWidget {
     return SkotiqBanner(
       key: const ValueKey('adminOnly.banner'),
       title: title,
-      message: adminOnlyAdvice,
+      message: advice,
       icon: LucideIcons.lock,
       action: relink == null
           ? null

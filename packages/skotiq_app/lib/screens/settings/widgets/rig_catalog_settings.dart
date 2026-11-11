@@ -390,7 +390,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                 colors: colors,
                 icon: LucideIcons.alertTriangle,
                 text: 'No catalogs installed on the appliance — plate-solving '
-                    'needs at least one. Install from the list below.')
+                    'needs at least one.'
+                    '${_adminOnlyRefused ? '' : ' Install from the list below.'}')
           else
             for (final c in _installed) _installedTile(colors, c),
           const SizedBox(height: 16),

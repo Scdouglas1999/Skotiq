@@ -505,8 +505,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                   ],
                   if (hostRefusesAdminOnly(ref))
                     const AdminOnlyBanner(
-                      title: 'Backups and cloud sync of the imaging host are '
-                          'managed there',
+                      title: 'Backups and cloud sync are managed on the '
+                          'imaging computer',
                     )
                   else ...[
                     _QuickActionsCard(

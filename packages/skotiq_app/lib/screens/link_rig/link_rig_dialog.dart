@@ -654,8 +654,8 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
                             ? null
                             : () => setState(() => _fullAccess = !_fullAccess),
                         child: Text(
-                          'Also allow stored passwords, backups, plugins and '
-                          "updates of $name from here",
+                          "Also manage $name's stored passwords, backups, "
+                          'plugins and updates from here',
                           style: SkotiqTypography.bodySm.copyWith(
                             color: colors.textSecondary,
                           ),

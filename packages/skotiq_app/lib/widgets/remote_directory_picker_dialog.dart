@@ -290,12 +290,15 @@ class _RemoteDirectoryPickerDialogState
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.error),
             ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => _load(_lastRequestedPath),
-              icon: const Icon(LucideIcons.refreshCw, size: 16),
-              label: const Text('Retry'),
-            ),
+            // Trying again cannot change the link's access.
+            if (_loadError != _needsAdminAccess) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => _load(_lastRequestedPath),
+                icon: const Icon(LucideIcons.refreshCw, size: 16),
+                label: const Text('Retry'),
+              ),
+            ],
           ],
         ),
       );
