@@ -697,6 +697,92 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
+  // walk-2 F18: the row's Image tonight ran its own build that ignored the
+  // detail column's suggested sub length and dropped the operator in the
+  // Sequencer; it now runs the same build as the column's Build sequence.
+  testWidgets('Image tonight on the selected row pre-fills its own sub length',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const suggestion = TargetSuggestion(
+      targetId: 1023,
+      targetName: 'NGC1023',
+      raHours: 2.67,
+      decDegrees: 39.06,
+      totalScore: 98,
+      objectType: 'Galaxy',
+      visibility: TargetVisibilityInfo(
+        currentAltitude: 50,
+        currentAzimuth: 170,
+        airmass: 1.3,
+        moonDistance: 100,
+        peakAltitude: 89,
+        hoursAboveMinAlt: 10,
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          tonightSuggestionsProvider.overrideWith((ref) async => [suggestion]),
+          activeEquipmentProfileProvider.overrideWithValue(
+            const EquipmentProfileModel(
+              id: 1,
+              name: 'Sim',
+              focalLength: 800,
+              aperture: 100,
+              filterNames: ['L', 'R', 'G', 'B'],
+            ),
+          ),
+          effectiveFiltersProvider.overrideWithValue(const ['L', 'R', 'G', 'B']),
+          plannerTargetIntegrationPreviewProvider(1023).overrideWith(
+            (ref) async => const TargetIntegrationPreview(
+              estimatedIntegrationHours: 4,
+              usableWindowHours: 10,
+              subExposureSecs: 105,
+              filterNames: ['L', 'R', 'G', 'B'],
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: PlannerScreen()),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Image tonight'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Build sequence · NGC1023'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'L exposure (seconds)'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.widgetWithText(TextFormField, 'L exposure (seconds)'),
+          )
+          .controller!
+          .text,
+      '105',
+    );
+
+    await tester.tap(find.text('Cancel'));
+    await settleProviderTeardown(tester);
+  });
+
   testWidgets('the selected target shows its altitude, with no expand toggle',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;

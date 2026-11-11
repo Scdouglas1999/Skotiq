@@ -186,6 +186,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       scrollController: _scrollController,
       selectedTargetId: selected?.targetId,
       onSelect: (target) => setState(() => _selectedTargetId = target.targetId),
+      onImageTonight: (target) => _createSequence(context, colors, target, plan),
       riskFactors: plan.riskFactors,
     );
 
@@ -252,16 +253,23 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     SessionOptimizationPlan plan,
   ) async {
     try {
+      final estimate = ref
+          .read(plannerTargetIntegrationPreviewProvider(target.targetId))
+          .valueOrNull;
       final filter = plan.recommendedFilterName;
       final options = await showAutoBuildOptions(
         context,
         ref,
         target,
-        suggestedSeconds: plan.primaryTarget?.targetId == target.targetId &&
-                filter != null &&
-                plan.recommendedExposureSeconds > 0
-            ? {filter: plan.recommendedExposureSeconds}
-            : const {},
+        suggestedSeconds: estimate != null &&
+                estimate.filterNames.isNotEmpty &&
+                estimate.subExposureSecs > 0
+            ? {estimate.filterNames.first: estimate.subExposureSecs}
+            : plan.primaryTarget?.targetId == target.targetId &&
+                    filter != null &&
+                    plan.recommendedExposureSeconds > 0
+                ? {filter: plan.recommendedExposureSeconds}
+                : const {},
       );
       if (options == null || !context.mounted) return;
       final built = await buildPlanTonightTargetSequence(
@@ -295,7 +303,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
         ),
       );
 
-      context.go('/sequencer');
+      // Tonight is where a built night is started; the Sequencer stays one
+      // tap away from its plan card.
+      context.goNamed('dashboard');
     } on SmartNightBuildException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

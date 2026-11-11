@@ -32,6 +32,10 @@ class _CandidateList extends ConsumerWidget {
   final int? selectedTargetId;
   final ValueChanged<TargetSuggestion> onSelect;
 
+  /// Builds tonight's sequence for a target: the selected row's action, the
+  /// same one as the detail column's Build sequence.
+  final ValueChanged<TargetSuggestion> onImageTonight;
+
   /// What the optimizer flagged about tonight as a whole (a bright moon, a
   /// short window). One banner, joined — never one per factor.
   final List<String> riskFactors;
@@ -42,6 +46,7 @@ class _CandidateList extends ConsumerWidget {
     required this.scrollController,
     required this.selectedTargetId,
     required this.onSelect,
+    required this.onImageTonight,
     required this.riskFactors,
   });
 
@@ -162,6 +167,7 @@ class _CandidateList extends ConsumerWidget {
           night: night,
           columns: columns,
           onSelect: () => onSelect(candidate),
+          onImageTonight: () => onImageTonight(candidate),
         );
       },
     );
@@ -258,6 +264,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
   final _PlannerNightWindow? night;
   final CandidateColumns? columns;
   final VoidCallback onSelect;
+  final VoidCallback onImageTonight;
 
   const _PlannerCandidateRow({
     super.key,
@@ -267,6 +274,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
     required this.night,
     required this.columns,
     required this.onSelect,
+    required this.onImageTonight,
   });
 
   /// Above this score a candidate is worth imaging; below it, it is marginal.
@@ -316,30 +324,10 @@ class _PlannerCandidateRow extends ConsumerWidget {
         variant: ButtonVariant.secondary,
         size: ButtonSize.small,
         onPressed: () => selected
-            ? _imageTonight(context, ref)
+            ? onImageTonight()
             : _addToObservingList(context, ref, colors),
       ),
     );
-  }
-
-  Future<void> _imageTonight(BuildContext context, WidgetRef ref) async {
-    final loaded = await addPlanTonightTargetToSequencer(
-      context: context,
-      ref: ref,
-      target: suggestion,
-      replaceSequence: true,
-      includeSessionPreamble: true,
-    );
-    if (!loaded || !context.mounted) return;
-
-    final colors = SkotiqColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Loaded ${suggestion.targetName} into the sequencer'),
-        backgroundColor: colors.success,
-      ),
-    );
-    context.go('/sequencer');
   }
 
   Future<void> _addToObservingList(

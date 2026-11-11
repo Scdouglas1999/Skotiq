@@ -422,7 +422,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingErrorDelete': 'Skotiq could not delete that paired device.',
     'plannerRationaleSubtitleNamed': 'Why {target} was chosen',
     'plannerDraftCreated':
-        'Draft sequence created for {target}. Review it in Sequencer before running.',
+        'Plan for {target} built: {exposure}. It is loaded on Tonight.',
     'plannerPlanFailedTitle': 'Failed to generate plan',
     'plannerPlanFailedBody':
         'Skotiq could not generate tonight\'s plan. Try again or review your observing settings and saved targets.',
@@ -2015,7 +2015,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'pairingErrorDelete': 'Skotiq no pudo eliminar ese dispositivo emparejado.',
     'plannerRationaleSubtitleNamed': 'Por que se eligio {target}',
     'plannerDraftCreated':
-        'Se creo una secuencia borrador para {target}. Revisala en el secuenciador antes de ejecutarla.',
+        'Plan para {target} creado: {exposure}. Esta cargado en Esta noche.',
     'plannerPlanFailedTitle': 'No se pudo generar el plan',
     'plannerPlanFailedBody':
         'Skotiq no pudo generar el plan de esta noche. Intentalo de nuevo o revisa tus ajustes y objetivos guardados.',
