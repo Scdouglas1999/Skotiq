@@ -96,7 +96,7 @@ impl SequenceExecutor {
         let (run_completion_tx, run_completion_rx) = oneshot::channel();
         self.run_completion_rx = Some(run_completion_rx);
 
-        self.set_state(ExecutorState::Running).await;
+        self.run_state.transition(ExecutorState::Running);
 
         self.prepare_run_triggers().await;
         // The checkpoint's node states (Smart Exposure counts, budgets) belong
@@ -110,9 +110,8 @@ impl SequenceExecutor {
             None
         };
 
-        let state = self.state.clone();
-        let progress = self.progress.clone();
-        let event_tx = self.event_tx.clone();
+        let run_state = self.run_state.clone();
+        let event_tx = run_state.events().clone();
         let is_cancelled = self.is_cancelled.clone();
         let mut root_node = self
             .root_node
@@ -367,14 +366,10 @@ impl SequenceExecutor {
         let target_node_metadata = Arc::new(target_node_metadata);
         let trigger_action_context = trigger_action_context.clone();
 
-        // Clones used by the panic-supervision shell *outside* the executed
-        // future. A bare `tokio::spawn` would silently swallow any panic in
-        // the executor loop — the sequence would just stop with no event and
-        // no log. We need at least `state`, `progress`, and `event_tx` to
-        // survive the panic so we can report `SequenceFailed` to the UI.
-        let supervisor_state = state.clone();
-        let supervisor_progress = progress.clone();
-        let supervisor_event_tx = event_tx.clone();
+        // The panic supervisor outside the executed future needs the cell to
+        // report `SequenceFailed`: a bare `tokio::spawn` swallows a panic in
+        // the executor loop, and the sequence would stop with no event.
+        let supervisor_run_state = run_state.clone();
         tokio::spawn(async move {
             let executor_future = async move {
                 let start_time = std::time::Instant::now();
@@ -599,8 +594,6 @@ impl SequenceExecutor {
                     }
                 }
 
-                let progress_clone = progress.clone();
-                let event_tx_clone = event_tx.clone();
                 // NodeStarted must emit exactly once per "entry" into a node; this set
                 // guards against the progress callback firing multiple Running updates
                 // for the same node within a single visit. Cleared on terminal status
@@ -666,12 +659,11 @@ impl SequenceExecutor {
                 let exposure_node_metadata = exposure_node_metadata.clone();
                 let target_node_metadata = target_node_metadata.clone();
                 context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
-                    event_tx_clone,
                     exposure_node_metadata,
                     node_frame_progress,
                     node_integration_credited,
                     node_names,
-                    progress_clone,
+                    run_state: run_state.clone(),
                     start_time,
                     started_nodes,
                     target_node_metadata,
@@ -687,15 +679,11 @@ impl SequenceExecutor {
                 let (execution_quiesced_tx, execution_quiesced_rx) = watch::channel(false);
                 let (park_and_abort_done_tx, park_and_abort_done_rx) = watch::channel(false);
 
-                let is_paused_cmd = is_paused.clone();
                 let skip_step_cmd = context.skip_current_step.clone();
                 // Command-handler-side clone for posting
                 // SkipToNode requests into the shared slot.
                 let skip_to_node_cmd = skip_to_node.clone();
                 let resume_notify_cmd = resume_notify.clone();
-                // The status API reads the progress snapshot, so every command
-                // that changes the executor's state has to stamp it there too.
-                let progress_for_commands = progress.clone();
                 // Recovery Mode — command-handler-side clone so the
                 // RecoveryTryNow / RecoveryAbort handlers can fire the
                 // signal bus without grabbing the shared executor lock.
@@ -707,11 +695,7 @@ impl SequenceExecutor {
                     current_recovery_for_cmd: current_recovery_clone.clone(),
                     default_adaptive_for_cmd,
                     defect_map_apply_for_cmd,
-                    event_tx: event_tx.clone(),
-                    is_cancelled: is_cancelled.clone(),
-                    is_paused_cmd,
                     plugin_node_pending_for_cmd,
-                    progress_for_commands,
                     recovery_signals_cmd,
                     resume_notify_cmd,
                     rx,
@@ -720,7 +704,11 @@ impl SequenceExecutor {
                     skip_step_cmd,
                     skip_to_node_cmd,
                     sky_brightness_for_cmd,
-                    state: state.clone(),
+                    run: RunControl {
+                        state: run_state.clone(),
+                        is_cancelled: is_cancelled.clone(),
+                        is_paused: is_paused.clone(),
+                    },
                     transparency_backup_for_cmd,
                     transparency_for_cmd,
                     trigger_manager: trigger_manager.clone(),
@@ -776,19 +764,12 @@ impl SequenceExecutor {
                     result
                 };
 
-                let state_clone = state.clone();
-                let event_tx_clone2 = event_tx.clone();
                 let is_cancelled_clone = is_cancelled.clone();
                 let park_and_abort_for_triggers = park_and_abort_in_progress.clone();
                 let execution_quiesced_for_triggers = execution_quiesced_rx;
                 let park_and_abort_done_for_triggers = park_and_abort_done_tx;
                 let is_paused_for_triggers = is_paused.clone();
                 let skip_to_next_target_for_triggers = skip_to_next_target.clone();
-                // The trigger monitor needs the progress snapshot so a
-                // trigger-driven pause updates the value
-                // `sequencer_get_status()` actually reads (`progress.state`),
-                // not only the internal executor state.
-                let progress_for_triggers = progress.clone();
                 // Set for the duration of a trigger recovery action (meridian
                 // flip, dither, autofocus, …) so the run cannot resolve while
                 // one is still in flight. Without it the node tree finishing
@@ -811,8 +792,6 @@ impl SequenceExecutor {
                 let meridian_flip_failure: Arc<StdRwLock<Option<String>>> =
                     Arc::new(StdRwLock::new(None));
                 let meridian_flip_failure_for_triggers = meridian_flip_failure.clone();
-                let progress_for_checkpoint = progress.clone();
-                let state_for_checkpoint = state.clone();
                 let is_cancelled_for_checkpoint = is_cancelled.clone();
                 let trigger_manager_for_checkpoint = trigger_manager.clone();
                 let streaming_triggers_enabled = triggers_enabled;
@@ -821,8 +800,7 @@ impl SequenceExecutor {
                     is_cancelled_for_checkpoint,
                     park_and_abort_done_for_checkpoint,
                     park_and_abort_for_checkpoint,
-                    progress_for_checkpoint,
-                    state_for_checkpoint,
+                    run_state: run_state.clone(),
                     streaming_budget_registry,
                     streaming_camera_id,
                     streaming_checkpoint_manager,
@@ -885,17 +863,12 @@ impl SequenceExecutor {
                 let recovery_gave_up =
                     std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
                 let recovery_driver_gave_up = recovery_gave_up.clone();
-                let recovery_driver_state = state.clone();
-                let recovery_driver_progress = progress.clone();
-                let recovery_driver_event_tx = event_tx.clone();
-                let recovery_driver_is_paused = is_paused.clone();
                 // Replay Debug — clone the decision channel + active
                 // run id into the recovery driver closure so the
                 // `RecoveryEntered` lifecycle decision fires alongside the
                 // existing `ExecutorEvent::RecoveryStarted` event.
                 let recovery_driver_decision_tx = decision_tx_for_lifecycle.clone();
                 let recovery_driver_active_run_id = active_run_id_for_decisions.clone();
-                let recovery_driver_is_cancelled = is_cancelled.clone();
                 let recovery_driver_signals = recovery_signals_clone.clone();
                 let recovery_driver_runtime = runtime_config.clone();
                 let recovery_driver_current = current_recovery_clone.clone();
@@ -916,17 +889,17 @@ impl SequenceExecutor {
                     recovery_driver_device_ids,
                     recovery_driver_device_ops,
                     recovery_driver_dome_id,
-                    recovery_driver_event_tx,
                     recovery_driver_gave_up,
                     recovery_driver_generation,
                     recovery_driver_history,
-                    recovery_driver_is_cancelled,
-                    recovery_driver_is_paused,
                     recovery_driver_mount_id,
-                    recovery_driver_progress,
                     recovery_driver_runtime,
                     recovery_driver_signals,
-                    recovery_driver_state,
+                    run: RunControl {
+                        state: run_state.clone(),
+                        is_cancelled: is_cancelled.clone(),
+                        is_paused: is_paused.clone(),
+                    },
                     recovery_driver_trigger_mgr,
                     recovery_driver_trigger_context: trigger_action_context.clone(),
                     recovery_request_rx,
@@ -944,7 +917,6 @@ impl SequenceExecutor {
                     custom_recovery_context_for_triggers,
                     decision_tx_for_lifecycle: decision_tx_for_lifecycle.clone(),
                     device_ops_for_triggers,
-                    event_tx_clone2,
                     execution_quiesced_for_triggers,
                     heartbeat_tx,
                     is_cancelled_clone,
@@ -953,13 +925,12 @@ impl SequenceExecutor {
                     meridian_flip_failure_for_triggers,
                     park_and_abort_done_for_triggers,
                     park_and_abort_for_triggers,
-                    progress_for_triggers,
                     recovery_request_tx,
                     runtime_config: runtime_config.clone(),
                     sequence_for_custom_recovery_triggers,
                     skip_to_next_target_for_triggers,
                     skip_to_node_for_recovery,
-                    state_clone,
+                    run_state: run_state.clone(),
                     transparency_backup_for_recovery,
                     trigger_action_context,
                     trigger_action_in_flight_for_triggers,
@@ -1195,11 +1166,9 @@ impl SequenceExecutor {
                     && !park_and_abort_in_progress.load(Ordering::Acquire)
                 {
                     if let Some(sequence) = sequence_for_custom_recovery.as_ref() {
-                        let statuses = progress.read().node_statuses.clone();
-                        {
-                            let mut prog = progress.write();
-                            prog.message = Some("The run ended early: putting the rig away".into());
-                        }
+                        let statuses =
+                            run_state.read_progress(|progress| progress.node_statuses.clone());
+                        run_state.set_message("The run ended early: putting the rig away");
                         night_end::run_unreached_shutdown_steps(
                             sequence,
                             &custom_recovery_context,
@@ -1227,13 +1196,12 @@ impl SequenceExecutor {
                 // root"`.
                 let verdict = terminal_verdict_message(result, &root_display_name);
 
-                *state.write().await = final_state;
-                {
-                    let mut prog = progress.write();
-                    prog.state = final_state;
-                    prog.message = Some(verdict);
-                    prog.elapsed_secs = start_time.elapsed().as_secs_f64();
-                }
+                // Stored now, announced last: `StateChanged(terminal)` is the
+                // last event of a run.
+                let terminal = run_state.store(final_state, |progress| {
+                    progress.message = Some(verdict);
+                    progress.elapsed_secs = start_time.elapsed().as_secs_f64();
+                });
 
                 // A run that ended without finishing keeps its checkpoint so it
                 // can be continued; record how it ended and the progress it
@@ -1249,10 +1217,12 @@ impl SequenceExecutor {
                     _ => None,
                 };
                 if let (Some(end), Some(mgr)) = (run_end, &completion_checkpoint_manager) {
-                    let (exposures, integration_secs) = {
-                        let prog = progress.read();
-                        (prog.completed_exposures, prog.completed_integration_secs)
-                    };
+                    let (exposures, integration_secs) = run_state.read_progress(|progress| {
+                        (
+                            progress.completed_exposures,
+                            progress.completed_integration_secs,
+                        )
+                    });
                     match mgr.record_run_end(end, exposures, integration_secs) {
                         Ok(()) => tracing::info!(
                             "Checkpoint records the run as {} after {} exposures",
@@ -1354,7 +1324,7 @@ impl SequenceExecutor {
                         // When it has none, the verdict is left in place rather
                         // than replaced with a second placeholder.
                         if let Some(reason) = reason.as_deref() {
-                            progress.write().message = Some(reason.to_string());
+                            run_state.set_message(reason);
                         }
                         let error = reason.unwrap_or_else(|| "Sequence failed".to_string());
                         let _ = event_tx.send(ExecutorEvent::SequenceFailed {
@@ -1388,7 +1358,7 @@ impl SequenceExecutor {
                     _ => {}
                 }
 
-                let _ = event_tx.send(ExecutorEvent::StateChanged(final_state));
+                terminal.announce();
             };
 
             // Catch any panic inside the executor future: a silently-dead
@@ -1409,16 +1379,11 @@ impl SequenceExecutor {
                     "sequencer_executor panicked; sequence aborted: {panic_msg}"
                 );
 
-                *supervisor_state.write().await = ExecutorState::Failed;
-                {
-                    let mut prog = supervisor_progress.write();
-                    prog.state = ExecutorState::Failed;
-                }
-                let _ = supervisor_event_tx.send(ExecutorEvent::SequenceFailed {
+                let failed = supervisor_run_state.store(ExecutorState::Failed, |_| {});
+                supervisor_run_state.emit(ExecutorEvent::SequenceFailed {
                     error: format!("Sequencer panicked: {panic_msg}"),
                 });
-                let _ =
-                    supervisor_event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Failed));
+                failed.announce();
             }
             let _ = run_completion_tx.send(());
         });

@@ -55,7 +55,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         tracing::error!(
             "[DRIFT] Recenter requested but no target RA/Dec set; pausing for operator intervention"
         );
-        run.pause(None).await;
+        run.pause(None);
         camera_claim.release().await;
         return ActionFlow::Finished;
     }
@@ -104,7 +104,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
             "[DRIFT] Recenter failed: {:?} - pausing sequence",
             result.message
         );
-        run.pause(None).await;
+        run.pause(None);
         run.error(format!(
             "DriftLimit recenter failed: {}",
             result.message.unwrap_or_default()

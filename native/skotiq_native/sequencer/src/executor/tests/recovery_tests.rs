@@ -671,18 +671,15 @@ async fn holding_escalation_carries_a_failed_tracking_restore_into_progress_mess
         },
         ..Default::default()
     }));
-    let state = Arc::new(RwLock::new(ExecutorState::Recovering));
-    let progress = Arc::new(StdRwLock::new(SequenceProgress::default()));
+    let run_state = RunCell::starting_in(event_tx, ExecutorState::Recovering);
     let current = Arc::new(StdRwLock::new(None));
     let is_cancelled = Arc::new(AtomicBool::new(false));
     let gave_up = Arc::new(AtomicBool::new(false));
 
     let escalation_state = RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &event_tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -704,11 +701,10 @@ async fn holding_escalation_carries_a_failed_tracking_restore_into_progress_mess
     )
     .await;
 
-    assert_eq!(*state.read().await, ExecutorState::Paused);
-    let message = progress
-        .read()
+    assert_eq!(run_state.get(), ExecutorState::Paused);
+    let message = run_state
+        .progress()
         .message
-        .clone()
         .expect("the paused snapshot must carry a message");
     assert!(
         message.contains("Guide star lost"),

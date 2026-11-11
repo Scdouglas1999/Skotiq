@@ -27,57 +27,6 @@ pub(super) enum ActionFlow {
     },
 }
 
-/// What an action may change about the run itself: its pause, its
-/// cancellation and its event stream.
-pub(super) struct RunControl {
-    pub events: broadcast::Sender<ExecutorEvent>,
-    pub is_cancelled: Arc<AtomicBool>,
-    pub is_paused: Arc<AtomicBool>,
-    pub executor_state: Arc<RwLock<ExecutorState>>,
-    pub progress: Arc<StdRwLock<SequenceProgress>>,
-}
-
-impl RunControl {
-    /// Pause the run for the operator. The status API reads the progress
-    /// snapshot rather than the executor state, so both are stamped, with
-    /// `reason` as the banner when given.
-    pub(super) async fn pause(&self, reason: Option<String>) {
-        self.is_paused.store(true, Ordering::Relaxed);
-        *self.executor_state.write().await = ExecutorState::Paused;
-        {
-            let mut progress = self.progress.write();
-            progress.state = ExecutorState::Paused;
-            if let Some(reason) = reason {
-                progress.message = Some(reason);
-            }
-        }
-        let _ = self
-            .events
-            .send(ExecutorEvent::StateChanged(ExecutorState::Paused));
-    }
-
-    /// Freeze the node tree without the rest of a pause.
-    pub(super) fn hold_node_tree(&self) {
-        self.is_paused.store(true, Ordering::Relaxed);
-    }
-
-    pub(super) fn is_cancelled(&self) -> bool {
-        self.is_cancelled.load(Ordering::Relaxed)
-    }
-
-    pub(super) fn send(&self, event: ExecutorEvent) {
-        let _ = self.events.send(event);
-    }
-
-    pub(super) fn error(&self, message: String) {
-        self.send(ExecutorEvent::Error { message });
-    }
-
-    pub(super) fn warning(&self, message: String) {
-        self.send(ExecutorEvent::Warning { message });
-    }
-}
-
 /// The run's decision log; every row is stamped with the run id.
 pub(super) struct DecisionLog {
     pub tx: crate::decision::DecisionSender,
@@ -117,7 +66,7 @@ impl Rig {
             self.device_ops.clone(),
             self.trigger_state.clone(),
             &self.runtime_config,
-            Some(run.events.clone()),
+            Some(run.state.events().clone()),
         )
     }
 

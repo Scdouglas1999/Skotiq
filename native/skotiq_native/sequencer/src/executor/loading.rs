@@ -62,21 +62,7 @@ impl SequenceExecutor {
     pub fn load_sequence(&mut self, sequence: SequenceDefinition) -> Result<(), String> {
         let root_node = self.build_node_tree(&sequence)?;
 
-        let (total_exposures, total_integration, totals_indeterminate) =
-            self.calculate_totals(&sequence);
-
-        {
-            let mut progress = self.progress.write();
-            if totals_indeterminate {
-                // Unbounded loops (while-dark/forever/etc.) don't have a meaningful finite ETA.
-                progress.total_exposures = 0;
-                progress.total_integration_secs = 0.0;
-                progress.estimated_remaining_secs = None;
-            } else {
-                progress.total_exposures = total_exposures;
-                progress.total_integration_secs = total_integration;
-            }
-        }
+        self.publish_totals(&sequence);
 
         self.sequence = Some(sequence);
         self.root_node = Some(root_node);

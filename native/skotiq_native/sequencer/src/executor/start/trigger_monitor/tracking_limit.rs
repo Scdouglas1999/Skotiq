@@ -45,7 +45,7 @@ impl Dispatcher {
         if self.run.is_cancelled() {
             return;
         }
-        let executor_state = *self.run.executor_state.read().await;
+        let executor_state = self.run.state.get();
         let config = {
             let manager = self.trigger_manager.read().await;
             manager.active_meridian_flip_config()
@@ -110,7 +110,7 @@ impl Dispatcher {
                 .to_string();
             tracing::warn!("[MERIDIAN] {}", message);
             self.run.warning(message.clone());
-            self.run.pause(Some(message)).await;
+            self.run.pause(Some(message));
             return;
         }
         let handed_off = state.run.hold() == Some(RunHold::TrackingLimit);
@@ -128,7 +128,7 @@ impl Dispatcher {
                     "Tracking-limit recovery requires an enabled meridian flip. Sequence paused."
                         .to_string();
                 self.run.warning(message.clone());
-                self.run.pause(Some(message)).await;
+                self.run.pause(Some(message));
             }
             return;
         };
@@ -136,7 +136,7 @@ impl Dispatcher {
             let message =
                 "Tracking-limit recovery lost the target hour angle. Sequence paused.".to_string();
             self.run.warning(message.clone());
-            self.run.pause(Some(message)).await;
+            self.run.pause(Some(message));
             return;
         };
         let flip_early = config.tracking_limit_policy == crate::TrackingLimitPolicy::FlipEarly;
@@ -182,7 +182,7 @@ impl Dispatcher {
                 let message =
                     format!("Could not stop guiding for tracking-limit recovery: {error}");
                 self.run.warning(message.clone());
-                self.run.pause(Some(message)).await;
+                self.run.pause(Some(message));
                 return;
             }
             self.rig
@@ -209,7 +209,7 @@ impl Dispatcher {
             relative_to_meridian(hour_angle),
         );
         tracing::warn!("[MERIDIAN] {}", message);
-        self.run.progress.write().message = Some(message.clone());
+        self.run.state.set_message(message.clone());
         self.run.warning(message);
     }
 
@@ -231,7 +231,7 @@ impl Dispatcher {
         );
         tracing::warn!("[MERIDIAN] {}", message);
         self.run.warning(message.clone());
-        self.run.pause(Some(message)).await;
+        self.run.pause(Some(message));
     }
 
     /// The flip ran. Release frames only onto a mount that really tracks; a
@@ -265,19 +265,17 @@ impl Dispatcher {
             );
             tracing::warn!("[MERIDIAN] {}", message);
             self.run.warning(message.clone());
-            self.run.progress.write().message = Some(message);
+            self.run.state.set_message(message);
             if self
                 .recovery_tx
                 .try_send(crate::recovery::RecoveryCause::MountTrackingLost)
                 .is_err()
             {
-                self.run
-                    .pause(Some(
-                        "The mount is not tracking after the meridian flip and tracking recovery \
+                self.run.pause(Some(
+                    "The mount is not tracking after the meridian flip and tracking recovery \
                          could not start. Sequence paused."
-                            .to_string(),
-                    ))
-                    .await;
+                        .to_string(),
+                ));
             }
             return;
         }
@@ -289,15 +287,13 @@ impl Dispatcher {
             state.mount_is_tracking = Some(true);
         }
         // A pause arriving during the device query must not be lifted.
-        if *self.run.executor_state.read().await == ExecutorState::Running
-            && !self.run.is_cancelled()
-        {
+        if self.run.state.get() == ExecutorState::Running && !self.run.is_cancelled() {
             self.run.is_paused.store(false, Ordering::Relaxed);
             let message =
                 "Tracking-limit recovery finished: the mount flipped and tracks again; imaging \
                  resumes."
                     .to_string();
-            self.run.progress.write().message = Some(message.clone());
+            self.run.state.set_message(message.clone());
             self.run.warning(message);
         }
     }
@@ -365,7 +361,6 @@ mod tests {
                 ),
                 decision_tx_for_lifecycle: decisions,
                 device_ops_for_triggers: ops.clone(),
-                event_tx_clone2: events,
                 execution_quiesced_for_triggers: quiesced,
                 heartbeat_tx: heartbeat,
                 is_cancelled_clone: Arc::new(AtomicBool::new(false)),
@@ -374,13 +369,12 @@ mod tests {
                 meridian_flip_failure_for_triggers: Arc::new(StdRwLock::new(None)),
                 park_and_abort_done_for_triggers: done,
                 park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
-                progress_for_triggers: Arc::new(StdRwLock::new(SequenceProgress::default())),
                 recovery_request_tx: requests,
                 runtime_config: Arc::new(StdRwLock::new(RuntimeConfig::default())),
                 sequence_for_custom_recovery_triggers: None,
                 skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
                 skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),
-                state_clone: Arc::new(RwLock::new(ExecutorState::Running)),
+                run_state: RunCell::starting_in(events, ExecutorState::Running),
                 transparency_backup_for_recovery: Arc::new(RwLock::new(None)),
                 trigger_action_context: TriggerActionContext {
                     mount_id: Some("mount".into()),
@@ -402,7 +396,7 @@ mod tests {
 
         /// The operator presses Resume.
         async fn resume(&mut self) {
-            *self.dispatcher.run.executor_state.write().await = ExecutorState::Running;
+            self.dispatcher.run.state.force(ExecutorState::Running);
             self.dispatcher.run.is_paused.store(false, Ordering::SeqCst);
         }
 
@@ -431,7 +425,7 @@ mod tests {
         async fn tick(&mut self) {
             let d = &mut self.dispatcher;
             d.update_tracking_limit_hold(false).await;
-            let executor = *d.run.executor_state.read().await;
+            let executor = d.run.state.get();
             let hold = d.rig.trigger_state.read().await.run.hold();
             let mode = RunMode::new(executor, hold).unwrap();
             let dispatches = {
@@ -581,7 +575,7 @@ mod tests {
     async fn tracking_limit_recovery_respects_operator_pause_and_stop() {
         let mut h = Harness::new().await;
         h.tick().await;
-        h.dispatcher.run.pause(None).await;
+        h.dispatcher.run.pause(None);
         h.dispatcher
             .rig
             .trigger_state
@@ -642,15 +636,12 @@ mod tests {
         h.tick().await;
         tokio::time::advance(Duration::from_secs(7200)).await;
         h.tick().await;
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         assert!(h
             .dispatcher
             .run
-            .progress
-            .read()
+            .state
+            .progress()
             .message
             .as_ref()
             .unwrap()
@@ -674,10 +665,7 @@ mod tests {
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_some());
         assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         assert!(!h
             .ops
             .calls()
@@ -758,14 +746,11 @@ mod tests {
             .await
             .tracking
             .note_operator_stop();
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_none());
         assert_eq!(h.slews(), 0);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         let warnings = drain_warnings(&mut events);
         assert!(
             warnings
@@ -814,7 +799,7 @@ mod tests {
             .await
             .stop_on_quality_problems = true;
         h.ops.guider_start_fails.store(true, Ordering::SeqCst);
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         h.dispatcher
             .rig
@@ -833,10 +818,7 @@ mod tests {
             .await
             .meridian
             .has_flipped());
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_some());
         assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
@@ -848,8 +830,8 @@ mod tests {
         assert!(h
             .dispatcher
             .run
-            .progress
-            .read()
+            .state
+            .progress()
             .message
             .as_deref()
             .unwrap_or("")
@@ -865,10 +847,7 @@ mod tests {
         h.tick().await;
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
     }
 
     fn flip_outcomes(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<(String, String)> {
@@ -896,8 +875,8 @@ mod tests {
     async fn a_failed_post_flip_guider_notifies_and_the_run_images_on() {
         let mut h = Harness::new().await;
         h.ops.guider_start_fails.store(true, Ordering::SeqCst);
-        let mut events = h.dispatcher.run.events.subscribe();
-        let mut outcomes = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
+        let mut outcomes = h.dispatcher.run.state.subscribe();
         h.tick().await;
         h.dispatcher
             .rig
@@ -907,10 +886,7 @@ mod tests {
             .current_hour_angle = Some(0.4);
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_none());
         assert!(!h.dispatcher.run.is_paused.load(Ordering::Relaxed));
@@ -966,10 +942,7 @@ mod tests {
             .await
             .current_hour_angle = Some(0.4);
         h.tick().await;
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         assert!(h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
         let first = h.dispatcher.flip_failure.failure.read().clone();
         assert!(
@@ -998,10 +971,7 @@ mod tests {
             .has_flipped());
         assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
         assert_eq!(*h.dispatcher.flip_failure.failure.read(), None);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
     }
 
     #[tokio::test(start_paused = true)]
@@ -1009,7 +979,7 @@ mod tests {
         let mut h = Harness::new().await;
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_some());
-        h.dispatcher.run.pause(None).await;
+        h.dispatcher.run.pause(None);
         tokio::time::advance(Duration::from_secs(4 * 3600)).await;
         h.tick().await;
         h.dispatcher
@@ -1030,10 +1000,7 @@ mod tests {
             .await
             .meridian
             .has_flipped());
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         assert!(!h.dispatcher.run.is_paused.load(Ordering::Relaxed));
     }
 
@@ -1065,7 +1032,7 @@ mod tests {
     async fn a_west_side_stop_before_transit_flips_early_and_confirms_tracking() {
         let mut h = Harness::new().await;
         nyx_stopped_before_transit(&mut h).await;
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         // One tick: the stop is adopted and the flip runs at once, at HA -0.55.
         assert_eq!(h.slews(), 1, "{:?}", h.ops.calls());
@@ -1124,7 +1091,7 @@ mod tests {
         nyx_stopped_before_transit(&mut h).await;
         // The mount stays on the west side: the east side is out of reach.
         h.ops.flip_refused.store(true, Ordering::SeqCst);
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         assert_eq!(h.slews(), 1);
         let warnings = drain_warnings(&mut events);
@@ -1152,10 +1119,7 @@ mod tests {
             .current_hour_angle = Some(0.0);
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         // The window opens and the ordinary flip runs, once the trigger's
         // cooldown (wall-clock, not the test clock) is over.
         h.ops.flip_refused.store(false, Ordering::SeqCst);
@@ -1184,7 +1148,7 @@ mod tests {
         let mut mount = nyx_stopped_before_transit(&mut h).await;
         mount.ignore_tracking_on = u32::MAX;
         h.ops.attach_sim_mount(mount);
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         h.tick().await;
         // Failed tracking verification must pause before the hold is released.
@@ -1195,8 +1159,8 @@ mod tests {
         assert!(h
             .dispatcher
             .run
-            .progress
-            .read()
+            .state
+            .progress()
             .message
             .as_deref()
             .unwrap_or("")

@@ -10,15 +10,11 @@ pub(super) struct CommandHandlerArgs {
     pub current_recovery_for_cmd: Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     pub default_adaptive_for_cmd: Arc<RwLock<Option<crate::scheduling::AdaptiveExposureConfig>>>,
     pub defect_map_apply_for_cmd: Arc<RwLock<Option<crate::executor::DefectMapApplyState>>>,
-    pub event_tx: broadcast::Sender<ExecutorEvent>,
-    pub is_cancelled: Arc<AtomicBool>,
-    pub is_paused_cmd: Arc<AtomicBool>,
     pub plugin_node_pending_for_cmd: Arc<
         RwLock<
             HashMap<NodeId, tokio::sync::oneshot::Sender<crate::node::context::PluginNodeReply>>,
         >,
     >,
-    pub progress_for_commands: Arc<StdRwLock<SequenceProgress>>,
     pub recovery_signals_cmd: Arc<crate::recovery::RecoverySignals>,
     pub resume_notify_cmd: Arc<tokio::sync::Notify>,
     pub rx: mpsc::Receiver<ExecutorCommand>,
@@ -27,7 +23,7 @@ pub(super) struct CommandHandlerArgs {
     pub skip_step_cmd: Arc<AtomicBool>,
     pub skip_to_node_cmd: Arc<StdRwLock<Option<NodeId>>>,
     pub sky_brightness_for_cmd: Arc<RwLock<Option<f64>>>,
-    pub state: Arc<RwLock<ExecutorState>>,
+    pub run: RunControl,
     pub transparency_backup_for_cmd:
         Arc<RwLock<Option<crate::node::context::TransparencyBackupPlan>>>,
     pub transparency_for_cmd: Arc<RwLock<Option<f64>>>,
@@ -41,11 +37,7 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
         current_recovery_for_cmd,
         default_adaptive_for_cmd,
         defect_map_apply_for_cmd,
-        event_tx,
-        is_cancelled,
-        is_paused_cmd,
         plugin_node_pending_for_cmd,
-        progress_for_commands,
         recovery_signals_cmd,
         resume_notify_cmd,
         mut rx,
@@ -54,30 +46,15 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
         skip_step_cmd,
         skip_to_node_cmd,
         sky_brightness_for_cmd,
-        state,
+        run,
         transparency_backup_for_cmd,
         transparency_for_cmd,
         trigger_manager,
     } = args;
+    let event_tx = run.state.events().clone();
     while let Some(cmd) = rx.recv().await {
         match cmd {
-            ExecutorCommand::Pause => {
-                is_paused_cmd.store(true, Ordering::Relaxed);
-                *state.write().await = ExecutorState::Paused;
-                // `SequencerState` is built from the progress
-                // snapshot (`api/sequencer.rs`,
-                // `From<SequenceProgress>`), NOT from the lock
-                // above. Stamping only the lock is why
-                // `POST /api/sequencer/pause` answered
-                // `{"status":"paused"}` and the very next
-                // `GET /api/sequencer/status` said
-                // `"state":"running"` — reproduced on the Linux
-                // appliance 2026-08-09. A remote operator, or an
-                // unattended rig's watchdog, sees a healthy run
-                // while the node tree is parked.
-                progress_for_commands.write().state = ExecutorState::Paused;
-                let _ = event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Paused));
-            }
+            ExecutorCommand::Pause => run.pause(None),
             ExecutorCommand::Resume if current_recovery_for_cmd.read().is_some() => {
                 // The node tree is frozen by a recovery ladder, not by a
                 // pause, and unfreezing it would expose through the fault the
@@ -85,33 +62,24 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                 // Resume withdraws a pause placed during the ladder and
                 // nothing more; Try now and Abort are the controls over the
                 // ladder itself.
-                *state.write().await = ExecutorState::Recovering;
-                progress_for_commands.write().state = ExecutorState::Recovering;
-                let _ = event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Recovering));
-                let _ = event_tx.send(ExecutorEvent::Warning {
-                    message: "Recovery is still running, so the run stays frozen until it \
-                              finishes. Use Try now or Abort recovery to act on it."
+                run.state.transition(ExecutorState::Recovering);
+                run.warning(
+                    "Recovery is still running, so the run stays frozen until it \
+                     finishes. Use Try now or Abort recovery to act on it."
                         .to_string(),
-                });
+                );
             }
             ExecutorCommand::Resume => {
                 // A node may be parked on `resume_notify.notified()`; we have
                 // to wake all waiters *before* flipping is_paused so the
                 // resumed branch sees the new state without racing.
-                is_paused_cmd.store(false, Ordering::Relaxed);
+                run.is_paused.store(false, Ordering::Relaxed);
                 resume_notify_cmd.notify_waiters();
-                *state.write().await = ExecutorState::Running;
-                // Symmetric with Pause above: without this the
-                // snapshot would stay `Paused` forever and a
-                // resumed run would report as paused — swapping
-                // one untruth for its mirror image.
-                progress_for_commands.write().state = ExecutorState::Running;
-                let _ = event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Running));
+                run.state.transition(ExecutorState::Running);
             }
             ExecutorCommand::Stop => {
-                is_cancelled.store(true, Ordering::Relaxed);
-                *state.write().await = ExecutorState::Stopping;
-                let _ = event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Stopping));
+                run.is_cancelled.store(true, Ordering::Relaxed);
+                run.state.transition(ExecutorState::Stopping);
                 // Keep the command future alive. Breaking here
                 // lets this select! branch win and drops the
                 // node-execution future before its hardware

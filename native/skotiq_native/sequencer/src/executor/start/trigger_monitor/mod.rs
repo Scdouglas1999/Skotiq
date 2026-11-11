@@ -35,7 +35,6 @@ pub(super) struct TriggerMonitorArgs {
     pub custom_recovery_context_for_triggers: ExecutionContext,
     pub decision_tx_for_lifecycle: crate::decision::DecisionSender,
     pub device_ops_for_triggers: SharedDeviceOps,
-    pub event_tx_clone2: broadcast::Sender<ExecutorEvent>,
     pub execution_quiesced_for_triggers: watch::Receiver<bool>,
     pub heartbeat_tx: watch::Sender<u64>,
     pub is_cancelled_clone: Arc<AtomicBool>,
@@ -44,13 +43,12 @@ pub(super) struct TriggerMonitorArgs {
     pub meridian_flip_failure_for_triggers: Arc<StdRwLock<Option<String>>>,
     pub park_and_abort_done_for_triggers: watch::Sender<bool>,
     pub park_and_abort_for_triggers: Arc<AtomicBool>,
-    pub progress_for_triggers: Arc<StdRwLock<SequenceProgress>>,
     pub recovery_request_tx: mpsc::Sender<crate::recovery::RecoveryCause>,
     pub runtime_config: Arc<StdRwLock<RuntimeConfig>>,
     pub sequence_for_custom_recovery_triggers: Option<SequenceDefinition>,
     pub skip_to_next_target_for_triggers: Arc<AtomicBool>,
     pub skip_to_node_for_recovery: Arc<StdRwLock<Option<NodeId>>>,
-    pub state_clone: Arc<RwLock<ExecutorState>>,
+    pub run_state: RunCell,
     pub transparency_backup_for_recovery:
         Arc<RwLock<Option<crate::node::context::TransparencyBackupPlan>>>,
     pub trigger_action_context: TriggerActionContext,
@@ -80,7 +78,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         .as_ref()
         .is_some_and(super::calibration_run::is_calibration_only);
     let finish_frames = args.finish_frames.clone();
-    let executor_state = args.state_clone.clone();
+    let run_state = args.run_state.clone();
     let is_cancelled = args.is_cancelled_clone.clone();
     let heartbeat_tx = args.heartbeat_tx.clone();
     let trigger_manager = args.trigger_manager.clone();
@@ -89,11 +87,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         args.device_ops_for_triggers.clone(),
         args.trigger_manager.clone(),
         args.runtime_config.clone(),
-        args.event_tx_clone2.clone(),
+        args.run_state.events().clone(),
         &args.trigger_action_context,
     );
     let mut frame_watch = frame_watch::FrameWatchStage::new(
-        args.event_tx_clone2.subscribe(),
+        args.run_state.subscribe(),
         args.device_ops_for_triggers.clone(),
         args.sequence_for_custom_recovery_triggers.clone(),
     );
@@ -121,7 +119,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // keeps polling and evaluating while it is paused or recovering; what
         // a firing may then do is decided by `RunMode::may_act`. Idle,
         // stopping and finished runs have nothing to watch.
-        let tick_state = *executor_state.read().await;
+        let tick_state = run_state.get();
         if RunMode::new(tick_state, None).is_none() {
             continue;
         }
@@ -132,7 +130,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         poller.poll(tick_state).await;
 
         dispatcher.update_tracking_limit_hold(calibration_run).await;
-        let tick_state = *executor_state.read().await;
+        let tick_state = run_state.get();
 
         // The action handlers take the trigger-state lock themselves, so the
         // manager lock is released before they run.

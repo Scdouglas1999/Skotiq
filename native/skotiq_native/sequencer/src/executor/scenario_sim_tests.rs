@@ -1545,12 +1545,10 @@ async fn scenario6c_exhaustion_with_stuck_mount_still_closes_roof_and_reports_un
 /// real state and emits on the real event bus.
 struct EscalationFixture {
     runtime: Arc<super::StdRwLock<super::RuntimeConfig>>,
-    state: Arc<RwLock<super::ExecutorState>>,
-    progress: Arc<super::StdRwLock<super::SequenceProgress>>,
+    run_state: super::RunCell,
     current: Arc<super::StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     is_cancelled: Arc<AtomicBool>,
     gave_up: Arc<AtomicBool>,
-    tx: super::broadcast::Sender<super::ExecutorEvent>,
     rx: super::broadcast::Receiver<super::ExecutorEvent>,
 }
 
@@ -1570,12 +1568,10 @@ fn escalation_fixture(policy: super::UnattendedEndPolicy) -> EscalationFixture {
     let (tx, rx) = super::broadcast::channel(64);
     EscalationFixture {
         runtime: Arc::new(super::StdRwLock::new(rc)),
-        state: Arc::new(RwLock::new(super::ExecutorState::Recovering)),
-        progress: Arc::new(super::StdRwLock::new(super::SequenceProgress::default())),
+        run_state: super::RunCell::starting_in(tx, super::ExecutorState::Recovering),
         current: Arc::new(super::StdRwLock::new(None)),
         is_cancelled: Arc::new(AtomicBool::new(false)),
         gave_up: Arc::new(AtomicBool::new(false)),
-        tx,
         rx,
     }
 }
@@ -1595,12 +1591,10 @@ async fn scenario7_attended_escalation_restores_tracking_before_pausing() {
 
     let EscalationFixture {
         runtime,
-        state,
-        progress,
+        run_state,
         current,
         is_cancelled,
         gave_up,
-        tx,
         mut rx,
     } = escalation_fixture(super::UnattendedEndPolicy::HoldForOperator);
 
@@ -1630,10 +1624,8 @@ async fn scenario7_attended_escalation_restores_tracking_before_pausing() {
 
     let escalation_state = super::RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -1684,7 +1676,7 @@ async fn scenario7_attended_escalation_restores_tracking_before_pausing() {
 
     // (4) Final state is a resumable Paused (tracking already restored), NOT
     // Failed, and the run was not cancelled/given-up.
-    assert_eq!(*state.read().await, super::ExecutorState::Paused);
+    assert_eq!(run_state.get(), super::ExecutorState::Paused);
     assert!(!is_cancelled.load(Ordering::Relaxed));
     assert!(!gave_up.load(Ordering::Relaxed));
 }
@@ -1700,12 +1692,10 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
 
     let EscalationFixture {
         runtime,
-        state,
-        progress,
+        run_state,
         current,
         is_cancelled,
         gave_up,
-        tx,
         mut rx,
     } = escalation_fixture(super::UnattendedEndPolicy::ParkAndClose);
 
@@ -1721,10 +1711,8 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
 
     let escalation_state = super::RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -1741,7 +1729,7 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
     )
     .await;
 
-    drop(tx);
+    drainer.abort();
     let _ = drainer.await;
 
     let calls = ops_concrete.calls();
@@ -1770,7 +1758,7 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
     // It must NOT have re-enabled tracking and parked into a resumable Paused —
     // the run is being ABANDONED, not handed back.
     assert_eq!(
-        *state.read().await,
+        run_state.get(),
         super::ExecutorState::Failed,
         "the park-and-close policy must FAIL the run, never leave a resumable Paused"
     );
@@ -1812,12 +1800,10 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
 
     let EscalationFixture {
         runtime,
-        state,
-        progress,
+        run_state,
         current,
         is_cancelled,
         gave_up,
-        tx,
         mut rx,
     } = escalation_fixture(super::UnattendedEndPolicy::default());
 
@@ -1833,10 +1819,8 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
 
     let escalation_state = super::RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -1855,7 +1839,7 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
     )
     .await;
 
-    drop(tx);
+    drainer.abort();
     let _ = drainer.await;
 
     let calls = ops_concrete.calls();
@@ -1883,7 +1867,7 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
 
     // Resumable, not terminal.
     assert_eq!(
-        *state.read().await,
+        run_state.get(),
         super::ExecutorState::Paused,
         "the default policy leaves a run the operator can resume"
     );
@@ -3671,11 +3655,10 @@ async fn a_stopped_run_checkpoint_says_stopped_with_its_final_counts() {
     );
 
     // Frames land after that save; the next one is 30 s away.
-    {
-        let mut prog = executor.progress.write();
-        prog.completed_exposures = 7;
-        prog.completed_integration_secs = 70.0;
-    }
+    executor.run_state.update_progress(|progress| {
+        progress.completed_exposures = 7;
+        progress.completed_integration_secs = 70.0;
+    });
     executor.stop().await.expect("stop");
     let state = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         matches!(

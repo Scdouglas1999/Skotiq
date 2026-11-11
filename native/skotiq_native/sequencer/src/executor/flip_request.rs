@@ -22,7 +22,7 @@ impl SequenceExecutor {
     /// the flip has been queued, not performed; its outcome arrives as the
     /// usual `MeridianFlipOutcome` event.
     pub async fn request_meridian_flip(&self) -> Result<(), String> {
-        match *self.state.read().await {
+        match self.run_state.get() {
             ExecutorState::Running => {}
             ExecutorState::Paused => {
                 return Err(

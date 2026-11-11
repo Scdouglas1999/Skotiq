@@ -270,8 +270,7 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
             .clear_autofocus_invalidation();
         run.pause(Some(
             "Paused: autofocus left the guider stopped".to_string(),
-        ))
-        .await;
+        ));
         run.error(hold.operator_message);
         return;
     }

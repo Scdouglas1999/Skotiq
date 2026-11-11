@@ -161,7 +161,7 @@ impl SequenceExecutor {
                     // `ExecutorEvent::Error` only because no warning channel
                     // existed, which filed it under a red "Errors" heading in
                     // the Session Report of runs that completed.
-                    let _ = self.event_tx.send(ExecutorEvent::Warning { message: msg });
+                    self.run_state.emit(ExecutorEvent::Warning { message: msg });
                 }
             }
         }

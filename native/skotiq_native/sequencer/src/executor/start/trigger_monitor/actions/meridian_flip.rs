@@ -53,7 +53,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
     // The imaging-train claim may have waited through an operator pause.
     // Only the running monitor may advance an automatic tracking-limit hold.
     if rig.trigger_state.read().await.run.hold() == Some(crate::triggers::RunHold::TrackingLimit)
-        && (*run.executor_state.read().await != ExecutorState::Running || run.is_cancelled())
+        && (run.state.get() != ExecutorState::Running || run.is_cancelled())
     {
         camera_claim.release().await;
         return ActionFlow::NotRun;
@@ -112,15 +112,15 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
         return ActionFlow::Finished;
     };
 
-    let progress = run.progress.clone();
+    let run_state = run.state.clone();
     let mut flip_executor = crate::meridian_flip_executor::MeridianFlipExecutor::new(
         config.clone(),
         rig.device_ops.clone(),
     )
     // The executor emits the MeridianFlipOutcome verdict itself.
-    .with_executor_event_tx(run.events.clone())
+    .with_executor_event_tx(run.state.events().clone())
     .with_run_message(Arc::new(move |message| {
-        progress.write().message = Some(message);
+        run_state.set_message(message);
     }))
     .with_decision_tx(decisions.tx.clone(), decisions.run_id.clone())
     .with_early_tracking_limit_flip(early);
@@ -194,7 +194,7 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
                             without_final_period(&error)
                         )
                     };
-                    run.pause(Some(message)).await;
+                    run.pause(Some(message));
                     ActionFlow::Finished
                 }
                 crate::FlipFailureAction::AbortAndPark => {

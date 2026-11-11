@@ -223,7 +223,7 @@ impl SequenceExecutor {
     /// pauses the run, and it is never read as the mount's tracking limit.
     pub async fn note_operator_tracking_stop(&self) {
         let active = matches!(
-            *self.state.read().await,
+            self.run_state.get(),
             ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
         );
         if !active {
@@ -784,10 +784,8 @@ pub(super) async fn restore_tracking_after_recovery(
 /// mutates exactly the production state and emits on the production event bus.
 pub(crate) struct RecoveryEscalationState<'a> {
     pub device_ops: &'a SharedDeviceOps,
-    pub event_tx: &'a broadcast::Sender<ExecutorEvent>,
+    pub run_state: &'a RunCell,
     pub runtime_config: &'a Arc<StdRwLock<RuntimeConfig>>,
-    pub state: &'a Arc<RwLock<ExecutorState>>,
-    pub progress: &'a Arc<StdRwLock<SequenceProgress>>,
     pub current_recovery: &'a Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     pub is_cancelled: &'a Arc<AtomicBool>,
     pub gave_up: &'a Arc<AtomicBool>,
@@ -817,6 +815,7 @@ pub(super) async fn apply_recovery_escalation(
 ) {
     // Read the policy live so an operator changing it mid-session takes effect
     // on THIS escalation.
+    let event_tx = s.run_state.events();
     let policy = UnattendedEndPolicy::from_recovery_config(&s.runtime_config.read().recovery);
     let disposition = recovery_escalation_disposition(policy);
 
@@ -843,7 +842,7 @@ pub(super) async fn apply_recovery_escalation(
 
         // Surface WHY first, so the operator / push channel sees the escalation
         // reason even if a safe-state step then fails.
-        let _ = s.event_tx.send(ExecutorEvent::Error {
+        let _ = event_tx.send(ExecutorEvent::Error {
             message: pause_message.clone(),
         });
 
@@ -878,7 +877,7 @@ pub(super) async fn apply_recovery_escalation(
                         .unwrap_or_else(|| "unknown".to_string())
                 );
                 tracing::error!("[RECOVERY] {}", msg);
-                let _ = s.event_tx.send(ExecutorEvent::Error { message: msg });
+                let _ = event_tx.send(ExecutorEvent::Error { message: msg });
             }
         }
         if let (Some(cover_id), Some(e)) = (s.cover_id, &outcome.cover_close_error) {
@@ -887,7 +886,7 @@ pub(super) async fn apply_recovery_escalation(
                 cover_id, e
             );
             tracing::error!("[RECOVERY] {}", msg);
-            let _ = s.event_tx.send(ExecutorEvent::Error { message: msg });
+            let _ = event_tx.send(ExecutorEvent::Error { message: msg });
         }
         if let (Some(dome_id), Some(e)) = (s.dome_id, &outcome.dome_close_error) {
             let msg = format!(
@@ -895,7 +894,7 @@ pub(super) async fn apply_recovery_escalation(
                 dome_id, e
             );
             tracing::error!("[RECOVERY] {}", msg);
-            let _ = s.event_tx.send(ExecutorEvent::Error { message: msg });
+            let _ = event_tx.send(ExecutorEvent::Error { message: msg });
         }
 
         // Cancel the node tree and fail the run, exactly like the give-up
@@ -904,21 +903,16 @@ pub(super) async fn apply_recovery_escalation(
         // sits in the safe parked+closed end-state rather than dome-open and
         // unmonitored.
         s.is_cancelled.store(true, Ordering::Relaxed);
-        *s.state.write().await = ExecutorState::Failed;
-        {
-            let mut prog = s.progress.write();
-            prog.state = ExecutorState::Failed;
-            prog.message = Some(format!(
+        s.run_state.transition_with_message(
+            ExecutorState::Failed,
+            format!(
                 "{}: abandoned safely after {} attempt{} (park-and-close policy)",
                 ctx.cause.display_label(),
                 ctx.attempt_count,
                 if ctx.attempt_count == 1 { "" } else { "s" }
-            ));
-        }
-        let _ = s
-            .event_tx
-            .send(ExecutorEvent::StateChanged(ExecutorState::Failed));
-        let _ = s.event_tx.send(ExecutorEvent::RecoveryGaveUp {
+            ),
+        );
+        let _ = event_tx.send(ExecutorEvent::RecoveryGaveUp {
             context: Box::new(ctx.clone()),
             aborted_by_user: false,
         });
@@ -952,36 +946,31 @@ pub(super) async fn apply_recovery_escalation(
             s.mount_id,
             stop_tracking,
             "paused for operator",
-            s.event_tx,
+            event_tx,
         )
         .await;
 
-        *s.state.write().await = ExecutorState::Paused;
-        {
-            let mut prog = s.progress.write();
-            prog.state = ExecutorState::Paused;
-            // The status API (`sequencer_get_status`) reads this snapshot, not
-            // the event stream. Dropping the restore verdict here left the
-            // pause reason alone on screen while the mount sat untracked, so
-            // the operator's Resume exposed on a drifting mount. Carry the
-            // helper's verdict into the message the poller actually reads.
-            prog.message = Some(match &tracking_warning {
-                Some(warning) => format!("{pause_message} — {warning}"),
-                None => pause_message.clone(),
-            });
-        }
+        // The status API reads the snapshot, not the event stream, so the
+        // restore verdict goes into the message the poller reads: with the
+        // pause reason alone on screen and the mount untracked, the
+        // operator's Resume exposed on a drifting mount.
+        let status = match &tracking_warning {
+            Some(warning) => format!("{pause_message} — {warning}"),
+            None => pause_message.clone(),
+        };
+        let paused = s.run_state.store(ExecutorState::Paused, |progress| {
+            progress.message = Some(status);
+        });
         *s.current_recovery.write() = None;
         // Surface the reason as a critical-event banner so the operator (and any
         // push channel) sees why the run stopped.
-        let _ = s.event_tx.send(ExecutorEvent::Error {
+        let _ = event_tx.send(ExecutorEvent::Error {
             message: pause_message,
         });
-        let _ = s
-            .event_tx
-            .send(ExecutorEvent::StateChanged(ExecutorState::Paused));
+        paused.announce();
         // Close out the recovery banner — the loop ended, it did not give up (no
         // park/fail), it handed off to a Pause.
-        let _ = s.event_tx.send(ExecutorEvent::RecoveryCompleted {
+        let _ = event_tx.send(ExecutorEvent::RecoveryCompleted {
             context: Box::new(ctx.clone()),
         });
     }

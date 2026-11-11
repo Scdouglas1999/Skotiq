@@ -71,10 +71,7 @@ struct Outcome {
 
 /// Resume from a checkpoint crediting `checkpoint_secs`, with the operator's
 /// handoff choice staged the way the bridge stages it.
-async fn resume_with_choice(
-    checkpoint_secs: f64,
-    choice: Option<HashMap<String, f64>>,
-) -> Outcome {
+async fn resume_with_choice(checkpoint_secs: f64, choice: Option<HashMap<String, f64>>) -> Outcome {
     let sequence = budgeted_target();
     let dir = std::env::temp_dir().join(format!("sk-carry-over-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();

@@ -32,7 +32,7 @@ async fn start_recycles_a_terminal_executor_instead_of_refusing() {
         ExecutorState::Cancelled,
     ] {
         let mut executor = SequenceExecutor::new();
-        executor.set_state(terminal).await;
+        executor.run_state.transition(terminal);
 
         let err = executor
             .start()
@@ -61,7 +61,7 @@ async fn start_still_refuses_a_busy_executor() {
         ExecutorState::Recovering,
     ] {
         let mut executor = SequenceExecutor::new();
-        executor.set_state(busy).await;
+        executor.run_state.transition(busy);
 
         let err = executor.start().await.expect_err("busy must be refused");
         assert!(
@@ -322,16 +322,16 @@ fn test_get_set_state() {
         // Test state transitions
         assert_eq!(executor.get_state().await, ExecutorState::Idle);
 
-        executor.set_state(ExecutorState::Running).await;
+        executor.run_state.transition(ExecutorState::Running);
         assert_eq!(executor.get_state().await, ExecutorState::Running);
 
-        executor.set_state(ExecutorState::Paused).await;
+        executor.run_state.transition(ExecutorState::Paused);
         assert_eq!(executor.get_state().await, ExecutorState::Paused);
 
-        executor.set_state(ExecutorState::Stopping).await;
+        executor.run_state.transition(ExecutorState::Stopping);
         assert_eq!(executor.get_state().await, ExecutorState::Stopping);
 
-        executor.set_state(ExecutorState::Completed).await;
+        executor.run_state.transition(ExecutorState::Completed);
         assert_eq!(executor.get_state().await, ExecutorState::Completed);
     });
 }

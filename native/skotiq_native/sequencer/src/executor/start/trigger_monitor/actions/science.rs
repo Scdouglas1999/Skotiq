@@ -29,7 +29,7 @@ pub(in super::super) async fn switch_target_or_filter(
                  quality problems is on. Set a backup filter or target in the science \
                  settings, or resume."
             ));
-            run.pause(None).await;
+            run.pause(None);
         } else {
             run.warning(format!(
                 "{trigger_name}: {problem}, so imaging continues on the current target and \

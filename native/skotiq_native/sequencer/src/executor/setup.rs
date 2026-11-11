@@ -28,7 +28,7 @@
 //! methods mutate are crate-private; only sibling executor modules can
 //! see them (Rust child-module privacy), which is exactly what we want.
 
-use super::{ExecutorCommand, ExecutorEvent, ExecutorState, SequenceExecutor};
+use super::{ExecutorCommand, ExecutorEvent, SequenceExecutor};
 use crate::device_ops::SharedDeviceOps;
 use crate::triggers::{TriggerManager, TriggerState};
 use crate::SafetyFailMode;
@@ -223,7 +223,7 @@ impl SequenceExecutor {
     /// stalling the executor. The bridge holds one long-lived
     /// subscription that fans out to the Dart event stream.
     pub fn subscribe(&self) -> broadcast::Receiver<ExecutorEvent> {
-        self.event_tx.subscribe()
+        self.run_state.subscribe()
     }
 
     /// How many live receivers are attached to the executor event broadcast.
@@ -234,7 +234,7 @@ impl SequenceExecutor {
     /// number that has to be asserted, not the number of times the subscribe
     /// entry point was called.
     pub fn event_subscriber_count(&self) -> usize {
-        self.event_tx.receiver_count()
+        self.run_state.events().receiver_count()
     }
 
     /// Reset the executor back to its `Idle` state.
@@ -248,8 +248,7 @@ impl SequenceExecutor {
     pub async fn reset(&mut self) {
         self.command_tx = None;
         self.is_cancelled.store(false, Ordering::Relaxed);
-        *self.state.write().await = ExecutorState::Idle;
-        *self.progress.write() = super::SequenceProgress::default();
+        self.run_state.reset();
 
         if let Some(ref mut node) = self.root_node {
             node.reset();

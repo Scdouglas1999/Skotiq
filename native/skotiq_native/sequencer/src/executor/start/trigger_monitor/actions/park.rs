@@ -22,10 +22,8 @@ async fn finish_the_night(
     let Some(sequence) = plan.sequence.as_ref() else {
         return Vec::new();
     };
-    {
-        let mut progress = run.progress.write();
-        progress.message = Some(format!("{trigger_name}: putting the rig away"));
-    }
+    run.state
+        .set_message(format!("{trigger_name}: putting the rig away"));
     night_end::run_plan_shutdown_steps(
         trigger_name,
         sequence,

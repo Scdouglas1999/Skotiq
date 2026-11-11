@@ -14,7 +14,7 @@ pub(in super::super) async fn pause(
     run: &RunControl,
 ) -> ActionFlow {
     let Some(cause) = trigger_recovery_cause(trigger_id) else {
-        run.pause(None).await;
+        run.pause(None);
         return ActionFlow::Finished;
     };
     // The channel is bounded: Full means a recovery is already running or
@@ -33,7 +33,7 @@ pub(in super::super) async fn pause(
                 trigger_name
             );
         }
-        Err(TrySendError::Closed(_)) => run.pause(None).await,
+        Err(TrySendError::Closed(_)) => run.pause(None),
     }
     ActionFlow::Finished
 }
@@ -78,8 +78,7 @@ pub(in super::super) async fn retry(
                      trigger '{}' rather than exposing through the failure",
                     trigger_name
                 );
-                run.pause(Some(format!("Paused: {} fired", trigger_name)))
-                    .await;
+                run.pause(Some(format!("Paused: {} fired", trigger_name)));
                 run.error(format!(
                     "Trigger '{}' fired and automatic recovery is not \
                      available. The run is paused — no further frames will \
@@ -110,8 +109,7 @@ pub(in super::super) async fn retry(
             trigger_name,
             max_attempts
         );
-        run.pause(Some(format!("Paused: {} kept firing", trigger_name)))
-            .await;
+        run.pause(Some(format!("Paused: {} kept firing", trigger_name)));
         run.error(format!(
             "Trigger '{}' fired more than the {} times allowed; sequence \
              paused",
@@ -140,9 +138,9 @@ pub(in super::super) async fn pause_and_wait_for_clear(
         }
         Err(TrySendError::Full(_)) => {
             tracing::warn!("[RECOVERY] Recovery channel full; falling back to plain Pause");
-            run.pause(None).await;
+            run.pause(None);
         }
-        Err(TrySendError::Closed(_)) => run.pause(None).await,
+        Err(TrySendError::Closed(_)) => run.pause(None),
     }
     ActionFlow::Finished
 }

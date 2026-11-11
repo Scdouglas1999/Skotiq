@@ -264,7 +264,7 @@ impl SequenceExecutor {
                 })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "dither".to_string(),
         });
     }
@@ -311,7 +311,7 @@ impl SequenceExecutor {
             let mut state = state_lock.write().await;
             state.set_observer_location(lat, lon);
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "location".to_string(),
         });
     }
@@ -362,7 +362,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateMaxSunAltitude { degrees })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "max_sun_altitude".to_string(),
         });
     }
@@ -411,7 +411,7 @@ impl SequenceExecutor {
             );
             return;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "meridian_flip_config".to_string(),
         });
     }
@@ -443,7 +443,7 @@ impl SequenceExecutor {
             rc.pending_integration_carry_over
                 .insert(target_id, per_filter);
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "integration_carry_over".to_string(),
         });
     }
@@ -466,7 +466,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateFilterOffsets { offsets })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "filter_offsets".to_string(),
         });
     }
@@ -527,7 +527,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateAutofocusInterval { every_n_frames })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "autofocus_interval".to_string(),
         });
     }
@@ -565,7 +565,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateDefaultQualityCheck { check })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "default_quality_check".to_string(),
         });
     }
@@ -604,7 +604,7 @@ impl SequenceExecutor {
         if let Some(tx) = &self.command_tx {
             let _ = tx.send(ExecutorCommand::UpdateDefectMap { state }).await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "defect_map".to_string(),
         });
     }
@@ -625,7 +625,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateRejectFolderPath { path })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "reject_folder_path".to_string(),
         });
     }
@@ -653,7 +653,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateObserverProfile { profile })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "observer_profile".to_string(),
         });
     }
@@ -671,7 +671,7 @@ impl SequenceExecutor {
         if let Some(tx) = &self.command_tx {
             let _ = tx.send(ExecutorCommand::UpdateSkyBrightness { mag }).await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "sky_brightness".to_string(),
         });
     }
@@ -704,7 +704,7 @@ impl SequenceExecutor {
             let mut slot = self.shared_conditions_score.write().await;
             *slot = score;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "conditions_score".to_string(),
         });
     }
@@ -759,7 +759,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateDefaultAdaptiveExposure { config })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "default_adaptive_exposure".to_string(),
         });
     }

@@ -7,8 +7,7 @@ pub(super) struct CheckpointStreamArgs {
     pub is_cancelled_for_checkpoint: Arc<AtomicBool>,
     pub park_and_abort_done_for_checkpoint: watch::Receiver<bool>,
     pub park_and_abort_for_checkpoint: Arc<AtomicBool>,
-    pub progress_for_checkpoint: Arc<StdRwLock<SequenceProgress>>,
-    pub state_for_checkpoint: Arc<RwLock<ExecutorState>>,
+    pub run_state: RunCell,
     pub streaming_budget_registry: crate::scheduling::integration_budget::BudgetRegistry,
     pub streaming_camera_id: Option<String>,
     pub streaming_checkpoint_manager: Option<Arc<crate::checkpoint::CheckpointManager>>,
@@ -33,8 +32,7 @@ pub(super) async fn run_checkpoint_stream(args: CheckpointStreamArgs) {
         is_cancelled_for_checkpoint,
         mut park_and_abort_done_for_checkpoint,
         park_and_abort_for_checkpoint,
-        progress_for_checkpoint,
-        state_for_checkpoint,
+        run_state,
         streaming_budget_registry,
         streaming_camera_id,
         streaming_checkpoint_manager,
@@ -86,7 +84,8 @@ pub(super) async fn run_checkpoint_stream(args: CheckpointStreamArgs) {
             break;
         }
 
-        let exec_state = *state_for_checkpoint.read().await;
+        let prog = run_state.progress();
+        let exec_state = prog.state;
         // checkpoint mid-recovery too so a process
         // crash during a long recovery loop doesn't lose the
         // accepted-frame totals from before the failure.
@@ -97,7 +96,6 @@ pub(super) async fn run_checkpoint_stream(args: CheckpointStreamArgs) {
             continue;
         }
 
-        let prog = progress_for_checkpoint.read().clone();
         let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(sequence.clone());
         checkpoint.node_statuses = prog.node_statuses.clone();
         checkpoint.current_node = prog.current_node_id.clone();

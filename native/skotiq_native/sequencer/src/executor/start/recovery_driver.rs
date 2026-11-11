@@ -12,17 +12,13 @@ pub(super) struct RecoveryDriverArgs {
     pub recovery_driver_device_ids: Vec<String>,
     pub recovery_driver_device_ops: SharedDeviceOps,
     pub recovery_driver_dome_id: Option<String>,
-    pub recovery_driver_event_tx: broadcast::Sender<ExecutorEvent>,
     pub recovery_driver_gave_up: Arc<AtomicBool>,
     pub recovery_driver_generation: Arc<std::sync::atomic::AtomicU64>,
     pub recovery_driver_history: Arc<StdRwLock<Vec<crate::recovery::RecoveryHistoryEntry>>>,
-    pub recovery_driver_is_cancelled: Arc<AtomicBool>,
-    pub recovery_driver_is_paused: Arc<AtomicBool>,
     pub recovery_driver_mount_id: Option<String>,
-    pub recovery_driver_progress: Arc<StdRwLock<SequenceProgress>>,
     pub recovery_driver_runtime: Arc<StdRwLock<RuntimeConfig>>,
     pub recovery_driver_signals: Arc<crate::recovery::RecoverySignals>,
-    pub recovery_driver_state: Arc<RwLock<ExecutorState>>,
+    pub run: RunControl,
     pub recovery_driver_trigger_mgr: Arc<RwLock<TriggerManager>>,
     pub recovery_driver_trigger_context: TriggerActionContext,
     pub recovery_request_rx: mpsc::Receiver<crate::recovery::RecoveryCause>,
@@ -37,21 +33,21 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         recovery_driver_device_ids,
         recovery_driver_device_ops,
         recovery_driver_dome_id,
-        recovery_driver_event_tx,
         recovery_driver_gave_up,
         recovery_driver_generation,
         recovery_driver_history,
-        recovery_driver_is_cancelled,
-        recovery_driver_is_paused,
         recovery_driver_mount_id,
-        recovery_driver_progress,
         recovery_driver_runtime,
         recovery_driver_signals,
-        recovery_driver_state,
+        run,
         recovery_driver_trigger_mgr,
         recovery_driver_trigger_context,
         mut recovery_request_rx,
     } = args;
+    let run_state = run.state;
+    let recovery_driver_event_tx = run_state.events().clone();
+    let recovery_driver_is_cancelled = run.is_cancelled;
+    let recovery_driver_is_paused = run.is_paused;
     while let Some(cause) = recovery_request_rx.recv().await {
         // Don't enter recovery if the executor has already
         // been told to stop — the operator's Stop overrides
@@ -143,15 +139,11 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         recovery_driver_signals.arm();
 
         // 1. Flip state -> Recovering and publish.
-        *recovery_driver_state.write().await = ExecutorState::Recovering;
-        {
-            let mut prog = recovery_driver_progress.write();
-            prog.state = ExecutorState::Recovering;
-            prog.message = Some(format!("Recovering: {}", cause.display_label()));
-        }
+        let recovering = run_state.store(ExecutorState::Recovering, |progress| {
+            progress.message = Some(format!("Recovering: {}", cause.display_label()));
+        });
         *recovery_driver_current.write() = Some(ctx.clone());
-        let _ =
-            recovery_driver_event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Recovering));
+        recovering.announce();
         let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryStarted {
             context: Box::new(ctx.clone()),
         });
@@ -530,17 +522,12 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // polling safety while it waits for the configured flip window.
             *recovery_driver_current.write() = None;
             let message = "Mount tracking stopped near the meridian; recovery is handing the mount to the meridian flip.";
-            let mut state = recovery_driver_state.write().await;
-            if *state == ExecutorState::Recovering
-                && !recovery_driver_is_cancelled.load(Ordering::Relaxed)
-            {
-                *state = ExecutorState::Running;
-                let mut progress = recovery_driver_progress.write();
-                progress.state = ExecutorState::Running;
-                progress.message = Some(message.into());
-                let _ = recovery_driver_event_tx
-                    .send(ExecutorEvent::StateChanged(ExecutorState::Running));
-            }
+            run_state.transition_from(
+                ExecutorState::Recovering,
+                ExecutorState::Running,
+                message,
+                || !recovery_driver_is_cancelled.load(Ordering::Relaxed),
+            );
             tracing::warn!("[RECOVERY] {}", message);
             let _ = recovery_driver_event_tx.send(ExecutorEvent::Warning {
                 message: message.into(),
@@ -570,10 +557,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // without spinning up this whole closure.
             let escalation_state = RecoveryEscalationState {
                 device_ops: &recovery_driver_device_ops,
-                event_tx: &recovery_driver_event_tx,
+                run_state: &run_state,
                 runtime_config: &recovery_driver_runtime,
-                state: &recovery_driver_state,
-                progress: &recovery_driver_progress,
                 current_recovery: &recovery_driver_current,
                 is_cancelled: &recovery_driver_is_cancelled,
                 gave_up: &recovery_driver_gave_up,
@@ -587,7 +572,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // turns `Recovering` into `Paused` while it runs. That hold is his,
             // so a successful ladder leaves it in place rather than resuming
             // the run under him.
-            let operator_paused = *recovery_driver_state.read().await == ExecutorState::Paused;
+            let operator_paused = run_state.get() == ExecutorState::Paused;
             let resumed_state = if operator_paused {
                 ExecutorState::Paused
             } else {
@@ -632,16 +617,13 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     ),
                 });
             }
-            *recovery_driver_state.write().await = resumed_state;
-            {
-                let mut prog = recovery_driver_progress.write();
-                prog.state = resumed_state;
-                prog.message = Some(if operator_paused {
+            let resumed = run_state.store(resumed_state, |progress| {
+                progress.message = Some(if operator_paused {
                     "Recovered — paused, as you left it".to_string()
                 } else {
                     "Recovered — resuming sequence".to_string()
                 });
-            }
+            });
             *recovery_driver_current.write() = None;
 
             // Re-enable tracking if the recovery loop stopped it
@@ -665,8 +647,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // with the helper's verdict so the poll surface and the event
             // stream tell the same story.
             if let Some(warning) = &tracking_warning {
-                let mut prog = recovery_driver_progress.write();
-                prog.message = Some(warning.clone());
+                run_state.set_message(warning.clone());
             }
 
             // Publish completion BEFORE clearing the pause, so an
@@ -677,7 +658,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             if !operator_paused {
                 recovery_driver_is_paused.store(false, Ordering::Relaxed);
             }
-            let _ = recovery_driver_event_tx.send(ExecutorEvent::StateChanged(resumed_state));
+            resumed.announce();
             let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
                 context: Box::new(ctx.clone()),
             });
@@ -700,9 +681,8 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 generation: &recovery_driver_generation,
                 is_paused: &recovery_driver_is_paused,
                 mount_id: recovery_driver_mount_id.as_deref(),
-                progress: &recovery_driver_progress,
+                run_state: &run_state,
                 current: &recovery_driver_current,
-                state: &recovery_driver_state,
                 stop_tracking,
                 trigger_mgr: &recovery_driver_trigger_mgr,
             })
@@ -836,26 +816,19 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // ensures any active instruction returns
             // promptly.
             recovery_driver_is_cancelled.store(true, Ordering::Relaxed);
-            *recovery_driver_state.write().await = ExecutorState::Failed;
-            {
-                let mut prog = recovery_driver_progress.write();
-                prog.state = ExecutorState::Failed;
-                prog.message = Some(if aborted_by_user {
-                    format!(
-                        "Recovery aborted by operator after {} attempt{}",
-                        ctx.attempt_count,
-                        if ctx.attempt_count == 1 { "" } else { "s" }
-                    )
-                } else {
-                    format!(
-                        "Recovery exhausted after {} attempt{}",
-                        ctx.attempt_count,
-                        if ctx.attempt_count == 1 { "" } else { "s" }
-                    )
-                });
-            }
-            let _ =
-                recovery_driver_event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Failed));
+            run_state.transition_with_message(
+                ExecutorState::Failed,
+                format!(
+                    "Recovery {} after {} attempt{}",
+                    if aborted_by_user {
+                        "aborted by operator"
+                    } else {
+                        "exhausted"
+                    },
+                    ctx.attempt_count,
+                    if ctx.attempt_count == 1 { "" } else { "s" }
+                ),
+            );
             let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryGaveUp {
                 context: Box::new(ctx.clone()),
                 aborted_by_user,
@@ -993,9 +966,8 @@ struct UnguidedContinuation<'a> {
     generation: &'a std::sync::atomic::AtomicU64,
     is_paused: &'a AtomicBool,
     mount_id: Option<&'a str>,
-    progress: &'a StdRwLock<SequenceProgress>,
+    run_state: &'a RunCell,
     current: &'a StdRwLock<Option<crate::recovery::RecoveryContext>>,
-    state: &'a RwLock<ExecutorState>,
     stop_tracking: bool,
     trigger_mgr: &'a Arc<RwLock<TriggerManager>>,
 }
@@ -1024,7 +996,7 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
         }
     }
 
-    let operator_paused = *c.state.read().await == ExecutorState::Paused;
+    let operator_paused = c.run_state.get() == ExecutorState::Paused;
     let resumed_state = if operator_paused {
         ExecutorState::Paused
     } else {
@@ -1046,12 +1018,9 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
     );
     tracing::warn!("[RECOVERY] {}", problem);
 
-    *c.state.write().await = resumed_state;
-    {
-        let mut prog = c.progress.write();
-        prog.state = resumed_state;
-        prog.message = Some("Guide star not re-acquired — imaging unguided".to_string());
-    }
+    let resumed = c.run_state.store(resumed_state, |progress| {
+        progress.message = Some("Guide star not re-acquired — imaging unguided".to_string());
+    });
     *c.current.write() = None;
 
     let tracking_warning = restore_tracking_after_recovery(
@@ -1063,7 +1032,7 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
     )
     .await;
     if let Some(warning) = &tracking_warning {
-        c.progress.write().message = Some(warning.clone());
+        c.run_state.set_message(warning.clone());
     }
 
     let continuation = crate::executor::quality_problem_continuation(
@@ -1088,7 +1057,7 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
     if !operator_paused {
         c.is_paused.store(false, Ordering::Relaxed);
     }
-    let _ = c.event_tx.send(ExecutorEvent::StateChanged(resumed_state));
+    resumed.announce();
     let _ = c.event_tx.send(ExecutorEvent::RecoveryCompleted {
         context: Box::new(c.ctx.clone()),
     });
@@ -1142,7 +1111,7 @@ mod tests {
         let (decision_tx, _decision_rx) = broadcast::channel(16);
         let (request_tx, request_rx) = mpsc::channel(4);
         let signals = Arc::new(crate::recovery::RecoverySignals::new());
-        let state = Arc::new(RwLock::new(ExecutorState::Running));
+        let state = RunCell::starting_in(event_tx, ExecutorState::Running);
         let gave_up = Arc::new(AtomicBool::new(false));
         let is_cancelled = Arc::new(AtomicBool::new(false));
         let history = Arc::new(StdRwLock::new(Vec::new()));
@@ -1155,17 +1124,17 @@ mod tests {
             recovery_driver_device_ids: device_ids,
             recovery_driver_device_ops: ops.clone(),
             recovery_driver_dome_id: Some("dome-1".to_string()),
-            recovery_driver_event_tx: event_tx,
             recovery_driver_gave_up: gave_up.clone(),
             recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             recovery_driver_history: history.clone(),
-            recovery_driver_is_cancelled: is_cancelled.clone(),
-            recovery_driver_is_paused: Arc::new(AtomicBool::new(false)),
             recovery_driver_mount_id: Some("mount-1".to_string()),
-            recovery_driver_progress: Arc::new(StdRwLock::new(SequenceProgress::default())),
             recovery_driver_runtime: Arc::new(StdRwLock::new(runtime)),
             recovery_driver_signals: signals.clone(),
-            recovery_driver_state: state.clone(),
+            run: RunControl {
+                state: state.clone(),
+                is_cancelled: is_cancelled.clone(),
+                is_paused: Arc::new(AtomicBool::new(false)),
+            },
             recovery_driver_trigger_mgr: Arc::new(RwLock::new(TriggerManager::new())),
             recovery_driver_trigger_context: TriggerActionContext::default(),
             recovery_request_rx: request_rx,
@@ -1219,7 +1188,7 @@ mod tests {
         drop(request_tx);
         driver.await.unwrap();
 
-        let final_state = *state.read().await;
+        let final_state = state.get();
         let history = history.read().clone();
         GiveUp {
             calls: ops.calls(),
@@ -1388,7 +1357,7 @@ mod tests {
         let (event_tx, mut event_rx) = broadcast::channel(64);
         let (decision_tx, mut decision_rx) = broadcast::channel(16);
         let (request_tx, request_rx) = mpsc::channel(4);
-        let state = Arc::new(RwLock::new(ExecutorState::Running));
+        let state = RunCell::starting_in(event_tx, ExecutorState::Running);
         let gave_up = Arc::new(AtomicBool::new(false));
         let is_cancelled = Arc::new(AtomicBool::new(false));
         let is_paused = Arc::new(AtomicBool::new(false));
@@ -1401,17 +1370,17 @@ mod tests {
             recovery_driver_device_ids: Vec::new(),
             recovery_driver_device_ops: ops.clone(),
             recovery_driver_dome_id: Some("dome-1".to_string()),
-            recovery_driver_event_tx: event_tx,
             recovery_driver_gave_up: gave_up.clone(),
             recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             recovery_driver_history: Arc::new(StdRwLock::new(Vec::new())),
-            recovery_driver_is_cancelled: is_cancelled.clone(),
-            recovery_driver_is_paused: is_paused.clone(),
             recovery_driver_mount_id: Some("mount-1".to_string()),
-            recovery_driver_progress: Arc::new(StdRwLock::new(SequenceProgress::default())),
             recovery_driver_runtime: Arc::new(StdRwLock::new(runtime)),
             recovery_driver_signals: Arc::new(crate::recovery::RecoverySignals::new()),
-            recovery_driver_state: state.clone(),
+            run: RunControl {
+                state: state.clone(),
+                is_cancelled: is_cancelled.clone(),
+                is_paused: is_paused.clone(),
+            },
             recovery_driver_trigger_mgr: trigger_mgr.clone(),
             recovery_driver_trigger_context: TriggerActionContext::default(),
             recovery_request_rx: request_rx,
@@ -1453,7 +1422,7 @@ mod tests {
             let state = state_lock.read().await.clone();
             state
         };
-        let final_state = *state.read().await;
+        let final_state = state.get();
         GuideStarGiveUp {
             calls: ops.calls(),
             state: final_state,

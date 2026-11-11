@@ -137,7 +137,7 @@ impl SequenceExecutor {
 
         let sequence = self.sequence.as_ref().ok_or("No sequence loaded")?;
 
-        let progress = self.progress.read().clone();
+        let progress = self.run_state.progress();
         let state = self.get_state().await;
 
         let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(sequence.clone());
@@ -271,12 +271,11 @@ impl SequenceExecutor {
         self.current_checkpoint = Some(checkpoint.clone());
         self.resume_prepared = true;
 
-        {
-            let mut progress = self.progress.write();
+        self.run_state.update_progress(|progress| {
             progress.node_statuses = checkpoint.node_statuses.clone();
             progress.completed_exposures = checkpoint.completed_exposures;
             progress.completed_integration_secs = checkpoint.completed_integration_secs;
-        }
+        });
 
         // Marking completed nodes on the freshly built tree is what makes
         // resume idempotent — the executor still walks the full tree but

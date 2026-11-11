@@ -4,12 +4,11 @@
 use super::*;
 
 pub(super) struct ProgressCallbackArgs {
-    pub event_tx_clone: broadcast::Sender<ExecutorEvent>,
     pub exposure_node_metadata: Arc<HashMap<NodeId, (f64, Option<String>)>>,
     pub node_frame_progress: Arc<StdRwLock<HashMap<NodeId, u32>>>,
     pub node_integration_credited: Arc<StdRwLock<HashMap<NodeId, f64>>>,
     pub node_names: Arc<StdRwLock<HashMap<NodeId, String>>>,
-    pub progress_clone: Arc<StdRwLock<SequenceProgress>>,
+    pub run_state: RunCell,
     pub start_time: std::time::Instant,
     pub started_nodes: Arc<StdRwLock<std::collections::HashSet<NodeId>>>,
     pub target_node_metadata: Arc<HashMap<NodeId, (String, f64, f64)>>,
@@ -19,18 +18,18 @@ pub(super) fn build_progress_callback(
     args: ProgressCallbackArgs,
 ) -> crate::node::context::ProgressCallback {
     let ProgressCallbackArgs {
-        event_tx_clone,
         exposure_node_metadata,
         node_frame_progress,
         node_integration_credited,
         node_names,
-        progress_clone,
+        run_state,
         start_time,
         started_nodes,
         target_node_metadata,
     } = args;
+    let event_tx_clone = run_state.events().clone();
     Arc::new(move |update: ProgressUpdate| {
-        let mut prog = progress_clone.write();
+        run_state.update_progress(|prog| {
         prog.current_node_id = Some(update.node_id.clone());
         // Move the name with the id (see `node_names` above). Unknown
         // until the node's entry message has been seen, in which case
@@ -371,6 +370,7 @@ pub(super) fn build_progress_callback(
         // `ProgressUpdated` carries a boxed `SequenceProgress`
         // so the enum stays small (see `ExecutorEvent` doc-comment).
         let _ = event_tx_clone.send(ExecutorEvent::ProgressUpdated(Box::new(prog.clone())));
+        })
     })
 }
 
@@ -388,12 +388,11 @@ mod tests {
         let started_nodes: Arc<StdRwLock<std::collections::HashSet<NodeId>>> =
             Arc::new(StdRwLock::new(std::collections::HashSet::new()));
         let cb = build_progress_callback(ProgressCallbackArgs {
-            event_tx_clone: tx,
             exposure_node_metadata: Arc::new(HashMap::new()),
             node_frame_progress: Arc::new(StdRwLock::new(HashMap::new())),
             node_integration_credited: Arc::new(StdRwLock::new(HashMap::new())),
             node_names: Arc::new(StdRwLock::new(HashMap::new())),
-            progress_clone: Arc::new(StdRwLock::new(SequenceProgress::default())),
+            run_state: RunCell::new(tx),
             start_time: std::time::Instant::now(),
             started_nodes: started_nodes.clone(),
             target_node_metadata: Arc::new(HashMap::new()),

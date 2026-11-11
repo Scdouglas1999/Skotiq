@@ -50,7 +50,7 @@ impl SequenceExecutor {
                 .send(ExecutorCommand::UpdateRecoveryConfig { config })
                 .await;
         }
-        let _ = self.event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
+        self.run_state.emit(ExecutorEvent::RuntimeConfigUpdated {
             what: "recovery_config".to_string(),
         });
     }

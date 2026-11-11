@@ -16,7 +16,7 @@ pub(in super::super) async fn slew_to_gap(
         tracing::warn!(
             "[CLOUD] SlewToGapAndContinue fired but no clear-sky direction reported; falling back to PauseAndWaitForClear"
         );
-        run.pause(None).await;
+        run.pause(None);
         run.error(format!(
             "Trigger '{}' requested SlewToGapAndContinue but the cloud-motion analyzer has not reported a clear sky direction. Sequence paused.",
             trigger_name,
@@ -34,7 +34,7 @@ pub(in super::super) async fn slew_to_gap(
         run.error(
             "SlewToGapAndContinue requested but observer location is not configured. Sequence paused.".to_string(),
         );
-        run.pause(None).await;
+        run.pause(None);
         return ActionFlow::Finished;
     };
 
@@ -66,7 +66,7 @@ pub(in super::super) async fn slew_to_gap(
             "[CLOUD] Slew to gap failed: {:?} - pausing sequence",
             result.message
         );
-        run.pause(None).await;
+        run.pause(None);
         run.error(format!(
             "SlewToGapAndContinue failed: {}",
             result.message.unwrap_or_default()

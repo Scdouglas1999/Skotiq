@@ -4,7 +4,7 @@ use super::actions::custom_branch::CustomBranches;
 use super::actions::meridian_flip::FlipFailureLatch;
 use super::actions::{
     autofocus, cloud, custom_branch, dither, meridian_flip, park, recenter, recovery, science,
-    ActionFlow, DecisionLog, ParkSignals, Rig, RunControl,
+    ActionFlow, DecisionLog, ParkSignals, Rig,
 };
 use super::policy::{Dispatch, NotifyEpisodes};
 use super::*;
@@ -66,11 +66,9 @@ impl Dispatcher {
         let trigger_state = args.trigger_manager.read().await.state();
         Self {
             run: RunControl {
-                events: args.event_tx_clone2,
+                state: args.run_state,
                 is_cancelled: args.is_cancelled_clone,
                 is_paused: args.is_paused_for_triggers,
-                executor_state: args.state_clone,
-                progress: args.progress_for_triggers,
             },
             rig: Rig {
                 device_ops: args.device_ops_for_triggers,
@@ -233,7 +231,7 @@ impl Dispatcher {
                 config,
                 self.rig.device_ops.clone(),
             )
-            .with_executor_event_tx(self.run.events.clone());
+            .with_executor_event_tx(self.run.state.events().clone());
             let slew = crate::instructions::execute_slew(
                 &crate::SlewConfig {
                     use_target_coords: true,
@@ -261,7 +259,7 @@ impl Dispatcher {
                 self.flip_failure.latch(|| message.clone());
                 self.run.error(message.clone());
                 match failure_action {
-                    crate::FlipFailureAction::PauseAndAlert => self.run.pause(Some(message)).await,
+                    crate::FlipFailureAction::PauseAndAlert => self.run.pause(Some(message)),
                     crate::FlipFailureAction::AbortAndPark => {
                         meridian_flip::abort_and_park(&self.rig, &self.run, &mut self.park).await;
                         self.fired.push((id.into(), RecoveryAction::ParkAndAbort));

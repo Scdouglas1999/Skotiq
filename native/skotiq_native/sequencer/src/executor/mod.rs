@@ -1,12 +1,10 @@
 //! Sequence execution engine.
 //!
 //! This module owns the [`SequenceExecutor`] struct, its constructor, the
-//! orchestrating [`SequenceExecutor::start`] method, the sequence-load /
-//! totals-calculation helpers, the free-standing recovery / trigger helper
-//! functions that the inline executor closures rely on, and the public
-//! event / progress / state types.
+//! policy constants and the free-standing helpers the run tasks share.
 //!
-//! Cohesive concerns are split into sibling submodules:
+//! Submodules:
+//!   * [`run_state`]    — the run-state cell: state, progress, events.
 //!   * [`lifecycle`]    — operator pause/resume/stop/skip/recovery-button.
 //!   * [`recovery`]     — recovery state-machine snapshot accessors.
 //!   * [`setup`]        — pre-start `set_*` wiring and post-run `reset`.
@@ -14,21 +12,14 @@
 //!   * [`runtime_config`] — `update_*` mid-flight config mutators.
 //!   * [`checkpoint`]   — crash-recovery save/load/resume surface.
 //!   * [`decision`]     — structured-decision logging surface.
-//!
-//! What is deliberately kept here in `mod.rs`:
-//!   * `start()` — the orchestrator. It captures dozens of locals into
-//!     spawned tasks; extracting it would require either a giant
-//!     parameter struct or making most private fields `pub(super)`,
-//!     neither of which is a net win.
-//!   * The free-standing helpers (`run_recovery_attempt`,
-//!     `build_trigger_autofocus_context`, etc.) are owned here because
-//!     the inline `start()` closures are their only callers.
+//!   * [`start`]        — the run supervisor and its tasks.
 
 mod checkpoint;
 mod decision;
 mod lifecycle;
 mod loading;
 mod recovery;
+mod run_state;
 mod runtime_config;
 mod setup;
 
@@ -124,21 +115,21 @@ mod types;
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
+pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;
 pub use types::*;
 
 /// The sequence executor manages running a sequence
 pub struct SequenceExecutor {
     sequence: Option<SequenceDefinition>,
-    state: Arc<RwLock<ExecutorState>>,
-    progress: Arc<StdRwLock<SequenceProgress>>,
+    /// The executor state, the progress snapshot and the event stream.
+    run_state: RunCell,
     command_tx: Option<mpsc::Sender<ExecutorCommand>>,
     /// Completion acknowledgment for the currently spawned executor task.
     /// `stop()` takes and awaits this receiver so native termination is not
     /// reported until instruction cancellation cleanup (including camera
     /// exposure abort) and terminal event emission have finished.
     run_completion_rx: Option<oneshot::Receiver<()>>,
-    event_tx: broadcast::Sender<ExecutorEvent>,
     is_cancelled: Arc<AtomicBool>,
     root_node: Option<Box<dyn Node>>,
     /// Device operations handler - None indicates no device ops have been configured.
@@ -253,11 +244,9 @@ impl SequenceExecutor {
 
         Self {
             sequence: None,
-            state: Arc::new(RwLock::new(ExecutorState::Idle)),
-            progress: Arc::new(StdRwLock::new(SequenceProgress::default())),
+            run_state: RunCell::new(event_tx),
             command_tx: None,
             run_completion_rx: None,
-            event_tx,
             is_cancelled: Arc::new(AtomicBool::new(false)),
             root_node: None,
             device_ops: None,
@@ -335,27 +324,29 @@ impl SequenceExecutor {
 
     /// Get the current state
     pub async fn get_state(&self) -> ExecutorState {
-        *self.state.read().await
+        self.run_state.get()
     }
 
     /// Get the current progress
     pub fn get_progress(&self) -> SequenceProgress {
-        self.progress.read().clone()
+        self.run_state.progress()
     }
 
-    /// Emit an event
-    fn emit(&self, event: ExecutorEvent) {
-        let _ = self.event_tx.send(event);
-    }
-
-    /// Set state and emit event
-    async fn set_state(&self, state: ExecutorState) {
-        *self.state.write().await = state;
-        {
-            let mut progress = self.progress.write();
-            progress.state = state;
-        }
-        self.emit(ExecutorEvent::StateChanged(state));
+    /// Write the sequence's totals into the progress snapshot. Indeterminate
+    /// totals (unbounded loops, an engaged integration budget) have no finite
+    /// ETA, so they read as zero with no estimate.
+    fn publish_totals(&self, sequence: &SequenceDefinition) {
+        let (total_exposures, total_integration, indeterminate) = self.calculate_totals(sequence);
+        self.run_state.update_progress(|progress| {
+            if indeterminate {
+                progress.total_exposures = 0;
+                progress.total_integration_secs = 0.0;
+                progress.estimated_remaining_secs = None;
+            } else {
+                progress.total_exposures = total_exposures;
+                progress.total_integration_secs = total_integration;
+            }
+        });
     }
 }
 
