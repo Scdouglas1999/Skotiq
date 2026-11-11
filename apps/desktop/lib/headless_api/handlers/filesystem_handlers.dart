@@ -56,13 +56,19 @@ class FileSystemHandlers implements RouteSource {
       if (requestedPath == null || requestedPath.trim().isEmpty) {
         // Top-level listing: return only the allow-listed roots so the caller
         // cannot enumerate the full filesystem via a single empty-path request.
-        return jsonOk({
-          'currentPath': null,
-          'parentPath': null,
-          'directories': roots
-              .map((r) => {'name': r.label, 'path': r.canonicalPath})
-              .toList(),
-        });
+        return jsonOk(
+          RemoteDirectoryListing(
+            currentPath: null,
+            parentPath: null,
+            directories: [
+              for (final root in roots)
+                RemoteDirectoryEntry(
+                  name: root.label,
+                  path: root.canonicalPath,
+                ),
+            ],
+          ).toJson(),
+        );
       }
 
       final directory = Directory(requestedPath);
@@ -115,20 +121,27 @@ class FileSystemHandlers implements RouteSource {
           _isPathUnderAnyRoot(parentCanonical, roots);
       // Listed children must each be canonicalized + checked. A symlink in an
       // allowed root that targets /etc must not let the caller hop out.
-      final children = <Map<String, dynamic>>[];
+      final children = <RemoteDirectoryEntry>[];
       for (final entry in entries) {
         final childCanonical = await _canonicalize(entry.path);
         if (!_isPathUnderAnyRoot(childCanonical, roots)) {
           continue;
         }
-        children.add({'name': p.basename(entry.path), 'path': childCanonical});
+        children.add(
+          RemoteDirectoryEntry(
+            name: p.basename(entry.path),
+            path: childCanonical,
+          ),
+        );
       }
 
-      return jsonOk({
-        'currentPath': normalizedPath,
-        'parentPath': parentAllowed ? parentCanonical : null,
-        'directories': children,
-      });
+      return jsonOk(
+        RemoteDirectoryListing(
+          currentPath: normalizedPath,
+          parentPath: parentAllowed ? parentCanonical : null,
+          directories: children,
+        ).toJson(),
+      );
     } catch (e) {
       _logError('[API] Browse directories error: $e');
       return jsonInternalServerError({'error': 'internal_error'});

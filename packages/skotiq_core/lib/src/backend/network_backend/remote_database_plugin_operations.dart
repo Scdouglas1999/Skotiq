@@ -99,7 +99,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   /// table). Distinct from [fetchNotesJournal], which despite its name serves
   /// the `observation_logs` table. With no filter it returns every note;
   /// [targetId] / [runId] scope it for the family providers.
-  Future<RemotePage<RemoteJournalNote>> fetchJournalNotes({
+  Future<RemotePage<JournalNote>> fetchJournalNotes({
     String? targetId,
     int? runId,
   }) async {
@@ -107,11 +107,11 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
       if (targetId != null && targetId.isNotEmpty) 'targetId': targetId,
       if (runId != null) 'runId': runId.toString(),
     });
-    return RemotePage.fromJson(response, RemoteJournalNote.fromJson);
+    return RemotePage.fromJson(response, JournalNote.fromJson);
   }
 
   /// POST /api/db/notes
-  Future<RemoteJournalNote> createJournalNote({
+  Future<JournalNote> createJournalNote({
     required String targetId,
     int? sequenceRunId,
     required String body,
@@ -140,7 +140,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   }
 
   /// PUT `/api/db/notes/<id>`
-  Future<RemoteJournalNote> updateJournalNote(
+  Future<JournalNote> updateJournalNote(
     String id, {
     String? body,
     String? title,
@@ -166,14 +166,12 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
   Future<void> deleteJournalNote(String id) =>
       _delete('db/notes/${Uri.encodeComponent(id)}');
 
-  RemoteJournalNote _journalNoteFromMutationResponse(
-    Map<String, dynamic> response,
-  ) {
+  JournalNote _journalNoteFromMutationResponse(Map<String, dynamic> response) {
     final raw = response['note'];
     if (raw is! Map) {
       throw StateError('Malformed journal-note response: missing note');
     }
-    return RemoteJournalNote.fromJson(raw.cast<String, dynamic>());
+    return JournalNote.fromJson(raw.cast<String, dynamic>());
   }
 
   /// GET /api/guide-rms-history?sinceMs=&untilMs=&limit=&offset=

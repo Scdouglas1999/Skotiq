@@ -155,7 +155,9 @@ class CalibrationHandlers implements RouteSource {
     return resolveSkotiqDataDirectory();
   }
 
-  Future<Map<String, dynamic>> _darkEntryToWire(DarkLibraryEntry entry) async {
+  Future<RemoteDarkLibraryEntry> _darkEntryToWire(
+    DarkLibraryEntry entry,
+  ) async {
     final file = File(entry.filePath);
     bool exists = false;
     int? fileSize;
@@ -167,47 +169,44 @@ class CalibrationHandlers implements RouteSource {
     } on FileSystemException {
       exists = false;
     }
-    return {
-      'id': entry.id,
-      'filePath': entry.filePath,
-      'fileName': p.basename(entry.filePath),
-      'exposureDuration': entry.exposureTime,
-      'sensorTempC': entry.temperature,
-      'gain': entry.gain,
-      'offset': entry.offset,
-      'binX': entry.binX,
-      'binY': entry.binY,
-      'frameType': entry.frameType,
-      'width': entry.width,
-      'height': entry.height,
-      'masterPath': entry.masterDarkPath,
-      'frameCount': entry.masterFrameCount,
-      'createdAt': entry.createdAt.toUtc().toIso8601String(),
-      'fileSize': fileSize,
-      'fileExists': exists,
-    };
+    return RemoteDarkLibraryEntry(
+      id: entry.id,
+      filePath: entry.filePath,
+      fileName: p.basename(entry.filePath),
+      exposureDuration: entry.exposureTime,
+      sensorTempC: entry.temperature,
+      gain: entry.gain,
+      offset: entry.offset,
+      binX: entry.binX,
+      binY: entry.binY,
+      frameType: entry.frameType,
+      width: entry.width,
+      height: entry.height,
+      masterPath: entry.masterDarkPath,
+      frameCount: entry.masterFrameCount,
+      createdAt: entry.createdAt,
+      fileSize: fileSize,
+      fileExists: exists,
+    );
   }
 
-  Map<String, dynamic> _flatEntryToJson(FlatHistoryEntry entry) {
-    return {
-      'id': entry.id,
-      'filter': entry.filterName,
-      'exposureDuration': entry.exposureTime,
-      'histogramTarget': entry.histogramTarget,
-      'adu': entry.actualAdu,
-      'gain': entry.gain,
-      'binning': entry.binning,
-      'panelBrightness': entry.panelBrightness,
-      'skyAduRate': entry.skyAduRate,
-      'twilightPhase': entry.twilightPhase,
-      'equipmentProfileId': entry.equipmentProfileId,
-      'createdAt': entry.timestamp.toUtc().toIso8601String(),
-    };
-  }
+  RemoteFlatHistoryEntry _flatEntryToWire(FlatHistoryEntry entry) =>
+      RemoteFlatHistoryEntry(
+        id: entry.id,
+        filter: entry.filterName,
+        exposureDuration: entry.exposureTime,
+        histogramTarget: entry.histogramTarget,
+        adu: entry.actualAdu,
+        gain: entry.gain,
+        binning: entry.binning,
+        panelBrightness: entry.panelBrightness,
+        skyAduRate: entry.skyAduRate,
+        twilightPhase: entry.twilightPhase,
+        equipmentProfileId: entry.equipmentProfileId,
+        createdAt: entry.timestamp,
+      );
 
-  Future<Map<String, dynamic>> _defectMapMetadataToJson(
-    DefectMapEntry row,
-  ) async {
+  Future<RemoteDefectMap> _defectMapToWire(DefectMapEntry row) async {
     int? fileSize;
     bool fileExists = false;
     final sp = row.filePath;
@@ -222,18 +221,18 @@ class CalibrationHandlers implements RouteSource {
         fileExists = false;
       }
     }
-    return {
-      'id': row.id,
-      'cameraId': row.cameraId,
-      'width': row.width,
-      'height': row.height,
-      'temperatureBucketDecicelsius': row.temperatureBucketDecicelsius,
-      'defectivePixelCount': row.defectivePixelCount,
-      'lastRebuiltAt': row.lastRebuiltAt.toUtc().toIso8601String(),
-      'sourceFilePath': row.filePath,
-      'fileSize': fileSize,
-      'fileExists': fileExists,
-    };
+    return RemoteDefectMap(
+      id: row.id,
+      cameraId: row.cameraId,
+      width: row.width,
+      height: row.height,
+      temperatureBucketDecicelsius: row.temperatureBucketDecicelsius,
+      defectivePixelCount: row.defectivePixelCount,
+      lastRebuiltAt: row.lastRebuiltAt,
+      sourceFilePath: row.filePath,
+      fileSize: fileSize,
+      fileExists: fileExists,
+    );
   }
 
   int? _parseIntParam(Map<String, String> params, String name) {

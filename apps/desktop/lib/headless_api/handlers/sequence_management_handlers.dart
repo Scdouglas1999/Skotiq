@@ -671,7 +671,7 @@ class SequenceManagementHandlers implements RouteSource {
   }
 
   Map<String, dynamic> _summaryToJson(SequenceSummary summary) =>
-      SequenceSummaryDto(
+      RemoteSequenceSummary(
         id: summary.id,
         name: summary.name,
         nodeCount: summary.nodeCount,
@@ -688,7 +688,7 @@ class SequenceManagementHandlers implements RouteSource {
       ).toJson();
 
   Map<String, dynamic> _versionToJson(SequenceVersion version) =>
-      SequenceVersionDto(
+      RemoteSequenceVersion(
         id: version.id,
         sequenceId: version.sequenceId,
         snapshotJson: version.snapshotJson,
@@ -697,7 +697,7 @@ class SequenceManagementHandlers implements RouteSource {
       ).toJson();
 
   Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) =>
-      SequenceVersionSummaryDto(
+      RemoteSequenceVersionSummary(
         id: version.id,
         sequenceId: version.sequenceId,
         label: version.label,

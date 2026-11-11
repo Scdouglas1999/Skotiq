@@ -131,7 +131,15 @@ class LogHandlers implements RouteSource {
     final infos = await _logger.getLogFileInfos();
     final total = infos.fold<int>(0, (sum, info) => sum + info.sizeBytes);
     return jsonOk({
-      'files': infos.map((info) => info.toJson()).toList(growable: false),
+      'files': [
+        for (final info in infos)
+          RemoteLogFileInfo(
+            name: info.name,
+            sizeBytes: info.sizeBytes,
+            modifiedAt: info.modifiedAt,
+            isCurrent: info.isCurrent,
+          ).toJson(),
+      ],
       'totalBytes': total,
       'retentionDays': _retentionDays,
     });

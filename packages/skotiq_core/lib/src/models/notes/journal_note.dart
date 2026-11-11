@@ -93,6 +93,32 @@ class JournalNote extends Equatable {
     );
   }
 
+  /// Reads what [toJson] writes, as a linked host serves it from
+  /// `/api/db/notes`. Tolerant: a missing or malformed field takes an empty
+  /// default so one bad row never blanks the notes panel.
+  factory JournalNote.fromJson(Map<String, dynamic> json) {
+    return JournalNote(
+      id: json['id'] as String? ?? '',
+      targetId: json['targetId'] as String? ?? '',
+      sequenceRunId: (json['sequenceRunId'] as num?)?.toInt(),
+      createdAt: _date(json['createdAt']),
+      updatedAt: _date(json['updatedAt']),
+      title: json['title'] as String?,
+      body: json['body'] as String? ?? '',
+      tags: _strings(json['tags']),
+      attachments: _strings(json['attachments']),
+      sentiment: json['sentiment'] as String?,
+    );
+  }
+
+  static DateTime _date(Object? raw) =>
+      (raw is String ? DateTime.tryParse(raw) : null) ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+
+  static List<String> _strings(Object? raw) => raw is List
+      ? raw.whereType<String>().toList(growable: false)
+      : const <String>[];
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'targetId': targetId,

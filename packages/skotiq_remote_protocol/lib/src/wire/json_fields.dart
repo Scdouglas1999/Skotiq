@@ -87,3 +87,39 @@ DateTime? optionalDate(Map<String, dynamic> json, String key, String context) {
   if (!json.containsKey(key) || json[key] == null) return null;
   return requiredDate(json, key, context);
 }
+
+int? optionalInt(
+  Map<String, dynamic> json,
+  String key,
+  String context, {
+  required int min,
+}) {
+  if (!json.containsKey(key) || json[key] == null) return null;
+  return requiredInt(json, key, context, min: min);
+}
+
+double requiredDouble(
+  Map<String, dynamic> json,
+  String key,
+  String context, {
+  double? min,
+}) {
+  if (!json.containsKey(key)) {
+    throw FormatException('$context is missing $key');
+  }
+  final value = json[key];
+  if (value is! num || !value.isFinite || (min != null && value < min)) {
+    throw FormatException('$context.$key must be a valid finite number');
+  }
+  return value.toDouble();
+}
+
+double? optionalDouble(
+  Map<String, dynamic> json,
+  String key,
+  String context, {
+  double? min,
+}) {
+  if (!json.containsKey(key) || json[key] == null) return null;
+  return requiredDouble(json, key, context, min: min);
+}

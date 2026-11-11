@@ -143,23 +143,23 @@ class DbReadHandlers implements RouteSource {
     );
     final total = await dao.countFiltered(sequenceId: sequenceId);
 
-    return jsonOk({
-      'items': rows.map(_sequenceRunToJson).toList(),
-      'total': total,
-    });
+    return jsonOk(
+      RemotePage(
+        items: rows.map(_sequenceRun).toList(),
+        total: total,
+      ).toJson((run) => run.toJson()),
+    );
   }
 
-  Map<String, dynamic> _sequenceRunToJson(SequenceRun row) {
-    return {
-      'id': row.id,
-      'sequenceId': row.sequenceId,
-      'sequenceName': row.sequenceName,
-      'startedAt': row.startedAt.toIso8601String(),
-      'endedAt': row.endedAt?.toIso8601String(),
-      'status': row.status,
-      'statsJson': row.statsJson,
-    };
-  }
+  RemoteSequenceRun _sequenceRun(SequenceRun row) => RemoteSequenceRun(
+    id: row.id,
+    sequenceId: row.sequenceId,
+    sequenceName: row.sequenceName,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    status: row.status,
+    statsJson: row.statsJson,
+  );
 
   // Notes journal (observation_logs)
   //
@@ -182,10 +182,12 @@ class DbReadHandlers implements RouteSource {
     );
     final total = await dao.countFiltered(equipmentProfileId: profileId);
 
-    return jsonOk({
-      'items': rows.map(_observationLogToJson).toList(),
-      'total': total,
-    });
+    return jsonOk(
+      RemotePage(
+        items: rows.map(_notesJournalEntry).toList(),
+        total: total,
+      ).toJson((entry) => entry.toJson()),
+    );
   }
 
   Future<Response> handleCreateObservationLog(Request request) async {
@@ -255,27 +257,26 @@ class DbReadHandlers implements RouteSource {
     return jsonOk({'status': 'deleted', 'count': deleted});
   }
 
-  Map<String, dynamic> _observationLogToJson(ObservationLogEntry row) {
-    return {
-      'id': row.id,
-      'timestamp': row.timestamp.toUtc().toIso8601String(),
-      'objectName': row.objectName,
-      'objectType': row.objectType,
-      'catalogId': row.catalogId,
-      'ra': row.ra,
-      'dec': row.dec,
-      'altitude': row.altitude,
-      'azimuth': row.azimuth,
-      'notes': row.notes,
-      'rating': row.rating,
-      'equipmentProfileId': row.equipmentProfileId,
-      'seeingConditions': row.seeingConditions,
-      'transparency': row.transparency,
-      'locationName': row.locationName,
-      'latitude': row.latitude,
-      'longitude': row.longitude,
-    };
-  }
+  RemoteNotesJournalEntry _notesJournalEntry(ObservationLogEntry row) =>
+      RemoteNotesJournalEntry(
+        id: row.id,
+        timestamp: row.timestamp,
+        objectName: row.objectName,
+        objectType: row.objectType,
+        catalogId: row.catalogId,
+        ra: row.ra,
+        dec: row.dec,
+        altitude: row.altitude,
+        azimuth: row.azimuth,
+        notes: row.notes,
+        rating: row.rating,
+        equipmentProfileId: row.equipmentProfileId,
+        seeingConditions: row.seeingConditions,
+        transparency: row.transparency,
+        locationName: row.locationName,
+        latitude: row.latitude,
+        longitude: row.longitude,
+      );
 
   Future<Response> handleListGuideRmsHistory(Request request) async {
     final qp = request.url.queryParameters;
@@ -299,25 +300,26 @@ class DbReadHandlers implements RouteSource {
       untilMs: untilMs,
     );
 
-    return jsonOk({
-      'items': rows.map(_guideRmsToJson).toList(),
-      'total': total,
-    });
+    return jsonOk(
+      RemotePage(
+        items: rows.map(_guideRms).toList(),
+        total: total,
+      ).toJson((entry) => entry.toJson()),
+    );
   }
 
-  Map<String, dynamic> _guideRmsToJson(GuideRmsHistoryEntry row) {
-    return {
-      'id': row.id,
-      // Stored as text; the wire field is the numeric session id.
-      'sessionId': int.tryParse(row.sessionId),
-      'mountId': row.mountId,
-      'targetId': row.targetId,
-      'totalRmsArcsec': row.totalRmsArcsec,
-      'sampleCount': row.sampleCount,
-      'exposureSeconds': row.exposureSeconds,
-      'recordedAt': row.recordedAt.toIso8601String(),
-    };
-  }
+  RemoteGuideRmsHistoryEntry _guideRms(GuideRmsHistoryEntry row) =>
+      RemoteGuideRmsHistoryEntry(
+        id: row.id,
+        // Stored as text; the wire field is the numeric session id.
+        sessionId: int.tryParse(row.sessionId),
+        mountId: row.mountId,
+        targetId: row.targetId,
+        totalRmsArcsec: row.totalRmsArcsec,
+        sampleCount: row.sampleCount,
+        exposureSeconds: row.exposureSeconds,
+        recordedAt: row.recordedAt,
+      );
 
   Future<Response> handleListPolarAlignmentHistory(Request request) async {
     final qp = request.url.queryParameters;
@@ -333,29 +335,31 @@ class DbReadHandlers implements RouteSource {
     );
     final total = await dao.countFiltered(equipmentProfileId: profileId);
 
-    return jsonOk({
-      'items': rows.map(_polarAlignmentToJson).toList(),
-      'total': total,
-    });
+    return jsonOk(
+      RemotePage(
+        items: rows.map(_polarAlignment).toList(),
+        total: total,
+      ).toJson((entry) => entry.toJson()),
+    );
   }
 
-  Map<String, dynamic> _polarAlignmentToJson(PolarAlignmentHistoryEntry row) {
-    return {
-      'id': row.id,
-      'equipmentProfileId': row.equipmentProfileId,
-      'initialAzimuthError': row.initialAzimuthError,
-      'initialAltitudeError': row.initialAltitudeError,
-      'initialTotalError': row.initialTotalError,
-      'finalAzimuthError': row.finalAzimuthError,
-      'finalAltitudeError': row.finalAltitudeError,
-      'finalTotalError': row.finalTotalError,
-      'startedAt': row.startedAt.toIso8601String(),
-      'completedAt': row.completedAt.toIso8601String(),
-      'autoCompleted': row.autoCompleted,
-      'isNorth': row.isNorth,
-      'configJson': row.configJson,
-    };
-  }
+  RemotePolarAlignmentHistoryEntry _polarAlignment(
+    PolarAlignmentHistoryEntry row,
+  ) => RemotePolarAlignmentHistoryEntry(
+    id: row.id,
+    equipmentProfileId: row.equipmentProfileId,
+    initialAzimuthError: row.initialAzimuthError,
+    initialAltitudeError: row.initialAltitudeError,
+    initialTotalError: row.initialTotalError,
+    finalAzimuthError: row.finalAzimuthError,
+    finalAltitudeError: row.finalAltitudeError,
+    finalTotalError: row.finalTotalError,
+    startedAt: row.startedAt,
+    completedAt: row.completedAt,
+    autoCompleted: row.autoCompleted,
+    isNorth: row.isNorth,
+    configJson: row.configJson,
+  );
 
   // Journal notes (notes_journal — the operator's per-target / per-run
   // notes). Distinct from /api/notes-journal, which despite its name serves
@@ -644,7 +648,7 @@ class DbReadHandlers implements RouteSource {
       }
     }
 
-    Map<String, dynamic>? diffContext;
+    RemoteSequenceRunDiffContext? diffContext;
     if (includeDiffContext) {
       final previousSnapshot = run.sequenceId == null
           ? null
@@ -652,43 +656,34 @@ class DbReadHandlers implements RouteSource {
               run.sequenceId!,
               before: run.startedAt,
             );
-      diffContext = {
-        'runId': run.id,
-        'sequenceId': run.sequenceId,
-        'currentSnapshotJson': _nonEmptySnapshot(run.sequenceSnapshotJson),
-        'previousSnapshotJson': _nonEmptySnapshot(previousSnapshot),
-      };
+      diffContext = RemoteSequenceRunDiffContext(
+        runId: run.id,
+        sequenceId: run.sequenceId,
+        currentSnapshotJson: _nonEmptySnapshot(run.sequenceSnapshotJson),
+        previousSnapshotJson: _nonEmptySnapshot(previousSnapshot),
+      );
     }
 
+    final detail = RemoteSequenceRunDetail(
+      id: run.id,
+      sequenceId: run.sequenceId,
+      sequenceName: run.sequenceName,
+      startedAt: run.startedAt,
+      endedAt: run.endedAt,
+      status: run.status,
+      statsJson: run.statsJson,
+      frameCount: frameCount,
+      targetName: targetName,
+    );
     return jsonOk({
-      'run': _sequenceRunDetailToJson(run, frameCount, targetName),
-      if (diffContext != null) 'diffContext': diffContext,
+      'run': detail.toJson(),
+      if (diffContext != null) 'diffContext': diffContext.toJson(),
     });
   }
 
   String? _nonEmptySnapshot(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     return value;
-  }
-
-  /// Detail-shaped JSON for a single run — same field names as the list
-  /// view plus `frameCount` and `targetName` for replay header rendering.
-  Map<String, dynamic> _sequenceRunDetailToJson(
-    SequenceRun row,
-    int frameCount,
-    String? targetName,
-  ) {
-    return {
-      'id': row.id,
-      'sequenceId': row.sequenceId,
-      'sequenceName': row.sequenceName,
-      'startedAt': row.startedAt.toIso8601String(),
-      'endedAt': row.endedAt?.toIso8601String(),
-      'status': row.status,
-      'statsJson': row.statsJson,
-      'frameCount': frameCount,
-      if (targetName != null) 'targetName': targetName,
-    };
   }
 
   /// `GET /api/sequence-runs/<runId>/events` — paginated events captured
@@ -783,54 +778,25 @@ class DbReadHandlers implements RouteSource {
       partialReason = isPartial ? 'ring_buffer_truncated' : null;
     }
 
-    return jsonOk({
-      'items': slice.map(_eventEntryToJson).toList(growable: false),
-      'total': total,
-      'is_partial': isPartial,
-      'source': 'logging_service_ring_buffer',
-      if (partialReason != null) 'partialReason': partialReason,
-    });
+    return jsonOk(
+      RemoteReplayEventsPage(
+        items: slice.map(_replayEvent).toList(growable: false),
+        total: total,
+        isPartial: isPartial,
+        partialReason: partialReason,
+        source: 'logging_service_ring_buffer',
+      ).toJson(),
+    );
   }
 
-  /// Project a LogEntry into the wire shape the replay client consumes.
-  /// Mirrors LogEntry.toJson plus a unix-ms timestamp for monotonic
-  /// scrubber arithmetic on the phone side (DateTime parsing on
-  /// Dart-on-iOS has noticeable cost vs an int comparison; the scrubber
-  /// runs the scan-to-time on every drag frame, so the extra field
-  /// pays for itself within a few drags).
-  Map<String, Object?> _eventEntryToJson(LogEntry entry) {
-    return {
-      'timestamp': entry.timestamp.toUtc().toIso8601String(),
-      'timestampMs': entry.timestamp.millisecondsSinceEpoch,
-      'severity': entry.level.name,
-      if (entry.source != null) 'source': entry.source,
-      'message': entry.message,
-      if (entry.fields.isNotEmpty) 'fields': _jsonSafeFields(entry.fields),
-    };
-  }
-
-  /// Defensive copy of [LogEntry.fields] suitable for JSON encoding.
-  /// LogEntry already calls its private `_jsonSafe` helper on toJson,
-  /// but that helper is unreachable from this file. We re-implement
-  /// the narrow safety: pass through primitives, recurse into maps/
-  /// iterables, stringify everything else. Mirrors the upstream
-  /// helper so wire payloads agree shape-for-shape.
-  Object? _jsonSafeFields(Object? value) {
-    if (value == null || value is num || value is bool || value is String) {
-      return value;
-    }
-    if (value is DateTime) return value.toIso8601String();
-    if (value is Iterable) {
-      return value.map(_jsonSafeFields).toList(growable: false);
-    }
-    if (value is Map) {
-      return {
-        for (final entry in value.entries)
-          entry.key.toString(): _jsonSafeFields(entry.value),
-      };
-    }
-    return value.toString();
-  }
+  RemoteReplayEvent _replayEvent(LogEntry entry) => RemoteReplayEvent(
+    timestamp: entry.timestamp,
+    timestampMs: entry.timestamp.millisecondsSinceEpoch,
+    severity: entry.level.name,
+    source: entry.source,
+    message: entry.message,
+    fields: entry.toJson()['fields'] as Map<String, dynamic>?,
+  );
 
   /// `GET /api/sequence-runs/<runId>/frames` — paginated captured-image
   /// rows for the run.
@@ -868,52 +834,47 @@ class DbReadHandlers implements RouteSource {
       producingRunId: runId.toString(),
     );
 
-    return jsonOk({
-      'items': frames.map(_capturedImageToJson).toList(growable: false),
-      'total': total,
-    });
+    return jsonOk(
+      RemotePage(
+        items: frames.map(_replayFrame).toList(growable: false),
+        total: total,
+      ).toJson((frame) => frame.toJson()),
+    );
   }
 
-  /// Wire projection of a CapturedImage row scoped to what the replay
-  /// scrubber renders. We deliberately do NOT include `displayData` or
-  /// any FITS body bytes — those are served by `/api/images/{id}/...`
-  /// endpoints and would balloon this list response.
-  ///
-  /// Uses [DbCapturedImage] because the skotiq_core barrel hides
-  /// the raw drift `CapturedImage` entity to avoid colliding with the
-  /// imaging-domain class of the same name.
-  Map<String, Object?> _capturedImageToJson(DbCapturedImage row) {
-    return {
-      'id': row.id,
-      'fileName': row.fileName,
-      'filePath': row.filePath,
-      'capturedAt': row.capturedAt.toIso8601String(),
-      'capturedAtMs': row.capturedAt.millisecondsSinceEpoch,
-      'frameType': row.frameType,
-      'exposureDuration': row.exposureDuration,
-      'filter': row.filter,
-      'gain': row.gain,
-      'offset': row.offset,
-      'binX': row.binX,
-      'binY': row.binY,
-      'sensorTemp': row.sensorTemp,
-      'hfr': row.hfr,
-      'starCount': row.starCount,
-      'background': row.background,
-      'noise': row.noise,
-      'qualityScore': row.qualityScore,
-      'guidingRmsRa': row.guidingRmsRa,
-      'guidingRmsDec': row.guidingRmsDec,
-      'guidingRmsTotal': row.guidingRmsTotal,
-      'mountRa': row.mountRa,
-      'mountDec': row.mountDec,
-      'mountAltitude': row.mountAltitude,
-      'mountAzimuth': row.mountAzimuth,
-      'focuserPosition': row.focuserPosition,
-      'isAccepted': row.isAccepted,
-      'rejectionReason': row.rejectionReason,
-      'sessionId': row.sessionId,
-      'targetId': row.targetId,
-    };
-  }
+  /// Uses [DbCapturedImage] because the skotiq_core barrel hides the raw
+  /// drift `CapturedImage` entity to avoid colliding with the imaging-domain
+  /// class of the same name.
+  RemoteReplayFrame _replayFrame(DbCapturedImage row) => RemoteReplayFrame(
+    id: row.id,
+    fileName: row.fileName,
+    filePath: row.filePath,
+    capturedAt: row.capturedAt,
+    capturedAtMs: row.capturedAt.millisecondsSinceEpoch,
+    frameType: row.frameType,
+    exposureDuration: row.exposureDuration,
+    filter: row.filter,
+    gain: row.gain,
+    offset: row.offset,
+    binX: row.binX,
+    binY: row.binY,
+    sensorTemp: row.sensorTemp,
+    hfr: row.hfr,
+    starCount: row.starCount,
+    background: row.background,
+    noise: row.noise,
+    qualityScore: row.qualityScore,
+    guidingRmsRa: row.guidingRmsRa,
+    guidingRmsDec: row.guidingRmsDec,
+    guidingRmsTotal: row.guidingRmsTotal,
+    mountRa: row.mountRa,
+    mountDec: row.mountDec,
+    mountAltitude: row.mountAltitude,
+    mountAzimuth: row.mountAzimuth,
+    focuserPosition: row.focuserPosition,
+    isAccepted: row.isAccepted,
+    rejectionReason: row.rejectionReason,
+    sessionId: row.sessionId,
+    targetId: row.targetId,
+  );
 }

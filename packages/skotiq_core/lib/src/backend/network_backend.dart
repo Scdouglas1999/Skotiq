@@ -29,6 +29,9 @@ import 'remote_display_jpeg.dart';
 import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
 
+// The rows the host writes and this client reads.
+export 'package:skotiq_remote_protocol/wire_models.dart';
+
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
 part 'network_backend/remote_database_plugin_operations.dart';

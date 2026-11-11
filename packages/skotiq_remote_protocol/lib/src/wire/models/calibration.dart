@@ -1,13 +1,9 @@
-// Wire-level model classes for the headless calibration API.
-//
-// These classes live alongside the existing `dark_library_match_tolerances.dart`
-// in the calibration models subdirectory. They mirror the JSON wire shapes
-// that `CalibrationHandlers` emits/accepts so the NetworkBackend client can
-// decode responses into strongly-typed values rather than raw maps.
-//
-// Tolerant parsing: each `fromJson` accepts missing fields where it makes
-// sense (the wire is treated as forward-compatible) but throws if a
-// required field is the wrong type.
+/// Calibration library rows as the host sends them (`CalibrationApi`):
+/// darks, flat history, flat exposure recommendations and defect maps.
+///
+/// Decoding is tolerant: a missing field takes its default, a field of the
+/// wrong type throws.
+library;
 
 /// Wire form of a row in the `dark_library` Drift table, plus an
 /// on-disk presence check the server performs at list time.

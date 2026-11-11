@@ -800,9 +800,8 @@ class LoggingService {
   }
 }
 
-/// File-system metadata for a Skotiq log file. Returned by
-/// [LoggingService.getLogFileInfos] and shipped over the wire by the
-/// `GET /api/logs` headless endpoint.
+/// File-system metadata for a Skotiq log file, returned by
+/// [LoggingService.getLogFileInfos].
 class LogFileInfo {
   final String name;
   final String path;
@@ -817,13 +816,6 @@ class LogFileInfo {
     required this.modifiedAt,
     required this.isCurrent,
   });
-
-  Map<String, Object?> toJson() => {
-    'name': name,
-    'sizeBytes': sizeBytes,
-    'modifiedAt': modifiedAt.toUtc().toIso8601String(),
-    'isCurrent': isCurrent,
-  };
 }
 
 /// Result envelope for [LoggingService.clearLogs]. Reports the
@@ -854,4 +846,3 @@ final loggingServiceProvider = Provider<LoggingService>((ref) {
   ref.onDispose(() => unawaited(service.dispose()));
   return service;
 });
-

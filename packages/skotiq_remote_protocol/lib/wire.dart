@@ -13,7 +13,7 @@ export 'src/wire/api_error.dart';
 export 'src/wire/api_route.dart';
 export 'src/wire/api_route_index.dart';
 export 'src/wire/api_routes.dart';
-export 'src/wire/models/sequence_library.dart';
+export 'wire_models.dart';
 export 'src/wire/routes/analytics_api.dart';
 export 'src/wire/routes/atlas_api.dart';
 export 'src/wire/routes/auth_api.dart';
