@@ -230,7 +230,14 @@ class _StarterCard extends ConsumerWidget {
     final service = ref.read(sampleSequenceServiceProvider);
     final notifier = ref.read(currentSequenceProvider.notifier);
 
-    final cloned = service.cloneForUse(sample);
+    // A starter names the standard filters; a wheel that spells one
+    // differently ("Lum", "Red") gets the plan in its own spelling.
+    final starter = service.cloneForUse(sample);
+    final filterRenames = filterRenamesFor(
+      starter,
+      ref.read(filterNamesToMatchProvider),
+    );
+    final cloned = renameFilters(starter, filterRenames);
     try {
       notifier.loadSequence(cloned);
     } on UnsavedChangesException catch (e) {
@@ -281,7 +288,13 @@ class _StarterCard extends ConsumerWidget {
     ref.read(sequencerTabProvider.notifier).state = 0;
 
     context.showSuccessSnackBar(
-      'Loaded "${sample.displayName}" into the builder',
+      filterRenames.isEmpty
+          ? 'Loaded "${sample.displayName}" into the builder'
+          : 'Loaded "${sample.displayName}" into the builder with your '
+              'filter names: ${[
+              for (final MapEntry(:key, :value) in filterRenames.entries)
+                '$key → $value',
+            ].join(', ')}',
     );
   }
 

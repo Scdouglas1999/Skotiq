@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
     show FrameType;
+import 'package:skotiq_core/src/providers/sequence/filter_name_matching.dart';
+import 'package:skotiq_core/src/providers/sequence/rules/logic_node_rules.dart';
 import 'package:skotiq_core/src/services/sample_sequence_service.dart';
 import 'package:path/path.dart' as p;
 
@@ -141,10 +143,10 @@ void main() {
           .where((e) => e.filter != null)
           .map((e) => e.filter!)
           .toSet();
-      expect(filtersUsed, containsAll({'Lum', 'R', 'G', 'B'}));
+      expect(filtersUsed, containsAll({'L', 'R', 'G', 'B'}));
 
       // Luminance is 40 x 120s; RGB are 20 x 60s each.
-      final lum = exposures.firstWhere((e) => e.filter == 'Lum');
+      final lum = exposures.firstWhere((e) => e.filter == 'L');
       expect(lum.count, 40);
       expect(lum.durationSecs, 120.0);
       expect(lum.ditherEvery, 5);
@@ -155,12 +157,34 @@ void main() {
         expect(exp.durationSecs, 60.0);
       }
 
-      // Recovery node with HFR trigger should be wired into the lum loop.
+      // Recovery node with HFR trigger should be wired into the lum block.
       final recoveries = m51.template.nodes.values
           .whereType<RecoveryNode>()
           .toList();
       expect(recoveries, isNotEmpty);
       expect(recoveries.first.triggerType, TriggerType.hfrDegraded);
+    });
+
+    // The walk-through's M51 starter failed its own pre-flight on an
+    // L/R/G/B/Ha/OIII/SII wheel ("Lum") and raised four "Loop Repeats Once"
+    // notes about its own loops.
+    test('starters name the standard filters and hold no one-pass loops',
+        () async {
+      final samples = await SampleSequenceService().load();
+      const wheel = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
+      for (final sample in samples) {
+        expect(
+          filterNamesUsedBy(sample.template).difference(wheel.toSet()),
+          isEmpty,
+          reason: '${sample.id} names a filter the standard wheel spells '
+              'differently',
+        );
+        expect(
+          NoOpLogicNodeRule().validate(sample.template),
+          isEmpty,
+          reason: '${sample.id} has a step that does nothing',
+        );
+      }
     });
 
     test('parses NGC 7000 SHO narrowband with meridian flip', () async {

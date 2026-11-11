@@ -118,6 +118,13 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
       ValidationCategory.equipmentHealth,
       ValidationCategory.opticalTrain,
     };
+    // "Lum" on an "L" wheel is the same filter spelled differently: one
+    // button renames every such step instead of one edit per step.
+    final sequence = ref.read(currentSequenceProvider);
+    final filterRenames = sequence != null &&
+            result.issues.any((i) => i.code == kFilterNameMismatchCode)
+        ? filterRenamesFor(sequence, ref.read(filterNamesToMatchProvider))
+        : const <String, String>{};
     final sections = <_PreflightSection>[
       _PreflightSection(
         colors: colors,
@@ -125,6 +132,18 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
         title: 'General',
         issues: inCategory((c) => !ownSections.contains(c)),
         showCategory: true,
+        trailing: filterRenames.isEmpty
+            ? null
+            : SkotiqButton(
+                label: 'Match filter names (${[
+                  for (final MapEntry(:key, :value) in filterRenames.entries)
+                    '$key → $value',
+                ].join(', ')})',
+                icon: SkotiqIcons.refresh,
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.small,
+                onPressed: () => _matchFilterNames(filterRenames),
+              ),
       ),
       _PreflightSection(
         colors: colors,

@@ -1340,6 +1340,10 @@ abstract final class NodeKinds {
     legacyNames: const ['center'],
     icon: 'crosshair',
     category: NodeCategory.instruction,
+    filters: (node) => [node.filter],
+    renameFilter: (node, rename) => node.filter == null
+        ? node
+        : node.copyWith(filter: rename(node.filter!)),
     requiredDevices: const {DeviceType.mount, DeviceType.camera},
     stage: NodeStage.aim,
     create: CenterNode.new,
@@ -1373,6 +1377,10 @@ abstract final class NodeKinds {
     legacyNames: const ['exposure'],
     icon: 'camera',
     category: NodeCategory.instruction,
+    filters: (node) => [node.filter],
+    renameFilter: (node, rename) => node.filter == null
+        ? node
+        : node.copyWith(filter: rename(node.filter!)),
     requiredDevices: const {DeviceType.camera},
     stage: NodeStage.capture,
     create: ExposureNode.new,
@@ -1439,6 +1447,13 @@ abstract final class NodeKinds {
     legacyNames: const ['smartExposure', 'smart_exposure'],
     icon: 'layers',
     category: NodeCategory.instruction,
+    filters: (node) => [for (final plan in node.plans) plan.filterName],
+    renameFilter: (node, rename) => node.copyWith(
+      plans: [
+        for (final plan in node.plans)
+          plan.copyWith(filterName: rename(plan.filterName)),
+      ],
+    ),
     requiredDevices: const {DeviceType.camera, DeviceType.filterWheel},
     stage: NodeStage.capture,
     create: SmartExposureNode.new,
@@ -1592,6 +1607,9 @@ abstract final class NodeKinds {
     legacyNames: const ['filterChange'],
     icon: 'circle',
     category: NodeCategory.instruction,
+    filters: (node) => [node.filterName],
+    renameFilter: (node, rename) =>
+        node.copyWith(filterName: rename(node.filterName)),
     requiredDevices: const {DeviceType.filterWheel},
     create: () => FilterChangeNode(filterName: ''),
     fields: [_filterName, _filterPosition],

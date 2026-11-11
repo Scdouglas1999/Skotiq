@@ -76,6 +76,19 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     return node.childIds.any((childId) => _takesFrames(nodes, childId));
   }
 
+  /// Rename the plan's filters as [renames] says ("Lum" -> "L"), as one undo
+  /// step. See `filterRenamesFor`.
+  void renameFilterNames(Map<String, String> renames) {
+    final sequence = _currentSequence;
+    if (sequence == null || renames.isEmpty) return;
+    withUndoBatch(() {
+      for (final node in sequence.nodes.values) {
+        final renamed = node.kind.renameFilters(node, renames);
+        if (!identical(renamed, node)) updateNode(renamed);
+      }
+    });
+  }
+
   /// Move [nodeId] [delta] places among its siblings. Returns false, changing
   /// nothing, when it is already at that end of its container.
   bool shiftNode(String nodeId, int delta) {

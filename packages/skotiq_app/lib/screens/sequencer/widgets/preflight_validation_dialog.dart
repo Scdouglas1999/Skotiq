@@ -121,6 +121,14 @@ class _PreFlightValidationDialogState
     }
   }
 
+  /// Rename the plan's filters to the names the wheel (or the profile) uses
+  /// for the same filters, then check again.
+  void _matchFilterNames(Map<String, String> renames) {
+    ref.read(currentSequenceProvider.notifier).renameFilterNames(renames);
+    setState(() => _isValidating = true);
+    _runValidation();
+  }
+
   void _retryValidation() {
     ref.invalidate(appSettingsProvider);
     setState(() {

@@ -120,27 +120,6 @@
           600.0
         ]
       },
-      "m31-light-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "m31-light-loop",
-          "Light Frames Loop",
-          true,
-          [
-            "m31-lights"
-          ],
-          "m31-target",
-          4,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
-          null
-        ]
-      },
       "m31-lights": {
         "class": "ExposureNode",
         "nodeType": "TakeExposure",
@@ -149,8 +128,8 @@
           "M31 Lights (ISO 800)",
           true,
           [],
-          "m31-light-loop",
-          0,
+          "m31-target",
+          4,
           null,
           120.0,
           30,
@@ -210,7 +189,7 @@
             "m31-slew",
             "m31-center",
             "m31-focus",
-            "m31-light-loop"
+            "m31-lights"
           ],
           "m31-root",
           0,
@@ -260,8 +239,8 @@
           "Lunar Frames",
           true,
           [],
-          "lunar-loop",
-          0,
+          "lunar-root",
+          1,
           null,
           0.005,
           200,
@@ -273,27 +252,6 @@
           "one",
           null,
           [],
-          null
-        ]
-      },
-      "lunar-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "lunar-loop",
-          "High-Speed Capture",
-          true,
-          [
-            "lunar-exp"
-          ],
-          "lunar-root",
-          1,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
           null
         ]
       },
@@ -323,7 +281,7 @@
           true,
           [
             "lunar-notify",
-            "lunar-loop"
+            "lunar-exp"
           ],
           null,
           0,
@@ -345,7 +303,7 @@
           true,
           [
             "m51-blue-filter",
-            "m51-blue-loop"
+            "m51-blue-exp"
           ],
           "m51-target",
           8,
@@ -360,8 +318,8 @@
           "Blue Frames",
           true,
           [],
-          "m51-blue-loop",
-          0,
+          "m51-blue-block",
+          1,
           null,
           60.0,
           20,
@@ -391,27 +349,6 @@
           null
         ]
       },
-      "m51-blue-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "m51-blue-loop",
-          "Blue Loop (20 x 60s)",
-          true,
-          [
-            "m51-blue-exp"
-          ],
-          "m51-blue-block",
-          1,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
-          null
-        ]
-      },
       "m51-center": {
         "class": "CenterNode",
         "nodeType": "CenterTarget",
@@ -429,7 +366,7 @@
           null,
           null,
           5.0,
-          "Lum"
+          "L"
         ]
       },
       "m51-cool": {
@@ -476,7 +413,7 @@
           true,
           [
             "m51-green-filter",
-            "m51-green-loop"
+            "m51-green-exp"
           ],
           "m51-target",
           7,
@@ -491,8 +428,8 @@
           "Green Frames",
           true,
           [],
-          "m51-green-loop",
-          0,
+          "m51-green-block",
+          1,
           null,
           60.0,
           20,
@@ -519,27 +456,6 @@
           0,
           null,
           "G",
-          null
-        ]
-      },
-      "m51-green-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "m51-green-loop",
-          "Green Loop (20 x 60s)",
-          true,
-          [
-            "m51-green-exp"
-          ],
-          "m51-green-block",
-          1,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
           null
         ]
       },
@@ -582,7 +498,8 @@
           true,
           [
             "m51-lum-filter",
-            "m51-lum-loop"
+            "m51-lum-recovery",
+            "m51-lum-exp"
           ],
           "m51-target",
           5,
@@ -597,13 +514,13 @@
           "Luminance Frames",
           true,
           [],
-          "m51-lum-loop",
-          0,
+          "m51-lum-block",
+          2,
           null,
           120.0,
           40,
           "light",
-          "Lum",
+          "L",
           null,
           120,
           30,
@@ -618,35 +535,13 @@
         "nodeType": "ChangeFilter",
         "props": [
           "m51-lum-filter",
-          "Filter: Lum",
+          "Filter: L",
           true,
           [],
           "m51-lum-block",
           0,
           null,
-          "Lum",
-          null
-        ]
-      },
-      "m51-lum-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "m51-lum-loop",
-          "Luminance Loop (40 x 120s)",
-          true,
-          [
-            "m51-lum-recovery",
-            "m51-lum-exp"
-          ],
-          "m51-lum-block",
-          1,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
+          "L",
           null
         ]
       },
@@ -660,8 +555,8 @@
           [
             "m51-lum-recovery-af"
           ],
-          "m51-lum-loop",
-          0,
+          "m51-lum-block",
+          1,
           null,
           "autofocus",
           3,
@@ -712,7 +607,7 @@
           true,
           [
             "m51-red-filter",
-            "m51-red-loop"
+            "m51-red-exp"
           ],
           "m51-target",
           6,
@@ -727,8 +622,8 @@
           "Red Frames",
           true,
           [],
-          "m51-red-loop",
-          0,
+          "m51-red-block",
+          1,
           null,
           60.0,
           20,
@@ -755,27 +650,6 @@
           0,
           null,
           "R",
-          null
-        ]
-      },
-      "m51-red-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "m51-red-loop",
-          "Red Loop (20 x 60s)",
-          true,
-          [
-            "m51-red-exp"
-          ],
-          "m51-red-block",
-          1,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
           null
         ]
       },
@@ -961,7 +835,7 @@
           [
             "ngc7000-ha-filter",
             "ngc7000-ha-focus",
-            "ngc7000-ha-loop"
+            "ngc7000-ha-exp"
           ],
           "ngc7000-target",
           6,
@@ -976,8 +850,8 @@
           "Ha Frames",
           true,
           [],
-          "ngc7000-ha-loop",
-          0,
+          "ngc7000-ha-block",
+          2,
           null,
           300.0,
           60,
@@ -1027,27 +901,6 @@
           600.0
         ]
       },
-      "ngc7000-ha-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "ngc7000-ha-loop",
-          "Ha Loop (60 x 300s)",
-          true,
-          [
-            "ngc7000-ha-exp"
-          ],
-          "ngc7000-ha-block",
-          2,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
-          null
-        ]
-      },
       "ngc7000-meridian-flip": {
         "class": "MeridianFlipNode",
         "nodeType": "MeridianFlip",
@@ -1083,7 +936,7 @@
           [
             "ngc7000-oiii-filter",
             "ngc7000-oiii-focus",
-            "ngc7000-oiii-loop"
+            "ngc7000-oiii-exp"
           ],
           "ngc7000-target",
           7,
@@ -1098,8 +951,8 @@
           "OIII Frames",
           true,
           [],
-          "ngc7000-oiii-loop",
-          0,
+          "ngc7000-oiii-block",
+          2,
           null,
           300.0,
           60,
@@ -1149,27 +1002,6 @@
           600.0
         ]
       },
-      "ngc7000-oiii-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "ngc7000-oiii-loop",
-          "OIII Loop (60 x 300s)",
-          true,
-          [
-            "ngc7000-oiii-exp"
-          ],
-          "ngc7000-oiii-block",
-          2,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
-          null
-        ]
-      },
       "ngc7000-root": {
         "class": "InstructionSetNode",
         "nodeType": "InstructionSet",
@@ -1197,7 +1029,7 @@
           [
             "ngc7000-sii-filter",
             "ngc7000-sii-focus",
-            "ngc7000-sii-loop"
+            "ngc7000-sii-exp"
           ],
           "ngc7000-target",
           5,
@@ -1212,8 +1044,8 @@
           "SII Frames",
           true,
           [],
-          "ngc7000-sii-loop",
-          0,
+          "ngc7000-sii-block",
+          2,
           null,
           300.0,
           60,
@@ -1261,27 +1093,6 @@
           8.0,
           true,
           600.0
-        ]
-      },
-      "ngc7000-sii-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "ngc7000-sii-loop",
-          "SII Loop (60 x 300s)",
-          true,
-          [
-            "ngc7000-sii-exp"
-          ],
-          "ngc7000-sii-block",
-          2,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
-          null
         ]
       },
       "ngc7000-slew": {
@@ -1373,27 +1184,6 @@
   "assets/sample_sequences/planetary_jupiter.json": {
     "name": "Planetary Jupiter - Lucky Imaging Burst",
     "nodes": {
-      "jupiter-burst-loop": {
-        "class": "LoopNode",
-        "nodeType": "Loop",
-        "props": [
-          "jupiter-burst-loop",
-          "1000-Frame Burst",
-          true,
-          [
-            "jupiter-exp"
-          ],
-          "jupiter-root",
-          2,
-          null,
-          "count",
-          1,
-          null,
-          null,
-          null,
-          null
-        ]
-      },
       "jupiter-exp": {
         "class": "ExposureNode",
         "nodeType": "TakeExposure",
@@ -1402,8 +1192,8 @@
           "Jupiter Frames",
           true,
           [],
-          "jupiter-burst-loop",
-          0,
+          "jupiter-root",
+          2,
           null,
           0.005,
           1000,
@@ -1465,7 +1255,7 @@
           [
             "jupiter-roi-notify",
             "jupiter-focus",
-            "jupiter-burst-loop"
+            "jupiter-exp"
           ],
           null,
           0,

@@ -84,6 +84,8 @@ Widget _wrap(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late ProviderContainer lastContainer;
+
   Future<void> pumpDialog({
     required WidgetTester tester,
     required List<ValidationIssue> issues,
@@ -93,9 +95,12 @@ void main() {
     ),
     Sequence? sequence,
     Size size = const Size(1200, 1000),
+    List<String>? wheelFilters,
   }) async {
     final container = ProviderContainer(overrides: [
       inMemoryDatabaseOverride(),
+      if (wheelFilters != null)
+        filterNamesToMatchProvider.overrideWithValue(wheelFilters),
       currentSequenceProvider.overrideWith(
         (ref) => _SeedingNotifier(ref, sequence ?? _sequence()),
       ),
@@ -110,6 +115,7 @@ void main() {
       _wrap(container, const PreFlightValidationDialog(), size: size),
     );
     await tester.pumpAndSettle();
+    lastContainer = container;
   }
 
   testWidgets('renders the dark library section with capture button',
@@ -187,6 +193,42 @@ void main() {
     ));
     expect(start.onPressed, isNull);
     expect(start.variant, isNot(ButtonVariant.start));
+  });
+
+  // The M51 starter said "Filter Not in Wheel" for "Lum" on an L/R/G/B wheel
+  // and offered nothing but "Change the filter name".
+  testWidgets('a filter the wheel spells differently is matched in one press',
+      (tester) async {
+    final root = InstructionSetNode(name: 'root');
+    final lights = ExposureNode(filter: 'Lum').copyWith(parentId: root.id);
+    final placedRoot = root.copyWith(childIds: [lights.id]);
+    await pumpDialog(
+      tester: tester,
+      wheelFilters: const ['L', 'R', 'G', 'B'],
+      sequence: Sequence.create(
+        name: 'M51',
+        nodes: {placedRoot.id: placedRoot, lights.id: lights},
+        rootNodeId: placedRoot.id,
+      ),
+      issues: [
+        ValidationIssue(
+          severity: ValidationSeverity.warning,
+          category: ValidationCategory.equipment,
+          title: 'Filter Not in Wheel',
+          description: '"Lights" uses filter "Lum"',
+          affectedNodeId: lights.id,
+          code: kFilterNameMismatchCode,
+        ),
+      ],
+    );
+
+    await tester.ensureVisible(find.text('Match filter names (Lum → L)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Match filter names (Lum → L)'));
+    await tester.pumpAndSettle();
+
+    final matched = lastContainer.read(currentSequenceProvider)!;
+    expect((matched.nodes[lights.id]! as ExposureNode).filter, 'L');
   });
 
   testWidgets('renders compact simulation summary when location is set',

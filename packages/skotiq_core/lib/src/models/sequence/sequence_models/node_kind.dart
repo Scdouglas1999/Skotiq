@@ -34,7 +34,11 @@ final class NodeKind<N extends SequenceNode> {
     this.requiredDevices = const {},
     this.stage = NodeStage.free,
     String Function(N node)? autoName,
+    List<String?> Function(N node)? filters,
+    N Function(N node, String Function(String filter) rename)? renameFilter,
   }) : _autoName = autoName,
+       _filters = filters,
+       _renameFilter = renameFilter,
        _create = create,
        _build = build,
        _describe = describe,
@@ -72,6 +76,9 @@ final class NodeKind<N extends SequenceNode> {
   final String Function(N node) _describe;
   final List<CaptureRun> Function(N node)? _captures;
   final String Function(N node)? _autoName;
+  final List<String?> Function(N node)? _filters;
+  final N Function(N node, String Function(String filter) rename)?
+  _renameFilter;
 
   /// A node of this type with every field at its default.
   N create() => _create();
@@ -99,6 +106,23 @@ final class NodeKind<N extends SequenceNode> {
     }
     final followed = autoName(next).trim();
     return followed.isEmpty ? displayName : followed;
+  }
+
+  /// The wheel filters [node] names, by name.
+  List<String> filtersOf(N node) => [
+    for (final filter in _filters?.call(node) ?? const <String?>[])
+      if (filter != null && filter.trim().isNotEmpty) filter,
+  ];
+
+  /// [node] with every filter it names replaced as [renames] says. Its name
+  /// follows when it only said its filter (see [nameAfterEdit]).
+  N renameFilters(N node, Map<String, String> renames) {
+    final rename = _renameFilter;
+    if (rename == null || !filtersOf(node).any(renames.containsKey)) {
+      return node;
+    }
+    final renamed = rename(node, (filter) => renames[filter] ?? filter);
+    return renamed.copyWith(name: nameAfterEdit(node, renamed)) as N;
   }
 
   /// What changed between two nodes of this type, as the version diff shows
