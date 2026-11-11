@@ -6,7 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../utils/authority_bound_dialog.dart';
-import '../utils/startup_surface_coordinator.dart';
+import '../startup/startup_surface_queue.dart';
 import '../utils/startup_ui_context.dart';
 import 'quick_start_dialog.dart';
 import 'session_recovery_dialog.dart';
@@ -33,14 +33,41 @@ class QuickStartChecker extends ConsumerStatefulWidget {
 class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   bool _hasChecked = false;
   bool _recheckScheduled = false;
+  late final StartupSurfaceQueue _queue;
 
   @override
   void initState() {
     super.initState();
+    _queue = ref.read(startupSurfaceQueueProvider)
+      ..expect(StartupSurface.interruptedSession)
+      ..expect(StartupSurface.quickStart);
     // Schedule check after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForStartupOptions();
     });
+  }
+
+  @override
+  void dispose() {
+    _passBoth();
+    super.dispose();
+  }
+
+  void _passBoth() {
+    _queue
+      ..pass(StartupSurface.interruptedSession)
+      ..pass(StartupSurface.quickStart);
+  }
+
+  /// Runs one pass of the check. Whatever it found, both surfaces have had
+  /// their turn when it returns, so the prompts after them never wait on a
+  /// check that ended early.
+  Future<void> _checkForStartupOptions() async {
+    try {
+      await _checkSessions();
+    } finally {
+      _passBoth();
+    }
   }
 
   Future<CheckpointInfo?> _continuableCheckpoint(
@@ -52,7 +79,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     }
   }
 
-  Future<void> _checkForStartupOptions() async {
+  Future<void> _checkSessions() async {
     if (_hasChecked || !mounted) return;
 
     _hasChecked = true;
@@ -92,8 +119,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
       if (incompleteSessions.isNotEmpty && mounted) {
         // Show recovery dialog for interrupted sessions (takes priority)
-        await Future.delayed(const Duration(milliseconds: 500));
-
         if (mounted && _isCurrentAuthority(authority)) {
           final uiContext = _uiContext;
           if (uiContext == null || !uiContext.mounted) {
@@ -101,6 +126,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
             return;
           }
           await _showAuthorityDialog<void>(
+            surface: StartupSurface.interruptedSession,
             authority: authority,
             context: uiContext,
             barrierDismissible: false,
@@ -114,6 +140,8 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
         }
         return;
       }
+
+      _queue.pass(StartupSurface.interruptedSession);
 
       // Second priority: Check for quick start opportunity. Never on a
       // companion (returned above): restoring a previous setup moves the
@@ -137,8 +165,6 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
           !sessionIsFinished(quickStartContext) &&
           mounted) {
         // Show quick start dialog
-        await Future.delayed(const Duration(milliseconds: 500));
-
         if (mounted && _isCurrentAuthority(authority)) {
           final uiContext = _uiContext;
           if (uiContext == null || !uiContext.mounted) {
@@ -146,6 +172,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
             return;
           }
           await _showAuthorityDialog<void>(
+            surface: StartupSurface.quickStart,
             authority: authority,
             context: uiContext,
             builder: (dialogContext) => QuickStartDialog(
@@ -232,12 +259,13 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   }
 
   Future<T?> _showAuthorityDialog<T>({
+    required StartupSurface surface,
     required SkotiqBackend authority,
     required BuildContext context,
     required WidgetBuilder builder,
     bool barrierDismissible = true,
   }) async {
-    return ref.read(startupSurfaceCoordinatorProvider).run<T?>(() async {
+    return _queue.turn<T?>(surface, () async {
       if (!mounted || !context.mounted || !_isCurrentAuthority(authority)) {
         return null;
       }

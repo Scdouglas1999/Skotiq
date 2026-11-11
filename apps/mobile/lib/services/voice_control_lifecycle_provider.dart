@@ -345,8 +345,8 @@ final voiceControlServiceProvider = Provider<VoiceControlService>((ref) {
 });
 
 /// Eagerly-constructed lifecycle controller. The consumer in
-/// `apps/mobile/lib/main.dart` calls `ref.watch(voiceControlLifecycleProvider)`
-/// during app boot which triggers `start()` and installs the listeners.
+/// `mobilePlatformServices` lists it, so it is started with the app,
+/// which triggers `start()` and installs the listeners.
 final voiceControlLifecycleProvider = Provider<VoiceControlLifecycleController>(
   (ref) {
     // Share the same service instance so the inbound stream a UI listener

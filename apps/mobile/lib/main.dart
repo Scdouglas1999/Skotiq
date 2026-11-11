@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
@@ -18,12 +19,10 @@ import 'screens/servers/saved_servers_screen.dart';
 import 'services/saved_servers_service.dart';
 import 'services/android_system_ui.dart';
 import 'services/foreground_service.dart';
-import 'services/live_activity_lifecycle_provider.dart';
 import 'services/manual_server_endpoint.dart';
 import 'services/mobile_pairing_service.dart';
-import 'services/watch_complication_lifecycle_provider.dart';
+import 'services/mobile_platform_services.dart';
 import 'services/mobile_preferences.dart';
-import 'services/mobile_sequence_hooks.dart';
 import 'services/battery_service.dart';
 import 'services/network_service.dart';
 import 'services/notification_service.dart';
@@ -203,24 +202,7 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        // appVersionProvider throws by default to surface misconfiguration;
-        // canonical override lives in the entry point. Single source of truth
-        // is version.yaml, which the build stamps into the package manifest.
-        appVersionProvider.overrideWithValue(appVersion),
-        pluginHostAppVersionOverride(appVersion.version),
-        // wire the plugin-node dispatcher so plugin
-        // sequence nodes route through the real PluginNodeExecutor.
-        pluginNodeDispatcherOverride(),
-        // surface plugin-contributed sequence nodes in the
-        // sequencer palette.
-        pluginNodePaletteBlueprintsOverride(),
-        // C4 — honour the user's persisted plugin enable/disable choices
-        // at registration time so a plugin disabled on the Integrations
-        // page stays disabled across launches instead of silently being
-        // re-enabled by the default all-enabled store.
-        pluginEnablementStoreOverride(),
-      ],
+      overrides: appProviderOverrides(appVersion),
       child: const SkotiqMobileApp(),
     ),
   );
@@ -437,40 +419,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       // GoRouter shell (`SkotiqApp`).
       return Consumer(
         builder: (context, ref, _) {
-          // Activate location sync
-          ref.watch(locationSyncProvider);
-
-          // Mirror host rig state (profiles, connected devices, sequencer)
-          // when controlling a remote desktop via NetworkBackend.
-          ref.watch(remoteSessionSyncProvider);
-          ref.watch(sequenceLibrarySyncProvider);
-          ref.watch(remoteSequenceEditorSyncProvider);
-
-          // Initialize mobile sequence hooks for background operation support
-          ref.watch(mobileSequenceHooksProvider);
-
-          // Architecture-unification, Subsystem 3: eager-mount the
-          // NotificationRouter so the external transports (Discord, email,
-          // Telegram, Pushover, MQTT, webhook) configured on this device fire
-          // for routed events mirrored from the host over NetworkBackend —
-          // even when no sequence is running. Watching it here keeps its
-          // backend event-stream subscription alive for the lifetime of the
-          // connected companion shell.
-          ref.watch(notificationRouterProvider);
-
-          // wire the iOS Live Activity lifecycle controller. The
-          // controller installs its own ref.listen() bindings on construction;
-          // on non-iOS platforms it is a no-op so the watch is cheap.
-          ref.watch(liveActivityLifecycleProvider);
-
-          // wire the Apple Watch complication lifecycle
-          // controller. Same shape as the Live Activity one: on iOS it
-          // installs listeners that throttle sequence + weather state
-          // changes into App Group writes + `WidgetCenter` reloads at
-          // most once per 30 s; on non-iOS platforms the provider is a
-          // no-op so this watch costs nothing on Android/desktop.
-          ref.watch(watchComplicationLifecycleProvider);
-
           // Wire notification taps into go_router. The router
           // is created lazily by `appRouterProvider`; reading it here also
           // ensures it exists before a notification can fire.
@@ -487,7 +435,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           // Check for checkpoint on first connection
           _checkForCheckpoint(context, ref);
 
-          return const SkotiqApp();
+          return SkotiqApp(platformServices: mobilePlatformServices);
         },
       );
     } catch (e, stackTrace) {

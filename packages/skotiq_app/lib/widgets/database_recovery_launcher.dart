@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-import '../utils/startup_surface_coordinator.dart';
+import '../startup/startup_surface_queue.dart';
 import '../utils/startup_ui_context.dart';
 
 /// Surfaces a one-shot dialog telling the user "your database was corrupted
@@ -61,29 +61,24 @@ class _DatabaseRecoveryLauncherState
   bool _dialogShown = false;
   DatabaseRecoveryMarker? _pendingMarker;
   Timer? _deferTimer;
+  late final StartupSurfaceQueue _queue;
   bool _restoreStaged = false;
   String? _restoreError;
 
   @override
   void initState() {
     super.initState();
+    _queue = ref.read(startupSurfaceQueueProvider)
+      ..expect(StartupSurface.databaseRecovery);
     // Post-frame so the navigator is laid out before we push the dialog.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleCheck());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShow());
   }
 
   @override
   void dispose() {
     _deferTimer?.cancel();
+    _queue.pass(StartupSurface.databaseRecovery);
     super.dispose();
-  }
-
-  void _scheduleCheck() {
-    if (!mounted || _pendingMarker == null && _hasReadMarker) return;
-    // Defer slightly so this dialog wins over the first-night wizard but
-    // does not collide with the splash transition. 600 ms matches the
-    // observed window between MaterialApp first frame and the router's
-    // initial route settling.
-    _deferTimer = Timer(const Duration(milliseconds: 600), _maybeShow);
   }
 
   Future<void> _maybeShow() async {
@@ -108,11 +103,17 @@ class _DatabaseRecoveryLauncherState
         );
         if (!mounted) return;
         _hasReadMarker = false;
+        // The other start-up prompts do not wait on a marker that cannot be
+        // read; the notice still appears when a retry succeeds.
+        _queue.pass(StartupSurface.databaseRecovery);
         _scheduleRetry();
         return;
       }
     }
-    if (!mounted || _pendingMarker == null) return;
+    if (!mounted || _pendingMarker == null) {
+      _queue.pass(StartupSurface.databaseRecovery);
+      return;
+    }
 
     if (_dialogShown) {
       await _acknowledgePendingMarker();
@@ -158,7 +159,7 @@ class _DatabaseRecoveryLauncherState
     DatabaseRecoveryMarker marker,
     QuarantinedDatabaseCheck? check,
   ) {
-    return ref.read(startupSurfaceCoordinatorProvider).run(() async {
+    return _queue.turn(StartupSurface.databaseRecovery, () async {
       if (!mounted) return false;
       final uiContext = resolveStartupUiContext(ref, context);
       if (uiContext == null || !uiContext.mounted) return false;

@@ -37,7 +37,6 @@ export 'widgets/startup_splash_gate.dart';
 export 'widgets/sequence_progress_card.dart';
 export 'widgets/mobile_sequence_overlay.dart';
 export 'widgets/session_recovery_dialog.dart';
-export 'widgets/auto_discovery_launcher.dart';
 export 'widgets/database_recovery_launcher.dart';
 export 'widgets/tutorial_overlay.dart';
 export 'widgets/connection_stale_banner.dart';

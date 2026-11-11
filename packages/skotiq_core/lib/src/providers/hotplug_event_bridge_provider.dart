@@ -15,10 +15,9 @@
 // `unifiedDiscoveryProvider`) so the equipment screen refreshes inside
 // the configured ~3 s budget without any user-driven pull-to-refresh.
 //
-// The bridge is side-effecting and produces no state. To stay alive, the
-// surrounding app must `ref.watch(hotplugEventBridgeProvider)` somewhere
-// in its bootstrap (the desktop/mobile dashboard scaffolding does this
-// alongside the other event bridges).
+// The bridge is side-effecting and produces no state. It is an always-on
+// service, started at launch from the table in
+// `skotiq_app/startup/always_on_services.dart`.
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -27,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
 import '../services/device_service.dart';
+import '../services/logging_service.dart';
 import 'backend_provider.dart';
 import 'unified_discovery_provider.dart';
 
@@ -34,9 +34,8 @@ import 'unified_discovery_provider.dart';
 /// removals and invalidates the per-class discovery providers so the next
 /// UI read re-runs the underlying scan.
 ///
-/// Producing no state, this provider is bound to its container lifetime;
-/// reading it once (via `ref.watch` from a long-lived widget) is enough to
-/// keep the subscription alive.
+/// Producing no state, this provider runs for as long as the always-on
+/// services listen to it.
 final hotplugEventBridgeProvider = Provider<void>((ref) {
   final backend = ref.watch(diagnosticsBackendProvider);
 
@@ -112,7 +111,15 @@ final hotplugEventBridgeProvider = Provider<void>((ref) {
       // same window collapses to a single invalidation round when the timer
       // fires, rather than one round per event.
       flushTimer?.cancel();
-      flushTimer = Timer(coalesceWindow, flushInvalidations);
+      flushTimer = Timer(coalesceWindow, () {
+        flushInvalidations();
+        ref
+            .read(loggingServiceProvider)
+            .info(
+              'Device lists refreshed after a hotplug event',
+              source: 'HotplugEventBridge',
+            );
+      });
     },
     onError: (Object error) {
       developer.log(

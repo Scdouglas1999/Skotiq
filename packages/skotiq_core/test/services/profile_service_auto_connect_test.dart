@@ -7,8 +7,8 @@ import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 
 /// Contract coverage for [ProfileService.autoConnectOnStartup] — the single
-/// core the desktop [StartupAutoConnectLauncher] and the headless
-/// `headlessAutoConnectBootstrap` both drive.
+/// core the `equipment auto-connect` host start-up step (`hostAutoConnect`)
+/// drives on the GUI host and the daemon.
 ///
 /// The contract under test:
 ///   * No-op when the setting is off, and no-op when there is no startup
