@@ -108,12 +108,10 @@ macro_rules! com_device {
                 self.device.get("Connected")
             }
 
-            /// Perform a heartbeat check to verify device is still responding
             pub fn heartbeat(&self) -> $crate::AscomResult<()> {
                 self.device.heartbeat()
             }
 
-            /// Get connection health status
             pub fn get_health(&self) -> $crate::ConnectionHealth {
                 self.device.health()
             }

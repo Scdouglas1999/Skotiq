@@ -3,14 +3,11 @@
 use crate::com::ComDispatch;
 
 com_device!(
-    /// ASCOM Switch
     Switch
 );
 
 impl<D: ComDispatch> Switch<D> {
     skotiq_device::ascom_switch_members!(com_member);
-
-    // Batch property queries
 
     /// Get all switch channel telemetry in a single batch operation.
     ///
@@ -48,7 +45,6 @@ pub struct SwitchChannelState {
     pub step: Option<f64>,
 }
 
-/// Full switch status
 #[derive(Debug, Clone, Default)]
 pub struct SwitchFullStatus {
     pub max_switch: Option<i32>,

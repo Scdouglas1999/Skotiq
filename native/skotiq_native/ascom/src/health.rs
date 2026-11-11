@@ -19,11 +19,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 /// Health status of an ASCOM device connection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionHealth {
-    /// Device is healthy and responding
     Healthy,
     /// Device is not responding but may recover
     Degraded,
-    /// Device connection has failed
     Failed,
     /// Device health is unknown (not yet checked)
     Unknown,
@@ -36,9 +34,7 @@ pub struct HealthMonitor {
     last_success: AtomicU64,
     /// Last failed communication timestamp (epoch ms)
     last_failure: AtomicU64,
-    /// Consecutive failure count
     failure_count: std::sync::atomic::AtomicU32,
-    /// Whether the connection is considered healthy
     is_healthy: AtomicBool,
     /// Maximum time between health checks before considering connection degraded (ms)
     health_check_interval_ms: u64,
@@ -60,7 +56,6 @@ impl Default for HealthMonitor {
 }
 
 impl HealthMonitor {
-    /// Create a new health monitor with custom settings
     pub fn new(health_check_interval_ms: u64, max_failures: u32) -> Self {
         Self {
             health_check_interval_ms,
@@ -69,7 +64,6 @@ impl HealthMonitor {
         }
     }
 
-    /// Record a successful operation
     pub fn record_success(&self) {
         // Why: `Duration::as_millis()` returns u128. u64 ms since
         // 1970 overflows in year ~584,554,531 AD; until then the cast is a pure
@@ -88,7 +82,6 @@ impl HealthMonitor {
         self.is_healthy.store(true, Ordering::SeqCst);
     }
 
-    /// Record a failed operation
     pub fn record_failure(&self) {
         // Why: see `record_success` — `as_millis()` u128 → u64
         // safe until year 584 million AD; saturate on overflow rather than panic.
@@ -124,7 +117,6 @@ impl HealthMonitor {
         self.is_healthy.store(false, Ordering::SeqCst);
     }
 
-    /// Get the current health status
     pub fn get_health(&self) -> ConnectionHealth {
         if !self.is_healthy.load(Ordering::SeqCst) {
             return ConnectionHealth::Failed;

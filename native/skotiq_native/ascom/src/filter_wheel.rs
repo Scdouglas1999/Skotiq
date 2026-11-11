@@ -4,7 +4,6 @@ use crate::com::ComDispatch;
 use crate::error::AscomResult;
 
 com_device!(
-    /// ASCOM Filter Wheel
     FilterWheel
 );
 
@@ -22,8 +21,6 @@ impl<D: ComDispatch> FilterWheel<D> {
         self.write_position(position)
     }
 
-    // Batch property queries
-
     /// Get complete filter wheel status in a single batch operation
     pub fn get_full_status(&self) -> FilterWheelFullStatus {
         FilterWheelFullStatus {
@@ -34,7 +31,6 @@ impl<D: ComDispatch> FilterWheel<D> {
     }
 }
 
-/// Full filter wheel status
 #[derive(Debug, Clone, Default)]
 pub struct FilterWheelFullStatus {
     pub position: Option<i32>,

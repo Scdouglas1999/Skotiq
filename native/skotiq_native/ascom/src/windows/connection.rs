@@ -281,7 +281,6 @@ pub struct AscomDeviceConnection {
     // of the failure, so the field stays unreachable outside this file.
     dispatch: IDispatch,
     connected: bool,
-    /// Health monitor for tracking device responsiveness
     health: HealthMonitor,
     /// ProgID for logging/diagnostics
     prog_id: String,
@@ -320,7 +319,6 @@ impl std::fmt::Display for InvokeError {
 }
 
 impl AscomDeviceConnection {
-    /// Create a new ASCOM device connection
     pub fn new(prog_id: &str) -> AscomResult<Self> {
         // SAFETY: `CLSIDFromProgID` and `CoCreateInstance` are standard Windows COM
         // constructors. `prog_id_wide` is a locally-owned NUL-terminated UTF-16 buffer
@@ -355,7 +353,6 @@ impl AscomDeviceConnection {
         }
     }
 
-    /// Get the connection health status
     pub fn get_health(&self) -> ConnectionHealth {
         self.health.get_health()
     }

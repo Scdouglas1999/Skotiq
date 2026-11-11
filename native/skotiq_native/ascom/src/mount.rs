@@ -42,7 +42,6 @@ impl<D: ComDispatch> Mount<D> {
     /// - Axis 1: Secondary axis (Dec for equatorial, Altitude for alt-az)
     /// - Axis 2: Tertiary axis (if present, e.g., rotator on some mounts)
     pub fn can_move_axis(&self, axis: i32) -> AscomResult<bool> {
-        // Validate axis parameter
         if !(0..=2).contains(&axis) {
             return Err(AscomError::InvalidArgument(format!(
                 "Invalid axis {}: must be 0 (Primary), 1 (Secondary), or 2 (Tertiary)",
@@ -52,8 +51,6 @@ impl<D: ComDispatch> Mount<D> {
 
         self.can_move_axis_unchecked(axis)
     }
-
-    // Batch property queries
 
     /// Get mount position in a single batch operation
     /// Returns current RA/Dec/Alt/Az coordinates
@@ -113,7 +110,6 @@ impl<D: ComDispatch> Mount<D> {
             can_park: self.can_park().ok(),
             can_unpark: self.can_unpark().ok(),
             can_pulse_guide: self.can_pulse_guide().ok(),
-            // Query CanMoveAxis for primary and secondary axes
             can_move_axis_primary: self.can_move_axis(0).ok(),
             can_move_axis_secondary: self.can_move_axis(1).ok(),
         }
@@ -131,7 +127,6 @@ impl<D: ComDispatch> Mount<D> {
     }
 }
 
-/// Mount position status
 #[derive(Debug, Clone, Default)]
 pub struct MountPositionStatus {
     pub right_ascension: Option<f64>,
@@ -144,7 +139,6 @@ pub struct MountPositionStatus {
     pub side_of_pier: Option<i32>,
 }
 
-/// Mount motion status
 #[derive(Debug, Clone, Default)]
 pub struct MountMotionStatus {
     pub slewing: Option<bool>,
@@ -155,7 +149,6 @@ pub struct MountMotionStatus {
     pub is_pulse_guiding: Option<bool>,
 }
 
-/// Mount guide rates
 #[derive(Debug, Clone, Default)]
 pub struct MountGuideRates {
     pub guide_rate_ra: Option<f64>,
@@ -174,7 +167,6 @@ pub struct MountSiteStatus {
     pub does_refraction: Option<bool>,
 }
 
-/// Mount capabilities
 #[derive(Debug, Clone, Default)]
 pub struct MountCapabilities {
     pub can_slew: Option<bool>,
@@ -188,7 +180,6 @@ pub struct MountCapabilities {
     pub can_move_axis_secondary: Option<bool>,
 }
 
-/// Full mount status
 #[derive(Debug, Clone, Default)]
 pub struct MountFullStatus {
     pub position: MountPositionStatus,

@@ -3,14 +3,11 @@
 use crate::com::ComDispatch;
 
 com_device!(
-    /// ASCOM Focuser
     Focuser
 );
 
 impl<D: ComDispatch> Focuser<D> {
     skotiq_device::ascom_focuser_members!(com_member);
-
-    // Batch property queries
 
     /// Get focuser capabilities in a single batch operation
     pub fn get_capabilities(&self) -> FocuserCapabilities {
@@ -34,7 +31,6 @@ impl<D: ComDispatch> Focuser<D> {
     }
 }
 
-/// Focuser capabilities
 #[derive(Debug, Clone, Default)]
 pub struct FocuserCapabilities {
     pub absolute: Option<bool>,
@@ -44,7 +40,6 @@ pub struct FocuserCapabilities {
     pub temp_comp_available: Option<bool>,
 }
 
-/// Full focuser status
 #[derive(Debug, Clone, Default)]
 pub struct FocuserFullStatus {
     pub position: Option<i32>,

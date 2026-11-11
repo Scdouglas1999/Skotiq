@@ -14,7 +14,6 @@ fn main() {
 fn main() {
     use skotiq_ascom::{discover_devices, AscomCamera, AscomDeviceType};
 
-    // Initialize COM
     skotiq_ascom::init_com().expect("Failed to init COM");
 
     println!("Discovering cameras...");
