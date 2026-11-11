@@ -273,6 +273,15 @@ void main() {
     expect(relauncher.reasons, ['Linked to observatory-pi']);
   });
 
+  test('an address typed with its port is split', () {
+    expect(splitHostAndPort(' 192.168.1.32:8099 '),
+        (host: '192.168.1.32', port: 8099));
+    expect(splitHostAndPort('observatory-pi'),
+        (host: 'observatory-pi', port: null));
+    expect(splitHostAndPort('fe80::1'), (host: 'fe80::1', port: null));
+    expect(splitHostAndPort('[fe80::1]:8080'), (host: 'fe80::1', port: 8080));
+  });
+
   test('where a headless host put its code', () {
     RemotePairingStartResult made(PairingCodeDelivery? delivery) =>
         RemotePairingStartResult(

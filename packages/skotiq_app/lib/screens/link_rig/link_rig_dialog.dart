@@ -97,7 +97,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   List<DiscoveredServer> _found = const [];
   bool _browsing = false;
   final _manualHost = TextEditingController();
-  final _manualPort = TextEditingController(text: '8080');
+  final _manualPort = TextEditingController(text: '$kDefaultHeadlessPort');
   bool _checkingManual = false;
   String? _manualError;
 
@@ -179,6 +179,12 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
   }
 
   Future<void> _checkManualAddress() async {
+    // "192.168.1.32:8099" typed whole: the port goes to its own field.
+    final typed = splitHostAndPort(_manualHost.text);
+    if (typed.port != null) {
+      _manualHost.text = typed.host;
+      _manualPort.text = '${typed.port}';
+    }
     final host = _manualHost.text.trim();
     final port = int.tryParse(_manualPort.text.trim());
     if (host.isEmpty) {
@@ -551,8 +557,9 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
           _manualError ??
-              'The port is shown on that computer under Settings > Remote '
-                  'access.',
+              'Skotiq listens on port $kDefaultHeadlessPort unless it was '
+                  'changed there: see Settings > Remote access on that '
+                  'computer, or the console of a headless one.',
           style: SkotiqTypography.caption.copyWith(
             color: _manualError == null ? colors.textMuted : colors.error,
           ),
@@ -786,6 +793,17 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       ),
     );
   }
+}
+
+/// `host:port` typed into the address field, split. An address with more than
+/// one colon is IPv6 and is left whole unless written `[address]:port`.
+@visibleForTesting
+({String host, int? port}) splitHostAndPort(String raw) {
+  final text = raw.trim();
+  final match = RegExp(r'^\[(.+)\]:(\d{1,5})$').firstMatch(text) ??
+      RegExp(r'^([^:]+):(\d{1,5})$').firstMatch(text);
+  if (match == null) return (host: text, port: null);
+  return (host: match.group(1)!, port: int.parse(match.group(2)!));
 }
 
 /// Where a headless host put the code it made, for the person who has to go
