@@ -26,6 +26,7 @@ import '../../session_handoff_provider.dart'
         sessionCarryOverProvider,
         sessionHandoffDecisionProvider,
         sessionHandoffIgnoreUnavailableOnceProvider;
+import '../../../settings/app_settings_table.dart';
 import '../../settings_provider.dart';
 import '../../weather_providers.dart' show weatherSettingsProvider;
 import '../sequencer_defaults.dart';
@@ -39,6 +40,8 @@ import 'sequence_serializer.dart';
 /// A failed push before launch is thrown, so the run refuses to start on the
 /// Rust defaults; a failed mid-run push cannot abort an imaging run, so it is
 /// put on the run's warnings instead ([_pushMidRun]).
+typedef _SendSettings = Future<void> Function(AppSettingsState settings);
+
 class RuntimeConfigSync {
   RuntimeConfigSync({
     required Ref ref,
@@ -298,23 +301,20 @@ class RuntimeConfigSync {
       fail('autofocus interval', e, st);
     }
 
-    try {
-      await _pushParkPolicy(await _ref.read(appSettingsProvider.future));
-    } catch (e, st) {
-      fail('the park settings', e, st);
+    final settings = await _ref.read(appSettingsProvider.future);
+    Future<void> seed(ExecutorConfig part) async {
+      final push = _settingsPushes[part]!;
+      try {
+        await push.send(settings);
+        _logger().debug('Seeded ${push.what}', source: 'SequenceExecutor');
+      } catch (e, st) {
+        fail(push.what, e, st);
+      }
     }
 
-    try {
-      await _pushDeviceRetries(await _ref.read(appSettingsProvider.future));
-    } catch (e, st) {
-      fail('the device retries', e, st);
-    }
-
-    try {
-      await _pushQualityPolicy(await _ref.read(appSettingsProvider.future));
-    } catch (e, st) {
-      fail('the quality policy', e, st);
-    }
+    await seed(ExecutorConfig.parkPolicy);
+    await seed(ExecutorConfig.deviceRetries);
+    await seed(ExecutorConfig.qualityPolicy);
 
     try {
       final defaults = _ref.read(sequencerDefaultsProvider);
@@ -353,141 +353,21 @@ class RuntimeConfigSync {
     // place, and the altitude trigger would vote targets away from a site the
     // telescope is not at. Withheld, the native side keeps altitude triggers
     // inactive and says so.
-    try {
-      final settings = _ref.read(appSettingsProvider).valueOrNull;
-      final hasLocation =
-          settings != null &&
-          (settings.latitude != 0.0 || settings.longitude != 0.0);
-      if (hasLocation) {
-        await backend.sequencerUpdateLocation(
-          latitude: settings.latitude,
-          longitude: settings.longitude,
-        );
-        _logger().debug(
-          'Seeded sequencer location: lat=${settings.latitude} '
-          'lon=${settings.longitude}',
-          source: 'SequenceExecutor',
-        );
-      } else if (settings != null) {
-        _logger().warning(
-          'No observing location is set, so the sequencer was not given one. '
-          'Altitude-based triggers and meridian-flip timing stay inactive '
-          'until a site is configured in Settings → Location.',
-          source: 'SequenceExecutor',
-        );
-      }
-    } catch (e, st) {
-      fail('sequencer location', e, st);
-    }
-
-    // Filter focus offsets: the profile table merged with non-zero per-filter
-    // autofocus overrides (DeviceService's precedence); an empty map when the
-    // master toggle is off.
-    try {
-      final profile = _ref.read(activeEquipmentProfileProvider);
-      final settings = _ref.read(appSettingsProvider).valueOrNull;
-      if (settings == null) {
-        throw StateError(
-          'AppSettings is not loaded; filter focus-offset behavior is unknown.',
-        );
-      }
-      final offsets = <String, int>{};
-      if (settings.useFilterFocusOffsets) {
-        offsets.addAll(profile?.filterFocusOffsets ?? const <String, int>{});
-        final autofocusFilters = AutofocusSettings.parseFilterSettingsJson(
-          settings.afFilterSettingsJson,
-        );
-        for (final entry in autofocusFilters.entries) {
-          if (entry.value.focusOffset != 0) {
-            offsets[entry.key] = entry.value.focusOffset;
-          }
-        }
-      }
-      await backend.sequencerUpdateFilterOffsets(offsets);
-      _logger().debug(
-        'Seeded filter focus offsets: ${offsets.length} entries',
+    if (!settings.hasObserverLocation) {
+      _logger().warning(
+        'No observing location is set, so the sequencer was not given one. '
+        'Altitude-based triggers and meridian-flip timing stay inactive '
+        'until a site is configured in Settings → Location.',
         source: 'SequenceExecutor',
       );
-    } catch (e, st) {
-      fail('filter focus offsets', e, st);
     }
+    await seed(ExecutorConfig.location);
+    await seed(ExecutorConfig.filterOffsets);
+    await seed(ExecutorConfig.qualityCheck);
+    await seed(ExecutorConfig.rejectFolder);
+    await seed(ExecutorConfig.observerProfile);
+    await seed(ExecutorConfig.adaptiveExposure);
 
-    try {
-      final settings = _ref.read(appSettingsProvider).valueOrNull;
-      if (settings != null) {
-        await backend.sequencerUpdateDefaultQualityCheck(
-          hfrThreshold: settings.imageGradingHfrThresholdPx,
-          hfrBaselinePercent: settings.imageGradingHfrBaselinePercent,
-          eccentricityThreshold: settings.imageGradingEccentricityThreshold,
-          starCountMin: settings.imageGradingStarCountMin,
-          maxConsecutiveRejects: settings.imageGradingMaxConsecutiveRejects,
-          enabled: settings.enableImageGrading,
-        );
-        _logger().debug(
-          'Seeded default_quality_check: '
-          'enabled=${settings.enableImageGrading}, '
-          'hfr=${settings.imageGradingHfrThresholdPx}px, '
-          'baseline=${settings.imageGradingHfrBaselinePercent}%',
-          source: 'SequenceExecutor',
-        );
-      }
-    } catch (e, st) {
-      fail('default_quality_check', e, st);
-    }
-
-    try {
-      final settings = _ref.read(appSettingsProvider).valueOrNull;
-      if (settings != null) {
-        await backend.sequencerUpdateRejectFolderPath(
-          settings.imageGradingRejectFolderPath,
-        );
-        _logger().debug(
-          'Seeded reject_folder_path: '
-          '${settings.imageGradingRejectFolderPath ?? "<default>"}',
-          source: 'SequenceExecutor',
-        );
-      }
-    } catch (e, st) {
-      fail('reject_folder_path', e, st);
-    }
-
-    // Observer and equipment identity for the FITS header.
-    try {
-      await _pushObserverProfile();
-    } catch (e, st) {
-      fail('observer_profile', e, st);
-    }
-
-    // The global adaptive-exposure default; cleared when switched off so a
-    // previous run's value cannot linger.
-    try {
-      final settings = _ref.read(appSettingsProvider).valueOrNull;
-      if (settings != null) {
-        if (settings.adaptiveExposureEnabled) {
-          await _pushAdaptiveExposure(settings);
-          _logger().debug(
-            'Seeded default_adaptive_exposure: '
-            'enabled=${settings.adaptiveExposureEnabled}, '
-            'ref=${settings.adaptiveExposureReferenceMag} mag/arcsec², '
-            'min=${settings.adaptiveExposureMinSecs}s, '
-            'max=${settings.adaptiveExposureMaxSecs}s',
-            source: 'SequenceExecutor',
-          );
-        } else {
-          await backend.sequencerClearDefaultAdaptiveExposure();
-          _logger().debug(
-            'Cleared default_adaptive_exposure (disabled in settings)',
-            source: 'SequenceExecutor',
-          );
-        }
-      }
-    } catch (e, st) {
-      fail('default_adaptive_exposure', e, st);
-    }
-
-    // Decision logging follows the active authority's setting (local on the
-    // host, the host's value on a remote client). An unreadable setting
-    // aborts the start rather than run under the wrong logging policy.
     try {
       final enabled = await _ref.read(replayDebugEnabledProvider.future);
       await backend.sequencerSetDecisionLoggingEnabled(enabled);
@@ -674,19 +554,20 @@ class RuntimeConfigSync {
         next,
       ) {
         if (previous == null || next == null) return;
-        final nextOffsets = next.filterFocusOffsets;
-        if (!mapEquals(previous.filterFocusOffsets, nextOffsets)) {
-          _logger().debug(
-            'Filter focus offsets changed during execution, propagating to '
-            'backend',
-            source: 'SequenceExecutor',
-          );
-          _pushMidRun(
-            'the filter focus offsets',
-            () => backend.sequencerUpdateFilterOffsets(nextOffsets),
-          );
+        if (!mapEquals(previous.filterFocusOffsets, next.filterFocusOffsets)) {
+          final settings = _ref.read(appSettingsProvider).valueOrNull;
+          if (settings != null) {
+            _logger().debug(
+              'Filter focus offsets changed during execution, propagating to '
+              'backend',
+              source: 'SequenceExecutor',
+            );
+            _pushMidRun(
+              'the filter focus offsets',
+              () => _pushFilterOffsets(settings),
+            );
+          }
         }
-        // Telescope / camera identity feeds the FITS header.
         if (previous.cameraName != next.cameraName ||
             previous.telescopeName != next.telescopeName ||
             previous.telescopeFocalLength != next.telescopeFocalLength ||
@@ -704,134 +585,104 @@ class RuntimeConfigSync {
   }
 
   void _forwardAppSettingsChange(AppSettingsState prev, AppSettingsState next) {
-    final backend = _backend;
-    if (prev.latitude != next.latitude || prev.longitude != next.longitude) {
-      // A change that CLEARS the location is not forwarded as (0, 0).
-      if (next.latitude != 0.0 || next.longitude != 0.0) {
-        _logger().debug(
-          'Location changed during execution, propagating to backend',
-          source: 'SequenceExecutor',
+    final changed = <ExecutorConfig>{
+      for (final setting in kAppSettingsTable)
+        if (setting.feeds != null &&
+            !setting.valuesEqual(prev.valueOf(setting), next.valueOf(setting)))
+          setting.feeds!,
+    };
+    for (final part in ExecutorConfig.values) {
+      if (!changed.contains(part)) continue;
+      final push = _settingsPushes[part]!;
+      _logger().debug(
+        '${push.what} changed during execution, propagating to backend',
+        source: 'SequenceExecutor',
+      );
+      _pushMidRun(push.what, () => push.send(next));
+    }
+  }
+
+  /// How each part of the executor's configuration that settings feed is
+  /// sent. The settings table names the part a setting feeds; that part is
+  /// sent when a run starts and again when one of its settings changes.
+  late final Map<ExecutorConfig, ({String what, _SendSettings send})>
+  _settingsPushes = {
+    ExecutorConfig.location: (
+      what: 'the observing location',
+      send: (settings) async {
+        if (!settings.hasObserverLocation) return;
+        await _backend.sequencerUpdateLocation(
+          latitude: settings.latitude,
+          longitude: settings.longitude,
         );
-        _pushMidRun(
-          'the observing location',
-          () => backend.sequencerUpdateLocation(
-            latitude: next.latitude,
-            longitude: next.longitude,
-          ),
-        );
+      },
+    ),
+    ExecutorConfig.parkPolicy: (
+      what: 'the park settings',
+      send: _pushParkPolicy,
+    ),
+    ExecutorConfig.deviceRetries: (
+      what: 'the device retries',
+      send: _pushDeviceRetries,
+    ),
+    ExecutorConfig.qualityPolicy: (
+      what: 'the quality policy',
+      send: _pushQualityPolicy,
+    ),
+    ExecutorConfig.safetyFailMode: (
+      what: 'the safety fail mode',
+      send: (settings) => _pushEffectiveSafetyFailMode(settings.safetyFailMode),
+    ),
+    ExecutorConfig.qualityCheck: (
+      what: 'the image-grading thresholds',
+      send: (settings) => _backend.sequencerUpdateDefaultQualityCheck(
+        hfrThreshold: settings.imageGradingHfrThresholdPx,
+        hfrBaselinePercent: settings.imageGradingHfrBaselinePercent,
+        eccentricityThreshold: settings.imageGradingEccentricityThreshold,
+        starCountMin: settings.imageGradingStarCountMin,
+        maxConsecutiveRejects: settings.imageGradingMaxConsecutiveRejects,
+        enabled: settings.enableImageGrading,
+      ),
+    ),
+    ExecutorConfig.rejectFolder: (
+      what: 'the reject folder',
+      send: (settings) => _backend.sequencerUpdateRejectFolderPath(
+        settings.imageGradingRejectFolderPath,
+      ),
+    ),
+    ExecutorConfig.observerProfile: (
+      what: 'the observer profile',
+      send: (_) => _pushObserverProfile(),
+    ),
+    ExecutorConfig.adaptiveExposure: (
+      what: 'the adaptive-exposure settings',
+      send: (settings) => settings.adaptiveExposureEnabled
+          ? _pushAdaptiveExposure(settings)
+          : _backend.sequencerClearDefaultAdaptiveExposure(),
+    ),
+    ExecutorConfig.filterOffsets: (
+      what: 'the filter focus offsets',
+      send: _pushFilterOffsets,
+    ),
+  };
+
+  /// The focus offset per filter: the active profile's, overridden by any set
+  /// in the per-filter autofocus settings. None when offsets are turned off.
+  Future<void> _pushFilterOffsets(AppSettingsState settings) async {
+    final offsets = <String, int>{};
+    if (settings.useFilterFocusOffsets) {
+      final profile = _ref.read(activeEquipmentProfileProvider);
+      offsets.addAll(profile?.filterFocusOffsets ?? const <String, int>{});
+      final autofocusFilters = AutofocusSettings.parseFilterSettingsJson(
+        settings.afFilterSettingsJson,
+      );
+      for (final entry in autofocusFilters.entries) {
+        if (entry.value.focusOffset != 0) {
+          offsets[entry.key] = entry.value.focusOffset;
+        }
       }
     }
-
-    if (prev.parkOnUnsafeWeather != next.parkOnUnsafeWeather ||
-        prev.parkBeforeDawn != next.parkBeforeDawn) {
-      _pushMidRun('the park settings', () => _pushParkPolicy(next));
-    }
-
-    if (prev.cameraRetries != next.cameraRetries ||
-        prev.filterWheelRetries != next.filterWheelRetries) {
-      _pushMidRun('the device retries', () => _pushDeviceRetries(next));
-    }
-
-    if (prev.stopRunOnQualityProblems != next.stopRunOnQualityProblems) {
-      _pushMidRun('the quality policy', () => _pushQualityPolicy(next));
-    }
-
-    if (prev.safetyFailMode != next.safetyFailMode) {
-      _logger().debug(
-        'Safety fail mode changed during execution, propagating to backend',
-        source: 'SequenceExecutor',
-      );
-      _pushMidRun(
-        'the safety fail mode',
-        () => _pushEffectiveSafetyFailMode(next.safetyFailMode),
-      );
-    }
-
-    final gradingChanged =
-        prev.enableImageGrading != next.enableImageGrading ||
-        prev.imageGradingHfrThresholdPx != next.imageGradingHfrThresholdPx ||
-        prev.imageGradingHfrBaselinePercent !=
-            next.imageGradingHfrBaselinePercent ||
-        prev.imageGradingEccentricityThreshold !=
-            next.imageGradingEccentricityThreshold ||
-        prev.imageGradingStarCountMin != next.imageGradingStarCountMin ||
-        prev.imageGradingMaxConsecutiveRejects !=
-            next.imageGradingMaxConsecutiveRejects;
-    if (gradingChanged) {
-      _logger().debug(
-        'Image-grading settings changed during execution, propagating to '
-        'backend',
-        source: 'SequenceExecutor',
-      );
-      _pushMidRun(
-        'the image-grading thresholds',
-        () => backend.sequencerUpdateDefaultQualityCheck(
-          hfrThreshold: next.imageGradingHfrThresholdPx,
-          hfrBaselinePercent: next.imageGradingHfrBaselinePercent,
-          eccentricityThreshold: next.imageGradingEccentricityThreshold,
-          starCountMin: next.imageGradingStarCountMin,
-          maxConsecutiveRejects: next.imageGradingMaxConsecutiveRejects,
-          enabled: next.enableImageGrading,
-        ),
-      );
-    }
-    if (prev.imageGradingRejectFolderPath !=
-        next.imageGradingRejectFolderPath) {
-      _logger().debug(
-        'Reject folder path changed during execution, propagating to backend',
-        source: 'SequenceExecutor',
-      );
-      _pushMidRun(
-        'the reject folder',
-        () => backend.sequencerUpdateRejectFolderPath(
-          next.imageGradingRejectFolderPath,
-        ),
-      );
-    }
-
-    if (prev.observerName != next.observerName ||
-        prev.elevation != next.elevation) {
-      _logger().debug(
-        'Observer name / elevation changed during execution, propagating to '
-        'backend',
-        source: 'SequenceExecutor',
-      );
-      _pushMidRun('the observer profile', _pushObserverProfile);
-    }
-
-    // The executor takes the whole adaptive-exposure config on every push.
-    final adaptiveChanged =
-        prev.adaptiveExposureEnabled != next.adaptiveExposureEnabled ||
-        prev.adaptiveExposureTargetSnr != next.adaptiveExposureTargetSnr ||
-        prev.adaptiveExposureReferenceMag !=
-            next.adaptiveExposureReferenceMag ||
-        prev.adaptiveExposureMinSecs != next.adaptiveExposureMinSecs ||
-        prev.adaptiveExposureMaxSecs != next.adaptiveExposureMaxSecs ||
-        !mapEquals(
-          prev.adaptiveExposurePerFilterEnabled,
-          next.adaptiveExposurePerFilterEnabled,
-        ) ||
-        !mapEquals(
-          prev.adaptiveExposurePerFilterMinSecs,
-          next.adaptiveExposurePerFilterMinSecs,
-        ) ||
-        !mapEquals(
-          prev.adaptiveExposurePerFilterMaxSecs,
-          next.adaptiveExposurePerFilterMaxSecs,
-        );
-    if (adaptiveChanged) {
-      _logger().debug(
-        'Adaptive-exposure settings changed during execution, propagating to '
-        'backend',
-        source: 'SequenceExecutor',
-      );
-      _pushMidRun(
-        'the adaptive-exposure settings',
-        () => next.adaptiveExposureEnabled
-            ? _pushAdaptiveExposure(next)
-            : backend.sequencerClearDefaultAdaptiveExposure(),
-      );
-    }
+    await _backend.sequencerUpdateFilterOffsets(offsets);
   }
 
   /// Push the FITS observer profile: the observer name and site elevation
