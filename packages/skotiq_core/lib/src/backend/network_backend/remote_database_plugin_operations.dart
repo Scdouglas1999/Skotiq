@@ -214,53 +214,6 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     );
   }
 
-  /// GET /api/db/dark-library?gainMin=&gainMax=&temperatureC=&exposureSecs=&limit=&offset=
-  ///
-  /// Returns the raw `dark_library` Drift rows. The pre-existing
-  /// `listDarks()` method projects the same table through the
-  /// `RemoteDarkLibraryEntry` wire model used by the calibration UI, but
-  /// elides several columns (master frame path, master count) that the
-  /// Read surface intentionally exposes. Hence the separate
-  /// [RemoteDbDarkLibraryRow] wire type — different consumers, different
-  /// shapes, no risk of one breaking the other.
-  Future<RemotePage<RemoteDbDarkLibraryRow>> fetchDarkLibrary({
-    int? gainMin,
-    int? gainMax,
-    double? temperatureC,
-    double? exposureSecs,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    final response = await _get('db/dark-library', {
-      if (gainMin != null) 'gainMin': gainMin.toString(),
-      if (gainMax != null) 'gainMax': gainMax.toString(),
-      if (temperatureC != null) 'temperatureC': temperatureC.toString(),
-      if (exposureSecs != null) 'exposureSecs': exposureSecs.toString(),
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
-    return RemotePage.fromJson(response, RemoteDbDarkLibraryRow.fromJson);
-  }
-
-  /// GET /api/db/flat-history?filterName=&panelKey=&limit=&offset=
-  ///
-  /// Distinct from the calibration UI's `listFlats()` for the same reason
-  /// the dark-library variant is — see the comment on [fetchDarkLibrary].
-  Future<RemotePage<RemoteDbFlatHistoryRow>> fetchFlatHistory({
-    String? filterName,
-    int? panelKey,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    final response = await _get('db/flat-history', {
-      if (filterName != null && filterName.isNotEmpty) 'filterName': filterName,
-      if (panelKey != null) 'panelKey': panelKey.toString(),
-      'limit': limit.toString(),
-      'offset': offset.toString(),
-    });
-    return RemotePage.fromJson(response, RemoteDbFlatHistoryRow.fromJson);
-  }
-
   // Replay scrubber — per-run endpoints.
   Future<RemoteSequenceRunDetail> fetchSequenceRunById(int runId) async {
     _validateReplayRunId(runId);

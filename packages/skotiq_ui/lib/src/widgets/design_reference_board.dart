@@ -14,7 +14,6 @@ import '../components/skotiq_text_field.dart';
 import '../components/screen_header.dart';
 import '../components/status_dot.dart';
 import '../components/status_pill.dart';
-import '../components/sub_tab_button.dart';
 import '../theme/annotation_type_colors.dart';
 import '../theme/backend_protocol_colors.dart';
 import '../theme/skotiq_chart_colors.dart';

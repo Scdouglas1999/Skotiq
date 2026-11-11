@@ -237,121 +237,6 @@ class ErrorService {
     );
   }
 
-  /// Convenience method for imaging errors
-  void logImagingError({
-    required String operation,
-    required String message,
-    ErrorSeverity severity = ErrorSeverity.error,
-    Map<String, dynamic>? context,
-  }) {
-    log(
-      ErrorEntry(
-        severity: severity,
-        category: ErrorCategory.imaging,
-        operation: operation,
-        message: message,
-        context: context,
-      ),
-    );
-  }
-
-  /// Convenience method for sequencer errors
-  void logSequencerError({
-    required String operation,
-    required String message,
-    ErrorSeverity severity = ErrorSeverity.error,
-    Map<String, dynamic>? context,
-  }) {
-    log(
-      ErrorEntry(
-        severity: severity,
-        category: ErrorCategory.sequencer,
-        operation: operation,
-        message: message,
-        context: context,
-      ),
-    );
-  }
-
-  /// Convenience method for guiding errors
-  void logGuidingError({
-    required String operation,
-    required String message,
-    ErrorSeverity severity = ErrorSeverity.error,
-    Map<String, dynamic>? context,
-  }) {
-    log(
-      ErrorEntry(
-        severity: severity,
-        category: ErrorCategory.guiding,
-        operation: operation,
-        message: message,
-        context: context,
-      ),
-    );
-  }
-
-  /// Log from exception with context
-  void logException(
-    Object error,
-    StackTrace? stack, {
-    required ErrorCategory category,
-    required String operation,
-    ErrorSeverity severity = ErrorSeverity.error,
-    String? deviceType,
-    String? deviceId,
-    Map<String, dynamic>? context,
-  }) {
-    log(
-      ErrorEntry.fromException(
-        error,
-        stack,
-        category: category,
-        operation: operation,
-        severity: severity,
-        deviceType: deviceType,
-        deviceId: deviceId,
-        context: context,
-      ),
-    );
-  }
-
-  /// Get recent errors
-  List<ErrorEntry> getRecentErrors({int limit = 20}) {
-    return _errorHistory.toList().reversed.take(limit).toList();
-  }
-
-  /// Get errors by category
-  List<ErrorEntry> getErrorsByCategory(
-    ErrorCategory category, {
-    int limit = 20,
-  }) {
-    return _errorHistory
-        .where((e) => e.category == category)
-        .toList()
-        .reversed
-        .take(limit)
-        .toList();
-  }
-
-  /// Get errors by severity
-  List<ErrorEntry> getErrorsBySeverity(
-    ErrorSeverity severity, {
-    int limit = 20,
-  }) {
-    return _errorHistory
-        .where((e) => e.severity == severity)
-        .toList()
-        .reversed
-        .take(limit)
-        .toList();
-  }
-
-  /// Clear error history
-  void clearHistory() {
-    _errorHistory.clear();
-  }
-
   /// Add listener for new errors
   void addListener(void Function(ErrorEntry) listener) {
     _listeners.add(listener);
@@ -367,11 +252,6 @@ class ErrorService {
     return _errorHistory.any((e) => e.severity == ErrorSeverity.critical);
   }
 
-  /// Get count of errors in the last N minutes
-  int getErrorCountSince(Duration duration) {
-    final cutoff = DateTime.now().subtract(duration);
-    return _errorHistory.where((e) => e.timestamp.isAfter(cutoff)).length;
-  }
 }
 
 /// Provider for the error service

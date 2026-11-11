@@ -26,7 +26,6 @@ import '../providers/minor_planet_providers.dart';
 part 'interactive_sky_view/fov_overlay_painter.dart';
 part 'interactive_sky_view/measurement_overlay_painter.dart';
 part 'interactive_sky_view/sky_background_layer.dart';
-part 'interactive_sky_view/toolbar.dart';
 part 'interactive_sky_view/view_motion.dart';
 part 'interactive_sky_view/painter_wiring.dart';
 part 'interactive_sky_view/hit_testing.dart';

@@ -212,13 +212,6 @@ class ForensicsService {
     );
   }
 
-  /// Synchronously build a summary for a single sequence run by going to
-  /// the database.
-  Future<ForensicSummary> summarizeForSequenceRun(int sequenceRunId) async {
-    final records = await loadForSequenceRun(sequenceRunId);
-    return summarize(records);
-  }
-
   Future<void> dispose() async {
     if (!_broadcast.isClosed) {
       await _broadcast.close();

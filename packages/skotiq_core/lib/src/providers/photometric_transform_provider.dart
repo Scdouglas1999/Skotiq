@@ -9,19 +9,6 @@ import '../utils/resilient_poll_stream.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 
-/// Watches all photometric transforms in the database.
-final allPhotometricTransformsProvider =
-    StreamProvider<List<PhotometricTransformRow>>((ref) {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return _pollRemoteTransforms(
-          backend,
-          interval: ref.watch(remotePhotometricTransformPollIntervalProvider),
-        );
-      }
-      return ref.watch(scienceDaoProvider).watchAllTransforms();
-    });
-
 /// Watches transforms relevant to the current equipment profile.
 final activeProfileTransformsProvider =
     StreamProvider<List<PhotometricTransformRow>>((ref) {

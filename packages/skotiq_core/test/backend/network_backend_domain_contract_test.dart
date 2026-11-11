@@ -64,11 +64,6 @@ void main() {
           body: '{"code":"not_found","message":"Target not found"}',
         )
         ..setResponse(
-          '/api/sequence-management/8',
-          status: 404,
-          body: '{"code":"not_found","message":"Sequence not found"}',
-        )
-        ..setResponse(
           '/api/sequence-management/8/full',
           status: 404,
           body: '{"code":"not_found","message":"Sequence not found"}',
@@ -77,7 +72,6 @@ void main() {
       addTearDown(backend.dispose);
 
       expect(await backend.getTargetById(4), isNull);
-      expect(await backend.getSequenceDetails(8), isNull);
       expect(await backend.getFullSequence(8), isNull);
     });
 

@@ -164,51 +164,6 @@ class FocuserStateNotifier extends StateNotifier<FocuserState>
   }
 }
 
-/// Focus position history provider - tracks the last N focus positions for sparkline display.
-/// This allows the dashboard to show a visual history of focus position changes.
-final focusPositionHistoryProvider =
-    StateNotifierProvider<FocusPositionHistoryNotifier, List<int>>((ref) {
-      return FocusPositionHistoryNotifier(ref);
-    });
-
-/// Notifier that maintains a rolling history of focus positions.
-class FocusPositionHistoryNotifier extends StateNotifier<List<int>> {
-  final Ref _ref;
-  static const int _maxHistoryLength = 10;
-  int? _lastRecordedPosition;
-
-  FocusPositionHistoryNotifier(this._ref) : super([]) {
-    // Listen to focuser state changes and record position updates
-    _ref.listen<FocuserState>(focuserStateProvider, (previous, next) {
-      if (next.position != null && next.position != _lastRecordedPosition) {
-        _lastRecordedPosition = next.position;
-        _addPosition(next.position!);
-      }
-    });
-  }
-
-  void _addPosition(int position) {
-    final newHistory = [...state, position];
-    if (newHistory.length > _maxHistoryLength) {
-      state = newHistory.sublist(newHistory.length - _maxHistoryLength);
-    } else {
-      state = newHistory;
-    }
-  }
-
-  /// Manually add a position to the history (e.g., after autofocus)
-  void recordPosition(int position) {
-    _lastRecordedPosition = position;
-    _addPosition(position);
-  }
-
-  /// Clear the history (e.g., when switching focusers)
-  void clear() {
-    _lastRecordedPosition = null;
-    state = [];
-  }
-}
-
 // Autofocus result provider
 
 /// Provider for the last autofocus result

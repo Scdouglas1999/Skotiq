@@ -509,10 +509,6 @@ const gladePlusCatalog = CatalogSource(
   fileName: 'glade_plus_galaxies.csv',
 );
 
-/// Whether automatic download is available for annotation catalog
-/// GLADE+ is always available via VizieR TAP
-bool get isAnnotationDownloadAvailable => true;
-
 /// Build VizieR TAP URL for GLADE+ catalog with magnitude filtering
 String buildGladePlusUrl(AnnotationPackage package) {
   String query;

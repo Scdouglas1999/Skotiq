@@ -87,14 +87,6 @@ final transientSubmissionServiceProvider = Provider<TransientSubmissionService>(
   },
 );
 
-/// Reactive newest-first transient detections for a session.
-final transientDetectionsProvider =
-    StreamProvider.family<List<TransientDetectionRow>, int>((ref, sessionId) {
-      return ref
-          .watch(transientDetectionsDaoProvider)
-          .watchDetectionsForSession(sessionId);
-    });
-
 /// Reactive newest-first transient detections across all sessions — backs the
 /// standalone gallery, the export hub's candidate snapshot and the alert bell.
 /// Bounded to the most-recent [kFirstLightFeedLimit] so the feed is an index

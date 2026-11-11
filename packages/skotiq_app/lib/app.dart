@@ -185,11 +185,9 @@ class SkotiqApp extends ConsumerWidget {
                       child: appChild,
                     );
                   }
-                  // Wrap with ScaledConfigProvider to make responsive scaling
-                  // configuration available to all descendant widgets. Everything
-                  // below inherits the app's text scale and theme — putting a
-                  // launcher's dialog outside this would render it at unscaled
-                  // size on high-DPI displays.
+                  // Everything below inherits the app's text scale and theme —
+                  // putting a launcher's dialog outside this would render it at
+                  // unscaled size on high-DPI displays.
                   //
                   // Single-spine startup model (Onboarding & First-Light IA, C13):
                   // the launcher stack is now exactly two startup gates, ordered
@@ -218,15 +216,11 @@ class SkotiqApp extends ConsumerWidget {
                   // raised by connecting a mount, which cannot happen until the
                   // user is past onboarding, and it must never outrank the
                   // "your data was reset" dialog.
-                  Widget result = ScaledConfigProvider(
-                    child: AutoIntegrationLauncher(
-                      child: DatabaseRecoveryLauncher(
-                        child: EquipmentOnboardingLauncher(
-                          child: MountSiteReconciliationListener(
-                            child: LinkedPendingStartListener(
-                              child: scaledChild,
-                            ),
-                          ),
+                  Widget result = AutoIntegrationLauncher(
+                    child: DatabaseRecoveryLauncher(
+                      child: EquipmentOnboardingLauncher(
+                        child: MountSiteReconciliationListener(
+                          child: LinkedPendingStartListener(child: scaledChild),
                         ),
                       ),
                     ),

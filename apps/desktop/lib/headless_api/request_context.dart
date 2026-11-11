@@ -10,7 +10,7 @@
 ///   * the SHA-256 digest of the bearer token that authenticated the
 ///     request, if any ([authIdentityContextKey] / [authIdentityFrom]),
 ///   * the [route_metadata.TokenRouteClass] the request mapped to
-///     ([authRouteClassContextKey] / [authRouteClassFrom]).
+///     ([authRouteClassContextKey]).
 ///
 /// The constants and accessor functions live in this module rather than
 /// the server class so handler classes extracted out of
@@ -59,15 +59,6 @@ String requestIdFrom(Request request) =>
 String? authIdentityFrom(Request request) {
   final value = request.context[authIdentityContextKey];
   return value is String ? value : null;
-}
-
-/// Extract the classified [route_metadata.TokenRouteClass] off
-/// [request]. Returns null when the auth middleware didn't run, which
-/// makes the rate-limit middleware fall back to the legacy per-IP
-/// endpoint bucket.
-route_metadata.TokenRouteClass? authRouteClassFrom(Request request) {
-  final value = request.context[authRouteClassContextKey];
-  return value is route_metadata.TokenRouteClass ? value : null;
 }
 
 /// Redact a bearer or auth-identity token for structured-log output.

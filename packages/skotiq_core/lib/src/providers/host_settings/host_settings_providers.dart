@@ -80,20 +80,6 @@ final hostSettingsStoreSupportProvider =
       return store.support;
     });
 
-/// Host-owned settings this client has had to read from its own database
-/// because the host could not serve them.
-final hostSettingsUnsharedKeysProvider = StreamProvider<Set<String>>((
-  ref,
-) async* {
-  final store = ref.watch(hostSettingsStoreProvider);
-  if (store == null) {
-    yield const {};
-    return;
-  }
-  yield store.unsharedKeys;
-  yield* store.unsharedKeyChanges;
-});
-
 /// The DAO the machine that owns the hardware reads `app_settings` through:
 /// its own database, announcing host-owned writes to linked clients.
 PublishingSettingsDao buildHostSettingsDao(Ref ref, SkotiqDatabase database) {

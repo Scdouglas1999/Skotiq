@@ -317,14 +317,6 @@ class AutoSaveService {
     _hasUnsavedChanges = true;
   }
 
-  /// Clear unsaved changes marker for a sequence
-  void markSequenceSaved(String sequenceId) {
-    _pendingSequences.remove(sequenceId);
-    if (_pendingSequences.isEmpty) {
-      _hasUnsavedChanges = false;
-    }
-  }
-
   /// Manually trigger sequence save
   Future<void> saveNow() async {
     final flushed = await _flushPendingSequences();
@@ -339,10 +331,6 @@ class AutoSaveService {
   Future<BackupResult> backupNow() async {
     return await _autoBackup();
   }
-
-  /// Manually trigger replay-debug retention pruning.
-  Future<int> pruneReplayDebugNow() =>
-      _pruneReplayDebugRetention(rethrowErrors: true);
 
   /// Auto-save sequences that have pending changes
   Future<bool> _autoSaveSequences() {
@@ -859,12 +847,6 @@ final autoSaveLifecycleProvider = FutureProvider<AutoSaveService>((ref) async {
       : DateTime.tryParse(lastBackupRaw)?.toLocal();
   service.start(config, lastBackup);
   return service;
-});
-
-/// Provider for checking if there are unsaved changes
-final hasUnsavedChangesProvider = Provider<bool>((ref) {
-  final service = ref.watch(autoSaveServiceProvider);
-  return service.hasUnsavedChanges;
 });
 
 const _sequenceEnabledKey = 'autosave.sequence_enabled';

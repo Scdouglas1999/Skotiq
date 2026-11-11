@@ -145,22 +145,6 @@ SystemUiOverlayStyle systemUiOverlayStyleFor(ThemeData theme) {
   );
 }
 
-/// Get the appropriate ThemeData for the current app theme mode
-ThemeData getThemeForMode(AppThemeMode mode, Brightness systemBrightness) {
-  switch (mode) {
-    case AppThemeMode.dark:
-      return SkotiqTheme.dark;
-    case AppThemeMode.light:
-      return SkotiqTheme.light;
-    case AppThemeMode.redNight:
-      return SkotiqTheme.redNight;
-    case AppThemeMode.system:
-      return systemBrightness == Brightness.dark
-          ? SkotiqTheme.dark
-          : SkotiqTheme.light;
-  }
-}
-
 /// Assembles Flutter [ThemeData] from [SkotiqColors], [SkotiqTokens],
 /// and [SkotiqTypography] for dark, light, and red-night modes.
 class SkotiqTheme {

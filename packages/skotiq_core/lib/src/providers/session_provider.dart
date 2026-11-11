@@ -547,13 +547,6 @@ final sessionStateProvider =
       return SessionStateNotifier(ref);
     });
 
-/// Provider for session progress (0.0 - 1.0)
-final sessionProgressProvider = Provider<double>((ref) {
-  final session = ref.watch(sessionStateProvider);
-  if (session.totalExposures == 0) return 0.0;
-  return session.completedExposures / session.totalExposures;
-});
-
 /// Provider for session duration as a formatted string
 final sessionDurationProvider = Provider<String>((ref) {
   final session = ref.watch(sessionStateProvider);

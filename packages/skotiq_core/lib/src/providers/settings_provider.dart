@@ -299,21 +299,6 @@ class LocationSettings {
 
 // Theme settings
 
-/// Theme mode setting
-class ThemeSettingsNotifier extends AsyncNotifier<String> {
-  @override
-  Future<String> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    return await dao.getTheme();
-  }
-
-  Future<void> setTheme(String theme) async {
-    final dao = ref.read(settingsDaoProvider);
-    await dao.setTheme(theme);
-    state = AsyncData(theme);
-  }
-}
-
 // Auto-connect settings
 
 /// Auto connect equipment setting

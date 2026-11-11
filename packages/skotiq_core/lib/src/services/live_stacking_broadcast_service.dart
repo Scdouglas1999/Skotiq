@@ -389,14 +389,6 @@ class LiveStackingBroadcastService {
     _state = _state.copyWith(viewerCount: _state.viewerCount + 1);
   }
 
-  /// Reset the viewer count. Called on a fixed cadence by the
-  /// dashboard panel's refresh timer so the displayed count tracks
-  /// recent activity rather than lifetime hits.
-  void resetViewerCount() {
-    if (!_state.active) return;
-    _state = _state.copyWith(viewerCount: 0);
-  }
-
   /// Update the broadcast's current-target metadata. Called by the
   /// dashboard's frame-accepted listener so the watermark / `/info`
   /// JSON always reflect the live target name.
@@ -560,8 +552,3 @@ final liveStackingKillSwitchBridgeProvider = Provider<void>((ref) {
   // is a no-op when the value hasn't changed.
 });
 
-/// Convenience provider for whether the broadcast is currently armed.
-/// The dashboard's "Broadcasting" indicator watches this.
-final broadcastActiveProvider = Provider<bool>((ref) {
-  return ref.watch(liveStackingBroadcastServiceProvider).state.active;
-});

@@ -14,10 +14,6 @@ const Duration kPhd2PollTimeout = Duration(seconds: 30);
 /// Poll interval while waiting for PHD2 socket + client registration.
 const Duration kPhd2PollInterval = Duration(milliseconds: 500);
 
-/// Legacy aliases for tests and callers that used the earlier constant names.
-const Duration phd2StatusPollTimeout = kPhd2PollTimeout;
-const Duration phd2StatusPollInterval = kPhd2PollInterval;
-
 /// Whether a guiding event indicates PHD2 is still reachable (not link loss).
 bool isPhd2GuidingHeartbeatEvent(String eventType) {
   switch (eventType) {

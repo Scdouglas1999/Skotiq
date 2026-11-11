@@ -25,24 +25,3 @@ final exposureNodeThumbnailsProvider = StreamProvider.autoDispose
       return records.watchImagesByProducingNode(producingNodeId: nodeId);
     });
 
-/// Fire-and-forget version of [exposureNodeThumbnailsProvider] that fetches
-/// a one-shot snapshot. Used by the count badge ("3 more") and by tests
-/// that don't want to assert on Stream behavior.
-final exposureNodeThumbnailsSnapshotProvider = FutureProvider.autoDispose
-    .family<List<ProducingNodeThumbnail>, String>((ref, nodeId) {
-      if (nodeId.isEmpty) {
-        return Future.value(const <ProducingNodeThumbnail>[]);
-      }
-      final records = ref.watch(imagingRecordsRepositoryProvider);
-      return records.getImagesByProducingNode(producingNodeId: nodeId);
-    });
-
-/// Count of thumbnails attached to an ExposureNode. Cheap async lookup,
-/// used to decide whether to render the strip at all (an empty strip is
-/// collapsed silently per the spec).
-final exposureNodeThumbnailCountProvider = FutureProvider.autoDispose
-    .family<int, String>((ref, nodeId) {
-      if (nodeId.isEmpty) return Future.value(0);
-      final records = ref.watch(imagingRecordsRepositoryProvider);
-      return records.countImagesByProducingNode(producingNodeId: nodeId);
-    });

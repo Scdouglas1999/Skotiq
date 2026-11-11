@@ -90,9 +90,6 @@ void main() {
       expect(live.allTelescopes().first, custom);
       expect(live.allTelescopes().length, builtInTelescopePresets.length + 1);
 
-      // The convenience read provider sees it too.
-      expect(container.read(telescopePresetsProvider).first, custom);
-
       // The JSON blob was actually written under the versioned key.
       final settingsDao = container.read(settingsDaoProvider);
       final raw = await settingsDao.getSetting(
@@ -134,7 +131,10 @@ void main() {
     );
     await notifier.saveCameraPreset(custom);
 
-    expect(container.read(cameraDefaultsPresetsProvider).first, custom);
+    expect(
+      container.read(hardwarePresetsServiceProvider).allCameras().first,
+      custom,
+    );
 
     final reloaded = await readFromFreshContainer((_) async {});
     expect(reloaded.allCameras().first, custom);

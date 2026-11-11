@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
 
 /// Set to `1`/`true` to let a second process open the same database anyway.
 ///
@@ -222,6 +221,3 @@ class SingleInstanceLock {
   }
 }
 
-/// Convenience for callers that only have a directory in hand.
-File skotiqLockFileIn(Directory dbDirectory, String dbFileName) =>
-    File(p.join(dbDirectory.path, '$dbFileName.lock'));

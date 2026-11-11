@@ -524,11 +524,6 @@ void main() {
       container.read(depthLockGoalsForFilterProvider('ha')).single.id,
       'goal-2',
     );
-    expect(
-      container.read(depthLockGoalsForTargetProvider('target-1')),
-      hasLength(2),
-    );
-    expect(container.read(depthLockGoalsForTargetProvider('nobody')), isEmpty);
   });
 
   test('the curve is read from the backend', () async {

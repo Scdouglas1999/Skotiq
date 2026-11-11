@@ -5,7 +5,11 @@ import '../../models/weather/weather_models.dart';
 import '../../providers/database_provider.dart';
 import 'radar_provider.dart';
 import 'radar_provider_factory.dart';
-import 'providers/providers.dart';
+import 'providers/goes_satellite_provider.dart';
+import 'providers/metno_cloud_provider.dart';
+import 'providers/noaa_radar_provider.dart';
+import 'providers/openmeteo_cloud_provider.dart';
+import 'providers/rainviewer_radar_provider.dart';
 
 /// Central service for coordinating weather radar data fetching.
 ///

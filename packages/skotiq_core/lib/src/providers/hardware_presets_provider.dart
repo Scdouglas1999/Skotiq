@@ -31,23 +31,6 @@ final hardwarePresetsServiceProvider =
       return notifier;
     });
 
-/// All telescope presets (overrides merged over built-ins). Convenience read
-/// for the preset-picker UI so it doesn't reach through the notifier.
-final telescopePresetsProvider = Provider<List<TelescopePreset>>(
-  (ref) => ref.watch(hardwarePresetsServiceProvider).allTelescopes(),
-);
-
-/// All camera-defaults presets (overrides merged over built-ins).
-///
-/// Named `cameraDefaultsPresetsProvider` rather than `cameraPresetsProvider`
-/// to avoid colliding with the pre-existing barrel export of the same short
-/// name in `camera_presets_provider.dart` (which owns gain/offset acquisition
-/// presets, a different domain). The name also tracks the model
-/// [CameraDefaultsPreset].
-final cameraDefaultsPresetsProvider = Provider<List<CameraDefaultsPreset>>(
-  (ref) => ref.watch(hardwarePresetsServiceProvider).allCameras(),
-);
-
 class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
   HardwarePresetsNotifier(this._ref)
     : _base = const HardwarePresetsService(),

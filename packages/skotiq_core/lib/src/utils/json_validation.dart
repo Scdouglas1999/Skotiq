@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 Map<String, dynamic> decodeJsonObjectString(
   String jsonStr, {
@@ -102,12 +101,3 @@ DateTime? jsonDateTime(dynamic value, {required String context}) {
   return DateTime.parse(normalized);
 }
 
-void logJsonWarning(String context, Object error, [StackTrace? stackTrace]) {
-  developer.log(
-    '$context: $error',
-    name: 'JsonValidation',
-    level: 900,
-    error: error,
-    stackTrace: stackTrace,
-  );
-}

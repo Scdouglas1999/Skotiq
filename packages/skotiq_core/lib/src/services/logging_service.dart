@@ -879,9 +879,3 @@ final loggingServiceProvider = Provider<LoggingService>((ref) {
   return service;
 });
 
-/// Provider that initializes logging on first access
-final loggingInitializerProvider = FutureProvider<LoggingService>((ref) async {
-  final service = ref.watch(loggingServiceProvider);
-  await service.initialize();
-  return service;
-});

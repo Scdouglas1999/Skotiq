@@ -324,19 +324,3 @@ Future<List<db.Target>> _readCatalogTargets(
 
 // Convenience providers
 
-/// Provider that returns the best single suggestion for tonight.
-final bestSuggestionProvider =
-    Provider.autoDispose<AsyncValue<TargetSuggestion?>>((ref) {
-      final suggestionsAsync = ref.watch(tonightSuggestionsProvider);
-
-      return suggestionsAsync.when(
-        data: (suggestions) {
-          if (suggestions.isEmpty) {
-            return const AsyncData(null);
-          }
-          return AsyncData(suggestions.first);
-        },
-        loading: () => const AsyncLoading(),
-        error: (error, stackTrace) => AsyncError(error, stackTrace),
-      );
-    });

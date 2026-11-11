@@ -396,48 +396,6 @@ void main() {
     });
   });
 
-  group('Star model', () {
-    test('getStarColor returns blue for negative color index', () {
-      const star = Star(
-        id: 'test',
-        name: 'Blue Star',
-        coordinates: CelestialCoordinate(ra: 0, dec: 0),
-        colorIndex: -0.5,
-      );
-      expect(star.getStarColor(), 0xFFAABBFF);
-    });
-
-    test('getStarColor returns white for near-zero color index', () {
-      const star = Star(
-        id: 'test',
-        name: 'White Star',
-        coordinates: CelestialCoordinate(ra: 0, dec: 0),
-        colorIndex: 0.15,
-      );
-      expect(star.getStarColor(), 0xFFFFFFFF);
-    });
-
-    test('getStarColor returns red-orange for high color index', () {
-      const star = Star(
-        id: 'test',
-        name: 'Red Star',
-        coordinates: CelestialCoordinate(ra: 0, dec: 0),
-        colorIndex: 1.8,
-      );
-      expect(star.getStarColor(), 0xFFFF6030);
-    });
-
-    test('getStarColor returns white for null color index', () {
-      const star = Star(
-        id: 'test',
-        name: 'Unknown Star',
-        coordinates: CelestialCoordinate(ra: 0, dec: 0),
-        colorIndex: null,
-      );
-      expect(star.getStarColor(), 0xFFFFFFFF);
-    });
-  });
-
   group('DeepSkyObject model', () {
     test('sizeString formats major axis only', () {
       const dso = DeepSkyObject(

@@ -59,7 +59,7 @@ void main() {
 
     final values = <List<PhotometricTransformRow>>[];
     final errors = <Object>[];
-    final subscription = container.listen(allPhotometricTransformsProvider, (
+    final subscription = container.listen(activeProfileTransformsProvider, (
       previous,
       next,
     ) {

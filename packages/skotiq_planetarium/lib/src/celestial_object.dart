@@ -34,40 +34,6 @@ class Star implements CelestialObject {
     this.catalogIds = const [],
   });
 
-  /// Get the star color based on color index (B-V)
-  /// Returns a hex color value
-  int getStarColor() {
-    if (colorIndex == null) {
-      return 0xFFFFFFFF; // White for unknown
-    }
-
-    final ci = colorIndex!;
-
-    // Color index to RGB conversion (approximate)
-    // Blue stars (B-V < -0.3): Blue-white
-    // White stars (B-V ~ 0): White
-    // Yellow stars (B-V ~ 0.5-0.8): Yellow
-    // Orange stars (B-V ~ 1.0-1.4): Orange
-    // Red stars (B-V > 1.4): Red
-
-    if (ci < -0.3) {
-      return 0xFFAABBFF; // Blue-white
-    } else if (ci < 0.0) {
-      return 0xFFCCDDFF; // Light blue-white
-    } else if (ci < 0.3) {
-      return 0xFFFFFFFF; // White
-    } else if (ci < 0.6) {
-      return 0xFFFFFFC8; // Pale yellow
-    } else if (ci < 0.8) {
-      return 0xFFFFFF80; // Yellow
-    } else if (ci < 1.0) {
-      return 0xFFFFDD60; // Yellow-orange
-    } else if (ci < 1.4) {
-      return 0xFFFFAA40; // Orange
-    } else {
-      return 0xFFFF6030; // Red-orange
-    }
-  }
 }
 
 /// What kind of solar-system body a [SolarSystemBody] is.

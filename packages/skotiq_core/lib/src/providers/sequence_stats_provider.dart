@@ -579,49 +579,6 @@ final sequenceRunsProvider = StreamProvider<List<SequenceRun>>((ref) {
   return dao.watchAllRuns();
 });
 
-/// Resolve the imaging session created for a sequence run.
-///
-/// New sequence executions intentionally create one session per run, but the
-/// historical schema does not store a direct `sequence_runs -> sessions`
-/// foreign key. Captured frames do carry both identities, so they are the
-/// authoritative join whenever the run produced at least one frame. A
-/// zero-frame run falls back to the session whose start is nearest to the run
-/// start within the executor's small start-up window.
-final sequenceRunSessionIdProvider = FutureProvider.family<int?, int>((
-  ref,
-  runId,
-) async {
-  if (runId <= 0) {
-    throw ArgumentError.value(runId, 'runId', 'must be positive');
-  }
-
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final page = await backend.fetchSequenceRunFrames(runId, limit: 1);
-    final frameSessionId = page.items.firstOrNull?.sessionId;
-    if (frameSessionId != null) return frameSessionId;
-  } else {
-    final frames = await ref
-        .watch(imagesDaoProvider)
-        .getImagesByProducingRun(producingRunId: runId.toString(), limit: 1);
-    final frameSessionId = frames.firstOrNull?.sessionId;
-    if (frameSessionId != null) return frameSessionId;
-  }
-
-  final runs = await ref.watch(sequenceRunsProvider.future);
-  SequenceRun? run;
-  for (final candidate in runs) {
-    if (candidate.id == runId) {
-      run = candidate;
-      break;
-    }
-  }
-  if (run == null) return null;
-
-  final sessions = await ref.watch(allSessionsProvider.future);
-  return resolveSessionIdForSequenceRun(run, sessions);
-});
-
 /// Best-effort legacy join for a run that has no captured frame provenance.
 ///
 /// The executor opens the session immediately before it creates the run row,

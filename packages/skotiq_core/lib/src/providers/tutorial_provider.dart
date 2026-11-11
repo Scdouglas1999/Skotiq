@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/tutorial_dao.dart';
@@ -509,39 +508,6 @@ class DismissedTourPromptsNotifier extends StateNotifier<Set<String>> {
   Future<void> resetAllDismissed() async {
     // This will be handled by resetAllProgress in TutorialProgressDao
     if (mounted) state = {};
-  }
-}
-
-/// Manages global keys for tutorial targets
-class TutorialKeyRegistry {
-  final Map<String, GlobalKey> _keys = {};
-
-  /// Register a key for a target
-  GlobalKey registerKey(String id) {
-    return _keys.putIfAbsent(id, () => GlobalKey());
-  }
-
-  /// Get a key by id
-  GlobalKey? getKey(String id) => _keys[id];
-
-  /// Get the render box for a target
-  RenderBox? getRenderBox(String id) {
-    final key = _keys[id];
-    if (key?.currentContext == null) return null;
-    return key!.currentContext!.findRenderObject() as RenderBox?;
-  }
-
-  /// Get the global position of a target
-  Rect? getTargetRect(String id) {
-    final renderBox = getRenderBox(id);
-    if (renderBox == null) return null;
-    final position = renderBox.localToGlobal(Offset.zero);
-    return Rect.fromLTWH(
-      position.dx,
-      position.dy,
-      renderBox.size.width,
-      renderBox.size.height,
-    );
   }
 }
 

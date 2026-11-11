@@ -657,10 +657,3 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
   );
 });
 
-/// Persisted captured-image rows for one session (Drift watch or remote poll).
-final sessionDbImagesProvider = StreamProvider.autoDispose
-    .family<List<db.CapturedImage>, int>((ref, sessionId) {
-      return ref
-          .watch(imagingRecordsRepositoryProvider)
-          .watchImagesForSession(sessionId);
-    });
