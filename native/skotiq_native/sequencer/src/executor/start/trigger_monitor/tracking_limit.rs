@@ -963,7 +963,7 @@ mod tests {
             .trigger_manager
             .write()
             .await
-            .get_trigger_mut("meridian_flip")
+            .standard_mut(crate::triggers::StandardTrigger::MeridianFlip)
             .unwrap()
             .reset_for_new_run();
         h.resume().await;
@@ -1137,7 +1137,7 @@ mod tests {
             .trigger_manager
             .write()
             .await
-            .get_trigger_mut("meridian_flip")
+            .standard_mut(crate::triggers::StandardTrigger::MeridianFlip)
             .unwrap()
             .reset_for_new_run();
         h.dispatcher

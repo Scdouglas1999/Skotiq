@@ -54,7 +54,7 @@ impl Dispatcher {
             // Keep explicitly customized pixel triggers, including callers
             // that reuse the built-in ID with different settings.
             let mut manager = args.trigger_manager.write().await;
-            let is_default = manager.get_trigger("drift_limit").is_some_and(|trigger| {
+            let is_default = manager.standard(crate::triggers::StandardTrigger::DriftLimit).is_some_and(|trigger| {
                 matches!(trigger.trigger_type, TriggerType::DriftLimit { max_pixels } if max_pixels == 30.0)
                     && matches!(trigger.recovery_action, RecoveryAction::Recenter)
                     && trigger.cooldown_secs == Some(120)

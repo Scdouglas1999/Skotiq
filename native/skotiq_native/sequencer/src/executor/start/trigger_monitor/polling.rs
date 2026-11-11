@@ -216,10 +216,6 @@ impl DevicePoller {
         if let Some(safe) = is_safe {
             state.telemetry.weather_safe = safe;
         }
-<<<<<<< HEAD
-=======
-        state.settings.safety_fail_mode = fail_mode;
->>>>>>> 9aab79a51 (Split TriggerState into parts; reset and checkpoint follow from the part)
         let stale = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
         let stale_verdict_dropped = stale && !stale_unsafe_verdict_holds(fail_mode);
         if stale_verdict_dropped {
@@ -264,10 +260,7 @@ impl DevicePoller {
 
         // Keep an upcoming dawn cached whenever a site is known, so a
         // multi-night run keeps its dawn protection.
-        if let (Some(lat), Some(lon)) = (
-            state.settings.observer_latitude,
-            state.settings.observer_longitude,
-        ) {
+        if let (Some(lat), Some(lon)) = (state.settings.observer_latitude, state.settings.observer_longitude) {
             let now = chrono::Utc::now().timestamp();
             let needs_refresh = match state.telemetry.dawn_time {
                 None => true,

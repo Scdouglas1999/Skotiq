@@ -3510,7 +3510,7 @@ async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSe
         .state()
         .read()
         .await
-        .dither_settle;
+        .settings.dither_settle;
     let mut announced = Vec::new();
     while let Ok(event) = events.try_recv() {
         if let ExecutorEvent::RuntimeConfigUpdated { what } = event {
@@ -3568,9 +3568,9 @@ async fn settings_pushed_while_idle_are_what_the_next_run_starts_with() {
         let state = manager.state();
         let state = state.read().await;
         (
-            (state.observer_latitude, state.observer_longitude),
-            state.max_sun_altitude_degrees,
-            state.stop_on_quality_problems,
+            (state.settings.observer_latitude, state.settings.observer_longitude),
+            state.settings.max_sun_altitude_degrees,
+            state.settings.stop_on_quality_problems,
         )
     };
     executor.stop().await.expect("run stops");

@@ -501,7 +501,7 @@ async fn project_onto_triggers(
 ) {
     if sections.contains(&Section::AutofocusInterval) {
         if let Some(every_n_frames) = config.autofocus_interval_frames {
-            if let Some(trigger) = manager.get_trigger_mut("autofocus_interval") {
+            if let Some(trigger) = manager.standard_mut(crate::triggers::StandardTrigger::AutofocusInterval) {
                 if let TriggerType::AutofocusInterval {
                     every_n_frames: live,
                 } = &mut trigger.trigger_type
@@ -540,7 +540,7 @@ fn project_onto_trigger_state(
 ) {
     for section in sections {
         match section {
-            Section::Dither => state.dither_settle = GuiderSettle::from(&config.dither),
+            Section::Dither => state.settings.dither_settle = GuiderSettle::from(&config.dither),
             Section::Location => {
                 // A start with no site configured keeps the site the trigger
                 // state holds (a resumed run's, restored from its checkpoint);
@@ -553,15 +553,15 @@ fn project_onto_trigger_state(
             Section::MaxSunAltitude => {
                 state.set_max_sun_altitude_degrees(config.max_sun_altitude())
             }
-            Section::SafetyFailMode => state.safety_fail_mode = config.safety_fail_mode,
+            Section::SafetyFailMode => state.settings.safety_fail_mode = config.safety_fail_mode,
             Section::StopOnQualityProblems => {
-                state.stop_on_quality_problems = config.stop_on_quality_problems
+                state.settings.stop_on_quality_problems = config.stop_on_quality_problems
             }
             Section::MeridianFlip => match projection {
-                Projection::Start => state.guiding_settle = trigger_flip_settle,
+                Projection::Start => state.settings.guiding_settle = trigger_flip_settle,
                 Projection::Change => {
                     if let Some(flip) = &config.meridian_flip {
-                        state.guiding_settle = Some(GuiderSettle::from(flip));
+                        state.settings.guiding_settle = Some(GuiderSettle::from(flip));
                     }
                 }
             },
@@ -723,7 +723,7 @@ mod tests {
             .await;
         assert_eq!(rig.store.read().max_sun_altitude(), -6.0);
         assert_eq!(
-            rig.trigger_state(|state| state.max_sun_altitude_degrees)
+            rig.trigger_state(|state| state.settings.max_sun_altitude_degrees)
                 .await,
             Some(-6.0)
         );
@@ -731,7 +731,7 @@ mod tests {
         rig.update(|config| config.max_sun_altitude_degrees = None)
             .await;
         assert_eq!(
-            rig.trigger_state(|state| state.max_sun_altitude_degrees)
+            rig.trigger_state(|state| state.settings.max_sun_altitude_degrees)
                 .await,
             Some(crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES)
         );
@@ -758,9 +758,9 @@ mod tests {
         let (settle, stops, fail_mode) = rig
             .trigger_state(|state| {
                 (
-                    state.dither_settle,
-                    state.stop_on_quality_problems,
-                    state.safety_fail_mode,
+                    state.settings.dither_settle,
+                    state.settings.stop_on_quality_problems,
+                    state.settings.safety_fail_mode,
                 )
             })
             .await;
@@ -811,7 +811,7 @@ mod tests {
             rig.store.project_at_start(&mut manager).await;
         }
         assert_eq!(
-            rig.trigger_state(|state| (state.observer_latitude, state.observer_longitude))
+            rig.trigger_state(|state| (state.settings.observer_latitude, state.settings.observer_longitude))
                 .await,
             (Some(45.5), Some(-122.6))
         );
@@ -828,7 +828,7 @@ mod tests {
         })
         .await;
         assert_eq!(
-            rig.trigger_state(|state| (state.observer_latitude, state.observer_longitude))
+            rig.trigger_state(|state| (state.settings.observer_latitude, state.settings.observer_longitude))
                 .await,
             (None, None)
         );
