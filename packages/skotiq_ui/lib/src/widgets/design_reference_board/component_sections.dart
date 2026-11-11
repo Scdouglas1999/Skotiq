@@ -1,7 +1,5 @@
 part of '../design_reference_board.dart';
 
-// Components
-
 class _ComponentsSection extends StatelessWidget {
   const _ComponentsSection({required this.colors});
 
@@ -119,8 +117,6 @@ class _ComponentsSection extends StatelessWidget {
     );
   }
 }
-
-// Status + feedback
 
 class _StatusAndFeedbackSection extends StatelessWidget {
   const _StatusAndFeedbackSection({required this.colors});

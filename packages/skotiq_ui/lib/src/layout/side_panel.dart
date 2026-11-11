@@ -48,7 +48,6 @@ class SidePanel extends StatelessWidget {
   /// When given, the strip is drawn and one button per entry appears on it.
   final List<SidePanelSection>? sections;
 
-  /// Index of the selected strip section.
   final int selectedSection;
 
   /// Called with the tapped section's index.
@@ -65,16 +64,13 @@ class SidePanel extends StatelessWidget {
   /// The icon strip's width (03 §3.4 `sidePanelStripWidth`).
   static const double stripWidth = ShellChromeMetrics.sidePanelStripWidth;
 
-  /// Padding inside the content area.
   static const EdgeInsets contentPadding = SkotiqTokens.paddingLg;
 
-  /// Gap between sections.
   static const double sectionGap = SkotiqTokens.spaceLg;
 
   /// Vertical padding at the top and bottom of the strip.
   static const double stripPadding = SkotiqTokens.spaceSm;
 
-  /// Gap between strip buttons.
   static const double stripGap = 2;
 
   @override

@@ -192,7 +192,6 @@ class SkotiqDialogSurface extends StatelessWidget {
   /// Explicit height, or null to size to content.
   final double? height;
 
-  /// Padding around the body content.
   final EdgeInsets bodyPadding;
 
   /// When false, suppresses the body's internal scroll view.

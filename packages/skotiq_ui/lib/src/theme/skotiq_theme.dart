@@ -9,10 +9,8 @@ import 'skotiq_typography.dart';
 
 /// App-specific theme modes including red night for astronomy.
 enum AppThemeMode {
-  /// Standard dark theme
   dark,
 
-  /// Light theme
   light,
 
   /// Red night vision theme - preserves dark-adapted eyes
