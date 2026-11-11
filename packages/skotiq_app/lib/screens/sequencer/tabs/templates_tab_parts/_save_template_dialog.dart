@@ -1,4 +1,3 @@
-// Dialog used to save the current sequence as a template, including the target-selection option chips.
 part of '../templates_tab.dart';
 
 class _SaveTemplateDialog extends ConsumerStatefulWidget {
@@ -207,7 +206,6 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
 
                 const SizedBox(height: 24),
 
-                // Name field
                 Text(
                   'Template Name',
                   style: SkotiqTypography.h6
@@ -240,7 +238,6 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
 
                 const SizedBox(height: 20),
 
-                // Description field
                 Text(
                   'Description',
                   style: SkotiqTypography.h6
@@ -274,7 +271,6 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
 
                 const SizedBox(height: 24),
 
-                // Info about current sequence
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -311,7 +307,6 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
 
                 const SizedBox(height: 24),
 
-                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

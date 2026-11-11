@@ -1,4 +1,3 @@
-// The per-template card with its hover state, instantiate/duplicate/edit/delete actions, body chips, and the _SmallIconButton primitive used for the card's icon-only secondary actions.
 part of '../templates_tab.dart';
 
 class _TemplateCard extends ConsumerStatefulWidget {
@@ -40,14 +39,12 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
   IconData _getTemplateIcon() {
     final name = widget.template.name.toLowerCase();
-    // Beginner templates
     if (name.contains('first light')) return LucideIcons.sparkles;
     if (name.contains('osc') || name.contains('one-shot')) {
       return LucideIcons.camera;
     }
     if (name.contains('quick')) return LucideIcons.zap;
     if (name.contains('beginner')) return LucideIcons.graduationCap;
-    // Intermediate templates
     if (name.contains('ha-oiii') || name.contains('bicolor')) {
       return LucideIcons.contrast;
     }
@@ -58,7 +55,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     if (name.contains('narrowband')) return LucideIcons.waves;
     if (name.contains('multi-target')) return LucideIcons.list;
     if (name.contains('mosaic')) return LucideIcons.layoutGrid;
-    // Specialized templates
     if (name.contains('planetary')) return LucideIcons.orbit;
     if (name.contains('unattended') || name.contains('all-night')) {
       return LucideIcons.moon;
@@ -76,14 +72,12 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
   Color _getTemplateColor() {
     final name = widget.template.name.toLowerCase();
-    // Beginner templates - green/info
     if (name.contains('first light')) return widget.colors.success;
     if (name.contains('osc') || name.contains('one-shot')) {
       return widget.colors.info;
     }
     if (name.contains('quick')) return widget.colors.success;
     if (name.contains('beginner')) return widget.colors.info;
-    // Intermediate templates - primary/accent
     if (name.contains('ha-oiii') || name.contains('bicolor')) {
       return widget.colors.accent;
     }
@@ -94,7 +88,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     if (name.contains('narrowband')) return widget.colors.accent;
     if (name.contains('multi-target')) return widget.colors.primary;
     if (name.contains('mosaic')) return widget.colors.warning;
-    // Specialized templates - warning
     if (name.contains('planetary')) return widget.colors.warning;
     if (name.contains('unattended') || name.contains('all-night')) {
       return widget.colors.warning;
@@ -160,7 +153,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Icon and actions
                   Row(
                     children: [
                       Container(
@@ -220,7 +212,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
                   const SizedBox(height: 16),
 
-                  // Name
                   Text(
                     widget.template.name,
                     style: TextStyle(
@@ -234,7 +225,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
                   const SizedBox(height: 6),
 
-                  // Description
                   Expanded(
                     child: Text(
                       widget.template.description.isEmpty
@@ -252,7 +242,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
                   const SizedBox(height: 12),
 
-                  // Footer
                   Row(
                     children: [
                       Expanded(
@@ -302,7 +291,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       ),
                       const SizedBox(width: 8),
 
-                      // Use button
                       AnimatedOpacity(
                         opacity: showActions ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 150),
@@ -343,17 +331,13 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   void _useTemplate(BuildContext context) {
     final currentSequence = ref.read(currentSequenceProvider);
 
-    // Check if there are existing targets in the current sequence
     final existingTargets = currentSequence?.targetHeaders ?? [];
 
     if (existingTargets.length > 1) {
-      // Multiple targets - prompt user to choose
       _showTargetSelectionDialog(context, existingTargets);
     } else if (existingTargets.length == 1) {
-      // Single target - merge directly
       _applyTemplateToTarget(context, existingTargets.first);
     } else {
-      // No existing targets - create a new sequence from template
       _createNewSequenceFromTemplate(context);
     }
   }
@@ -446,13 +430,11 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     final newNodes = <String, SequenceNode>{};
     final idMapping = <String, String>{};
 
-    // Generate new IDs for all nodes
     for (final entry in widget.template.nodes.entries) {
       final newId = const Uuid().v4();
       idMapping[entry.key] = newId;
     }
 
-    // Clone nodes with new IDs and updated references
     for (final entry in widget.template.nodes.entries) {
       final oldNode = entry.value;
       final newId = idMapping[entry.key]!;
@@ -468,7 +450,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       );
     }
 
-    // Get the new root node ID
     final newRootId = widget.template.rootNodeId != null
         ? idMapping[widget.template.rootNodeId]
         : null;
@@ -661,7 +642,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   Future<void> _duplicateTemplate(BuildContext context) async {
     final authority = ref.read(backendProvider);
     final repository = ref.read(sequenceRepositoryProvider);
-    // Check if template has a database ID
     final dbId = widget.template.databaseId;
     if (dbId != null) {
       try {
@@ -750,7 +730,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     );
 
     try {
-      // Show confirmation dialog
       await showDialog<void>(
         context: context,
         builder: (dialogContext) {

@@ -1,4 +1,3 @@
-// Core beginner, broadband, and narrowband node-tree factories.
 part of '../templates_tab.dart';
 
 Map<String, SequenceNode> _createLrgbTemplateNodes() {

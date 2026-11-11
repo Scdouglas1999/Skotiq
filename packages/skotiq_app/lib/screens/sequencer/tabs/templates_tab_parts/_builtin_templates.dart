@@ -1,4 +1,3 @@
-// All hand-built SequenceNode-tree literals that ship as first-run templates. Pure data factory; no widget code. Owns _getBuiltInTemplates() plus its _createXxxNodes() helpers.
 part of '../templates_tab.dart';
 
 List<Sequence> _getBuiltInTemplates() {
@@ -46,7 +45,6 @@ List<Sequence> _getBuiltInTemplates() {
       nodes: _createBeginnerTemplateNodes(),
       rootNodeId: 'beginner-root',
     ),
-    // Intermediate templates
     Sequence(
       id: 'template-basic-lrgb',
       name: 'Basic LRGB Sequence',
@@ -79,7 +77,6 @@ List<Sequence> _getBuiltInTemplates() {
       nodes: _createMosaicTemplateNodes(),
       rootNodeId: 'mosaic-root',
     ),
-    // Intermediate-tier templates with condition-aware features
     Sequence(
       id: 'template-ha-oiii',
       name: 'Ha-OIII Bicolor',
@@ -121,7 +118,6 @@ List<Sequence> _getBuiltInTemplates() {
       nodes: _createMultiTargetNodes(),
       rootNodeId: 'multi-root',
     ),
-    // Specialized templates
     Sequence(
       id: 'template-planetary',
       name: 'Planetary Capture',
@@ -132,7 +128,6 @@ List<Sequence> _getBuiltInTemplates() {
       nodes: _createPlanetaryNodes(),
       rootNodeId: 'planet-root',
     ),
-    // Advanced templates with complex logic
     Sequence(
       id: 'template-unattended',
       name: 'Unattended All-Night',

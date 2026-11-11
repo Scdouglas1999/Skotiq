@@ -33,7 +33,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Selection count
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: SkotiqDecorations.statusChip(
@@ -56,7 +55,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // Copy
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.copy,
@@ -78,7 +76,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
 
                   const SizedBox(width: 4),
 
-                  // Paste
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.clipboardPaste,
@@ -105,7 +102,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
                   Container(width: 1, height: 20, color: colors.border),
                   const SizedBox(width: 8),
 
-                  // Enable
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.eye,
@@ -127,7 +123,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
 
                   const SizedBox(width: 4),
 
-                  // Disable
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.eyeOff,
@@ -151,7 +146,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
                   Container(width: 1, height: 20, color: colors.border),
                   const SizedBox(width: 8),
 
-                  // Delete
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.trash2,
@@ -171,7 +165,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
 
           const SizedBox(width: 8),
 
-          // Clear selection
           _ToolbarButton(
             colors: colors,
             icon: LucideIcons.x,
