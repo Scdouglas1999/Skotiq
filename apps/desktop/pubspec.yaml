@@ -23,6 +23,10 @@ dependencies:
     path: ../../packages/skotiq_plugins
   skotiq_remote_protocol:
     path: ../../packages/skotiq_remote_protocol
+  # The self-hostable relay tunnel. Pure Dart, under tools/ because it also
+  # ships as a standalone server.
+  skotiq_relay:
+    path: ../../tools/skotiq_relay
   skotiq_app:
     path: ../../packages/skotiq_app
   skotiq_updater:

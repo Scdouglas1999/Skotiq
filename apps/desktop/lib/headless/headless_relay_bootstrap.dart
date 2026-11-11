@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_relay/skotiq_relay.dart';
 
 import 'headless_env.dart';
 

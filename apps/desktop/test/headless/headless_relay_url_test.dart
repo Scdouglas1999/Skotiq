@@ -8,8 +8,7 @@
 // normaliser is the load-bearing, deterministic seam, so it is what we pin.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show RelayUplink;
+import 'package:skotiq_relay/skotiq_relay.dart' show RelayUplink;
 
 void main() {
   group('RelayUplink.normalizeRelayUrl — accepted schemes', () {

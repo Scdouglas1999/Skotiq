@@ -1,5 +1,5 @@
 name: skotiq_remote_protocol
-description: Skotiq remote-control protocol — LAN discovery, pairing, and secure token management.
+description: Skotiq remote API — the route table and wire models, plus the host and client sides of discovery, pairing and push.
 version: 1.0.0
 publish_to: 'none'
 
@@ -24,13 +24,6 @@ dependencies:
   nsd: ^3.0.0
   # Linux has no nsd implementation, so the desktop browse speaks mDNS itself.
   multicast_dns: ^0.3.2
-  # v4 couch-grade remote: the self-hostable relay tunnel. Pure-Dart package
-  # under tools/ (outside the melos workspace globs), so it is referenced by
-  # an explicit path dependency. Re-exported below so the desktop headless
-  # bootstrap and the mobile transport consume RelayUplink / RelayTunnelClient
-  # without each depending on tools/ directly.
-  skotiq_relay:
-    path: ../../tools/skotiq_relay
 
 dev_dependencies:
   flutter_test:
