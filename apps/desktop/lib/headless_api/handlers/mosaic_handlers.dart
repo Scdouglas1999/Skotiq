@@ -9,7 +9,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for mosaic generation
 class MosaicHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -42,8 +41,6 @@ class MosaicHandlers implements RouteSource {
   void _logInfo(String message) =>
       _logger.info(message, source: 'MosaicHandlers');
 
-  // Generate mosaic panels
-
   Future<Response> handleGeneratePanels(Request request) async {
     _logInfo('[API] POST /api/mosaic/generate-panels');
     final payload = await readJsonObject(request);
@@ -54,8 +51,6 @@ class MosaicHandlers implements RouteSource {
 
     return jsonOk({'panels': panels.map((p) => _panelToJson(p)).toList()});
   }
-
-  // Generate mosaic sequence
 
   Future<Response> handleGenerateSequence(Request request) async {
     _logInfo('[API] POST /api/mosaic/generate-sequence');
@@ -100,8 +95,6 @@ class MosaicHandlers implements RouteSource {
     });
   }
 
-  // Calculate mosaic area
-
   Future<Response> handleCalculateArea(Request request) async {
     _logInfo('[API] POST /api/mosaic/calculate-area');
     final payload = await readJsonObject(request);
@@ -115,8 +108,6 @@ class MosaicHandlers implements RouteSource {
       'totalPanels': config.totalPanels,
     });
   }
-
-  // Validate mosaic configuration
 
   Future<Response> handleValidateMosaic(Request request) async {
     _logInfo('[API] POST /api/mosaic/validate');
@@ -132,8 +123,6 @@ class MosaicHandlers implements RouteSource {
       'warnings': validation.warnings,
     });
   }
-
-  // Estimate mosaic time
 
   Future<Response> handleEstimateTime(Request request) async {
     _logInfo('[API] POST /api/mosaic/estimate-time');
@@ -675,8 +664,6 @@ class MosaicHandlers implements RouteSource {
     }
   }
 
-  // Helpers
-
   Map<String, dynamic> _collabMosaicToJson(CollabMosaic m) => {
     'mosaicId': m.mosaicId,
     if (m.ownerAccountId.isNotEmpty) 'ownerAccountId': m.ownerAccountId,
@@ -780,7 +767,6 @@ class MosaicHandlers implements RouteSource {
       'isEnabled': node.isEnabled,
     };
 
-    // Add type-specific fields
     if (node is ExposureNode) {
       base['durationSecs'] = node.durationSecs;
       base['count'] = node.count;

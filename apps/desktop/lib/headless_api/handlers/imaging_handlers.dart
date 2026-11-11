@@ -17,7 +17,6 @@ import 'filesystem_handlers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for imaging and plate solve endpoints
 class ImagingHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -88,8 +87,6 @@ class ImagingHandlers implements RouteSource {
     _logInfo('[API] $operation rejected (host-only processing)');
     return jsonBadRequest({..._hostOnlyProcessingBody, 'operation': operation});
   }
-
-  // Plate solving
 
   Future<Response> handlePlateSolve(Request request) async {
     _logInfo('[API] POST /api/plate-solve');
@@ -282,8 +279,6 @@ class ImagingHandlers implements RouteSource {
     await backend.setPlateSolverConfig(pref);
     return jsonOk({'status': 'saved'});
   }
-
-  // Image processing
 
   Future<Response> handleGetImageStats(Request request) async {
     return _rejectClientPixelUpload('POST /api/imaging/stats');

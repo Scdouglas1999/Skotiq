@@ -288,7 +288,6 @@ class FirstLightHandlers implements RouteSource {
     return parsed > _maxCandidateLimit ? _maxCandidateLimit : parsed;
   }
 
-  /// Parse the `offset` query param, flooring at 0.
   int _nonNegativeOffset(String? raw) {
     if (raw == null || raw.isEmpty) return 0;
     final parsed = int.tryParse(raw);

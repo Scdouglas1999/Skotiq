@@ -114,8 +114,6 @@ class LogHandlers implements RouteSource {
   /// a max-files knob this becomes the configured cap.
   static const int _retentionDays = 0;
 
-  // GET /api/logs — listing
-
   /// `GET /api/logs` — JSON listing of available log files.
   ///
   /// Response shape:
@@ -138,8 +136,6 @@ class LogHandlers implements RouteSource {
       'retentionDays': _retentionDays,
     });
   }
-
-  // GET /api/logs/recent — ring-buffer slice
 
   /// `GET /api/logs/recent?limit=N&minSeverity=warning`
   ///
@@ -192,8 +188,6 @@ class LogHandlers implements RouteSource {
       if (minSeverity != null) 'minSeverity': minSeverity.name,
     });
   }
-
-  // GET /api/logs/files/{filename}/download — single-file stream
 
   /// `GET /api/logs/files/{filename}/download`
   ///
@@ -365,8 +359,6 @@ class LogHandlers implements RouteSource {
       headers: {'etag': etag, 'last-modified': HttpDate.format(mtime)},
     );
   }
-
-  // GET /api/logs/tail — SSE stream
 
   /// `GET /api/logs/tail` — Server-Sent Events stream of new log entries.
   ///
@@ -594,8 +586,6 @@ class LogHandlers implements RouteSource {
     );
   }
 
-  // POST /api/logs/clear — delete non-current log files
-
   /// `POST /api/logs/clear` — delete all non-current log files.
   /// Admin-scope + audit-logged via the route_metadata table.
   Future<Response> handleClear(Request request) async {
@@ -604,8 +594,6 @@ class LogHandlers implements RouteSource {
     final status = result.errors.isEmpty ? 200 : 207; // 207 = partial success
     return jsonResponse(result.toJson(), statusCode: status);
   }
-
-  // POST /api/logs/test-entry — synthetic log emission
 
   /// `POST /api/logs/test-entry` — writes a synthetic log entry at the
   /// requested severity. Admin-scope + audit-logged.
