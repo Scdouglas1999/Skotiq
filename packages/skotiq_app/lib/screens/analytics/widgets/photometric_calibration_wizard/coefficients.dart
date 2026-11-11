@@ -280,5 +280,4 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
       });
     }
   }
-
 }

@@ -209,7 +209,9 @@ class _TopPills extends ConsumerWidget {
               : l10n.text(
                   'nightCtrSolveOff',
                   // In the unit every off-target reading uses.
-                  params: <String, String>{'offset': AngleFormat.arcsec(off * 60)},
+                  params: <String, String>{
+                    'offset': AngleFormat.arcsec(off * 60)
+                  },
                 ),
           statusTone: _PillTone.good,
         );

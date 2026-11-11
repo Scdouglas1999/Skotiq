@@ -615,5 +615,4 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       'Cannot determine image dimensions for remote catalog matching',
     );
   }
-
 }

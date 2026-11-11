@@ -38,8 +38,9 @@ class SessionElapsed {
   bool get isUnfinished => basis != SessionElapsedBasis.closed;
 
   /// The number, or an em-dash when there is nothing truthful to print.
-  String get valueLabel =>
-      duration == null ? kReadoutUnknown : DurationFormat.of(duration!, style: DurationStyle.coarse);
+  String get valueLabel => duration == null
+      ? kReadoutUnknown
+      : DurationFormat.of(duration!, style: DurationStyle.coarse);
 
   /// Qualifier that says which of the four cases produced [valueLabel]. Shown
   /// beside the value so "20m" is never read as a closed session's total.

@@ -152,14 +152,12 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
             const _CleanupHeaderRow(),
             _SummaryStatsHeader(projects: projects, colors: colors),
             const SizedBox(height: 12),
-
             _SortBar(
               currentSort: _sortMode,
               onSortChanged: (mode) => setState(() => _sortMode = mode),
               colors: colors,
             ),
             const SizedBox(height: 12),
-
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.only(bottom: 24),

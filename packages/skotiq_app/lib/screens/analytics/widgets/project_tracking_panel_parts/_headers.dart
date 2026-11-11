@@ -76,7 +76,8 @@ class _CleanupHeaderRow extends ConsumerWidget {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      context.showErrorSnackBar('Failed to remove untracked targets: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Failed to remove untracked targets: ${userFacingError(e)}');
     }
   }
 

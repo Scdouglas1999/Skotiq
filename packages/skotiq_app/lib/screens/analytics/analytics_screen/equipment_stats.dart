@@ -1,4 +1,3 @@
-
 part of '../analytics_screen.dart';
 
 /// A run's stats blob, or null when it is missing or malformed.
@@ -156,7 +155,8 @@ class _EquipmentStatsTab extends ConsumerWidget {
                     ),
                     Readout(
                       label: 'Accepted integration',
-                      value: DurationFormat.seconds(acceptedIntegration, style: DurationStyle.short),
+                      value: DurationFormat.seconds(acceptedIntegration,
+                          style: DurationStyle.short),
                       size: ReadoutSize.sm,
                     ),
                     Readout(

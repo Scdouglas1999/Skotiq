@@ -156,7 +156,6 @@ class ScienceStatusBanner extends ConsumerWidget {
 
   bool _isRecent(DateTime ts) =>
       DateTime.now().difference(ts) < const Duration(minutes: 10);
-
 }
 
 class _StatusContainer extends StatelessWidget {

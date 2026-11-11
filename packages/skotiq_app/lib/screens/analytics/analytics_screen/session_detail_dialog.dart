@@ -293,7 +293,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                       imagesAsyncValue,
                     ),
                     const SizedBox(height: SkotiqTokens.spaceLg),
-
                     imagesAsyncValue.when(
                       data: (images) =>
                           _buildImagesSection(context, colors, images),
@@ -803,7 +802,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Report export failed: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Report export failed: ${userFacingError(e)}');
       }
     }
   }

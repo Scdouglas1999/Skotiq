@@ -432,7 +432,8 @@ class _FocusImportDialogState extends State<_FocusImportDialog> {
       }
       Navigator.of(context).pop(Map<String, dynamic>.from(decoded));
     } catch (error) {
-      setState(() => _error = 'Invalid focus-data JSON: ${userFacingError(error)}');
+      setState(
+          () => _error = 'Invalid focus-data JSON: ${userFacingError(error)}');
     }
   }
 
@@ -486,7 +487,8 @@ class _PredictiveAfRow extends ConsumerWidget {
       if (predicted != null) 'predicted $predicted',
       if (confidence != null) 'R² ${confidence.toStringAsFixed(2)}',
       if (status.actualPosition != null) 'actual ${status.actualPosition}',
-      if (error != null) 'Δ ${error >= 0 ? '+' : ''}${userFacingError(error)} steps',
+      if (error != null)
+        'Δ ${error >= 0 ? '+' : ''}${userFacingError(error)} steps',
     ];
 
     final tone = switch (status.decision) {

@@ -1,4 +1,3 @@
-
 part of '../analytics_screen.dart';
 
 class _SessionTab extends ConsumerStatefulWidget {
@@ -433,9 +432,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                   ),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
-
                 const SizedBox(height: SkotiqTokens.space2xl),
-
                 SkotiqPanel(
                   head: PanelHead(
                     icon: LucideIcons.image,

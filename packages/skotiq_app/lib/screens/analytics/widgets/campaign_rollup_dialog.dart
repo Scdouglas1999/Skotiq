@@ -219,7 +219,6 @@ class _Body extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
                 if (totalPct != null) ...[
                   _OverallProgress(
                     pct: totalPct,
@@ -230,7 +229,6 @@ class _Body extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                 ],
-
                 _SectionTitle(
                   title: 'Per-filter progress',
                   icon: LucideIcons.layers,
@@ -254,7 +252,6 @@ class _Body extends StatelessWidget {
                 else
                   for (final f in rollup.filters)
                     _FilterRow(filter: f, colors: colors),
-
                 const SizedBox(height: 16),
                 _SectionTitle(
                   title: 'Sessions',

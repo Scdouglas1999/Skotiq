@@ -420,7 +420,6 @@ extension _PhotometricWizardFrameSelection
     return 'Alt ${altitudeDeg!.toStringAsFixed(1)}° · X '
         '${airmass.toStringAsFixed(2)}';
   }
-
 }
 
 /// The airmass the extinction fit will use for a frame, or null when the frame

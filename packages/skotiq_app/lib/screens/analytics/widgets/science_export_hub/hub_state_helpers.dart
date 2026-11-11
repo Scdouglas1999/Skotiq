@@ -384,7 +384,8 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         _isExporting = false;
         _lastExportResult = 'Report generation failed: ${userFacingError(e)}';
       });
-      context.showErrorSnackBar('Report generation failed: ${userFacingError(e)}');
+      context
+          .showErrorSnackBar('Report generation failed: ${userFacingError(e)}');
     }
   }
 

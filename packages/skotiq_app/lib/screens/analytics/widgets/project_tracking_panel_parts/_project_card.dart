@@ -176,9 +176,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           if (progress.isTracked) ...[
             Row(
               children: [
@@ -208,7 +206,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-
           Wrap(
             spacing: 20,
             runSpacing: 8,
@@ -252,7 +249,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
             ],
           ),
-
           if (filterBreakdown.isNotEmpty) ...[
             const SizedBox(height: 12),
             _FilterBreakdownRow(
@@ -260,7 +256,6 @@ class _EnhancedProjectCard extends ConsumerWidget {
               colors: colors,
             ),
           ],
-
           if (progress.lastSessionAt != null) ...[
             const SizedBox(height: 10),
             Text(

@@ -1,4 +1,3 @@
-
 // Small formatters shared by the center column's widgets. Times arrive on
 // the operator's clock already (the view models' rule), so these only print.
 

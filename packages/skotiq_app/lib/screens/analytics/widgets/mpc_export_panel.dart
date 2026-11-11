@@ -511,8 +511,6 @@ class _ObservationGroupTile extends StatelessWidget {
         '${utc.hour.toString().padLeft(2, '0')}:'
         '${utc.minute.toString().padLeft(2, '0')} UTC';
   }
-
-
 }
 
 class _SmallActionButton extends StatelessWidget {

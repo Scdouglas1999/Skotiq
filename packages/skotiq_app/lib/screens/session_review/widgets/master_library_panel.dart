@@ -269,7 +269,6 @@ class _MasterCard extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _Thumb extends StatelessWidget {
