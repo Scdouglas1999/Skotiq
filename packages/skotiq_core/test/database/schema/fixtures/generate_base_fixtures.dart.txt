@@ -1,0 +1,315 @@
+// Generator for the schema fixtures. Run at the BASE commit (c04d55c8d):
+//
+//   see README.md beside this file
+//   cd <base>/packages/skotiq_core
+//   NS_FIXTURE_OUT=<dir> flutter test test/gen_base_fixture_test.dart
+//
+// Writes <dir>/base_fresh_schema.json (structural dump of a database the base
+// code creates from nothing) and <dir>/base_populated.db (a base database with
+// at least one row in every table, the service-created tables included).
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/models/replay_decision.dart';
+import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
+import 'package:skotiq_core/src/models/scheduler/target_constraint.dart';
+import 'package:skotiq_core/src/services/conversational_builder/conversational_history_service.dart';
+import 'package:skotiq_core/src/services/conversational_builder/llm_provider.dart';
+import 'package:skotiq_core/src/services/darkroom_state_store.dart';
+import 'package:skotiq_core/src/services/notes_service.dart';
+import 'package:skotiq_core/src/services/planning/project_service.dart';
+import 'package:skotiq_core/src/services/replay_debug_service.dart';
+import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
+import 'package:skotiq_core/src/services/scheduler/scheduler_queue_service.dart';
+import 'package:skotiq_core/src/services/scheduler/target_constraint_service.dart';
+import 'package:sqlite3/sqlite3.dart' as raw;
+
+import 'schema_dump.dart';
+
+/// Values the type-driven fill cannot guess: a `CHECK` across two columns, or
+/// a text column a typed reader decodes.
+const Map<String, Map<String, Object?>> _overrides = {
+  'recipes': {'divergence_index': null, 'parent_recipe_id': null},
+};
+
+String? _firstCheckLiteral(String sql, String column) {
+  final match = RegExp(
+    '\\b$column\\s+IN\\s*\\(\\s*\'([^\']*)\'',
+    caseSensitive: false,
+  ).firstMatch(sql);
+  return match?.group(1);
+}
+
+Object? _valueFor(
+  raw.Database db,
+  String table,
+  String tableSql,
+  raw.Row column,
+  Map<String, (String, String?)> foreignKeys,
+) {
+  final name = column['name'] as String;
+  final overrides = _overrides[table];
+  if (overrides != null && overrides.containsKey(name)) return overrides[name];
+  final fk = foreignKeys[name];
+  if (fk != null) {
+    final (refTable, refColumn) = fk;
+    final target =
+        refColumn ??
+        (db
+                .select('PRAGMA table_info("$refTable")')
+                .firstWhere((c) => c['pk'] == 1)['name']
+            as String);
+    final rows = db.select('SELECT "$target" AS v FROM "$refTable" LIMIT 1');
+    return rows.isEmpty ? null : rows.first['v'];
+  }
+  final type = (column['type'] as String).toUpperCase();
+  final defaultValue = column['dflt_value'] as String?;
+  if (type.contains('INT')) return 1;
+  if (type.contains('REAL') || type.contains('FLOA') || type.contains('DOUB')) {
+    return 0.5;
+  }
+  if (type.contains('BLOB')) return Uint8List.fromList([1, 2, 3]);
+  if (type.contains('TEXT') || type.contains('CHAR')) {
+    final allowed = _firstCheckLiteral(tableSql, name);
+    if (allowed != null) return allowed;
+    if (defaultValue != null &&
+        defaultValue.startsWith("'") &&
+        defaultValue.endsWith("'")) {
+      return defaultValue.substring(1, defaultValue.length - 1);
+    }
+    if (name.contains('json')) return '{}';
+    return 'x_$name';
+  }
+  return 1;
+}
+
+/// One row into every table that has none, in foreign-key order.
+void _fillEmptyTables(raw.Database db) {
+  db.execute('PRAGMA foreign_keys = ON');
+  var remaining = [
+    for (final row in db.select(
+      "SELECT name, sql FROM sqlite_master WHERE type = 'table' "
+      "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    ))
+      (row['name'] as String, row['sql'] as String),
+  ];
+  final errors = <String, Object>{};
+  while (remaining.isNotEmpty) {
+    final next = <(String, String)>[];
+    for (final (table, sql) in remaining) {
+      final count =
+          db.select('SELECT COUNT(*) AS n FROM "$table"').first['n'] as int;
+      if (count > 0) continue;
+      final foreignKeys = <String, (String, String?)>{
+        for (final f in db.select('PRAGMA foreign_key_list("$table")'))
+          f['from'] as String: (f['table'] as String, f['to'] as String?),
+      };
+      final columns = db
+          .select('PRAGMA table_xinfo("$table")')
+          .where((c) => c['hidden'] == 0)
+          .toList();
+      final names = <String>[];
+      final values = <Object?>[];
+      var blocked = false;
+      for (final column in columns) {
+        final name = column['name'] as String;
+        final value = _valueFor(db, table, sql, column, foreignKeys);
+        final parent = foreignKeys[name];
+        if (value == null &&
+            parent != null &&
+            parent.$1 != table &&
+            !(_overrides[table]?.containsKey(name) ?? false)) {
+          // The referenced table has no row yet: come back after it has.
+          blocked = true;
+          break;
+        }
+        names.add('"$name"');
+        values.add(value);
+      }
+      if (blocked) {
+        next.add((table, sql));
+        continue;
+      }
+      try {
+        db.execute(
+          'INSERT INTO "$table" (${names.join(', ')}) '
+          'VALUES (${List.filled(names.length, '?').join(', ')})',
+          values,
+        );
+        errors.remove(table);
+      } catch (error) {
+        errors[table] = error;
+        next.add((table, sql));
+      }
+    }
+    if (next.length == remaining.length) {
+      throw StateError(
+        'Could not fill: ${next.map((t) => t.$1).join(', ')}\n$errors',
+      );
+    }
+    remaining = next;
+  }
+}
+
+void main() {
+  test('write the base schema fixtures', () async {
+    final out = Directory(Platform.environment['NS_FIXTURE_OUT']!);
+    out.createSync(recursive: true);
+
+    final freshFile = File('${out.path}/base_fresh.db');
+    if (freshFile.existsSync()) freshFile.deleteSync();
+    var db = SkotiqDatabase.forTesting(NativeDatabase(freshFile));
+    await db.customSelect('SELECT 1').get();
+    await db.close();
+    var rawDb = raw.sqlite3.open(freshFile.path);
+    File('${out.path}/base_fresh_schema.json').writeAsStringSync(
+      const JsonEncoder.withIndent(' ').convert(dumpSchema(rawDb)),
+    );
+    rawDb.dispose();
+    freshFile.deleteSync();
+
+    final file = File('${out.path}/base_populated.db');
+    if (file.existsSync()) file.deleteSync();
+    db = SkotiqDatabase.forTesting(NativeDatabase(file));
+    await db.customSelect('SELECT 1').get();
+    await db.close();
+
+    rawDb = raw.sqlite3.open(file.path);
+    _fillEmptyTables(rawDb);
+    rawDb.dispose();
+
+    // Rows written by the base services, which also create their tables.
+    db = SkotiqDatabase.forTesting(NativeDatabase(file));
+    final targetId =
+        (await db.customSelect('SELECT id FROM targets LIMIT 1').getSingle())
+            .read<int>('id');
+    final goals = IntegrationGoalService(db);
+    await goals.upsert(
+      IntegrationGoal(
+        targetId: targetId,
+        filter: 'Ha',
+        exposureSeconds: 300,
+        frameCount: 40,
+        priority: 7,
+        createdAt: DateTime.utc(2026, 10, 1, 3),
+      ),
+    );
+    final constraints = TargetConstraintService(db);
+    await constraints.insert(
+      TargetConstraint(
+        targetId: targetId,
+        kind: TargetConstraintKind.moonIlluminationMax,
+        moonIlluminationMax: 0.3,
+      ),
+    );
+    final queue = SchedulerQueueService(db);
+    await queue.remove(targetId);
+    final notes = NotesService(db);
+    await notes.addNote(
+      targetId: 'M31',
+      sequenceRunId: 1,
+      body: 'Thin cloud after midnight.',
+      title: 'First night',
+      tags: const ['seeing', 'cloud'],
+      attachments: const ['/tmp/a.png'],
+      sentiment: 'neutral',
+    );
+    await notes.addNote(targetId: 'M42', body: 'No title, no run.');
+    final replay = ReplayDebugService(db);
+    await replay.persist(
+      ReplayDecision(
+        id: null,
+        sequenceRunId: 1,
+        timestamp: DateTime.utc(2026, 10, 1, 4),
+        category: DecisionCategory.triggerFired,
+        summary: 'Autofocus trigger fired',
+        details: const {'hfr': 2.4},
+        nodeId: 'node-1',
+      ),
+    );
+    await replay.persist(
+      ReplayDecision(
+        id: null,
+        sequenceRunId: null,
+        timestamp: DateTime.utc(2026, 10, 1, 5),
+        category: DecisionCategory.systemEvent,
+        summary: 'No run',
+        details: const {},
+      ),
+    );
+    final projects = ProjectService(db, goals);
+    final projectId = await projects.createProject(
+      name: 'Autumn galaxies',
+      description: 'Two nights',
+      colorArgb: 0xFF336699,
+    );
+    await projects.addTarget(
+      projectId: projectId,
+      targetId: targetId,
+      priorityOverride: 9,
+    );
+    await DarkroomStateStore(db).write('master_builds', {
+      'jobs': [1, 2],
+    });
+    final history = ConversationalHistoryService(db);
+    await history.record(
+      userPrompt: 'Image M31 in LRGB',
+      providerName: 'local',
+      providerKind: LlmProviderKind.ollama,
+      rounds: 2,
+      successful: true,
+      usage: const LlmUsage(
+        promptTokens: 10,
+        completionTokens: 20,
+        totalTokens: 30,
+      ),
+      issueRecords: const [
+        {'severity': 'warning', 'message': 'm'},
+      ],
+      acceptedSequenceId: 'seq-1',
+      systemPrompt: 'system',
+      rawReplies: const ['{}'],
+    );
+    await history.record(
+      userPrompt: 'No usage',
+      providerName: 'local',
+      providerKind: LlmProviderKind.ollama,
+      rounds: 1,
+      successful: false,
+      usage: null,
+      issueRecords: const [],
+      acceptedSequenceId: null,
+      systemPrompt: '',
+      rawReplies: const [],
+    );
+    // Nothing in the base writes `horizon_profiles`; the scheduler candidate
+    // loader creates it from this DDL and only reads it.
+    await db.customStatement(horizonProfilesSchemaSql);
+    await db.customStatement(
+      'INSERT INTO horizon_profiles (name, samples_json) VALUES (?, ?)',
+      ['Back yard', '[{"az":0.0,"alt":12.0},{"az":180.0,"alt":20.0}]'],
+    );
+    await goals.dispose();
+    await constraints.dispose();
+    await notes.dispose();
+    await replay.dispose();
+    await projects.dispose();
+    await history.dispose();
+    await db.close();
+
+    rawDb = raw.sqlite3.open(file.path);
+    _fillEmptyTables(rawDb);
+    final counts = dumpRowCounts(rawDb);
+    final empty = counts.entries.where((e) => e.value == 0).toList();
+    expect(empty, isEmpty);
+    expect(rawDb.select('PRAGMA integrity_check').first.values.first, 'ok');
+    expect(rawDb.select('PRAGMA foreign_key_check'), isEmpty);
+    // ignore: avoid_print
+    print('tables: ${counts.length}');
+    rawDb.dispose();
+  });
+}
