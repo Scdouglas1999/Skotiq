@@ -82,7 +82,7 @@ fn qhy_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Discovery(NotThreadSafe)` / `Discovery(RequiresSerializedDiscovery)` /
         // `Discovery(RequiresSdkInit)` — `vendor/qhy.rs` already enforces all three:
-        //   * concurrent access guarded by `qhy_mutex()` on every FFI call;
+        //   * concurrent access guarded by the `QhySdk` lock guard on every FFI call;
         //   * `QhySdk::ensure_initialized()` is called from `connect()` and
         //     `discover_devices_internal()` before any other SDK call.
         // The `DiscoveryTimeoutMs` quirk is retained because `qhy.rs::get_discovery_config()`
@@ -115,7 +115,7 @@ fn qhy_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
 fn player_one_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
         // REMOVED: `Discovery(NotThreadSafe)` / `Discovery(RequiresSerializedDiscovery)` —
-        // `vendor/player_one.rs` already serializes every SDK call via `player_one_mutex()`,
+        // `vendor/player_one.rs` already serializes every SDK call on the Player One SDK lock,
         // so these were dead by design.
         //
         // The Temperature `RequiresDelayMs(50)` is consumed by
@@ -140,7 +140,7 @@ fn svbony_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // quirk on top would double-scale.
         //
         // REMOVED: `Discovery(NotThreadSafe)` — `vendor/svbony.rs` already serializes every
-        // SDK call (including discovery) through `svbony_mutex()`. The quirk had no live
+        // SDK call (including discovery) through the `SvbonySdk` lock guard. The quirk had no live
         // call site outside tests.
         //
         // The SDK-init settle delay is retained as a real `DelayAfterConnect` because the
@@ -166,7 +166,7 @@ fn atik_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // quirk would double-scale.
         //
         // REMOVED: `Discovery(NotThreadSafe)` — Atik discovery and runtime calls already
-        // serialize on `atik_mutex()`.
+        // serialize on the `AtikSdk` lock guard.
         // (
         //     QuirkMatcher::VendorWide,
         //     vec![ ... ],
@@ -210,7 +210,7 @@ fn touptek_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // ~1128). The quirk would double-scale.
         //
         // REMOVED: `Discovery(NotThreadSafe)` — Touptek discovery and runtime SDK calls
-        // serialize on `touptek_mutex()`.
+        // serialize on `TOUPTEK_SDK_LOCK`.
 
         // OGMA-branded Touptek cameras (e.g. OGMA AP26CC) ship with a
         // documented USB-init grace period: the brand's firmware enumerates

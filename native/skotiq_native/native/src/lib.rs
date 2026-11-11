@@ -29,7 +29,6 @@ pub mod camera {
 pub mod catalog;
 pub mod discovery;
 pub mod quirks;
-pub mod sync;
 pub mod traits {
     pub use skotiq_device::{
         CameraDriver as NativeCamera, DeviceDriver as NativeDevice, DriverError as NativeError,
@@ -44,7 +43,6 @@ pub mod vendor;
 pub use camera::*;
 pub use discovery::*;
 pub use quirks::*;
-pub use sync::*;
 pub use traits::*;
 pub use utils::*;
 pub use vendor::*;

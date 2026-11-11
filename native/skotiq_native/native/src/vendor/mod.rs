@@ -4,11 +4,12 @@
 //!
 //! ## SDK loading
 //!
-//! Path search + library open + symbol resolution + `OnceLock` storage is shared
-//! across all vendors via [`sdk_loader`]. New vendors should use the
-//! `load_vendor_sdk!` macro instead of duplicating the boilerplate.
+//! Path search, library open, symbol resolution, lazy storage and the lock
+//! that serializes calls into each SDK are shared across all vendors via
+//! [`sdk_loader`]. New vendors should use the `load_vendor_sdk!` macro instead
+//! of duplicating the boilerplate.
 
-// Shared SDK loading infrastructure (trait + macro + path-search helper).
+// Shared SDK loading infrastructure (slot + guard + macro + path-search helper).
 pub mod sdk_loader;
 
 // Camera SDKs

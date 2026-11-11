@@ -116,3 +116,8 @@ pub async fn discover_devices() -> Result<Vec<MoravianCameraInfo>, NativeError> 
 
     Ok(devices)
 }
+
+/// Check if the Moravian gxccd SDK is available
+pub fn is_sdk_available() -> bool {
+    MoravianSdk::is_available()
+}

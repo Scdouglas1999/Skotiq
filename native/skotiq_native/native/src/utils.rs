@@ -5,8 +5,8 @@
 //! - Overflow-safe buffer size calculations
 //! - A cleanup guard for half-opened devices
 //!
-//! Note: Per-vendor SDK mutexes are defined in `sync.rs`, not here.
-//! Use functions like `zwo_camera_mutex()`, `qhy_mutex()`, etc. from `crate::sync`.
+//! Note: each vendor SDK's lock lives with its function table
+//! (`vendor::sdk_loader::SdkSlot`), not here.
 
 use crate::traits::NativeError;
 use std::ffi::c_char;
