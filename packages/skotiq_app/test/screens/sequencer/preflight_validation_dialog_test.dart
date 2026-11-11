@@ -169,6 +169,26 @@ void main() {
     expect(top('Tilt changed'), lessThan(top('Time Sync Check Unavailable')));
   });
 
+  testWidgets('a blocked start does not wear the start color', (tester) async {
+    await pumpDialog(
+      tester: tester,
+      issues: const [
+        ValidationIssue(
+          severity: ValidationSeverity.error,
+          category: ValidationCategory.equipment,
+          title: 'No plate solver',
+          description: 'No plate solver',
+        ),
+      ],
+    );
+    final start = tester.widget<SkotiqButton>(find.byWidgetPredicate(
+      (widget) =>
+          widget is SkotiqButton && widget.label.startsWith('Start sequence'),
+    ));
+    expect(start.onPressed, isNull);
+    expect(start.variant, isNot(ButtonVariant.start));
+  });
+
   testWidgets('renders compact simulation summary when location is set',
       (tester) async {
     final target = TargetHeaderNode(
