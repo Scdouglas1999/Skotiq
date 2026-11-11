@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 
 import '../backend/skotiq_backend.dart';
 import '../models/backend/host_mutation_event.dart';
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
 import '../services/dark_library_service.dart';
@@ -157,26 +158,18 @@ class CalibrationResult {
 /// bias correction) via the FFI bridge.
 class CalibrationService {
   final Ref _ref;
-  final SkotiqBackend _backend;
-  final BackendNotifier _backendNotifier;
+  final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
-  bool _retired = false;
 
-  CalibrationService(Ref ref, {SkotiqBackend? backend})
+  CalibrationService(Ref ref)
     : _ref = ref,
-      _backend = backend ?? ref.read(backendProvider),
-      _backendNotifier = ref.read(backendProvider.notifier),
+      _host = ref.providerBackendScope(),
       _logger = ref.read(loggingServiceProvider);
 
   DarkLibraryService get _darkLibrary => _ref.read(darkLibraryServiceProvider);
 
-  bool get _hasAuthority =>
-      !_retired && _backendNotifier.isCurrentBackend(_backend);
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
+  void _ensureSameHost() {
+    if (_host.isCurrent) return;
     throw StateError(
       'The imaging host changed while calibration was in progress. The '
       'outgoing result was discarded; calibrate the frame again on the '
@@ -204,10 +197,10 @@ class CalibrationService {
     int binY = 1,
     double? sensorTemperature,
   }) async {
-    _ensureAuthority();
+    _ensureSameHost();
     _logger.info('Calibrating: $lightPath', source: 'CalibrationService');
 
-    final backend = _backend;
+    final backend = _host.value;
     final host = backend.remoteHost?.calibrationTools;
     final isRemote = host != null;
 
@@ -232,7 +225,7 @@ class CalibrationService {
           binY: binY,
           temperature: sensorTemperature,
         );
-        _ensureAuthority();
+        _ensureSameHost();
         if (matchedHostPath != null) {
           darkPath = matchedHostPath;
           _logger.info(
@@ -259,7 +252,7 @@ class CalibrationService {
           temperature: sensorTemperature,
           tolerances: tolerances,
         );
-        _ensureAuthority();
+        _ensureSameHost();
         if (matchingDark != null) {
           darkPath = matchingDark.filePath;
           _logger.info(
@@ -292,7 +285,7 @@ class CalibrationService {
     // Validate files exist (local filesystem only — remote paths are
     // validated on the headless host inside POST /api/imaging/calibrate-file).
     if (!isRemote) {
-      _ensureAuthority();
+      _ensureSameHost();
       if (darkPath != null && !File(darkPath).existsSync()) {
         throw FileSystemException('Dark frame file not found', darkPath);
       }
@@ -326,7 +319,7 @@ class CalibrationService {
         final backupPath = '$lightPath.uncal';
         if (!File(backupPath).existsSync()) {
           await File(lightPath).copy(backupPath);
-          _ensureAuthority();
+          _ensureSameHost();
           _logger.info(
             'Backed up original to: $backupPath',
             source: 'CalibrationService',
@@ -335,7 +328,7 @@ class CalibrationService {
       }
     }
 
-    _ensureAuthority();
+    _ensureSameHost();
     await backend.calibrateImageFile(
       lightPath: lightPath,
       darkPath: darkPath,
@@ -343,7 +336,7 @@ class CalibrationService {
       biasPath: biasPath,
       outputPath: effectiveOutputPath,
     );
-    _ensureAuthority();
+    _ensureSameHost();
 
     _logger.info(
       'Calibration complete: $effectiveOutputPath '
@@ -403,10 +396,8 @@ class CalibrationService {
 
 /// Provider for the CalibrationService.
 final calibrationServiceProvider = Provider<CalibrationService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = CalibrationService(ref, backend: backend);
-  ref.onDispose(service.retire);
-  return service;
+  ref.watch(backendProvider);
+  return CalibrationService(ref);
 });
 
 /// Provider for calibration settings, loaded from app settings.
