@@ -2,14 +2,6 @@
 part of '../guiding_screen.dart';
 
 mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
-  /// PHD2 reports guide residuals in pixels (RADistanceRaw/AvgDist). When a
-  /// pixel scale (arcsec/px) is known we present arcseconds; otherwise we show
-  /// the raw pixel value labelled "px" rather than mislabelling it as arcsec.
-  ({double value, String unit}) _rmsReadout(double raw, double pixelScale) {
-    if (pixelScale > 0) return (value: raw * pixelScale, unit: '"');
-    return (value: raw, unit: ' px');
-  }
-
   /// Pull a human-readable message out of whatever the brain-params fetch
   /// threw. `StateError` (our explicit empty-dump guard) carries a clean
   /// sentence; everything else falls back to its string form.
@@ -27,16 +19,6 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     if (snr >= 5) return colors.warning;
     return colors.error;
   }
-
-  /// Per-frame guide error, converted for display the same way the RMS
-  /// readouts are. The guider reports residuals in guide-camera pixels while
-  /// the graph and bullseye axes are arcseconds, so at a typical 2-4"/px guide
-  /// scale the raw pixels understate the real error several-fold.
-  double _errorForDisplay(double px, double pixelScale) =>
-      pixelScale > 0 ? px * pixelScale : px;
-
-  /// Unit suffix matching [_errorForDisplay].
-  String _errorUnit(double pixelScale) => pixelScale > 0 ? '"' : ' px';
 
   /// Copy for the guide-star preview while [starImageProvider] holds no image.
   ///

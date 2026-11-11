@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../utils/guide_distance.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/session/session_format.dart';
@@ -700,7 +701,7 @@ class _GuideChart extends ConsumerWidget {
     final vm = ref.watch(nightGuideSeriesProvider);
     final window = ref.watch(nightGuideWindowProvider);
     // Arcseconds only when the guider reports its pixel scale.
-    final arcsec = ref.watch(nightGuideScaleProvider) != null;
+    final arcsec = ref.watch(guideScaleProvider) != null;
     String unit(String key) => arcsec ? '${key}Arcsec' : key;
     final title = l10n.text('nightCtrChartGuide');
     final ra = _values(_lineOf(vm, NightSeriesId.guideRa));

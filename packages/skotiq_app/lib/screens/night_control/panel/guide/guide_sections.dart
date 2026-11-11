@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../../utils/guide_distance.dart';
 import '../../../../localization/skotiq_localizations.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/session/equipment_summary_provider.dart'
@@ -39,7 +40,7 @@ class NightGuideStarSection extends ConsumerWidget {
     final image = ref.watch(starImageProvider);
     final samples = ref.watch(nightGuideRecentSamplesProvider);
     final rms = ref.watch(nightGuideRmsProvider);
-    final scale = ref.watch(nightGuideScaleProvider);
+    final scale = ref.watch(guideScaleProvider);
     final lost = ref.watch(
       nightSessionEventsProvider.select((events) => events.starLost),
     );

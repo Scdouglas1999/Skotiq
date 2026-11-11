@@ -602,13 +602,21 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           (
             'RA RMS',
             state.rmsRa != null
-                ? '${state.rmsRa!.toStringAsFixed(3)}"'
+                ? guideDistanceText(
+                    state.rmsRa!,
+                    ref.watch(guideScaleProvider),
+                    decimals: 3,
+                  )
                 : kReadoutUnknown
           ),
           (
             'Dec RMS',
             state.rmsDec != null
-                ? '${state.rmsDec!.toStringAsFixed(3)}"'
+                ? guideDistanceText(
+                    state.rmsDec!,
+                    ref.watch(guideScaleProvider),
+                    decimals: 3,
+                  )
                 : kReadoutUnknown
           ),
           ('Calibrating', state.isCalibrating ? 'Yes' : 'No'),

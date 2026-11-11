@@ -497,15 +497,21 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
 
       case ConnectedDeviceType.guider:
         final state = ref.watch(guiderStateProvider);
+        final scale = ref.watch(guideScaleProvider);
+        final total = state.rmsTotal == null
+            ? null
+            : guideDistance(state.rmsTotal!, scale);
+        final ra =
+            state.rmsRa == null ? null : guideDistance(state.rmsRa!, scale);
         return [
           _DeviceMetric(
-            value: state.rmsTotal?.toStringAsFixed(2),
-            unit: '"',
+            value: total?.value.toStringAsFixed(2),
+            unit: (total ?? guideDistance(0, scale)).unit,
             label: 'RMS total',
           ),
           _DeviceMetric(
-            value: state.rmsRa?.toStringAsFixed(2),
-            unit: '"',
+            value: ra?.value.toStringAsFixed(2),
+            unit: (ra ?? guideDistance(0, scale)).unit,
             label: 'RMS RA',
           ),
           _DeviceMetric(

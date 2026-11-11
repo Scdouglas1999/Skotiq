@@ -12,6 +12,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/device_format_utils.dart';
 import '../../../widgets/operation_status_bar.dart';
 import '../../settings/settings_sections.dart';
+import '../../../utils/guide_distance.dart';
 
 /// What the shell actually knows about the configured capture directory.
 ///
@@ -247,6 +248,7 @@ class RigCard extends ConsumerWidget {
         ),
       ),
     );
+    final guideScale = ref.watch(guideScaleProvider);
     final focuserState = ref.watch(
       focuserStateProvider.select(
         (s) => (connectionState: s.connectionState, position: s.position),
@@ -373,12 +375,13 @@ class RigCard extends ConsumerWidget {
         trailing: guiderConnected &&
                 guiderState.isGuiding &&
                 guiderState.rmsTotal != null
-            ? '${guiderState.rmsTotal!.toStringAsFixed(2)}"'
+            ? guideDistanceText(guiderState.rmsTotal!, guideScale)
             : null,
         trailingSemanticLabel: guiderConnected &&
                 guiderState.isGuiding &&
                 guiderState.rmsTotal != null
-            ? 'Guiding RMS ${guiderState.rmsTotal!.toStringAsFixed(2)} arcseconds'
+            ? 'Guiding RMS '
+                '${guideDistanceSpoken(guiderState.rmsTotal!, guideScale)}'
             : null,
       ),
       _RigRow(

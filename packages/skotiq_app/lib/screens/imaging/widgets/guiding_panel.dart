@@ -8,6 +8,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
 import 'panel_widgets.dart';
+import '../../../utils/guide_distance.dart';
 
 part 'guiding_panel_parts/_builtin_guider_config.dart';
 part 'guiding_panel_parts/_guide_graph_and_stars.dart';
@@ -151,11 +152,10 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   static String _guideErrorText(
     double value, {
     required bool hasSamples,
-    required double pixelScale,
+    required double? pixelScale,
   }) {
     if (!hasSamples) return '—';
-    if (pixelScale > 0) return '${(value * pixelScale).toStringAsFixed(2)}"';
-    return '${value.toStringAsFixed(2)} px';
+    return guideDistanceText(value, pixelScale);
   }
 
   @override
@@ -178,7 +178,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
     // bumped axis that an averaged figure would smooth away.
     final guideStats = ref.watch(guideStatsProvider);
     final hasGuideSamples = guideStats.frameCount > 0;
-    final pixelScale = guideStats.pixelScale;
+    final pixelScale = ref.watch(guideScaleProvider);
     final rmsRa = _guideErrorText(
       guideStats.rmsRa,
       hasSamples: hasGuideSamples,

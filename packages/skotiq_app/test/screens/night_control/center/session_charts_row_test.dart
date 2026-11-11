@@ -8,6 +8,7 @@ import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart'
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -126,7 +127,7 @@ void main() {
             ],
           ),
         ),
-        nightGuideScaleProvider.overrideWithValue(1.5),
+        guideScaleProvider.overrideWithValue(1.5),
       ],
       child: const SessionChartsRow(),
       size: const Size(1200, 120),

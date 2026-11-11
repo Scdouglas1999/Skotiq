@@ -18,6 +18,7 @@ import '../utils/meridian_flip_pointer.dart';
 import 'device_tile_width.dart';
 import '../utils/profile_mutation_epoch.dart';
 import '../utils/session_device_save.dart';
+import '../../../utils/guide_distance.dart';
 
 part 'connected_device_card/status_and_display.dart';
 part 'connected_device_card/actions_and_telemetry.dart';

@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../../../utils/guide_distance.dart';
 import '../../night_control_contracts.dart';
 import 'night_history_sync.dart';
 import 'session_events_provider.dart';
@@ -322,26 +323,6 @@ double _rms(Iterable<double> values) {
   return math.sqrt(sum / n);
 }
 
-/// The guide camera's arcseconds per pixel as the guider reports it, or null
-/// when it has not reported one; guide distances are then in pixels.
-final nightGuideScaleProvider = Provider<double?>((ref) {
-  final scale = ref.watch(
-    guiderStateProvider.select((g) => g.pixelScaleArcsecPerPixel),
-  );
-  return scale != null && scale.isFinite && scale > 0 ? scale : null;
-});
-
-/// A guide distance of [px] pixels: `0.42″` when [arcsecPerPixel] is known,
-/// `0.31 px` otherwise.
-String nightGuideDistance(
-  double px,
-  double? arcsecPerPixel, {
-  int decimals = 2,
-}) =>
-    arcsecPerPixel == null
-        ? '${px.toStringAsFixed(decimals)} px'
-        : '${(px * arcsecPerPixel).toStringAsFixed(decimals)}″';
-
 /// The guiding chart's lines (arcseconds when the scale is known, else
 /// pixels), dither marks and legend.
 final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
@@ -350,10 +331,10 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
     ref.watch(nightGuideSamplesProvider),
     window,
   );
-  final scale = ref.watch(nightGuideScaleProvider);
+  final scale = ref.watch(guideScaleProvider);
   // Pixels stay pixels when the guider has not reported a scale.
   double shown(double px) => scale == null ? px : px * scale;
-  String distance(double px) => nightGuideDistance(px, scale);
+  String distance(double px) => guideDistanceText(px, scale);
   final dithers = ref.watch(
     nightSessionEventsProvider.select((events) => events.dithers),
   );

@@ -14,11 +14,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../utils/confirm_dialog.dart';
+import '../../../../utils/guide_distance.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../widgets/phd2_connection_dialog.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
-import '../../data/session/guide_series_provider.dart';
 import '../../night_control_contracts.dart';
 import '../mount/night_panel_parts.dart';
 import 'guide_metrics.dart';
@@ -243,7 +243,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     final mass = measured && stats.starMass > 0 ? stats.starMass : null;
 
     // Arcseconds when the guider reports its pixel scale, else pixels.
-    final scale = ref.watch(nightGuideScaleProvider);
+    final scale = ref.watch(guideScaleProvider);
     final metrics = [
       MetricGridItem(
         label: l10n.text('nightScopeGuideRaRms'),

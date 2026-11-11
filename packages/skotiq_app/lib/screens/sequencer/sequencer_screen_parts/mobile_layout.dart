@@ -259,7 +259,10 @@ class _MobileTelemetryStrip extends ConsumerWidget {
           icon: LucideIcons.crosshair,
           value: guider.isGuiding
               ? (guider.rmsTotal != null
-                  ? '${guider.rmsTotal!.toStringAsFixed(2)}"'
+                  ? guideDistanceText(
+                      guider.rmsTotal!,
+                      ref.watch(guideScaleProvider),
+                    )
                   : 'Guiding')
               : 'Idle',
           accent: guider.isGuiding

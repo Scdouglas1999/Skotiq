@@ -535,6 +535,7 @@ class _ConnectedGuider extends GuiderStateNotifier {
     setConnected();
     setGuiding(true);
     updateRms(0.31, 0.27, 0.42);
+    setPixelScale(1.34);
   }
 }
 
@@ -577,7 +578,6 @@ class _SeededGuideStats extends GuideStatsNotifier {
       hfd: 3.1,
       starX: 612.4,
       starY: 388.9,
-      pixelScale: 1.34,
       frameCount: 1148,
     );
   }
