@@ -224,6 +224,7 @@ apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_buildSnapsh
 apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_jobStateFor	literal_null_coalesce	1	V0121	final node = (progress.currentNodeName ?? '').toLowerCase();
 apps/mobile/lib/services/watch_complication_service.dart	isSupported	literal_null_coalesce	1	V0121	return result ?? false;
 apps/mobile/lib/widgets/tailscale_setup_sheet.dart	initState	literal_null_coalesce	1	V0121	_hostController = TextEditingController(text: widget.initialHost ?? '');
+native/skotiq_native/alpaca/src/accessory.rs	status	unwrap_or_literal	1	V0050	brightness: status.brightness.unwrap_or(0),
 native/skotiq_native/alpaca/src/camera/image_array.rs	parse_image_array_json	unwrap_or_literal	1	V0533	rank: json.get("Rank").and_then(|v| v.as_i64()).unwrap_or(0),
 native/skotiq_native/alpaca/src/client/config.rs	rand_simple	unwrap_or_default	1	V0534	.unwrap_or_default()
 native/skotiq_native/alpaca/src/client/mod.rs	decode_put_response	unwrap_or_literal	1	V0535	.unwrap_or(0) as i32;
@@ -402,11 +403,10 @@ native/skotiq_native/bridge/src/ascom_exposure_apply.rs	apply_exposure_params	un
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	connect	comment_best_effort	1	V0121	// Best-effort hardware disconnect so the COM device is not left
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	connect	rust_let_underscore	1	V0121	let _ = Self::recv_with_timeout(drx, Timeouts::connection(), "disconnect").await;
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	get_readout_modes	rust_let_underscore	1	V0121	let _ = self.get_capabilities().await?;
-native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	5	V0121	let _ =
-native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	U2-04	let _ =
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	4	V0121	let _ =
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Err(
-native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	21	V0121	let _ = reply.send(Err("Camera not created".to_string()));
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	17	V0121	let _ = reply.send(Err("Camera not created".to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	7	V0121	let _ = reply.send(Err(format!(
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Ok(()));
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Ok(CameraConnectionHealth::Degraded));
@@ -417,8 +417,6 @@ native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(cam.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(cam.disconnect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(cam.setup_dialog().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(camera.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(camera.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	rust_let_underscore	9	V0121	let _ = reply.send(result);
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	test_disconnect_sends_stop_command	rust_let_underscore	2	V0121	let _ = reply.send(Ok(()));
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	test_download_image_propagates_com_error	rust_let_underscore	1	V0121	let _ = reply.send(Err(
@@ -456,7 +454,6 @@ native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	unwrap_or_literal	1	
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	unwrap_or_literal	1	V0121	max_bin_y: sensor_config.max_bin_y.unwrap_or(1),
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	unwrap_or_literal	1	V0121	offset: full_status.exposure_settings.offset.unwrap_or(0),
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	tests	unwrap_or_literal	1	V0121	/// Falling back to `cam.camera_x_size().unwrap_or(1)` would silently
-native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	2	U2-04	let _ =
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	V0121	let _ = info_tx.send((name, max_brightness));
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.brightness().map_err(|e| e.to_string()));
@@ -466,8 +463,6 @@ native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_un
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.cover_state().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.halt_cover().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.max_brightness().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/covercalibrator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(cover_cal.open_cover().map_err(|e| e.to_string()));
@@ -476,29 +471,20 @@ native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	V0121	let _ = info_tx.send(name);
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.abort_slew().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.at_park().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.azimuth().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.close_shutter().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.find_home().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.heartbeat().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.interface_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.open_shutter().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.park().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.set_slaved(slaved).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.shutter_status().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.slewing().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(dome.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/dome.rs	test_heartbeat_uses_worker_command	rust_let_underscore	1	V0121	let _ = reply.send(Err("COM disconnected".to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(fw.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(fw.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(fw.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(fw.heartbeat().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(fw.interface_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(fw.set_position(pos).map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(fw.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	2	V0121	let _ = reply.send(result);
 native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(result.map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	test_connect_propagates_names_failure	rust_let_underscore	1	V0121	let _ = reply.send(Err(
@@ -507,17 +493,13 @@ native/skotiq_native/bridge/src/ascom_wrapper/filterwheel.rs	test_heartbeat_uses
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Ok(AscomFocuserReadings {
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.absolute().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(focuser.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(focuser.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.halt().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.heartbeat().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(focuser.interface_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.is_moving().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.max_step().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.move_to(pos).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.position().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(focuser.step_size().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(focuser.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(res);
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(res.map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/focuser.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(result);
@@ -544,7 +526,7 @@ native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	find_home_on_a_driver_wit
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	6	V0121	let _ =
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	3	V0121	let _ = reply
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	2	V0121	let _ = reply.send(
-native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	34	V0121	let _ = reply.send(Err("Mount not created".to_string()));
+native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	30	V0121	let _ = reply.send(Err("Mount not created".to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Err(FIND_HOME_UNSUPPORTED.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Err(SET_PARK_UNSUPPORTED.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(Err(e.to_string()));
@@ -564,10 +546,7 @@ native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.can_park().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(m.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(m.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.find_home().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(m.interface_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.move_axis(axis, rate).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.park().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.set_park().map_err(|e| e.to_string()));
@@ -575,7 +554,6 @@ native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(m.set_utc_date(value).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.sidereal_time().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.slewing().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(m.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.tracking().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.tracking_rate().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	rust_let_underscore	1	V0121	let _ = reply.send(m.unpark().map_err(|e| e.to_string()));
@@ -601,34 +579,17 @@ native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	unwrap_or_literal	1	V
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	unwrap_or_literal	1	V0121	can_sync: ascom_caps.can_sync.unwrap_or(false),
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	unwrap_or_literal	1	V0121	can_unpark: ascom_caps.can_unpark.unwrap_or(false),
 native/skotiq_native/bridge/src/ascom_wrapper/mount.rs	new	unwrap_or_literal	1	V0121	is_equatorial: m.alignment_mode().map(|m| m > 0).unwrap_or(false),
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	driver_info_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok("Acme Rotator Driver".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	driver_version_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok("1.2.3".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	interface_version_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok(3));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ =
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.halt().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.interface_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.is_moving().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.position().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.set_reverse(reverse).map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(rotator.sync(position).map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	supported_actions_propagates_property_not_implemented_error	rust_let_underscore	1	V0121	let _ = reply.send(Err("PropertyNotImplemented".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/rotator.rs	supported_actions_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok(vec!["Reverse".to_string(), "Sync".to_string()]));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	driver_info_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok("Acme Safety Monitor".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	driver_version_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok("4.5".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	interface_version_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok(1));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	new	rust_let_underscore	1	U2-04	let _ =
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	new	rust_let_underscore	2	U2-04	let _ = reply.send(
 native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(safety_monitor.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(safety_monitor.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(safety_monitor.driver_info().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(safety_monitor.is_safe().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	supported_actions_propagates_property_not_implemented_error	rust_let_underscore	1	V0121	let _ = reply.send(Err("PropertyNotImplemented".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/safetymonitor.rs	supported_actions_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok(vec!["RaiseAlarm".to_string()]));
 native/skotiq_native/bridge/src/ascom_wrapper/sta_worker.rs	close_thread_windows	rust_let_underscore	1	V0200	let _ = EnumThreadWindows(
 native/skotiq_native/bridge/src/ascom_wrapper/sta_worker.rs	close_thread_windows	rust_let_underscore	1	V0201	let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
 native/skotiq_native/bridge/src/ascom_wrapper/sta_worker.rs	create_message_window	rust_let_underscore	1	V0198	let _ = RegisterClassW(&wnd_class);
@@ -643,8 +604,6 @@ native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.can_write(id).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.get_switch(id).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.get_switch_name(id).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.get_switch_value(id).map_err(|e| e.to_string()));
@@ -653,29 +612,21 @@ native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.max_switch_value(id).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.min_switch_value(id).map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.set_switch(id, state).map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(switch.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/switch.rs	new	unwrap_or_literal	1	V0121	let max_switch = switch.max_switch().unwrap_or(0);
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	driver_info_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok("Acme Sky Quality Meter".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	driver_version_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok("7.0".to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	interface_version_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok(2));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.cloud_cover().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.connect().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.dew_point().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.disconnect().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.driver_info().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.driver_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.humidity().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.interface_version().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.pressure().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.rain_rate().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.sky_quality().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.sky_temperature().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.supported_actions().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.temperature().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.wind_direction().map_err(|e| e.to_string()));
 native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	new	rust_let_underscore	1	U2-04	let _ = reply.send(weather.wind_speed().map_err(|e| e.to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	supported_actions_propagates_property_not_implemented_error	rust_let_underscore	1	V0121	let _ = reply.send(Err("PropertyNotImplemented".to_string()));
-native/skotiq_native/bridge/src/ascom_wrapper/weather.rs	supported_actions_returns_worker_value	rust_let_underscore	1	V0121	let _ = reply.send(Ok(vec!["Refresh".to_string()]));
 native/skotiq_native/bridge/src/builtin_guider/control.rs	start_synthetic_loop	rust_let_underscore	1	V0694	let _ = stop_locked().await;
 native/skotiq_native/bridge/src/builtin_guider/control.rs	stop_locked	rust_let_underscore	1	V0695	let _ = handle.await;
 native/skotiq_native/bridge/src/builtin_guider/control.rs	set_config	unwrap_or_literal	1	V0693	.unwrap_or(0.0);
@@ -698,8 +649,6 @@ native/skotiq_native/bridge/src/depthlock_service/engine.rs	process	rust_let_und
 native/skotiq_native/bridge/src/depthlock_service/engine.rs	process	rust_let_underscore	1	V0783	let _ = reply.send(self.replay_now(&goal_id));
 native/skotiq_native/bridge/src/depthlock_service/store.rs	open	unwrap_or_default	1	V0752	.unwrap_or_default() // Why: a non-UTF-8 file stem yields "", which valid_goal_id below rejects
 native/skotiq_native/bridge/src/depthlock_service/tests.rs	drop	rust_let_underscore	1	V0753	let _ = std::fs::remove_dir_all(&self.dir);
-native/skotiq_native/bridge/src/device.rs	from_alpaca	unwrap_or_literal	1	V0070	interface_version: Some(u32::try_from(interface_version).unwrap_or(0)),
-native/skotiq_native/bridge/src/device.rs	from_ascom	unwrap_or_literal	1	V0070	interface_version: Some(u32::try_from(interface_version).unwrap_or(0)),
 native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	rust_drop_result	1	V0660	camera.disconnect().await.ok();
 native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	rust_drop_result	1	V0660	cc.disconnect().await.ok();
 native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	rust_drop_result	1	V0660	dome.disconnect().await.ok();
@@ -876,22 +825,11 @@ native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_s
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	connect_fake_cover	rust_let_underscore	1	V0050	let _ = command_tx.send(command);
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	connect_fake_cover	rust_let_underscore	1	V0050	let _ = socket
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	release_simulated_panel	rust_let_underscore	1	V0050	let _ = get_device_manager().disconnect_device(device_id).await;
-native/skotiq_native/bridge/src/device_manager/ops/cover.rs	cover_calibrator_get_status	unwrap_or_literal	1	V0050	brightness: status.brightness.unwrap_or(0),
-native/skotiq_native/bridge/src/device_manager/ops/dome.rs	dome_slew_to_azimuth_dispatch	rust_let_underscore	1	V0050	let _ = locked
-native/skotiq_native/bridge/src/device_manager/ops/dome.rs	-	unwrap_or_literal	1	V0050	//! Every `unwrap_or(false)` in this file probes an INDI / ASCOM optional
-native/skotiq_native/bridge/src/device_manager/ops/dome.rs	dome_get_status	unwrap_or_literal	1	V0050	.unwrap_or(false)
-native/skotiq_native/bridge/src/device_manager/ops/dome.rs	dome_get_status	unwrap_or_literal	2	V0050	.unwrap_or(false);
-native/skotiq_native/bridge/src/device_manager/ops/dome.rs	dome_get_status	unwrap_or_literal	1	V0050	let is_slaved = autosync_enable.unwrap_or(false);
-native/skotiq_native/bridge/src/device_manager/ops/dome.rs	dome_slew_to_azimuth_dispatch	unwrap_or_literal	1	V0050	.unwrap_or(false);
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	unwrap_or_default	1	V0905	.unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	unwrap_or_literal	1	V0712	.unwrap_or(-1);
 native/skotiq_native/bridge/src/device_manager/ops/mount/mod.rs	-	unwrap_or_literal	1	V0669	//! * `mount.can_set_tracking().await.unwrap_or(false)` — ASCOM optional
 native/skotiq_native/bridge/src/device_manager/ops/mount/status.rs	mount_get_status_dispatch	unwrap_or_literal	1	V0724	.unwrap_or(false);
 native/skotiq_native/bridge/src/device_manager/ops/weather.rs	connect_fake_weather	rust_let_underscore	1	V0121	let _ = socket
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	rust_drop_result	1	V0121	let driver_info = device.driver_info().await.ok();
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	rust_drop_result	1	V0121	let driver_version = device.driver_version().await.ok();
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	rust_drop_result	1	V0121	let interface_version = device.interface_version().await.ok();
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	unwrap_or_literal	1	V0121	interface_version.unwrap_or(1),
 native/skotiq_native/bridge/src/dispatch/indi.rs	indi_mount_tracking_rate	unwrap_or_literal	1	V0051	.unwrap_or(false)
 native/skotiq_native/bridge/src/dispatch/indi.rs	indi_mount_tracking_rate	unwrap_or_literal	1	V0051	// definition not-currently-active, so `unwrap_or(false)` correctly
 native/skotiq_native/bridge/src/dispatch/native.rs	connect_native	rust_let_underscore	1	V0051	let _ = old_fw.disconnect().await;
@@ -1128,6 +1066,7 @@ native/skotiq_native/indi/src/covercalibrator.rs	get_cover_state	unwrap_or_liter
 native/skotiq_native/indi/src/discovery.rs	discover_server	rust_let_underscore	1	V0059	let _ = client.disconnect().await;
 native/skotiq_native/indi/src/discovery.rs	check_port_open	unwrap_or_literal	1	V0059	.unwrap_or(false)
 native/skotiq_native/indi/src/dome.rs	dome_from_fake_server	rust_let_underscore	1	V0058	let _ = socket
+native/skotiq_native/indi/src/dome.rs	slew_to_azimuth	rust_let_underscore	1	U2-11	let _ = client
 native/skotiq_native/indi/src/dome.rs	-	unwrap_or_literal	1	V0058	//! # `unwrap_or(false)` policy
 native/skotiq_native/indi/src/dome.rs	at_home	unwrap_or_literal	1	V0058	.unwrap_or(false)
 native/skotiq_native/indi/src/dome.rs	at_home	unwrap_or_literal	1	V0058	// Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false.
@@ -1137,6 +1076,10 @@ native/skotiq_native/indi/src/dome.rs	is_parked	unwrap_or_literal	1	V0058	.unwra
 native/skotiq_native/indi/src/dome.rs	is_parked	unwrap_or_literal	1	V0058	// Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false.
 native/skotiq_native/indi/src/dome.rs	is_slaved	unwrap_or_literal	1	V0058	.unwrap_or(false)
 native/skotiq_native/indi/src/dome.rs	is_slaved	unwrap_or_literal	1	V0058	// Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false.
+native/skotiq_native/indi/src/dome.rs	slew_to_azimuth	unwrap_or_literal	1	V0050	.unwrap_or(false);
+native/skotiq_native/indi/src/dome.rs	status	unwrap_or_literal	1	V0050	.unwrap_or(false)
+native/skotiq_native/indi/src/dome.rs	status	unwrap_or_literal	2	V0050	.unwrap_or(false);
+native/skotiq_native/indi/src/dome.rs	status	unwrap_or_literal	1	U2-11	slaved: autosync_enable.unwrap_or(false),
 native/skotiq_native/indi/src/error.rs	fmt	unwrap_or_default	1	V0060	.unwrap_or_default();
 native/skotiq_native/indi/src/mount.rs	-	rust_let_underscore	1	V0071	let _ = socket.read(&mut buf).await;
 native/skotiq_native/indi/src/mount.rs	-	rust_let_underscore	1	V0071	let _ = socket.write_all(reply.as_bytes()).await;

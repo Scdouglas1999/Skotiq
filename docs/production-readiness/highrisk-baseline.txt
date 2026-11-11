@@ -117,9 +117,6 @@ native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_s
 native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let gain = camera.gain().await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs	camera_get_status_dispatch	highrisk	1	baseline	let offset = camera.offset().await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let driver_info = device.driver_info().await.ok();
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let driver_version = device.driver_version().await.ok();
-native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs	-	highrisk	1	baseline	let interface_version = device.interface_version().await.ok();
 native/skotiq_native/bridge/src/hotplug.rs	current_time_ms	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	highrisk	1	baseline	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
 native/skotiq_native/bridge/src/lib.rs	init_native_internal	highrisk	1	baseline	LOG_DIR.set(log_path.clone()).ok();
