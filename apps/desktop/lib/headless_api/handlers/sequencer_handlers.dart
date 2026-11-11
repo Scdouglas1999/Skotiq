@@ -29,7 +29,6 @@ part 'sequencer/sequencer_secondary_rig_handlers.dart';
 part 'sequencer/wire_sequence_summary.dart';
 part 'sequencer/sequencer_scheduled_start_handlers.dart';
 
-/// Handlers for sequencer control endpoints
 class SequencerHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {

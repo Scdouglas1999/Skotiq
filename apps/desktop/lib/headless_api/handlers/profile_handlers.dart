@@ -14,7 +14,6 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 
-/// Handlers for profile and settings endpoints
 class ProfileHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -60,8 +59,6 @@ class ProfileHandlers implements RouteSource {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'ProfileHandlers');
-
-  // Profiles
 
   EquipmentProfilesDao get _profilesDao =>
       container.read(equipmentProfilesDaoProvider);
@@ -352,8 +349,6 @@ class ProfileHandlers implements RouteSource {
       "profile": row == null ? null : dbProfileToRemote(row).toJson(),
     });
   }
-
-  // Settings
 
   /// The settings-document keys that mirror the observer site.
   ///

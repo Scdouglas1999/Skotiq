@@ -106,8 +106,6 @@ class SequenceManagementHandlers implements RouteSource {
     }
   }
 
-  // Full sequence documents (remote companion sync)
-
   /// GET /api/sequence-management/list-full
   ///
   /// Returns complete sequence trees using the same JSON schema as file export
@@ -356,8 +354,6 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'version': _versionToJson(version)});
   }
 
-  // Get all sequences
-
   Future<Response> handleGetAllSequences(Request request) async {
     final database = container.read(databaseProvider);
     final sequences = await database.sequencesDao.getAllSequences();
@@ -367,8 +363,6 @@ class SequenceManagementHandlers implements RouteSource {
     });
   }
 
-  // Get all templates
-
   Future<Response> handleGetAllTemplates(Request request) async {
     final database = container.read(databaseProvider);
     final templates = await database.sequencesDao.getAllTemplates();
@@ -377,8 +371,6 @@ class SequenceManagementHandlers implements RouteSource {
       'templates': templates.map((s) => _sequenceToJson(s)).toList(),
     });
   }
-
-  // Get Sequence By ID
 
   Future<Response> handleGetSequenceById(Request request, String id) async {
     final sequenceId = _parsePathId(id, 'id');
@@ -392,8 +384,6 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'sequence': _sequenceToJson(sequence)});
   }
 
-  // Get nodes for sequence
-
   Future<Response> handleGetNodesForSequence(Request request, String id) async {
     final sequenceId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
@@ -401,8 +391,6 @@ class SequenceManagementHandlers implements RouteSource {
 
     return jsonOk({'nodes': nodes.map((n) => _nodeToJson(n)).toList()});
   }
-
-  // Create sequence
 
   Future<Response> handleCreateSequence(Request request) async {
     _logInfo('[API] POST /api/sequence-management');
@@ -428,15 +416,12 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'status': 'created', 'id': id});
   }
 
-  // Update sequence
-
   Future<Response> handleUpdateSequence(Request request, String id) async {
     _logInfo('[API] PUT /api/sequence-management/$id');
     final sequenceId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Get existing sequence
     final existing = await database.sequencesDao.getSequenceById(sequenceId);
     if (existing == null) {
       return jsonNotFound({'error': 'Sequence not found: $id'});
@@ -469,8 +454,6 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'status': 'updated'});
   }
 
-  // Delete sequence
-
   Future<Response> handleDeleteSequence(Request request, String id) async {
     _logInfo('[API] DELETE /api/sequence-management/$id');
     final sequenceId = _parsePathId(id, 'id');
@@ -486,8 +469,6 @@ class SequenceManagementHandlers implements RouteSource {
 
     return jsonOk({'status': 'deleted'});
   }
-
-  // Duplicate sequence
 
   Future<Response> handleDuplicateSequence(Request request, String id) async {
     _logInfo('[API] POST /api/sequence-management/$id/duplicate');
@@ -513,8 +494,6 @@ class SequenceManagementHandlers implements RouteSource {
 
     return jsonOk({'status': 'duplicated', 'id': newId});
   }
-
-  // Create node
 
   Future<Response> handleCreateNode(Request request, String sequenceId) async {
     _logInfo('[API] POST /api/sequence-management/$sequenceId/nodes');
@@ -554,15 +533,12 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'status': 'created', 'id': id});
   }
 
-  // Update node
-
   Future<Response> handleUpdateNode(Request request, String nodeId) async {
     _logInfo('[API] PUT /api/sequence-management/nodes/$nodeId');
     final nid = _parsePathId(nodeId, 'nodeId');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Get existing node
     final existing = await database.sequencesDao.getNodeById(nid);
     if (existing == null) {
       return jsonNotFound({'error': 'Node not found: $nodeId'});
@@ -603,8 +579,6 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'status': 'updated'});
   }
 
-  // Delete node
-
   Future<Response> handleDeleteNode(Request request, String nodeId) async {
     _logInfo('[API] DELETE /api/sequence-management/nodes/$nodeId');
     final nid = _parsePathId(nodeId, 'nodeId');
@@ -626,8 +600,6 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'status': 'deleted'});
   }
 
-  // Reorder nodes
-
   Future<Response> handleReorderNodes(
     Request request,
     String sequenceId,
@@ -647,8 +619,6 @@ class SequenceManagementHandlers implements RouteSource {
     );
     return jsonOk({'status': 'reordered'});
   }
-
-  // Set node enabled
 
   Future<Response> handleSetNodeEnabled(Request request, String nodeId) async {
     _logInfo('[API] POST /api/sequence-management/nodes/$nodeId/enabled');
@@ -670,8 +640,6 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'status': 'updated'});
   }
 
-  // Get child nodes
-
   Future<Response> handleGetChildNodes(
     Request request,
     String sequenceId,
@@ -689,8 +657,6 @@ class SequenceManagementHandlers implements RouteSource {
 
     return jsonOk({'nodes': nodes.map((n) => _nodeToJson(n)).toList()});
   }
-
-  // Helper: Convert Sequence to JSON
 
   Map<String, dynamic> _sequenceToJson(Sequence sequence) {
     return {
@@ -737,8 +703,6 @@ class SequenceManagementHandlers implements RouteSource {
         label: version.label,
         createdAt: version.createdAt,
       ).toJson();
-
-  // Helper: Convert SequenceNode to JSON
 
   Map<String, dynamic> _nodeToJson(SequenceNode node) {
     return {
