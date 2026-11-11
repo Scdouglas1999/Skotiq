@@ -47,6 +47,7 @@
 //! should compose `open_vendor_library` + `resolve_symbol` rather than adopt the
 //! macro). ioptron/lx200/skywatcher are serial protocols with no SDK to load.
 
+use crate::traits::NativeError;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -90,6 +91,222 @@ pub enum VendorLoadError {
         library_path: String,
         source: libloading::Error,
     },
+}
+
+/// Why a vendor SDK cannot be used on this host.
+///
+/// `NotInstalled` is the ordinary case for gear the user does not own (no
+/// candidate library could be found or opened) and is reported quietly.
+/// `Broken` means a library was opened but is unusable (a required symbol is
+/// missing, or the vendor's init call failed); that is actionable and callers
+/// keep warning about it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SdkUnavailable {
+    NotInstalled(String),
+    Broken(String),
+}
+
+impl SdkUnavailable {
+    pub fn detail(&self) -> &str {
+        match self {
+            Self::NotInstalled(detail) | Self::Broken(detail) => detail,
+        }
+    }
+
+    pub fn to_native_error(&self) -> NativeError {
+        match self {
+            Self::NotInstalled(detail) => NativeError::SdkNotInstalled(detail.clone()),
+            Self::Broken(detail) => NativeError::SdkError(detail.clone()),
+        }
+    }
+}
+
+impl From<VendorLoadError> for SdkUnavailable {
+    fn from(error: VendorLoadError) -> Self {
+        match error {
+            VendorLoadError::PathNotFound { .. } => Self::NotInstalled(error.to_string()),
+            VendorLoadError::SymbolNotFound { .. } | VendorLoadError::LibraryOpenFailed { .. } => {
+                Self::Broken(error.to_string())
+            }
+        }
+    }
+}
+
+/// The lock that serializes every call into one vendor SDK. Vendor SDKs are
+/// not thread-safe, so a function table is only reachable through an
+/// [`SdkGuard`] that holds this.
+pub struct SdkLock(tokio::sync::Mutex<()>);
+
+impl SdkLock {
+    pub const fn new() -> Self {
+        Self(tokio::sync::Mutex::const_new(()))
+    }
+
+    pub async fn lock(&'static self) -> SdkLockHeld {
+        SdkLockHeld(self.0.lock().await)
+    }
+
+    pub fn try_lock(&'static self) -> Option<SdkLockHeld> {
+        self.0.try_lock().ok().map(SdkLockHeld)
+    }
+}
+
+impl Default for SdkLock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Proof that an [`SdkLock`] is held. Dropping it releases the lock.
+pub struct SdkLockHeld(#[allow(dead_code)] tokio::sync::MutexGuard<'static, ()>);
+
+/// A loaded SDK function table together with its held lock. Dereferences to
+/// the table, so a vendor function pointer can only be called while the lock is
+/// held. Dropping the guard releases the lock.
+pub struct SdkGuard<T: 'static> {
+    table: &'static T,
+    _held: SdkLockHeld,
+}
+
+impl<T: 'static> SdkGuard<T> {
+    /// Pair a table with the held lock that protects it. For loaders that keep
+    /// their tables somewhere other than an [`SdkSlot`].
+    pub fn new(table: &'static T, held: SdkLockHeld) -> Self {
+        Self { table, _held: held }
+    }
+}
+
+impl<T: 'static> std::ops::Deref for SdkGuard<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.table
+    }
+}
+
+/// An SDK that is known to be loaded but whose lock is not held. It cannot
+/// call into the SDK; it exists so a caller can check "is the SDK there"
+/// first and take the lock later.
+pub struct SdkLoaded<T: 'static> {
+    table: &'static T,
+    lock: &'static SdkLock,
+}
+
+impl<T: 'static> Clone for SdkLoaded<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: 'static> Copy for SdkLoaded<T> {}
+
+impl<T: 'static> SdkLoaded<T> {
+    pub fn new(table: &'static T, lock: &'static SdkLock) -> Self {
+        Self { table, lock }
+    }
+
+    pub async fn lock(self) -> SdkGuard<T> {
+        SdkGuard::new(self.table, self.lock.lock().await)
+    }
+
+    pub fn try_lock(self) -> Option<SdkGuard<T>> {
+        self.lock
+            .try_lock()
+            .map(|held| SdkGuard::new(self.table, held))
+    }
+
+    /// The table without its lock. Every use must say at the call site why
+    /// the call is safe without serialization.
+    pub fn unlocked(self) -> &'static T {
+        self.table
+    }
+}
+
+/// An SDK lock that was taken before the library was loaded, for callers that
+/// must hold the lock while the (possibly slow) first load runs.
+pub struct SdkLockGuard<T: 'static> {
+    slot: &'static SdkSlot<T>,
+    held: SdkLockHeld,
+}
+
+impl<T: 'static> SdkLockGuard<T> {
+    /// Load the SDK (first use only) while keeping the lock.
+    pub fn load(self) -> Result<SdkGuard<T>, NativeError> {
+        let table = self.slot.table().map_err(SdkUnavailable::to_native_error)?;
+        Ok(SdkGuard::new(table, self.held))
+    }
+}
+
+/// One vendor SDK: its lazily loaded function table and the lock that
+/// serializes calls into it.
+pub struct SdkSlot<T: 'static> {
+    table: std::sync::OnceLock<Result<T, SdkUnavailable>>,
+    load: fn() -> Result<T, SdkUnavailable>,
+    own_lock: SdkLock,
+    shared_lock: Option<&'static SdkLock>,
+}
+
+impl<T: 'static> SdkSlot<T> {
+    pub const fn new(load: fn() -> Result<T, SdkUnavailable>) -> Self {
+        Self {
+            table: std::sync::OnceLock::new(),
+            load,
+            own_lock: SdkLock::new(),
+            shared_lock: None,
+        }
+    }
+
+    /// A slot whose calls are serialized by `lock` instead of a lock of its
+    /// own: several libraries from one vendor that must not run concurrently.
+    pub const fn sharing_lock(
+        load: fn() -> Result<T, SdkUnavailable>,
+        lock: &'static SdkLock,
+    ) -> Self {
+        Self {
+            table: std::sync::OnceLock::new(),
+            load,
+            own_lock: SdkLock::new(),
+            shared_lock: Some(lock),
+        }
+    }
+
+    fn table(&'static self) -> Result<&'static T, &'static SdkUnavailable> {
+        self.table.get_or_init(self.load).as_ref()
+    }
+
+    pub fn sdk_lock(&'static self) -> &'static SdkLock {
+        self.shared_lock.unwrap_or(&self.own_lock)
+    }
+
+    /// Presence probe: loads the library on first use.
+    pub fn is_available(&'static self) -> bool {
+        self.table().is_ok()
+    }
+
+    /// Why the SDK is unusable, or `None` when it loaded.
+    pub fn unavailable(&'static self) -> Option<&'static SdkUnavailable> {
+        self.table().err()
+    }
+
+    /// Check that the SDK is loaded without taking its lock.
+    pub fn installed(&'static self) -> Result<SdkLoaded<T>, NativeError> {
+        let table = self.table().map_err(SdkUnavailable::to_native_error)?;
+        Ok(SdkLoaded::new(table, self.sdk_lock()))
+    }
+
+    /// Load the SDK, then take its lock.
+    pub async fn lock(&'static self) -> Result<SdkGuard<T>, NativeError> {
+        Ok(self.installed()?.lock().await)
+    }
+
+    /// Take the lock first; the caller loads under it with
+    /// [`SdkLockGuard::load`].
+    pub async fn lock_before_load(&'static self) -> SdkLockGuard<T> {
+        SdkLockGuard {
+            slot: self,
+            held: self.sdk_lock().lock().await,
+        }
+    }
 }
 
 /// Build a deterministic search list for vendor shared libraries.
@@ -324,12 +541,19 @@ pub unsafe fn resolve_symbol<T: Copy>(
 /// simply unavailable). Detailed diagnostics are emitted via `tracing`.
 #[macro_export]
 macro_rules! load_vendor_sdk {
+    (@slot $sdk:ident) => {
+        $crate::vendor::sdk_loader::SdkSlot::new($sdk::load_for_slot)
+    };
+    (@slot $sdk:ident, $shared_lock:path) => {
+        $crate::vendor::sdk_loader::SdkSlot::sharing_lock($sdk::load_for_slot, &$shared_lock)
+    };
     (
         $(#[$sdk_meta:meta])*
         vendor_name: $vendor_name:expr,
         sdk_struct: $sdk:ident,
         sdk_static: $sdk_static:ident,
         candidate_paths_fn: $paths_fn:path,
+        $( shared_lock: $shared_lock:path, )?
         symbols: {
             $( $field:ident : $sym_bytes:expr => $sig:ty ),* $(,)?
         }
@@ -352,7 +576,8 @@ macro_rules! load_vendor_sdk {
             _library: libloading::Library,
         }
 
-        static $sdk_static: std::sync::OnceLock<Result<$sdk, String>> = std::sync::OnceLock::new();
+        static $sdk_static: $crate::vendor::sdk_loader::SdkSlot<$sdk> =
+            $crate::load_vendor_sdk!(@slot $sdk $(, $shared_lock)?);
 
         #[allow(dead_code)]
         impl $sdk {
@@ -456,35 +681,56 @@ macro_rules! load_vendor_sdk {
                 }
             }
 
-            fn loaded() -> &'static Result<Self, String> {
-                $sdk_static.get_or_init(|| Self::load().map_err(|e| e.to_string()))
+            fn load_for_slot() -> Result<Self, $crate::vendor::sdk_loader::SdkUnavailable> {
+                Self::load().map_err(Into::into)
             }
 
-            /// Public accessor for the lazy-initialized SDK singleton.
-            ///
-            /// Returns `Some(&Self)` if the SDK loaded successfully, `None`
-            /// otherwise. The first call triggers `load()`; subsequent calls
-            /// are O(1).
-            pub fn get() -> Option<&'static Self> {
-                Self::loaded().as_ref().ok()
+            /// The SDK's table-and-lock slot, for callers that need more
+            /// than [`lock`](Self::lock): taking the lock before the first
+            /// load, or `try_lock` from a `Drop`.
+            pub fn slot() -> &'static $crate::vendor::sdk_loader::SdkSlot<Self> {
+                &$sdk_static
             }
 
-            /// Same as [`get`](Self::get) but carries why the load failed —
-            /// "none of N paths opened" versus "symbol X is missing from
-            /// <path>", which is the difference between "you have no SDK" and
-            /// "your SDK is too old".
-            pub fn get_or_reason() -> Result<&'static Self, &'static str> {
-                Self::loaded().as_ref().map_err(|e| e.as_str())
+            /// Load the SDK if needed, then take its lock. The returned guard
+            /// dereferences to the function table.
+            pub async fn lock() -> Result<
+                $crate::vendor::sdk_loader::SdkGuard<Self>,
+                $crate::traits::NativeError,
+            > {
+                $sdk_static.lock().await
             }
 
-            /// Why the SDK failed to load, or `None` if it loaded.
-            pub fn load_error() -> Option<&'static str> {
-                Self::loaded().as_ref().err().map(|e| e.as_str())
+            /// Check that the SDK is loaded without taking its lock; lock the
+            /// result later with `.lock().await`.
+            pub fn installed() -> Result<
+                $crate::vendor::sdk_loader::SdkLoaded<Self>,
+                $crate::traits::NativeError,
+            > {
+                $sdk_static.installed()
             }
 
             /// Whether the SDK is usable on this host.
             pub fn is_available() -> bool {
-                Self::loaded().is_ok()
+                $sdk_static.is_available()
+            }
+
+            // MIGRATION-ONLY: removed once every vendor uses the guard.
+            pub fn get() -> Option<&'static Self> {
+                $sdk_static.installed().ok().map(|sdk| sdk.unlocked())
+            }
+
+            // MIGRATION-ONLY
+            pub fn get_or_reason() -> Result<&'static Self, &'static str> {
+                match $sdk_static.unavailable() {
+                    Some(why) => Err(why.detail()),
+                    None => Ok($sdk_static.installed().ok().unwrap().unlocked()),
+                }
+            }
+
+            // MIGRATION-ONLY
+            pub fn load_error() -> Option<&'static str> {
+                $sdk_static.unavailable().map(|why| why.detail())
             }
 
             /// List of C symbol names this SDK requires. Returned in the order
@@ -608,6 +854,121 @@ mod tests {
         );
         assert_eq!(AbsentSdk::get_or_reason().err(), Some(reason));
         assert_eq!(AbsentSdk::required_symbol_names(), &["do_nothing"]);
+    }
+
+    #[tokio::test]
+    async fn a_missing_library_is_reported_as_not_installed() {
+        let error = match AbsentSdk::lock().await {
+            Ok(_) => panic!("an absent library must not yield a guard"),
+            Err(error) => error,
+        };
+        match &error {
+            NativeError::SdkNotInstalled(detail) => {
+                assert!(detail.contains("Absent Test Vendor"), "detail: {detail}");
+                assert!(
+                    detail.contains("candidate library paths"),
+                    "detail: {detail}"
+                );
+            }
+            other => panic!("expected SdkNotInstalled, got {other:?}"),
+        }
+        assert!(matches!(
+            AbsentSdk::installed().err(),
+            Some(NativeError::SdkNotInstalled(_))
+        ));
+        assert!(!AbsentSdk::is_available());
+    }
+
+    #[test]
+    fn a_library_that_opens_but_lacks_a_symbol_is_an_sdk_error_not_absent() {
+        let broken: SdkUnavailable = VendorLoadError::SymbolNotFound {
+            vendor: "TestVendor",
+            symbol: "do_nothing",
+            library_path: "/x/libtest.so".to_string(),
+            source: libloading::Error::DlSymUnknown,
+        }
+        .into();
+        assert!(matches!(
+            broken.to_native_error(),
+            NativeError::SdkError(detail) if detail.contains("do_nothing")
+        ));
+    }
+
+    struct FakeTable {
+        in_call: std::sync::atomic::AtomicBool,
+        overlaps: std::sync::atomic::AtomicUsize,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    fn load_fake_table() -> Result<FakeTable, SdkUnavailable> {
+        Ok(FakeTable {
+            in_call: std::sync::atomic::AtomicBool::new(false),
+            overlaps: std::sync::atomic::AtomicUsize::new(0),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        })
+    }
+
+    async fn call_through(slot: &'static SdkSlot<FakeTable>) {
+        use std::sync::atomic::Ordering;
+        for _ in 0..50 {
+            let sdk = slot.lock().await.expect("fake table loads");
+            if sdk.in_call.swap(true, Ordering::SeqCst) {
+                sdk.overlaps.fetch_add(1, Ordering::SeqCst);
+            }
+            // Give the other task every chance to run while the guard is held.
+            tokio::task::yield_now().await;
+            std::thread::sleep(std::time::Duration::from_micros(200));
+            sdk.calls.fetch_add(1, Ordering::SeqCst);
+            sdk.in_call.store(false, Ordering::SeqCst);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn the_guard_serializes_two_tasks_on_one_lock() {
+        use std::sync::atomic::Ordering;
+        static SLOT: SdkSlot<FakeTable> = SdkSlot::new(load_fake_table);
+        let first = tokio::spawn(call_through(&SLOT));
+        let second = tokio::spawn(call_through(&SLOT));
+        first.await.unwrap();
+        second.await.unwrap();
+
+        let sdk = SLOT.lock().await.unwrap();
+        assert_eq!(sdk.calls.load(Ordering::SeqCst), 100);
+        assert_eq!(sdk.overlaps.load(Ordering::SeqCst), 0);
+
+        // While one guard is alive no second one can be had, by any route.
+        let loaded = SLOT.installed().unwrap();
+        assert!(loaded.try_lock().is_none());
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), SLOT.lock())
+                .await
+                .is_err()
+        );
+        drop(sdk);
+        assert!(loaded.try_lock().is_some());
+    }
+
+    #[tokio::test]
+    async fn slots_that_share_a_lock_exclude_each_other() {
+        static SHARED: SdkLock = SdkLock::new();
+        static CAMERA: SdkSlot<FakeTable> = SdkSlot::sharing_lock(load_fake_table, &SHARED);
+        static WHEEL: SdkSlot<FakeTable> = SdkSlot::sharing_lock(load_fake_table, &SHARED);
+        static ALONE: SdkSlot<FakeTable> = SdkSlot::new(load_fake_table);
+
+        let camera = CAMERA.lock().await.unwrap();
+        assert!(WHEEL.installed().unwrap().try_lock().is_none());
+        assert!(ALONE.installed().unwrap().try_lock().is_some());
+        drop(camera);
+        assert!(WHEEL.installed().unwrap().try_lock().is_some());
+    }
+
+    #[tokio::test]
+    async fn a_lock_taken_before_the_load_still_reports_an_absent_library() {
+        let held = AbsentSdk::slot().lock_before_load().await;
+        assert!(matches!(
+            held.load().err(),
+            Some(NativeError::SdkNotInstalled(_))
+        ));
     }
 
     #[test]

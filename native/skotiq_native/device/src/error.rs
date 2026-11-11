@@ -20,6 +20,9 @@ pub enum DriverError {
     #[error("SDK not loaded")]
     SdkNotLoaded,
 
+    #[error("SDK not installed: {0}")]
+    SdkNotInstalled(String),
+
     #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
 
