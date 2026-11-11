@@ -52,9 +52,6 @@ class _FakeStackAndShareService implements StackAndShareService {
   StackedRgbaResult? get lastRgbaResult => _lastRgba;
 
   @override
-  void retire() {}
-
-  @override
   Future<StackAndShareResult> run({
     required int sessionId,
     required StackAndShareConfig config,

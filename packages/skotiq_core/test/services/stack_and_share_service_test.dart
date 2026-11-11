@@ -486,7 +486,6 @@ void main() {
         final engine = _FakeStackingEngine();
         final service = StackAndShareService(
           c.read(_refProvider),
-          backend: oldBackend,
           engine: engine,
         );
 

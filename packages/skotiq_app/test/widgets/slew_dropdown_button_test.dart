@@ -546,4 +546,67 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+      'a centering result the old host returns after a switch leaves the page '
+      'in place', (tester) async {
+    final backendA = mockBackend();
+    late _SwitchableBackendNotifier backendNotifier;
+    late _ControlledMountService mount;
+    late _ControlledCentering centering;
+    await pumpAppScreen(
+      tester,
+      const SizedBox(
+        width: 280,
+        child: SlewDropdownButton(
+          ra: 1.6,
+          dec: 15.8,
+          targetName: 'M74',
+          targetRotation: 90,
+          defaultMode: SlewMode.slewCenterRotate,
+        ),
+      ),
+      backend: backendA,
+      size: const Size(1280, 900),
+      extraOverrides: [
+        backendProvider.overrideWith(
+          (ref) => backendNotifier = _SwitchableBackendNotifier(ref, backendA),
+        ),
+        mountStateProvider.overrideWith(_ConnectedMountNotifier.new),
+        cameraStateProvider.overrideWith(_ConnectedCameraNotifier.new),
+        activeEquipmentProfileProvider.overrideWithValue(null),
+        plateSolveServiceProvider.overrideWith(_AvailableSolver.new),
+        mountCommandServiceProvider
+            .overrideWith((ref) => mount = _ControlledMountService(ref)),
+        centeringServiceProvider
+            .overrideWith((ref) => centering = _ControlledCentering(ref)),
+      ],
+    );
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'));
+    await tester.pump();
+    mount.result.complete(CommandActionResult.ok);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Centering Target'), findsOneWidget);
+
+    // The old host answers in the same turn as the switch, before the closed
+    // dialog has left the tree.
+    backendNotifier.replaceBackend(mockBackend());
+    centering.result.complete(CenteringResult.failure(
+      errorMessage: 'Old host could not solve',
+      iterations: 1,
+      iterationHistory: const [],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Centering Target'), findsNothing);
+    expect(
+      find.widgetWithText(SkotiqButton, 'Slew, Center & Rotate'),
+      findsOneWidget,
+      reason: 'the page under the dialog must stay',
+    );
+    expect(find.textContaining('Old host could not solve'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

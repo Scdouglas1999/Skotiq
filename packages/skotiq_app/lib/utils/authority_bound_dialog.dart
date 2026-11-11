@@ -28,6 +28,62 @@ void closeAuthorityBoundDialog(BuildContext context) {
   }
 }
 
+/// Shows a dialog built inline whose contents belong to the imaging host
+/// that is current now: the [HostBoundDialogState] behavior for a dialog
+/// that has no state class of its own.
+///
+/// The dialog closes, with [hostChangedMessage] when one is given, as soon as
+/// the app links to another host, also when that happens before the dialog
+/// first builds. [ref] belongs to the widget asking for the dialog.
+Future<T?> showHostBoundDialog<T>({
+  required BuildContext context,
+  required WidgetRef ref,
+  required WidgetBuilder builder,
+  String? hostChangedMessage,
+  bool hostChangeDiscardsInput = false,
+  bool barrierDismissible = true,
+}) async {
+  final openedUnder = ref.read(backendProvider);
+  BuildContext? routeContext;
+  var hostChanged = false;
+  var closed = false;
+  void close() {
+    final dialogContext = routeContext;
+    if (closed || dialogContext == null || !dialogContext.mounted) return;
+    closed = true;
+    _announceHostChange(
+      dialogContext,
+      hostChangedMessage,
+      discardsInput: hostChangeDiscardsInput,
+    );
+    closeAuthorityBoundDialog(dialogContext);
+  }
+
+  final subscription = ref.listenManual<SkotiqBackend>(
+    backendProvider,
+    (previous, next) {
+      if (hostChanged || identical(next, openedUnder)) return;
+      hostChanged = true;
+      close();
+    },
+  );
+  try {
+    return await showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (dialogContext) {
+        routeContext = dialogContext;
+        if (hostChanged) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => close());
+        }
+        return builder(dialogContext);
+      },
+    );
+  } finally {
+    subscription.close();
+  }
+}
+
 /// State of a dialog whose contents belong to one imaging host.
 ///
 /// The dialog captures the host it was opened under as [host]. If the app
@@ -37,39 +93,73 @@ void closeAuthorityBoundDialog(BuildContext context) {
 /// that finished after that happened (or after the dialog was dismissed).
 mixin HostBoundDialogState<W extends ConsumerStatefulWidget>
     on ConsumerState<W> {
-  /// The sentence shown when the host changes under the open dialog.
-  String get hostChangedMessage;
+  /// The sentence shown when the host changes under the open dialog, or null
+  /// when the dialog closes without one.
+  String? get hostChangedMessage;
 
   /// True when closing loses something the user typed or chose; the notice
   /// is then shown in the warning style.
   bool get hostChangeDiscardsInput => false;
 
+  /// Scopes over the dialog's host, for loads where only the newest may apply
+  /// (`hostScopes.beginLatest()`). Every scope from here, [host] included,
+  /// stays stale once the host has changed, even if the app later links back
+  /// to the same host.
+  late final AsyncScopes<SkotiqBackend> hostScopes;
   late final AsyncScope<SkotiqBackend> host;
+  bool _hostChanged = false;
   ProviderSubscription<SkotiqBackend>? _hostSubscription;
 
   @override
   void initState() {
     super.initState();
-    host = ref.backendScope(alive: () => mounted);
+    hostScopes = ref.backendScopes(alive: () => mounted && !_hostChanged);
+    host = hostScopes.begin();
     _hostSubscription = ref.listenManual<SkotiqBackend>(
       backendProvider,
       (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        if (hostChangeDiscardsInput) {
-          context.showWarningSnackBar(hostChangedMessage);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(hostChangedMessage)),
-          );
+        if (previous == null ||
+            identical(previous, next) ||
+            !mounted ||
+            _hostChanged) {
+          return;
         }
-        closeAuthorityBoundDialog(context);
+        _hostChanged = true;
+        onHostChanged();
       },
     );
+  }
+
+  /// Runs once, when the host changes under the open dialog. The default
+  /// shows [hostChangedMessage] and closes the dialog.
+  @protected
+  void onHostChanged() {
+    _announceHostChange(
+      context,
+      hostChangedMessage,
+      discardsInput: hostChangeDiscardsInput,
+    );
+    closeAuthorityBoundDialog(context);
   }
 
   @override
   void dispose() {
     _hostSubscription?.close();
     super.dispose();
+  }
+}
+
+void _announceHostChange(
+  BuildContext context,
+  String? message, {
+  required bool discardsInput,
+}) {
+  if (message == null) return;
+  if (discardsInput) {
+    context.showWarningSnackBar(message);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }

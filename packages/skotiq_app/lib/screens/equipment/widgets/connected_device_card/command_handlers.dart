@@ -79,8 +79,9 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     bool isSaving = false;
     String? errorText;
 
-    await _showEquipmentDialog<void>(
+    await showHostBoundDialog<void>(
       context: context,
+      ref: ref,
       builder: (ctx) {
         return StatefulBuilder(builder: (context, setState) {
           final colors = SkotiqColors.of(context);
@@ -267,8 +268,9 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     if (revision == null) return;
     final backend = ref.read(backendProvider);
     try {
-      final confirmed = await _showEquipmentDialog<bool>(
+      final confirmed = await showHostBoundDialog<bool>(
         context: context,
+        ref: ref,
         builder: (ctx) => SkotiqDialog(
           title: 'Meridian Flip Now?',
           icon: LucideIcons.flipHorizontal,

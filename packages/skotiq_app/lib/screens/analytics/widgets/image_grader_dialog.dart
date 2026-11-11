@@ -131,7 +131,11 @@ class ImageGraderDialog extends ConsumerStatefulWidget {
   ConsumerState<ImageGraderDialog> createState() => _ImageGraderDialogState();
 }
 
-class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
+class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog>
+    with HostBoundDialogState<ImageGraderDialog> {
+  @override
+  String? get hostChangedMessage => null;
+
   FrameGradeRules _rules = const FrameGradeRules();
   bool _rulesLoading = true;
   String? _rulesError;
@@ -146,32 +150,12 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
   Map<int, ImageGraderPsfMetric> _psfMetricsByImage = const {};
   bool _psfMetricsLoading = true;
   String? _psfMetricsError;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        setState(() {
-          _applying = false;
-          _applyError = 'Connected rig changed; reopen the grader to continue.';
-        });
-        closeAuthorityBoundDialog(context);
-      },
-    );
     unawaited(_loadRules());
     unawaited(_loadPsfMetrics());
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
   }
 
   Future<void> _loadRules() async {
@@ -209,8 +193,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
         _psfMetricsError = null;
       });
     }
-    final backend = ref.read(backendProvider);
-    final generation = _authorityGeneration;
+    final backend = host.value;
     try {
       final result = await loadImageGraderPsfMetrics(
         backend: backend,
@@ -219,14 +202,14 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
         frames: widget.frames,
         sessionId: widget.sessionId,
       );
-      if (_isCurrentAuthority(backend, generation)) {
+      if (host.isCurrent) {
         setState(() {
           _psfMetricsByImage = result;
           _psfMetricsLoading = false;
         });
       }
     } catch (error) {
-      if (_isCurrentAuthority(backend, generation)) {
+      if (host.isCurrent) {
         setState(() {
           _psfMetricsLoading = false;
           _psfMetricsError = userFacingError(error);
@@ -234,11 +217,6 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       }
     }
   }
-
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
 
   ({
     int rejected,
@@ -268,8 +246,6 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
 
   Future<void> _apply() async {
     if (_applying) return;
-    final backend = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     final preview = _preview();
     if (preview.rejections.isEmpty) {
       Navigator.of(context).pop(0);
@@ -283,18 +259,18 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       await ref
           .read(scienceSettingsProvider.notifier)
           .setFrameGradeRules(_rules);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (host.isStale) return;
       final repo = ref.read(imagingRecordsRepositoryProvider);
       for (final r in preview.rejections) {
-        if (!_isCurrentAuthority(backend, generation)) return;
+        if (host.isStale) return;
         await repo.rejectImage(r.frame.id, r.reason);
-        if (!_isCurrentAuthority(backend, generation)) return;
+        if (host.isStale) return;
       }
       if (!mounted) return;
       ref.invalidate(dbSessionImagesProvider);
       Navigator.of(context).pop(preview.rejected);
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (host.isStale) return;
       setState(() {
         _applying = false;
         _applyError = userFacingError(e);

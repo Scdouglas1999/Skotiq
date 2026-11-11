@@ -43,7 +43,21 @@ class CenteringDialog extends ConsumerStatefulWidget {
   ConsumerState<CenteringDialog> createState() => _CenteringDialogState();
 }
 
-class _CenteringDialogState extends ConsumerState<CenteringDialog> {
+class _CenteringDialogState extends ConsumerState<CenteringDialog>
+    with HostBoundDialogState<CenteringDialog> {
+  @override
+  String? get hostChangedMessage => null;
+
+  @override
+  void onHostChanged() {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      onClose(null);
+    } else {
+      super.onHostChanged();
+    }
+  }
+
   bool _isCentering = false;
   bool _isMinimized = false;
   // Latched while CenteringService.stop() is in flight so the user can't
@@ -61,22 +75,10 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
   // what keeps a bad entry from silently firing a fallback exposure.
   String? _exposureError;
   late final TextEditingController _exposureController;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        if (widget.onClose != null) {
-          widget.onClose!(null);
-        } else {
-          closeAuthorityBoundDialog(context);
-        }
-      },
-    );
     final profile = ref.read(activeEquipmentProfileProvider);
     final defaultExposure = profile?.defaultCenteringExposure ?? 5.0;
     _exposureController = TextEditingController(
@@ -86,7 +88,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _exposureController.dispose();
     super.dispose();
   }
@@ -531,7 +532,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
     try {
       await solveService.ensureSolverAvailable();
     } on SolverNotAvailableError catch (e) {
-      if (mounted) {
+      if (host.isCurrent) {
         setState(() {
           _isCentering = false;
           _solverMissingMessage = e.message;
@@ -539,7 +540,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       }
       return;
     } catch (e) {
-      if (mounted) {
+      if (host.isCurrent) {
         setState(() {
           _isCentering = false;
           _solverMissingMessage = 'Plate-solver detection failed: ${userFacingError(e)}';
@@ -549,7 +550,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
     }
 
     final appSettings = await _resolvedAppSettings();
-    if (!mounted) return;
+    if (host.isStale) return;
     final solverConfig = PlateSolverConfig(
       type: PlateSolverType.astap,
       executablePath: appSettings?.astapPath ?? '',
@@ -564,13 +565,13 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
         solverConfig: solverConfig,
         config: _buildCenteringConfig(exposureTime, appSettings),
         onStatusUpdate: (status) {
-          if (mounted) {
+          if (host.isCurrent) {
             ref.read(centeringStatusProvider.notifier).state = status;
           }
         },
       );
 
-      if (mounted) {
+      if (host.isCurrent) {
         setState(() {
           _result = result;
           _isCentering = false;
@@ -582,14 +583,14 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       // Path the centering service can throw if a deeper layer surfaces
       // the missing-solver case after we already passed our pre-flight.
       // Render the same banner rather than a generic snackbar.
-      if (mounted) {
+      if (host.isCurrent) {
         setState(() {
           _isCentering = false;
           _solverMissingMessage = e.message;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && host.isCurrent) {
         setState(() {
           _result = CenteringResult.failure(
             errorMessage: 'Centering error: ${userFacingError(e)}',

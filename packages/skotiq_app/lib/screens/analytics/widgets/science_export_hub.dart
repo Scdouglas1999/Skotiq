@@ -133,7 +133,11 @@ class ScienceExportHub extends ConsumerStatefulWidget {
   ConsumerState<ScienceExportHub> createState() => _ScienceExportHubState();
 }
 
-class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
+class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
+    with HostBoundDialogState<ScienceExportHub> {
+  @override
+  String? get hostChangedMessage => null;
+
   static const _allDataFilter = 'All Sessions & Standalone';
   static const _standaloneFilter = 'Standalone Captures';
 
@@ -148,8 +152,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
   /// capped preview window (remote mode only). Drives the truncation note on the
   /// export result so a row count is never presented as "everything".
   bool _standaloneWindowed = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   // Keys per dataset row so we can scroll a deep-linked row into view and
   // pulse a highlight ring around it on first frame.
@@ -160,20 +162,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        setState(() {
-          _isExporting = false;
-          _lastExportResult = null;
-          _selectedSessionId = null;
-          _standaloneOnly = false;
-        });
-        closeAuthorityBoundDialog(context);
-      },
-    );
     final initial = widget.initialDataset;
     if (initial != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -190,17 +178,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
       });
     }
   }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
 
   @override
   Widget build(BuildContext context) {

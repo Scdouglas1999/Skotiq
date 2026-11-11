@@ -75,7 +75,11 @@ MosaicExposureSettings mosaicWizardExposureSettingsForContext(
 ) =>
     smartNightMosaicExposureSettings(exposureContext);
 
-class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
+class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
+    with HostBoundDialogState<MosaicWizardDialog> {
+  @override
+  String? get hostChangedMessage => null;
+
   late double _centerRa;
   late double _centerDec;
 
@@ -135,22 +139,12 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
   CheckpointInfo? _resumableMosaicCheckpoint;
   bool _isCreatingProject = false;
   String? _checkpointAction;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   bool get _isBusy => _isCreatingProject || _checkpointAction != null;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        closeAuthorityBoundDialog(context);
-      },
-    );
     _centerRa = widget.initialRa ?? 0.0;
     _centerDec = widget.initialDec ?? 0.0;
     // Seed the panel size from the rig: focal length (profile) + sensor
@@ -175,17 +169,6 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
       if (mounted) unawaited(_probeForInterruptedMosaic());
     });
   }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
 
   /// Memoised spherical panel geometry (centre/row/col, WITHOUT the
   /// disabled overlay). Recomputed only when a geometry input changes, since

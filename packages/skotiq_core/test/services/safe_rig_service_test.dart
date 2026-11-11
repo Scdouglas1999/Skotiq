@@ -151,11 +151,10 @@ void main() {
             (_) async => DomeCapabilities(canSetShutter: domeCanSetShutter),
           ),
           safeRigServiceProvider.overrideWith((ref) {
-            final authority = ref.watch(backendProvider);
+            ref.watch(backendProvider);
             return safeRigBuilder?.call(ref) ??
                 SafeRigService(
                   ref,
-                  backend: authority,
                   stopSecondaryRig: _noopSecondaryRigStop,
                 );
           }),
@@ -405,7 +404,6 @@ void main() {
         executionState: SequenceExecutionState.idle,
         safeRigBuilder: (ref) => SafeRigService(
           ref,
-          backend: ref.watch(backendProvider),
           stopSecondaryRig: () async => true,
         ),
       );

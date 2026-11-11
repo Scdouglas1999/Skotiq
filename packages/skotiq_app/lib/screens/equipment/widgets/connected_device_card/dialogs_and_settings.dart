@@ -6,8 +6,9 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
   /// no flip settings of its own and points there.
   void _showMountSettingsDialog() async {
     final pageContext = context;
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
       context: context,
+      ref: ref,
       builder: (ctx) {
         final colors = SkotiqColors.of(ctx);
         return SkotiqDialog(
@@ -79,8 +80,9 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     bool isSaving = false;
     String? errorText;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
+        ref: ref,
         builder: (ctx) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
@@ -275,8 +277,9 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     }
     if (!mounted) return;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
+        ref: ref,
         builder: (ctx) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
@@ -367,8 +370,9 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     // snackbars must not use the dialog's (popped) context after the await.
     final pageContext = context;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
+        ref: ref,
         builder: (ctx) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
@@ -495,8 +499,9 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     bool isSaving = false;
     String? errorText;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
+        ref: ref,
         builder: (ctx) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);

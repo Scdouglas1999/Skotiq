@@ -512,10 +512,13 @@ class _CenteringDialogWithResult extends ConsumerStatefulWidget {
 }
 
 class _CenteringDialogWithResultState
-    extends ConsumerState<_CenteringDialogWithResult> {
+    extends ConsumerState<_CenteringDialogWithResult>
+    with HostBoundDialogState<_CenteringDialogWithResult> {
+  @override
+  String? get hostChangedMessage => null;
+
   bool _isCentering = false;
   bool _cancelInFlight = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   Future<AppSettingsState> _resolvedAppSettings() =>
       ref.read(appSettingsProvider.future);
@@ -540,22 +543,9 @@ class _CenteringDialogWithResultState
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(backendProvider, (
-      previous,
-      next,
-    ) {
-      if (previous == null || identical(previous, next) || !mounted) return;
-      closeAuthorityBoundDialog(context);
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startCentering();
     });
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
   }
 
   Future<void> _startCentering() async {
@@ -568,7 +558,7 @@ class _CenteringDialogWithResultState
     try {
       appSettings = await _resolvedAppSettings();
     } catch (error) {
-      if (mounted) {
+      if (mounted && host.isCurrent) {
         setState(() => _isCentering = false);
         Navigator.of(context).pop(
           CenteringResult.failure(
@@ -580,7 +570,7 @@ class _CenteringDialogWithResultState
       }
       return;
     }
-    if (!mounted) return;
+    if (!mounted || host.isStale) return;
 
     final solverConfig = PlateSolverConfig(
       type: PlateSolverType.astap,
@@ -596,11 +586,13 @@ class _CenteringDialogWithResultState
         solverConfig: solverConfig,
         config: _centeringConfig(appSettings),
         onStatusUpdate: (status) {
-          ref.read(centeringStatusProvider.notifier).state = status;
+          if (host.isCurrent) {
+            ref.read(centeringStatusProvider.notifier).state = status;
+          }
         },
       );
 
-      if (mounted) {
+      if (mounted && host.isCurrent) {
         setState(() {
           _isCentering = false;
         });
@@ -608,7 +600,7 @@ class _CenteringDialogWithResultState
         Navigator.of(context).pop(result);
       }
     } on SolverNotAvailableError catch (e) {
-      if (mounted) {
+      if (mounted && host.isCurrent) {
         final failureResult = CenteringResult.failure(
           errorMessage: e.message,
           iterations: 0,
@@ -618,7 +610,7 @@ class _CenteringDialogWithResultState
         Navigator.of(context).pop(failureResult);
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && host.isCurrent) {
         final failureResult = CenteringResult.failure(
           errorMessage: 'Centering error: ${userFacingError(e)}',
           iterations: 0,
@@ -641,7 +633,7 @@ class _CenteringDialogWithResultState
         context.showErrorSnackBar('Cancel failed: ${userFacingError(e)}');
       }
     }
-    if (mounted) {
+    if (mounted && host.isCurrent) {
       Navigator.of(context).pop(null);
     }
   }

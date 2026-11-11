@@ -126,6 +126,23 @@ extension BackendScopeRef on Ref {
   /// One scope over the backend that is current now.
   AsyncScope<SkotiqBackend> backendScope({bool Function()? alive}) =>
       backendScopes(alive: alive).begin();
+
+  /// One scope over the backend that is current now, for a service this
+  /// provider builds for that backend. It goes stale when the backend changes
+  /// and when this provider is disposed or rebuilt.
+  ///
+  /// The backend is read through the container, not this [Ref]: a provider's
+  /// own `Ref` must not be used between a dependency change and the rebuild,
+  /// which is exactly when a service checks whether its work is still wanted.
+  AsyncScope<SkotiqBackend> providerBackendScope() {
+    var built = true;
+    onDispose(() => built = false);
+    return AsyncScopes(
+      container.read,
+      backendProvider,
+      alive: () => built,
+    ).begin();
+  }
 }
 
 /// Scopes tied to the current backend, for widgets.

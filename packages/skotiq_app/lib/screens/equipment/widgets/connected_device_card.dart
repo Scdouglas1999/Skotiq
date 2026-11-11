@@ -269,53 +269,6 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
     setState(() => _coverCalibratorCommandInFlight = false);
   }
 
-  /// Presents a device dialog that belongs to exactly one imaging host.
-  ///
-  /// Equipment IDs and capability snapshots are host-owned. If the user
-  /// changes rigs while a dialog is open, remove that route before it can
-  /// dispatch the old device state through the new host's providers.
-  Future<T?> _showEquipmentDialog<T>({
-    required BuildContext context,
-    required WidgetBuilder builder,
-    bool barrierDismissible = true,
-  }) async {
-    final authority = ref.read(backendProvider);
-    BuildContext? dialogContext;
-    var authorityChanged = false;
-    final subscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(next, authority)) return;
-        authorityChanged = true;
-        final routeContext = dialogContext;
-        if (routeContext != null && routeContext.mounted) {
-          closeAuthorityBoundDialog(routeContext);
-        }
-      },
-    );
-
-    try {
-      return await showDialog<T>(
-        context: context,
-        barrierDismissible: barrierDismissible,
-        builder: (routeContext) {
-          dialogContext = routeContext;
-          if (authorityChanged ||
-              !identical(ref.read(backendProvider), authority)) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (routeContext.mounted) {
-                closeAuthorityBoundDialog(routeContext);
-              }
-            });
-          }
-          return builder(routeContext);
-        },
-      );
-    } finally {
-      subscription.close();
-    }
-  }
-
   /// Writes this device into the active profile so it comes back on the next
   /// launch — the remedy the "Connected but not in this profile" line offers.
   Future<void> _addToProfile() async {

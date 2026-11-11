@@ -151,8 +151,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   }
 
   Future<void> _exportData(ScienceExportDataset dataType) async {
-    final backend = ref.read(backendProvider);
-    final generation = ++_authorityGeneration;
+    final scope = hostScopes.beginLatest(#export);
     _standaloneWindowed = false;
     setState(() {
       _isExporting = true;
@@ -161,7 +160,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
     try {
       final sessions = await ref.read(allSessionsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       final selectedSession = sessions
           .where((session) => session.id == _selectedSessionId)
           .firstOrNull;
@@ -245,7 +244,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
               'Transient report uses the dedicated panel, not CSV export.');
       }
 
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
 
       if (rows.length <= 1) {
         if (mounted) {
@@ -259,7 +258,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
       final csv = const ListToCsvConverter().convert(rows);
       final directory = await ref.read(scienceExportDirectoryProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       final timestamp = DateTime.now()
           .toUtc()
           .toIso8601String()
@@ -273,7 +272,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         initialDirectory: directory.path,
         allowedExtensions: const ['csv'],
       );
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       if (filePath == null) {
         if (!mounted) return;
         setState(() {
@@ -285,7 +284,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       final file = File(filePath);
       await ref.read(scienceExportFileWriterProvider)(file, csv);
 
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
         _lastExportResult = 'Exported ${rows.length - 1} rows to $filePath'
@@ -303,7 +302,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         subject: 'Skotiq science export',
       );
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
         _lastExportResult = 'Export failed: ${userFacingError(e)}';
@@ -313,8 +312,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   }
 
   Future<void> _generateReport() async {
-    final backend = ref.read(backendProvider);
-    final generation = ++_authorityGeneration;
+    final scope = hostScopes.beginLatest(#export);
     setState(() {
       _isExporting = true;
       _lastExportResult = null;
@@ -322,7 +320,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
     try {
       final sessions = await ref.read(allSessionsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       final selectedSession = sessions
           .where((session) => session.id == _selectedSessionId)
           .firstOrNull;
@@ -343,11 +341,11 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       }
 
       late final String filePath;
-      if (backend.remoteHost case final linkedHost?) {
+      if (scope.value.remoteHost case final linkedHost?) {
         final bytes = await linkedHost.science.generateObservationReport(reportSessionId);
-        if (!_isCurrentAuthority(backend, generation)) return;
+        if (scope.isStale) return;
         final directory = await ref.read(scienceExportDirectoryProvider.future);
-        if (!_isCurrentAuthority(backend, generation)) return;
+        if (scope.isStale) return;
         final timestamp = DateTime.now()
             .toUtc()
             .toIso8601String()
@@ -368,7 +366,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         );
       }
 
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
         _lastExportResult = 'Report generated: $filePath';
@@ -379,7 +377,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         subject: 'Skotiq observation report',
       );
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
         _lastExportResult = 'Report generation failed: ${userFacingError(e)}';
