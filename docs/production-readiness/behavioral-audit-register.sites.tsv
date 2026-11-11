@@ -3061,9 +3061,9 @@ packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	has
 packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0376	id: id?.toString() ?? '',
 packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0378	telescopeAperture: telescopeAperture ?? 0.0,
 packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0377	telescopeFocalLength: telescopeFocalLength ?? 0.0,
-packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	createProfile	literal_null_coalesce	1	V0380	int.tryParse(remote.lastSavedProfileId ?? '') ??
-packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	duplicateProfile	literal_null_coalesce	1	V0382	int.tryParse(remote.lastSavedProfileId ?? '') ??
-packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	updateProfile	literal_null_coalesce	1	V0381	int.tryParse(remote.lastSavedProfileId ?? '') ??
+packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	createProfile	literal_null_coalesce	1	U2-10	int.tryParse(remote.host.lastSavedProfileId ?? '') ??
+packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	duplicateProfile	literal_null_coalesce	1	U2-10	int.tryParse(remote.host.lastSavedProfileId ?? '') ??
+packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	updateProfile	literal_null_coalesce	1	U2-10	int.tryParse(remote.host.lastSavedProfileId ?? '') ??
 packages/skotiq_core/lib/src/providers/profiles/profile_derived_providers.dart	-	literal_null_coalesce	1	V0384	: (profile.telescopeAperture ?? 0);
 packages/skotiq_core/lib/src/providers/profiles/profile_derived_providers.dart	-	literal_null_coalesce	1	V0383	: (profile.telescopeFocalLength ?? 0);
 packages/skotiq_core/lib/src/providers/push_notification_provider.dart	build	literal_null_coalesce	1	V0019	map['notifyEquipmentDisconnected'] as bool? ?? false,
