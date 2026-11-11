@@ -106,9 +106,11 @@ class _StackAndShareEntry extends StatelessWidget {
                     DropdownMenuItem<int>(
                       value: session.id,
                       child: Text(
-                        '${session.name ?? 'Session ${session.id}'}'
-                        '  ·  ${format.format(session.startTime)}'
-                        '  ·  ${session.totalExposures} frames',
+                        // When and how much first: the side panel is narrow
+                        // and the name is what an ellipsis may cut.
+                        '${format.format(session.startTime)}'
+                        '  ·  ${session.totalExposures} frames'
+                        '  ·  ${session.name ?? 'Session ${session.id}'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
