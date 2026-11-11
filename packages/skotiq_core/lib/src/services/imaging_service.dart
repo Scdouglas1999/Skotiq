@@ -39,6 +39,7 @@ import 'notification_service.dart';
 import 'logging_service.dart';
 import 'science/science_processing_service.dart';
 import 'frame_quality_score.dart';
+import '../backend/remote_host.dart';
 export '../utils/host_paths.dart' show hostPathContext;
 part 'imaging_service/file_paths.dart';
 part 'imaging_service/persistence.dart';

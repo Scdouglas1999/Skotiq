@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart' as db;
 import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
@@ -23,6 +22,7 @@ import 'scheduler/horizon_profile.dart';
 import 'sequence_file_service.dart';
 import 'sequence_wire_codec.dart';
 import 'sequence_summary.dart';
+import '../backend/remote_host.dart';
 
 export 'sequence_summary.dart';
 
@@ -70,14 +70,14 @@ class SequenceRepository {
   final SequencesDao? _dao;
   final SequenceRunsDao? _runsDao;
   final SequenceVersionsDao? _versionsDao;
-  final NetworkBackend? _remote;
+  final HostSequenceLibrary? _remote;
   final SequenceFileService? _fileService;
 
   SequenceRepository._({
     SequencesDao? dao,
     SequenceRunsDao? runsDao,
     SequenceVersionsDao? versionsDao,
-    NetworkBackend? remote,
+    HostSequenceLibrary? remote,
     SequenceFileService? fileService,
   }) : _dao = dao,
        _runsDao = runsDao,
@@ -117,7 +117,7 @@ class SequenceRepository {
   );
 
   factory SequenceRepository.remote(
-    NetworkBackend remote,
+    HostSequenceLibrary remote,
     SequenceFileService fileService,
   ) => SequenceRepository._(remote: remote, fileService: fileService);
 
@@ -891,9 +891,10 @@ HorizonProfile? _schedulerHorizonFromJson(Object? raw) {
 /// Provider for the sequence repository
 final sequenceRepositoryProvider = Provider<SequenceRepository>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final host = backend.remoteHost?.sequences;
+  if (host != null) {
     return SequenceRepository.remote(
-      backend,
+      host,
       ref.watch(sequenceFileServiceProvider),
     );
   }

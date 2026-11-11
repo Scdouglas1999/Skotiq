@@ -5,13 +5,12 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/fwhm_conversion.dart';
-import '../backend/disconnected_backend.dart';
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../providers/backend_provider.dart';
 import '../providers/imaging_provider.dart';
 import 'imaging_service.dart';
+import '../backend/remote_host.dart';
 
 /// Publishes JPEG-first capture previews and loads host raw data in the background.
 class CapturePreviewPublisher {
@@ -32,7 +31,7 @@ class CapturePreviewPublisher {
   }) {
     final generation = ++_generation;
     final backend = _read(ref, backendProvider);
-    final source = backend is NetworkBackend
+    final source = backend.remoteHost != null
         ? CapturePreviewSource.remote
         : CapturePreviewSource.local;
     final scheduleRaw = loadRaw && _shouldScheduleRawLoad(backend);
@@ -74,7 +73,7 @@ class CapturePreviewPublisher {
   }
 
   bool _shouldScheduleRawLoad(SkotiqBackend backend) {
-    if (backend is DisconnectedBackend) {
+    if (backend.hasNoHost) {
       return false;
     }
     return true;

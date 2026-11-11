@@ -14,12 +14,12 @@ import '../database/daos/sessions_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
-import '../backend/network_backend.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/session_provider.dart' show sequenceCheckpointsDaoProvider;
 import '../utils/json_validation.dart';
+import '../backend/remote_host.dart';
 part 'quick_start_service/quick_start_models.dart';
 part 'quick_start_service/quick_start_providers.dart';
 

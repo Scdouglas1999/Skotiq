@@ -497,6 +497,17 @@ class NetworkBackend extends _NetworkBackendTransport
         _NetworkBackendMountGuardOperations
     implements
         SkotiqBackend,
+        HostLink,
+        HostProfiles,
+        HostFocusModels,
+        HostFiles,
+        HostDeviceControl,
+        HostCalibrationTools,
+        HostImagingRecords,
+        HostLiveStack,
+        HostPlanningData,
+        HostPostSession,
+        HostSequenceLibrary,
         EnvironmentalStatusBackend,
         DomeStatusBackend,
         MountGuardBackend {

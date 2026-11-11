@@ -27,7 +27,7 @@ bool _isRecentCompletedSession(db.ImagingSession session, DateTime now) {
 /// empty local session/target/sequence tables.
 Future<List<QuickStartContext>> _remoteQuickStartContexts(
   Ref ref,
-  NetworkBackend backend, {
+  SkotiqBackend backend, {
   required int limit,
 }) async {
   final sessionsFuture = ref.watch(allSessionsProvider.future);
@@ -119,7 +119,7 @@ final quickStartServiceProvider = Provider<QuickStartService>((ref) {
     checkpointsDao: ref.watch(sequenceCheckpointsDaoProvider),
     resolveProfileName: (profileId) async {
       final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost != null) {
         final profiles = await backend.getProfiles();
         for (final profile in profiles) {
           if (int.tryParse(profile.id) == profileId) {
@@ -151,7 +151,7 @@ final quickStartContextProvider = FutureProvider<QuickStartContext?>((
   ref,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     final contexts = await _remoteQuickStartContexts(ref, backend, limit: 1);
     return contexts.isEmpty ? null : contexts.first;
   }
@@ -165,7 +165,7 @@ final quickStartContextProvider = FutureProvider<QuickStartContext?>((
 /// Provider for checking if quick start is available
 final quickStartAvailableProvider = FutureProvider<bool>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (backend.remoteHost != null) {
     return (await _remoteQuickStartContexts(ref, backend, limit: 1)).isNotEmpty;
   }
   final service = ref.watch(quickStartServiceProvider);
@@ -176,7 +176,7 @@ final quickStartAvailableProvider = FutureProvider<bool>((ref) async {
 final quickStartContextsProvider =
     FutureProvider.family<List<QuickStartContext>, int>((ref, limit) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      if (backend.remoteHost != null) {
         return _remoteQuickStartContexts(ref, backend, limit: limit);
       }
       final service = ref.watch(quickStartServiceProvider);

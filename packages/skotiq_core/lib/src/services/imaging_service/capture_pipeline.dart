@@ -284,7 +284,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
         // Get the captured image from backend (remote uses JPEG wire format).
         _logger.debug(
-          'Calling cameraGetLastImage (${backend is NetworkBackend ? 'remote/jpeg' : 'local'})...',
+          'Calling cameraGetLastImage (${backend.remoteHost != null ? 'remote/jpeg' : 'local'})...',
           source: 'ImagingService',
         );
         final capturedImage = await backend
@@ -383,7 +383,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             settings: settings,
             capturedAt: observationStartedAt,
             targetName: targetName,
-            previewSource: backend is NetworkBackend
+            previewSource: backend.remoteHost != null
                 ? CapturePreviewSource.remote
                 : CapturePreviewSource.local,
             purpose: purpose,
@@ -464,9 +464,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                   .millisecondsSinceEpoch;
               scratchName = 'capture_$timestamp.fits';
             }
-            if (backend is NetworkBackend) {
+            final hostFiles = backend.remoteHost?.files;
+            if (hostFiles != null) {
               // The host writes the file, so the path has to be one of its own.
-              final roots = await backend.browseRemoteDirectories();
+              final roots = await hostFiles.browseRemoteDirectories();
               if (!_hasBackendAuthority(backend)) return null;
               savedFilePath = hostScratchFilePath(
                 roots.directories,
@@ -626,7 +627,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         // A companion's frame lives on the imaging host, which owns its
         // calibration, quality and science processing; this machine cannot
         // open the host path and must not process the frame a second time.
-        final hostOwnsFrame = backend is NetworkBackend;
+        final hostOwnsFrame = backend.remoteHost != null;
 
         // Auto-calibration: apply dark/flat/bias correction if enabled
         // Only calibrate light frames - darks, flats, and biases should not be calibrated

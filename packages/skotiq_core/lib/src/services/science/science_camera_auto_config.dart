@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/skotiq_backend.dart';
-import '../../backend/network_backend.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../providers/backend_provider.dart';
@@ -18,6 +17,7 @@ import '../sensor_specs/camera_sensor_entry.dart';
 import '../sensor_specs/camera_sensor_specs.dart';
 import '../sensor_specs/published_figure.dart';
 import '../smart_night/hardware_specs_service.dart';
+import '../../backend/remote_host.dart';
 
 /// Keeps the `science.camera.*` settings (read noise, gain in e⁻/ADU,
 /// saturation ADU) in sync with the hardware that is actually in use, so
@@ -79,7 +79,7 @@ class ScienceCameraAutoConfig {
   }) async {
     final generation = ++_syncGeneration;
     try {
-      if (!_isCurrent(generation) || _backend is NetworkBackend) {
+      if (!_isCurrent(generation) || _backend.remoteHost != null) {
         return; // The appliance host owns the hardware and these settings.
       }
       final dao = _ref.read(settingsDaoProvider);

@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../database/database.dart' as db;
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
+import '../../backend/remote_host.dart';
 
 /// Membership of the scheduler queue.
 ///
@@ -24,9 +24,9 @@ class SchedulerQueueService {
   /// When non-null this service runs on a remote SLAVE: the queue lives in the
   /// HOST DB, so every read/write routes over `/api/scheduler/removed-targets`.
   /// Null on the host (FfiBackend) and in tests.
-  final NetworkBackend? _remote;
+  final HostPlanningData? _remote;
 
-  SchedulerQueueService(this._db, {NetworkBackend? remote}) : _remote = remote;
+  SchedulerQueueService(this._db, {HostPlanningData? remote}) : _remote = remote;
 
   /// Take [targetId] out of the scheduler queue.
   ///
@@ -82,6 +82,6 @@ final schedulerQueueServiceProvider = Provider<SchedulerQueueService>((ref) {
   final backend = ref.watch(backendProvider);
   return SchedulerQueueService(
     ref.watch(databaseProvider),
-    remote: backend is NetworkBackend ? backend : null,
+    remote: backend.remoteHost?.planning,
   );
 });

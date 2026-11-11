@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/equipment_profile.dart' as remote_profile;
@@ -23,6 +22,7 @@ import '../utils/json_validation.dart';
 import 'device_exceptions.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
+import '../backend/remote_host.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
@@ -106,7 +106,7 @@ class ProfileService {
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
     final authority = _authority;
     final backend = authority.backend;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       await backend.loadProfile(profileId.toString());
       _requireAuthority(authority);
       _ref.invalidate(equipmentProfilesProvider);
@@ -238,7 +238,7 @@ class ProfileService {
     final authority = _authority;
     final backend = authority.backend;
     final List<ProfileExportData> exportData;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final profiles = await backend.getProfiles();
       _requireAuthority(authority);
       exportData = profiles
@@ -332,7 +332,7 @@ class ProfileService {
   /// Create a new empty profile
   Future<int> createProfile(String name, {String? description}) async {
     final authority = _authority;
-    if (authority.backend is NetworkBackend) {
+    if (authority.backend.remoteHost != null) {
       final id = await _profilesNotifier.createProfile(
         name: name,
         description: description,
@@ -356,7 +356,7 @@ class ProfileService {
   /// Duplicate an existing profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final authority = _authority;
-    if (authority.backend is NetworkBackend) {
+    if (authority.backend.remoteHost != null) {
       final id = await _profilesNotifier.duplicateProfile(sourceId, newName);
       _requireAuthority(authority);
       return id;
@@ -372,7 +372,7 @@ class ProfileService {
   /// Delete a profile
   Future<void> deleteProfile(int profileId) async {
     final authority = _authority;
-    if (authority.backend is NetworkBackend) {
+    if (authority.backend.remoteHost != null) {
       await _profilesNotifier.deleteProfile(profileId);
       _requireAuthority(authority);
       return;

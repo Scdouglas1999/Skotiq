@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
@@ -13,6 +12,7 @@ import '../providers/ui_notification_provider.dart';
 import 'device_service.dart' show DeviceTypeDisplayExtension;
 import 'logging_service.dart';
 import 'notification_service.dart';
+import '../backend/remote_host.dart';
 
 /// Coordinates the device auto-reconnect lifecycle.
 ///
@@ -55,7 +55,7 @@ class DeviceReconnectCoordinator {
   /// On a companion the device events are the imaging host's, relayed. The
   /// host already reconnects, checkpoints and pauses for its own devices, so
   /// the companion must never send its own reconnect, checkpoint or pause.
-  bool get _hostOwnsRecovery => _backend is NetworkBackend;
+  bool get _hostOwnsRecovery => _backend.remoteHost != null;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
   final List<Duration> _retryDelays;

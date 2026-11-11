@@ -21,7 +21,7 @@ extension _ImagingServicePersistence on ImagingService {
     String? telescope;
     double? focalLength;
     double? aperture;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final activeProfile = await backend.getActiveProfile();
       if (!_hasBackendAuthority(backend)) return;
       if (activeProfile != null) {
@@ -176,7 +176,7 @@ extension _ImagingServicePersistence on ImagingService {
     int? fileSize;
     // A companion's frame is written on the imaging host, at a host path this
     // machine cannot open.
-    if (backend is! NetworkBackend) {
+    if (backend.remoteHost == null) {
       try {
         fileSize = await File(filePath).length();
       } catch (e) {

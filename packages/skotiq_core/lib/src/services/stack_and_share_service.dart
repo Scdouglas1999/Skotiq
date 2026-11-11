@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'stacking_engine_seam.dart';
@@ -22,6 +21,7 @@ import 'live_stacking_service.dart';
 import 'logging_service.dart';
 import 'stack_light_selector.dart';
 import 'stack_share_export_service.dart';
+import '../backend/remote_host.dart';
 part 'stack_and_share_service/stack_results.dart';
 part 'stack_and_share_service/rejection_reasons.dart';
 part 'stack_and_share_service/stack_frame_io.dart';
@@ -159,7 +159,7 @@ class StackAndShareService {
     void Function(StackAndShareProgress)? onProgress,
   }) async {
     _ensureAuthority();
-    if (_backend is NetworkBackend) {
+    if (_backend.remoteHost != null) {
       throw StateError(
         'Stack & Share runs on the imaging host, not a remote controller.',
       );

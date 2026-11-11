@@ -19,8 +19,8 @@ class PredictiveAfSettingsController {
   PredictiveAfSettingsController(this._ref, this._backend);
 
   Future<PredictiveAfSettingsSnapshot> load({int? equipmentProfileId}) async {
-    final backend = _backend;
-    if (backend is NetworkBackend) {
+    final backend = _backend.remoteHost?.focusModels;
+    if (backend != null) {
       final response = await backend.getPredictiveAfSettings();
       final configRaw = response['config'];
       final modelsRaw = response['models'];
@@ -64,8 +64,8 @@ class PredictiveAfSettingsController {
   }
 
   Future<void> updateConfig(PredictiveAfConfig config) async {
-    final backend = _backend;
-    if (backend is NetworkBackend) {
+    final backend = _backend.remoteHost?.focusModels;
+    if (backend != null) {
       await backend.updatePredictiveAfConfig(config.toJson());
       return;
     }
@@ -76,8 +76,8 @@ class PredictiveAfSettingsController {
     required int? equipmentProfileId,
     required String filterName,
   }) async {
-    final backend = _backend;
-    if (backend is NetworkBackend) {
+    final backend = _backend.remoteHost?.focusModels;
+    if (backend != null) {
       await backend.clearPredictiveAfSamples(filterName);
       return;
     }
@@ -93,8 +93,8 @@ class PredictiveAfSettingsController {
     required int? equipmentProfileId,
     required String filterName,
   }) async {
-    final backend = _backend;
-    if (backend is NetworkBackend) {
+    final backend = _backend.remoteHost?.focusModels;
+    if (backend != null) {
       return backend.exportPredictiveAfModel(filterName);
     }
     return _ref

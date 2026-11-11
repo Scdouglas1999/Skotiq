@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../database/database.dart' as db;
 import '../../models/planning/project.dart';
 import '../../models/planning/project_progress.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../scheduler/integration_goal_service.dart';
+import '../../backend/remote_host.dart';
 
 /// Persistence + business-logic for multi-night planning projects.
 ///
@@ -35,9 +35,9 @@ class ProjectService {
   /// the campaign roll-up live in the HOST DB, so reads route over
   /// `/api/projects*`. Null on the host (FfiBackend) / tests — local path
   /// unchanged.
-  final NetworkBackend? _remote;
+  final HostPlanningData? _remote;
 
-  ProjectService(this._db, this._goalService, {NetworkBackend? remote})
+  ProjectService(this._db, this._goalService, {HostPlanningData? remote})
     : _remote = remote;
 
   void _notifyMutated() {
@@ -329,7 +329,7 @@ final projectServiceProvider = Provider<ProjectService>((ref) {
   final service = ProjectService(
     ref.watch(databaseProvider),
     ref.watch(integrationGoalServiceProvider),
-    remote: backend is NetworkBackend ? backend : null,
+    remote: backend.remoteHost?.planning,
   );
   ref.onDispose(() => service.dispose());
   return service;

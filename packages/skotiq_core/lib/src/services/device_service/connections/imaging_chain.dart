@@ -212,18 +212,18 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   /// On a remote client the host runs the ramp, next to the camera, so it
   /// continues when this client leaves and any client can cancel it.
   Future<CameraWarmupOutcome> _warmCamera({double ratePerMin = 2.0}) async {
-    final backend = _backend;
-    if (backend is! NetworkBackend) {
+    final host = _backend.remoteHost?.devices;
+    if (host == null) {
       return _warmupController.start(ratePerMin: ratePerMin);
     }
-    final name = await backend.cameraStartHostWarmUp(ratePerMin: ratePerMin);
+    final name = await host.cameraStartHostWarmUp(ratePerMin: ratePerMin);
     final outcome = CameraWarmupOutcome.values.firstWhere(
       (value) => value.name == name,
       orElse: () => CameraWarmupOutcome.started,
     );
     if (outcome == CameraWarmupOutcome.started) {
       _ref.read(cameraStateProvider.notifier).setWarming(true);
-      _followHostWarmUp(backend);
+      _followHostWarmUp(host);
     }
     return outcome;
   }
@@ -235,8 +235,8 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   /// command next, which the host treats as replacing its warm-up, or are
   /// tearing this client down, which must leave the host's warm-up running.
   void _cancelWarmCamera({bool restorePriorSetting = true}) {
-    final backend = _backend;
-    if (backend is! NetworkBackend) {
+    final host = _backend.remoteHost?.devices;
+    if (host == null) {
       _warmupController.cancel(restorePriorSetting: restorePriorSetting);
       return;
     }
@@ -245,7 +245,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     _hostWarmUpWatch = null;
     _ref.read(cameraStateProvider.notifier).setWarming(false);
     unawaited(
-      backend.cameraCancelHostWarmUp(restorePriorSetting: true).catchError((
+      host.cameraCancelHostWarmUp(restorePriorSetting: true).catchError((
         Object e,
       ) {
         _ref
@@ -259,12 +259,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   }
 
   /// Show the host's warm-up as running until the host reports it over.
-  void _followHostWarmUp(NetworkBackend backend) {
+  void _followHostWarmUp(HostDeviceControl host) {
     _hostWarmUpWatch?.cancel();
     _hostWarmUpWatch = Timer.periodic(const Duration(seconds: 10), (_) async {
       bool warming;
       try {
-        warming = await backend.cameraHostIsWarming();
+        warming = await host.cameraHostIsWarming();
       } catch (_) {
         return;
       }

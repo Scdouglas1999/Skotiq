@@ -15,7 +15,7 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     final operation = authority ?? _authority;
     final backend = operation.backend;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final profiles = await backend.getProfiles();
       _requireAuthority(operation);
       for (final profile in profiles) {
@@ -37,7 +37,7 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     final operation = authority ?? _authority;
     final backend = operation.backend;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final active = await backend.getActiveProfile();
       _requireAuthority(operation);
       return active != null
@@ -62,7 +62,7 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     final operation = authority ?? _authority;
     final backend = operation.backend;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final profiles = await backend.getProfiles();
       _requireAuthority(operation);
       remote_profile.EquipmentProfile? defaultProfile;
@@ -103,7 +103,7 @@ extension _ProfileServiceBackends on ProfileService {
     final operation = authority ?? _authority;
     _requireAuthority(operation);
     final backend = operation.backend;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       await backend.saveProfile(profile.toRemoteProfile());
       _requireAuthority(operation);
       _ref.invalidate(equipmentProfilesProvider);
@@ -245,7 +245,7 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     _requireAuthority(authority);
     final backend = authority.backend;
-    if (backend is NetworkBackend) {
+    if (backend.remoteHost != null) {
       final existingProfiles = await backend.getProfiles();
       _requireAuthority(authority);
       var name = data.name;
@@ -302,7 +302,8 @@ extension _ProfileServiceBackends on ProfileService {
       await backend.saveProfile(model.toRemoteProfile());
       _requireAuthority(authority);
       _ref.invalidate(equipmentProfilesProvider);
-      final savedId = int.tryParse(backend.lastSavedProfileId ?? '');
+      final savedText = backend.remoteHost?.profiles.lastSavedProfileId;
+      final savedId = savedText == null ? null : int.tryParse(savedText);
       if (savedId != null && savedId > 0) {
         return savedId;
       }

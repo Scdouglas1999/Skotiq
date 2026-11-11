@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../database/database.dart' as db;
 import '../../models/scheduler/target_constraint.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../utils/resilient_poll_stream.dart';
+import '../../backend/remote_host.dart';
 
 /// Persistence + change-notification for hard target constraints.
 ///
@@ -24,9 +24,9 @@ class TargetConstraintService {
   /// mutations route over `/api/target-constraints` instead of the slave's
   /// empty local table. Null on the host (FfiBackend) / tests — local path
   /// unchanged.
-  final NetworkBackend? _remote;
+  final HostPlanningData? _remote;
 
-  TargetConstraintService(this._db, {NetworkBackend? remote})
+  TargetConstraintService(this._db, {HostPlanningData? remote})
     : _remote = remote;
 
   void _notifyMutated() {
@@ -197,7 +197,7 @@ final targetConstraintServiceProvider = Provider<TargetConstraintService>((
   final backend = ref.watch(backendProvider);
   final svc = TargetConstraintService(
     ref.watch(databaseProvider),
-    remote: backend is NetworkBackend ? backend : null,
+    remote: backend.remoteHost?.planning,
   );
   ref.onDispose(() => svc.dispose());
   return svc;

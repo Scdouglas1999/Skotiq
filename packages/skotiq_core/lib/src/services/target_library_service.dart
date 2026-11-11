@@ -1,13 +1,13 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart' as db;
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
 import 'logging_service.dart';
+import '../backend/remote_host.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {
@@ -53,9 +53,9 @@ class TargetLibraryService {
     int priority = 5,
   }) async {
     _ensureAuthority();
-    final backend = _backend;
-    if (backend is NetworkBackend) {
-      final id = await backend.createTarget({
+    final host = _backend.remoteHost?.imagingRecords;
+    if (host != null) {
+      final id = await host.createTarget({
         'name': name,
         'ra': raHours,
         'dec': decDegrees,
@@ -166,9 +166,9 @@ class TargetLibraryService {
   }
 
   Future<List<db.Target>> _loadTargets() async {
-    final backend = _backend;
-    if (backend is NetworkBackend) {
-      final rows = await backend.getAllTargets();
+    final host = _backend.remoteHost?.imagingRecords;
+    if (host != null) {
+      final rows = await host.getAllTargets();
       // Drop rows the host sent without a usable sky coordinate rather than
       // failing the whole library. `_targetFromRemoteJson` refuses to invent an
       // RA/Dec, which is right — but mapping straight over the list would let a

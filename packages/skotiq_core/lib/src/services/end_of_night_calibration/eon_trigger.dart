@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/equipment_provider.dart';
@@ -21,6 +20,7 @@ import 'eon_deferral.dart';
 import 'eon_providers.dart';
 import 'eon_service.dart' show EonReport;
 import 'eon_settings.dart';
+import '../../backend/remote_host.dart';
 
 /// Why the night's imaging ended.
 enum EonEndReason {
@@ -321,7 +321,7 @@ class EndOfNightCalibrationCoordinator {
     bool waitForCompletion = false,
     bool forceWarmUp = false,
   }) async {
-    if (_ref.read(backendProvider) is NetworkBackend) return false;
+    if (_ref.read(backendProvider).remoteHost != null) return false;
     final settings = await EonSettings.load(_ref.read(settingsDaoProvider));
     if (!settings.enabled) {
       _log.info(

@@ -30,6 +30,7 @@ import '../utils/utc_timestamp.dart';
 import '../utils/resilient_poll_stream.dart';
 import '../services/wcs/gnomonic_projection.dart' show SolvedWcs;
 import '../services/wcs/wcs_sip_codec.dart';
+import '../backend/remote_host.dart';
 part 'imaging_records_repository/solved_frame_hooks.dart';
 part 'imaging_records_repository/wire_json.dart';
 part 'imaging_records_repository/remote_polling.dart';
@@ -42,7 +43,7 @@ part 'imaging_records_repository/remote_polling.dart';
 class ImagingRecordsRepository {
   final SessionsDao? _sessionsDao;
   final ImagesDao? _imagesDao;
-  final NetworkBackend? _remote;
+  final HostImagingRecords? _remote;
   final Duration _remotePollInterval;
 
   /// Optional scan/fold hook, fired after local Science grading.
@@ -54,7 +55,7 @@ class ImagingRecordsRepository {
   ImagingRecordsRepository._({
     SessionsDao? sessionsDao,
     ImagesDao? imagesDao,
-    NetworkBackend? remote,
+    HostImagingRecords? remote,
     Duration remotePollInterval = const Duration(seconds: 10),
     SolvedFrameFoldHook? onSolvedFrameFold,
   }) : _sessionsDao = sessionsDao,
@@ -80,7 +81,7 @@ class ImagingRecordsRepository {
   );
 
   factory ImagingRecordsRepository.remote(
-    NetworkBackend remote, {
+    HostImagingRecords remote, {
     Duration pollInterval = const Duration(seconds: 10),
   }) => ImagingRecordsRepository._(
     remote: remote,
@@ -554,8 +555,9 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
   ref,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return ImagingRecordsRepository.remote(backend);
+  final host = backend.remoteHost?.imagingRecords;
+  if (host != null) {
+    return ImagingRecordsRepository.remote(host);
   }
   final imagesDao = ref.watch(imagesDaoProvider);
   return ImagingRecordsRepository.local(

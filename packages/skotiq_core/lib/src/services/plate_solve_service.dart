@@ -6,14 +6,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import '../backend/ffi_backend.dart' show FfiBackend;
-import '../backend/network_backend.dart' show NetworkBackend;
 import '../backend/skotiq_backend.dart';
 import '../models/plate_solver.dart' as ps_model;
 import '../providers/backend_provider.dart';
 import '../providers/profiles_provider.dart' show opticalConfigProvider;
 import '../providers/settings_provider.dart';
 import 'logging_service.dart';
+import '../backend/remote_host.dart';
 
 final _kEmptyCoeffs = Float64List(0);
 
@@ -236,7 +235,7 @@ class PlateSolveService {
       // path and image path are not meaningful on the remote client, so a
       // transport/backend failure must be surfaced instead of trying to spawn
       // that binary on the phone's local filesystem.
-      if (_backend is NetworkBackend) {
+      if (_backend.remoteHost != null) {
         return _failureResult('Remote host plate solve failed: $e');
       }
 
@@ -883,7 +882,7 @@ class PlateSolveService {
     // under its process-wide gate, so issue exactly one backend solve rather
     // than accidentally running ASTAP twice when the first attempt fails.
     final activeBackend = _backend;
-    if (activeBackend is FfiBackend || activeBackend is NetworkBackend) {
+    if (!activeBackend.hasNoHost) {
       final executable = switch (pref.choice) {
         ps_model.PlateSolverChoice.astrometry => detection.astrometryPath!,
         ps_model.PlateSolverChoice.astap => detection.astapPath!,

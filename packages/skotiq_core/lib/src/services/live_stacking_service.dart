@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../providers/backend_provider.dart';
 import '../services/logging_service.dart';
+import '../backend/remote_host.dart';
 
 /// Configuration for the live stacking engine.
 class LiveStackingConfig {
@@ -281,10 +281,7 @@ class LiveStackingService {
   /// to a headless appliance), else null. When non-null the stacker runs on the
   /// HOST and every operation routes over `/api/stacking/*` rather than the
   /// local FFI bridge (whose stacker is empty on a remote client).
-  NetworkBackend? get _remote {
-    final backend = _backend;
-    return backend is NetworkBackend ? backend : null;
-  }
+  HostLiveStack? get _remote => _backend.remoteHost?.liveStack;
 
   /// Arm host-side live stacking without a local reference frame: the next
   /// frame the host captures becomes the reference and subsequent frames are
