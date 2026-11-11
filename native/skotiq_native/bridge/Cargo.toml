@@ -10,6 +10,7 @@ publish.workspace = true
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+skotiq_device = { path = "../device" }
 tokio.workspace = true
 async-trait.workspace = true
 futures.workspace = true

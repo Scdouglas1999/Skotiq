@@ -2001,6 +2001,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "skotiq_device",
  "socket2 0.6.4",
  "thiserror",
  "tokio",
@@ -2011,6 +2012,7 @@ dependencies = [
 name = "skotiq_ascom"
 version = "0.1.0"
 dependencies = [
+ "skotiq_device",
  "tracing",
  "windows",
 ]
@@ -2037,6 +2039,7 @@ dependencies = [
  "sha2",
  "skotiq_alpaca",
  "skotiq_ascom",
+ "skotiq_device",
  "skotiq_imaging",
  "skotiq_indi",
  "skotiq_native",
@@ -2048,6 +2051,16 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "windows",
+]
+
+[[package]]
+name = "skotiq_device"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -2076,6 +2089,7 @@ dependencies = [
  "if-addrs",
  "mdns-sd",
  "quick-xml",
+ "skotiq_device",
  "thiserror",
  "tokio",
  "tracing",
@@ -2092,6 +2106,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serialport",
+ "skotiq_device",
  "skotiq_imaging",
  "thiserror",
  "tokio",
@@ -2113,6 +2128,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "skotiq_device",
  "skotiq_imaging",
  "thiserror",
  "tokio",
