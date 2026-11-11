@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../screens/imaging/imaging_science_state.dart';
 import '../utils/plan_tonight_sequencer_helper.dart';
 import '../utils/preview_transform.dart';
+import 'annotation_overlay/annotation_type_colors.dart';
 
 part 'annotation_overlay/marker_pulse_overlay.dart';
 part 'annotation_overlay/enhanced_annotation_painter.dart';

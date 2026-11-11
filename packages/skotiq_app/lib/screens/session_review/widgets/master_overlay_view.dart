@@ -5,6 +5,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../widgets/annotation_overlay/annotation_type_colors.dart';
+
 /// The finished-master hero for the Morning Report: the stretched preview PNG
 /// (loaded on-disk exactly like [MasterPreviewView]) under a [Stack] of
 /// toggleable overlays — rejection map, coverage map, and a vector catalog

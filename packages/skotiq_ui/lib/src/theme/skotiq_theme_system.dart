@@ -9,8 +9,6 @@
 /// - Domain `*Colors` classes — chart, annotation, backend protocol hues
 library;
 
-export 'annotation_type_colors.dart';
-export 'backend_protocol_colors.dart';
 export 'skotiq_chart_colors.dart';
 export 'skotiq_colors.dart';
 export 'skotiq_decorations.dart';

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '_design_showcase_primitives.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show ObjectType, DriverType;
 
 import '../components/skotiq_alert.dart';
 import '../components/skotiq_button.dart';
@@ -14,8 +13,6 @@ import '../components/skotiq_text_field.dart';
 import '../components/screen_header.dart';
 import '../components/status_dot.dart';
 import '../components/status_pill.dart';
-import '../theme/annotation_type_colors.dart';
-import '../theme/backend_protocol_colors.dart';
 import '../theme/skotiq_chart_colors.dart';
 import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_decorations.dart';
