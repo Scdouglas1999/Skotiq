@@ -106,11 +106,6 @@ final isDraggingNodeProvider = StateProvider.autoDispose<bool>((ref) => false);
 // state on each visit to the sequencer.
 final followExecutionProvider = StateProvider.autoDispose<bool>((ref) => true);
 
-// Note: confirm-then-delete now lives in `delete_node_confirmation.dart`
-// as `confirmAndDeleteSequenceNode`. The tree's inline trash buttons and
-// the TargetHeaderCard delete button below route through that helper so
-// every user-initiated delete surface shares one policy.
-
 /// Insert a dragged [snippet] into the tree through [withSequenceMutation]
 /// so a locked-state or unknown-node-type failure surfaces a snackbar/dialog
 /// instead of an uncaught throw. Shared by every drag-drop TemplateSnippet
@@ -175,10 +170,8 @@ void _handleNodeSelect(WidgetRef ref, String nodeId) {
     }
     multi.toggle(nodeId);
   } else if (isShiftPressed) {
-    // Shift+Click: range select
     ref.read(multiSelectedNodeIdsProvider.notifier).rangeSelect(nodeId);
   } else {
-    // Plain click: single select, clear multi-select
     ref.read(multiSelectedNodeIdsProvider.notifier).clear();
     ref.read(selectedNodeIdProvider.notifier).state = nodeId;
   }
@@ -357,7 +350,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     if (currentNodeId == null) return;
     if (!ref.read(followExecutionProvider)) return;
 
-    // Don't re-scroll to the same node unless user scrolled away
     if (currentNodeId == _lastScrolledToNodeId && !_userScrolledManually) {
       return;
     }
@@ -731,7 +723,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     // alive between scroll frames.
     _visibleOrder = ref.watch(visibleNodeOrderProvider);
 
-    // Auto-scroll whenever the executing node changes
     final followExecution = ref.watch(followExecutionProvider);
     if (followExecution && progress.currentNodeId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1027,7 +1018,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
                     ),
                   ),
 
-                  // Visual timeline (toggled via timelineVisibleProvider)
                   Consumer(
                     builder: (context, ref, child) {
                       final showTimeline = ref.watch(timelineVisibleProvider);

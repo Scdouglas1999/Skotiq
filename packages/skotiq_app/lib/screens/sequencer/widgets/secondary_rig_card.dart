@@ -74,7 +74,6 @@ class SecondaryRigCard extends ConsumerWidget {
             ),
             const Divider(height: 24),
 
-            // Camera selection.
             camerasAsync.when(
               data: (cameras) {
                 final selectable = cameras
@@ -120,7 +119,6 @@ class SecondaryRigCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // Exposure + bin row.
             Row(
               children: [
                 Expanded(
@@ -147,7 +145,6 @@ class SecondaryRigCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // Frame count + dither policy row.
             Row(
               children: [
                 Expanded(
@@ -185,7 +182,6 @@ class SecondaryRigCard extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // Controls.
             Row(
               children: [
                 if (statusAsync.hasError) ...[

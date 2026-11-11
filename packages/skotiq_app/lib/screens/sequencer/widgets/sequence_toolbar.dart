@@ -49,7 +49,6 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
   /// The canvas bar's height (06 §Sequencer).
   static const double _canvasBarHeight = 44.0;
 
-  /// The leading document glyph beside the sequence name.
   static const double _canvasBarGlyph = 15.0;
 
   /// The narrowest canvas that can still afford labelled Timeline / Map

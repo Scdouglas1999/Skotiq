@@ -34,7 +34,6 @@ class SequenceOverviewPrefs {
   static bool defaultVisibleIn(SequencerDensity density) =>
       density == SequencerDensity.ledger;
 
-  /// Whether the overview shows while the tree is drawing [density].
   bool visibleIn(SequencerDensity density) =>
       _chosen[density] ?? defaultVisibleIn(density);
 

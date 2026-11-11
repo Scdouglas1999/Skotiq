@@ -1,6 +1,5 @@
 part of '../sequence_timeline.dart';
 
-/// Helper class for twilight regions
 class _TwilightRegion {
   final double startFraction;
   final double endFraction;
@@ -13,7 +12,6 @@ class _TwilightRegion {
   });
 }
 
-/// Individual block in the timeline
 class _TimelineBlock extends StatefulWidget {
   final SkotiqColors colors;
   final TimelineSegment segment;
@@ -128,7 +126,6 @@ class _TimelineBlockState extends State<_TimelineBlock> {
   }
 }
 
-/// Legend item
 class _LegendItem extends StatelessWidget {
   final SkotiqColors colors;
   final Color color;

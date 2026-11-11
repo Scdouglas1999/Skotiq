@@ -13,7 +13,6 @@ part of '../sequence_tree.dart';
 /// of the ~3500 px the comfortable cards take.
 const double _ledgerRowHeight = 28.0;
 
-/// The column header's height.
 const double _ledgerHeaderHeight = 26.0;
 
 /// One depth level's guide column, and the hairline it draws down its left.
@@ -34,7 +33,6 @@ const double _ledgerChevronGlyph = 12.0;
 /// The node's own glyph, in its category tint.
 const double _ledgerIconSize = 13.0;
 
-/// The progress bar along the row's bottom edge.
 const double _ledgerProgressHeight = 2.0;
 
 /// The kebab's footprint on a pointer platform.
@@ -68,7 +66,6 @@ const double _ledgerDragFeedbackWidth = 544.0;
 /// The four column widths, in order (spec §2).
 const List<double> _ledgerColumnWidths = <double>[70.0, 60.0, 74.0, 62.0];
 
-/// The four column headings, in the same order.
 const List<String> _ledgerColumnLabels = <String>[
   'Filter / exp',
   'Count',
@@ -757,8 +754,6 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
         _LedgerColumnCells(
           values: columns.values,
           color: columnColor,
-          // The ETA cell mutes when it is still quoting the prediction for a
-          // node the run already passed.
           etaColor: etaMuted ? colors.textMuted : null,
         ),
         const SizedBox(width: _ledgerBadgeGutter),

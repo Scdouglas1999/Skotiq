@@ -41,7 +41,6 @@ class _TwilightBandColors {
       );
 }
 
-/// Full timeline view with labels, astronomical overlays, and details
 class _FullTimeline extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final List<TimelineSegment> segments;
@@ -70,7 +69,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
   Timer? _nowTimer;
   DateTime _now = DateTime.now();
 
-  // Cached twilight times to avoid recalculation on every build
   TwilightTimes? _twilightTimes;
   DateTime? _twilightCacheDate;
   double? _twilightCacheLat;
@@ -85,7 +83,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
 
   void _startNowTimer() {
     _nowTimer?.cancel();
-    // Update the "now" indicator every minute
     _nowTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) {
         setState(() {
@@ -118,7 +115,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     super.dispose();
   }
 
-  /// Calculate twilight times, caching to avoid redundant computations
   TwilightTimes? _getTwilightTimes(double lat, double lon, DateTime date) {
     final cacheDate = DateTime(date.year, date.month, date.day);
 
@@ -255,7 +251,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
@@ -285,7 +280,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
           ),
         ),
 
-        // Timeline bar with overlays
         LayoutBuilder(
           builder: (context, constraints) {
             return Container(
@@ -304,7 +298,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
                       _buildTwilightOverlay(
                           twilight, constraints.maxWidth, bands),
 
-                    // Timeline segments
                     widget.totalDuration > 0
                         ? Row(
                             children: widget.segments.map((segment) {
@@ -331,12 +324,10 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
                             ),
                           ),
 
-                    // Target rise/set markers
                     if (showOverlay && targetWindows != null)
                       ..._buildTargetMarkers(
                           targetWindows, constraints.maxWidth),
 
-                    // "Now" indicator
                     if (_nowFraction != null)
                       _buildNowIndicator(constraints.maxWidth),
                   ],
@@ -346,13 +337,11 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
           },
         ),
 
-        // Estimated completion time
         if (widget.startTime != null || widget.totalDuration > 0) ...[
           const SizedBox(height: 8),
           _buildCompletionInfo(),
         ],
 
-        // Legend
         const SizedBox(height: 12),
         Wrap(
           spacing: 16,
@@ -406,7 +395,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     );
   }
 
-  /// Build twilight overlay bands behind the timeline
   Widget _buildTwilightOverlay(
     TwilightTimes twilight,
     double totalWidth,
@@ -419,15 +407,12 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     final start = _effectiveStartTime;
     final end = _estimatedEndTime;
 
-    // Build list of twilight regions within our timeline range
     final regions = <_TwilightRegion>[];
 
-    // Helper to add a region if it overlaps with our timeline
     void addRegion(DateTime? regionStart, DateTime? regionEnd, Color color) {
       if (regionStart == null || regionEnd == null) return;
       if (regionEnd.isBefore(start) || regionStart.isAfter(end)) return;
 
-      // Clamp to timeline range
       final clampedStart = regionStart.isBefore(start) ? start : regionStart;
       final clampedEnd = regionEnd.isAfter(end) ? end : regionEnd;
 
@@ -476,7 +461,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     );
   }
 
-  /// Build target rise/set markers as vertical lines with tooltips
   List<Widget> _buildTargetMarkers(
     Map<String, ObjectVisibility> targetWindows,
     double totalWidth,
@@ -496,7 +480,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
       final visibility = entry.value;
       final targetName = targetNode.targetName;
 
-      // Rise marker
       if (visibility.riseTime != null &&
           visibility.riseTime!.isAfter(start) &&
           visibility.riseTime!.isBefore(end)) {
@@ -511,7 +494,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
         ));
       }
 
-      // Set marker
       if (visibility.setTime != null &&
           visibility.setTime!.isAfter(start) &&
           visibility.setTime!.isBefore(end)) {
@@ -526,7 +508,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
         ));
       }
 
-      // Transit marker (optional - can add if desired)
       if (visibility.transitTime != null &&
           visibility.transitTime!.isAfter(start) &&
           visibility.transitTime!.isBefore(end)) {
@@ -588,7 +569,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     );
   }
 
-  /// Build the "now" indicator as a vertical red line
   Widget _buildNowIndicator(double totalWidth) {
     final fraction = _nowFraction;
     if (fraction == null) return const SizedBox.shrink();
@@ -628,7 +608,6 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     );
   }
 
-  /// Build estimated completion info
   Widget _buildCompletionInfo() {
     final remaining = _estimatedEndTime.difference(_now);
     final isInPast = remaining.isNegative;
