@@ -46,94 +46,6 @@ class SequenceManagementHandlers implements RouteSource {
 
   final ProviderContainer container;
 
-  static const Set<String> _logicNodeTypes = {
-    'loop',
-    'Loop',
-    'parallel',
-    'Parallel',
-    'conditional',
-    'Conditional',
-    'recovery',
-    'Recovery',
-    'instructionSet',
-    'InstructionSet',
-    'targetScheduler',
-    'TargetScheduler',
-    'target_scheduler',
-  };
-  static const Set<String> _targetNodeTypes = {'targetGroup', 'TargetHeader'};
-  static const Set<String> _triggerNodeTypes = {'meridianFlip', 'MeridianFlip'};
-  static const Set<String> _instructionNodeTypes = {
-    'exposure',
-    'TakeExposure',
-    'slew',
-    'SlewToTarget',
-    'center',
-    'CenterTarget',
-    'autofocus',
-    'Autofocus',
-    'dither',
-    'Dither',
-    'filterChange',
-    'ChangeFilter',
-    'coolCamera',
-    'CoolCamera',
-    'warmCamera',
-    'WarmCamera',
-    'rotator',
-    'MoveRotator',
-    'park',
-    'Park',
-    'unpark',
-    'Unpark',
-    'homeMount',
-    'HomeMount',
-    'waitTime',
-    'WaitForTime',
-    'delay',
-    'Delay',
-    'notification',
-    'Notification',
-    'script',
-    'RunScript',
-    'startGuiding',
-    'StartGuiding',
-    'stopGuiding',
-    'StopGuiding',
-    'openDome',
-    'OpenDome',
-    'closeDome',
-    'CloseDome',
-    'parkDome',
-    'ParkDome',
-    'polarAlignment',
-    'PolarAlignment',
-    'smartExposure',
-    'SmartExposure',
-    'smart_exposure',
-    'pluginNode',
-    'PluginNode',
-    'plugin_node',
-    'liveStacking',
-    'LiveStacking',
-    'live_stacking',
-    'openCover',
-    'OpenCover',
-    'open_cover',
-    'closeCover',
-    'CloseCover',
-    'close_cover',
-    'calibratorOn',
-    'CalibratorOn',
-    'calibrator_on',
-    'calibratorOff',
-    'CalibratorOff',
-    'calibrator_off',
-    'sciencePhotometry',
-    'SciencePhotometry',
-    'science_photometry',
-  };
-
   SequenceManagementHandlers(this.container);
 
   LoggingService get _logger => container.read(loggingServiceProvider);
@@ -160,13 +72,9 @@ class SequenceManagementHandlers implements RouteSource {
   }
 
   void _validateNodeWireType(String nodeType, String specificType) {
-    final expectedCategory = switch (specificType) {
-      _ when _logicNodeTypes.contains(specificType) => 'logic',
-      _ when _targetNodeTypes.contains(specificType) => 'target',
-      _ when _triggerNodeTypes.contains(specificType) => 'trigger',
-      _ when _instructionNodeTypes.contains(specificType) => 'instruction',
-      _ => null,
-    };
+    final expectedCategory = NodeKind.forDatabaseName(
+      specificType,
+    )?.category.name;
     if (expectedCategory == null) {
       throw BadRequestError(
         field: 'specificType',

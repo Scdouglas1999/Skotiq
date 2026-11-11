@@ -15,6 +15,32 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     return false;
   }
 
+  /// Put a new [node], with the [children] it comes with, into the tree at
+  /// [parentId] / [index] (resolved as [addNode] does) as one undo step,
+  /// starting a sequence first when none is open.
+  ///
+  /// Returns false and changes nothing while a run owns the tree.
+  bool insertNewNode(
+    SequenceNode node, {
+    List<SequenceNode> children = const [],
+    String? parentId,
+    int? index,
+  }) {
+    if (!isEditableNow) return false;
+    if (_currentSequence == null) {
+      createSequence();
+      parentId = null;
+      index = null;
+    }
+    withUndoBatch(() {
+      addNode(node, parentId: parentId, index: index);
+      for (final child in children) {
+        addNode(child, parentId: node.id);
+      }
+    });
+    return true;
+  }
+
   /// Add a node to the sequence.
   ///
   /// When [parentId] names a LEAF instruction the node is inserted as that
@@ -136,7 +162,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
         topLevel.length == 1 &&
         topLevel.first.parentId == null &&
         topLevel.first is! TargetHeaderNode &&
-        isContainerNode(topLevel.first)) {
+        topLevel.first.kind.isContainer) {
       return topLevel.first.id;
     }
 
@@ -206,7 +232,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     while (cursor != null) {
       final candidate = nodes[cursor];
       if (candidate == null) return (parentId: null, index: resolvedIndex);
-      if (isContainerNode(candidate)) {
+      if (candidate.kind.isContainer) {
         return (parentId: cursor, index: resolvedIndex);
       }
       final grandparentId = candidate.parentId;

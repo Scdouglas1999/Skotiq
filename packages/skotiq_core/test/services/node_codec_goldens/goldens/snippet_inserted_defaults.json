@@ -1,0 +1,684 @@
+[
+  {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "<id>",
+      "Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      0,
+      null,
+      "M31",
+      0.712,
+      41.27,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "LoopNode",
+    "nodeType": "Loop",
+    "props": [
+      "<id>",
+      "Loop",
+      true,
+      "<childIds>",
+      "<parentId>",
+      1,
+      null,
+      "count",
+      1,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "ParallelNode",
+    "nodeType": "Parallel",
+    "props": [
+      "<id>",
+      "Parallel",
+      true,
+      "<childIds>",
+      "<parentId>",
+      2,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "ConditionalNode",
+    "nodeType": "Conditional",
+    "props": [
+      "<id>",
+      "Conditional",
+      true,
+      "<childIds>",
+      "<parentId>",
+      3,
+      null,
+      "always",
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "RecoveryNode",
+    "nodeType": "Recovery",
+    "props": [
+      "<id>",
+      "Recovery",
+      true,
+      "<childIds>",
+      "<parentId>",
+      4,
+      null,
+      "retry",
+      3,
+      null,
+      null,
+      20.0,
+      3,
+      25,
+      10,
+      5,
+      0.5,
+      30.0,
+      10.0,
+      70.0,
+      300.0,
+      80.0,
+      60.0,
+      0.7,
+      60.0
+    ]
+  },
+  {
+    "class": "InstructionSetNode",
+    "nodeType": "InstructionSet",
+    "props": [
+      "<id>",
+      "Instructions",
+      true,
+      "<childIds>",
+      "<parentId>",
+      5,
+      null
+    ]
+  },
+  {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "<id>",
+      "Scheduler",
+      true,
+      "<childIds>",
+      "<parentId>",
+      6,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      5,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "SlewNode",
+    "nodeType": "SlewToTarget",
+    "props": [
+      "<id>",
+      "Slew to Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      7,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "CenterNode",
+    "nodeType": "CenterTarget",
+    "props": [
+      "<id>",
+      "Center Target",
+      true,
+      "<childIds>",
+      "<parentId>",
+      8,
+      null,
+      5.0,
+      5,
+      true,
+      null,
+      null,
+      5.0,
+      null
+    ]
+  },
+  {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "<id>",
+      "Take Exposures",
+      true,
+      "<childIds>",
+      "<parentId>",
+      9,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      3,
+      [],
+      null
+    ]
+  },
+  {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "<id>",
+      "Smart Exposure",
+      true,
+      "<childIds>",
+      "<parentId>",
+      10,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  {
+    "class": "AutofocusNode",
+    "nodeType": "Autofocus",
+    "props": [
+      "<id>",
+      "Autofocus",
+      true,
+      "<childIds>",
+      "<parentId>",
+      11,
+      null,
+      "vCurve",
+      100,
+      7,
+      1,
+      3.0,
+      true,
+      600.0
+    ]
+  },
+  {
+    "class": "DitherNode",
+    "nodeType": "Dither",
+    "props": [
+      "<id>",
+      "Dither",
+      true,
+      "<childIds>",
+      "<parentId>",
+      12,
+      null,
+      5.0,
+      30.0,
+      1.5,
+      120.0,
+      false,
+      "random",
+      3
+    ]
+  },
+  {
+    "class": "StartGuidingNode",
+    "nodeType": "StartGuiding",
+    "props": [
+      "<id>",
+      "Start Guiding",
+      true,
+      "<childIds>",
+      "<parentId>",
+      13,
+      null,
+      1.5,
+      10.0,
+      60.0,
+      true
+    ]
+  },
+  {
+    "class": "StopGuidingNode",
+    "nodeType": "StopGuiding",
+    "props": [
+      "<id>",
+      "Stop Guiding",
+      true,
+      "<childIds>",
+      "<parentId>",
+      14,
+      null
+    ]
+  },
+  {
+    "class": "FilterChangeNode",
+    "nodeType": "ChangeFilter",
+    "props": [
+      "<id>",
+      "Change Filter",
+      true,
+      "<childIds>",
+      "<parentId>",
+      15,
+      null,
+      "L",
+      null
+    ]
+  },
+  {
+    "class": "CoolCameraNode",
+    "nodeType": "CoolCamera",
+    "props": [
+      "<id>",
+      "Cool Camera",
+      true,
+      "<childIds>",
+      "<parentId>",
+      16,
+      null,
+      -10.0,
+      10.0
+    ]
+  },
+  {
+    "class": "WarmCameraNode",
+    "nodeType": "WarmCamera",
+    "props": [
+      "<id>",
+      "Warm Camera",
+      true,
+      "<childIds>",
+      "<parentId>",
+      17,
+      null,
+      2.0,
+      20.0
+    ]
+  },
+  {
+    "class": "RotatorNode",
+    "nodeType": "MoveRotator",
+    "props": [
+      "<id>",
+      "Move Rotator",
+      true,
+      "<childIds>",
+      "<parentId>",
+      18,
+      null,
+      0.0,
+      false
+    ]
+  },
+  {
+    "class": "ParkNode",
+    "nodeType": "Park",
+    "props": [
+      "<id>",
+      "Park Mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      19,
+      null
+    ]
+  },
+  {
+    "class": "UnparkNode",
+    "nodeType": "Unpark",
+    "props": [
+      "<id>",
+      "Unpark Mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      20,
+      null
+    ]
+  },
+  {
+    "class": "HomeMountNode",
+    "nodeType": "HomeMount",
+    "props": [
+      "<id>",
+      "Home mount",
+      true,
+      "<childIds>",
+      "<parentId>",
+      21,
+      null
+    ]
+  },
+  {
+    "class": "WaitTimeNode",
+    "nodeType": "WaitForTime",
+    "props": [
+      "<id>",
+      "Wait for Time",
+      true,
+      "<childIds>",
+      "<parentId>",
+      22,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "class": "DelayNode",
+    "nodeType": "Delay",
+    "props": [
+      "<id>",
+      "Delay",
+      true,
+      "<childIds>",
+      "<parentId>",
+      23,
+      null,
+      5.0
+    ]
+  },
+  {
+    "class": "NotificationNode",
+    "nodeType": "Notification",
+    "props": [
+      "<id>",
+      "Send Notification",
+      true,
+      "<childIds>",
+      "<parentId>",
+      24,
+      null,
+      "",
+      "",
+      "info",
+      null
+    ]
+  },
+  {
+    "class": "ScriptNode",
+    "nodeType": "RunScript",
+    "props": [
+      "<id>",
+      "Run Script",
+      true,
+      "<childIds>",
+      "<parentId>",
+      25,
+      null,
+      "",
+      [],
+      null
+    ]
+  },
+  {
+    "class": "MeridianFlipNode",
+    "nodeType": "MeridianFlip",
+    "props": [
+      "<id>",
+      "Meridian Flip",
+      true,
+      "<childIds>",
+      "<parentId>",
+      26,
+      null,
+      "minutesPastMeridian",
+      5.0,
+      10.0,
+      0.5,
+      true,
+      true,
+      false,
+      10.0,
+      true,
+      3,
+      "pauseAndAlert",
+      true
+    ]
+  },
+  {
+    "class": "OpenDomeNode",
+    "nodeType": "OpenDome",
+    "props": [
+      "<id>",
+      "Open Dome",
+      true,
+      "<childIds>",
+      "<parentId>",
+      27,
+      null,
+      false
+    ]
+  },
+  {
+    "class": "CloseDomeNode",
+    "nodeType": "CloseDome",
+    "props": [
+      "<id>",
+      "Close Dome",
+      true,
+      "<childIds>",
+      "<parentId>",
+      28,
+      null,
+      false
+    ]
+  },
+  {
+    "class": "ParkDomeNode",
+    "nodeType": "ParkDome",
+    "props": [
+      "<id>",
+      "Park Dome",
+      true,
+      "<childIds>",
+      "<parentId>",
+      29,
+      null,
+      false
+    ]
+  },
+  {
+    "class": "PolarAlignmentNode",
+    "nodeType": "PolarAlignment",
+    "props": [
+      "<id>",
+      "Polar Alignment",
+      true,
+      "<childIds>",
+      "<parentId>",
+      30,
+      null,
+      2.0,
+      2,
+      45.0,
+      20.0,
+      null,
+      null,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "class": "OpenCoverNode",
+    "nodeType": "OpenCover",
+    "props": [
+      "<id>",
+      "Open Cover",
+      true,
+      "<childIds>",
+      "<parentId>",
+      31,
+      null,
+      60
+    ]
+  },
+  {
+    "class": "CloseCoverNode",
+    "nodeType": "CloseCover",
+    "props": [
+      "<id>",
+      "Close Cover",
+      true,
+      "<childIds>",
+      "<parentId>",
+      32,
+      null,
+      60
+    ]
+  },
+  {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "<id>",
+      "Calibrator On",
+      true,
+      "<childIds>",
+      "<parentId>",
+      33,
+      null,
+      128,
+      30
+    ]
+  },
+  {
+    "class": "CalibratorOffNode",
+    "nodeType": "CalibratorOff",
+    "props": [
+      "<id>",
+      "Calibrator Off",
+      true,
+      "<childIds>",
+      "<parentId>",
+      34,
+      null,
+      30
+    ]
+  },
+  {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "<id>",
+      "Live Stacking",
+      true,
+      "<childIds>",
+      "<parentId>",
+      35,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      8081,
+      "/broadcast",
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "<id>",
+      "Science Photometry",
+      true,
+      "<childIds>",
+      "<parentId>",
+      36,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "<id>",
+      "Plugin Node",
+      true,
+      "<childIds>",
+      "<parentId>",
+      37,
+      null,
+      "com.example.rig",
+      "flat-panel-sweep",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  }
+]

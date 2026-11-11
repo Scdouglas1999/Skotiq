@@ -186,7 +186,7 @@ class _StickyAncestorStackState extends State<_StickyAncestorStack> {
                         node: node,
                         depth: row.depth,
                         isSelected: false,
-                        isContainer: isSequenceContainer(node),
+                        isContainer: node.kind.isContainer,
                         isCollapsed: false,
                         nodeStatus: progress.nodeStatuses[node.id],
                         progressPercent: progress.nodeProgressPercent[node.id],
@@ -377,7 +377,7 @@ class _PinnedCompactRow extends StatelessWidget {
           children: [
             SizedBox(width: (depth - 1) * _ledgerGuideWidth),
             Icon(
-              sequenceNodeIcon(node.iconName),
+              nodeIcon(node.iconName),
               size: _ledgerIconSize,
               color: nodeCategoryTint(node.category, colors),
             ),

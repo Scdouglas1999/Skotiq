@@ -16,7 +16,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/services/sequence_wire_codec.dart';
 
 void main() {
   group('recovery action', () {

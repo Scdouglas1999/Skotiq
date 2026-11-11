@@ -3,9 +3,6 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../models/imaging/imaging_models.dart' show FrameType;
-import '../models/notification/notification_categories.dart'
-    show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart';
 import '../providers/sequence/sequence_editor_exceptions.dart';
 import '../utils/export_target.dart';
@@ -14,12 +11,9 @@ import '../providers/sequence_provider.dart' show currentSequenceProvider;
 import '../providers/settings_provider.dart';
 // Prefixed: settings_provider.dart also exports a legacy `HorizonProfile`;
 // the in-sequence TargetSchedulerNode uses the scheduler samples-based one.
-import 'scheduler/horizon_profile.dart' as sched_horizon;
 import '../database/quality_stop_migration.dart';
-import 'sequence_wire_codec.dart';
 
-part 'sequence_file_service/sequence_encoder.dart';
-part 'sequence_file_service/sequence_decoder.dart';
+part 'sequence_file_service/sequence_document_codec.dart';
 
 /// Service for saving and loading sequences to/from JSON files
 typedef SequenceImportValidator = void Function(Sequence sequence);
@@ -358,13 +352,6 @@ class SequenceFileService {
     final migrated = _migrateSchema(json);
     return _jsonToSequence(migrated);
   }
-}
-
-BrightnessTierPreferences _parseBrightnessTierPreferences(Object? value) {
-  if (value is Map) {
-    return BrightnessTierPreferences.fromJson(value.cast<String, dynamic>());
-  }
-  return const BrightnessTierPreferences();
 }
 
 /// Provider for the sequence file service.

@@ -138,18 +138,6 @@ class LiveStackingNode extends SequenceNode {
     this.thumbnailHeight = 720,
   });
 
-  @override
-  String get nodeType => 'LiveStacking';
-
-  @override
-  String get iconName => 'cast_connected';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => const <DeviceType>{};
-
   /// True when the user has explicitly set a non-empty auth token.
   /// Used by the run-dashboard "Public" / "Private" badge.
   bool get isPublic => authToken == null || authToken!.isEmpty;
@@ -157,6 +145,9 @@ class LiveStackingNode extends SequenceNode {
   /// True when a watermark template is configured.
   bool get hasWatermark =>
       watermarkText != null && watermarkText!.trim().isNotEmpty;
+
+  @override
+  NodeKind<LiveStackingNode> get kind => NodeKinds.liveStacking;
 
   @override
   LiveStackingNode copyWith({

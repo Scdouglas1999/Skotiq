@@ -38,13 +38,7 @@ class LoopNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Loop';
-
-  @override
-  String get iconName => 'repeat';
-
-  @override
-  NodeCategory get category => NodeCategory.logic;
+  NodeKind<LoopNode> get kind => NodeKinds.loop;
 
   @override
   LoopNode copyWith({
@@ -108,13 +102,7 @@ class ParallelNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Parallel';
-
-  @override
-  String get iconName => 'git-branch';
-
-  @override
-  NodeCategory get category => NodeCategory.logic;
+  NodeKind<ParallelNode> get kind => NodeKinds.parallel;
 
   @override
   ParallelNode copyWith({
@@ -172,13 +160,7 @@ class ConditionalNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Conditional';
-
-  @override
-  String get iconName => 'git-merge';
-
-  @override
-  NodeCategory get category => NodeCategory.logic;
+  NodeKind<ConditionalNode> get kind => NodeKinds.conditional;
 
   @override
   ConditionalNode copyWith({

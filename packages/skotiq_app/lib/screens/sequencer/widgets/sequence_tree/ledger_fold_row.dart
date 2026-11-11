@@ -218,7 +218,7 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
             // glyph; the acquire quartet is four different instructions and
             // gets the "several things in one" glyph instead.
             group.kind == FoldKind.filterRun
-                ? sequenceNodeIcon('camera')
+                ? nodeIcon(NodeKinds.exposure.icon)
                 : LucideIcons.layers,
             size: _ledgerIconSize,
             // Every node a run can hold — the four acquire leaves and the

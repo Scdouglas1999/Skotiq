@@ -60,21 +60,6 @@ class SmartExposureNode extends SequenceNode {
     this.loopUntilStopped = false,
   });
 
-  @override
-  String get nodeType => 'SmartExposure';
-
-  @override
-  String get iconName => 'layers';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {
-    DeviceType.camera,
-    DeviceType.filterWheel,
-  };
-
   /// Sum of per-plan integration time across all filter rows (count *
   /// duration), in seconds. The dashboard's "estimated total" indicator
   /// reads this; wall-clock estimates that include filter-change and
@@ -91,6 +76,9 @@ class SmartExposureNode extends SequenceNode {
   /// True when at least two plans share the same filter name. Surfaced by
   /// [SmartExposureDuplicateFilterRule].
   bool get hasDuplicateFilter => distinctFilterCount != plans.length;
+
+  @override
+  NodeKind<SmartExposureNode> get kind => NodeKinds.smartExposure;
 
   @override
   SmartExposureNode copyWith({

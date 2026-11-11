@@ -1,0 +1,684 @@
+{
+  "n-Autofocus": {
+    "class": "AutofocusNode",
+    "nodeType": "Autofocus",
+    "props": [
+      "n-Autofocus",
+      "Autofocus",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "vCurve",
+      100,
+      7,
+      1,
+      3.0,
+      true,
+      600.0
+    ]
+  },
+  "n-CalibratorOff": {
+    "class": "CalibratorOffNode",
+    "nodeType": "CalibratorOff",
+    "props": [
+      "n-CalibratorOff",
+      "Calibrator Off",
+      true,
+      [],
+      null,
+      0,
+      null,
+      30
+    ]
+  },
+  "n-CalibratorOn": {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "n-CalibratorOn",
+      "Calibrator On",
+      true,
+      [],
+      null,
+      0,
+      null,
+      128,
+      30
+    ]
+  },
+  "n-CenterTarget": {
+    "class": "CenterNode",
+    "nodeType": "CenterTarget",
+    "props": [
+      "n-CenterTarget",
+      "Center Target",
+      true,
+      [],
+      null,
+      0,
+      null,
+      5.0,
+      5,
+      true,
+      null,
+      null,
+      5.0,
+      null
+    ]
+  },
+  "n-ChangeFilter": {
+    "class": "FilterChangeNode",
+    "nodeType": "ChangeFilter",
+    "props": [
+      "n-ChangeFilter",
+      "Change Filter",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "L",
+      null
+    ]
+  },
+  "n-CloseCover": {
+    "class": "CloseCoverNode",
+    "nodeType": "CloseCover",
+    "props": [
+      "n-CloseCover",
+      "Close Cover",
+      true,
+      [],
+      null,
+      0,
+      null,
+      60
+    ]
+  },
+  "n-CloseDome": {
+    "class": "CloseDomeNode",
+    "nodeType": "CloseDome",
+    "props": [
+      "n-CloseDome",
+      "Close Dome",
+      true,
+      [],
+      null,
+      0,
+      null,
+      false
+    ]
+  },
+  "n-Conditional": {
+    "class": "ConditionalNode",
+    "nodeType": "Conditional",
+    "props": [
+      "n-Conditional",
+      "Conditional",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "always",
+      null,
+      null,
+      null
+    ]
+  },
+  "n-CoolCamera": {
+    "class": "CoolCameraNode",
+    "nodeType": "CoolCamera",
+    "props": [
+      "n-CoolCamera",
+      "Cool Camera",
+      true,
+      [],
+      null,
+      0,
+      null,
+      -10.0,
+      10.0
+    ]
+  },
+  "n-Delay": {
+    "class": "DelayNode",
+    "nodeType": "Delay",
+    "props": [
+      "n-Delay",
+      "Delay",
+      true,
+      [],
+      null,
+      0,
+      null,
+      5.0
+    ]
+  },
+  "n-Dither": {
+    "class": "DitherNode",
+    "nodeType": "Dither",
+    "props": [
+      "n-Dither",
+      "Dither",
+      true,
+      [],
+      null,
+      0,
+      null,
+      5.0,
+      30.0,
+      1.5,
+      120.0,
+      false,
+      "random",
+      3
+    ]
+  },
+  "n-HomeMount": {
+    "class": "HomeMountNode",
+    "nodeType": "HomeMount",
+    "props": [
+      "n-HomeMount",
+      "Home mount",
+      true,
+      [],
+      null,
+      0,
+      null
+    ]
+  },
+  "n-InstructionSet": {
+    "class": "InstructionSetNode",
+    "nodeType": "InstructionSet",
+    "props": [
+      "n-InstructionSet",
+      "Instructions",
+      true,
+      [],
+      null,
+      0,
+      null
+    ]
+  },
+  "n-LiveStacking": {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "n-LiveStacking",
+      "Live Stacking",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      8081,
+      "/broadcast",
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  "n-Loop": {
+    "class": "LoopNode",
+    "nodeType": "Loop",
+    "props": [
+      "n-Loop",
+      "Loop",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "count",
+      1,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "n-MeridianFlip": {
+    "class": "MeridianFlipNode",
+    "nodeType": "MeridianFlip",
+    "props": [
+      "n-MeridianFlip",
+      "Meridian Flip",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "minutesPastMeridian",
+      5.0,
+      10.0,
+      0.5,
+      true,
+      true,
+      false,
+      10.0,
+      true,
+      3,
+      "pauseAndAlert",
+      true
+    ]
+  },
+  "n-MoveRotator": {
+    "class": "RotatorNode",
+    "nodeType": "MoveRotator",
+    "props": [
+      "n-MoveRotator",
+      "Move Rotator",
+      true,
+      [],
+      null,
+      0,
+      null,
+      0.0,
+      false
+    ]
+  },
+  "n-Notification": {
+    "class": "NotificationNode",
+    "nodeType": "Notification",
+    "props": [
+      "n-Notification",
+      "Send Notification",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "",
+      "",
+      "info",
+      null
+    ]
+  },
+  "n-OpenCover": {
+    "class": "OpenCoverNode",
+    "nodeType": "OpenCover",
+    "props": [
+      "n-OpenCover",
+      "Open Cover",
+      true,
+      [],
+      null,
+      0,
+      null,
+      60
+    ]
+  },
+  "n-OpenDome": {
+    "class": "OpenDomeNode",
+    "nodeType": "OpenDome",
+    "props": [
+      "n-OpenDome",
+      "Open Dome",
+      true,
+      [],
+      null,
+      0,
+      null,
+      false
+    ]
+  },
+  "n-Parallel": {
+    "class": "ParallelNode",
+    "nodeType": "Parallel",
+    "props": [
+      "n-Parallel",
+      "Parallel",
+      true,
+      [],
+      null,
+      0,
+      null,
+      null
+    ]
+  },
+  "n-Park": {
+    "class": "ParkNode",
+    "nodeType": "Park",
+    "props": [
+      "n-Park",
+      "Park Mount",
+      true,
+      [],
+      null,
+      0,
+      null
+    ]
+  },
+  "n-ParkDome": {
+    "class": "ParkDomeNode",
+    "nodeType": "ParkDome",
+    "props": [
+      "n-ParkDome",
+      "Park Dome",
+      true,
+      [],
+      null,
+      0,
+      null,
+      false
+    ]
+  },
+  "n-PluginNode": {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "n-PluginNode",
+      "Plugin Node",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "com.example.rig",
+      "flat-panel-sweep",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  },
+  "n-PolarAlignment": {
+    "class": "PolarAlignmentNode",
+    "nodeType": "PolarAlignment",
+    "props": [
+      "n-PolarAlignment",
+      "Polar Alignment",
+      true,
+      [],
+      null,
+      0,
+      null,
+      2.0,
+      2,
+      45.0,
+      20.0,
+      null,
+      null,
+      true,
+      true,
+      false
+    ]
+  },
+  "n-Recovery": {
+    "class": "RecoveryNode",
+    "nodeType": "Recovery",
+    "props": [
+      "n-Recovery",
+      "Recovery",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "retry",
+      3,
+      null,
+      null,
+      20.0,
+      3,
+      25,
+      10,
+      5,
+      0.5,
+      30.0,
+      10.0,
+      70.0,
+      300.0,
+      80.0,
+      60.0,
+      0.7,
+      60.0
+    ]
+  },
+  "n-RunScript": {
+    "class": "ScriptNode",
+    "nodeType": "RunScript",
+    "props": [
+      "n-RunScript",
+      "Run Script",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "",
+      [],
+      null
+    ]
+  },
+  "n-SciencePhotometry": {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "n-SciencePhotometry",
+      "Science Photometry",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  "n-SlewToTarget": {
+    "class": "SlewNode",
+    "nodeType": "SlewToTarget",
+    "props": [
+      "n-SlewToTarget",
+      "Slew to Target",
+      true,
+      [],
+      null,
+      0,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "n-SmartExposure": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "n-SmartExposure",
+      "Smart Exposure",
+      true,
+      [],
+      null,
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "n-StartGuiding": {
+    "class": "StartGuidingNode",
+    "nodeType": "StartGuiding",
+    "props": [
+      "n-StartGuiding",
+      "Start Guiding",
+      true,
+      [],
+      null,
+      0,
+      null,
+      1.5,
+      10.0,
+      60.0,
+      true
+    ]
+  },
+  "n-StopGuiding": {
+    "class": "StopGuidingNode",
+    "nodeType": "StopGuiding",
+    "props": [
+      "n-StopGuiding",
+      "Stop Guiding",
+      true,
+      [],
+      null,
+      0,
+      null
+    ]
+  },
+  "n-TakeExposure": {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "n-TakeExposure",
+      "Take Exposures",
+      true,
+      [],
+      null,
+      0,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      3,
+      [],
+      null
+    ]
+  },
+  "n-TargetHeader": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "n-TargetHeader",
+      "Target",
+      true,
+      [],
+      null,
+      0,
+      null,
+      "M31",
+      0.712,
+      41.27,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "n-TargetScheduler": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "n-TargetScheduler",
+      "Scheduler",
+      true,
+      [],
+      null,
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      5,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "n-Unpark": {
+    "class": "UnparkNode",
+    "nodeType": "Unpark",
+    "props": [
+      "n-Unpark",
+      "Unpark Mount",
+      true,
+      [],
+      null,
+      0,
+      null
+    ]
+  },
+  "n-WaitForTime": {
+    "class": "WaitTimeNode",
+    "nodeType": "WaitForTime",
+    "props": [
+      "n-WaitForTime",
+      "Wait for Time",
+      true,
+      [],
+      null,
+      0,
+      null,
+      null,
+      null
+    ]
+  },
+  "n-WarmCamera": {
+    "class": "WarmCameraNode",
+    "nodeType": "WarmCamera",
+    "props": [
+      "n-WarmCamera",
+      "Warm Camera",
+      true,
+      [],
+      null,
+      0,
+      null,
+      2.0,
+      20.0
+    ]
+  }
+}

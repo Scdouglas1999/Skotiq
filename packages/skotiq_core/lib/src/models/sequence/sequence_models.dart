@@ -26,7 +26,7 @@ import '../meridian_flip_settings.dart'
 export '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
 import '../../backend/skotiq_backend.dart' show DeviceType;
-import '../../services/scheduler/horizon_profile.dart' show HorizonProfile;
+import '../../services/scheduler/horizon_profile.dart' show HorizonProfile, HorizonSample;
 import '_json_converters.dart';
 import 'instruction_progress_detail.dart';
 import 'sequence_tree_index.dart';
@@ -50,6 +50,9 @@ part 'sequence_models/instruction_nodes/alignment_and_dome.dart';
 part 'sequence_models/science_and_plugin_nodes.dart';
 part 'sequence_models/sequence_state.dart';
 part 'sequence_models/sequence_sky_requirement.dart';
+part 'sequence_models/node_kind.dart';
+part 'sequence_models/node_kinds.dart';
+part 'sequence_models/wire_tokens.dart';
 
 /// Sequence execution state
 ///
@@ -463,18 +466,19 @@ sealed class SequenceNode extends Equatable {
     this.comment,
   }) : id = id ?? const Uuid().v4();
 
-  /// Get the node type identifier
-  String get nodeType;
+  /// What type of node this is; everything that is the same for every node
+  /// of the type lives there.
+  NodeKind get kind;
 
-  /// Get the icon name for this node
-  String get iconName;
+  String get nodeType => kind.wireName;
 
-  /// Get the color category for this node
-  NodeCategory get category;
+  /// Icon vocabulary name; the app maps it to a glyph.
+  String get iconName => kind.icon;
 
-  /// Device types required by this node to execute.
-  /// Override in subclasses that need specific hardware.
-  Set<DeviceType> get requiredDevices => {};
+  NodeCategory get category => kind.category;
+
+  /// Device types the node needs to execute.
+  Set<DeviceType> get requiredDevices => kind.requiredDevices;
 
   /// Create a copy with updated values
   SequenceNode copyWith({

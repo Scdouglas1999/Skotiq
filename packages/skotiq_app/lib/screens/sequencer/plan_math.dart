@@ -93,34 +93,15 @@ PlannedCapture plannedCaptureUnder(Sequence sequence, String rootId) {
     final node = sequence.nodes[nodeId];
     if (node == null || !node.isEnabled) return;
 
-    if (node is ExposureNode) {
-      frames += node.count * mult;
-      final secs = node.durationSecs * node.count * mult;
+    for (final run in node.kind.captures(node)) {
+      frames += run.count * mult;
+      final secs = run.exposureSecs * run.count * mult;
       integrationSecs += secs;
-      addFilter(node.filter, secs);
-    } else if (node is SciencePhotometryNode) {
-      // A photometry burst captures `count` frames through the same
-      // TakeExposure pipeline as an exposure node. Omitting it made a
-      // photometry-only target read "No exposures" on its own header card and
-      // in the library preview while the node's row said "60 frames".
-      frames += node.count * mult;
-      final secs = node.exposureSecs * node.count * mult;
-      integrationSecs += secs;
-      addFilter(node.filter, secs);
-    } else if (node is SmartExposureNode) {
-      if (node.loopUntilStopped) {
-        // Counts are ignored by the executor in this mode — folding them in
-        // would invent a total the run will never honour.
-        hasOpenEndedLoop = true;
-        openEndedBudgetSecs += node.integrationBudgetSecs * mult;
-      } else {
-        for (final plan in node.plans) {
-          frames += plan.count * mult;
-          final secs = plan.durationSecs * plan.count * mult;
-          integrationSecs += secs;
-          addFilter(plan.filterName, secs);
-        }
-      }
+      addFilter(run.filter, secs);
+    }
+    if (node is SmartExposureNode && node.loopUntilStopped) {
+      hasOpenEndedLoop = true;
+      openEndedBudgetSecs += node.integrationBudgetSecs * mult;
     }
 
     var childMult = mult;

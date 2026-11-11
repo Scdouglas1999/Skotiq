@@ -24,8 +24,6 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
     super.dispose();
   }
 
-  IconData _getIcon(String iconName) => nodePaletteIconFor(iconName);
-
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(nodePaletteProvider);
@@ -90,7 +88,6 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
                       return _NodeCategorySection(
                         category: category,
                         colors: widget.colors,
-                        getIcon: _getIcon,
                       );
                     },
                   ),
@@ -112,12 +109,10 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
 class _NodeCategorySection extends ConsumerWidget {
   final NodePaletteCategory category;
   final SkotiqColors colors;
-  final IconData Function(String) getIcon;
 
   const _NodeCategorySection({
     required this.category,
     required this.colors,
-    required this.getIcon,
   });
 
   @override
@@ -143,7 +138,6 @@ class _NodeCategorySection extends ConsumerWidget {
           _DraggableNodeItemCompact(
             item: item,
             colors: colors,
-            getIcon: getIcon,
           ),
       ],
     );
@@ -156,12 +150,10 @@ class _NodeCategorySection extends ConsumerWidget {
 class _DraggableNodeItemCompact extends ConsumerStatefulWidget {
   final NodePaletteItem item;
   final SkotiqColors colors;
-  final IconData Function(String) getIcon;
 
   const _DraggableNodeItemCompact({
     required this.item,
     required this.colors,
-    required this.getIcon,
   });
 
   @override
@@ -185,34 +177,12 @@ class _DraggableNodeItemCompactState
   static const double _tileMinWidth =
       _iconSquare + SkotiqTokens.spaceSm + 2 + _glyph + 4;
 
-  void _addNode() {
-    // Refuse the click while the executor owns the tree; the editor still
-    // throws SequenceLockedException as a last line of defense.
-    if (!ref.read(canEditSequenceProvider)) return;
-    final node = widget.item.createNode();
-    final notifier = ref.read(currentSequenceProvider.notifier);
-    // With nothing open there is nothing to add to: start a sequence for the
-    // node, as "Add a target" does, instead of dropping the tap.
-    if (ref.read(currentSequenceProvider) == null) {
-      notifier.createSequence();
-      ref.read(selectedNodeIdProvider.notifier).state = null;
-    }
-    final selectedId = ref.read(selectedNodeIdProvider);
-    notifier.addNode(
-      node,
-      parentId: selectedId,
-    );
-
-    // Add any pre-configured children (e.g. Autofocus inside HFR Triggered AF)
-    final children = widget.item.createChildren?.call();
-    if (children != null) {
-      for (final child in children) {
-        notifier.addNode(child, parentId: node.id);
-      }
-    }
-
-    ref.read(selectedNodeIdProvider.notifier).state = node.id;
-  }
+  void _addNode() => insertIntoTree(
+    context,
+    ref,
+    widget.item,
+    parentId: ref.read(selectedNodeIdProvider),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +202,7 @@ class _DraggableNodeItemCompactState
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                widget.getIcon(widget.item.icon),
+                nodeIcon(widget.item.icon),
                 size: _glyph,
                 color: colors.primary,
               ),
@@ -280,7 +250,7 @@ class _DraggableNodeItemCompactState
                       height: _iconSquare,
                       decoration: SkotiqDecorations.well(colors),
                       child: Icon(
-                        widget.getIcon(widget.item.icon),
+                        nodeIcon(widget.item.icon),
                         size: _glyph,
                         color: colors.textSecondary,
                       ),

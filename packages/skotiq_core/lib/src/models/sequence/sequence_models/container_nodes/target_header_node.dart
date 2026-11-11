@@ -89,18 +89,6 @@ class TargetHeaderNode extends SequenceNode {
     this.catalogTargetId,
   });
 
-  @override
-  String get nodeType => 'TargetHeader';
-
-  @override
-  String get iconName => 'target';
-
-  @override
-  NodeCategory get category => NodeCategory.target;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
-
   /// Get display name including mosaic panel info if applicable
   String get displayName {
     if (mosaicPanel != null) {
@@ -136,6 +124,9 @@ class TargetHeaderNode extends SequenceNode {
     if (endWhen != null) parts.add('ends when ${endWhen!.label}');
     return parts.join(' · ');
   }
+
+  @override
+  NodeKind<TargetHeaderNode> get kind => NodeKinds.targetHeader;
 
   @override
   TargetHeaderNode copyWith({
