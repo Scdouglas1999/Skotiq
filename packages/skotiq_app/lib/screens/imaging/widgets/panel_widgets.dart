@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../utils/path_tail.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
 
@@ -811,9 +812,14 @@ class ReadOnlyField extends StatelessWidget {
     this.mono = false,
     this.muted = false,
     this.showFullValueOnHover = false,
+    this.isPath = false,
   });
 
   final String value;
+
+  /// A folder or file path: cut from the front (`…/rig/captures`) rather than
+  /// the end, since the end is what tells two paths apart.
+  final bool isPath;
 
   /// Offers the whole [value] in a tooltip. For values that are routinely
   /// longer than the field — a save folder, a file-name pattern — which the
@@ -837,13 +843,25 @@ class ReadOnlyField extends StatelessWidget {
       ),
       alignment: Alignment.centerLeft,
       decoration: SkotiqDecorations.field(colors),
-      child: Text(
-        value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: base.copyWith(
-          color: muted ? colors.textMuted : colors.textPrimary,
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final style = base.copyWith(
+            color: muted ? colors.textMuted : colors.textPrimary,
+          );
+          return Text(
+            isPath && constraints.hasBoundedWidth
+                ? pathTail(
+                    value,
+                    maxWidth: constraints.maxWidth,
+                    style: style,
+                    textScaler: MediaQuery.textScalerOf(context),
+                  )
+                : value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          );
+        },
       ),
     );
     if (!showFullValueOnHover) return field;

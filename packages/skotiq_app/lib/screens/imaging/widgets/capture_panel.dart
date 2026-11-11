@@ -12,6 +12,8 @@ import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../night_control/panel/camera/camera_panel_vm.dart'
+    show NightCoolerState, nightCoolerState;
 import 'panel_widgets.dart';
 
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
@@ -119,6 +121,13 @@ class CapturePanel extends ConsumerWidget {
         : binningOptions.first;
 
     final diskFree = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
+    // "252 GiB": the shared size format Tonight uses, split for the readout.
+    final freeText =
+        diskFree == null ? null : ByteFormat.size(diskFree.freeBytes);
+    final freeGap = freeText?.lastIndexOf(' ') ?? -1;
+    final freeSize = freeText == null || freeGap < 0
+        ? null
+        : (freeText.substring(0, freeGap), freeText.substring(freeGap + 1));
     final savePathUnset = namingPattern.baseDir.trim().isEmpty ||
         namingPattern.baseDir.trim() == '.';
 
@@ -137,8 +146,14 @@ class CapturePanel extends ConsumerWidget {
                 ? null
                 : SkotiqChip(
                     label: formatCelsius(cameraState.temperature!),
-                    tone: ChipTone.success,
-                    dot: true,
+                    // Green only when the cooler holds the set point (the
+                    // rule Tonight uses); an uncooled sensor is a reading,
+                    // not a good state.
+                    tone: nightCoolerState(cameraState) ==
+                            NightCoolerState.atSetpoint
+                        ? ChipTone.success
+                        : ChipTone.neutral,
+                    dot: cameraState.isCooling || cameraState.isWarming,
                   ),
           ),
           FormRow(
@@ -263,6 +278,7 @@ class CapturePanel extends ConsumerWidget {
                     value: savePathUnset ? 'Not set' : namingPattern.baseDir,
                     mono: !savePathUnset,
                     muted: savePathUnset,
+                    isPath: !savePathUnset,
                     // A Windows capture folder never fits the field.
                     showFullValueOnHover: !savePathUnset,
                   ),
@@ -312,11 +328,8 @@ class CapturePanel extends ConsumerWidget {
                 // Null while the poll is in flight or the path is unset, and a
                 // readout renders that as an em dash rather than inventing a
                 // number.
-                value: diskFree == null
-                    ? null
-                    : (diskFree.freeBytes / (1024 * 1024 * 1024))
-                        .toStringAsFixed(0),
-                unit: 'GB',
+                value: freeSize?.$1,
+                unit: freeSize?.$2,
                 label: 'Free',
               ),
             ],
