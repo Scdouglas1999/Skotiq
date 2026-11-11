@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/image_download_service.dart';
+import 'package:skotiq_core/src/backend/skotiq_exception.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 class _MockImagingBackend extends Mock implements ImagingBackend {}
@@ -10,11 +11,6 @@ class _MockImagingBackend extends Mock implements ImagingBackend {}
 /// Mirrors the `userMessage` surface of the core's SkotiqException /
 /// IoException (which aren't exported from the barrel) so the service's
 /// duck-typed message extraction can be exercised.
-class _UserFacingException implements Exception {
-  final String userMessage;
-  const _UserFacingException(this.userMessage);
-}
-
 void main() {
   late Directory tmp;
   late _MockImagingBackend backend;
@@ -114,7 +110,11 @@ void main() {
         onProgress: any(named: 'onProgress'),
       ),
     ).thenThrow(
-      const _UserFacingException('The connection dropped mid-download.'),
+      // What the resumable downloader throws when the stream breaks.
+      const IoException(
+        message: 'stream closed after 1048576 of 8388608 bytes',
+        userMessage: 'The connection dropped mid-download.',
+      ),
     );
 
     final outcome = await downloadImageToDevice(
@@ -127,6 +127,9 @@ void main() {
     );
 
     expect(outcome.status, ImageDownloadStatus.failed);
-    expect(outcome.error, 'The connection dropped mid-download.');
+    expect(
+      outcome.error,
+      'Download failed: The connection dropped mid-download.',
+    );
   });
 }

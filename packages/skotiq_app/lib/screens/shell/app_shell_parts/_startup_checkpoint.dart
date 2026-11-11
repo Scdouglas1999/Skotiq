@@ -38,12 +38,6 @@ class CheckpointAttemptFailure {
   });
 }
 
-/// Render [error] as a sentence rather than as a Dart object.
-///
-/// `'$error'` on a plain `Exception` prints `Exception: <message>`, which is
-/// how a raw runtime string ended up in the operator's startup modal.
-@visibleForTesting
-
 /// File names the native `CheckpointManager` uses inside the checkpoint
 /// directory (`native/skotiq_native/sequencer/src/checkpoint.rs`,
 /// `CHECKPOINT_FILENAME` / `CHECKPOINT_BACKUP`). Only

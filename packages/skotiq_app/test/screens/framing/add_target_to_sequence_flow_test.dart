@@ -240,7 +240,7 @@ void main() {
 
       expect(find.text('Could not load saved sequences'), findsOneWidget);
       expect(
-        find.textContaining('Bad state: sequence host unavailable'),
+        find.textContaining('sequence host unavailable'),
         findsOneWidget,
       );
       expect(find.text('New empty sequence'), findsNothing);

@@ -150,7 +150,8 @@ void main() {
 
     test('null and empty have something to say', () {
       expect(userFacingError(null), 'Unknown error');
-      expect(userFacingError(''), 'String');
+      expect(userFacingError(''), 'Unknown error');
+      expect(userFacingError(Exception('')), 'Unknown error');
     });
   });
 
@@ -162,60 +163,75 @@ void main() {
   });
 
   group('describeError', () {
-    test('a known failure comes with what to do about it', () {
+    test('a known failure keeps its own words and says what to do', () {
       final text = describeError(
         'Exception: Connection refused (os error 111)',
         domain: ErrorDomain.device,
       );
-      expect(text.message, 'Could not connect to the device.');
+      expect(text.message, 'Connection refused (os error 111).');
       expect(text.suggestion, contains('no other software is using it'));
       expect(text.full, contains('\n\n'));
     });
 
-    test('an unknown failure keeps its own words, as a sentence', () {
+    test('the table never replaces what happened with a vaguer sentence', () {
+      // The ASCOM row said "ASCOM driver error occurred." for every message
+      // that mentioned ASCOM, including "ASCOM is only available on Windows".
+      final text = describeError(
+        'Exception: ASCOM is only available on Windows',
+        domain: ErrorDomain.device,
+      );
+      expect(text.message, 'ASCOM is only available on Windows.');
+      expect(text.suggestion, contains('ASCOM driver'));
+    });
+
+    test('an unknown failure points at the log', () {
       final text = describeError(Exception('filter wheel jammed at slot 3'));
       expect(text.message, 'Filter wheel jammed at slot 3.');
-      expect(text.suggestion, isNotNull);
+      expect(text.suggestion, contains('Settings > Logs'));
     });
 
     test('short patterns do not match inside other words', () {
-      // A bare "com" matched "command" and "completed", and a bare "limit"
-      // matched "rate limit", so unrelated failures were reported as
-      // "Windows COM interface error" and "Mount has reached a limit".
+      // A bare "com" matched "command" and a bare "limit" matched "rate
+      // limit", so unrelated failures got COM and mount-limit advice.
+      const generic = 'Settings > Logs';
       expect(
-        describeError('Command did not complete').message,
-        'Command did not complete.',
+        describeError('Command did not complete').suggestion,
+        contains(generic),
       );
       expect(
-        describeError('API rate limit hit, retry later').message,
-        'API rate limit hit, retry later.',
+        describeError('API rate limit hit, retry later').suggestion,
+        contains(generic),
       );
       expect(
-        describeError('Recalibration is recommended').message,
-        'Recalibration is recommended.',
+        describeError('Recalibration is recommended').suggestion,
+        contains(generic),
       );
       expect(
-        describeError('COM object error 0x80040154').message,
-        'Windows COM interface error.',
+        describeError('COM object error 0x80040154').suggestion,
+        contains('restarting the application'),
       );
       expect(
-        describeError('Slew refused: tracking limit reached').message,
-        'Mount has reached a limit.',
+        describeError('Slew refused: tracking limit reached').suggestion,
+        contains('meridian flip'),
       );
     });
 
-    test('the asked-for domain wins when two tables match', () {
+    test('the asked-for domain wins when two rows match', () {
       expect(
         describeError(
           'PHD2: exposure failed',
           domain: ErrorDomain.guiding,
-        ).message,
-        'PHD2 guiding error.',
+        ).suggestion,
+        contains('PHD2 connection'),
       );
       expect(
-        describeError('PHD2: exposure failed').message,
-        'The exposure failed.',
+        describeError('PHD2: exposure failed').suggestion,
+        contains('camera connection'),
       );
+    });
+
+    test('a target below the horizon is not worth retrying', () {
+      expect(describeError('Target below horizon').isRecoverable, isFalse);
     });
 
     test('a typed error keeps its own recoverability', () {

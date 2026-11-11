@@ -23,7 +23,7 @@ void main() {
     });
 
     test('falls back to a readable label for an empty message', () {
-      expect(userFacingError(''), 'Unknown error.');
+      expect(userFacingError(''), 'Unknown error');
     });
   });
 

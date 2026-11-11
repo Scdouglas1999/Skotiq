@@ -56,7 +56,7 @@ void main() {
 
     expect(find.text('Could not load annotation display settings'), findsOne);
     expect(
-      find.textContaining('Bad state: annotation settings unavailable'),
+      find.textContaining('annotation settings unavailable'),
       findsOne,
     );
     expect(find.text('Enable annotations'), findsNothing);
@@ -88,7 +88,7 @@ void main() {
 
     expect(find.text('Could not load annotation marker styles'), findsOne);
     expect(
-      find.textContaining('Bad state: marker style unavailable'),
+      find.textContaining('marker style unavailable'),
       findsOne,
     );
     expect(find.text('Stroke width'), findsNothing);

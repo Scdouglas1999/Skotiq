@@ -59,9 +59,8 @@ String userFacingError(Object? error) {
   if (error == null) return 'Unknown error';
   final typed = _typedMessage(error)?.trim();
   if (typed != null && typed.isNotEmpty) return _clean(typed);
-  final rendered = error.toString().trim();
-  if (rendered.isEmpty) return error.runtimeType.toString();
-  return _clean(rendered);
+  final rendered = _clean(error.toString().trim());
+  return rendered.isEmpty ? 'Unknown error' : rendered;
 }
 
 /// `Could not save the profile: <what happened>`.
@@ -83,14 +82,16 @@ ErrorText describeError(Object? error, {ErrorDomain? domain}) {
       isRecoverable: error.isRecoverable,
     );
   }
-  final raw = error?.toString() ?? '';
-  final known = _knownFailure(raw, domain);
-  if (known != null) return known;
+  // The driver's own sentence says what happened more exactly than any
+  // table could ("ASCOM is only available on Windows" is not "ASCOM driver
+  // error"); the table only knows what to do about it.
+  final known = _knownFailure(error?.toString() ?? '', domain);
   return ErrorText(
     _sentence(userFacingError(error)),
     suggestion:
-        'If it keeps happening, the log has the details '
-        '(Settings > Diagnostics).',
+        known?.suggestion ??
+        'If it keeps happening, the log has the details (Settings > Logs).',
+    isRecoverable: known?.recoverable ?? true,
   );
 }
 
@@ -199,22 +200,24 @@ String _sentence(String text) {
       : '$capitalized.';
 }
 
-ErrorText? _knownFailure(String raw, ErrorDomain? domain) {
-  ErrorText? search(Iterable<(ErrorDomain, String, ErrorText)> rows) {
-    for (final (_, pattern, text) in rows) {
-      if (RegExp(pattern, caseSensitive: false).hasMatch(raw)) return text;
+_KnownFailure? _knownFailure(String raw, ErrorDomain? domain) {
+  _KnownFailure? search(Iterable<_KnownFailure> rows) {
+    for (final row in rows) {
+      if (RegExp(row.pattern, caseSensitive: false).hasMatch(raw)) return row;
     }
     return null;
   }
 
   if (domain != null) {
-    final inDomain = search(_knownFailures.where((row) => row.$1 == domain));
+    final inDomain = search(
+      _knownFailures.where((row) => row.domain == domain),
+    );
     if (inDomain != null) return inDomain;
   }
   return search(_knownFailures);
 }
 
-/// Native failures recognized by their wording, with what to do about each.
+/// Native failures recognized by their wording, and what to do about each.
 ///
 /// Matching on English text is what typed native errors replace: each row
 /// here becomes a case on an error kind. Until then this table is the only
@@ -223,213 +226,142 @@ ErrorText? _knownFailure(String raw, ErrorDomain? domain) {
 /// asked-for domain first. Short words are anchored: a bare `com` or `limit`
 /// also matches "command" and "rate limit", and turned unrelated failures
 /// into "Windows COM interface error".
-const List<(ErrorDomain, String, ErrorText)>
-_knownFailures = <(ErrorDomain, String, ErrorText)>[
-  (
+const List<_KnownFailure> _knownFailures = <_KnownFailure>[
+  _KnownFailure(
     ErrorDomain.device,
     'device not found',
-    ErrorText(
-      'The device could not be found.',
-      suggestion:
-          'Check that the device is powered on, connected, and the '
-          'driver is installed.',
-    ),
+    'Check that the device is powered on, connected, and the '
+        'driver is installed.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.device,
     'connection refused',
-    ErrorText(
-      'Could not connect to the device.',
-      suggestion:
-          'Verify the device is on, connected via USB/network, and no '
-          'other software is using it.',
-    ),
+    'Verify the device is on, connected via USB/network, and no '
+        'other software is using it.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.device,
     'connection timed out',
-    ErrorText(
-      'Connection to the device timed out.',
-      suggestion: 'Check network settings and that the device is responding.',
-    ),
+    'Check network settings and that the device is responding.',
   ),
-  (
-    ErrorDomain.device,
-    'device already connected',
-    ErrorText('This device is already connected.'),
-  ),
-  (
+  _KnownFailure(
     ErrorDomain.device,
     'device not connected',
-    ErrorText(
-      'The device is not connected.',
-      suggestion: 'Connect to the device before performing this operation.',
-    ),
+    'Connect to the device before performing this operation.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.device,
     r'\bascom\b',
-    ErrorText(
-      'ASCOM driver error occurred.',
-      suggestion:
-          'Check that the ASCOM driver is installed and configured '
-          'correctly.',
-    ),
+    'Check that the ASCOM driver is installed and configured '
+        'correctly.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.device,
     r'HRESULT|0x800[0-9a-f]{5}|\bCOM (interface|object|exception)\b',
-    ErrorText(
-      'Windows COM interface error.',
-      suggestion: 'Try restarting the application or reconnecting the device.',
-    ),
+    'Try restarting the application or reconnecting the device.',
   ),
-  (
-    ErrorDomain.imaging,
-    'exposure cancelled',
-    ErrorText('The exposure was canceled.'),
-  ),
-  (
+  _KnownFailure(
     ErrorDomain.imaging,
     'exposure failed',
-    ErrorText(
-      'The exposure failed.',
-      suggestion: 'Check camera connection and settings, then try again.',
-    ),
+    'Check camera connection and settings, then try again.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.imaging,
     'download failed',
-    ErrorText(
-      'Failed to download image from camera.',
-      suggestion: 'Check USB connection and try again.',
-    ),
+    'Check USB connection and try again.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.imaging,
     'no image available',
-    ErrorText('No image is available.', suggestion: 'Take an exposure first.'),
+    'Take an exposure first.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.imaging,
     'file write',
-    ErrorText(
-      'Failed to save the image file.',
-      suggestion:
-          'Check that the save location is accessible and has '
-          'sufficient disk space.',
-    ),
+    'Check that the save location is accessible and has '
+        'sufficient disk space.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.imaging,
     'disk space',
-    ErrorText(
-      'Insufficient disk space.',
-      suggestion: 'Free up disk space or choose a different save location.',
-    ),
+    'Free up disk space or choose a different save location.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.mount,
     'slew failed',
-    ErrorText(
-      'Mount slew failed.',
-      suggestion: 'Check that the mount is unparked and tracking is enabled.',
-    ),
+    'Check that the mount is unparked and tracking is enabled.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.mount,
     'target below horizon',
-    ErrorText(
-      'The target is below the horizon.',
-      suggestion: 'Wait until the target rises above the horizon.',
-      isRecoverable: false,
-    ),
+    'Wait until the target rises above the horizon.',
+    recoverable: false,
   ),
-  (
+  _KnownFailure(
     ErrorDomain.mount,
     'mount parked',
-    ErrorText(
-      'The mount is parked.',
-      suggestion: 'Unpark the mount before slewing.',
-    ),
+    'Unpark the mount before slewing.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.mount,
     'park failed',
-    ErrorText(
-      'Failed to park the mount.',
-      suggestion: 'Manually park the mount using the hand controller.',
-    ),
+    'Manually park the mount using the hand controller.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.mount,
     r'(slew|tracking|axis|travel|meridian|horizon) limit|limit (reached|exceeded)|(at|beyond|outside|past)( \w+){0,2} limits?\b',
-    ErrorText(
-      'Mount has reached a limit.',
-      suggestion:
-          'The mount has reached its movement limits. Perform a meridian '
-          'flip or reconfigure limits.',
-    ),
+    'The mount has reached its movement limits. Perform a meridian '
+        'flip or reconfigure limits.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.guiding,
     'guide star lost',
-    ErrorText(
-      'Guide star was lost.',
-      suggestion: 'Check guider focus and try selecting a brighter star.',
-    ),
+    'Check guider focus and try selecting a brighter star.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.guiding,
     r'\bphd2\b',
-    ErrorText(
-      'PHD2 guiding error.',
-      suggestion: 'Check PHD2 connection and guide camera settings.',
-    ),
+    'Check PHD2 connection and guide camera settings.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.guiding,
     'settle timeout',
-    ErrorText(
-      'Guiding failed to settle in time.',
-      suggestion: 'Increase settle timeout or check for tracking issues.',
-    ),
+    'Increase settle timeout or check for tracking issues.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.guiding,
     r'calibration (failed|error|was lost|lost)',
-    ErrorText(
-      'Guiding calibration failed.',
-      suggestion: 'Recalibrate guiding near the celestial equator.',
-    ),
+    'Recalibrate guiding near the celestial equator.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.plateSolve,
     'plate solve failed',
-    ErrorText(
-      'Plate solving failed.',
-      suggestion:
-          'Ensure the mount is roughly pointed at the target. Try using '
-          'a longer exposure or wider field hint.',
-    ),
+    'Ensure the mount is roughly pointed at the target. Try using '
+        'a longer exposure or wider field hint.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.plateSolve,
     'no solution',
-    ErrorText(
-      'Could not determine image location.',
-      suggestion:
-          'The image may be out of focus or pointing far from expected. '
-          'Check focus and alignment.',
-    ),
+    'The image may be out of focus or pointing far from expected. '
+        'Check focus and alignment.',
   ),
-  (
+  _KnownFailure(
     ErrorDomain.plateSolve,
     r'\bastap\b',
-    ErrorText(
-      'ASTAP plate solver error.',
-      suggestion:
-          'Verify ASTAP is installed and the star database is downloaded.',
-    ),
+    'Verify ASTAP is installed and the star database is downloaded.',
   ),
 ];
+
+class _KnownFailure {
+  const _KnownFailure(
+    this.domain,
+    this.pattern,
+    this.suggestion, {
+    this.recoverable = true,
+  });
+
+  final ErrorDomain domain;
+  final String pattern;
+  final String suggestion;
+  final bool recoverable;
+}
