@@ -16,10 +16,6 @@ pub struct NotificationInstruction;
 
 #[async_trait]
 impl InstructionNode for NotificationInstruction {
-    fn type_name(&self) -> &'static str {
-        "Notification"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -52,7 +48,8 @@ impl InstructionNode for NotificationInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         execute_notification(&interpolated, &ctx)
             .await
-            .log_and_get_status_with_context("Notification", &ctx)
+            .settle("Notification", &ctx)
+            .await
     }
 }
 
@@ -62,7 +59,7 @@ impl InstructionNode for NotificationInstruction {
 /// A notification is advisory: it reports on the run, it does not steer it.
 /// Failing the node over a text template aborts the whole sequence — the Park
 /// Mount node after the notification never runs and the mount is left tracking
-/// — and bypasses `log_and_get_status_with_context`, the call every other
+/// — and bypasses `InstructionResult::settle`, the call every other
 /// instruction uses to record its error text, leaving the run record with a
 /// bare "Sequence failed". Sending the literal `${...}` token is honest (the
 /// operator sees exactly the template they typed) and leaves the night

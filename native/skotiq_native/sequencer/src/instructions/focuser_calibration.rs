@@ -388,12 +388,16 @@ pub async fn execute_backlash_calibration_admitted(
     validate_backlash_calibration_config(config)?;
 
     let camera_id = ctx
+        .run
+        .rig
         .camera_id
         .as_deref()
         .filter(|id| !id.is_empty())
         .ok_or_else(|| "Backlash calibration needs a connected camera".to_string())?
         .to_string();
     let focuser_id = ctx
+        .run
+        .rig
         .focuser_id
         .as_deref()
         .filter(|id| !id.is_empty())
@@ -401,6 +405,7 @@ pub async fn execute_backlash_calibration_admitted(
         .to_string();
 
     let origin_position = ctx
+        .run
         .device_ops
         .focuser_get_position(&focuser_id)
         .await
@@ -514,6 +519,7 @@ async fn run_both_scans(
     // says how warm the tube was when the number was taken. Backlash is a
     // mechanical property and this is the closest thing to the metal.
     let temperature_celsius = ctx
+        .run
         .device_ops
         .focuser_get_temperature(focuser_id)
         .await
@@ -636,7 +642,8 @@ async fn scan_one_direction(
         };
 
         for leg in [run_up_from, position] {
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .focuser_move_to(focuser_id, leg)
                 .await
                 .map_err(|error| format!("Focuser move to {} failed: {}", leg, error))?;
@@ -650,8 +657,9 @@ async fn scan_one_direction(
                 return Err(BACKLASH_CALIBRATION_CANCELLED.to_string());
             }
             let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.to_string());
+                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.to_string());
             let exposure = ctx
+                .run
                 .device_ops
                 .camera_start_exposure(
                     crate::device_ops::ExposureRequest::new(camera_id, config.exposure_duration)

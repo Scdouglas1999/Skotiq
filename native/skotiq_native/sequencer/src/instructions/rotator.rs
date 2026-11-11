@@ -49,7 +49,12 @@ pub(crate) async fn rotator_move_to_verified(
 ) -> Result<f64, InstructionResult> {
     let target_abs = normalize_rotator_angle(target_abs_deg);
 
-    if let Err(e) = ctx.device_ops.rotator_move_to(rotator_id, target_abs).await {
+    if let Err(e) = ctx
+        .run
+        .device_ops
+        .rotator_move_to(rotator_id, target_abs)
+        .await
+    {
         return Err(InstructionResult::failure(format!(
             "Rotator move failed: {}",
             e
@@ -61,7 +66,7 @@ pub(crate) async fn rotator_move_to_verified(
         if let Some(result) = ctx.check_cancelled() {
             return Err(result);
         }
-        let current = match ctx.device_ops.rotator_get_angle(rotator_id).await {
+        let current = match ctx.run.device_ops.rotator_get_angle(rotator_id).await {
             Ok(a) => a,
             Err(e) => {
                 return Err(InstructionResult::failure(format!(
@@ -117,7 +122,7 @@ pub async fn execute_rotator_move(
     // Resolve the ABSOLUTE target so we can verify arrival even for a relative
     // move — we must read the current angle BEFORE issuing the move.
     let target_abs = if config.relative {
-        match ctx.device_ops.rotator_get_angle(&rotator_id).await {
+        match ctx.run.device_ops.rotator_get_angle(&rotator_id).await {
             Ok(current) => normalize_rotator_angle(current + config.target_angle),
             Err(e) => {
                 return InstructionResult::failure(format!(

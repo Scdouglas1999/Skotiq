@@ -35,7 +35,12 @@ pub async fn execute_open_cover(
     }
 
     // Start opening the cover
-    if let Err(e) = ctx.device_ops.cover_calibrator_open_cover(&device_id).await {
+    if let Err(e) = ctx
+        .run
+        .device_ops
+        .cover_calibrator_open_cover(&device_id)
+        .await
+    {
         return InstructionResult::failure(format!("Failed to open cover: {}", e));
     }
 
@@ -83,6 +88,7 @@ pub async fn execute_close_cover(
 
     // Start closing the cover
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_close_cover(&device_id)
         .await
@@ -140,6 +146,7 @@ pub async fn execute_calibrator_on(
 
     // Turn on the calibrator at specified brightness
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_calibrator_on(&device_id, config.brightness)
         .await
@@ -160,6 +167,7 @@ pub async fn execute_calibrator_on(
             // (it propagated via `?`). The successful "wait for state 3" check
             // (`wait_for_calibrator_state`) is the load-bearing readiness signal.
             let actual_brightness = ctx
+                .run
                 .device_ops
                 .cover_calibrator_get_brightness(&device_id)
                 .await
@@ -209,6 +217,7 @@ pub async fn execute_calibrator_off(
 
     // Turn off the calibrator
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_calibrator_off(&device_id)
         .await
@@ -254,7 +263,12 @@ pub(crate) async fn wait_for_cover_state(
         // Check cancellation
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             // Try to halt cover movement
-            if let Err(error) = ctx.device_ops.cover_calibrator_halt_cover(device_id).await {
+            if let Err(error) = ctx
+                .run
+                .device_ops
+                .cover_calibrator_halt_cover(device_id)
+                .await
+            {
                 tracing::warn!(
                     "Cover '{}': halt failed while cancelling the wait for the {} state ({}); \
                      the cover may still be moving",
@@ -268,6 +282,7 @@ pub(crate) async fn wait_for_cover_state(
 
         // Check current state
         match ctx
+            .run
             .device_ops
             .cover_calibrator_get_cover_state(device_id)
             .await
@@ -325,6 +340,7 @@ pub(crate) async fn wait_for_calibrator_state(
         // Check cancellation
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             if let Err(error) = ctx
+                .run
                 .device_ops
                 .cover_calibrator_calibrator_off(device_id)
                 .await
@@ -337,7 +353,12 @@ pub(crate) async fn wait_for_calibrator_state(
                     error
                 );
             }
-            if let Err(error) = ctx.device_ops.cover_calibrator_halt_cover(device_id).await {
+            if let Err(error) = ctx
+                .run
+                .device_ops
+                .cover_calibrator_halt_cover(device_id)
+                .await
+            {
                 tracing::warn!(
                     "Calibrator '{}': cover halt failed while cancelling the wait for the {} \
                      state ({}); the cover may still be moving",
@@ -351,6 +372,7 @@ pub(crate) async fn wait_for_calibrator_state(
 
         // Check current state
         match ctx
+            .run
             .device_ops
             .cover_calibrator_get_calibrator_state(device_id)
             .await
@@ -373,7 +395,12 @@ pub(crate) async fn wait_for_calibrator_state(
 
         // Check timeout
         if start.elapsed() > timeout {
-            if let Err(error) = ctx.device_ops.cover_calibrator_halt_cover(device_id).await {
+            if let Err(error) = ctx
+                .run
+                .device_ops
+                .cover_calibrator_halt_cover(device_id)
+                .await
+            {
                 tracing::warn!(
                     "Calibrator '{}': cover halt failed after the {} state timed out ({}); the \
                      cover may still be moving",

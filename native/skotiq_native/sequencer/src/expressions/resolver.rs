@@ -266,7 +266,7 @@ pub fn resolve_variable(
             "frame total is only set inside an exposure burst",
         ),
         // Session
-        "session.id" => Ok(VariableValue::Str(ctx.session_id.clone())),
+        "session.id" => Ok(VariableValue::Str(ctx.run.identity.session_id.clone())),
         "session.date" => {
             let dt = frame.session_start.unwrap_or_else(now_utc);
             Ok(VariableValue::Str(dt.format("%Y-%m-%d").to_string()))
@@ -333,17 +333,26 @@ pub fn resolve_variable(
         // Observer
         "observer.name" => str_or_unresolvable(
             name,
-            ctx.observer_name.as_deref(),
+            ctx.run.identity.observer_name.as_deref(),
             "observer name is not set in app settings",
         ),
-        "observer.lat" => float_or_unresolvable(name, ctx.latitude, "observer latitude is unset"),
-        "observer.lon" => float_or_unresolvable(name, ctx.longitude, "observer longitude is unset"),
-        "observer.elevation" => {
-            float_or_unresolvable(name, ctx.site_elevation_m, "observer elevation is unset")
+        "observer.lat" => {
+            float_or_unresolvable(name, ctx.run.rig.latitude, "observer latitude is unset")
         }
+        "observer.lon" => {
+            float_or_unresolvable(name, ctx.run.rig.longitude, "observer longitude is unset")
+        }
+        "observer.elevation" => float_or_unresolvable(
+            name,
+            ctx.run.identity.site_elevation_m,
+            "observer elevation is unset",
+        ),
         // Equipment
         "equipment.camera" => {
-            let camera = match (ctx.camera_make.as_deref(), ctx.camera_model.as_deref()) {
+            let camera = match (
+                ctx.run.identity.camera_make.as_deref(),
+                ctx.run.identity.camera_model.as_deref(),
+            ) {
                 (Some(make), Some(model)) => Some(format!("{make} {model}")),
                 (None, Some(model)) => Some(model.to_string()),
                 (Some(make), None) => Some(make.to_string()),
@@ -357,17 +366,17 @@ pub fn resolve_variable(
         }
         "equipment.telescope" => str_or_unresolvable(
             name,
-            ctx.telescope_name.as_deref(),
+            ctx.run.identity.telescope_name.as_deref(),
             "telescope name is unset in equipment profile",
         ),
         "equipment.focal_length" => float_or_unresolvable(
             name,
-            ctx.telescope_focal_length_mm,
+            ctx.run.identity.telescope_focal_length_mm,
             "telescope focal length is unset in equipment profile",
         ),
         "equipment.aperture" => float_or_unresolvable(
             name,
-            ctx.telescope_aperture_mm,
+            ctx.run.identity.telescope_aperture_mm,
             "telescope aperture is unset in equipment profile",
         ),
         // Exposure
@@ -643,8 +652,8 @@ fn moon_illumination_fraction(now: DateTime<Utc>) -> f64 {
 fn calculate_azimuth(ctx: &ExecutionContext) -> Option<f64> {
     let ra_hours = ctx.target_ra?;
     let dec_degrees = ctx.target_dec?;
-    let lat = ctx.latitude?;
-    let lon = ctx.longitude?;
+    let lat = ctx.run.rig.latitude?;
+    let lon = ctx.run.rig.longitude?;
 
     let now = chrono::Utc::now();
     let jd = crate::meridian::julian_day(&now);
@@ -677,15 +686,15 @@ mod tests {
         ctx.target_rotation = Some(45.0);
         ctx.current_filter = Some("Ha".to_string());
         ctx.current_filter_index = Some(3);
-        ctx.latitude = Some(40.7);
-        ctx.longitude = Some(-74.0);
-        ctx.observer_name = Some("Alice".to_string());
-        ctx.site_elevation_m = Some(150.0);
-        ctx.camera_make = Some("ZWO".to_string());
-        ctx.camera_model = Some("ASI2600MM".to_string());
-        ctx.telescope_name = Some("TS APO".to_string());
-        ctx.telescope_focal_length_mm = Some(910.0);
-        ctx.telescope_aperture_mm = Some(130.0);
+        ctx.run.rig.latitude = Some(40.7);
+        ctx.run.rig.longitude = Some(-74.0);
+        ctx.run.identity.observer_name = Some("Alice".to_string());
+        ctx.run.identity.site_elevation_m = Some(150.0);
+        ctx.run.identity.camera_make = Some("ZWO".to_string());
+        ctx.run.identity.camera_model = Some("ASI2600MM".to_string());
+        ctx.run.identity.telescope_name = Some("TS APO".to_string());
+        ctx.run.identity.telescope_focal_length_mm = Some(910.0);
+        ctx.run.identity.telescope_aperture_mm = Some(130.0);
         ctx.set_temp_c = Some(-10.0);
         ctx
     }

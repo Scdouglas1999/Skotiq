@@ -8,15 +8,14 @@
 #[cfg(test)]
 use crate::device_ops::NullDeviceOps;
 use crate::device_ops::SharedDeviceOps;
-use crate::executor::ExecutorEvent;
-use crate::instructions::InstructionContext;
+use crate::instructions::{InstructionContext, RunShared};
 use crate::node::progress::ProgressUpdate;
 use crate::scheduling::{default_clock, BudgetRegistry, Clock};
 use crate::{NodeId, SafetyFailMode};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::RwLock;
 
 /// A detached handle onto the run's operator-pause state, obtained from
 /// [`ExecutionContext::pause_gate`].
@@ -139,6 +138,9 @@ impl DeviceLockRegistry {
 /// per-branch contexts.
 #[derive(Clone)]
 pub struct ExecutionContext {
+    /// What every instruction of the run shares: rig, channels, frame
+    /// identity, grading state.
+    pub run: RunShared,
     /// ID of the scope this context belongs to — the ROOT node for the main run,
     /// or the branch/recovery node for contexts derived by `parallel` and
     /// `recovery`. It is NOT rewritten as execution descends the tree, so it does
@@ -199,27 +201,10 @@ pub struct ExecutionContext {
     pub progress_callback: Option<ProgressCallback>,
     /// Polar alignment image callback (Arc so ExecutionContext is Clone).
     pub polar_align_image_callback: Option<PolarAlignImageCallback>,
-    /// Connected device IDs
-    pub camera_id: Option<String>,
-    pub mount_id: Option<String>,
-    pub focuser_id: Option<String>,
-    pub filterwheel_id: Option<String>,
-    pub rotator_id: Option<String>,
-    pub dome_id: Option<String>,
-    pub cover_calibrator_id: Option<String>,
-    /// Base save path for images
-    pub save_path: Option<std::path::PathBuf>,
-    /// Observer location
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    /// Device operations handler
-    pub device_ops: SharedDeviceOps,
     /// Per-device exclusion locks shared across every derived branch context.
     pub device_locks: Arc<DeviceLockRegistry>,
     /// Completed integration time in seconds (shared counter)
     pub completed_integration_secs: Arc<RwLock<f64>>,
-    /// Trigger state (for updating during execution)
-    pub trigger_state: Option<Arc<RwLock<crate::triggers::TriggerState>>>,
     /// Safety fail mode - determines behavior when safety devices fail or are unavailable
     pub safety_fail_mode: Arc<parking_lot::RwLock<SafetyFailMode>>,
     /// The maximum Sun altitude (degrees above the horizon) at which an on-sky
@@ -233,27 +218,6 @@ pub struct ExecutionContext {
     /// `RunConfig::max_sun_altitude_degrees` at `start()`; defaults to
     /// [`crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES`].
     pub max_sun_altitude_degrees: f64,
-    /// Filter focus offsets from equipment profile (filter_name -> offset_steps)
-    pub filter_focus_offsets: std::collections::HashMap<String, i32>,
-    /// Optional broadcast handle so instruction code can emit ExecutorEvents
-    /// directly (used for surfacing FITS-save failures and other instruction-
-    /// level errors that the UI must see, beyond the InstructionResult flow).
-    /// `None` outside the live executor (e.g. unit tests / direct invocations).
-    pub event_tx: Option<broadcast::Sender<ExecutorEvent>>,
-    /// Optional recovery request channel installed by the live executor.
-    /// Instruction nodes use this to promote device-disconnect failures into
-    /// the same first-class recovery loop as trigger-driven recoveries.
-    pub recovery_request_tx: Option<mpsc::Sender<crate::recovery::RecoveryCause>>,
-    /// Set to `true` the moment an instruction failure is promoted to a
-    /// `DeviceDisconnected` recovery (see
-    /// `instructions::request_device_disconnected_recovery`). The node-runtime
-    /// (`RuntimeNode::execute`) consumes this flag: instead of letting the
-    /// node's `Failure` propagate up and end the night, it waits for the
-    /// recovery driver to reconnect the device and then RETRIES the failed
-    /// instruction. Shared `Arc<AtomicBool>` so the instruction-side write and
-    /// the runtime-side read see the same allocation across the
-    /// `ExecutionContext -> InstructionContext` boundary.
-    pub device_disconnect_recovery_pending: Arc<AtomicBool>,
     /// in-memory SmartExposure per-node resume state,
     /// keyed by NodeId. Survives pause/resume within a single process run.
     /// Cross-process resume requires the executor to additionally plumb a
@@ -264,9 +228,9 @@ pub struct ExecutionContext {
     /// allocation (matches the rest of this struct's shared-state pattern).
     pub smart_exposure_states:
         Arc<RwLock<std::collections::HashMap<NodeId, crate::SmartExposureCheckpoint>>>,
-    /// Passes each Loop node has finished, kept current by the loop itself so
-    /// a checkpoint saved while the tree runs can record them.
-    pub loop_passes_finished: Arc<parking_lot::RwLock<std::collections::HashMap<NodeId, u32>>>,
+    /// Where the run stands inside its loops and bursts, kept current by the
+    /// nodes so a checkpoint saved while the tree runs can record it.
+    pub resume: crate::node::resume::ResumeRecord,
     /// DepthLock verdict source, installed by the host at start. `None`
     /// when the host has no goal store; a bound plan then warns once and
     /// stays count-bounded.
@@ -278,21 +242,6 @@ pub struct ExecutionContext {
     /// Internally an `Arc<RwLock<...>>` so `ExecutionContext::clone` shares
     /// A single registry across parallel branches.
     pub budget_registry: BudgetRegistry,
-    // -------------------------------------------------------------------
-    // Image Grading: FITS-header metadata + grading state.
-    //
-    // The executor seeds the "session-static" fields (session_id, observer,
-    // equipment identification, site elevation) at start time; the per-target
-    // fields (target_id, mosaic_panel, last_plate_solve) flow in from
-    // TargetHeader / CenterTarget; the per-burst fields (current_filter_index,
-    // set_temp_c, bayer_pattern) are updated by the respective instructions.
-    // `expose.rs` assembles a `FrameContext` from these fields plus live
-    // device telemetry at FITS-save time.
-    // -------------------------------------------------------------------
-    /// Stable session identifier, generated by the executor at start time.
-    /// Surfaced as the FITS keyword `SK-SESID` so frames captured in the
-    /// same run can be linked back to one imaging_session database row.
-    pub session_id: String,
     /// Stable identifier of the currently-active target (propagated from
     /// TargetHeader). Distinct from `target_name` because targets can be
     /// renamed mid-session — the id is the join key for the database row.
@@ -310,58 +259,11 @@ pub struct ExecutionContext {
     /// Bayer pattern string ("RGGB", "BGGR", etc.) reported by the camera.
     /// None for monochrome sensors.
     pub bayer_pattern: Option<String>,
-    /// Observer name from app settings. FITS `OBSERVER`.
-    pub observer_name: Option<String>,
-    /// Observer site elevation in metres. FITS `SITEELEV`. Latitude /
-    /// longitude already exist as `latitude` / `longitude` on this struct.
-    pub site_elevation_m: Option<f64>,
-    /// Camera identification (FITS `INSTRUME` = "<make> <model>").
-    pub camera_make: Option<String>,
-    pub camera_model: Option<String>,
-    /// Telescope identification (FITS `TELESCOP`, `FOCALLEN`, `APTDIA`).
-    pub telescope_name: Option<String>,
-    pub telescope_focal_length_mm: Option<f64>,
-    pub telescope_aperture_mm: Option<f64>,
-    /// Last plate-solve result for the active target — captured by the
-    /// CenterTarget instruction and stamped into subsequent exposures'
-    /// FITS headers as SOLVED-RA/DEC, PIXSCALE, CROTA1. Arc<RwLock> so
-    /// the cloned ExecutionContext used by parallel branches sees the
-    /// latest solve.
-    pub last_plate_solve: Arc<RwLock<Option<crate::device_ops::PlateSolveResult>>>,
-    /// Image Grading: rolling baseline HFR for the current target
-    /// (median of the first N accepted frames). `None` until the baseline
-    /// has been established; image grading checks then compare new frames
-    /// against this baseline.
-    pub hfr_baseline: Arc<RwLock<Option<f64>>>,
-    /// Image Grading: HFR samples being averaged into the baseline.
-    /// Discarded once the baseline becomes Some.
-    pub hfr_baseline_samples: Arc<RwLock<Vec<f64>>>,
-    /// Image Grading: star-count baselines, one per target and filter.
-    pub star_count_baselines: crate::quality::StarCountBaselines,
-    /// Image Grading: running count of how many consecutive frames
-    /// have been rejected. Reset to 0 every time an accepted frame lands.
-    /// Used to detect "something is systematically wrong" — focus has
-    /// drifted, clouds have rolled in, etc.
-    pub consecutive_rejects: Arc<std::sync::atomic::AtomicU32>,
     /// Exposure triggers whose condition held on their last evaluation, keyed
     /// by node id and trigger position. A `Notify` trigger tells the operator
     /// when its key is added and stays quiet while it is present, so a soft
     /// hour is one notification rather than one per burst.
     pub exposure_trigger_episodes: Arc<parking_lot::Mutex<std::collections::HashSet<String>>>,
-    /// Image Grading: cumulative accepted / rejected counters for
-    /// the run. Surfaced to the dashboard quality panel via the progress
-    /// callback.
-    pub frames_accepted: Arc<std::sync::atomic::AtomicU32>,
-    pub frames_rejected: Arc<std::sync::atomic::AtomicU32>,
-    /// Global default image-quality thresholds, seeded from
-    /// `RunConfig::default_quality_check` at executor `start()`. Used as
-    /// the fallback when a TakeExposure node does NOT carry its own
-    /// `quality_check`. None => grading disabled globally.
-    pub default_quality_check: Option<crate::quality::ImageQualityCheck>,
-    /// Optional reject-folder override, seeded from
-    /// `RunConfig::reject_folder_path`. None => a `Reject/` folder beside
-    /// the frames (`<save_path>/<target>/Reject/` by default).
-    pub reject_folder_path: Option<String>,
     /// pluggable wall-clock used by scheduling code (target
     /// header altitude crossings, target scheduler, integration budget
     /// timeline). Defaults to [`crate::scheduling::WallClock`] in
@@ -369,15 +271,6 @@ pub struct ExecutionContext {
     /// [`ExecutionContext::with_clock`] so time-of-day-dependent assertions
     /// are deterministic.
     pub clock: Arc<dyn Clock>,
-    // sky-brightness adaptive exposures.
-    // -------------------------------------------------------------------
-    /// Live sky brightness in mag/arcsec² (bigger = darker). Pushed by
-    /// the Dart layer via `SequenceExecutor::update_sky_brightness` from the
-    /// running `SkyBrightnessTracker`. `None` until the tracker has
-    /// produced a valid sample. Shared via `Arc<RwLock<...>>` so
-    /// `ExecutionContext::clone` keeps every parallel branch reading the
-    /// same live value.
-    pub current_sky_brightness_mag: Arc<RwLock<Option<f64>>>,
     /// global default adaptive-exposure config, seeded
     /// from `RunConfig::default_adaptive_exposure` at start time and
     /// kept in sync by the `UpdateDefaultAdaptiveExposure` command. Per-
@@ -388,13 +281,6 @@ pub struct ExecutionContext {
     /// Held behind `Arc<RwLock<...>>` so the executor's command handler — which
     /// holds a shared `&context` — can update it mid-run.
     pub default_adaptive_exposure: Arc<RwLock<Option<crate::scheduling::AdaptiveExposureConfig>>>,
-    /// latest cloud-motion analyzer snapshot. Pushed by
-    /// the Dart side via `SequenceExecutor::update_cloud_motion`; consumed by
-    /// `RecoveryAction::SlewToGapAndContinue` (needs the clear-sky
-    /// direction) and by the run-dashboard cloud-motion panel.
-    /// `Arc<RwLock<...>>` so `ExecutionContext::clone` shares the
-    /// allocation with every parallel branch.
-    pub cloud_motion_snapshot: Arc<RwLock<CloudMotionSnapshot>>,
     /// pending plugin-node oneshots, keyed by node id.
     ///
     /// When `PluginNodeInstruction::execute` runs it inserts a oneshot
@@ -406,13 +292,6 @@ pub struct ExecutionContext {
     pub plugin_node_pending: Arc<
         RwLock<std::collections::HashMap<NodeId, tokio::sync::oneshot::Sender<PluginNodeReply>>>,
     >,
-    /// per-frame defect-map application state.
-    ///
-    /// When `Some`, `instructions::execute_exposure` applies the pre-loaded
-    /// defect map to each captured frame before the FITS save; `None` disables
-    /// defect correction. Pushed in via `SequenceExecutor::update_defect_map`
-    /// (toggle on/off from the calibration UI).
-    pub defect_map_apply: Arc<RwLock<Option<crate::executor::DefectMapApplyState>>>,
     /// Science — latest sky transparency reading (0.0..=1.0 as a
     /// fraction of clear-sky reference; 1.0 = perfectly clear, 0.0 =
     /// totally opaque). Pushed from the Dart science pipeline via
@@ -434,49 +313,6 @@ pub struct ExecutionContext {
     /// threading the value through the expose pipeline.
     pub science_photometry_states:
         Arc<RwLock<std::collections::HashMap<NodeId, PhotometryRuntimeState>>>,
-    /// Replay Debug — optional decision broadcast sender. When
-    /// `Some`, instruction code (scheduler, recovery driver, exposure
-    /// grading, plugin nodes) emits a [`crate::decision::DecisionEvent`]
-    /// via [`Self::emit_decision`]. The bridge subscribes to the channel
-    /// and routes the events to the typed `SequencerEvent::DecisionLogged`
-    /// event + the `sequence_decisions` persistence table.
-    ///
-    /// `None` outside the live executor (unit tests / one-shot
-    /// instruction sites) — the helper is a no-op in that case so test
-    /// code does not need to fabricate a sender.
-    pub decision_tx: Option<crate::decision::DecisionSender>,
-    /// Replay Debug — active `sequence_runs.id` stamped onto every
-    /// emitted decision so the persistence layer can populate the FK
-    /// without joining on wall-clock windows. `None` until the Dart side
-    /// inserts the row and calls `set_active_sequence_run_id` on the
-    /// executor (the executor then pushes that into the context).
-    pub active_sequence_run_id: Arc<parking_lot::RwLock<Option<i64>>>,
-    /// Frame-Failure Forensics rolling history.
-    ///
-    /// Bounded ring buffer of the last
-    /// [`crate::quality::FORENSIC_HISTORY_LEN`] frame samples (accepted
-    /// or rejected). Each entry carries the frame's metrics plus the
-    /// environmental snapshot at capture time. The classifier consumes
-    /// this slice to detect monotonic HFR trends, reject clusters,
-    /// brightness drops, etc.
-    ///
-    /// Bounded growth: every push checks the length and pops the
-    /// oldest entry — the buffer never exceeds `FORENSIC_HISTORY_LEN`
-    /// regardless of run length.
-    pub forensics_history:
-        Arc<RwLock<std::collections::VecDeque<crate::quality::RecentFrameSample>>>,
-    /// current wind speed reading (km/h) pushed by the Dart
-    /// weather feed via `ExecutorCommand::UpdateWind`. `None` until the
-    /// first sample arrives. Held behind `Arc<RwLock<...>>` so the
-    /// executor's command handler can mutate it (the rest of the
-    /// `ExecutionContext` clone pattern).
-    pub current_wind_kph: Arc<RwLock<Option<f64>>>,
-    /// last sensor temperature reading (°C) reported by the
-    /// camera at capture completion. Snapshotted into the forensic
-    /// event so a frame rejected during a cooler dropout can be
-    /// classified against the temperature trend. `None` until the
-    /// first sample arrives.
-    pub current_sensor_temp_c: Arc<RwLock<Option<f64>>>,
     /// latest composite sky-conditions score pushed from Dart
     /// via `ExecutorCommand::UpdateConditionsScore`. Consumed by the
     /// `TargetScheduler` adaptive-swap logic and surfaced to the run
@@ -520,17 +356,6 @@ pub struct ExecutionContext {
     /// [`Self::scheduler_filter_cycle_override`].
     pub active_target_end_trigger:
         Arc<parking_lot::RwLock<Option<crate::scheduling::TargetTrigger>>>,
-    /// Dual-rig — optional dither-coordination barrier shared with a running
-    /// secondary capture loop. `None` (the common single-rig case) makes every
-    /// dither call site a plain pass-through. `Some` means a secondary camera
-    /// is piggybacking: the primary announces a pending dither on this barrier,
-    /// waits (bounded) for the secondary to clear its in-flight exposure,
-    /// pulses the guider, then releases the barrier so the secondary resumes.
-    /// See [`crate::dual_rig::DitherBarrier`].
-    pub dither_barrier: Option<Arc<crate::dual_rig::DitherBarrier>>,
-    /// The run's camera and filter-wheel retry policy. A single attempt until
-    /// the executor installs the operator's handle at start.
-    pub device_retry: crate::instructions::DeviceRetryHandle,
 }
 
 /// runtime adaptive-swap accounting. Hot-mutated by the
@@ -632,7 +457,10 @@ impl ExecutionContext {
     /// hardware. `SequenceExecutor` refuses to start without a handle for the
     /// same reason.
     pub fn new(node_id: NodeId, device_ops: SharedDeviceOps) -> Self {
+        let mut run = RunShared::new(device_ops);
+        run.identity.session_id = uuid::Uuid::new_v4().to_string();
         Self {
+            run,
             node_id,
             target_ra: None,
             target_dec: None,
@@ -654,84 +482,34 @@ impl ExecutionContext {
             resume_notify: Arc::new(tokio::sync::Notify::new()),
             progress_callback: None,
             polar_align_image_callback: None,
-            camera_id: None,
-            mount_id: None,
-            focuser_id: None,
-            filterwheel_id: None,
-            rotator_id: None,
-            dome_id: None,
-            cover_calibrator_id: None,
-            save_path: None,
-            latitude: None,
-            longitude: None,
-            device_ops,
             device_locks: Arc::new(DeviceLockRegistry::default()),
             completed_integration_secs: Arc::new(RwLock::new(0.0)),
-            trigger_state: None,
             safety_fail_mode: Arc::new(parking_lot::RwLock::new(SafetyFailMode::default())),
             // W1 native daylight gate — default threshold mirrors the Dart
             // scheduler's `maxSunAltitudeDegrees`; the executor overrides this
             // from `RunConfig::max_sun_altitude_degrees` at start.
             max_sun_altitude_degrees: crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
-            filter_focus_offsets: std::collections::HashMap::new(),
-            event_tx: None,
-            recovery_request_tx: None,
-            device_disconnect_recovery_pending: Arc::new(AtomicBool::new(false)),
             smart_exposure_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            loop_passes_finished: Arc::new(parking_lot::RwLock::new(
-                std::collections::HashMap::new(),
-            )),
+            resume: crate::node::resume::ResumeRecord::default(),
             // No checkpoint manager outside a session: wizard step state
             // is not persisted and every run starts at step 0. The
             // executor installs its own Arc at start().
             depth_goal_ops: None,
             budget_registry: BudgetRegistry::new(),
-            // Image Grading: a non-empty session id is preferred to
-            // "" so log lines always render a stable identifier; default
-            // constructions get a new uuid so test runs are individually
-            // identifiable.
-            session_id: uuid::Uuid::new_v4().to_string(),
             target_id: None,
             mosaic_panel: None,
             current_filter_index: None,
             set_temp_c: None,
             bayer_pattern: None,
-            observer_name: None,
-            site_elevation_m: None,
-            camera_make: None,
-            camera_model: None,
-            telescope_name: None,
-            telescope_focal_length_mm: None,
-            telescope_aperture_mm: None,
-            last_plate_solve: Arc::new(RwLock::new(None)),
-            hfr_baseline: Arc::new(RwLock::new(None)),
-            hfr_baseline_samples: Arc::new(RwLock::new(Vec::new())),
-            star_count_baselines: Default::default(),
-            consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             exposure_trigger_episodes: Arc::default(),
-            frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            default_quality_check: None,
-            reject_folder_path: None,
             // production path uses the real wall clock; tests
             // override via `with_clock` to pin time.
             clock: default_clock(),
-            // sky brightness starts unknown; the Dart
-            // layer pushes the first reading once the tracker has
-            // converged.
-            current_sky_brightness_mag: Arc::new(RwLock::new(None)),
             default_adaptive_exposure: Arc::new(RwLock::new(None)),
-            // empty snapshot; Dart pushes the first
-            // sample once `cloudMotionAnalyzerProvider` produces data.
-            cloud_motion_snapshot: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
             // empty pending-plugin map; entries are added
             // and removed by `PluginNodeInstruction` + the executor's
             // command handler.
             plugin_node_pending: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            // defect map disabled by default. The
-            // bridge pushes a `Some(...)` value once the user toggles
-            // "Apply during capture" on for the connected camera.
-            defect_map_apply: Arc::new(RwLock::new(None)),
             // Science — transparency reading starts unknown; the
             // Dart science pipeline pushes the first sample via
             // `SequenceExecutor::update_transparency`. The backup plan
@@ -739,18 +517,6 @@ impl ExecutionContext {
             current_transparency: Arc::new(RwLock::new(None)),
             transparency_backup_plan: Arc::new(RwLock::new(None)),
             science_photometry_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            // Replay Debug — `None` until the executor installs a
-            // sender via `with_decision_sender(...)`. Test contexts left
-            // at `None` produce no-op decision emissions.
-            decision_tx: None,
-            active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
-            // Forensics — empty ring buffer; entries are appended
-            // by the expose path after every accepted/rejected frame.
-            forensics_history: Arc::new(RwLock::new(std::collections::VecDeque::with_capacity(
-                crate::quality::FORENSIC_HISTORY_LEN,
-            ))),
-            current_wind_kph: Arc::new(RwLock::new(None)),
-            current_sensor_temp_c: Arc::new(RwLock::new(None)),
             // adaptive sky-conditions swap. Both slots start empty;
             // Dart pushes the first ConditionsScore once the AdaptiveSwapService
             // has composed it, and the TargetScheduler populates the runtime
@@ -762,10 +528,6 @@ impl ExecutionContext {
             // dispatch.
             scheduler_filter_cycle_override: Arc::new(parking_lot::RwLock::new(None)),
             active_target_end_trigger: Arc::new(parking_lot::RwLock::new(None)),
-            // Dual-rig — no secondary camera by default; single-rig sequences
-            // leave this None and every dither is a plain pass-through.
-            dither_barrier: None,
-            device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
         }
     }
 
@@ -777,26 +539,9 @@ impl ExecutionContext {
         tx: crate::decision::DecisionSender,
         active_run_id: Arc<parking_lot::RwLock<Option<i64>>>,
     ) -> Self {
-        self.decision_tx = Some(tx);
-        self.active_sequence_run_id = active_run_id;
+        self.run.decision_tx = Some(tx);
+        self.run.active_sequence_run_id = active_run_id;
         self
-    }
-
-    /// Replay Debug — emit a structured decision into the
-    /// broadcast channel. Stamps the active `sequence_runs.id` (if any)
-    /// so the persistence layer can populate the FK without re-joining.
-    ///
-    /// Drop-on-the-floor when no sender is installed (unit tests, one-
-    /// shot instruction sites) — emit sites should not need to care
-    /// whether they're inside a live executor or not.
-    pub fn emit_decision(&self, mut event: crate::decision::DecisionEvent) {
-        let Some(tx) = self.decision_tx.as_ref() else {
-            return;
-        };
-        if event.sequence_run_id.is_none() {
-            event.sequence_run_id = *self.active_sequence_run_id.read();
-        }
-        let _ = tx.send(event);
     }
 
     /// install a pluggable clock. Production callers don't need
@@ -827,7 +572,7 @@ impl ExecutionContext {
     }
 
     pub fn with_device_ops(mut self, ops: SharedDeviceOps) -> Self {
-        self.device_ops = ops;
+        self.run.device_ops = ops;
         self
     }
 
@@ -1090,12 +835,14 @@ impl ExecutionContext {
                 (0.0, 0.0)
             }
         };
-        if trigger.references_altitude() && (self.latitude.is_none() || self.longitude.is_none()) {
+        if trigger.references_altitude()
+            && (self.run.rig.latitude.is_none() || self.run.rig.longitude.is_none())
+        {
             return None;
         }
         let ctx = crate::scheduling::TriggerObserverContext {
-            latitude_deg: self.latitude.unwrap_or(0.0),
-            longitude_deg: self.longitude.unwrap_or(0.0),
+            latitude_deg: self.run.rig.latitude.unwrap_or(0.0),
+            longitude_deg: self.run.rig.longitude.unwrap_or(0.0),
             target_ra_hours: ra,
             target_dec_degrees: dec,
             now: self.clock.now_utc(),
@@ -1142,8 +889,8 @@ impl ExecutionContext {
     pub fn calculate_altitude(&self) -> Option<f64> {
         let ra_hours = self.target_ra?;
         let dec_degrees = self.target_dec?;
-        let lat = self.latitude?;
-        let lon = self.longitude?;
+        let lat = self.run.rig.latitude?;
+        let lon = self.run.rig.longitude?;
 
         let now = chrono::Utc::now();
         let jd = crate::meridian::julian_day(&now);
@@ -1212,8 +959,8 @@ impl ExecutionContext {
 
     /// Check if it's currently dark (astronomical twilight has ended)
     pub fn is_dark(&self) -> Option<bool> {
-        let lat = self.latitude?;
-        let lon = self.longitude?;
+        let lat = self.run.rig.latitude?;
+        let lon = self.run.rig.longitude?;
 
         let sun_alt = current_sun_altitude_degrees(lat, lon);
 
@@ -1234,83 +981,21 @@ impl ExecutionContext {
     /// silently mis-attributes captured frames rather than failing loudly.
     pub async fn to_instruction_context(&self, node_id: &str) -> InstructionContext {
         InstructionContext {
+            run: self.run.clone(),
             node_id: node_id.to_string(),
             target_ra: self.target_ra,
             target_dec: self.target_dec,
             target_rotation: self.target_rotation,
             target_name: self.target_name.clone(),
-            current_filter: self.current_filter.clone(),
-            current_binning: self.current_binning,
-            cancellation_token: self.is_cancelled.clone(),
-            camera_id: self.camera_id.clone(),
-            mount_id: self.mount_id.clone(),
-            focuser_id: self.focuser_id.clone(),
-            filterwheel_id: self.filterwheel_id.clone(),
-            rotator_id: self.rotator_id.clone(),
-            dome_id: self.dome_id.clone(),
-            cover_calibrator_id: self.cover_calibrator_id.clone(),
-            save_path: self.save_path.clone(),
-            latitude: self.latitude,
-            longitude: self.longitude,
-            device_ops: self.device_ops.clone(),
-            trigger_state: self.trigger_state.clone(),
-            filter_focus_offsets: self.filter_focus_offsets.clone(),
-            event_tx: self.event_tx.clone(),
-            recovery_request_tx: self.recovery_request_tx.clone(),
-            device_disconnect_recovery_pending: self.device_disconnect_recovery_pending.clone(),
-            // Image Grading: thread the FITS-header metadata
-            // through so execute_exposure can assemble a FrameContext at
-            // save time. These fields are all cheap clones (Strings/Options/
-            // Arc handles) so the per-instruction context build remains O(1).
-            session_id: self.session_id.clone(),
             target_id: self.target_id.clone(),
             mosaic_panel: self.mosaic_panel.clone(),
+            target_light_filters: self.target_light_filters.clone(),
+            current_filter: self.current_filter.clone(),
             current_filter_index: self.current_filter_index,
+            current_binning: self.current_binning,
             set_temp_c: self.set_temp_c,
             bayer_pattern: self.bayer_pattern.clone(),
-            observer_name: self.observer_name.clone(),
-            site_elevation_m: self.site_elevation_m,
-            camera_make: self.camera_make.clone(),
-            camera_model: self.camera_model.clone(),
-            telescope_name: self.telescope_name.clone(),
-            telescope_focal_length_mm: self.telescope_focal_length_mm,
-            telescope_aperture_mm: self.telescope_aperture_mm,
-            last_plate_solve: self.last_plate_solve.clone(),
-            hfr_baseline: self.hfr_baseline.clone(),
-            hfr_baseline_samples: self.hfr_baseline_samples.clone(),
-            star_count_baselines: self.star_count_baselines.clone(),
-            consecutive_rejects: self.consecutive_rejects.clone(),
-            frames_accepted: self.frames_accepted.clone(),
-            frames_rejected: self.frames_rejected.clone(),
-            // seeded from RuntimeConfig at executor.start() via the
-            // ExecutionContext fields. Per-node `quality_check` on
-            // ExposureConfig still wins; this is the global fallback.
-            default_quality_check: self.default_quality_check.clone(),
-            reject_folder_path: self.reject_folder_path.clone(),
-            // share the Arc handle so the capture
-            // path's runtime read sees the latest defect-map toggle
-            // even if the user flips it mid-burst.
-            defect_map_apply: self.defect_map_apply.clone(),
-            // Forensics history + live env Arcs propagated by
-            // reference clone so `emit_grade_progress` can read the
-            // shared state without re-borrowing `ExecutionContext`.
-            forensics_history: self.forensics_history.clone(),
-            current_sky_brightness_mag: self.current_sky_brightness_mag.clone(),
-            cloud_motion_snapshot: self.cloud_motion_snapshot.clone(),
-            current_wind_kph: self.current_wind_kph.clone(),
-            current_sensor_temp_c: self.current_sensor_temp_c.clone(),
-            // Replay Debug — propagate the decision sender / run-id
-            // so instruction code can emit decisions even though the
-            // sender was added to `InstructionContext` after this
-            // function was first written.
-            decision_tx: self.decision_tx.clone(),
-            active_sequence_run_id: self.active_sequence_run_id.clone(),
-            // Dual-rig — share the barrier Arc so the dither call sites in
-            // `instructions::{execute_dither, execute_exposure}` can coordinate
-            // with the secondary capture loop.
-            dither_barrier: self.dither_barrier.clone(),
-            device_retry: self.device_retry.clone(),
-            target_light_filters: self.target_light_filters.clone(),
+            cancellation_token: self.is_cancelled.clone(),
         }
     }
 }

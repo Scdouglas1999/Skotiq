@@ -53,7 +53,7 @@ pub async fn execute_dither(
             // Grid pattern requires trigger state because the next position
             // must be sticky across calls — without it we cannot walk the
             // NxN cells in order and would loop the same cell.
-            if let Some(ref trigger_state) = ctx.trigger_state {
+            if let Some(ref trigger_state) = ctx.run.trigger_state {
                 let (ra_offset, dec_offset) = {
                     let mut state = trigger_state.write().await;
                     let offset = state.next_grid_dither_offset(config.grid_size, config.pixels);
@@ -131,11 +131,12 @@ pub async fn execute_dither(
     // resumes. With no barrier installed this is a plain pass-through.
     // A dither settles at the sequence's own dither settle values.
     let settle = crate::GuiderSettle::from(config);
-    ctx.device_ops
+    ctx.run
+        .device_ops
         .guider_note_stop_reason(Some(crate::GuidingStopReason::DitherSettle))
         .await;
     let dither_result = dither_guarded(ctx, || {
-        ctx.device_ops.guider_dither(
+        ctx.run.device_ops.guider_dither(
             dither_pixels,
             settle.pixels,
             settle.time_secs,
@@ -144,18 +145,18 @@ pub async fn execute_dither(
         )
     })
     .await;
-    ctx.device_ops.guider_note_stop_reason(None).await;
+    ctx.run.device_ops.guider_note_stop_reason(None).await;
     // A settle that ran out while the guider holds the star at the recovery
     // bar is a dither done, not a failed one: the frames after it are guided.
     let mut held_without_settling = None;
     if let Err(error) = &dither_result {
         if is_settle_timeout(&error.to_string()) {
-            if let Ok(status) = ctx.device_ops.guider_get_status().await {
+            if let Ok(status) = ctx.run.device_ops.guider_get_status().await {
                 if let Some(warning) =
-                    settle_bar_warning(ctx.trigger_state.as_ref(), settle, &status).await
+                    settle_bar_warning(ctx.run.trigger_state.as_ref(), settle, &status).await
                 {
                     tracing::warn!("{warning}");
-                    if let Some(event_tx) = &ctx.event_tx {
+                    if let Some(event_tx) = &ctx.run.event_tx {
                         let _ = event_tx
                             .send(crate::executor::ExecutorEvent::Warning { message: warning });
                     }
@@ -190,7 +191,7 @@ pub async fn execute_dither(
             announce_dither_performed(ctx);
             // A success ends the streak, so "3 in a row" in the warning above
             // means three in a row and not three all night.
-            if let Some(trigger_state) = &ctx.trigger_state {
+            if let Some(trigger_state) = &ctx.run.trigger_state {
                 trigger_state
                     .write()
                     .await
@@ -222,7 +223,7 @@ pub async fn execute_dither(
             // log, and in the run's message list — because a dither failing
             // every time usually means the guider has gone, and that IS worth
             // an operator's attention even though it is not worth the night.
-            let consecutive = if let Some(trigger_state) = &ctx.trigger_state {
+            let consecutive = if let Some(trigger_state) = &ctx.run.trigger_state {
                 let mut state = trigger_state.write().await;
                 state.latches.consecutive_dither_failures =
                     state.latches.consecutive_dither_failures.saturating_add(1);
@@ -255,7 +256,7 @@ pub async fn execute_dither(
 /// Tell the run a dither moved the mount and settled, so it is counted once
 /// (see [`crate::executor::ExecutorEvent::DitherPerformed`]).
 pub(crate) fn announce_dither_performed(ctx: &InstructionContext) {
-    if let Some(event_tx) = &ctx.event_tx {
+    if let Some(event_tx) = &ctx.run.event_tx {
         let node_id = Some(ctx.node_id.clone()).filter(|id| !id.is_empty());
         let _ = event_tx.send(crate::executor::ExecutorEvent::DitherPerformed { node_id });
     }
@@ -286,7 +287,7 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = DeviceResult<()>>,
 {
-    let Some(barrier) = ctx.dither_barrier.clone() else {
+    let Some(barrier) = ctx.run.dither_barrier.clone() else {
         return dither_call().await;
     };
 
@@ -300,7 +301,7 @@ where
             barrier.max_wait_secs(),
             barrier.forced_proceed_count(),
         );
-        if let Some(event_tx) = &ctx.event_tx {
+        if let Some(event_tx) = &ctx.run.event_tx {
             let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                 message: format!(
                     "Dual-rig: secondary camera did not clear within {:.0}s; \

@@ -11,10 +11,6 @@ pub struct CalibratorOnInstruction;
 
 #[async_trait]
 impl InstructionNode for CalibratorOnInstruction {
-    fn type_name(&self) -> &'static str {
-        "Calibrator On"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -39,6 +35,7 @@ impl InstructionNode for CalibratorOnInstruction {
         };
         execute_calibrator_on(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Calibrator On", &ctx)
+            .settle("Calibrator On", &ctx)
+            .await
     }
 }

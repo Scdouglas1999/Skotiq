@@ -142,10 +142,16 @@ pub(crate) async fn leave_dark_slot_for_capture(
     ctx: &InstructionContext,
     step: &str,
 ) -> Result<Option<String>, InstructionResult> {
-    let Some(fw_id) = ctx.filterwheel_id.as_deref().filter(|id| !id.is_empty()) else {
+    let Some(fw_id) = ctx
+        .run
+        .rig
+        .filterwheel_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+    else {
         return Ok(None);
     };
-    let position = match ctx.device_ops.filterwheel_get_position(fw_id).await {
+    let position = match ctx.run.device_ops.filterwheel_get_position(fw_id).await {
         Ok(position) if position >= 0 => position,
         Ok(_) => return Ok(None),
         Err(error) => {
@@ -153,7 +159,7 @@ pub(crate) async fn leave_dark_slot_for_capture(
             return Ok(None);
         }
     };
-    let names = match ctx.device_ops.filterwheel_get_names(fw_id).await {
+    let names = match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
         Ok(names) => names,
         Err(error) => {
             tracing::warn!("{step}: could not read the filter names: {error}");
@@ -203,11 +209,17 @@ pub(crate) async fn select_step_filter(
     let Some(wanted) = filter.map(str::trim).filter(|name| !name.is_empty()) else {
         return leave_dark_slot_for_capture(ctx, step).await;
     };
-    let Some(fw_id) = ctx.filterwheel_id.as_deref().filter(|id| !id.is_empty()) else {
+    let Some(fw_id) = ctx
+        .run
+        .rig
+        .filterwheel_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+    else {
         tracing::warn!("{step} names filter \"{wanted}\", but no filter wheel is connected");
         return Ok(None);
     };
-    let names = match ctx.device_ops.filterwheel_get_names(fw_id).await {
+    let names = match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
         Ok(names) => names,
         Err(error) => {
             tracing::warn!("{step}: could not read the filter names: {error}");
@@ -221,7 +233,14 @@ pub(crate) async fn select_step_filter(
         tracing::warn!("{step} names filter \"{wanted}\", which the filter wheel does not have");
         return leave_dark_slot_for_capture(ctx, step).await;
     };
-    if ctx.device_ops.filterwheel_get_position(fw_id).await.ok() == Some(index as i32) {
+    if ctx
+        .run
+        .device_ops
+        .filterwheel_get_position(fw_id)
+        .await
+        .ok()
+        == Some(index as i32)
+    {
         return Ok(None);
     }
     let slot = (index as i32, names[index].clone());

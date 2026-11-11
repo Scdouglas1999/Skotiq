@@ -9,6 +9,7 @@
 
 use super::*;
 use crate::node::context::{AdaptiveSwapRuntimeState, PluginNodeReply};
+use crate::node::resume::ResumeRecord;
 use crate::recovery::{RecoveryCause, RecoveryContext, RecoveryHistoryEntry, RecoverySignals};
 use crate::scheduling::integration_budget::BudgetRegistry;
 use crate::scheduling::BudgetRegistrySnapshot;
@@ -306,7 +307,7 @@ pub(crate) struct Run {
     pub outside_failures: OutsideFailures,
     pub budget_registry: BudgetRegistry,
     pub smart_exposure_states: Arc<RwLock<HashMap<NodeId, crate::SmartExposureCheckpoint>>>,
-    pub loop_passes_finished: Arc<StdRwLock<HashMap<NodeId, u32>>>,
+    pub resume: ResumeRecord,
 }
 
 /// What a resumed run takes over from its checkpoint, and what the operator
@@ -337,57 +338,49 @@ impl Run {
         context.skip_to_next_target = self.skip_to_next_target.clone();
         context.skip_to_node = self.skip_to_node.clone();
         context.plugin_node_pending = self.plugin_node_pending.clone();
-        context.event_tx = Some(self.control.state.events().clone());
-        context.recovery_request_tx = Some(recovery_requests);
+        context.run.event_tx = Some(self.control.state.events().clone());
+        context.run.recovery_request_tx = Some(recovery_requests);
         context.recovery_generation = self.recovery.generation.clone();
-        context.trigger_state = Some(self.triggers.read().await.state());
+        context.run.trigger_state = Some(self.triggers.read().await.state());
         context.budget_registry = self.budget_registry.clone();
         context.smart_exposure_states = self.smart_exposure_states.clone();
-        context.loop_passes_finished = self.loop_passes_finished.clone();
+        context.resume = self.resume.clone();
 
-        context.current_sky_brightness_mag = self.sky.sky_brightness_mag.clone();
-        context.cloud_motion_snapshot = self.sky.cloud_motion.clone();
+        context.run.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
+        context.run.conditions.cloud_motion = self.sky.cloud_motion.clone();
         context.current_transparency = self.sky.transparency.clone();
         context.transparency_backup_plan = self.sky.transparency_backup.clone();
         context.current_conditions_score = self.sky.conditions_score.clone();
         context.adaptive_swap_state = self.shared.adaptive_swap_state.clone();
-        context.defect_map_apply = self.shared.defect_map_apply.clone();
+        context.run.defect_map_apply = self.shared.defect_map_apply.clone();
         context.depth_goal_ops = self.shared.depth_goal_ops.clone();
         context.default_adaptive_exposure = slots.default_adaptive_exposure.clone();
         context.safety_fail_mode = slots.safety_fail_mode.clone();
-        context.device_retry = slots.device_retry.clone();
+        context.run.device_retry = slots.device_retry.clone();
         // A secondary capture loop armed before this start shares its dither
         // barrier with the run.
-        context.dither_barrier = crate::dual_rig::active_barrier();
+        context.run.dither_barrier = crate::dual_rig::active_barrier();
 
-        context.camera_id = self.rig.camera_id.clone();
-        context.mount_id = self.rig.mount_id.clone();
-        context.focuser_id = self.rig.focuser_id.clone();
-        context.filterwheel_id = self.rig.filterwheel_id.clone();
-        context.rotator_id = self.rig.rotator_id.clone();
-        context.dome_id = self.rig.dome_id.clone();
-        context.cover_calibrator_id = self.rig.cover_calibrator_id.clone();
-        context.save_path = self.rig.save_path.clone();
-        context.latitude = self.rig.latitude;
-        context.longitude = self.rig.longitude;
-        context.filter_focus_offsets = self.rig.filter_focus_offsets.clone();
+        context.run.rig = self.rig.clone();
 
         // One id per start, so `SK-SESID` names this run and no other.
-        context.session_id = uuid::Uuid::new_v4().to_string();
+        context.run.identity.session_id = uuid::Uuid::new_v4().to_string();
         context.max_sun_altitude_degrees = config.max_sun_altitude();
-        context.observer_name = config.observer_profile.observer_name.clone();
-        context.site_elevation_m = config.observer_profile.site_elevation_m;
-        context.camera_make = config.observer_profile.camera_make.clone();
-        context.camera_model = config.observer_profile.camera_model.clone();
-        context.telescope_name = config.observer_profile.telescope_name.clone();
-        context.telescope_focal_length_mm = config.observer_profile.telescope_focal_length_mm;
-        context.telescope_aperture_mm = config.observer_profile.telescope_aperture_mm;
-        context.default_quality_check = config.default_quality_check.clone();
-        context.reject_folder_path = config.reject_folder_path.clone();
+        context.run.identity.observer_name = config.observer_profile.observer_name.clone();
+        context.run.identity.site_elevation_m = config.observer_profile.site_elevation_m;
+        context.run.identity.camera_make = config.observer_profile.camera_make.clone();
+        context.run.identity.camera_model = config.observer_profile.camera_model.clone();
+        context.run.identity.telescope_name = config.observer_profile.telescope_name.clone();
+        context.run.identity.telescope_focal_length_mm =
+            config.observer_profile.telescope_focal_length_mm;
+        context.run.identity.telescope_aperture_mm = config.observer_profile.telescope_aperture_mm;
+        context.run.grading.default_quality_check = config.default_quality_check.clone();
+        context.run.grading.reject_folder_path = config.reject_folder_path.clone();
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),
-            node_frame_progress: Arc::default(),
+            // A burst a resume continues has its frames counted already.
+            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames_taken)),
             node_integration_credited: Arc::default(),
             node_names: Arc::new(StdRwLock::new(self.plan.node_display_names.clone())),
             run_state: self.control.state.clone(),
@@ -416,20 +409,22 @@ impl Run {
             .seed_budget(&self.budget_registry, seed.budget)
             .await;
         let grading_active = context
+            .run
+            .grading
             .default_quality_check
             .as_ref()
             .is_some_and(|check| check.is_active());
         tracing::info!(
             "Executor started: session_id={}, observer={:?}, telescope={:?}, grading_active={}",
-            context.session_id,
-            context.observer_name,
-            context.telescope_name,
+            context.run.identity.session_id,
+            context.run.identity.observer_name,
+            context.run.identity.telescope_name,
             grading_active
         );
         self.decisions.lifecycle(
             "started",
             serde_json::json!({
-                "session_id": context.session_id.clone(),
+                "session_id": context.run.identity.session_id.clone(),
                 "grading_active": grading_active,
             }),
         );
@@ -686,7 +681,7 @@ impl Run {
         night_end::run_unreached_shutdown_steps(
             sequence,
             side_context,
-            &side_context.device_ops,
+            &side_context.run.device_ops,
             &statuses,
         )
         .await;
@@ -713,7 +708,7 @@ impl Run {
             progress.elapsed_secs = started.elapsed().as_secs_f64();
         });
 
-        self.close_checkpoint(result);
+        self.close_checkpoint(result).await;
 
         let elapsed_secs = started.elapsed().as_secs_f64();
         match result {
@@ -776,7 +771,7 @@ impl Run {
     /// A run that did not finish keeps its checkpoint, with how it ended and
     /// the progress it reached. A finished run's checkpoint stays on disk for
     /// the session report and stops being resumable.
-    fn close_checkpoint(&self, result: NodeStatus) {
+    async fn close_checkpoint(&self, result: NodeStatus) {
         let Some(writer) = &self.checkpoint else {
             return;
         };
@@ -806,7 +801,10 @@ impl Run {
                 progress.completed_integration_secs,
             )
         });
-        match writer.record_run_end(run_end, exposures, integration_secs) {
+        match writer
+            .record_run_end(run_end, exposures, integration_secs)
+            .await
+        {
             Ok(()) => tracing::info!(
                 "Checkpoint records the run as {} after {} exposures",
                 run_end.as_str(),
@@ -892,7 +890,7 @@ impl Run {
             outside_failures: OutsideFailures::default(),
             budget_registry: BudgetRegistry::new(),
             smart_exposure_states: Arc::default(),
-            loop_passes_finished: Arc::default(),
+            resume: ResumeRecord::default(),
         }
     }
 }

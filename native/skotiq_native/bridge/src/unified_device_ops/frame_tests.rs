@@ -13,7 +13,7 @@ use crate::device_manager::epoch::{
     j2000_to_jnow, jnow_to_j2000, SimFrameGuard as FrameGuard, SimMountFrame,
 };
 use skotiq_sequencer::instructions::InstructionContext;
-use skotiq_sequencer::{Binning, SlewConfig};
+use skotiq_sequencer::SlewConfig;
 use std::sync::atomic::AtomicBool;
 
 /// NGC 7380, the target of the night the defect was found, J2000.
@@ -42,66 +42,14 @@ async fn attach_sim_mount(device_id: &str) {
 
 /// The context a TargetHeader hands a Slew node: J2000 target, mount only.
 fn target_context(mount_id: &str, target: (f64, f64)) -> InstructionContext {
+    let mut run = skotiq_sequencer::instructions::RunShared::new(create_unified_device_ops());
+    run.rig.mount_id = Some(mount_id.to_string());
     InstructionContext {
         node_id: "frame-test-slew".to_string(),
         target_ra: Some(target.0),
         target_dec: Some(target.1),
         target_name: Some("NGC 7380".to_string()),
-        target_rotation: None,
-        current_filter: None,
-        current_binning: Binning::One,
-        cancellation_token: Arc::new(AtomicBool::new(false)),
-        camera_id: None,
-        mount_id: Some(mount_id.to_string()),
-        focuser_id: None,
-        filterwheel_id: None,
-        rotator_id: None,
-        dome_id: None,
-        cover_calibrator_id: None,
-        save_path: None,
-        latitude: None,
-        longitude: None,
-        device_ops: create_unified_device_ops(),
-        trigger_state: None,
-        filter_focus_offsets: std::collections::HashMap::new(),
-        event_tx: None,
-        recovery_request_tx: None,
-        session_id: String::new(),
-        target_id: None,
-        mosaic_panel: None,
-        current_filter_index: None,
-        set_temp_c: None,
-        bayer_pattern: None,
-        observer_name: None,
-        site_elevation_m: None,
-        camera_make: None,
-        camera_model: None,
-        telescope_name: None,
-        telescope_focal_length_mm: None,
-        telescope_aperture_mm: None,
-        last_plate_solve: Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline: Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline_samples: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        star_count_baselines: Default::default(),
-        consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        default_quality_check: None,
-        reject_folder_path: None,
-        defect_map_apply: Arc::new(tokio::sync::RwLock::new(None)),
-        forensics_history: Arc::new(tokio::sync::RwLock::new(std::collections::VecDeque::new())),
-        current_sky_brightness_mag: Arc::new(tokio::sync::RwLock::new(None)),
-        cloud_motion_snapshot: Arc::new(tokio::sync::RwLock::new(
-            skotiq_sequencer::CloudMotionSnapshot::default(),
-        )),
-        current_wind_kph: Arc::new(tokio::sync::RwLock::new(None)),
-        current_sensor_temp_c: Arc::new(tokio::sync::RwLock::new(None)),
-        decision_tx: None,
-        active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
-        device_disconnect_recovery_pending: Arc::new(AtomicBool::new(false)),
-        dither_barrier: None,
-        device_retry: skotiq_sequencer::instructions::DeviceRetryHandle::single_attempt(),
-        target_light_filters: Vec::new(),
+        ..InstructionContext::new(run, Arc::new(AtomicBool::new(false)))
     }
 }
 
@@ -242,8 +190,8 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     );
 
     let dir = tempfile::TempDir::new().unwrap();
-    ctx.camera_id = Some(camera_id.to_string());
-    ctx.save_path = Some(dir.path().to_path_buf());
+    ctx.run.rig.camera_id = Some(camera_id.to_string());
+    ctx.run.rig.save_path = Some(dir.path().to_path_buf());
     let config = skotiq_sequencer::ExposureConfig {
         duration_secs: 0.1,
         count: 1,

@@ -6,6 +6,7 @@
 
 use super::{ExecutorState, RunCell, RunConfigStore, RunRig};
 use crate::checkpoint::{CheckpointManager, RunEnd, SessionCheckpoint, TriggerStateSnapshot};
+use crate::node::resume::ResumeRecord;
 use crate::scheduling::integration_budget::BudgetRegistry;
 use crate::triggers::TriggerManager;
 use crate::{NodeId, NodeStatus, SequenceDefinition, SmartExposureCheckpoint};
@@ -26,7 +27,7 @@ pub(crate) struct CheckpointSources {
     pub triggers_enabled: bool,
     pub budget_registry: BudgetRegistry,
     pub smart_exposure_states: Arc<RwLock<HashMap<NodeId, SmartExposureCheckpoint>>>,
-    pub loop_passes_finished: Arc<parking_lot::RwLock<HashMap<NodeId, u32>>>,
+    pub resume: ResumeRecord,
 }
 
 pub(crate) struct CheckpointWriter {
@@ -60,14 +61,16 @@ impl CheckpointWriter {
             state,
             ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
         );
-        checkpoint.last_completed_node = progress
-            .node_statuses
+        let resume = sources.resume.snapshot();
+        let mut node_statuses = progress.node_statuses;
+        node_statuses.retain(|id, _| !resume.from_earlier_pass.contains(id));
+        checkpoint.last_completed_node = node_statuses
             .iter()
             .filter(|(_, status)| matches!(status, NodeStatus::Success))
             .filter_map(|(id, _)| sources.execution_order.get(id).map(|order| (id, *order)))
             .max_by_key(|(_, order)| *order)
             .map(|(id, _)| id.clone());
-        checkpoint.node_statuses = progress.node_statuses;
+        checkpoint.node_statuses = node_statuses;
 
         let rig = &sources.rig;
         checkpoint.set_devices(
@@ -89,7 +92,8 @@ impl CheckpointWriter {
             config.filter_focus_offsets,
         ));
 
-        checkpoint.loop_iterations = sources.loop_passes_finished.read().clone();
+        checkpoint.loop_iterations = resume.loop_passes_finished;
+        checkpoint.exposure_frames_taken = resume.frames_taken;
         checkpoint.budget_states = sources.budget_registry.snapshot().await;
         checkpoint.smart_exposure_states = sources.smart_exposure_states.read().await.clone();
         checkpoint
@@ -108,24 +112,38 @@ impl CheckpointWriter {
         Ok(())
     }
 
-    /// Record how a run that keeps its checkpoint ended, with the progress it
-    /// reached. The checkpoint stays resumable, as it was last saved while
-    /// the run was live.
-    pub(crate) fn record_run_end(
+    /// Record how a run that keeps its checkpoint ended, with where it got
+    /// to: the steps it finished, its loop passes and the frames of a burst
+    /// it stopped in, as they stand now, and the progress it reached. The
+    /// checkpoint stays resumable, as it was last saved while the run was
+    /// live.
+    pub(crate) async fn record_run_end(
         &self,
         end: RunEnd,
         completed_exposures: u32,
         completed_integration_secs: f64,
     ) -> Result<(), String> {
-        self.amend(
-            |checkpoint| {
-                checkpoint.ended = Some(end);
-                checkpoint.completed_exposures = completed_exposures;
-                checkpoint.completed_integration_secs = completed_integration_secs;
-                checkpoint.timestamp = chrono::Utc::now();
-            },
-            |manager| manager.record_run_end(end, completed_exposures, completed_integration_secs),
-        )
+        let live = self
+            .written
+            .lock()
+            .as_ref()
+            .map(|written| (written.executor_state, written.is_active));
+        let Some((executor_state, is_active)) = live else {
+            return self.manager.record_run_end(
+                end,
+                completed_exposures,
+                completed_integration_secs,
+            );
+        };
+        let mut checkpoint = self.compose().await;
+        checkpoint.executor_state = executor_state;
+        checkpoint.is_active = is_active;
+        checkpoint.ended = Some(end);
+        checkpoint.completed_exposures = completed_exposures;
+        checkpoint.completed_integration_secs = completed_integration_secs;
+        self.manager.save(&checkpoint)?;
+        *self.written.lock() = Some(checkpoint);
+        Ok(())
     }
 
     /// The run finished: keep the file for the session report, no longer

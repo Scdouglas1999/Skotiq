@@ -84,6 +84,10 @@ impl SequenceExecutor {
             .take()
             .ok_or("No root node available - sequence may not be properly loaded".to_string())?;
 
+        let frames_taken = checkpoint_to_restore
+            .as_ref()
+            .map(|checkpoint| checkpoint.exposure_frames_taken.clone())
+            .unwrap_or_default();
         let seed = RunSeed {
             staging: std::mem::take(&mut self.staging),
             budget: checkpoint_to_restore
@@ -102,6 +106,7 @@ impl SequenceExecutor {
             &*root_node,
             custom_recovery_branches,
             unreachable_instruction_names,
+            frames_taken,
         );
         let run = Arc::new(run);
         self.run = Some(run.clone());
@@ -123,6 +128,7 @@ impl SequenceExecutor {
         root_node: &dyn Node,
         custom_recovery_branches: HashMap<String, NodeId>,
         unreachable_instruction_names: Vec<String>,
+        frames_taken: HashMap<NodeId, u32>,
     ) -> Run {
         let config = self.settings.snapshot();
         let control = RunControl {
@@ -146,10 +152,12 @@ impl SequenceExecutor {
 
         let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();
         let smart_exposure_states = Arc::new(RwLock::new(HashMap::new()));
-        // A resumed run's loops start from the passes its checkpoint recorded.
+        // A resumed run's loops and bursts start from where its checkpoint
+        // recorded them.
         let mut loop_passes_finished = HashMap::new();
         root_node.snapshot_loop_iterations(&mut loop_passes_finished);
-        let loop_passes_finished = Arc::new(StdRwLock::new(loop_passes_finished));
+        let resume =
+            crate::node::resume::ResumeRecord::new(root_node, loop_passes_finished, frames_taken);
 
         let checkpoint = match (&self.checkpoint_manager, &self.sequence) {
             (Some(manager), Some(sequence)) => Some(Arc::new(CheckpointWriter::new(
@@ -164,7 +172,7 @@ impl SequenceExecutor {
                     triggers_enabled: self.triggers_enabled,
                     budget_registry: budget_registry.clone(),
                     smart_exposure_states: smart_exposure_states.clone(),
-                    loop_passes_finished: loop_passes_finished.clone(),
+                    resume: resume.clone(),
                 },
             ))),
             _ => None,
@@ -212,7 +220,7 @@ impl SequenceExecutor {
             outside_failures: OutsideFailures::default(),
             budget_registry,
             smart_exposure_states,
-            loop_passes_finished,
+            resume,
         }
     }
 }

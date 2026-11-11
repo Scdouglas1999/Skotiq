@@ -1653,88 +1653,27 @@ impl MeridianFlipExecutor {
             .clone()
             .unwrap_or_else(|| self.abort_requested.clone());
 
+        let mut run = crate::instructions::RunShared::new(self.device_ops.clone());
+        run.rig.camera_id = Some(camera_id);
+        run.rig.mount_id = Some(ctx.mount_id.clone());
+        run.rig.focuser_id = Some(focuser_id);
+        run.rig.filterwheel_id = autofocus.filterwheel_id.clone();
+        run.rig.cover_calibrator_id = ctx.cover_calibrator_id.clone();
+        run.rig.filter_focus_offsets = autofocus.filter_focus_offsets.clone();
+        run.trigger_state = ctx.trigger_state.clone();
+        run.event_tx = self.executor_event_tx.clone();
+        // The run's decision log when the caller attached one, so a refocus
+        // that did not converge is recorded and announced.
+        run.decision_tx = self.decision_tx.clone();
+        run.active_sequence_run_id = self.active_sequence_run_id.clone();
+        // The post-flip refocus is not a sequence node and saves no frames.
         let instruction_ctx = InstructionContext {
-            // Flip-driven recenter is not a sequence node.
-            node_id: String::new(),
             target_ra: Some(ctx.target_ra_hours),
             target_dec: Some(ctx.target_dec_degrees),
-            target_rotation: None,
             target_name: Some(ctx.target_name.clone()),
             current_filter: autofocus.current_filter.clone(),
             current_binning: af_config.binning,
-            cancellation_token: cancel_token,
-            camera_id: Some(camera_id),
-            mount_id: Some(ctx.mount_id.clone()),
-            focuser_id: Some(focuser_id),
-            filterwheel_id: autofocus.filterwheel_id.clone(),
-            rotator_id: None,
-            dome_id: None,
-            cover_calibrator_id: ctx.cover_calibrator_id.clone(),
-            save_path: None,
-            latitude: None,
-            longitude: None,
-            device_ops: self.device_ops.clone(),
-            trigger_state: ctx.trigger_state.clone(),
-            filter_focus_offsets: autofocus.filter_focus_offsets.clone(),
-            // inherit the parent executor's broadcast handle
-            // so the post-flip refocus's instruction-level errors (FITS-save
-            // failure on the test exposure, etc.) reach UI subscribers. When
-            // the flip is invoked outside the live executor (unit tests) the
-            // sender is None and emits are silently dropped.
-            event_tx: self.executor_event_tx.clone(),
-            recovery_request_tx: None,
-            device_disconnect_recovery_pending: std::sync::Arc::new(
-                std::sync::atomic::AtomicBool::new(false),
-            ),
-            // Image Grading: meridian-flip refocus does not save FITS
-            // frames itself (autofocus uses in-memory star detection only),
-            // so empty defaults are correct here.
-            session_id: String::new(),
-            target_id: None,
-            mosaic_panel: None,
-            current_filter_index: None,
-            set_temp_c: None,
-            bayer_pattern: None,
-            observer_name: None,
-            site_elevation_m: None,
-            camera_make: None,
-            camera_model: None,
-            telescope_name: None,
-            telescope_focal_length_mm: None,
-            telescope_aperture_mm: None,
-            last_plate_solve: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline_samples: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
-            star_count_baselines: Default::default(),
-            consecutive_rejects: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_accepted: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_rejected: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            default_quality_check: None,
-            reject_folder_path: None,
-            // meridian-flip refocus does not save FITS
-            // frames so the defect-map slot stays empty.
-            defect_map_apply: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            // Forensics: meridian-flip refocus does not save
-            // FITS frames or grade them; start empty Arcs.
-            forensics_history: std::sync::Arc::new(tokio::sync::RwLock::new(
-                std::collections::VecDeque::new(),
-            )),
-            current_sky_brightness_mag: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            cloud_motion_snapshot: std::sync::Arc::new(tokio::sync::RwLock::new(
-                crate::node::context::CloudMotionSnapshot::default(),
-            )),
-            current_wind_kph: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            current_sensor_temp_c: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            // The run's decision log when the caller attached one, so a refocus
-            // that did not converge is recorded and announced.
-            decision_tx: self.decision_tx.clone(),
-            active_sequence_run_id: self.active_sequence_run_id.clone(),
-            // Dual-rig — meridian flip is not gated by the secondary barrier in
-            // v1 (documented gap); the flip's own dither/recenter runs without
-            // secondary coordination.
-            dither_barrier: None,
-            device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
-            target_light_filters: Vec::new(),
+            ..InstructionContext::new(run, cancel_token)
         };
 
         tracing::info!(
@@ -1756,7 +1695,6 @@ impl MeridianFlipExecutor {
             self.emit_event(MeridianFlipEvent::Progress { percent });
         };
 
-        let position_before = crate::instructions::read_autofocus_position(&instruction_ctx).await;
         let result = execute_autofocus(af_config, &instruction_ctx, Some(&progress_fn)).await;
 
         // The flip itself is done: the mount is on its new pier side and
@@ -1764,12 +1702,14 @@ impl MeridianFlipExecutor {
         // goes on at the previous focus. Failing the step instead sent it down
         // the flip's retry ladder and then its failure action, which parks the
         // mount (owner decision 2026-10-06: a failed autofocus never parks).
-        if crate::instructions::autofocus_failure_continues_the_run(&result) {
+        if let Some(crate::instructions::Setback::FocusNotFound { focuser_before }) =
+            result.setback()
+        {
             crate::instructions::notify_autofocus_failed_continuing(
                 &instruction_ctx,
                 "Post-flip autofocus",
                 &result,
-                position_before,
+                focuser_before,
             )
             .await;
             return Ok(());
@@ -1888,7 +1828,9 @@ impl MeridianFlipExecutor {
                     }
                 }
             }
-            Err(crate::instructions::GuidingStartError::Start(crate::device_ops::DeviceError::NO_GUIDER)) => {
+            Err(crate::instructions::GuidingStartError::Start(
+                crate::device_ops::DeviceError::NO_GUIDER,
+            )) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to resume");
                 return Ok(());
             }
@@ -2649,10 +2591,7 @@ mod tests {
                 .park_failures_remaining
                 .fetch_sub(1, Ordering::Relaxed);
             if remaining > 0 {
-                Err(format!(
-                    "simulated park failure (remaining={})",
-                    remaining - 1
-                ).into())
+                Err(format!("simulated park failure (remaining={})", remaining - 1).into())
             } else {
                 Ok(())
             }

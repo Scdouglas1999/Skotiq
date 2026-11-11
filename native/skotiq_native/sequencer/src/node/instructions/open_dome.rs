@@ -11,10 +11,6 @@ pub struct OpenDomeInstruction;
 
 #[async_trait]
 impl InstructionNode for OpenDomeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Open Dome"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -40,6 +36,7 @@ impl InstructionNode for OpenDomeInstruction {
         };
         execute_open_dome(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Open Dome", &ctx)
+            .settle("Open Dome", &ctx)
+            .await
     }
 }

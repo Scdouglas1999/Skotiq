@@ -159,15 +159,15 @@ async fn cool_node_with(temps: &[f64], stop_on_quality_problems: bool) -> CoolRu
 
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_camera_temperatures(temps));
     let mut ec = crate::node::context::ExecutionContext::new_for_test("cool".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
     let mut state = crate::triggers::TriggerState::new();
     state.settings.stop_on_quality_problems = stop_on_quality_problems;
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    ec.decision_tx = Some(decision_tx);
+    ec.run.decision_tx = Some(decision_tx);
     let node = crate::NodeType::CoolCamera(CoolConfig {
         target_temp: -10.0,
         duration_mins: Some(1.0),

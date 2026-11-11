@@ -135,7 +135,7 @@ async fn autofocus_restores_the_filter_but_leaves_guiding_stopped_when_the_run_s
         ],
         "the guider status says why guiding stays stopped"
     );
-    if let Some(state) = &ctx.trigger_state {
+    if let Some(state) = &ctx.run.trigger_state {
         assert!(!state.read().await.guiding.is_enabled());
     }
 }
@@ -491,7 +491,8 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
     // The latch the monitor's guide-poll block arms `guide_star_lost` from.
     // Autofocus stopped guiding for its sweep, so this is what the run still
     // believes.
-    ctx.trigger_state
+    ctx.run
+        .trigger_state
         .as_ref()
         .expect("pointing_ctx wires a trigger state")
         .write()
@@ -511,7 +512,7 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
         "the operator-facing message must still name it: {message}"
     );
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
         "the marker is what lets the trigger arm tell a missed curve fit from a \
          dead guider; without it the run carries on exposing"
@@ -521,7 +522,8 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
     // is_guiding = true while it chases a lost star, so the latch is the only
     // honest signal left.
     assert!(
-        !ctx.trigger_state
+        !ctx.run
+            .trigger_state
             .as_ref()
             .expect("pointing_ctx wires a trigger state")
             .read()
@@ -553,7 +555,7 @@ async fn a_guider_still_finding_its_star_is_waited_for() {
         result.message
     );
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::SoftFramesOnly
     );
 }
@@ -574,7 +576,7 @@ async fn a_guider_chasing_a_lost_star_is_not_guiding_restored() {
     let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
 
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
         "is_guiding at 78.6 px is not a restored guider: {:?}",
         result.message
@@ -597,7 +599,7 @@ async fn a_guider_with_no_guide_step_since_the_restart_is_not_guiding_restored()
     let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
 
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
         "an empty statistics window is not a settled lock: {:?}",
         result.message
@@ -630,7 +632,8 @@ async fn a_stop_ends_the_wait_for_the_guider_to_settle() {
         started.elapsed()
     );
     assert!(
-        !ctx.trigger_state
+        !ctx.run
+            .trigger_state
             .as_ref()
             .expect("pointing_ctx wires a trigger state")
             .read()
@@ -651,12 +654,13 @@ async fn a_successful_guider_resume_leaves_the_result_alone() {
 
     assert_eq!(result.status, NodeStatus::Success);
     assert_eq!(
-        autofocus_trigger_failure_cost(result.data.as_ref()),
+        autofocus_trigger_failure_cost(&result),
         AutofocusTriggerFailureCost::SoftFramesOnly,
         "no marker on a clean resume"
     );
     assert!(
-        ctx.trigger_state
+        ctx.run
+            .trigger_state
             .as_ref()
             .expect("pointing_ctx wires a trigger state")
             .read()
@@ -677,7 +681,8 @@ async fn the_guider_restart_after_autofocus_refuses_a_star_below_the_runs_guide_
         snr: 40.0,
         star_mass: 20_000.0,
     };
-    ctx.trigger_state
+    ctx.run
+        .trigger_state
         .as_ref()
         .expect("pointing_ctx wires a trigger state")
         .write()
@@ -700,25 +705,32 @@ async fn the_guider_restart_after_autofocus_refuses_a_star_below_the_runs_guide_
 /// the whole defect.
 #[test]
 fn the_two_autofocus_failure_costs_are_distinguishable() {
+    let missed = InstructionResult::failure("Autofocus did not converge");
     assert_eq!(
-        autofocus_trigger_failure_cost(None),
+        autofocus_trigger_failure_cost(&missed),
         AutofocusTriggerFailureCost::SoftFramesOnly,
-        "a failure with no data is a focus failure: continue on last-good focus"
+        "a plain failure is a focus failure: continue on last-good focus"
     );
+    let restored = InstructionResult {
+        data: Some(serde_json::json!({ "autofocus_origin_restored": true })),
+        ..InstructionResult::failure("Autofocus did not converge")
+    };
     assert_eq!(
-        autofocus_trigger_failure_cost(Some(&serde_json::json!({
-            "autofocus_origin_restored": true,
-        }))),
+        autofocus_trigger_failure_cost(&restored),
         AutofocusTriggerFailureCost::SoftFramesOnly,
-        "a restored focuser with no guiding marker is still just soft frames"
+        "a restored focuser with a guider back is still just soft frames"
     );
+    let unguided = InstructionResult {
+        data: Some(serde_json::json!({ "autofocus_origin_restored": true })),
+        ..InstructionResult::failure_because(
+            "Autofocus did not converge",
+            Setback::GuidingNotRestored,
+        )
+    };
     assert_eq!(
-        autofocus_trigger_failure_cost(Some(&serde_json::json!({
-            "autofocus_origin_restored": true,
-            AUTOFOCUS_GUIDING_NOT_RESTORED_KEY: true,
-        }))),
+        autofocus_trigger_failure_cost(&unguided),
         AutofocusTriggerFailureCost::EveryFrameUnguided,
-        "the guiding marker wins: every subsequent frame trails"
+        "a guider left stopped wins: every subsequent frame trails"
     );
 }
 
@@ -775,9 +787,7 @@ async fn a_guiderless_sweep_is_not_retried_across_attempts() {
     assert_eq!(result.status, NodeStatus::Failure);
     // The sweep itself fails for its own reasons in this harness; what matters
     // is that a guiding-not-restored result is returned rather than re-swept.
-    if autofocus_trigger_failure_cost(result.data.as_ref())
-        == AutofocusTriggerFailureCost::EveryFrameUnguided
-    {
+    if autofocus_trigger_failure_cost(&result) == AutofocusTriggerFailureCost::EveryFrameUnguided {
         assert!(
             ops.guider_start_calls.load(Ordering::SeqCst) <= 1,
             "a sweep that could not restore guiding must not start another one"
@@ -799,7 +809,7 @@ async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
     for attempts in [1_u32, 3] {
         let ops = Arc::new(ScriptedDomeRotatorOps::new());
         let mut ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
-        ctx.focuser_id = Some("foc-1".to_string());
+        ctx.run.rig.focuser_id = Some("foc-1".to_string());
         let config = AutofocusConfig {
             number_of_attempts: attempts,
             exposure_duration: 0.01,
@@ -837,8 +847,8 @@ async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
     // Stopped before the first point.
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.focuser_id = Some("foc-1".to_string());
-    ctx.event_tx = Some(tx.clone());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.event_tx = Some(tx.clone());
     ctx.cancellation_token.store(true, Ordering::SeqCst);
     let guard = try_admit_autofocus_run().expect("test autofocus must admit");
     let result = execute_autofocus_admitted(&AutofocusConfig::default(), &ctx, None, guard).await;
@@ -847,8 +857,8 @@ async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
     // A sweep on starless frames fails.
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
-    ctx.focuser_id = Some("foc-1".to_string());
-    ctx.event_tx = Some(tx.clone());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.event_tx = Some(tx.clone());
     let config = AutofocusConfig {
         exposure_duration: 0.01,
         steps_out: 1,
@@ -897,8 +907,8 @@ fn defocusing_rig(start: i32, focus: i32) -> ScriptedDomeRotatorOps {
 
 async fn sweep(ops: Arc<ScriptedDomeRotatorOps>, attempts: u32) -> (InstructionResult, i32) {
     let mut ctx = pointing_ctx(ops.clone(), "NGC0925", (2.45, 33.58)).await;
-    ctx.focuser_id = Some("foc-1".to_string());
-    ctx.device_retry = crate::instructions::DeviceRetryHandle::default();
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.device_retry = crate::instructions::DeviceRetryHandle::default();
     let config = AutofocusConfig {
         number_of_attempts: attempts,
         exposure_duration: 0.01,

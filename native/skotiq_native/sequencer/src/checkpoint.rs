@@ -154,6 +154,10 @@ pub struct SessionCheckpoint {
     /// iteration it reached instead of re-imaging every completed iteration.
     #[serde(default)]
     pub loop_iterations: HashMap<NodeId, u32>,
+    /// Frames a Take Exposures burst had taken when the run stopped part-way
+    /// through it, keyed by the node's id; a resumed run takes the rest.
+    #[serde(default)]
+    pub exposure_frames_taken: HashMap<NodeId, u32>,
     /// How the run ended, when it ended on its own terms: stopped by the
     /// operator, failed, or ended early by a trigger (dawn, weather). `None`
     /// while it runs, so a checkpoint still `None` after the app restarts
@@ -221,6 +225,7 @@ impl SessionCheckpoint {
             // empty by default; populated from the live tree at
             // save_checkpoint time (loop nodes with current_iteration > 0).
             loop_iterations: HashMap::new(),
+            exposure_frames_taken: HashMap::new(),
         }
     }
 

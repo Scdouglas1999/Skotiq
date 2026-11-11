@@ -21,8 +21,8 @@ async fn slew_to_unset_target_never_commands_the_mount() {
         "an unset target must not slew"
     );
     assert_eq!(
-        recovery_code_of(&result).as_deref(),
-        Some(UNSET_TARGET_RECOVERY_CODE),
+        result.setback(),
+        Some(Setback::TargetUnset),
         "rejection must be attributable to the unset target, got {:?}",
         result.message
     );
@@ -50,8 +50,8 @@ async fn center_on_unset_target_never_commands_the_mount() {
         "an unset target must not center"
     );
     assert_eq!(
-        recovery_code_of(&result).as_deref(),
-        Some(UNSET_TARGET_RECOVERY_CODE),
+        result.setback(),
+        Some(Setback::TargetUnset),
         "rejection must be attributable to the unset target, got {:?}",
         result.message
     );
@@ -82,8 +82,8 @@ async fn slew_to_a_real_target_still_commands_the_mount() {
     let result = execute_slew(&cfg, &ctx, None).await;
 
     assert_ne!(
-        recovery_code_of(&result).as_deref(),
-        Some(UNSET_TARGET_RECOVERY_CODE),
+        result.setback(),
+        Some(Setback::TargetUnset),
         "a deliberately-set pointing must not read as the unset placeholder"
     );
     assert_eq!(

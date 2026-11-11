@@ -10,10 +10,6 @@ pub struct HomeMountInstruction;
 
 #[async_trait]
 impl InstructionNode for HomeMountInstruction {
-    fn type_name(&self) -> &'static str {
-        "Home Mount"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -23,6 +19,7 @@ impl InstructionNode for HomeMountInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         execute_home_mount(&ctx)
             .await
-            .log_and_get_status_with_context("Home Mount", &ctx)
+            .settle("Home Mount", &ctx)
+            .await
     }
 }

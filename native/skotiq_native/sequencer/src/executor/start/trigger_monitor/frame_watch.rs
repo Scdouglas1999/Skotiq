@@ -689,7 +689,7 @@ impl FrameWatchStage {
             .await;
             if center.status == NodeStatus::Success {
                 Ok(true)
-            } else if crate::instructions::center_did_not_converge(&center) {
+            } else if center.setback() == Some(crate::instructions::Setback::CenterNotConverged) {
                 Ok(false)
             } else {
                 Err(center.message.unwrap_or_default())

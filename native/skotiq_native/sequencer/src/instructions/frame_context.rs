@@ -67,7 +67,7 @@ pub(crate) async fn build_frame_context_for_save(
     };
 
     let mut frame_ctx = crate::scheduling::FrameContext::new_light(
-        ctx.session_id.clone(),
+        ctx.run.identity.session_id.clone(),
         bin_x,
         bin_y,
         config.duration_secs,
@@ -151,8 +151,8 @@ pub(crate) async fn build_frame_context_for_save(
     // (or a driver that will not answer) leaves the column NULL rather than
     // recording 0 %, which would read as "cooler idle" — the opposite of "no
     // cooler".
-    if let Some(camera_id) = &ctx.camera_id {
-        match ctx.device_ops.camera_get_cooler_power(camera_id).await {
+    if let Some(camera_id) = &ctx.run.rig.camera_id {
+        match ctx.run.device_ops.camera_get_cooler_power(camera_id).await {
             Ok(power) => frame_ctx.cooler_power_percent = Some(power),
             Err(e) => tracing::debug!(
                 "[CAPTURE] camera_get_cooler_power failed; cooler power omitted: {}",
@@ -173,14 +173,14 @@ pub(crate) async fn build_frame_context_for_save(
     frame_ctx.mosaic_panel = ctx.mosaic_panel.clone();
 
     // Observer / site.
-    frame_ctx.observer_name = ctx.observer_name.clone();
-    frame_ctx.site_latitude_deg = ctx.latitude;
-    frame_ctx.site_longitude_deg = ctx.longitude;
-    frame_ctx.site_elevation_m = ctx.site_elevation_m;
+    frame_ctx.observer_name = ctx.run.identity.observer_name.clone();
+    frame_ctx.site_latitude_deg = ctx.run.rig.latitude;
+    frame_ctx.site_longitude_deg = ctx.run.rig.longitude;
+    frame_ctx.site_elevation_m = ctx.run.identity.site_elevation_m;
 
     // Equipment identification.
-    frame_ctx.camera_make = ctx.camera_make.clone();
-    frame_ctx.camera_model = ctx.camera_model.clone();
+    frame_ctx.camera_make = ctx.run.identity.camera_make.clone();
+    frame_ctx.camera_model = ctx.run.identity.camera_model.clone();
     // Ask the DRIVER which camera this is when the observer profile does not
     // say. The profile is a cross-product of app settings and the active
     // equipment profile, so a rig running without one — which is every
@@ -190,8 +190,8 @@ pub(crate) async fn build_frame_context_for_save(
     // carry it. Only fills the gap: a profile that names a camera still wins,
     // because that is the operator stating what they want in their archive.
     if frame_ctx.camera_make.is_none() && frame_ctx.camera_model.is_none() {
-        if let Some(camera_id) = &ctx.camera_id {
-            match ctx.device_ops.camera_get_model(camera_id).await {
+        if let Some(camera_id) = &ctx.run.rig.camera_id {
+            match ctx.run.device_ops.camera_get_model(camera_id).await {
                 Ok(Some(model)) => frame_ctx.camera_model = Some(model),
                 Ok(None) => tracing::debug!(
                     "[CAPTURE] camera {} reports no model name; INSTRUME omitted",
@@ -209,8 +209,8 @@ pub(crate) async fn build_frame_context_for_save(
     // and without it the sub lands on disk with FOCALLEN but no pitch, so no
     // stacker can derive the plate scale from the file alone. A driver that
     // will not answer leaves the keywords off rather than inventing a pitch.
-    if let Some(camera_id) = &ctx.camera_id {
-        match ctx.device_ops.camera_get_pixel_size_um(camera_id).await {
+    if let Some(camera_id) = &ctx.run.rig.camera_id {
+        match ctx.run.device_ops.camera_get_pixel_size_um(camera_id).await {
             Ok(Some((x_um, y_um))) => {
                 frame_ctx.camera_pixel_size_x_um = Some(x_um);
                 frame_ctx.camera_pixel_size_y_um = Some(y_um);
@@ -225,23 +225,23 @@ pub(crate) async fn build_frame_context_for_save(
             ),
         }
     }
-    frame_ctx.telescope_name = ctx.telescope_name.clone();
-    frame_ctx.telescope_focal_length_mm = ctx.telescope_focal_length_mm;
-    frame_ctx.telescope_aperture_mm = ctx.telescope_aperture_mm;
+    frame_ctx.telescope_name = ctx.run.identity.telescope_name.clone();
+    frame_ctx.telescope_focal_length_mm = ctx.run.identity.telescope_focal_length_mm;
+    frame_ctx.telescope_aperture_mm = ctx.run.identity.telescope_aperture_mm;
 
     // Live focuser telemetry. We use match arms so a driver error just
     // omits the keyword — never overrides with a fake value. The focuser
     // temperature is `Option<f64>` even on success because not every
     // focuser model has a thermistor.
-    if let Some(focuser_id) = &ctx.focuser_id {
-        match ctx.device_ops.focuser_get_position(focuser_id).await {
+    if let Some(focuser_id) = &ctx.run.rig.focuser_id {
+        match ctx.run.device_ops.focuser_get_position(focuser_id).await {
             Ok(pos) => frame_ctx.focuser_position = Some(pos),
             Err(e) => tracing::debug!(
                 "[CAPTURE] focuser_get_position failed; FOCUSPOS omitted: {}",
                 e
             ),
         }
-        match ctx.device_ops.focuser_get_temperature(focuser_id).await {
+        match ctx.run.device_ops.focuser_get_temperature(focuser_id).await {
             Ok(temp) => frame_ctx.focuser_temperature_c = temp,
             Err(e) => tracing::debug!(
                 "[CAPTURE] focuser_get_temperature failed; FOCTEMP omitted: {}",
@@ -251,8 +251,8 @@ pub(crate) async fn build_frame_context_for_save(
     }
 
     // Live rotator telemetry.
-    if let Some(rotator_id) = &ctx.rotator_id {
-        match ctx.device_ops.rotator_get_angle(rotator_id).await {
+    if let Some(rotator_id) = &ctx.run.rig.rotator_id {
+        match ctx.run.device_ops.rotator_get_angle(rotator_id).await {
             Ok(angle) => frame_ctx.rotator_angle_deg = Some(angle),
             Err(e) => tracing::debug!(
                 "[CAPTURE] rotator_get_angle failed; ROTATPOS omitted: {}",
@@ -269,8 +269,8 @@ pub(crate) async fn build_frame_context_for_save(
     // meant to be (an unedited "New Target" sits at 0h/0°). Read HERE, into
     // the FrameContext both surfaces are stamped from, so the header and the
     // row cannot disagree.
-    if let Some(mount_id) = &ctx.mount_id {
-        match ctx.device_ops.mount_get_coordinates(mount_id).await {
+    if let Some(mount_id) = &ctx.run.rig.mount_id {
+        match ctx.run.device_ops.mount_get_coordinates(mount_id).await {
             Ok((ra_hours, dec_degrees)) => {
                 // Stored in J2000, the frame every reader of the FITS `RA`/`DEC`
                 // cards and the `captured_images` row assumes. A JNow mount
@@ -279,6 +279,7 @@ pub(crate) async fn build_frame_context_for_save(
                 // the precession offset. Alt/az below still use the of-date
                 // read-back, which is what the hour angle needs.
                 match ctx
+                    .run
                     .device_ops
                     .mount_readback_to_j2000(mount_id, ra_hours, dec_degrees)
                     .await
@@ -305,7 +306,7 @@ pub(crate) async fn build_frame_context_for_save(
                 // for what that costs a photometry run. RA/Dec do not need the
                 // same treatment: a tracking mount holds them, and it is only
                 // the horizon frame that turns with the clock.
-                if let (Some(lat), Some(lon)) = (ctx.latitude, ctx.longitude) {
+                if let (Some(lat), Some(lon)) = (ctx.run.rig.latitude, ctx.run.rig.longitude) {
                     let when = frame_ctx
                         .exposure_midpoint()
                         .unwrap_or_else(chrono::Utc::now);
@@ -320,7 +321,7 @@ pub(crate) async fn build_frame_context_for_save(
                 e
             ),
         }
-        match ctx.device_ops.mount_side_of_pier(mount_id).await {
+        match ctx.run.device_ops.mount_side_of_pier(mount_id).await {
             // `Unknown` is dropped rather than recorded: it is indistinguishable
             // downstream from "no reading was taken", and the column is
             // nullable precisely so absence can say that.
@@ -336,7 +337,7 @@ pub(crate) async fn build_frame_context_for_save(
 
     // Live guide RMS (PHD2 / built-in guider). The guider may be off (no
     // guiding for short subs), in which case the keyword is omitted.
-    match ctx.device_ops.guider_get_status().await {
+    match ctx.run.device_ops.guider_get_status().await {
         Ok(status) if status.is_guiding => {
             frame_ctx.guide_rms_arcsec = Some(status.rms_total);
         }
@@ -353,7 +354,7 @@ pub(crate) async fn build_frame_context_for_save(
     // this target). Stored as Arc<RwLock<_>> so the executor and exposure
     // share state without cloning.
     {
-        let solve_guard = ctx.last_plate_solve.read().await;
+        let solve_guard = ctx.run.last_plate_solve.read().await;
         if let Some(solve) = solve_guard.as_ref() {
             // PlateSolveResult stores RA in DEGREES; convert to hours for
             // the SOLVED-RA keyword (which is FITS-standard in degrees).

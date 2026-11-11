@@ -11,10 +11,6 @@ pub struct CloseCoverInstruction;
 
 #[async_trait]
 impl InstructionNode for CloseCoverInstruction {
-    fn type_name(&self) -> &'static str {
-        "Close Cover"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -39,6 +35,7 @@ impl InstructionNode for CloseCoverInstruction {
         };
         execute_close_cover(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Close Cover", &ctx)
+            .settle("Close Cover", &ctx)
+            .await
     }
 }

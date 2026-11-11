@@ -93,7 +93,7 @@ pub(crate) async fn apply_defect_map_if_configured(
     frame_idx: u32,
 ) -> DefectMapOutcome {
     let snapshot = {
-        let guard = ctx.defect_map_apply.read().await;
+        let guard = ctx.run.defect_map_apply.read().await;
         guard.clone()
     };
     let Some(state) = snapshot else {
@@ -293,7 +293,7 @@ pub(crate) async fn save_uncorrected_raw_frame(
 /// baseline. `None` without a target or an observer location.
 pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
     let (ra_hours, dec) = (ctx.target_ra?, ctx.target_dec?);
-    let (lat, lon) = (ctx.latitude?, ctx.longitude?);
+    let (lat, lon) = (ctx.run.rig.latitude?, ctx.run.rig.longitude?);
     let (alt, _) = crate::meridian::calculate_alt_az(ra_hours, dec, lat, lon, chrono::Utc::now());
     Some(alt)
 }
@@ -324,13 +324,19 @@ pub fn resolve_reject_dir(base: &std::path::Path, override_path: Option<&str>) -
 pub(crate) async fn build_environment_snapshot(
     ctx: &InstructionContext,
 ) -> crate::quality::EnvironmentSnapshot {
-    let sky_brightness_mag = *ctx.current_sky_brightness_mag.read().await;
-    let cloud_cover_percent = ctx.cloud_motion_snapshot.read().await.current_cover_percent;
-    let wind_kph = *ctx.current_wind_kph.read().await;
+    let sky_brightness_mag = *ctx.run.conditions.sky_brightness_mag.read().await;
+    let cloud_cover_percent = ctx
+        .run
+        .conditions
+        .cloud_motion
+        .read()
+        .await
+        .current_cover_percent;
+    let wind_kph = *ctx.run.conditions.wind_kph.read().await;
     // Guide RMS — pull the most recent sample from the trigger state's
     // rolling guide-RMS history. The history is a `Vec<(Instant, f64)>`
     // already maintained for the GuidingFailed trigger evaluator.
-    let guide_rms_arcsec = if let Some(trigger_state_lock) = &ctx.trigger_state {
+    let guide_rms_arcsec = if let Some(trigger_state_lock) = &ctx.run.trigger_state {
         let state = trigger_state_lock.read().await;
         state
             .latches
@@ -341,7 +347,7 @@ pub(crate) async fn build_environment_snapshot(
     } else {
         None
     };
-    let sensor_temp_c = *ctx.current_sensor_temp_c.read().await;
+    let sensor_temp_c = *ctx.run.conditions.sensor_temp_c.read().await;
     crate::quality::EnvironmentSnapshot {
         sky_brightness_mag,
         cloud_cover_percent,
@@ -359,7 +365,7 @@ pub(crate) async fn push_forensic_sample(
     ctx: &InstructionContext,
     sample: crate::quality::RecentFrameSample,
 ) {
-    let mut history = ctx.forensics_history.write().await;
+    let mut history = ctx.run.grading.forensics_history.write().await;
     history.push_back(sample);
     while history.len() > crate::quality::FORENSIC_HISTORY_LEN {
         history.pop_front();
@@ -468,7 +474,7 @@ pub(crate) async fn emit_grade_progress(
                 capture: capture.clone(),
             };
             let detail_text = structured.detail_text();
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
                     node_id: ctx.node_id.clone(),
                     instruction: "Exposure".to_string(),
@@ -486,7 +492,7 @@ pub(crate) async fn emit_grade_progress(
             // (above), but no grader DECISION is invented for it — nothing
             // graded it, so the replay timeline must not claim otherwise.
             if was_graded {
-                ctx.emit_decision(crate::decision::DecisionEvent::new(
+                ctx.run.emit_decision(crate::decision::DecisionEvent::new(
                     crate::decision::DecisionCategory::FrameAccepted,
                     format!(
                         "Frame {}/{} accepted{}",
@@ -541,10 +547,10 @@ pub(crate) async fn emit_grade_progress(
             // the classifier sees the same "what counts as elevated"
             // anchor.
             let history_snapshot: Vec<crate::quality::RecentFrameSample> = {
-                let lock = ctx.forensics_history.read().await;
+                let lock = ctx.run.grading.forensics_history.read().await;
                 lock.iter().cloned().collect()
             };
-            let baseline_snapshot = *ctx.hfr_baseline.read().await;
+            let baseline_snapshot = *ctx.run.grading.hfr_baseline.read().await;
             let verdict = crate::quality::analyze_rejection(&crate::quality::ForensicInputs {
                 hfr: *hfr,
                 eccentricity: *eccentricity,
@@ -607,7 +613,7 @@ pub(crate) async fn emit_grade_progress(
             )
             .await;
             let detail_text = structured.detail_text();
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::NodeProgress {
                     node_id: ctx.node_id.clone(),
                     instruction: "Exposure".to_string(),
@@ -621,7 +627,7 @@ pub(crate) async fn emit_grade_progress(
             // payload alongside the consecutive-rejects escalation.
             // Cross-links to forensics via the `reject_path` field
             // which the replay UI uses to deep-link.
-            ctx.emit_decision(crate::decision::DecisionEvent::new(
+            ctx.run.emit_decision(crate::decision::DecisionEvent::new(
                 crate::decision::DecisionCategory::FrameRejected,
                 format!(
                     "Frame {}/{} REJECTED: {}{}",
@@ -677,11 +683,11 @@ pub(crate) async fn emit_grade_progress(
                     rejected,
                 );
                 tracing::warn!("{}", notice);
-                if let Some(event_tx) = &ctx.event_tx {
+                if let Some(event_tx) = &ctx.run.event_tx {
                     let _ =
                         event_tx.send(crate::executor::ExecutorEvent::Warning { message: notice });
                 }
-                ctx.emit_decision(crate::decision::DecisionEvent::new(
+                ctx.run.emit_decision(crate::decision::DecisionEvent::new(
                     crate::decision::DecisionCategory::SystemEvent,
                     IMAGE_GRADING_REJECT_STREAK_SUMMARY.to_string(),
                     serde_json::json!({

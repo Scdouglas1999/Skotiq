@@ -318,9 +318,9 @@ fn test_config(clearance_steps: i32) -> BacklashCalibrationConfig {
 async fn calibration_context(ops: Arc<BacklashFocuserOps>) -> InstructionContext {
     let mut execution =
         crate::node::context::ExecutionContext::new_for_test("backlash-calibration".to_string());
-    execution.device_ops = ops;
-    execution.camera_id = Some("sim-camera".to_string());
-    execution.focuser_id = Some("sim-focuser".to_string());
+    execution.run.device_ops = ops;
+    execution.run.rig.camera_id = Some("sim-camera".to_string());
+    execution.run.rig.focuser_id = Some("sim-focuser".to_string());
     execution
         .to_instruction_context("backlash-calibration")
         .await

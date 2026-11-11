@@ -76,7 +76,9 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         crate::triggers::stops_on_quality_problems(Some(&rig.trigger_state)).await;
     if result.status == NodeStatus::Success {
         *failure_told = false;
-    } else if crate::instructions::center_did_not_converge(&result) && !stop_on_quality_problems {
+    } else if result.setback() == Some(crate::instructions::Setback::CenterNotConverged)
+        && !stop_on_quality_problems
+    {
         // Not solving or converging (cloud, a sparse field) is a judgment, not
         // a fault: the frames carry on where the mount points and the operator
         // is told once per run of failures.

@@ -11,10 +11,6 @@ pub struct WaitForTimeInstruction;
 
 #[async_trait]
 impl InstructionNode for WaitForTimeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Wait"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -48,7 +44,8 @@ impl InstructionNode for WaitForTimeInstruction {
 
         execute_wait_time(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Wait For Time", &ctx)
+            .settle("Wait For Time", &ctx)
+            .await
     }
 }
 

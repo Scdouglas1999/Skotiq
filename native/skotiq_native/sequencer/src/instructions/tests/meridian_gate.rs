@@ -14,11 +14,11 @@ use super::*;
 async fn meridian_gate_does_not_hold_a_target_east_of_the_meridian() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(104.65);
-    ec.latitude = Some(39.9846);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(104.65);
+    ec.run.rig.latitude = Some(39.9846);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
@@ -34,7 +34,7 @@ async fn meridian_gate_does_not_hold_a_target_east_of_the_meridian() {
         state.target.current_hour_angle = Some(0.19);
         state.telemetry.pier_side = None;
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let mut ctx = ec.to_instruction_context("gate-node").await;
     // LST for longitude 104.65 puts RA 23.4h roughly two hours EAST of the
@@ -86,12 +86,12 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("overdue-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.save_path = Some(dir.clone());
-    ec.latitude = Some(40.0);
-    ec.longitude = Some(42.0);
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.save_path = Some(dir.clone());
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.rig.longitude = Some(42.0);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
@@ -113,9 +113,10 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
         // escape hatch can let these frames through.
         state.target.current_hour_angle = Some(9.0);
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -181,12 +182,12 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("nofire-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.save_path = Some(dir.clone());
-    ec.latitude = Some(40.0);
-    ec.longitude = Some(42.0);
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.save_path = Some(dir.clone());
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.rig.longitude = Some(42.0);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
@@ -202,9 +203,10 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
         // every evaluation and no flip can ever be requested.
         state.target.current_hour_angle = None;
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -253,10 +255,10 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
 async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(0.0);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(0.0);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
@@ -274,7 +276,7 @@ async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
         // no position at all, in which case declining to hold is correct.
         state.target.current_hour_angle = Some(10.0 / 60.0);
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let mut ctx = ec.to_instruction_context("gate-node").await;
     // Ten minutes PAST the meridian with a 5-minute threshold: the trigger
@@ -311,8 +313,8 @@ async fn a_node_driven_meridian_flip_reports_its_outcome_to_the_run() {
     );
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = direct_capture_ctx(ops.clone(), scratch.0.clone()).await;
-    ctx.event_tx = Some(event_tx);
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.event_tx = Some(event_tx);
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     ctx.target_name = Some("M42".to_string());
     ctx.target_ra = Some(5.59);
     ctx.target_dec = Some(-5.39);
@@ -365,11 +367,11 @@ async fn meridian_gate_does_not_hold_when_the_mount_is_not_tracking() {
     for (tracking, parked) in [(Some(false), Some(false)), (Some(true), Some(true))] {
         let ops = Arc::new(ScriptedDomeRotatorOps::new());
         let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-        ec.device_ops = ops;
-        ec.camera_id = Some("camera-1".to_string());
-        ec.mount_id = Some("mount-1".to_string());
-        ec.longitude = Some(42.0);
-        ec.latitude = Some(40.0);
+        ec.run.device_ops = ops;
+        ec.run.rig.camera_id = Some("camera-1".to_string());
+        ec.run.rig.mount_id = Some("mount-1".to_string());
+        ec.run.rig.longitude = Some(42.0);
+        ec.run.rig.latitude = Some(40.0);
 
         let lst = crate::meridian::local_sidereal_time(
             crate::meridian::julian_day(&chrono::Utc::now()),
@@ -390,7 +392,7 @@ async fn meridian_gate_does_not_hold_when_the_mount_is_not_tracking() {
             state.telemetry.mount_is_tracking = tracking;
             state.telemetry.mount_parked = parked;
         }
-        ec.trigger_state = Some(trigger_state);
+        ec.run.trigger_state = Some(trigger_state);
         let mut ctx = ec.to_instruction_context("gate-node").await;
         ctx.target_ra = Some(ra);
 
@@ -444,11 +446,11 @@ async fn overdue_flip_ctx(
 ) {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(42.0);
-    ec.latitude = Some(40.0);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(42.0);
+    ec.run.rig.latitude = Some(40.0);
 
     let lst = crate::meridian::local_sidereal_time(
         crate::meridian::julian_day(&chrono::Utc::now()),
@@ -478,7 +480,7 @@ async fn overdue_flip_ctx(
         }
         assert_eq!(state.run.last_evaluation(), last_evaluation);
     }
-    ec.trigger_state = Some(trigger_state.clone());
+    ec.run.trigger_state = Some(trigger_state.clone());
     let mut ctx = ec.to_instruction_context("gate-node").await;
     ctx.target_ra = Some(ra);
     ctx.target_dec = Some(40.0);
@@ -603,7 +605,7 @@ async fn a_flip_step_leaves_a_parked_or_already_flipped_mount_alone() {
         let ops = Arc::new(ops.with_observer_location(TEST_LAT, TEST_LON));
         let scratch = scratch_dir("flip-left-alone");
         let mut ctx = direct_capture_ctx(ops.clone(), scratch.0.clone()).await;
-        ctx.mount_id = Some("mount-1".to_string());
+        ctx.run.rig.mount_id = Some("mount-1".to_string());
         ctx.target_name = Some("M34".to_string());
         ctx.target_ra = Some(ra);
         ctx.target_dec = Some(42.7);

@@ -387,13 +387,13 @@ fn test_trigger_autofocus_context_preserves_runtime_metadata() {
         rotator_id: Some("rotator".to_string()),
         dome_id: Some("dome".to_string()),
         cover_calibrator_id: Some("panel".to_string()),
-        save_path: Some(PathBuf::from("C:/captures")),
+        save_path: Some(std::path::PathBuf::from("C:/captures")),
         latitude: Some(45.0),
         longitude: Some(-122.0),
         filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
     };
     let runtime_config = RunConfigStore::default();
-    let instruction_ctx = build_trigger_autofocus_context(
+    let instruction_ctx = trigger_instruction_context(
         &trigger_context,
         Some("M31".to_string()),
         Some(1.25),
@@ -408,12 +408,15 @@ fn test_trigger_autofocus_context_preserves_runtime_metadata() {
 
     assert_eq!(instruction_ctx.target_name.as_deref(), Some("M31"));
     assert_eq!(
-        instruction_ctx.save_path,
-        Some(PathBuf::from("C:/captures"))
+        instruction_ctx.run.rig.save_path,
+        Some(std::path::PathBuf::from("C:/captures"))
     );
-    assert_eq!(instruction_ctx.latitude, Some(45.0));
-    assert_eq!(instruction_ctx.longitude, Some(-122.0));
-    assert_eq!(instruction_ctx.filter_focus_offsets.get("Ha"), Some(&42));
+    assert_eq!(instruction_ctx.run.rig.latitude, Some(45.0));
+    assert_eq!(instruction_ctx.run.rig.longitude, Some(-122.0));
+    assert_eq!(
+        instruction_ctx.run.rig.filter_focus_offsets.get("Ha"),
+        Some(&42)
+    );
 }
 
 #[test]
@@ -2739,13 +2742,13 @@ async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
     }));
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut context = crate::node::ExecutionContext::new("recovery".to_string(), ops.clone());
-    context.camera_id = Some("sim_camera_1".to_string());
-    context.focuser_id = Some("sim_focuser_1".to_string());
-    context.mount_id = Some("mount-1".to_string());
+    context.run.rig.camera_id = Some("sim_camera_1".to_string());
+    context.run.rig.focuser_id = Some("sim_focuser_1".to_string());
+    context.run.rig.mount_id = Some("mount-1".to_string());
     let (event_tx, mut events) = broadcast::channel(256);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let (decision_tx, mut decisions) = broadcast::channel(64);
-    context.decision_tx = Some(decision_tx);
+    context.run.decision_tx = Some(decision_tx);
 
     let status =
         crate::node::logic::recovery::execute_recovery(&mut node, config, &mut context).await;
@@ -2796,14 +2799,14 @@ async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
         .unwrap_or_else(|e| e.into_inner());
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut context = crate::node::ExecutionContext::new("lights".to_string(), ops.clone());
-    context.camera_id = Some("sim_camera_1".to_string());
-    context.focuser_id = Some("sim_focuser_1".to_string());
-    context.mount_id = Some("mount-1".to_string());
-    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(TriggerState::new())));
+    context.run.rig.camera_id = Some("sim_camera_1".to_string());
+    context.run.rig.focuser_id = Some("sim_focuser_1".to_string());
+    context.run.rig.mount_id = Some("mount-1".to_string());
+    context.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(TriggerState::new())));
     let (event_tx, mut events) = broadcast::channel(256);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let (decision_tx, mut decisions) = broadcast::channel(64);
-    context.decision_tx = Some(decision_tx);
+    context.run.decision_tx = Some(decision_tx);
     let config = crate::ExposureConfig {
         triggers: vec![crate::ExposureTrigger {
             condition: crate::TriggerCondition::HfrAbove(3.0),
@@ -2866,11 +2869,11 @@ fn exposure_trigger_context() -> (
 ) {
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut context = crate::node::ExecutionContext::new("lights".to_string(), ops);
-    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(TriggerState::new())));
+    context.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(TriggerState::new())));
     let (event_tx, events) = broadcast::channel(256);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let (decision_tx, decisions) = broadcast::channel(64);
-    context.decision_tx = Some(decision_tx);
+    context.run.decision_tx = Some(decision_tx);
     (context, events, decisions)
 }
 
@@ -3314,9 +3317,9 @@ async fn a_recovery_node_set_to_notify_carries_on_and_tells_the_operator() {
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut context = crate::node::ExecutionContext::new("recovery".to_string(), ops);
     let (event_tx, mut events) = broadcast::channel(64);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let (decision_tx, mut decisions) = broadcast::channel(64);
-    context.decision_tx = Some(decision_tx);
+    context.run.decision_tx = Some(decision_tx);
 
     let status =
         crate::node::logic::recovery::execute_recovery(&mut node, config, &mut context).await;
@@ -3427,7 +3430,7 @@ async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_bac
 async fn a_guiding_rms_exposure_trigger_does_not_act_while_imaging_unguided() {
     let (mut context, _events, _decisions) = exposure_trigger_context();
     {
-        let mut state = context.trigger_state.as_ref().unwrap().write().await;
+        let mut state = context.run.trigger_state.as_ref().unwrap().write().await;
         state.update_guiding_rms(9.0);
         state.guiding.set_unguided(true);
     }

@@ -194,7 +194,7 @@ pub struct FrameMetrics {
 /// light frame whose star count was *measured* as zero.
 ///
 /// `hfr_baseline` is the rolling median of accepted-frame HFRs maintained
-/// by `ExecutionContext::hfr_baseline`. Pass `None` when the baseline
+/// by `GradingState::hfr_baseline`. Pass `None` when the baseline
 /// hasn't been established yet (first 5 frames of a target) — the
 /// baseline check is then skipped.
 pub fn grade_frame(

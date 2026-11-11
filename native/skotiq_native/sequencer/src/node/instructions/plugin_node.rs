@@ -58,13 +58,6 @@ pub struct PluginNodeInstruction;
 
 #[async_trait]
 impl InstructionNode for PluginNodeInstruction {
-    fn type_name(&self) -> &'static str {
-        // Surfaced on the legacy `InstructionProgress.instruction` field.
-        // The dashboard's typed plugin-node panel uses the structured
-        // detail instead, so this is purely a fallback string.
-        "Plugin Node"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -119,7 +112,7 @@ impl InstructionNode for PluginNodeInstruction {
         // yet so the JSON object is empty.
         context.send_progress(ProgressUpdate::instruction_progress(
             node_id.to_string(),
-            self.type_name(),
+            node_type.display_name(),
             0.0,
             ProgressDetail::PluginNode {
                 plugin_id: plugin_id.clone(),
@@ -131,7 +124,7 @@ impl InstructionNode for PluginNodeInstruction {
         // Fire the request event. A missing event_tx is a configuration
         // bug — without it the Dart side can never receive the request —
         // so we fail loudly.
-        let Some(event_tx) = context.event_tx.clone() else {
+        let Some(event_tx) = context.run.event_tx.clone() else {
             tracing::error!(
                 "[PLUGIN] PluginNode {} ({}/{}) cannot dispatch: executor has no event channel. \
                  This indicates the executor was not started via SequenceExecutor::start().",
@@ -157,7 +150,7 @@ impl InstructionNode for PluginNodeInstruction {
         // replay timeline carries a row for it. Plugins can run
         // arbitrary external scripts so this is an important audit
         // breadcrumb.
-        context.emit_decision(
+        context.run.emit_decision(
             crate::decision::DecisionEvent::new(
                 crate::decision::DecisionCategory::PluginNodeInvoked,
                 format!(
@@ -222,7 +215,7 @@ impl InstructionNode for PluginNodeInstruction {
                     .unwrap_or_else(|| serde_json::json!({"phase": "finished"}));
                 context.send_progress(ProgressUpdate::instruction_progress(
                     node_id.to_string(),
-                    self.type_name(),
+                    node_type.display_name(),
                     100.0,
                     ProgressDetail::PluginNode {
                         plugin_id: plugin_id.clone(),
@@ -328,7 +321,7 @@ mod tests {
     async fn plugin_node_dispatches_and_completes_on_reply() {
         let (event_tx, mut event_rx) = broadcast::channel(16);
         let mut ctx = ExecutionContext::new_for_test("plugin_node_1".to_string());
-        ctx.event_tx = Some(event_tx);
+        ctx.run.event_tx = Some(event_tx);
         let pending = ctx.plugin_node_pending.clone();
         let node_type = NodeType::PluginNode {
             plugin_id: "com.example.pushover".to_string(),
@@ -404,7 +397,7 @@ mod tests {
     async fn plugin_node_reports_failure_when_dart_returns_false() {
         let (event_tx, mut event_rx) = broadcast::channel(16);
         let mut ctx = ExecutionContext::new_for_test("plugin_node_fail".to_string());
-        ctx.event_tx = Some(event_tx);
+        ctx.run.event_tx = Some(event_tx);
         let pending = ctx.plugin_node_pending.clone();
         let node_type = NodeType::PluginNode {
             plugin_id: "com.example.failing".to_string(),
@@ -471,7 +464,7 @@ mod tests {
     async fn plugin_node_times_out_when_no_reply_arrives() {
         let (event_tx, mut event_rx) = broadcast::channel(16);
         let mut ctx = ExecutionContext::new_for_test("plugin_node_timeout".to_string());
-        ctx.event_tx = Some(event_tx);
+        ctx.run.event_tx = Some(event_tx);
         let node_type = NodeType::PluginNode {
             plugin_id: "com.example.hang".to_string(),
             node_type_id: "hanger".to_string(),

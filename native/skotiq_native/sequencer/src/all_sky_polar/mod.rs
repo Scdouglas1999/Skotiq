@@ -283,7 +283,7 @@ where
             };
 
             (self.error_callback)(&result);
-            let _ = ctx.device_ops.polar_align_update(&result).await;
+            let _ = ctx.run.device_ops.polar_align_update(&result).await;
 
             tracing::info!(
                 "All-sky polar align: total={:.1}\" (Δaz={:.1}\", Δalt={:.1}\")",
@@ -338,6 +338,7 @@ where
         (self.status_callback)(status_msg.to_string(), None);
 
         let image_data = ctx
+            .run
             .device_ops
             .camera_start_exposure(
                 crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
@@ -356,7 +357,10 @@ where
 
         (self.status_callback)("All-sky: plate-solving...".to_string(), None);
 
-        let solve_future = ctx.device_ops.plate_solve(&image_data, None, None, None);
+        let solve_future = ctx
+            .run
+            .device_ops
+            .plate_solve(&image_data, None, None, None);
         let solve_result = match tokio::time::timeout(
             Duration::from_secs_f64(self.config.solve_timeout),
             solve_future,
@@ -412,13 +416,16 @@ where
     }
 
     let camera_id = ctx
+        .run
+        .rig
         .camera_id
         .clone()
         .ok_or_else(|| PolarAlignError::DeviceError("No camera connected".to_string()))?;
 
-    let (observer_lat, observer_lon) = match (ctx.latitude, ctx.longitude) {
+    let (observer_lat, observer_lon) = match (ctx.run.rig.latitude, ctx.run.rig.longitude) {
         (Some(lat), Some(lon)) => (lat, lon),
         _ => ctx
+            .run
             .device_ops
             .get_observer_location()
             .ok_or(PolarAlignError::LocationMissing)?,

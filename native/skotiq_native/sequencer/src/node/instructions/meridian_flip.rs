@@ -11,10 +11,6 @@ pub struct MeridianFlipInstruction;
 
 #[async_trait]
 impl InstructionNode for MeridianFlipInstruction {
-    fn type_name(&self) -> &'static str {
-        "Meridian Flip"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -42,6 +38,7 @@ impl InstructionNode for MeridianFlipInstruction {
 
         execute_meridian_flip(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Meridian Flip", &ctx)
+            .settle("Meridian Flip", &ctx)
+            .await
     }
 }

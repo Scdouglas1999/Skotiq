@@ -10,10 +10,6 @@ pub struct TemperatureCompensationInstruction;
 
 #[async_trait]
 impl InstructionNode for TemperatureCompensationInstruction {
-    fn type_name(&self) -> &'static str {
-        "Temp Comp"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -44,6 +40,7 @@ impl InstructionNode for TemperatureCompensationInstruction {
             Some(&progress_fn),
         )
         .await
-        .log_and_get_status_with_context("Temperature Compensation", &ctx)
+        .settle("Temperature Compensation", &ctx)
+        .await
     }
 }

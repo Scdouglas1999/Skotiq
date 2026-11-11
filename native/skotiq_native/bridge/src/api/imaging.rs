@@ -78,14 +78,9 @@ pub(crate) fn get_autofocus_cancel_token() -> &'static Arc<AtomicBool> {
 }
 
 /// The [`InstructionContext`] a one-shot focus operation driven from the API
-/// needs.
-///
-/// Standalone autofocus and focuser backlash calibration are both started by
-/// an operator with no producing sequence node, save no FITS frames and grade
-/// nothing, so every field outside the camera, the focuser, cancellation and
-/// the executor-event bridge is the honest empty value. Shared between the two
-/// entry points so they cannot drift apart — they drive the same hardware
-/// through the same instruction layer and must present it the same context.
+/// needs: standalone autofocus and focuser backlash calibration drive the
+/// camera and focuser for an operator, outside any sequence run, and report
+/// through the executor-event bridge.
 fn one_shot_focus_context(
     camera_id: String,
     focuser_id: String,
@@ -93,86 +88,11 @@ fn one_shot_focus_context(
     event_tx: tokio::sync::broadcast::Sender<skotiq_sequencer::ExecutorEvent>,
     device_ops: skotiq_sequencer::SharedDeviceOps,
 ) -> skotiq_sequencer::instructions::InstructionContext {
-    skotiq_sequencer::instructions::InstructionContext {
-        // One-shot bridge capture: no producing sequence node.
-        node_id: String::new(),
-        target_ra: None,
-        target_dec: None,
-        target_name: None,
-        target_rotation: None,
-        current_filter: None,
-        current_binning: skotiq_sequencer::Binning::One,
-        cancellation_token,
-        camera_id: Some(camera_id),
-        mount_id: None,
-        focuser_id: Some(focuser_id),
-        filterwheel_id: None,
-        dome_id: None,
-        rotator_id: None,
-        cover_calibrator_id: None,
-        save_path: None,
-        latitude: None,
-        longitude: None,
-        device_ops,
-        trigger_state: None,
-        filter_focus_offsets: std::collections::HashMap::new(),
-        event_tx: Some(event_tx),
-        recovery_request_tx: None,
-        // Image Grading: standalone autofocus from the API does
-        // not save FITS frames, so empty FITS-metadata defaults are
-        // honest here. The InstructionContext fields exist to be passed
-        // through to execute_exposure; execute_autofocus ignores them.
-        session_id: String::new(),
-        target_id: None,
-        mosaic_panel: None,
-        current_filter_index: None,
-        set_temp_c: None,
-        bayer_pattern: None,
-        observer_name: None,
-        site_elevation_m: None,
-        camera_make: None,
-        camera_model: None,
-        telescope_name: None,
-        telescope_focal_length_mm: None,
-        telescope_aperture_mm: None,
-        last_plate_solve: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline_samples: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        star_count_baselines: Default::default(),
-        consecutive_rejects: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_accepted: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_rejected: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        default_quality_check: None,
-        reject_folder_path: None,
-        // defect map state. Standalone autofocus from
-        // the API does not save FITS frames so this is unused; pass an
-        // empty slot to satisfy the struct contract.
-        defect_map_apply: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        // Forensics: standalone autofocus doesn't grade frames.
-        forensics_history: std::sync::Arc::new(tokio::sync::RwLock::new(
-            std::collections::VecDeque::new(),
-        )),
-        current_sky_brightness_mag: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        cloud_motion_snapshot: std::sync::Arc::new(tokio::sync::RwLock::new(
-            skotiq_sequencer::CloudMotionSnapshot::default(),
-        )),
-        current_wind_kph: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        current_sensor_temp_c: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        // Replay Debug — one-shot bridge API doesn't emit decisions.
-        decision_tx: None,
-        active_sequence_run_id: std::sync::Arc::new(parking_lot::RwLock::new(None)),
-        // Standalone autofocus from the API is not driven by the node-runtime
-        // disconnect-retry loop, so this one-shot context owns a fresh,
-        // unshared flag (no recovery driver observes it here).
-        device_disconnect_recovery_pending: std::sync::Arc::new(
-            std::sync::atomic::AtomicBool::new(false),
-        ),
-        // Dual-rig — standalone autofocus runs with no secondary coordination.
-        dither_barrier: None,
-        // An Imaging-tab capture is attended: one attempt, as before.
-        device_retry: skotiq_sequencer::instructions::DeviceRetryHandle::single_attempt(),
-        target_light_filters: Vec::new(),
-    }
+    let mut run = skotiq_sequencer::instructions::RunShared::new(device_ops);
+    run.rig.camera_id = Some(camera_id);
+    run.rig.focuser_id = Some(focuser_id);
+    run.event_tx = Some(event_tx);
+    skotiq_sequencer::instructions::InstructionContext::new(run, cancellation_token)
 }
 
 /// Autofocus configuration for API
@@ -377,7 +297,7 @@ pub async fn api_run_autofocus(
     // the user only sees a generic "autofocus failed" return code with no
     // hint that the underlying problem was a write error or drive disconnect.
     // The original sender lives on the stack for the duration of the call;
-    // the cloned handle is moved into `InstructionContext::event_tx`. When the
+    // the cloned handle is moved into `RunShared::event_tx`. When the
     // function returns and the binding is dropped, the background bridge task
     // exits naturally.
     let event_tx =

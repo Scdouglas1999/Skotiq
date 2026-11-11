@@ -50,10 +50,6 @@ pub struct LiveStackingInstruction;
 
 #[async_trait]
 impl InstructionNode for LiveStackingInstruction {
-    fn type_name(&self) -> &'static str {
-        "Live Stacking"
-    }
-
     async fn execute(
         &self,
         node_id: &str,

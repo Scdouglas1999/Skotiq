@@ -11,10 +11,6 @@ pub struct CoolCameraInstruction;
 
 #[async_trait]
 impl InstructionNode for CoolCameraInstruction {
-    fn type_name(&self) -> &'static str {
-        "Cool Camera"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -47,7 +43,8 @@ impl InstructionNode for CoolCameraInstruction {
 
         let status = execute_cool_camera(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Cool Camera", &ctx);
+            .settle("Cool Camera", &ctx)
+            .await;
 
         // stamp the cooler set-point onto the ExecutionContext so
         // every subsequent TakeExposure's FITS header carries SET-TEMP.

@@ -40,7 +40,12 @@ pub async fn execute_temperature_compensation(
     }
 
     // Get current focuser temperature
-    let current_temp = match ctx.device_ops.focuser_get_temperature(&focuser_id).await {
+    let current_temp = match ctx
+        .run
+        .device_ops
+        .focuser_get_temperature(&focuser_id)
+        .await
+    {
         Ok(Some(temp)) => temp,
         Ok(None) => {
             return InstructionResult::failure(
@@ -66,7 +71,7 @@ pub async fn execute_temperature_compensation(
     }
 
     // Check if we have trigger state with baseline temperature
-    let trigger_state_lock = match &ctx.trigger_state {
+    let trigger_state_lock = match &ctx.run.trigger_state {
         Some(lock) => lock,
         None => {
             return InstructionResult::failure(
@@ -163,7 +168,7 @@ pub async fn execute_temperature_compensation(
     drop(trigger_state);
 
     // Get current focuser position without holding the trigger-state write lock.
-    let current_position = match ctx.device_ops.focuser_get_position(&focuser_id).await {
+    let current_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to get focuser position: {}", e));
@@ -214,6 +219,7 @@ pub async fn execute_temperature_compensation(
 
     // Move focuser
     if let Err(e) = ctx
+        .run
         .device_ops
         .focuser_move_to(&focuser_id, new_position)
         .await
@@ -240,15 +246,19 @@ pub async fn execute_temperature_compensation(
             .load(std::sync::atomic::Ordering::Relaxed)
         {
             tracing::warn!("Temperature compensation cancelled, halting focuser");
-            let _ = ctx.device_ops.focuser_halt(&focuser_id).await;
+            let _ = ctx.run.device_ops.focuser_halt(&focuser_id).await;
             // Wait for focuser to actually stop before returning
-            wait_for_focuser_stop_after_halt(&focuser_id, &ctx.device_ops, Duration::from_secs(10))
-                .await;
+            wait_for_focuser_stop_after_halt(
+                &focuser_id,
+                &ctx.run.device_ops,
+                Duration::from_secs(10),
+            )
+            .await;
             return InstructionResult::cancelled("Temperature compensation cancelled");
         }
 
         // Check if focuser stopped moving
-        match ctx.device_ops.focuser_is_moving(&focuser_id).await {
+        match ctx.run.device_ops.focuser_is_moving(&focuser_id).await {
             Ok(false) => {
                 // Add small settling delay
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -287,10 +297,14 @@ pub async fn execute_temperature_compensation(
 
         // Check timeout
         if move_start.elapsed() > timeout {
-            let _ = ctx.device_ops.focuser_halt(&focuser_id).await;
+            let _ = ctx.run.device_ops.focuser_halt(&focuser_id).await;
             // Wait for focuser to actually stop before returning
-            wait_for_focuser_stop_after_halt(&focuser_id, &ctx.device_ops, Duration::from_secs(10))
-                .await;
+            wait_for_focuser_stop_after_halt(
+                &focuser_id,
+                &ctx.run.device_ops,
+                Duration::from_secs(10),
+            )
+            .await;
             return InstructionResult::failure(format!(
                 "Focuser move timed out after {} seconds",
                 config.timeout_secs
@@ -302,7 +316,7 @@ pub async fn execute_temperature_compensation(
     }
 
     // Verify final position
-    let final_position = match ctx.device_ops.focuser_get_position(&focuser_id).await {
+    let final_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
             return InstructionResult::failure(format!(

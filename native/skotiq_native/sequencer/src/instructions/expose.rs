@@ -112,6 +112,9 @@ pub async fn execute_exposure(
 pub struct BurstControl<'a> {
     pub pause: crate::node::context::PauseGate,
     pub status: Option<&'a (dyn Fn(&str) + Send + Sync)>,
+    /// Frames of this burst taken before a stop; the burst continues with
+    /// the next one.
+    pub frames_taken: u32,
 }
 
 impl BurstControl<'_> {
@@ -153,11 +156,11 @@ pub async fn execute_exposure_with_renderer(
     // sky is answered by the mount park state below, which is the real
     // discriminator.
     if frame_type_requires_darkness(&config.frame_type) {
-        let on_sky = match &ctx.mount_id {
+        let on_sky = match &ctx.run.rig.mount_id {
             // No mount configured: there is no rig to point at the sky, so this
             // cannot be an on-sky light capture — abstain.
             None => false,
-            Some(mount_id) => match ctx.device_ops.mount_is_parked(mount_id).await {
+            Some(mount_id) => match ctx.run.device_ops.mount_is_parked(mount_id).await {
                 // Parked rig => calibration/darks, never on-sky lights.
                 Ok(true) => false,
                 Ok(false) => true,
@@ -183,7 +186,7 @@ pub async fn execute_exposure_with_renderer(
     if let Err(error) = validate_exposure_filter_request(
         config.filter.as_deref(),
         config.filter_index,
-        ctx.filterwheel_id.as_deref(),
+        ctx.run.rig.filterwheel_id.as_deref(),
     ) {
         return InstructionResult::failure(error);
     }
@@ -256,14 +259,14 @@ pub async fn execute_exposure_with_renderer(
     // Image Grading: local bindings for the per-frame grading state.
     // All these are Arc<_> handles shared with ExecutionContext so the
     // dashboard sees consistent totals across instruction boundaries.
-    let frame_baseline_handle = ctx.hfr_baseline.clone();
-    let frame_baseline_samples_handle = ctx.hfr_baseline_samples.clone();
-    let star_count_baselines_handle = ctx.star_count_baselines.clone();
-    let consecutive_rejects_handle = ctx.consecutive_rejects.clone();
-    let frames_accepted_handle = ctx.frames_accepted.clone();
-    let frames_rejected_handle = ctx.frames_rejected.clone();
-    let quality_check_default = ctx.default_quality_check.clone();
-    let reject_folder_override = ctx.reject_folder_path.clone();
+    let frame_baseline_handle = ctx.run.grading.hfr_baseline.clone();
+    let frame_baseline_samples_handle = ctx.run.grading.hfr_baseline_samples.clone();
+    let star_count_baselines_handle = ctx.run.grading.star_count_baselines.clone();
+    let consecutive_rejects_handle = ctx.run.grading.consecutive_rejects.clone();
+    let frames_accepted_handle = ctx.run.grading.frames_accepted.clone();
+    let frames_rejected_handle = ctx.run.grading.frames_rejected.clone();
+    let quality_check_default = ctx.run.grading.default_quality_check.clone();
+    let reject_folder_override = ctx.run.grading.reject_folder_path.clone();
 
     // Frame-type gate: star-based analysis (HFR / star count / eccentricity),
     // quality grading, and in-burst dithering are only meaningful for
@@ -275,7 +278,7 @@ pub async fn execute_exposure_with_renderer(
     let is_light_frame = config.frame_type.eq_ignore_ascii_case("light")
         || config.frame_type.eq_ignore_ascii_case("snapshot");
 
-    for frame in 1..=config.count {
+    for frame in (control.frames_taken + 1)..=config.count {
         // A transient camera fault (a failed download, a timeout, "not
         // ready") retries THIS frame under the run's camera retry budget
         // rather than ending the run. The whole frame start is repeated --
@@ -337,7 +340,7 @@ pub async fn execute_exposure_with_renderer(
             // target at all.
             let gate_for_meridian = config.frame_type.eq_ignore_ascii_case("light")
                 && ctx.target_ra.is_some()
-                && ctx.mount_id.is_some();
+                && ctx.run.rig.mount_id.is_some();
             if gate_for_meridian {
                 if let Some(result) =
                     wait_for_meridian_flip_window(ctx, config.duration_secs, control).await
@@ -431,12 +434,12 @@ pub async fn execute_exposure_with_renderer(
             // the camera to stop so it does not continue exposing in the
             // background after we abandon the future.
             let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
+                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.clone());
             let exposure_result = tokio::select! {
                 biased;
                 _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
                     tracing::info!("Exposure cancelled, aborting camera...");
-                    match ctx.device_ops.camera_abort_exposure(&camera_id).await {
+                    match ctx.run.device_ops.camera_abort_exposure(&camera_id).await {
                         Ok(()) => abort_guard.disarm(),
                         Err(error) => tracing::error!(
                             "Camera abort failed during exposure cancellation: {}",
@@ -448,7 +451,7 @@ pub async fn execute_exposure_with_renderer(
                 }
                 // Thread the frame type so shuttered cameras (Moravian, FLI, some
                 // CCDs) keep the shutter CLOSED for dark/bias frames.
-                result = ctx.device_ops.camera_start_exposure(
+                result = ctx.run.device_ops.camera_start_exposure(
                     crate::device_ops::ExposureRequest::new(&camera_id, config.duration_secs)
                         .gain(config.gain)
                         .offset(config.offset)
@@ -508,7 +511,7 @@ pub async fn execute_exposure_with_renderer(
                 frame, config.count
             );
             tracing::warn!("[SEQ] {}", message);
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
             }
         }
@@ -538,7 +541,7 @@ pub async fn execute_exposure_with_renderer(
         // explicitly opted in — opt-out users pay zero.
         let mut original_pixels_snapshot: Option<Vec<u16>> = None;
         let should_snapshot_original = {
-            let guard = ctx.defect_map_apply.read().await;
+            let guard = ctx.run.defect_map_apply.read().await;
             guard.as_ref().map(|s| s.save_original).unwrap_or(false)
         };
         if should_snapshot_original {
@@ -560,7 +563,7 @@ pub async fn execute_exposure_with_renderer(
             // Calibration frames have no stars; skip the detector entirely.
             None
         } else {
-            match ctx.device_ops.calculate_image_hfr(&image_data).await {
+            match ctx.run.device_ops.calculate_image_hfr(&image_data).await {
                 Ok(Some(hfr)) => {
                     tracing::info!("Frame {}/{} HFR: {:.2} pixels", frame, config.count, hfr);
                     hfr_values.push(hfr);
@@ -591,7 +594,7 @@ pub async fn execute_exposure_with_renderer(
         let measured_star_count = if !is_light_frame {
             None
         } else {
-            match ctx.device_ops.detect_stars_in_image(&image_data).await {
+            match ctx.run.device_ops.detect_stars_in_image(&image_data).await {
                 Ok(stars) => Some(stars.len() as u32),
                 Err(e) => {
                     tracing::debug!(
@@ -613,7 +616,12 @@ pub async fn execute_exposure_with_renderer(
         let measured_shape = if !is_light_frame {
             None
         } else {
-            match ctx.device_ops.measure_frame_star_shape(&image_data).await {
+            match ctx
+                .run
+                .device_ops
+                .measure_frame_star_shape(&image_data)
+                .await
+            {
                 Ok(shape) => shape,
                 Err(e) => {
                     tracing::debug!(
@@ -630,7 +638,7 @@ pub async fn execute_exposure_with_renderer(
         let measured_trail = if !is_light_frame {
             None
         } else {
-            match ctx.device_ops.measure_frame_trail(&image_data).await {
+            match ctx.run.device_ops.measure_frame_trail(&image_data).await {
                 Ok(trail) => trail,
                 Err(e) => {
                     tracing::debug!(
@@ -671,7 +679,7 @@ pub async fn execute_exposure_with_renderer(
                         frame, config.count, msg
                     );
                     tracing::error!("{}", error_message);
-                    if let Some(event_tx) = &ctx.event_tx {
+                    if let Some(event_tx) = &ctx.run.event_tx {
                         let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                             message: error_message.clone(),
                         });
@@ -680,7 +688,7 @@ pub async fn execute_exposure_with_renderer(
                 }
             }
         } else {
-            (ctx.save_path.clone(), None)
+            (ctx.run.rig.save_path.clone(), None)
         };
 
         if let Some(base_path) = base_path {
@@ -832,7 +840,7 @@ pub async fn execute_exposure_with_renderer(
                         config.count
                     );
                     tracing::error!("{}", error_message);
-                    if let Some(event_tx) = &ctx.event_tx {
+                    if let Some(event_tx) = &ctx.run.event_tx {
                         let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                             message: error_message.clone(),
                         });
@@ -912,6 +920,7 @@ pub async fn execute_exposure_with_renderer(
             .await;
 
             if let Err(e) = ctx
+                .run
                 .device_ops
                 .save_fits(
                     &image_data,
@@ -948,7 +957,7 @@ pub async fn execute_exposure_with_renderer(
                     e
                 );
                 tracing::error!("{}", error_message);
-                if let Some(event_tx) = &ctx.event_tx {
+                if let Some(event_tx) = &ctx.run.event_tx {
                     // Why: a closed receiver (no UI subscribers) is benign —
                     // headless / API runs may have no listeners. The log line
                     // above is the durable record.
@@ -1038,7 +1047,7 @@ pub async fn execute_exposure_with_renderer(
                 // Dual-rig — guard the burst dither so a piggybacking secondary
                 // camera is clear before the mount pulses (no-op single-rig).
                 let dither_result = dither_guarded(ctx, || {
-                    ctx.device_ops.guider_dither(
+                    ctx.run.device_ops.guider_dither(
                         config.dither_pixels,
                         config.dither_settle_pixels,
                         config.dither_settle_time,
@@ -1053,7 +1062,7 @@ pub async fn execute_exposure_with_renderer(
                     // Dither Interval trigger's count: left unmarked, the
                     // trigger counted the whole burst as undithered and
                     // dithered again the moment the burst ended.
-                    if let Some(trigger_state) = &ctx.trigger_state {
+                    if let Some(trigger_state) = &ctx.run.trigger_state {
                         let mut state = trigger_state.write().await;
                         state.latches.consecutive_dither_failures = 0;
                         state.mark_dither_performed_in_burst(completed_exposures);
@@ -1099,7 +1108,7 @@ pub async fn execute_exposure_with_renderer(
                             frame, config.count, e
                         );
                         tracing::error!("{}", error_message);
-                        if let Some(event_tx) = &ctx.event_tx {
+                        if let Some(event_tx) = &ctx.run.event_tx {
                             let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                                 message: error_message.clone(),
                             });
@@ -1113,7 +1122,7 @@ pub async fn execute_exposure_with_renderer(
                         // to the hardware stops a run by itself). The operator is
                         // told once per streak — a lost guide star is the guide
                         // star triggers' business, not this burst's.
-                        let streak = match &ctx.trigger_state {
+                        let streak = match &ctx.run.trigger_state {
                             Some(trigger_state) => {
                                 let mut state = trigger_state.write().await;
                                 state.latches.consecutive_dither_failures =
@@ -1139,6 +1148,7 @@ pub async fn execute_exposure_with_renderer(
     }
 
     InstructionResult {
+        setback: None,
         status: NodeStatus::Success,
         message: Some(format!("Completed {} exposures", completed_exposures)),
         data: Some(serde_json::json!({
@@ -1174,7 +1184,7 @@ async fn prepare_guiding_for_frame(
     ctx: &InstructionContext,
     waiting_since: &mut Option<tokio::time::Instant>,
 ) -> GuidingForFrame {
-    let Some(trigger_state) = ctx.trigger_state.as_ref() else {
+    let Some(trigger_state) = ctx.run.trigger_state.as_ref() else {
         return GuidingForFrame::Ready;
     };
     let (pending, retry_due, held, stopped) = {
@@ -1236,7 +1246,7 @@ fn wait_for_tracking(
                    restarting guiding."
         .to_string();
     tracing::warn!("[GUIDING] {}", message);
-    if let Some(event_tx) = &ctx.event_tx {
+    if let Some(event_tx) = &ctx.run.event_tx {
         let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
     }
     *waiting_since = None;
@@ -1265,7 +1275,7 @@ async fn recenter_after_mount_fault(
     ctx: &InstructionContext,
     control: &BurstControl<'_>,
 ) -> MountFaultRecenter {
-    let Some(trigger_state) = ctx.trigger_state.as_ref() else {
+    let Some(trigger_state) = ctx.run.trigger_state.as_ref() else {
         return MountFaultRecenter::NotNeeded;
     };
     if !trigger_state
@@ -1276,7 +1286,7 @@ async fn recenter_after_mount_fault(
     {
         return MountFaultRecenter::NotNeeded;
     }
-    let Some(mount_id) = ctx.mount_id.clone() else {
+    let Some(mount_id) = ctx.run.rig.mount_id.clone() else {
         trigger_state
             .write()
             .await
@@ -1330,7 +1340,8 @@ async fn recenter_after_mount_fault(
         result.message.as_deref().unwrap_or("no detail")
     );
     tracing::warn!("[SEQ] {message}");
-    ctx.device_ops
+    ctx.run
+        .device_ops
         .request_mount_fault_hold(&mount_id, &message)
         .await;
     // The hold arrives over the executor's command channel; wait for it
@@ -1351,7 +1362,7 @@ async fn untracked_exposure_reason(
     ctx: &InstructionContext,
     started: chrono::DateTime<chrono::Utc>,
 ) -> Option<String> {
-    let trigger_state = ctx.trigger_state.as_ref()?;
+    let trigger_state = ctx.run.trigger_state.as_ref()?;
     if trigger_state
         .read()
         .await
@@ -1381,8 +1392,11 @@ async fn untracked_exposure_reason(
     // The monitor polls on its own cadence; a stop in the last seconds of the
     // frame is read from the mount directly.
     if expected && !run_owns_tracking {
-        if let Some(mount_id) = ctx.mount_id.as_deref() {
-            if matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+        if let Some(mount_id) = ctx.run.rig.mount_id.as_deref() {
+            if matches!(
+                ctx.run.device_ops.mount_is_tracking(mount_id).await,
+                Ok(false)
+            ) {
                 return Some("the mount was not tracking at the end of this exposure".to_string());
             }
         }
@@ -1401,7 +1415,7 @@ async fn watch_star_shape(
     filter: Option<&str>,
     shape: crate::FrameStarShape,
 ) {
-    let Some(trigger_state) = &ctx.trigger_state else {
+    let Some(trigger_state) = &ctx.run.trigger_state else {
         return;
     };
     let (side, judge_rms) = {
@@ -1412,7 +1426,8 @@ async fn watch_star_shape(
         return;
     };
     let guiding_rms = if judge_rms {
-        ctx.device_ops
+        ctx.run
+            .device_ops
             .guider_get_status()
             .await
             .ok()
@@ -1445,7 +1460,7 @@ async fn watch_star_shape(
     };
     if let Some(message) = notice {
         tracing::warn!("[GRADE] {message}");
-        if let Some(event_tx) = &ctx.event_tx {
+        if let Some(event_tx) = &ctx.run.event_tx {
             let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
         }
     }
@@ -1496,7 +1511,7 @@ async fn apply_burst_filter(
         .is_some_and(|name| !name.trim().is_empty())
         || config.filter_index.is_some()
     {
-        if let Some(fw_id) = &ctx.filterwheel_id {
+        if let Some(fw_id) = &ctx.run.rig.filterwheel_id {
             if let Some(index) = config.filter_index {
                 tracing::info!(
                     "Changing to filter position: {} (name: {:?})",
@@ -1515,8 +1530,8 @@ async fn apply_burst_filter(
                 }
                 let filter_name = match config.filter.as_deref() {
                     Some(name) if !name.is_empty() => Some(name.to_string()),
-                    _ if !ctx.filter_focus_offsets.is_empty() => {
-                        match ctx.device_ops.filterwheel_get_names(fw_id).await {
+                    _ if !ctx.run.rig.filter_focus_offsets.is_empty() => {
+                        match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
                             Ok(names) if index >= 0 => match names.get(index as usize) {
                                 Some(name) => Some(name.clone()),
                                 None => {

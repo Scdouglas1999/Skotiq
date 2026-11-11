@@ -11,10 +11,6 @@ pub struct ParkDomeInstruction;
 
 #[async_trait]
 impl InstructionNode for ParkDomeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Park Dome"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -40,6 +36,7 @@ impl InstructionNode for ParkDomeInstruction {
         };
         execute_park_dome(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Park Dome", &ctx)
+            .settle("Park Dome", &ctx)
+            .await
     }
 }

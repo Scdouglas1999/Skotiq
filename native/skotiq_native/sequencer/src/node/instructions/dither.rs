@@ -11,10 +11,6 @@ pub struct DitherInstruction;
 
 #[async_trait]
 impl InstructionNode for DitherInstruction {
-    fn type_name(&self) -> &'static str {
-        "Dither"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -50,7 +46,7 @@ impl InstructionNode for DitherInstruction {
         let result = execute_dither(config, &ctx, Some(&progress_fn)).await;
 
         if result.status == NodeStatus::Success {
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.mark_dither_performed();
                 tracing::debug!(
@@ -60,6 +56,6 @@ impl InstructionNode for DitherInstruction {
             }
         }
 
-        result.log_and_get_status_with_context("Dither", &ctx)
+        result.settle("Dither", &ctx).await
     }
 }

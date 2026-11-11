@@ -251,8 +251,8 @@ pub enum NodeType {
     TargetScheduler(TargetSchedulerConfig),
 
     // SmartExposure — one row per filter, container-style
-    // instruction. Internally delegates to ChangeFilter + TakeExposure via
-    // the InstructionRegistry; per-filter completed counts and the current
+    // instruction. Internally runs the ChangeFilter and TakeExposure
+    // instruction nodes; per-filter completed counts and the current
     // plan index are persisted to `SessionCheckpoint::wizard_states` so a
     // sequence killed mid-rotation resumes on the right filter at the
     // right frame index.
@@ -337,6 +337,99 @@ pub enum NodeType {
 }
 
 impl NodeType {
+    /// The `type` tag this node carries in a saved sequence and in the JSON
+    /// the app sends.
+    pub fn wire_name(&self) -> &'static str {
+        match self {
+            NodeType::TargetHeader(_) => "TargetHeader",
+            NodeType::TargetGroup(_) => "TargetGroup",
+            NodeType::Loop(_) => "Loop",
+            NodeType::Parallel(_) => "Parallel",
+            NodeType::Conditional(_) => "Conditional",
+            NodeType::Recovery(_) => "Recovery",
+            NodeType::SlewToTarget(_) => "SlewToTarget",
+            NodeType::CenterTarget(_) => "CenterTarget",
+            NodeType::TakeExposure(_) => "TakeExposure",
+            NodeType::Autofocus(_) => "Autofocus",
+            NodeType::TemperatureCompensation(_) => "TemperatureCompensation",
+            NodeType::Dither(_) => "Dither",
+            NodeType::StartGuiding(_) => "StartGuiding",
+            NodeType::StopGuiding => "StopGuiding",
+            NodeType::ChangeFilter(_) => "ChangeFilter",
+            NodeType::CoolCamera(_) => "CoolCamera",
+            NodeType::WarmCamera(_) => "WarmCamera",
+            NodeType::MoveRotator(_) => "MoveRotator",
+            NodeType::Park => "Park",
+            NodeType::Unpark => "Unpark",
+            NodeType::HomeMount => "HomeMount",
+            NodeType::WaitForTime(_) => "WaitForTime",
+            NodeType::Delay(_) => "Delay",
+            NodeType::Notification(_) => "Notification",
+            NodeType::RunScript(_) => "RunScript",
+            NodeType::PolarAlignment(_) => "PolarAlignment",
+            NodeType::MeridianFlip(_) => "MeridianFlip",
+            NodeType::OpenDome(_) => "OpenDome",
+            NodeType::CloseDome(_) => "CloseDome",
+            NodeType::ParkDome(_) => "ParkDome",
+            NodeType::FlatWizard(_) => "FlatWizard",
+            NodeType::OpenCover(_) => "OpenCover",
+            NodeType::CloseCover(_) => "CloseCover",
+            NodeType::CalibratorOn(_) => "CalibratorOn",
+            NodeType::CalibratorOff(_) => "CalibratorOff",
+            NodeType::TargetScheduler(_) => "TargetScheduler",
+            NodeType::SmartExposure(_) => "SmartExposure",
+            NodeType::PluginNode { .. } => "PluginNode",
+            NodeType::LiveStacking(_) => "LiveStacking",
+            NodeType::SciencePhotometry(_) => "SciencePhotometry",
+        }
+    }
+
+    /// What progress events, failures and logs call this kind of step.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            NodeType::TargetHeader(_) => "Target",
+            NodeType::TargetGroup(_) => "Target",
+            NodeType::Loop(_) => "Loop",
+            NodeType::Parallel(_) => "Parallel",
+            NodeType::Conditional(_) => "Conditional",
+            NodeType::Recovery(_) => "Recovery",
+            NodeType::SlewToTarget(_) => "Slew",
+            NodeType::CenterTarget(_) => "Center",
+            NodeType::TakeExposure(_) => "Exposure",
+            NodeType::Autofocus(_) => "Autofocus",
+            NodeType::TemperatureCompensation(_) => "Temp Comp",
+            NodeType::Dither(_) => "Dither",
+            NodeType::StartGuiding(_) => "Start Guiding",
+            NodeType::StopGuiding => "Stop Guiding",
+            NodeType::ChangeFilter(_) => "Filter",
+            NodeType::CoolCamera(_) => "Cool Camera",
+            NodeType::WarmCamera(_) => "Warm Camera",
+            NodeType::MoveRotator(_) => "Move Rotator",
+            NodeType::Park => "Park",
+            NodeType::Unpark => "Unpark",
+            NodeType::HomeMount => "Home Mount",
+            NodeType::WaitForTime(_) => "Wait",
+            NodeType::Delay(_) => "Delay",
+            NodeType::Notification(_) => "Notification",
+            NodeType::RunScript(_) => "Run Script",
+            NodeType::PolarAlignment(_) => "Polar Alignment",
+            NodeType::MeridianFlip(_) => "Meridian Flip",
+            NodeType::OpenDome(_) => "Open Dome",
+            NodeType::CloseDome(_) => "Close Dome",
+            NodeType::ParkDome(_) => "Park Dome",
+            NodeType::FlatWizard(_) => "Flat Wizard",
+            NodeType::OpenCover(_) => "Open Cover",
+            NodeType::CloseCover(_) => "Close Cover",
+            NodeType::CalibratorOn(_) => "Calibrator On",
+            NodeType::CalibratorOff(_) => "Calibrator Off",
+            NodeType::TargetScheduler(_) => "Target Scheduler",
+            NodeType::SmartExposure(_) => "Smart Exposure",
+            NodeType::PluginNode { .. } => "Plugin Node",
+            NodeType::LiveStacking(_) => "Live Stacking",
+            NodeType::SciencePhotometry(_) => "Science Photometry",
+        }
+    }
+
     /// True for the variants whose executor actually descends into children.
     ///
     /// Every other variant is a leaf: its instruction runs, returns a status,

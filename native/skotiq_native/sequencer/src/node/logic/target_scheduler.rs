@@ -82,11 +82,11 @@ pub async fn execute_target_scheduler(
 
     // Observer must be present: falling back to "lat=0, lon=0" would schedule
     // against a site nobody is observing from.
-    let (Some(lat), Some(lon)) = (context.latitude, context.longitude) else {
+    let (Some(lat), Some(lon)) = (context.run.rig.latitude, context.run.rig.longitude) else {
         tracing::error!(
             "[SCHEDULER] observer location missing (latitude={:?}, longitude={:?}); cannot schedule targets",
-            context.latitude,
-            context.longitude
+            context.run.rig.latitude,
+            context.run.rig.longitude
         );
         return NodeStatus::Failure;
     };
@@ -533,7 +533,7 @@ fn emit_decision(
         "picked_score": pick.map(|p| p.total_score),
         "scores": score_rows,
     });
-    context.emit_decision(
+    context.run.emit_decision(
         crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::SchedulerPick,
             summary,
@@ -571,7 +571,7 @@ async fn write_checkpoint(
     decision_counter: u32,
     exposures_in_current_target: u32,
 ) {
-    let Some(state) = context.trigger_state.as_ref() else {
+    let Some(state) = context.run.trigger_state.as_ref() else {
         return;
     };
     let mut guard = state.write().await;
@@ -846,8 +846,8 @@ mod tests {
             children: vec![],
         });
         let mut ctx = ExecutionContext::new_for_test("sched".into());
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -903,8 +903,8 @@ mod tests {
             children: vec![],
         })));
         let mut ctx = ExecutionContext::new_for_test("sched".into());
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -952,8 +952,8 @@ mod tests {
         // racy.
         let clock = crate::scheduling::MockClock::at("2026-01-15T06:00:00Z");
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock.clone());
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         // Compute the expected first pick using the same scoring entry
         // point the scheduler uses.
@@ -1068,8 +1068,8 @@ mod tests {
         ))));
 
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock.clone());
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let picks: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
         let picks_clone = picks.clone();
@@ -1144,8 +1144,8 @@ mod tests {
             children: vec![],
         })));
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let status = rt.block_on(execute_target_scheduler(
             &mut node,
@@ -1192,8 +1192,8 @@ mod tests {
             children: vec![],
         })));
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let status = rt.block_on(execute_target_scheduler(
             &mut node,
@@ -1242,8 +1242,8 @@ mod tests {
             children: vec![],
         })));
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let status = rt.block_on(execute_target_scheduler(
             &mut node,
@@ -1677,8 +1677,8 @@ mod tests {
         node.add_child(Box::new(target));
 
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -1740,8 +1740,8 @@ mod tests {
 
         let clock = crate::scheduling::MockClock::at("2026-01-15T06:00:00Z");
         let mut ctx = ExecutionContext::new_for_test("sched".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
         // Sentinel: pretend an outer scheduler already installed
         // RoundRobin{7}. The inner SingleFilter scheduler must NOT
         // erase it.

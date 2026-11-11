@@ -18,12 +18,13 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("pause-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.save_path = Some(dir.clone());
     ec.is_paused = paused.clone();
     let ctx = ec.to_instruction_context("pause-node").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -104,7 +105,7 @@ async fn dropped_exposure_instruction_aborts_camera() {
 async fn requested_filter_without_wheel_fails_before_capture() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.filterwheel_id = None;
+    ctx.run.rig.filterwheel_id = None;
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 1,
@@ -151,8 +152,9 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
     // The owner's 8-position ZWO EFW, which the Smart Exposure node and the
     // autofocus trigger were both driving.
-    ctx.filterwheel_id = Some("efw-1".to_string());
+    ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
     let trigger_state = ctx
+        .run
         .trigger_state
         .clone()
         .expect("expose_ctx wires a trigger state");
@@ -296,7 +298,7 @@ mod light_frame_grading {
         let mut ctx = saving_expose_ctx(ops.clone(), scratch.0.clone(), event_tx).await;
         let mut ts = crate::triggers::TriggerState::new();
         ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
-        ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 1,
@@ -408,10 +410,10 @@ mod light_frame_grading {
                 );
                 let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
                 let mut ctx = saving_expose_ctx(ops, scratch, event_tx).await;
-                ctx.star_count_baselines = baselines;
+                ctx.run.grading.star_count_baselines = baselines;
                 let mut ts = crate::triggers::TriggerState::new();
                 ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
-                ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+                ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
                 let config = ExposureConfig {
                     duration_secs: 0.01,
                     count,
@@ -468,16 +470,14 @@ mod in_burst_dither_failure {
             ScriptedDomeRotatorOps::new().with_dither_failing("Settle timed out after 60s"),
         );
         let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
-        if let Some(state) = &ctx.trigger_state {
+        if let Some(state) = &ctx.run.trigger_state {
             state.write().await.settings.stop_on_quality_problems = stop_on_quality_problems;
         }
         let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
         let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-        let ctx = InstructionContext {
-            event_tx: Some(event_tx),
-            decision_tx: Some(decision_tx),
-            ..ctx
-        };
+        let mut ctx = ctx;
+        ctx.run.event_tx = Some(event_tx);
+        ctx.run.decision_tx = Some(decision_tx);
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 4,
@@ -545,14 +545,12 @@ mod in_burst_dither_failure {
 async fn a_burst_while_imaging_unguided_skips_its_dithers() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
     let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
-    if let Some(state) = &ctx.trigger_state {
+    if let Some(state) = &ctx.run.trigger_state {
         state.write().await.guiding.set_unguided(true);
     }
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    let ctx = InstructionContext {
-        decision_tx: Some(decision_tx),
-        ..ctx
-    };
+    let mut ctx = ctx;
+    ctx.run.decision_tx = Some(decision_tx);
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 4,
@@ -580,14 +578,15 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
 async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("held-light".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
     ec.is_paused.store(true, Ordering::SeqCst);
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("held-light").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -619,16 +618,17 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     let dir = std::env::temp_dir().join(format!("sk-untracked-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("untracked".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state
         .run
         .begin_hold(crate::triggers::RunHold::TrackingLimit);
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("untracked").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -639,14 +639,14 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     };
     let (events, mut rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = ctx;
-    ctx.event_tx = Some(events);
+    ctx.run.event_tx = Some(events);
     let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
     let rejected_files = std::fs::read_dir(dir.join("Reject"))
         .map(|entries| entries.count())
         .unwrap_or(0);
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
-    assert_eq!(ec.frames_rejected.load(Ordering::SeqCst), 1);
+    assert_eq!(ec.run.grading.frames_rejected.load(Ordering::SeqCst), 1);
     assert_eq!(rejected_files, 1);
     let mut warned = false;
     while let Ok(event) = rx.try_recv() {
@@ -669,18 +669,19 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
         let dir = std::env::temp_dir().join(format!("sk-midframe-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).expect("temp dir");
         let mut ec = crate::node::context::ExecutionContext::new_for_test("midframe".into());
-        ec.device_ops = ops.clone();
-        ec.camera_id = Some("camera-1".into());
-        ec.mount_id = Some("mount-1".into());
-        ec.save_path = Some(dir.clone());
+        ec.run.device_ops = ops.clone();
+        ec.run.rig.camera_id = Some("camera-1".into());
+        ec.run.rig.mount_id = Some("mount-1".into());
+        ec.run.rig.save_path = Some(dir.clone());
         let mut state = crate::triggers::TriggerState::new();
         state.tracking.set_expected(true);
         let state = Arc::new(tokio::sync::RwLock::new(state));
-        ec.trigger_state = Some(state.clone());
+        ec.run.trigger_state = Some(state.clone());
         let (events, mut rx) = tokio::sync::broadcast::channel(64);
         let mut ctx = ec.to_instruction_context("midframe").await;
-        ctx.event_tx = Some(events);
+        ctx.run.event_tx = Some(events);
         let control = BurstControl {
+            frames_taken: 0,
             pause: ec.pause_gate(),
             status: None,
         };
@@ -718,7 +719,7 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
 
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
         assert_eq!(
-            ec.frames_rejected.load(Ordering::SeqCst),
+            ec.run.grading.frames_rejected.load(Ordering::SeqCst),
             1,
             "monitor saw it: {monitor_saw_it}"
         );
@@ -746,16 +747,17 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     let dir = std::env::temp_dir().join(format!("sk-guide-wait-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide-wait".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
     state.telemetry.mount_is_tracking = Some(false);
     let state = Arc::new(tokio::sync::RwLock::new(state));
-    ec.trigger_state = Some(state.clone());
+    ec.run.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("guide-wait").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -796,16 +798,17 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
     let dir = std::env::temp_dir().join(format!("sk-unguided-retry-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("unguided-retry".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.mount_id = Some("mount-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.mount_id = Some("mount-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.give_up_guiding();
     let state = Arc::new(tokio::sync::RwLock::new(state));
-    ec.trigger_state = Some(state.clone());
+    ec.run.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("unguided-retry").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -837,15 +840,16 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     let dir = std::env::temp_dir().join(format!("sk-guide-wait-dev-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide-wait-dev".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.mount_id = Some("mount-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.mount_id = Some("mount-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("guide-wait-dev").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };

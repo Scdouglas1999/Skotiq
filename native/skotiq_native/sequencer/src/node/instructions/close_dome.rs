@@ -11,10 +11,6 @@ pub struct CloseDomeInstruction;
 
 #[async_trait]
 impl InstructionNode for CloseDomeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Close Dome"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -40,6 +36,7 @@ impl InstructionNode for CloseDomeInstruction {
         };
         execute_close_dome(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Close Dome", &ctx)
+            .settle("Close Dome", &ctx)
+            .await
     }
 }

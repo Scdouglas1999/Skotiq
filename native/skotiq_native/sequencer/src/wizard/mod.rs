@@ -260,7 +260,8 @@ pub async fn wait_for_slew_complete(
         || async {
             SlewSample {
                 slewing: Some(
-                    ctx.device_ops
+                    ctx.run
+                        .device_ops
                         .mount_is_slewing(mount_id)
                         .await
                         .unwrap_or(false),
@@ -561,73 +562,10 @@ mod tests {
     }
 
     fn dummy_ctx() -> InstructionContext {
-        InstructionContext {
-            node_id: String::new(),
-            target_ra: None,
-            target_dec: None,
-            target_rotation: None,
-            target_name: None,
-            current_filter: None,
-            current_binning: crate::Binning::One,
-            cancellation_token: Arc::new(AtomicBool::new(false)),
-            camera_id: None,
-            mount_id: None,
-            focuser_id: None,
-            filterwheel_id: None,
-            rotator_id: None,
-            dome_id: None,
-            cover_calibrator_id: None,
-            save_path: None,
-            latitude: None,
-            longitude: None,
-            device_ops: Arc::new(crate::device_ops::NullDeviceOps),
-            trigger_state: None,
-            filter_focus_offsets: std::collections::HashMap::new(),
-            event_tx: None,
-            recovery_request_tx: None,
-            device_disconnect_recovery_pending: std::sync::Arc::new(
-                std::sync::atomic::AtomicBool::new(false),
-            ),
-            session_id: String::new(),
-            target_id: None,
-            mosaic_panel: None,
-            current_filter_index: None,
-            set_temp_c: None,
-            bayer_pattern: None,
-            observer_name: None,
-            site_elevation_m: None,
-            camera_make: None,
-            camera_model: None,
-            telescope_name: None,
-            telescope_focal_length_mm: None,
-            telescope_aperture_mm: None,
-            last_plate_solve: Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline: Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline_samples: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-            star_count_baselines: Default::default(),
-            consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            default_quality_check: None,
-            reject_folder_path: None,
-            defect_map_apply: Arc::new(tokio::sync::RwLock::new(None)),
-            // Forensics test scaffolding.
-            forensics_history: Arc::new(
-                tokio::sync::RwLock::new(std::collections::VecDeque::new()),
-            ),
-            current_sky_brightness_mag: Arc::new(tokio::sync::RwLock::new(None)),
-            cloud_motion_snapshot: Arc::new(tokio::sync::RwLock::new(
-                crate::node::context::CloudMotionSnapshot::default(),
-            )),
-            current_wind_kph: Arc::new(tokio::sync::RwLock::new(None)),
-            current_sensor_temp_c: Arc::new(tokio::sync::RwLock::new(None)),
-            // Replay Debug — test contexts don't emit decisions.
-            decision_tx: None,
-            active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
-            dither_barrier: None,
-            device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
-            target_light_filters: Vec::new(),
-        }
+        InstructionContext::new(
+            crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps)),
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 
     #[tokio::test]

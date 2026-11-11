@@ -217,7 +217,7 @@ pub(crate) async fn after_failed_attempt(
     if ctx.cancellation_token.load(Ordering::Relaxed) {
         return RetryOutcome::Cancelled;
     }
-    let budget = device.budget(ctx.device_retry.get());
+    let budget = device.budget(ctx.run.device_retry.get());
     let give_up = || {
         if retries_done == 0 {
             RetryOutcome::GiveUp(error.to_string())
@@ -251,7 +251,7 @@ pub(crate) async fn after_failed_attempt(
         budget
     );
     tracing::warn!("[RETRY] {}", message);
-    if let Some(event_tx) = &ctx.event_tx {
+    if let Some(event_tx) = &ctx.run.event_tx {
         let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
     }
 
@@ -296,12 +296,14 @@ pub(crate) async fn move_filter_wheel(
         let attempt = async {
             let position = match target {
                 WheelTarget::Position(index) => ctx
+                    .run
                     .device_ops
                     .filterwheel_set_position(fw_id, index)
                     .await
                     .map(|()| index),
                 WheelTarget::Name(name) => {
-                    ctx.device_ops
+                    ctx.run
+                        .device_ops
                         .filterwheel_set_filter_by_name(fw_id, name)
                         .await
                 }

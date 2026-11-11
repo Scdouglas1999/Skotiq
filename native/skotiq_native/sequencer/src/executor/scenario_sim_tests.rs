@@ -3593,8 +3593,8 @@ async fn the_plans_park_step_frees_a_mount_stuck_at_its_limit() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     let mut ec = crate::node::context::ExecutionContext::new_for_test("park".to_string());
-    ec.device_ops = ops.clone();
-    ec.mount_id = Some("mount-1".to_string());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.mount_id = Some("mount-1".to_string());
     let ctx = ec.to_instruction_context("park").await;
 
     let result = crate::instructions::execute_park(&ctx).await;

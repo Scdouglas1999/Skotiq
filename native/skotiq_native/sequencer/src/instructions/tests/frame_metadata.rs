@@ -15,10 +15,8 @@ async fn frame_event_carries_the_fits_writers_own_capture_context() {
     let sun_alt = live_sun_alt();
     let ctx = expose_ctx(Arc::new(NullDeviceOps), None, sun_alt - 30.0).await;
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(16);
-    let ctx = InstructionContext {
-        event_tx: Some(event_tx),
-        ..ctx
-    };
+    let mut ctx = ctx;
+    ctx.run.event_tx = Some(event_tx);
 
     let mut frame_ctx = crate::scheduling::FrameContext::new_light("sess-evt", 2, 2, 120.0, 7);
     frame_ctx.frame_type = "Dark".to_string();
@@ -94,7 +92,7 @@ async fn frame_names_the_camera_when_no_equipment_profile_does() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = expose_node_execution_ctx(ops.clone(), scratch.0.clone()).await;
     assert!(
-        ec.camera_make.is_none() && ec.camera_model.is_none(),
+        ec.run.identity.camera_make.is_none() && ec.run.identity.camera_model.is_none(),
         "precondition: this rig has no equipment profile naming a camera"
     );
 
@@ -120,8 +118,8 @@ async fn equipment_profile_camera_name_beats_the_driver_string() {
     let scratch = scratch_dir("instrume-profile");
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = expose_node_execution_ctx(ops.clone(), scratch.0.clone()).await;
-    ec.camera_make = Some("ZWO".to_string());
-    ec.camera_model = Some("ASI178MM".to_string());
+    ec.run.identity.camera_make = Some("ZWO".to_string());
+    ec.run.identity.camera_model = Some("ASI178MM".to_string());
 
     let status = run_expose_node(one_dark_no_filter(), &mut ec).await;
     assert_eq!(status, NodeStatus::Success, "burst should complete");
@@ -254,7 +252,7 @@ async fn frame_altitude_is_derived_at_the_exposure_midpoint() {
     // independent of the hour the suite happens to run.
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
-    ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
 
     let config = ExposureConfig {
         duration_secs: 7200.0,
@@ -543,13 +541,12 @@ mod consecutive_reject_limit {
         let (event_tx, events) = tokio::sync::broadcast::channel(256);
         let (request_tx, requests) = tokio::sync::mpsc::channel(16);
         let (decision_tx, decisions) = tokio::sync::broadcast::channel(256);
+        let mut ctx = ctx;
+        ctx.run.event_tx = Some(event_tx);
+        ctx.run.recovery_request_tx = Some(request_tx);
+        ctx.run.decision_tx = Some(decision_tx);
         Storm {
-            ctx: InstructionContext {
-                event_tx: Some(event_tx),
-                recovery_request_tx: Some(request_tx),
-                decision_tx: Some(decision_tx),
-                ..ctx
-            },
+            ctx,
             requests,
             events,
             decisions,

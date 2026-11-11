@@ -11,7 +11,7 @@ async fn centering_waits_for_slew_startup_before_accepting_idle() {
             .with_mount_slewing_states(vec![false, false, true, true, false]),
     );
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
 
     wait_for_centering_correction_slew("mount-1", &ctx)
         .await
@@ -35,19 +35,19 @@ async fn center_node_on_cloud(stop_on_quality_problems: bool) -> CenterNodeRun {
     use crate::node::registry::InstructionNode;
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_plate_solve_failing());
     let mut context = crate::node::context::ExecutionContext::new_for_test("center".to_string());
-    context.device_ops = ops;
-    context.camera_id = Some("cam-1".to_string());
-    context.mount_id = Some("mount-1".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.camera_id = Some("cam-1".to_string());
+    context.run.rig.mount_id = Some("mount-1".to_string());
     context.target_name = Some("M31".to_string());
     context.target_ra = Some(0.712);
     context.target_dec = Some(41.27);
     let mut state = crate::triggers::TriggerState::new();
     state.settings.stop_on_quality_problems = stop_on_quality_problems;
-    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    context.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    context.decision_tx = Some(decision_tx);
+    context.run.decision_tx = Some(decision_tx);
     let config = crate::CenterConfig {
         max_attempts: 2,
         exposure_duration: 0.01,
@@ -123,7 +123,7 @@ async fn centering_on_the_mount_position_centers_on_it_in_j2000() {
             .with_readback_to_j2000_offset(-0.02, -0.1),
     );
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     let config = CenterConfig {
         use_target_coords: false,
         custom_ra: None,

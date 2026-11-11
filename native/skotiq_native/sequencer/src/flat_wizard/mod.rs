@@ -28,7 +28,7 @@ mod panel;
 
 use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
-    InstructionResult,
+    InstructionResult, Setback,
 };
 use crate::node::instructions::expose::build_save_path_renderer;
 use crate::wizard::{
@@ -40,10 +40,6 @@ use crate::{ExposureConfig, FlatWizardConfig, PanelLocation};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-/// Data key on a result that failed only because the search ran out of
-/// attempts. The node reports that as a notice and lets the run go on.
-pub(crate) const FLAT_NOT_CONVERGED_KEY: &str = "flat_calibration_not_converged";
 
 /// Steps in the flat-wizard plan. The plan begins as `[Filter, Position,
 /// Panel, Iter(1)]` and dynamically appends `Iter(n+1)` until
@@ -187,6 +183,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     final_brightness
                 );
                 InstructionResult {
+                    setback: None,
                     status: NodeStatus::Success,
                     message: Some(format!(
                         "Captured {} flat frames at {:.3}s (ADU: {}, brightness: {})",
@@ -223,9 +220,7 @@ in the Flat Wizard settings, or adjust panel brightness or exposure bounds.",
                     tolerance
                 );
                 tracing::warn!("{}", message);
-                let mut result = InstructionResult::failure(message);
-                result.data = Some(serde_json::json!({ FLAT_NOT_CONVERGED_KEY: true }));
-                result
+                InstructionResult::failure_because(message, Setback::FlatsNotConverged)
             }
         }
     }
@@ -236,7 +231,7 @@ impl<'a> FlatWizardRun<'a> {
         if self.config.filter.is_none() && self.config.filter_index.is_none() {
             return Ok(());
         }
-        let fw_id = match &ctx.filterwheel_id {
+        let fw_id = match &ctx.run.rig.filterwheel_id {
             Some(id) => id,
             None => return Ok(()),
         };
@@ -246,13 +241,15 @@ impl<'a> FlatWizardRun<'a> {
                 index,
                 self.config.filter
             );
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .filterwheel_set_position(fw_id, index)
                 .await
                 .map_err(|e| format!("Failed to change filter: {}", e))
         } else if let Some(filter_name) = &self.config.filter {
             tracing::info!("Changing to filter by name: {}", filter_name);
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .filterwheel_set_filter_by_name(fw_id, filter_name)
                 .await
                 .map(|_| ())
@@ -268,7 +265,7 @@ impl<'a> FlatWizardRun<'a> {
         iteration: u32,
         progress: &dyn WizardProgressReporter,
     ) -> WizardStepOutcome<FlatStep> {
-        let camera_id = match ctx.camera_id.as_deref() {
+        let camera_id = match ctx.run.rig.camera_id.as_deref() {
             Some(id) => id,
             None => return WizardStepOutcome::Failed("No camera connected".to_string()),
         };
@@ -311,6 +308,7 @@ impl<'a> FlatWizardRun<'a> {
 
         let (bin_x, bin_y) = binning_dimensions(ctx.current_binning);
         let image_data = match ctx
+            .run
             .device_ops
             .camera_start_exposure(
                 crate::device_ops::ExposureRequest::new(camera_id, test_exposure)
@@ -499,7 +497,7 @@ pub(crate) async fn capture_converged_flats(
         Ok(renderer) => renderer,
         Err(message) => {
             tracing::error!("{}", message);
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                     message: message.clone(),
                 });
@@ -547,7 +545,7 @@ pub async fn execute_flat_wizard(
     );
 
     // A missing camera is surfaced before any other work.
-    if ctx.camera_id.as_deref().is_none() {
+    if ctx.run.rig.camera_id.as_deref().is_none() {
         return InstructionResult::failure("No camera connected");
     }
 

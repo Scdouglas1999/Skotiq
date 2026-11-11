@@ -7,51 +7,13 @@ use super::*;
 
 // Autofocus instruction
 
-/// Result-data key set when autofocus stopped guiding for its sweep and could
-/// not prove guiding running again afterwards.
-///
-/// The distinction this key carries is the whole point of it. A trigger-fired
-/// autofocus that merely misses its curve fit costs the run slightly soft subs
-/// the operator can cull, so imaging continues on the last-good focus (see
-/// `executor::autofocus_trigger_continuation`). An autofocus that left the
-/// guider stopped costs the run EVERY subsequent frame: the mount is
-/// unguided, so each light trails. Both arrive here as
-/// `NodeStatus::Failure` with a "CRITICAL CLEANUP FAILURE" message, and
-/// without a machine-readable marker the caller cannot tell them apart —
-/// which is how a live run took three 180 s trailed frames (HFR 15.6 px
-/// against a 3.50 px limit) after its own log said the guider never came back.
-pub(crate) const AUTOFOCUS_GUIDING_NOT_RESTORED_KEY: &str = "autofocus_guiding_not_restored";
-
-/// Whether the run carries on past this autofocus result on the previous
-/// focus, rather than handing it to the caller's failure path.
-///
-/// Owner decision 2026-10-06: a failed autofocus never parks the rig or ends
-/// the night; the operator is notified and imaging continues on the focus the
-/// sweep restored. Two failures are not a missed focus and keep their own
-/// handling: a device that dropped off the bus (the disconnect-recovery path
-/// retries the instruction), and a sweep that left the guider stopped, after
-/// which every frame would be trailed.
-pub(crate) fn autofocus_failure_continues_the_run(result: &InstructionResult) -> bool {
-    if result.status != NodeStatus::Failure {
-        return false;
-    }
-    if result
-        .message
-        .as_deref()
-        .is_some_and(super::disconnect::is_device_disconnected_message)
-    {
-        return false;
-    }
-    crate::executor::autofocus_trigger_failure_cost(result.data.as_ref())
-        != crate::executor::AutofocusTriggerFailureCost::EveryFrameUnguided
-}
-
 /// Where the focuser is, or `None` with no focuser or a driver that will not
 /// answer. Read either side of a sweep so a failure notice can name the focus
 /// the run kept.
 pub(crate) async fn read_autofocus_position(ctx: &InstructionContext) -> Option<i32> {
-    ctx.device_ops
-        .focuser_get_position(ctx.focuser_id.as_deref()?)
+    ctx.run
+        .device_ops
+        .focuser_get_position(ctx.run.rig.focuser_id.as_deref()?)
         .await
         .ok()
 }
@@ -87,9 +49,9 @@ pub(crate) async fn notify_autofocus_failed_continuing(
         position_after,
         origin_restored,
     );
-    ctx.emit_decision(continuation.decision);
+    ctx.run.emit_decision(continuation.decision);
     tracing::warn!("{}", continuation.operator_message);
-    if let Some(event_tx) = &ctx.event_tx {
+    if let Some(event_tx) = &ctx.run.event_tx {
         let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
             message: continuation.operator_message,
         });
@@ -359,10 +321,12 @@ pub async fn execute_autofocus_admitted_with_pause(
     // caller's own progress callback keeps only a line of text. The sweep's
     // points and its outcome also go out on the run's event channel, so the
     // focus panel follows a run's autofocus live.
-    let Some(event_tx) = ctx.event_tx.clone() else {
-        return run_autofocus_admitted(config, ctx, progress_callback, guard, pause).await;
+    let focuser_before = read_autofocus_position(ctx).await;
+    let Some(event_tx) = ctx.run.event_tx.clone() else {
+        let result = run_autofocus_admitted(config, ctx, progress_callback, guard, pause).await;
+        return focus_not_found_when_missed(result, focuser_before);
     };
-    let focuser_id = ctx.focuser_id.clone().unwrap_or_default();
+    let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
     let forwarding = |progress: f64, detail: String| {
         if detail.contains("\"type\":\"autofocus_progress\"") {
             let _ = event_tx.send(crate::executor::ExecutorEvent::AutofocusProgress {
@@ -384,6 +348,20 @@ pub async fn execute_autofocus_admitted_with_pause(
         message: result.message.clone(),
         result_json,
     });
+    focus_not_found_when_missed(result, focuser_before)
+}
+
+/// A failed sweep that neither lost a device nor left the guider stopped
+/// missed focus: the focuser is back where it started and the run carries on
+/// at that focus (owner decision 2026-10-06: a failed autofocus never parks
+/// the rig or ends the night).
+fn focus_not_found_when_missed(
+    mut result: InstructionResult,
+    focuser_before: Option<i32>,
+) -> InstructionResult {
+    if result.status == NodeStatus::Failure && result.setback().is_none() {
+        result.setback = Some(Setback::FocusNotFound { focuser_before });
+    }
     result
 }
 
@@ -414,8 +392,9 @@ async fn run_autofocus_admitted(
             .as_deref()
             .is_some_and(|name| !name.trim().is_empty());
     if needs_filter_context {
-        if let Some(filterwheel_id) = ctx.filterwheel_id.as_deref() {
+        if let Some(filterwheel_id) = ctx.run.rig.filterwheel_id.as_deref() {
             let position = match ctx
+                .run
                 .device_ops
                 .filterwheel_get_position(filterwheel_id)
                 .await
@@ -434,7 +413,12 @@ async fn run_autofocus_admitted(
                     ))
                 }
             };
-            filter_names = match ctx.device_ops.filterwheel_get_names(filterwheel_id).await {
+            filter_names = match ctx
+                .run
+                .device_ops
+                .filterwheel_get_names(filterwheel_id)
+                .await
+            {
                 Ok(names) => names,
                 Err(error) => {
                     return InstructionResult::failure(format!(
@@ -493,7 +477,7 @@ async fn run_autofocus_admitted(
 
     let mut guiding_was_paused = false;
     if effective_config.disable_guiding_during_af {
-        let guider_status = match ctx.device_ops.guider_get_status().await {
+        let guider_status = match ctx.run.device_ops.guider_get_status().await {
             Ok(status) => status,
             Err(error) => {
                 return InstructionResult::failure(format!(
@@ -503,17 +487,18 @@ async fn run_autofocus_admitted(
             }
         };
         if guider_status.is_guiding {
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .guider_note_stop_reason(Some(crate::GuidingStopReason::Autofocus))
                 .await;
-            if let Err(error) = ctx.device_ops.guider_stop().await {
+            if let Err(error) = ctx.run.device_ops.guider_stop().await {
                 return InstructionResult::failure(format!(
                     "Autofocus is configured to pause guiding, but guiding could not be stopped: {}",
                     error
                 ));
             }
             guiding_was_paused = true;
-            if let Some(trigger_state) = &ctx.trigger_state {
+            if let Some(trigger_state) = &ctx.run.trigger_state {
                 let mut state = trigger_state.write().await;
                 state.set_guiding_enabled(false);
                 state.set_guide_star_lost(false);
@@ -626,13 +611,7 @@ pub(crate) async fn execute_autofocus_attempts(
         // mount, and each one stops the guider again on entry. Surface the
         // cleanup failure to the caller instead, which is the only party that
         // can halt the run.
-        if result
-            .data
-            .as_ref()
-            .and_then(|data| data.get(AUTOFOCUS_GUIDING_NOT_RESTORED_KEY))
-            .and_then(serde_json::Value::as_bool)
-            == Some(true)
-        {
+        if result.setback == Some(Setback::GuidingNotRestored) {
             return result;
         }
         // Focus beyond the sweep: sweep again around the edge that measured
@@ -735,6 +714,8 @@ pub(crate) async fn move_autofocus_filter(
     target_position: i32,
 ) -> Result<(), String> {
     let filterwheel_id = ctx
+        .run
+        .rig
         .filterwheel_id
         .as_deref()
         .filter(|id| !id.is_empty())
@@ -766,6 +747,7 @@ pub(crate) async fn move_autofocus_filter(
     let mut last_observed: Option<i32> = None;
     loop {
         match ctx
+            .run
             .device_ops
             .filterwheel_get_position(filterwheel_id)
             .await
@@ -828,14 +810,14 @@ pub(crate) async fn resume_guiding_after_autofocus(
     }
     // A fresh star: the autofocus run may have moved the field under the
     // guider's old lock position. It must measure up to the run's guide star.
-    let reference = match &ctx.trigger_state {
+    let reference = match &ctx.run.trigger_state {
         Some(state) => state.read().await.target.guide_star_reference,
         None => None,
     };
     // The run's restart bar, the same a flip restarts guiding at.
     let settle = ctx.restart_settle_or(crate::GuiderSettle::default()).await;
     match start_guiding_holding_on_settle_timeout(
-        &ctx.device_ops,
+        &ctx.run.device_ops,
         crate::GuideStarFloor::relative_to(reference),
         settle,
         crate::executor::REACQUIRE_SETTLE_PIXELS,
@@ -844,15 +826,15 @@ pub(crate) async fn resume_guiding_after_autofocus(
     {
         Ok(GuidingStarted::Settled) => {}
         Ok(GuidingStarted::HeldWithoutSettling { note }) => {
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message: note });
             }
-            if let Ok(status) = ctx.device_ops.guider_get_status().await {
+            if let Ok(status) = ctx.run.device_ops.guider_get_status().await {
                 if let Some(warning) =
-                    settle_bar_warning(ctx.trigger_state.as_ref(), settle, &status).await
+                    settle_bar_warning(ctx.run.trigger_state.as_ref(), settle, &status).await
                 {
                     tracing::warn!("{warning}");
-                    if let Some(event_tx) = &ctx.event_tx {
+                    if let Some(event_tx) = &ctx.run.event_tx {
                         let _ = event_tx
                             .send(crate::executor::ExecutorEvent::Warning { message: warning });
                     }
@@ -874,10 +856,10 @@ pub(crate) async fn resume_guiding_after_autofocus(
     let deadline = tokio::time::Instant::now() + GUIDING_RESUME_DEADLINE;
     let mut last_seen: crate::device_ops::DeviceResult<crate::GuidingStatus>;
     loop {
-        last_seen = ctx.device_ops.guider_get_status().await;
+        last_seen = ctx.run.device_ops.guider_get_status().await;
         if let Ok(status) = &last_seen {
             if crate::executor::guiding_is_settled(status) {
-                if let Some(trigger_state) = &ctx.trigger_state {
+                if let Some(trigger_state) = &ctx.run.trigger_state {
                     trigger_state.write().await.set_guiding_enabled(true);
                 }
                 return result;
@@ -889,10 +871,11 @@ pub(crate) async fn resume_guiding_after_autofocus(
         // A Stop ends the wait, and the guider started for a run that is now
         // ending is stopped again.
         if ctx.cancellation_token.load(Ordering::Relaxed) {
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
                 .await;
-            if let Err(error) = ctx.device_ops.guider_stop().await {
+            if let Err(error) = ctx.run.device_ops.guider_stop().await {
                 tracing::warn!("Autofocus cleanup could not stop the guider: {error}");
             }
             return leave_guiding_stopped_for_stopped_run(ctx, result).await;
@@ -923,17 +906,18 @@ async fn leave_guiding_stopped_for_stopped_run(
     result: InstructionResult,
 ) -> InstructionResult {
     tracing::info!("Autofocus cleanup leaves guiding stopped: the run is stopping");
-    ctx.device_ops
+    ctx.run
+        .device_ops
         .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
         .await;
-    if let Some(trigger_state) = &ctx.trigger_state {
+    if let Some(trigger_state) = &ctx.run.trigger_state {
         trigger_state.write().await.set_guiding_enabled(false);
     }
     result
 }
 
-/// Record a cleanup failure that left the guider stopped: stamp the
-/// [`AUTOFOCUS_GUIDING_NOT_RESTORED_KEY`] marker the caller branches on, and
+/// Record a cleanup failure that left the guider stopped: the
+/// [`Setback::GuidingNotRestored`] the caller branches on, and
 /// clear the trigger state's `guiding_enabled` latch.
 ///
 /// Clearing the latch is not bookkeeping. The monitor's guide-poll block arms
@@ -949,19 +933,11 @@ async fn append_guiding_not_restored(
     result: InstructionResult,
     failure: String,
 ) -> InstructionResult {
-    if let Some(trigger_state) = &ctx.trigger_state {
+    if let Some(trigger_state) = &ctx.run.trigger_state {
         trigger_state.write().await.set_guiding_enabled(false);
     }
     let mut result = append_autofocus_cleanup_failure(result, failure);
-    let mut metadata = match result.data.take() {
-        Some(serde_json::Value::Object(object)) => object,
-        _ => serde_json::Map::new(),
-    };
-    metadata.insert(
-        AUTOFOCUS_GUIDING_NOT_RESTORED_KEY.to_string(),
-        serde_json::Value::Bool(true),
-    );
-    result.data = Some(serde_json::Value::Object(metadata));
+    result.setback = Some(Setback::GuidingNotRestored);
     result
 }
 
@@ -1091,7 +1067,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
     // failing the read here is fatal because the alternative is to sweep
     // from a guessed origin and land somewhere unrelated to focus.
     tracing::debug!("Getting focuser position for focuser_id: {}", focuser_id);
-    let current_position = match ctx.device_ops.focuser_get_position(&focuser_id).await {
+    let current_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
             tracing::error!("Autofocus failed: Could not get focuser position: {}", e);
@@ -1150,7 +1126,12 @@ pub(crate) async fn execute_autofocus_sweep_around(
                     final_pos
                 );
 
-                if let Err(e) = ctx.device_ops.focuser_move_to(&focuser_id, overshoot).await {
+                if let Err(e) = ctx
+                    .run
+                    .device_ops
+                    .focuser_move_to(&focuser_id, overshoot)
+                    .await
+                {
                     return InstructionResult::failure(format!(
                         "Failed to move focuser (backlash): {}",
                         e
@@ -1163,12 +1144,18 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 }
             }
 
-            if let Err(e) = ctx.device_ops.focuser_move_to(&focuser_id, final_pos).await {
+            if let Err(e) = ctx
+                .run
+                .device_ops
+                .focuser_move_to(&focuser_id, final_pos)
+                .await
+            {
                 return InstructionResult::failure(format!("Failed to move focuser: {}", e));
             }
         } else {
             tracing::info!("Moving to start position: {}", start_position);
             if let Err(e) = ctx
+                .run
                 .device_ops
                 .focuser_move_to(&focuser_id, start_position)
                 .await
@@ -1260,7 +1247,12 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 );
             }
 
-            if let Err(e) = ctx.device_ops.focuser_move_to(&focuser_id, position).await {
+            if let Err(e) = ctx
+                .run
+                .device_ops
+                .focuser_move_to(&focuser_id, position)
+                .await
+            {
                 return InstructionResult::failure(format!("Failed to move focuser: {}", e));
             }
 
@@ -1281,9 +1273,12 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 // as a light frame is: one bad download must not end the sweep.
                 let mut camera_retries_done = 0u32;
                 let image_data = loop {
-                    let mut abort_guard =
-                        CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
+                    let mut abort_guard = CameraExposureAbortGuard::new(
+                        ctx.run.device_ops.clone(),
+                        camera_id.clone(),
+                    );
                     let exposure_result = ctx
+                        .run
                         .device_ops
                         .camera_start_exposure(
                             crate::device_ops::ExposureRequest::new(
@@ -1505,6 +1500,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 }
                 result.rejected_points.splice(0..0, screened_out);
                 result.temperature_celsius = ctx
+                    .run
                     .device_ops
                     .focuser_get_temperature(&focuser_id)
                     .await
@@ -1614,6 +1610,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
         );
 
         if let Err(e) = ctx
+            .run
             .device_ops
             .focuser_move_to(&focuser_id, run_up_from)
             .await
@@ -1628,6 +1625,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
         }
 
         if let Err(e) = ctx
+            .run
             .device_ops
             .focuser_move_to(&focuser_id, best_position)
             .await
@@ -1652,8 +1650,9 @@ pub(crate) async fn execute_autofocus_sweep_around(
         // here an operator can check against their own screen.
         let verified_hfr = {
             let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
+                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.clone());
             let exposure_result = ctx
+                .run
                 .device_ops
                 .camera_start_exposure(
                     crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration)
@@ -1755,6 +1754,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
         }
 
         InstructionResult {
+            setback: None,
             status: NodeStatus::Success,
             message: Some(format!(
                 "Autofocus complete: position {}, HFR {:.2} ({}), R² {:.3}",
@@ -1849,20 +1849,21 @@ pub(crate) async fn restore_autofocus_origin(
 ) -> Result<(), String> {
     let mut errors = Vec::new();
 
-    if let Err(error) = ctx.device_ops.focuser_halt(focuser_id).await {
+    if let Err(error) = ctx.run.device_ops.focuser_halt(focuser_id).await {
         errors.push(format!("halt failed: {}", error));
     }
-    if !wait_for_focuser_stop_after_halt(focuser_id, &ctx.device_ops, Duration::from_secs(10)).await
+    if !wait_for_focuser_stop_after_halt(focuser_id, &ctx.run.device_ops, Duration::from_secs(10))
+        .await
     {
         errors.push("motor did not stop within 10 seconds".to_string());
     }
 
     if let Some(run_up) = run_up_from.filter(|run_up| *run_up < original_position) {
-        match ctx.device_ops.focuser_move_to(focuser_id, run_up).await {
+        match ctx.run.device_ops.focuser_move_to(focuser_id, run_up).await {
             Ok(()) => {
                 if !wait_for_focuser_stop_after_halt(
                     focuser_id,
-                    &ctx.device_ops,
+                    &ctx.run.device_ops,
                     Duration::from_secs(120),
                 )
                 .await
@@ -1880,6 +1881,7 @@ pub(crate) async fn restore_autofocus_origin(
     }
 
     match ctx
+        .run
         .device_ops
         .focuser_move_to(focuser_id, original_position)
         .await
@@ -1887,7 +1889,7 @@ pub(crate) async fn restore_autofocus_origin(
         Ok(()) => {
             if !wait_for_focuser_stop_after_halt(
                 focuser_id,
-                &ctx.device_ops,
+                &ctx.run.device_ops,
                 Duration::from_secs(120),
             )
             .await

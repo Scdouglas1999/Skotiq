@@ -126,7 +126,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     // pause check, starts one more unguided light.
     if af_result.status == NodeStatus::Failure
         && !run.is_cancelled()
-        && autofocus_trigger_failure_cost(af_result.data.as_ref())
+        && autofocus_trigger_failure_cost(&af_result)
             == AutofocusTriggerFailureCost::EveryFrameUnguided
     {
         run.hold_node_tree();
@@ -252,7 +252,7 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         .and_then(|value| value.as_bool());
     let position_after_af =
         read_focuser_position(&rig.device_ops, rig.context.focuser_id.as_ref()).await;
-    let failure_cost = autofocus_trigger_failure_cost(af_result.data.as_ref());
+    let failure_cost = autofocus_trigger_failure_cost(&af_result);
     let reason = af_result
         .message
         .unwrap_or_else(|| "autofocus did not converge".to_string());

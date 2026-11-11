@@ -20,7 +20,7 @@
 //! trigger-state updates, HFR baseline propagation, and FITS-save error
 //! routing. Re-implementing any of that here would inevitably diverge.
 //! Instead, SmartExposure constructs the matching `NodeType` variant per
-//! plan row and dispatches through [`InstructionRegistry::build`] just like
+//! plan row and runs the same instruction node as
 //! the executor would for a hand-authored sequence. Each delegated child
 //! sees the same `ExecutionContext`, so its progress events, trigger
 //! updates, and integration accounting are indistinguishable from the
@@ -51,8 +51,11 @@
 use crate::depth_goal::DepthGoalVerdict;
 use crate::executor::ExecutorEvent;
 use crate::node::context::ExecutionContext;
+use crate::node::instructions::{
+    change_filter::ChangeFilterInstruction, dither::DitherInstruction, expose::ExposeInstruction,
+};
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
-use crate::node::registry::{registry, InstructionNode};
+use crate::node::registry::InstructionNode;
 use crate::{
     DitherConfig, ExposureConfig, FilterConfig, FilterPlan, NodeStatus, NodeType,
     SmartExposureCheckpoint, SmartExposureConfig,
@@ -64,10 +67,6 @@ pub struct SmartExposureInstruction;
 
 #[async_trait]
 impl InstructionNode for SmartExposureInstruction {
-    fn type_name(&self) -> &'static str {
-        "Smart Exposure"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -91,6 +90,7 @@ impl InstructionNode for SmartExposureInstruction {
             .iter()
             .any(|plan| plan.dither_every.is_some_and(|every| every > 0));
         let cadence_state = context
+            .run
             .trigger_state
             .clone()
             .filter(|_| owns_dither_cadence);
@@ -646,7 +646,7 @@ fn refresh_depth_completions(
                 state
                     .depth_completed
                     .insert(binding.goal_id.clone(), binding.revision);
-                if let Some(event_tx) = &context.event_tx {
+                if let Some(event_tx) = &context.run.event_tx {
                     // A closed receiver only means no subscriber; the log line
                     // above is the durable record.
                     let _ = event_tx.send(ExecutorEvent::DepthGoalCompleted {
@@ -706,7 +706,7 @@ fn warn_depth_unavailable(
         reason
     );
     tracing::warn!("SmartExposure '{}': {}", node_id, message);
-    if let Some(event_tx) = &context.event_tx {
+    if let Some(event_tx) = &context.run.event_tx {
         let _ = event_tx.send(ExecutorEvent::Warning { message });
     }
 }
@@ -729,15 +729,8 @@ async fn run_filter_change(
         filter_index: plan.filter_index,
         timeout_secs: None,
     });
-    let Some(instruction) = registry().build(&filter_node_type) else {
-        tracing::error!(
-            "SmartExposure '{}': InstructionRegistry returned None for ChangeFilter; \
-             cannot proceed (registry bug)",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    ChangeFilterInstruction
         .execute(node_id, &filter_node_type, context)
         .await
 }
@@ -766,14 +759,8 @@ async fn run_dither(
     // and adding them would inflate the per-row editor. Users who need
     // bespoke settle parameters can author an explicit DitherNode.
     let dither_node_type = NodeType::Dither(DitherConfig::default());
-    let Some(instruction) = registry().build(&dither_node_type) else {
-        tracing::error!(
-            "SmartExposure '{}': InstructionRegistry returned None for Dither",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    DitherInstruction
         .execute(node_id, &dither_node_type, context)
         .await
 }
@@ -785,15 +772,8 @@ async fn run_exposure_burst(
     context: &mut ExecutionContext,
 ) -> NodeStatus {
     let exposure_node_type = NodeType::TakeExposure(build_exposure_config(plan, batch_size));
-    let Some(instruction) = registry().build(&exposure_node_type) else {
-        tracing::error!(
-            "SmartExposure '{}': InstructionRegistry returned None for TakeExposure; \
-             cannot proceed (registry bug)",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    ExposeInstruction
         .execute(node_id, &exposure_node_type, context)
         .await
 }

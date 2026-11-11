@@ -11,10 +11,6 @@ pub struct ChangeFilterInstruction;
 
 #[async_trait]
 impl InstructionNode for ChangeFilterInstruction {
-    fn type_name(&self) -> &'static str {
-        "Filter"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -55,11 +51,11 @@ impl InstructionNode for ChangeFilterInstruction {
             if let Some(index) = config.filter_index {
                 context.current_filter_index = Some(index);
             }
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.set_filter(config.filter_name.clone());
             }
         }
-        result.log_and_get_status_with_context("Change Filter", &ctx)
+        result.settle("Change Filter", &ctx).await
     }
 }

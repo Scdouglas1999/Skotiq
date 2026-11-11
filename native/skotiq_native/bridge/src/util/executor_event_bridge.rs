@@ -50,7 +50,7 @@ use tokio::sync::broadcast;
 const EVENT_BRIDGE_CAPACITY: usize = 32;
 
 /// Spawn the bridge task and return a sender the caller can clone into an
-/// `InstructionContext::event_tx`. The task exits when every sender clone is
+/// `RunShared::event_tx`. The task exits when every sender clone is
 /// dropped.
 ///
 /// The returned sender is `clone`-able; pass `Some(sender.clone())` into the

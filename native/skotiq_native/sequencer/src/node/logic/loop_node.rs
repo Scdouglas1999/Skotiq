@@ -22,8 +22,8 @@ use crate::{LoopCondition, LoopConfig, NodeStatus};
 fn current_alt_az(context: &ExecutionContext) -> Option<(f64, f64)> {
     let ra_hours = context.target_ra?;
     let dec_deg = context.target_dec?;
-    let lat = context.latitude?;
-    let lon = context.longitude?;
+    let lat = context.run.rig.latitude?;
+    let lon = context.run.rig.longitude?;
     let now = chrono::Utc::now();
     Some(object_alt_az(ra_hours * 15.0, dec_deg, &now, lat, lon))
 }
@@ -186,20 +186,17 @@ pub async fn execute_loop(
             break;
         }
 
-        // A resume runs the pass a checkpoint caught in flight again, so the
-        // record holds finished passes only, and inner loops start over.
-        {
-            let mut inner = std::collections::HashMap::new();
+        // The pass a resume continues keeps what its body had done when the
+        // run stopped; every other pass starts its body over.
+        let continues_stopped_pass = std::mem::take(&mut node.resumed);
+        if !continues_stopped_pass {
+            let mut body = Vec::new();
             for child in &node.children {
-                child.snapshot_loop_iterations(&mut inner);
+                collect_node_ids(child.as_ref(), &mut body);
             }
-            let mut finished = context.loop_passes_finished.write();
-            for id in inner.keys() {
-                finished.remove(id);
-            }
-            if node.current_iteration > 0 {
-                finished.insert(node.id().clone(), node.current_iteration);
-            }
+            context
+                .resume
+                .begin_pass(node.id(), node.current_iteration, body);
         }
         node.current_iteration += 1;
         iterations_run_here += 1;
@@ -225,18 +222,14 @@ pub async fn execute_loop(
         update.total_children = total_children;
         context.send_progress(update);
 
-        // Children retain Success/Failure from the previous iteration and
-        // would short-circuit on the next pass; resetting them per-iter is
-        // what makes a Loop actually re-execute its body.
-        tracing::info!(
-            "Resetting {} children for iteration {}",
-            node.children.len(),
-            node.current_iteration
-        );
-        for child in &mut node.children {
-            child.reset();
+        // Children keep their status from the previous pass and would
+        // short-circuit on this one; resetting them is what makes a Loop run
+        // its body again.
+        if !continues_stopped_pass {
+            for child in &mut node.children {
+                child.reset();
+            }
         }
-        tracing::info!("Children reset complete");
 
         tracing::info!(
             "Starting execute_children_sequential for iteration {}",
@@ -254,12 +247,18 @@ pub async fn execute_loop(
             return result;
         }
         context
-            .loop_passes_finished
-            .write()
-            .insert(node.id().clone(), node.current_iteration);
+            .resume
+            .finish_pass(node.id(), node.current_iteration);
     }
 
     NodeStatus::Success
+}
+
+fn collect_node_ids(node: &dyn Node, out: &mut Vec<crate::NodeId>) {
+    out.push(node.id().clone());
+    for child in node.children() {
+        collect_node_ids(child.as_ref(), out);
+    }
 }
 
 #[cfg(test)]
@@ -273,8 +272,8 @@ mod tests {
         let mut ctx = ExecutionContext::new_for_test("root".to_string());
         ctx.target_ra = Some(ra_hours);
         ctx.target_dec = Some(dec_deg);
-        ctx.latitude = Some(lat);
-        ctx.longitude = Some(lon);
+        ctx.run.rig.latitude = Some(lat);
+        ctx.run.rig.longitude = Some(lon);
         ctx
     }
 

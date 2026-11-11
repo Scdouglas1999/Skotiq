@@ -11,10 +11,6 @@ pub struct DelayInstruction;
 
 #[async_trait]
 impl InstructionNode for DelayInstruction {
-    fn type_name(&self) -> &'static str {
-        "Delay"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -48,7 +44,8 @@ impl InstructionNode for DelayInstruction {
 
         execute_delay(config, context, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Delay", &ctx)
+            .settle("Delay", &ctx)
+            .await
     }
 }
 

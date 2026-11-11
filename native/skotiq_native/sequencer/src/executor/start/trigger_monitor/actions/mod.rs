@@ -43,7 +43,7 @@ impl Rig {
         target: TargetSnapshot,
         run: &RunControl,
     ) -> crate::instructions::InstructionContext {
-        build_trigger_autofocus_context(
+        trigger_instruction_context(
             &self.context,
             target.name,
             target.ra_hours,
