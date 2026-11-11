@@ -30,11 +30,10 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => configured;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final category = message.category;
+    final title = message.title;
+    final body = message.body;
     sent.add(_SentMessage(category: category, title: title, body: body));
     if (throwNext) {
       throwNext = false;

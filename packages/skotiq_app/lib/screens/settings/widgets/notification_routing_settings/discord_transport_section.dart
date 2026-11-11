@@ -16,11 +16,6 @@ class _DiscordRoutingSectionState
   bool _initialized = false;
   bool _clearWebhook = false;
 
-  /// One-shot guard for the legacy-webhook adoption below. Set before the
-  /// adopting write is scheduled and never reset, so a failed adoption cannot
-  /// spin the provider in a rebuild loop.
-  bool _legacyAdoptionScheduled = false;
-
   @override
   void dispose() {
     _url.dispose();
@@ -31,12 +26,6 @@ class _DiscordRoutingSectionState
   @override
   Widget build(BuildContext context) {
     final cfgAsync = ref.watch(discordTransportConfigProvider);
-    // The pre-router `NotificationService` sends Discord straight from the
-    // plaintext `app_settings` key. This section is the ONLY Discord
-    // configuration on the page, so it has to account for that key or a user
-    // who set it would be told Discord is unconfigured.
-    final legacyWebhook =
-        ref.watch(appSettingsProvider).valueOrNull?.discordWebhook.trim() ?? '';
     return cfgAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (e, _) {
@@ -54,26 +43,10 @@ class _DiscordRoutingSectionState
           _clearWebhook = false;
           _initialized = true;
         }
-        // Adopt a legacy plaintext webhook into the keyring-backed config the
-        // router uses. Without this the single Discord section would render an
-        // empty field for a user whose webhook is configured and firing.
-        if (cfg.webhookUrl.isEmpty &&
-            legacyWebhook.isNotEmpty &&
-            !_legacyAdoptionScheduled) {
-          _legacyAdoptionScheduled = true;
-          Future.microtask(() async {
-            if (!mounted) return;
-            await ref
-                .read(discordTransportConfigProvider.notifier)
-                .save(cfg.copyWith(webhookUrl: legacyWebhook));
-          });
-        }
         Future<_PrepResult> saveConfig() async {
           final webhook = _clearWebhook
               ? ''
-              : (_url.text.trim().isEmpty
-                  ? (cfg.webhookUrl.isEmpty ? legacyWebhook : cfg.webhookUrl)
-                  : _url.text.trim());
+              : (_url.text.trim().isEmpty ? cfg.webhookUrl : _url.text.trim());
           final urlError = _validateUrlField(webhook);
           if (urlError != null) return _PrepResult.fail(urlError);
           final cfg2 = DiscordTransportConfig(
@@ -82,13 +55,6 @@ class _DiscordRoutingSectionState
             avatarUrl: cfg.avatarUrl,
           );
           await ref.read(discordTransportConfigProvider.notifier).save(cfg2);
-          // Update an existing legacy value for compatibility, but never copy
-          // a new bearer token out of the keyring into exported settings.
-          if (legacyWebhook.isNotEmpty) {
-            await ref
-                .read(appSettingsProvider.notifier)
-                .setDiscordWebhook(webhook);
-          }
           _url.clear();
           _clearWebhook = false;
           return const _PrepResult.ok();
@@ -103,8 +69,7 @@ class _DiscordRoutingSectionState
               subtitle:
                   'The URL itself authenticates the request, so it is stored securely.',
               controller: _url,
-              hasStoredValue:
-                  cfg.webhookUrl.isNotEmpty || legacyWebhook.isNotEmpty,
+              hasStoredValue: cfg.webhookUrl.isNotEmpty,
               isMobile: widget.isMobile,
               hint: 'https://discord.com/api/webhooks/…',
               onChanged: (_) => _clearWebhook = false,

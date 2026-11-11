@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/notification_service.dart';
+
+import 'notification/recording_router.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -19,9 +19,9 @@ void main() {
         notifyOnSequenceComplete: true,
         soundEnabled: true,
       );
-      final service = NotificationService.testing(
-        settingsReader: () => settings,
-        httpClient: MockClient((req) async => http.Response('ok', 200)),
+      final service = NotificationService(
+        readSettings: () => settings,
+        readRouter: () => recordingRouter().router,
         soundPlayer: () async {
           playCount++;
         },
@@ -36,7 +36,6 @@ void main() {
       // Allow the unawaited fire-and-forget call to complete.
       await Future<void>.delayed(Duration.zero);
       expect(playCount, 1);
-      service.dispose();
     });
 
     test('does not play sound when soundEnabled is false', () async {
@@ -46,9 +45,9 @@ void main() {
         notifyOnSequenceComplete: true,
         soundEnabled: false,
       );
-      final service = NotificationService.testing(
-        settingsReader: () => settings,
-        httpClient: MockClient((req) async => http.Response('ok', 200)),
+      final service = NotificationService(
+        readSettings: () => settings,
+        readRouter: () => recordingRouter().router,
         soundPlayer: () async {
           playCount++;
         },
@@ -62,7 +61,6 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(playCount, 0);
-      service.dispose();
     });
 
     test(
@@ -73,9 +71,9 @@ void main() {
           notificationsEnabled: false,
           soundEnabled: true,
         );
-        final service = NotificationService.testing(
-          settingsReader: () => settings,
-          httpClient: MockClient((req) async => http.Response('ok', 200)),
+        final service = NotificationService(
+          readSettings: () => settings,
+          readRouter: () => recordingRouter().router,
           soundPlayer: () async {
             playCount++;
           },
@@ -89,7 +87,6 @@ void main() {
 
         await Future<void>.delayed(Duration.zero);
         expect(playCount, 0);
-        service.dispose();
       },
     );
   });

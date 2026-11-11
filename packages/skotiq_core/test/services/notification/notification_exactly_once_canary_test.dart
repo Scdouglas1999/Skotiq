@@ -47,11 +47,8 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => true;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final category = message.category;
     sentCategories.add(category);
     return NotificationResult.ok();
   }
@@ -424,7 +421,7 @@ void main() {
     test('the dashboard-bridge explicit push and the classifier push for the '
         'SAME alert collapse to exactly one (cross-stream dedup)', () async {
       // The router has two converging systemPush inputs: its own classifier
-      // subscription (core stream) and routeBridgeCriticalPush (the dashboard
+      // subscription (core stream) and routeCriticalPush (the dashboard
       // bridge's bridge-stream path). For an event BOTH recognise, the
       // content-signature dedup must yield exactly one phone push.
       final push = PushNotificationService(
@@ -446,7 +443,7 @@ void main() {
       router.attachEventStream(
         Stream.value(_criticalCases['weatherUnsafe']!.event),
       );
-      router.routeBridgeCriticalPush(
+      router.routeCriticalPush(
         title: 'Weather unsafe',
         body: 'Safety monitor reports unsafe conditions.',
         eventType: 'WeatherUnsafe',
@@ -492,7 +489,7 @@ void main() {
           }),
         ),
       );
-      router.routeBridgeCriticalPush(
+      router.routeCriticalPush(
         title: 'Critical · System',
         body: 'FITS save failed',
         eventType: 'System error',

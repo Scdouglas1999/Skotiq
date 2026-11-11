@@ -535,6 +535,7 @@ export 'src/services/push_notification_service.dart';
 //   * NotificationRouter dispatcher (event-stream → transports).
 export 'src/models/notification/notification_categories.dart';
 export 'src/models/notification/transport_configs.dart';
+export 'src/services/notification/notification_presentation.dart';
 export 'src/services/notification/notification_router.dart';
 export 'src/services/notification/notification_signature.dart';
 export 'src/services/notification/notification_template.dart';

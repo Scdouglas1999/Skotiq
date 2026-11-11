@@ -39,10 +39,9 @@ String pushDeliverySubtitleFor(AsyncValue<PushDeliveryTargets> async) {
 ///
 /// The three settings are live, not decorative: `NotificationService.notify`
 /// refuses the entire dispatch for an event family whose flag is off (see
-/// `_shouldNotifyForEvent`), so with one off that family plays no alert sound,
-/// posts nothing in-app and sends nothing to the Discord/Pushover webhook this
-/// page configures. Per-event routing runs off its own matrix and is
-/// unaffected either way.
+/// `_shouldNotifyForEvent`), so with one off that family plays no alert sound
+/// and nothing is sent through the Custom routing row. The events the router
+/// classifies from the run itself are unaffected either way.
 ///
 /// [sends] names what the family covers. [offByDefault] is true for meridian
 /// flip alone, whose stored default is `false` — the one row where a switch
@@ -54,8 +53,8 @@ String builtInEventAlertSubtitle(
   bool offByDefault = false,
 }) {
   if (enabled) {
-    return '$sends Delivered by the alert sound, the in-app feed, and the '
-        'Discord/Pushover webhook configured on this page.';
+    return '$sends Delivered by the alert sound and by every transport on '
+        'the Custom row of per-event routing.';
   }
   return offByDefault
       ? '$sends Off — and off is the shipped default, so no flip alert is sent '
@@ -118,8 +117,10 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     final generation = ++_testGeneration;
     setState(() => _activeTest = _NotificationTest.discord);
     try {
-      final notificationService = ref.read(notificationServiceProvider);
-      final success = await notificationService.testDiscordWebhook(webhook);
+      final result = await ref.read(notificationTransportProbeProvider)(
+        DiscordTransport(config: DiscordTransportConfig(webhookUrl: webhook)),
+      );
+      final success = result.success;
       if (mounted &&
           _isCurrentTest(
             authority,
@@ -170,8 +171,12 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     final generation = ++_testGeneration;
     setState(() => _activeTest = _NotificationTest.pushover);
     try {
-      final notificationService = ref.read(notificationServiceProvider);
-      final success = await notificationService.testPushover(key, user);
+      final result = await ref.read(notificationTransportProbeProvider)(
+        PushoverTransport(
+          config: PushoverTransportConfig(apiToken: key, userKey: user),
+        ),
+      );
+      final success = result.success;
       if (mounted &&
           _isCurrentTest(
             authority,
@@ -327,14 +332,13 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   title: 'Per-event routing is the live one',
                   subtitle:
                       'Per-event routing (Settings → Notification Routing) '
-                      'maps each event to its transports and is what actually '
-                      'delivers. Push to Mobile below is the separate host '
-                      'push gate; neither overrides the other, so an event '
-                      'enabled in both is sent by both. The switches under '
-                      '"Built-in event alerts" are a third, older path: they '
-                      'gate Skotiq\'s own alert sound, in-app post and '
-                      'Discord/Pushover webhook for those three event '
-                      'families only.',
+                      'maps each event to its transports and is the only '
+                      'thing that sends. Push to Mobile below can mute '
+                      'individual events on the phone; an event reaches the '
+                      'phone when both allow it. The switches under '
+                      '"Built-in event alerts" turn off three kinds of alert '
+                      'Skotiq raises itself: their sound, and the message '
+                      'they send through the Custom routing row.',
                   trailing: SizedBox.shrink(),
                   isLast: true,
                 ),
@@ -655,17 +659,11 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ],
               ),
-            // Legacy `app_settings`-backed Discord/Pushover credentials. They
-            // are shown ONLY on a remote controller: locally the keyring-backed
-            // sections inside NotificationRoutingSettings below are the single
-            // Discord/Pushover configuration on this page (they adopt and keep
-            // these same legacy keys in step, so the pre-router
-            // NotificationService keeps sending to whatever is on screen).
-            // Rendering both locally is what let one half of the page report
-            // "unconfigured" while the other half held a saved webhook.
-            // A remote controller cannot reach the host's keyring, so there the
-            // legacy keys — which ride the settings remote-sync to the host —
-            // remain the only way to configure these two transports.
+            // A linked client cannot reach the host's keyring, so it edits
+            // the host's Discord and Pushover credentials through the three
+            // app settings that sync to the host; the host turns each edit
+            // into its transport config. On the host itself the sections
+            // inside NotificationRoutingSettings below are the only form.
             if (isRemoteController)
               SettingsSection(
                 title: 'Discord',
@@ -760,10 +758,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ],
               ),
-            // Comprehensive per-event routing matrix + every transport's
-            // credentials, including the only local Discord / Pushover
-            // configuration. Lives inside the same Notifications page so users
-            // see one place for every transport.
+            // The per-event routing matrix and every transport's credentials,
+            // on the same page so there is one place for every transport.
             NotificationRoutingSettings(
               isMobile: widget.isMobile,
             ),
