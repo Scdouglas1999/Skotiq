@@ -13,10 +13,10 @@ extension _StackFrameIo on StackAndShareService {
     _CalibrationContext context,
   ) async {
     final raw = await _loadRawU16(frame.filePath);
-    _ensureAuthority();
+    _ensureSameHost();
 
     final meta = await _imagesDao.getImageById(frame.imageId);
-    _ensureAuthority();
+    _ensureSameHost();
     Uint16List? darkData;
     if (meta != null && meta.gain != null) {
       final match = await _darkLibrary.findMatchingDark(
@@ -28,10 +28,10 @@ extension _StackFrameIo on StackAndShareService {
         temperature: meta.sensorTemp,
         tolerances: context.tolerances,
       );
-      _ensureAuthority();
+      _ensureSameHost();
       if (match != null) {
         darkData = await _loadMatchingPixels(match.filePath, raw.pixelCount);
-        _ensureAuthority();
+        _ensureSameHost();
       }
     }
 
@@ -61,7 +61,7 @@ extension _StackFrameIo on StackAndShareService {
         throw FileSystemException('Master flat file not found', flatPath);
       }
       flatData = await _darkLibrary.loadDarkPixels(flatPath);
-      _ensureAuthority();
+      _ensureSameHost();
     }
 
     Uint16List? biasData;
@@ -71,7 +71,7 @@ extension _StackFrameIo on StackAndShareService {
         throw FileSystemException('Master bias file not found', biasPath);
       }
       biasData = await _darkLibrary.loadDarkPixels(biasPath);
-      _ensureAuthority();
+      _ensureSameHost();
     }
 
     return _CalibrationContext(
@@ -89,7 +89,7 @@ extension _StackFrameIo on StackAndShareService {
     int expectedPixels,
   ) async {
     final pixels = await _darkLibrary.loadDarkPixels(path);
-    _ensureAuthority();
+    _ensureSameHost();
     if (pixels.length != expectedPixels) {
       throw StateError(
         'Calibration frame "$path" has ${pixels.length} pixels but the light '
@@ -125,7 +125,7 @@ extension _StackFrameIo on StackAndShareService {
   /// operate on u16); the FITS reader in Rust has already applied BZERO/BSCALE.
   Future<_RawFrame> _loadRawU16(String filePath) async {
     final linear = await _engine.readLinearFrame(filePath);
-    _ensureAuthority();
+    _ensureSameHost();
     final pixelCount = linear.width * linear.height;
     if (linear.linearData.length != pixelCount) {
       throw StateError(
@@ -157,7 +157,7 @@ extension _StackFrameIo on StackAndShareService {
     final cameraId = _ref.read(connectedCameraIdProvider);
     if (cameraId != null && cameraId.isNotEmpty) {
       final caps = await _ref.read(cameraCapabilitiesProvider(cameraId).future);
-      _ensureAuthority();
+      _ensureSameHost();
       final pattern = caps?.bayerPattern?.trim();
       if (caps != null &&
           caps.isColor &&
@@ -169,7 +169,7 @@ extension _StackFrameIo on StackAndShareService {
 
     // File path: the reference frame's FITS BAYERPAT geometry (null for mono).
     final linear = await _engine.readLinearFrame(reference.filePath);
-    _ensureAuthority();
+    _ensureSameHost();
     final framePattern = linear.bayerPattern?.trim();
     if (framePattern != null && framePattern.isNotEmpty) {
       return framePattern;
