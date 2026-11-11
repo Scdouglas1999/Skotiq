@@ -158,23 +158,21 @@ impl ZwoCamera {
     }
 
     /// Load camera info from SDK
-    pub(crate) fn load_camera_info(&mut self) -> Result<(), NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
+    pub(crate) fn load_camera_info(&mut self, sdk: &AsiSdk) -> Result<(), NativeError> {
         // ASIGetCameraProperty takes the current enumeration index, while every
         // camera operation takes ASICameraInfo::CameraID. Resolve the stable ID
         // again here because USB enumeration can change between discovery and
         // connect.
-        // SAFETY: caller holds zwo_camera_mutex; ASIGetNumOfConnectedCameras
-        // takes no arguments and only reads SDK state.
+        // SAFETY: ASIGetNumOfConnectedCameras takes no arguments and only
+        // reads SDK state.
         let num_cameras = unsafe { (sdk.get_num_cameras)() };
         let mut matched_info = None;
         for index in 0..num_cameras {
             // SAFETY: ASICameraInfo is `#[repr(C)]` POD; zeroed is a valid initial
             // state before the SDK populates it.
             let mut info: ASICameraInfo = unsafe { std::mem::zeroed() };
-            // SAFETY: caller holds zwo_camera_mutex; `index` is bounded by the
-            // count returned above and `info` is a valid stack out-pointer.
+            // SAFETY: `index` is bounded by the count returned above and
+            // `info` is a valid stack out-pointer.
             let result = unsafe { (sdk.get_camera_property)(&mut info, index) };
             if result == 0 && info.camera_id == self.camera_id {
                 matched_info = Some(info);
@@ -204,20 +202,19 @@ impl ZwoCamera {
 
     /// Read this unit's hardware serial from the SDK.
     ///
-    /// Preconditions: the caller holds `zwo_camera_mutex` AND the camera has
-    /// already been opened — `ASIGetSerialNumber` answers
-    /// `ASI_ERROR_CAMERA_CLOSED` on a closed handle.
+    /// Precondition: the camera has already been opened — `ASIGetSerialNumber`
+    /// answers `ASI_ERROR_CAMERA_CLOSED` on a closed handle.
     ///
     /// `None` is a normal outcome, not a failure: on the reference rig the
     /// ASI178MM returns a serial while the ASI1600MM-Cool beside it answers
     /// `ASI_ERROR_GENERAL_ERROR` (16), because that model stores no serial.
-    pub(crate) fn read_serial_number_locked(&self) -> Option<String> {
-        let get_serial = asi_get_serial_number_fn()?;
+    pub(crate) fn read_serial_number_locked(&self, sdk: &AsiSdk) -> Option<String> {
+        let get_serial = asi_get_serial_number_fn(sdk)?;
         let mut sn = AsiSerialNumber::default();
-        // SAFETY: per this function's contract the caller holds
-        // zwo_camera_mutex and the camera is open (connect() calls this only
-        // after ASIOpenCamera and ASIInitCamera both succeeded). `sn` is a
-        // valid stack out-pointer whose layout matches ASI_SN exactly.
+        // SAFETY: per this function's contract the camera is open (connect()
+        // calls this only after ASIOpenCamera and ASIInitCamera both
+        // succeeded). `sn` is a valid stack out-pointer whose layout matches
+        // ASI_SN exactly.
         let rc = unsafe { get_serial(self.camera_id, &mut sn) };
         if rc != 0 {
             tracing::debug!(
@@ -260,29 +257,28 @@ impl ZwoCamera {
         should_skip
     }
 
-    pub(crate) fn read_temperature_celsius_sync(&self) -> Result<f64, NativeError> {
+    pub(crate) fn read_temperature_celsius_sync(&self, sdk: &AsiSdk) -> Result<f64, NativeError> {
         if self.take_temperature_skip_first_pending() {
             tracing::debug!(
                 "Discarding first ZWO temperature read after connect for {}",
                 self.camera_name()
             );
-            let _ = self.get_control(ASIControlType::ASI_TEMPERATURE)?;
+            let _ = self.get_control(sdk, ASIControlType::ASI_TEMPERATURE)?;
         }
 
-        let value = self.get_control(ASIControlType::ASI_TEMPERATURE)?;
+        let value = self.get_control(sdk, ASIControlType::ASI_TEMPERATURE)?;
         Ok(value as f64 / 10.0)
     }
 
-    /// Get a control value (mutex protected)
+    /// Get a control value, taking the SDK lock for the call.
     pub(crate) async fn get_control_async(
         &self,
         control: ASIControlType,
     ) -> Result<c_long, NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_camera_mutex().lock().await;
+        let sdk = AsiSdk::lock().await?;
         let mut value: c_long = 0;
         let mut is_auto: ASIBool = ASI_FALSE;
-        // SAFETY: zwo_camera_mutex is held above guaranteeing single-threaded SDK access; `value` and `is_auto` are stack-allocated and outlive the call; camera_id was validated when the camera was opened.
+        // SAFETY: `value` and `is_auto` are stack-allocated and outlive the call; camera_id was validated when the camera was opened.
         let result = unsafe {
             (sdk.get_control_value)(self.camera_id, control as c_int, &mut value, &mut is_auto)
         };
@@ -290,12 +286,15 @@ impl ZwoCamera {
         Ok(value)
     }
 
-    /// Get a control value (synchronous version - caller must hold mutex)
-    pub(crate) fn get_control(&self, control: ASIControlType) -> Result<c_long, NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+    /// Get a control value under a lock the caller already holds.
+    pub(crate) fn get_control(
+        &self,
+        sdk: &AsiSdk,
+        control: ASIControlType,
+    ) -> Result<c_long, NativeError> {
         let mut value: c_long = 0;
         let mut is_auto: ASIBool = ASI_FALSE;
-        // SAFETY: per function contract the caller already holds zwo_camera_mutex (called only from connect/get_status/download_image while lock is held). `value`/`is_auto` are valid stack pointers; camera_id was validated at open time.
+        // SAFETY: `value`/`is_auto` are valid stack pointers; camera_id was validated at open time.
         let result = unsafe {
             (sdk.get_control_value)(self.camera_id, control as c_int, &mut value, &mut is_auto)
         };
@@ -303,16 +302,15 @@ impl ZwoCamera {
         Ok(value)
     }
 
-    /// Set a control value (mutex protected)
+    /// Set a control value, taking the SDK lock for the call.
     pub(crate) async fn set_control_async(
         &mut self,
         control: ASIControlType,
         value: c_long,
         auto: bool,
     ) -> Result<(), NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_camera_mutex().lock().await;
-        // SAFETY: zwo_camera_mutex is held above; all arguments are pass-by-value primitives validated by ASI control range; camera_id is valid (camera was opened).
+        let sdk = AsiSdk::lock().await?;
+        // SAFETY: all arguments are pass-by-value primitives validated by ASI control range; camera_id is valid (camera was opened).
         let result = unsafe {
             (sdk.set_control_value)(
                 self.camera_id,
@@ -324,15 +322,15 @@ impl ZwoCamera {
         check_asi_error(result)
     }
 
-    /// Set a control value (synchronous version - caller must hold mutex)
+    /// Set a control value under a lock the caller already holds.
     pub(crate) fn set_control(
         &mut self,
+        sdk: &AsiSdk,
         control: ASIControlType,
         value: c_long,
         auto: bool,
     ) -> Result<(), NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        // SAFETY: caller-must-hold-mutex contract documented on the function. All args are pass-by-value primitives; camera_id is valid since this method is only called between connect()/disconnect() while the mutex is held.
+        // SAFETY: all args are pass-by-value primitives; camera_id is valid since this method is only called between connect()/disconnect().
         let result = unsafe {
             (sdk.set_control_value)(
                 self.camera_id,
@@ -347,12 +345,17 @@ impl ZwoCamera {
     /// Read a control back after writing it, falling back to `requested`
     /// when the SDK refuses to answer.
     ///
-    /// Caller must already hold `zwo_camera_mutex` (same contract as
+    /// Runs under the lock the caller already holds (same contract as
     /// [`Self::get_control`]). See [`commit_zwo_cached_setting`] for why the
     /// read-back matters: `ASISetControlValue` clamps out-of-range values
     /// and still reports success.
-    pub(crate) fn read_back_control_sync(&self, control: ASIControlType, requested: i32) -> i32 {
-        match self.get_control(control) {
+    pub(crate) fn read_back_control_sync(
+        &self,
+        sdk: &AsiSdk,
+        control: ASIControlType,
+        requested: i32,
+    ) -> i32 {
+        match self.get_control(sdk, control) {
             Ok(actual) => {
                 let actual = actual as i32;
                 if actual != requested {
@@ -382,7 +385,7 @@ impl ZwoCamera {
     }
 
     /// Async sibling of [`Self::read_back_control_sync`] for callers that do
-    /// NOT already hold `zwo_camera_mutex`.
+    /// NOT already hold the ASI SDK lock.
     pub(crate) async fn read_back_control_async(
         &self,
         control: ASIControlType,
@@ -426,12 +429,11 @@ impl ZwoCamera {
         &self,
         target_control: ASIControlType,
     ) -> Result<(i64, i64, i64), NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_camera_mutex().lock().await;
+        let sdk = AsiSdk::lock().await?;
 
         let mut num_controls: c_int = 0;
-        // SAFETY: zwo_camera_mutex held above; `num_controls` is a valid stack
-        // pointer; camera_id is valid (camera opened during connect).
+        // SAFETY: `num_controls` is a valid stack pointer; camera_id is valid
+        // (camera opened during connect).
         let result = unsafe { (sdk.get_num_controls)(self.camera_id, &mut num_controls) };
         check_asi_error(result)?;
 
@@ -439,8 +441,8 @@ impl ZwoCamera {
             // SAFETY: ASIControlCaps is `#[repr(C)]` POD; zeroed is a safe
             // initial state per the SDK contract.
             let mut caps: ASIControlCaps = unsafe { std::mem::zeroed() };
-            // SAFETY: zwo_camera_mutex held; `caps` is a valid stack pointer;
-            // `i` is bounded by num_controls; camera_id is valid.
+            // SAFETY: `caps` is a valid stack pointer; `i` is bounded by
+            // num_controls; camera_id is valid.
             let result = unsafe { (sdk.get_control_caps)(self.camera_id, i, &mut caps) };
             if result == 0 && caps.control_type as c_int == target_control as c_int {
                 // c_long is i32 on Windows and i64 on Linux; widening to i64 is
@@ -456,7 +458,7 @@ impl ZwoCamera {
         Err(NativeError::NotSupported)
     }
 
-    /// Get the min/max range for a control (mutex protected)
+    /// Get the min/max range for a control, taking the SDK lock for the call.
     pub(crate) async fn get_control_range_async(
         &self,
         target_control: ASIControlType,
@@ -465,7 +467,8 @@ impl ZwoCamera {
         Ok((min, max))
     }
 
-    /// Get the full caps tuple `(min, max, default)` for a control (mutex protected).
+    /// Get the full caps tuple `(min, max, default)` for a control, taking
+    /// the SDK lock for the call.
     ///
     /// ZWO publishes per-control `default_value` via `ASIGetControlCaps`. For the
     /// `ASI_GAIN` control this is the manufacturer's recommended starting gain,
@@ -475,12 +478,11 @@ impl ZwoCamera {
         &self,
         target_control: ASIControlType,
     ) -> Result<(i32, i32, i32), NativeError> {
-        let sdk = AsiSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_camera_mutex().lock().await;
+        let sdk = AsiSdk::lock().await?;
 
         // Get number of controls
         let mut num_controls: c_int = 0;
-        // SAFETY: zwo_camera_mutex is held (acquired above); `num_controls` is a valid stack pointer; camera_id is valid (camera opened during connect).
+        // SAFETY: `num_controls` is a valid stack pointer; camera_id is valid (camera opened during connect).
         let result = unsafe { (sdk.get_num_controls)(self.camera_id, &mut num_controls) };
         check_asi_error(result)?;
 
@@ -488,7 +490,7 @@ impl ZwoCamera {
         for i in 0..num_controls {
             // SAFETY: ASIControlCaps is `#[repr(C)]` POD; zeroed is a safe initial state per SDK contract.
             let mut caps: ASIControlCaps = unsafe { std::mem::zeroed() };
-            // SAFETY: zwo_camera_mutex held; `caps` is a valid stack pointer; `i` is bounded by num_controls returned by the SDK above; camera_id is valid.
+            // SAFETY: `caps` is a valid stack pointer; `i` is bounded by num_controls returned by the SDK above; camera_id is valid.
             let result = unsafe { (sdk.get_control_caps)(self.camera_id, i, &mut caps) };
             if result == 0 {
                 // Check if this is the control we're looking for

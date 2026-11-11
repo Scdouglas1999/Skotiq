@@ -205,36 +205,35 @@ impl NativeDevice for ZwoFocuser {
     async fn connect(&mut self) -> Result<(), NativeError> {
         tracing::info!("Connecting to ZWO EAF focuser ID {}...", self.focuser_id);
 
-        let sdk = EafSdk::get().ok_or_else(|| {
+        let sdk = EafSdk::installed().map_err(|e| {
             tracing::error!("Cannot connect to ZWO EAF: EAF SDK not loaded");
-            NativeError::SdkNotLoaded
+            e
         })?;
 
-        // Acquire mutex for EAF SDK operations
-        let _lock = zwo_eaf_mutex().lock().await;
+        // Hold the EAF SDK lock for the connect sequence
+        let sdk = sdk.lock().await;
 
         // Open focuser
-        // SAFETY: zwo_eaf_mutex held above; focuser_id comes from discover_focusers() via EAFGetID() so it's a valid SDK-issued identifier.
+        // SAFETY: focuser_id comes from discover_focusers() via EAFGetID() so it's a valid SDK-issued identifier.
         let result = unsafe { (sdk.open)(self.focuser_id) };
         check_eaf_error(result)?;
 
         // Create cleanup guard to close the focuser if subsequent operations fail
         let focuser_id = self.focuser_id;
+        let locked_sdk: &EafSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
             tracing::debug!(
                 "Cleaning up ZWO EAF focuser {} after failed connect",
                 focuser_id
             );
-            if let Some(sdk) = EafSdk::get() {
-                // SAFETY: best-effort cleanup; focuser_id was successfully opened above (guard only runs if we got past open). Mutex is still held from the connect() scope when this drops.
-                let _ = unsafe { (sdk.close)(focuser_id) };
-            }
+            // SAFETY: best-effort cleanup; focuser_id was successfully opened above (guard only runs if we got past open). The cleanup borrows the lock guard, so it runs while connect() still holds the lock.
+            let _ = unsafe { (locked_sdk.close)(focuser_id) };
         });
 
         // Get properties
         // SAFETY: EAFInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut info: EAFInfo = unsafe { std::mem::zeroed() };
-        // SAFETY: zwo_eaf_mutex held by connect(); `info` is a valid stack pointer; focuser_id was successfully opened above.
+        // SAFETY: `info` is a valid stack pointer; focuser_id was successfully opened above.
         let result = unsafe { (sdk.get_property)(self.focuser_id, &mut info) };
         check_eaf_error(result)?;
 
@@ -254,13 +253,13 @@ impl NativeDevice for ZwoFocuser {
             );
         }
 
-        // Read serial number under the still-held SDK mutex so we can populate
+        // Read serial number under the still-held SDK lock so we can populate
         // the connected-device registry below. This is the same call discovery
         // makes; doing it at connect time means discovery never needs to open
         // an already-connected device just to re-read its serial number.
         // SAFETY: EAFSerialNumber is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut sn: EAFSerialNumber = unsafe { std::mem::zeroed() };
-        // SAFETY: zwo_eaf_mutex held by connect(); `sn` is a valid stack pointer; focuser_id is open.
+        // SAFETY: `sn` is a valid stack pointer; focuser_id is open.
         let serial_number = if unsafe { (sdk.get_serial_number)(self.focuser_id, &mut sn) } == 0 {
             let sn_bytes: [u8; 8] = sn.id;
             let sn_str = sn_bytes
@@ -285,14 +284,12 @@ impl NativeDevice for ZwoFocuser {
         // Populate the connected-EAF registry so that hot-plug discovery polls
         // can report this device from cache instead of calling EAFOpen/EAFClose
         // on the live handle.
-        // Lock ordering: registry lock acquired here with NO SDK mutex held —
-        // the SDK mutex guard (_lock) is still live but the registry lock is
-        // always shorter-lived than it; inside discover_focusers the registry
-        // lock is acquired while the SDK mutex IS held (see lock-ordering note
-        // at the top of CONNECTED-DEVICE REGISTRIES). That direction is safe
-        // because discover_focusers never calls back into the registry while
-        // holding it, and connect/disconnect never hold the registry lock across
-        // an SDK call. So the two acquisition orders don't create a cycle.
+        // Lock ordering: the EAF SDK guard (`sdk`) is still live here and the
+        // registry lock is taken inside it, the same direction as in
+        // discover_focusers (see the lock-ordering note above the registries
+        // in mod.rs). Nothing takes the registry lock and then waits for the
+        // SDK lock, and no SDK call is made while the registry lock is held,
+        // so there is no cycle.
         {
             let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
             reg.insert(
@@ -301,7 +298,7 @@ impl NativeDevice for ZwoFocuser {
                     focuser_id: self.focuser_id,
                     name: self.name.clone(),
                     serial_number,
-                    sdk_version: eaf_sdk_version_from_sdk(sdk),
+                    sdk_version: eaf_sdk_version_from_sdk(&sdk),
                 },
             );
         }
@@ -325,9 +322,8 @@ impl NativeDevice for ZwoFocuser {
             self.focuser_id
         );
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
-        // SAFETY: zwo_eaf_mutex held above; focuser_id is valid because self.connected is true (only set after successful connect()).
+        let sdk = EafSdk::lock().await?;
+        // SAFETY: focuser_id is valid because self.connected is true (only set after successful connect()).
         let result = unsafe { (sdk.close)(self.focuser_id) };
         check_eaf_error(result)?;
 
@@ -335,7 +331,7 @@ impl NativeDevice for ZwoFocuser {
 
         // Remove from the connected-EAF registry so that subsequent discovery
         // polls perform a full open/query/close (device may have been physically
-        // replugged). Lock ordering: registry lock acquired with SDK mutex held;
+        // replugged). Lock ordering: registry lock acquired with the SDK guard held;
         // this is the same ordering as inside discover_focusers, so no cycle.
         {
             let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
@@ -354,13 +350,12 @@ impl NativeFocuser for ZwoFocuser {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
 
         let target = validate_zwo_eaf_target(position, self.max_position)?;
 
         tracing::debug!("Moving ZWO EAF to position {}", target);
-        // SAFETY: zwo_eaf_mutex held above; `target` was validated to be in
+        // SAFETY: `target` was validated to be in
         // [0, max_position]; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.move_to)(self.focuser_id, target) };
         check_eaf_error(result)
@@ -386,10 +381,9 @@ impl NativeFocuser for ZwoFocuser {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         let mut position: c_int = 0;
-        // SAFETY: zwo_eaf_mutex held above; `position` is a valid stack pointer; focuser_id is valid (connected=true checked).
+        // SAFETY: `position` is a valid stack pointer; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.get_position)(self.focuser_id, &mut position) };
         check_eaf_error(result)?;
         Ok(position)
@@ -400,11 +394,10 @@ impl NativeFocuser for ZwoFocuser {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         let mut is_moving = false;
         let mut hand_control = false;
-        // SAFETY: zwo_eaf_mutex held above; both out-bool pointers point to valid stack bools (SDK writes 0 or 1); focuser_id is valid (connected=true checked).
+        // SAFETY: both out-bool pointers point to valid stack bools (SDK writes 0 or 1); focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.is_moving)(self.focuser_id, &mut is_moving, &mut hand_control) };
         check_eaf_error(result)?;
         Ok(is_moving)
@@ -415,10 +408,9 @@ impl NativeFocuser for ZwoFocuser {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         tracing::debug!("Stopping ZWO EAF movement");
-        // SAFETY: zwo_eaf_mutex held above; focuser_id is valid (connected=true checked).
+        // SAFETY: focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.stop)(self.focuser_id) };
         check_eaf_error(result)
     }
@@ -428,10 +420,9 @@ impl NativeFocuser for ZwoFocuser {
             return Err(NativeError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         let mut temp: f32 = 0.0;
-        // SAFETY: zwo_eaf_mutex held above; `temp` is a valid stack pointer; focuser_id is valid (connected=true checked).
+        // SAFETY: `temp` is a valid stack pointer; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.get_temp)(self.focuser_id, &mut temp) };
 
         // Temperature of -273 means invalid/unavailable
@@ -477,19 +468,22 @@ pub struct ZwoFocuserDiscoveryInfo {
 
 /// Check if EAF SDK is available
 pub fn is_eaf_sdk_available() -> bool {
-    EafSdk::get().is_some()
+    EafSdk::is_available()
 }
 
 /// Get EAF SDK status
 pub fn get_eaf_sdk_status() -> (bool, String) {
-    match EafSdk::get() {
-        Some(_) => (
+    match EafSdk::installed() {
+        Ok(sdk) => (
             true,
-            eaf_sdk_version()
+            // Unlocked on purpose: EAFGetSDKVersion takes no arguments, returns a
+            // pointer to a string compiled into the library and touches no device,
+            // and this synchronous status helper cannot wait for the lock.
+            eaf_sdk_version_from_sdk(sdk.unlocked())
                 .map(|version| format!("{version} loaded successfully"))
                 .unwrap_or_else(|| "ZWO EAF SDK loaded successfully".to_string()),
         ),
-        None => (
+        Err(_) => (
             false,
             "ZWO EAF SDK (EAF_focuser.dll) not found.".to_string(),
         ),
@@ -516,26 +510,22 @@ pub(crate) fn eaf_sdk_version_from_sdk(sdk: &EafSdk) -> Option<String> {
         .map(|version| format!("ZWO EAF SDK v{version}"))
 }
 
-pub fn eaf_sdk_version() -> Option<String> {
-    EafSdk::get().and_then(eaf_sdk_version_from_sdk)
-}
-
 /// Discover ZWO EAF focusers
 pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeError> {
-    let sdk = match EafSdk::get() {
-        Some(sdk) => sdk,
-        None => {
+    let sdk = match EafSdk::installed() {
+        Ok(sdk) => sdk,
+        Err(_) => {
             tracing::debug!("ZWO EAF discovery skipped: EAF SDK not loaded");
             return Ok(Vec::new());
         }
     };
 
-    // Acquire mutex for EAF SDK discovery operations
-    let _lock = zwo_eaf_mutex().lock().await;
+    // Hold the EAF SDK lock for the whole scan
+    let sdk = sdk.lock().await;
 
     tracing::debug!("Discovering ZWO EAF focusers via native SDK...");
-    let sdk_version = eaf_sdk_version_from_sdk(sdk);
-    // SAFETY: zwo_eaf_mutex held above; EAFGetNum takes no arguments and only reads internal SDK state.
+    let sdk_version = eaf_sdk_version_from_sdk(&sdk);
+    // SAFETY: EAFGetNum takes no arguments and only reads internal SDK state.
     let num_focusers = unsafe { (sdk.get_num)() };
     tracing::info!(
         "EAF SDK reports {} connected focuser{}",
@@ -547,14 +537,14 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
 
     for i in 0..num_focusers {
         let mut id: c_int = 0;
-        // SAFETY: zwo_eaf_mutex held above; `i` is bounded by num_focusers; `id` is a valid stack pointer.
+        // SAFETY: `i` is bounded by num_focusers; `id` is a valid stack pointer.
         let result = unsafe { (sdk.get_id)(i, &mut id) };
 
         if result != 0 {
             continue;
         }
 
-        // Lock-ordering note: the SDK mutex (zwo_eaf_mutex) is held for the
+        // Lock-ordering note: the EAF SDK guard is held for the
         // duration of discover_focusers. The registry lock is acquired briefly
         // here to read a cached entry, then immediately released before any SDK
         // call. The connect/disconnect paths acquire the registry lock while the
@@ -593,12 +583,12 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
         }
 
         // Not a connected device — perform the normal open/query/close discovery.
-        // SAFETY: zwo_eaf_mutex held above; `id` was just populated by EAFGetID, a valid SDK identifier.
+        // SAFETY: `id` was just populated by EAFGetID, a valid SDK identifier.
         let result = unsafe { (sdk.open)(id) };
         if result == 0 {
             // SAFETY: EAFInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
             let mut info: EAFInfo = unsafe { std::mem::zeroed() };
-            // SAFETY: mutex held; `info` is a valid stack pointer; `id` was just successfully opened.
+            // SAFETY: `info` is a valid stack pointer; `id` was just successfully opened.
             let property_result = unsafe { (sdk.get_property)(id, &mut info) };
             if property_result != 0 {
                 // `info` would still be zeroed, and discovery publishes `name` verbatim
@@ -611,7 +601,7 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
                     id,
                     property_result
                 );
-                // SAFETY: mutex held; `id` was successfully opened above. EAFClose pairs with EAFOpen.
+                // SAFETY: `id` was successfully opened above. EAFClose pairs with EAFOpen.
                 let _ = unsafe { (sdk.close)(id) };
                 continue;
             }
@@ -625,7 +615,7 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
             // Try to get serial number (must be done before close)
             // SAFETY: EAFSerialNumber is `#[repr(C)]` POD (just `id: [u8; 8]`); zeroed is valid.
             let mut sn: EAFSerialNumber = unsafe { std::mem::zeroed() };
-            // SAFETY: mutex held; `sn` is a valid stack pointer; `id` is open.
+            // SAFETY: `sn` is a valid stack pointer; `id` is open.
             let serial_number = if unsafe { (sdk.get_serial_number)(id, &mut sn) } == 0 {
                 let sn_bytes: [u8; 8] = sn.id;
                 let sn_str = sn_bytes
@@ -642,7 +632,7 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
                 None
             };
 
-            // SAFETY: mutex held; `id` was successfully opened above. EAFClose pairs with EAFOpen.
+            // SAFETY: `id` was successfully opened above. EAFClose pairs with EAFOpen.
             let _ = unsafe { (sdk.close)(id) };
 
             tracing::info!(

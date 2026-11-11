@@ -134,10 +134,9 @@ load_vendor_sdk! {
 /// would turn "your ASI SDK is a few years old" into "Skotiq cannot see any
 /// ZWO camera at all". An absent symbol yields `None`, and callers fall back to
 /// the model/geometry fingerprint.
-pub(crate) fn asi_get_serial_number_fn() -> Option<AsiGetSerialNumberFn> {
+pub(crate) fn asi_get_serial_number_fn(sdk: &AsiSdk) -> Option<AsiGetSerialNumberFn> {
     static RESOLVED: OnceLock<Option<AsiGetSerialNumberFn>> = OnceLock::new();
     *RESOLVED.get_or_init(|| {
-        let sdk = AsiSdk::get()?;
         // SAFETY: the signature is hand-derived from ASICamera2.h
         // (`ASICAMERA_API ASI_ERROR_CODE ASIGetSerialNumber(int iCameraID, ASI_SN* pSN)`),
         // matching the policy the `load_vendor_sdk!` call site already applies

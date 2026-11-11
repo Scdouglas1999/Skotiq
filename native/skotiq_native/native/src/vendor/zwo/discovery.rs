@@ -1,6 +1,7 @@
 //! ZWO camera discovery and SDK status.
 
 use super::*;
+use crate::vendor::sdk_loader::{SdkLockGuard, SdkSlot};
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
@@ -20,19 +21,22 @@ pub struct ZwoDiscoveryInfo {
 
 /// Check if ZWO SDK is available
 pub fn is_sdk_available() -> bool {
-    AsiSdk::get().is_some()
+    AsiSdk::is_available()
 }
 
 /// Check if ZWO SDK is loaded and return status message
 pub fn get_sdk_status() -> (bool, String) {
-    match AsiSdk::get() {
-        Some(sdk) => (
+    match AsiSdk::installed() {
+        Ok(sdk) => (
             true,
-            asi_sdk_version_from_sdk(sdk)
+            // Unlocked on purpose: ASIGetSDKVersion takes no arguments, returns a
+            // pointer to a string compiled into the library and touches no camera,
+            // and this synchronous status helper cannot wait for the lock.
+            asi_sdk_version_from_sdk(sdk.unlocked())
                 .map(|version| format!("{version} loaded successfully"))
                 .unwrap_or_else(|| "ZWO ASI SDK loaded successfully".to_string()),
         ),
-        None => (false, "ZWO ASI SDK (ASICamera2.dll) not found. Install the ASI SDK or use ASCOM drivers instead.".to_string()),
+        Err(_) => (false, "ZWO ASI SDK (ASICamera2.dll) not found. Install the ASI SDK or use ASCOM drivers instead.".to_string()),
     }
 }
 
@@ -116,11 +120,11 @@ fn shared_error(error: &NativeError) -> NativeError {
 /// until the SDK call actually returns: releasing the lock early would allow
 /// concurrent calls into the non-thread-safe ASI SDK, and freeing the slot
 /// would let refreshes pile scans up behind a hung driver.
-async fn run_discovery<T: Clone + Send + Sync + 'static>(
-    mutex: &'static tokio::sync::Mutex<()>,
+async fn run_discovery<S: Send + Sync + 'static, T: Clone + Send + Sync + 'static>(
+    sdk: &'static SdkSlot<S>,
     in_flight: &'static InFlight<T>,
     deadline: Duration,
-    scan: impl FnOnce() -> Result<T, NativeError> + Send + 'static,
+    scan: impl FnOnce(SdkLockGuard<S>) -> Result<T, NativeError> + Send + 'static,
 ) -> Result<T, NativeError> {
     let mut outcome = {
         let mut slot = in_flight.0.lock().unwrap_or_else(PoisonError::into_inner);
@@ -130,7 +134,7 @@ async fn run_discovery<T: Clone + Send + Sync + 'static>(
                 let (tx, rx) = watch::channel(None);
                 *slot = Some(rx.clone());
                 let publisher = Publisher { tx, in_flight };
-                tokio::spawn(scan_and_publish(mutex, deadline, scan, publisher));
+                tokio::spawn(scan_and_publish(sdk, deadline, scan, publisher));
                 rx
             }
         }
@@ -145,23 +149,22 @@ async fn run_discovery<T: Clone + Send + Sync + 'static>(
     }
 }
 
-async fn scan_and_publish<T: Send + Sync + 'static>(
-    mutex: &'static tokio::sync::Mutex<()>,
+async fn scan_and_publish<S: Send + Sync + 'static, T: Send + Sync + 'static>(
+    sdk: &'static SdkSlot<S>,
     deadline: Duration,
-    scan: impl FnOnce() -> Result<T, NativeError> + Send + 'static,
+    scan: impl FnOnce(SdkLockGuard<S>) -> Result<T, NativeError> + Send + 'static,
     publisher: Publisher<T>,
 ) {
     let started = Instant::now();
-    let Ok(lock) = tokio::time::timeout(deadline, mutex.lock()).await else {
+    let Ok(lock) = tokio::time::timeout(deadline, sdk.lock_before_load()).await else {
         // Another camera operation owns the SDK for the whole window: give up
         // without queueing a scan behind it.
         publisher.finish(Err(timed_out(deadline)));
         return;
     };
-    let mut worker = tokio::task::spawn_blocking(move || {
-        let _lock = lock;
-        scan()
-    });
+    // The scan owns the lock for as long as it runs, including the first
+    // load of the library, which happens on the blocking thread.
+    let mut worker = tokio::task::spawn_blocking(move || scan(lock));
     let remaining = deadline.saturating_sub(started.elapsed());
     match tokio::time::timeout(remaining, &mut worker).await {
         Ok(joined) => publisher.finish(joined.unwrap_or_else(|error| {
@@ -181,7 +184,7 @@ async fn scan_and_publish<T: Send + Sync + 'static>(
 /// Discover ZWO cameras without blocking discovery of other equipment.
 pub async fn discover_devices() -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
     run_discovery(
-        zwo_camera_mutex(),
+        AsiSdk::slot(),
         &DISCOVERY_IN_FLIGHT,
         DISCOVERY_TIMEOUT,
         discover_devices_locked,
@@ -189,20 +192,22 @@ pub async fn discover_devices() -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
     .await
 }
 
-fn discover_devices_locked() -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
-    let sdk = match AsiSdk::get() {
-        Some(sdk) => sdk,
-        None => {
+fn discover_devices_locked(
+    lock: SdkLockGuard<AsiSdk>,
+) -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
+    let sdk = match lock.load() {
+        Ok(sdk) => sdk,
+        Err(_) => {
             // Log prominently so users know why discovery returned nothing
             tracing::debug!("ZWO native camera discovery skipped: ASI SDK not loaded");
             return Ok(Vec::new());
         }
     };
 
-    let sdk_version = asi_sdk_version_from_sdk(sdk);
+    let sdk_version = asi_sdk_version_from_sdk(&sdk);
 
     tracing::debug!("Discovering ZWO cameras via native ASI SDK...");
-    // SAFETY: caller holds zwo_camera_mutex; ASIGetNumOfConnectedCameras takes no arguments and only reads internal SDK state.
+    // SAFETY: ASIGetNumOfConnectedCameras takes no arguments and only reads internal SDK state.
     let num_cameras = unsafe { (sdk.get_num_cameras)() };
     tracing::debug!(
         "ASI SDK reports {} connected camera{}",
@@ -217,7 +222,7 @@ fn discover_devices_locked() -> Result<Vec<ZwoDiscoveryInfo>, NativeError> {
         // SAFETY: ASICameraInfo is `#[repr(C)]` POD; zeroed is a valid initial state before SDK populates it.
         let mut info: ASICameraInfo = unsafe { std::mem::zeroed() };
         // ASIGetCameraProperty(ASI_CAMERA_INFO *pASICameraInfo, int iCameraIndex)
-        // SAFETY: caller holds zwo_camera_mutex; `i` is bounded by num_cameras returned by the SDK; `info` is a valid stack pointer.
+        // SAFETY: `i` is bounded by num_cameras returned by the SDK; `info` is a valid stack pointer.
         let result = unsafe { (sdk.get_camera_property)(&mut info, i) };
 
         if result == 0 {
@@ -304,6 +309,13 @@ mod tests {
     use super::*;
     use std::sync::atomic::AtomicUsize;
 
+    /// Stands in for an SDK table; the tests only exercise its lock.
+    struct NoSdk;
+
+    fn load_no_sdk() -> Result<NoSdk, crate::vendor::sdk_loader::SdkUnavailable> {
+        Ok(NoSdk)
+    }
+
     fn slot_is_free<T>(in_flight: &InFlight<T>) -> bool {
         in_flight
             .0
@@ -314,10 +326,10 @@ mod tests {
 
     #[tokio::test]
     async fn discovery_times_out_behind_a_camera_operation_without_queueing_a_scan() {
-        static MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+        static SDK: SdkSlot<NoSdk> = SdkSlot::new(load_no_sdk);
         static IN_FLIGHT: InFlight<i32> = InFlight::new();
-        let camera_operation = MUTEX.lock().await;
-        let result = run_discovery(&MUTEX, &IN_FLIGHT, Duration::from_millis(20), || {
+        let camera_operation = SDK.lock().await.unwrap();
+        let result = run_discovery(&SDK, &IN_FLIGHT, Duration::from_millis(20), |_| {
             panic!("must not probe while another camera operation owns the SDK");
         })
         .await;
@@ -325,7 +337,7 @@ mod tests {
         assert!(slot_is_free(&IN_FLIGHT));
         drop(camera_operation);
         assert_eq!(
-            run_discovery(&MUTEX, &IN_FLIGHT, Duration::from_secs(1), || Ok(7))
+            run_discovery(&SDK, &IN_FLIGHT, Duration::from_secs(1), |_| Ok(7))
                 .await
                 .unwrap(),
             7
@@ -334,16 +346,16 @@ mod tests {
 
     #[tokio::test]
     async fn callers_that_overlap_share_one_scan() {
-        static MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+        static SDK: SdkSlot<NoSdk> = SdkSlot::new(load_no_sdk);
         static IN_FLIGHT: InFlight<usize> = InFlight::new();
         static SCANS: AtomicUsize = AtomicUsize::new(0);
         let (started_tx, started_rx) = tokio::sync::oneshot::channel();
         let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
         let first = tokio::spawn(run_discovery(
-            &MUTEX,
+            &SDK,
             &IN_FLIGHT,
             Duration::from_secs(5),
-            move || {
+            move |_| {
                 started_tx.send(()).unwrap();
                 release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
                 Ok(SCANS.fetch_add(1, Ordering::SeqCst) + 1)
@@ -351,10 +363,10 @@ mod tests {
         ));
         started_rx.await.unwrap();
         let second = tokio::spawn(run_discovery(
-            &MUTEX,
+            &SDK,
             &IN_FLIGHT,
             Duration::from_secs(5),
-            || -> Result<usize, NativeError> {
+            |_| -> Result<usize, NativeError> {
                 panic!("an overlapping caller must join the running scan");
             },
         ));
@@ -369,15 +381,15 @@ mod tests {
 
     #[tokio::test]
     async fn stalled_sdk_scan_releases_the_caller_but_keeps_its_lock_and_blocks_duplicates() {
-        static MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+        static SDK: SdkSlot<NoSdk> = SdkSlot::new(load_no_sdk);
         static IN_FLIGHT: InFlight<i32> = InFlight::new();
         let (started_tx, started_rx) = tokio::sync::oneshot::channel();
         let (release_tx, release_rx) = std::sync::mpsc::channel();
         let scan = tokio::spawn(run_discovery(
-            &MUTEX,
+            &SDK,
             &IN_FLIGHT,
             Duration::from_millis(500),
-            move || {
+            move |_| {
                 started_tx.send(()).unwrap();
                 release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
                 Ok(1)
@@ -385,8 +397,8 @@ mod tests {
         ));
         started_rx.await.unwrap();
         let result = scan.await.unwrap();
-        let lock_still_held = MUTEX.try_lock().is_err();
-        let duplicate = run_discovery(&MUTEX, &IN_FLIGHT, Duration::from_secs(1), || {
+        let lock_still_held = SDK.installed().unwrap().try_lock().is_none();
+        let duplicate = run_discovery(&SDK, &IN_FLIGHT, Duration::from_secs(1), |_| {
             panic!("refresh must not start another scan while the first is stalled");
         })
         .await;
@@ -404,7 +416,7 @@ mod tests {
         assert!(lock_still_held);
         assert!(matches!(duplicate, Err(NativeError::Timeout(_))));
         assert_eq!(
-            run_discovery(&MUTEX, &IN_FLIGHT, Duration::from_secs(1), || Ok(9))
+            run_discovery(&SDK, &IN_FLIGHT, Duration::from_secs(1), |_| Ok(9))
                 .await
                 .unwrap(),
             9

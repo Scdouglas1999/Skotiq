@@ -5,11 +5,13 @@
 //!
 //! ## Thread Safety
 //!
-//! The ASI SDK is NOT thread-safe. All SDK operations are protected by per-SDK
-//! mutexes from `crate::sync`:
-//! - `zwo_camera_mutex()` - ASI Camera SDK (ASICamera2.dll)
-//! - `zwo_eaf_mutex()` - EAF Focuser SDK (EAF_focuser.dll)
-//! - `zwo_efw_mutex()` - EFW Filter Wheel SDK (EFW_filter.dll)
+//! The ZWO SDKs are NOT thread-safe. Each of the three libraries has its own
+//! lock, owned by its SDK slot, and a function table is only reachable through
+//! the guard that holds that lock (`AsiSdk::lock()`, `EafSdk::lock()`,
+//! `EfwSdk::lock()`):
+//! - `AsiSdk` - ASI Camera SDK (ASICamera2.dll)
+//! - `EafSdk` - EAF Focuser SDK (EAF_focuser.dll)
+//! - `EfwSdk` - EFW Filter Wheel SDK (EFW_filter.dll)
 
 // c_long is i32 on Windows and i64 on Linux (LP64), so the `as i32` casts on
 // SDK control values are identity on one platform and a real (documented,
@@ -20,7 +22,6 @@
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
 use crate::camera::*;
-use crate::sync::{zwo_camera_mutex, zwo_eaf_mutex, zwo_efw_mutex};
 use crate::traits::*;
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use crate::NativeVendor;
@@ -58,13 +59,14 @@ use sdk::*;
 // which surfaces as spurious "Heartbeat failure" warnings in the UI.
 //
 // Lock ordering rule (must be respected everywhere to prevent deadlock):
-//   Registry lock  MUST NOT be held while acquiring the SDK mutex.
+//   The registry lock MUST NOT be held while waiting for an SDK guard
+//   (`EafSdk::lock()` / `EfwSdk::lock()`).
 //   Acquire registry lock → read/copy entry → RELEASE registry lock → then
-//   acquire SDK mutex if needed. Discovery acquires the SDK mutex first (before
-//   reading the registry), so inside the discovery loop the SDK mutex is
-//   already held; acquiring the registry lock there (briefly, no SDK call
-//   while holding it) is safe because the registry lock is never taken in the
-//   other direction (registry → then SDK mutex).
+//   take the SDK guard if needed. Discovery takes the SDK guard first (before
+//   reading the registry), so inside the discovery loop the guard is already
+//   held; acquiring the registry lock there (briefly, no SDK call while
+//   holding it) is safe because the registry lock is never taken in the
+//   other direction (registry → then SDK guard).
 //
 // Both registries use std::sync::Mutex (not tokio::sync::Mutex) because all
 // accesses are brief, synchronous, non-blocking, and must not span await points.
