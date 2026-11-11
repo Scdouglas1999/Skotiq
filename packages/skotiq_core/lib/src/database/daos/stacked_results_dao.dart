@@ -7,27 +7,17 @@ import '../../services/live_stacking_service.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
-/// Data-access object for the v38 `stacked_results` table — the persisted
-/// provenance record for every stacked master the **Stack-and-Share Loop**
-/// produces.
-///
-/// The table is declared in `database/schema/post_session.drift`; this DAO queries
-/// with SQL through the database's `customSelect` / `customStatement` APIs.
+part 'stacked_results_dao.g.dart';
+
+/// Reads and writes for `stacked_results`: the persisted provenance record for
+/// every stacked master the Stack-and-Share Loop produces.
 ///
 /// SQLite errors propagate to the caller; reads map nullable columns to the
 /// [StackAndShareResult] model's defaults.
-class StackedResultsDao {
-  StackedResultsDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  /// Columns selected by every read, in a stable order. Kept in one place so
-  /// the row-mapping in [_mapRow] stays in lock-step with the projection.
-  static const String _columns =
-      'id, session_id, target_id, target_name, width, height, '
-      'frames_stacked, frames_attempted, integration_secs, '
-      'avg_alignment_residual, avg_hfr, filter, is_color, channels, '
-      'exported_image_path, created_at';
+@DriftAccessor(include: {'../schema/post_session.drift'})
+class StackedResultsDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$StackedResultsDaoMixin {
+  StackedResultsDao(super.db);
 
   /// Persists a completed [StackAndShareResult] and returns its new row id.
   ///
@@ -36,30 +26,24 @@ class StackedResultsDao {
   /// records the share-ready provenance summary, not the full in-memory run
   /// state. The returned id is the SQLite `last_insert_rowid()`.
   Future<int> insertResult(StackAndShareResult result) {
-    return _db.customInsert(
-      'INSERT INTO stacked_results('
-      'session_id, target_id, target_name, width, height, '
-      'frames_stacked, frames_attempted, integration_secs, '
-      'avg_alignment_residual, avg_hfr, filter, is_color, channels, '
-      'exported_image_path, created_at'
-      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      variables: [
-        Variable<int>(result.sessionId),
-        Variable<int>(result.targetId),
-        Variable<String>(result.targetName),
-        Variable<int>(result.width),
-        Variable<int>(result.height),
-        Variable<int>(result.framesStacked),
-        Variable<int>(result.framesAttempted),
-        Variable<double>(result.integrationSecs),
-        Variable<double>(result.avgAlignmentResidual),
-        Variable<double>(result.avgHfr),
-        Variable<String>(result.filter),
-        Variable<int>(result.isColor ? 1 : 0),
-        Variable<int>(result.channels),
-        Variable<String>(result.exportedImagePath),
-        Variable<int>(toEpochSeconds(result.createdAt)),
-      ],
+    return into(stackedResults).insert(
+      StackedResultsCompanion.insert(
+        sessionId: Value(result.sessionId),
+        targetId: Value(result.targetId),
+        targetName: Value(result.targetName),
+        width: result.width,
+        height: result.height,
+        framesStacked: result.framesStacked,
+        framesAttempted: result.framesAttempted,
+        integrationSecs: result.integrationSecs,
+        avgAlignmentResidual: Value(result.avgAlignmentResidual),
+        avgHfr: Value(result.avgHfr),
+        filter: Value(result.filter),
+        isColor: Value(result.isColor ? 1 : 0),
+        channels: Value(result.channels),
+        exportedImagePath: Value(result.exportedImagePath),
+        createdAt: toEpochSeconds(result.createdAt),
+      ),
     );
   }
 
@@ -70,25 +54,19 @@ class StackedResultsDao {
   /// by its database id. Returns null (rather than throwing) for a missing row
   /// so the provider layer can decide how to surface a stale id.
   Future<StackAndShareResult?> getResultById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM stacked_results WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _mapRow(rows.first);
+    final row = await (select(
+      stackedResults,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _mapRow(row);
   }
 
   /// Returns every stacked result for the given imaging session, newest first.
   Future<List<StackAndShareResult>> getResultsForSession(int sessionId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM stacked_results '
-          'WHERE session_id = ? ORDER BY created_at DESC, id DESC',
-          variables: [Variable<int>(sessionId)],
-        )
-        .get();
+    final rows =
+        await (select(stackedResults)
+              ..where((r) => r.sessionId.equals(sessionId))
+              ..orderBy(_newestFirst))
+            .get();
     return rows.map(_mapRow).toList();
   }
 
@@ -101,13 +79,11 @@ class StackedResultsDao {
     if (limit <= 0) {
       throw ArgumentError.value(limit, 'limit', 'must be a positive integer');
     }
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM stacked_results '
-          'ORDER BY created_at DESC, id DESC LIMIT ?',
-          variables: [Variable<int>(limit)],
-        )
-        .get();
+    final rows =
+        await (select(stackedResults)
+              ..orderBy(_newestFirst)
+              ..limit(limit))
+            .get();
     return rows.map(_mapRow).toList();
   }
 
@@ -116,56 +92,51 @@ class StackedResultsDao {
   /// Returns the number of rows updated (0 if no row matches [id]) so callers
   /// can detect a stale id rather than silently assuming success.
   Future<int> updateExportedPath(int id, String path) {
-    return _db.customUpdate(
-      'UPDATE stacked_results SET exported_image_path = ? WHERE id = ?',
-      variables: [Variable<String>(path), Variable<int>(id)],
-      updateKind: UpdateKind.update,
+    return (update(stackedResults)..where((r) => r.id.equals(id))).write(
+      StackedResultsCompanion(exportedImagePath: Value(path)),
     );
   }
 
   /// Deletes the stacked result with the given [id].
   ///
   /// Returns the number of rows deleted (0 if no row matched).
-  Future<int> deleteResult(int id) {
-    return _db.customUpdate(
-      'DELETE FROM stacked_results WHERE id = ?',
-      variables: [Variable<int>(id)],
-      updateKind: UpdateKind.delete,
-    );
-  }
+  Future<int> deleteResult(int id) =>
+      (delete(stackedResults)..where((r) => r.id.equals(id))).go();
 
-  /// Maps a raw `stacked_results` row to a [StackAndShareResult].
+  static final List<OrderingTerm Function(StackedResults)> _newestFirst = [
+    (r) => OrderingTerm.desc(r.createdAt),
+    (r) => OrderingTerm.desc(r.id),
+  ];
+
+  /// Maps a `stacked_results` row to a [StackAndShareResult].
   ///
   /// The table persists only the aggregate columns that overlap with
   /// [LiveStackingStats] (`frames_stacked`, `frames_attempted`,
   /// `avg_alignment_residual`); the reconstructed [LiveStackingStats] carries
   /// those and leaves the non-persisted fields at their defaults — an honest
   /// representation of what the table actually stores.
-  StackAndShareResult _mapRow(QueryRow row) {
-    final framesStacked = row.read<int>('frames_stacked');
-    final framesAttempted = row.read<int>('frames_attempted');
-    final avgAlignmentResidual =
-        row.readNullable<double>('avg_alignment_residual') ?? 0.0;
+  StackAndShareResult _mapRow(StackedResultRow row) {
+    final avgAlignmentResidual = row.avgAlignmentResidual ?? 0.0;
     return StackAndShareResult(
-      id: row.read<int>('id'),
-      sessionId: row.readNullable<int>('session_id'),
-      targetId: row.readNullable<int>('target_id'),
-      targetName: row.readNullable<String>('target_name'),
-      width: row.read<int>('width'),
-      height: row.read<int>('height'),
-      framesStacked: framesStacked,
-      framesAttempted: framesAttempted,
-      integrationSecs: row.read<double>('integration_secs'),
+      id: row.id,
+      sessionId: row.sessionId,
+      targetId: row.targetId,
+      targetName: row.targetName,
+      width: row.width,
+      height: row.height,
+      framesStacked: row.framesStacked,
+      framesAttempted: row.framesAttempted,
+      integrationSecs: row.integrationSecs,
       avgAlignmentResidual: avgAlignmentResidual,
-      avgHfr: row.readNullable<double>('avg_hfr'),
-      filter: row.readNullable<String>('filter'),
-      isColor: row.read<int>('is_color') != 0,
-      channels: row.read<int>('channels'),
-      createdAt: fromEpochSeconds(row.read<int>('created_at')),
-      exportedImagePath: row.readNullable<String>('exported_image_path'),
+      avgHfr: row.avgHfr,
+      filter: row.filter,
+      isColor: row.isColor != 0,
+      channels: row.channels,
+      createdAt: fromEpochSeconds(row.createdAt),
+      exportedImagePath: row.exportedImagePath,
       stats: LiveStackingStats(
-        stackedFrameCount: framesStacked,
-        totalFramesAttempted: framesAttempted,
+        stackedFrameCount: row.framesStacked,
+        totalFramesAttempted: row.framesAttempted,
         avgAlignmentResidual: avgAlignmentResidual,
       ),
     );
