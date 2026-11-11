@@ -57,9 +57,6 @@ image = "0.24"
 # Base64 encoding (unified across bridge/indi/sequencer to dedupe semver)
 base64 = "0.22"
 
-# FFI
-flutter_rust_bridge = "2.0"
-
 # Windows COM (used by ASCOM crate on Windows)
 windows = { version = "0.52", features = [
     "Win32_Foundation",

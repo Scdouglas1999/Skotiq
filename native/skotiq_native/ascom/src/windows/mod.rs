@@ -25,15 +25,7 @@ pub mod variant;
 pub use camera::{
     AscomCamera, CameraExposureSettings, CameraFullStatus, CameraSensorConfig, CameraThermalStatus,
 };
-pub use connection::{
-    discover_devices, init_com, uninit_com, AscomConnectionBackend, AscomDeviceConnection,
-};
-// Why: mockall generates `MockAscomConnectionBackend` only when the `mock`
-// feature is on (or in unit-test builds). Re-export it under the same gate so
-// integration tests in the `tests/` crate can name it after enabling the
-// feature via dev-dependencies.
-#[cfg(any(test, feature = "mock"))]
-pub use connection::MockAscomConnectionBackend;
+pub use connection::{discover_devices, init_com, uninit_com, AscomDeviceConnection};
 pub use cover_calibrator::{AscomCoverCalibrator, CoverCalibratorFullStatus};
 pub use dome::{AscomDome, DomeFullStatus};
 pub use error::{AscomError, AscomResult};
