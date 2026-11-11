@@ -97,12 +97,10 @@ double _apparentToTrueAltitude(double apparentAltDeg) {
   required double latitudeDeg,
   required double lstHours,
 }) {
-  // Hour angle in degrees
   final ha = (lstHours * 15 - raDeg) * _deg2rad;
   final dec = decDeg * _deg2rad;
   final lat = latitudeDeg * _deg2rad;
 
-  // Calculate altitude
   final sinAlt =
       math.sin(dec) * math.sin(lat) +
       math.cos(dec) * math.cos(lat) * math.cos(ha);
@@ -130,7 +128,6 @@ double _apparentToTrueAltitude(double apparentAltDeg) {
   final az = azDeg * _deg2rad;
   final lat = latitudeDeg * _deg2rad;
 
-  // Calculate declination
   final sinDec =
       math.sin(alt) * math.sin(lat) +
       math.cos(alt) * math.cos(lat) * math.cos(az);
@@ -189,7 +186,6 @@ double _apparentToTrueAltitude(double apparentAltDeg) {
   const dGP = deltaGP * _deg2rad;
   const lO = lOmega * _deg2rad;
 
-  // Declination
   final sinDec =
       math.sin(b) * math.sin(dGP) +
       math.cos(b) * math.cos(dGP) * math.sin(l - lO);

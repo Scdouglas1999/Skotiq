@@ -41,13 +41,10 @@ class CelestialCoordinate {
   }) : ra = raDegrees / 15,
        dec = decDegrees;
 
-  /// RA in degrees
   double get raDegrees => ra * 15;
 
-  /// RA in radians
   double get raRadians => raDegrees * math.pi / 180;
 
-  /// Dec in radians
   double get decRadians => dec * math.pi / 180;
 
   @override

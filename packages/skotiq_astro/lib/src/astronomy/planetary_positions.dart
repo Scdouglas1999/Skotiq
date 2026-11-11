@@ -19,7 +19,6 @@ class PlanetaryPositions {
   // Obliquity of ecliptic at J2000
   static const double _obliquityJ2000 = 23.439291111;
 
-  /// Convert ecliptic to equatorial coordinates
   static (double ra, double dec) eclipticToEquatorial({
     required double lonDeg,
     required double latDeg,
@@ -43,7 +42,6 @@ class PlanetaryPositions {
     return (ra, dec * _rad2deg);
   }
 
-  /// Planet enumeration
   static const List<String> planetNames = [
     'Mercury',
     'Venus',
@@ -54,7 +52,6 @@ class PlanetaryPositions {
     'Neptune',
   ];
 
-  /// Planet colors for rendering
   static const List<int> planetColors = [
     0xFFB0B0B0, // Mercury - gray
     0xFFFFE4B5, // Venus - pale yellow
@@ -109,17 +106,14 @@ class PlanetaryPositions {
     final jd = AstronomyCalculations.julianDate(dt);
     final t = (jd - _j2000) / 365250; // Julian millennia from J2000
 
-    // Get heliocentric ecliptic coordinates of planet
     final (planetLon, planetLat, planetR) = _heliocentricEcliptic(
       planetIndex,
       t,
     );
     if (planetLon == null || planetLat == null) return null;
 
-    // Get heliocentric ecliptic coordinates of Earth
     final (earthLon, earthLat, earthR) = _earthHeliocentricEcliptic(t);
 
-    // Convert to geocentric ecliptic
     final (geoLon, geoLat, distance) = _helioToGeocentric(
       planetLon: planetLon,
       planetLat: planetLat,
@@ -148,7 +142,6 @@ class PlanetaryPositions {
       dt: dt,
     );
 
-    // Calculate visual magnitude
     final magnitude = _calculateMagnitude(
       planetIndex,
       planetR,
@@ -160,7 +153,6 @@ class PlanetaryPositions {
     return (ra / 15, dec, magnitude); // Convert RA to hours
   }
 
-  /// Calculate heliocentric ecliptic coordinates for Earth
   static (double lon, double lat, double r) _earthHeliocentricEcliptic(
     double t,
   ) {
@@ -221,7 +213,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Calculate heliocentric ecliptic coordinates for a planet
   static (double? lon, double? lat, double r) _heliocentricEcliptic(
     int planetIndex,
     double t,
@@ -246,7 +237,6 @@ class PlanetaryPositions {
     }
   }
 
-  /// Mercury heliocentric position
   static (double lon, double lat, double r) _mercuryPosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -307,7 +297,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Venus heliocentric position
   static (double lon, double lat, double r) _venusPosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -365,7 +354,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Mars heliocentric position
   static (double lon, double lat, double r) _marsPosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -431,7 +419,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Jupiter heliocentric position
   static (double lon, double lat, double r) _jupiterPosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -499,7 +486,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Saturn heliocentric position
   static (double lon, double lat, double r) _saturnPosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -568,7 +554,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Uranus heliocentric position
   static (double lon, double lat, double r) _uranusPosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -631,7 +616,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Neptune heliocentric position
   static (double lon, double lat, double r) _neptunePosition(double t) {
     double l = 0, b = 0, r = 0;
 
@@ -690,7 +674,6 @@ class PlanetaryPositions {
     return (lonDeg, latDeg, r);
   }
 
-  /// Convert heliocentric to geocentric coordinates
   static (double lon, double lat, double distance) _helioToGeocentric({
     required double planetLon,
     required double planetLat,
@@ -699,7 +682,6 @@ class PlanetaryPositions {
     required double earthLat,
     required double earthR,
   }) {
-    // Convert to radians
     final pLon = planetLon * _deg2rad;
     final pLat = planetLat * _deg2rad;
     final eLon = earthLon * _deg2rad;
@@ -729,7 +711,6 @@ class PlanetaryPositions {
     return (geoLon, geoLat, distance);
   }
 
-  /// Calculate visual magnitude of a planet
   static double _calculateMagnitude(
     int planetIndex,
     double sunDist,
@@ -774,7 +755,6 @@ class PlanetaryPositions {
   }
 }
 
-/// Planet data for rendering
 class PlanetData {
   final String name;
   final double ra; // Right ascension in hours

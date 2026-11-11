@@ -41,7 +41,6 @@ class DeepStarTileScheme {
   /// Dec bands (10 degrees each) — matches `CelestialSpatialIndex.decCells`.
   static const int decBands = 18;
 
-  /// File name for a tile.
   static String tileFileName(int raBand, int decBand) =>
       'tile_r${raBand.toString().padLeft(2, '0')}'
       '_d${decBand.toString().padLeft(2, '0')}.skdt';
@@ -220,7 +219,6 @@ class DeepStarTile {
   }) : records = List<DeepStarRecord>.of(records)
          ..sort((a, b) => a.magnitude.compareTo(b.magnitude));
 
-  /// Encode the tile to its binary form.
   Uint8List encode() {
     final bytes = Uint8List(headerBytes + recordBytes * records.length);
     final data = ByteData.sublistView(bytes);

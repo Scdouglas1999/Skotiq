@@ -114,7 +114,6 @@ extension _TargetAxisScores on TargetScoringService {
     );
     final halfNightMinutes = nightEnd.difference(nightStart).inMinutes / 2;
 
-    // Is transit during the night?
     if (transitTime.isAfter(nightStart) && transitTime.isBefore(nightEnd)) {
       // Transit is during the night - score based on how centered it is
       final offsetFromMid = transitTime.difference(nightMid).inMinutes.abs();

@@ -57,7 +57,6 @@ part of '../astronomy_calculations.dart';
   // Obliquity
   final eps = _obliquityJ2000 - 0.0130042 * t;
 
-  // Convert to equatorial
   final (ra, dec) = _eclipticToEquatorial(
     lonDeg: lon,
     latDeg: lat,
@@ -87,7 +86,6 @@ double _moonIllumination(DateTime dt) {
   // Phase angle (simplified - assumes Moon at same distance as Sun)
   final phaseAngle = math.pi - elongation;
 
-  // Illuminated fraction
   final illumination = (1 + math.cos(phaseAngle)) / 2 * 100;
 
   return illumination;
@@ -145,7 +143,6 @@ MoonTimes _calculateMoonTimes({
   DateTime? moonrise;
   DateTime? moonset;
 
-  // Step through time in 30-minute increments
   var prevAlt = _moonAltitude(
     dt: searchStart,
     latitudeDeg: latitudeDeg,

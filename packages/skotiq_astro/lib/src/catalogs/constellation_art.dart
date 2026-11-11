@@ -15,7 +15,6 @@ class ArtMoveTo extends ArtPathSegment {
   const ArtMoveTo(this.point);
 }
 
-/// Line to a celestial coordinate
 class ArtLineTo extends ArtPathSegment {
   final CelestialCoordinate point;
   const ArtLineTo(this.point);
@@ -65,7 +64,6 @@ class ConstellationArt {
         .firstOrNull;
   }
 
-  // Helper to create coordinates concisely
   static CelestialCoordinate _c(double ra, double dec) =>
       CelestialCoordinate(ra: ra, dec: dec);
 }

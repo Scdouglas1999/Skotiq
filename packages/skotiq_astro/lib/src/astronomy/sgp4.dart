@@ -13,8 +13,6 @@ import 'astronomy_calculations.dart';
 class Sgp4 {
   Sgp4._();
 
-  // Constants
-
   // WGS-72 Earth constants
   static const double _j2 = 0.001082616;
   static const double _j3 = -0.00000253881;
@@ -214,7 +212,6 @@ class Sgp4 {
     return rec;
   }
 
-  /// Run SGP4 propagation for the given satellite record and time offset.
   static Sgp4Result? _sgp4(_Satrec satrec, double tsince) {
     // Update for secular gravity and atmospheric drag
     final xmdf = satrec.mo + satrec.xmdot * tsince;
@@ -362,8 +359,6 @@ class Sgp4 {
     );
   }
 
-  // ECI to geodetic/topocentric conversions
-
   /// Convert ECI position to geodetic coordinates (lat, lon, alt).
   ///
   /// Uses WGS-72 Earth model. Returns (latitude in degrees, longitude in degrees,
@@ -372,7 +367,6 @@ class Sgp4 {
     final r = math.sqrt(position.x * position.x + position.y * position.y);
     const e2 = 0.006694385000; // WGS-72 first eccentricity squared
 
-    // Longitude
     var lon = math.atan2(position.y, position.x) - gmst;
     while (lon < -math.pi) {
       lon += _twoPi;
@@ -459,10 +453,8 @@ class Sgp4 {
     if (az < 0) az += _twoPi;
     if (az >= _twoPi) az -= _twoPi;
 
-    // Elevation
     final el = math.asin(topZ / range);
 
-    // Range rate
     final rangeRate = (rx * drx + ry * dry + rz * drz) / range;
 
     return LookAngles(
@@ -523,10 +515,8 @@ class Sgp4 {
           position.z * position.z,
     );
 
-    // Declination
     final dec = math.asin(position.z / r);
 
-    // Right ascension
     var ra = math.atan2(position.y, position.x);
     // RA is already in ECI frame (J2000-aligned), no GMST correction needed
     // for catalog-style RA/Dec. But since we want topocentric apparent RA/Dec
@@ -607,8 +597,6 @@ class Sgp4 {
   }
 }
 
-// Data classes
-
 /// Orbital elements parsed from a TLE.
 class OrbitalElements {
   /// NORAD catalog number
@@ -670,7 +658,6 @@ class OrbitalElements {
     this.elementSetNumber = 0,
   });
 
-  /// Get the epoch as a DateTime
   DateTime get epoch => Sgp4.epochToDateTime(epochYear, epochDay);
 
   /// Get the orbital period in minutes
@@ -704,7 +691,6 @@ class EciVector {
       'ECI(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)}, ${z.toStringAsFixed(1)})';
 }
 
-/// Result of SGP4 propagation.
 class Sgp4Result {
   final EciVector position; // km
   final EciVector velocity; // km/s
@@ -746,8 +732,6 @@ class LookAngles {
       'Az: ${azimuth.toStringAsFixed(1)}, El: ${elevation.toStringAsFixed(1)}, '
       'Range: ${range.toStringAsFixed(0)}km';
 }
-
-// Internal satellite record
 
 class _Satrec {
   int epochYr = 0;

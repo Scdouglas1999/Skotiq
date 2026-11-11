@@ -43,7 +43,6 @@ class DeepStarStatus {
       manifest != null && tilesPresent >= manifest!.tiles.length;
 }
 
-/// Progress of a tileset download.
 class DeepStarDownloadProgress {
   final int tilesDone;
   final int tilesTotal;
@@ -120,8 +119,6 @@ class DeepStarCatalogManager {
   String get _configPath => path.join(directory, 'config.json');
   String get _metaPath => path.join(directory, 'install_metadata.json');
 
-  // Configuration (base URL)
-
   /// The configured tileset base URL (persisted), or the default.
   Future<String> getBaseUrl() async {
     try {
@@ -149,8 +146,6 @@ class DeepStarCatalogManager {
     if (!await dir.exists()) await dir.create(recursive: true);
     await File(_configPath).writeAsString(jsonEncode({'baseUrl': url.trim()}));
   }
-
-  // Status
 
   Future<DeepStarStatus> status() async {
     final manifestFile = File(_manifestPath);
@@ -201,8 +196,6 @@ class DeepStarCatalogManager {
       installedAt: installedAt,
     );
   }
-
-  // Download
 
   /// Fetch the remote manifest from the configured base URL.
   Future<DeepStarManifest> fetchRemoteManifest({String? baseUrl}) async {

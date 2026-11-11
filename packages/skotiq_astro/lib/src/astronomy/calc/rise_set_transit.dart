@@ -222,7 +222,6 @@ ObjectVisibility _calculateObjectVisibility({
     if (i == 0) continue;
     final (prevT, prevAlt) = samples[i - 1];
 
-    // Rising crossing.
     if (riseTime == null && prevAlt < crossingAlt && alt >= crossingAlt) {
       riseTime = _refineAltitudeCrossing(
         start: prevT,

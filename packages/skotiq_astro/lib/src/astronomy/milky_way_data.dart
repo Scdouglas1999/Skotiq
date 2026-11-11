@@ -35,7 +35,6 @@ class MilkyWayData {
     const decGNP = galacticNorthPoleDec * _deg2rad;
     const l0 = galacticAscendingNode * _deg2rad;
 
-    // Calculate galactic latitude
     final sinB =
         math.sin(decGNP) * math.sin(dec) +
         math.cos(decGNP) * math.cos(dec) * math.cos(ra - raGNP);
@@ -68,7 +67,6 @@ class MilkyWayData {
     const decGNP = galacticNorthPoleDec * _deg2rad;
     const raGNP = galacticNorthPoleRA * _deg2rad;
 
-    // Calculate declination
     final sinDec =
         math.sin(decGNP) * math.sin(b) +
         math.cos(decGNP) * math.cos(b) * math.cos(l0 - l);
@@ -139,7 +137,6 @@ class MilkyWayData {
     return 0.0;
   }
 
-  /// Calculate angular distance along the galactic plane
   static double _angularDistanceOnPlane(double l1, double l2) {
     var diff = (l1 - l2).abs();
     if (diff > 180) diff = 360 - diff;
@@ -210,7 +207,6 @@ class MilkyWayData {
   }
 }
 
-/// A point on the Milky Way band
 class MilkyWayPoint {
   final double ra; // Hours
   final double dec; // Degrees
@@ -229,7 +225,6 @@ class MilkyWayPoint {
   CelestialCoordinate get coordinates => CelestialCoordinate(ra: ra, dec: dec);
 }
 
-/// A notable feature in the Milky Way
 class MilkyWayFeature {
   final String name;
   final double ra; // Hours

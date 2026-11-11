@@ -65,7 +65,6 @@ class TwilightTimes {
   }
 }
 
-/// Moon times and phase container
 class MoonTimes {
   final DateTime? moonrise;
   final DateTime? moonset;
@@ -98,7 +97,6 @@ class MeridianFlipWindow {
   });
 }
 
-/// Object visibility information
 class ObjectVisibility {
   final DateTime? riseTime;
   final DateTime? transitTime;
@@ -116,7 +114,6 @@ class ObjectVisibility {
     this.neverRises = false,
   });
 
-  /// Get duration object is above horizon
   Duration? get durationAboveHorizon {
     if (isCircumpolar) return const Duration(hours: 24);
     if (neverRises) return Duration.zero;
