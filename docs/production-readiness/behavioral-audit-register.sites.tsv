@@ -1804,6 +1804,7 @@ packages/skotiq_app/lib/screens/framing/widgets/hips_tile_layer.dart	_resolvePla
 packages/skotiq_app/lib/screens/framing/widgets/hips_tile_layer.dart	_resolvePlateScale	literal_null_coalesce	1	V0121	centerRaHours: target?.raHours ?? 0,
 packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	V0121	_errorForDisplay(currentError?.decError ?? 0, stats.pixelScale),
 packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	V0121	_errorForDisplay(currentError?.raError ?? 0, stats.pixelScale),
+packages/skotiq_app/lib/screens/guiding/widgets/brain_settings_panel.dart	collect	literal_null_coalesce	1	V0258	final raw = _controllers['${axis}_${param.name}']?.text.trim() ?? '';
 packages/skotiq_app/lib/screens/imaging/centering_dialog.dart	_resolvedAppSettings	empty_catch	1	V0140	} catch (_) {
 packages/skotiq_app/lib/screens/imaging/centering_dialog.dart	_runCentering	literal_null_coalesce	1	V0140	executablePath: appSettings?.astapPath ?? '',
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	literal_null_coalesce	1	V0002	.watch(equipmentMountCapabilitiesProvider(mountState.deviceId ?? ''));
@@ -2233,6 +2234,8 @@ packages/skotiq_app/lib/screens/your_sky/widgets/atlas_region_card.dart	_growthP
 packages/skotiq_app/lib/screens/your_sky/widgets/atlas_region_card.dart	_growthPhrase	literal_null_coalesce	1	V0169	if (d != latestDay) byDay[d] ?? 0,
 packages/skotiq_app/lib/screens/your_sky/widgets/name_region_sheet.dart	_buildTargetPicker	literal_null_coalesce	1	V0181	final id = int.tryParse(idStr ?? '');
 packages/skotiq_app/lib/screens/your_sky/widgets/name_region_sheet.dart	_libraryIsEmpty	literal_null_coalesce	1	V0181	(targetsAsync.valueOrNull?.isEmpty ?? false);
+packages/skotiq_app/lib/services/app_update.dart	defaultUpdateApplySafetyCheckWithReader	literal_null_coalesce	1	V0121	final coolerPower = cameraState.coolerPower ?? 0;
+packages/skotiq_app/lib/services/equipment_fov_binding.dart	telescopeSpecsFromOpticalConfig	literal_null_coalesce	1	V0267	apertureMm: config.aperture ?? 0,
 packages/skotiq_app/lib/services/file_download_service.dart	downloadErrorMessage	empty_catch	1	V0217	} catch (_) {
 packages/skotiq_app/lib/services/observation_report_service.dart	_buildHeaderSection	guessed_now_timestamp	1	V0009	(session.endTime ?? DateTime.now())
 packages/skotiq_app/lib/services/observation_report_service.dart	_buildPhotometricCalibrationSection	literal_null_coalesce	1	V0009	calibrated.map<double>((c) => c.zeroPoint ?? 0.0).toList();
@@ -2283,7 +2286,52 @@ packages/skotiq_app/lib/widgets/tutorial_overlay.dart	_passOverMissingTarget	emp
 packages/skotiq_app/lib/widgets/tutorial_overlay.dart	_runAction	empty_catch	1	V0009	} catch (_) {
 packages/skotiq_app/lib/widgets/tutorial_overlay/tooltip.dart	_isValidPosition	literal_null_coalesce	1	V0121	double left = position.left ?? 0;
 packages/skotiq_app/lib/widgets/tutorial_overlay/tooltip.dart	_isValidPosition	literal_null_coalesce	1	V0121	double top = position.top ?? 0;
+packages/skotiq_app/lib/widgets/update/update_manager_widget.dart	_showDownloadProgressDialog	literal_null_coalesce	1	V0261	version: currentState.availableUpdate?.version ?? '',
+packages/skotiq_app/lib/widgets/update/update_manager_widget.dart	_showUpdateReadyDialog	literal_null_coalesce	2	V0261	state.availableUpdate?.version ?? '',
+packages/skotiq_app/lib/widgets/update/update_manager_widget.dart	_showUpdateReadyDialog	literal_null_coalesce	1	V0261	version: state.availableUpdate?.version ?? '',
 packages/skotiq_app/lib/widgets/weather/weather_radar_map.dart	_buildRadarTileLayer	comment_best_effort	1	V0747	// placeholder tiles at the closer default map zooms.
+packages/skotiq_astro/lib/src/catalogs/catalog.dart	objectCount	literal_null_coalesce	1	V0112	int get objectCount => _cachedObjects?.length ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog.dart	search	literal_null_coalesce	1	V0112	if (o.constellation?.toLowerCase().contains(q) ?? false) return true;
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/annotation_catalog_io.dart	_downloadAnnotationCatalog	literal_null_coalesce	1	V0121	final contentLength = streamedResponse.contentLength ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_cleanupTempFile	comment_best_effort	1	V0121	// Best-effort cleanup; a stale `.partial` is harmless and ignored by
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_cleanupTempFile	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_fetchCatalogCandidate	literal_null_coalesce	1	V0121	final contentLength = streamedResponse.contentLength ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/manager.dart	_getCatalogStatus	literal_null_coalesce	1	V0121	installedDate = DateTime.tryParse(metaJson['installedDate'] ?? '');
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	dec: double.tryParse(p[8]) ?? 0,
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	id: int.tryParse(p[0]) ?? 0,
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	ra: (double.tryParse(p[7]) ?? 0) * 15, // Convert from hours to degrees
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final d = double.tryParse(parts[0]) ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final m = double.tryParse(parts[1]) ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final s = double.tryParse(parts[2]) ?? 0;
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_downloadAndInstallCatalog	comment_best_effort	1	V0121	// Best-effort cleanup; not throwing here because the cancel itself
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_downloadAndInstallCatalog	empty_catch	3	V0121	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_statusFor	literal_null_coalesce	1	V0121	raw['installedDate']?.toString() ?? '',
+packages/skotiq_astro/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_statusFor	literal_null_coalesce	1	V0121	raw['lastVerified']?.toString() ?? '',
+packages/skotiq_astro/lib/src/catalogs/catalog_region_scan.dart	scanCatalogRegion	empty_catch	1	V0775	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/deep_star_catalog.dart	status	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/deep_star_catalog.dart	status	literal_null_coalesce	1	V0121	installedAt = DateTime.tryParse(json['installedAt'] as String? ?? '');
+packages/skotiq_astro/lib/src/catalogs/deep_star_tile.dart	DeepStarManifest.fromJson	literal_null_coalesce	1	V0121	final version = (json['formatVersion'] as num?)?.toInt() ?? 0;
+packages/skotiq_astro/lib/src/catalogs/element_refresh_service.dart	_writeTextAtomically	comment_best_effort	1	V0121	// Best-effort cleanup. Readers never consider temporary files.
+packages/skotiq_astro/lib/src/catalogs/element_refresh_service.dart	_writeTextAtomically	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/element_refresh_service.dart	lastAttempt	literal_null_coalesce	1	V0121	return DateTime.tryParse(meta['lastAttempt'] as String? ?? '');
+packages/skotiq_astro/lib/src/catalogs/element_refresh_service.dart	loadCached	literal_null_coalesce	1	V0121	DateTime.tryParse(meta[metaKey] as String? ?? '') ??
+packages/skotiq_astro/lib/src/catalogs/glade_plus_catalog.dart	GladePlusData.fromCsvLine	literal_null_coalesce	1	V0124	final dec = double.tryParse(parts[1]) ?? 0.0;
+packages/skotiq_astro/lib/src/catalogs/glade_plus_catalog.dart	GladePlusData.fromCsvLine	literal_null_coalesce	1	V0123	final ra = double.tryParse(parts[0]) ?? 0.0;
+packages/skotiq_astro/lib/src/catalogs/glade_plus_catalog.dart	GladePlusData.fromCsvLine	literal_null_coalesce	1	V0125	pgc: int.tryParse(parts[4]) ?? 0,
+packages/skotiq_astro/lib/src/catalogs/hyperleda_catalog.dart	HyperLedaData.fromCsvLine	literal_null_coalesce	1	V0133	dec: double.tryParse(parts[3]) ?? 0.0,
+packages/skotiq_astro/lib/src/catalogs/hyperleda_catalog.dart	HyperLedaData.fromCsvLine	literal_null_coalesce	1	V0134	pgc: int.tryParse(parts[0]) ?? 0,
+packages/skotiq_astro/lib/src/catalogs/hyperleda_catalog.dart	HyperLedaData.fromCsvLine	literal_null_coalesce	1	V0126	ra: double.tryParse(parts[2]) ?? 0.0,
+packages/skotiq_astro/lib/src/catalogs/mpcorb.dart	parseAsteroidLine	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/mpcorb.dart	parseCometLine	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_astro/lib/src/catalogs/mpcorb.dart	parseAsteroidLine	literal_null_coalesce	1	V0121	final g = double.tryParse(line.substring(14, 19).trim()) ?? 0.15;
+packages/skotiq_astro/lib/src/catalogs/satellite_catalog.dart	_parseTwoLinesWithName	literal_null_coalesce	1	V0112	revolutionNumber = int.tryParse(revStr) ?? 0;
+packages/skotiq_astro/lib/src/catalogs/star_catalog.dart	search	literal_null_coalesce	1	V0112	(s.constellation?.toLowerCase().contains(q) ?? false) ||
+packages/skotiq_astro/lib/src/catalogs/star_catalog.dart	starCount	literal_null_coalesce	1	V0112	int get starCount => _cachedStars?.length ?? 0;
+packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0291	'$bayerDesignation ${_getConstellationGenitive(constellation ?? '')}';
+packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0293	final compPrimary = parts.length > 31 ? (int.tryParse(parts[31]) ?? 0) : 0;
+packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0290	final hygId = int.tryParse(parts[0]) ?? 0;
+packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0292	starName = '$flamsteedNumber ${constellationFullName(constellation ?? '')}';
+packages/skotiq_astro/lib/src/catalogs/variable_star_catalog.dart	search	literal_null_coalesce	1	V0135	(s.designation?.toLowerCase().contains(lower) ?? false) ||
 packages/skotiq_bridge/lib/src/bridge_stub/guiding_operations.dart	isPhd2Running	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_bridge/lib/src/bridge_stub/native_bridge_facade.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	_nativeBridge.sequencerSetSimulationMode(enabled);
 packages/skotiq_bridge/lib/src/bridge_stub/native_bridge_facade.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	static Future<void> sequencerSetSimulationMode(bool enabled) =>
@@ -3024,7 +3072,6 @@ packages/skotiq_core/lib/src/providers/disk_space_provider.dart	projectCurrentSe
 packages/skotiq_core/lib/src/providers/equipment/device_capability_provider.dart	CoverCalibratorCapabilitySnapshot.fromJson	literal_null_coalesce	1	V0240	maxBrightness: (json['maxBrightness'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/providers/equipment/mount_state_provider.dart	disconnect	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/equipment/switch_state_provider.dart	SwitchStateNotifier	comment_best_effort	1	V0121	/// silently ignored because the UI cannot have rendered a row for a
-packages/skotiq_core/lib/src/providers/equipment_fov_provider.dart	telescopeSpecsFromOpticalConfig	literal_null_coalesce	1	V0267	apertureMm: config.aperture ?? 0,
 packages/skotiq_core/lib/src/providers/exoplanet_provider.dart	_parseExoplanet	literal_null_coalesce	1	V0019	discoveryYear: int.tryParse(row['disc_year']?.toString() ?? ''),
 packages/skotiq_core/lib/src/providers/filter_offset_provider.dart	adjustFilterOffset	literal_null_coalesce	1	V0019	final currentOffset = state.offsets[filterName] ?? 0;
 packages/skotiq_core/lib/src/providers/filter_offset_provider.dart	getOffset	literal_null_coalesce	1	V0019	return state.offsets[filterName] ?? 0;
@@ -4136,44 +4183,6 @@ packages/skotiq_core/lib/src/utils/export_target.dart	exportInitialDirectory	emp
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	final relocated = (env[skotiqDataDirEnv] ?? '').trim().isNotEmpty;
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	if ((env[legacyVar] ?? '').trim().isNotEmpty) {
 packages/skotiq_core/lib/src/utils/resilient_poll_stream.dart	scheduleNext	literal_null_coalesce	1	V0254	if (stopped || paused || polling || (timer?.isActive ?? false)) return;
-packages/skotiq_planetarium/lib/src/catalogs/catalog.dart	objectCount	literal_null_coalesce	1	V0112	int get objectCount => _cachedObjects?.length ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/catalog.dart	search	literal_null_coalesce	1	V0112	if (o.constellation?.toLowerCase().contains(q) ?? false) return true;
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/annotation_catalog_io.dart	_downloadAnnotationCatalog	literal_null_coalesce	1	V0121	final contentLength = streamedResponse.contentLength ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_cleanupTempFile	comment_best_effort	1	V0121	// Best-effort cleanup; a stale `.partial` is harmless and ignored by
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_cleanupTempFile	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/legacy_catalog_io.dart	_fetchCatalogCandidate	literal_null_coalesce	1	V0121	final contentLength = streamedResponse.contentLength ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/manager.dart	_getCatalogStatus	literal_null_coalesce	1	V0121	installedDate = DateTime.tryParse(metaJson['installedDate'] ?? '');
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	dec: double.tryParse(p[8]) ?? 0,
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	id: int.tryParse(p[0]) ?? 0,
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/search_models.dart	HygStarData.fromCsvLine	literal_null_coalesce	1	V0121	ra: (double.tryParse(p[7]) ?? 0) * 15, // Convert from hours to degrees
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final d = double.tryParse(parts[0]) ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final m = double.tryParse(parts[1]) ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/search_models.dart	parseDec	literal_null_coalesce	1	V0121	final s = double.tryParse(parts[2]) ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_downloadAndInstallCatalog	comment_best_effort	1	V0121	// Best-effort cleanup; not throwing here because the cancel itself
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_downloadAndInstallCatalog	empty_catch	3	V0121	} catch (_) {
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_statusFor	literal_null_coalesce	1	V0121	raw['installedDate']?.toString() ?? '',
-packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/unified_catalog_api.dart	_statusFor	literal_null_coalesce	1	V0121	raw['lastVerified']?.toString() ?? '',
-packages/skotiq_planetarium/lib/src/catalogs/catalog_region_scan.dart	scanCatalogRegion	empty_catch	1	V0775	} catch (_) {
-packages/skotiq_planetarium/lib/src/catalogs/deep_star_catalog.dart	status	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_planetarium/lib/src/catalogs/deep_star_catalog.dart	status	literal_null_coalesce	1	V0121	installedAt = DateTime.tryParse(json['installedAt'] as String? ?? '');
-packages/skotiq_planetarium/lib/src/catalogs/deep_star_tile.dart	DeepStarManifest.fromJson	literal_null_coalesce	1	V0121	final version = (json['formatVersion'] as num?)?.toInt() ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/glade_plus_catalog.dart	GladePlusData.fromCsvLine	literal_null_coalesce	1	V0124	final dec = double.tryParse(parts[1]) ?? 0.0;
-packages/skotiq_planetarium/lib/src/catalogs/glade_plus_catalog.dart	GladePlusData.fromCsvLine	literal_null_coalesce	1	V0123	final ra = double.tryParse(parts[0]) ?? 0.0;
-packages/skotiq_planetarium/lib/src/catalogs/glade_plus_catalog.dart	GladePlusData.fromCsvLine	literal_null_coalesce	1	V0125	pgc: int.tryParse(parts[4]) ?? 0,
-packages/skotiq_planetarium/lib/src/catalogs/hyperleda_catalog.dart	HyperLedaData.fromCsvLine	literal_null_coalesce	1	V0133	dec: double.tryParse(parts[3]) ?? 0.0,
-packages/skotiq_planetarium/lib/src/catalogs/hyperleda_catalog.dart	HyperLedaData.fromCsvLine	literal_null_coalesce	1	V0134	pgc: int.tryParse(parts[0]) ?? 0,
-packages/skotiq_planetarium/lib/src/catalogs/hyperleda_catalog.dart	HyperLedaData.fromCsvLine	literal_null_coalesce	1	V0126	ra: double.tryParse(parts[2]) ?? 0.0,
-packages/skotiq_planetarium/lib/src/catalogs/mpcorb.dart	parseAsteroidLine	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_planetarium/lib/src/catalogs/mpcorb.dart	parseCometLine	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_planetarium/lib/src/catalogs/mpcorb.dart	parseAsteroidLine	literal_null_coalesce	1	V0121	final g = double.tryParse(line.substring(14, 19).trim()) ?? 0.15;
-packages/skotiq_planetarium/lib/src/catalogs/satellite_catalog.dart	_parseTwoLinesWithName	literal_null_coalesce	1	V0112	revolutionNumber = int.tryParse(revStr) ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/star_catalog.dart	search	literal_null_coalesce	1	V0112	(s.constellation?.toLowerCase().contains(q) ?? false) ||
-packages/skotiq_planetarium/lib/src/catalogs/star_catalog.dart	starCount	literal_null_coalesce	1	V0112	int get starCount => _cachedStars?.length ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0291	'$bayerDesignation ${_getConstellationGenitive(constellation ?? '')}';
-packages/skotiq_planetarium/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0293	final compPrimary = parts.length > 31 ? (int.tryParse(parts[31]) ?? 0) : 0;
-packages/skotiq_planetarium/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0290	final hygId = int.tryParse(parts[0]) ?? 0;
-packages/skotiq_planetarium/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0292	starName = '$flamsteedNumber ${constellationFullName(constellation ?? '')}';
-packages/skotiq_planetarium/lib/src/catalogs/variable_star_catalog.dart	search	literal_null_coalesce	1	V0135	(s.designation?.toLowerCase().contains(lower) ?? false) ||
 packages/skotiq_planetarium/lib/src/providers/catalog_providers.dart	totalDsoCount	literal_null_coalesce	1	V0146	int get totalDsoCount => dsoCatalogStatus.objectCount ?? 0;
 packages/skotiq_planetarium/lib/src/providers/catalog_providers.dart	totalStarCount	literal_null_coalesce	1	V0146	int get totalStarCount => starCatalogStatus.objectCount ?? 0;
 packages/skotiq_planetarium/lib/src/providers/target_queue_provider.dart	syncFromSequencer	literal_null_coalesce	1	V0255	completedExposures ?? existing?.completedExposures ?? 0,
@@ -4185,10 +4194,6 @@ packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final majorPx = (dso.sizeArcMin ?? 0) / 60 * scale;
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final minorPx = (dso.minorAxisArcMin ?? dso.sizeArcMin ?? 0) / 60 * scale;
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final paRad = -((dso.positionAngle ?? 0) * SkyCanvasPainter._deg2rad);
-packages/skotiq_planetarium/lib/src/services/element_refresh_service.dart	_writeTextAtomically	comment_best_effort	1	V0121	// Best-effort cleanup. Readers never consider temporary files.
-packages/skotiq_planetarium/lib/src/services/element_refresh_service.dart	_writeTextAtomically	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_planetarium/lib/src/services/element_refresh_service.dart	lastAttempt	literal_null_coalesce	1	V0121	return DateTime.tryParse(meta['lastAttempt'] as String? ?? '');
-packages/skotiq_planetarium/lib/src/services/element_refresh_service.dart	loadCached	literal_null_coalesce	1	V0121	DateTime.tryParse(meta[metaKey] as String? ?? '') ??
 packages/skotiq_planetarium/lib/src/services/geolocation_service.dart	done	literal_null_coalesce	1	V0497	bool done() => best?.isPrecise ?? false;
 packages/skotiq_planetarium/lib/src/util/aligned_ticker.dart	delayToNextBoundary	guessed_now_timestamp	1	V0722	final nowUs = (now ?? DateTime.now()).toUtc().microsecondsSinceEpoch;
 packages/skotiq_planetarium/lib/src/widgets/fov_presets.dart	fromJson	literal_null_coalesce	1	V0121	color: Color((json['color'] as num?)?.toInt() ?? 0xFF00E676),
@@ -4257,13 +4262,7 @@ packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_c
 packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_coalesce	1	V0257	right: (right ?? horizontal ?? 0) * scale,
 packages/skotiq_ui/lib/src/utils/responsive_utils.dart	edgeInsets	literal_null_coalesce	1	V0257	top: (top ?? vertical ?? 0) * scale,
 packages/skotiq_ui/lib/src/widgets/design_system_gallery.dart	build	literal_null_coalesce	1	V0120	setState(() => _autosave = value ?? false),
-packages/skotiq_ui/lib/src/widgets/phd2/brain_settings_panel.dart	collect	literal_null_coalesce	1	V0258	final raw = _controllers['${axis}_${param.name}']?.text.trim() ?? '';
 packages/skotiq_updater/lib/src/models/update_state.dart	statusMessage	literal_null_coalesce	1	V0259	return 'Update available: ${availableUpdate?.version ?? ""}';
-packages/skotiq_updater/lib/src/providers/update_provider.dart	checkForUpdates	guessed_now_timestamp	1	V0121	lastCheckAt: now ?? DateTime.now().toUtc(),
-packages/skotiq_updater/lib/src/providers/update_provider.dart	checkForUpdatesIfDue	guessed_now_timestamp	1	V0121	final at = now ?? DateTime.now().toUtc();
-packages/skotiq_updater/lib/src/providers/update_provider.dart	deferUpdate	guessed_now_timestamp	1	V0121	deferredAt: now ?? DateTime.now().toUtc(),
-packages/skotiq_updater/lib/src/providers/update_provider.dart	shouldPrompt	guessed_now_timestamp	1	V0121	final at = now ?? DateTime.now().toUtc();
-packages/skotiq_updater/lib/src/providers/update_provider.dart	defaultUpdateApplySafetyCheckWithReader	literal_null_coalesce	1	V0121	final coolerPower = cameraState.coolerPower ?? 0;
 packages/skotiq_updater/lib/src/services/android_installer.dart	canRequestPackageInstalls	literal_null_coalesce	1	V0829	return granted ?? false;
 packages/skotiq_updater/lib/src/services/anti_freeze_store.dart	advance	comment_best_effort	1	V0203	// Best-effort persistence; see doc comment.
 packages/skotiq_updater/lib/src/services/anti_freeze_store.dart	advance	empty_catch	1	V0202	} catch (_) {
@@ -4271,6 +4270,7 @@ packages/skotiq_updater/lib/src/services/update_controller.dart	_readTimestamp	e
 packages/skotiq_updater/lib/src/services/update_controller.dart	stagedUpdate	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_updater/lib/src/services/update_downloader.dart	download	literal_null_coalesce	1	V0260	: expectedSize ?? 0;
 packages/skotiq_updater/lib/src/services/update_downloader.dart	download	literal_null_coalesce	1	V0260	totalBytes = streamedResponse.contentLength ?? expectedSize ?? 0;
-packages/skotiq_updater/lib/src/widgets/update_manager_widget.dart	_showDownloadProgressDialog	literal_null_coalesce	1	V0261	version: currentState.availableUpdate?.version ?? '',
-packages/skotiq_updater/lib/src/widgets/update_manager_widget.dart	_showUpdateReadyDialog	literal_null_coalesce	2	V0261	state.availableUpdate?.version ?? '',
-packages/skotiq_updater/lib/src/widgets/update_manager_widget.dart	_showUpdateReadyDialog	literal_null_coalesce	1	V0261	version: state.availableUpdate?.version ?? '',
+packages/skotiq_updater/lib/src/services/update_notifier.dart	checkForUpdates	guessed_now_timestamp	1	V0121	lastCheckAt: now ?? DateTime.now().toUtc(),
+packages/skotiq_updater/lib/src/services/update_notifier.dart	checkForUpdatesIfDue	guessed_now_timestamp	1	V0121	final at = now ?? DateTime.now().toUtc();
+packages/skotiq_updater/lib/src/services/update_notifier.dart	deferUpdate	guessed_now_timestamp	1	V0121	deferredAt: now ?? DateTime.now().toUtc(),
+packages/skotiq_updater/lib/src/services/update_notifier.dart	shouldPrompt	guessed_now_timestamp	1	V0121	final at = now ?? DateTime.now().toUtc();
