@@ -40,3 +40,9 @@ Cargo.lock linguist-generated=true
 *.sh text eol=lf
 scripts/install-hooks.sh text eol=lf
 scripts/pre-commit.sh text eol=lf
+
+# ---------------------------------------------------------------------------
+# Built-in catalog: shipped byte for byte and checked against a pinned SHA-256
+# at install, so a checkout must never rewrite its line endings.
+# ---------------------------------------------------------------------------
+packages/skotiq_core/assets/catalogs/NGC.csv -text

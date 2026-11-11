@@ -123,3 +123,6 @@ flutter:
   # Loaded at runtime via [SampleSequenceService] from rootBundle.
   assets:
     - assets/sample_sequences/
+    # OpenNGC, installed on first start (see built_in_catalogs.dart).
+    - assets/catalogs/NGC.csv
+    - assets/catalogs/README.md

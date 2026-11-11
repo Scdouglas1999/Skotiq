@@ -201,6 +201,50 @@ void main() {
     });
   });
 
+  group('built-in copy', () {
+    test('an installed catalog is kept and the copy is not read', () async {
+      await File(manager.pathOf(SkyCatalog.dso)).writeAsString(_ngcCsv);
+      var read = false;
+      await manager.initialize(
+        tempDir.path,
+        builtIn: {
+          SkyCatalog.dso: () async {
+            read = true;
+            return const [];
+          },
+        },
+      );
+      expect(read, isFalse);
+      expect(
+        await File(manager.pathOf(SkyCatalog.dso)).readAsString(),
+        _ngcCsv,
+      );
+    });
+
+    test('a copy that is not the pinned file is refused and start-up goes on',
+        () async {
+      await manager.initialize(
+        tempDir.path,
+        builtIn: {SkyCatalog.dso: () async => utf8.encode(_ngcCsv)},
+      );
+      expect(
+        (await manager.status(SkyCatalog.dso)).state,
+        CatalogInstallStatus.missing,
+      );
+      expect(tempDir.listSync(), isEmpty);
+    });
+
+    test('a copy that cannot be read is skipped', () async {
+      await manager.initialize(
+        tempDir.path,
+        builtIn: {
+          SkyCatalog.dso: () async => throw const FileSystemException('gone'),
+        },
+      );
+      expect((await manager.status(SkyCatalog.dso)).isInstalled, isFalse);
+    });
+  });
+
   group('download', () {
     test('a download installs, reports progress and events, and leaves '
         'nothing in flight', () async {

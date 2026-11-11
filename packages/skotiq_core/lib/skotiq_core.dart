@@ -174,6 +174,7 @@ export 'src/models/scheduler/target_progress.dart';
 export 'src/services/scheduler/target_progress_service.dart';
 export 'src/providers/mount_site_provider.dart';
 export 'src/providers/target_progress_provider.dart';
+export 'src/services/built_in_catalogs.dart';
 export 'src/services/catalog_target_resolver.dart';
 export 'src/services/target_library_service.dart'
     show TargetLibraryService, targetLibraryServiceProvider;

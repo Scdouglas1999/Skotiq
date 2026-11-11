@@ -93,7 +93,10 @@ void main() async {
 
   try {
     final appDir = await resolveSkotiqDocumentsDirectory();
-    await CatalogManager.instance.initialize(appDir.path);
+    await CatalogManager.instance.initialize(
+      appDir.path,
+      builtIn: builtInCatalogs,
+    );
   } catch (e) {
     developer.log(
       'Failed to initialize CatalogManager: $e',

@@ -61,12 +61,12 @@ the font OFL-1.1 texts are tracked beside the fonts under
 
 ## Bundled astronomical catalog data
 
-The desktop bundle includes transformed OpenNGC and HYG catalog packs. Both
-datasets are licensed CC BY-SA 4.0. The bundled
-`assets/planetarium/catalogs/README.md` provides the required attribution,
-source links, transformation description, and license link. The transformed
-catalog packs themselves are offered under CC BY-SA 4.0; that data license
-does not replace the license for Skotiq's program code.
+The desktop and mobile apps include the OpenNGC database (`NGC.csv`,
+unmodified), licensed CC BY-SA 4.0. The bundled
+`packages/skotiq_core/assets/catalogs/README.md` provides the required
+attribution, source link and license link. That data license does not replace
+the license for Skotiq's program code. The HYG star database (also CC BY-SA
+4.0) is not bundled; the app downloads it when the user asks.
 
 No JPL ephemeris kernel is bundled or redistributed. Sun and moon positions
 are computed from the Astronomical Almanac low-precision series in
