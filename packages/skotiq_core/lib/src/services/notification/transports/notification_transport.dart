@@ -46,7 +46,14 @@ abstract class NotificationTransport {
   /// silently skip transports the user hasn't finished configuring.
   bool get isConfigured;
 
-  /// Fire a notification. Title and body arrive already rendered.
+  /// Why this transport would send nothing for [message] although it is
+  /// configured, or null when it will try. The router leaves a declining
+  /// transport out, so a message is never reported as handed to a transport
+  /// that drops it.
+  String? declines(NotificationMessage message) => null;
+
+  /// Fire a notification. Title and body arrive already rendered. A message
+  /// this transport [declines] comes back as [NotificationResult.skipped].
   Future<NotificationResult> send(NotificationMessage message);
 
   /// Dispose any owned sockets / clients. The default is a no-op; only

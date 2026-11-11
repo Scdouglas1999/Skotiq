@@ -228,25 +228,44 @@ enum NotificationTransportKind {
 /// transport).
 class NotificationResult extends Equatable {
   final bool success;
+
+  /// True when the transport had nothing to send for the message and tried
+  /// nothing: neither a delivery nor a failure. [error] says why.
+  final bool skipped;
   final String? error;
   final int? statusCode;
   final DateTime timestamp;
 
   NotificationResult.ok({this.statusCode})
     : success = true,
+      skipped = false,
       error = null,
       timestamp = DateTime.now();
 
   NotificationResult.fail(this.error, {this.statusCode})
     : success = false,
+      skipped = false,
+      timestamp = DateTime.now();
+
+  /// The transport does not send this message (see
+  /// `NotificationTransport.declines`). Not a success: nothing may report a
+  /// skipped message as sent.
+  NotificationResult.skipped(String reason)
+    : success = false,
+      skipped = true,
+      error = reason,
+      statusCode = null,
       timestamp = DateTime.now();
 
   @override
-  List<Object?> get props => [success, error, statusCode, timestamp];
+  List<Object?> get props => [success, skipped, error, statusCode, timestamp];
 
   @override
-  String toString() =>
-      success ? 'NotificationResult.ok' : 'NotificationResult.fail($error)';
+  String toString() => success
+      ? 'NotificationResult.ok'
+      : skipped
+      ? 'NotificationResult.skipped($error)'
+      : 'NotificationResult.fail($error)';
 }
 
 /// Per-category routing rule: which transports fire, with optional

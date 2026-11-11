@@ -170,6 +170,10 @@ class PushNotificationService {
   /// Current configuration
   PushNotificationConfig get config => _config;
 
+  /// Whether anything is subscribed to [notifications]. The remote access
+  /// server is the subscriber; with it off, a push goes nowhere.
+  bool get hasListener => _notificationController.hasListener;
+
   /// Update configuration. No subscription is started/stopped any more — the
   /// router is the sole producer — so this simply swaps the gating config the
   /// transport reads on its next enqueue.

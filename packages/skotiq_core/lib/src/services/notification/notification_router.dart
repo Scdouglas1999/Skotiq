@@ -42,7 +42,8 @@ import 'transports/system_push_transport.dart';
 /// row off, below the row's severity floor, debounced, rate-limited, no
 /// configured transport, and already-said — and a producer that reports
 /// "notified" needs to know which one happened. [dispatched] names the
-/// transports the message was HANDED TO; each transport's own success or
+/// transports the message was HANDED TO (never one that declines it, such as
+/// Mobile push for an event switched off there); each transport's own success or
 /// failure lands later in [NotificationRouter.lastResults], because the sends
 /// are deliberately not awaited.
 class NotificationRouteOutcome {
@@ -228,18 +229,22 @@ class NotificationRouter {
     if (_isDebounced(category, rule)) return;
     if (_isRateLimited(category, rule)) return;
 
-    final eligible = _eligibleTransports(rule.transports);
-    if (eligible.isEmpty) return;
-
-    _lastFireTime[category] = _now();
-    _recordRateHit(category);
+    final configured = _eligibleTransports(rule.transports);
+    if (configured.isEmpty) return;
 
     if (category == NotificationCategory.sequenceStopped) {
-      _routeStopped(rule, contextValues, eligible);
+      _lastFireTime[category] = _now();
+      _recordRateHit(category);
+      _routeStopped(rule, contextValues, configured);
       return;
     }
 
     final message = _render(category, rule, contextValues);
+    final eligible = _willing(configured, message);
+    if (eligible.isEmpty) return;
+
+    _lastFireTime[category] = _now();
+    _recordRateHit(category);
     for (final transport in eligible) {
       _dispatch(transport, message);
     }
@@ -446,19 +451,15 @@ class NotificationRouter {
       );
     }
 
-    final eligible = _eligibleTransports(
+    final configured = _eligibleTransports(
       explicitTransports ?? baseRule.transports,
     );
-    if (eligible.isEmpty) {
+    if (configured.isEmpty) {
       return NotificationRouteOutcome.dropped(
         'No transport on the ${category.name} routing row is configured — '
         'nothing is paired or set up to receive it',
       );
     }
-
-    _lastFireTime[category] = _now();
-    _recordRateHit(category);
-    final dispatched = <NotificationTransportKind>[];
     final message = NotificationMessage(
       category: category,
       title: title,
@@ -466,6 +467,16 @@ class NotificationRouter {
       severity: severity,
       deepLink: deepLink,
     );
+    final eligible = _willing(configured, message);
+    if (eligible.isEmpty) {
+      return NotificationRouteOutcome.dropped(
+        configured.map((t) => t.declines(message)).nonNulls.join('; '),
+      );
+    }
+
+    _lastFireTime[category] = _now();
+    _recordRateHit(category);
+    final dispatched = <NotificationTransportKind>[];
     for (final transport in eligible) {
       if (_dispatch(transport, message)) dispatched.add(transport.kind);
     }
@@ -552,10 +563,13 @@ class NotificationRouter {
         title: title,
         body: body,
       );
-      for (final transport in _eligibleTransports(const [
-        NotificationTransportKind.inApp,
-        NotificationTransportKind.systemPush,
-      ])) {
+      for (final transport in _willing(
+        _eligibleTransports(const [
+          NotificationTransportKind.inApp,
+          NotificationTransportKind.systemPush,
+        ]),
+        message,
+      )) {
         _dispatch(transport, message);
       }
       return;
@@ -692,7 +706,7 @@ class NotificationRouter {
         );
       }
       _lastResults[transport.kind] = result;
-      if (!result.success) {
+      if (!result.success && !result.skipped) {
         developer.log(
           '[NotificationRouter] ${transport.name} send failed: ${result.error}',
           name: 'NotificationRouter',
@@ -702,6 +716,15 @@ class NotificationRouter {
     });
     return true;
   }
+
+  /// The transports of [configured] that will try to send [message].
+  List<NotificationTransport> _willing(
+    List<NotificationTransport> configured,
+    NotificationMessage message,
+  ) => [
+    for (final transport in configured)
+      if (transport.declines(message) == null) transport,
+  ];
 
   List<NotificationTransport> _eligibleTransports(
     Iterable<NotificationTransportKind> kinds,

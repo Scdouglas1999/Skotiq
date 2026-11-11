@@ -30,24 +30,36 @@ class SystemPushTransport extends NotificationTransport {
   @override
   bool get isConfigured => _service.config.enabled;
 
+  /// The matrix may list systemPush on any row; three things still keep a
+  /// message off the phones, and none of them is a delivery.
   @override
-  Future<NotificationResult> send(NotificationMessage message) async {
-    final presentation = NotificationPresentation.of(message.category);
-    final push = presentation.push;
-    // A category the phone feed does not escalate, or one whose per-event
-    // switch is off, is a no-op success: the matrix may list systemPush on
-    // the rule without this transport second-guessing it.
-    if (push == null) return NotificationResult.ok();
+  String? declines(NotificationMessage message) {
+    final push = NotificationPresentation.of(message.category).push;
+    if (push == null) {
+      return 'Mobile push does not carry ${message.category.name} '
+          'notifications';
+    }
     final toggle = push.toggle;
     if (toggle != null && !_service.config.allows(toggle)) {
-      return NotificationResult.ok();
+      return 'That event is switched off under Mobile push';
     }
+    if (!_service.hasListener) {
+      return 'Remote Access is off, so no phone can be reached';
+    }
+    return null;
+  }
+
+  @override
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final declined = declines(message);
+    if (declined != null) return NotificationResult.skipped(declined);
+    final presentation = NotificationPresentation.of(message.category);
 
     _service.enqueue(
       PushNotification(
         title: message.title,
         body: message.body,
-        priority: push.priority,
+        priority: presentation.push!.priority,
         eventType: message.category.storageKey,
         category: presentation.eventCategory,
         timestamp: DateTime.now(),
