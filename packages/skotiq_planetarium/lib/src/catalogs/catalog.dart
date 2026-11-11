@@ -444,51 +444,6 @@ class OpenNgcDsoCatalog extends Catalog<DeepSkyObject> {
   }
 }
 
-/// Legacy Messier catalog that uses OpenNGC internally
-class MessierCatalog extends Catalog<DeepSkyObject> {
-  final OpenNgcDsoCatalog _ngcCatalog = OpenNgcDsoCatalog();
-
-  @override
-  String get name => 'Messier';
-
-  @override
-  Future<List<DeepSkyObject>> loadObjects() async {
-    return _ngcCatalog.getMessierObjects();
-  }
-
-  @override
-  Future<DeepSkyObject?> findById(String id) async {
-    final objects = await loadObjects();
-    final normalizedId = id.toUpperCase().replaceAll(' ', '');
-
-    return objects
-        .where(
-          (o) =>
-              o.id.toUpperCase().replaceAll(' ', '') == normalizedId ||
-              o.name.toUpperCase().replaceAll(' ', '') == normalizedId ||
-              o.catalogIds.any(
-                (c) => c.toUpperCase().replaceAll(' ', '') == normalizedId,
-              ),
-        )
-        .firstOrNull;
-  }
-
-  @override
-  Future<List<DeepSkyObject>> search(String query) async {
-    final q = query.toLowerCase();
-    final objects = await loadObjects();
-
-    return objects
-        .where(
-          (o) =>
-              o.id.toLowerCase().contains(q) ||
-              o.name.toLowerCase().contains(q) ||
-              o.catalogIds.any((c) => c.toLowerCase().contains(q)),
-        )
-        .toList();
-  }
-}
-
 class _LoadDsosArgs {
   final String path;
   final double magnitudeLimit;

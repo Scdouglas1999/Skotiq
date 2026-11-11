@@ -8,7 +8,6 @@ library;
 
 export 'src/theme/skotiq_theme_system.dart';
 export 'src/theme/skotiq_icons.dart';
-export 'breakpoints.dart';
 export 'src/tokens/breakpoint_tokens.dart';
 export 'src/tokens/shell_chrome_metrics.dart';
 export 'src/layout/adaptive_layout.dart';
@@ -20,7 +19,6 @@ export 'src/layout/adaptive_columns.dart';
 export 'src/utils/responsive_utils.dart';
 export 'src/utils/shell_back_dispatcher.dart';
 export 'src/utils/adaptive_dialog_constraints.dart';
-export 'src/utils/scaled_config.dart';
 export 'src/utils/touch_target.dart';
 export 'src/utils/animation_duration.dart';
 export 'src/utils/menu_position.dart';
@@ -44,7 +42,6 @@ export 'src/components/skotiq_progress_bar.dart';
 export 'src/components/skotiq_alert.dart';
 export 'src/components/status_pill.dart';
 export 'src/components/status_dot.dart';
-export 'src/components/sub_tab_button.dart';
 export 'src/components/adaptive_tab_bar.dart';
 export 'src/components/responsive_stat_strip.dart';
 export 'src/components/nav_item.dart';
@@ -75,7 +72,6 @@ export 'src/widgets/focus/v_curve_chart.dart';
 export 'src/widgets/phd2/guide_star_view.dart';
 export 'src/widgets/phd2/guide_graph_advanced.dart';
 export 'src/widgets/phd2/brain_settings_panel.dart';
-export 'src/widgets/phd2/calibration_panel.dart';
 
 // Observatory wave 2
 export 'src/components/skotiq_panel.dart';

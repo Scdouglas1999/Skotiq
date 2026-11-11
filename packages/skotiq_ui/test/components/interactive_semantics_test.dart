@@ -87,11 +87,6 @@ void main() {
         value: '-10.0°C',
         onTap: () {},
       ),
-      'SubTabButton': SubTabButton(
-        label: 'Overview',
-        isSelected: true,
-        onTap: () {},
-      ),
       'NavItem': NavItem(
         icon: LucideIcons.home,
         label: 'Tonight',

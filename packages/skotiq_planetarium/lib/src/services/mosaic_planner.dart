@@ -22,21 +22,6 @@ class MosaicOverlap {
   }
 }
 
-/// Mosaic panel rotation options
-enum MosaicRotation {
-  /// No rotation - camera aligned with RA/Dec
-  none(0),
-
-  /// 90 degree rotation
-  rotate90(90),
-
-  /// Optimal rotation to minimize panels
-  optimal(-1);
-
-  final int degrees;
-  const MosaicRotation(this.degrees);
-}
-
 /// A single panel in a mosaic
 class PlanetariumMosaicPanel {
   /// Panel index (0-based, row-major)
