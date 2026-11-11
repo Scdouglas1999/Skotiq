@@ -93,6 +93,18 @@ void main() {
       );
     });
 
+    test('a request the server refused is its message, without the URL', () {
+      expect(
+        userFacingError(
+          http.ClientException(
+            'Survey returned HTTP 503 or an empty image',
+            Uri.parse('https://skyview.gsfc.nasa.gov/cgi-bin/images?Position=1,2'),
+          ),
+        ),
+        'Survey returned HTTP 503 or an empty image',
+      );
+    });
+
     test('typed backend errors give their user message', () {
       expect(
         userFacingError(
