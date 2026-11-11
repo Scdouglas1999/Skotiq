@@ -16,7 +16,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
   /// HTTP client for API requests.
   final http.Client _httpClient;
 
-  /// Base URL for the Open-Meteo forecast API.
   static const String _baseUrl = 'https://api.open-meteo.com/v1/forecast';
 
   /// Number of past days to fetch (0-92).
@@ -92,7 +91,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
         return RadarFetchResult.error('Failed to parse JSON response: $e');
       }
 
-      // Extract hourly data
       final hourly = json['hourly'] as Map<String, dynamic>?;
       if (hourly == null) {
         return RadarFetchResult.error('Missing hourly data in response');
@@ -136,7 +134,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
         try {
           timestamp = _parseUtcTimestamp(timeStr);
         } catch (e) {
-          // Skip invalid timestamps
           continue;
         }
 
@@ -150,7 +147,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
           continue; // Skip invalid types
         }
 
-        // Clamp cloud cover to valid range [0, 100]
         final clampedCloudCover = cloudCover.clamp(0.0, 100.0);
 
         // Convert cloud cover percentage to opacity (0.0-1.0)
@@ -247,7 +243,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
       return null;
     }
 
-    // Find the frame with the closest timestamp to the requested time
     RadarFrame? closestFrame;
     Duration? minDifference;
 

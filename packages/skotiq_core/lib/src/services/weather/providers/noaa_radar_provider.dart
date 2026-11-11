@@ -84,7 +84,6 @@ class NoaaRadarProvider extends RadarProvider {
     required double longitude,
     double radiusKm = 100.0,
   }) async {
-    // Verify coverage
     if (!coversLocation(latitude, longitude)) {
       return RadarFetchResult.error(
         'Location ($latitude, $longitude) is outside NOAA NEXRAD coverage area',
@@ -92,7 +91,6 @@ class NoaaRadarProvider extends RadarProvider {
     }
 
     try {
-      // Fetch available timestamps from the time series endpoint
       final timestamps = await _fetchAvailableTimestamps();
 
       if (timestamps.isEmpty) {
@@ -269,7 +267,6 @@ class NoaaRadarProvider extends RadarProvider {
       );
     }
 
-    // Parse the XML response to extract time dimension
     final body = response.body;
     final timestamps = _parseTimestampsFromCapabilities(body);
 
@@ -395,10 +392,8 @@ class NoaaRadarProvider extends RadarProvider {
 
   @override
   String buildTileUrl(RadarFrame frame, int z, int x, int y) {
-    // Calculate Web Mercator bounding box for this tile
     final bbox = _tileToBBox(x, y, z);
 
-    // Replace the {bbox} token in the template
     return frame.tileUrlTemplate.replaceAll(
       '{bbox}',
       '${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}',

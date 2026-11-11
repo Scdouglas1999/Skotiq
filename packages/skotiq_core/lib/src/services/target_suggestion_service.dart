@@ -469,7 +469,6 @@ class _TonightSuggestionScorer {
     return null;
   }
 
-  /// Generate a human-readable reasoning string for the night-based suggestion.
   String _generateNightReasoning(
     TargetScore score,
     double dataProgress,
@@ -481,7 +480,6 @@ class _TonightSuggestionScorer {
   }) {
     final parts = <String>[];
 
-    // Peak altitude assessment
     final peakAlt =
         score.visibility.peakAltitude ?? score.visibility.currentAltitude;
     if (peakAlt >= 60) {
@@ -523,13 +521,11 @@ class _TonightSuggestionScorer {
       }
     }
 
-    // Build first sentence
     var reasoning = parts.join(', ');
     if (reasoning.isNotEmpty) {
       reasoning = '${reasoning[0].toUpperCase()}${reasoning.substring(1)}.';
     }
 
-    // Imaging window
     final hoursAbove = score.visibility.hoursAboveMinAlt;
     if (hoursAbove != null && hoursAbove > 0) {
       reasoning +=
@@ -547,7 +543,6 @@ class _TonightSuggestionScorer {
           'will fare much better than broadband tonight.';
     }
 
-    // Data progress
     if (dataProgress > 0) {
       final pct = (dataProgress * 100).toStringAsFixed(0);
       reasoning += ' $pct% of planned data collected.';
@@ -672,7 +667,6 @@ class _TonightSuggestionScorer {
     return 1 + (fillRatio / 0.05) * 19;
   }
 
-  /// Sort suggestions according to the configured mode.
   void _sortSuggestions(
     List<TargetSuggestion> suggestions,
     SuggestionSortMode sortMode,

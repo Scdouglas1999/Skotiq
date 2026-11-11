@@ -5,7 +5,6 @@ import 'dart:async';
 
 import '../../models/weather/weather_models.dart';
 
-/// Service for generating weather alerts based on radar data and thresholds
 class WeatherAlertService {
   WeatherAlertService({Duration debounceDuration = const Duration(seconds: 30)})
     : _debounceDuration = debounceDuration;
@@ -17,15 +16,12 @@ class WeatherAlertService {
   WeatherAlert? _previousAlert;
   DateTime? _lastAlertChangeTime;
 
-  /// Stream of weather alerts for UI subscription
   Stream<WeatherAlert> get alertStream => _alertController.stream;
 
-  /// Dispose resources
   void dispose() {
     _alertController.close();
   }
 
-  /// Evaluate weather conditions and generate appropriate alert
   WeatherAlert evaluateConditions({
     required CloudMotion? motion,
     required double currentCloudDensity,
@@ -48,7 +44,6 @@ class WeatherAlertService {
     }
     final eta = motion?.etaToLocation;
 
-    // Determine alert level
     final level = determineAlertLevel(
       cloudDistanceKm: distanceKm,
       cloudDensityPercent: currentCloudDensity,
@@ -56,7 +51,6 @@ class WeatherAlertService {
       settings: settings,
     );
 
-    // Generate human-readable message
     final message = generateAlertMessage(
       level: level,
       distanceKm: distanceKm,
@@ -65,7 +59,6 @@ class WeatherAlertService {
       directionDegrees: motion?.directionDegrees,
     );
 
-    // Create alert
     final alert = WeatherAlert(
       level: level,
       message: message,
@@ -75,7 +68,6 @@ class WeatherAlertService {
       generatedAt: now,
     );
 
-    // Apply debouncing
     final debouncedAlert = debounceAlert(
       newAlert: alert,
       previousAlert: _previousAlert,
@@ -94,7 +86,6 @@ class WeatherAlertService {
     return alert;
   }
 
-  /// Determine alert level based on conditions and thresholds
   AlertLevel determineAlertLevel({
     required double cloudDistanceKm,
     required double cloudDensityPercent,
@@ -137,11 +128,9 @@ class WeatherAlertService {
       return AlertLevel.warning;
     }
 
-    // Default to clear
     return AlertLevel.clear;
   }
 
-  /// Generate human-readable alert message
   String generateAlertMessage({
     required AlertLevel level,
     required double distanceKm,
@@ -232,7 +221,6 @@ class WeatherAlertService {
     return null;
   }
 
-  /// Emit new alert to stream
   void emitAlert(WeatherAlert alert) {
     if (!_alertController.isClosed) {
       _alertController.add(alert);

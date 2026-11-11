@@ -59,7 +59,6 @@ class WcsOverlay {
     final dx = (x - crpix1) * cdelt1;
     final dy = (y - crpix2) * cdelt2;
 
-    // Apply rotation
     final angle = crota2 * math.pi / 180;
     final dx2 = dx * math.cos(angle) - dy * math.sin(angle);
     final dy2 = dx * math.sin(angle) + dy * math.cos(angle);
@@ -82,7 +81,6 @@ class WcsOverlay {
     final dx2 = raDelta * math.cos(crval2 * math.pi / 180);
     final dy2 = dec - crval2;
 
-    // Apply inverse rotation
     final angle = -crota2 * math.pi / 180;
     final dx = dx2 * math.cos(angle) - dy2 * math.sin(angle);
     final dy = dx2 * math.sin(angle) + dy2 * math.cos(angle);
@@ -93,7 +91,6 @@ class WcsOverlay {
     return (x, y);
   }
 
-  /// Get the image center in celestial coordinates
   (double ra, double dec) get imageCenter {
     return (crval1 / 15, crval2); // RA in hours, Dec in degrees
   }

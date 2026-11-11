@@ -6,7 +6,6 @@ import 'radar_provider.dart';
 /// Maintains a registry of available providers and selects the best one
 /// based on geographic coverage and user preferences.
 class RadarProviderFactory {
-  /// Internal registry of providers by type.
   final Map<RadarProviderType, RadarProvider> _providers = {};
 
   /// Auto-selection priority, most-preferred first.
@@ -37,7 +36,6 @@ class RadarProviderFactory {
     _providers[provider.providerType] = provider;
   }
 
-  /// Returns all registered providers.
   List<RadarProvider> get allProviders => _providers.values.toList();
 
   /// Selects the best provider for a given location and preference.
@@ -60,7 +58,6 @@ class RadarProviderFactory {
     required double longitude,
     required RadarProviderType preferredProvider,
   }) {
-    // Handle non-auto preference
     if (preferredProvider != RadarProviderType.auto) {
       final provider = _providers[preferredProvider];
       if (provider != null && provider.coversLocation(latitude, longitude)) {
@@ -129,7 +126,6 @@ class RadarProviderFactory {
     _providers.clear();
   }
 
-  /// Returns the number of registered providers.
   int get providerCount => _providers.length;
 
   /// Checks if a specific provider type is registered.

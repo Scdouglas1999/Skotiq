@@ -5,7 +5,6 @@ import '../../models/weather/weather_models.dart';
 ///
 /// Contains either a successful list of frames or an error message.
 class RadarFetchResult {
-  /// List of radar frames fetched from the provider.
   final List<RadarFrame> frames;
 
   /// Timestamp when the data was fetched.
@@ -20,7 +19,6 @@ class RadarFetchResult {
   /// Error message if the fetch failed, null otherwise.
   final String? errorMessage;
 
-  /// Whether the fetch was successful.
   bool get isSuccess => errorMessage == null;
 
   const RadarFetchResult._({
@@ -59,7 +57,6 @@ class RadarFetchResult {
     );
   }
 
-  /// Creates an error result with the given message.
   factory RadarFetchResult.error(String message) {
     return RadarFetchResult._(
       frames: const [],
@@ -132,7 +129,6 @@ abstract class RadarProvider {
   /// Human-readable name of this provider.
   String get name;
 
-  /// Type identifier for this provider.
   RadarProviderType get providerType;
 
   /// Geographic bounds where this provider has coverage.
