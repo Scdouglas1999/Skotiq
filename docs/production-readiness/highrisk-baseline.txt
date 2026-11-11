@@ -172,13 +172,11 @@ native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	probe	highrisk	1	baseline	slew.message.unwrap_or_default()
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	report	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/executor/start/trigger_monitor/frame_watch.rs	with_measurer	highrisk	1	baseline	.unwrap_or_default();
-native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	highrisk	1	baseline	let focuser_id = ctx.focuser_id.clone().unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	execute_autofocus_admitted_with_pause	highrisk	1	baseline	let focuser_id = ctx.run.rig.focuser_id.clone().unwrap_or_default();
 native/skotiq_native/sequencer/src/instructions/autofocus.rs	run_autofocus_admitted	highrisk	1	baseline	config.filter.as_deref().unwrap_or_default().trim()
 native/skotiq_native/sequencer/src/instructions/device_retry.rs	-	highrisk	1	baseline	"not implemented",
 native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	highrisk	1	baseline	.unwrap_or_default(),
 native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	highrisk	1	baseline	.ok();
-native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	highrisk	1	baseline	let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	resolve_post_flip_autofocus	highrisk	1	baseline	ctx.autofocus_config.clone().unwrap_or_default()
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	exposure_with_an_absolute_save_to_runs_without_a_base_path	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/node/instructions/expose.rs	notify_exposure_trigger	highrisk	1	baseline	measured.map(|m| format!(": {m}")).unwrap_or_default(),
@@ -194,7 +192,6 @@ native/skotiq_native/sequencer/src/scheduling/adaptive_swap.rs	saturating_durati
 native/skotiq_native/sequencer/src/triggers/trigger.rs	new	highrisk	1	baseline	.unwrap_or_default();
 packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart	_createDump	highrisk	1	baseline	// Android/iOS, so asking for one there threw UnimplementedError and this
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	highrisk	1	baseline	// `canPark` no longer ships a button that hits a "Not implemented"
-packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart	-	highrisk	1	baseline	/// UnimplementedError), which made both annotation exports dead on a phone. On
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	-	highrisk	1	baseline	/// Android/iOS have no save dialog (`getSavePath` throws UnimplementedError),
 packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart	_exportFinderChart	highrisk	1	baseline	// UnimplementedError there — so the chart goes to a sandbox path and
 packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_card.dart	_exportSequence	highrisk	1	baseline	// UnimplementedError: getSavePath() has not been implemented."

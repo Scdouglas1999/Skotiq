@@ -1446,14 +1446,11 @@ native/skotiq_native/sequencer/src/meridian_flip_executor.rs	plate_solve	unwrap_
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	plate_solve	unwrap_or_literal	1	V0062	ra_degrees: hint_ra.unwrap_or(0.0),
 native/skotiq_native/sequencer/src/node.rs	trigger_state_writes_are_never_dropped_under_monitor_contention	rust_let_underscore	1	U2-07	let _ = guard.latches.completed_exposures;
 native/skotiq_native/sequencer/src/node.rs	trigger_state_writes_are_never_dropped_under_monitor_contention	rust_let_underscore	1	U2-07	let _ = guard.target.current_target_name.clone();
-native/skotiq_native/sequencer/src/node/context.rs	emit_decision	rust_let_underscore	1	V0076	let _ = tx.send(event);
 native/skotiq_native/sequencer/src/node/context.rs	-	simulated_runtime_path	1	V0076	use crate::device_ops::NullDeviceOps;
 native/skotiq_native/sequencer/src/node/context.rs	ExecutionContext	simulated_runtime_path	1	V0076	/// A context wired to [`NullDeviceOps`], for tests that exercise logic no
 native/skotiq_native/sequencer/src/node/context.rs	ExecutionContext	simulated_runtime_path	1	V0076	/// through it: a context that fell back to [`NullDeviceOps`] would answer
 native/skotiq_native/sequencer/src/node/context.rs	new_for_test	simulated_runtime_path	1	V0076	Self::new(node_id, Arc::new(NullDeviceOps))
-native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	V0076	latitude_deg: self.latitude.unwrap_or(0.0),
 native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	U2-13	latitude_deg: self.run.rig.latitude.unwrap_or(0.0),
-native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	V0076	longitude_deg: self.longitude.unwrap_or(0.0),
 native/skotiq_native/sequencer/src/node/context.rs	active_target_end_trigger_satisfied	unwrap_or_literal	1	U2-13	longitude_deg: self.run.rig.longitude.unwrap_or(0.0),
 native/skotiq_native/sequencer/src/node/instructions/autofocus.rs	execute	unwrap_or_literal	1	V0077	step: step.unwrap_or(0),
 native/skotiq_native/sequencer/src/node/instructions/center.rs	-	comment_best_effort	1	V0078	/// Best-effort parse of "attempt N/M" from the instruction's legacy detail.
@@ -1540,7 +1537,6 @@ native/skotiq_native/sequencer/src/scheduling/adaptive_swap.rs	saturating_durati
 native/skotiq_native/sequencer/src/scheduling/integration_budget.rs	accepted_frames	unwrap_or_literal	1	V0077	let done = self.completed_by_filter.get(filter).copied().unwrap_or(0.0);
 native/skotiq_native/sequencer/src/scheduling/integration_budget.rs	evaluate	unwrap_or_literal	1	V0077	let done = self.completed_by_filter.get(filter).copied().unwrap_or(0.0);
 native/skotiq_native/sequencer/src/slew_arrival.rs	-	unwrap_or_literal	1	V0329	slewing: sample.slewing.unwrap_or(false),
-native/skotiq_native/sequencer/src/temperature_compensation.rs	execute_temperature_compensation	rust_let_underscore	2	V0062	let _ = ctx.device_ops.focuser_halt(&focuser_id).await;
 native/skotiq_native/sequencer/src/temperature_compensation.rs	execute_temperature_compensation	rust_let_underscore	2	U2-13	let _ = ctx.run.device_ops.focuser_halt(&focuser_id).await;
 native/skotiq_native/sequencer/src/triggers/trigger.rs	new	unwrap_or_default	1	V0796	.unwrap_or_default();
 native/skotiq_native/sequencer/src/wizard/mod.rs	cancellation_between_steps_is_respected	rust_let_underscore	1	V0081	let _ = &mut ctx;
@@ -1716,9 +1712,6 @@ packages/skotiq_app/lib/screens/imaging/centering_dialog.dart	_resolvedAppSettin
 packages/skotiq_app/lib/screens/imaging/centering_dialog.dart	_runCentering	literal_null_coalesce	1	V0140	executablePath: appSettings?.astapPath ?? '',
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	literal_null_coalesce	1	V0002	.watch(equipmentMountCapabilitiesProvider(mountState.deviceId ?? ''));
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	unimplemented_behavior	1	V0002	// `canPark` no longer ships a button that hits a "Not implemented"
-packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart	generateAnnotationCsv	literal_null_coalesce	1	V0002	final catalogId = _csvEscape(obj.catalogId ?? '');
-packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart	generateAnnotationCsv	literal_null_coalesce	1	V0002	final mag = obj.magnitude?.toStringAsFixed(2) ?? '';
-packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart	generateAnnotationCsv	literal_null_coalesce	1	V0002	final size = obj.size?.toStringAsFixed(2) ?? '';
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	_countForFilterType	literal_null_coalesce	1	V0121	(typeCounts[ObjectType.asterism] ?? 0);
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	_countForFilterType	literal_null_coalesce	1	V0121	(typeCounts[ObjectType.doubleStar] ?? 0);
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	_countForFilterType	literal_null_coalesce	1	V0121	return (typeCounts[ObjectType.star] ?? 0) +
@@ -1787,6 +1780,9 @@ packages/skotiq_app/lib/screens/mosaic/mosaic_project_controller_parts/_state.da
 packages/skotiq_app/lib/screens/mosaic/mosaic_project_controller_parts/_state.dart	isPublished	literal_null_coalesce	1	V0502	bool get isPublished => project?.isPublished ?? false;
 packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart	build	literal_null_coalesce	1	V0235	hubMosaicId: state.hubMosaicId ?? '',
 packages/skotiq_app/lib/screens/mosaic/widgets/mosaic_panel_grid.dart	_exists	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_app/lib/screens/night_control/data/session/session_stats_provider.dart	_rejectStreak	literal_null_coalesce	1	U2-14	final reason = grading.lastReject?.reason.trim() ?? '';
+packages/skotiq_app/lib/screens/night_control/panel/overview/run_sections.dart	NightConditionsSwapSection	literal_null_coalesce	1	U2-14	final kind = state.lastDecisionKind?.toLowerCase() ?? '';
+packages/skotiq_app/lib/screens/night_control/panel/overview/run_sections.dart	build	literal_null_coalesce	1	U2-14	params: <String, String>{'url': shown ?? ''},
 packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart	_skipStep	literal_null_coalesce	1	V0086	if ((draft.guiderId ?? '').isNotEmpty) {
 packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart	_validate	literal_null_coalesce	1	V0086	if ((draft.profileName ?? '').trim().isEmpty) {
 packages/skotiq_app/lib/screens/onboarding/onboarding_screen_parts/_chrome.dart	build	literal_null_coalesce	1	V0731	label: _stepLabels[step] ?? '',
@@ -1920,15 +1916,10 @@ packages/skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_wiz
 packages/skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_wizard_helpers.dart	_loadExposureContext	empty_catch	1	V0507	} catch (_) {
 packages/skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_wizard_helpers.dart	_initializeWizard	literal_null_coalesce	1	V0506	_hasConfiguredFilters = activeProfile?.filterNames.isNotEmpty ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/replay_debug_screen.dart	_applyFilters	literal_null_coalesce	1	V0086	!(d.nodeId?.toLowerCase().contains(term) ?? false)) {
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/adaptive_conditions_panel.dart	_lastSwap	literal_null_coalesce	1	V0086	if ((from ?? '').isEmpty || (to ?? '').isEmpty) return prefix;
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/adaptive_conditions_panel.dart	build	literal_null_coalesce	1	U2-07	? '${DurationFormat.seconds(state?.configuredHysteresisSecs ?? 0, style: DurationStyle.short)} window'
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/adaptive_conditions_panel.dart	build	literal_null_coalesce	1	V0086	if ((state?.lastDecisionReason ?? '').isNotEmpty) ...[
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/broadcast_panel.dart	_resolveBroadcastBase	comment_best_effort	1	V0085	// Best-effort: the broadcast HTML page is served by the SAME
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/broadcast_panel.dart	build	literal_null_coalesce	1	V0085	: '$base?token=${Uri.encodeQueryComponent(state.authToken ?? '')}';
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/frame_detail_dialog.dart	_safeExists	empty_catch	1	V0087	} catch (_) {
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	guessed_now_timestamp	1	V0088	final now = tickAsync.valueOrNull ?? DateTime.now();
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	accepted[filter] = (accepted[filter] ?? 0.0) + img.exposureDuration;
-packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	final audibleEnabled = settings?.audibleAlertsOnCritical ?? false;
+packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	if (!(settings?.audibleAlertsOnCritical ?? false)) return;
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	-	literal_null_coalesce	1	V0088	total[filter] = (total[filter] ?? 0.0) + img.exposureDuration;
 packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart	_computeGoalSecs	literal_null_coalesce	1	V0088	out[filter] = (out[filter] ?? 0.0) + node.totalDurationSecs;
 packages/skotiq_app/lib/screens/sequencer/widgets/science_photometry_properties.dart	didUpdateWidget	literal_null_coalesce	1	V0086	_syncField(_gainCtl, _gainFocus, node.gain?.toString() ?? '',
@@ -3041,6 +3032,9 @@ packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	fetchR
 packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	hydrateRemoteSessionState	empty_catch	1	V0405	} catch (_) {
 packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	hydrateRemoteSessionState	empty_catch	1	V0406	} catch (_) {
 packages/skotiq_core/lib/src/providers/remote_sync/session_hydration.dart	hydrateRemoteSessionState	empty_catch	1	V0404	} catch (_) {
+packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	integrationSecs: jsonDouble(json['integrationSecs']) ?? 0,
+packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	stackMethod: jsonString(json['stackMethod']) ?? '',
+packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	watermark: jsonString(json['watermark']) ?? '',
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	_availableFilters	empty_catch	1	V0410	} catch (_) {
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	_loadRemote	literal_null_coalesce	1	V0409	decDegrees: (json['dec'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	_loadRemote	literal_null_coalesce	1	V0408	raHours: (json['ra'] as num?)?.toDouble() ?? 0.0,
@@ -3234,9 +3228,6 @@ packages/skotiq_core/lib/src/services/annotation_export.dart	_csv	literal_null_c
 packages/skotiq_core/lib/src/services/annotation_pipeline.dart	findObjectsInFov	comment_best_effort	1	V0024	// Temporary map for deduplication: keyed by normalized name or position.
 packages/skotiq_core/lib/src/services/annotation_service.dart	_deduplicationKey	literal_null_coalesce	1	V0025	final catalogId = annotation.catalogId?.trim().toUpperCase() ?? '';
 packages/skotiq_core/lib/src/services/annotation_service.dart	_describePlateSolveFailure	literal_null_coalesce	1	V0025	final count = int.tryParse(starMatch.group(1)!) ?? 0;
-packages/skotiq_core/lib/src/services/annotation_service.dart	exportAnnotationsCsv	literal_null_coalesce	1	V0025	final commonName = _csvEscape(obj.commonName ?? '');
-packages/skotiq_core/lib/src/services/annotation_service.dart	exportAnnotationsCsv	literal_null_coalesce	1	V0025	final mag = obj.magnitude?.toStringAsFixed(2) ?? '';
-packages/skotiq_core/lib/src/services/annotation_service.dart	exportAnnotationsCsv	literal_null_coalesce	1	V0025	final size = obj.size?.toStringAsFixed(2) ?? '';
 packages/skotiq_core/lib/src/services/auto_save_service.dart	-	empty_catch	1	V0024	} catch (_) {
 packages/skotiq_core/lib/src/services/auto_save_service.dart	positiveInt	literal_null_coalesce	1	V0024	final parsed = int.tryParse(values[key] ?? '');
 packages/skotiq_core/lib/src/services/backup_service.dart	BackupService	comment_best_effort	1	V0026	/// Best-effort: a settings-write failure must not turn a backup that is
