@@ -1,4 +1,3 @@
-// ignore_for_file: unused_element
 
 part of '../polar_alignment_screen.dart';
 

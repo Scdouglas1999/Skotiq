@@ -1,9 +1,8 @@
-// ignore_for_file: unused_element_parameter
 
 part of '../analytics_screen.dart';
 
 class _ProjectsTab extends ConsumerWidget {
-  const _ProjectsTab({super.key});
+  const _ProjectsTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

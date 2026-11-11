@@ -1,9 +1,8 @@
-// ignore_for_file: unused_element_parameter
 
 part of '../analytics_screen.dart';
 
 class _SessionTab extends ConsumerStatefulWidget {
-  const _SessionTab({super.key});
+  const _SessionTab();
 
   @override
   ConsumerState<_SessionTab> createState() => _SessionTabState();
