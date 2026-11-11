@@ -262,11 +262,16 @@ void main() {
 
     await pins(
       'update partial',
-      () => dao.update(2, name: 'Remote box', enabled: true, now: pinT(20)),
+      () => dao.updateDestination(
+        2,
+        name: 'Remote box',
+        enabled: true,
+        now: pinT(20),
+      ),
     );
     await pins(
       'update content and config',
-      () => dao.update(
+      () => dao.updateDestination(
         1,
         configJson: '{"path":"/mnt/other"}',
         content: const {},
@@ -274,15 +279,18 @@ void main() {
         now: pinT(21),
       ),
     );
-    await pins('update nothing', () => dao.update(3, now: pinT(22)));
-    await pins('update missing', () => dao.update(99, name: 'x'));
+    await pins('update nothing', () => dao.updateDestination(3, now: pinT(22)));
+    await pins('update missing', () => dao.updateDestination(99, name: 'x'));
     await pins(
       'update secret config',
-      () => dao.update(1, configJson: '{"privateKey":"abc"}'),
+      () => dao.updateDestination(1, configJson: '{"privateKey":"abc"}'),
     );
     await pins('clearSecretRef', () => dao.clearSecretRef(2, now: pinT(23)));
     await pins('clearSecretRef missing', () => dao.clearSecretRef(99));
-    await pins('update default now', () => dao.update(3, enabled: false));
+    await pins(
+      'update default now',
+      () => dao.updateDestination(3, enabled: false),
+    );
     await pins.dump(db, 'delivery_targets', 'after update');
 
     await db.customStatement(
@@ -585,10 +593,7 @@ void main() {
       'create other master default now',
       () => dao.create(baseMasterPath: '/m/other.fits'),
     );
-    await pins(
-      'create empty path',
-      () => dao.create(baseMasterPath: ''),
-    );
+    await pins('create empty path', () => dao.create(baseMasterPath: ''));
     await pins(
       'create schema 0',
       () => dao.create(baseMasterPath: '/m.fits', schemaVersion: 0),

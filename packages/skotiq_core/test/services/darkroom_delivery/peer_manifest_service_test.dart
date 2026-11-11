@@ -155,7 +155,7 @@ void main() {
     final jobId = await DarkroomJobsDao(db).enqueue();
     final id = await createPeer('office-pc');
     await serviceFor().deliverJobArtifacts(await publishSet(jobId));
-    await targets.update(id, enabled: false);
+    await targets.updateDestination(id, enabled: false);
 
     await expectLater(
       peers.buildManifest(jobId: jobId, peerId: 'office-pc'),

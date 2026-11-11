@@ -247,7 +247,7 @@ void main() {
       );
       final secrets = SecretsStore(InMemorySecureKeyValueStore());
       await secrets.write(deliverySecretRef(id), privateKey);
-      await targets.update(id, secretRef: deliverySecretRef(id));
+      await targets.updateDestination(id, secretRef: deliverySecretRef(id));
 
       await _pumpDelivery(tester, database, secrets: secrets);
 

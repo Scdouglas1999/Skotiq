@@ -81,6 +81,6 @@ class DefaultArtifactTransportFactory {
         : <String, Object?>{};
     config['hostKeyFingerprint'] = key.fingerprint;
     config['hostKey'] = key.knownHostsKey;
-    await _targets.update(id, configJson: jsonEncode(config));
+    await _targets.updateDestination(id, configJson: jsonEncode(config));
   }
 }
