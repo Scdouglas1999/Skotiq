@@ -23,31 +23,3 @@ class ProfileAutoConnectException implements Exception {
       'device${failures.length == 1 ? '' : 's'} failed to '
       'connect for profile "$profileName": ${failures.join('; ')}';
 }
-
-/// Result of validating a profile's devices against discovered devices
-class ProfileValidationResult {
-  /// Whether all devices in the profile are available
-  final bool isValid;
-
-  /// List of device types that are configured in profile but not found
-  final List<String> missingDevices;
-
-  /// List of device types that are configured and available
-  final List<String> availableDevices;
-
-  /// Map of device type to device ID for devices that are missing
-  final Map<String, String> missingDeviceIds;
-
-  const ProfileValidationResult({
-    required this.isValid,
-    required this.missingDevices,
-    required this.availableDevices,
-    this.missingDeviceIds = const {},
-  });
-
-  /// Create a result indicating all devices are valid
-  const ProfileValidationResult.valid({required this.availableDevices})
-    : isValid = true,
-      missingDevices = const [],
-      missingDeviceIds = const {};
-}

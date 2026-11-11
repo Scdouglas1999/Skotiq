@@ -9,6 +9,7 @@
 library;
 
 import '../../models/backend/device_info.dart';
+import '../../utils/device_id.dart';
 
 /// The outcome for one profile slot.
 class ProfileSlotResolution {
@@ -138,6 +139,35 @@ ProfileSlotResolution resolveProfileSlot({
   return ProfileSlotResolution.refused(
     'The profile\'s $deviceLabel is $savedName, but $found $why. '
     'Choose the $deviceLabel again in the profile so the right one connects.',
+  );
+}
+
+/// Whether [discovered] holds the device a profile slot means.
+///
+/// The answer [resolveProfileSlot] would act on: a positional id with a saved
+/// name is found when a device of that vendor carries the name (or the saved
+/// serial) at any position, since connect moves the slot to it; any other id
+/// is found when discovery lists it.
+bool discoveryHoldsProfileDevice({
+  required String savedId,
+  required String? savedName,
+  required Iterable<DeviceInfo> discovered,
+}) {
+  if (!isPositionalDeviceId(savedId) ||
+      savedName == null ||
+      savedName.trim().isEmpty) {
+    final saved = DeviceId.parse(savedId).canonical;
+    return discovered.any((d) => DeviceId.parse(d.id).canonical == saved);
+  }
+  final prefix = _vendorPrefix(savedId);
+  final wanted = _normalizedName(savedName);
+  final savedSerial = _serialIn(savedName);
+  return discovered.any(
+    (d) =>
+        d.id.startsWith(prefix) &&
+        isPositionalDeviceId(d.id) &&
+        ((savedSerial != null && _serialIn(d.name) == savedSerial) ||
+            _normalizedName(d.name) == wanted),
   );
 }
 

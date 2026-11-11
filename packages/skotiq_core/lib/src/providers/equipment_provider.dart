@@ -17,6 +17,7 @@ export 'equipment/guider_state_provider.dart';
 export 'equipment/mount_state_provider.dart';
 export 'equipment/device_read_health_provider.dart';
 export 'equipment/profile_connection_status_provider.dart';
+export 'equipment/profile_scan_check_provider.dart';
 export 'equipment/rotator_state_provider.dart';
 export 'equipment/safety_monitor_state_provider.dart';
 export 'equipment/switch_state_provider.dart';
