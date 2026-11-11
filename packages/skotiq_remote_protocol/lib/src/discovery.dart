@@ -5,7 +5,6 @@ import 'dart:convert';
 
 import 'network_uri.dart';
 
-/// Discovered Skotiq server information
 class DiscoveredServer {
   final String host;
   final int webPort;
@@ -662,7 +661,6 @@ class UpdatePushDiscovery {
   static const String _updatePushMessage = 'SKOTIQ_UPDATE_PUSH';
   static const String _updateResponsePrefix = 'SKOTIQ_UPDATE_TARGET:';
 
-  /// Discover Skotiq instances that can receive updates
   static Future<List<DiscoveredUpdateTarget>> discoverTargets({
     Duration timeout = const Duration(seconds: 3),
   }) async {
