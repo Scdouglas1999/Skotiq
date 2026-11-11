@@ -274,8 +274,6 @@ class SmartProjectService {
   /// frozen reference's mean weight by at least 15% to be recommended.
   static const double defaultReReferenceThreshold = 0.15;
 
-  // Growth curve
-
   /// Integration-time growth points for [masterId]: cumulative integration
   /// seconds (and accepted-frame count) per observing night the master grew.
   ///
@@ -316,8 +314,6 @@ class SmartProjectService {
     return out;
   }
 
-  // Best night
-
   /// The observing night whose accepted subs carried the highest mean
   /// integration weight. Null when the master has no accepted folded subs.
   Future<BestNight?> bestNight(int masterId) async {
@@ -332,8 +328,6 @@ class SmartProjectService {
     }
     return best;
   }
-
-  // Re-reference advisory
 
   /// Advisory re-reference recommendation for an accumulating master.
   ///
@@ -524,8 +518,6 @@ class SmartProjectService {
       perFilter: results,
     );
   }
-
-  // Internals
 
   /// The master's v42 smart columns (read directly — the typed
   /// [IntegratedMaster] model does not surface them).

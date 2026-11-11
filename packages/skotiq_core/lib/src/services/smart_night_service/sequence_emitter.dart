@@ -559,7 +559,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       );
     }
 
-    // Compose the root.
     final root = InstructionSetNode(
       id: rootId,
       name:

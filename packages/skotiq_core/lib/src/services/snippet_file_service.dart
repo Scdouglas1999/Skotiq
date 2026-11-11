@@ -282,8 +282,6 @@ class SnippetFileService {
     return _bodyToSnippet(migrated);
   }
 
-  // Internals
-
   /// Build the "body" — everything that goes into the checksum — for
   /// [snippet]. Excludes the checksum field itself so encoding and
   /// verification operate on identical input.

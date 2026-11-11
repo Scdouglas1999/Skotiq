@@ -250,7 +250,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     return targetTime;
   }
 
-  /// Estimate the duration of a single node based on its type.
   Duration _estimateNodeDuration(
     SequenceNode node,
     DateTime currentTime,

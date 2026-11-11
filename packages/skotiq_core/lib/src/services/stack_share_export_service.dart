@@ -458,8 +458,6 @@ class StackShareExportService {
     return primaryPath;
   }
 
-  // Helpers
-
   void _validateBuffer({
     required Uint8List rgba,
     required int width,

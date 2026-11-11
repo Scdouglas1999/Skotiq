@@ -201,7 +201,6 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // Skip targets below minimum score
       if (score.totalScore < config.minScore) {
         continue;
       }
@@ -229,10 +228,8 @@ class _TonightSuggestionScorer {
         }
       }
 
-      // Calculate data progress
       final dataProgress = _calculateDataProgress(target.id, target, sessions);
 
-      // Compute framing fit score and adjusted total score
       double adjustedTotalScore = score.totalScore;
       double? framingFitScore;
       final tags = <String>[];
@@ -256,7 +253,6 @@ class _TonightSuggestionScorer {
         }
       }
 
-      // Generate human-readable reasoning
       final reasoning = _generateNightReasoning(
         score,
         dataProgress,
@@ -267,7 +263,6 @@ class _TonightSuggestionScorer {
         fovShortAxisArcmin: fovShortAxisArcmin,
       );
 
-      // Build score breakdown map
       final scoreBreakdown = <String, double>{
         'altitude': score.altitudeScore,
         'moonDistance': score.moonDistanceScore,
@@ -299,18 +294,15 @@ class _TonightSuggestionScorer {
       suggestions.add(suggestion);
     }
 
-    // Sort by configured mode
     _sortSuggestions(suggestions, config.sortMode, config.prioritizeIncomplete);
 
     return suggestions;
   }
 
-  /// Convert a database Target to a CelestialObject for scoring.
   CelestialObject _targetToCelestialObject(Target target) {
     // Target.ra is in decimal hours, Target.dec is in decimal degrees
     final coordinate = CelestialCoordinate(ra: target.ra, dec: target.dec);
 
-    // Determine DSO type from object type string
     final dsoType = _parseDsoType(target.objectType);
 
     return DeepSkyObject(
@@ -325,7 +317,6 @@ class _TonightSuggestionScorer {
     );
   }
 
-  /// Parse object type string to DsoType enum.
   DsoType _parseDsoType(String? objectType) {
     if (objectType == null || objectType.isEmpty) {
       return DsoType.other;
@@ -361,7 +352,6 @@ class _TonightSuggestionScorer {
     Target target,
     List<ImagingSession> sessions,
   ) {
-    // Sum total integration time from all sessions for this target
     double totalIntegrationSecs = 0;
     for (final session in sessions) {
       if (session.targetId == targetId) {
@@ -372,7 +362,6 @@ class _TonightSuggestionScorer {
     // Also include any integration time already stored on the target itself
     totalIntegrationSecs += target.totalIntegrationSecs;
 
-    // Calculate expected total integration time
     final plannedSubs = target.totalPlannedSubs;
     if (plannedSubs <= 0) {
       // If no planned subs, we can't calculate progress
@@ -387,7 +376,6 @@ class _TonightSuggestionScorer {
     final expectedTotalSecs = plannedSubs * _typicalExposureSecs;
     final progress = totalIntegrationSecs / expectedTotalSecs;
 
-    // Clamp to 0-1 range
     return progress.clamp(0.0, 1.0);
   }
 

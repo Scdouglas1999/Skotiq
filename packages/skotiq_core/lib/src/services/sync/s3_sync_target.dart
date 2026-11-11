@@ -121,8 +121,6 @@ class S3SyncTarget implements SyncTarget {
   static const String _emptyPayloadSha256 =
       'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-  // URI construction
-
   /// Build the request URI for [key] (slash-separated object key, may be
   /// empty for bucket-scoped requests) with optional [query] parameters.
   Uri _bucketUri({String key = '', Map<String, String>? query}) {
@@ -279,8 +277,6 @@ class S3SyncTarget implements SyncTarget {
     );
   }
 
-  // Signed transport
-
   /// Sign and send [method] [uri]. [extraHeaders] (e.g. `Content-Type`)
   /// are transmitted but intentionally not signed — S3 only requires the
   /// declared SignedHeaders (host, x-amz-date, x-amz-content-sha256) to
@@ -366,8 +362,6 @@ class S3SyncTarget implements SyncTarget {
       statusCode: status,
     );
   }
-
-  // SyncTarget contract
 
   /// No-op: object stores have no directory objects (see the file-level
   /// doc). A prefix exists implicitly once a key under it is written.

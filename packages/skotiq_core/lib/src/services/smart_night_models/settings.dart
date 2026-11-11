@@ -1,7 +1,5 @@
 part of '../smart_night_models.dart';
 
-// Public enums
-
 /// High-level strategy for the auto-builder.
 ///
 /// Each strategy picks per-filter sub counts + a sane filter rotation given
@@ -46,8 +44,6 @@ enum SmartNightAfCadence {
   onTempDelta,
 }
 
-// Public model classes
-
 /// Compact "user prefs" envelope owned by the wizard. The wizard initialises
 /// it from per-profile defaults if available; otherwise from these sane
 /// values. Not stored in a DB table — the wizard mutates a copy per build
@@ -57,7 +53,6 @@ class SmartNightSettings {
   /// longer than this, the auto-builder caps the planning window.
   final double maxSessionHours;
 
-  /// Autofocus cadence policy.
   final SmartNightAfCadence afCadence;
 
   /// When [afCadence] is [SmartNightAfCadence.everyNFrames] this is the N.

@@ -49,7 +49,6 @@ class SessionFrameGrading {
   double? get keptPercent => lights == 0 ? null : accepted / lights * 100.0;
 }
 
-/// Service for exporting session data to various formats
 class SessionExportService {
   final SessionsDao _sessionsDao;
   final ImagesDao _imagesDao;
@@ -107,7 +106,6 @@ class SessionExportService {
       ],
     ];
 
-    // Add image data rows
     for (final image in images) {
       // Prefer the MEASURED fwhm column when the pipeline recorded one;
       // only derive from HFR when it did not.
@@ -133,10 +131,8 @@ class SessionExportService {
       ]);
     }
 
-    // Convert to CSV
     final csv = const ListToCsvConverter().convert(rows);
 
-    // Save to file
     final directory = await _getExportDirectory();
     final sessionName = session.name ?? 'session_$sessionId';
     final timestamp = _now()
@@ -264,7 +260,6 @@ class SessionExportService {
     // Convert to JSON
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
-    // Save to file
     final directory = await _getExportDirectory();
     final sessionName = session.name ?? 'session_$sessionId';
     final timestamp = _now()
@@ -317,7 +312,6 @@ class SessionExportService {
       ? ''
       : '<div class="muted" style="font-size:11px;margin-top:4px">$note</div>';
 
-  /// Get or create the export directory
   Future<Directory> _getExportDirectory() async {
     final docsDir = await _documentsDirectoryProvider();
     final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
@@ -431,7 +425,6 @@ class SessionExportService {
     buffer.writeln('Rejected: ${images.length - acceptedImages.length}');
     buffer.writeln();
 
-    // Group by filter
     final filterGroups = <String, List<CapturedImage>>{};
     for (final image in acceptedImages) {
       final filter = image.filter ?? 'No Filter';

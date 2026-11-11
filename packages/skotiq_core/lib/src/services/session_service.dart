@@ -6,7 +6,6 @@ import 'imaging_records_repository.dart';
 import 'logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// Configuration for session checkpointing
 class SessionCheckpointConfig {
   /// Re-persist the current statistics on this interval even when no frame has
   /// arrived.
@@ -18,7 +17,6 @@ class SessionCheckpointConfig {
   /// stale until the next frame.
   final Duration checkpointTimeInterval;
 
-  /// Whether automatic checkpointing is enabled
   final bool enabled;
 
   const SessionCheckpointConfig({
@@ -38,7 +36,6 @@ class SessionCheckpointConfig {
   }
 }
 
-/// Statistics tracked during a session for checkpointing
 class SessionStats {
   final int completedExposures;
   final int failedExposures;
@@ -82,7 +79,6 @@ class SessionStats {
     );
   }
 
-  /// Calculate success rate
   double get successRate {
     final total = completedExposures + failedExposures;
     if (total == 0) return 1.0;
@@ -90,7 +86,6 @@ class SessionStats {
   }
 }
 
-/// Result of a session recovery operation
 class SessionRecoveryInfo {
   final int sessionId;
   final String? sessionName;
@@ -113,7 +108,6 @@ class SessionRecoveryInfo {
   Duration get duration => stats.lastUpdated.difference(startTime);
 }
 
-/// Service for managing imaging session lifecycle with persistence and recovery
 class SessionService {
   final ImagingRecordsRepository _records;
   final SequenceCheckpointsDao?
@@ -123,7 +117,6 @@ class SessionService {
   SessionCheckpointConfig _config = const SessionCheckpointConfig();
   Timer? _checkpointTimer;
 
-  // Current session tracking
   int? _currentSessionId;
   SessionStats? _currentStats;
   Future<void>? _checkpointDrain;
@@ -133,7 +126,6 @@ class SessionService {
   int _sessionGeneration = 0;
   bool _disposed = false;
 
-  // Status tracking
   final _statusController = StreamController<String>.broadcast();
 
   final DateTime Function() _now;
@@ -151,20 +143,15 @@ class SessionService {
        _logger = logger,
        _now = nowProvider ?? DateTime.now;
 
-  /// Stream of status updates
   Stream<String> get statusStream => _statusController.stream;
 
   /// Current session ID (null if no active session)
   int? get currentSessionId => _currentSessionId;
 
-  /// Whether a session is currently active
   bool get hasActiveSession => _currentSessionId != null;
 
-  /// Current session statistics
   SessionStats? get currentStats => _currentStats;
 
-  /// Start a new imaging session
-  /// Returns the session ID
   Future<int> startSession({
     String? name,
     int? targetId,
@@ -260,7 +247,6 @@ class SessionService {
       throw StateError('SessionService was disposed while starting a session.');
     }
 
-    // Initialize tracking
     _sessionGeneration++;
     _currentSessionId = sessionId;
     _currentStats = SessionStats(lastUpdated: _now());
@@ -350,7 +336,6 @@ class SessionService {
     }
   }
 
-  /// Manually trigger a checkpoint save
   Future<void> checkpoint() async {
     if (_currentSessionId == null || _currentStats == null) {
       _logger.debug(
@@ -410,7 +395,6 @@ class SessionService {
       source: 'SessionService',
     );
 
-    // Calculate final statistics
     final stats = _currentStats ?? SessionStats(lastUpdated: _now());
 
     try {
@@ -420,7 +404,6 @@ class SessionService {
         await _performCheckpoint();
       }
 
-      // Update session with final statistics and status
       await _records.updateSessionStats(
         sessionId,
         totalExposures: stats.completedExposures + stats.failedExposures,
@@ -432,7 +415,6 @@ class SessionService {
         autofocusCount: stats.autofocusCount,
       );
 
-      // Set end time and status
       await _records.endSession(sessionId, status: status);
     } catch (e) {
       _logger.error(
@@ -476,7 +458,6 @@ class SessionService {
     await endSession(status: 'aborted');
   }
 
-  /// Mark session as error state
   Future<void> errorSession(String errorMessage) async {
     if (_currentSessionId != null && _currentStats != null) {
       // Optionally store error message in notes
@@ -523,7 +504,6 @@ class SessionService {
         source: 'SessionService',
       );
 
-      // Convert to recovery info
       final recoveryInfoList = <SessionRecoveryInfo>[];
       final tonight = observingNightOf(_now());
       for (final session in incompleteSessions) {
@@ -620,7 +600,6 @@ class SessionService {
     // about to take frames again must not keep saying it ended.
     await _records.reopenSession(sessionId);
 
-    // Restore session state
     _sessionGeneration++;
     _currentSessionId = sessionId;
     _currentStats = SessionStats(
@@ -633,7 +612,6 @@ class SessionService {
       lastUpdated: _now(),
     );
 
-    // Start checkpoint timer
     if (_config.enabled) {
       _startCheckpointTimer();
     }
@@ -662,21 +640,17 @@ class SessionService {
     await _records.abortSession(sessionId);
   }
 
-  /// Update checkpoint configuration
   void updateConfig(SessionCheckpointConfig config) {
     final wasEnabled = _config.enabled;
     final previousInterval = _config.checkpointTimeInterval;
     _config = config;
 
     if (_config.enabled && !wasEnabled && _currentSessionId != null) {
-      // Checkpointing was just enabled, start timer
       _startCheckpointTimer();
     } else if (!_config.enabled && wasEnabled) {
-      // Checkpointing was just disabled, stop timer
       _stopCheckpointTimer();
     } else if (_config.enabled &&
         _config.checkpointTimeInterval != previousInterval) {
-      // Interval changed, restart timer
       _stopCheckpointTimer();
       _startCheckpointTimer();
     }
@@ -684,10 +658,7 @@ class SessionService {
     _logger.debug('Configuration updated', source: 'SessionService');
   }
 
-  /// Get current configuration
   SessionCheckpointConfig get config => _config;
-
-  // Private helper methods
 
   void _startCheckpointTimer() {
     _stopCheckpointTimer(); // Ensure no duplicate timers
@@ -786,7 +757,6 @@ class SessionService {
     }
   }
 
-  /// Dispose of resources
   void dispose() {
     if (_disposed) return;
     _disposed = true;

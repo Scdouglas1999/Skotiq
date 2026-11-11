@@ -100,8 +100,6 @@ String sanitizeSyncEndpointForDisplay(String raw) {
   return sanitizeEndpointForDisplay(raw);
 }
 
-// Config / manifest models
-
 /// Non-secret sync configuration (the per-provider secret — the WebDAV
 /// password or the S3 secret key — is read separately from the
 /// keyring-backed [SecretsStore]).
@@ -372,8 +370,6 @@ class SyncStatus {
   };
 }
 
-// Service
-
 class SyncService {
   /// Keyring field (via [SecretsStore]) holding the WebDAV password.
   static const String passwordSecretField = SecretField.cloudSyncPassword;
@@ -472,8 +468,6 @@ class SyncService {
         );
     }
   }
-
-  // Config
 
   Future<SyncConfig> loadConfig() async {
     // Absent provider key -> webdav (back-compat hinge for installs that
@@ -620,8 +614,6 @@ class SyncService {
     }
   }
 
-  // Push
-
   String _machineDir(SyncConfig config) =>
       '$kSyncRemoteRoot/${sanitizeMachineName(config.machineName)}';
 
@@ -764,8 +756,6 @@ class SyncService {
     }
   }
 
-  // Pull / restore
-
   /// List machine directories under `skotiq-sync/` on the remote.
   Future<List<SyncRemoteMachine>> listRemoteMachines() async {
     final target = await _buildTarget(await loadConfig());
@@ -901,8 +891,6 @@ class SyncService {
     }
   }
 
-  // Internals
-
   Future<SyncManifest?> _readManifest(SyncTarget target, String dir) async {
     try {
       final bytes = await target.downloadFile('$dir/manifest.json');
@@ -934,8 +922,6 @@ class SyncService {
   static String _fileTimestamp(DateTime t) =>
       t.toUtc().toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
 }
-
-// Providers
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(
