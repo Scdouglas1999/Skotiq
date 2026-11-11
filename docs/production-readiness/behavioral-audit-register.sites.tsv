@@ -152,8 +152,6 @@ apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetForecast	l
 apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetRadarData	literal_null_coalesce	1	V0036	final forceRefresh = optionalQueryBool(query, 'refresh') ?? false;
 apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetRadarData	literal_null_coalesce	1	V0036	if ((query['lat'] ?? '').isEmpty || (query['lon'] ?? '').isEmpty) {
 apps/desktop/lib/headless_api/job_manager.dart	Job	comment_best_effort	1	V0121	/// best-effort correlation between a job and the underlying driver's
-apps/desktop/lib/headless_api/update_wiring.dart	provisionUpdateStack	literal_null_coalesce	1	V0121	: (Platform.environment['SKOTIQ_UPDATE_SERVER']?.trim() ?? '');
-apps/desktop/lib/headless_api/update_wiring.dart	provisionUpdateStack	literal_null_coalesce	1	V0121	final resolvedUrl = (serverUrl?.trim().isNotEmpty ?? false)
 apps/desktop/lib/headless_api/validation.dart	errorTranslationMiddleware	literal_null_coalesce	1	V0068	if (shouldBypass?.call(request) ?? false) {
 apps/desktop/lib/headless_api_server.dart	wireRemotePushDelivery	empty_catch	1	V0038	} catch (_) {
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_startServer	comment_best_effort	1	V0121	// Best-effort: learn our own tailnet address so /api/info can hand it to a
@@ -1762,8 +1760,8 @@ packages/skotiq_app/lib/screens/framing/widgets/framing_sidebar/controls_and_sta
 packages/skotiq_app/lib/screens/framing/widgets/framing_sidebar/mosaic_and_actions.dart	build	literal_null_coalesce	1	V0121	final hasEquipment = result?.isReady ?? false;
 packages/skotiq_app/lib/screens/framing/widgets/hips_tile_layer.dart	_resolvePlateScale	literal_null_coalesce	1	V0121	centerDecDegrees: target?.decDegrees ?? 0,
 packages/skotiq_app/lib/screens/framing/widgets/hips_tile_layer.dart	_resolvePlateScale	literal_null_coalesce	1	V0121	centerRaHours: target?.raHours ?? 0,
-packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	V0121	_errorForDisplay(currentError?.decError ?? 0, stats.pixelScale),
-packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	V0121	_errorForDisplay(currentError?.raError ?? 0, stats.pixelScale),
+packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	U2-08	currentDecError: shown(currentError?.decError ?? 0),
+packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	U2-08	currentRaError: shown(currentError?.raError ?? 0),
 packages/skotiq_app/lib/screens/guiding/widgets/brain_settings_panel.dart	collect	literal_null_coalesce	1	V0258	final raw = _controllers['${axis}_${param.name}']?.text.trim() ?? '';
 packages/skotiq_app/lib/screens/imaging/centering_dialog.dart	_resolvedAppSettings	empty_catch	1	V0140	} catch (_) {
 packages/skotiq_app/lib/screens/imaging/centering_dialog.dart	_runCentering	literal_null_coalesce	1	V0140	executablePath: appSettings?.astapPath ?? '',
@@ -2788,7 +2786,6 @@ packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	loopFrameCount: (json['loopFrameCount'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	peakDec: (json['peakDec'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	peakRa: (json['peakRa'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	pixelScale: (json['pixelScale'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	rmsDec: (json['rmsDec'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	rmsRa: (json['rmsRa'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	rmsTotal: (json['rmsTotal'] as num?)?.toDouble() ?? 0.0,
@@ -3505,8 +3502,6 @@ packages/skotiq_core/lib/src/services/device_service/filter_wheel_controls.dart	
 packages/skotiq_core/lib/src/services/device_service/focuser_rotator_controls.dart	_moveFocuserRelative	literal_null_coalesce	1	V0250	final maxIncrement = capabilities?.maxIncrement ?? 0;
 packages/skotiq_core/lib/src/services/diagnostic_dump_service.dart	_gatherSystemInfo	comment_best_effort	1	V0029	// placeholder so the file path is preserved.
 packages/skotiq_core/lib/src/services/diagnostic_dump_service.dart	_gatherSystemInfo	empty_catch	1	V0029	} on Exception catch (_) {
-packages/skotiq_core/lib/src/services/editor_draft_service.dart	restoreEditorDraft	empty_catch	1	V0903	} catch (_) {
-packages/skotiq_core/lib/src/services/editor_draft_service.dart	persist	literal_null_coalesce	1	V0902	await dao.setSetting(kEditorDraftKey, draft ?? '');
 packages/skotiq_core/lib/src/services/end_of_night_calibration/eon_plan.dart	planFrameNeeds	literal_null_coalesce	1	V0819	darkCounts[key] = (darkCounts[key] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/end_of_night_calibration/eon_providers.dart	camera	empty_catch	1	V0825	} catch (_) {
 packages/skotiq_core/lib/src/services/end_of_night_calibration/eon_providers.dart	filterNames	empty_catch	1	V0826	} catch (_) {
@@ -3643,6 +3638,11 @@ packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dar
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	-	unimplemented_behavior	1	V0107	// QoS 2 is intentionally not implemented; a user choice of 2 downgrades to 1
 packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart	_runSession	unimplemented_behavior	1	V0107	'[Notifications/MQTT] QoS 2 downgraded to QoS 1 (PUBREC/PUBREL not implemented).',
 packages/skotiq_core/lib/src/services/notification_service.dart	anyDelivered	literal_null_coalesce	1	U2-05	bool get anyDelivered => routed?.anyDispatched ?? false;
+packages/skotiq_core/lib/src/services/open_plan_service.dart	_keptPlan	empty_catch	1	V0903	} catch (_) {
+packages/skotiq_core/lib/src/services/open_plan_service.dart	_keptPlan	empty_catch	2	U2-08	} catch (_) {
+packages/skotiq_core/lib/src/services/open_plan_service.dart	_keptPlan	literal_null_coalesce	1	U2-08	unsaved = document['isDirty'] as bool? ?? false;
+packages/skotiq_core/lib/src/services/open_plan_service.dart	persist	literal_null_coalesce	1	U2-08	final document = openPlanJson(ref.read) ?? '';
+packages/skotiq_core/lib/src/services/open_plan_service.dart	persist	literal_null_coalesce	1	U2-08	written ??= await dao.getSetting(kOpenPlanKey) ?? '';
 packages/skotiq_core/lib/src/services/phd2_launcher.dart	_isPortOpen	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/phd2_launcher.dart	ensureRunning	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/phd2_status_poll.dart	-	comment_best_effort	1	V0108	/// Best-effort status read; returns disconnected when the host has no client.
@@ -4137,9 +4137,15 @@ packages/skotiq_updater/lib/src/services/anti_freeze_store.dart	advance	comment_
 packages/skotiq_updater/lib/src/services/anti_freeze_store.dart	advance	empty_catch	1	V0202	} catch (_) {
 packages/skotiq_updater/lib/src/services/update_controller.dart	_readTimestamp	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_updater/lib/src/services/update_controller.dart	stagedUpdate	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_updater/lib/src/services/update_controller.dart	UpdateController.forApp	literal_null_coalesce	1	U2-08	final envChannel = env['SKOTIQ_UPDATE_CHANNEL']?.trim() ?? '';
+packages/skotiq_updater/lib/src/services/update_controller.dart	UpdateController.forApp	literal_null_coalesce	1	U2-08	final envUrl = env['SKOTIQ_UPDATE_SERVER']?.trim() ?? '';
+packages/skotiq_updater/lib/src/services/update_controller.dart	UpdateController.forApp	literal_null_coalesce	1	V0121	final resolvedUrl = (serverUrl?.trim().isNotEmpty ?? false)
 packages/skotiq_updater/lib/src/services/update_downloader.dart	download	literal_null_coalesce	1	V0260	: expectedSize ?? 0;
 packages/skotiq_updater/lib/src/services/update_downloader.dart	download	literal_null_coalesce	1	V0260	totalBytes = streamedResponse.contentLength ?? expectedSize ?? 0;
+packages/skotiq_updater/lib/src/services/update_notifier.dart	checkForUpdates	empty_catch	1	U2-08	} catch (_) {
+packages/skotiq_updater/lib/src/services/update_notifier.dart	downloadUpdate	empty_catch	1	U2-08	} catch (_) {
 packages/skotiq_updater/lib/src/services/update_notifier.dart	checkForUpdates	guessed_now_timestamp	1	V0121	lastCheckAt: now ?? DateTime.now().toUtc(),
 packages/skotiq_updater/lib/src/services/update_notifier.dart	checkForUpdatesIfDue	guessed_now_timestamp	1	V0121	final at = now ?? DateTime.now().toUtc();
 packages/skotiq_updater/lib/src/services/update_notifier.dart	deferUpdate	guessed_now_timestamp	1	V0121	deferredAt: now ?? DateTime.now().toUtc(),
 packages/skotiq_updater/lib/src/services/update_notifier.dart	shouldPrompt	guessed_now_timestamp	1	V0121	final at = now ?? DateTime.now().toUtc();
+packages/skotiq_updater/lib/src/services/update_notifier.dart	_project	literal_null_coalesce	1	U2-08	downloadProgress: (status.progressPct ?? 0) / 100,
