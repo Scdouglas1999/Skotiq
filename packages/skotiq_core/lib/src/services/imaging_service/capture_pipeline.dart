@@ -27,7 +27,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
       );
     }
 
-    // Check camera connected
     final cameraState = _ref.read(cameraStateProvider);
     if (cameraState.connectionState != DeviceConnectionState.connected) {
       throw const ConnectionException(
@@ -74,7 +73,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     final progressNotifier = _ref.read(exposureProgressProvider.notifier);
 
     try {
-      // Get backend and camera ID
       final backend = _ref.read(backendProvider);
       final deviceId = cameraState.deviceId;
 
@@ -117,7 +115,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         if (!_hasBackendAuthority(backend)) return null;
       }
 
-      // Update state to exposing
       _activeCameraNotifier = cameraNotifier;
       _activeProgressNotifier = progressNotifier;
       _ownsSharedExposureState = true;
@@ -157,7 +154,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
               progress * 100,
             );
           } else if (event.eventType == 'ExposureComplete') {
-            // Exposure is complete - signal the completer
             _logger.debug(
               'ExposureComplete event received',
               source: 'ImagingService',
@@ -279,7 +275,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           }
         }
 
-        // Update to downloading state
         progressNotifier.startDownload();
 
         // Get the captured image from backend (remote uses JPEG wire format).
@@ -424,14 +419,12 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         bool isTempFile = false;
 
         try {
-          // Get app settings for file path
           final appSettingsAsync = _ref.read(appSettingsProvider);
           final appSettings = appSettingsAsync.valueOrNull;
 
           if (persistFrame &&
               appSettings != null &&
               appSettings.imageOutputPath.isNotEmpty) {
-            // Generate file path using naming pattern
             savedFilePath = await _generateImageFilePath(
               appSettings: appSettings,
               exposureSettings: settings,

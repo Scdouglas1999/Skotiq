@@ -1,8 +1,6 @@
 part of '../mosaic_project_service.dart';
 
 extension _MosaicStitching on MosaicProjectService {
-  // Helpers.
-
   Future<bool> _safeFitsHasWcs(
     Future<bool> Function(String fitsPath) probe,
     String fitsPath,

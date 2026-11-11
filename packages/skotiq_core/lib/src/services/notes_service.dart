@@ -48,8 +48,6 @@ class NotesService {
     if (!_mutations.isClosed) _mutations.add(null);
   }
 
-  // CRUD
-
   /// Create a new note. Returns the freshly-persisted [JournalNote].
   ///
   /// An empty [targetId] throws [ArgumentError] rather than coercing to
@@ -149,8 +147,6 @@ class NotesService {
     return affected;
   }
 
-  // Reads
-
   Future<JournalNote?> getNoteById(String id) async {
     final row = await _db.notesJournalDao.noteById(id);
     return row == null ? null : _rowToNote(row);
@@ -192,8 +188,6 @@ class NotesService {
     return rows.map(_rowToNote).toList();
   }
 
-  // Reactive streams
-
   /// Live stream of notes for [targetId]. Emits an initial snapshot
   /// immediately, then a fresh list on every insert / update / delete.
   Stream<List<JournalNote>> watchTargetNotes(String targetId) async* {
@@ -219,8 +213,6 @@ class NotesService {
       yield await allNotes();
     }
   }
-
-  // Internals
 
   JournalNote _rowToNote(db.NotesJournalRow row) {
     return JournalNote(

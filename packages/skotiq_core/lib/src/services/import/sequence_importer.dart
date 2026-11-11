@@ -153,7 +153,6 @@ class SequenceImporter {
     return GenericCsvImporter.preview(content);
   }
 
-  /// Import a file directly from disk.
   Future<ImportResult> importFromPath(
     String filePath, {
     required bool forceUnsupported,

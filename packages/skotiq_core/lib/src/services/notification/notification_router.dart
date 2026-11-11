@@ -152,8 +152,6 @@ class NotificationRouter {
              )
            : matrix;
 
-  // Public surface
-
   NotificationRoutingMatrix get matrix => _matrix;
 
   Map<NotificationTransportKind, NotificationResult> get lastResults =>

@@ -15,7 +15,6 @@ extension _ImagingServicePersistence on ImagingService {
   }) async {
     if (!_hasBackendAuthority(backend)) return;
 
-    // Get equipment states for header metadata
     final cameraState = _ref.read(cameraStateProvider);
     final mountState = _ref.read(mountStateProvider);
     String? telescope;
@@ -135,7 +134,6 @@ extension _ImagingServicePersistence on ImagingService {
     }
   }
 
-  /// Save image metadata to database
   Future<int?> _saveToDatabase({
     required SkotiqBackend backend,
     required String filePath,
@@ -152,7 +150,6 @@ extension _ImagingServicePersistence on ImagingService {
     final sessionState = _ref.read(sessionStateProvider);
     final sessionId = sessionState.dbSessionId;
 
-    // Get equipment states
     final cameraState = _ref.read(cameraStateProvider);
     final mountState = _ref.read(mountStateProvider);
     final focuserState = _ref.read(focuserStateProvider);
@@ -190,7 +187,6 @@ extension _ImagingServicePersistence on ImagingService {
     }
     if (!_hasBackendAuthority(backend)) return null;
 
-    // Create image record with complete metadata
     final companion = CapturedImagesCompanion(
       filePath: drift.Value(filePath),
       fileName: drift.Value(path.basename(filePath)),

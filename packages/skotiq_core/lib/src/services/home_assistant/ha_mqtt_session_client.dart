@@ -166,8 +166,6 @@ class HaMqttSessionClient {
     await sub?.cancel();
   }
 
-  // Incoming data
-
   void _onData(List<int> bytes) {
     _buffer.addAll(bytes);
     while (true) {

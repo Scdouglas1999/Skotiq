@@ -1,7 +1,5 @@
 part of '../night_analysis_service.dart';
 
-// Numeric helpers (pure)
-
 double? _focuserTempDrift(Iterable<NightSub> subs) {
   final temps = [
     for (final s in subs)

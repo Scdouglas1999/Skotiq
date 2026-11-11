@@ -36,7 +36,6 @@ extension _ImagingServiceFilePaths on ImagingService {
       );
     }
 
-    // Get naming pattern from imaging provider
     final namingPattern = _ref.read(namingPatternProvider);
 
     final substitutions = _buildPatternSubstitutions(
