@@ -10,6 +10,8 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'analytics_empty_state.dart';
 import 'campaign_rollup_dialog.dart';
+import '../../../router/app_routes.dart';
+import '../../planner/planner_route.dart';
 
 part 'project_tracking_panel_parts/_headers.dart';
 part 'project_tracking_panel_parts/_project_card.dart';
@@ -139,7 +141,8 @@ class _ProjectTrackingPanelState extends ConsumerState<ProjectTrackingPanel> {
             body: 'Create a project in Plan Tonight → Projects, then the '
                 'frames you capture for its targets accrue here.',
             actionLabel: 'New project',
-            onAction: () => context.go('/planner?tab=projects'),
+            onAction: () =>
+                context.go(AppRoutes.planner(tab: PlannerTab.projects)),
           );
         }
 

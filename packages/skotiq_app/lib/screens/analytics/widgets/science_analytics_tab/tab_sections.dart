@@ -43,7 +43,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
       ref.read(scienceModeStateProvider.notifier).state =
           mode.copyWith(scienceHudVisible: true);
     }
-    GoRouter.maybeOf(context)?.go('/imaging');
+    GoRouter.maybeOf(context)?.go(AppRoute.imaging.path);
   }
 
   /// Which session the panels below are reporting on, and a way to change it.

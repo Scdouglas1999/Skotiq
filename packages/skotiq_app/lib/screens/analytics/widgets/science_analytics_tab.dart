@@ -36,6 +36,7 @@ import 'science_onboarding/science_ladder_card.dart';
 import 'science_onboarding/science_empty_onramp.dart';
 import 'science_onboarding/science_nav_row_card.dart';
 import '../../settings/settings_sections.dart';
+import '../../../router/app_routes.dart';
 
 part 'science_analytics_tab/navigation_and_snapshots.dart';
 part 'science_analytics_tab/science_info_and_series_chart.dart';
@@ -515,7 +516,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             iconColor: colors.info,
             label: 'Observing alerts (Transients)',
             labelColor: colors.textPrimary,
-            onTap: () => context.go('/transients'),
+            onTap: () => context.go(AppRoutes.observingAlerts()),
           ),
           const SizedBox(height: 12),
           // Jump nav for the three logical sections below. Sits at the top of
