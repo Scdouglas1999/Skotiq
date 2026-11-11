@@ -119,7 +119,6 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
     // reactive-mirror failure rather than let it escape disposal as an
     // unhandled async error (and leak engine resources behind the throw).
     try {
-      // Avoid a redundant rebuild when nothing changed.
       if (ref.read(activePlanOwnerProvider) != owner) {
         ref.read(activePlanOwnerProvider.notifier).state = owner;
       }
@@ -516,7 +515,6 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
     loadSequence(copy, discardUnsaved: discardUnsaved);
   }
 
-  /// Clear the current sequence
   void clearSequence({bool discardUnsaved = false}) {
     _ensureEditable('clear the sequence');
     _guardUnsavedClobber(
@@ -559,7 +557,6 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
     state = state!.copyWith(name: trimmed, modifiedAt: DateTime.now());
   }
 
-  /// Update sequence description
   void setDescription(String description) {
     if (state == null) return;
     _ensureEditable('edit description');

@@ -26,7 +26,6 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    // Only relevant if the sequence will actually capture.
     final hasEnabledExposure = sequence.nodes.values
         .whereType<ExposureNode>()
         .any((n) => n.isEnabled);

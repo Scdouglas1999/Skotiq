@@ -24,7 +24,6 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../meridian_flip_provider.dart';
-// Plugin-node dispatcher abstraction.
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -1465,7 +1464,6 @@ class SequenceExecutor {
     SequenceExecutionState expectedState, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    // Already there — no need to wait.
     if (_ref.read(sequenceExecutionStateProvider) == expectedState) {
       return true;
     }
@@ -1860,23 +1858,18 @@ class SequenceExecutor {
     );
   }
 
-  // Checkpoint / crash recovery.
-
-  /// Initialize checkpoint system with app's documents directory
   Future<void> initializeCheckpoints(String documentsPath) async {
     _ensureBackendAuthority();
     final backend = _backend;
     await backend.sequencerSetCheckpointDir(documentsPath);
   }
 
-  /// Check if there's a checkpoint available to resume
   Future<bool> hasCheckpoint() async {
     _ensureBackendAuthority();
     final backend = _backend;
     return await backend.hasCheckpoint();
   }
 
-  /// Get information about the current checkpoint
   Future<CheckpointInfo?> getCheckpointInfo() async {
     _ensureBackendAuthority();
     final backend = _backend;
@@ -2217,7 +2210,6 @@ class SequenceExecutor {
     );
   }
 
-  /// The run's current [RunPhase].
   @visibleForTesting
   RunPhase get runPhaseForTest => _lifecycle.phase;
 
@@ -2227,7 +2219,6 @@ class SequenceExecutor {
   @visibleForTesting
   bool get isListeningToNativeEventsForTest => _nativeEventSubscription != null;
 
-  /// Discard the current checkpoint
   Future<void> discardCheckpoint() async {
     _ensureBackendAuthority();
     final backend = _backend;

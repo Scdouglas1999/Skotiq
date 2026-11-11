@@ -13,9 +13,6 @@ import 'node_exposure_tally.dart';
 import 'run_stop_classification.dart';
 import 'sequencer_run_event.dart';
 
-// Execution state.
-
-/// Current sequence execution state
 final sequenceExecutionStateProvider = StateProvider<SequenceExecutionState>((
   ref,
 ) {
@@ -52,7 +49,6 @@ final restoredCheckpointProvider = StateProvider<CheckpointInfo?>(
   (ref) => null,
 );
 
-/// Current sequence progress
 final sequenceProgressProvider =
     StateNotifierProvider<SequenceProgressNotifier, SequenceProgress>((ref) {
       return SequenceProgressNotifier();
