@@ -4,7 +4,7 @@
 //! sequencer's.
 //!
 //! The frames are a real rig crop (`test-fixtures/rig-2026-09-14`), once as a
-//! mono sensor and once read as an RGGB colour sensor, delivered by a camera
+//! mono sensor and once read as a GRBG colour sensor, delivered by a camera
 //! driver that hands back exactly those samples.
 
 use super::*;
@@ -191,8 +191,10 @@ fn rig_crop() -> (u32, u32, Vec<u16>) {
     let (image, _) = skotiq_imaging::read_fits(&path).expect("read rig crop");
     let data = image
         .data
-        .chunks_exact(2)
-        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|b| u16::from_le_bytes(*b))
         .collect();
     (image.width, image.height, data)
 }
@@ -353,7 +355,7 @@ async fn a_mono_frame_publishes_the_same_measurements_from_either_entry_point() 
 }
 
 #[tokio::test]
-async fn a_color_frame_publishes_these_measurements() {
+async fn a_color_frame_publishes_the_same_measurements_from_either_entry_point() {
     let frame = Arc::new(rig_crop());
     let device_id = "native:pin_color";
     connect_fixed_camera(device_id, frame, Some(BayerPattern::Grbg)).await;
@@ -365,8 +367,8 @@ async fn a_color_frame_publishes_these_measurements() {
     disconnect_fixed_camera(device_id).await;
 
     assert_digests(&[
-        ("manual color", &manual, COLOR_MANUAL),
-        ("sequence color", &sequence, COLOR_SEQUENCE),
+        ("manual color", &manual, COLOR),
+        ("sequence color", &sequence, COLOR),
     ]);
     assert_eq!(
         (returned.sensor_type.as_deref(), returned.bayer_offset),
@@ -413,11 +415,7 @@ const MONO: &str = "1024x1024 color=false exposure=2.0
 stats min=16.0 max=65504.0 mean=698.3109436035156 median=672.0 std_dev=657.9213351686734
 stars=192 hfr=Some(2.310760259173266) fwhm=Some(4.621520518346532) eccentricity=Some(0.6601127561091212)
 histogram=d5f0d1c69d0b6d04 display=d46f5a116b546afc display_len=4194304 raw=c88128ab9b80e33f";
-const COLOR_MANUAL: &str = "1024x1024 color=true exposure=2.0
+const COLOR: &str = "1024x1024 color=true exposure=2.0
 stats min=16.0 max=65504.0 mean=698.3109436035156 median=672.0 std_dev=657.9213351686734
 stars=192 hfr=Some(2.310760259173266) fwhm=Some(4.621520518346532) eccentricity=Some(0.6601127561091212)
 histogram=3513c089f664dcd4 display=0a6c414758185544 display_len=4194304 raw=c88128ab9b80e33f";
-const COLOR_SEQUENCE: &str = "1024x1024 color=true exposure=2.0
-stats min=16.0 max=65504.0 mean=698.3109436035156 median=672.0 std_dev=657.9213351686734
-stars=0 hfr=None fwhm=None eccentricity=None
-histogram=038fd5848d538e1c display=57b25496d315e409 display_len=4194304 raw=c88128ab9b80e33f";

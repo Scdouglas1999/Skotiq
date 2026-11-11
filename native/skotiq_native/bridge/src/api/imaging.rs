@@ -585,38 +585,6 @@ pub struct CapturedImageResult {
     pub is_color: bool, // true if source was color (RGB), false if grayscale — retained for stretch/analysis paths
 }
 
-/// Convert grayscale (1 byte/pixel) or RGB (3 bytes/pixel) display data to RGBA (4 bytes/pixel).
-/// Uses rayon for parallel conversion on large images.
-pub(crate) fn display_data_to_rgba(data: &[u8], is_color: bool) -> Vec<u8> {
-    if is_color {
-        // RGB -> RGBA
-        let num_pixels = data.len() / 3;
-        let mut rgba = vec![0u8; num_pixels * 4];
-        rgba.par_chunks_exact_mut(4)
-            .zip(data.par_chunks_exact(3))
-            .for_each(|(dst, src)| {
-                dst[0] = src[0]; // R
-                dst[1] = src[1]; // G
-                dst[2] = src[2]; // B
-                dst[3] = 255; // A
-            });
-        rgba
-    } else {
-        // Grayscale -> RGBA
-        let num_pixels = data.len();
-        let mut rgba = vec![0u8; num_pixels * 4];
-        rgba.par_chunks_exact_mut(4)
-            .zip(data.par_iter())
-            .for_each(|(dst, &gray)| {
-                dst[0] = gray; // R
-                dst[1] = gray; // G
-                dst[2] = gray; // B
-                dst[3] = 255; // A
-            });
-        rgba
-    }
-}
-
 /// Image statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageStatsResult {
@@ -632,148 +600,6 @@ pub struct ImageStatsResult {
     pub eccentricity: Option<f64>,
     pub fwhm: Option<f64>,
     pub star_count: u32,
-}
-
-/// Stars sampled for the per-frame medians: the brightest half of the
-/// detections, never more than this many. Detection returns stars brightest
-/// first, so the sample is the same set on every run over the same frame.
-const FRAME_METRIC_SAMPLE_CAP: usize = 50;
-
-/// Largest HFR or FWHM, in pixels, that a detection can contribute to a frame
-/// median. A value at or past it is a smear or a detection artefact, not a star
-/// this frame can be measured by.
-const FRAME_METRIC_MAX_PIXELS: f64 = 20.0;
-
-/// Median of the sampled stars' `value`, or `None` when none of them carries a
-/// usable one.
-fn frame_metric_median(
-    stars: &[skotiq_imaging::DetectedStar],
-    value: impl Fn(&skotiq_imaging::DetectedStar) -> f64,
-) -> Option<f64> {
-    let sample = (stars.len() / 2).clamp(1, FRAME_METRIC_SAMPLE_CAP);
-    let mut values: Vec<f64> = stars
-        .iter()
-        .take(sample)
-        .map(&value)
-        .filter(|v| *v > 0.0 && *v < FRAME_METRIC_MAX_PIXELS)
-        .collect();
-    if values.is_empty() {
-        return None;
-    }
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    Some(values[values.len() / 2])
-}
-
-/// The stats block a captured frame publishes to the last-image cache, built
-/// from that frame's own statistics and the stars already detected in it.
-///
-/// Every path that stores a frame builds its block here — the simulated
-/// exposure, the real-camera exposure, and the sequencer's own exposure through
-/// `UnifiedDeviceOps` — so one frame reports the same measurements whoever asked
-/// for it. The sequencer path used to fill the struct itself and left `hfr` and
-/// `fwhm` out, so a whole night of frames answered `/api/camera/last-image` with
-/// a real star count beside a null HFR while the same frames' HFR was measured,
-/// logged and stored.
-///
-/// It measures nothing new: `stats` and `stars` are the results the caller
-/// already computed for the frame, and the medians are read out of them.
-///
-/// `None` for HFR, FWHM or eccentricity means too few usable stars to measure
-/// this frame — never a fabricated 0.
-pub(crate) fn frame_stats_result(
-    stats: &skotiq_imaging::ImageStats,
-    stars: &[skotiq_imaging::DetectedStar],
-) -> ImageStatsResult {
-    ImageStatsResult {
-        min: stats.min,
-        max: stats.max,
-        mean: stats.mean,
-        median: stats.median,
-        std_dev: stats.std_dev,
-        hfr: frame_metric_median(stars, |s| s.hfr),
-        eccentricity: skotiq_imaging::frame_eccentricity(stars),
-        fwhm: frame_metric_median(stars, |s| s.fwhm),
-        star_count: stars.len() as u32,
-    }
-}
-
-/// Raw image info with metadata - used by sequencer for actual image analysis
-/// This preserves the original 16-bit sensor data needed for HFR calculation, plate solving, etc.
-#[derive(Debug, Clone)]
-pub struct RawImageInfo {
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u16>,                   // Raw 16-bit sensor data
-    pub sensor_type: Option<String>,      // "Monochrome" or "Color"
-    pub bayer_offset: Option<(i32, i32)>, // Bayer pattern offset for color sensors
-}
-
-/// Unified captured image data - contains all image data for atomic updates
-/// This ensures the UI never sees inconsistent state between raw data and display data
-#[derive(Debug, Clone)]
-pub struct CapturedImageData {
-    /// Display-ready image result (8-bit for UI)
-    pub display: CapturedImageResult,
-    /// Raw 16-bit image info with metadata (for FITS saving, HFR, etc.)
-    pub raw_info: RawImageInfo,
-}
-
-/// Per-device image storage capacity.
-///
-/// Why 50: A typical 4-hour imaging session at 30s exposures produces ~480 frames,
-/// but the storage is keyed by device-id, not by frame, so each connected camera
-/// occupies one slot. 50 covers any realistic rig (1-5 cameras) with generous
-/// headroom for transient reconnections that rotate the device-id (e.g. USB
-/// re-enumeration appending a new serial suffix). At ~24 MB per u16 frame
-/// (4144x2822 sensors), the cap holds worst-case ~1.2 GB which keeps 16 GB
-/// laptops safe under prolonged sessions.
-pub(crate) const UNIFIED_IMAGE_STORAGE_CAPACITY: usize = 50;
-
-/// Per-device image storage - keyed by device ID to support multi-camera operation.
-///
-/// Each camera's image data is stored independently, preventing race conditions
-/// where concurrent cameras could overwrite each other's captured images.
-///
-/// Bounded with an LRU policy so unique device-ids accumulated over long sessions
-/// (USB re-enumeration, network device churn) cannot leak raw u16 buffers
-/// indefinitely. On eviction the oldest-touched entry is dropped and a debug
-/// trace is emitted; see `store_captured_image_atomically`.
-pub(crate) static UNIFIED_IMAGE_STORAGE: OnceLock<
-    Arc<tokio::sync::Mutex<lru::LruCache<String, CapturedImageData>>>,
-> = OnceLock::new();
-
-pub(crate) fn get_unified_image_storage(
-) -> &'static Arc<tokio::sync::Mutex<lru::LruCache<String, CapturedImageData>>> {
-    UNIFIED_IMAGE_STORAGE.get_or_init(|| {
-        let cap = std::num::NonZeroUsize::new(UNIFIED_IMAGE_STORAGE_CAPACITY)
-            .expect("UNIFIED_IMAGE_STORAGE_CAPACITY must be non-zero");
-        Arc::new(tokio::sync::Mutex::new(lru::LruCache::new(cap)))
-    })
-}
-
-/// Store captured image data atomically for a specific device
-/// This ensures all image-related data (display, raw, metadata) is updated together,
-/// preventing race conditions where the UI could see inconsistent state.
-///
-/// If the cache is at capacity and `device_id` is not already present, the
-/// least-recently-used entry is evicted. Evictions emit a `tracing::debug!`
-/// trace so memory pressure on long sessions is observable.
-pub(crate) async fn store_captured_image_atomically(
-    device_id: &str,
-    display: CapturedImageResult,
-    raw_info: RawImageInfo,
-) {
-    let mut storage = get_unified_image_storage().lock().await;
-    let value = CapturedImageData { display, raw_info };
-    if let Some((evicted_id, _evicted)) = storage.push(device_id.to_string(), value) {
-        if evicted_id != device_id {
-            tracing::debug!(
-                "UNIFIED_IMAGE_STORAGE: evicted LRU entry for device_id={} (cap={})",
-                evicted_id,
-                UNIFIED_IMAGE_STORAGE_CAPACITY
-            );
-        }
-    }
 }
 
 /// Start a camera exposure
@@ -904,26 +730,8 @@ fn classify_exposure_failure(device_id: &str, error: skotiq_sequencer::DeviceErr
     }
 }
 
-/// Terminate a simulated exposure the operator aborted.
-///
-/// Mirrors what the real path does after its own generation check: park the
-/// sensor, publish a FAILED completion so nothing downstream treats the
-/// abandoned frame as a keeper, and report the cancellation to the caller.
-async fn sim_exposure_cancelled(device_id: &str) -> Result<(), SkotiqError> {
-    {
-        let mut camera = get_sim_camera_for(device_id).write().await;
-        camera.status.state = CameraState::Idle;
-    }
-    get_state().publish_imaging_event(
-        ImagingEvent::ExposureComplete { success: false },
-        EventSeverity::Info,
-    );
-    tracing::info!("Exposure cancelled");
-    Err(SkotiqError::OperationFailed(
-        "Exposure cancelled".to_string(),
-    ))
-}
-
+/// Expose, download, and make the frame the camera's last frame (see
+/// `crate::last_frame`). Simulated and real cameras take the same path.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn camera_start_exposure_configured_opt(
     device_id: String,
@@ -943,513 +751,57 @@ pub(crate) async fn camera_start_exposure_configured_opt(
         bin_x,
         bin_y
     );
-
-    // Check if simulator or real device
-    if device_id.starts_with("sim_") {
-        // Simulator path (existing code)
-        // Same abort ledger the real path uses, so `api_camera_cancel_exposure`
-        // means the same thing on both. Without it the simulated exposure ran
-        // to full duration after the operator aborted, then published
-        // ExposureComplete{success:true} and stored the frame — the one
-        // failure mode a simulator must not have, because it makes an abort
-        // that is broken look like an abort that works.
-        let acquisition_generation =
-            crate::unified_device_ops::exposure_abort_generation(&device_id).await;
-        // Update camera state to exposing
-        {
-            let mut camera = get_sim_camera_for(&device_id).write().await;
-            camera.status.state = CameraState::Exposing;
-        }
-
-        // Publish exposure started event
-        get_state().publish_imaging_event(
-            ImagingEvent::ExposureStarted {
-                duration_secs,
-                frame_type: crate::device::FrameType::Light,
-            },
-            EventSeverity::Info,
-        );
-
-        // Simulate exposure with progress updates using adaptive polling
-        // This reduces CPU overhead for long simulated exposures while maintaining
-        // responsiveness for progress updates
-        let start_time = std::time::Instant::now();
-        let duration = std::time::Duration::from_secs_f64(duration_secs);
-        let mut poller: AdaptivePoller<String> =
-            AdaptivePoller::from_preset(PollerPreset::Exposure);
-
-        while start_time.elapsed() < duration {
-            if crate::unified_device_ops::exposure_abort_generation(&device_id).await
-                != acquisition_generation
-            {
-                return sim_exposure_cancelled(&device_id).await;
-            }
-
-            let progress = start_time.elapsed().as_secs_f64() / duration_secs;
-            let progress_bucket = format!("{:.1}", progress); // Bucket progress for change detection
-
-            get_state().publish_imaging_event(
-                ImagingEvent::ExposureProgress {
-                    progress,
-                    remaining_secs: duration_secs - start_time.elapsed().as_secs_f64(),
-                },
-                EventSeverity::Info,
-            );
-
-            // Adaptive polling: backs off when progress isn't changing significantly
-            let poll_interval = poller.tick(&progress_bucket);
-            tokio::time::sleep(poll_interval).await;
-        }
-
-        // An abort landing during the last poll interval must still discard the
-        // frame: storing it would put an exposure the operator gave up on into
-        // the gallery and the session's frame count.
-        if crate::unified_device_ops::exposure_abort_generation(&device_id).await
-            != acquisition_generation
-        {
-            return sim_exposure_cancelled(&device_id).await;
-        }
-
-        // Update camera state to reading
-        {
-            let mut camera = get_sim_camera_for(&device_id).write().await;
-            camera.status.state = CameraState::Reading;
-        }
-
-        // Render the frame through the simulated-capture renderer the sequencer's
-        // DeviceManager download uses. One renderer serves both paths, so a
-        // simulated frame is plate-solvable and everything downstream of a solve —
-        // Slew & Center, framing, mosaic tiles, meridian-flip recentre, polar
-        // alignment — is exercisable from the Imaging screen.
-        //
-        // The simulator commands no real hardware, so an unspecified (None)
-        // gain falls back to 0 for brightness math.
-        let sim_gain = gain.unwrap_or(0);
-        // The geometry the camera advertises, not a second hardcoded sensor: the
-        // Framing FOV box and every measurement taken through this path must
-        // describe the frames this same camera delivers to the sequencer path.
-        let (advertised_width, advertised_height, sim_pixel_size, sim_offset, sim_max_adu) = {
-            let camera = get_sim_camera_for(&device_id).read().await;
-            (
-                camera.status.sensor_width,
-                camera.status.sensor_height,
-                camera.status.pixel_size_x,
-                camera.status.offset,
-                camera.status.max_adu,
-            )
-        };
-        let sim_frame =
-            crate::sim_capture::render_sim_frame(crate::sim_capture::SimCaptureRequest {
-                exposure_secs: duration_secs,
-                sensor_width: advertised_width.max(1),
-                sensor_height: advertised_height.max(1),
-                pixel_size_um: sim_pixel_size,
-                gain: sim_gain,
-                offset: offset.unwrap_or(sim_offset),
-                bin_x: bin_x.max(1) as u32,
-                bin_y: bin_y.max(1) as u32,
-                subframe: subframe
-                    .as_ref()
-                    .map(|roi| (roi.start_x, roi.start_y, roi.width, roi.height)),
-                frame_type,
-                max_adu: sim_max_adu.clamp(1, u32::from(u16::MAX)) as u16,
-                optics: crate::sim_capture::SimOptics::for_camera(&device_id),
-            })
-            .await;
-        // Binning and subframing both change the delivered geometry, so take it
-        // from the renderer rather than re-deriving it here.
-        let (sensor_width, sensor_height) = (sim_frame.width, sim_frame.height);
-        let raw_data = sim_frame.data;
-
-        // Measure the simulated frame with the same code the real-camera branch
-        // uses, so autofocus and guiding regressions show up in simulator metrics.
-        let image_bytes: Vec<u8> = raw_data.iter().flat_map(|&val| val.to_le_bytes()).collect();
-        let image = skotiq_imaging::ImageData {
-            width: sensor_width,
-            height: sensor_height,
-            channels: 1,
-            pixel_type: skotiq_imaging::PixelType::U16,
-            data: image_bytes,
-        };
-        let stats = skotiq_imaging::calculate_stats_u16(&image);
-        let stretch_params = skotiq_imaging::auto_stretch_stf(&image);
-        let display_data_raw = skotiq_imaging::apply_stretch(&image, &stretch_params);
-        let mut histogram = vec![0u32; 256];
-        for &pixel in &display_data_raw {
-            histogram[pixel as usize] += 1;
-        }
-        let stars =
-            skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
-        let frame_stats = frame_stats_result(&stats, &stars);
-        tracing::info!(
-            "Simulated capture: {}x{}, {} stars detected, median HFR: {:?}, median ecc: {:?}",
-            sensor_width,
-            sensor_height,
-            frame_stats.star_count,
-            frame_stats.hfr,
-            frame_stats.eccentricity
-        );
-
-        // Convert grayscale display data to RGBA for Flutter rendering
-        let display_data = display_data_to_rgba(&display_data_raw, false);
-
-        // Store all image data atomically to prevent race conditions
-        // This ensures the UI never sees inconsistent state between raw and display data
-        let display_result = CapturedImageResult {
-            width: sensor_width,
-            height: sensor_height,
-            display_data,
-            histogram,
-            stats: frame_stats,
-            exposure_time: duration_secs,
-            timestamp: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
-            is_color: false, // Simulated images are grayscale
-        };
-
-        let raw_info = RawImageInfo {
-            width: sensor_width,
-            height: sensor_height,
-            data: raw_data,
-            sensor_type: Some("Monochrome".to_string()), // Simulated camera is mono
-            bayer_offset: None,
-        };
-
-        store_captured_image_atomically(&device_id, display_result, raw_info).await;
-
-        // Update camera state back to idle
-        {
-            let mut camera = get_sim_camera_for(&device_id).write().await;
-            camera.status.state = CameraState::Idle;
-        }
-
-        // Publish exposure complete event
-        get_state().publish_imaging_event(
-            ImagingEvent::ExposureComplete { success: true },
-            EventSeverity::Info,
-        );
-
-        tracing::info!("Exposure complete");
-        Ok(())
-    } else {
-        // Real camera path - use UnifiedDeviceOps which routes through DeviceManager
-        // Events (ExposureStarted, ExposureProgress, ExposureComplete) are published by UnifiedDeviceOps
-        let device_ops = create_unified_device_ops();
-
-        // Start exposure and get raw data (blocks until complete, events published by UnifiedDeviceOps)
-        let seq_image = device_ops
-            .camera_start_exposure(
-                skotiq_sequencer::ExposureRequest::new(&device_id, duration_secs)
-                    // Already Option: None leaves the driver's current value
-                    // untouched instead of forcing it to 0.
-                    .gain(gain)
-                    .offset(offset)
-                    .binning(bin_x, bin_y)
-                    .subframe(subframe)
-                    .frame_type(frame_type.as_str()),
-            )
-            .await
-            .map_err(|e| classify_exposure_failure(&device_id, e))?;
-
-        // Everything from here to `store_captured_image_atomically` is pure CPU
-        // over the whole frame — debayer, stretch, statistics and star
-        // detection, which on a 24 MP sensor is seconds of work. Run it on a
-        // blocking thread: on the async runtime it starves the event bridge,
-        // the device heartbeats and the headless HTTP handlers for its whole
-        // duration.
-        let (display_result, raw_info) = tokio::task::spawn_blocking(move || {
-        // Convert SeqImageData to ImageData for processing
-        let image = ImageData::from_u16(seq_image.width, seq_image.height, 1, &seq_image.data);
-
-        // DIAGNOSTIC: Log raw data statistics to debug mid-gray image issue
-        {
-            let raw_data = &seq_image.data;
-            if !raw_data.is_empty() {
-                let min_val = raw_data.iter().min().copied().unwrap_or(0);
-                let max_val = raw_data.iter().max().copied().unwrap_or(0);
-                let sum: u64 = raw_data.iter().map(|&v| v as u64).sum();
-                let mean_val = sum / raw_data.len() as u64;
-                let unique_vals: std::collections::HashSet<_> =
-                    raw_data.iter().take(10000).collect();
-                tracing::info!(
-                    "[DIAGNOSTIC] Raw image data: size={}, min={}, max={}, mean={}, unique_sample_count={}",
-                    raw_data.len(), min_val, max_val, mean_val, unique_vals.len()
-                );
-                if max_val == min_val {
-                    tracing::error!("[DIAGNOSTIC] WARNING: All pixels have same value! Data appears uniform/invalid.");
-                } else if max_val < 100 {
-                    tracing::warn!("[DIAGNOSTIC] WARNING: Max value is very low ({}), image may be underexposed or data corrupted.", max_val);
-                } else if min_val > 60000 {
-                    tracing::warn!("[DIAGNOSTIC] WARNING: Min value is very high ({}), image may be saturated.", min_val);
-                }
-            } else {
-                tracing::error!("[DIAGNOSTIC] WARNING: Raw data is empty!");
-            }
-        }
-
-        // Automatic color detection from camera metadata
-        let is_color =
-            seq_image.sensor_type.as_deref() == Some("Color") && seq_image.bayer_offset.is_some();
-
-        // Determine Bayer pattern from offsets (if color)
-        let bayer_pattern = if is_color {
-            match seq_image.bayer_offset {
-                Some((0, 0)) => BayerPattern::RGGB, // RGGB
-                Some((1, 0)) => BayerPattern::GRBG, // GRBG
-                Some((0, 1)) => BayerPattern::GBRG, // GBRG
-                Some((1, 1)) => BayerPattern::BGGR, // BGGR
-                _ => BayerPattern::RGGB,            // Default
-            }
-        } else {
-            BayerPattern::RGGB // Doesn't matter for mono
-        };
-
-        let display_data_raw: Vec<u8>;
-
-        if is_color {
-            // Color debayering path
-            let algorithm = DebayerAlgorithm::Bilinear;
-
-            tracing::info!("Debayering color image with pattern {:?}", bayer_pattern);
-
-            // 2. Debayer to RGB16 (if color)
-            // Safe conversion from u8 buffer to u16 values
-            if image.data.len() % 2 != 0 {
-                return Err(SkotiqError::ImageError(
-                    "Odd byte count in image data — cannot convert to u16 pixels".to_string(),
-                ));
-            }
-            let u16_data: Vec<u16> = image
-                .data
-                .as_chunks::<2>().0.iter()
-                .map(|b| u16::from_ne_bytes([b[0], b[1]]))
-                .collect();
-
-            let mut rgb_data = skotiq_imaging::debayer_to_rgb16(
-                &u16_data,
-                seq_image.width,
-                seq_image.height,
-                bayer_pattern,
-                algorithm,
-            );
-
-            // 2.5. Apply Auto White Balance (Histogram Peak Alignment)
-            apply_auto_white_balance(&mut rgb_data);
-
-            // 3. Auto-stretch RGB through the same MAD-based PixInsight STF the
-            // mono path uses, so color captures get the noise-scaled curve too.
-            //
-            // Unlinked (PixInsight's default): per-channel independent STF
-            // maximizes per-channel contrast. The Dart-side
-            // `AutoStretchSettings.linkedChannels` flag re-links the channels
-            // once auto-stretch is explicitly enabled (see
-            // `auto_stretch_provider.dart`).
-            //
-            // Degenerate input: `auto_stretch_rgb_with_mode` returns
-            // `StretchParams::default()` (shadows=0, highlights=1, midtones=0.5 —
-            // the identity MTF) when a channel has MAD = 0 (constant data) or is
-            // empty, and `apply_stretch_rgb_per_channel` then emits an identity
-            // stretch for that channel rather than a black frame.
-            let (r_params, g_params, b_params) = skotiq_imaging::auto_stretch_rgb_with_mode(
-                &rgb_data,
-                seq_image.width,
-                seq_image.height,
-                skotiq_imaging::RgbStretchMode::Unlinked,
-            );
-
-            tracing::info!(
-                "[DIAGNOSTIC] RGB STF params (Unlinked): R(s={:.4}, h={:.4}, m={:.4}) \
-                G(s={:.4}, h={:.4}, m={:.4}) B(s={:.4}, h={:.4}, m={:.4})",
-                r_params.shadows,
-                r_params.highlights,
-                r_params.midtones,
-                g_params.shadows,
-                g_params.highlights,
-                g_params.midtones,
-                b_params.shadows,
-                b_params.highlights,
-                b_params.midtones,
-            );
-
-            // 4. Apply per-channel STF to convert RGB u16 -> RGB u8.
-            display_data_raw = skotiq_imaging::apply_stretch_rgb_per_channel(
-                &rgb_data,
-                seq_image.width,
-                seq_image.height,
-                &r_params,
-                &g_params,
-                &b_params,
-            );
-        } else {
-            // Grayscale: auto-stretch to u8
-            let stretch_params = skotiq_imaging::auto_stretch_stf(&image);
-            tracing::info!(
-                "[DIAGNOSTIC] Stretch params: shadows={:.6}, highlights={:.6}, midtones={:.6}",
-                stretch_params.shadows,
-                stretch_params.highlights,
-                stretch_params.midtones
-            );
-            display_data_raw = skotiq_imaging::apply_stretch(&image, &stretch_params);
-
-            // Check display data distribution.
-            //
-            // Gated, because this is a whole-frame scan run purely to build one
-            // log line.
-            if tracing::enabled!(tracing::Level::DEBUG) {
-                if let Some((display_min, display_max, display_mean)) =
-                    display_data_summary(&display_data_raw)
-                {
-                    tracing::debug!(
-                        "[DIAGNOSTIC] Display data after stretch: min={}, max={}, mean={}",
-                        display_min,
-                        display_max,
-                        display_mean,
-                    );
-                }
-            }
-        }
-
-        // Calculate statistics
-        let stats = skotiq_imaging::calculate_stats_u16(&image);
-        let stars = skotiq_imaging::detect_stars(
-            &image,
-            &skotiq_imaging::StarDetectionConfig::default(),
-        );
-        let frame_stats = frame_stats_result(&stats, &stars);
-        tracing::info!(
-            "Star detection: {} stars found, median HFR: {:?}, median ecc: {:?}",
-            frame_stats.star_count,
-            frame_stats.hfr,
-            frame_stats.eccentricity
-        );
-
-        // Calculate histogram from pre-RGBA display data (256 bins for u8 pixel values)
-        let mut histogram = vec![0u32; 256];
-        for &pixel in &display_data_raw {
-            histogram[pixel as usize] += 1;
-        }
-
-        // Convert to RGBA for Flutter rendering (parallel, fast in Rust)
-        let display_data = display_data_to_rgba(&display_data_raw, is_color);
-
-        // Store all image data atomically to prevent race conditions
-        // This ensures the UI never sees inconsistent state between raw and display data
-        let display_result = CapturedImageResult {
-            width: seq_image.width,
-            height: seq_image.height,
-            display_data,
-            histogram,
-            stats: frame_stats,
-            exposure_time: duration_secs,
-            timestamp: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
-            is_color,
-        };
-
-        // `seq_image.data` is not read again, so the frame moves out instead of
-        // being copied — one w*h*2-byte allocation and memcpy less per light
-        // frame (48 MB on a 24 MP sensor).
-        let raw_info = RawImageInfo {
-            width: seq_image.width,
-            height: seq_image.height,
-            data: seq_image.data,
-            sensor_type: seq_image.sensor_type,
-            bayer_offset: seq_image.bayer_offset,
-        };
-
-            Ok::<_, SkotiqError>((display_result, raw_info))
-        })
+    create_unified_device_ops()
+        .camera_start_exposure(
+            skotiq_sequencer::ExposureRequest::new(&device_id, duration_secs)
+                // None leaves the driver's current value untouched.
+                .gain(gain)
+                .offset(offset)
+                .binning(bin_x, bin_y)
+                .subframe(subframe)
+                .frame_type(frame_type.as_str()),
+        )
         .await
-        .map_err(|e| {
-            SkotiqError::OperationFailed(format!("Image analysis task failed: {}", e))
-        })??;
-
-        let star_count = display_result.stats.star_count;
-        store_captured_image_atomically(&device_id, display_result, raw_info).await;
-
-        // Note: ExposureComplete event is published by UnifiedDeviceOps
-        tracing::info!(
-            "Real camera exposure complete, {} stars detected",
-            star_count
-        );
-        Ok(())
-    }
-}
-
-/// Get the last captured image for a specific device (display-ready format)
-/// Reads from per-device atomic storage to ensure consistency with raw data
-pub async fn api_get_last_image(device_id: String) -> Result<CapturedImageResult, SkotiqError> {
-    // Log at debug: dashboards/companions POLL this every few seconds for a
-    // preview, so INFO-per-call was the single largest source of log volume, and
-    // "no image yet" is a NORMAL pre-capture state that the typed
-    // `NoImageAvailable` error already reports to the caller — a WARN for it
-    // flooded the log with non-problems (130 in one session).
-    tracing::debug!("API: api_get_last_image called for device: {}", device_id);
-    let mut storage = get_unified_image_storage().lock().await;
-    match storage.get(&device_id) {
-        Some(data) => {
-            tracing::debug!(
-                "API: Returning stored image {}x{}, display_data size: {} bytes",
-                data.display.width,
-                data.display.height,
-                data.display.display_data.len()
-            );
-            Ok(data.display.clone())
-        }
-        None => {
-            tracing::debug!("API: No image available for device: {}", device_id);
-            Err(SkotiqError::NoImageAvailable)
-        }
-    }
-}
-
-/// Get the last captured raw image data (u16) for a specific device
-/// This is used for saving FITS files with original bit depth
-/// Reads from per-device atomic storage to ensure consistency with display data
-pub async fn api_get_last_raw_image_data(device_id: String) -> Result<Vec<u16>, SkotiqError> {
-    let mut storage = get_unified_image_storage().lock().await;
-    storage
-        .get(&device_id)
-        .map(|data| data.raw_info.data.clone())
-        .ok_or(SkotiqError::NoImageAvailable)
-}
-
-/// Get the last captured raw image info with full metadata for a specific device
-/// This is used by the sequencer for HFR calculation, plate solving, and other analysis
-/// that requires original 16-bit sensor data (not display-stretched 8-bit data)
-/// Reads from per-device atomic storage to ensure consistency with display data
-#[flutter_rust_bridge::frb(ignore)]
-pub async fn get_last_raw_image_info(device_id: &str) -> Result<Option<RawImageInfo>, SkotiqError> {
-    let mut storage = get_unified_image_storage().lock().await;
-    Ok(storage.get(device_id).map(|data| data.raw_info.clone()))
-}
-
-/// Clear stored image data for a specific device
-/// This is used to free memory when a camera is disconnected or when explicitly requested
-pub async fn api_clear_device_image(device_id: String) -> Result<(), SkotiqError> {
-    tracing::info!("API: Clearing stored image for device: {}", device_id);
-    let mut storage = get_unified_image_storage().lock().await;
-    storage.pop(&device_id);
+        .map_err(|e| classify_exposure_failure(&device_id, e))?;
     Ok(())
 }
 
-/// Cancel current exposure
+/// The device's last captured frame, display-ready.
+pub async fn api_get_last_image(device_id: String) -> Result<CapturedImageResult, SkotiqError> {
+    // Debug, not info: dashboards and companions poll this every few seconds,
+    // and "no image yet" is a normal state the typed error already reports.
+    tracing::debug!("API: api_get_last_image called for device: {}", device_id);
+    crate::last_frame::display(&device_id)
+        .await
+        .ok_or(SkotiqError::NoImageAvailable)
+}
+
+/// The device's last captured frame as the camera delivered it (u16).
+pub async fn api_get_last_raw_image_data(device_id: String) -> Result<Vec<u16>, SkotiqError> {
+    crate::last_frame::raw(&device_id)
+        .await
+        .map(|frame| frame.data)
+        .ok_or(SkotiqError::NoImageAvailable)
+}
+
+/// Free the device's stored frame (camera disconnected or on request).
+pub async fn api_clear_device_image(device_id: String) -> Result<(), SkotiqError> {
+    tracing::info!("API: Clearing stored image for device: {}", device_id);
+    crate::last_frame::clear(&device_id).await;
+    Ok(())
+}
+
+/// Cancel current exposure.
+///
+/// The abort generation moves first: it is what stops the exposure waiting
+/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
+/// the stop, which must not be downloaded as a frame.
 pub async fn api_camera_cancel_exposure(device_id: String) -> Result<(), SkotiqError> {
-    if device_id.starts_with("sim_") {
-        // Invalidating the acquisition is what actually stops the simulated
-        // exposure: setting the state to Idle alone left the exposure future
-        // sleeping to full duration, so a 30 s light aborted at 24 s still
-        // "completed" 7 s later. The in-flight exposure sees the new generation
-        // and takes `sim_exposure_cancelled`, which parks the sensor.
-        crate::unified_device_ops::mark_camera_exposure_aborted(&device_id).await;
-        tracing::info!("Exposure cancelled");
-        Ok(())
-    } else {
-        // Route real devices through DeviceManager
-        crate::unified_device_ops::mark_camera_exposure_aborted(&device_id).await;
-        let mgr = get_device_manager();
-        mgr.camera_abort_exposure(&device_id)
-            .await
-            .map_err(SkotiqError::from)
-    }
+    crate::unified_device_ops::mark_camera_exposure_aborted(&device_id).await;
+    get_device_manager()
+        .camera_abort_exposure(&device_id)
+        .await
+        .map_err(SkotiqError::from)
 }
 
 // Real FITS file operations
@@ -1618,18 +970,7 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
     // Calculate statistics
     let stats = skotiq_imaging::calculate_stats_u16(&image_data);
 
-    // Auto stretch for display
-    let stretch_params = skotiq_imaging::auto_stretch_stf(&image_data);
-    let display_data_raw = skotiq_imaging::apply_stretch(&image_data, &stretch_params);
-
-    // Calculate histogram from pre-RGBA data
-    let mut histogram = vec![0u32; 256];
-    for &pixel in &display_data_raw {
-        histogram[pixel as usize] += 1;
-    }
-
-    // Convert grayscale to RGBA for Flutter rendering
-    let display_data = display_data_to_rgba(&display_data_raw, false);
+    let display = crate::frame_display::mono(&image_data);
 
     tracing::info!(
         "FITS file loaded: {}x{}, {} pixels",
@@ -1642,8 +983,8 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
         width: image_data.width,
         height: image_data.height,
         bitpix,
-        display_data,
-        histogram,
+        display_data: display.rgba,
+        histogram: display.histogram,
         stats: ImageStatsResult {
             min: stats.min,
             max: stats.max,
@@ -1725,8 +1066,8 @@ pub async fn api_compute_last_capture_quality_maps(
     high_clip_adu: u32,
 ) -> Result<QualityMapsResultApi, SkotiqError> {
     let started = Instant::now();
-    let raw_info = get_last_raw_image_info(&device_id)
-        .await?
+    let raw_info = crate::last_frame::raw(&device_id)
+        .await
         .ok_or(SkotiqError::NoImageAvailable)?;
 
     // Why: raw_info.width/height are u32; widening to usize via `as` is value-preserving
@@ -1967,19 +1308,10 @@ pub async fn api_get_star_crops_from_last_image(
         max_crops
     );
 
-    // Get the last raw image for this device
-    let mut storage = get_unified_image_storage().lock().await;
-    let image_data = storage
-        .get(&device_id)
+    let raw = crate::last_frame::raw(&device_id)
+        .await
         .ok_or(SkotiqError::NoImageAvailable)?;
-
-    // Convert to imaging format
-    let img = skotiq_imaging::ImageData::from_u16(
-        image_data.raw_info.width,
-        image_data.raw_info.height,
-        1,
-        &image_data.raw_info.data,
-    );
+    let img = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
 
     // Detect stars
     let config = skotiq_imaging::StarDetectionConfig::default();
@@ -2053,9 +1385,8 @@ pub async fn api_apply_stretch(
         midtones: params.midtones,
     };
 
-    let display_data_raw = skotiq_imaging::apply_stretch(&image_data, &stretch_params);
-    // Convert grayscale to RGBA for Flutter rendering
-    Ok(display_data_to_rgba(&display_data_raw, false))
+    let gray = skotiq_imaging::apply_stretch(&image_data, &stretch_params);
+    Ok(crate::frame_display::gray_to_rgba(&gray))
 }
 
 // XISF file support
@@ -2092,18 +1423,7 @@ pub async fn api_read_xisf_file(file_path: String) -> Result<XisfReadResult, Sko
     // Calculate statistics
     let stats = skotiq_imaging::calculate_stats_u16(&image_data);
 
-    // Auto stretch for display
-    let stretch_params = skotiq_imaging::auto_stretch_stf(&image_data);
-    let display_data_raw = skotiq_imaging::apply_stretch(&image_data, &stretch_params);
-
-    // Calculate histogram from pre-RGBA data
-    let mut histogram = vec![0u32; 256];
-    for &pixel in &display_data_raw {
-        histogram[pixel as usize] += 1;
-    }
-
-    // Convert grayscale to RGBA for Flutter rendering
-    let display_data = display_data_to_rgba(&display_data_raw, false);
+    let display = crate::frame_display::mono(&image_data);
 
     // Convert properties to strings
     let properties: Vec<(String, String)> = metadata
@@ -2129,8 +1449,8 @@ pub async fn api_read_xisf_file(file_path: String) -> Result<XisfReadResult, Sko
         width: image_data.width,
         height: image_data.height,
         channels: image_data.channels,
-        display_data,
-        histogram,
+        display_data: display.rgba,
+        histogram: display.histogram,
         stats: ImageStatsResult {
             min: stats.min,
             max: stats.max,
@@ -2398,63 +1718,28 @@ pub async fn api_save_fits_from_last_capture(
         file_path
     );
 
-    let (width, height, data) = {
-        let mut storage = get_unified_image_storage().lock().await;
-        let captured_data = storage.get(&device_id).ok_or_else(|| {
-            SkotiqError::OperationFailed(format!(
-                "No captured image available for device {}. Please capture an image first.",
-                device_id
-            ))
-        })?;
-        (
-            captured_data.raw_info.width,
-            captured_data.raw_info.height,
-            captured_data.raw_info.data.clone(),
-        )
+    let frame = crate::last_frame::raw(&device_id).await.ok_or_else(|| {
+        SkotiqError::OperationFailed(format!(
+            "No captured image available for device {}. Please capture an image first.",
+            device_id
+        ))
+    })?;
+    let header = crate::frame_header::FrameHeader {
+        bayer_pattern: frame.bayer_pattern.map(crate::frame_header::bayerpat),
+        ..header_data.into()
     };
-
-    crate::frame_header::write_frame_fits(file_path, width, height, data, header_data.into())
+    crate::frame_header::write_frame_fits(file_path, frame.width, frame.height, frame.data, header)
         .await?;
     tracing::info!("FITS file saved successfully from last capture");
     Ok(())
 }
 
-/// `(min, max, mean)` of a stretched display buffer in ONE pass.
-///
-/// `None` for an empty buffer — the caller logs nothing rather than dividing
-/// by a zero pixel count.
-fn display_data_summary(display_data: &[u8]) -> Option<(u8, u8, u64)> {
-    if display_data.is_empty() {
-        return None;
-    }
-    let (min, max, sum) = display_data
-        .iter()
-        .fold((u8::MAX, u8::MIN, 0u64), |(min, max, sum), &v| {
-            (min.min(v), max.max(v), sum + v as u64)
-        });
-    Some((min, max, sum / display_data.len() as u64))
-}
 
 // Image processing
 
 /// Auto-stretch image for display. Returns RGBA (4 bytes per pixel, alpha=255).
 fn auto_stretch_image(width: u32, height: u32, data: Vec<u16>) -> Vec<u8> {
-    let image = ImageData::from_u16(width, height, 1, &data);
-    let params = skotiq_imaging::auto_stretch_stf(&image);
-    let grayscale = skotiq_imaging::apply_stretch(&image, &params);
-
-    // Convert grayscale to RGBA
-    let num_pixels = grayscale.len();
-    let mut rgba = vec![0u8; num_pixels * 4];
-    rgba.par_chunks_exact_mut(4)
-        .zip(grayscale.par_iter())
-        .for_each(|(dst, &gray)| {
-            dst[0] = gray; // R
-            dst[1] = gray; // G
-            dst[2] = gray; // B
-            dst[3] = 255; // A
-        });
-    rgba
+    crate::frame_display::mono(&ImageData::from_u16(width, height, 1, &data)).rgba
 }
 
 /// Auto-stretch an interleaved RGB16 image for display, returning RGBA
@@ -2769,71 +2054,6 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
     Ok(jpeg_data)
 }
 
-/// Apply Auto White Balance using Histogram Peak Alignment
-/// This aligns the background sky peak of R and B channels to the G channel
-pub(crate) fn apply_auto_white_balance(image: &mut [u16]) {
-    if image.len() % 3 != 0 {
-        return;
-    }
-
-    let mut hist_r = vec![0u32; 65536];
-    let mut hist_g = vec![0u32; 65536];
-    let mut hist_b = vec![0u32; 65536];
-
-    // 1. Compute histograms
-    for chunk in image.chunks(3) {
-        hist_r[chunk[0] as usize] += 1;
-        hist_g[chunk[1] as usize] += 1;
-        hist_b[chunk[2] as usize] += 1;
-    }
-
-    // 2. Find peaks (modes), ignoring bottom 1% to avoid clipping noise
-    // A simple mode might be noisy, so let's find the max bin
-    // We start searching from a small offset to avoid black clipping
-    let start_idx = 100; // arbitrary small offset
-
-    let get_peak = |hist: &[u32]| -> u16 {
-        let mut max_count = 0;
-        let mut peak_idx = 0;
-        for (i, &count) in hist.iter().enumerate().skip(start_idx) {
-            if count > max_count {
-                max_count = count;
-                peak_idx = i;
-            }
-        }
-        peak_idx as u16
-    };
-
-    let peak_r = get_peak(&hist_r);
-    let peak_g = get_peak(&hist_g);
-    let peak_b = get_peak(&hist_b);
-
-    tracing::info!("AWB Peaks: R={}, G={}, B={}", peak_r, peak_g, peak_b);
-
-    if peak_r == 0 || peak_g == 0 || peak_b == 0 {
-        tracing::warn!("AWB failed: peak is 0");
-        return;
-    }
-
-    // 3. Calculate scaling factors to align to Green
-    let target = peak_g as f32;
-    let scale_r = target / peak_r as f32;
-    let scale_b = target / peak_b as f32;
-
-    tracing::info!("AWB Scales: R={:.3}, B={:.3}", scale_r, scale_b);
-
-    // 4. Apply scaling
-    // Use parallel iterator for speed if possible, but slice is mutable
-    // Rayon's par_chunks_mut is perfect
-    use rayon::prelude::*;
-    image.par_chunks_mut(3).for_each(|pixel| {
-        // R
-        pixel[0] = (pixel[0] as f32 * scale_r).min(65535.0) as u16;
-        // G (unchanged)
-        // B
-        pixel[2] = (pixel[2] as f32 * scale_b).min(65535.0) as u16;
-    });
-}
 
 // Image calibration
 
@@ -3580,8 +2800,6 @@ pub async fn api_defect_map_get_status(
     }))
 }
 
-#[cfg(test)]
-mod unified_image_storage_tests;
 
 // Image grading: round-trip test for the rich-header save path.
 
@@ -3595,14 +2813,10 @@ mod sim_exposure_tests;
 #[cfg(test)]
 mod auto_stretch_color_tests;
 
-#[cfg(test)]
-mod display_diagnostic_tests;
 
 #[cfg(test)]
 mod calibrate_header_carry_over_tests;
 
-#[cfg(test)]
-mod frame_stats_tests;
 
 #[cfg(test)]
 mod fits_thumbnail_tests;

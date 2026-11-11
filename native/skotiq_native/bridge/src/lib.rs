@@ -67,8 +67,10 @@ mod dispatch;
 mod error;
 mod event;
 mod filter_matching;
+mod frame_display;
 mod frame_header;
 mod hotplug;
+mod last_frame;
 /// THE simulated-capture entry point: the one place a simulated frame is
 /// produced, shared by the sequencer download and the Imaging screen's manual
 /// capture so both see the same sky.

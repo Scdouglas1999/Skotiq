@@ -1,14 +1,15 @@
 //! The exact header cards a saved frame carries, card by card.
 //!
-//! The sequence goldens pin what every sequenced frame on disk already looks
-//! like (key, value text, order), so a change to the header builder that moves
-//! one byte of a sequence frame fails here. The rig test reproduces a real
+//! The sequence goldens pin what every sequenced frame on disk looks like (key,
+//! value text, order), so a change to the header builder that moves one byte
+//! of a sequence frame fails here. The manual goldens pin what an Imaging
+//! screen capture carries. The rig test reproduces a real
 //! header from the owner's rig (run `refactor1`, 2026-11-11, frame
 //! `untangle baseline field_L_0012.fits`): all 45 keys, in order, with the
 //! value text the app's header reader returned for it.
 
 use skotiq_sequencer::scheduling::{DefectMapCorrectionRecord, FrameContext};
-use skotiq_sequencer::{FrameStoreOps, ImageData as SeqImageData, MosaicPanelInfo};
+use skotiq_sequencer::{ImageData as SeqImageData, MosaicPanelInfo};
 
 struct Scratch(std::path::PathBuf);
 
@@ -231,6 +232,43 @@ async fn a_manual_frame_writes_these_cards() {
     assert_cards(&path, MANUAL_FULL);
 }
 
+/// A manual capture saved from the store also records the sensor's colour
+/// filter, which only the camera knows.
+#[tokio::test]
+async fn a_manual_color_frame_saved_from_the_store_names_its_bayer_pattern() {
+    let device_id = "golden_last_capture_color";
+    crate::last_frame::store(
+        device_id,
+        crate::last_frame::RawFrame {
+            width: 8,
+            height: 8,
+            data: vec![1000; 64],
+            bayer_pattern: Some(skotiq_device::BayerPattern::Gbrg),
+        },
+        60.0,
+    )
+    .await
+    .expect("store frame");
+    let scratch = Scratch::new("manual_color");
+    let path = scratch.file("frame.fits");
+    let saved = crate::api::api_save_fits_from_last_capture(
+        device_id.to_string(),
+        path.clone(),
+        full_manual_header(),
+    )
+    .await;
+    crate::last_frame::clear(device_id).await;
+    saved.expect("save from last capture");
+
+    let mut expected = MANUAL_FULL.to_vec();
+    let after = expected
+        .iter()
+        .position(|card| card.starts_with("YPIXSZ"))
+        .unwrap();
+    expected.insert(after + 1, "BAYERPAT= 'GBRG    '");
+    assert_cards(&path, &expected);
+}
+
 /// The values of the rig frame, as `F-sequence.json` recorded them.
 const RIG_HEADER: &[(&str, &str)] = &[
     ("SIMPLE", "T"),
@@ -445,6 +483,8 @@ const MANUAL_FULL: &[&str] = &[
     "BSCALE  =                    1",
     "EXPTIME =                 60.0",
     "DATE-OBS= '2026-03-14T03:21:09.250Z'",
+    "DATE-END= '2026-03-14T03:22:09.250'",
+    "MJD-OBS =       6.1113139690E4",
     "IMAGETYP= 'Light   '",
     "OBJECT  = 'M31     '",
     "FILTER  = 'Ha      '",

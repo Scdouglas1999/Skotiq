@@ -556,6 +556,17 @@ impl From<FitsWriteHeader> for FrameHeader {
     }
 }
 
+/// The `BAYERPAT` spelling of a sensor's colour filter pattern.
+pub(crate) fn bayerpat(pattern: skotiq_device::BayerPattern) -> String {
+    match pattern {
+        skotiq_device::BayerPattern::Rggb => "RGGB",
+        skotiq_device::BayerPattern::Grbg => "GRBG",
+        skotiq_device::BayerPattern::Gbrg => "GBRG",
+        skotiq_device::BayerPattern::Bggr => "BGGR",
+    }
+    .to_string()
+}
+
 /// Write a 16-bit mono frame and its header to `file_path`, creating the
 /// directory. A frame that fails validation is still written: the warnings
 /// are logged, the exposure is kept.
