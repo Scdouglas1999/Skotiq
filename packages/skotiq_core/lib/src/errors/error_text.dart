@@ -20,6 +20,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart' show PlatformException;
+import 'package:http/http.dart' as http;
 
 import '../backend/bridge_error_message.dart';
 import '../backend/skotiq_exception.dart' as backend;
@@ -125,6 +126,18 @@ String? _typedMessage(Object error) {
     return message is String ? message : null;
   }
   if (error is PlatformException) return error.message ?? error.code;
+  // A refused or unreachable request: the socket's own port is this side's
+  // ephemeral one, so the host is named by the address that was asked for.
+  if (error is http.ClientException && error is SocketException) {
+    final uri = error.uri;
+    final where = uri == null
+        ? ''
+        : uri.hasPort
+        ? ' ${uri.host}:${uri.port}'
+        : ' ${uri.host}';
+    final why = (error as SocketException).osError?.message;
+    return 'Could not reach$where${why == null || why.isEmpty ? '' : ' ($why)'}';
+  }
   if (error is SocketException) {
     final host = error.address?.host;
     final port = error.port;

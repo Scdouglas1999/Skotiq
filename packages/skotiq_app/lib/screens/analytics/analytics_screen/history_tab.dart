@@ -209,7 +209,7 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
                     alignment: Alignment.topCenter,
                     child: _AnalyticsError(
                       title: 'Session history did not load',
-                      message: err.toString(),
+                      error: err,
                       onRetry: () => ref.invalidate(allSessionsProvider),
                     ),
                   ),

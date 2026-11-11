@@ -421,7 +421,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
               if (framesError != null)
                 _AnalyticsError(
                   title: 'Frames did not load',
-                  message: framesError.toString(),
+                  error: framesError,
                   onRetry: retryImages,
                 )
               else ...[
@@ -565,15 +565,15 @@ class _AnalyticsLoading extends StatelessWidget {
 class _AnalyticsError extends StatelessWidget {
   const _AnalyticsError({
     required this.title,
-    this.message,
+    required this.error,
     this.onRetry,
   });
 
   /// What failed, in one short sentence.
   final String title;
 
-  /// The detail — usually the exception's message.
-  final String? message;
+  /// Why, shown as the person-readable sentence of the error.
+  final Object error;
 
   /// Retry handler; the banner's single action.
   final VoidCallback? onRetry;
@@ -582,7 +582,7 @@ class _AnalyticsError extends StatelessWidget {
   Widget build(BuildContext context) {
     return SkotiqBanner(
       title: title,
-      message: message,
+      message: userFacingError(error),
       tone: BannerTone.error,
       action: onRetry == null
           ? null
